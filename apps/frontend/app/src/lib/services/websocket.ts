@@ -555,19 +555,19 @@ export interface CiBuildCompleteEvent {
   artifactCount: number;
 }
 
-export interface CiPipelineStartEvent {
+export interface CiBuildRunStartEvent {
   runId: string;
   status: string;
 }
 
-export interface CiPipelineStageUpdateEvent {
+export interface CiBuildRunStageUpdateEvent {
   runId: string;
   stage: string;
   status: string;
   detail: string | null;
 }
 
-export interface CiPipelineCompleteEvent {
+export interface CiBuildRunCompleteEvent {
   runId: string;
   status: string;
   durationSeconds: number | null;
@@ -617,12 +617,12 @@ export function subscribeCiBuild(
 /**
  * Subscribe to real-time CI build run events (stage transitions, completion).
  */
-export function subscribeCiPipeline(
+export function subscribeCiBuildRun(
   runId: string,
   callbacks: {
-    onStart?: (data: CiPipelineStartEvent) => void;
-    onStageUpdate?: (data: CiPipelineStageUpdateEvent) => void;
-    onComplete?: (data: CiPipelineCompleteEvent) => void;
+    onStart?: (data: CiBuildRunStartEvent) => void;
+    onStageUpdate?: (data: CiBuildRunStageUpdateEvent) => void;
+    onComplete?: (data: CiBuildRunCompleteEvent) => void;
   },
   onError?: (message: string) => void
 ): () => void {
@@ -632,26 +632,26 @@ export function subscribeCiPipeline(
     return () => {};
   }
 
-  const startHandler = (data: CiPipelineStartEvent) => {
+  const startHandler = (data: CiBuildRunStartEvent) => {
     if (data.runId === runId) callbacks.onStart?.(data);
   };
 
-  const stageHandler = (data: CiPipelineStageUpdateEvent) => {
+  const stageHandler = (data: CiBuildRunStageUpdateEvent) => {
     if (data.runId === runId) callbacks.onStageUpdate?.(data);
   };
 
-  const completeHandler = (data: CiPipelineCompleteEvent) => {
+  const completeHandler = (data: CiBuildRunCompleteEvent) => {
     if (data.runId === runId) callbacks.onComplete?.(data);
   };
 
-  socket.on('ci_pipeline_start', startHandler);
-  socket.on('ci_pipeline_stage_update', stageHandler);
-  socket.on('ci_pipeline_complete', completeHandler);
+  socket.on('ci_build_run_start', startHandler);
+  socket.on('ci_build_run_stage_update', stageHandler);
+  socket.on('ci_build_run_complete', completeHandler);
 
   return () => {
-    socket.off('ci_pipeline_start', startHandler);
-    socket.off('ci_pipeline_stage_update', stageHandler);
-    socket.off('ci_pipeline_complete', completeHandler);
+    socket.off('ci_build_run_start', startHandler);
+    socket.off('ci_build_run_stage_update', stageHandler);
+    socket.off('ci_build_run_complete', completeHandler);
   };
 }
 

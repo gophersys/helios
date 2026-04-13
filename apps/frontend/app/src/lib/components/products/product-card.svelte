@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Package, Trash2, ExternalLink, GitBranch, FlaskConical, Cpu } from 'lucide-svelte';
+  import { Package, Trash2, ExternalLink, GitBranch } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { Product } from '$lib/types/models';
 
@@ -12,14 +12,7 @@
 
   let { product, canManage, onDelete, onSelect }: Props = $props();
 
-  const stageLabels = ['SM', 'DR', 'IN', 'RG', 'FU'];
-  const stageColors: Record<number, string> = {
-    1: 'bg-accent', 2: 'bg-info', 3: 'bg-warning', 4: 'bg-accent', 5: 'bg-error',
-  };
-
   const revisions = $derived((product as any).revisions || []);
-  const stages = $derived((product as any).stageConfigs || []);
-  const enabledStages = $derived((product as any).enabledStageCount || 0);
 </script>
 
 <div
@@ -84,27 +77,6 @@
       </div>
     {/if}
 
-    <!-- Validation stages -->
-    <div class="flex items-center gap-2">
-      <FlaskConical size={12} class="text-text-tertiary shrink-0" />
-      {#if stages.length > 0}
-        <div class="flex gap-1">
-          {#each [1, 2, 3, 4, 5] as stageNum}
-            {@const cfg = stages.find((s: any) => s.stage === stageNum)}
-            <span
-              class="w-6 h-5 flex items-center justify-center rounded text-2xs font-bold
-                {cfg?.enabled ? stageColors[stageNum] + ' text-white' : 'bg-surface-2 text-text-tertiary'}"
-              title="{cfg?.name || stageLabels[stageNum-1]}: {cfg?.enabled ? 'Enabled' : 'Disabled'}"
-            >
-              {stageLabels[stageNum - 1]}
-            </span>
-          {/each}
-        </div>
-        <span class="text-2xs text-text-tertiary">{enabledStages}/5</span>
-      {:else}
-        <span class="text-2xs text-text-tertiary">No stages configured</span>
-      {/if}
-    </div>
 
     <!-- Stats row -->
     <div class="flex gap-4 text-2xs text-text-tertiary border-t border-border-subtle pt-2">

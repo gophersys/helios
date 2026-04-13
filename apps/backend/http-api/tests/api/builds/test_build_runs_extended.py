@@ -1,4 +1,4 @@
-"""Extended tests for build_runs.py — validate, filter, and pipeline-specific paths."""
+"""Extended tests for build_runs.py — validate, filter, and build-run-specific paths."""
 from __future__ import annotations
 
 import json
@@ -18,7 +18,7 @@ def _now():
     return datetime(2026, 3, 10, 12, 0, 0, tzinfo=timezone.utc)
 
 
-def _pipeline_obj(**overrides):
+def _build_run_obj(**overrides):
     defaults = dict(
         id="pipe-001",
         name="alpha-main-abc1234",
@@ -87,7 +87,7 @@ class TestListBuildRunsFilters:
     def test_list_with_product_id_filter(self, authed_client, mock_db):
         """productId filter is passed directly to the where clause."""
         mock_db.buildrun.count.return_value = 1
-        mock_db.buildrun.find_many.return_value = [_pipeline_obj()]
+        mock_db.buildrun.find_many.return_value = [_build_run_obj()]
 
         response = authed_client.get("/v2/builds/runs?productId=prod-alpha")
 
@@ -98,7 +98,7 @@ class TestListBuildRunsFilters:
     def test_list_with_stage_filter(self, authed_client, mock_db):
         """stage filter is passed to where clause."""
         mock_db.buildrun.count.return_value = 1
-        mock_db.buildrun.find_many.return_value = [_pipeline_obj()]
+        mock_db.buildrun.find_many.return_value = [_build_run_obj()]
 
         response = authed_client.get("/v2/builds/runs?stage=4")
 
@@ -109,7 +109,7 @@ class TestListBuildRunsFilters:
     def test_list_with_pr_number_filter(self, authed_client, mock_db):
         """prNumber filter is passed to where clause."""
         mock_db.buildrun.count.return_value = 1
-        mock_db.buildrun.find_many.return_value = [_pipeline_obj()]
+        mock_db.buildrun.find_many.return_value = [_build_run_obj()]
 
         response = authed_client.get("/v2/builds/runs?prNumber=42")
 
@@ -120,7 +120,7 @@ class TestListBuildRunsFilters:
     def test_list_with_trigger_type_filter(self, authed_client, mock_db):
         """triggerType filter is applied to where clause."""
         mock_db.buildrun.count.return_value = 1
-        mock_db.buildrun.find_many.return_value = [_pipeline_obj()]
+        mock_db.buildrun.find_many.return_value = [_build_run_obj()]
 
         response = authed_client.get("/v2/builds/runs?triggerType=poller")
 
@@ -157,16 +157,16 @@ class TestListBuildRunsFilters:
 
 
 # ---------------------------------------------------------------------------
-# GET /v2/builds/runs/<id> — Pipeline detail additional paths
+# GET /v2/builds/runs/<id> — Build run detail additional paths
 # ---------------------------------------------------------------------------
 
 class TestGetBuildRunDetail:
     """Additional tests for GET /v2/builds/runs/<id>."""
 
-    def test_get_pipeline_with_product_obj(self, authed_client, mock_db):
-        """Pipeline with embedded product object is serialized correctly."""
+    def test_get_build_run_with_product_obj(self, authed_client, mock_db):
+        """Build run with embedded product object is serialized correctly."""
         product = make_obj(id="prod-alpha", name="Alpha B0", slug="alpha_b0")
-        pipe = _pipeline_obj(id="pipe-prod")
+        pipe = _build_run_obj(id="pipe-prod")
         pipe.product = product
         mock_db.buildrun.find_unique.return_value = pipe
 
@@ -176,15 +176,15 @@ class TestGetBuildRunDetail:
 
 
 # ---------------------------------------------------------------------------
-# POST /v2/builds/runs/<id>/validate — Validate pipeline
+# POST /v2/builds/runs/<id>/validate — Validate build run
 # ---------------------------------------------------------------------------
 
 class TestValidateBuildRun:
     """Tests for POST /v2/builds/runs/<id>/validate."""
 
-    def test_validate_pipeline_success(self, authed_client, mock_db):
+    def test_validate_build_run_success(self, authed_client, mock_db):
         """POST validate returns 200 with validationRunId when builds succeed."""
-        pipe = _pipeline_obj(
+        pipe = _build_run_obj(
             id="pipe-val",
             status="SUCCESS",
             builds=[_build_summary(status="SUCCESS")],
@@ -193,7 +193,7 @@ class TestValidateBuildRun:
         mock_db.buildrun.find_unique.return_value = pipe
 
         with patch(
-            "api.v2.builds.build_runs.trigger_pipeline_validation",
+            "api.v2.builds.build_runs.trigger_build_run_validation",
             return_value={"sessionId": "val-run-1", "queued": False},
         ):
             with patch("api.v2.builds.build_runs.log_audit"):
@@ -204,17 +204,17 @@ class TestValidateBuildRun:
         assert body["data"]["validationRunId"] == "val-run-1"
         assert body["data"]["status"] == "VALIDATING"
 
-    def test_validate_pipeline_not_found(self, authed_client, mock_db):
-        """POST validate returns 404 for nonexistent pipeline."""
+    def test_validate_build_run_not_found(self, authed_client, mock_db):
+        """POST validate returns 404 for nonexistent build run."""
         mock_db.buildrun.find_unique.return_value = None
 
         response = authed_client.post("/v2/builds/runs/nonexistent/validate")
 
         assert response.status_code == 404
 
-    def test_validate_pipeline_wrong_status_returns_400(self, authed_client, mock_db):
-        """POST validate returns 400 when pipeline is still BUILDING."""
-        pipe = _pipeline_obj(id="pipe-bld", status="BUILDING")
+    def test_validate_build_run_wrong_status_returns_400(self, authed_client, mock_db):
+        """POST validate returns 400 when build run is still BUILDING."""
+        pipe = _build_run_obj(id="pipe-bld", status="BUILDING")
         mock_db.buildrun.find_unique.return_value = pipe
 
         response = authed_client.post("/v2/builds/runs/pipe-bld/validate")
@@ -223,9 +223,9 @@ class TestValidateBuildRun:
         body = json.loads(response.data)
         assert "BUILDING" in body["errors"][0]["message"]
 
-    def test_validate_pipeline_no_succeeded_builds_returns_400(self, authed_client, mock_db):
+    def test_validate_build_run_no_succeeded_builds_returns_400(self, authed_client, mock_db):
         """POST validate returns 400 when all builds failed."""
-        pipe = _pipeline_obj(
+        pipe = _build_run_obj(
             id="pipe-fail",
             status="FAILED",
             builds=[_build_summary(status="FAILED")],
@@ -238,10 +238,10 @@ class TestValidateBuildRun:
         body = json.loads(response.data)
         assert "successful" in body["errors"][0]["message"].lower()
 
-    def test_validate_pipeline_queued_when_prior_active(self, authed_client, mock_db):
+    def test_validate_build_run_queued_when_prior_active(self, authed_client, mock_db):
         """POST validate queues validation when prior run is still ACTIVE."""
         prior_run = make_obj(id="val-old", status="ACTIVE", fixtureId=None)
-        pipe = _pipeline_obj(
+        pipe = _build_run_obj(
             id="pipe-active",
             status="SUCCESS",
             builds=[_build_summary(status="SUCCESS")],
@@ -260,9 +260,9 @@ class TestValidateBuildRun:
         body = json.loads(response.data)
         assert body["data"]["queued"] is True
 
-    def test_validate_pipeline_queued_by_service(self, authed_client, mock_db):
-        """POST validate returns 202 when trigger_pipeline_validation returns queued=True."""
-        pipe = _pipeline_obj(
+    def test_validate_build_run_queued_by_service(self, authed_client, mock_db):
+        """POST validate returns 202 when trigger_build_run_validation returns queued=True."""
+        pipe = _build_run_obj(
             id="pipe-q",
             status="SUCCESS",
             builds=[_build_summary(status="SUCCESS")],
@@ -271,7 +271,7 @@ class TestValidateBuildRun:
         mock_db.buildrun.find_unique.return_value = pipe
 
         with patch(
-            "api.v2.builds.build_runs.trigger_pipeline_validation",
+            "api.v2.builds.build_runs.trigger_build_run_validation",
             return_value={"queued": True, "entryId": "qe-2", "reason": "no fixture"},
         ):
             with patch("api.v2.builds.build_runs.log_audit"):
@@ -281,9 +281,9 @@ class TestValidateBuildRun:
         body = json.loads(response.data)
         assert body["data"]["queued"] is True
 
-    def test_validate_pipeline_service_returns_none_gives_500(self, authed_client, mock_db):
-        """POST validate returns 500 when trigger_pipeline_validation returns None."""
-        pipe = _pipeline_obj(
+    def test_validate_build_run_service_returns_none_gives_500(self, authed_client, mock_db):
+        """POST validate returns 500 when trigger_build_run_validation returns None."""
+        pipe = _build_run_obj(
             id="pipe-none",
             status="SUCCESS",
             builds=[_build_summary(status="SUCCESS")],
@@ -291,12 +291,12 @@ class TestValidateBuildRun:
         )
         mock_db.buildrun.find_unique.return_value = pipe
 
-        with patch("api.v2.builds.build_runs.trigger_pipeline_validation", return_value=None):
+        with patch("api.v2.builds.build_runs.trigger_build_run_validation", return_value=None):
             response = authed_client.post("/v2/builds/runs/pipe-none/validate")
 
         assert response.status_code == 500
 
-    def test_validate_pipeline_unauthorized(self, client, mock_db):
+    def test_validate_build_run_unauthorized(self, client, mock_db):
         """POST validate without auth returns 401."""
         response = client.post("/v2/builds/runs/pipe-1/validate")
         assert response.status_code == 401
@@ -310,8 +310,8 @@ class TestListBuildRunSessions:
     """Tests for GET /v2/builds/runs/<id>/sessions."""
 
     def test_list_sessions_success(self, authed_client, mock_db):
-        """Returns paginated sessions list for the pipeline."""
-        mock_db.buildrun.find_unique.return_value = _pipeline_obj(id="pipe-s")
+        """Returns paginated sessions list for the build run."""
+        mock_db.buildrun.find_unique.return_value = _build_run_obj(id="pipe-s")
         session = make_obj(
             id="sess-1", name="Run 1", type="VALIDATION",
             productId="prod-alpha", status="PASSED",
@@ -327,8 +327,8 @@ class TestListBuildRunSessions:
         body = json.loads(response.data)
         assert body["data"]["pagination"]["total"] == 1
 
-    def test_list_sessions_pipeline_not_found(self, authed_client, mock_db):
-        """Returns 404 when pipeline does not exist."""
+    def test_list_sessions_build_run_not_found(self, authed_client, mock_db):
+        """Returns 404 when build run does not exist."""
         mock_db.buildrun.find_unique.return_value = None
 
         response = authed_client.get("/v2/builds/runs/nonexistent/sessions")

@@ -622,8 +622,8 @@ class TestUpdateBuild:
         dependent = _build_obj(id="build-dep", status="BLOCKED", baseJobId="build-base")
         mock_db.buildjob.find_many.return_value = [dependent]
 
-        # Mock pipeline completion check — the lazy import uses api.v2.builds.build_runs path
-        with patch("api.v2.builds.build_runs.check_pipeline_completion", return_value=None):
+        # Mock build run completion check — the lazy import uses api.v2.builds.build_runs path
+        with patch("api.v2.builds.build_runs.check_build_run_completion", return_value=None):
             response = self._patch(authed_client, "/v2/builds/build-base", {
                 "status": "SUCCESS",
             })
@@ -671,7 +671,7 @@ class TestUpdateBuild:
         mock_db.buildjob.update.return_value = updated
 
         with patch("api.v2.builds.builds.log_audit") as mock_audit, \
-             patch("api.v2.builds.build_runs.check_pipeline_completion", return_value=None):
+             patch("api.v2.builds.build_runs.check_build_run_completion", return_value=None):
             response = self._patch(authed_client, "/v2/builds/build-audit", {
                 "status": "SUCCESS",
             })

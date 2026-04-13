@@ -12,7 +12,7 @@
 
   let { productId, productName }: Props = $props();
 
-  let pipelines: BuildRunDetail[] = $state([]);
+  let buildRuns: BuildRunDetail[] = $state([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -39,9 +39,9 @@
     error = null;
     try {
       const result = await fetchBuildRuns({ product: productName, limit: 20 });
-      pipelines = result.data;
+      buildRuns = result.data;
     } catch (err: unknown) {
-      error = err instanceof Error ? err.message : 'Failed to load pipelines';
+      error = err instanceof Error ? err.message : 'Failed to load build runs';
     } finally {
       loading = false;
     }
@@ -52,7 +52,7 @@
 
 <div>
   <div class="mb-3 flex items-center justify-between">
-    <h3 class="text-sm font-semibold text-(--color-text-primary)">Pipelines</h3>
+    <h3 class="text-sm font-semibold text-(--color-text-primary)">Build Runs</h3>
     <a href="/builds?product={encodeURIComponent(productName)}"
        class="text-xs font-medium text-accent hover:underline">
       View All
@@ -76,9 +76,9 @@
       <AlertCircle size={14} />
       {error}
     </div>
-  {:else if pipelines.length === 0}
+  {:else if buildRuns.length === 0}
     <div class="rounded-lg border border-border bg-surface-0 px-4 py-8 text-center text-sm text-(--color-text-tertiary)">
-      No pipelines found for this product.
+      No build runs found for this product.
     </div>
   {:else}
     <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
@@ -93,7 +93,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each pipelines as buildRun (buildRun.id)}
+          {#each buildRuns as buildRun (buildRun.id)}
             <tr class="border-b border-border last:border-0 hover:bg-surface-1 transition-colors">
               <td class="px-3 py-2">
                 <a href="/builds/runs/{buildRun.id}" class="font-mono text-xs text-accent hover:underline">

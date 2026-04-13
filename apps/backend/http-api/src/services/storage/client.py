@@ -9,13 +9,13 @@ from config.env import env_config
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename for Content-Disposition header.
+    """Sanitize a filename for Content-Disposition headers and storage paths.
 
-    Removes any non-printable or dangerous characters that could be used
-    for header injection attacks.
+    Strips anything outside ASCII alphanumerics, dots, hyphens, and underscores.
+    This is the single canonical sanitizer — import from here everywhere.
     """
-    # Remove any non-printable or dangerous characters
-    return re.sub(r'[^\w\-_\. ]', '_', filename)
+    sanitized = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    return sanitized if sanitized else "download"
 
 # Global storage client instance
 appStorageClient: Optional[Minio] = None
@@ -24,16 +24,101 @@ appStorageClient: Optional[Minio] = None
 class StoragePrefixes:
     """MinIO object key prefixes for each storage domain."""
 
-    FIRMWARE_BUILDS = "firmware/builds"      # CI build artifacts: {product}/{build_id}/{filename}
-    FIRMWARE_UPLOADS = "firmware/uploads"    # Manual firmware uploads: {product}/{filename}
-    BUILD_SCRIPTS = "builds/scripts"        # Build automation: {product}/build.sh
-    SESSIONS = "sessions"                   # Test session data: {session_id}/{device_serial}/{test_name}/{step}.log
-    ICLE_LOGS = "icle"                      # ICLE power logs: {device_id}/{timestamp}_{filename}
+    PRODUCTS = "products"                   # Product-scoped assets and modem firmware
+    FIRMWARE_BUILDS = "firmware/builds"     # CI build artifacts: {product}/{build_id}/{filename}
+    FIRMWARE_UPLOADS = "firmware/uploads"   # Manual firmware uploads: {product}/{filename}
+    BUILD_SCRIPTS = "builds/scripts"       # Build automation: {product}/build.sh
+    SESSIONS = "sessions"                  # Test session data
+    ICLE_LOGS = "icle"                     # ICLE power logs
 
 
 def storage_key(prefix: str, relative_path: str) -> str:
     """Build a full MinIO object key from a prefix and relative path."""
     return f"{prefix}/{relative_path}"
+
+
+STAGE_NAMES = {
+    "VALIDATION": {1: "smoke", 2: "driver", 3: "integration", 4: "regression", 5: "fuota"},
+    "MANUFACTURING": {1: "manufacturing"},
+}
+
+
+def _resolve_stage_name(stage_type: str | None, stage: int | None, stage_name: str | None) -> str:
+    """Resolve a human-readable stage name for storage paths."""
+    if stage_name:
+        return sanitize_filename(stage_name.lower())
+    if stage_type and stage is not None:
+        return STAGE_NAMES.get(stage_type, {}).get(stage, str(stage))
+    return "general"
+
+
+def product_asset_key(
+    product_slug: str | None,
+    revision_version: str | None,
+    stage_type: str | None,
+    stage: int | None,
+    asset_version: str,
+    variant: str,
+    label: str,
+    filename: str,
+    stage_name: str | None = None,
+) -> str:
+    """Build a product-scoped MinIO key for an asset file.
+
+    Path: products/{slug}/{revision}/{stage_type}/{stage_name}/{version}-{variant}/{label}/{filename}
+    Example: products/alpha/b0/validation/smoke/1.2.0-debug/MFG_APP_DEBUG/app_nrf52840.hex
+    """
+    slug = sanitize_filename(product_slug) if product_slug else "unknown"
+    rev = sanitize_filename(revision_version) if revision_version else "unscoped"
+    st = (stage_type or "general").lower()
+    sn = _resolve_stage_name(stage_type, stage, stage_name)
+    ver = sanitize_filename(asset_version or "0.0.0")
+    var = sanitize_filename(variant or "default")
+    lbl = sanitize_filename(label)
+    fn = sanitize_filename(filename)
+
+    return f"{StoragePrefixes.PRODUCTS}/{slug}/{rev}/{st}/{sn}/{ver}-{var}/{lbl}/{fn}"
+
+
+def modem_firmware_key(
+    product_slug: str | None,
+    revision_version: str | None,
+    modem_version: str,
+    filename: str,
+) -> str:
+    """Build a product-scoped MinIO key for modem firmware.
+
+    Path: products/{slug}/{revision}/modem/{version}/{filename}
+    """
+    slug = sanitize_filename(product_slug) if product_slug else "unknown"
+    rev = sanitize_filename(revision_version) if revision_version else "unscoped"
+    ver = sanitize_filename(modem_version)
+    fn = sanitize_filename(filename)
+
+    return f"{StoragePrefixes.PRODUCTS}/{slug}/{rev}/modem/{ver}/{fn}"
+
+
+def asset_set_zip_filename(
+    product_slug: str | None,
+    revision_version: str | None,
+    stage_type: str | None,
+    stage: int | None,
+    asset_version: str,
+    variant: str,
+    stage_name: str | None = None,
+) -> str:
+    """Build a descriptive zip filename for asset set download.
+
+    Example: alpha-b0-validation-smoke-v1.2.0-debug.zip
+    """
+    slug = sanitize_filename(product_slug) if product_slug else "unknown"
+    rev = sanitize_filename(revision_version) if revision_version else "unscoped"
+    st = (stage_type or "general").lower()
+    sn = _resolve_stage_name(stage_type, stage, stage_name)
+    ver = sanitize_filename(asset_version or "0.0.0")
+    var = sanitize_filename(variant or "default")
+
+    return f"{slug}-{rev}-{st}-{sn}-v{ver}-{var}.zip"
 
 
 def init_storage_client() -> Minio:

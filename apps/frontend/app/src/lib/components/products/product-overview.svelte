@@ -17,15 +17,15 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
 
-  let pipelineCount = $state(0);
-  let activePipelines = $state(0);
+  let buildRunCount = $state(0);
+  let activeBuildRuns = $state(0);
   let buildCount = $state(0);
   let queueCount = $state(0);
   let runCount = $state(0);
   let activeRuns = $state(0);
 
   const cards = $derived([
-    { label: 'Pipelines', value: pipelineCount, active: activePipelines, activeLabel: 'running', icon: GitBranch },
+    { label: 'Build Runs', value: buildRunCount, active: activeBuildRuns, activeLabel: 'running', icon: GitBranch },
     { label: 'Builds', value: buildCount, active: 0, activeLabel: '', icon: Hammer },
     { label: 'Queue', value: queueCount, active: 0, activeLabel: '', icon: ListTodo },
     { label: 'Runs', value: runCount, active: activeRuns, activeLabel: 'active', icon: FlaskConical },
@@ -35,7 +35,7 @@
     loading = true;
     error = null;
     try {
-      const [pipelinesRes, queueRes, runsRes] = await Promise.all([
+      const [buildRunsRes, queueRes, runsRes] = await Promise.all([
         fetchBuildRuns({ product: productName, limit: 50 }),
         getQueueStats().catch(() => ({ total: 0, byStatus: { QUEUED: 0 }, avgWaitSeconds: null })),
         apiFetch<ApiResponse<{ data: ValidationRun[]; pagination: Pagination }>>(
@@ -43,10 +43,10 @@
         ).catch(() => ({ data: { data: [] as ValidationRun[], pagination: { total: 0, page: 1, limit: 50, pages: 0 } } })),
       ]);
 
-      const pipelines = pipelinesRes.data;
-      pipelineCount = pipelinesRes.pagination.total || pipelines.length;
-      activePipelines = pipelines.filter(p => p.status === 'BUILDING' || p.status === 'VALIDATING').length;
-      buildCount = pipelines.reduce((sum, p) => sum + (p.completedBuilds ?? 0), 0);
+      const allBuildRuns = buildRunsRes.data;
+      buildRunCount = buildRunsRes.pagination.total || allBuildRuns.length;
+      activeBuildRuns = allBuildRuns.filter(p => p.status === 'BUILDING' || p.status === 'VALIDATING').length;
+      buildCount = allBuildRuns.reduce((sum, p) => sum + (p.completedBuilds ?? 0), 0);
       queueCount = (queueRes as any).byStatus?.QUEUED ?? (queueRes as any).total ?? 0;
 
       const runs = runsRes.data.data || [];

@@ -79,7 +79,7 @@
     goto(`/fixtures?selected=${fixtureId}`);
   }
 
-  // Pipeline section config — which sections exist and what they link to
+  // Build section config — which sections exist and what they link to
   const sections = $derived.by(() => {
     const p = stats as DashboardStats;
     const items: Array<{
@@ -186,7 +186,7 @@
   {:else if error}
     <ErrorAlert message={error} />
   {:else}
-    <!-- Pipeline stat cards -->
+    <!-- Build stat cards -->
     {#if sections.length > 0}
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         {#each sections as section}

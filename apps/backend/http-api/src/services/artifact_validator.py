@@ -1,8 +1,8 @@
-"""Artifact validation for build pipelines.
+"""Artifact validation for build runs.
 
-Validates that all required artifacts exist per a pipeline's stage buildMatrix
+Validates that all required artifacts exist per a build run's stage buildMatrix
 before allowing validation to proceed. This is a HARD GATE — missing artifacts
-cause the pipeline to fail.
+cause the build run to fail.
 """
 
 import json
@@ -15,50 +15,50 @@ logger = logging.getLogger(__name__)
 _SKIP_RESULT = {"valid": True, "builds": [], "missing": []}
 
 
-def validate_pipeline_artifacts(db, pipeline_id: str) -> Dict[str, Any]:
-    """Validate that all required artifacts exist for a pipeline's builds.
+def validate_build_run_artifacts(db, build_run_id: str) -> Dict[str, Any]:
+    """Validate that all required artifacts exist for a build run's builds.
 
     Returns a structured report: {"valid": bool, "builds": [...], "missing": [...]}
     """
-    pipeline = db.buildrun.find_unique(
-        where={"id": pipeline_id},
+    build_run = db.buildrun.find_unique(
+        where={"id": build_run_id},
         include={"builds": {"include": {"artifacts": True}}, "product": True},
     )
-    if not pipeline:
-        logger.warning("Pipeline not found for artifact validation: %s", pipeline_id)
+    if not build_run:
+        logger.warning("Build run not found for artifact validation: %s", build_run_id)
         return _SKIP_RESULT
 
-    context = _load_validation_context(db, pipeline, pipeline_id)
+    context = _load_validation_context(db, build_run, build_run_id)
     if context is None:
         return _SKIP_RESULT
 
     build_matrix, targets, requires_cfw, builds_by_label = context
-    return _run_artifact_checks(pipeline_id, build_matrix, targets, requires_cfw, builds_by_label)
+    return _run_artifact_checks(build_run_id, build_matrix, targets, requires_cfw, builds_by_label)
 
 
-def _load_validation_context(db, pipeline, pipeline_id: str):
+def _load_validation_context(db, build_run, build_run_id: str):
     """Load stage config, build matrix, and targets. Returns None if validation should be skipped."""
     stage_config = None
-    if getattr(pipeline, "stageConfigId", None):
-        stage_config = db.productstageconfig.find_unique(where={"id": pipeline.stageConfigId})
+    if getattr(build_run, "stageConfigId", None):
+        stage_config = db.productstageconfig.find_unique(where={"id": build_run.stageConfigId})
     if not stage_config:
-        logger.info("No stageConfig for pipeline %s, skipping artifact validation", pipeline_id)
+        logger.info("No stageConfig for build run %s, skipping artifact validation", build_run_id)
         return None
 
     build_matrix = _parse_build_matrix(stage_config)
     if not build_matrix:
-        logger.info("No buildMatrix in stageConfig for pipeline %s, skipping", pipeline_id)
+        logger.info("No buildMatrix in stageConfig for build run %s, skipping", build_run_id)
         return None
 
-    targets = _parse_product_targets(getattr(pipeline, "product", None))
+    targets = _parse_product_targets(getattr(build_run, "product", None))
     if not targets:
-        logger.info("No buildConfig targets for pipeline %s product, skipping", pipeline_id)
+        logger.info("No buildConfig targets for build run %s product, skipping", build_run_id)
         return None
 
     requires_cfw = getattr(stage_config, "requiresFuota", False) or (getattr(stage_config, "stage", 0) >= 4)
 
     builds_by_label: Dict[str, Any] = {}
-    for build in (pipeline.builds or []):
+    for build in (build_run.builds or []):
         label = getattr(build, "matrixLabel", None)
         if label:
             builds_by_label[label] = build
@@ -66,7 +66,7 @@ def _load_validation_context(db, pipeline, pipeline_id: str):
     return build_matrix, targets, requires_cfw, builds_by_label
 
 
-def _run_artifact_checks(pipeline_id, build_matrix, targets, requires_cfw, builds_by_label):
+def _run_artifact_checks(build_run_id, build_matrix, targets, requires_cfw, builds_by_label):
     """Run artifact checks for each build matrix entry and compile the report."""
     result_builds: List[Dict[str, Any]] = []
     missing: List[Dict[str, Any]] = []
@@ -84,11 +84,11 @@ def _run_artifact_checks(pipeline_id, build_matrix, targets, requires_cfw, build
 
     valid = len(missing) == 0
     if not valid:
-        logger.warning("Pipeline %s artifact validation FAILED: %d missing artifacts", pipeline_id, len(missing))
+        logger.warning("Build run %s artifact validation FAILED: %d missing artifacts", build_run_id, len(missing))
         for m in missing:
             logger.warning("  Missing: label=%s role=%s type=%s", m["label"], m["role"], m["artifactType"])
     else:
-        logger.info("Pipeline %s artifact validation passed (%d builds)", pipeline_id, len(result_builds))
+        logger.info("Build run %s artifact validation passed (%d builds)", build_run_id, len(result_builds))
 
     return {"valid": valid, "builds": result_builds, "missing": missing}
 

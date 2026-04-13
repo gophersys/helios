@@ -401,16 +401,14 @@ def get_latest_asset_set():
 def download_asset_set_zip(asset_set_id: str):
     """GET /asset-sets/<id>/download — download all files in an asset set as a .zip archive."""
     import io
-    import re
     import zipfile
 
-    from flask import Response
-    from src.services.storage.client import get_storage_client
+    from src.services.storage.client import get_storage_client, sanitize_filename, asset_set_zip_filename
 
     db = get_db_client()
     asset_set = db.assetset.find_unique(
         where={"id": asset_set_id},
-        include={"assets": True},
+        include={"assets": True, "product": True, "boardRevision": True},
     )
     if not asset_set:
         return not_found("Asset set not found")
@@ -432,19 +430,21 @@ def download_asset_set_zip(asset_set_id: str):
                 response.close()
                 response.release_conn()
 
-                # Use the original filename, sanitized
-                filename = re.sub(r'[^a-zA-Z0-9._-]', '_', asset.filename or asset.label)
+                filename = sanitize_filename(asset.filename or asset.label)
                 zf.writestr(filename, file_data)
             except Exception as e:
                 logger.warning("Failed to fetch %s for zip: %s", asset.storageKey, e)
 
     zip_buffer.seek(0)
 
-    version = asset_set.version or "unknown"
-    variant = asset_set.variant or "default"
-    safe_version = re.sub(r'[^a-zA-Z0-9._-]', '_', version)
-    safe_variant = re.sub(r'[^a-zA-Z0-9._-]', '_', variant)
-    zip_filename = f"asset-set-{safe_version}-{safe_variant}.zip"
+    zip_filename = asset_set_zip_filename(
+        product_slug=getattr(asset_set.product, "slug", None) if asset_set.product else None,
+        revision_version=getattr(asset_set.boardRevision, "version", None) if asset_set.boardRevision else None,
+        stage_type=getattr(asset_set, "stageType", None),
+        stage=getattr(asset_set, "stage", None),
+        asset_version=asset_set.version,
+        variant=asset_set.variant,
+    )
 
     from flask import send_file
     return send_file(

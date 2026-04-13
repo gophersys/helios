@@ -63,7 +63,10 @@
   }
 
   $effect(() => {
-    if (product?.id) loadBuilds();
+    if (product?.id) {
+      loadBuilds();
+      checkSyncAvailable();
+    }
   });
 
   const buildByBoard = $derived.by(() => {
@@ -158,7 +161,18 @@
 
   // ── Sync from ck_boards ─────────────────────────────────
   let syncing = $state(false);
+  let syncAvailable = $state(true);
   let syncResult = $state<{ synced: number; added: { version: string }[] } | null>(null);
+
+  // Check if sync service is available on mount
+  async function checkSyncAvailable(): Promise<void> {
+    try {
+      const res = await api.get('/v2/products/boards/branches');
+      syncAvailable = true;
+    } catch {
+      syncAvailable = false;
+    }
+  }
 
   async function syncFromRepo(): Promise<void> {
     syncing = true;
@@ -223,9 +237,9 @@
     {#if canManage && board}
       <button
         onclick={syncFromRepo}
-        disabled={syncing}
-        class="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors disabled:opacity-50"
-        title="Sync hardware revisions from ck_boards main branch"
+        disabled={syncing || !syncAvailable}
+        class="btn btn-sm btn-secondary"
+        title={syncAvailable ? 'Sync hardware revisions from ck_boards main branch' : 'Board discovery unavailable — BITBUCKET_SSH_KEY not configured'}
       >
         {#if syncing}
           <Loader2 size={12} class="animate-spin" />
@@ -262,7 +276,7 @@
   <div class="mb-4 rounded-lg border border-accent/30 bg-accent-muted p-4 space-y-3">
     <div class="flex items-center justify-between">
       <span class="text-sm font-medium text-text-primary">New Revision</span>
-      <button onclick={() => (showAddForm = false)} class="rounded p-1 text-text-tertiary hover:text-text-primary">
+      <button onclick={() => (showAddForm = false)} class="btn btn-sm btn-icon btn-ghost">
         <X size={14} />
       </button>
     </div>
@@ -281,7 +295,7 @@
       </label>
     </div>
     <div class="flex justify-end gap-2">
-      <button onclick={() => (showAddForm = false)} class="btn btn-sm">Cancel</button>
+      <button onclick={() => (showAddForm = false)} class="btn btn-sm btn-ghost">Cancel</button>
       <button onclick={addRevision} disabled={addingRevision || !addVersion.trim() || !addCkBoardsName.trim()} class="btn btn-sm btn-primary">
         {addingRevision ? 'Adding...' : 'Add Revision'}
       </button>
@@ -310,10 +324,10 @@
                 <StatusBadge status={rev.status} />
               </div>
               <div class="flex items-center gap-1">
-                <button onclick={cancelEdit} class="rounded p-1 text-text-tertiary hover:text-text-primary" title="Cancel" aria-label="Cancel editing revision">
+                <button onclick={cancelEdit} class="btn btn-sm btn-icon btn-ghost" title="Cancel" aria-label="Cancel editing revision">
                   <X size={14} />
                 </button>
-                <button onclick={saveEdit} disabled={savingRevision} class="rounded p-1 text-accent hover:bg-accent/10 disabled:opacity-50" title="Save" aria-label="Save revision">
+                <button onclick={saveEdit} disabled={savingRevision} class="btn btn-sm btn-icon btn-ghost text-accent" title="Save" aria-label="Save revision">
                   <Check size={14} />
                 </button>
               </div>
@@ -358,7 +372,7 @@
                 <!-- Status actions -->
                 {#if rev.status === 'DRAFT'}
                   <button onclick={() => changeStatus(rev, 'ACTIVE')} disabled={changingStatusId === rev.id}
-                    class="rounded-md bg-success-muted px-2.5 py-1 text-2xs font-medium text-success hover:bg-success/20 disabled:opacity-50">
+                    class="btn btn-sm bg-success-muted text-success hover:bg-success/20">
                     Activate
                   </button>
                 {:else if rev.status === 'ACTIVE'}
@@ -369,25 +383,25 @@
                     }
                     changeStatus(rev, 'DEPRECATED');
                   }} disabled={changingStatusId === rev.id}
-                    class="flex items-center gap-1 rounded-md bg-warning-muted px-2.5 py-1 text-2xs font-medium text-warning hover:bg-warning/20 disabled:opacity-50">
+                    class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20">
                     {#if activeStages.length > 0}<AlertTriangle size={10} />{/if}
                     Deprecate
                   </button>
                 {:else if rev.status === 'DEPRECATED'}
                   <button onclick={() => changeStatus(rev, 'ACTIVE')} disabled={changingStatusId === rev.id}
-                    class="rounded-md bg-success-muted px-2.5 py-1 text-2xs font-medium text-success hover:bg-success/20 disabled:opacity-50 mr-1">
+                    class="btn btn-sm bg-success-muted text-success hover:bg-success/20 mr-1">
                     Reactivate
                   </button>
                   <button onclick={() => {
                     if (!confirm(`End-of-life ${rev.version}? This permanently marks the revision as unsupported. Builds and validation will no longer target it.`)) return;
                     changeStatus(rev, 'EOL');
                   }} disabled={changingStatusId === rev.id}
-                    class="rounded-md bg-error-muted px-2.5 py-1 text-2xs font-medium text-error hover:bg-error/20 disabled:opacity-50">
+                    class="btn btn-sm bg-error-muted text-error hover:bg-error/20">
                     EOL
                   </button>
                 {/if}
                 <button onclick={() => startEdit(rev)} title="Edit revision config" aria-label="Edit revision config"
-                  class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary ml-1">
+                  class="btn btn-sm btn-icon btn-ghost">
                   <Pencil size={14} />
                 </button>
               {/if}

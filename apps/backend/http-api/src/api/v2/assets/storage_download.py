@@ -1,14 +1,15 @@
 """Generic MinIO storage download endpoint."""
 
 import logging
-import re
 from flask import request, Response
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
-from src.services.storage.client import get_storage_client
+from src.services.storage.client import get_storage_client, sanitize_filename
 
 logger = logging.getLogger(__name__)
+
+ALLOWED_PREFIXES = ("products/", "firmware/", "asset-sets/", "test-packages/")
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
@@ -18,12 +19,9 @@ def download_storage_file():
     if not key:
         return bad_request("key parameter is required")
 
-    # Security: only allow known storage prefixes
-    allowed_prefixes = ("firmware/", "asset-sets/", "test-packages/")
-    if not any(key.startswith(p) for p in allowed_prefixes):
+    if not any(key.startswith(p) for p in ALLOWED_PREFIXES):
         return bad_request("Access denied: path not in allowed prefixes")
 
-    # Reject path traversal
     if ".." in key:
         return bad_request("Invalid key")
 
@@ -35,7 +33,7 @@ def download_storage_file():
         response.release_conn()
 
         raw_filename = key.split("/")[-1]
-        filename = re.sub(r'[^a-zA-Z0-9._-]', '_', raw_filename)
+        filename = sanitize_filename(raw_filename)
         return Response(
             data,
             mimetype="application/octet-stream",

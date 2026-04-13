@@ -81,7 +81,7 @@ class BitbucketWebhookPayload:
 
 @dataclass
 class CiTriggerRequest:
-    """Manual CI trigger request — same pipeline flow, no HMAC check."""
+    """Manual CI trigger request — same build run flow, no HMAC check."""
     product_id: str
     repo_slug: str
     branch: str
@@ -220,8 +220,8 @@ class BuildCreateRequest:
 
 
 @dataclass
-class PipelineCreateRequest:
-    """Create a CI pipeline (build -> validate chain).
+class BuildRunCreateRequest:
+    """Create a CI build run (build -> validate chain).
 
     Can be triggered manually (product name) or by Bitbucket poller (productId).
     Bitbucket poller also provides repoSlug and commitSha for traceability.
@@ -246,8 +246,8 @@ class PipelineCreateRequest:
     auto_run_stage: bool = False        # Auto-trigger stage run on all builds passing
 
     @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["PipelineCreateRequest"], Optional[str]]:
-        """Parse and validate JSON into a PipelineCreateRequest."""
+    def from_json(cls, data: dict) -> Tuple[Optional["BuildRunCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a BuildRunCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 

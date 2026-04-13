@@ -198,12 +198,16 @@ export async function apiDownload(path: string, filename: string): Promise<void>
     }
   }
 
-  // Get the blob and trigger download
+  // Prefer server-provided filename from Content-Disposition, fall back to caller
+  const disposition = res.headers.get('Content-Disposition');
+  const serverFilename = disposition?.match(/filename="?([^";\n]+)"?/)?.[1];
+  const effectiveFilename = serverFilename || filename;
+
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  a.download = effectiveFilename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

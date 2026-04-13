@@ -11,7 +11,7 @@ from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_bucket_name, get_storage_client, storage_key
+from src.services.storage.client import get_bucket_name, get_storage_client, storage_key, modem_firmware_key
 
 from .types import (
     BoardRevisionCreateRequest,
@@ -462,8 +462,14 @@ def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
 
         checksum = hashlib.sha256(content).hexdigest()
 
-        # Store in MinIO
-        key = storage_key("firmware/modem", f"{revision_id}/{version}/{file.filename}")
+        # Store in MinIO — resolve product slug for path
+        product = db.product.find_unique(where={"id": product_id})
+        key = modem_firmware_key(
+            product_slug=getattr(product, "slug", None) if product else None,
+            revision_version=revision.version,
+            modem_version=version,
+            filename=file.filename,
+        )
         client = get_storage_client()
         bucket = get_bucket_name()
 

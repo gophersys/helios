@@ -1,4 +1,4 @@
-"""Extended tests for build_run_service.py — check_pipeline_completion, trigger_pipeline_validation, fixture helpers."""
+"""Extended tests for build_run_service.py — check_build_run_completion, trigger_build_run_validation, fixture helpers."""
 
 from __future__ import annotations
 
@@ -15,43 +15,43 @@ def _now():
 
 
 # ---------------------------------------------------------------------------
-# check_pipeline_completion
+# check_build_run_completion
 # ---------------------------------------------------------------------------
 
-class TestCheckPipelineCompletion:
-    """Tests for check_pipeline_completion()."""
+class TestCheckBuildRunCompletion:
+    """Tests for check_build_run_completion()."""
 
     @patch("src.services.build_run_service.get_db_client")
-    def test_pipeline_not_found_returns_none(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+    def test_build_run_not_found_returns_none(self, mock_get_db):
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
         db.buildrun.find_unique.return_value = None
-        assert check_pipeline_completion("run-1") is None
+        assert check_build_run_completion("run-1") is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_already_complete_returns_none(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
         db.buildrun.find_unique.return_value = make_obj(
             id="run-1", status="SUCCESS", builds=[], product=None,
         )
-        assert check_pipeline_completion("run-1") is None
+        assert check_build_run_completion("run-1") is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_no_builds_returns_none(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
         db.buildrun.find_unique.return_value = make_obj(
             id="run-1", status="BUILDING", builds=[], product=None,
         )
-        assert check_pipeline_completion("run-1") is None
+        assert check_build_run_completion("run-1") is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_pending_builds_returns_none(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
         builds = [
@@ -62,11 +62,11 @@ class TestCheckPipelineCompletion:
             id="run-1", status="BUILDING", builds=builds,
             completedBuilds=1, product=None,
         )
-        assert check_pipeline_completion("run-1") is None
+        assert check_build_run_completion("run-1") is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_all_success_no_autovalidate(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
 
@@ -80,16 +80,16 @@ class TestCheckPipelineCompletion:
             stage=None, product=None,
         )
 
-        with patch("src.services.artifact_validator.validate_pipeline_artifacts", return_value={"valid": True, "builds": [], "missing": []}), \
+        with patch("src.services.artifact_validator.validate_build_run_artifacts", return_value={"valid": True, "builds": [], "missing": []}), \
              patch("src.services.build_promotion.promote_build_run_to_firmware", return_value=[]), \
              patch("src.services.build_promotion.create_asset_set_from_build_run", return_value=None):
-            result = check_pipeline_completion("run-1")
+            result = check_build_run_completion("run-1")
 
         assert result == "SUCCESS"
 
     @patch("src.services.build_run_service.get_db_client")
     def test_failed_build_cancels_pending(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
 
@@ -104,14 +104,14 @@ class TestCheckPipelineCompletion:
             stage=None, product=None,
         )
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
         assert result == "BUILD_FAILED"
         # Pending builds should be cancelled
         assert db.buildjob.update.call_count == 2  # b-2 and b-3
 
     @patch("src.services.build_run_service.get_db_client")
     def test_artifact_validation_failure(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
 
@@ -122,22 +122,22 @@ class TestCheckPipelineCompletion:
             stage=None, product=None,
         )
 
-        with patch("src.services.artifact_validator.validate_pipeline_artifacts", return_value={
+        with patch("src.services.artifact_validator.validate_build_run_artifacts", return_value={
             "valid": False,
             "builds": [],
             "missing": [{"label": "APP", "role": "app", "artifactType": "plaintextHex"}],
         }):
-            result = check_pipeline_completion("run-1")
+            result = check_build_run_completion("run-1")
         assert result == "BUILD_FAILED"
 
     @patch("src.services.build_run_service.get_db_client")
     def test_exception_returns_none(self, mock_get_db):
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
         db = MagicMock()
         mock_get_db.return_value = db
         db.buildrun.find_unique.side_effect = Exception("db error")
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
         assert result is None
 
 

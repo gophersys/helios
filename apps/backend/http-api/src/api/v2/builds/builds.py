@@ -20,15 +20,7 @@ from .types import BuildCreateRequest
 logger = logging.getLogger(__name__)
 
 
-def _sanitize_filename(filename: str) -> str:
-    """Sanitize a filename for use in Content-Disposition header.
-
-    Removes characters that could cause header injection or parsing issues.
-    """
-    # Remove or replace problematic characters
-    sanitized = filename.replace('"', "'").replace("\r", "").replace("\n", "").replace("\\", "_")
-    # Ensure it's not empty
-    return sanitized if sanitized else "download"
+from src.services.storage.client import sanitize_filename as _sanitize_filename
 
 
 # -------------------------------------------------
@@ -178,11 +170,19 @@ def list_builds():
         where["productId"] = product_id
 
     total = db.buildjob.count(where=where)
+
+    # When filtering for QUEUED builds, order by priority DESC so build-service
+    # picks up highest-priority jobs first. Otherwise default to newest-first.
+    if status and status.upper() == "QUEUED":
+        order = [{"priority": "desc"}, {"createdAt": "asc"}]
+    else:
+        order = {"createdAt": "desc"}
+
     builds = db.buildjob.find_many(
         where=where,
         skip=skip,
         take=limit,
-        order={"createdAt": "desc"},
+        order=order,
         include={"artifacts": True, "product": True, "buildRun": True},
     )
 
@@ -490,19 +490,19 @@ def update_build(build_id: str):
             include={"artifacts": True, "product": True, "buildRun": True},
         )
 
-        # Update pipeline status based on build status changes
+        # Update build run status based on build status changes
         if updated.buildRunId:
             new_status = update_data.get("status")
 
-            # When a build starts (claimed by worker), update pipeline from PENDING to BUILDING
+            # When a build starts (claimed by worker), update build run from PENDING to BUILDING
             if new_status in ("CLONING", "BUILDING"):
-                pipeline = db.buildrun.find_unique(where={"id": updated.buildRunId})
-                if pipeline and pipeline.status == "PENDING":
+                build_run = db.buildrun.find_unique(where={"id": updated.buildRunId})
+                if build_run and build_run.status == "PENDING":
                     db.buildrun.update(
                         where={"id": updated.buildRunId},
                         data={"status": "BUILDING"},
                     )
-                    logger.info("Build %s claimed, pipeline %s now BUILDING",
+                    logger.info("Build %s claimed, build run %s now BUILDING",
                                build_id, updated.buildRunId)
 
             # When a build succeeds, unblock dependent version-bump builds
@@ -515,7 +515,7 @@ def update_build(build_id: str):
                     }
                 )
                 if dependent_builds:
-                    from src.services.build_job_runner import create_build_k8s_job
+                    from src.services.queue_scheduler import wake_scheduler
                     for dep in dependent_builds:
                         db.buildjob.update(
                             where={"id": dep.id},
@@ -523,18 +523,16 @@ def update_build(build_id: str):
                         )
                         logger.info("Unblocked build %s (%s) - base build %s completed",
                                    dep.id, dep.matrixLabel, build_id)
-                        # Launch K8s job for the unblocked build
-                        k8s_name = create_build_k8s_job(dep.id)
-                        if k8s_name:
-                            logger.info("Launched K8s build job for unblocked: %s", k8s_name)
+                    # Wake scheduler to pick up newly-unblocked QUEUED builds
+                    wake_scheduler()
 
-            # When a build finishes, check if pipeline is complete
+            # When a build finishes, check if build run is complete
             if new_status in ("SUCCESS", "FAILED", "CANCELLED"):
-                from src.services.build_run_service import check_pipeline_completion
-                new_pipeline_status = check_pipeline_completion(updated.buildRunId)
-                if new_pipeline_status:
-                    logger.info("Build %s finished, pipeline %s now %s",
-                               build_id, updated.buildRunId, new_pipeline_status)
+                from src.services.build_run_service import check_build_run_completion
+                new_build_run_status = check_build_run_completion(updated.buildRunId)
+                if new_build_run_status:
+                    logger.info("Build %s finished, build run %s now %s",
+                               build_id, updated.buildRunId, new_build_run_status)
 
         log_audit("ci.build.update", "BuildJob", build_id, {
             "fields": list(update_data.keys()),
@@ -868,7 +866,7 @@ def stream_build_log(build_id: str):
         # Broadcast via WebSocket for real-time UI updates
         _emit_ci_event("ci_build_log", {
             "buildId": build_id,
-            "pipelineId": build.buildRunId,
+            "buildRunId": build.buildRunId,
             "chunk": chunk,
         })
 

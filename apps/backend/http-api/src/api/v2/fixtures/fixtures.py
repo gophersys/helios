@@ -52,7 +52,7 @@ def dashboard_overview():
         product_ids = [row.productId for row in access_rows]
         product_where = {"id": {"in": product_ids}}
 
-    # ── Pipeline stats (each section gated by permission) ──
+    # ── Build run stats (each section gated by permission) ──
 
     stats: dict = {}
 

@@ -139,7 +139,7 @@ enum BuildRunStatus {
   VALIDATING // Validation job running
   SUCCESS // All builds + validation passed
   FAILED // Validation failed
-  CANCELLED // Pipeline cancelled
+  CANCELLED // Build run cancelled
 }
 
 enum Role {
@@ -512,7 +512,7 @@ model ValidationQueueEntry {
   id String @id @default(cuid())
 
   // What triggered this
-  assetSetId    String
+  buildRunId    String
   stageConfigId String?
   stage         Int /// Validation stage (1-5)
   priority      Int     @default(50) /// From stage config, but overridable
@@ -527,7 +527,7 @@ model ValidationQueueEntry {
   testRunId String? @unique
 
   // Context
-  reason       String? /// "PR #42", "manual trigger", "external CI upload"
+  reason       String? /// "PR #42", "regression 2026-03-11", "manual"
   errorMessage String?
   jobName      String? /// K8s job name when triggered
 
@@ -539,13 +539,13 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  assetSet    AssetSet             @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
-  stageConfig ProductStageConfig?  @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  fixture     Fixture?             @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  testRun     TestRun?             @relation(fields: [testRunId], references: [id], onDelete: SetNull)
+  buildRun    BuildRun            @relation(fields: [buildRunId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
-  @@index([assetSetId])
+  @@index([buildRunId])
   @@index([fixtureId])
   @@map("validation_queue_entries")
 }
@@ -553,7 +553,7 @@ model ValidationQueueEntry {
 // =============================================================================
 //
 //  BUILDS
-//  CI pipeline runs, build jobs, and artifacts.
+//  CI build runs, build jobs, and artifacts.
 //
 // =============================================================================
 
@@ -570,8 +570,8 @@ model BuildRun {
   triggerType String         @default("manual") /// manual, webhook, scheduled
   triggerData Json? /// Webhook payload or trigger config
 
-  // Stage-aware pipeline
-  stage         Int? /// Validation stage (1-5) this pipeline targets
+  // Stage-aware build run
+  stage         Int? /// Validation stage (1-5) this build run targets
   stageConfigId String? /// FK to ProductStageConfig
 
   // Build tracking
@@ -591,7 +591,7 @@ model BuildRun {
   prUrl        String? /// Link to Bitbucket PR page
 
   // Validation tracking
-  autoRunStage    Boolean @default(false) /// Auto-trigger stage run when all builds pass
+  autoValidate    Boolean @default(false) /// Auto-trigger validation when all builds pass
   validationRunId String? /// Links to Session when validation starts
 
   // Timing
@@ -609,6 +609,7 @@ model BuildRun {
   stageConfig   ProductStageConfig?    @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
   recipeVersion RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   builds        BuildJob[]
+  queueEntries  ValidationQueueEntry[]
   assetSet      AssetSet?
   testRuns      TestRun[]
 
@@ -619,10 +620,10 @@ model BuildRun {
   @@index([status])
   @@index([commitSha])
   @@index([stage])
-  @@map("pipeline_runs")
+  @@map("build_runs")
 }
 
-/// A single firmware build job within a pipeline.
+/// A single firmware build job within a build run.
 model BuildJob {
   id            String         @id @default(cuid())
   productId     String /// FK to Product (required)
@@ -652,7 +653,7 @@ model BuildJob {
   configFlags      Json? /// {"harness": false, "debug": true, "mfg": false}
   reusedFromId     String? /// If CACHED, points to the original successful build
 
-  // Pipeline relation
+  // Build run relation
   buildRunId String?
   buildRun   BuildRun? @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
 
@@ -772,7 +773,7 @@ model Fixture {
   designId        String? /// FK to FixtureDesign (optional — design can be assigned later)
 
   status   FixtureStatus @default(AVAILABLE)
-  lockedBy String? /// Pipeline/job ID holding the lock
+  lockedBy String? /// Build run/job ID holding the lock
   lockedAt DateTime?
 
   profileOverrides Json? /// Fixture-specific profile overrides (merged with design template)
@@ -1209,7 +1210,6 @@ model AssetSet {
   assets                Asset[]
   testRuns              TestRun[]
   manufacturingSessions ManufacturingSession[]
-  queueEntries          ValidationQueueEntry[]
 
   @@index([productId, stage, stageType, status])
   @@index([productId, version])
@@ -1333,7 +1333,7 @@ model TestRun {
   productId              String
   fixtureId              String
   testPackageId          String?
-  buildRunId             String? /// Validation only — CI pipeline link
+  buildRunId             String? /// Validation only — CI build run link
   manufacturingSessionId String? /// Manufacturing only — parent session
   panelIdentifier        String? /// QR code (manufacturing) or auto-generated (validation)
   assetSetId             String? /// Firmware asset set used for this run

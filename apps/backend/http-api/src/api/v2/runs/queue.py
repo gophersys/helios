@@ -1,6 +1,6 @@
 """Validation queue — manages PENDING entries waiting for fixture availability.
 
-When a pipeline triggers validation but all fixtures are locked, a queue entry
+When a build run triggers validation but all fixtures are locked, a queue entry
 is created instead of failing silently.  When a run finishes or is cancelled
 and the fixture is released, ``process_queue()`` picks the next PENDING entry
 and starts it.
@@ -82,7 +82,7 @@ def process_queue(db=None) -> dict:
     """Try to start the next PENDING queue entry.
 
     Finds the highest-priority oldest PENDING entry and attempts to
-    trigger validation via ``trigger_pipeline_validation``.
+    trigger validation via ``trigger_build_run_validation``.
 
     Returns a summary dict (for logging / HTTP response).
     """
@@ -142,7 +142,7 @@ def process_queue(db=None) -> dict:
             )
             return {"processed": False, "reason": "No builds", "entryId": entry.id}
 
-        # Re-fetch with full includes needed by trigger_pipeline_validation
+        # Re-fetch with full includes needed by trigger_build_run_validation
         build_run = db.buildrun.find_unique(
             where={"id": build_run.id},
             include={"builds": {"include": {"product": True}}, "product": True},
@@ -167,9 +167,9 @@ def process_queue(db=None) -> dict:
         )
 
         # Attempt to trigger — this will find an available fixture (or return None/queued)
-        from src.services.build_run_service import trigger_pipeline_validation
+        from src.services.build_run_service import trigger_build_run_validation
 
-        result = trigger_pipeline_validation(build_run.id, build_run, builds)
+        result = trigger_build_run_validation(build_run.id, build_run, builds)
     else:
         # External CI / manual upload — no build run attached
         logger.warning(
@@ -208,7 +208,7 @@ def process_queue(db=None) -> dict:
         },
     )
 
-    # Update pipeline status (if build run exists)
+    # Update build run status (if build run exists)
     if build_run:
         db.buildrun.update(
             where={"id": build_run.id},
@@ -295,7 +295,7 @@ def get_queue_entry(entry_id: str):
 
 @require_permissions(Permissions.VALIDATION_MANAGE)
 def create_queue_entry():
-    """POST /v2/runs/queue — Manually enqueue a pipeline for validation."""
+    """POST /v2/runs/queue — Manually enqueue a build run for validation."""
     db = get_db_client()
 
     data = request.get_json()
@@ -430,6 +430,38 @@ def promote_queue_entry(entry_id: str):
     )
 
     log_audit("validation.queue.promote", "ValidationQueueEntry", entry_id, {
+        "newPriority": new_priority,
+    })
+
+    return jsonify(ApiResponse.ok(_serialize_queue_entry(entry)).to_dict()), 200
+
+
+@require_permissions(Permissions.VALIDATION_MANAGE)
+def demote_queue_entry(entry_id: str):
+    """POST /v2/runs/queue/<id>/demote — Drop priority to minimum - 1 (floor 0)."""
+    db = get_db_client()
+
+    entry = db.validationqueueentry.find_unique(where={"id": entry_id})
+    if not entry:
+        return not_found("Queue entry not found")
+
+    if entry.status != "QUEUED":
+        return conflict(f"Cannot demote entry with status {entry.status}")
+
+    # Find the current min priority among QUEUED entries
+    bottom = db.validationqueueentry.find_first(
+        where={"status": "QUEUED"},
+        order={"priority": "asc"},
+    )
+    new_priority = max(0, (bottom.priority - 1) if bottom else 0)
+
+    entry = db.validationqueueentry.update(
+        where={"id": entry_id},
+        data={"priority": new_priority},
+        include={"assetSet": True, "fixture": True, "testRun": True},
+    )
+
+    log_audit("validation.queue.demote", "ValidationQueueEntry", entry_id, {
         "newPriority": new_priority,
     })
 

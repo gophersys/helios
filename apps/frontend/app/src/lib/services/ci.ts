@@ -7,7 +7,7 @@ import type {
   BuildRunStageInfo,
   BuildRunStageStatus,
   BuildSummary,
-  PrPipelineSummary,
+  PrBuildSummary,
   TriggerBuildConfig,
   TriggerBuildRunConfig,
 } from '$lib/types/ci';
@@ -62,7 +62,7 @@ export async function fetchBuildRun(id: string): Promise<BuildRunDetail> {
   const res = await apiFetch<ApiResponse<BuildRunDetail>>(`/v2/builds/runs/${id}`);
   const buildRun = res.data;
 
-  // Compute stages from pipeline status and builds
+  // Compute stages from build run status and builds
   const stages: BuildRunStageInfo[] = [];
 
   // BUILD stage
@@ -264,12 +264,12 @@ export async function resetBuild(id: string): Promise<BuildJob> {
   return res.data;
 }
 
-export async function cancelPipeline(id: string): Promise<BuildRunDetail> {
+export async function cancelBuildRun(id: string): Promise<BuildRunDetail> {
   const res = await api.post<ApiResponse<BuildRunDetail>>(`/v2/builds/runs/${id}/cancel`, {});
   return res.data;
 }
 
-export async function retriggerPipeline(id: string): Promise<{ buildRunId: string; jobCount: number }> {
+export async function retriggerBuildRun(id: string): Promise<{ buildRunId: string; jobCount: number }> {
   const res = await api.post<ApiResponse<{ buildRunId: string; jobCount: number }>>(`/v2/builds/runs/${id}/retrigger`, {});
   return res.data;
 }
@@ -283,7 +283,7 @@ export async function triggerBuildRunValidation(
   return res.data;
 }
 
-// ── Pipeline Sessions ──────────────────────────────────────────
+// ── Build Run Sessions ─────────────────────────────────────────
 
 export interface BuildRunSessionSummary {
   id: string;
@@ -341,18 +341,18 @@ export async function downloadSingleArtifact(
   await apiDownload(`/v2/builds/${buildId}/artifacts/${encodeURIComponent(artifactName)}`, artifactName);
 }
 
-// ── PR Pipelines ──────────────────────────────────────────────────
+// ── PR Build Runs ─────────────────────────────────────────────────
 
-export interface FetchPrPipelinesParams {
+export interface FetchPrBuildRunsParams {
   page?: number;
   limit?: number;
   productId?: string;
   status?: string; // "active" | "completed" | "failed"
 }
 
-export async function fetchPrPipelines(
-  params?: FetchPrPipelinesParams
-): Promise<{ data: PrPipelineSummary[]; pagination: Pagination }> {
+export async function fetchPrBuildRuns(
+  params?: FetchPrBuildRunsParams
+): Promise<{ data: PrBuildSummary[]; pagination: Pagination }> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.limit) qs.set('limit', String(params.limit));
@@ -360,10 +360,10 @@ export async function fetchPrPipelines(
   if (params?.status) qs.set('status', params.status);
 
   // API returns { data: { data: [...], pagination: {...} }, errors: [] }
-  const res = await apiFetch<ApiResponse<{ data: PrPipelineSummary[]; pagination: Pagination }>>(
+  const res = await apiFetch<ApiResponse<{ data: PrBuildSummary[]; pagination: Pagination }>>(
     `/v2/builds/prs?${qs.toString()}`
   );
-  const inner = res.data as { data: PrPipelineSummary[]; pagination: Pagination };
+  const inner = res.data as { data: PrBuildSummary[]; pagination: Pagination };
   return {
     data: inner?.data ?? [],
     pagination: inner?.pagination ?? { page: 1, limit: 20, total: 0, pages: 0 },

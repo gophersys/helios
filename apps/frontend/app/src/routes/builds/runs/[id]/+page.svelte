@@ -30,13 +30,13 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildRunDetail, BuildRunBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadBuildRunArtifacts, downloadSingleArtifact, triggerBuildRunValidation, validateBuildRunArtifacts, fetchBuildRunSessions, cancelPipeline, retriggerPipeline } from '$lib/services/ci';
+  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadBuildRunArtifacts, downloadSingleArtifact, triggerBuildRunValidation, validateBuildRunArtifacts, fetchBuildRunSessions, cancelBuildRun, retriggerBuildRun } from '$lib/services/ci';
   import type { BuildRunSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
   import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import type { BuildArtifact } from '$lib/types/ci';
   import {
-    subscribeCiPipeline,
-    type CiPipelineCompleteEvent,
+    subscribeCiBuildRun,
+    type CiBuildRunCompleteEvent,
   } from '$lib/services/websocket';
   import { formatTimeAgo, formatDateTime, formatDuration, formatSize, ansiToHtml, analyzeBuildLog, type LogAnalysis } from '$lib/utils/formatting';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
@@ -81,11 +81,11 @@
     try {
       validationRuns = await fetchBuildRunSessions(runId);
     } catch {
-      // Pipeline may not have sessions yet
+      // Build run may not have sessions yet
     }
   }
 
-  // Can trigger validation: builds have at least some successes and pipeline isn't actively building
+  // Can trigger validation: builds have at least some successes and build run isn't actively building
   const canTriggerValidation = $derived(
     buildRun &&
     ['SUCCESS', 'FAILED', 'BUILD_FAILED', 'VALIDATING'].includes(buildRun.status ?? '') &&
@@ -151,7 +151,7 @@
     triggeringValidation = true;
     try {
       await triggerBuildRunValidation(buildRun.id);
-      // Refresh pipeline and validation runs list
+      // Refresh build run and validation runs list
       buildRun = await fetchBuildRun(runId);
       await fetchValidationRuns();
       error = null;
@@ -205,7 +205,7 @@
 
     try {
       await resetBuild(buildId);
-      // Reload the pipeline to get fresh status
+      // Reload the build run to get fresh status
       await loadBuildRun();
     } catch (err) {
       console.error('Failed to reset build:', err);
@@ -234,11 +234,11 @@
     if (!buildRun || cancelling) return;
     cancelling = true;
     try {
-      await cancelPipeline(buildRun.id);
+      await cancelBuildRun(buildRun.id);
       buildRun = await fetchBuildRun(runId ?? '');
       error = null;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to cancel pipeline';
+      error = err instanceof Error ? err.message : 'Failed to cancel build run';
     } finally {
       cancelling = false;
     }
@@ -248,10 +248,10 @@
     if (!buildRun || retriggering) return;
     retriggering = true;
     try {
-      const result = await retriggerPipeline(buildRun.id);
+      const result = await retriggerBuildRun(buildRun.id);
       goto(`/builds/runs/${result.buildRunId}`);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to retrigger pipeline';
+      error = err instanceof Error ? err.message : 'Failed to retrigger build run';
       retriggering = false;
     }
   }
@@ -273,7 +273,7 @@
     return buildRun.builds.reduce((sum: number, b: BuildRunBuildSummary) => sum + (b.artifactCount ?? 0), 0);
   });
 
-  // Check if this is a stage pipeline with matrix labels
+  // Check if this is a stage build run with matrix labels
   const hasMatrixLabels = $derived(buildRun?.builds?.some((b: BuildRunBuildSummary) => b.matrixLabel) ?? false);
   const isFuota = $derived(buildRun?.matrixMode === 'fuota');
   const stageInfo = $derived(buildRun?.matrixMode ? STAGE_DISPLAY[buildRun.matrixMode as ValidationStage] : null);
@@ -454,11 +454,11 @@
 
   function setupWebSocket(): void {
     if (!runId) return;
-    unsubscribeWs = subscribeCiPipeline(
+    unsubscribeWs = subscribeCiBuildRun(
       runId,
       {
         onStageUpdate: () => { loadBuildRun(); },
-        onComplete: (_data: CiPipelineCompleteEvent) => { loadBuildRun(); },
+        onComplete: (_data: CiBuildRunCompleteEvent) => { loadBuildRun(); },
       },
       (msg) => console.warn('Build WS error:', msg)
     );
@@ -664,7 +664,7 @@
             onclick={handleCancel}
             disabled={cancelling}
             class="btn btn-sm flex items-center gap-1.5 text-error hover:bg-error-muted"
-            title="Cancel this pipeline"
+            title="Cancel this build run"
           >
             {#if cancelling}
               <Loader2 size={14} class="animate-spin" />
@@ -680,7 +680,7 @@
             onclick={handleRetrigger}
             disabled={retriggering}
             class="btn btn-sm flex items-center gap-1.5"
-            title="Re-trigger this pipeline with the same configuration"
+            title="Re-trigger this build run with the same configuration"
           >
             {#if retriggering}
               <Loader2 size={14} class="animate-spin" />

@@ -1,4 +1,4 @@
-"""CI Pipeline route handlers — thin wrappers around build_run_service."""
+"""CI Build Run route handlers — thin wrappers around build_run_service."""
 
 import io
 import logging
@@ -15,18 +15,18 @@ from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.artifact_validator import validate_pipeline_artifacts as _validate_artifacts
+from src.services.artifact_validator import validate_build_run_artifacts as _validate_artifacts
 from src.services.build_run_service import (
-    check_pipeline_completion,
+    check_build_run_completion,
     create_build_run_record,
-    resolve_pipeline_context,
+    resolve_build_run_context,
     serialize_build_run,
     serialize_build_run_summary,
-    trigger_pipeline_validation,
+    trigger_build_run_validation,
 )
 
 from .builds import _sanitize_filename
-from .types import PipelineCreateRequest
+from .types import BuildRunCreateRequest
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _collect_artifacts_zip(storage, build_run, root_folder: str) -> bytes:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_build_runs():
-    """GET /v2/builds/pipelines — List pipeline runs."""
+    """GET /v2/builds/runs — List build runs."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -147,13 +147,13 @@ def list_build_runs():
         }).to_dict()), 200
 
     except Exception as e:
-        logger.exception("Failed to list pipelines: %s", e)
-        return internal_error("Failed to list pipelines")
+        logger.exception("Failed to list build runs: %s", e)
+        return internal_error("Failed to list build runs")
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_build_run(run_id: str):
-    """GET /v2/builds/pipelines/<id> — Get pipeline details with builds."""
+    """GET /v2/builds/runs/<id> — Get build run details with builds."""
     db = get_db_client()
 
     try:
@@ -162,18 +162,18 @@ def get_build_run(run_id: str):
             include={"builds": {"include": {"artifacts": True, "product": True}}, "product": True},
         )
         if not build_run:
-            return not_found(f"Pipeline not found: {run_id}")
+            return not_found(f"Build run not found: {run_id}")
 
         return jsonify(ApiResponse.ok(serialize_build_run(build_run)).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to get pipeline %s: %s", run_id, e)
-        return internal_error("Failed to get pipeline")
+        logger.error("Failed to get build run %s: %s", run_id, e)
+        return internal_error("Failed to get build run")
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def download_build_run_artifacts(run_id: str):
-    """GET /v2/builds/pipelines/<id>/artifacts/download — Download all artifacts as ZIP."""
+    """GET /v2/builds/runs/<id>/artifacts/download — Download all artifacts as ZIP."""
     from src.services.storage.client import get_storage_client
 
     db = get_db_client()
@@ -183,10 +183,10 @@ def download_build_run_artifacts(run_id: str):
         include={"builds": {"include": {"artifacts": True, "product": True}}, "product": True},
     )
     if not build_run:
-        return not_found(f"Pipeline not found: {run_id}")
+        return not_found(f"Build run not found: {run_id}")
 
     if not build_run.builds:
-        return not_found("No builds found for this pipeline")
+        return not_found("No builds found for this build run")
 
     try:
         storage = get_storage_client()
@@ -204,41 +204,41 @@ def download_build_run_artifacts(run_id: str):
         )
 
     except Exception as e:
-        logger.error("Failed to create ZIP for pipeline %s: %s", run_id, e)
+        logger.error("Failed to create ZIP for build run %s: %s", run_id, e)
         return internal_error("Failed to create artifact ZIP")
 
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
 def create_build_run():
-    """POST /v2/builds/pipelines — Create a new pipeline (triggers builds)."""
-    data, error = PipelineCreateRequest.from_json(request.get_json())
+    """POST /v2/builds/runs — Create a new build run (triggers builds)."""
+    data, error = BuildRunCreateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
 
     db = get_db_client()
 
     try:
-        ctx = resolve_pipeline_context(db, data)
+        ctx = resolve_build_run_context(db, data)
         build_run, builds = create_build_run_record(db, data, ctx)
         return jsonify(ApiResponse.created(serialize_build_run(build_run)).to_dict()), 201
 
     except Exception as e:
-        logger.error("Failed to create pipeline: %s", e)
-        return internal_error("Failed to create pipeline")
+        logger.error("Failed to create build run: %s", e)
+        return internal_error("Failed to create build run")
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def cancel_build_run(run_id: str):
-    """POST /v2/builds/pipelines/<id>/cancel — Cancel a pipeline."""
+    """POST /v2/builds/runs/<id>/cancel — Cancel a build run."""
     db = get_db_client()
 
     try:
         build_run = db.buildrun.find_unique(where={"id": run_id})
         if not build_run:
-            return not_found(f"Pipeline not found: {run_id}")
+            return not_found(f"Build run not found: {run_id}")
 
         if build_run.status in ("SUCCESS", "FAILED", "CANCELLED"):
-            return bad_request(f"Pipeline already in terminal state: {build_run.status}")
+            return bad_request(f"Build run already in terminal state: {build_run.status}")
 
         db.buildjob.update_many(
             where={
@@ -254,18 +254,18 @@ def cancel_build_run(run_id: str):
             include={"builds": {"include": {"product": True}}, "product": True},
         )
 
-        log_audit("ci.pipeline.cancel", "BuildRun", run_id, {})
+        log_audit("ci.build_run.cancel", "BuildRun", run_id, {})
 
         return jsonify(ApiResponse.ok(serialize_build_run(build_run)).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to cancel pipeline %s: %s", run_id, e)
-        return internal_error("Failed to cancel pipeline")
+        logger.error("Failed to cancel build run %s: %s", run_id, e)
+        return internal_error("Failed to cancel build run")
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def retrigger_build_run(run_id: str):
-    """POST /v2/builds/runs/<id>/retrigger — Re-trigger a pipeline with the same config."""
+    """POST /v2/builds/runs/<id>/retrigger — Re-trigger a build run with the same config."""
     db = get_db_client()
 
     build_run = db.buildrun.find_unique(
@@ -273,7 +273,7 @@ def retrigger_build_run(run_id: str):
         include={"product": True},
     )
     if not build_run:
-        return not_found(f"Pipeline not found: {run_id}")
+        return not_found(f"Build run not found: {run_id}")
 
     if not build_run.stageConfigId:
         return bad_request("Cannot retrigger: no stage config associated with this run")
@@ -300,20 +300,20 @@ def retrigger_build_run(run_id: str):
         if not result:
             return internal_error("Failed to trigger build — check product config")
 
-        log_audit("ci.pipeline.retrigger", "BuildRun", result["buildRunId"], {
+        log_audit("ci.build_run.retrigger", "BuildRun", result["buildRunId"], {
             "originalRunId": run_id,
             "jobCount": result["jobCount"],
         })
 
         return jsonify(ApiResponse.ok(result).to_dict()), 201
     except Exception as e:
-        logger.exception("Failed to retrigger pipeline %s", run_id)
-        return internal_error("Failed to retrigger pipeline")
+        logger.exception("Failed to retrigger build run %s", run_id)
+        return internal_error("Failed to retrigger build run")
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_build_run_sessions(run_id: str):
-    """GET /v2/builds/pipelines/<id>/sessions — List sessions triggered by this pipeline."""
+    """GET /v2/builds/runs/<id>/sessions — List sessions triggered by this build run."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -323,7 +323,7 @@ def list_build_run_sessions(run_id: str):
     try:
         build_run = db.buildrun.find_unique(where={"id": run_id})
         if not build_run:
-            return not_found(f"Pipeline not found: {run_id}")
+            return not_found(f"Build run not found: {run_id}")
 
         where = {"buildRunId": run_id}
         total = db.testrun.count(where=where)
@@ -368,13 +368,13 @@ def list_build_run_sessions(run_id: str):
         }).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to list pipeline sessions %s: %s", run_id, e)
-        return internal_error("Failed to list pipeline sessions")
+        logger.error("Failed to list build run sessions %s: %s", run_id, e)
+        return internal_error("Failed to list build run sessions")
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def validate_build_run(run_id: str):
-    """POST /v2/builds/pipelines/<id>/validate — Manually trigger validation for a completed pipeline."""
+    """POST /v2/builds/runs/<id>/validate — Manually trigger validation for a completed build run."""
     db = get_db_client()
 
     try:
@@ -383,10 +383,10 @@ def validate_build_run(run_id: str):
             include={"builds": {"include": {"product": True}}, "product": True},
         )
         if not build_run:
-            return not_found(f"Pipeline not found: {run_id}")
+            return not_found(f"Build run not found: {run_id}")
 
         if build_run.status not in ("SUCCESS", "FAILED", "BUILD_FAILED", "VALIDATING"):
-            return bad_request(f"Cannot trigger validation for pipeline in {build_run.status} state")
+            return bad_request(f"Cannot trigger validation for build run in {build_run.status} state")
 
         builds = build_run.builds or []
         succeeded = [b for b in builds if b.status in ("SUCCESS", "CACHED")]
@@ -412,12 +412,12 @@ def validate_build_run(run_id: str):
                     logger.warning("Failed to create queue entry: %s", e)
                     return bad_request("Prior validation still running. Try again after it completes.")
 
-                log_audit("ci.pipeline.validate_queued", "BuildRun", run_id, {
+                log_audit("ci.build_run.validate_queued", "BuildRun", run_id, {
                     "queueEntryId": result["entryId"],
                     "reason": result.get("reason"),
                 })
                 return jsonify(ApiResponse.ok({
-                    "pipelineId": run_id,
+                    "buildRunId": run_id,
                     "queued": True,
                     "queueEntryId": result["entryId"],
                     "reason": result.get("reason"),
@@ -430,17 +430,17 @@ def validate_build_run(run_id: str):
                     })
                 logger.info("Prior run %s finished (%s), unlocked fixture", build_run.validationRunId[:8], prior_run.status)
 
-        result = trigger_pipeline_validation(run_id, build_run, builds)
+        result = trigger_build_run_validation(run_id, build_run, builds)
         if result is None:
             return internal_error("Failed to create validation run (no fixtures available)")
 
         if result.get("queued"):
-            log_audit("ci.pipeline.validate_queued", "BuildRun", run_id, {
+            log_audit("ci.build_run.validate_queued", "BuildRun", run_id, {
                 "queueEntryId": result["entryId"],
                 "reason": result.get("reason"),
             })
             return jsonify(ApiResponse.ok({
-                "pipelineId": run_id,
+                "buildRunId": run_id,
                 "queued": True,
                 "queueEntryId": result["entryId"],
                 "reason": result.get("reason"),
@@ -453,39 +453,39 @@ def validate_build_run(run_id: str):
             data={"status": "VALIDATING", "validationRunId": validation_run_id},
         )
 
-        log_audit("ci.pipeline.validate_manual", "BuildRun", run_id, {
+        log_audit("ci.build_run.validate_manual", "BuildRun", run_id, {
             "validationRunId": validation_run_id,
         })
 
         return jsonify(ApiResponse.ok({
-            "pipelineId": run_id,
+            "buildRunId": run_id,
             "validationRunId": validation_run_id,
             "status": "VALIDATING",
         }).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to trigger validation for pipeline %s: %s", run_id, e)
+        logger.error("Failed to trigger validation for build run %s: %s", run_id, e)
         return internal_error("Failed to trigger validation")
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def validate_build_run_artifacts_endpoint(run_id: str):
-    """POST /v2/builds/pipelines/<id>/validate-artifacts
+    """POST /v2/builds/runs/<id>/validate-artifacts
 
-    Returns a structured report of artifact completeness for a pipeline.
-    Does not mutate pipeline state — read-only validation check.
+    Returns a structured report of artifact completeness for a build run.
+    Does not mutate build run state — read-only validation check.
     """
     db = get_db_client()
 
     try:
         build_run = db.buildrun.find_unique(where={"id": run_id})
         if not build_run:
-            return not_found(f"Pipeline not found: {run_id}")
+            return not_found(f"Build run not found: {run_id}")
 
         result = _validate_artifacts(db, run_id)
 
         return jsonify(ApiResponse.ok(result).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to validate artifacts for pipeline %s: %s", run_id, e)
-        return internal_error("Failed to validate pipeline artifacts")
+        logger.error("Failed to validate artifacts for build run %s: %s", run_id, e)
+        return internal_error("Failed to validate build run artifacts")

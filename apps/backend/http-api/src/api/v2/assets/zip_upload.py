@@ -29,13 +29,11 @@ from src.lib.errors import bad_request, conflict, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_storage_client, get_bucket_name
+from src.services.storage.client import get_storage_client, get_bucket_name, product_asset_key
 
 from .zip_validator import validate_zip, classify_file
 
 logger = logging.getLogger(__name__)
-
-ASSET_SETS_PREFIX = "asset-sets"
 
 
 def _try_parse_version(zf: zipfile.ZipFile) -> tuple[str | None, str | None]:
@@ -371,7 +369,17 @@ def upload_asset_set_zip(product_id: str):
         checksum = hashlib.sha256(content).hexdigest()
 
         # Upload to MinIO
-        object_key = f"{ASSET_SETS_PREFIX}/{asset_set.id}/{label}/{filename}"
+        object_key = product_asset_key(
+            product_slug=getattr(product, "slug", None),
+            revision_version=getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None,
+            stage_type=stage_config.type,
+            stage=stage_config.stage,
+            asset_version=version,
+            variant=variant,
+            label=label,
+            filename=filename,
+            stage_name=getattr(stage_config, "name", None),
+        )
         storage.put_object(
             bucket,
             object_key,
@@ -868,7 +876,17 @@ def upload_asset_files(product_id: str):
         entry = matrix_by_label.get(label)
         role = _infer_role(filename, entry)
 
-        object_key = f"{ASSET_SETS_PREFIX}/{asset_set.id}/{label}/{filename}"
+        object_key = product_asset_key(
+            product_slug=getattr(product, "slug", None),
+            revision_version=getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None,
+            stage_type=stage_config.type,
+            stage=stage_config.stage,
+            asset_version=version,
+            variant="debug",
+            label=label,
+            filename=filename,
+            stage_name=getattr(stage_config, "name", None),
+        )
         storage.put_object(
             bucket,
             object_key,

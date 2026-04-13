@@ -1,4 +1,4 @@
-"""Tests for services/artifact_validator.py — pipeline artifact validation."""
+"""Tests for services/artifact_validator.py — build run artifact validation."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import pytest
 
 from tests.conftest import make_obj
 from src.services.artifact_validator import (
-    validate_pipeline_artifacts,
+    validate_build_run_artifacts,
     format_missing_artifacts_message,
     _parse_build_matrix,
     _parse_product_targets,
@@ -205,40 +205,40 @@ class TestCheckBuildArtifacts:
 
 
 # ---------------------------------------------------------------------------
-# validate_pipeline_artifacts (integration)
+# validate_build_run_artifacts (integration)
 # ---------------------------------------------------------------------------
 
-class TestValidatePipelineArtifacts:
-    def test_pipeline_not_found(self):
+class TestValidateBuildRunArtifacts:
+    def test_build_run_not_found(self):
         db = MagicMock()
         db.buildrun.find_unique.return_value = None
-        result = validate_pipeline_artifacts(db, "missing-id")
+        result = validate_build_run_artifacts(db, "missing-id")
         assert result["valid"] is True
         assert result["builds"] == []
 
     def test_no_stage_config(self):
-        pipeline = make_obj(stageConfigId=None, builds=[], product=None)
+        build_run = make_obj(stageConfigId=None, builds=[], product=None)
         db = MagicMock()
-        db.buildrun.find_unique.return_value = pipeline
-        result = validate_pipeline_artifacts(db, "run-1")
+        db.buildrun.find_unique.return_value = build_run
+        result = validate_build_run_artifacts(db, "run-1")
         assert result["valid"] is True
 
     def test_no_build_matrix(self):
-        pipeline = make_obj(stageConfigId="sc-1", builds=[], product=None)
+        build_run = make_obj(stageConfigId="sc-1", builds=[], product=None)
         stage_config = make_obj(buildMatrix=None, requiresFuota=False, stage=2)
         db = MagicMock()
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
         db.productstageconfig.find_unique.return_value = stage_config
-        result = validate_pipeline_artifacts(db, "run-1")
+        result = validate_build_run_artifacts(db, "run-1")
         assert result["valid"] is True
 
     def test_no_product_targets(self):
-        pipeline = make_obj(stageConfigId="sc-1", builds=[], product=make_obj(buildConfig=None))
+        build_run = make_obj(stageConfigId="sc-1", builds=[], product=make_obj(buildConfig=None))
         stage_config = make_obj(buildMatrix=[{"role": "app"}], requiresFuota=False, stage=2)
         db = MagicMock()
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
         db.productstageconfig.find_unique.return_value = stage_config
-        result = validate_pipeline_artifacts(db, "run-1")
+        result = validate_build_run_artifacts(db, "run-1")
         assert result["valid"] is True
 
     def test_full_validation_pass(self):
@@ -248,31 +248,31 @@ class TestValidatePipelineArtifacts:
         ]
         build = make_obj(id="b-1", status="SUCCESS", artifacts=artifacts, matrixLabel="APP")
         product = make_obj(buildConfig={"targets": [{"role": "app", "processor": "nrf52840"}]})
-        pipeline = make_obj(stageConfigId="sc-1", builds=[build], product=product)
+        build_run = make_obj(stageConfigId="sc-1", builds=[build], product=product)
         stage_config = make_obj(
             buildMatrix=[{"role": "app", "label": "APP"}],
             requiresFuota=False,
             stage=2,
         )
         db = MagicMock()
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
         db.productstageconfig.find_unique.return_value = stage_config
-        result = validate_pipeline_artifacts(db, "run-1")
+        result = validate_build_run_artifacts(db, "run-1")
         assert result["valid"] is True
         assert len(result["missing"]) == 0
 
     def test_full_validation_fail_missing_build(self):
         product = make_obj(buildConfig={"targets": [{"role": "app", "processor": "nrf52840"}]})
-        pipeline = make_obj(stageConfigId="sc-1", builds=[], product=product)
+        build_run = make_obj(stageConfigId="sc-1", builds=[], product=product)
         stage_config = make_obj(
             buildMatrix=[{"role": "app", "label": "APP"}],
             requiresFuota=False,
             stage=2,
         )
         db = MagicMock()
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
         db.productstageconfig.find_unique.return_value = stage_config
-        result = validate_pipeline_artifacts(db, "run-1")
+        result = validate_build_run_artifacts(db, "run-1")
         assert result["valid"] is False
         assert len(result["missing"]) > 0
 
@@ -283,16 +283,16 @@ class TestValidatePipelineArtifacts:
         ]
         build = make_obj(id="b-1", status="SUCCESS", artifacts=artifacts, matrixLabel="APP")
         product = make_obj(buildConfig={"targets": [{"role": "app", "processor": "nrf52840"}]})
-        pipeline = make_obj(stageConfigId="sc-1", builds=[build], product=product)
+        build_run = make_obj(stageConfigId="sc-1", builds=[build], product=product)
         stage_config = make_obj(
             buildMatrix=[{"role": "app", "label": "APP"}],
             requiresFuota=False,
             stage=4,
         )
         db = MagicMock()
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
         db.productstageconfig.find_unique.return_value = stage_config
-        result = validate_pipeline_artifacts(db, "run-1")
+        result = validate_build_run_artifacts(db, "run-1")
         # Missing CFW for stage >= 4
         assert result["valid"] is False
         cfw_missing = [m for m in result["missing"] if m["artifactType"] == "encryptedCfw"]

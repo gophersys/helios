@@ -1,6 +1,6 @@
 """Extended tests for services/build_run_service.py — coverage for uncovered paths.
 
-Targets: generate_matrix_build_specs, create_build_jobs, check_pipeline_completion,
+Targets: generate_matrix_build_specs, create_build_jobs, check_build_run_completion,
 _find_available_fixture, _analyze_unavailability, _queue_validation.
 """
 
@@ -210,7 +210,7 @@ class TestCreateBuildJobs:
         build_obj = make_obj(id="build-1")
         db.buildjob.create.return_value = build_obj
 
-        pipeline = make_obj(id="run-1")
+        build_run = make_obj(id="run-1")
         product = make_obj(id="prod-1")
         data = make_obj(branch="main", trigger_type="manual")
 
@@ -228,7 +228,7 @@ class TestCreateBuildJobs:
             "firmware": "alpha_fw",
         }]
 
-        builds = create_build_jobs(db, pipeline, specs, data, product)
+        builds = create_build_jobs(db, build_run, specs, data, product)
 
         assert len(builds) == 1
         db.buildjob.create.assert_called_once()
@@ -242,7 +242,7 @@ class TestCreateBuildJobs:
         db.buildjob.find_many.return_value = [cached]
         db.buildjob.create.return_value = make_obj(id="build-1")
 
-        pipeline = make_obj(id="run-1")
+        build_run = make_obj(id="run-1")
         product = make_obj(id="prod-1")
         data = make_obj(branch="main", trigger_type="manual")
 
@@ -260,7 +260,7 @@ class TestCreateBuildJobs:
             "firmware": "alpha_fw",
         }]
 
-        builds = create_build_jobs(db, pipeline, specs, data, product)
+        builds = create_build_jobs(db, build_run, specs, data, product)
 
         assert len(builds) == 1
         create_call = db.buildjob.create.call_args
@@ -274,7 +274,7 @@ class TestCreateBuildJobs:
         db = MagicMock()
         db.buildjob.create.return_value = make_obj(id="build-1")
 
-        pipeline = make_obj(id="run-1")
+        build_run = make_obj(id="run-1")
         product = make_obj(id="prod-1")
         data = make_obj(branch="main", trigger_type="manual")
 
@@ -293,7 +293,7 @@ class TestCreateBuildJobs:
             "versionOverride": "0.8.11",
         }]
 
-        builds = create_build_jobs(db, pipeline, specs, data, product)
+        builds = create_build_jobs(db, build_run, specs, data, product)
 
         assert len(builds) == 1
         create_call = db.buildjob.create.call_args[1]["data"]
@@ -309,7 +309,7 @@ class TestCreateBuildJobs:
         build_b = make_obj(id="build-b")
         db.buildjob.create.side_effect = [build_a, build_b]
 
-        pipeline = make_obj(id="run-1")
+        build_run = make_obj(id="run-1")
         product = make_obj(id="prod-1")
         data = make_obj(branch="main", trigger_type="manual")
 
@@ -329,7 +329,7 @@ class TestCreateBuildJobs:
             },
         ]
 
-        builds = create_build_jobs(db, pipeline, specs, data, product)
+        builds = create_build_jobs(db, build_run, specs, data, product)
 
         assert len(builds) == 2
         # Second build should be updated with baseJobId
@@ -339,28 +339,28 @@ class TestCreateBuildJobs:
 
 
 # ---------------------------------------------------------------------------
-# check_pipeline_completion
+# check_build_run_completion
 # ---------------------------------------------------------------------------
 
-class TestCheckPipelineCompletion:
-    """Tests for check_pipeline_completion()."""
+class TestCheckBuildRunCompletion:
+    """Tests for check_build_run_completion()."""
 
     @patch("src.services.build_run_service.get_db_client")
-    def test_returns_none_for_missing_pipeline(self, mock_get_db):
-        """Returns None when pipeline not found."""
-        from src.services.build_run_service import check_pipeline_completion
+    def test_returns_none_for_missing_build_run(self, mock_get_db):
+        """Returns None when build run not found."""
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
         db.buildrun.find_unique.return_value = None
 
-        result = check_pipeline_completion("run-missing")
+        result = check_build_run_completion("run-missing")
         assert result is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_returns_none_for_already_finished(self, mock_get_db):
-        """Returns None when pipeline is already in a terminal state."""
-        from src.services.build_run_service import check_pipeline_completion
+        """Returns None when build run is already in a terminal state."""
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -368,13 +368,13 @@ class TestCheckPipelineCompletion:
             id="run-1", status="SUCCESS", builds=[], completedBuilds=0,
         )
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
         assert result is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_returns_none_for_empty_builds(self, mock_get_db):
-        """Returns None when pipeline has no builds."""
-        from src.services.build_run_service import check_pipeline_completion
+        """Returns None when build run has no builds."""
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -382,13 +382,13 @@ class TestCheckPipelineCompletion:
             id="run-1", status="PENDING", builds=[], completedBuilds=0,
         )
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
         assert result is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_returns_none_when_incomplete(self, mock_get_db):
         """Returns None when not all builds are done yet."""
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -400,38 +400,38 @@ class TestCheckPipelineCompletion:
             ],
         )
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
         assert result is None
 
     @patch("src.services.build_run_service.get_db_client")
     def test_all_success_sets_success(self, mock_get_db):
-        """Sets pipeline to SUCCESS when all builds succeed and autoRunStage=False."""
-        from src.services.build_run_service import check_pipeline_completion
+        """Sets build run to SUCCESS when all builds succeed and autoRunStage=False."""
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
 
         builds = [make_obj(status="SUCCESS", versionString="0.8.1", variant="release")]
-        pipeline = make_obj(
+        build_run = make_obj(
             id="run-1", status="PENDING", completedBuilds=0,
             builds=builds, autoRunStage=False, stage=None, productId=None,
         )
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
 
-        with patch("src.services.artifact_validator.validate_pipeline_artifacts",
+        with patch("src.services.artifact_validator.validate_build_run_artifacts",
                    return_value={"valid": True, "missing": []}), \
              patch("src.services.build_promotion.promote_build_run_to_firmware",
                    return_value=[{"id": "fs-1"}]), \
              patch("src.services.build_promotion.create_asset_set_from_build_run",
                    return_value={"assetSetId": "as-1", "assetCount": 1}):
-            result = check_pipeline_completion("run-1")
+            result = check_build_run_completion("run-1")
 
         assert result == "SUCCESS"
 
     @patch("src.services.build_run_service.get_db_client")
     def test_failed_build_cancels_siblings(self, mock_get_db):
         """Failed builds trigger cancellation of pending siblings."""
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -441,13 +441,13 @@ class TestCheckPipelineCompletion:
             make_obj(id="b-1", status="FAILED"),
             pending_build,
         ]
-        pipeline = make_obj(
+        build_run = make_obj(
             id="run-1", status="BUILDING", completedBuilds=0,
             builds=builds, autoRunStage=False, stage=None, productId=None,
         )
-        db.buildrun.find_unique.return_value = pipeline
+        db.buildrun.find_unique.return_value = build_run
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
 
         assert result == "BUILD_FAILED"
         # Pending build should be cancelled
@@ -456,13 +456,13 @@ class TestCheckPipelineCompletion:
     @patch("src.services.build_run_service.get_db_client")
     def test_exception_returns_none(self, mock_get_db):
         """Returns None on unexpected exceptions."""
-        from src.services.build_run_service import check_pipeline_completion
+        from src.services.build_run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
         db.buildrun.find_unique.side_effect = Exception("DB error")
 
-        result = check_pipeline_completion("run-1")
+        result = check_build_run_completion("run-1")
         assert result is None
 
 
@@ -663,9 +663,9 @@ class TestCreateBuildRunRecord:
         from src.services.build_run_service import create_build_run_record
 
         db = MagicMock()
-        pipeline = make_obj(id="run-1")
-        db.buildrun.create.return_value = pipeline
-        db.buildrun.find_unique.return_value = pipeline
+        build_run = make_obj(id="run-1")
+        db.buildrun.create.return_value = build_run
+        db.buildrun.find_unique.return_value = build_run
 
         build = make_obj(id="build-1")
         mock_create_jobs.return_value = [build]
@@ -691,7 +691,7 @@ class TestCreateBuildRunRecord:
             mfg_repo_slug=None, validation_config=None,
         )
 
-        result_pipeline, result_builds = create_build_run_record(db, data, ctx)
+        result_build_run, result_builds = create_build_run_record(db, data, ctx)
 
         db.buildrun.create.assert_called_once()
         mock_create_jobs.assert_called_once()

@@ -119,11 +119,11 @@ def recover_stale_builds() -> int:
                     ),
                 },
             )
-            # If this build is part of a pipeline, check completion
+            # If this build is part of a build run, check completion
             if build.buildRunId:
                 try:
-                    from src.services.build_run_service import check_pipeline_completion
-                    check_pipeline_completion(build.buildRunId)
+                    from src.services.build_run_service import check_build_run_completion
+                    check_build_run_completion(build.buildRunId)
                 except Exception:
                     pass
         else:

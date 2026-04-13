@@ -205,37 +205,37 @@ class TestBuildsPermissions:
 
 
 # ---------------------------------------------------------------------------
-# Module: CI Pipelines
+# Module: CI Build Runs
 # ---------------------------------------------------------------------------
 
-class TestPipelinesPermissions:
-    """Tests for /v2/builds/pipelines routes — requires builds:view / builds:trigger."""
+class TestBuildRunsPermissions:
+    """Tests for /v2/builds/runs routes — requires builds:view / builds:trigger."""
 
-    def test_list_pipelines_unauthenticated(self, client):
-        response = client.get("/v2/builds/pipelines")
+    def test_list_build_runs_unauthenticated(self, client):
+        response = client.get("/v2/builds/runs")
         _assert_401(response)
 
-    def test_list_pipelines_wrong_permission(self, client, auth_headers, mock_db):
+    def test_list_build_runs_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "devices:view",
         )
-        response = client.get("/v2/builds/pipelines", headers=auth_headers)
+        response = client.get("/v2/builds/runs", headers=auth_headers)
         _assert_403(response)
 
-    def test_list_pipelines_correct_permission(self, client, auth_headers, mock_db):
+    def test_list_build_runs_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view",
         )
-        response = client.get("/v2/builds/pipelines", headers=auth_headers)
+        response = client.get("/v2/builds/runs", headers=auth_headers)
         _assert_not_denied(response)
 
-    def test_trigger_pipeline_unauthenticated(self, client):
+    def test_trigger_build_run_unauthenticated(self, client):
         response = client.post("/v2/builds/trigger", data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
 
-    def test_trigger_pipeline_view_only(self, client, auth_headers, mock_db):
-        """builds:view should NOT allow triggering pipelines."""
+    def test_trigger_build_run_view_only(self, client, auth_headers, mock_db):
+        """builds:view should NOT allow triggering build runs."""
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view",
         )
@@ -243,7 +243,7 @@ class TestPipelinesPermissions:
                                headers=auth_headers)
         _assert_403(response)
 
-    def test_trigger_pipeline_correct_permission(self, client, auth_headers, mock_db):
+    def test_trigger_build_run_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:trigger",
         )

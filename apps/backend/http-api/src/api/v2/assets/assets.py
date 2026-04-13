@@ -14,11 +14,9 @@ from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_storage_client, get_bucket_name, storage_key, StoragePrefixes
+from src.services.storage.client import get_storage_client, get_bucket_name, product_asset_key
 
 logger = logging.getLogger(__name__)
-
-ASSET_SETS_PREFIX = "asset-sets"
 
 VALID_ARTIFACT_TYPES = {"plaintextHex", "encryptedCfw", "manifest", "log", "metadata", "other"}
 
@@ -36,7 +34,10 @@ def upload_asset(asset_set_id: str):
         contentType: (optional) MIME type
     """
     db = get_db_client()
-    asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+    asset_set = db.assetset.find_unique(
+        where={"id": asset_set_id},
+        include={"product": True, "boardRevision": True},
+    )
     if not asset_set:
         return not_found("Asset set not found")
     if asset_set.status not in ("PENDING",):
@@ -69,7 +70,17 @@ def upload_asset(asset_set_id: str):
     checksum = hashlib.sha256(file_data).hexdigest()
 
     # Store in MinIO
-    s3_key = storage_key(ASSET_SETS_PREFIX, f"{asset_set_id}/{label}/{file.filename}")
+    s3_key = product_asset_key(
+        product_slug=getattr(asset_set.product, "slug", None) if asset_set.product else None,
+        revision_version=getattr(asset_set.boardRevision, "version", None) if asset_set.boardRevision else None,
+        stage_type=getattr(asset_set, "stageType", None),
+        stage=getattr(asset_set, "stage", None),
+        asset_version=asset_set.version,
+        variant=asset_set.variant,
+        label=label,
+        filename=file.filename,
+        stage_name=getattr(asset_set, "stageName", None),
+    )
     storage = get_storage_client()
     bucket = get_bucket_name()
 

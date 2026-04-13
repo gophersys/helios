@@ -67,6 +67,7 @@ from .queue import (
     update_queue_entry,
     cancel_queue_entry,
     promote_queue_entry,
+    demote_queue_entry,
     get_queue_stats,
     trigger_scheduler,
 )
@@ -351,6 +352,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         "/runs/queue/<entry_id>/promote",
         endpoint="promote_queue_entry",
         view_func=promote_queue_entry,
+        methods=["POST"],
+    )
+    api.add_url_rule(
+        "/runs/queue/<entry_id>/demote",
+        endpoint="demote_queue_entry",
+        view_func=demote_queue_entry,
         methods=["POST"],
     )
     api.add_url_rule(

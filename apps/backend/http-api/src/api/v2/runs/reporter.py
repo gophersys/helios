@@ -187,26 +187,26 @@ def _unlock_fixture(db, run) -> None:
         logger.warning("Failed to unlock fixture %s: %s", fixture_id, e)
 
 
-def _propagate_to_pipeline(db, run, now: datetime) -> None:
-    """Update parent build run and emit CI pipeline event if applicable."""
-    pipeline_id = getattr(run, "buildRunId", None)
-    if not pipeline_id:
+def _propagate_to_build_run(db, run, now: datetime) -> None:
+    """Update parent build run and emit CI build run event if applicable."""
+    build_run_id = getattr(run, "buildRunId", None)
+    if not build_run_id:
         return
 
     try:
-        pipeline_status = "SUCCESS" if (run.failedCount or 0) == 0 else "FAILED"
+        build_run_status = "SUCCESS" if (run.failedCount or 0) == 0 else "FAILED"
         db.buildrun.update(
-            where={"id": pipeline_id},
-            data={"status": pipeline_status, "finishedAt": now},
+            where={"id": build_run_id},
+            data={"status": build_run_status, "finishedAt": now},
         )
-        _emit("ci_pipeline_complete", {
-            "pipelineId": pipeline_id,
-            "status": pipeline_status,
+        _emit("ci_build_run_complete", {
+            "buildRunId": build_run_id,
+            "status": build_run_status,
             "runId": run.id,
         }, run.id)
-        logger.info("Pipeline %s finished with status %s", pipeline_id, pipeline_status)
+        logger.info("Build run %s finished with status %s", build_run_id, build_run_status)
     except Exception as e:
-        logger.warning("Failed to update pipeline %s: %s", pipeline_id, e)
+        logger.warning("Failed to update build run %s: %s", build_run_id, e)
 
 
 def _complete_queue_entry(db, run_id: str, now: datetime) -> None:
@@ -754,8 +754,8 @@ def report_finish(run_id: str):
         "durationMs": run_update.get("durationMs"),
     }, run_id)
 
-    # Pipeline propagation
-    _propagate_to_pipeline(db, run, now)
+    # Build run propagation
+    _propagate_to_build_run(db, run, now)
 
     logger.info(
         "Run %s finished: %s (%d passed, %d failed, %d errors)",

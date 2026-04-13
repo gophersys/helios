@@ -147,7 +147,7 @@ class RunContext {
   historicalUartCommsTs = $state<TimestampedLine[]>([]);
   telemetryLoading = $state(false);
 
-  // Build jobs from pipeline
+  // Build jobs from build run
   buildJobs = $state<BuildJob[]>([]);
 
   // Log viewer state
@@ -531,7 +531,7 @@ class RunContext {
       this.run = res.data;
       this.error = null;
 
-      // Hydrate build jobs from pipeline if present. The backend response shape
+      // Hydrate build jobs from build run if present. The backend response shape
       // includes extra fields not in the generated ValidationRun type.
       type StepRecord = {
         logOutput?: string | null;

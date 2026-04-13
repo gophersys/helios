@@ -628,7 +628,7 @@ class TestReportFinish:
         update_data = mock_db.fixture.update.call_args.kwargs["data"]
         assert update_data["status"] == "AVAILABLE"
 
-    def test_propagates_to_pipeline(self, authed_client, mock_db):
+    def test_propagates_to_build_run(self, authed_client, mock_db):
         run = _make_run(buildRunId="pipe-1", fixtureId=None, failedCount=0)
         mock_db.testrun.find_unique.return_value = run
         mock_db.runtarget.find_many.return_value = [_make_target()]

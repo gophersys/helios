@@ -71,6 +71,21 @@ class AppConfig(EnvConfig):
     # Build Service — push notifications for new build jobs
     BUILD_SERVICE_URL: str = ""  # e.g., http://concord-build-service:9002
 
+    # Queue scheduler — global tick interval
+    SCHEDULER_INTERVAL_S: int = 15
+
+    # Build queue — competes for compute nodes (CPU/memory)
+    MAX_CONCURRENT_BUILDS: int = 4
+    BUILD_TIMEOUT_MINUTES: int = 45
+
+    # Validation queue — competes for physical test fixtures
+    MAX_CONCURRENT_VALIDATION_RUNS: int = 8
+    VALIDATION_TIMEOUT_MINUTES: int = 60
+
+    # Manufacturing — competes for physical fixtures (operator-driven)
+    MAX_CONCURRENT_MANUFACTURING_SESSIONS: int = 4
+    MANUFACTURING_TIMEOUT_MINUTES: int = 120
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate()

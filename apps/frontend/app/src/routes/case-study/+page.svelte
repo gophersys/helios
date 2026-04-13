@@ -43,7 +43,7 @@
     { date: '02.15.26', file: '021526', summary: 'IWSCK A0 bring-up firmware (BLE, fuel gauge, RS-232)', inserted: 1236, deleted: 500, commits: 2 },
     { date: '02.24.26', file: '022426', summary: 'ICLE firmware, analyzer integration, devcontainer overhaul', inserted: 38828, deleted: 3000, commits: 6 },
     { date: '03.02.26', file: '030226', summary: 'Major validation framework release, Stage 4 tests', inserted: 102640, deleted: 5000, commits: 8 },
-    { date: '03.10.26', file: '031026', summary: 'Stage 4 FUOTA, CI pipeline, UART fix, SvelteKit migration', inserted: 105714, deleted: 3745, commits: 13 },
+    { date: '03.10.26', file: '031026', summary: 'Stage 4 FUOTA, CI build runs, UART fix, SvelteKit migration', inserted: 105714, deleted: 3745, commits: 13 },
     { date: '03.11.26', file: '031126', summary: 'HTTP API overhaul, FUOTA test framework, queue auto-trigger', inserted: 29970, deleted: 6858, commits: 7 },
   ];
 

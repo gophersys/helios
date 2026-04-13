@@ -5,7 +5,7 @@ from src.api.v2.builds.types import (
     BitbucketWebhookPayload,
     CiTriggerRequest,
     BuildCreateRequest,
-    PipelineCreateRequest,
+    BuildRunCreateRequest,
 )
 
 
@@ -123,23 +123,23 @@ class TestBuildCreateRequest:
         assert "product" in error
 
 
-class TestPipelineCreateRequest:
-    def test_valid_pipeline(self):
+class TestBuildRunCreateRequest:
+    def test_valid_build_run(self):
         data = {
             "name": "Alpha CI",
             "product": "alpha",
             "board": "alpha_b0",
             "branch": "concord-main",
         }
-        req, error = PipelineCreateRequest.from_json(data)
+        req, error = BuildRunCreateRequest.from_json(data)
         assert error is None
         assert req.name == "Alpha CI"
         assert req.build_variant == "debug"
 
-    def test_pipeline_without_name(self):
-        """Name is optional - pipeline gets auto-generated name."""
+    def test_build_run_without_name(self):
+        """Name is optional - build run gets auto-generated name."""
         data = {"product": "alpha", "board": "alpha_b0", "branch": "main"}
-        req, error = PipelineCreateRequest.from_json(data)
+        req, error = BuildRunCreateRequest.from_json(data)
         assert error is None
         assert req.name is None
         assert req.product == "alpha"
@@ -147,20 +147,20 @@ class TestPipelineCreateRequest:
 
     def test_missing_product(self):
         data = {"board": "alpha_b0", "branch": "main"}
-        req, error = PipelineCreateRequest.from_json(data)
+        req, error = BuildRunCreateRequest.from_json(data)
         assert req is None
         assert "product" in error
 
-    def test_pipeline_build_variants(self):
-        """Pipeline creates builds with both debug and release variants."""
+    def test_build_run_build_variants(self):
+        """Build run creates builds with both debug and release variants."""
         data = {
             "product": "alpha",
             "board": "alpha_b0",
             "branch": "main",
             "buildVariant": "debug",
         }
-        req, error = PipelineCreateRequest.from_json(data)
+        req, error = BuildRunCreateRequest.from_json(data)
         assert error is None
         assert req.build_variant == "debug"
-        # Note: The actual 4-build creation happens in create_pipeline(),
+        # Note: The actual 4-build creation happens in create_build_run(),
         # which creates both debug and release variants regardless of buildVariant

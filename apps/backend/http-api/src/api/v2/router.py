@@ -209,6 +209,11 @@ from .builds.builds import (
     upload_build_artifact as upload_ci_build_artifact,
     reset_build as reset_ci_build,
 )
+from .builds.queue_priority import (
+    set_build_priority,
+    promote_build,
+    demote_build,
+)
 from .builds.build_runs import (
     list_build_runs as list_ci_build_runs,
     get_build_run as get_ci_build_run,
@@ -270,8 +275,8 @@ from .assets.zip_upload import (
     upload_asset_files,
 )
 
-# PR pipeline + summary endpoints
-from .builds.pr_builds import list_pr_pipelines, get_build_summary
+# PR build runs + summary endpoints
+from .builds.pr_builds import list_pr_build_runs, get_build_summary
 
 # Build recipes (product build scripts stored in MinIO)
 from .builds.recipes import (
@@ -283,7 +288,7 @@ from .builds.recipes import (
     list_recipe_templates, get_recipe_template,
 )
 
-# Run manifest (execution graph for validation pipeline stages)
+# Run manifest (execution graph for validation stages)
 from .builds.manifest import get_run_manifest
 
 
@@ -452,7 +457,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/recipe/publish",                                     endpoint="publish_recipe",           view_func=publish_recipe,        methods=["POST"])
     v2.add_url_rule("/products/<product_id>/recipe/diff",                                        endpoint="diff_recipe_versions",     view_func=diff_recipe_versions,  methods=["GET"])
 
-    # Products - Run Manifest (execution graph for validation pipeline)
+    # Products - Run Manifest (execution graph for validation stages)
     v2.add_url_rule("/products/<product_id>/manifest",                                           endpoint="get_product_manifest",     view_func=get_run_manifest,      methods=["GET"])
 
     # Products - Manufacturing Config
@@ -629,21 +634,24 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
     v2.add_url_rule("/builds/<build_id>/progress",                                              endpoint="report_ci_build_progress", view_func=report_ci_build_progress, methods=["POST"])
     v2.add_url_rule("/builds/<build_id>/reset",                                                 endpoint="reset_ci_build",           view_func=reset_ci_build,        methods=["POST"])
+    v2.add_url_rule("/builds/<build_id>/priority",                                               endpoint="set_build_priority",       view_func=set_build_priority,    methods=["PATCH"])
+    v2.add_url_rule("/builds/<build_id>/promote",                                                endpoint="promote_build",            view_func=promote_build,         methods=["POST"])
+    v2.add_url_rule("/builds/<build_id>/demote",                                                 endpoint="demote_build",             view_func=demote_build,          methods=["POST"])
 
-    # Builds - PR Pipelines & Summary
-    v2.add_url_rule("/builds/prs",                                                         endpoint="list_pr_pipelines",        view_func=list_pr_pipelines,      methods=["GET"])
+    # Builds - PR Build Runs & Summary
+    v2.add_url_rule("/builds/prs",                                                         endpoint="list_pr_build_runs",       view_func=list_pr_build_runs,     methods=["GET"])
     v2.add_url_rule("/builds/summary",                                                     endpoint="get_build_summary",        view_func=get_build_summary,      methods=["GET"])
 
-    # Builds - Pipelines
-    v2.add_url_rule("/builds/runs",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_build_runs,     methods=["GET"])
-    v2.add_url_rule("/builds/runs",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_build_run,    methods=["POST"])
-    v2.add_url_rule("/builds/runs/<run_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_build_run,       methods=["GET"])
-    v2.add_url_rule("/builds/runs/<run_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_build_run,    methods=["POST"])
-    v2.add_url_rule("/builds/runs/<run_id>/retrigger",                               endpoint="retrigger_ci_pipeline",    view_func=retrigger_ci_build_run, methods=["POST"])
-    v2.add_url_rule("/builds/runs/<run_id>/validate",                                endpoint="validate_ci_pipeline",     view_func=validate_ci_build_run,  methods=["POST"])
-    v2.add_url_rule("/builds/runs/<run_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_build_run_artifacts, methods=["GET"])
-    v2.add_url_rule("/builds/runs/<run_id>/sessions",                               endpoint="list_ci_pipeline_sessions",view_func=list_ci_build_run_sessions, methods=["GET"])
-    v2.add_url_rule("/builds/runs/<run_id>/validate-artifacts",                     endpoint="validate_ci_pipeline_artifacts", view_func=validate_ci_build_run_artifacts, methods=["POST"])
+    # Builds - Build Runs
+    v2.add_url_rule("/builds/runs",                                                        endpoint="list_build_runs",          view_func=list_ci_build_runs,     methods=["GET"])
+    v2.add_url_rule("/builds/runs",                                                        endpoint="create_build_run",         view_func=create_ci_build_run,    methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>",                                          endpoint="get_build_run",            view_func=get_ci_build_run,       methods=["GET"])
+    v2.add_url_rule("/builds/runs/<run_id>/cancel",                                   endpoint="cancel_build_run",         view_func=cancel_ci_build_run,    methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>/retrigger",                               endpoint="retrigger_build_run",      view_func=retrigger_ci_build_run, methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>/validate",                                endpoint="validate_build_run",       view_func=validate_ci_build_run,  methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>/artifacts/download",                       endpoint="download_build_run_artifacts", view_func=download_ci_build_run_artifacts, methods=["GET"])
+    v2.add_url_rule("/builds/runs/<run_id>/sessions",                               endpoint="list_build_run_sessions",  view_func=list_ci_build_run_sessions, methods=["GET"])
+    v2.add_url_rule("/builds/runs/<run_id>/validate-artifacts",                     endpoint="validate_build_run_artifacts", view_func=validate_ci_build_run_artifacts, methods=["POST"])
 
     # Builds - Settings
     v2.add_url_rule("/builds/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])

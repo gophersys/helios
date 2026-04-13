@@ -447,7 +447,7 @@
     {@const hasFilters = searchQuery || activeStatuses.size > 0 || productFilter || stageFilter || dateRange}
     <EmptyState message={hasFilters ? 'No runs match your filters.' : 'No validation runs yet.'}>
       {#if !hasFilters}
-        <p class="text-2xs text-text-tertiary mt-1">Configure validation stages in a product's <a href="/products" class="text-accent hover:text-accent-hover">Validation tab</a>, then trigger runs from the build pipeline.</p>
+        <p class="text-2xs text-text-tertiary mt-1">Configure validation stages in a product's <a href="/products" class="text-accent hover:text-accent-hover">Validation tab</a>, then trigger runs from a build run.</p>
       {/if}
     </EmptyState>
   {:else}

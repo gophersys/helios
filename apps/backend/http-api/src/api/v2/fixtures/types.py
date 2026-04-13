@@ -598,7 +598,7 @@ class BenchUpdateRequest:
 
 @dataclass
 class BenchLockRequest:
-    """Lock a bench for a pipeline/job."""
+    """Lock a bench for a build run/job."""
 
     locked_by: str
 

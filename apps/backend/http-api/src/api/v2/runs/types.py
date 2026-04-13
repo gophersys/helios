@@ -217,7 +217,7 @@ class RunTriggerRequest:
     """Trigger a K8s validation job for an existing run."""
     firmware_version: str
     firmware_path: Optional[str] = None
-    pipeline_id: Optional[str] = None
+    build_run_id: Optional[str] = None
     stage: str = "fuota"
     config: Optional[Dict[str, Any]] = None
 
@@ -235,9 +235,9 @@ class RunTriggerRequest:
         if firmware_path is not None:
             firmware_path = firmware_path.strip() or None
 
-        pipeline_id = data.get("pipelineId")
-        if pipeline_id is not None:
-            pipeline_id = pipeline_id.strip() or None
+        build_run_id = data.get("buildRunId") or data.get("pipelineId")
+        if build_run_id is not None:
+            build_run_id = build_run_id.strip() or None
 
         stage = (data.get("stage") or "fuota").strip().lower()
         if stage not in ("smoke", "driver", "integration", "regression", "fuota"):
@@ -250,7 +250,7 @@ class RunTriggerRequest:
         return cls(
             firmware_version=firmware_version,
             firmware_path=firmware_path,
-            pipeline_id=pipeline_id,
+            build_run_id=build_run_id,
             stage=stage,
             config=config,
         ), None

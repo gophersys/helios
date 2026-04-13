@@ -27,6 +27,9 @@ def _asset_set_obj(**overrides):
         version="0.8.3",
         variant="debug",
         stage=1,
+        stageType="VALIDATION",
+        product=make_obj(id="prod-1", slug="alpha"),
+        boardRevision=make_obj(id="rev-1", version="b0"),
     )
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -40,7 +43,7 @@ def _asset_obj(**overrides):
         role="app",
         processor="nrf52840",
         artifactType="plaintextHex",
-        storageKey="asset-sets/as-1/MFG_APP_DEBUG/app_nrf52840.hex",
+        storageKey="products/alpha/b0/validation/1/0.8.3-debug/MFG_APP_DEBUG/app_nrf52840.hex",
         filename="app_nrf52840.hex",
         sizeBytes=102400,
         checksum="abc123",

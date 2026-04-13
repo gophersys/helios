@@ -1,6 +1,6 @@
-"""Pipeline business logic — matrix expansion, build creation, completion, validation trigger.
+"""Build run business logic — matrix expansion, build creation, completion, validation trigger.
 
-Extracted from api/v2/builds/pipelines.py to keep handlers thin.
+Extracted from api/v2/builds/build_runs.py to keep handlers thin.
 """
 
 import hashlib
@@ -224,11 +224,11 @@ def get_max_build_number(db, product_id: str, target: str = "app") -> tuple[Opti
     return None, 0
 
 
-def resolve_pipeline_context(db, data) -> Dict[str, Any]:
-    """Resolve product, repo names, stage config, and build specs for a pipeline.
+def resolve_build_run_context(db, data) -> Dict[str, Any]:
+    """Resolve product, repo names, stage config, and build specs for a build run.
 
     Returns a context dict with all the resolved values needed to create
-    the pipeline record and build jobs.
+    the build run record and build jobs.
     """
     product_record = None
     if data.product_id:
@@ -305,7 +305,7 @@ def resolve_pipeline_context(db, data) -> Dict[str, Any]:
 def create_build_run_record(db, data, ctx: Dict[str, Any]):
     """Create the BuildRun DB record and its build jobs.
 
-    Returns (pipeline, builds) tuple after creating and re-fetching with includes.
+    Returns (build_run, builds) tuple after creating and re-fetching with includes.
     """
     product_record = ctx["product_record"]
     product_base = ctx["product_base"]
@@ -371,10 +371,10 @@ def create_build_run_record(db, data, ctx: Dict[str, Any]):
     except RuntimeError:
         pass  # Outside Flask request context (e.g., git poller)
 
-    pipeline = db.buildrun.create(data=create_data)
-    builds = create_build_jobs(db, pipeline, build_specs, data, product_record)
+    build_run = db.buildrun.create(data=create_data)
+    builds = create_build_jobs(db, build_run, build_specs, data, product_record)
 
-    log_audit("ci.pipeline.create", "BuildRun", pipeline.id, {
+    log_audit("ci.buildRun.create", "BuildRun", build_run.id, {
         "product": product_base,
         "branch": data.branch,
         "commitSha": data.commit_sha,
@@ -382,12 +382,12 @@ def create_build_run_record(db, data, ctx: Dict[str, Any]):
         "builds": [b.id for b in builds],
     })
 
-    pipeline = db.buildrun.find_unique(
-        where={"id": pipeline.id},
+    build_run = db.buildrun.find_unique(
+        where={"id": build_run.id},
         include={"builds": {"include": {"product": True}}, "product": True},
     )
 
-    return pipeline, builds
+    return build_run, builds
 
 
 def _generate_head_app_sub_builds(
@@ -498,17 +498,17 @@ def _expand_matrix_entry(entry, repo_base, board, branch, commit_sha, product_id
     return specs, len(specs) or 1
 
 
-# ── Pipeline lifecycle ───────────────────────────────────────────────────
+# ── Build run lifecycle ──────────────────────────────────────────────────
 
 
 def create_build_jobs(
     db,
-    pipeline,
+    build_run,
     build_specs: List[Dict[str, Any]],
     data,
     product_record,
 ) -> list:
-    """Create BuildJob records for a pipeline from build specs.
+    """Create BuildJob records for a build run from build specs.
 
     Handles cache lookups, fingerprinting, version overrides, and base-job linking.
     Returns the list of created build records.
@@ -559,7 +559,7 @@ def create_build_jobs(
                 "branch": spec.get("branch", data.branch),
                 "commitSha": getattr(cached_build, "commitSha", None),
                 "status": "CACHED",
-                "buildRunId": pipeline.id,
+                "buildRunId": build_run.id,
                 "matrixLabel": spec.get("matrixLabel"),
                 "matrixIndex": spec.get("matrixIndex"),
                 "versionBump": False,
@@ -567,7 +567,7 @@ def create_build_jobs(
                 "reusedFromId": cached_build.id,
                 "versionString": cached_build.versionString,
                 "webhookData": Json({
-                    "pipelineId": pipeline.id,
+                    "buildRunId": build_run.id,
                     "source": data.trigger_type,
                     "matrixLabel": spec.get("matrixLabel"),
                     "cachedFrom": cached_build.id,
@@ -582,12 +582,12 @@ def create_build_jobs(
                 "branch": spec["branch"],
                 "commitSha": spec["commitSha"],
                 "status": spec["status"],
-                "buildRunId": pipeline.id,
+                "buildRunId": build_run.id,
                 "matrixLabel": spec.get("matrixLabel"),
                 "matrixIndex": spec.get("matrixIndex"),
                 "versionBump": spec.get("versionBump", False),
                 "webhookData": Json({
-                    "pipelineId": pipeline.id,
+                    "buildRunId": build_run.id,
                     "source": data.trigger_type,
                     "matrixLabel": spec.get("matrixLabel"),
                 }),
@@ -596,7 +596,7 @@ def create_build_jobs(
                 build_data["buildFingerprint"] = fingerprint
             if spec.get("versionOverride"):
                 override_flags = {
-                    "pipelineId": pipeline.id,
+                    "buildRunId": build_run.id,
                     "source": data.trigger_type,
                     "matrixLabel": spec.get("matrixLabel"),
                     "versionOverride": spec["versionOverride"],
@@ -621,8 +621,8 @@ def create_build_jobs(
     return builds
 
 
-def check_pipeline_completion(run_id: str) -> Optional[str]:
-    """Check if all builds in a pipeline are complete and update status.
+def check_build_run_completion(run_id: str) -> Optional[str]:
+    """Check if all builds in a build run are complete and update status.
 
     Returns the new status if changed, None otherwise.
     Called by the build status update endpoint when a build finishes.
@@ -630,17 +630,17 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
     db = get_db_client()
 
     try:
-        pipeline = db.buildrun.find_unique(
+        build_run = db.buildrun.find_unique(
             where={"id": run_id},
             include={"builds": {"include": {"product": True}}, "product": True},
         )
-        if not pipeline:
+        if not build_run:
             return None
 
-        if pipeline.status not in ("PENDING", "CLONING", "BUILDING"):
+        if build_run.status not in ("PENDING", "CLONING", "BUILDING"):
             return None
 
-        builds = pipeline.builds or []
+        builds = build_run.builds or []
         if not builds:
             return None
 
@@ -652,7 +652,7 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
         if failed > 0:
             pending_builds = [b for b in builds if b.status in ("QUEUED", "BLOCKED", "CLONING", "BUILDING")]
             if pending_builds:
-                logger.info("Build failed in pipeline %s, cancelling %d pending/blocked builds",
+                logger.info("Build failed in build run %s, cancelling %d pending/blocked builds",
                            run_id, len(pending_builds))
                 for build in pending_builds:
                     db.buildjob.update(
@@ -662,7 +662,7 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                 completed = sum(1 for b in builds if b.status in ("SUCCESS", "FAILED", "CANCELLED"))
                 completed += len(pending_builds)
 
-        if completed != pipeline.completedBuilds:
+        if completed != build_run.completedBuilds:
             db.buildrun.update(
                 where={"id": run_id},
                 data={"completedBuilds": completed},
@@ -677,16 +677,16 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                 where={"id": run_id},
                 data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
             )
-            logger.info("Pipeline %s failed: %d/%d builds failed", run_id, failed, len(builds))
+            logger.info("Build run %s failed: %d/%d builds failed", run_id, failed, len(builds))
             return new_status
 
         # All builds succeeded — validate artifacts before proceeding
         try:
             from src.services.artifact_validator import (
-                validate_pipeline_artifacts,
+                validate_build_run_artifacts,
                 format_missing_artifacts_message,
             )
-            validation_result = validate_pipeline_artifacts(db, run_id)
+            validation_result = validate_build_run_artifacts(db, run_id)
             if not validation_result["valid"]:
                 new_status = "BUILD_FAILED"
                 error_msg = format_missing_artifacts_message(validation_result["missing"])
@@ -723,25 +723,25 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
         except Exception as asset_err:
             logger.error("BuildRun %s AssetSet creation failed (non-blocking): %s", run_id, asset_err)
 
-        if pipeline.autoRunStage:
+        if build_run.autoRunStage:
             new_status = "VALIDATING"
             db.buildrun.update(
                 where={"id": run_id},
                 data={"status": new_status},
             )
-            logger.info("Pipeline %s builds complete, auto-triggering validation", run_id)
+            logger.info("Build run %s builds complete, auto-triggering validation", run_id)
 
-            result = trigger_pipeline_validation(run_id, pipeline, builds)
+            result = trigger_build_run_validation(run_id, build_run, builds)
             if result and result.get("started"):
                 validation_run_id = result["sessionId"]
                 db.buildrun.update(
                     where={"id": run_id},
                     data={"validationRunId": validation_run_id},
                 )
-                logger.info("Pipeline %s validation triggered: %s", run_id, validation_run_id)
+                logger.info("Build run %s validation triggered: %s", run_id, validation_run_id)
             elif result and result.get("queued"):
                 logger.info(
-                    "Pipeline %s validation queued: entry=%s reason=%s",
+                    "Build run %s validation queued: entry=%s reason=%s",
                     run_id, result["entryId"][:8], result.get("reason"),
                 )
             else:
@@ -750,31 +750,31 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                     where={"id": run_id},
                     data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
                 )
-                logger.warning("Pipeline %s auto-run-stage failed (no bench?), set to SUCCESS", run_id)
+                logger.warning("Build run %s auto-run-stage failed (no bench?), set to SUCCESS", run_id)
         else:
             new_status = "SUCCESS"
             db.buildrun.update(
                 where={"id": run_id},
                 data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
             )
-            logger.info("Pipeline %s builds complete (autoRunStage=false), set to SUCCESS", run_id)
+            logger.info("Build run %s builds complete (autoRunStage=false), set to SUCCESS", run_id)
 
         # Auto-progress: DISABLED — uncomment when cross-stage auto-trigger is ready
-        # if new_status == "SUCCESS" and pipeline.stage and pipeline.productId:
+        # if new_status == "SUCCESS" and build_run.stage and build_run.productId:
         #     try:
         #         from src.services.webhook_trigger import handle_auto_progress
-        #         auto_result = handle_auto_progress(pipeline.productId, pipeline.stage)
+        #         auto_result = handle_auto_progress(build_run.productId, build_run.stage)
         #         if auto_result:
         #             logger.info("Auto-progress: stage %d → %d for product %s, buildRun=%s",
-        #                         pipeline.stage, pipeline.stage + 1, pipeline.productId,
+        #                         build_run.stage, build_run.stage + 1, build_run.productId,
         #                         auto_result.get("buildRunId", "?")[:8])
         #     except Exception as e:
-        #         logger.warning("Auto-progress failed for pipeline %s: %s", run_id, e)
+        #         logger.warning("Auto-progress failed for build run %s: %s", run_id, e)
 
         return new_status
 
     except Exception as e:
-        logger.error("Failed to check pipeline completion %s: %s", run_id, e)
+        logger.error("Failed to check build run completion %s: %s", run_id, e)
         return None
 
 
@@ -851,7 +851,7 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
     # Resolve the AssetSet for this build run
     asset_set = db.assetset.find_first(where={"buildRunId": run_id})
     if not asset_set:
-        logger.warning("No AssetSet for pipeline %s, cannot queue", run_id[:8])
+        logger.warning("No AssetSet for build run %s, cannot queue", run_id[:8])
         return {"queued": False, "reason": "No asset set found for build run"}
 
     locked = unavailability["locked"]
@@ -862,7 +862,7 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
         where={"assetSetId": asset_set.id, "status": "QUEUED"},
     )
     if existing:
-        logger.info("Queue entry already exists for pipeline %s (assetSet %s): %s",
+        logger.info("Queue entry already exists for build run %s (assetSet %s): %s",
                      run_id[:8], asset_set.id[:8], existing.id[:8])
         return {"queued": True, "entryId": existing.id, "reason": f"Fixture locked: {locked}"}
 
@@ -885,13 +885,13 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
     })
 
     logger.info(
-        "Queued validation for pipeline %s (assetSet %s): entry=%s reason=%s",
+        "Queued validation for build run %s (assetSet %s): entry=%s reason=%s",
         run_id[:8], asset_set.id[:8], queue_entry.id[:8], reason,
     )
     return {"queued": True, "entryId": queue_entry.id, "reason": reason}
 
 
-def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str, pipeline, product, builds: list) -> dict:
+def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str, build_run, product, builds: list) -> dict:
     """Lock the fixture, create session + device + API key records.
 
     Returns a dict with keys: session, raw_key, api_url.
@@ -900,11 +900,11 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
         where={"id": fixture.id},
         data={
             "status": "LOCKED",
-            "lockedBy": f"pipeline:{run_id}",
+            "lockedBy": f"buildRun:{run_id}",
             "lockedAt": datetime.now(timezone.utc),
         },
     )
-    logger.info("Locked fixture %s for pipeline %s", fixture.name, run_id[:8])
+    logger.info("Locked fixture %s for build run %s", fixture.name, run_id[:8])
 
     build_summaries = [
         {"id": b.id, "product": derive_build_product_slug(b), "variant": b.variant, "version": b.versionString}
@@ -913,7 +913,7 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
 
     session = db.testrun.create(
         data={
-            "name": f"FUOTA validation — {product.name} {pipeline.branch}",
+            "name": f"FUOTA validation — {product.name} {build_run.branch}",
             "type": "VALIDATION",
             "productId": product.id,
             "fixtureId": fixture.id,
@@ -922,8 +922,8 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
             "operatorId": get_system_user_id(db),
             "targetCount": 1,
             "config": Json({
-                "pipelineId": run_id,
-                "branch": pipeline.branch,
+                "buildRunId": run_id,
+                "branch": build_run.branch,
                 "builds": build_summaries,
                 "fixture": {"id": fixture.id, "name": fixture.name, "stationId": fixture.stationId},
                 "slot": {
@@ -957,7 +957,7 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
     db.apikey.create(
         data={
-            "name": f"Pipeline validation {session.id}",
+            "name": f"Build run validation {session.id}",
             "keyHash": key_hash,
             "keyPrefix": raw_key[:12],
             "userId": get_system_user_id(db),
@@ -969,8 +969,8 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
     return {"session": session, "raw_key": raw_key, "api_url": api_url}
 
 
-def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional[dict]:
-    """Trigger a validation job for a completed pipeline.
+def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Optional[dict]:
+    """Trigger a validation job for a completed build run.
 
     Returns:
         ``{"started": True, "sessionId": "..."}`` — run started immediately
@@ -982,13 +982,13 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
     db = get_db_client()
 
     try:
-        product = db.product.find_unique(where={"id": pipeline.productId}) if pipeline.productId else None
+        product = db.product.find_unique(where={"id": build_run.productId}) if build_run.productId else None
         if not product:
             product = db.product.find_first(
-                where={"name": {"contains": pipeline.product, "mode": "insensitive"}} if hasattr(pipeline, "product") and pipeline.product else {},
+                where={"name": {"contains": build_run.product, "mode": "insensitive"}} if hasattr(build_run, "product") and build_run.product else {},
             )
         if not product:
-            logger.warning("Product not found for pipeline %s", run_id)
+            logger.warning("Product not found for build run %s", run_id)
             return None
 
         fixture, slot, mtib_address, fixtures = _find_available_fixture(db, product.id)
@@ -1011,7 +1011,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
             fixture.name, slot.id[:8], slot.dutSnr, slot.dutDeviceId, mtib_address,
         )
 
-        ctx = _create_validation_session(db, fixture, slot, mtib_address, run_id, pipeline, product, builds)
+        ctx = _create_validation_session(db, fixture, slot, mtib_address, run_id, build_run, product, builds)
         session = ctx["session"]
         raw_key = ctx["raw_key"]
         api_url = ctx["api_url"]
@@ -1035,7 +1035,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
         git_commit = os.environ.get("GIT_COMMIT", "unknown")[:7]
 
         stage_config = None
-        stage_name = getattr(pipeline, "matrixMode", None) or "fuota"
+        stage_name = getattr(build_run, "matrixMode", None) or "fuota"
         stage_map = {"smoke": 1, "driver": 2, "integration": 3, "regression": 4, "fuota": 5}
         stage_num = stage_map.get(stage_name)
         if stage_num and product:
@@ -1069,7 +1069,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
         )
 
         if not job_name:
-            logger.error("Failed to create K8s job for pipeline %s", run_id)
+            logger.error("Failed to create K8s job for build run %s", run_id)
             db.fixture.update(where={"id": fixture.id}, data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None})
             return None
 
@@ -1088,16 +1088,16 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
             data={"config": Json(config)},
         )
 
-        log_audit("ci.pipeline.validation_trigger", "BuildRun", run_id, {
+        log_audit("ci.buildRun.validation_trigger", "BuildRun", run_id, {
             "sessionId": session.id,
             "jobName": job_name,
             "fixtureId": fixture.id,
             "fixtureStationId": fixture.stationId,
         })
 
-        logger.info("Validation triggered for pipeline %s: session=%s, job=%s", run_id[:8], session.id[:8], job_name)
+        logger.info("Validation triggered for build run %s: session=%s, job=%s", run_id[:8], session.id[:8], job_name)
         return {"started": True, "sessionId": session.id}
 
     except Exception as e:
-        logger.error("Failed to trigger validation for pipeline %s: %s", run_id, e)
+        logger.error("Failed to trigger validation for build run %s: %s", run_id, e)
         return None

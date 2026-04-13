@@ -59,11 +59,11 @@
     stageConfigs.filter(c => c.boardRevisionId === revision.id)
   );
 
-  // Stage filter options
+  // Stage filter options — grouped by type
   const stageOptions = $derived(
     revConfigs.map(c => ({
       value: `${c.type}:${c.stage}`,
-      label: stageName(c.type as StageType, c.stage),
+      label: `${c.type === 'MANUFACTURING' ? 'Mfg' : 'Val'} — ${stageName(c.type as StageType, c.stage)}`,
     }))
   );
 
@@ -295,7 +295,7 @@
             {#if canManage}
               <button
                 onclick={() => modemDeleteTarget = { id: fw.id, version: fw.version }}
-                class="rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-error hover:bg-error-muted"
                 title="Delete v{fw.version}"
               >
                 <Trash2 size={12} />
@@ -353,7 +353,7 @@
       </EmptyState>
     {:else}
       <EmptyState message="No firmware assets for this revision." icon={Package}>
-        <p class="text-2xs text-text-tertiary mt-1">Upload a firmware .zip or wait for the build pipeline to produce one.</p>
+        <p class="text-2xs text-text-tertiary mt-1">Upload a firmware .zip or wait for a build run to produce one.</p>
       </EmptyState>
     {/if}
   {:else}
@@ -366,9 +366,9 @@
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Version</th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stage</th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Source</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Branch</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Git</th>
             <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Files</th>
-            <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Uploaded</th>
+            <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Date</th>
             <th class="w-10"></th>
             {#if canManage}<th class="w-10"></th>{/if}
           </tr>
@@ -377,131 +377,137 @@
           {#each filteredAssets as asset (asset.id)}
             {@const isExpanded = expandedId === asset.id}
             {@const hasFiles = (asset.assets?.length ?? 0) > 0}
-            <tr class="border-b border-border-subtle last:border-0">
-              <td colspan={canManage ? 9 : 8} class="p-0">
-                <div>
-                  <!-- Row -->
-                  <div
-                    role={hasFiles ? 'button' : undefined}
-                    tabindex={hasFiles ? 0 : undefined}
-                    onclick={() => hasFiles && (expandedId = isExpanded ? null : asset.id)}
-                    onkeydown={(e) => e.key === 'Enter' && hasFiles && (expandedId = isExpanded ? null : asset.id)}
-                    class="flex w-full items-center text-left transition-colors {hasFiles ? 'cursor-pointer hover:bg-surface-2' : 'cursor-default'}"
-                  >
-                    <div class="w-8 shrink-0 px-3 py-3 flex items-center">
-                      {#if hasFiles}
-                        {#if isExpanded}
-                          <ChevronDown size={14} class="text-text-tertiary" />
-                        {:else}
-                          <ChevronRight size={14} class="text-text-tertiary" />
-                        {/if}
-                      {/if}
-                    </div>
-                    <div class="px-4 py-3 flex items-center gap-1.5">
-                      <span class="font-mono text-sm font-medium text-text-primary">v{asset.version}</span>
-                      {#if asset.variant}
-                        <span class="text-2xs text-text-tertiary">({asset.variant})</span>
-                      {/if}
-                    </div>
-                    <div class="px-4 py-3">
-                      <span class="text-sm text-text-secondary">{stageLabel(asset)}</span>
-                    </div>
-                    <div class="px-4 py-3">
-                      <StatusBadge status={asset.source === 'BUILD_SERVICE' ? 'BUILD_SERVICE' : asset.source === 'EXTERNAL_CI' ? 'EXTERNAL_CI' : 'MANUAL_UPLOAD'} />
-                    </div>
-                    <div class="px-4 py-3">
-                      {#if asset.branch}
-                        <span class="flex items-center gap-1 text-2xs text-text-secondary">
-                          <span class="font-mono truncate max-w-24">{asset.branch}</span>
-                          {#if asset.commitSha}
-                            <span class="font-mono text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
-                          {/if}
-                        </span>
-                      {:else}
-                        <span class="text-2xs text-text-tertiary">—</span>
-                      {/if}
-                    </div>
-                    <div class="px-4 py-3 text-right">
-                      <span class="text-sm text-text-secondary">{asset.assets?.length ?? 0}</span>
-                    </div>
-                    <div class="px-4 py-3 text-right shrink-0">
-                      <TimeDisplay datetime={asset.createdAt} />
-                    </div>
-                    <div class="shrink-0 flex items-center justify-center px-2">
-                      <button
-                        onclick={(e) => { e.stopPropagation(); handleDownloadZip(asset.id, asset.version, asset.variant); }}
-                        class="rounded-lg p-1.5 text-text-tertiary hover:bg-surface-2 hover:text-accent transition-colors"
-                        title="Download as .zip"
-                      >
-                        <Download size={14} />
-                      </button>
-                    </div>
-                    {#if canManage}
-                      <div class="w-10 shrink-0 flex items-center justify-center">
-                        <button
-                          onclick={(e) => { e.stopPropagation(); deleteTarget = { id: asset.id, name: `v${asset.version} (${asset.variant || 'default'})` }; }}
-                          class="rounded-lg p-1.5 text-text-tertiary opacity-0 group-hover:opacity-100 hover:bg-error-muted hover:text-error transition-all"
-                          title="Delete asset set"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    {/if}
-                  </div>
-
-                  <!-- Expanded file details -->
-                  {#if isExpanded && hasFiles}
-                    <div class="border-t border-border-subtle bg-surface-0 px-8 py-3">
-                      {#if asset.modemFirmware}
-                        <div class="flex items-center gap-2 mb-3 text-2xs text-text-secondary">
-                          <Radio size={10} class="text-text-tertiary" />
-                          Modem firmware: <span class="font-mono font-medium">v{asset.modemFirmware.version}</span>
-                        </div>
-                      {/if}
-                      <table class="w-full text-2xs">
-                        <thead>
-                          <tr class="border-b border-border-subtle">
-                            <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">Label</th>
-                            <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">Role</th>
-                            <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">Type</th>
-                            <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">File</th>
-                            <th class="pb-1.5 text-right font-medium uppercase tracking-wider text-text-tertiary">Size</th>
-                            <th class="pb-1.5 w-8"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {#each asset.assets as file}
-                            <tr class="border-b border-border-subtle last:border-b-0">
-                              <td class="py-1.5">
-                                <div class="flex items-center gap-1">
-                                  <FileCode size={10} class="text-text-tertiary" />
-                                  <span class="font-medium text-text-primary">{file.label}</span>
-                                </div>
-                              </td>
-                              <td class="py-1.5 text-text-secondary">{file.role}{#if file.processor} <span class="text-text-tertiary">({file.processor})</span>{/if}</td>
-                              <td class="py-1.5"><span class="badge badge-neutral">{file.artifactType}</span></td>
-                              <td class="py-1.5 font-mono text-text-tertiary truncate max-w-44" title={file.filename}>{file.filename}</td>
-                              <td class="py-1.5 text-right text-text-tertiary">{formatSize(file.sizeBytes)}</td>
-                              <td class="py-1.5 text-right">
-                                {#if file.storageKey}
-                                  <button
-                                    onclick={() => handleDownloadFile(file)}
-                                    class="inline-flex items-center justify-center rounded p-0.5 text-text-tertiary hover:text-accent transition-colors"
-                                    title="Download {file.filename}"
-                                  >
-                                    <Download size={10} />
-                                  </button>
-                                {/if}
-                              </td>
-                            </tr>
-                          {/each}
-                        </tbody>
-                      </table>
-                    </div>
+            <!-- Data row -->
+            <tr
+              class="border-b border-border-subtle last:border-0 group transition-colors {hasFiles ? 'cursor-pointer hover:bg-surface-2' : ''}"
+              onclick={() => hasFiles && (expandedId = isExpanded ? null : asset.id)}
+              onkeydown={(e) => e.key === 'Enter' && hasFiles && (expandedId = isExpanded ? null : asset.id)}
+              tabindex={hasFiles ? 0 : undefined}
+              role={hasFiles ? 'button' : undefined}
+            >
+              <td class="w-8 px-3 py-3">
+                {#if hasFiles}
+                  {#if isExpanded}
+                    <ChevronDown size={14} class="text-text-tertiary" />
+                  {:else}
+                    <ChevronRight size={14} class="text-text-tertiary" />
+                  {/if}
+                {/if}
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-mono text-sm font-medium text-text-primary">v{asset.version}</span>
+                  {#if asset.variant}
+                    <span class="text-2xs text-text-tertiary">({asset.variant})</span>
                   {/if}
                 </div>
               </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-1.5">
+                  {#if asset.stageType === 'MANUFACTURING'}
+                    <span class="badge badge-warning">Mfg</span>
+                  {:else if asset.stageType === 'VALIDATION'}
+                    <span class="badge badge-accent">Val</span>
+                  {/if}
+                  <span class="text-sm text-text-primary">{stageLabel(asset)}</span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <StatusBadge status={asset.source === 'BUILD_SERVICE' ? 'BUILD_SERVICE' : asset.source === 'EXTERNAL_CI' ? 'EXTERNAL_CI' : 'MANUAL_UPLOAD'} />
+              </td>
+              <td class="px-4 py-3">
+                {#if asset.branch}
+                  <span class="flex items-center gap-1 text-2xs text-text-secondary">
+                    <span class="font-mono truncate max-w-24">{asset.branch}</span>
+                    {#if asset.commitSha}
+                      <span class="font-mono text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
+                    {/if}
+                  </span>
+                {:else}
+                  <span class="text-2xs text-text-tertiary">—</span>
+                {/if}
+              </td>
+              <td class="px-4 py-3 text-right">
+                <span class="text-sm text-text-secondary">{asset.assets?.length ?? 0}</span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <TimeDisplay datetime={asset.createdAt} />
+              </td>
+              <td class="w-10 text-center">
+                <button
+                  onclick={(e) => { e.stopPropagation(); handleDownloadZip(asset.id, asset.version, asset.variant); }}
+                  class="btn btn-sm btn-icon btn-ghost"
+                  title="Download as .zip"
+                >
+                  <Download size={14} />
+                </button>
+              </td>
+              {#if canManage}
+                <td class="w-10 text-center">
+                  <button
+                    onclick={(e) => { e.stopPropagation(); deleteTarget = { id: asset.id, name: `v${asset.version} (${asset.variant || 'default'})` }; }}
+                    class="btn btn-sm btn-icon btn-ghost opacity-0 group-hover:opacity-100 text-text-tertiary hover:text-error hover:bg-error-muted"
+                    title="Delete asset set"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </td>
+              {/if}
             </tr>
+            <!-- Expanded file details -->
+            {#if isExpanded && hasFiles}
+              <tr class="border-b border-border-subtle last:border-0">
+                <td colspan={canManage ? 9 : 8} class="p-0">
+                  <div class="border-t border-border-subtle bg-surface-0 px-8 py-3">
+                    {#if asset.modemFirmware}
+                      <div class="flex items-center gap-2 mb-3 text-2xs text-text-secondary">
+                        <Radio size={10} class="text-text-tertiary" />
+                        Modem firmware: <span class="font-mono font-medium">v{asset.modemFirmware.version}</span>
+                      </div>
+                    {/if}
+                    <table class="w-full text-2xs">
+                      <thead>
+                        <tr class="border-b border-border-subtle">
+                          <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">Label</th>
+                          <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">Role</th>
+                          <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">Type</th>
+                          <th class="pb-1.5 text-left font-medium uppercase tracking-wider text-text-tertiary">File</th>
+                          <th class="pb-1.5 text-right font-medium uppercase tracking-wider text-text-tertiary">Size</th>
+                          <th class="pb-1.5 w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {#each asset.assets as file}
+                          <tr class="border-b border-border-subtle last:border-b-0">
+                            <td class="py-1.5">
+                              <div class="flex items-center gap-1">
+                                <FileCode size={10} class="text-text-tertiary" />
+                                <span class="font-medium text-text-primary">{file.label}</span>
+                              </div>
+                            </td>
+                            <td class="py-1.5 text-text-secondary">{file.role}{#if file.processor} <span class="text-text-tertiary">({file.processor})</span>{/if}</td>
+                            <td class="py-1.5"><span class="badge badge-neutral">{file.artifactType}</span></td>
+                            <td class="py-1.5 font-mono text-text-tertiary truncate max-w-44" title={file.filename}>{file.filename}</td>
+                            <td class="py-1.5 text-right text-text-tertiary">{formatSize(file.sizeBytes)}</td>
+                            <td class="py-1.5 text-right">
+                              {#if file.storageKey}
+                                <button
+                                  onclick={() => handleDownloadFile(file)}
+                                  class="btn btn-sm btn-icon btn-ghost"
+                                  title="Download {file.filename}"
+                                >
+                                  <Download size={12} />
+                                </button>
+                              {/if}
+                            </td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>

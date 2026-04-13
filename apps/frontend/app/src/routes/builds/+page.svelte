@@ -18,7 +18,7 @@
     BuildArtifact,
     BuildRunDetail,
     BuildSummary,
-    PrPipelineSummary,
+    PrBuildSummary,
     ValidationStage,
   } from '$lib/types/ci';
   import { STAGE_DISPLAY } from '$lib/types/ci';
@@ -26,7 +26,7 @@
   import {
     fetchBuildRuns,
     fetchBuildSummary,
-    fetchPrPipelines,
+    fetchPrBuildRuns,
     triggerBuildRun,
     createManualBuild,
     uploadBuildArtifact,
@@ -86,8 +86,8 @@
   const STAGE_NAMES: Record<number, string> = { 1: 'Smoke', 2: 'Driver', 3: 'Integration', 4: 'Regression', 5: 'FUOTA' };
 
   // ── Tab state ─────────────────────────────────────────────────
-  type Tab = 'pipelines' | 'runs';
-  let activeTab = $state<Tab>('pipelines');
+  type Tab = 'prs' | 'runs';
+  let activeTab = $state<Tab>('prs');
 
   // ── Shared state ──────────────────────────────────────────────
   let pagination = $state<Pagination>({ page: 1, limit: 25, total: 0, pages: 0 });
@@ -101,8 +101,8 @@
   // ── Summary stats ─────────────────────────────────────────────
   let summary = $state<BuildSummary | null>(null);
 
-  // ── PR Pipelines state ────────────────────────────────────────
-  let prPipelines = $state<PrPipelineSummary[]>([]);
+  // ── PR Build Runs state ───────────────────────────────────────
+  let prBuildRuns = $state<PrBuildSummary[]>([]);
   let prProductFilter = $state('');
   let prMyPrs = $state(false);
   let prDateRange = $state('');
@@ -210,9 +210,9 @@
     }
   }
 
-  async function loadPrPipelines(): Promise<void> {
+  async function loadPrBuildRuns(): Promise<void> {
     try {
-      const res = await fetchPrPipelines({
+      const res = await fetchPrBuildRuns({
         page: currentPage,
         limit: 25,
         productId: prProductFilter || undefined,
@@ -223,11 +223,11 @@
         const email = auth.user.email.toLowerCase();
         data = data.filter(pr => pr.prAuthor?.toLowerCase().includes(email));
       }
-      prPipelines = data;
+      prBuildRuns = data;
       pagination = res.pagination;
       error = null;
     } catch (err: unknown) {
-      error = err instanceof Error ? err.message : 'Failed to load PR pipelines';
+      error = err instanceof Error ? err.message : 'Failed to load PR build runs';
     } finally {
       loading = false;
       refreshing = false;
@@ -263,7 +263,7 @@
 
   function loadData(): void {
     loadSummary();
-    if (activeTab === 'pipelines') loadPrPipelines();
+    if (activeTab === 'prs') loadPrBuildRuns();
     else loadBuildRuns();
   }
 
@@ -416,7 +416,7 @@
 
   // Reset page when PR filters change
   $effect(() => {
-    if (activeTab === 'pipelines') {
+    if (activeTab === 'prs') {
       const _a = prProductFilter;
       const _b = prMyPrs;
       const _c = prDateRange;
@@ -450,7 +450,7 @@
   <div class="mb-6">
     <PageHeader
       title="Builds"
-      description="Firmware build pipelines -- build, flash, and validate in one flow."
+      description="Firmware build runs -- build, flash, and validate in one flow."
     />
   </div>
 
@@ -533,12 +533,12 @@
   <!-- Tab bar -->
   <div class="mb-4 flex items-center gap-0 border-b border-border">
     <button
-      onclick={() => switchTab('pipelines')}
-      class="px-4 py-2 text-sm font-medium transition-colors {activeTab === 'pipelines' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
+      onclick={() => switchTab('prs')}
+      class="px-4 py-2 text-sm font-medium transition-colors {activeTab === 'prs' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
     >
       <span class="flex items-center gap-1.5">
         <GitPullRequest size={14} />
-        PR Pipelines
+        PR Build Runs
       </span>
     </button>
     <button
@@ -587,7 +587,7 @@
   </div>
 
   <!-- Filters -->
-  {#if activeTab === 'pipelines'}
+  {#if activeTab === 'prs'}
     <div class="mb-4">
       <FilterBar>
         {#snippet filters()}
@@ -651,19 +651,19 @@
 
   <!-- Content -->
   {#if loading}
-    <LoadingState message="Loading {activeTab === 'pipelines' ? 'PR pipelines' : 'build runs'}..." />
+    <LoadingState message="Loading {activeTab === 'prs' ? 'PR build runs' : 'build runs'}..." />
 
-  <!-- PR Pipelines View -->
-  {:else if activeTab === 'pipelines'}
-    {#if prPipelines.length === 0}
-      <EmptyState message={prProductFilter || prMyPrs || prDateRange ? 'No PR pipelines match your filters.' : 'No PR pipelines yet.'}>
+  <!-- PR Build Runs View -->
+  {:else if activeTab === 'prs'}
+    {#if prBuildRuns.length === 0}
+      <EmptyState message={prProductFilter || prMyPrs || prDateRange ? 'No PR build runs match your filters.' : 'No PR build runs yet.'}>
         {#if !prProductFilter && !prMyPrs && !prDateRange}
-          <p class="text-2xs text-text-tertiary mt-1">Pipelines appear when pull requests are opened against watched branches. <a href="/products" class="text-accent hover:text-accent-hover">Configure build triggers</a> in a product's Validation tab.</p>
+          <p class="text-2xs text-text-tertiary mt-1">Build runs appear when pull requests are opened against watched branches. <a href="/products" class="text-accent hover:text-accent-hover">Configure build triggers</a> in a product's Validation tab.</p>
         {/if}
       </EmptyState>
     {:else}
       <div class="space-y-0">
-        {#each prPipelines as pr (pr.prNumber + '-' + pr.productId)}
+        {#each prBuildRuns as pr (pr.prNumber + '-' + pr.productId)}
           <button
             onclick={() => goto(`/builds/prs/${pr.productId}/${pr.prNumber}`)}
             class="flex w-full items-center gap-4 px-4 py-3 border-b border-border-subtle hover:bg-surface-2/50 cursor-pointer transition-colors text-left"

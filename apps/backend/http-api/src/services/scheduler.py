@@ -93,3 +93,7 @@ def start_scheduler():
         logger.info("Bitbucket poller started (interval=%ds)", env_config.BITBUCKET_POLLER_INTERVAL_S)
     else:
         logger.info("Bitbucket poller disabled (BITBUCKET_POLLER_ENABLED=false)")
+
+    # Queue scheduler (build + validation dispatch, stuck job reconciliation)
+    from src.services.queue_scheduler import start_queue_scheduler
+    start_queue_scheduler()

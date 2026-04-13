@@ -87,13 +87,13 @@ class TestStagingProducts:
         assert "comms" in bc["targets"], "buildConfig.targets missing 'comms'"
 
 
-class TestStagingPipelines:
-    """Pipeline endpoints with auth."""
+class TestStagingBuildRuns:
+    """Build run endpoints with auth."""
 
-    def test_list_pipelines_returns_200(self):
-        """GET /v2/builds/pipelines should return a paginated response."""
+    def test_list_build_runs_returns_200(self):
+        """GET /v2/builds/runs should return a paginated response."""
         _skip_if_not_configured()
-        resp = _get("/v2/builds/pipelines?limit=5")
+        resp = _get("/v2/builds/runs?limit=5")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:200]}"
 
         body = resp.json()

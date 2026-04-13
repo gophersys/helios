@@ -301,6 +301,16 @@ def create_manufacturing_session():
     if not fixture_id:
         return bad_request("fixtureId is required")
 
+    # Concurrency gate — prevent all fixtures from being consumed by manufacturing
+    from config.env import env_config
+    max_sessions = getattr(env_config, "MAX_CONCURRENT_MANUFACTURING_SESSIONS", 4)
+    active_sessions = db.manufacturingsession.count(where={"status": "ACTIVE"})
+    if active_sessions >= max_sessions:
+        return conflict(
+            f"Maximum concurrent manufacturing sessions ({max_sessions}) reached. "
+            f"End an active session before starting a new one."
+        )
+
     # Validate fixture (include boardRevision for config resolution)
     fixture = db.fixture.find_unique(
         where={"id": fixture_id},

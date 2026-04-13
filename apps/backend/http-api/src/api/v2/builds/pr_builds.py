@@ -1,4 +1,4 @@
-"""PR Pipeline endpoints — PR-centric view of build status across validation stages.
+"""PR Build Run endpoints — PR-centric view of build status across validation stages.
 
 The killer feature: engineers land here and instantly see every PR's validation
 health across all 5 stages, per product.
@@ -22,7 +22,7 @@ STAGE_NAMES = {1: "Smoke", 2: "Driver", 3: "Integration", 4: "Regression", 5: "F
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
-def list_pr_pipelines():
+def list_pr_build_runs():
     """GET /v2/builds/prs — List PRs with build status across all stages.
 
     Returns PRs grouped by product, showing the latest BuildRun per stage.

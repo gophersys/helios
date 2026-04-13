@@ -35,6 +35,14 @@ def tmp_repo(tmp_path):
         ["git", "-C", str(src), "config", "user.name", "Test"],
         check=True, capture_output=True,
     )
+    subprocess.run(
+        ["git", "-C", str(src), "config", "commit.gpgsign", "false"],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(src), "config", "tag.gpgsign", "false"],
+        check=True, capture_output=True,
+    )
 
     vendor_dir = src / "current" / "boards" / "corekinect"
     vendor_dir.mkdir(parents=True)

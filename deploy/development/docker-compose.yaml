@@ -74,6 +74,16 @@ services:
       CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
       CK_BOARDS_FETCH_INTERVAL: "60"
       BUILD_SERVICE_URL: http://build-service:9002
+      # Queue scheduler — per-domain concurrency and timeouts
+      SCHEDULER_INTERVAL_S: "15"
+      MAX_CONCURRENT_BUILDS: "2"
+      MAX_CONCURRENT_VALIDATION_RUNS: "2"
+      MAX_CONCURRENT_MANUFACTURING_SESSIONS: "1"
+      BUILD_TIMEOUT_MINUTES: "45"
+      VALIDATION_TIMEOUT_MINUTES: "60"
+      MANUFACTURING_TIMEOUT_MINUTES: "120"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db:
         condition: service_healthy

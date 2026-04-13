@@ -1,4 +1,4 @@
-"""Tests for services/build_run_service.py — serializers, helpers, resolve_pipeline_context."""
+"""Tests for services/build_run_service.py — serializers, helpers, resolve_build_run_context."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from src.services.build_run_service import (
     serialize_build_run_summary,
     auto_increment_version,
     get_max_build_number,
-    resolve_pipeline_context,
+    resolve_build_run_context,
 )
 
 
@@ -304,11 +304,11 @@ class TestGetMaxBuildNumber:
 
 
 # ---------------------------------------------------------------------------
-# TestResolvePipelineContext
+# TestResolveBuildRunContext
 # ---------------------------------------------------------------------------
 
-class TestResolvePipelineContext:
-    """Tests for resolve_pipeline_context()."""
+class TestResolveBuildRunContext:
+    """Tests for resolve_build_run_context()."""
 
     def _make_request(self, **overrides):
         defaults = dict(
@@ -340,7 +340,7 @@ class TestResolvePipelineContext:
 
         req = self._make_request()
 
-        ctx = resolve_pipeline_context(db, req)
+        ctx = resolve_build_run_context(db, req)
 
         assert ctx["product_record"] is product
         assert ctx["main_fw"] == "alpha_fw"
@@ -358,7 +358,7 @@ class TestResolvePipelineContext:
         req = self._make_request()
 
         with pytest.raises(ValueError, match="not configured"):
-            resolve_pipeline_context(db, req)
+            resolve_build_run_context(db, req)
 
     def test_resolves_without_product_record(self):
         """Context is built using data fields when no product record found."""
@@ -375,7 +375,7 @@ class TestResolvePipelineContext:
 
         # Without product record, no stage config is found, which raises
         with pytest.raises(ValueError):
-            resolve_pipeline_context(db, req)
+            resolve_build_run_context(db, req)
 
-    # TODO: test_resolve_pipeline_context_uses_stage_config_matrix
-    # TODO: test_resolve_pipeline_context_pr_branch_override
+    # TODO: test_resolve_build_run_context_uses_stage_config_matrix
+    # TODO: test_resolve_build_run_context_pr_branch_override

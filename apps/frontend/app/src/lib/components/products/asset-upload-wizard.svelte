@@ -75,16 +75,17 @@
   let analyzeAvailableModemFirmwares = $state<{ id: string; version: string; filename: string; sizeBytes: number }[]>([]);
 
   // ── Derived ────────────────────────────────────────────────
+  const enabledConfigs = $derived(stageConfigs.filter(c => c.enabled));
   const validationConfigs = $derived(
-    stageConfigs.filter(c => c.type === 'VALIDATION').sort((a, b) => a.stage - b.stage)
+    enabledConfigs.filter(c => c.type === 'VALIDATION').sort((a, b) => a.stage - b.stage)
   );
   const manufacturingConfigs = $derived(
-    stageConfigs.filter(c => c.type === 'MANUFACTURING').sort((a, b) => a.stage - b.stage)
+    enabledConfigs.filter(c => c.type === 'MANUFACTURING').sort((a, b) => a.stage - b.stage)
   );
-  const hasConfigs = $derived(stageConfigs.length > 0);
+  const hasConfigs = $derived(enabledConfigs.length > 0);
 
   const selectedConfig = $derived(
-    stageConfigs.find(c => c.id === selectedConfigId) ?? null
+    enabledConfigs.find(c => c.id === selectedConfigId) ?? null
   );
 
   // Files mode derived
@@ -1038,7 +1039,7 @@
           <button
             onclick={goBack}
             disabled={busy}
-            class="btn btn-ghost"
+            class="btn btn-sm btn-ghost"
           >
             <ChevronLeft size={14} />
             Back
@@ -1052,7 +1053,7 @@
         {#if currentStep === 'complete'}
           <button
             onclick={onComplete}
-            class="btn btn-primary"
+            class="btn btn-sm btn-primary"
           >
             Done
           </button>
@@ -1060,7 +1061,7 @@
           <button
             onclick={() => { if (!busy) onCancel(); }}
             disabled={busy}
-            class="btn btn-secondary"
+            class="btn btn-sm btn-secondary"
           >
             Cancel
           </button>
@@ -1068,7 +1069,7 @@
           {#if !hasConfigs}
             <button
               onclick={onCancel}
-              class="btn btn-primary"
+              class="btn btn-sm btn-primary"
             >
               Close
             </button>

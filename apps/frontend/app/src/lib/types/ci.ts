@@ -1,7 +1,7 @@
-// CI / Build pipeline types
+// CI / Build run types
 
 export type BuildJobStatus = 'QUEUED' | 'BLOCKED' | 'CLONING' | 'BUILDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'CACHED';
-export type PipelineStage = 'BUILD' | 'FLASH' | 'VALIDATE';
+export type BuildStage = 'BUILD' | 'FLASH' | 'VALIDATE';
 export type BuildRunStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
 export interface BuildArtifact {
@@ -49,14 +49,14 @@ export interface BuildJob {
 }
 
 export interface BuildRunStageInfo {
-  stage: PipelineStage;
+  stage: BuildStage;
   status: BuildRunStageStatus;
   startedAt: string | null;
   finishedAt: string | null;
   detail: string | null;
 }
 
-// Build matrix labels — FUOTA pipeline uses 6 builds, all release variant.
+// Build matrix labels — FUOTA build run uses 6 builds, all release variant.
 // "Verbose" builds have CONFIG_LOG=y forced on (UART output for version detection).
 // "Quiet" builds are standard release (no UART logs, production-like).
 // All CFW flags are -B or -BM — no -D flag, avoiding CoreCloud D-flag stripping.
@@ -191,7 +191,7 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
     description: 'Post-merge build — verify merged code compiles and boots',
     group: 'mainline', groupTitle: '4. Mainline Regression', fuotaStep: 4, priority: 11,
   },
-  // ── Legacy labels (backwards compat with old pipelines) ──
+  // ── Legacy labels (backwards compat with old build runs) ──
   FLASH_BASE_DEBUG: {
     name: 'Baseline Debug', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
@@ -288,7 +288,7 @@ export interface BuildRunDetail {
   } | null;
 }
 
-// PR Pipeline — shows a PR's validation status across all stages
+// PR Build Summary — shows a PR's validation status across all stages
 export interface PrStageStatus {
   status: string;
   buildRunId: string;
@@ -299,7 +299,7 @@ export interface PrStageStatus {
   createdAt: string;
 }
 
-export interface PrPipelineSummary {
+export interface PrBuildSummary {
   prNumber: number;
   prTitle: string | null;
   prAuthor: string | null;

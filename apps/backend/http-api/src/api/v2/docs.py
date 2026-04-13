@@ -1857,7 +1857,7 @@ def _build_spec() -> APISpec:
             "tags": ["Benches"], "summary": "Lock a test bench for exclusive use", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["lockedBy"],
-                "properties": {"lockedBy": {"type": "string", "description": "Pipeline or job ID acquiring the lock"}},
+                "properties": {"lockedBy": {"type": "string", "description": "Build run or job ID acquiring the lock"}},
             }}}},
             "responses": {"200": _ok("TestBench"), "400": _400, "404": _404, "409": _409},
         },
@@ -1919,7 +1919,7 @@ def _build_spec() -> APISpec:
             "createdAt": {"type": "string", "format": "date-time"},
         },
     })
-    spec.components.schema("Pipeline", {
+    spec.components.schema("BuildRun", {
         "type": "object",
         "properties": {
             "id": {"type": "string"},
@@ -1941,7 +1941,7 @@ def _build_spec() -> APISpec:
         "responses": {"200": _ok({"type": "object", "properties": {"triggered": {"type": "boolean"}, "buildJobId": {"type": "string"}}}), "400": _400},
     })
     path("/builds/trigger", post={
-        "tags": ["Builds"], "summary": "Manual pipeline trigger",
+        "tags": ["Builds"], "summary": "Manual build run trigger",
         "requestBody": {"required": True, "content": {"application/json": {"schema": {
             "type": "object", "required": ["productId", "repoSlug", "branch"],
             "properties": {
@@ -1981,20 +1981,20 @@ def _build_spec() -> APISpec:
         "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         "responses": {"200": _ok({"type": "object", "properties": {"log": {"type": "string"}}}), "404": _404},
     })
-    path("/builds/pipelines", get={
-        "tags": ["Builds"], "summary": "List pipelines (build → flash → validate chains)",
+    path("/builds/runs", get={
+        "tags": ["Builds"], "summary": "List build runs (build -> validate chains)",
         "parameters": [
             {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}},
             {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}},
             {"name": "product", "in": "query", "schema": {"type": "string"}},
             {"name": "branch", "in": "query", "schema": {"type": "string"}},
         ],
-        "responses": {"200": _paginated({"$ref": "#/components/schemas/Pipeline"})},
+        "responses": {"200": _paginated({"$ref": "#/components/schemas/BuildRun"})},
     })
-    path("/builds/pipelines/{pipeline_id}", get={
-        "tags": ["Builds"], "summary": "Pipeline detail with stages",
-        "parameters": [{"name": "pipeline_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        "responses": {"200": _ok({"$ref": "#/components/schemas/Pipeline"}), "404": _404},
+    path("/builds/runs/{run_id}", get={
+        "tags": ["Builds"], "summary": "Build run detail with stages",
+        "parameters": [{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        "responses": {"200": _ok({"$ref": "#/components/schemas/BuildRun"}), "404": _404},
     })
 
     # ── Health ──────────────────────────────────────────────────

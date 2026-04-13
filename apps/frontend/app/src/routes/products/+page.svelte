@@ -13,7 +13,7 @@
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
-  import { STAGE_NAMES } from '$lib/types/stages';
+
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
@@ -169,9 +169,6 @@
       <div class="space-y-3">
         {#each paginatedProducts as p (p.id)}
           {@const revisions = getRevisions(p)}
-          {@const stages = getStageConfigs(p)}
-          {@const valStages = stages.filter(s => !s.type || s.type === 'VALIDATION')}
-          {@const enabledCount = valStages.filter(s => s.enabled).length}
 
           <div
             role="button"
@@ -195,7 +192,7 @@
               {#if canManage}
                 <button
                   onclick={(e) => { e.stopPropagation(); promptDelete(p.id); }}
-                  class="shrink-0 rounded-lg p-1.5 text-text-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-error"
+                  class="btn btn-sm btn-icon btn-ghost shrink-0 text-text-tertiary opacity-0 group-hover:opacity-100 hover:text-error hover:bg-error-muted"
                   title="Delete" aria-label="Delete {p.name}"
                 >
                   <Trash2 size={14} />
@@ -252,25 +249,6 @@
                 </div>
               {/if}
 
-              <!-- Validation stages -->
-              {#if valStages.length > 0}
-                <div class="flex items-center gap-2">
-                  <span class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stages</span>
-                  <div class="flex gap-0.5">
-                    {#each [1, 2, 3, 4, 5] as stageNum}
-                      {@const cfg = valStages.find(s => s.stage === stageNum)}
-                      <span
-                        class="inline-flex items-center justify-center w-6 h-5 rounded text-2xs font-semibold
-                          {cfg?.enabled ? 'bg-accent-muted text-accent' : 'bg-surface-2 text-text-tertiary'}"
-                        title="{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}: {cfg?.enabled ? 'Enabled' : 'Off'}"
-                      >
-                        {stageNum}
-                      </span>
-                    {/each}
-                  </div>
-                  <span class="text-2xs text-text-tertiary">{enabledCount}/{valStages.length}</span>
-                </div>
-              {/if}
             </div>
           </div>
         {/each}

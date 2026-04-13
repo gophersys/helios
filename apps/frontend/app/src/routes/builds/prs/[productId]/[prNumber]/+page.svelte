@@ -10,7 +10,7 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildRunDetail } from '$lib/types/ci';
   import type { Pagination } from '$lib/types/models';
-  import { fetchBuildRuns, cancelPipeline, retriggerPipeline } from '$lib/services/ci';
+  import { fetchBuildRuns, cancelBuildRun, retriggerBuildRun } from '$lib/services/ci';
   import { api } from '$lib/api';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
@@ -125,7 +125,7 @@
     e.stopPropagation();
     cancellingId = runId;
     try {
-      await cancelPipeline(runId);
+      await cancelBuildRun(runId);
       await loadRuns();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to cancel';
@@ -138,7 +138,7 @@
     e.stopPropagation();
     retriggeringId = runId;
     try {
-      const result = await retriggerPipeline(runId);
+      const result = await retriggerBuildRun(runId);
       await loadRuns();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to retrigger';
@@ -178,7 +178,7 @@
     </button>
 
     {#if loading}
-      <LoadingState message="Loading PR pipeline..." />
+      <LoadingState message="Loading PR build runs..." />
     {:else if prMeta}
       <!-- PR Header -->
       <div class="rounded-xl border border-border bg-surface-1 p-5">

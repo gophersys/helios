@@ -8,7 +8,7 @@ def _stage_obj(**overrides):
         id="sc-1", productId="prod-1", type="VALIDATION", stage=1, name="Smoke",
         enabled=False, boardRevisionId=None, boardRevision=None,
         watchBranch=None, triggerTypes="manual", signingKeyId=None, signingKey=None,
-        buildMatrixEntries=[], requiresBench=False,
+        assetSources=["BUILD_SERVICE"], buildMatrixEntries=[], requiresBench=False,
         createdAt="2026-01-01T00:00:00Z", updatedAt="2026-01-01T00:00:00Z",
     )
     defaults.update(overrides)

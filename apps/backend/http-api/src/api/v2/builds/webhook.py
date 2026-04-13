@@ -239,7 +239,7 @@ def webhook_bitbucket():
             "buildCount": len(builds),
         })
 
-        _emit_ci_event("ci_pipeline_start", {
+        _emit_ci_event("ci_build_run_start", {
             "repoSlug": payload.repo_slug,
             "branch": payload.branch,
             "commitSha": payload.commit_sha,
@@ -305,7 +305,7 @@ def receive_repo_event():
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
 def trigger_build_run():
-    """POST /v2/builds/trigger — Manual CI pipeline trigger."""
+    """POST /v2/builds/trigger — Manual CI build run trigger."""
     data, error = CiTriggerRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -368,8 +368,8 @@ def trigger_build_run():
         ).to_dict()), 201
 
     except Exception as e:
-        logger.error("Failed to trigger CI pipeline: %s", e)
-        return internal_error("Failed to trigger CI pipeline")
+        logger.error("Failed to trigger CI build run: %s", e)
+        return internal_error("Failed to trigger CI build run")
 
 
 @require_permissions(Permissions.BUILDS_VIEW)

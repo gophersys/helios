@@ -186,7 +186,7 @@ def trigger_run(run_id: str):
                 device_id=slot_info.get("dutDeviceId"),
                 device_snr=slot_info.get("dutSnr"),
                 fixture_profile_path=slot_info.get("profilePath"),
-                pipeline_id=data.pipeline_id,
+                build_run_id=data.build_run_id,
                 product_slug=product_slug,
                 stage=data.stage,
                 extra_env={

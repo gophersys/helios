@@ -439,19 +439,19 @@ def test_delete_bench_requires_auth(client):
 
 def test_lock_bench_success(authed_client, mock_db):
     available_bench = _make_bench(status="AVAILABLE")
-    locked_bench = _make_bench(status="LOCKED", lockedBy="pipeline-run-1")
+    locked_bench = _make_bench(status="LOCKED", lockedBy="buildRun:run-1")
     mock_db.fixture.find_unique.side_effect = [available_bench, locked_bench]
 
     with patch("api.v2.fixtures.benches.log_audit") as mock_audit:
         response = authed_client.post(
             "/v2/fixtures/benches/bench-1/lock",
-            data=json.dumps({"lockedBy": "pipeline-run-1"}),
+            data=json.dumps({"lockedBy": "buildRun:run-1"}),
         )
 
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data["data"]["status"] == "LOCKED"
-    assert data["data"]["lockedBy"] == "pipeline-run-1"
+    assert data["data"]["lockedBy"] == "buildRun:run-1"
     mock_db.fixture.update.assert_called_once()
     mock_audit.assert_called_once()
 
@@ -519,7 +519,7 @@ def test_lock_bench_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 def test_unlock_bench_success(authed_client, mock_db):
-    locked_bench = _make_bench(status="LOCKED", lockedBy="pipeline-run-1")
+    locked_bench = _make_bench(status="LOCKED", lockedBy="buildRun:run-1")
     available_bench = _make_bench(status="AVAILABLE", lockedBy=None)
     mock_db.fixture.find_unique.side_effect = [locked_bench, available_bench]
 

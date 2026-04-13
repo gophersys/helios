@@ -182,7 +182,7 @@ def upload_firmware_to_bucket(zip_file_path: str, job_id: str, product: str) -> 
 def create_kubernetes_job(
     product: str,
     job_id: str,
-    firmware_path: str,  # MinIO path (prefer pipeline_id when available)
+    firmware_path: str,  # MinIO path (prefer build_run_id when available)
     test_type: str,
     test_enable: Dict[str, bool],
     required_features: Optional[Dict[str, str]] = None,
@@ -196,8 +196,8 @@ def create_kubernetes_job(
     device_id: Optional[str] = None,
     device_snr: Optional[str] = None,
     fixture_profile_path: Optional[str] = None,
-    # Stage 4: Pipeline-based firmware (preferred)
-    pipeline_id: Optional[str] = None,
+    # Stage 4: Build-run-based firmware (preferred)
+    build_run_id: Optional[str] = None,
     # Product slug for catalog API lookup
     product_slug: Optional[str] = None,
     # Device identity (from fixture slot)
@@ -302,8 +302,8 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{MTIB_ADDRESS}}", mtib_address or os.environ.get("MTIB_ADDRESS", ""))
         job_yaml = job_yaml.replace("{{BENCH_ID}}", bench_id or "")
 
-        # Stage 4: Pipeline ID for firmware asset fetching
-        job_yaml = job_yaml.replace("{{PIPELINE_ID}}", pipeline_id or "")
+        # Stage 4: Build run ID for firmware asset fetching
+        job_yaml = job_yaml.replace("{{PIPELINE_ID}}", build_run_id or "")
 
         # Product slug for catalog API lookup (e.g., "alpha_b0")
         job_yaml = job_yaml.replace("{{PRODUCT_SLUG}}", product_slug or "")

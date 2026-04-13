@@ -33,6 +33,14 @@ def pytest_configure(config):
         "AUTH_ENABLED": "true",
         "AUTH_SERVER_URL": "",
         "AUTH_SERVER_API_KEY": "",
+        # Queue scheduler
+        "SCHEDULER_INTERVAL_S": "15",
+        "MAX_CONCURRENT_BUILDS": "4",
+        "MAX_CONCURRENT_VALIDATION_RUNS": "8",
+        "MAX_CONCURRENT_MANUFACTURING_SESSIONS": "4",
+        "BUILD_TIMEOUT_MINUTES": "45",
+        "VALIDATION_TIMEOUT_MINUTES": "60",
+        "MANUFACTURING_TIMEOUT_MINUTES": "120",
     }
     for key, value in env_vars.items():
         os.environ[key] = value

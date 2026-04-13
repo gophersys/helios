@@ -2,7 +2,7 @@
 
 The HTTP API routes events through handle_repo_event() which matches
 enabled stages by trigger type + watch branch, then creates BuildRuns
-with the proper recipe, build matrix, and pipeline context.
+with the proper recipe, build matrix, and build run context.
 
 The HTTP session is injectable for testing.
 """

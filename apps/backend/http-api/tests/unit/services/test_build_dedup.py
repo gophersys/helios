@@ -192,14 +192,14 @@ class TestPrBuildsSummary:
         """Ensure we use the conftest mock_db that patches the global."""
         pass
 
-    def test_pr_pipelines_empty(self, authed_client, mock_db):
+    def test_pr_build_runs_empty(self, authed_client, mock_db):
         mock_db.buildrun.find_many.return_value = []
         resp = authed_client.get("/v2/builds/prs")
         assert resp.status_code == 200
         data = resp.get_json()["data"]["data"]
         assert data == []
 
-    def test_pr_pipelines_groups_by_pr(self, authed_client, mock_db):
+    def test_pr_build_runs_groups_by_pr(self, authed_client, mock_db):
         product = types.SimpleNamespace(name="Alpha", id="prod-1")
         run1 = _make_build_run(
             id="run-1", prNumber=42, stage=1, status="SUCCESS",

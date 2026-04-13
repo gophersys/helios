@@ -49,8 +49,6 @@
       fwRepoSlug={product.mfgFwRepoSlug ?? product.fwRepoSlug ?? ''}
       stageType="MANUFACTURING"
       boardRevisionId={selectedRevision.id}
-      emptyLabel="Manufacturing not configured"
-      enableLabel="Enable Manufacturing"
       {canManage}
       {onRefresh}
     />

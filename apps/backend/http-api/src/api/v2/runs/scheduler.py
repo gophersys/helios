@@ -308,37 +308,79 @@ def _trigger_validation_job(
     if hasattr(fixture, "design") and fixture.design:
         fixture_profile_path = f"/app/fixtures/{fixture.design.product}_{fixture.design.revision}.json"
 
-    # Create the K8s job with multi-slot env vars
-    job_name = create_kubernetes_job(
-        product=product_slug,
-        job_id=entry_id,
-        firmware_path="",  # Pipeline-based tests fetch from MinIO
-        test_type="validation",
-        test_enable={},
-        firmware_version="",
-        run_id=run_id,
-        api_key=api_key,
-        api_url=api_url,
-        mtib_address=mtib_host,
-        bench_id=fixture.id,
-        device_id=dut_device_id,
-        device_snr=dut_snr,
-        fixture_profile_path=fixture_profile_path,
-        pipeline_id=build_run.id if build_run else None,
-        product_slug=product_slug,
-        stage=stage_name,
-        test_package_version=test_package_version,
-        extra_env={
-            "MTIB_HOSTS": mtib_hosts,
-            "SLOT_SNRS": slot_snrs,
-            "SLOT_DEVICE_IDS": slot_device_ids,
-            "CONCORD_SESSION_ID": run_id,
-            **({"ASSET_SET_ID": asset_set_id} if asset_set_id else {}),
-        },
-    )
+    # Dispatch via executor interface — DockerExecutor in dev, K8s Job in staging/prod
+    from src.services.executors import get_executor
+    from src.services.executors.kubernetes_executor import KubernetesExecutor
+
+    executor = get_executor("validation")
+
+    if isinstance(executor, KubernetesExecutor):
+        # Staging/production: use existing K8s Job creation with full template
+        job_name = create_kubernetes_job(
+            product=product_slug,
+            job_id=entry_id,
+            firmware_path="",
+            test_type="validation",
+            test_enable={},
+            firmware_version="",
+            run_id=run_id,
+            api_key=api_key,
+            api_url=api_url,
+            mtib_address=mtib_host,
+            bench_id=fixture.id,
+            device_id=dut_device_id,
+            device_snr=dut_snr,
+            fixture_profile_path=fixture_profile_path,
+            build_run_id=build_run.id if build_run else None,
+            product_slug=product_slug,
+            stage=stage_name,
+            test_package_version=test_package_version,
+            extra_env={
+                "MTIB_HOSTS": mtib_hosts,
+                "SLOT_SNRS": slot_snrs,
+                "SLOT_DEVICE_IDS": slot_device_ids,
+                "CONCORD_SESSION_ID": run_id,
+                **({"ASSET_SET_ID": asset_set_id} if asset_set_id else {}),
+            },
+        )
+    else:
+        # Development: spawn test-runner container via Docker
+        result = executor.submit(
+            image=f"concord/test-runner:{env_config.ENVIRONMENT}",
+            job_id=entry_id,
+            env={
+                "ENVIRONMENT": env_config.ENVIRONMENT,
+                "STAGE": stage_name,
+                "PRODUCT": product_slug or "",
+                "CONCORD_API_URL": api_url,
+                "CONCORD_RUN_ID": run_id,
+                "CONCORD_SESSION_ID": run_id,
+                "CONCORD_API_KEY": api_key,
+                "CONCORD_API_HOST": env_config.CONCORD_API_HOST,
+                "STORAGE_URL": env_config.STORAGE_URL,
+                "STORAGE_ACCESS_KEY": env_config.STORAGE_ACCESS_KEY,
+                "STORAGE_SECRET_ACCESS_KEY": env_config.STORAGE_SECRET_ACCESS_KEY,
+                "STORAGE_BUCKET_NAME": env_config.STORAGE_BUCKET_NAME,
+                "TEST_PACKAGE_VERSION": test_package_version or "latest",
+                "MTIB_HOST": mtib_host,
+                "MTIB_PORT": str(env_config.MTIB_PORT),
+                "MTIB_HOSTS": mtib_hosts,
+                "SLOT_SNRS": slot_snrs,
+                "SLOT_DEVICE_IDS": slot_device_ids,
+                "DEVICE_ID": dut_device_id or "",
+                "DEVICE_SNR": dut_snr or "",
+                "FIXTURE_ID": fixture.id,
+                "PIPELINE_ID": build_run.id if build_run else "",
+                **({"ASSET_SET_ID": asset_set_id} if asset_set_id else {}),
+            },
+            command=["/app/entrypoint.sh"],
+            labels={"app": f"validation-{product_slug or 'unknown'}"},
+            timeout_seconds=3600,
+        )
+        job_name = result.job_name if result.success else None
 
     if not job_name:
-        logger.error(f"Failed to create K8s job for queue entry {entry_id}")
+        logger.error(f"Failed to create job for queue entry {entry_id}")
         return None
 
     # Update entry status to RUNNING with job name and link test run
@@ -363,7 +405,7 @@ def _trigger_validation_job(
     return job_name
 
 
-def schedule_queue() -> List[Dict[str, Any]]:
+def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]]:
     """Process the validation queue and assign entries to available fixtures.
 
     Algorithm:
@@ -371,6 +413,10 @@ def schedule_queue() -> List[Dict[str, Any]]:
     2. Find all AVAILABLE fixtures
     3. For each queued entry, find a compatible fixture (matching product)
     4. Assign entry to fixture, update statuses
+
+    Args:
+        max_assignments: Cap on number of assignments this tick (concurrency gate).
+                         None means no cap beyond fixture availability.
 
     Returns list of assignments made: [{"entryId": ..., "fixtureId": ..., "stage": ...}]
     """
@@ -406,6 +452,10 @@ def schedule_queue() -> List[Dict[str, Any]]:
     assigned_fixture_ids: set = set()
 
     for entry in queued:
+        # Concurrency cap: stop assigning once we hit the limit
+        if max_assignments is not None and len(assignments) >= max_assignments:
+            break
+
         if not entry.assetSet:
             continue
 
@@ -516,7 +566,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
 
 
 def on_build_complete(build_run_id: str) -> Optional[str]:
-    """Called when builds complete for a pipeline. Creates queue entry if ready.
+    """Called when builds complete for a build run. Creates queue entry if ready.
 
     Returns the queue entry ID if created, None otherwise.
     """

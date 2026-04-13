@@ -61,9 +61,8 @@
     return stageMatrix().get(`${stage}:${revId}`) ?? null;
   }
 
-  // Check if any revision has a config for a given validation stage
-  function hasAnyConfig(stage: number): boolean {
-    return valStages.some((s) => s.stage === stage);
+  function hasAnyEnabled(stages: ProductStageConfig[], stage: number): boolean {
+    return stages.some((s) => s.stage === stage && s.enabled);
   }
 
   // Manufacturing stage lookup
@@ -320,28 +319,29 @@
           </thead>
           <tbody>
             {#each stageNumbers as stageNum}
-              {@const configured = hasAnyConfig(stageNum)}
+              {@const enabled = hasAnyEnabled(valStages, stageNum)}
               <tr class="border-t border-border-subtle">
                 <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
                   <div class="flex items-center gap-2">
                     <div class="w-5 h-5 flex items-center justify-center rounded text-2xs font-bold shrink-0
-                      {configured ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
+                      {enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
                       {stageNum}
                     </div>
-                    <span class="whitespace-nowrap {configured ? 'font-medium text-text-primary' : 'font-medium text-text-tertiary'}">{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}</span>
+                    <span class="whitespace-nowrap font-medium {enabled ? 'text-text-primary' : 'text-text-tertiary'}">{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}</span>
                   </div>
                 </td>
                 {#each matrixRevisions as rev}
                   {@const cell = getStageCell(stageNum, rev.id)}
                   <td class="text-center px-4 py-2.5">
-                    {#if cell?.enabled && cell.triggerTypes?.length > 0}
+                    {#if cell?.enabled}
                       <div class="flex flex-col items-center gap-0.5">
-                        <div class="flex flex-wrap justify-center gap-0.5">
-                          {#each cell.triggerTypes as trigger}
-                            <span class="text-2xs font-mono px-1 py-0.5 rounded whitespace-nowrap
-                              {trigger === 'AUTO' ? 'bg-success-muted text-success' : 'bg-accent-muted text-accent'}">{trigger}</span>
-                          {/each}
-                        </div>
+                        {#if cell.triggerTypes?.length}
+                          <div class="flex flex-wrap justify-center gap-0.5">
+                            {#each cell.triggerTypes as trigger}
+                              <span class="text-2xs font-mono px-1 py-0.5 rounded whitespace-nowrap bg-accent-muted text-accent">{trigger}</span>
+                            {/each}
+                          </div>
+                        {/if}
                         <div class="flex items-center gap-0.5">
                           {#if cell.watchBranch}
                             <span class="flex items-center gap-0.5 text-2xs text-text-tertiary" title="Watch branch: {cell.watchBranch}">
@@ -356,10 +356,8 @@
                           {/if}
                         </div>
                       </div>
-                    {:else if cell}
-                      <span class="text-text-tertiary opacity-30">&mdash;</span>
                     {:else}
-                      <span class="text-2xs text-text-tertiary opacity-50">Not configured</span>
+                      <span class="text-text-tertiary opacity-30">&mdash;</span>
                     {/if}
                   </td>
                 {/each}
@@ -384,7 +382,7 @@
           {#if onSwitchTab}
             <button
               onclick={() => switchTab('manufacturing')}
-              class="mt-2 text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
+              class="btn btn-sm btn-ghost mt-2 text-accent"
             >
               Go to Manufacturing tab
             </button>
@@ -407,27 +405,30 @@
             </thead>
             <tbody>
               {#each mfgStageNumbers as stageNum}
-                {@const stageName = mfgStages.find((s) => s.stage === stageNum)?.name}
+                {@const mfgStageName = mfgStages.find((s) => s.stage === stageNum)?.name}
+                {@const enabled = hasAnyEnabled(mfgStages, stageNum)}
                 <tr class="border-t border-border-subtle">
                   <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
                     <div class="flex items-center gap-2">
-                      <div class="w-5 h-5 flex items-center justify-center rounded text-2xs font-bold bg-warning text-white shrink-0">
+                      <div class="w-5 h-5 flex items-center justify-center rounded text-2xs font-bold shrink-0
+                        {enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
                         {stageNum}
                       </div>
-                      <span class="font-medium text-text-primary whitespace-nowrap">{stageName || `Stage ${stageNum}`}</span>
+                      <span class="font-medium whitespace-nowrap {enabled ? 'text-text-primary' : 'text-text-tertiary'}">{mfgStageName || `Stage ${stageNum}`}</span>
                     </div>
                   </td>
                   {#each matrixRevisions as rev}
                     {@const cell = getMfgStageCell(stageNum, rev.id)}
                     <td class="text-center px-4 py-2.5">
-                      {#if cell?.enabled && cell.triggerTypes?.length > 0}
+                      {#if cell?.enabled}
                         <div class="flex flex-col items-center gap-0.5">
-                          <div class="flex flex-wrap justify-center gap-0.5">
-                            {#each cell.triggerTypes as trigger}
-                              <span class="text-2xs font-mono px-1 py-0.5 rounded whitespace-nowrap
-                                {trigger === 'AUTO' ? 'bg-success-muted text-success' : 'bg-warning-muted text-warning'}">{trigger}</span>
-                            {/each}
-                          </div>
+                          {#if cell.triggerTypes?.length}
+                            <div class="flex flex-wrap justify-center gap-0.5">
+                              {#each cell.triggerTypes as trigger}
+                                <span class="text-2xs font-mono px-1 py-0.5 rounded whitespace-nowrap bg-accent-muted text-accent">{trigger}</span>
+                              {/each}
+                            </div>
+                          {/if}
                           <div class="flex items-center gap-0.5">
                             {#if cell.watchBranch}
                               <span class="flex items-center gap-0.5 text-2xs text-text-tertiary" title="Watch branch: {cell.watchBranch}">
@@ -469,7 +470,16 @@
         <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
           <Hammer size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
           <p class="text-sm text-text-secondary">No builds yet</p>
-          <p class="text-2xs text-text-tertiary mt-1">Builds appear here when triggered by the CI pipeline or manually.</p>
+          {#if onSwitchTab}
+            <button
+              onclick={() => switchTab('builds')}
+              class="btn btn-sm btn-ghost mt-2 text-accent"
+            >
+              Go to Builds tab
+            </button>
+          {:else}
+            <p class="text-2xs text-text-tertiary mt-1">Builds appear here when triggered by a build run or manually.</p>
+          {/if}
         </div>
       {:else}
         <div class="rounded-lg border border-border overflow-hidden">
@@ -518,12 +528,12 @@
           {#if onSwitchTab}
             <button
               onclick={() => switchTab('stages')}
-              class="mt-2 text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
+              class="btn btn-sm btn-ghost mt-2 text-accent"
             >
               Go to Validation tab
             </button>
           {:else}
-            <p class="text-2xs text-text-tertiary mt-1">Runs appear here when validation is triggered from the pipeline or manually.</p>
+            <p class="text-2xs text-text-tertiary mt-1">Runs appear here when validation is triggered from a build run or manually.</p>
           {/if}
         </div>
       {:else}

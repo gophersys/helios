@@ -131,6 +131,7 @@ class TestUploadTestPackage:
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.find_first.return_value = None
         mock_db.testpackage.create.return_value = tp
+        mock_db.testpackage.find_unique.return_value = tp
 
         data = {
             "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
@@ -156,6 +157,7 @@ class TestUploadTestPackage:
         # For DEVELOPMENT status, only one find_first on testpackage (existing dev check)
         mock_db.testpackage.find_first.return_value = existing
         mock_db.testpackage.update.return_value = updated
+        mock_db.testpackage.find_unique.return_value = updated
 
         data = {
             "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),

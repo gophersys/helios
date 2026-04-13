@@ -313,7 +313,7 @@ class TestReceiveRepoEvent:
     """Tests for POST /v2/builds/events."""
 
     def test_receive_repo_event_success(self, authed_client, mock_db):
-        """POST /v2/builds/events with valid payload triggers pipeline stages."""
+        """POST /v2/builds/events with valid payload triggers build run stages."""
         with patch("api.v2.builds.webhook.handle_repo_event", return_value=[{"stageId": "s1"}]):
             with patch("api.v2.builds.webhook.log_audit"):
                 response = authed_client.post(
