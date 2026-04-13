@@ -83,38 +83,5 @@
       />
     </div>
 
-    <!-- Section 5: Start Session -->
-    <div class="card card-md">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-sm font-semibold text-text-primary">Manufacturing Session</h3>
-          <p class="text-2xs text-text-tertiary mt-1">
-            {#if !hasStage}
-              Enable a manufacturing stage to get started.
-            {:else if !hasReleasedApp}
-              Release a test app to unlock session creation.
-            {:else}
-              Start a session to begin manufacturing units.
-            {/if}
-          </p>
-        </div>
-        <button
-          onclick={() => showSessionDialog = true}
-          disabled={!hasStage || !hasReleasedApp}
-          class="btn btn-md btn-primary"
-        >
-          <Play size={16} />
-          Start Manufacturing Session
-        </button>
-      </div>
-    </div>
   </div>
-
-  <SessionStartDialog
-    open={showSessionDialog}
-    productId={product.id}
-    boardRevisionId={selectedRevision?.id}
-    onClose={() => showSessionDialog = false}
-    onStarted={handleSessionStarted}
-  />
 {/if}
