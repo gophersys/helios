@@ -43,14 +43,22 @@ def trigger_stage_run(product_id: str, stage: str):
         return bad_request("Stage must be between 1 and 5")
 
     # --- Look up stage config ---
-    config = db.productstageconfig.find_first(
-        where={
-            "productId": product_id,
-            "stage": stage_int,
-            "type": "VALIDATION",
-            "enabled": True,
-        }
-    )
+    config_id = request.args.get("configId", "").strip()
+    if config_id:
+        config = db.productstageconfig.find_unique(where={"id": config_id})
+        if not config or config.productId != product_id or config.type != "VALIDATION":
+            return not_found("Validation stage config not found")
+        if not config.enabled:
+            return bad_request("Stage is not enabled")
+    else:
+        config = db.productstageconfig.find_first(
+            where={
+                "productId": product_id,
+                "stage": stage_int,
+                "type": "VALIDATION",
+                "enabled": True,
+            }
+        )
     if not config:
         # Check if a disabled VALIDATION config exists
         disabled_config = db.productstageconfig.find_first(

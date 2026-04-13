@@ -277,15 +277,39 @@ def _try_trigger_build(product_id: str, config_id: str, stage: str, result: dict
 
 
 def _resolve_stage_config(db, product_id: str, stage: str):
-    """Look up product and stage config.  Returns (product, config, stage_num, error_response)."""
+    """Look up product and stage config.
+
+    Disambiguates using ?type= and ?boardRevisionId= query params, or
+    ?configId= for direct ID lookup (preferred by the frontend).
+    Returns (product, config, stage_num, error_response).
+    """
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return None, None, None, not_found("Product not found")
+
+    # Direct ID lookup — unambiguous, preferred path
+    config_id = request.args.get("configId", "").strip()
+    if config_id:
+        config = db.productstageconfig.find_unique(where={"id": config_id}, include=_INCLUDE)
+        if not config or config.productId != product_id:
+            return None, None, None, not_found("Stage config not found")
+        return product, config, config.stage, None
+
     try:
         stage_num = int(stage)
     except ValueError:
         return None, None, None, bad_request("Stage must be a number")
-    config = db.productstageconfig.find_first(where={"productId": product_id, "stage": stage_num})
+
+    # Build scoped query from available filters
+    where: dict = {"productId": product_id, "stage": stage_num}
+    stage_type = request.args.get("type", "").strip().upper()
+    if stage_type in ("VALIDATION", "MANUFACTURING"):
+        where["type"] = stage_type
+    rev_id = request.args.get("boardRevisionId", "").strip()
+    if rev_id:
+        where["boardRevisionId"] = rev_id
+
+    config = db.productstageconfig.find_first(where=where)
     if not config:
         return None, None, None, not_found(f"Stage {stage} config not found")
     return product, config, stage_num, None
@@ -341,10 +365,12 @@ def update_stage_config(product_id: str, stage: str):
     updated = db.productstageconfig.update(where={"id": config.id}, data=update_data, include=_INCLUDE)
 
     # Auto-populate build matrix if empty (catches stages created before auto-populate was universal)
-    matrix = updated.buildMatrix if hasattr(updated, "buildMatrix") else []
+    matrix = getattr(updated, "buildMatrix", None) or []
     if not matrix:
         _auto_populate_build_matrix(db, config.id, updated.type, stage_num)
-        updated = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
+        refetched = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
+        if refetched:
+            updated = refetched
 
     log_audit("stageConfig.update", "ProductStageConfig", config.id, update_data)
 

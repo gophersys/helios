@@ -824,7 +824,7 @@
     disabling = true;
     error = null;
     try {
-      await updateStageConfig(productId, stage, { enabled: false });
+      await updateStageConfig(productId, stage, { enabled: false }, config?.id);
       showDisableConfirm = false;
       disableConfirmText = '';
       onSaved();
@@ -854,7 +854,7 @@
       }
 
       if (config) {
-        await updateStageConfig(productId, stage, data);
+        await updateStageConfig(productId, stage, data, config?.id);
       } else {
         await createStageConfig(productId, { type: stageType, stage, name: displayStageName, ...data });
       }

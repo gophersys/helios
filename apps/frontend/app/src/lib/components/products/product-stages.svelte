@@ -122,7 +122,7 @@
     disabling = true;
     disableError = null;
     try {
-      await updateStageConfig(productId, disableTarget.stage, { enabled: false });
+      await updateStageConfig(productId, disableTarget.stage, { enabled: false }, disableTarget.id);
       disableConfirmOpen = false;
       disableTarget = null;
       await loadConfigs();
