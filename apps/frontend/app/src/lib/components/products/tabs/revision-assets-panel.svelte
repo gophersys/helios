@@ -250,23 +250,14 @@
       <span class="text-sm font-semibold text-text-primary">Modem Firmware</span>
       <span class="text-2xs text-text-tertiary">{modemFirmwares.length} version{modemFirmwares.length === 1 ? '' : 's'}</span>
       {#if canManage}
-        <div class="ml-auto">
-          {#if showModemUpload}
-            <div class="flex items-center gap-2">
-              <label class="btn btn-sm btn-primary cursor-pointer">
-                {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
-                Upload .zip
-                <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading} />
-              </label>
-              <button onclick={() => { showModemUpload = false; modemError = null; }} class="btn btn-sm btn-ghost">Cancel</button>
-            </div>
-            {#if modemError}
-              <p class="text-2xs text-error mt-1">{modemError}</p>
-            {/if}
-          {:else}
-            <button onclick={() => showModemUpload = true} class="btn btn-sm btn-primary">
-              <Upload size={12} /> Upload .zip
-            </button>
+        <div class="ml-auto flex items-center gap-2">
+          <label class="btn btn-sm btn-primary cursor-pointer">
+            {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
+            Upload .zip
+            <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading} />
+          </label>
+          {#if modemError}
+            <span class="text-2xs text-error">{modemError}</span>
           {/if}
         </div>
       {/if}
