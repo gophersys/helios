@@ -950,7 +950,7 @@
                     type="text"
                     bind:value={uploadVersion}
                     placeholder="e.g., 0.5.2"
-                    class="input w-full"
+                    class="input input-sm w-full"
                   />
                 </div>
 
@@ -964,7 +964,7 @@
                     bind:value={uploadNotes}
                     placeholder="Notes about this firmware..."
                     rows="2"
-                    class="input w-full resize-none"
+                    class="input input-sm w-full resize-none"
                   ></textarea>
                 </div>
 
@@ -978,7 +978,7 @@
                       <select
                         id="zip-modem-select"
                         bind:value={selectedModemFirmwareId}
-                        class="input w-full"
+                        class="input input-sm w-full"
                       >
                         <option value={null}>Select modem firmware...</option>
                         {#each validationResult.availableModemFirmwares as fw}
