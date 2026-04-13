@@ -211,18 +211,14 @@
 </svelte:head>
 
 <div class="animate-fade-in">
-  <PageHeader title="Fixtures" description="Physical test stations and MTIB assignments.">
-    {#snippet actions()}
-      {#if canManage}
-        <button
-          onclick={() => showCreate = true}
-          class="btn btn-sm btn-primary"
-        >
-          <Plus size={16} /> New Fixture
-        </button>
-      {/if}
-    {/snippet}
-  </PageHeader>
+  <div class="mb-6 flex items-start justify-between">
+    <PageHeader title="Fixtures" description="Physical test stations and MTIB assignments." />
+    {#if canManage}
+      <button onclick={() => showCreate = true} class="btn btn-sm btn-primary">
+        <Plus size={16} /> New Fixture
+      </button>
+    {/if}
+  </div>
 
   <ErrorAlert message={error} />
 
@@ -236,29 +232,29 @@
   <!-- Filters -->
   <FilterBar class="mb-4">
     {#snippet filters()}
-      <FilterSearch bind:value={searchQuery} placeholder="Search fixtures..." class="w-56" />
-      {#if products.length > 0}
-        <FilterSelect label="Product" value={filterProduct} onchange={(v) => { filterProduct = v; }} options={products.map(p => ({ value: p.id, label: p.name }))} />
-      {/if}
+      <FilterSelect label="Product" value={filterProduct} onchange={(v) => { filterProduct = v; }} options={products.map(p => ({ value: p.id, label: p.name }))} />
       <FilterSelect label="Type" value={filterType} onchange={(v) => { filterType = v; }} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
+      <FilterSelect label="Status" value={filterStatus} onchange={(v) => { filterStatus = v; }} options={[{ value: 'AVAILABLE', label: 'Available' }, { value: 'UNASSIGNED', label: 'Unassigned' }]} />
+      <FilterSearch bind:value={searchQuery} placeholder="Search fixtures..." class="w-56" />
     {/snippet}
-    <div class="flex items-center gap-2 ml-auto">
-      <div class="flex items-center rounded-md bg-surface-2 p-0.5">
-        <button
-          onclick={() => viewMode = 'table'}
-          class="rounded px-1.5 py-1 transition-colors {viewMode === 'table' ? 'bg-surface-1 text-text-primary shadow-xs' : 'text-text-tertiary hover:text-text-secondary'}"
-          title="Table view"
-        >
-          <List size={14} />
-        </button>
-        <button
-          onclick={() => viewMode = 'grid'}
-          class="rounded px-1.5 py-1 transition-colors {viewMode === 'grid' ? 'bg-surface-1 text-text-primary shadow-xs' : 'text-text-tertiary hover:text-text-secondary'}"
-          title="Grid view"
-        >
-          <LayoutGrid size={14} />
-        </button>
-      </div>
+    <span class="ml-auto text-2xs text-text-tertiary shrink-0">
+      {filtered.length} fixtures
+    </span>
+    <div class="flex items-center rounded-md bg-surface-2 p-0.5">
+      <button
+        onclick={() => viewMode = 'table'}
+        class="rounded px-1.5 py-1 transition-colors {viewMode === 'table' ? 'bg-surface-1 text-text-primary shadow-xs' : 'text-text-tertiary hover:text-text-secondary'}"
+        title="Table view"
+      >
+        <List size={14} />
+      </button>
+      <button
+        onclick={() => viewMode = 'grid'}
+        class="rounded px-1.5 py-1 transition-colors {viewMode === 'grid' ? 'bg-surface-1 text-text-primary shadow-xs' : 'text-text-tertiary hover:text-text-secondary'}"
+        title="Grid view"
+      >
+        <LayoutGrid size={14} />
+      </button>
     </div>
   </FilterBar>
 

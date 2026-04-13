@@ -2,12 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import {
-    ChevronRight,
-    ChevronLeft,
-    ChevronsLeft,
-    ChevronsRight,
     Plus,
-    Package,
     CheckCircle2,
     XCircle,
     Loader2,
@@ -36,6 +31,7 @@
   import FilterPills from '$lib/components/ui/filter-pills.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import PaginationNav from '$lib/components/ui/pagination.svelte';
   import TextInput from '$lib/components/ui/text-input.svelte';
   import { BitbucketIcon } from '$lib/components/icons';
 
@@ -367,11 +363,21 @@
 </svelte:head>
 
 <div class="animate-fade-in">
-  <div class="mb-6">
+  <div class="mb-6 flex items-start justify-between">
     <PageHeader
       title="Validation"
       description="Hardware-in-the-loop test runs across all products and stages."
     />
+    <div class="flex items-center gap-2">
+      <button onclick={refresh} disabled={refreshing} class="btn btn-sm flex items-center gap-1.5" title="Refresh">
+        <RefreshCw size={14} class={refreshing ? 'animate-spin' : ''} />
+      </button>
+      {#if canManage}
+        <button onclick={() => { showForm = true; fetchDropdowns(); }} class="btn btn-sm btn-primary">
+          <Plus size={16} /> New Run
+        </button>
+      {/if}
+    </div>
   </div>
 
   <ErrorAlert message={error} />
@@ -408,9 +414,7 @@
   <!-- Filter bar -->
   <FilterBar class="mb-4">
     {#snippet filters()}
-      {#if productOptions.length > 0}
-        <FilterSelect label="Product" value={productFilter} onchange={(v) => { productFilter = v; }} options={productOptions} />
-      {/if}
+      <FilterSelect label="Product" value={productFilter} onchange={(v) => { productFilter = v; }} options={productOptions} />
       <FilterSelect label="Stage" value={stageFilter} onchange={(v) => { stageFilter = v; }} options={STAGE_OPTIONS} />
       <FilterSelect label="Date" value={dateRange} onchange={(v) => { dateRange = v; }} options={DATE_RANGE_OPTIONS} />
       <FilterPills
@@ -424,20 +428,11 @@
         selected={activeStatuses}
         onchange={(s) => { activeStatuses = s; }}
       />
-      <FilterSearch bind:value={searchQuery} placeholder="Search runs..." class="w-48" />
+      <FilterSearch bind:value={searchQuery} placeholder="Search runs..." class="w-56" />
     {/snippet}
     <span class="ml-auto text-2xs text-text-tertiary shrink-0">
       {pagination.total} runs
     </span>
-    <button onclick={refresh} disabled={refreshing} class="btn btn-sm flex items-center gap-1.5" title="Refresh">
-      <RefreshCw size={14} class={refreshing ? 'animate-spin' : ''} />
-    </button>
-    {#if canManage}
-      <button onclick={() => { showForm = true; fetchDropdowns(); }} class="btn btn-sm btn-primary flex items-center gap-1.5">
-        <Plus size={14} />
-        New Run
-      </button>
-    {/if}
   </FilterBar>
 
   <!-- Runs list -->
@@ -599,24 +594,11 @@
       <span class="text-2xs text-text-tertiary">
         Page {pagination.page} of {pagination.pages}
       </span>
-      <div class="flex items-center gap-1">
-        <button onclick={() => (currentPage = 1)} disabled={currentPage <= 1} aria-label="First page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30">
-          <ChevronsLeft size={16} />
-        </button>
-        <button onclick={() => (currentPage = Math.max(1, currentPage - 1))} disabled={currentPage <= 1} aria-label="Previous page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30">
-          <ChevronLeft size={16} />
-        </button>
-        <button onclick={() => (currentPage = Math.min(pagination.pages, currentPage + 1))} disabled={currentPage >= pagination.pages} aria-label="Next page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30">
-          <ChevronRight size={16} />
-        </button>
-        <button onclick={() => (currentPage = pagination.pages)} disabled={currentPage >= pagination.pages} aria-label="Last page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30">
-          <ChevronsRight size={16} />
-        </button>
-      </div>
+      <PaginationNav
+        page={pagination.page}
+        totalPages={pagination.pages}
+        onPageChange={(p) => { currentPage = p; }}
+      />
     </div>
   {/if}
 </div>
