@@ -40,17 +40,23 @@
   // Step 5: Panel Layout
   let panelRows = $state(1);
   let panelCols = $state(1);
-  const slotCount = $derived(panelRows * panelCols);
+  let hasStandaloneSlot = $state(false);
 
-  // Generate slot labels: top-left = 1, top-right = 2, etc (row-major, top-down view)
+  const panelSlotCount = $derived(panelRows * panelCols);
+  const totalSlotCount = $derived(panelSlotCount + (hasStandaloneSlot ? 1 : 0));
+
+  // Generate slot grid: panel slots (row-major) + optional standalone slot
   const slotGrid = $derived.by(() => {
-    const grid: { index: number; row: number; col: number; label: string }[] = [];
+    const grid: { index: number; row: number; col: number; label: string; standalone: boolean }[] = [];
     let idx = 1;
     for (let r = 0; r < panelRows; r++) {
       for (let c = 0; c < panelCols; c++) {
-        grid.push({ index: idx, row: r, col: c, label: `Slot ${idx}` });
+        grid.push({ index: idx, row: r, col: c, label: `Panel ${idx}`, standalone: false });
         idx++;
       }
+    }
+    if (hasStandaloneSlot) {
+      grid.push({ index: idx, row: -1, col: -1, label: 'Standalone', standalone: true });
     }
     return grid;
   });
@@ -185,6 +191,7 @@
         panelRows,
         panelCols,
         slots,
+        metadata: hasStandaloneSlot ? { hasStandaloneSlot: true } : undefined,
       });
 
       // After creation, assign MTIBs to slots if any were mapped
@@ -417,25 +424,37 @@
           <p class="text-sm text-text-secondary">Define the PCB panel layout. This is a <strong>top-down view</strong> — slot 1 is top-left.</p>
 
           <!-- Row/Col selectors -->
-          <div class="flex items-center gap-6">
-            <label class="flex items-center gap-2">
-              <span class="text-sm font-medium text-text-secondary">Rows</span>
-              <select bind:value={panelRows} class="input input-sm w-20">
-                {#each Array.from({length: 10}, (_, i) => i + 1) as n}
-                  <option value={n}>{n}</option>
-                {/each}
-              </select>
+          <div class="card card-md space-y-4">
+            <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">Panel Grid</h4>
+            <div class="flex items-center gap-6">
+              <label class="flex items-center gap-2">
+                <span class="text-sm font-medium text-text-secondary">Rows</span>
+                <select bind:value={panelRows} class="input input-sm w-20">
+                  {#each Array.from({length: 10}, (_, i) => i + 1) as n}
+                    <option value={n}>{n}</option>
+                  {/each}
+                </select>
+              </label>
+              <span class="text-text-tertiary">×</span>
+              <label class="flex items-center gap-2">
+                <span class="text-sm font-medium text-text-secondary">Columns</span>
+                <select bind:value={panelCols} class="input input-sm w-20">
+                  {#each Array.from({length: 10}, (_, i) => i + 1) as n}
+                    <option value={n}>{n}</option>
+                  {/each}
+                </select>
+              </label>
+              <span class="text-sm text-text-tertiary">= {panelSlotCount} panel slot{panelSlotCount !== 1 ? 's' : ''}</span>
+            </div>
+
+            <!-- Standalone slot toggle -->
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" bind:checked={hasStandaloneSlot} class="h-4 w-4 rounded border-border text-accent focus:ring-accent" />
+              <div>
+                <span class="text-sm font-medium text-text-primary">Include standalone slot</span>
+                <p class="text-2xs text-text-tertiary">An additional single-board slot outside the panel grid, for standalone DUT testing.</p>
+              </div>
             </label>
-            <span class="text-text-tertiary">×</span>
-            <label class="flex items-center gap-2">
-              <span class="text-sm font-medium text-text-secondary">Columns</span>
-              <select bind:value={panelCols} class="input input-sm w-20">
-                {#each Array.from({length: 10}, (_, i) => i + 1) as n}
-                  <option value={n}>{n}</option>
-                {/each}
-              </select>
-            </label>
-            <span class="text-sm text-text-tertiary">= {slotCount} slot{slotCount !== 1 ? 's' : ''}</span>
           </div>
 
           <!-- Panel grid preview -->
@@ -443,20 +462,43 @@
             <div class="flex items-center gap-2 mb-3">
               <LayoutGrid size={14} class="text-text-tertiary" />
               <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">Top-Down View</span>
+              <span class="text-2xs text-text-tertiary ml-auto">{totalSlotCount} total slot{totalSlotCount !== 1 ? 's' : ''}</span>
             </div>
+
+            <!-- Panel grid -->
             <div
               class="grid gap-2 mx-auto"
               style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 100, 600)}px;"
             >
-              {#each slotGrid as slot}
+              {#each slotGrid.filter(s => !s.standalone) as slot}
                 <div class="flex flex-col items-center justify-center rounded-lg border-2 border-accent/30 bg-accent-muted/30 aspect-square min-h-16 transition-all">
                   <span class="text-lg font-bold text-accent">{slot.index}</span>
                   <span class="text-2xs text-text-tertiary">{slot.label}</span>
                 </div>
               {/each}
             </div>
+
+            <!-- Standalone slot (below the grid) -->
+            {#if hasStandaloneSlot}
+              {@const standaloneSlot = slotGrid.find(s => s.standalone)}
+              {#if standaloneSlot}
+                <div class="mt-4 pt-4 border-t border-border-subtle">
+                  <div class="flex items-center gap-3">
+                    <div class="flex flex-col items-center justify-center rounded-lg border-2 border-warning/30 bg-warning-muted/30 w-20 h-20">
+                      <span class="text-lg font-bold text-warning">{standaloneSlot.index}</span>
+                      <span class="text-2xs text-text-tertiary">Standalone</span>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-text-primary">Standalone Slot</p>
+                      <p class="text-2xs text-text-tertiary">Single-board position, separate from the panel grid.</p>
+                    </div>
+                  </div>
+                </div>
+              {/if}
+            {/if}
+
             <p class="text-2xs text-text-tertiary mt-3 text-center">
-              Slot numbering: left→right, top→bottom (row-major order)
+              Panel: left→right, top→bottom.{hasStandaloneSlot ? ' Standalone slot is independent.' : ''}
             </p>
           </div>
         </div>
@@ -471,17 +513,20 @@
             <div class="flex items-center gap-2 mb-3">
               <Cable size={14} class="text-text-tertiary" />
               <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">MTIB → Slot Mapping (Top-Down View)</span>
+              <span class="text-2xs text-text-tertiary ml-auto">{totalSlotCount} slot{totalSlotCount !== 1 ? 's' : ''}</span>
             </div>
+
+            <!-- Panel grid slots -->
             <div
               class="grid gap-3 mx-auto"
               style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 200, 800)}px;"
             >
-              {#each slotGrid as slot}
+              {#each slotGrid.filter(s => !s.standalone) as slot}
                 {@const assignedNodeId = slotMtibMap[slot.index] ?? ''}
-                {@const assignedNode = availableNodes.find(n => n.id === assignedNodeId)}
+                {@const assignedNode = availableNodes.find((n: any) => n.id === assignedNodeId)}
                 <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-border bg-surface-0'} p-3 transition-all">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-bold text-text-primary">Slot {slot.index}</span>
+                    <span class="text-sm font-bold text-text-primary">{slot.label}</span>
                     {#if assignedNodeId}
                       <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">Assigned</span>
                     {:else}
@@ -517,9 +562,56 @@
                 </div>
               {/each}
             </div>
+            <!-- Standalone slot MTIB assignment -->
+            {#if hasStandaloneSlot}
+              {@const standaloneSlot = slotGrid.find(s => s.standalone)}
+              {#if standaloneSlot}
+                {@const assignedNodeId = slotMtibMap[standaloneSlot.index] ?? ''}
+                {@const assignedNode = availableNodes.find((n: any) => n.id === assignedNodeId)}
+                <div class="mt-4 pt-4 border-t border-border-subtle">
+                  <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-warning/30 bg-warning-muted/10'} p-3 max-w-xs">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-bold text-warning">Standalone</span>
+                      {#if assignedNodeId}
+                        <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">Assigned</span>
+                      {:else}
+                        <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">Unassigned</span>
+                      {/if}
+                    </div>
+                    <select
+                      value={assignedNodeId}
+                      onchange={(e) => {
+                        const val = (e.target as HTMLSelectElement).value;
+                        if (val) {
+                          slotMtibMap = { ...slotMtibMap, [standaloneSlot.index]: val };
+                        } else {
+                          const copy = { ...slotMtibMap };
+                          delete copy[standaloneSlot.index];
+                          slotMtibMap = copy;
+                        }
+                      }}
+                      class="input input-sm w-full"
+                    >
+                      <option value="">Select MTIB...</option>
+                      {#each availableNodes as node}
+                        {@const usedByOther = Object.entries(slotMtibMap).some(([idx, nid]) => nid === node.id && Number(idx) !== standaloneSlot.index)}
+                        <option value={node.id} disabled={usedByOther}>
+                          {node.name} ({node.ipAddress ?? node.hostname})
+                          {usedByOther ? ' (in use)' : ''}
+                        </option>
+                      {/each}
+                    </select>
+                    {#if assignedNode}
+                      <p class="text-2xs text-text-tertiary mt-1 truncate">{assignedNode.ipAddress ?? assignedNode.hostname}</p>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
+            {/if}
+
             {#if availableNodes.length === 0}
               <div class="mt-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning text-center">
-                No unassigned MTIB nodes found. Add MTIB nodes in the system first.
+                No unassigned MTIB nodes found. Register MTIB nodes first.
               </div>
             {/if}
             <p class="text-2xs text-text-tertiary mt-3 text-center">
