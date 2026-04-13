@@ -126,45 +126,35 @@
 
   // ── Handlers ───────────────────────────────────────────────
 
-  let modemFirmwares = $state<{ id: string; version: string }[]>([]);
-  let modemCheckLoading = $state(false);
-  let modemCheckError = $state<string | null>(null);
+  let modemFirmwares = $state<{ id: string; version: string; filename: string }[]>([]);
+  let modemLoaded = $state(false);
+
+  // Preload modem firmware on mount — one fetch, always available
+  $effect(() => {
+    if (productId && revision.id && !modemLoaded) {
+      modemLoaded = true;
+      apiFetch<ApiResponse<any[]>>(
+        `/v2/products/${productId}/revisions/${revision.id}/modem-firmware`
+      ).then(res => {
+        modemFirmwares = Array.isArray(res.data) ? res.data : [];
+      }).catch(() => {
+        modemFirmwares = [];
+      });
+    }
+  });
 
   // Does the selected stage require modem firmware?
   const stageNeedsModem = $derived(
     selectedConfig?.buildMatrix?.some((e: any) => e.fwType === 'modem') ?? false
   );
   const modemAvailable = $derived(modemFirmwares.length > 0);
+  const modemBlocked = $derived(stageNeedsModem && !modemAvailable);
 
-  async function selectStage(configId: string) {
+  function selectStage(configId: string) {
     selectedConfigId = configId;
-    modemCheckError = null;
-
-    // Check if this stage needs modem firmware
-    const cfg = enabledConfigs.find(c => c.id === configId);
-    const needsModem = cfg?.buildMatrix?.some((e: any) => e.fwType === 'modem') ?? false;
-
-    if (needsModem) {
-      // Fetch modem firmware for this revision
-      modemCheckLoading = true;
-      try {
-        const res = await apiFetch<ApiResponse<any[]>>(
-          `/v2/products/${productId}/revisions/${revision.id}/modem-firmware`
-        );
-        modemFirmwares = res.data ?? [];
-      } catch {
-        modemFirmwares = [];
-      } finally {
-        modemCheckLoading = false;
-      }
-
-      if (modemFirmwares.length === 0) {
-        modemCheckError = 'This stage requires modem firmware. Upload modem firmware in the Hardware tab first.';
-        return; // Block — don't advance to upload step
-      }
+    if (!modemBlocked) {
+      currentStep = 'upload';
     }
-
-    currentStep = 'upload';
   }
 
   // --- Files mode handlers ---
@@ -586,15 +576,9 @@
             </div>
           {/if}
 
-          {#if modemCheckLoading}
-            <div class="flex items-center gap-2 mt-3 text-sm text-text-tertiary">
-              <Loader2 size={14} class="animate-spin" /> Checking modem firmware...
-            </div>
-          {/if}
-
-          {#if modemCheckError}
+          {#if modemBlocked}
             <div class="mt-3 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning">
-              {modemCheckError}
+              This stage requires modem firmware. Upload modem firmware first.
             </div>
           {/if}
         </div>
