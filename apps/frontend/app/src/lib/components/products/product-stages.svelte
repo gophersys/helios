@@ -192,7 +192,7 @@
                 <GitBranch size={10} /> {cfg.watchBranch}
               </span>
             {/if}
-            {#if cfg.triggerTypes?.length}
+            {#if cfg.assetSources?.includes('BUILD_SERVICE') && cfg.triggerTypes?.length}
               {#each cfg.triggerTypes as t}
                 {@const TIcon = triggerIcon(t)}
                 <span class="flex items-center gap-1 bg-surface-0 rounded px-2 py-0.5">
