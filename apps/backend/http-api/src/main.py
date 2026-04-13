@@ -94,6 +94,18 @@ def graceful_shutdown(signum=None, frame=None):
     sig_name = signal.Signals(signum).name if signum else "atexit"
     logging.getLogger("server").info("Graceful shutdown initiated (%s)", sig_name)
 
+    # 0. Signal background scheduler threads to stop BEFORE closing DB.
+    # Daemon threads poll the DB — if we close DB first, they log errors.
+    try:
+        from src.services.queue_scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception:
+        pass
+
+    # Give in-flight scheduler ticks 2s to finish their current DB query
+    import time
+    time.sleep(2)
+
     # 1. Stop MTIB observability polling and gRPC channels
     try:
         obs_service = get_observability_service()
@@ -175,14 +187,11 @@ if __name__ == "__main__":
         init_observability_service(poll_interval_s=5)
 
         # Initialize CkBoards service (board definition discovery)
-        # Must run synchronously — eventlet monkey-patching breaks subprocess in threads
-        try:
-            from api.v2.products.board_discovery import init_ck_boards_service
-
-            init_ck_boards_service(env_config)
-            logger.info("CkBoards service ready")
-        except Exception as e:
-            logger.warning("CkBoards service init failed (board discovery unavailable): %s", e)
+        # Must run synchronously — eventlet monkey-patching breaks subprocess in threads.
+        # Fails hard — a half-initialized API is worse than a crashed pod.
+        from api.v2.products.board_discovery import init_ck_boards_service
+        init_ck_boards_service(env_config)
+        logger.info("CkBoards service ready")
 
         # Routes
         register_v2_routes(logger, server, socketio)

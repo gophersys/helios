@@ -124,12 +124,15 @@ class ProductDiscovery:
         if targets is not None:
             self._cached = targets
             self._cached_at = now
-            log.info(
-                "Discovery: %d watch target(s) loaded from API",
-                len(self._cached),
-            )
+            if targets:
+                log.info(
+                    "Discovery: %d watch target(s) loaded from API",
+                    len(self._cached),
+                )
+            else:
+                log.debug("Discovery: 0 watch targets (no products with enabled stages)")
         elif not self._cached:
-            log.warning("Discovery: no watch targets available")
+            log.debug("Discovery: no watch targets available (API unreachable or not configured)")
 
         return self._cached
 
@@ -150,7 +153,7 @@ class ProductDiscovery:
             fails or the API key is not configured.
         """
         if not self._api_key:
-            log.warning("Discovery: CONCORD_API_KEY not set, skipping fetch")
+            log.debug("Discovery: CONCORD_API_KEY not set, skipping fetch")
             return None
 
         url = f"{self._api_url}/v2/products"

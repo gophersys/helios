@@ -25,6 +25,8 @@ def init_ck_boards_service(config) -> None:
         repo_url=config.CK_BOARDS_REPO_URL,
         base_path="/tmp/ck_boards",
         ssh_key_b64=config.BITBUCKET_SSH_KEY,
+        bitbucket_email=getattr(config, "BITBUCKET_EMAIL", ""),
+        bitbucket_api_token=getattr(config, "BITBUCKET_API_TOKEN", ""),
         fetch_interval=config.CK_BOARDS_FETCH_INTERVAL,
         environment=config.ENVIRONMENT,
     )
