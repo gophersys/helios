@@ -50,7 +50,7 @@ def verify(db) -> list[str]:
         return errors
 
     check(alpha.slug == "alpha", f"Alpha slug wrong: {alpha.slug}")
-    check(alpha.active is True, "Alpha product not active")
+    check(alpha.status == "ACTIVE", "Alpha product not active")
 
     # ── Boards ──
     board = db.board.find_first(where={"productId": alpha.id})
