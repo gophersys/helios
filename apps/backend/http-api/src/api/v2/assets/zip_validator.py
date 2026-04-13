@@ -36,6 +36,8 @@ class ZipValidationResult:
     warnings: list[str] = field(default_factory=list)
     labels_found: list[str] = field(default_factory=list)
     file_count: int = 0
+    parsed_version: str | None = None
+    version_source: str | None = None
 
 
 def validate_zip(

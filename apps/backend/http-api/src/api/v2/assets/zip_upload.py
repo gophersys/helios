@@ -144,15 +144,16 @@ def validate_asset_zip(product_id: str):
 
     validation = validate_zip(zip_bytes, matrix_entries, skip_labels=modem_labels)
 
-    # Attempt version parsing
-    parsed_version = None
-    version_source = None
-    try:
-        zip_bytes.seek(0)
-        with zipfile.ZipFile(zip_bytes, "r") as zf:
-            parsed_version, version_source = _try_parse_version(zf)
-    except zipfile.BadZipFile:
-        pass
+    # Attempt version parsing — from build.json manifest or wrapper directory
+    parsed_version = validation.parsed_version
+    version_source = validation.version_source
+    if not parsed_version:
+        try:
+            zip_bytes.seek(0)
+            with zipfile.ZipFile(zip_bytes, "r") as zf:
+                parsed_version, version_source = _try_parse_version(zf)
+        except zipfile.BadZipFile:
+            pass
 
     # Fetch available modem firmwares if modem labels are required
     available_modem_firmwares = []

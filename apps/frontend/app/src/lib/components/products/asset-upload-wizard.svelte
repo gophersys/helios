@@ -844,7 +844,7 @@
                   {/each}
                 </div>
                 {#if selectedConfig.buildMatrix.some((e: any) => e.fwType === 'modem')}
-                  <p class="text-2xs text-text-tertiary mt-2 italic">Modem firmware is selected separately below.</p>
+                  <p class="text-2xs text-text-tertiary mt-2 italic">Modem firmware is selected after validation.</p>
                 {/if}
               </div>
             {/if}
