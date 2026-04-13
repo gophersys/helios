@@ -219,6 +219,7 @@
 <StageConfigWizard
   open={wizardOpen}
   stage={wizardStage}
+  {stageType}
   config={wizardConfig}
   targetRevision={wizardRevision}
   {productId}

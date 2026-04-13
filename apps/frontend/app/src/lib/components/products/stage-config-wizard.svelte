@@ -22,6 +22,7 @@
   interface Props {
     open: boolean;
     stage: number;
+    stageType?: 'VALIDATION' | 'MANUFACTURING';
     config: ProductStageConfig | undefined;
     targetRevision: BoardRevision | null;
     productId: string;
@@ -33,13 +34,13 @@
   }
 
   let {
-    open, stage, config, targetRevision,
+    open, stage, stageType: stageTypeProp = 'VALIDATION', config, targetRevision,
     productId, fwRepoSlug, revisions, secrets, onClose, onSaved,
   }: Props = $props();
 
   // ── Wizard state ───────────────────────────────────────
-  // Determine stage type from config or default to VALIDATION
-  const stageType = $derived(config?.type || 'VALIDATION');
+  // Determine stage type from config (existing) or prop (new)
+  const stageType = $derived(config?.type || stageTypeProp);
   const displayStageName = $derived(STAGE_NAMES[stageType]?.[stage] || config?.name || `Stage ${stage}`);
   let currentStep = $state(1);
   let saving = $state(false);
@@ -840,7 +841,7 @@
       if (config) {
         await updateStageConfig(productId, stage, data);
       } else {
-        await createStageConfig(productId, { stage, name: displayStageName, ...data });
+        await createStageConfig(productId, { type: stageType, stage, name: displayStageName, ...data });
       }
 
       // Save recipe draft if modified (does NOT create a new version) — BUILD_SERVICE only
