@@ -58,11 +58,9 @@
 
 {#if showStartDialog}
   <SessionStartDialog
+    open={true}
     productId={fixture.productId}
-    fixtureId={fixture.id}
-    fixtureName={fixture.name}
-    productName={fixture.productName || 'Unknown Product'}
-    onStart={(sessionId) => goto(`/manufacturing/session/${sessionId}`)}
-    onCancel={() => showStartDialog = false}
+    onClose={() => showStartDialog = false}
+    onStarted={() => goto(`/manufacturing/sessions`)}
   />
 {/if}
