@@ -235,9 +235,7 @@ class RunTriggerRequest:
         if firmware_path is not None:
             firmware_path = firmware_path.strip() or None
 
-        build_run_id = data.get("buildRunId") or data.get("pipelineId")
-        if build_run_id is not None:
-            build_run_id = build_run_id.strip() or None
+        build_run_id = (data.get("buildRunId") or "").strip() or None
 
         stage = (data.get("stage") or "fuota").strip().lower()
         if stage not in ("smoke", "driver", "integration", "regression", "fuota"):

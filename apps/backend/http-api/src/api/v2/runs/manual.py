@@ -302,8 +302,8 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{MTIB_ADDRESS}}", mtib_address or os.environ.get("MTIB_ADDRESS", ""))
         job_yaml = job_yaml.replace("{{BENCH_ID}}", bench_id or "")
 
-        # Stage 4: Build run ID for firmware asset fetching
-        job_yaml = job_yaml.replace("{{PIPELINE_ID}}", build_run_id or "")
+        # Build run ID for firmware asset fetching
+        job_yaml = job_yaml.replace("{{BUILD_RUN_ID}}", build_run_id or "")
 
         # Product slug for catalog API lookup (e.g., "alpha_b0")
         job_yaml = job_yaml.replace("{{PRODUCT_SLUG}}", product_slug or "")

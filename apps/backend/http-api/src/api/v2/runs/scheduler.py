@@ -370,7 +370,7 @@ def _trigger_validation_job(
                 "DEVICE_ID": dut_device_id or "",
                 "DEVICE_SNR": dut_snr or "",
                 "FIXTURE_ID": fixture.id,
-                "PIPELINE_ID": build_run.id if build_run else "",
+                "BUILD_RUN_ID": build_run.id if build_run else "",
                 **({"ASSET_SET_ID": asset_set_id} if asset_set_id else {}),
             },
             command=["/app/entrypoint.sh"],

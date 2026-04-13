@@ -6,7 +6,7 @@ Flashes firmware onto both microcontrollers via the MTIB V1 server:
   3. Set AP protect on both processors
 
 Firmware source priority:
-  1. Asset set from CI pipeline (via StageAssets / PIPELINE_ID)
+  1. Asset set from build run (via StageAssets / BUILD_RUN_ID)
   2. Config fallback filenames (local development)
 
 Parametrized by firmware variant (debug/release) — both run if available

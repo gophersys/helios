@@ -32,8 +32,8 @@ spec:
           value: "{{STAGE}}"
         - name: LOG_LEVEL
           value: "4"
-        - name: PIPELINE_ID
-          value: "{{PIPELINE_ID}}"
+        - name: BUILD_RUN_ID
+          value: "{{BUILD_RUN_ID}}"
         - name: TEST_PACKAGE_VERSION
           value: "{{TEST_PACKAGE_VERSION}}"
         - name: PRODUCT

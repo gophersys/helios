@@ -20,7 +20,7 @@ Optional:
     CONCORD_API_URL     Concord HTTP API base URL
     CONCORD_API_KEY     API key for reporter auth
     PRODUCT_SLUG        Product slug for API config (default: "alpha_b0")
-    PIPELINE_ID         Build pipeline for firmware resolution
+    BUILD_RUN_ID        Build run ID for firmware resolution
     PROXY_SERVER_URL    CoreOps proxy for personalization
 """
 
@@ -231,26 +231,26 @@ def is_mock() -> bool:
 
 @pytest.fixture(scope="session")
 def mfg_assets():
-    """Session-scoped firmware assets from build pipeline.
+    """Session-scoped firmware assets from a build run.
 
-    When PIPELINE_ID is set, fetches build artifacts from Concord API.
+    When BUILD_RUN_ID is set, fetches build artifacts from Concord API.
     Returns None otherwise — tests fall back to config-based filenames.
     """
-    pipeline_id = os.environ.get("PIPELINE_ID")
+    build_run_id = os.environ.get("BUILD_RUN_ID")
     api_url = os.environ.get("CONCORD_API_URL")
     api_key = os.environ.get("CONCORD_API_KEY")
 
-    if pipeline_id and api_url and api_key:
+    if build_run_id and api_url and api_key:
         from corekinect.test.stage_assets import StageAssets
 
         assets = StageAssets.from_pipeline(
-            pipeline_id=pipeline_id,
+            pipeline_id=build_run_id,
             stage="manufacturing",
             api_url=api_url,
             api_key=api_key,
             strict=False,
         )
-        log.info("Manufacturing firmware loaded from pipeline %s", pipeline_id)
+        log.info("Manufacturing firmware loaded from build run %s", build_run_id)
         yield assets
         assets.cleanup()
     else:
