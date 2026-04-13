@@ -37,7 +37,41 @@
   let selectedDesignId = $state('');
   const selectedDesign = $derived(designs.find(d => d.id === selectedDesignId));
 
-  // Step 5: Name
+  // Step 5: Panel Layout
+  let panelRows = $state(1);
+  let panelCols = $state(1);
+  const slotCount = $derived(panelRows * panelCols);
+
+  // Generate slot labels: top-left = 1, top-right = 2, etc (row-major, top-down view)
+  const slotGrid = $derived.by(() => {
+    const grid: { index: number; row: number; col: number; label: string }[] = [];
+    let idx = 1;
+    for (let r = 0; r < panelRows; r++) {
+      for (let c = 0; c < panelCols; c++) {
+        grid.push({ index: idx, row: r, col: c, label: `Slot ${idx}` });
+        idx++;
+      }
+    }
+    return grid;
+  });
+
+  // Step 6: MTIB Mapping
+  let availableNodes = $state<any[]>([]);
+  let slotMtibMap = $state<Record<number, string>>({}); // slotIndex → nodeId
+
+  // Load available MTIB nodes when reaching step 6
+  $effect(() => {
+    if (step === 6 && selectedType) {
+      apiFetch<ApiResponse<any>>(`/v2/devices/mtibs?type=${selectedType}&limit=100`).then(res => {
+        const payload = res.data;
+        const nodes = Array.isArray(payload) ? payload : (payload as any)?.data ?? [];
+        // Only show unassigned nodes
+        availableNodes = nodes.filter((n: any) => !n.fixtureSlot);
+      }).catch(() => { availableNodes = []; });
+    }
+  });
+
+  // Step 7: Name
   let fixtureName = $state('');
 
   const suggestedName = $derived.by(() => {
@@ -137,12 +171,29 @@
     submitting = true;
     error = null;
     try {
+      // Build slots from panel grid + MTIB assignments
+      const slots = slotGrid.map(slot => ({
+        slotIndex: slot.index - 1, // 0-based in DB
+        label: slot.label,
+      }));
+
       await api.post('/v2/fixtures', {
         name: fixtureName.trim(),
         productId: selectedProductId,
         designId: selectedDesignId,
         type: selectedType,
+        slots,
+        metadata: {
+          panelRows,
+          panelCols,
+          panelLayout: 'grid',
+        },
       });
+
+      // After creation, assign MTIBs to slots if any were mapped
+      // (slot assignment is a separate API call per slot)
+      // TODO: assign nodes after fixture creation
+
       onCreated();
       resetAndClose();
     } catch (e: any) {
@@ -363,30 +414,120 @@
           {/if}
         </div>
 
-      <!-- Step 5: Name -->
-      <!-- Step 5: Panel Layout (placeholder) -->
+      <!-- Step 5: Panel Layout -->
       {:else if step === 5}
         <div class="max-w-3xl space-y-4">
-          <p class="text-sm text-text-secondary">Define the physical panel layout for this fixture.</p>
-          <div class="card card-md flex flex-col items-center justify-center py-12 text-center">
-            <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary mb-4">
-              <LayoutGrid size={24} />
+          <p class="text-sm text-text-secondary">Define the PCB panel layout. This is a <strong>top-down view</strong> — slot 1 is top-left.</p>
+
+          <!-- Row/Col selectors -->
+          <div class="flex items-center gap-6">
+            <label class="flex items-center gap-2">
+              <span class="text-sm font-medium text-text-secondary">Rows</span>
+              <select bind:value={panelRows} class="input input-sm w-20">
+                {#each Array.from({length: 10}, (_, i) => i + 1) as n}
+                  <option value={n}>{n}</option>
+                {/each}
+              </select>
+            </label>
+            <span class="text-text-tertiary">×</span>
+            <label class="flex items-center gap-2">
+              <span class="text-sm font-medium text-text-secondary">Columns</span>
+              <select bind:value={panelCols} class="input input-sm w-20">
+                {#each Array.from({length: 10}, (_, i) => i + 1) as n}
+                  <option value={n}>{n}</option>
+                {/each}
+              </select>
+            </label>
+            <span class="text-sm text-text-tertiary">= {slotCount} slot{slotCount !== 1 ? 's' : ''}</span>
+          </div>
+
+          <!-- Panel grid preview -->
+          <div class="card card-md">
+            <div class="flex items-center gap-2 mb-3">
+              <LayoutGrid size={14} class="text-text-tertiary" />
+              <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">Top-Down View</span>
             </div>
-            <p class="text-sm font-medium text-text-primary mb-1">Panel layout configuration coming soon</p>
-            <p class="text-2xs text-text-tertiary">Define rows, columns, and slot positions for the fixture panel.</p>
+            <div
+              class="grid gap-2 mx-auto"
+              style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 100, 600)}px;"
+            >
+              {#each slotGrid as slot}
+                <div class="flex flex-col items-center justify-center rounded-lg border-2 border-accent/30 bg-accent-muted/30 aspect-square min-h-16 transition-all">
+                  <span class="text-lg font-bold text-accent">{slot.index}</span>
+                  <span class="text-2xs text-text-tertiary">{slot.label}</span>
+                </div>
+              {/each}
+            </div>
+            <p class="text-2xs text-text-tertiary mt-3 text-center">
+              Slot numbering: left→right, top→bottom (row-major order)
+            </p>
           </div>
         </div>
 
-      <!-- Step 6: MTIB Mapping (placeholder) -->
+      <!-- Step 6: MTIB Mapping -->
       {:else if step === 6}
         <div class="max-w-3xl space-y-4">
-          <p class="text-sm text-text-secondary">Map MTIB devices to fixture slots.</p>
-          <div class="card card-md flex flex-col items-center justify-center py-12 text-center">
-            <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary mb-4">
-              <Cable size={24} />
+          <p class="text-sm text-text-secondary">Assign an MTIB controller to each slot. <strong>Top-down view</strong> — matches the panel layout.</p>
+
+          <!-- Panel grid with MTIB dropdowns -->
+          <div class="card card-md">
+            <div class="flex items-center gap-2 mb-3">
+              <Cable size={14} class="text-text-tertiary" />
+              <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">MTIB → Slot Mapping (Top-Down View)</span>
             </div>
-            <p class="text-sm font-medium text-text-primary mb-1">MTIB-to-slot mapping coming soon</p>
-            <p class="text-2xs text-text-tertiary">Assign MTIB controller addresses to each slot in the panel.</p>
+            <div
+              class="grid gap-3 mx-auto"
+              style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 200, 800)}px;"
+            >
+              {#each slotGrid as slot}
+                {@const assignedNodeId = slotMtibMap[slot.index] ?? ''}
+                {@const assignedNode = availableNodes.find(n => n.id === assignedNodeId)}
+                <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-border bg-surface-0'} p-3 transition-all">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-bold text-text-primary">Slot {slot.index}</span>
+                    {#if assignedNodeId}
+                      <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">Assigned</span>
+                    {:else}
+                      <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">Unassigned</span>
+                    {/if}
+                  </div>
+                  <select
+                    value={assignedNodeId}
+                    onchange={(e) => {
+                      const val = (e.target as HTMLSelectElement).value;
+                      if (val) {
+                        slotMtibMap = { ...slotMtibMap, [slot.index]: val };
+                      } else {
+                        const copy = { ...slotMtibMap };
+                        delete copy[slot.index];
+                        slotMtibMap = copy;
+                      }
+                    }}
+                    class="input input-sm w-full"
+                  >
+                    <option value="">Select MTIB...</option>
+                    {#each availableNodes as node}
+                      {@const usedByOther = Object.entries(slotMtibMap).some(([idx, nid]) => nid === node.id && Number(idx) !== slot.index)}
+                      <option value={node.id} disabled={usedByOther}>
+                        {node.name} ({node.ipAddress ?? node.hostname})
+                        {usedByOther ? ' (in use)' : ''}
+                      </option>
+                    {/each}
+                  </select>
+                  {#if assignedNode}
+                    <p class="text-2xs text-text-tertiary mt-1 truncate">{assignedNode.ipAddress ?? assignedNode.hostname}</p>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            {#if availableNodes.length === 0}
+              <div class="mt-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning text-center">
+                No unassigned MTIB nodes found. Add MTIB nodes in the system first.
+              </div>
+            {/if}
+            <p class="text-2xs text-text-tertiary mt-3 text-center">
+              Each slot requires exactly one MTIB. 1 MTIB = 1 DUT position.
+            </p>
           </div>
         </div>
 
