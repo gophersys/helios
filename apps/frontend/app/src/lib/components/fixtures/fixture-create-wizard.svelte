@@ -51,7 +51,7 @@
     let idx = 1;
     for (let r = 0; r < panelRows; r++) {
       for (let c = 0; c < panelCols; c++) {
-        grid.push({ index: idx, row: r, col: c, label: `Panel ${idx}`, standalone: false });
+        grid.push({ index: idx, row: r, col: c, label: `Slot ${idx}`, standalone: false });
         idx++;
       }
     }
