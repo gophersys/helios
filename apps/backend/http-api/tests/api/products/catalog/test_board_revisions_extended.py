@@ -196,17 +196,27 @@ class TestModemFirmware:
 
         assert response.status_code == 400
 
-    def test_upload_modem_firmware_no_version_returns_400(self, authed_client, mock_db):
-        """POST without version field returns 400."""
+    def test_upload_modem_firmware_auto_extracts_version(self, authed_client, mock_db):
+        """POST without version field auto-extracts from filename."""
         mock_db.boardrevision.find_unique.return_value = _revision()
-
-        response = authed_client.post(
-            "/v2/products/prod-1/revisions/rev-1/modem-firmware",
-            data={"file": (BytesIO(b"content"), "modem.zip")},
-            content_type="multipart/form-data",
+        mock_db.modemfirmware.find_first.return_value = None
+        mock_db.modemfirmware.create.return_value = make_obj(
+            id="mfw-2", boardRevisionId="rev-1", version="2.0.2",
+            filename="mfw_nrf91x1_2.0.2.zip", storageKey="modem/rev-1/2.0.2/mfw.zip",
+            sizeBytes=7, checksum="abc", notes=None, createdById=None,
+            createdAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
         )
 
-        assert response.status_code == 400
+        with patch("api.v2.products.board_revisions.log_audit"):
+            response = authed_client.post(
+                "/v2/products/prod-1/revisions/rev-1/modem-firmware",
+                data={"file": (BytesIO(b"content"), "mfw_nrf91x1_2.0.2.zip")},
+                content_type="multipart/form-data",
+            )
+
+        assert response.status_code == 201
+        body = json.loads(response.data)
+        assert body["data"]["version"] == "2.0.2"
 
     def test_upload_modem_firmware_revision_not_found(self, authed_client, mock_db):
         """POST returns 404 when revision does not exist."""

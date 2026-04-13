@@ -101,19 +101,14 @@
   async function handleModemUpload(revisionId: string, e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file || !modemVersion.trim()) {
-      error = 'Please enter a modem firmware version before uploading';
-      return;
-    }
+    if (!file) return;
     error = null;
     modemUploading = true;
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('version', modemVersion.trim());
       await apiUploadRaw(`/v2/products/${productId}/revisions/${revisionId}/modem-firmware`, formData);
       modemUploadRevId = null;
-      modemVersion = '';
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to upload modem firmware';
@@ -281,14 +276,8 @@
                 {:else if canManage}
                   {#if modemUploadRevId === rev.id}
                     <div class="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        placeholder="Version"
-                        bind:value={modemVersion}
-                        class="w-16 rounded border border-border bg-surface-0 px-1.5 py-0.5 text-2xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
-                      />
                       <label class="cursor-pointer rounded bg-accent px-1.5 py-0.5 text-2xs font-medium text-white hover:bg-accent-hover">
-                        {modemUploading ? '...' : 'Upload'}
+                        {modemUploading ? '...' : 'Upload .zip'}
                         <input
                           type="file"
                           accept=".zip"
@@ -298,7 +287,7 @@
                         />
                       </label>
                       <button
-                        onclick={() => { modemUploadRevId = null; modemVersion = ''; }}
+                        onclick={() => { modemUploadRevId = null; }}
                         class="rounded p-0.5 text-text-tertiary hover:bg-surface-2"
                       >
                         <X size={12} />

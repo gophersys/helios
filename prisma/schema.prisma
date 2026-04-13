@@ -364,8 +364,8 @@ model BoardRevision {
 model ModemFirmware {
   id              String   @id @default(cuid())
   boardRevisionId String
-  version         String /// "2.0.2", "1.3.6"
-  filename        String /// Original filename: "mfw_nrf91x1_2.0.2.zip"
+  version         String /// Auto-extracted from filename: "2.0.2", "1.3.6"
+  filename        String /// Original filename: "mfw_nrf91x1_2.0.2.zip" (unique per revision)
   storageKey      String /// MinIO key
   sizeBytes       Int      @default(0)
   checksum        String? /// SHA-256
@@ -378,7 +378,7 @@ model ModemFirmware {
   createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id], onDelete: SetNull)
   assetSets     AssetSet[]    @relation("AssetSetModemFirmware")
 
-  @@unique([boardRevisionId, version])
+  @@unique([boardRevisionId, filename])
   @@index([boardRevisionId])
   @@map("modem_firmwares")
 }
@@ -544,10 +544,10 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  assetSet    AssetSet             @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
-  stageConfig ProductStageConfig?  @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  fixture     Fixture?             @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  testRun     TestRun?             @relation(fields: [testRunId], references: [id], onDelete: SetNull)
+  assetSet    AssetSet            @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
   @@index([assetSetId])
@@ -609,10 +609,10 @@ model BuildRun {
   // Recipe pinning — which recipe version was used for this build run
   recipeVersionId String?
 
-  createdBy     User?                  @relation("BuildRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  product       Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
-  stageConfig   ProductStageConfig?    @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  recipeVersion RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  createdBy     User?               @relation("BuildRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stageConfig   ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  recipeVersion RecipeVersion?      @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   builds        BuildJob[]
   assetSet      AssetSet?
   testRuns      TestRun[]

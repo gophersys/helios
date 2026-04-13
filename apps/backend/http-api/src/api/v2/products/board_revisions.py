@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 from io import BytesIO
 from typing import Any, Dict
 
@@ -438,8 +439,8 @@ def upload_modem_firmware(product_id: str, revision_id: str):
     """POST /v2/products/<pid>/revisions/<rid>/modem-firmware
 
     Upload modem firmware for a board revision. Creates a new ModemFirmware
-    record -- does not overwrite existing versions.
-    Accepts multipart file + version field.
+    record. Version is auto-extracted from the filename. Duplicate filenames
+    for the same revision are rejected.
     """
     db = get_db_client()
     revision, err = _validate_revision(db, product_id, revision_id)
@@ -453,18 +454,25 @@ def upload_modem_firmware(product_id: str, revision_id: str):
     if not file.filename:
         return bad_request("File has no filename")
 
+    if not file.filename.endswith(".zip"):
+        return bad_request("Only .zip files are accepted for modem firmware")
+
+    filename = file.filename.strip()
+
+    # Auto-extract version from filename (e.g., "mfw_nrf91x1_2.0.2.zip" → "2.0.2")
     version = request.form.get("version", "").strip()
     if not version:
-        return bad_request("Modem firmware version is required (form field 'version')")
+        match = re.search(r"(\d+\.\d+\.\d+)", filename)
+        version = match.group(1) if match else filename.rsplit(".", 1)[0]
 
     notes = request.form.get("notes", "").strip() or None
 
-    # Check uniqueness
+    # Check uniqueness by filename
     existing = db.modemfirmware.find_first(
-        where={"boardRevisionId": revision_id, "version": version}
+        where={"boardRevisionId": revision_id, "filename": filename}
     )
     if existing:
-        return conflict(f"Modem firmware version '{version}' already exists for this revision")
+        return conflict(f"Modem firmware '{filename}' already exists for this revision")
 
     try:
         content = file.read()

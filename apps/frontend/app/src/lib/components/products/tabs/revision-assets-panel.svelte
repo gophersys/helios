@@ -163,7 +163,7 @@
   async function handleModemUpload(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file || !modemVersion.trim()) return;
+    if (!file) return;
 
     if (!file.name.endsWith('.zip')) {
       modemError = 'Only .zip files are accepted';
@@ -176,12 +176,10 @@
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('version', modemVersion.trim());
       await apiUpload(
         `/v2/products/${productId}/revisions/${revision.id}/modem-firmware`,
         formData
       );
-      modemVersion = '';
       showModemUpload = false;
       await loadModemFirmwares();
       onRefresh?.();
@@ -255,18 +253,12 @@
         <div class="ml-auto">
           {#if showModemUpload}
             <div class="flex items-center gap-2">
-              <input
-                type="text"
-                bind:value={modemVersion}
-                placeholder="Version (e.g. 2.0.2)"
-                class="input input-sm w-36"
-              />
-              <label class="btn btn-sm btn-primary cursor-pointer {!modemVersion.trim() ? 'opacity-50 pointer-events-none' : ''}">
+              <label class="btn btn-sm btn-primary cursor-pointer">
                 {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
                 Upload .zip
-                <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading || !modemVersion.trim()} />
+                <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading} />
               </label>
-              <button onclick={() => { showModemUpload = false; modemVersion = ''; modemError = null; }} class="btn btn-sm btn-ghost">Cancel</button>
+              <button onclick={() => { showModemUpload = false; modemError = null; }} class="btn btn-sm btn-ghost">Cancel</button>
             </div>
             {#if modemError}
               <p class="text-2xs text-error mt-1">{modemError}</p>
