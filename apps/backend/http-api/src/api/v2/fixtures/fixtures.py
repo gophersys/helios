@@ -207,6 +207,8 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
         "lockedAt": f.lockedAt.isoformat() if hasattr(f, "lockedAt") and f.lockedAt else None,
         "profileOverrides": f.profileOverrides if hasattr(f, "profileOverrides") else None,
         "description": f.description,
+        "panelRows": f.panelRows if hasattr(f, "panelRows") else 1,
+        "panelCols": f.panelCols if hasattr(f, "panelCols") else 1,
         "active": f.active,
         "metadata": f.metadata,
         "lastHealthCheck": f.lastHealthCheck.isoformat() if hasattr(f, "lastHealthCheck") and f.lastHealthCheck else None,
@@ -360,6 +362,14 @@ def create_fixture():
             create_data["boardRevisionId"] = design.boardRevisionId
         if hasattr(design, "type") and design.type:
             create_data["type"] = design.type
+
+    # Panel layout
+    panel_rows = getattr(data, "panelRows", None)
+    panel_cols = getattr(data, "panelCols", None)
+    if panel_rows is not None:
+        create_data["panelRows"] = max(1, min(10, int(panel_rows)))
+    if panel_cols is not None:
+        create_data["panelCols"] = max(1, min(10, int(panel_cols)))
 
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)

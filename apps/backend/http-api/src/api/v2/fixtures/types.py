@@ -14,6 +14,8 @@ class FixtureCreateRequest:
     description: Optional[str] = None
     metadata: Optional[dict] = None
     slots: Optional[List[dict]] = None  # [{slotIndex: 0, label: "Slot 1"}, ...]
+    panelRows: Optional[int] = None
+    panelCols: Optional[int] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["FixtureCreateRequest"], Optional[str]]:
@@ -60,6 +62,8 @@ class FixtureCreateRequest:
             description=description.strip() if description else None,
             metadata=metadata,
             slots=slots,
+            panelRows=data.get("panelRows"),
+            panelCols=data.get("panelCols"),
         ), None
 
 

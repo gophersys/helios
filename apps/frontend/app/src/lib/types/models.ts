@@ -921,6 +921,8 @@ export interface Fixture {
   boardRevisionId: string | null;
   designId: string | null;
   type: string;
+  panelRows: number;
+  panelCols: number;
   description: string | null;
   active: boolean;
   metadata: Record<string, unknown> | null;

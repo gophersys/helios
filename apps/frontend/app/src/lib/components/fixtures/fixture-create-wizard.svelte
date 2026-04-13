@@ -182,12 +182,9 @@
         productId: selectedProductId,
         designId: selectedDesignId,
         type: selectedType,
+        panelRows,
+        panelCols,
         slots,
-        metadata: {
-          panelRows,
-          panelCols,
-          panelLayout: 'grid',
-        },
       });
 
       // After creation, assign MTIBs to slots if any were mapped
