@@ -109,7 +109,7 @@
         <div class="flex flex-col items-center justify-center py-8 gap-2">
           <Package size={24} class="text-text-tertiary" />
           <p class="text-sm text-text-secondary">No completed asset sets for this stage.</p>
-          <p class="text-2xs text-text-tertiary">Build or upload firmware assets first.</p>
+          <p class="text-2xs text-text-tertiary">Build or upload assets first.</p>
         </div>
       {:else}
         <div class="space-y-2 max-h-[40vh] overflow-y-auto">

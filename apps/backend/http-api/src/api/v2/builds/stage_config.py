@@ -183,9 +183,9 @@ def create_stage_config(product_id: str):
         data=stage_create_data,
         include=_INCLUDE,
     )
-    # Auto-populate build matrix from defaults (only for BUILD_SERVICE stages)
-    if "BUILD_SERVICE" in req.assetSources:
-        _auto_populate_build_matrix(db, config.id, req.type, req.stage)
+    # Auto-populate build matrix from defaults (all sources need the matrix to
+    # define expected labels — manual uploads and external CI validate against it)
+    _auto_populate_build_matrix(db, config.id, req.type, req.stage)
     # Re-fetch with matrix included
     config = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
     log_audit("stageConfig.create", "ProductStageConfig", config.id, {"stage": req.stage})
@@ -518,10 +518,17 @@ def reset_stage_build_matrix(product_id: str, stage: str):
     if not config:
         return not_found(f"Stage {stage} config not found")
 
-    stage_enum_map = {1: Stage.SMOKE, 2: Stage.DRIVER, 3: Stage.INTEGRATION, 4: Stage.REGRESSION, 5: Stage.FUOTA}
-    stage_enum = stage_enum_map.get(stage_num)
+    stage_enum_map = {
+        ("VALIDATION", 1): Stage.SMOKE,
+        ("VALIDATION", 2): Stage.DRIVER,
+        ("VALIDATION", 3): Stage.INTEGRATION,
+        ("VALIDATION", 4): Stage.REGRESSION,
+        ("VALIDATION", 5): Stage.FUOTA,
+        ("MANUFACTURING", 1): Stage.MANUFACTURING,
+    }
+    stage_enum = stage_enum_map.get((config.type, stage_num))
     if not stage_enum:
-        return bad_request(f"No default build definitions for stage {stage_num}")
+        return bad_request(f"No default build definitions for {config.type} stage {stage_num}")
 
     build_defs = get_stage_build_defs(stage_enum)
 

@@ -427,7 +427,7 @@
         </div>
         <div>
           <h2 id="upload-wizard-title" class="text-sm font-semibold text-text-primary">
-            Upload Firmware Assets
+            Upload Assets
           </h2>
           <p class="text-2xs text-text-tertiary">
             {revision.version}{revision.ckBoardsName ? ` (${revision.ckBoardsName})` : ''}

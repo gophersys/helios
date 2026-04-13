@@ -932,7 +932,7 @@
 
       {#if currentStepKey === 'source'}
         <div class="max-w-3xl space-y-4">
-          <p class="text-sm text-text-secondary">How will firmware assets be provided for this stage? Select one or more sources.</p>
+          <p class="text-sm text-text-secondary">How will assets be provided for this stage? Select one or more sources.</p>
           <div class="grid gap-3 sm:grid-cols-3">
             <!-- Concord Builds -->
             <button
@@ -1414,7 +1414,7 @@
       {:else if currentStepKey === 'external'}
         <!-- External CI Integration -->
         <div class="max-w-3xl space-y-4">
-          <p class="text-sm text-text-secondary">Configure your external CI system to push firmware assets to Concord.</p>
+          <p class="text-sm text-text-secondary">Configure your external CI system to push assets to Concord.</p>
 
           <div class="card card-md space-y-3">
             <h4 class="text-sm font-semibold text-text-primary">API Endpoint</h4>

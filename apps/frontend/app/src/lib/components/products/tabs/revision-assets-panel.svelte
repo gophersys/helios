@@ -352,7 +352,7 @@
         </p>
       </EmptyState>
     {:else}
-      <EmptyState message="No firmware assets for this revision." icon={Package}>
+      <EmptyState message="No assets for this revision." icon={Package}>
         <p class="text-2xs text-text-tertiary mt-1">Upload a firmware .zip or wait for a build run to produce one.</p>
       </EmptyState>
     {/if}
