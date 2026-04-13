@@ -202,6 +202,7 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
         "productId": f.productId,
         "type": f.type,
         "designId": f.designId if hasattr(f, "designId") else None,
+        "boardRevisionId": f.boardRevisionId if hasattr(f, "boardRevisionId") else None,
         "status": f.status if hasattr(f, "status") else "AVAILABLE",
         "lockedBy": f.lockedBy if hasattr(f, "lockedBy") else None,
         "lockedAt": f.lockedAt.isoformat() if hasattr(f, "lockedAt") and f.lockedAt else None,
@@ -686,7 +687,7 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
         db = get_db_client()
         meta = node.metadata if isinstance(node.metadata, dict) else {}
         meta["deployment_name"] = deploy_name
-        db.node.update(where={"id": node.id}, data={"metadata": meta, "status": "ONLINE"})
+        db.node.update(where={"id": node.id}, data={"metadata": Json(meta), "status": "ONLINE"})
 
         # gRPC health check — poll TCP 50053 on the node IP
         if node.ipAddress:
