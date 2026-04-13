@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
-# AI review — cross-project blast radius analysis.
-# Gate: INFORMATIONAL (never blocks, reports affected projects).
+# Stage: ai-review-blast-radius
+# Gate:  INFORMATIONAL — never blocks.
+#
+# Cross-project impact analysis. Combines Nx affected output with the
+# dependency map to report which projects are directly and indirectly
+# affected by the current changeset.
 set -euo pipefail
+
 source "$(dirname "$0")/../lib/log.sh"
 source "$(dirname "$0")/../lib/context.sh"
 source "$(dirname "$0")/../lib/ai-review.sh"
+
+STAGE="blast-radius"
 
 log_stage "ai-review-blast-radius — cross-project impact analysis"
 
@@ -13,34 +20,41 @@ if ! ai_review_available; then
   exit 0
 fi
 
-# Get affected projects from Nx
-AFFECTED=$(npx nx show projects --affected --base="${NX_BASE}" 2>/dev/null || echo "")
+# ── Collect inputs ─────────────────────────────────────────────
 CHANGED_FILES=$(git diff --name-only "${NX_BASE}"...HEAD 2>/dev/null || true)
-
 if [[ -z "$CHANGED_FILES" ]]; then
   log_ok "No files changed"
   log_stage_end
   exit 0
 fi
 
-PROMPT=$(cat <<PROMPT_EOF
-You are analyzing the blast radius of a code change in a monorepo called Concord.
+AFFECTED=$(npx nx show projects --affected --base="${NX_BASE}" 2>/dev/null || echo "(could not determine)")
 
-## Nx Project Dependency Map
+# ── Build prompt ───────────────────────────────────────────────
+read -r -d '' PROMPT << 'PROMPT_HEREDOC' || true
+You are analyzing the blast radius of a PR in the Concord monorepo.
 
-Key dependency chains (downstream <- upstream):
-- http-api <- database (Prisma), protocols, corekinect (libs/python)
-- build-service <- corekinect, protocols
-- git-poller <- corekinect, protocols
-- mtib-server <- protocols, corekinect
-- manufacturing-alpha <- protocols, corekinect
-- app (SvelteKit frontend) <- http-api API contract (manual type sync)
-- docs (MkDocs) <- independent but should reflect API/feature changes
+## Dependency Map
 
-Shared globals that invalidate ALL project caches:
-- prisma/schema.prisma
-- libs/python/**
-- libs/protocols/**
+http-api       <- database (Prisma), protocols, corekinect
+build-service  <- corekinect, protocols
+git-poller     <- corekinect, protocols
+mtib-server    <- protocols, corekinect
+mfg-alpha      <- protocols, corekinect
+app (frontend) <- http-api API contract (manual TypeScript type sync)
+docs (MkDocs)  <- should reflect API / feature changes
+
+Shared globals (invalidate ALL caches): prisma/schema.prisma, libs/python/**, libs/protocols/**
+
+## Response Format
+
+Respond with ONLY valid JSON — no markdown fences, no prose:
+{"verdict":"pass","severity":"info","summary":"<N direct, M indirect>","findings":[{"file":"<project-or-area>","severity":"info","message":"<impact description>"}]}
+
+Always verdict=pass. This is an informational report.
+PROMPT_HEREDOC
+
+PROMPT="${PROMPT}
 
 ## Changed Files
 
@@ -48,37 +62,15 @@ ${CHANGED_FILES}
 
 ## Nx Affected Projects
 
-${AFFECTED:-"(nx affected could not be determined)"}
+${AFFECTED}"
 
-## Instructions
-
-Analyze which projects are affected and why. Identify any indirect impacts that Nx might miss (e.g., frontend type sync, documentation staleness).
-
-Respond with ONLY valid JSON:
-{
-  "verdict": "pass",
-  "severity": "info",
-  "summary": "N projects directly affected, M indirectly impacted",
-  "findings": [
-    {
-      "file": "project-name-or-area",
-      "severity": "info",
-      "message": "Description of impact and what to verify"
-    }
-  ]
-}
-
-Always return verdict "pass" — this is an informational report, never blocking.
-PROMPT_EOF
-)
-
-log_info "Running AI blast radius analysis..."
+# ── Run, parse, report ────────────────────────────────────────
+log_info "Running AI blast-radius analysis..."
 RESULT=$(ai_review_run "$PROMPT" 2)
 
-ai_review_parse_verdict "$RESULT"
-ai_review_save_report "blast-radius" "$RESULT"
-ai_review_log_result "blast-radius"
+ai_review_parse "$RESULT"
+ai_review_save_report "$STAGE" "$RESULT"
+ai_review_log_result "$STAGE"
 
-# Never blocks — always exit 0
 log_stage_end
 exit 0

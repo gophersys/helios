@@ -79,3 +79,19 @@ log_stage_end
 log_stage "nightly — AI docs review"
 bash "$DIR/stages/ai-review-docs.sh" 2>&1 || true
 log_stage_end
+
+log_stage "nightly — proto sync check"
+bash "$DIR/stages/proto-sync.sh" 2>&1 || true
+log_stage_end
+
+log_stage "nightly — serializer completeness"
+bash "$DIR/stages/serializer-check.sh" 2>&1 || true
+log_stage_end
+
+log_stage "nightly — type generation check"
+bash "$DIR/stages/types-sync.sh" 2>&1 || true
+log_stage_end
+
+log_stage "nightly — trend report"
+bash "$DIR/stages/trend-report.sh" 2>&1 || true
+log_stage_end

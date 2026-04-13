@@ -47,6 +47,7 @@ run_stage "docs-build"       "$DIR/stages/docs-build.sh"
 run_stage "dep-pin"          "$DIR/stages/dep-pin.sh"
 run_stage "api-compat"       "$DIR/stages/api-compat.sh"
 run_stage "migration-safety" "$DIR/stages/migration-safety.sh"
+run_stage "proto-sync"              "$DIR/stages/proto-sync.sh"
 run_stage "ai-review-completeness" "$DIR/stages/ai-review-completeness.sh"
 run_stage "ai-review-security"     "$DIR/stages/ai-review-security.sh"
 run_stage "ai-review-blast-radius" "$DIR/stages/ai-review-blast-radius.sh"
@@ -65,6 +66,13 @@ done
 if $FAILED; then
   echo ""
   echo "PR pipeline FAILED — one or more quality gates did not pass."
+
+  # Attempt auto-fix for AI review failures
+  if [[ -d "/tmp/ai-review" ]] && ls /tmp/ai-review/*.json >/dev/null 2>&1; then
+    echo ""
+    bash "$DIR/stages/ai-fix.sh" || true
+  fi
+
   exit 1
 fi
 

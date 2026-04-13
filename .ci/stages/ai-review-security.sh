@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
-# AI review — security vulnerability scan (OWASP-oriented).
-# Gate: BLOCKING on critical (actual injection vectors, auth bypass).
+# Stage: ai-review-security
+# Gate:  BLOCKING on critical severity.
+#
+# OWASP-oriented security scan of changed Python, TypeScript, and Svelte
+# files. Catches injection vectors, auth bypass, hardcoded secrets, and
+# unsafe deserialization that static analysis tools (bandit) may miss.
+#
+# Scoped paths: *.py, *.ts, *.svelte, *.js (excludes node_modules, dist, .nx)
 set -euo pipefail
+
 source "$(dirname "$0")/../lib/log.sh"
 source "$(dirname "$0")/../lib/context.sh"
 source "$(dirname "$0")/../lib/ai-review.sh"
+
+STAGE="security"
 
 log_stage "ai-review-security — OWASP vulnerability scan"
 
@@ -13,90 +22,63 @@ if ! ai_review_available; then
   exit 0
 fi
 
-# Scope to code files only — check stat first
-DIFF_STAT=$(git diff --stat "${NX_BASE}"...HEAD -- '*.py' '*.ts' '*.svelte' '*.js' \
-  ':!**/node_modules/**' ':!**/.nx/**' ':!**/dist/**' \
-  2>/dev/null || true)
-
-if [[ -z "$DIFF_STAT" ]]; then
+# ── Collect scoped diff ────────────────────────────────────────
+DIFF=""
+if ! ai_review_get_diff DIFF \
+    '*.py' '*.ts' '*.svelte' '*.js' \
+    ':!**/node_modules/**' ':!**/.nx/**' ':!**/dist/**'; then
   log_ok "No code files changed"
   log_stage_end
   exit 0
 fi
 
-# Write diff to temp file and truncate
-DIFF_FILE=$(mktemp /tmp/ai-review-diff-XXXXXX.txt)
-(git diff "${NX_BASE}"...HEAD -- '*.py' '*.ts' '*.svelte' '*.js' \
-  ':!**/node_modules/**' ':!**/.nx/**' ':!**/dist/**' \
-  2>/dev/null | head -c 80000 > "$DIFF_FILE") || true
-DIFF=$(cat "$DIFF_FILE")
-rm -f "$DIFF_FILE"
+# ── Build prompt ───────────────────────────────────────────────
+read -r -d '' PROMPT << 'PROMPT_HEREDOC' || true
+You are a security reviewer for Concord (Python Flask backend + SvelteKit frontend).
 
-PROMPT=$(cat <<PROMPT_EOF
-You are a security reviewer for a monorepo called Concord (Python Flask backend + SvelteKit frontend). Review the diff below for OWASP Top 10 and common security vulnerabilities.
+## Checklist
 
-## What to Look For
+Critical (blocks merge):
+- SQL injection (raw queries, string interpolation — Prisma ORM is safe)
+- Command injection (subprocess shell=True, os.system with user input)
+- Auth bypass (new endpoints missing @require_permissions decorator)
+- Path traversal (user-controlled file paths without sanitization)
+- Hardcoded secrets in source (not .env.example placeholders)
+- Insecure deserialization (pickle.loads, yaml.load without SafeLoader)
 
-### Critical (blocks merge)
-- SQL injection: raw SQL queries, string interpolation in queries (Prisma ORM is safe, but check for raw queries)
-- Command injection: subprocess calls with shell=True, unsanitized user input in os.system/popen
-- Auth bypass: new API endpoints missing @require_permissions decorator
-- Path traversal: user-controlled file paths without sanitization
-- Hardcoded secrets: API keys, passwords, tokens in source code (not .env.example defaults)
-- Insecure deserialization: pickle.loads, yaml.load without SafeLoader
+High:
+- XSS ({@html ...} with unsanitized input in Svelte)
+- Missing input validation in from_json() methods
+- Insecure zip extraction without path validation
+- CORS wildcard in production code
 
-### High
-- XSS: unsanitized user input rendered in Svelte templates (check {@html ...} usage)
-- Missing input validation: new from_json() methods without type/length checks
-- Insecure file handling: zip extraction without path validation, arbitrary file writes
-- CORS misconfiguration: wildcard origins in production code
+Medium: info disclosure, missing rate limiting, weak crypto.
+Low: missing CSRF, permissive file perms, missing headers.
 
-### Medium
-- Information disclosure: stack traces, debug info, verbose error messages in responses
-- Missing rate limiting on sensitive endpoints (auth, file upload)
-- Weak cryptographic choices (MD5, SHA1 for security purposes)
+## Response Format
 
-### Low
-- Missing CSRF protection on state-changing endpoints
-- Overly permissive file permissions
-- Missing security headers
+Respond with ONLY valid JSON — no markdown fences, no prose:
+{"verdict":"pass"|"fail","severity":"critical"|"high"|"medium"|"low"|"info","summary":"<one line>","findings":[{"file":"<path>","line":<n>,"severity":"<level>","message":"<vulnerability and fix>"}]}
 
-## Instructions
+verdict=fail if any finding is high or critical. Top-level severity = highest finding.
+PROMPT_HEREDOC
 
-Respond with ONLY valid JSON (no markdown, no explanation):
-{
-  "verdict": "pass" or "fail",
-  "severity": "critical" or "high" or "medium" or "low" or "info",
-  "summary": "one sentence summary",
-  "findings": [
-    {
-      "file": "path/to/file",
-      "line": 42,
-      "severity": "critical",
-      "message": "Description of the vulnerability and how to fix it"
-    }
-  ]
-}
-
-Set verdict to "fail" if any finding is high or critical. Set verdict to "pass" otherwise.
-Set the top-level severity to the highest severity among all findings.
-If no issues found, return verdict "pass" with severity "info" and empty findings.
+PROMPT="${PROMPT}
 
 ## Diff
 
-${DIFF}
-PROMPT_EOF
-)
+${DIFF}"
 
+# ── Run, parse, report, gate ──────────────────────────────────
 log_info "Running AI security review..."
 RESULT=$(ai_review_run "$PROMPT" 3)
 
-ai_review_parse_verdict "$RESULT"
-ai_review_save_report "security" "$RESULT"
-ai_review_log_result "security"
+ai_review_parse "$RESULT"
+ai_review_save_report "$STAGE" "$RESULT"
+ai_review_log_result "$STAGE"
 
 if ! ai_review_gate "critical"; then
-  log_err "BLOCKED: Critical security vulnerability detected"
+  log_err "BLOCKED: critical security vulnerability"
   log_stage_end
   exit 1
 fi

@@ -1,37 +1,33 @@
+{{- if .Values.nightly.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: concord-ci-nightly
-  namespace: devops
   labels:
-    app.kubernetes.io/part-of: concord
-    app.kubernetes.io/component: ci
-    app.kubernetes.io/name: ci-nightly
+    {{- include "concord-ci.labels" . | nindent 4 }}
+    {{- include "concord-ci.nightly.labels" . | nindent 4 }}
 spec:
-  schedule: "0 2 * * *"
-  timeZone: "America/Chicago"
+  schedule: {{ .Values.nightly.schedule | quote }}
+  timeZone: {{ .Values.nightly.timeZone | quote }}
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 5
   failedJobsHistoryLimit: 5
   jobTemplate:
     metadata:
       labels:
-        app.kubernetes.io/part-of: concord
-        app.kubernetes.io/component: ci
-        app.kubernetes.io/name: ci-nightly
+        {{- include "concord-ci.labels" . | nindent 8 }}
+        {{- include "concord-ci.nightly.labels" . | nindent 8 }}
     spec:
-      activeDeadlineSeconds: 7200
+      activeDeadlineSeconds: {{ .Values.nightly.activeDeadlineSeconds }}
       backoffLimit: 0
       template:
         metadata:
           labels:
-            app.kubernetes.io/part-of: concord
-            app.kubernetes.io/component: ci
-            app.kubernetes.io/name: ci-nightly
+            {{- include "concord-ci.labels" . | nindent 12 }}
+            {{- include "concord-ci.nightly.labels" . | nindent 12 }}
         spec:
           restartPolicy: Never
-          nodeSelector:
-            concord.corekinect.com/workload: devops
+          {{- include "concord-ci.nodeSelector" . | nindent 10 }}
           terminationGracePeriodSeconds: 30
 
           volumes:
@@ -47,6 +43,7 @@ spec:
               secret:
                 secretName: bitbucket-ssh-key
                 defaultMode: 0400
+                optional: true
                 items:
                   - key: ssh-private-key
                     path: id_rsa
@@ -57,6 +54,7 @@ spec:
             - name: ca-certs
               secret:
                 secretName: corekinect-ca-certs
+                optional: true
             - name: claude-credentials
               secret:
                 secretName: claude-code-oauth
@@ -67,38 +65,25 @@ spec:
                     path: .credentials.json
 
           containers:
-            # ── CI Runner ──────────────────────────────────────────
+            # ── CI Runner ─────────────────────────────────────
             - name: ci-runner
-              image: containers.ad.corekinect.com/concord-devcontainer-base:latest
-              imagePullPolicy: Always
+              image: {{ .Values.nightly.image }}
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
               command: ["/bin/bash", "-c"]
               args:
                 - |
                   set -euo pipefail
-
-                  # Install CoreKinect CA certs into system trust store
-                  echo "[ci] Installing CA certificates..."
                   cp /opt/ca-certs/*.crt /usr/local/share/ca-certificates/ 2>/dev/null || true
                   update-ca-certificates >/dev/null 2>&1
-
-                  # Wait for DinD sidecar
                   echo "[ci] Waiting for Docker daemon..."
                   until docker info >/dev/null 2>&1; do sleep 1; done
-
-                  # Inject CA certs into DinD's trust store (Alpine-based)
-                  echo "[ci] Injecting CA certs into Docker daemon..."
                   for cert in /opt/ca-certs/*.crt; do
                     docker cp "$cert" "$(hostname):/usr/local/share/ca-certificates/" 2>/dev/null || \
                     cat "$cert" >> /etc/ssl/certs/ca-certificates.crt 2>/dev/null || true
                   done
-
-                  # Authenticate with Docker Hub (avoids 100 pull/6hr anonymous limit)
                   if [[ -n "${DOCKERHUB_USERNAME:-}" ]] && [[ -n "${DOCKERHUB_TOKEN:-}" ]]; then
-                    echo "[ci] Logging into Docker Hub..."
                     echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin 2>&1
                   fi
-
-                  # Clone repo
                   echo "[ci] Cloning ${BRANCH:-main}..."
                   export GIT_SSH_COMMAND="ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no"
                   git clone --depth 1 --branch "${BRANCH:-main}" "${REPO_URL}" /workspace/concord
@@ -106,9 +91,9 @@ spec:
                   exec /opt/ci/entrypoint.sh
               envFrom:
                 - configMapRef:
-                    name: ci-config
+                    name: concord-ci-config
                 - secretRef:
-                    name: ci-minio-upload
+                    name: concord-ci-secrets
                     optional: true
               env:
                 - name: CI
@@ -155,21 +140,15 @@ spec:
                   mountPath: /root/.claude
                   readOnly: true
               resources:
-                requests:
-                  cpu: "4"
-                  memory: 8Gi
-                limits:
-                  cpu: "6"
-                  memory: 12Gi
+                {{- toYaml .Values.nightly.resources.runner | nindent 16 }}
 
-            # ── Docker-in-Docker Sidecar ───────────────────────────
+            # ── Docker-in-Docker Sidecar ──────────────────────
             - name: dind
               image: docker:27-dind
               imagePullPolicy: Always
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  # Install CoreKinect CA certs before starting dockerd
                   cp /opt/ca-certs/*.crt /usr/local/share/ca-certificates/ 2>/dev/null || true
                   update-ca-certificates >/dev/null 2>&1
                   exec dockerd-entrypoint.sh \
@@ -189,14 +168,10 @@ spec:
                   mountPath: /opt/ca-certs
                   readOnly: true
               resources:
-                requests:
-                  cpu: "2"
-                  memory: 4Gi
-                limits:
-                  cpu: "4"
-                  memory: 8Gi
+                {{- toYaml .Values.nightly.resources.dind | nindent 16 }}
               readinessProbe:
                 exec:
                   command: ["docker", "info"]
                 initialDelaySeconds: 3
                 periodSeconds: 5
+{{- end }}

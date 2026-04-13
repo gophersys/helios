@@ -1,0 +1,19 @@
+{{- if .Values.admin.enabled }}
+# PVC for SQLite database (used by the admin dashboard).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: concord-ci-data
+  labels:
+    {{- include "concord-ci.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .Values.data.storageClass }}
+  storageClassName: {{ .Values.data.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.data.storage }}
+{{- end }}
