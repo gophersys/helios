@@ -4,28 +4,11 @@
   "sourceRoot": ".ci",
   "projectType": "application",
   "targets": {
-    "apply": {
+    "validate": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
-        "parallel": false,
-        "commands": [
-          "kubectl create configmap ci-entrypoint -n devops --from-file=entrypoint.sh=.ci/k8s/entrypoint.sh --dry-run=client -o yaml | kubectl apply -f -",
-          "kubectl apply -f .ci/k8s/configmap.yaml",
-          "kubectl apply -f .ci/k8s/nightly-cronjob.yaml"
-        ]
-      }
-    },
-
-    "delete": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "commands": [
-          "kubectl delete -f .ci/k8s/nightly-cronjob.yaml --ignore-not-found",
-          "kubectl delete configmap ci-entrypoint -n devops --ignore-not-found",
-          "kubectl delete -f .ci/k8s/configmap.yaml --ignore-not-found"
-        ]
+        "commands": ["bash .ci/run pr"]
       }
     },
 
@@ -33,24 +16,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
-        "commands": [
-          "echo '=== CronJobs ===' && kubectl get cronjobs -n devops -l app.kubernetes.io/component=ci -o wide",
-          "echo '' && echo '=== Recent Jobs ===' && kubectl get jobs -n devops -l app.kubernetes.io/component=ci --sort-by=.metadata.creationTimestamp -o wide",
-          "echo '' && echo '=== Pods ===' && kubectl get pods -n devops -l app.kubernetes.io/component=ci --sort-by=.metadata.creationTimestamp -o wide"
-        ]
-      }
-    },
-
-    "trigger": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "parallel": false,
-        "commands": [
-          "kubectl create configmap ci-entrypoint -n devops --from-file=entrypoint.sh=.ci/k8s/entrypoint.sh --dry-run=client -o yaml | kubectl apply -f -",
-          "kubectl apply -f .ci/k8s/configmap.yaml",
-          "kubectl create job -n devops --from=cronjob/concord-ci-nightly ci-manual-$(date +%s)"
-        ]
+        "commands": ["bash deploy/ci/ctl.sh status"]
       }
     },
 
@@ -58,19 +24,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
-        "commands": [
-          "kubectl logs -n devops -l app.kubernetes.io/component=ci -c ci-runner --tail=200 -f"
-        ]
-      }
-    },
-
-    "validate": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "commands": [
-          "bash .ci/run pr"
-        ]
+        "commands": ["bash deploy/ci/ctl.sh logs"]
       }
     }
   },

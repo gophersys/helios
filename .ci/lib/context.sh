@@ -47,7 +47,8 @@ fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 ci_summary() {
-  source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
+  # Note: log.sh must already be sourced by the calling script.
+  # Do NOT re-source here — it resets _STAGE_START and breaks log_stage_end timing.
   log_info "provider=$CI_PROVIDER  branch=$GIT_BRANCH  commit=$GIT_COMMIT  dirty=$GIT_DIRTY"
   log_info "nx base=$NX_BASE"
 }

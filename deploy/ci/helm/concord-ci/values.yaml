@@ -87,7 +87,7 @@ ingress:
 # ── CI Configuration ────────────────────────────────────────
 config:
   repoUrl: "git@bitbucket.org:corekinect/concord.git"
-  branch: feature/validation-demo
+  branch: main
   minioBucket: ci
 
 # ── External secrets (not managed by this chart) ────────────
