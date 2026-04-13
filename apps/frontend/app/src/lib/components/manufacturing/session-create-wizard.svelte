@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronRight, ChevronLeft, Check, Loader2, Box, Wrench, Package, Play, X, Factory } from 'lucide-svelte';
+  import { ChevronRight, ChevronLeft, Check, Loader2, Box, Wrench, Package, Play, X, Factory, FlaskConical } from 'lucide-svelte';
   import Modal from '$lib/components/ui/modal.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
@@ -27,13 +27,18 @@
   let selectedFixtureId = $state('');
   const selectedFixture = $derived(fixtures.find(f => f.id === selectedFixtureId));
 
-  // Step 3: Asset Set
+  // Step 3: Test App
+  let testPackages = $state<any[]>([]);
+  let selectedTestPackageId = $state('');
+  const selectedTestPackage = $derived(testPackages.find(t => t.id === selectedTestPackageId));
+
+  // Step 4: Asset Set
   let assetSets = $state<AssetSet[]>([]);
   let selectedAssetSetId = $state('');
   const selectedAssetSet = $derived(assetSets.find(a => a.id === selectedAssetSetId));
 
-  const stepLabels = ['Product', 'Fixture', 'Assets', 'Start'];
-  const stepIcons = [Box, Wrench, Package, Play];
+  const stepLabels = ['Product', 'Fixture', 'Test App', 'Assets', 'Start'];
+  const stepIcons = [Box, Wrench, FlaskConical, Package, Play];
 
   // Load products
   $effect(() => {
@@ -57,9 +62,23 @@
     }
   });
 
-  // Load asset sets when fixture selected (use fixture's boardRevisionId)
+  // Load released test packages when fixture selected
   $effect(() => {
-    if (selectedProductId && selectedFixture?.boardRevisionId) {
+    if (selectedProductId && selectedFixtureId) {
+      apiFetch<ApiResponse<any>>(
+        `/v2/products/${selectedProductId}/test-packages?type=MANUFACTURING&status=RELEASED&limit=50`
+      ).then(res => {
+        const payload = res.data;
+        testPackages = Array.isArray(payload) ? payload : (payload as any)?.data ?? [];
+      }).catch(() => { testPackages = []; });
+    } else {
+      testPackages = [];
+    }
+  });
+
+  // Load asset sets when test app selected
+  $effect(() => {
+    if (selectedProductId && selectedFixture?.boardRevisionId && selectedTestPackageId) {
       apiFetch<ApiResponse<any>>(
         `/v2/products/${selectedProductId}/asset-sets?boardRevisionId=${selectedFixture.boardRevisionId}&stageType=MANUFACTURING&status=COMPLETE&limit=50`
       ).then(res => {
@@ -81,13 +100,20 @@
 
   function selectFixture(id: string) {
     selectedFixtureId = id;
+    selectedTestPackageId = '';
     selectedAssetSetId = '';
     step = 3;
   }
 
+  function selectTestPackage(id: string) {
+    selectedTestPackageId = id;
+    selectedAssetSetId = '';
+    step = 4;
+  }
+
   function selectAssetSet(id: string) {
     selectedAssetSetId = id;
-    step = 4;
+    step = 5;
   }
 
   function goToStep(s: number) {
@@ -103,6 +129,7 @@
         productId: selectedProductId,
         fixtureId: selectedFixtureId,
       };
+      if (selectedTestPackageId) body.testPackageId = selectedTestPackageId;
       if (selectedAssetSetId) body.assetSetId = selectedAssetSetId;
 
       const res = await api.post('/v2/manufacturing/sessions', body);
@@ -120,6 +147,7 @@
     step = 1;
     selectedProductId = '';
     selectedFixtureId = '';
+    selectedTestPackageId = '';
     selectedAssetSetId = '';
     error = null;
     onClose();
@@ -264,8 +292,48 @@
           {/if}
         </div>
 
-      <!-- Step 3: Asset Set -->
+      <!-- Step 3: Test App -->
       {:else if step === 3}
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Select which test app version to run.</p>
+          {#if testPackages.length === 0}
+            <div class="text-center py-8 rounded-xl border-2 border-dashed border-border">
+              <FlaskConical size={32} class="mx-auto mb-3 text-text-tertiary" />
+              <p class="text-sm text-text-secondary">No released test apps found.</p>
+              <p class="text-2xs text-text-tertiary mt-1">Release a manufacturing test app first.</p>
+            </div>
+          {:else}
+            <div class="grid gap-3">
+              {#each testPackages as tp}
+                <button
+                  onclick={() => selectTestPackage(tp.id)}
+                  class="card card-md text-left transition-all
+                    {selectedTestPackageId === tp.id ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+                >
+                  <div class="flex items-center gap-4">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary shrink-0">
+                      <FlaskConical size={20} />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <span class="text-sm font-semibold text-text-primary">v{tp.releasedVersion || tp.version}</span>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">RELEASED</span>
+                        <span class="text-2xs text-text-tertiary">{tp.testCount} tests</span>
+                        {#if tp.releasedAt}
+                          <span class="text-2xs text-text-tertiary">· {new Date(tp.releasedAt).toLocaleDateString()}</span>
+                        {/if}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} class="text-text-tertiary shrink-0" />
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
+      <!-- Step 4: Asset Set -->
+      {:else if step === 4}
         <div class="max-w-3xl space-y-4">
           <p class="text-sm text-text-secondary">Select firmware assets for this session.</p>
           {#if assetSets.length === 0}
@@ -302,8 +370,8 @@
           {/if}
         </div>
 
-      <!-- Step 4: Review & Start -->
-      {:else if step === 4}
+      <!-- Step 5: Review & Start -->
+      {:else if step === 5}
         <div class="max-w-3xl space-y-4">
           <p class="text-sm text-text-secondary">Review and start the manufacturing session.</p>
 
@@ -315,6 +383,10 @@
               <div class="text-text-tertiary">Fixture</div>
               <div class="text-text-primary font-medium">{selectedFixture?.name}
                 <span class="text-text-tertiary font-normal">{selectedFixture?.panelRows}×{selectedFixture?.panelCols} slots</span>
+              </div>
+              <div class="text-text-tertiary">Test App</div>
+              <div class="text-text-primary font-medium">v{selectedTestPackage?.releasedVersion || selectedTestPackage?.version}
+                <span class="text-text-tertiary font-normal">{selectedTestPackage?.testCount} tests</span>
               </div>
               <div class="text-text-tertiary">Assets</div>
               <div class="text-text-primary font-medium">
@@ -350,7 +422,7 @@
 
       <div class="flex items-center gap-3">
         <span class="text-2xs text-text-tertiary">Step {step} of {stepLabels.length}</span>
-        {#if step === 4}
+        {#if step === 5}
           <button
             onclick={handleStart}
             disabled={submitting || !selectedFixtureId}
