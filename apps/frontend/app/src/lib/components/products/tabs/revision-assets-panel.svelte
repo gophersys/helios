@@ -21,13 +21,14 @@
 
   interface Props {
     productId: string;
+    productSlug: string;
     revision: BoardRevision;
     stageConfigs: ProductStageConfig[];
     canManage: boolean;
     onRefresh?: () => void;
   }
 
-  let { productId, revision, stageConfigs, canManage, onRefresh }: Props = $props();
+  let { productId, productSlug, revision, stageConfigs, canManage, onRefresh }: Props = $props();
 
   let assetSets = $state<AssetSet[]>([]);
   let loading = $state(true);
@@ -518,6 +519,7 @@
 {#if showUploadWizard}
   <AssetUploadWizard
     {productId}
+    {productSlug}
     revision={{ id: revision.id, version: revision.version, ckBoardsName: revision.ckBoardsName }}
     stageConfigs={revConfigs}
     onComplete={() => { showUploadWizard = false; loadAssets(); onRefresh?.(); }}

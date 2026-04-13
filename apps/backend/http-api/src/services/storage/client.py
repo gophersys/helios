@@ -80,6 +80,25 @@ def product_asset_key(
     return f"{StoragePrefixes.PRODUCTS}/{slug}/{rev}/{st}/{sn}/{ver}-{var}/{lbl}/{fn}"
 
 
+def canonical_asset_filename(
+    product_slug: str,
+    role: str,
+    processor: str,
+    revision: str,
+    variant: str,
+    ext: str,
+) -> str:
+    """Generate canonical asset filename: alpha_app_nrf52840_b0_debug.hex"""
+    parts = [
+        sanitize_filename(product_slug or "unknown"),
+        sanitize_filename(role or "unknown"),
+        sanitize_filename(processor or "unknown"),
+        sanitize_filename(revision.lower() if revision else "unknown"),
+        sanitize_filename(variant or "unknown"),
+    ]
+    return "_".join(parts) + f".{ext}"
+
+
 def modem_firmware_key(
     product_slug: str | None,
     revision_version: str | None,

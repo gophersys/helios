@@ -3,6 +3,7 @@
   import { apiUpload } from '$lib/api';
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
   import { stageName } from '$lib/types/stages';
+  import { canonicalFilename } from '$lib/utils/assets';
 
   interface Revision {
     id: string;
@@ -12,13 +13,14 @@
 
   interface Props {
     productId: string;
+    productSlug: string;
     revision: Revision;
     stageConfigs: ProductStageConfig[];
     onComplete: () => void;
     onCancel: () => void;
   }
 
-  let { productId, revision, stageConfigs, onComplete, onCancel }: Props = $props();
+  let { productId, productSlug, revision, stageConfigs, onComplete, onCancel }: Props = $props();
 
   // ── Wizard state ────────────────────────────────────────────
   type Step = 'stage' | 'upload' | 'complete';
@@ -814,15 +816,19 @@
                 <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected zip structure</h4>
                 <div class="font-mono text-2xs text-text-secondary space-y-0.5">
                   {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
-                    <div class="flex items-center gap-2">
+                    <div>
                       <span class="text-accent">{entry.label}/</span>
-                      <span class="text-text-tertiary">
-                        {#if entry.producesHex && entry.producesCfw}.hex .cfw
-                        {:else if entry.producesHex}.hex
-                        {:else if entry.producesCfw}.cfw
-                        {/if}
-                      </span>
                     </div>
+                    {#if entry.producesHex}
+                      <div class="ml-4 text-text-tertiary">
+                        {canonicalFilename(productSlug, entry.fwType, entry.processor, revision.version, entry.variant, 'hex')}
+                      </div>
+                    {/if}
+                    {#if entry.producesCfw}
+                      <div class="ml-4 text-text-tertiary">
+                        {canonicalFilename(productSlug, entry.fwType, entry.processor, revision.version, entry.variant, 'cfw')}
+                      </div>
+                    {/if}
                   {/each}
                 </div>
                 {#if selectedConfig.buildMatrix.some((e: any) => e.fwType === 'modem')}

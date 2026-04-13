@@ -44,6 +44,7 @@
   {#if selectedRevision}
     <ProductStages
       productId={product.id}
+      productSlug={product.slug ?? ''}
       productName={product.name}
       {revisions}
       fwRepoSlug={product.mfgFwRepoSlug ?? product.fwRepoSlug ?? ''}

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from src.services.database.prisma import get_db_client
+from src.services.storage.client import canonical_asset_filename
 
 logger = logging.getLogger(__name__)
 
@@ -257,8 +258,9 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
         "status": "COMPLETE",
     })
 
-    # Build a label→processor lookup from the build matrix (if available)
+    # Build a label→processor lookup and label→matrix entry from the build matrix
     matrix_processor_map: Dict[str, str] = {}
+    matrix_entry_map: Dict[str, Any] = {}
     if build_run.stageConfigId:
         matrix_entries = db.stagebuildmatrix.find_many(
             where={"stageConfigId": build_run.stageConfigId},
@@ -267,6 +269,15 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
             processor = getattr(entry, "processor", None)
             if processor:
                 matrix_processor_map[entry.label] = processor
+            matrix_entry_map[entry.label] = entry
+
+    # Look up product slug and revision version for canonical filenames
+    product_slug = getattr(build_run.product, "slug", None) if build_run.product else None
+    rev_version = None
+    if board_revision_id:
+        board_rev_rec = db.boardrevision.find_unique(where={"id": board_revision_id})
+        if board_rev_rec:
+            rev_version = board_rev_rec.version
 
     # Create Asset records from each job's artifacts
     asset_count = 0
@@ -289,6 +300,20 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
             if not processor and job_label in matrix_processor_map:
                 processor = matrix_processor_map[job_label]
 
+            # Compute canonical filename from matrix entry metadata
+            asset_filename = artifact.name
+            matrix_entry = matrix_entry_map.get(job_label)
+            if matrix_entry and product_slug and rev_version and artifact.name:
+                ext = artifact.name.rsplit(".", 1)[-1].lower() if "." in artifact.name else "hex"
+                asset_filename = canonical_asset_filename(
+                    product_slug=product_slug,
+                    role=getattr(matrix_entry, "fwType", None) or artifact.role or "unknown",
+                    processor=processor or "unknown",
+                    revision=rev_version,
+                    variant=getattr(matrix_entry, "variant", None) or (job.variant or "debug"),
+                    ext=ext,
+                )
+
             db.asset.create(data={
                 "assetSetId": asset_set.id,
                 "label": job_label,
@@ -296,7 +321,7 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
                 "processor": processor,
                 "artifactType": artifact.artifactType or "unknown",
                 "storageKey": artifact.storageKey,
-                "filename": artifact.name,
+                "filename": asset_filename,
                 "sizeBytes": artifact.sizeBytes,
                 "checksum": artifact.checksum or "",
                 "contentType": getattr(artifact, "contentType", None),
@@ -312,7 +337,7 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
         if board_rev and getattr(board_rev, "modemStorageKey", None) and getattr(board_rev, "modemVersion", None):
             db.asset.create(data={
                 "assetSetId": asset_set.id,
-                "label": "MODEM_FW",
+                "label": "modem_fw",
                 "role": "modem",
                 "processor": "nrf9151",
                 "artifactType": "modemFirmware",

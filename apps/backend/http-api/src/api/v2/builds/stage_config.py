@@ -222,6 +222,18 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
             for t in targets:
                 processor_lookup[t.role] = t.soc  # "app" → "nrf52840", "comms" → "nrf9151"
 
+        # Look up product slug and revision version for filename pattern generation
+        product_slug = None
+        rev_version = None
+        if config and config.boardRevisionId:
+            revision = db.boardrevision.find_unique(
+                where={"id": config.boardRevisionId},
+                include={"board": {"include": {"product": True}}},
+            )
+            if revision and revision.board and revision.board.product:
+                product_slug = revision.board.product.slug
+                rev_version = revision.version.lower() if revision.version else None
+
         for build_def in defs:
             # Skip if label already exists (prevents duplicates on re-enable)
             existing = db.stagebuildmatrix.find_first(
@@ -236,6 +248,11 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
                 role = "comms"  # modem uses same processor as comms
             processor = processor_lookup.get(role, build_def.processor) or None
 
+            # Compute canonical filename pattern if we have product context
+            filename_pattern = build_def.filename_pattern or None
+            if product_slug and rev_version and processor:
+                filename_pattern = f"{product_slug}_{build_def.fw_type}_{processor}_{rev_version}_{build_def.variant}"
+
             db.stagebuildmatrix.create(data={
                 "stageConfigId": config_id,
                 "label": build_def.label,
@@ -248,7 +265,7 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
                 "isVersionBump": build_def.is_version_bump,
                 "baseLabel": build_def.base_label,
                 "processor": processor,
-                "filenamePattern": build_def.filename_pattern or None,
+                "filenamePattern": filename_pattern,
             })
     except Exception as e:
         logger.warning("Failed to auto-populate build matrix for config %s: %s", config_id, e)

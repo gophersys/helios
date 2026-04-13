@@ -29,7 +29,7 @@ from src.lib.errors import bad_request, conflict, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_storage_client, get_bucket_name, product_asset_key
+from src.services.storage.client import get_storage_client, get_bucket_name, product_asset_key, canonical_asset_filename
 
 from .zip_validator import validate_zip, classify_file
 
@@ -339,6 +339,10 @@ def upload_asset_set_zip(product_id: str):
     assets_created = []
     matrix_by_label = {entry.label: entry for entry in matrix_entries}
 
+    # Look up product slug and revision version for canonical filenames
+    product_slug = getattr(product, "slug", None)
+    rev_version = getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None
+
     for zip_entry in zf.infolist():
         if zip_entry.is_dir():
             continue
@@ -364,20 +368,34 @@ def upload_asset_set_zip(product_id: str):
         # Determine role from matrix entry or filename
         role = _infer_role(filename, entry)
 
+        # Compute canonical filename from matrix entry metadata
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "hex"
+        if entry and product_slug and rev_version:
+            canon_name = canonical_asset_filename(
+                product_slug=product_slug,
+                role=getattr(entry, "fwType", None) or role,
+                processor=getattr(entry, "processor", None) or _infer_processor(filename, role) or "unknown",
+                revision=rev_version,
+                variant=getattr(entry, "variant", None) or variant,
+                ext=ext,
+            )
+        else:
+            canon_name = filename
+
         # Read file content
         content = zf.read(zip_entry.filename)
         checksum = hashlib.sha256(content).hexdigest()
 
         # Upload to MinIO
         object_key = product_asset_key(
-            product_slug=getattr(product, "slug", None),
-            revision_version=getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None,
+            product_slug=product_slug,
+            revision_version=rev_version,
             stage_type=stage_config.type,
             stage=stage_config.stage,
             asset_version=version,
             variant=variant,
             label=label,
-            filename=filename,
+            filename=canon_name,
             stage_name=getattr(stage_config, "name", None),
         )
         storage.put_object(
@@ -393,10 +411,10 @@ def upload_asset_set_zip(product_id: str):
                 "assetSetId": asset_set.id,
                 "label": label,
                 "role": role,
-                "processor": _infer_processor(filename, role),
+                "processor": getattr(entry, "processor", None) or _infer_processor(filename, role),
                 "artifactType": artifact_type,
                 "storageKey": object_key,
-                "filename": filename,
+                "filename": canon_name,
                 "sizeBytes": len(content),
                 "checksum": checksum,
             }
@@ -866,6 +884,10 @@ def upload_asset_files(product_id: str):
     bucket = get_bucket_name()
     assets_created = []
 
+    # Look up product slug and revision version for canonical filenames
+    product_slug = getattr(product, "slug", None)
+    rev_version = getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None
+
     for f, label in zip(files, labels):
         label = label.strip()
         filename = f.filename or "unknown"
@@ -876,15 +898,29 @@ def upload_asset_files(product_id: str):
         entry = matrix_by_label.get(label)
         role = _infer_role(filename, entry)
 
+        # Compute canonical filename from matrix entry metadata
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "hex"
+        if entry and product_slug and rev_version:
+            canon_name = canonical_asset_filename(
+                product_slug=product_slug,
+                role=getattr(entry, "fwType", None) or role,
+                processor=getattr(entry, "processor", None) or _infer_processor(filename, role) or "unknown",
+                revision=rev_version,
+                variant=getattr(entry, "variant", None) or "debug",
+                ext=ext,
+            )
+        else:
+            canon_name = filename
+
         object_key = product_asset_key(
-            product_slug=getattr(product, "slug", None),
-            revision_version=getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None,
+            product_slug=product_slug,
+            revision_version=rev_version,
             stage_type=stage_config.type,
             stage=stage_config.stage,
             asset_version=version,
             variant="debug",
             label=label,
-            filename=filename,
+            filename=canon_name,
             stage_name=getattr(stage_config, "name", None),
         )
         storage.put_object(
@@ -899,10 +935,10 @@ def upload_asset_files(product_id: str):
                 "assetSetId": asset_set.id,
                 "label": label,
                 "role": role,
-                "processor": _infer_processor(filename, role),
+                "processor": getattr(entry, "processor", None) or _infer_processor(filename, role),
                 "artifactType": artifact_type,
                 "storageKey": object_key,
-                "filename": filename,
+                "filename": canon_name,
                 "sizeBytes": len(content),
                 "checksum": checksum,
             }

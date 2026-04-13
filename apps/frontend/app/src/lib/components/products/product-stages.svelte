@@ -17,6 +17,7 @@
 
   interface Props {
     productId: string;
+    productSlug?: string;
     productName?: string;
     revisions?: BoardRevision[];
     boardRevisionId?: string;
@@ -28,6 +29,7 @@
 
   let {
     productId,
+    productSlug = '',
     productName = '',
     revisions = [],
     boardRevisionId,
@@ -249,6 +251,7 @@
   config={wizardConfig}
   targetRevision={wizardRevision}
   {productId}
+  {productSlug}
   {fwRepoSlug}
   {revisions}
   {secrets}

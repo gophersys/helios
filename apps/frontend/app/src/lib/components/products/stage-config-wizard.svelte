@@ -18,6 +18,7 @@
   import { updateStageConfig, createStageConfig } from '$lib/services/stages';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
+  import { canonicalFilename } from '$lib/utils/assets';
 
   interface Props {
     open: boolean;
@@ -26,6 +27,7 @@
     config: ProductStageConfig | undefined;
     targetRevision: BoardRevision | null;
     productId: string;
+    productSlug: string;
     fwRepoSlug: string;
     revisions: BoardRevision[];
     secrets: Secret[];
@@ -35,7 +37,7 @@
 
   let {
     open, stage, stageType: stageTypeProp = 'VALIDATION', config, targetRevision,
-    productId, fwRepoSlug, revisions, secrets, onClose, onSaved,
+    productId, productSlug, fwRepoSlug, revisions, secrets, onClose, onSaved,
   }: Props = $props();
 
   // ── Wizard state ───────────────────────────────────────
@@ -1536,13 +1538,17 @@
                 {#each matrixEntries.filter(e => e.fwType !== 'modem') as entry}
                   <div class="ml-4">
                     <span class="text-accent">{entry.label}/</span>
-                    <span class="text-text-tertiary ml-2">
-                      {#if entry.producesHex && entry.producesCfw}.hex .cfw
-                      {:else if entry.producesHex}.hex
-                      {:else if entry.producesCfw}.cfw
-                      {/if}
-                    </span>
                   </div>
+                  {#if entry.producesHex}
+                    <div class="ml-8 text-text-tertiary">
+                      {canonicalFilename(productSlug, entry.fwType, entry.processor, targetRevision?.version ?? '', entry.variant, 'hex')}
+                    </div>
+                  {/if}
+                  {#if entry.producesCfw}
+                    <div class="ml-8 text-text-tertiary">
+                      {canonicalFilename(productSlug, entry.fwType, entry.processor, targetRevision?.version ?? '', entry.variant, 'cfw')}
+                    </div>
+                  {/if}
                 {/each}
                 {#if matrixEntries.some(e => e.fwType === 'modem')}
                   <div class="ml-4 mt-1 text-text-tertiary italic">modem firmware selected separately</div>

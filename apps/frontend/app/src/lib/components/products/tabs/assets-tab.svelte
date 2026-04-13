@@ -54,6 +54,7 @@
     {#key selectedRevision.id}
       <RevisionAssetsPanel
         productId={product.id}
+        productSlug={product.slug ?? ''}
         revision={selectedRevision}
         {stageConfigs}
         {canManage}
