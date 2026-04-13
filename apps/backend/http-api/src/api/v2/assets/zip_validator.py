@@ -4,11 +4,11 @@ Scans a zip file's directory structure and validates that all required
 build labels and artifact types are present.
 
 Expected zip structure:
-    MFG_APP_DEBUG/
+    mfg_app_debug/
         build.json
         *.hex
         *.cfw  (if produces_cfw)
-    FUT_APP_BASE_A/
+    fut_app_base_a/
         build.json
         *.hex
         *.cfw
@@ -88,15 +88,38 @@ def validate_zip(
 
     # Scan zip for top-level directories (= labels)
     # Normalize backslashes (Windows zips) to forward slashes
-    found_labels: dict[str, list[str]] = {}
+    all_entries: list[list[str]] = []
     for name in zf.namelist():
         normalized = name.replace("\\", "/")
-        parts = normalized.split("/")
-        if len(parts) < 2 or not parts[0]:
+        parts = [p for p in normalized.split("/") if p]
+        if parts:
+            all_entries.append(parts)
+
+    # Detect wrapper directory: if all entries share a single root that isn't
+    # a known label, strip it and use it as the auto-detected version.
+    wrapper_dir = None
+    if all_entries:
+        roots = {e[0] for e in all_entries if len(e) >= 2}
+        if len(roots) == 1:
+            candidate = roots.pop()
+            if candidate.lower() not in required_labels:
+                wrapper_dir = candidate
+                # Strip the wrapper from all entries
+                all_entries = [e[1:] for e in all_entries if len(e) > 1]
+                # Try to extract version from wrapper name
+                import re
+                ver_match = re.search(r"(\d+\.\d+\.\d+)", candidate)
+                if ver_match and not result.parsed_version:
+                    result.parsed_version = ver_match.group(1)
+                    result.version_source = "zip_wrapper_directory"
+
+    found_labels: dict[str, list[str]] = {}
+    for parts in all_entries:
+        if len(parts) < 2:
             continue
         label = parts[0]
         filename = parts[-1]
-        if filename:  # skip directory entries
+        if filename:
             found_labels.setdefault(label, []).append(filename)
 
     result.labels_found = list(found_labels.keys())

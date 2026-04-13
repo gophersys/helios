@@ -343,13 +343,32 @@ def upload_asset_set_zip(product_id: str):
     product_slug = getattr(product, "slug", None)
     rev_version = getattr(stage_config.boardRevision, "version", None) if stage_config.boardRevision else None
 
+    # Detect wrapper directory (e.g., v0.5.13/mfg_app_debug/file.hex)
+    all_roots = set()
+    for zi in zf.infolist():
+        if zi.is_dir():
+            continue
+        parts = [p for p in zi.filename.replace("\\", "/").split("/") if p]
+        if len(parts) >= 2:
+            all_roots.add(parts[0])
+    wrapper_dir = None
+    if len(all_roots) == 1:
+        candidate = all_roots.pop()
+        if candidate.lower() not in matrix_by_label:
+            wrapper_dir = candidate
+
     for zip_entry in zf.infolist():
         if zip_entry.is_dir():
             continue
 
         # Normalize backslashes (Windows zips) to forward slashes
         normalized_name = zip_entry.filename.replace("\\", "/")
-        parts = normalized_name.split("/")
+        parts = [p for p in normalized_name.split("/") if p]
+
+        # Strip wrapper directory if detected
+        if wrapper_dir and len(parts) > 1 and parts[0] == wrapper_dir:
+            parts = parts[1:]
+
         if len(parts) < 2:
             continue
 
