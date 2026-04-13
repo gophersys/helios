@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ChevronRight, Check, Loader2, Box, Factory, Cpu, CircuitBoard, Wrench, X, FlaskConical } from 'lucide-svelte';
+  import { ChevronRight, ChevronLeft, Check, Loader2, Box, Factory, Cpu, CircuitBoard, Wrench, X, FlaskConical, LayoutGrid, Cable } from 'lucide-svelte';
   import Modal from '$lib/components/ui/modal.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
@@ -47,9 +47,11 @@
     return prod && rev && type ? `${prod} ${rev} ${type} Fixture 1` : '';
   });
 
-  const stepLabels = ['Product', 'Type', 'Revision', 'Design', 'Create'];
+  const totalSteps = 7;
 
-  const stepIcons = [Box, Factory, CircuitBoard, Wrench, Check];
+  const stepLabels = ['Product', 'Type', 'Revision', 'Design', 'Panel', 'MTIBs', 'Name'];
+
+  const stepIcons = [Box, Factory, CircuitBoard, Wrench, LayoutGrid, Cable, Check];
 
   // Load products on open
   $effect(() => {
@@ -116,13 +118,19 @@
 
   function selectDesign(id: string) {
     selectedDesignId = id;
-    if (!fixtureName) fixtureName = suggestedName;
     step = 5;
   }
 
   function goToStep(s: number) {
     if (s < step) step = s;
   }
+
+  // Auto-suggest name when entering the Name step
+  $effect(() => {
+    if (step === 7 && !fixtureName) {
+      fixtureName = suggestedName;
+    }
+  });
 
   async function handleCreate() {
     if (!fixtureName.trim() || !selectedDesignId) return;
@@ -158,7 +166,7 @@
 
 <Modal {open} onclose={resetAndClose} size="full" title="" noPadding showCloseButton={false}>
   <div class="flex flex-col h-[90vh]">
-    <!-- Header -->
+    <!-- Header (compact) -->
     <div class="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
       <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/10">
         <Wrench size={18} class="text-accent" />
@@ -176,8 +184,7 @@
         </p>
       </div>
 
-      <!-- Context badges -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-3">
         {#if selectedRevision}
           <div class="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2">
             <CircuitBoard size={14} class="text-accent" />
@@ -192,60 +199,61 @@
       </button>
     </div>
 
-    <!-- Step indicator -->
+    <!-- Step indicator (compact) -->
     <div class="flex items-center gap-2 px-6 py-2.5 border-b border-border-subtle bg-surface-0/50 shrink-0">
       {#each stepLabels as label, i}
         {@const stepNum = i + 1}
         {@const isComplete = step > stepNum}
         {@const isCurrent = step === stepNum}
-        {@const Icon = stepIcons[i]}
         <button
-          onclick={() => goToStep(stepNum)}
+          onclick={() => { if (isComplete || isCurrent) goToStep(stepNum); }}
           disabled={stepNum > step}
-          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium transition-colors
-            {isCurrent ? 'bg-accent text-white' :
-             isComplete ? 'bg-accent/10 text-accent hover:bg-accent/20' :
-             'text-text-tertiary'}"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+            {isCurrent ? 'bg-accent text-white shadow-sm' :
+             isComplete ? 'bg-success-muted text-success' :
+             'bg-surface-2 text-text-tertiary hover:text-text-secondary'}"
         >
           {#if isComplete}
-            <Check size={12} strokeWidth={3} />
+            <Check size={14} />
           {:else}
-            <Icon size={12} />
+            <span class="w-5 h-5 flex items-center justify-center rounded-full text-xs border
+              {isCurrent ? 'border-white/50' : 'border-text-tertiary/30'}">{stepNum}</span>
           {/if}
           {label}
         </button>
         {#if i < stepLabels.length - 1}
-          <ChevronRight size={12} class="text-text-tertiary" />
+          <div class="h-px flex-1 bg-border-subtle max-w-8"></div>
         {/if}
       {/each}
     </div>
 
-    <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <!-- Content area -->
+    <div class="flex-1 overflow-y-auto px-6 py-4">
       <!-- Step 1: Product -->
       {#if step === 1}
-        <div class="max-w-2xl mx-auto">
-          <h3 class="text-lg font-semibold text-text-primary mb-1">Select Product</h3>
-          <p class="text-sm text-text-secondary mb-6">Which product will this fixture test?</p>
-          <div class="space-y-2">
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Which product will this fixture test?</p>
+          <div class="grid gap-3">
             {#each products.filter(p => p.status === 'ACTIVE') as product}
               <button
                 onclick={() => selectProduct(product.id)}
-                class="w-full flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all
+                class="card card-md text-left transition-all
                   {selectedProductId === product.id
-                    ? 'border-accent bg-accent-muted shadow-sm'
-                    : 'border-border hover:border-accent/50 hover:shadow-sm'}"
+                    ? 'border-accent bg-accent-muted'
+                    : 'hover:border-text-tertiary'}"
               >
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2 text-text-tertiary shrink-0">
-                  <Box size={24} />
+                <div class="flex items-center gap-4">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary shrink-0">
+                    <Box size={20} />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <span class="text-sm font-semibold text-text-primary">{product.name}</span>
+                    {#if product.slug}
+                      <p class="text-2xs text-text-tertiary">{product.slug}</p>
+                    {/if}
+                  </div>
+                  <ChevronRight size={16} class="text-text-tertiary shrink-0" />
                 </div>
-                <div class="flex-1 min-w-0">
-                  <span class="text-base font-semibold text-text-primary">{product.name}</span>
-                  {#if product.slug}
-                    <p class="text-sm text-text-tertiary">{product.slug}</p>
-                  {/if}
-                </div>
-                <ChevronRight size={18} class="text-text-tertiary shrink-0" />
               </button>
             {/each}
             {#if products.filter(p => p.status === 'ACTIVE').length === 0}
@@ -256,29 +264,25 @@
 
       <!-- Step 2: Type -->
       {:else if step === 2}
-        <div class="max-w-2xl mx-auto">
-          <h3 class="text-lg font-semibold text-text-primary mb-1">Fixture Type</h3>
-          <p class="text-sm text-text-secondary mb-6">What kind of testing will this fixture do?</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">What kind of testing will this fixture do?</p>
+          <div class="grid gap-3 sm:grid-cols-2">
             {#each [
               { value: 'MANUFACTURING', label: 'Manufacturing', desc: 'Production flashing, electrical testing, and POST.', icon: Factory },
               { value: 'VALIDATION', label: 'Validation', desc: 'Firmware validation, regression testing, and FUOTA.', icon: FlaskConical },
             ] as opt}
               <button
                 onclick={() => selectType(opt.value as any)}
-                class="flex flex-col items-center gap-3 rounded-xl border-2 px-6 py-8 text-center transition-all
+                class="card card-md text-left transition-all
                   {selectedType === opt.value
-                    ? 'border-accent bg-accent-muted shadow-sm'
-                    : 'border-border hover:border-accent/50 hover:shadow-sm'}"
+                    ? 'border-accent bg-accent-muted'
+                    : 'hover:border-text-tertiary'}"
               >
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl
-                  {selectedType === opt.value ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
-                  <opt.icon size={28} />
+                <div class="flex items-center gap-2 mb-2">
+                  <opt.icon size={18} class={selectedType === opt.value ? 'text-accent' : 'text-text-tertiary'} />
+                  <span class="text-sm font-semibold text-text-primary">{opt.label}</span>
                 </div>
-                <div>
-                  <span class="text-base font-semibold text-text-primary">{opt.label}</span>
-                  <p class="text-sm text-text-tertiary mt-1">{opt.desc}</p>
-                </div>
+                <p class="text-2xs text-text-secondary">{opt.desc}</p>
               </button>
             {/each}
           </div>
@@ -286,29 +290,30 @@
 
       <!-- Step 3: Hardware Revision -->
       {:else if step === 3}
-        <div class="max-w-2xl mx-auto">
-          <h3 class="text-lg font-semibold text-text-primary mb-1">Hardware Revision</h3>
-          <p class="text-sm text-text-secondary mb-6">Which PCB revision will this fixture test?</p>
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Which PCB revision will this fixture test?</p>
           {#if revisions.length === 0}
             <p class="text-sm text-text-tertiary text-center py-8">No board revisions found. Add revisions in the product's Hardware tab.</p>
           {:else}
-            <div class="space-y-2">
+            <div class="grid gap-3">
               {#each revisions as rev}
                 <button
                   onclick={() => selectRevision(rev.id)}
-                  class="w-full flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all
+                  class="card card-md text-left transition-all
                     {selectedRevisionId === rev.id
-                      ? 'border-accent bg-accent-muted shadow-sm'
-                      : 'border-border hover:border-accent/50 hover:shadow-sm'}"
+                      ? 'border-accent bg-accent-muted'
+                      : 'hover:border-text-tertiary'}"
                 >
-                  <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2 text-lg font-bold text-text-tertiary shrink-0">
-                    {rev.version}
+                  <div class="flex items-center gap-4">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-sm font-bold text-text-tertiary shrink-0">
+                      {rev.version}
+                    </div>
+                    <div class="flex-1">
+                      <span class="text-sm font-semibold text-text-primary">{rev.ckBoardsName}</span>
+                      <p class="text-2xs text-text-tertiary">{rev.version} revision</p>
+                    </div>
+                    <ChevronRight size={16} class="text-text-tertiary shrink-0" />
                   </div>
-                  <div class="flex-1">
-                    <span class="text-base font-semibold text-text-primary">{rev.ckBoardsName}</span>
-                    <p class="text-sm text-text-tertiary">{rev.version} revision</p>
-                  </div>
-                  <ChevronRight size={18} class="text-text-tertiary shrink-0" />
                 </button>
               {/each}
             </div>
@@ -317,54 +322,81 @@
 
       <!-- Step 4: Fixture Design -->
       {:else if step === 4}
-        <div class="max-w-2xl mx-auto">
-          <h3 class="text-lg font-semibold text-text-primary mb-1">Fixture Design</h3>
-          <p class="text-sm text-text-secondary mb-6">Select the hardware design this fixture is built from.</p>
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Select the hardware design this fixture is built from.</p>
           {#if designs.length === 0}
-            <div class="text-center py-8 rounded-xl border-2 border-dashed border-border">
-              <Wrench size={32} class="mx-auto mb-3 text-text-tertiary" />
+            <div class="card card-md text-center py-8 border-dashed">
+              <Wrench size={28} class="mx-auto mb-3 text-text-tertiary" />
               <p class="text-sm text-text-secondary">No fixture designs available.</p>
               <p class="text-2xs text-text-tertiary mt-1">Release a test app to publish a fixture design for this revision.</p>
             </div>
           {:else}
-            <div class="space-y-2">
+            <div class="grid gap-3">
               {#each designs as design}
                 <button
                   onclick={() => selectDesign(design.id)}
-                  class="w-full flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all
+                  class="card card-md text-left transition-all
                     {selectedDesignId === design.id
-                      ? 'border-accent bg-accent-muted shadow-sm'
-                      : 'border-border hover:border-accent/50 hover:shadow-sm'}"
+                      ? 'border-accent bg-accent-muted'
+                      : 'hover:border-text-tertiary'}"
                 >
-                  <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2 text-text-tertiary shrink-0">
-                    <Wrench size={24} />
-                  </div>
-                  <div class="flex-1">
-                    <span class="text-base font-semibold text-text-primary">{design.name}</span>
-                    <div class="flex items-center gap-2 mt-1">
-                      <span class="rounded bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary">Rev {design.revision}</span>
-                      {#if design.capabilities?.length}
-                        {#each design.capabilities as cap}
-                          <span class="rounded bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">{cap}</span>
-                        {/each}
-                      {/if}
+                  <div class="flex items-center gap-4">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary shrink-0">
+                      <Wrench size={20} />
                     </div>
+                    <div class="flex-1">
+                      <span class="text-sm font-semibold text-text-primary">{design.name}</span>
+                      <div class="flex items-center gap-2 mt-1">
+                        <span class="rounded bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary">Rev {design.revision}</span>
+                        {#if design.capabilities?.length}
+                          {#each design.capabilities as cap}
+                            <span class="rounded bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">{cap}</span>
+                          {/each}
+                        {/if}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} class="text-text-tertiary shrink-0" />
                   </div>
-                  <ChevronRight size={18} class="text-text-tertiary shrink-0" />
                 </button>
               {/each}
             </div>
           {/if}
         </div>
 
-      <!-- Step 5: Name & Create -->
+      <!-- Step 5: Name -->
+      <!-- Step 5: Panel Layout (placeholder) -->
       {:else if step === 5}
-        <div class="max-w-2xl mx-auto">
-          <h3 class="text-lg font-semibold text-text-primary mb-1">Name Your Fixture</h3>
-          <p class="text-sm text-text-secondary mb-6">Give this fixture instance a descriptive name.</p>
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Define the physical panel layout for this fixture.</p>
+          <div class="card card-md flex flex-col items-center justify-center py-12 text-center">
+            <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary mb-4">
+              <LayoutGrid size={24} />
+            </div>
+            <p class="text-sm font-medium text-text-primary mb-1">Panel layout configuration coming soon</p>
+            <p class="text-2xs text-text-tertiary">Define rows, columns, and slot positions for the fixture panel.</p>
+          </div>
+        </div>
+
+      <!-- Step 6: MTIB Mapping (placeholder) -->
+      {:else if step === 6}
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Map MTIB devices to fixture slots.</p>
+          <div class="card card-md flex flex-col items-center justify-center py-12 text-center">
+            <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-2 text-text-tertiary mb-4">
+              <Cable size={24} />
+            </div>
+            <p class="text-sm font-medium text-text-primary mb-1">MTIB-to-slot mapping coming soon</p>
+            <p class="text-2xs text-text-tertiary">Assign MTIB controller addresses to each slot in the panel.</p>
+          </div>
+        </div>
+
+      <!-- Step 7: Name & Create -->
+      {:else if step === 7}
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Give this fixture instance a descriptive name.</p>
 
           <!-- Summary card -->
-          <div class="rounded-xl border border-border bg-surface-0 p-5 mb-6">
+          <div class="card card-md">
             <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-3">Configuration Summary</h4>
             <div class="grid grid-cols-2 gap-y-2 gap-x-8 text-sm">
               <div class="text-text-tertiary">Product</div>
@@ -406,21 +438,39 @@
       {/if}
     </div>
 
-    <!-- Footer -->
-    <div class="flex items-center justify-between px-6 py-3 border-t border-border shrink-0 bg-surface-0">
-      <button onclick={step > 1 ? () => step-- : resetAndClose} class="btn btn-sm btn-ghost">
-        {step > 1 ? '← Back' : 'Cancel'}
+    <!-- Footer (compact) -->
+    <div class="flex items-center justify-between px-6 py-3 border-t border-border bg-surface-0/50 shrink-0">
+      <button
+        onclick={step === 1 ? resetAndClose : () => step--}
+        class="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-2 transition-colors"
+      >
+        <ChevronLeft size={16} />
+        {step === 1 ? 'Cancel' : 'Back'}
       </button>
-      <div class="flex items-center gap-2">
-        <span class="text-2xs text-text-tertiary">Step {step} of {stepLabels.length}</span>
-        {#if step === 5}
+
+      <div class="flex items-center gap-3">
+        {#if step < totalSteps}
+          <button
+            onclick={() => step++}
+            disabled={(step === 1 && !selectedProductId) ||
+                     (step === 2 && !selectedType) ||
+                     (step === 3 && !selectedRevisionId) ||
+                     (step === 4 && !selectedDesignId)}
+            class="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        {:else}
           <button
             onclick={handleCreate}
             disabled={submitting || !fixtureName.trim()}
-            class="btn btn-md btn-primary"
+            class="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
           >
-            {#if submitting}<Loader2 size={14} class="animate-spin" />{/if}
-            {submitting ? 'Creating...' : 'Create Fixture'}
+            {#if submitting}
+              <Loader2 size={16} class="animate-spin" /> Creating...
+            {:else}
+              <Check size={16} /> Create Fixture
+            {/if}
           </button>
         {/if}
       </div>
