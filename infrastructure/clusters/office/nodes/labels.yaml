@@ -23,7 +23,7 @@ nodes:
 
   # ── Agents (general workers) ─────────────────────────────────
   - name: concordagent01
-    workloads: [platform, worker]
+    workloads: [platform, worker, data]
 
   - name: concordagent02
     workloads: [platform, worker]
