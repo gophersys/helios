@@ -136,7 +136,7 @@ spec:
         - name: ssh-key
           secret:
             secretName: bitbucket-ssh-key
-            defaultMode: 0600
+            defaultMode: 0444
             items:
               - key: ssh-private-key
                 path: id_rsa

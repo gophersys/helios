@@ -89,41 +89,19 @@ class CkBoardsService:
 
         os.makedirs(self._worktree_base, exist_ok=True)
 
-        # Convert SSH URL to HTTPS if Bitbucket API credentials are available.
-        # Uses git credential helper (not URL-embedded creds) to avoid @-in-email issues.
-        if bitbucket_email and bitbucket_api_token and repo_url.startswith("git@"):
-            # git@bitbucket.org:workspace/repo.git → https://bitbucket.org/workspace/repo.git
-            path = repo_url.replace("git@", "").replace(":", "/", 1)
-            self._repo_url = f"https://{path}"
-            # Write a tiny credential helper script that feeds email:token to git
-            cred_dir = os.path.join(base_path, "credentials")
-            os.makedirs(cred_dir, exist_ok=True)
-            helper_path = os.path.join(cred_dir, "git-credential-helper.sh")
-            with open(helper_path, "w") as f:
-                f.write(
-                    f'#!/bin/sh\n'
-                    f'case "$1" in\n'
-                    f'  *Username*|*username*) echo "{bitbucket_email}" ;;\n'
-                    f'  *Password*|*password*) echo "{bitbucket_api_token}" ;;\n'
-                    f'esac\n'
-                )
-            os.chmod(helper_path, 0o700)
-            self._git_env = {
-                "GIT_ASKPASS": helper_path,
-                "GIT_TERMINAL_PROMPT": "0",
-            }
-            logger.info("CkBoards using HTTPS clone with credential helper")
+        self._repo_url = repo_url
+
+        # Configure SSH auth — same strategy as git-poller (proven working).
+        # Prefers SSH agent when available, falls back to key file.
+        if ssh_key_b64:
+            self._setup_ssh_key(ssh_key_b64)
         else:
-            self._repo_url = repo_url
-            # Configure SSH auth
-            if ssh_key_b64:
-                self._setup_ssh_key(ssh_key_b64)
-            else:
-                ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
-                if os.path.isfile(ssh_key_path):
-                    self._git_env = {
-                        "GIT_SSH_COMMAND": f"ssh -4 -i {ssh_key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
-                    }
+            ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
+            if os.path.isfile(ssh_key_path):
+                self._git_env = {
+                    "GIT_SSH_COMMAND": f"ssh -i {ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes",
+                }
+                logger.info("CkBoards using SSH key at %s", ssh_key_path)
 
         # Clone or fetch
         self._init_repo()
@@ -165,7 +143,7 @@ class CkBoardsService:
         os.chmod(self._ssh_key_path, stat.S_IRUSR)
 
         self._git_env = {
-            "GIT_SSH_COMMAND": f"ssh -4 -i {self._ssh_key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
+            "GIT_SSH_COMMAND": f"ssh -i {self._ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes",
         }
 
     # ------------------------------------------------------------------

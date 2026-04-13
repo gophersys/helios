@@ -188,14 +188,10 @@ if __name__ == "__main__":
 
         # Initialize CkBoards service (board definition discovery)
         # Must run synchronously — eventlet monkey-patching breaks subprocess in threads.
-        # Best-effort: CkBoards depends on external git access (may be firewalled).
-        # The platform works without it — board auto-discovery is a convenience feature.
-        try:
-            from api.v2.products.board_discovery import init_ck_boards_service
-            init_ck_boards_service(env_config)
-            logger.info("CkBoards service ready")
-        except Exception as e:
-            logger.warning("CkBoards service unavailable (board discovery disabled): %s", e)
+        # Uses SSH with mounted key (same strategy as git-poller).
+        from api.v2.products.board_discovery import init_ck_boards_service
+        init_ck_boards_service(env_config)
+        logger.info("CkBoards service ready")
 
         # Routes
         register_v2_routes(logger, server, socketio)
