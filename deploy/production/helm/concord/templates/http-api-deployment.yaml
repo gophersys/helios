@@ -69,9 +69,6 @@ spec:
         - name: migrate-and-seed
           image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          env:
-            - name: PRISMA_USE_GLOBAL_NODE
-              value: "true"
           command:
             - python3
             - -c
@@ -79,11 +76,14 @@ spec:
               import subprocess, sys, os
               os.chdir('/prisma')
 
+              # Prisma CLI path — copied from builder stage, runs via node directly.
+              # Bypasses prisma-client-python's nodeenv (which needs internet).
+              prisma = ['/usr/local/bin/node', '/app/prisma-cli/node_modules/prisma/build/index.js']
+
               # Step 1: Run migrations
               print('Running Prisma migrations...', flush=True)
               r = subprocess.run(
-                  [sys.executable, '-m', 'prisma', 'migrate', 'deploy',
-                   '--schema', '/prisma/schema.prisma'],
+                  prisma + ['migrate', 'deploy', '--schema', '/prisma/schema.prisma'],
                   capture_output=True, text=True
               )
               print(r.stdout, flush=True)
@@ -96,13 +96,13 @@ spec:
                           failed = m.group(1)
                           print(f'Resolving failed migration: {failed}', flush=True)
                           subprocess.run(
-                              [sys.executable, '-m', 'prisma', 'migrate', 'resolve',
+                              prisma + ['migrate', 'resolve',
                                '--rolled-back', failed, '--schema', '/prisma/schema.prisma'],
                               capture_output=False, text=True
                           )
                           print('Retrying migrations...', flush=True)
                           r = subprocess.run(
-                              [sys.executable, '-m', 'prisma', 'migrate', 'deploy',
+                              prisma + ['migrate', 'deploy',
                                '--schema', '/prisma/schema.prisma'],
                               capture_output=False, text=True
                           )
@@ -156,7 +156,7 @@ spec:
             {{- toYaml .Values.httpApi.resources | nindent 12 }}
           volumeMounts:
             - name: ssh-key
-              mountPath: /root/.ssh
+              mountPath: /home/appuser/.ssh
               readOnly: true
           readinessProbe:
             httpGet:

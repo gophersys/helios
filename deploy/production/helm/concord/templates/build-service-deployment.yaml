@@ -88,7 +88,7 @@ spec:
             - name: CCACHE_HOST_PATH
               value: "/tmp/concord-ccache"
             - name: SSH_KEY_PATH
-              value: "/root/.ssh/id_rsa"
+              value: "/home/appuser/.ssh/id_rsa"
             - name: BITBUCKET_SSH_KEY
               valueFrom:
                 secretKeyRef:
@@ -122,7 +122,7 @@ spec:
             - name: docker-socket
               mountPath: /var/run/docker.sock
             - name: ssh-key
-              mountPath: /root/.ssh
+              mountPath: /home/appuser/.ssh
               readOnly: true
             - name: workspace
               mountPath: /tmp/builds

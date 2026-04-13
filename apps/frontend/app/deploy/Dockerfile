@@ -15,7 +15,7 @@ ENV PUBLIC_APP_ENVIRONMENT=${PUBLIC_APP_ENVIRONMENT}
 # Install dependencies first (better layer caching)
 COPY apps/frontend/app/package.json ./
 COPY apps/frontend/app/package-lock.json* ./
-RUN npm ci --ignore-scripts 2>/dev/null || npm install
+RUN npm ci --ignore-scripts --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 
 # Cache bust — invalidates source layer when code changes (allows dropping --no-cache)
 ARG CACHE_BUST=0

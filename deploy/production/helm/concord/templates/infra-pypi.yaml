@@ -28,6 +28,13 @@ spec:
             cp /secret/.htpasswd /data/.htpasswd
             chmod 644 /data/.htpasswd
             mkdir -p /data/packages
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 32Mi
         volumeMounts:
         - name: pypi-data
           mountPath: /data

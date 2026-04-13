@@ -45,7 +45,7 @@ spec:
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           env:
             - name: SSH_KEY_PATH
-              value: "/root/.ssh/id_rsa"
+              value: "/home/appuser/.ssh/id_rsa"
             - name: POLL_INTERVAL
               value: {{ .Values.gitPoller.pollInterval | default "5" | quote }}
             - name: PRODUCT_CACHE_TTL
@@ -90,7 +90,7 @@ spec:
             {{- toYaml .Values.gitPoller.resources | nindent 12 }}
           volumeMounts:
             - name: ssh-key
-              mountPath: /root/.ssh
+              mountPath: /home/appuser/.ssh
               readOnly: true
       volumes:
         - name: ssh-key

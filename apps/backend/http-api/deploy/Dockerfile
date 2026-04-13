@@ -56,6 +56,10 @@ RUN curl -fsSL "https://binaries.prisma.sh/all_commits/${PRISMA_ENGINE_HASH}/deb
       | gunzip > /tmp/prisma-schema-engine && \
     chmod +x /tmp/prisma-schema-engine
 
+# Standalone Prisma CLI install (resolves all deps into one flat tree).
+# Used by the init container to run migrations — no Yarn PnP, no nodeenv.
+RUN npm install --prefix /prisma-standalone prisma@5.17.0
+
 # ----------------------------------------------------
 #                                           Final Stage
 # ----------------------------------------------------
@@ -101,9 +105,15 @@ COPY --from=prisma-builder /concord/libs/python/database /libs/python/database
 COPY --from=prisma-builder /tmp/prisma-query-engine /app/prisma-query-engine-debian-openssl-3.0.x
 COPY --from=prisma-builder /tmp/prisma-schema-engine /app/prisma-schema-engine-debian-openssl-3.0.x
 
-# Pre-warm prisma nodeenv + CLI cache (avoids runtime downloads in init container)
-RUN python3 -c "from prisma.cli import setup; setup()" 2>&1 || \
-    python3 -m prisma version 2>&1 || true
+# Copy Node.js + Prisma CLI from the builder stage for database migrations.
+# The init container runs `node /app/prisma-cli/build/index.js migrate deploy`
+# directly — bypasses prisma-client-python's nodeenv entirely.
+# No internet needed, no cache dirs, no user permission issues.
+# Copy Node.js + standalone Prisma CLI for database migrations.
+# Init container runs: node /app/prisma-cli/node_modules/prisma/build/index.js
+# No prisma-python nodeenv, no internet, no cache permissions.
+COPY --from=prisma-builder /usr/local/bin/node /usr/local/bin/node
+COPY --from=prisma-builder /prisma-standalone/node_modules /app/prisma-cli/node_modules
 
 COPY ./libs/protocols/mtib /libs/protocols/mtib
 

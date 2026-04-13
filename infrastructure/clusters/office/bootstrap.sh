@@ -41,7 +41,7 @@ kube_apply() {
   if $DRY_RUN; then
     echo "  [dry-run] kubectl apply -f ${file}"
   else
-    kubectl apply -f "${file}" 2>&1 | sed 's/^/  /'
+    kubectl apply --server-side --force-conflicts -f "${file}" 2>&1 | sed 's/^/  /'
   fi
 }
 
@@ -75,11 +75,21 @@ helm_install() {
     helm repo update "${repo_name}" 2>/dev/null || true
   fi
 
+  # Clean up stale release secrets to prevent "release not found" errors on upgrade.
+  # Keeps only the latest 5 revisions.
+  local stale
+  stale=$(kubectl get secrets -n "${namespace}" -l "name=${name},owner=helm" \
+    --sort-by=.metadata.creationTimestamp -o name 2>/dev/null | head -n -5)
+  if [[ -n "${stale}" ]]; then
+    echo "${stale}" | xargs kubectl delete -n "${namespace}" 2>/dev/null || true
+  fi
+
   local helm_args=(
     upgrade --install "${name}" "${chart}"
     -n "${namespace}" --create-namespace
     --version "${version}"
     --wait --timeout 120s
+    --history-max 5
   )
 
   # Shared values
