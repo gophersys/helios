@@ -8,10 +8,11 @@
   interface Props {
     productId: string;
     stage: number;
+    configId?: string;
     canManage: boolean;
   }
 
-  let { productId, stage, canManage }: Props = $props();
+  let { productId, stage, configId, canManage }: Props = $props();
 
   let entries = $state<StageBuildMatrixEntry[]>([]);
   let loading = $state(true);
@@ -22,8 +23,9 @@
     loading = true;
     error = null;
     try {
+      const cid = configId ? `?configId=${configId}` : '';
       const res = await apiFetch<ApiResponse<StageBuildMatrixEntry[]>>(
-        `/v2/products/${productId}/stages/${stage}/build-matrix`
+        `/v2/products/${productId}/stages/${stage}/build-matrix${cid}`
       );
       entries = Array.isArray(res.data) ? res.data : (res.data as any)?.data ?? [];
     } catch (e) {
@@ -37,7 +39,8 @@
     resetting = true;
     error = null;
     try {
-      await api.post(`/v2/products/${productId}/stages/${stage}/build-matrix/reset`, {});
+      const cid = configId ? `?configId=${configId}` : '';
+      await api.post(`/v2/products/${productId}/stages/${stage}/build-matrix/reset${cid}`, {});
       await loadMatrix();
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to reset build matrix';

@@ -410,8 +410,9 @@
 
   async function loadMatrix() {
     try {
+      const configIdParam = config?.id ? `?configId=${config.id}` : '';
       const res = await apiFetch<ApiResponse<StageBuildMatrixEntry[]>>(
-        `/v2/products/${productId}/stages/${stage}/build-matrix`
+        `/v2/products/${productId}/stages/${stage}/build-matrix${configIdParam}`
       );
       matrixEntries = Array.isArray(res.data) ? res.data : (res.data as any)?.data ?? [];
     } catch {
@@ -1526,7 +1527,7 @@
 
           <!-- Build Matrix (read-only — matrix is managed by the build system) -->
           {#if config}
-            <BuildMatrixView {productId} {stage} canManage={false} />
+            <BuildMatrixView {productId} {stage} configId={config?.id} canManage={false} />
           {/if}
 
           <!-- Expected Asset Structure -->
