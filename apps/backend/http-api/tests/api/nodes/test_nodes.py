@@ -14,7 +14,7 @@ def test_list_nodes(authed_client, mock_db):
     mock_db.node.find_many.return_value = [
         make_obj(
             id="node-1", name="MTIB-01", hostname="verdin-imx8mm-001",
-            type="MANUFACTURING", status="ONLINE", ipAddress="10.4.45.1",
+            type="MANUFACTURING", status="ONLINE", ipAddress="192.168.1.1",
             hardwareRevision="REV1.2", metadata=None, fixtureSlot=None,
             createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -35,7 +35,7 @@ def test_create_node(authed_client, mock_db):
     mock_db.node.find_first.return_value = None
     mock_db.node.create.return_value = make_obj(
         id="node-new", name="MTIB-02", hostname="verdin-imx8mm-002",
-        type="VALIDATION", status="ONLINE", ipAddress="10.4.45.2",
+        type="VALIDATION", status="ONLINE", ipAddress="192.168.1.2",
         hardwareRevision=None, metadata=None, fixtureSlot=None,
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -70,7 +70,7 @@ def test_create_node_duplicate_hostname(authed_client, mock_db):
 def test_get_node(authed_client, mock_db):
     mock_db.node.find_unique.return_value = make_obj(
         id="node-1", name="MTIB-01", hostname="verdin-001",
-        type="MANUFACTURING", status="ONLINE", ipAddress="10.4.45.1",
+        type="MANUFACTURING", status="ONLINE", ipAddress="192.168.1.1",
         hardwareRevision="REV1.2", metadata=None, fixtureSlot=None,
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),

@@ -13,7 +13,7 @@ from tests.conftest import make_obj
 def _node(**overrides):
     defaults = dict(
         id="node-1", name="MTIB-01", hostname="verdin-imx8mm-001",
-        type="VALIDATION", status="ONLINE", ipAddress="10.4.45.1",
+        type="VALIDATION", status="ONLINE", ipAddress="192.168.1.1",
         hardwareRevision="REV1.2", metadata=None, fixtureSlot=None,
         createdAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
@@ -81,7 +81,7 @@ class TestSyncNodesFromK8s:
         k8s_node.metadata.name = "verdin-new"
         k8s_node.metadata.labels = {"kubernetes.io/arch": "arm64"}
         k8s_node.status.conditions = [MagicMock(type="Ready", status="True")]
-        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="10.4.45.99")]
+        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="192.168.1.99")]
         k8s_node.status.node_info = MagicMock(os_image="TorizonOS", kubelet_version="v1.28")
 
         k8s_list = MagicMock()
@@ -107,7 +107,7 @@ class TestSyncNodesFromK8s:
         k8s_node.metadata.name = "verdin-known"
         k8s_node.metadata.labels = {"kubernetes.io/arch": "arm64"}
         k8s_node.status.conditions = [MagicMock(type="Ready", status="True")]
-        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="10.4.45.33")]
+        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="192.168.1.100")]
         k8s_node.status.node_info = MagicMock(os_image="TorizonOS", kubelet_version="v1.28")
 
         k8s_list = MagicMock()

@@ -82,7 +82,7 @@ test.describe('Cleanup: CoreCloud', () => {
     // E2E tests that interact with physical hardware use a known set of device IDs.
     // Log them here for traceability and manual review if needed.
     const knownE2EDevices = [
-      { snr: '0964', deviceId: '70B3D584C01E1FCC', mtib: '10.4.45.33', note: 'REV 1.2 validation MTIB' },
+      { snr: '0964', deviceId: '70B3D584C01E1FCC', mtib: '192.168.1.100', note: 'REV 1.2 validation MTIB' },
     ];
 
     console.log('[cleanup] Known E2E device identifiers:');

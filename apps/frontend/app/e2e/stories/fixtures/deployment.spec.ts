@@ -69,7 +69,7 @@ test.describe('MTIB Deployment: Lifecycle', () => {
       name: `MTIB E2E Dev ${uniqueSuffix}`,
       hostname: `mtib-e2e-dev-${uniqueSuffix}`,
       type: 'VALIDATION',
-      ipAddress: '10.4.45.33',
+      ipAddress: '192.168.1.100',
       hardwareRevision: 'REV1.2',
     });
 

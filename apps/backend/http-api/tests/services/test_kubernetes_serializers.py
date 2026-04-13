@@ -106,7 +106,7 @@ class TestSerializeNode:
         node.status.node_info.architecture = "amd64"
         node.status.capacity = {"cpu": "4", "memory": "8Gi", "pods": "110"}
         node.status.allocatable = {"cpu": "3800m", "memory": "7Gi", "pods": "110"}
-        addr = MagicMock(type="InternalIP", address="10.4.45.1")
+        addr = MagicMock(type="InternalIP", address="192.168.1.1")
         node.status.addresses = [addr]
         node.spec.taints = [MagicMock(key="node-role", value="control-plane", effect="NoSchedule")]
         node.spec.unschedulable = False
@@ -114,7 +114,7 @@ class TestSerializeNode:
         assert result["name"] == "node-1"
         assert result["status"] == "Ready"
         assert "control-plane" in result["roles"]
-        assert result["internalIp"] == "10.4.45.1"
+        assert result["internalIp"] == "192.168.1.1"
 
     def test_node_no_roles(self):
         node = MagicMock()

@@ -75,7 +75,7 @@ def _node_obj(**overrides):
     defaults = dict(
         id="node-1",
         name="MTIB-01",
-        hostname="10.4.45.33",
+        hostname="192.168.1.100",
         type="VALIDATION",
         status="ONLINE",
         metadata={},

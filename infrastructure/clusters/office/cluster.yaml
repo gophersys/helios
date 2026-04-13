@@ -196,36 +196,33 @@ nodes:
       ip: 10.4.45.32
       cpu: 16
       memory: 32Gi
-      workloads: [build]
+      workloads: [build, devops]
 
   edge:
-    - name: verdin-imx8mm-15005665
+    - name: verdin-imx8mm-15005696
       ip: 10.4.45.33
-      cpu: 4
-      memory: 2Gi
       arch: arm64
       workloads: [edge]
-      labels:
-        corekinect.com/mtib-revision: "1.2"
-        corekinect.com/validation-product: alpha
 
-    - name: verdin-imx8mm-15005700
+    - name: verdin-imx8mm-15005670
       ip: 10.4.45.34
-      cpu: 4
-      memory: 2Gi
       arch: arm64
       workloads: [edge]
-      labels:
-        corekinect.com/mtib-revision: "1.2"
 
-    - name: verdin-imx8mm-15702161
-      ip: 10.4.45.32
-      cpu: 4
-      memory: 2Gi
+    - name: verdin-imx8mm-15005721
+      ip: 10.4.45.36
       arch: arm64
       workloads: [edge]
-      labels:
-        corekinect.com/mtib-revision: "1.1"
+
+    - name: verdin-imx8mm-15005714
+      ip: 10.4.45.37
+      arch: arm64
+      workloads: [edge]
+
+    - name: verdin-imx8mm-15005665
+      ip: 10.4.45.38
+      arch: arm64
+      workloads: [edge]
 
 namespaces:
   - staging

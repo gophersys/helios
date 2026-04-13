@@ -114,18 +114,12 @@ nrfjprog --recover --snr <PROBE_SERIAL> -f NRF52 --clockspeed 4000
 nrfjprog --program <file.hex> --chiperase --verify --reset --snr <PROBE_SERIAL> -f NRF52 --clockspeed 4000
 ```
 
-### J-Link Probe Mapping (REV 1.2 MTIB at 10.4.45.33)
+### J-Link Probe Mapping (REV 1.2)
 
 | Probe SNR | Family | Target |
 |-----------|--------|--------|
 | 821009543 | NRF52 | nRF52840 app processor |
 | 821009541 | NRF91 | nRF9151 comms coprocessor |
-
-## Test MTIBs
-
-| Address | Revision | DUT SNR | Device ID | Notes |
-|---------|----------|---------|-----------|-------|
-| 10.4.45.33 | REV 1.2 | 0964 | `70B3D584C01E1FCC` | K8s pod runs MTIB server. SSH: torizon@10.4.45.33 (pass: corekinect). |
 
 ## V1 Client API Quick Reference
 
@@ -135,7 +129,7 @@ from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
 # PYTHONPATH must include: libs/python:libs:libs/protocols
 
-cfg = MtibV1Client.Config(net=NetConfig(addr='10.4.45.33', port=50053))
+cfg = MtibV1Client.Config(net=NetConfig(addr='<MTIB_HOST>', port=50053))
 client = MtibV1Client(cfg)
 err = client.connect()  # MUST call before any RPC
 

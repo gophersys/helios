@@ -31,27 +31,25 @@ nodes:
   - name: concordagent03
     workloads: [data, worker]
 
-  # ── DevOps (CI/CD) ────────────────────────────────────────────
+  # ── DevOps (CI/CD) + Build ─────────────────────────────────────
   - name: concordproxy
     workloads: [devops]
 
-  # ── Builders ─────────────────────────────────────────────────
   - name: wanda
-    workloads: [build]
+    workloads: [build, devops]
 
   # ── Edge (ARM64 Verdin SoMs) ─────────────────────────────────
+  - name: verdin-imx8mm-15005696
+    workloads: [edge]
+
+  - name: verdin-imx8mm-15005670
+    workloads: [edge]
+
+  - name: verdin-imx8mm-15005721
+    workloads: [edge]
+
+  - name: verdin-imx8mm-15005714
+    workloads: [edge]
+
   - name: verdin-imx8mm-15005665
     workloads: [edge]
-    labels:
-      corekinect.com/mtib-revision: "1.2"
-      corekinect.com/validation-product: alpha
-
-  - name: verdin-imx8mm-15005700
-    workloads: [edge]
-    labels:
-      corekinect.com/mtib-revision: "1.2"
-
-  - name: verdin-imx8mm-15702161
-    workloads: [edge]
-    labels:
-      corekinect.com/mtib-revision: "1.1"

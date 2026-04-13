@@ -10,7 +10,7 @@ capabilities:
 
 slots:
   - index: 0
-    mtib_address: "10.4.45.33"
+    mtib_address: ""
     mtib_port: 50053
     serial_number: "0964"
 

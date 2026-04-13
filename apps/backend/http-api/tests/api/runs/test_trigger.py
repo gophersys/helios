@@ -19,7 +19,7 @@ def _make_node(**overrides):
     defaults = dict(
         id="node-1",
         hostname="verdin-33",
-        ipAddress="10.4.45.33",
+        ipAddress="192.168.1.100",
         status="ONLINE",
         type="VALIDATION",
         metadata={},

@@ -48,7 +48,7 @@ def _make_slot(**overrides):
         uartAppPath="/dev/ttyUSB1",
         uartCommsPath="/dev/ttyUSB0",
         nodeId="node-1",
-        node=make_obj(id="node-1", ipAddress="10.4.45.33"),
+        node=make_obj(id="node-1", ipAddress="192.168.1.100"),
         createdAt=NOW,
         updatedAt=NOW,
     )
@@ -96,7 +96,7 @@ def test_list_benches_success(authed_client, mock_db):
     assert benches[0]["id"] == "bench-1"
     assert benches[0]["stationId"] == "bench-33"
     assert benches[0]["status"] == "AVAILABLE"
-    assert benches[0]["mtibAddress"] == "10.4.45.33:50053"
+    assert benches[0]["mtibAddress"] == "192.168.1.100:50053"
     assert data["data"]["pagination"]["total"] == 1
 
 
@@ -208,7 +208,7 @@ def test_get_bench_no_design(authed_client, mock_db):
 _CREATE_PAYLOAD = {
     "stationId": "bench-99",
     "name": "New Bench",
-    "mtibAddress": "10.4.45.99:50053",
+    "mtibAddress": "192.168.1.99:50053",
     "dutProduct": "alpha",
     "dutRevision": "b0",
     "dutSnr": "09AB",
@@ -581,10 +581,10 @@ def test_discover_mtibs_requires_auth(client):
 def test_discover_mtibs_filters_registered(authed_client, mock_db):
     """Fixtures with registered node IPs should not appear as unregistered."""
     mock_db.fixtureslot.find_many.return_value = [
-        make_obj(node=make_obj(ipAddress="10.4.45.33")),
+        make_obj(node=make_obj(ipAddress="192.168.1.100")),
     ]
     mock_db.node.find_many.return_value = [
-        make_obj(hostname="mtib-33", ipAddress="10.4.45.33"),
+        make_obj(hostname="mtib-33", ipAddress="192.168.1.100"),
     ]
 
     response = authed_client.get("/v2/fixtures/benches/discover")

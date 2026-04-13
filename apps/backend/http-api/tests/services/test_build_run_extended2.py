@@ -149,7 +149,7 @@ class TestFindAvailableFixture:
     def test_finds_available_fixture(self):
         from src.services.build_run_service import _find_available_fixture
         db = MagicMock()
-        node = make_obj(status="ONLINE", ipAddress="10.4.45.33")
+        node = make_obj(status="ONLINE", ipAddress="192.168.1.100")
         slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
         fixture = make_obj(
             id="fix-1", name="Bench 1", status="AVAILABLE",
@@ -160,7 +160,7 @@ class TestFindAvailableFixture:
         f, s, addr, all_f = _find_available_fixture(db, "prod-1")
         assert f == fixture
         assert s == slot
-        assert addr == "10.4.45.33"
+        assert addr == "192.168.1.100"
 
     def test_skips_locked_fixtures(self):
         from src.services.build_run_service import _find_available_fixture
@@ -177,7 +177,7 @@ class TestFindAvailableFixture:
     def test_skips_offline_nodes(self):
         from src.services.build_run_service import _find_available_fixture
         db = MagicMock()
-        node = make_obj(status="OFFLINE", ipAddress="10.4.45.33")
+        node = make_obj(status="OFFLINE", ipAddress="192.168.1.100")
         slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
         fixture = make_obj(
             id="fix-1", name="Bench 1", status="AVAILABLE",
@@ -191,7 +191,7 @@ class TestFindAvailableFixture:
     def test_skips_slots_without_dut(self):
         from src.services.build_run_service import _find_available_fixture
         db = MagicMock()
-        node = make_obj(status="ONLINE", ipAddress="10.4.45.33")
+        node = make_obj(status="ONLINE", ipAddress="192.168.1.100")
         slot = make_obj(active=True, dutSnr=None, dutDeviceId=None, node=node)
         fixture = make_obj(
             id="fix-1", name="Bench 1", status="AVAILABLE",
