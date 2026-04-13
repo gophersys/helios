@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { RefreshCw } from 'lucide-svelte';
+  import { RefreshCw, Plus } from 'lucide-svelte';
+  import SessionCreateWizard from '$lib/components/manufacturing/session-create-wizard.svelte';
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
@@ -32,6 +33,8 @@
   let refreshing = $state(false);
 
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
+  let showCreateWizard = $state(false);
+  const canRun = $derived(auth.hasPermission('manufacturing:run'));
 
   const filteredSessions = $derived.by(() => {
     let result = sessions;
@@ -106,9 +109,16 @@
       title="Manufacturing Sessions"
       description="Complete history of manufacturing sessions."
     />
-    <button onclick={refresh} disabled={refreshing} class="btn btn-ghost btn-sm btn-icon" title="Refresh">
-      <RefreshCw size={16} class={refreshing ? 'animate-spin' : ''} />
-    </button>
+    <div class="flex items-center gap-2">
+      <button onclick={refresh} disabled={refreshing} class="btn btn-ghost btn-sm btn-icon" title="Refresh">
+        <RefreshCw size={16} class={refreshing ? 'animate-spin' : ''} />
+      </button>
+      {#if canRun}
+        <button onclick={() => showCreateWizard = true} class="btn btn-sm btn-primary">
+          <Plus size={16} /> New Session
+        </button>
+      {/if}
+    </div>
   </div>
 
   <ErrorAlert message={error} />
@@ -160,3 +170,12 @@
     {/if}
   {/if}
 </div>
+
+<SessionCreateWizard
+  open={showCreateWizard}
+  onClose={() => showCreateWizard = false}
+  onStarted={(id) => {
+    showCreateWizard = false;
+    goto(`/manufacturing/session/${id}`);
+  }}
+/>
