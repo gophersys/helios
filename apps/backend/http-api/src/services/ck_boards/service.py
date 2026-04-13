@@ -91,17 +91,21 @@ class CkBoardsService:
 
         self._repo_url = repo_url
 
-        # Configure SSH auth — same strategy as git-poller (proven working).
-        # Prefers SSH agent when available, falls back to key file.
+        # Configure SSH auth with -4 (force IPv4 — pods don't have IPv6 routing).
+        # K8s secret volume mounts need defaultMode: 0444 for non-root containers.
         if ssh_key_b64:
             self._setup_ssh_key(ssh_key_b64)
         else:
-            ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
-            if os.path.isfile(ssh_key_path):
+            candidates = ["/home/appuser/.ssh/id_rsa", os.path.expanduser("~/.ssh/id_rsa")]
+            ssh_key_path = next((p for p in candidates if os.path.exists(p)), None)
+            if ssh_key_path:
                 self._git_env = {
-                    "GIT_SSH_COMMAND": f"ssh -i {ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes",
+                    "GIT_SSH_COMMAND": f"ssh -4 -i {ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes",
                 }
-                logger.info("CkBoards using SSH key at %s", ssh_key_path)
+                logger.info("CkBoards using SSH key at %s (IPv4 forced)", ssh_key_path)
+            else:
+                logger.error("CkBoards: no SSH key found at %s — git clone will fail", candidates)
+                raise RuntimeError(f"SSH key not found at any of: {candidates}")
 
         # Clone or fetch
         self._init_repo()
