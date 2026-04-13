@@ -14,7 +14,7 @@
   import { subscribeCiBuild, type CiBuildLogEvent } from '$lib/services/websocket';
   import type { ProductStageConfig, Secret } from '$lib/types/stages';
   import { STAGE_NAMES, STAGE_DESCRIPTIONS } from '$lib/types/stages';
-  import type { BoardRevision } from '$lib/types/models';
+  import type { BoardRevision, StageBuildMatrixEntry } from '$lib/types/models';
   import { updateStageConfig, createStageConfig } from '$lib/services/stages';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
@@ -192,6 +192,9 @@
   let liveSecrets = $state<Secret[]>([]);
   let secretsLoading = $state(false);
 
+  // Build matrix entries (for expected asset structure on review step)
+  let matrixEntries = $state<StageBuildMatrixEntry[]>([]);
+
   const stageDesc = $derived(STAGE_DESCRIPTIONS[stage] || '');
   const signingKeys = $derived(liveSecrets.filter((s) => s.type === 'signing_key'));
   const selectedRevision = $derived(revisions.find((r) => r.id === formRevisionId));
@@ -279,6 +282,7 @@
         loadRecipe();
         loadSecrets();
         loadLastTestBuild();
+        if (config) loadMatrix();
       });
     }
     prevOpen = isOpen;
@@ -399,6 +403,17 @@
       liveSecrets = [];
     } finally {
       secretsLoading = false;
+    }
+  }
+
+  async function loadMatrix() {
+    try {
+      const res = await apiFetch<ApiResponse<StageBuildMatrixEntry[]>>(
+        `/v2/products/${productId}/stages/${stage}/build-matrix`
+      );
+      matrixEntries = Array.isArray(res.data) ? res.data : (res.data as any)?.data ?? [];
+    } catch {
+      matrixEntries = [];
     }
   }
 
@@ -1510,6 +1525,30 @@
           <!-- Build Matrix (read-only — matrix is managed by the build system) -->
           {#if config}
             <BuildMatrixView {productId} {stage} canManage={false} />
+          {/if}
+
+          <!-- Expected Asset Structure -->
+          {#if matrixEntries.filter(e => e.fwType !== 'modem').length > 0}
+            <div>
+              <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected Asset Structure</h4>
+              <div class="rounded-lg border border-border bg-surface-0 p-3 font-mono text-2xs text-text-secondary">
+                <div class="text-text-tertiary mb-1">your_upload.zip</div>
+                {#each matrixEntries.filter(e => e.fwType !== 'modem') as entry}
+                  <div class="ml-4">
+                    <span class="text-accent">{entry.label}/</span>
+                    <span class="text-text-tertiary ml-2">
+                      {#if entry.producesHex && entry.producesCfw}.hex .cfw
+                      {:else if entry.producesHex}.hex
+                      {:else if entry.producesCfw}.cfw
+                      {/if}
+                    </span>
+                  </div>
+                {/each}
+                {#if matrixEntries.some(e => e.fwType === 'modem')}
+                  <div class="ml-4 mt-1 text-text-tertiary italic">modem firmware selected separately</div>
+                {/if}
+              </div>
+            </div>
           {/if}
         </div>
       {/if}

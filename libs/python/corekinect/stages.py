@@ -12,7 +12,7 @@ To change an existing product's matrix, use the API.
     defs = get_stage_build_defs(Stage.FUOTA)
     cfw_labels = [d.label for d in defs if d.produces_cfw]
 
-The label string ("MFG_BASE", "FUT_VERBOSE_A", etc.) is the key that
+The label string ("mfg_base", "fut_verbose_a", etc.) is the key that
 connects the build system, backend API, and test framework.
 
 CRITICAL — D-Flag Constraint:
@@ -142,37 +142,37 @@ class StageBuildDef:
 
 _FUOTA_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="FUT_APP_BASE_A", fw_type="app", variant="debug", processor="nrf52840",
+        label="fut_app_base_a", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, produces_cfw=True, git_ref="pr",
         description="From version — verbose logging",
     ),
     StageBuildDef(
-        label="FUT_APP_BASE_B", fw_type="app", variant="debug", processor="nrf52840",
+        label="fut_app_base_b", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, produces_cfw=True, git_ref="pr",
         description="To version — verbose logging",
     ),
     StageBuildDef(
-        label="FUT_APP_QUIET_A", fw_type="app", variant="release", processor="nrf52840",
+        label="fut_app_quiet_a", fw_type="app", variant="release", processor="nrf52840",
         produces_hex=True, produces_cfw=True, config_log=False, git_ref="pr",
         description="From version — no logging",
     ),
     StageBuildDef(
-        label="FUT_APP_QUIET_B", fw_type="app", variant="release", processor="nrf52840",
+        label="fut_app_quiet_b", fw_type="app", variant="release", processor="nrf52840",
         produces_hex=True, produces_cfw=True, config_log=False, git_ref="pr",
         description="To version — no logging",
     ),
     StageBuildDef(
-        label="FUT_COMMS_BASE_A", fw_type="comms", variant="debug", processor="nrf9151",
+        label="fut_comms_base_a", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, produces_cfw=True, git_ref="pr",
         description="Comms from version",
     ),
     StageBuildDef(
-        label="FUT_COMMS_BASE_B", fw_type="comms", variant="debug", processor="nrf9151",
+        label="fut_comms_base_b", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, produces_cfw=True, git_ref="pr",
         description="Comms to version",
     ),
     StageBuildDef(
-        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        label="modem_fw", fw_type="modem", variant="release", processor="nrf9151",
         produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
         description="Modem firmware (selected separately)",
     ),
@@ -185,15 +185,15 @@ _FUOTA_BUILDS: List[StageBuildDef] = [
 
 _SMOKE_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="SMOKE_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        label="smoke_app_debug", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, git_ref="pr", description="App processor — debug",
     ),
     StageBuildDef(
-        label="SMOKE_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        label="smoke_comms_debug", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, git_ref="pr", description="Comms processor — debug",
     ),
     StageBuildDef(
-        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        label="modem_fw", fw_type="modem", variant="release", processor="nrf9151",
         produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
         description="Modem firmware (selected separately)",
     ),
@@ -206,23 +206,23 @@ _SMOKE_BUILDS: List[StageBuildDef] = [
 
 _DRIVER_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="DRIVER_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        label="driver_app_debug", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="DRIVER_APP_RELEASE", fw_type="app", variant="release", processor="nrf52840",
+        label="driver_app_release", fw_type="app", variant="release", processor="nrf52840",
         produces_hex=True, config_log=False, git_ref="pr",
     ),
     StageBuildDef(
-        label="DRIVER_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        label="driver_comms_debug", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="DRIVER_COMMS_RELEASE", fw_type="comms", variant="release", processor="nrf9151",
+        label="driver_comms_release", fw_type="comms", variant="release", processor="nrf9151",
         produces_hex=True, config_log=False, git_ref="pr",
     ),
     StageBuildDef(
-        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        label="modem_fw", fw_type="modem", variant="release", processor="nrf9151",
         produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
         description="Modem firmware (selected separately)",
     ),
@@ -235,23 +235,23 @@ _DRIVER_BUILDS: List[StageBuildDef] = [
 
 _INTEGRATION_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="INT_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        label="int_app_debug", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="INT_APP_RELEASE", fw_type="app", variant="release", processor="nrf52840",
+        label="int_app_release", fw_type="app", variant="release", processor="nrf52840",
         produces_hex=True, config_log=False, git_ref="pr",
     ),
     StageBuildDef(
-        label="INT_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        label="int_comms_debug", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="INT_COMMS_RELEASE", fw_type="comms", variant="release", processor="nrf9151",
+        label="int_comms_release", fw_type="comms", variant="release", processor="nrf9151",
         produces_hex=True, config_log=False, git_ref="pr",
     ),
     StageBuildDef(
-        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        label="modem_fw", fw_type="modem", variant="release", processor="nrf9151",
         produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
         description="Modem firmware (selected separately)",
     ),
@@ -264,23 +264,23 @@ _INTEGRATION_BUILDS: List[StageBuildDef] = [
 
 _REGRESSION_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="REG_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        label="reg_app_debug", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, produces_cfw=True, git_ref="main",
     ),
     StageBuildDef(
-        label="REG_APP_RELEASE", fw_type="app", variant="release", processor="nrf52840",
+        label="reg_app_release", fw_type="app", variant="release", processor="nrf52840",
         produces_hex=True, produces_cfw=True, config_log=False, git_ref="main",
     ),
     StageBuildDef(
-        label="REG_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        label="reg_comms_debug", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, produces_cfw=True, git_ref="main",
     ),
     StageBuildDef(
-        label="REG_COMMS_RELEASE", fw_type="comms", variant="release", processor="nrf9151",
+        label="reg_comms_release", fw_type="comms", variant="release", processor="nrf9151",
         produces_hex=True, produces_cfw=True, config_log=False, git_ref="main",
     ),
     StageBuildDef(
-        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        label="modem_fw", fw_type="modem", variant="release", processor="nrf9151",
         produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
         description="Modem firmware (selected separately)",
     ),
@@ -290,7 +290,7 @@ _REGRESSION_BUILDS: List[StageBuildDef] = [
 # =============================================================================
 # MANUFACTURING stage — production line test (1 build)
 #
-# Firmware flashed via J-Link during manufacturing POST. A single MFG_BASE
+# Firmware flashed via J-Link during manufacturing POST. A single mfg_base
 # build produces both app (nRF52840) and comms (nRF9151) hex targets.
 # Tests: electrical (power rail validation), fw_flash (J-Link + AP protect),
 # post (boot, chip IDs, BMS, charger, GPS, modem, personalization, IPC rekey).
@@ -298,31 +298,31 @@ _REGRESSION_BUILDS: List[StageBuildDef] = [
 
 _MANUFACTURING_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="MFG_APP_DEBUG",
+        label="mfg_app_debug",
         fw_type="app", variant="debug", processor="nrf52840", config_log=True,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Application processor firmware — debug variant (nRF52840)",
     ),
     StageBuildDef(
-        label="MFG_APP_RELEASE",
+        label="mfg_app_release",
         fw_type="app", variant="release", processor="nrf52840", config_log=False,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Application processor firmware — release variant (nRF52840)",
     ),
     StageBuildDef(
-        label="MFG_COMMS_DEBUG",
+        label="mfg_comms_debug",
         fw_type="comms", variant="debug", processor="nrf9151", config_log=True,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Communications processor firmware — debug variant (nRF9151)",
     ),
     StageBuildDef(
-        label="MFG_COMMS_RELEASE",
+        label="mfg_comms_release",
         fw_type="comms", variant="release", processor="nrf9151", config_log=False,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Communications processor firmware — release variant (nRF9151)",
     ),
     StageBuildDef(
-        label="MODEM_FW",
+        label="modem_fw",
         fw_type="modem", variant="release", processor="nrf9151", config_log=False,
         produces_hex=False, produces_cfw=False, git_ref="main",
         description="Modem firmware package (.zip) for nRF91 series",

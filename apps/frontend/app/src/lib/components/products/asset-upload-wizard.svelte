@@ -808,20 +808,26 @@
           <!-- ============ ZIP MODE ============ -->
           {:else}
 
-            <!-- Expected contents from build matrix -->
+            <!-- Expected zip structure from build matrix -->
             {#if selectedConfig?.buildMatrix?.length && !validationResult}
-              <div>
-                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
-                <div class="grid grid-cols-2 gap-1">
+              <div class="rounded-lg border border-border bg-surface-0 p-3">
+                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected zip structure</h4>
+                <div class="font-mono text-2xs text-text-secondary space-y-0.5">
                   {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
-                    <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
-                      <span class="font-mono font-medium">{entry.label}/</span>
+                    <div class="flex items-center gap-2">
+                      <span class="text-accent">{entry.label}/</span>
                       <span class="text-text-tertiary">
-                        {entry.producesHex ? '.hex' : ''}{entry.producesCfw ? ' .cfw' : ''}{!entry.producesHex && !entry.producesCfw ? 'any' : ''}
+                        {#if entry.producesHex && entry.producesCfw}.hex .cfw
+                        {:else if entry.producesHex}.hex
+                        {:else if entry.producesCfw}.cfw
+                        {/if}
                       </span>
                     </div>
                   {/each}
                 </div>
+                {#if selectedConfig.buildMatrix.some((e: any) => e.fwType === 'modem')}
+                  <p class="text-2xs text-text-tertiary mt-2 italic">Modem firmware is selected separately below.</p>
+                {/if}
               </div>
             {/if}
 
