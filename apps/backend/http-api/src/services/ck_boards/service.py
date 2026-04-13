@@ -180,10 +180,14 @@ class CkBoardsService:
         else:
             logger.info("Cloning ck_boards bare repo to %s ...", self._bare_repo)
             env = {**os.environ, **self._git_env}
-            subprocess.run(
+            logger.info("Git env: %s", {k: v[:20] + "..." if len(v) > 20 else v for k, v in self._git_env.items()})
+            result = subprocess.run(
                 ["git", "clone", "--bare", self._repo_url, self._bare_repo],
-                timeout=120, check=True, capture_output=True, env=env,
+                timeout=120, capture_output=True, text=True, env=env,
             )
+            if result.returncode != 0:
+                logger.error("git clone failed (exit %d): %s", result.returncode, result.stderr.strip())
+                raise subprocess.CalledProcessError(result.returncode, result.args)
             logger.info("ck_boards clone complete (%s)", self._bare_repo)
 
     def _start_fetch_timer(self) -> None:
