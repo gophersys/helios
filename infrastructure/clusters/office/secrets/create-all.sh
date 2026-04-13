@@ -176,6 +176,23 @@ else
 fi
 echo ""
 
+# ── Secret 6: claude-code-oauth (devops namespace only) ────────
+# Used by: AI-powered CI review stages (ai-review-completeness, etc.)
+# Contains the Claude Code OAuth credentials file (~/.claude/.credentials.json).
+log "claude-code-oauth"
+CLAUDE_CREDENTIALS_PATH="${CLAUDE_CREDENTIALS_PATH:-${HOME}/.claude/.credentials.json}"
+if [[ ! -f "${CLAUDE_CREDENTIALS_PATH}" ]]; then
+  info "  Claude credentials not found at ${CLAUDE_CREDENTIALS_PATH} — skipping (optional)"
+else
+  for ns in "${NAMESPACES[@]}"; do
+    if [[ "${ns}" == "devops" ]]; then
+      apply_secret "${ns}" generic claude-code-oauth \
+        --from-file=credentials.json="${CLAUDE_CREDENTIALS_PATH}"
+    fi
+  done
+fi
+echo ""
+
 # ── Summary ─────────────────────────────────────────────────────
 echo "=== secrets: ${PASS} applied, ${FAIL} failed ==="
 if [[ ${FAIL} -gt 0 ]]; then

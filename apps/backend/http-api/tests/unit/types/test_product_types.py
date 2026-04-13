@@ -16,7 +16,6 @@ def test_product_create_valid():
     data = {
         "name": "Sigma5 Device",
         "description": "IoT sensor",
-        "active": True,
     }
     req, err = ProductCreateRequest.from_json(data)
 
@@ -24,7 +23,6 @@ def test_product_create_valid():
     assert req is not None
     assert req.name == "Sigma5 Device"
     assert req.description == "IoT sensor"
-    assert req.active is True
 
 
 def test_product_create_missing_name():
@@ -54,29 +52,18 @@ def test_product_create_empty_body():
     assert err == "Name is required"
 
 
-def test_product_create_active_non_bool():
-    from src.api.v2.products.types import ProductCreateRequest
-
-    data = {"name": "Product", "active": "true"}
-    req, err = ProductCreateRequest.from_json(data)
-
-    assert req is None
-    assert err == "Active must be a boolean"
-
-
 def test_product_update_valid():
     from src.api.v2.products.types import ProductUpdateRequest
 
-    data = {"name": "Updated Product", "active": False}
+    data = {"name": "Updated Product"}
     req, err = ProductUpdateRequest.from_json(data)
 
     assert err is None
     assert req is not None
     assert req.name == "Updated Product"
-    assert req.active is False
 
     update_data = req.to_update_data()
-    assert update_data == {"name": "Updated Product", "active": False}
+    assert update_data == {"name": "Updated Product"}
 
 
 def test_product_update_no_fields():
@@ -105,7 +92,7 @@ def test_product_update_empty_name():
 def test_product_update_to_update_data():
     from src.api.v2.products.types import ProductUpdateRequest
 
-    data = {"description": None, "active": True}
+    data = {"description": None}
     req, err = ProductUpdateRequest.from_json(data)
 
     assert err is None
@@ -114,7 +101,6 @@ def test_product_update_to_update_data():
     update_data = req.to_update_data()
     assert "description" in update_data
     assert update_data["description"] is None
-    assert update_data["active"] is True
     assert "name" not in update_data
 
 

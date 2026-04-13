@@ -142,6 +142,12 @@ SETUP_EXIT=$?
 if [[ ${SETUP_EXIT} -eq 0 ]]; then
   STEP_SETUP=0
   log "Devcontainer setup complete"
+
+  # Install Claude Code CLI for AI review stages (if credentials are mounted)
+  if [[ -f /root/.claude/.credentials.json ]]; then
+    log "Installing Claude Code CLI for AI review stages..."
+    npm install -g @anthropic-ai/claude-code@latest 2>&1 || warn "Claude Code install failed (non-fatal)"
+  fi
 else
   STEP_SETUP=2
   err "Devcontainer setup FAILED (exit ${SETUP_EXIT})"

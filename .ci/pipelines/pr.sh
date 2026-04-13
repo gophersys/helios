@@ -47,6 +47,10 @@ run_stage "docs-build"       "$DIR/stages/docs-build.sh"
 run_stage "dep-pin"          "$DIR/stages/dep-pin.sh"
 run_stage "api-compat"       "$DIR/stages/api-compat.sh"
 run_stage "migration-safety" "$DIR/stages/migration-safety.sh"
+run_stage "ai-review-completeness" "$DIR/stages/ai-review-completeness.sh"
+run_stage "ai-review-security"     "$DIR/stages/ai-review-security.sh"
+run_stage "ai-review-blast-radius" "$DIR/stages/ai-review-blast-radius.sh"
+run_stage "ai-review-docs"         "$DIR/stages/ai-review-docs.sh"
 
 # Wait for all and collect results
 for i in "${!PIDS[@]}"; do

@@ -142,6 +142,11 @@ enum BuildRunStatus {
   CANCELLED // Build run cancelled
 }
 
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 enum Role {
   ADMIN
   MAINTAINER
@@ -194,7 +199,7 @@ model Product {
   name          String  @unique /// "Alpha B0", "Sigma5 C0"
   slug          String? @unique /// "alpha_b0", "sigma5_c0" -- URL-safe identifier
   description   String?
-  active        Boolean @default(true)
+  status        ProductStatus @default(ACTIVE)
   fwRepoSlug    String? /// Bitbucket slug for production firmware repo, e.g. "alpha_fw"
   mfgFwRepoSlug String? /// Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"
   builderImage  String? /// Docker image for builds, e.g. "registry.corekinect.com/alpha-fw-builder:latest"

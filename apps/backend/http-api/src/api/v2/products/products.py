@@ -37,7 +37,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "name": p.name,
         "slug": p.slug,
         "description": p.description,
-        "active": p.active,
+        "status": p.status,
         "fwRepoSlug": getattr(p, "fwRepoSlug", None),
         "mfgFwRepoSlug": getattr(p, "mfgFwRepoSlug", None),
         "builderImage": getattr(p, "builderImage", None),
@@ -291,7 +291,6 @@ def create_product():
     create_data = {
         "name": data.name,
         "description": data.description,
-        "active": data.active,
     }
     if data.slug is not None:
         create_data["slug"] = data.slug
@@ -433,6 +432,9 @@ def delete_product(product_id: str):
     if not existing:
         return not_found("Product not found")
 
+    if existing.status != "ARCHIVED":
+        return bad_request("Product must be archived before it can be deleted")
+
     # Check if product has build runs
     build_runs = db.buildrun.count(where={"productId": product_id})
     if build_runs > 0:
@@ -459,6 +461,93 @@ def delete_product(product_id: str):
     db.product.delete(where={"id": product_id})
     log_audit("product.delete", "Product", product_id, {"name": existing.name})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def archive_product(product_id: str):
+    """POST /v2/products/{id}/archive — Archive a product."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+    if product.status == "ARCHIVED":
+        return bad_request("Product is already archived")
+
+    # Check: all stages must be disabled
+    enabled_stages = db.productstageconfig.count(
+        where={"productId": product_id, "enabled": True}
+    )
+    if enabled_stages > 0:
+        return conflict(f"Cannot archive — {enabled_stages} stage(s) are still enabled. Disable all stages first.")
+
+    # Check: no active build runs
+    active_builds = db.buildrun.count(
+        where={"productId": product_id, "status": {"in": ["PENDING", "BUILDING", "VALIDATING"]}}
+    )
+    if active_builds > 0:
+        return conflict(f"Cannot archive — {active_builds} build run(s) are still active")
+
+    # Check: no active test runs
+    active_tests = db.testrun.count(
+        where={"productId": product_id, "status": {"in": ["PENDING", "ACTIVE"]}}
+    )
+    if active_tests > 0:
+        return conflict(f"Cannot archive — {active_tests} test run(s) are still active")
+
+    # Check: no active manufacturing sessions
+    active_sessions = db.manufacturingsession.count(
+        where={"productId": product_id, "status": "ACTIVE"}
+    )
+    if active_sessions > 0:
+        return conflict(f"Cannot archive — {active_sessions} manufacturing session(s) are still active")
+
+    updated = db.product.update(
+        where={"id": product_id},
+        data={"status": "ARCHIVED"},
+    )
+    log_audit("product.archive", "Product", product_id, {"name": product.name})
+    return jsonify(ApiResponse.ok(_serialize_product(updated)).to_dict()), 200
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def unarchive_product(product_id: str):
+    """POST /v2/products/{id}/unarchive — Restore an archived product."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+    if product.status != "ARCHIVED":
+        return bad_request("Product is not archived")
+
+    updated = db.product.update(
+        where={"id": product_id},
+        data={"status": "ACTIVE"},
+    )
+    log_audit("product.unarchive", "Product", product_id, {"name": product.name})
+    return jsonify(ApiResponse.ok(_serialize_product(updated)).to_dict()), 200
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def export_product(product_id: str):
+    """POST /v2/products/{id}/export — Generate downloadable archive.
+
+    TODO: Implement async ZIP generation:
+    - Collect all AssetSets + Assets (firmware files from MinIO)
+    - Collect all BuildArtifacts (build outputs)
+    - Collect all TestPackages
+    - Generate product metadata manifest (JSON)
+    - Stream into ZIP, store in MinIO at products/{slug}/exports/{timestamp}.zip
+    - Return presigned download URL
+    """
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    return jsonify(ApiResponse.ok({
+        "message": "Product export is not yet implemented",
+        "productId": product_id,
+    }).to_dict()), 501
 
 
 @require_permissions(Permissions.PRODUCTS_VIEW)

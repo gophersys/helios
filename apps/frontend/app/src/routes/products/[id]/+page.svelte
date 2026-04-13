@@ -66,7 +66,7 @@
 {:else if product}
   <ProductDetail
     {product}
-    {canManage}
+    canManage={canManage && product.status !== 'ARCHIVED'}
     onBack={() => goto('/products')}
     onRefresh={fetchProduct}
   />

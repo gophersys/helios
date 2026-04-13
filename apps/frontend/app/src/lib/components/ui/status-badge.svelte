@@ -55,6 +55,9 @@
     BUILD_SERVICE: 'bg-accent-muted text-accent',
     MANUAL_UPLOAD: 'bg-warning-muted text-warning',
     EXTERNAL_CI: 'bg-surface-2 text-text-secondary',
+    // Product lifecycle
+    ARCHIVED: 'bg-surface-2 text-text-tertiary',
+    INACTIVE: 'bg-surface-2 text-text-tertiary',
   };
 
   // Human-readable labels for ugly enum values

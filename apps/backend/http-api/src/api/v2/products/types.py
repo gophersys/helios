@@ -136,7 +136,6 @@ class ProductCreateRequest:
 
     name: str
     description: Optional[str] = None
-    active: bool = True
     slug: Optional[str] = None
     fwRepoSlug: Optional[str] = None
     mfgFwRepoSlug: Optional[str] = None
@@ -158,12 +157,9 @@ class ProductCreateRequest:
             return None, "Request body must contain JSON data"
         name = (data.get("name") or "").strip()
         description = data.get("description")
-        active = data.get("active", True)
 
         if not name:
             return None, "Name is required"
-        if not isinstance(active, bool):
-            return None, "Active must be a boolean"
 
         slug = data.get("slug")
         if slug is not None:
@@ -197,7 +193,6 @@ class ProductCreateRequest:
         return cls(
             name=name,
             description=description.strip() if description else None,
-            active=active,
             slug=slug,
             fwRepoSlug=fw_repo_slug,
             mfgFwRepoSlug=mfg_fw_repo_slug,
@@ -217,7 +212,6 @@ class ProductUpdateRequest:
 
     name: Optional[str] = None
     description: Optional[str] = None
-    active: Optional[bool] = None
     slug: Optional[str] = None
     fwRepoSlug: Optional[str] = None
     mfgFwRepoSlug: Optional[str] = None
@@ -250,9 +244,6 @@ class ProductUpdateRequest:
                 return None, "Name cannot be empty"
         description = data.get("description")
         has_description = "description" in data
-        active = data.get("active")
-        if active is not None and not isinstance(active, bool):
-            return None, "Active must be a boolean"
 
         slug = data.get("slug")
         has_slug = "slug" in data
@@ -280,7 +271,7 @@ class ProductUpdateRequest:
             return None, "Metadata must be a JSON object"
 
         has_any_field = (
-            name is not None or has_description or active is not None or
+            name is not None or has_description or
             has_slug or has_fw_repo_slug or has_mfg_fw_repo_slug or
             has_build_config or has_metadata
         )
@@ -290,7 +281,6 @@ class ProductUpdateRequest:
         return cls(
             name=name,
             description=description.strip() if description else description,
-            active=active,
             slug=slug,
             fwRepoSlug=fw_repo_slug,
             mfgFwRepoSlug=mfg_fw_repo_slug,
@@ -315,8 +305,6 @@ class ProductUpdateRequest:
             update_data["name"] = self.name
         if self._has_description:
             update_data["description"] = self.description
-        if self.active is not None:
-            update_data["active"] = self.active
         if self._has_slug:
             update_data["slug"] = self.slug
         if self._has_fw_repo_slug:

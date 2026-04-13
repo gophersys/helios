@@ -7,3 +7,13 @@ export async function fetchProducts(): Promise<Product[]> {
   const payload = res.data;
   return Array.isArray(payload) ? payload : (payload as { data: Product[] }).data || [];
 }
+
+export async function archiveProduct(id: string): Promise<Product> {
+  const res = await apiFetch<ApiResponse<Product>>(`/v2/products/${id}/archive`, { method: 'POST' });
+  return res.data;
+}
+
+export async function unarchiveProduct(id: string): Promise<Product> {
+  const res = await apiFetch<ApiResponse<Product>>(`/v2/products/${id}/unarchive`, { method: 'POST' });
+  return res.data;
+}

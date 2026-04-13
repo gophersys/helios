@@ -177,7 +177,7 @@ export interface Product {
   name: string;
   slug: string | null;
   description: string | null;
-  active: boolean;
+  status: 'ACTIVE' | 'ARCHIVED';
   fwRepoSlug: string | null;
   mfgFwRepoSlug: string | null;
   builderImage: string | null;

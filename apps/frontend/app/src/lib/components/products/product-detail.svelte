@@ -153,12 +153,17 @@
         </div>
       </div>
     {:else}
+      {#if product.status === 'ARCHIVED'}
+        <div class="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          This product is archived. Unarchive to make changes.
+        </div>
+      {/if}
       <div class="flex items-start gap-4">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-3">
             <h2 class="text-xl font-semibold text-text-primary">{product.name}</h2>
-            <StatusBadge status={product.active ? 'ACTIVE' : 'INACTIVE'} />
-            {#if canManage}
+            <StatusBadge status={product.status} />
+            {#if canManage && product.status !== 'ARCHIVED'}
               <button onclick={startEditProduct} title="Edit product" aria-label="Edit product" class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary">
                 <Pencil size={14} />
               </button>

@@ -27,7 +27,7 @@ shift || true
 case "$ACTION" in
 
   # ── Run a pipeline ───────────────────────────────────────────────────────
-  pr|main|release|nightly)
+  pr|main|release|nightly|weekly)
     log_stage "pipeline: $ACTION"
     ci_summary
     bash "$CI_DIR/pipelines/${ACTION}.sh" "$@"
@@ -106,6 +106,7 @@ case "$ACTION" in
     echo "  main           Run main-branch pipeline (PR + push + deploy staging)"
     echo "  release        Run release pipeline (promote staging → production)"
     echo "  nightly        Run full nightly sweep"
+    echo "  weekly         Run deep AI-powered weekly analysis"
     echo "  stage <name>   Run a single stage"
     echo "  list           Show all pipelines and stages"
     echo "  dry-run <p>    Show what a pipeline would do"

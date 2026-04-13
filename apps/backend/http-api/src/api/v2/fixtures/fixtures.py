@@ -60,7 +60,7 @@ def dashboard_overview():
         products = db.product.find_many(where=product_where)
         stats["products"] = {
             "total": len(products),
-            "active": sum(1 for p in products if p.active),
+            "active": sum(1 for p in products if p.status == "ACTIVE"),
         }
 
     if "builds:view" in perms:

@@ -63,3 +63,19 @@ log_stage_end
 log_stage "nightly — devcontainer rebuild"
 npx nx run devcontainer:build-all 2>&1 || true
 log_stage_end
+
+log_stage "nightly — AI completeness review"
+bash "$DIR/stages/ai-review-completeness.sh" 2>&1 || true
+log_stage_end
+
+log_stage "nightly — AI security review"
+bash "$DIR/stages/ai-review-security.sh" 2>&1 || true
+log_stage_end
+
+log_stage "nightly — AI blast radius"
+bash "$DIR/stages/ai-review-blast-radius.sh" 2>&1 || true
+log_stage_end
+
+log_stage "nightly — AI docs review"
+bash "$DIR/stages/ai-review-docs.sh" 2>&1 || true
+log_stage_end

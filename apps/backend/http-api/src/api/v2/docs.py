@@ -126,7 +126,7 @@ def _build_spec() -> APISpec:
             "id": {"type": "string"},
             "name": {"type": "string"},
             "description": {"type": "string", "nullable": True},
-            "active": {"type": "boolean"},
+            "status": {"type": "string", "enum": ["ACTIVE", "ARCHIVED"]},
             "metadata": {"type": "object", "nullable": True},
             "boardCount": {"type": "integer"},
             "firmwareBuildCount": {"type": "integer"},
@@ -581,7 +581,6 @@ def _build_spec() -> APISpec:
                 "type": "object", "required": ["name"],
                 "properties": {
                     "name": {"type": "string"}, "description": {"type": "string"},
-                    "active": {"type": "boolean", "default": True},
                 },
             }}}},
             "responses": {"201": _ok("Product"), "400": _400, "409": _409},
@@ -604,14 +603,34 @@ def _build_spec() -> APISpec:
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
                     "name": {"type": "string"}, "description": {"type": "string"},
-                    "active": {"type": "boolean"},
                 },
             }}}},
             "responses": {"200": _ok("Product"), "400": _400, "404": _404, "409": _409},
         },
         delete={
-            "tags": ["Products"], "summary": "Delete a product", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+            "tags": ["Products"], "summary": "Delete a product (must be archived first)", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/products/{product_id}/archive",
+        parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Products"], "summary": "Archive a product", "security": _auth_security,
+            "responses": {"200": _ok("Product"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/products/{product_id}/unarchive",
+        parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Products"], "summary": "Unarchive a product", "security": _auth_security,
+            "responses": {"200": _ok("Product"), "400": _400, "404": _404},
+        },
+    )
+    path("/products/{product_id}/export",
+        parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Products"], "summary": "Export product data (not yet implemented)", "security": _auth_security,
+            "responses": {"501": {"description": "Not implemented"}, "404": _404},
         },
     )
 

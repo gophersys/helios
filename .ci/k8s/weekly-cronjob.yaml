@@ -1,0 +1,134 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: concord-ci-weekly
+  namespace: devops
+  labels:
+    app.kubernetes.io/part-of: concord
+    app.kubernetes.io/component: ci
+    app.kubernetes.io/name: ci-weekly
+spec:
+  schedule: "0 3 * * 6"
+  timeZone: "America/Chicago"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: concord
+        app.kubernetes.io/component: ci
+        app.kubernetes.io/name: ci-weekly
+    spec:
+      activeDeadlineSeconds: 7200
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/part-of: concord
+            app.kubernetes.io/component: ci
+            app.kubernetes.io/name: ci-weekly
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            concord.corekinect.com/workload: devops
+          terminationGracePeriodSeconds: 30
+
+          volumes:
+            - name: workspace
+              emptyDir: {}
+            - name: ssh-key
+              secret:
+                secretName: bitbucket-ssh-key
+                defaultMode: 0400
+                items:
+                  - key: ssh-private-key
+                    path: id_rsa
+            - name: ca-certs
+              secret:
+                secretName: corekinect-ca-certs
+            - name: claude-credentials
+              secret:
+                secretName: claude-code-oauth
+                optional: true
+                defaultMode: 0600
+                items:
+                  - key: credentials.json
+                    path: .credentials.json
+
+          containers:
+            # ── Weekly AI Review Runner ───────────────────────
+            - name: ci-runner
+              image: containers.ad.corekinect.com/concord-devcontainer-base:latest
+              imagePullPolicy: Always
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+
+                  # Install CoreKinect CA certs into system trust store
+                  echo "[ci-weekly] Installing CA certificates..."
+                  cp /opt/ca-certs/*.crt /usr/local/share/ca-certificates/ 2>/dev/null || true
+                  update-ca-certificates >/dev/null 2>&1
+
+                  # Clone repo (depth 50 for git diff history)
+                  echo "[ci-weekly] Cloning ${BRANCH:-main}..."
+                  export GIT_SSH_COMMAND="ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no"
+                  git clone --depth 50 --branch "${BRANCH:-main}" "${REPO_URL}" /workspace/concord
+                  cd /workspace/concord
+
+                  # Install Claude Code CLI
+                  if [[ -f /root/.claude/.credentials.json ]]; then
+                    echo "[ci-weekly] Installing Claude Code CLI..."
+                    npm install -g @anthropic-ai/claude-code@latest 2>&1
+                  else
+                    echo "[ci-weekly] Claude credentials not mounted — AI stages will skip"
+                  fi
+
+                  # Run weekly pipeline
+                  echo "[ci-weekly] Running weekly pipeline..."
+                  .ci/run weekly
+              envFrom:
+                - configMapRef:
+                    name: ci-config
+                - secretRef:
+                    name: ci-minio-upload
+                    optional: true
+              env:
+                - name: CI
+                  value: "true"
+                - name: CI_PROVIDER
+                  value: "kubernetes"
+                - name: HOME
+                  value: "/root"
+                - name: DOCKERHUB_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: dockerhub-credentials
+                      key: username
+                      optional: true
+                - name: DOCKERHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dockerhub-credentials
+                      key: token
+                      optional: true
+              volumeMounts:
+                - name: workspace
+                  mountPath: /workspace
+                - name: ssh-key
+                  mountPath: /root/.ssh
+                  readOnly: true
+                - name: ca-certs
+                  mountPath: /opt/ca-certs
+                  readOnly: true
+                - name: claude-credentials
+                  mountPath: /root/.claude
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: 4Gi
+                limits:
+                  cpu: "4"
+                  memory: 8Gi

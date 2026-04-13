@@ -101,7 +101,7 @@
       </div>
     {:else}
       <dl class="space-y-2 text-sm">
-        {#each [['Name', product.name], ['Description', product.description || 'No description'], ['Status', product.active ? 'Active' : 'Inactive']] as [label, value]}
+        {#each [['Name', product.name], ['Description', product.description || 'No description'], ['Status', product.status === 'ACTIVE' ? 'Active' : 'Archived']] as [label, value]}
           <div class="flex items-baseline justify-between py-1 border-b border-border last:border-0">
             <dt class="text-xs text-(--color-text-tertiary)">{label}</dt>
             <dd class="text-(--color-text-primary)">{value}</dd>

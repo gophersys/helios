@@ -96,7 +96,7 @@ export function createMockProduct(overrides: Partial<MockProduct> = {}): MockPro
     id: 'prod-123',
     name: 'Test Product',
     description: 'A test product',
-    active: true,
+    status: 'ACTIVE',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides
@@ -107,7 +107,7 @@ export interface MockProduct {
   id: string;
   name: string;
   description: string;
-  active: boolean;
+  status: 'ACTIVE' | 'ARCHIVED';
   createdAt: string;
   updatedAt: string;
 }

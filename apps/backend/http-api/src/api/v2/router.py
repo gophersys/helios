@@ -39,11 +39,14 @@ from .products.board_discovery import (
     list_repo_branches,
 )
 from .products.products import (
+    archive_product,
     create_product,
     delete_product,
+    export_product,
     get_product,
     get_product_by_slug,
     list_products,
+    unarchive_product,
     update_product,
     sync_product_revisions,
 )
@@ -372,6 +375,9 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
     v2.add_url_rule("/products/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
     v2.add_url_rule("/products/<product_id>/sync-revisions",                                       view_func=sync_product_revisions, methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/archive",          endpoint="archive_product",       view_func=archive_product,        methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/unarchive",        endpoint="unarchive_product",     view_func=unarchive_product,      methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/export",           endpoint="export_product",        view_func=export_product,         methods=["POST"])
 
     # Products - Boards
     v2.add_url_rule("/products/<product_id>/boards",                                               view_func=list_boards,            methods=["GET"])

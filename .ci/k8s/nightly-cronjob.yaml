@@ -57,6 +57,14 @@ spec:
             - name: ca-certs
               secret:
                 secretName: corekinect-ca-certs
+            - name: claude-credentials
+              secret:
+                secretName: claude-code-oauth
+                optional: true
+                defaultMode: 0600
+                items:
+                  - key: credentials.json
+                    path: .credentials.json
 
           containers:
             # ── CI Runner ──────────────────────────────────────────
@@ -136,6 +144,9 @@ spec:
                   readOnly: true
                 - name: ca-certs
                   mountPath: /opt/ca-certs
+                  readOnly: true
+                - name: claude-credentials
+                  mountPath: /root/.claude
                   readOnly: true
               resources:
                 requests:

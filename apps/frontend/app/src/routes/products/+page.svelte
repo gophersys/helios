@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Plus, Trash2, GitBranch, ExternalLink } from 'lucide-svelte';
+  import { Plus, Trash2, GitBranch, ExternalLink, Archive, ArchiveRestore } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog } from '$lib/components/ui';
@@ -11,6 +11,7 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Pagination from '$lib/components/ui/pagination.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
+  import { archiveProduct, unarchiveProduct } from '$lib/services/products';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
@@ -24,7 +25,7 @@
 
   // Filters
   let searchQuery = $state('');
-  let statusFilter = $state<'all' | 'active' | 'inactive'>('all');
+  let statusFilter = $state<'all' | 'ACTIVE' | 'ARCHIVED'>('all');
 
   // Pagination
   let currentPage = $state(1);
@@ -43,10 +44,8 @@
       const q = searchQuery.toLowerCase();
       result = result.filter((p) => p.name.toLowerCase().includes(q));
     }
-    if (statusFilter === 'active') {
-      result = result.filter((p) => p.active);
-    } else if (statusFilter === 'inactive') {
-      result = result.filter((p) => !p.active);
+    if (statusFilter !== 'all') {
+      result = result.filter((p) => p.status === statusFilter);
     }
     return result;
   });
@@ -95,6 +94,26 @@
       fetchProducts();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete';
+    }
+  }
+
+  async function handleArchive(id: string) {
+    error = null;
+    try {
+      await archiveProduct(id);
+      fetchProducts();
+    } catch (err: any) {
+      error = err?.data?.errors?.[0]?.message || err?.message || 'Failed to archive';
+    }
+  }
+
+  async function handleUnarchive(id: string) {
+    error = null;
+    try {
+      await unarchiveProduct(id);
+      fetchProducts();
+    } catch (err: any) {
+      error = err?.data?.errors?.[0]?.message || err?.message || 'Failed to unarchive';
     }
   }
 
@@ -149,11 +168,11 @@
         <FilterSelect
           label="Status"
           value={statusFilter}
-          onchange={(v) => { statusFilter = v as 'all' | 'active' | 'inactive'; }}
+          onchange={(v) => { statusFilter = v as 'all' | 'ACTIVE' | 'ARCHIVED'; }}
           options={[
             { value: 'all', label: 'All Status' },
-            { value: 'active', label: 'Active' },
-            { value: 'inactive', label: 'Inactive' },
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'ARCHIVED', label: 'Archived' },
           ]}
         />
       {/snippet}
@@ -176,28 +195,47 @@
             onclick={() => goto(`/products/${p.id}`)}
             onkeydown={(e) => e.key === 'Enter' && goto(`/products/${p.id}`)}
             class="group card card-interactive card-md"
+            class:opacity-60={p.status === 'ARCHIVED'}
           >
             <!-- Row 1: Name + Status -->
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-3">
                   <h3 class="text-sm font-semibold text-text-primary">{p.name}</h3>
-                  <StatusBadge status={p.active ? 'ACTIVE' : 'INACTIVE'} />
+                  <StatusBadge status={p.status} />
                 </div>
                 {#if p.description}
                   <p class="text-xs text-text-secondary mt-0.5">{p.description}</p>
                 {/if}
               </div>
 
-              {#if canManage}
-                <button
-                  onclick={(e) => { e.stopPropagation(); promptDelete(p.id); }}
-                  class="btn btn-sm btn-icon btn-ghost shrink-0 text-text-tertiary opacity-0 group-hover:opacity-100 hover:text-error hover:bg-error-muted"
-                  title="Delete" aria-label="Delete {p.name}"
-                >
-                  <Trash2 size={14} />
-                </button>
-              {/if}
+              <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100">
+                {#if canManage && p.status === 'ACTIVE'}
+                  <button
+                    onclick={(e) => { e.stopPropagation(); handleArchive(p.id); }}
+                    class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-warning hover:bg-warning-muted"
+                    title="Archive product" aria-label="Archive {p.name}"
+                  >
+                    <Archive size={14} />
+                  </button>
+                {/if}
+                {#if canManage && p.status === 'ARCHIVED'}
+                  <button
+                    onclick={(e) => { e.stopPropagation(); handleUnarchive(p.id); }}
+                    class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-success hover:bg-success-muted"
+                    title="Unarchive product" aria-label="Unarchive {p.name}"
+                  >
+                    <ArchiveRestore size={14} />
+                  </button>
+                  <button
+                    onclick={(e) => { e.stopPropagation(); promptDelete(p.id); }}
+                    class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-error hover:bg-error-muted"
+                    title="Delete" aria-label="Delete {p.name}"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                {/if}
+              </div>
             </div>
 
             <!-- Row 2: Metadata -->

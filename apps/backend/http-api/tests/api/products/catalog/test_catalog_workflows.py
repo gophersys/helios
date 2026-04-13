@@ -45,12 +45,12 @@ def test_board_with_revisions_blocks_delete(authed_client, mock_db):
 
 
 def test_product_with_runs_blocks_delete(authed_client, mock_db):
-    """Deleting a product that has test runs should return 409."""
+    """Deleting an archived product that has test runs should return 409."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-1",
         name="Product Alpha",
         description="",
-        active=True,
+        status="ARCHIVED",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),

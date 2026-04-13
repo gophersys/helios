@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Package, Trash2, ExternalLink, GitBranch } from 'lucide-svelte';
+  import { Package, Trash2, ExternalLink, GitBranch, Archive, ArchiveRestore } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { Product } from '$lib/types/models';
 
@@ -7,10 +7,12 @@
     product: Product;
     canManage: boolean;
     onDelete: (id: string) => void;
+    onArchive: (id: string) => void;
+    onUnarchive: (id: string) => void;
     onSelect: (p: Product) => void;
   }
 
-  let { product, canManage, onDelete, onSelect }: Props = $props();
+  let { product, canManage, onDelete, onArchive, onUnarchive, onSelect }: Props = $props();
 
   const revisions = $derived((product as any).revisions || []);
 </script>
@@ -21,6 +23,7 @@
   onclick={() => onSelect(product)}
   onkeydown={(e) => e.key === 'Enter' && onSelect(product)}
   class="card card-interactive group relative flex flex-col overflow-hidden"
+  class:opacity-60={product.status === 'ARCHIVED'}
 >
   <div class="p-4 space-y-3">
     <!-- Header: name + status -->
@@ -36,7 +39,7 @@
           {/if}
         </div>
       </div>
-      <StatusBadge status={product.active ? 'ACTIVE' : 'INACTIVE'} />
+      <StatusBadge status={product.status} />
     </div>
 
     <!-- Revisions -->
@@ -92,7 +95,7 @@
     </div>
   </div>
 
-  <!-- Delete -->
+  <!-- Actions -->
   {#if canManage}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
@@ -101,13 +104,31 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
-      <button
-        onclick={() => onDelete(product.id)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-error"
-        title="Delete" aria-label="Delete"
-      >
-        <Trash2 size={14} />
-      </button>
+      {#if product.status === 'ACTIVE'}
+        <button
+          onclick={() => onArchive(product.id)}
+          class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-warning"
+          title="Archive" aria-label="Archive"
+        >
+          <Archive size={14} />
+        </button>
+      {/if}
+      {#if product.status === 'ARCHIVED'}
+        <button
+          onclick={() => onUnarchive(product.id)}
+          class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-success"
+          title="Unarchive" aria-label="Unarchive"
+        >
+          <ArchiveRestore size={14} />
+        </button>
+        <button
+          onclick={() => onDelete(product.id)}
+          class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-error"
+          title="Delete" aria-label="Delete"
+        >
+          <Trash2 size={14} />
+        </button>
+      {/if}
     </div>
   {/if}
 </div>

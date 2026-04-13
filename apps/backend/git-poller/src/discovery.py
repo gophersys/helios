@@ -34,7 +34,7 @@ def _parse_watch_targets(products: list[dict]) -> list[WatchTarget]:
     targets: list[WatchTarget] = []
 
     for product in products:
-        if not product.get("active", True):
+        if product.get("status") != "ACTIVE":
             continue
 
         product_id = product.get("id", "")

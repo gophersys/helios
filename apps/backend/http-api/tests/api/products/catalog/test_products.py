@@ -24,7 +24,7 @@ def test_list_products(authed_client, mock_db):
             id="prod-1",
             name="Product Alpha",
             description="First product",
-            active=True,
+            status="ACTIVE",
             metadata={},
             createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -36,7 +36,7 @@ def test_list_products(authed_client, mock_db):
             id="prod-2",
             name="Product Beta",
             description="Second product",
-            active=False,
+            status="ARCHIVED",
             metadata={"key": "value"},
             createdAt=datetime(2025, 1, 2, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 2, tzinfo=timezone.utc),
@@ -76,7 +76,7 @@ def test_create_product(authed_client, mock_db):
         id="prod-new",
         name="New Product",
         description="A new product",
-        active=True,
+        status="ACTIVE",
         metadata={},
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
@@ -91,7 +91,6 @@ def test_create_product(authed_client, mock_db):
             data=json.dumps({
                 "name": "New Product",
                 "description": "A new product",
-                "active": True,
             }),
         )
 
@@ -107,7 +106,7 @@ def test_create_product_duplicate_name(authed_client, mock_db):
         id="existing-prod",
         name="Existing Product",
         description="",
-        active=True,
+        status="ACTIVE",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -144,7 +143,7 @@ def test_get_product(authed_client, mock_db):
         id="prod-123",
         name="Test Product",
         description="A test product",
-        active=True,
+        status="ACTIVE",
         metadata={"foo": "bar"},
         createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 11, tzinfo=timezone.utc),
@@ -202,7 +201,7 @@ def test_update_product(authed_client, mock_db):
         id="prod-update",
         name="Old Name",
         description="Old description",
-        active=True,
+        status="ACTIVE",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -214,7 +213,7 @@ def test_update_product(authed_client, mock_db):
         id="prod-update",
         name="Old Name",
         description="New description",
-        active=False,
+        status="ACTIVE",
         metadata={"updated": True},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
@@ -228,14 +227,13 @@ def test_update_product(authed_client, mock_db):
             "/v2/products/prod-update",
             data=json.dumps({
                 "description": "New description",
-                "active": False,
             }),
         )
 
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data["data"]["description"] == "New description"
-    assert data["data"]["active"] is False
+    assert data["data"]["status"] == "ACTIVE"
 
 
 def test_update_product_not_found(authed_client, mock_db):
@@ -251,12 +249,12 @@ def test_update_product_not_found(authed_client, mock_db):
 
 
 def test_delete_product(authed_client, mock_db):
-    """Test deleting a product with no test runs."""
+    """Test deleting an archived product with no test runs."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-delete",
         name="Product to Delete",
         description="",
-        active=True,
+        status="ARCHIVED",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -275,12 +273,12 @@ def test_delete_product(authed_client, mock_db):
 
 
 def test_delete_product_with_runs(authed_client, mock_db):
-    """Test deleting a product with test runs returns 409."""
+    """Test deleting an archived product with test runs returns 409."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-has-runs",
         name="Product with Runs",
         description="",
-        active=True,
+        status="ARCHIVED",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -305,7 +303,7 @@ def test_update_product_duplicate_name(authed_client, mock_db):
         id="prod-update",
         name="Old Name",
         description="",
-        active=True,
+        status="ACTIVE",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -329,12 +327,12 @@ def test_update_product_duplicate_name(authed_client, mock_db):
 
 
 def test_delete_product_no_runs_succeeds(authed_client, mock_db):
-    """Test deleting a product with no test runs succeeds."""
+    """Test deleting an archived product with no test runs succeeds."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-no-runs",
         name="Product No Runs",
         description="",
-        active=True,
+        status="ARCHIVED",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -362,7 +360,7 @@ def test_create_product_no_targets_in_product_create(authed_client, mock_db):
         id="prod-t1",
         name="Alpha",
         description="",
-        active=True,
+        status="ACTIVE",
         metadata={},
         slug=None,
         buildConfig=None,
@@ -391,7 +389,7 @@ def test_get_product_includes_targets_in_response(authed_client, mock_db):
         id="prod-with-targets",
         name="Alpha",
         description="",
-        active=True,
+        status="ACTIVE",
         metadata={},
         slug=None,
         buildConfig=None,
@@ -443,7 +441,7 @@ def test_get_product_empty_targets_returns_empty_list(authed_client, mock_db):
         id="prod-no-targets",
         name="Alpha",
         description="",
-        active=True,
+        status="ACTIVE",
         metadata={},
         slug=None,
         buildConfig=None,
@@ -466,7 +464,7 @@ def test_delete_product_with_board_targets_succeeds(authed_client, mock_db):
         id="prod-cascade",
         name="Alpha",
         description="",
-        active=True,
+        status="ARCHIVED",
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
