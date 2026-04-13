@@ -515,14 +515,16 @@ def _upload_test_package_impl(product_id: str):
                 "status": status,
                 "sizeBytes": size_bytes,
             })
-            # Extract fixture designs and test count from the package
-            design_id = _extract_fixture_designs(file_data, product.id, package_type)
+            # Extract test count (always) and fixture designs (RELEASED only)
             extracted_count = _extract_test_count(file_data)
             post_update: dict = {}
             if extracted_count and extracted_count != tp.testCount:
                 post_update["testCount"] = extracted_count
-            if design_id:
-                post_update["fixtureDesignId"] = design_id
+            # Fixture design extraction only on release — dev uploads don't touch designs
+            if status == "RELEASED":
+                design_id = _extract_fixture_designs(file_data, product.id, package_type)
+                if design_id:
+                    post_update["fixtureDesignId"] = design_id
             if post_update:
                 tp = db.testpackage.update(
                     where={"id": tp.id},
@@ -570,14 +572,16 @@ def _upload_test_package_impl(product_id: str):
         "status": status,
         "sizeBytes": size_bytes,
     })
-    # Extract fixture designs and test count from the package
-    design_id = _extract_fixture_designs(file_data, product.id, package_type)
+    # Extract test count (always) and fixture designs (RELEASED only)
     extracted_count = _extract_test_count(file_data)
     post_update: dict = {}
     if extracted_count:
         post_update["testCount"] = extracted_count
-    if design_id:
-        post_update["fixtureDesignId"] = design_id
+    # Fixture design extraction only on release — dev uploads don't touch designs
+    if status == "RELEASED":
+        design_id = _extract_fixture_designs(file_data, product.id, package_type)
+        if design_id:
+            post_update["fixtureDesignId"] = design_id
     if post_update:
         db.testpackage.update(where={"id": tp.id}, data=post_update)
     # Extract v2 metadata if schema version is 2.0+
@@ -869,13 +873,35 @@ def release_test_package(product_id: str, package_id: str):
     tp = db.testpackage.update(
         where={"id": tp.id},
         data=update_data,
-        include={"packageStages": True},
+        include={"packageStages": True, "fixtureDesign": True},
     )
+
+    # Extract and publish fixture design from the stored archive
+    if tp.storageKey:
+        try:
+            storage = get_storage_client()
+            bucket = get_bucket_name()
+            response = storage.get_object(bucket, tp.storageKey)
+            file_data = response.read()
+            response.close()
+            response.release_conn()
+
+            design_id = _extract_fixture_designs(file_data, product.id, tp.type)
+            if design_id:
+                tp = db.testpackage.update(
+                    where={"id": tp.id},
+                    data={"fixtureDesignId": design_id},
+                    include={"packageStages": True, "fixtureDesign": True},
+                )
+                logger.info("Fixture design %s published from release of %s", design_id[:8], tp.id[:8])
+        except Exception as e:
+            logger.warning("Failed to extract fixture design on release: %s", e)
 
     log_audit("testPackage.release", "TestPackage", tp.id, {
         "productId": product.id,
         "type": tp.type,
         "releasedVersion": released_version,
+        "fixtureDesignId": getattr(tp, "fixtureDesignId", None),
         "previousStatus": "DEVELOPMENT",
     })
 
