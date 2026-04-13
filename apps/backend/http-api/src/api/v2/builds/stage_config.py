@@ -325,6 +325,19 @@ def update_stage_config(product_id: str, stage: str):
     if rev_err:
         return bad_request(rev_err)
 
+    # Guard: cannot disable a stage with active builds or runs
+    if update_data.get("enabled") is False and config.enabled:
+        active_builds = db.buildrun.count(
+            where={"stageConfigId": config.id, "status": {"in": ["PENDING", "BUILDING", "VALIDATING"]}}
+        )
+        if active_builds > 0:
+            return conflict(f"Cannot disable — {active_builds} build run(s) still active for this stage")
+        active_runs = db.testrun.count(
+            where={"productId": product_id, "status": {"in": ["PENDING", "ACTIVE"]}}
+        )
+        if active_runs > 0:
+            return conflict(f"Cannot disable — {active_runs} test run(s) still active")
+
     updated = db.productstageconfig.update(where={"id": config.id}, data=update_data, include=_INCLUDE)
 
     # Auto-populate build matrix if empty (catches stages created before auto-populate was universal)

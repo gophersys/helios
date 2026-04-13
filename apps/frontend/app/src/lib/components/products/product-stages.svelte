@@ -8,6 +8,7 @@
   import type { ApiResponse } from '$lib/types';
   import StageConfigWizard from './stage-config-wizard.svelte';
   import StageTriggerDialog from './stage-trigger-dialog.svelte';
+  import Modal from '$lib/components/ui/modal.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import {
     Loader2, Settings, GitBranch, Zap, Clock, Hand,
@@ -105,14 +106,34 @@
     triggerDialogOpen = true;
   }
 
-  async function handleDisable(cfg: ProductStageConfig) {
-    error = null;
+  let disableTarget = $state<ProductStageConfig | null>(null);
+  let disableConfirmOpen = $state(false);
+  let disabling = $state(false);
+  let disableError = $state<string | null>(null);
+
+  function confirmDisable(cfg: ProductStageConfig) {
+    disableTarget = cfg;
+    disableError = null;
+    disableConfirmOpen = true;
+  }
+
+  async function handleDisable() {
+    if (!disableTarget) return;
+    disabling = true;
+    disableError = null;
     try {
-      await updateStageConfig(productId, cfg.stage, { enabled: false });
+      await updateStageConfig(productId, disableTarget.stage, { enabled: false });
+      disableConfirmOpen = false;
+      disableTarget = null;
       await loadConfigs();
       onRefresh?.();
     } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to disable stage';
+      // Show the backend conflict message (active runs, etc.)
+      const msg = (e as any)?.data?.errors?.[0]?.message
+        || (e instanceof Error ? e.message : 'Failed to disable stage');
+      disableError = msg;
+    } finally {
+      disabling = false;
     }
   }
 
@@ -171,7 +192,7 @@
               <Settings size={12} /> Edit
             </button>
             {#if canManage}
-              <button onclick={() => handleDisable(cfg)} class="btn btn-sm btn-ghost text-warning hover:bg-warning-muted">
+              <button onclick={() => confirmDisable(cfg)} class="btn btn-sm btn-ghost text-warning hover:bg-warning-muted">
                 Disable
               </button>
             {/if}
@@ -243,3 +264,33 @@
   onClose={() => (triggerDialogOpen = false)}
   onTriggered={() => { loadConfigs(); onRefresh?.(); }}
 />
+
+<Modal open={disableConfirmOpen} title="Disable Stage" size="sm" onclose={() => (disableConfirmOpen = false)}>
+  {#snippet children()}
+    <div class="space-y-3">
+      <div class="rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning">
+        Disabling this stage will prevent new builds and runs from being triggered.
+        All active builds and runs must complete first.
+      </div>
+      {#if disableTarget}
+        <p class="text-sm text-text-primary">
+          Disable <span class="font-semibold">{stageName(stageType, disableTarget.stage)}</span>
+          ({stageType.toLowerCase()}) for this revision?
+        </p>
+      {/if}
+      {#if disableError}
+        <div class="rounded-lg border border-error/30 bg-error-muted px-4 py-3 text-sm text-error">
+          {disableError}
+        </div>
+      {/if}
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick={() => (disableConfirmOpen = false)} class="btn btn-sm btn-ghost" disabled={disabling}>
+          Cancel
+        </button>
+        <button onclick={handleDisable} class="btn btn-sm bg-warning text-white hover:bg-warning/90" disabled={disabling}>
+          {disabling ? 'Disabling...' : 'Disable Stage'}
+        </button>
+      </div>
+    </div>
+  {/snippet}
+</Modal>
