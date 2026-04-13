@@ -150,7 +150,7 @@
     modemLoading = true;
     try {
       const res = await apiFetch<ApiResponse<ModemFirmware[]>>(
-        `/v2/products/${productId}/boards/${revision.boardId}/revisions/${revision.id}/modem-firmware`
+        `/v2/products/${productId}/revisions/${revision.id}/modem-firmware`
       );
       modemFirmwares = Array.isArray(res.data) ? res.data : [];
     } catch {
@@ -178,7 +178,7 @@
       formData.append('file', file);
       formData.append('version', modemVersion.trim());
       await apiUpload(
-        `/v2/products/${productId}/boards/${revision.boardId}/revisions/${revision.id}/modem-firmware`,
+        `/v2/products/${productId}/revisions/${revision.id}/modem-firmware`,
         formData
       );
       modemVersion = '';
@@ -197,7 +197,7 @@
     error = null;
     try {
       await api.delete(
-        `/v2/products/${productId}/boards/${revision.boardId}/revisions/${revision.id}/modem-firmware/${fwId}`
+        `/v2/products/${productId}/revisions/${revision.id}/modem-firmware/${fwId}`
       );
       await loadModemFirmwares();
       onRefresh?.();

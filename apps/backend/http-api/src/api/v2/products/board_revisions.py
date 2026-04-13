@@ -385,6 +385,17 @@ def _validate_revision_access(db, product_id: str, board_id: str, revision_id: s
     return revision, None
 
 
+def _validate_revision(db, product_id: str, revision_id: str):
+    """Validate revision belongs to product (via board). Returns (revision, error_response)."""
+    revision = db.boardrevision.find_unique(
+        where={"id": revision_id},
+        include={"board": True},
+    )
+    if not revision or not revision.board or revision.board.productId != product_id:
+        return None, not_found("Board revision not found")
+    return revision, None
+
+
 def _serialize_modem_firmware(fw) -> dict:
     """Serialize a ModemFirmware record to an API response dict."""
     return {
@@ -402,13 +413,13 @@ def _serialize_modem_firmware(fw) -> dict:
 
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
-def list_modem_firmwares(product_id: str, board_id: str, revision_id: str):
-    """GET /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware
+def list_modem_firmwares(product_id: str, revision_id: str):
+    """GET /v2/products/<pid>/revisions/<rid>/modem-firmware
 
     List all modem firmware versions for a board revision, newest first.
     """
     db = get_db_client()
-    revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
+    revision, err = _validate_revision(db, product_id, revision_id)
     if err:
         return err
 
@@ -423,15 +434,15 @@ def list_modem_firmwares(product_id: str, board_id: str, revision_id: str):
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
-def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
-    """POST /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware
+def upload_modem_firmware(product_id: str, revision_id: str):
+    """POST /v2/products/<pid>/revisions/<rid>/modem-firmware
 
     Upload modem firmware for a board revision. Creates a new ModemFirmware
     record -- does not overwrite existing versions.
     Accepts multipart file + version field.
     """
     db = get_db_client()
-    revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
+    revision, err = _validate_revision(db, product_id, revision_id)
     if err:
         return err
 
@@ -519,13 +530,13 @@ def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
-def delete_modem_firmware(product_id: str, board_id: str, revision_id: str, fw_id: str):
-    """DELETE /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware/<fwId>
+def delete_modem_firmware(product_id: str, revision_id: str, fw_id: str):
+    """DELETE /v2/products/<pid>/revisions/<rid>/modem-firmware/<fwId>
 
     Delete a specific modem firmware version. Blocks if referenced by any AssetSet.
     """
     db = get_db_client()
-    revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
+    revision, err = _validate_revision(db, product_id, revision_id)
     if err:
         return err
 

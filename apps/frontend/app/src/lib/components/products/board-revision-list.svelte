@@ -111,7 +111,7 @@
       const formData = new FormData();
       formData.append('file', file);
       formData.append('version', modemVersion.trim());
-      await apiUploadRaw(`/v2/products/${productId}/boards/${boardId}/revisions/${revisionId}/modem-firmware`, formData);
+      await apiUploadRaw(`/v2/products/${productId}/revisions/${revisionId}/modem-firmware`, formData);
       modemUploadRevId = null;
       modemVersion = '';
       onRefresh();
@@ -124,13 +124,13 @@
   }
 
   function modemDownloadUrl(revisionId: string) {
-    return `/v2/products/${productId}/boards/${boardId}/revisions/${revisionId}/modem-firmware`;
+    return `/v2/products/${productId}/revisions/${revisionId}/modem-firmware`;
   }
 
   async function handleModemDelete(revisionId: string) {
     error = null;
     try {
-      await api.delete(`/v2/products/${productId}/boards/${boardId}/revisions/${revisionId}/modem-firmware`);
+      await api.delete(`/v2/products/${productId}/revisions/${revisionId}/modem-firmware`);
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete modem firmware';
