@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X, Loader2, Upload, ChevronLeft, Check, AlertCircle, FileArchive, File as FileIcon } from 'lucide-svelte';
-  import { apiUpload } from '$lib/api';
+  import { apiFetch, apiUpload } from '$lib/api';
+  import type { ApiResponse } from '$lib/types';
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
   import { stageName } from '$lib/types/stages';
   import { canonicalFilename } from '$lib/utils/assets';
