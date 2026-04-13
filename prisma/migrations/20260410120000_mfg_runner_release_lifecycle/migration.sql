@@ -4,7 +4,9 @@ ALTER TABLE "manufacturing_sessions" ADD COLUMN "runnerDeploymentName" TEXT;
 ALTER TABLE "manufacturing_sessions" ADD COLUMN "runnerLastHeartbeat" TIMESTAMP(3);
 ALTER TABLE "manufacturing_sessions" ADD COLUMN "assetSetId" TEXT;
 
--- AlterTable: test_packages — release lifecycle fields
+-- AlterTable: test_packages — type enum + release lifecycle fields
+CREATE TYPE "TestPackageType" AS ENUM ('VALIDATION', 'MANUFACTURING');
+ALTER TABLE "test_packages" ADD COLUMN "type" "TestPackageType" NOT NULL DEFAULT 'VALIDATION';
 ALTER TABLE "test_packages" ADD COLUMN "releasedVersion" TEXT;
 ALTER TABLE "test_packages" ADD COLUMN "releasedAt" TIMESTAMP(3);
 ALTER TABLE "test_packages" ADD COLUMN "releasedById" TEXT;

@@ -16,8 +16,8 @@ ALTER TABLE "fixture_designs" ADD COLUMN "createdById" TEXT;
 -- AlterTable: Add createdById to fixtures
 ALTER TABLE "fixtures" ADD COLUMN "createdById" TEXT;
 
--- AlterTable: Add createdById to pipeline_runs (BuildRun)
-ALTER TABLE "pipeline_runs" ADD COLUMN "createdById" TEXT;
+-- AlterTable: Add createdById to build_runs (BuildRun)
+ALTER TABLE "build_runs" ADD COLUMN "createdById" TEXT;
 
 -- AlterTable: Add updatedAt to modem_firmwares
 ALTER TABLE "modem_firmwares" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
@@ -41,4 +41,4 @@ ALTER TABLE "fixture_designs" ADD CONSTRAINT "fixture_designs_createdById_fkey" 
 ALTER TABLE "fixtures" ADD CONSTRAINT "fixtures_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "pipeline_runs" ADD CONSTRAINT "pipeline_runs_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "build_runs" ADD CONSTRAINT "build_runs_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

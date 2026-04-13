@@ -200,7 +200,7 @@ ALTER TABLE "test_runs" ADD CONSTRAINT "test_runs_fixtureId_fkey"
 ALTER TABLE "test_runs" ADD CONSTRAINT "test_runs_testPackageId_fkey"
   FOREIGN KEY ("testPackageId") REFERENCES "test_packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "test_runs" ADD CONSTRAINT "test_runs_buildRunId_fkey"
-  FOREIGN KEY ("buildRunId") REFERENCES "pipeline_runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY ("buildRunId") REFERENCES "build_runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "test_runs" ADD CONSTRAINT "test_runs_manufacturingSessionId_fkey"
   FOREIGN KEY ("manufacturingSessionId") REFERENCES "manufacturing_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "test_runs" ADD CONSTRAINT "test_runs_assetSetId_fkey"

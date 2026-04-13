@@ -49,7 +49,6 @@ def seed_product(db) -> dict:
                 "name": "Alpha", "slug": "alpha",
                 "description": "Alpha wearable device platform",
                 "fwRepoSlug": "alpha_fw", "mfgFwRepoSlug": "alpha_mfg_fw",
-                "status": "ACTIVE",
                 "buildConfig": Json(build_config), "metadata": Json(metadata),
             },
             "update": {
