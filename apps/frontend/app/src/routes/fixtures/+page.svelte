@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { Plus, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon, List, LayoutGrid } from 'lucide-svelte';
   import FixtureGridCard from '$lib/components/fixtures/fixture-grid-card.svelte';
+  import FixtureCreateWizard from '$lib/components/fixtures/fixture-create-wizard.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, LoadingState, EmptyState } from '$lib/components/ui';
@@ -214,10 +215,10 @@
     {#snippet actions()}
       {#if canManage}
         <button
-          onclick={() => showCreate = !showCreate}
+          onclick={() => showCreate = true}
           class="btn btn-sm btn-primary"
         >
-          {#if showCreate}Cancel{:else}<Plus size={16} /> New Fixture{/if}
+          <Plus size={16} /> New Fixture
         </button>
       {/if}
     {/snippet}
@@ -226,37 +227,11 @@
   <ErrorAlert message={error} />
 
   <!-- Create form -->
-  {#if showCreate}
-    <form onsubmit={handleCreate} class="mb-6 card card-sm space-y-3">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <label class="block">
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Name</span>
-          <input type="text" required bind:value={formName} placeholder="Alpha B0 Bench 1" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary" />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Product</span>
-          <Select bind:value={formProductId} placeholder="Select product" options={products.map(p => ({ value: p.id, label: p.name }))} />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Board Revision</span>
-          <Select bind:value={formBoardRevisionId} placeholder="Select revision" options={boardRevisions.map(r => ({ value: r.id, label: r.label }))} />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Fixture Design</span>
-          <Select bind:value={formDesignId} placeholder="Select design (required)" options={designOptions} />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Type</span>
-          <Select bind:value={formType} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
-        </label>
-        <div class="flex items-end">
-          <button type="submit" disabled={submitting || !formDesignId} class="btn btn-sm btn-primary">
-            {submitting ? 'Creating...' : 'Create'}
-          </button>
-        </div>
-      </div>
-    </form>
-  {/if}
+  <FixtureCreateWizard
+    open={showCreate}
+    onClose={() => showCreate = false}
+    onCreated={() => { showCreate = false; fetchFixtures(); }}
+  />
 
   <!-- Filters -->
   <FilterBar class="mb-4">
