@@ -396,10 +396,10 @@ def _generate_head_app_sub_builds(
 ) -> List[Dict[str, Any]]:
     """Generate 4 sub-builds (verbose/quiet x base/bump) for head app builds."""
     sub_defs = [
-        ("PROD_VERBOSE",      max_build + 1, True),
-        ("PROD_VERBOSE_BUMP", max_build + 2, True),
-        ("PROD_QUIET",        max_build + 3, False),
-        ("PROD_QUIET_BUMP",   max_build + 4, False),
+        ("prod_verbose",      max_build + 1, True),
+        ("prod_verbose_bump", max_build + 2, True),
+        ("prod_quiet",        max_build + 3, False),
+        ("prod_quiet_bump",   max_build + 4, False),
     ]
     logger.info(
         "FUOTA version allocation: VERBOSE=v%s.%d/%d, QUIET=v%s.%d/%d (max=%s.%d)",

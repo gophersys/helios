@@ -43,43 +43,43 @@ class TestSanitizeFilename:
 class TestProductAssetKey:
     def test_normal_path(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 1, "1.2.0", "debug", "MFG_APP", "app.hex"
+            "alpha", "b0", "VALIDATION", 1, "1.2.0", "debug", "mfg_app", "app.hex"
         )
-        assert result == "products/alpha/b0/validation/smoke/1.2.0-debug/MFG_APP/app.hex"
+        assert result == "products/alpha/b0/validation/smoke/1.2.0-debug/mfg_app/app.hex"
 
     def test_validation_stage_2_driver(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 2, "1.0.0", "release", "APP", "fw.hex"
+            "alpha", "b0", "VALIDATION", 2, "1.0.0", "release", "app", "fw.hex"
         )
         assert "/driver/" in result
 
     def test_validation_stage_3_integration(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 3, "1.0.0", "release", "APP", "fw.hex"
+            "alpha", "b0", "VALIDATION", 3, "1.0.0", "release", "app", "fw.hex"
         )
         assert "/integration/" in result
 
     def test_validation_stage_4_regression(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 4, "2.0.0", "debug", "LABEL", "f.hex"
+            "alpha", "b0", "VALIDATION", 4, "2.0.0", "debug", "label", "f.hex"
         )
         assert "/regression/" in result
 
     def test_validation_stage_5_fuota(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 5, "3.0.0", "debug", "OTA", "ota.bin"
+            "alpha", "b0", "VALIDATION", 5, "3.0.0", "debug", "ota", "ota.bin"
         )
         assert "/fuota/" in result
 
     def test_manufacturing_stage_1(self):
         result = product_asset_key(
-            "alpha", "b0", "MANUFACTURING", 1, "1.0.0", "mfg", "MFG_APP", "app.hex"
+            "alpha", "b0", "MANUFACTURING", 1, "1.0.0", "mfg", "mfg_app", "app.hex"
         )
-        assert result == "products/alpha/b0/manufacturing/manufacturing/1.0.0-mfg/MFG_APP/app.hex"
+        assert result == "products/alpha/b0/manufacturing/manufacturing/1.0.0-mfg/mfg_app/app.hex"
 
     def test_explicit_stage_name_overrides_lookup(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 1, "1.0.0", "debug", "APP", "fw.hex",
+            "alpha", "b0", "VALIDATION", 1, "1.0.0", "debug", "app", "fw.hex",
             stage_name="custom_stage",
         )
         assert "/custom_stage/" in result
@@ -87,25 +87,25 @@ class TestProductAssetKey:
 
     def test_null_slug_fallback(self):
         result = product_asset_key(
-            None, "b0", "VALIDATION", 1, "1.0.0", "debug", "APP", "fw.hex"
+            None, "b0", "VALIDATION", 1, "1.0.0", "debug", "app", "fw.hex"
         )
         assert result.startswith("products/unknown/")
 
     def test_null_revision_fallback(self):
         result = product_asset_key(
-            "alpha", None, "VALIDATION", 1, "1.0.0", "debug", "APP", "fw.hex"
+            "alpha", None, "VALIDATION", 1, "1.0.0", "debug", "app", "fw.hex"
         )
         assert "/unscoped/" in result
 
     def test_null_stage_type_fallback(self):
         result = product_asset_key(
-            "alpha", "b0", None, None, "1.0.0", "debug", "APP", "fw.hex"
+            "alpha", "b0", None, None, "1.0.0", "debug", "app", "fw.hex"
         )
         assert "/general/" in result
 
     def test_stage_name_sanitized(self):
         result = product_asset_key(
-            "alpha", "b0", "VALIDATION", 1, "1.0.0", "debug", "APP", "fw.hex",
+            "alpha", "b0", "VALIDATION", 1, "1.0.0", "debug", "app", "fw.hex",
             stage_name="My Stage!",
         )
         # sanitize_filename lowercases and replaces special chars
@@ -114,7 +114,7 @@ class TestProductAssetKey:
     def test_all_nulls(self):
         """All optional params None should still produce a valid path."""
         result = product_asset_key(
-            None, None, None, None, "1.0.0", "debug", "APP", "fw.hex"
+            None, None, None, None, "1.0.0", "debug", "app", "fw.hex"
         )
         assert result.startswith("products/unknown/unscoped/general/general/")
 

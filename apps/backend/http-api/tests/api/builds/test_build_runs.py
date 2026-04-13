@@ -196,8 +196,8 @@ class TestListBuildRuns:
         pipe = _build_run_obj(
             id="pipe-builds",
             builds=[
-                _build_summary(id="b1", status="SUCCESS", matrixLabel="MFG_APP_DEBUG", matrixIndex=0),
-                _build_summary(id="b2", status="QUEUED", matrixLabel="FUT_DEBUG_A", matrixIndex=2),
+                _build_summary(id="b1", status="SUCCESS", matrixLabel="mfg_app_debug", matrixIndex=0),
+                _build_summary(id="b2", status="QUEUED", matrixLabel="fut_debug_a", matrixIndex=2),
             ],
         )
         mock_db.buildrun.count.return_value = 1

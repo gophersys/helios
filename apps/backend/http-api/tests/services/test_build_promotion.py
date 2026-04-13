@@ -48,7 +48,7 @@ def _make_build_job(**overrides):
         variant="debug",
         versionString="109.0.5.2-BM",
         status="SUCCESS",
-        matrixLabel="SMOKE_APP_DEBUG",
+        matrixLabel="smoke_app_debug",
         artifacts=[_make_artifact()],
         startedAt=None,
         finishedAt=None,

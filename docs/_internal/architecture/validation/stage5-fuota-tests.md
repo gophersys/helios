@@ -162,9 +162,9 @@ class TestGate:
         device_id = stage5_config.device_id
 
         # Upload CFW files
-        for cfw_path in pipeline_assets.get_cfw_files("MFG_BASE"):
+        for cfw_path in pipeline_assets.get_cfw_files("mfg_base"):
             fuota_client.upload_cfw(cfw_path)
-        for cfw_path in pipeline_assets.get_cfw_files("MFG_BUMP"):
+        for cfw_path in pipeline_assets.get_cfw_files("mfg_bump"):
             fuota_client.upload_cfw(cfw_path)
 
         # Create plan

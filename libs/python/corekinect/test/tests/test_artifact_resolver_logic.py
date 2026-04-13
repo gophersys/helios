@@ -506,7 +506,7 @@ class TestBuildInfoHelpers:
             product="alpha",
             variant="mfg",
             status="SUCCESS",
-            matrix_label="MFG_BASE",
+            matrix_label="mfg_base",
             matrix_index=0,
             version_string="0.8.3",
             artifacts=artifacts or [],

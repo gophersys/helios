@@ -246,11 +246,11 @@ class TestValidateBuildRunArtifacts:
             make_obj(role="app", artifactType="plaintextHex", name="app.hex"),
             make_obj(role=None, artifactType="manifest", name="build.json"),
         ]
-        build = make_obj(id="b-1", status="SUCCESS", artifacts=artifacts, matrixLabel="APP")
+        build = make_obj(id="b-1", status="SUCCESS", artifacts=artifacts, matrixLabel="app")
         product = make_obj(buildConfig={"targets": [{"role": "app", "processor": "nrf52840"}]})
         build_run = make_obj(stageConfigId="sc-1", builds=[build], product=product)
         stage_config = make_obj(
-            buildMatrix=[{"role": "app", "label": "APP"}],
+            buildMatrix=[{"role": "app", "label": "app"}],
             requiresFuota=False,
             stage=2,
         )
@@ -265,7 +265,7 @@ class TestValidateBuildRunArtifacts:
         product = make_obj(buildConfig={"targets": [{"role": "app", "processor": "nrf52840"}]})
         build_run = make_obj(stageConfigId="sc-1", builds=[], product=product)
         stage_config = make_obj(
-            buildMatrix=[{"role": "app", "label": "APP"}],
+            buildMatrix=[{"role": "app", "label": "app"}],
             requiresFuota=False,
             stage=2,
         )
@@ -281,11 +281,11 @@ class TestValidateBuildRunArtifacts:
             make_obj(role="app", artifactType="plaintextHex", name="app.hex"),
             make_obj(role=None, artifactType="manifest", name="build.json"),
         ]
-        build = make_obj(id="b-1", status="SUCCESS", artifacts=artifacts, matrixLabel="APP")
+        build = make_obj(id="b-1", status="SUCCESS", artifacts=artifacts, matrixLabel="app")
         product = make_obj(buildConfig={"targets": [{"role": "app", "processor": "nrf52840"}]})
         build_run = make_obj(stageConfigId="sc-1", builds=[build], product=product)
         stage_config = make_obj(
-            buildMatrix=[{"role": "app", "label": "APP"}],
+            buildMatrix=[{"role": "app", "label": "app"}],
             requiresFuota=False,
             stage=4,
         )
@@ -309,8 +309,8 @@ class TestFormatMissingMessage:
 
     def test_formats_entries(self):
         missing = [
-            {"label": "APP", "role": "app", "artifactType": "plaintextHex"},
-            {"label": "APP", "role": "all", "artifactType": "manifest"},
+            {"label": "app", "role": "app", "artifactType": "plaintextHex"},
+            {"label": "app", "role": "all", "artifactType": "manifest"},
         ]
         msg = format_missing_artifacts_message(missing)
         assert "Artifact validation failed" in msg

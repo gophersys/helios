@@ -140,7 +140,7 @@ class TestTriggerTypeNormalization:
 
         # Give it a build def so it gets past the empty check
         build_def = types.SimpleNamespace(
-            label="MFG_APP_DEBUG", fw_type="app", variant="debug",
+            label="mfg_app_debug", fw_type="app", variant="debug",
             config_log=True, produces_hex=True, produces_cfw=False,
             git_ref="pr", is_version_bump=False, base_label=None,
         )

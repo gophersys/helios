@@ -544,10 +544,10 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  assetSet    AssetSet             @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
-  stageConfig ProductStageConfig?  @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  fixture     Fixture?             @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  testRun     TestRun?             @relation(fields: [testRunId], references: [id], onDelete: SetNull)
+  assetSet    AssetSet            @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
   @@index([assetSetId])
@@ -609,10 +609,10 @@ model BuildRun {
   // Recipe pinning — which recipe version was used for this build run
   recipeVersionId String?
 
-  createdBy     User?                  @relation("BuildRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  product       Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
-  stageConfig   ProductStageConfig?    @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  recipeVersion RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  createdBy     User?               @relation("BuildRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stageConfig   ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  recipeVersion RecipeVersion?      @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   builds        BuildJob[]
   assetSet      AssetSet?
   testRuns      TestRun[]

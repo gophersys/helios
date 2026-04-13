@@ -283,11 +283,11 @@ class TestUploadTransition:
 
     def test_uploads_all_cfws_from_both_builds(self, orchestrator, stub_client, resolver):
         """Should upload CFW files from both source and target builds."""
-        resolver.add_build("SOURCE", version="0.5.1", track="BM", has_cfw=True)
-        resolver.add_build("TARGET", version="0.5.2", track="BM", has_cfw=True)
+        resolver.add_build("source", version="0.5.1", track="BM", has_cfw=True)
+        resolver.add_build("target", version="0.5.2", track="BM", has_cfw=True)
 
-        source = BuildAsset("SOURCE", resolver)
-        target = BuildAsset("TARGET", resolver)
+        source = BuildAsset("source", resolver)
+        target = BuildAsset("target", resolver)
 
         orchestrator.upload_transition(source, target)
 
@@ -297,11 +297,11 @@ class TestUploadTransition:
 
     def test_raises_value_error_when_no_cfws(self, orchestrator, resolver):
         """Should raise ValueError when neither build has CFW files."""
-        resolver.add_build("SOURCE", version="0.5.1", track="BM", has_cfw=False)
-        resolver.add_build("TARGET", version="0.5.2", track="BM", has_cfw=False)
+        resolver.add_build("source", version="0.5.1", track="BM", has_cfw=False)
+        resolver.add_build("target", version="0.5.2", track="BM", has_cfw=False)
 
-        source = BuildAsset("SOURCE", resolver)
-        target = BuildAsset("TARGET", resolver)
+        source = BuildAsset("source", resolver)
+        target = BuildAsset("target", resolver)
 
         with pytest.raises(ConfigError, match="No CFW files found"):
             orchestrator.upload_transition(source, target)
@@ -321,11 +321,11 @@ class TestCreateTransitionPlan:
 
     def test_creates_plan_with_target_strings(self, orchestrator, stub_client, resolver):
         """Should create plan using target_strings from the target BuildAsset."""
-        resolver.add_build("SOURCE", version="0.5.1", track="BM")
-        resolver.add_build("TARGET", version="0.5.2", track="BM")
+        resolver.add_build("source", version="0.5.1", track="BM")
+        resolver.add_build("target", version="0.5.2", track="BM")
 
-        source = BuildAsset("SOURCE", resolver)
-        target = BuildAsset("TARGET", resolver)
+        source = BuildAsset("source", resolver)
+        target = BuildAsset("target", resolver)
 
         stub_client.set_plan_id(55)
         plan_id = orchestrator.create_transition_plan(
@@ -349,11 +349,11 @@ class TestCreateTransitionPlan:
 
     def test_description_includes_source_and_target_info(self, orchestrator, stub_client, resolver):
         """Plan description should include source/target labels and versions."""
-        resolver.add_build("MFG_BASE", version="0.5.1", track="BM")
-        resolver.add_build("FUT_VERBOSE_A", version="0.5.2", track="BM")
+        resolver.add_build("mfg_base", version="0.5.1", track="BM")
+        resolver.add_build("fut_verbose_a", version="0.5.2", track="BM")
 
-        source = BuildAsset("MFG_BASE", resolver)
-        target = BuildAsset("FUT_VERBOSE_A", resolver)
+        source = BuildAsset("mfg_base", resolver)
+        target = BuildAsset("fut_verbose_a", resolver)
 
         orchestrator.create_transition_plan(
             device_id=self.DEVICE_ID,
@@ -368,8 +368,8 @@ class TestCreateTransitionPlan:
             e for e in stub_client.events if e["action"] == "create_plan"
         ]
         desc = plan_events[0]["description"]
-        assert "MFG_BASE" in desc
-        assert "FUT_VERBOSE_A" in desc
+        assert "mfg_base" in desc
+        assert "fut_verbose_a" in desc
         assert "0.5.1" in desc
         assert "0.5.2" in desc
 

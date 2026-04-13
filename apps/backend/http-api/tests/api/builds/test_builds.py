@@ -221,7 +221,7 @@ class TestGetBuild:
         """Get build includes stage4 matrix fields in response."""
         build = _build_obj(
             id="build-011",
-            matrixLabel="FUT_DEBUG_A",
+            matrixLabel="fut_debug_a",
             matrixIndex=2,
             versionBump=False,
             baseJobId=None,
@@ -232,7 +232,7 @@ class TestGetBuild:
         assert response.status_code == 200
 
         body = json.loads(response.data)
-        assert body["data"]["matrixLabel"] == "FUT_DEBUG_A"
+        assert body["data"]["matrixLabel"] == "fut_debug_a"
         assert body["data"]["matrixIndex"] == 2
         assert body["data"]["versionBump"] is False
 
@@ -755,7 +755,7 @@ class TestResetBuild:
             status="BUILDING",
             startedAt=_now(),
             buildLog="partial log...",
-            matrixLabel="FUT_DEBUG_A",
+            matrixLabel="fut_debug_a",
         )
         mock_db.buildjob.find_unique.return_value = existing
 

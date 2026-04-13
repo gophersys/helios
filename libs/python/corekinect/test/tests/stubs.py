@@ -7,11 +7,11 @@ without network calls, hardware, or CoreCloud connectivity.
 
 Usage:
     resolver = StubArtifactResolver()
-    resolver.add_build("SMOKE_APP_DEBUG", version="0.8.3", variant="debug", track="BM")
-    resolver.add_build("SMOKE_COMMS_DEBUG", version="0.8.3", variant="debug", track="BM")
+    resolver.add_build("smoke_app_debug", version="0.8.3", variant="debug", track="BM")
+    resolver.add_build("smoke_comms_debug", version="0.8.3", variant="debug", track="BM")
 
     assets = StageAssets(resolver, stage="smoke", strict=False)
-    app_hex = assets.hex("app", "debug")  # resolves SMOKE_APP_DEBUG
+    app_hex = assets.hex("app", "debug")  # resolves smoke_app_debug
 """
 
 import os
@@ -109,7 +109,7 @@ class StubArtifactResolver:
         """Add a build to the stub.
 
         Args:
-            label: Matrix label (e.g., "SMOKE_APP_DEBUG").
+            label: Matrix label (e.g., "smoke_app_debug").
             version: Version string (e.g., "0.8.3").
             variant: Build variant ("debug", "release", "mfg").
             track: CFW track string ("BM", "B", "P", etc.).

@@ -27,7 +27,7 @@ def upload_asset(asset_set_id: str):
 
     Form fields:
         file: the file to upload
-        label: build matrix label (e.g. "MFG_APP_DEBUG")
+        label: build matrix label (e.g. "mfg_app_debug")
         role: "app", "comms", "modem"
         artifactType: "plaintextHex", "encryptedCfw", "manifest", etc.
         processor: (optional) "nrf52840", "nrf9151"

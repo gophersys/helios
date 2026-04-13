@@ -47,10 +47,10 @@ class TestGenerateMatrixBuildSpecs:
 
         assert len(specs) == 4
         labels = [s["matrixLabel"] for s in specs]
-        assert "PROD_VERBOSE" in labels
-        assert "PROD_VERBOSE_BUMP" in labels
-        assert "PROD_QUIET" in labels
-        assert "PROD_QUIET_BUMP" in labels
+        assert "prod_verbose" in labels
+        assert "prod_verbose_bump" in labels
+        assert "prod_quiet" in labels
+        assert "prod_quiet_bump" in labels
 
         # Versions should be sequential from max+1
         versions = [s["versionOverride"] for s in specs]
@@ -285,7 +285,7 @@ class TestCreateBuildJobs:
             "branch": "main",
             "commitSha": "abc123",
             "status": "QUEUED",
-            "matrixLabel": "PROD_VERBOSE",
+            "matrixLabel": "prod_verbose",
             "matrixIndex": 0,
             "versionBump": False,
             "source": "head",

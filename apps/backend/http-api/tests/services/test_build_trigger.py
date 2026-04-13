@@ -206,7 +206,7 @@ class TestTriggerStageBuild:
 
         from corekinect.stages import StageBuildDef, Stage
         with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
-            StageBuildDef(label="MFG_APP_DEBUG", fw_type="app", variant="debug")
+            StageBuildDef(label="mfg_app_debug", fw_type="app", variant="debug")
         ]):
             result = trigger_stage_build("prod-1", "sc-1")
 
@@ -227,7 +227,7 @@ class TestTriggerStageBuild:
 
         from corekinect.stages import StageBuildDef
         with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
-            StageBuildDef(label="PROD_VERBOSE", fw_type="app", variant="release")
+            StageBuildDef(label="prod_verbose", fw_type="app", variant="release")
         ]):
             result = trigger_stage_build(
                 "prod-1", "sc-1",
@@ -260,13 +260,13 @@ class TestTriggerStageBuild:
         db.buildrun.create.return_value = build_run
 
         # Each job create returns a mock
-        db.buildjob.create.return_value = make_obj(id="job-1", matrixLabel="PROD_VERBOSE")
+        db.buildjob.create.return_value = make_obj(id="job-1", matrixLabel="prod_verbose")
         db.buildjob.find_first.return_value = None  # no cached build
 
         from corekinect.stages import StageBuildDef
 
         with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
-            StageBuildDef(label="PROD_VERBOSE", fw_type="app", variant="release"),
+            StageBuildDef(label="prod_verbose", fw_type="app", variant="release"),
         ]):
             with patch("src.api.v2.builds.build_cache.compute_build_fingerprint", return_value="fp-1"):
                 with patch("src.api.v2.builds.build_cache.find_cached_build", return_value=None):

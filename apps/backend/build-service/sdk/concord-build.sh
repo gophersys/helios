@@ -25,7 +25,7 @@
 #   CONCORD_VERSION_OVERRIDE  Optional: override build number
 #   CONCORD_COMMIT_SHA     Git commit hash
 #   CONCORD_BRANCH         Git branch name
-#   CONCORD_MATRIX_LABEL   Build matrix label (e.g., "MFG_BASE", "FUT_VERBOSE_A")
+#   CONCORD_MATRIX_LABEL   Build matrix label (e.g., "mfg_base", "fut_verbose_a")
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -eo pipefail

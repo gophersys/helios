@@ -647,7 +647,7 @@ model BuildJob {
   webhookData   Json?
 
   // Stage 4 matrix identification
-  matrixLabel String? /// e.g., "MFG_BASE", "FUT_DEBUG_A", "FUT_RELEASE_B"
+  matrixLabel String? /// e.g., "mfg_base", "fut_debug_a", "fut_release_b"
   matrixIndex Int? /// Position in build sequence (0-7 for Stage 4)
   versionBump Boolean @default(false) /// True if version-bumped build (same code, N+1)
   baseJobId   String? /// If version-bumped, points to the base build job
@@ -1150,7 +1150,7 @@ model StageBuildMatrix {
   id              String  @id @default(cuid())
   stageConfigId   String
   sortOrder       Int     @default(0)
-  label           String /// "MFG_BASE", "FUT_VERBOSE_A", etc.
+  label           String /// "mfg_base", "fut_verbose_a", etc.
   fwType          String /// "mfg", "app"
   variant         String /// "mfg", "debug", "release"
   configLog       Boolean @default(true)
@@ -1226,7 +1226,7 @@ model AssetSet {
 model Asset {
   id            String   @id @default(cuid())
   assetSetId    String
-  label         String /// Build matrix label, e.g. "MFG_BASE", "FUT_VERBOSE_A"
+  label         String /// Build matrix label, e.g. "mfg_base", "fut_verbose_a"
   role          String /// "app", "comms", "modem"
   processor     String? /// "nrf52840", "nrf9151"
   artifactType  String /// "plaintextHex", "encryptedCfw", "manifest"

@@ -312,21 +312,21 @@ resolver = ArtifactResolver(
 )
 
 # Get a parsed build.json manifest
-manifest = resolver.get_manifest("MFG_BASE")
+manifest = resolver.get_manifest("mfg_base")
 # manifest.product == "alpha"
 # manifest.targets[0].role == "app"
 # manifest.targets[0].appId == 109
 
 # Download a specific artifact by role + type
-app_hex = resolver.get_artifact("MFG_BASE", role="app", type="hex")
+app_hex = resolver.get_artifact("mfg_base", role="app", type="hex")
 # Returns: Path("/tmp/artifacts/109.0.8.3-BM.hex")
 
 # Download all artifacts of a type
-cfw_files = resolver.get_artifacts("MFG_BASE", type="cfw")
+cfw_files = resolver.get_artifacts("mfg_base", type="cfw")
 # Returns: [Path("108.0.8.3-BM.cfw"), Path("109.0.8.3-BM.cfw")]
 
 # Get target metadata without downloading
-app_target = resolver.get_target("MFG_BASE", role="app")
+app_target = resolver.get_target("mfg_base", role="app")
 # app_target.appId == 109
 # app_target.hostType == "HOST_TYPE_NRF52840"
 # app_target.jlinkFamily == "NRF52"
@@ -343,11 +343,11 @@ app_target = resolver.get_target("MFG_BASE", role="app")
 
 | Current Approach | ArtifactResolver Equivalent |
 |-----------------|---------------------------|
-| `os.environ["FW_APP_HEX"]` | `resolver.get_artifact("MFG_BASE", role="app", type="hex")` |
-| `PipelineAssets.download_artifact(name="109.0.8.3-BM.hex")` | `resolver.get_artifact("MFG_BASE", role="app", type="hex")` |
+| `os.environ["FW_APP_HEX"]` | `resolver.get_artifact("mfg_base", role="app", type="hex")` |
+| `PipelineAssets.download_artifact(name="109.0.8.3-BM.hex")` | `resolver.get_artifact("mfg_base", role="app", type="hex")` |
 | `if filename.startswith("109"): target = "app"` | `manifest.targets` iteration — role is explicit |
-| `APP_ID = 109` (hardcoded constant) | `resolver.get_target("MFG_BASE", role="app").appId` |
-| `HOST_TYPE = HostType.HOST_TYPE_NRF52840` | `resolver.get_target("MFG_BASE", role="app").hostType` |
+| `APP_ID = 109` (hardcoded constant) | `resolver.get_target("mfg_base", role="app").appId` |
+| `HOST_TYPE = HostType.HOST_TYPE_NRF52840` | `resolver.get_target("mfg_base", role="app").hostType` |
 
 ---
 

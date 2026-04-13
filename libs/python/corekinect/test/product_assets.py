@@ -47,7 +47,7 @@ class StageAccessor:
         self._assets = stage_assets
 
     def hex(self, role: str) -> str:
-        """Default hex for this stage. Resolves MFG_BASE or the first hex-producing label."""
+        """Default hex for this stage. Resolves mfg_base or the first hex-producing label."""
         build = self._default_hex_build()
         return build.hex(role)
 
@@ -69,7 +69,7 @@ class StageAccessor:
         """Find the default hex-producing build.
 
         Searches available labels for one that produces hex files,
-        preferring common base labels (MFG_BASE, *_BASE) before
+        preferring common base labels (mfg_base, *_base) before
         falling back to the first available label.
         """
         labels = self._assets.labels
@@ -78,7 +78,7 @@ class StageAccessor:
 
         # Prefer known base labels in priority order
         for candidate in labels:
-            if candidate == "MFG_BASE" or candidate.endswith("_BASE"):
+            if candidate == "mfg_base" or candidate.endswith("_base"):
                 try:
                     return self._assets.by_label(candidate)
                 except Exception:
@@ -108,7 +108,7 @@ class ValidationAssets:
 
         assets.validation.smoke.hex("app")
         assets.validation.fuota.cfw("comms")
-        assets.validation.fuota.build("FUT_VERBOSE_A").hex("app")
+        assets.validation.fuota.build("fut_verbose_a").hex("app")
     """
 
     def __init__(self, loader):

@@ -39,11 +39,11 @@ def _asset_obj(**overrides):
     defaults = dict(
         id="asset-1",
         assetSetId="as-1",
-        label="MFG_APP_DEBUG",
+        label="mfg_app_debug",
         role="app",
         processor="nrf52840",
         artifactType="plaintextHex",
-        storageKey="products/alpha/b0/validation/1/0.8.3-debug/MFG_APP_DEBUG/app_nrf52840.hex",
+        storageKey="products/alpha/b0/validation/1/0.8.3-debug/mfg_app_debug/app_nrf52840.hex",
         filename="app_nrf52840.hex",
         sizeBytes=102400,
         checksum="abc123",
@@ -80,7 +80,7 @@ class TestUploadAsset:
                 "/v2/asset-sets/as-1/assets",
                 data={
                     "file": (io.BytesIO(b"\xff\xfe" + b"\x00" * 200), "app_nrf52840.hex"),
-                    "label": "MFG_APP_DEBUG",
+                    "label": "mfg_app_debug",
                     "role": "app",
                     "artifactType": "plaintextHex",
                     "processor": "nrf52840",
@@ -90,7 +90,7 @@ class TestUploadAsset:
 
         assert resp.status_code == 201
         body = resp.get_json()
-        assert body["data"]["label"] == "MFG_APP_DEBUG"
+        assert body["data"]["label"] == "mfg_app_debug"
         assert body["data"]["role"] == "app"
         assert body["data"]["artifactType"] == "plaintextHex"
 
@@ -107,7 +107,7 @@ class TestUploadAsset:
                 "/v2/asset-sets/as-1/assets",
                 data={
                     "file": (io.BytesIO(b"\x00" * 100), "108.0.8.3-BM.cfw"),
-                    "label": "MFG_APP_DEBUG",
+                    "label": "mfg_app_debug",
                     "role": "comms",
                     "artifactType": "encryptedCfw",
                 },
@@ -155,7 +155,7 @@ class TestUploadAsset:
         resp = authed_client.post(
             "/v2/asset-sets/as-1/assets",
             data={
-                "label": "MFG_APP_DEBUG",
+                "label": "mfg_app_debug",
                 "role": "app",
                 "artifactType": "plaintextHex",
             },
@@ -186,7 +186,7 @@ class TestUploadAsset:
             "/v2/asset-sets/as-1/assets",
             data={
                 "file": (io.BytesIO(b"\x00" * 10), "test.hex"),
-                "label": "MFG_APP_DEBUG",
+                "label": "mfg_app_debug",
                 "artifactType": "plaintextHex",
             },
             content_type="multipart/form-data",
@@ -201,7 +201,7 @@ class TestUploadAsset:
             "/v2/asset-sets/as-1/assets",
             data={
                 "file": (io.BytesIO(b"\x00" * 10), "test.hex"),
-                "label": "MFG_APP_DEBUG",
+                "label": "mfg_app_debug",
                 "role": "app",
                 "artifactType": "binaryBlob",
             },
@@ -262,7 +262,7 @@ class TestUploadAsset:
                 "/v2/asset-sets/as-1/assets",
                 data={
                     "file": (io.BytesIO(b"\x00" * 50), "app.hex"),
-                    "label": "BASE",
+                    "label": "base",
                     "role": "app",
                     "artifactType": "plaintextHex",
                 },

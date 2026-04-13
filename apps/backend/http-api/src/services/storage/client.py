@@ -66,7 +66,7 @@ def product_asset_key(
     """Build a product-scoped MinIO key for an asset file.
 
     Path: products/{slug}/{revision}/{stage_type}/{stage_name}/{version}-{variant}/{label}/{filename}
-    Example: products/alpha/b0/validation/smoke/1.2.0-debug/MFG_APP_DEBUG/app_nrf52840.hex
+    Example: products/alpha/b0/validation/smoke/1.2.0-debug/mfg_app_debug/app_nrf52840.hex
     """
     slug = sanitize_filename(product_slug) if product_slug else "unknown"
     rev = sanitize_filename(revision_version) if revision_version else "unscoped"

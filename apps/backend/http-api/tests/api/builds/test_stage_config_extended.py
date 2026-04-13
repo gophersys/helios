@@ -237,7 +237,7 @@ class TestBuildMatrix:
         mock_db.productstageconfig.find_first.return_value = _stage_obj()
         entry = make_obj(
             id="e1", stageConfigId="sc-1", sortOrder=0,
-            label="MFG_APP_DEBUG", fwType="alpha_mfg_fw", variant="release",
+            label="mfg_app_debug", fwType="alpha_mfg_fw", variant="release",
             configLog=True, producesHex=True, producesCfw=False,
             gitRef="pr", isVersionBump=False, baseLabel=None, description=None,
             processor="nrf52840", filenamePattern=None,
@@ -249,7 +249,7 @@ class TestBuildMatrix:
         assert resp.status_code == 200
         body = json.loads(resp.data)
         assert len(body["data"]) == 1
-        assert body["data"][0]["label"] == "MFG_APP_DEBUG"
+        assert body["data"][0]["label"] == "mfg_app_debug"
 
     def test_update_stage_build_matrix_success(self, authed_client, mock_db):
         """PUT /v2/products/<id>/stages/<stage>/build-matrix replaces entries."""
@@ -257,7 +257,7 @@ class TestBuildMatrix:
         mock_db.productstageconfig.find_first.return_value = _stage_obj()
         new_entry = make_obj(
             id="e-new", stageConfigId="sc-1", sortOrder=0,
-            label="SMOKE_APP_DEBUG", fwType="alpha_fw", variant="debug",
+            label="smoke_app_debug", fwType="alpha_fw", variant="debug",
             configLog=True, producesHex=True, producesCfw=False,
             gitRef="pr", isVersionBump=False, baseLabel=None, description=None,
             processor=None, filenamePattern=None,
@@ -268,14 +268,14 @@ class TestBuildMatrix:
             resp = authed_client.put(
                 "/v2/products/prod-1/stages/1/build-matrix",
                 data=json.dumps({"entries": [
-                    {"label": "SMOKE_APP_DEBUG", "fwType": "alpha_fw", "variant": "debug"}
+                    {"label": "smoke_app_debug", "fwType": "alpha_fw", "variant": "debug"}
                 ]}),
                 content_type="application/json",
             )
 
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["data"][0]["label"] == "SMOKE_APP_DEBUG"
+        assert body["data"][0]["label"] == "smoke_app_debug"
         mock_db.stagebuildmatrix.delete_many.assert_called_once()
 
     def test_update_stage_build_matrix_duplicate_label_returns_400(self, authed_client, mock_db):
@@ -286,8 +286,8 @@ class TestBuildMatrix:
         resp = authed_client.put(
             "/v2/products/prod-1/stages/1/build-matrix",
             data=json.dumps({"entries": [
-                {"label": "SAME", "fwType": "alpha_fw", "variant": "debug"},
-                {"label": "SAME", "fwType": "alpha_mfg_fw", "variant": "release"},
+                {"label": "same", "fwType": "alpha_fw", "variant": "debug"},
+                {"label": "same", "fwType": "alpha_mfg_fw", "variant": "release"},
             ]}),
             content_type="application/json",
         )

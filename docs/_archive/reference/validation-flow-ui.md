@@ -57,7 +57,7 @@ model ValidationDesign {
   "category": "PRD",         // SIM | DRV | INT | PRD
   "position": { "x": 100, "y": 200 },
   "config": {
-    "matrixLabel": "MFG_BASE",
+    "matrixLabel": "mfg_base",
     "target": ["nrf52840", "nrf9151"],
     "requiresPersonalization": true
   }

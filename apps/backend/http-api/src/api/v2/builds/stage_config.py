@@ -223,6 +223,13 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
                 processor_lookup[t.role] = t.soc  # "app" → "nrf52840", "comms" → "nrf9151"
 
         for build_def in defs:
+            # Skip if label already exists (prevents duplicates on re-enable)
+            existing = db.stagebuildmatrix.find_first(
+                where={"stageConfigId": config_id, "label": build_def.label}
+            )
+            if existing:
+                continue
+
             # Resolve processor: map fw_type to target role, fall back to build_def default
             role = build_def.fw_type
             if role == "modem":

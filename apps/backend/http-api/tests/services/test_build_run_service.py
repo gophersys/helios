@@ -75,7 +75,7 @@ def _build_job(**overrides):
         buildNum=3,
         versionString="0.8.3",
         durationSeconds=None,
-        matrixLabel="PROD_VERBOSE",
+        matrixLabel="prod_verbose",
         matrixIndex=0,
         versionBump=False,
         baseJobId=None,

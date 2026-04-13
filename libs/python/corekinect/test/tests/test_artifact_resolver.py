@@ -316,29 +316,29 @@ class TestArtifactResolverManifest:
     def test_get_manifest(self):
         """Test get manifest."""
         build = _make_build_with_manifest(
-            "MFG_BASE", ALPHA_MANIFEST,
+            "mfg_base", ALPHA_MANIFEST,
             hex_and_cfw_names=["109.0.8.3-BM.hex", "108.0.8.3-BM.hex"],
         )
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        manifest = resolver.get_manifest("MFG_BASE")
+        manifest = resolver.get_manifest("mfg_base")
         assert manifest.product == "alpha"
         assert manifest.version == "0.8.3"
         assert len(manifest.targets) == 2
 
     def test_get_manifest_cached(self):
         """Test get manifest cached."""
-        build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
+        build = _make_build_with_manifest("mfg_base", ALPHA_MANIFEST)
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        m1 = resolver.get_manifest("MFG_BASE")
-        m2 = resolver.get_manifest("MFG_BASE")
+        m1 = resolver.get_manifest("mfg_base")
+        m2 = resolver.get_manifest("mfg_base")
         assert m1 is m2  # Same object, not re-downloaded
 
     def test_get_artifact_hex_by_role(self):
         """Test get artifact hex by role."""
         build = _make_build_with_manifest(
-            "MFG_BASE", ALPHA_MANIFEST,
+            "mfg_base", ALPHA_MANIFEST,
             hex_and_cfw_names=[
                 "109.0.8.3-BM.hex", "108.0.8.3-BM.hex",
                 "109.0.8.3-BM.cfw", "108.0.8.3-BM.cfw",
@@ -346,14 +346,14 @@ class TestArtifactResolverManifest:
         )
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        path = resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
+        path = resolver.get_artifact("mfg_base", role="app", artifact_type="plaintextHex")
         assert path is not None
         assert Path(path).exists()
 
     def test_get_artifact_cfw_by_role(self):
         """Test get artifact cfw by role."""
         build = _make_build_with_manifest(
-            "MFG_BASE", ALPHA_MANIFEST,
+            "mfg_base", ALPHA_MANIFEST,
             hex_and_cfw_names=[
                 "109.0.8.3-BM.hex", "108.0.8.3-BM.hex",
                 "109.0.8.3-BM.cfw", "108.0.8.3-BM.cfw",
@@ -361,73 +361,73 @@ class TestArtifactResolverManifest:
         )
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        path = resolver.get_artifact("MFG_BASE", role="comms", artifact_type="encryptedCfw")
+        path = resolver.get_artifact("mfg_base", role="comms", artifact_type="encryptedCfw")
         assert path is not None
         assert Path(path).exists()
 
     def test_get_artifacts_all_cfws(self):
         """Test get artifacts all cfws."""
         build = _make_build_with_manifest(
-            "MFG_BASE", ALPHA_MANIFEST,
+            "mfg_base", ALPHA_MANIFEST,
             hex_and_cfw_names=[
                 "109.0.8.3-BM.cfw", "108.0.8.3-BM.cfw",
             ],
         )
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        paths = resolver.get_artifacts("MFG_BASE", artifact_type="encryptedCfw")
+        paths = resolver.get_artifacts("mfg_base", artifact_type="encryptedCfw")
         assert len(paths) == 2
 
     def test_get_artifacts_all_hexes(self):
         """Test get artifacts all hexes."""
         build = _make_build_with_manifest(
-            "MFG_BASE", ALPHA_MANIFEST,
+            "mfg_base", ALPHA_MANIFEST,
             hex_and_cfw_names=[
                 "109.0.8.3-BM.hex", "108.0.8.3-BM.hex",
             ],
         )
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        paths = resolver.get_artifacts("MFG_BASE", artifact_type="plaintextHex")
+        paths = resolver.get_artifacts("mfg_base", artifact_type="plaintextHex")
         assert len(paths) == 2
 
     def test_get_targets(self):
         """Test get targets."""
-        build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
+        build = _make_build_with_manifest("mfg_base", ALPHA_MANIFEST)
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        targets = resolver.get_targets("MFG_BASE")
+        targets = resolver.get_targets("mfg_base")
         assert len(targets) == 2
         roles = {t.role for t in targets}
         assert roles == {"app", "comms"}
 
     def test_get_target_single(self):
         """Test get target single."""
-        build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
+        build = _make_build_with_manifest("mfg_base", ALPHA_MANIFEST)
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
-        target = resolver.get_target("MFG_BASE", role="app")
+        target = resolver.get_target("mfg_base", role="app")
         assert target.app_id == 109
         assert target.host_type == "HOST_TYPE_NRF52840"
 
     def test_single_processor_product(self):
         """Test single processor product."""
         build = _make_build_with_manifest(
-            "RELEASE", SIGMA5_MANIFEST,
+            "release", SIGMA5_MANIFEST,
             hex_and_cfw_names=["201.1.0.0-P.hex", "201.1.0.0-P.cfw"],
             version="1.0.0",
         )
         resolver = self._make_resolver([build], manifest_dict=SIGMA5_MANIFEST)
 
-        targets = resolver.get_targets("RELEASE")
+        targets = resolver.get_targets("release")
         assert len(targets) == 1
         assert targets[0].app_id == 201
 
-        path = resolver.get_artifact("RELEASE", role="app", artifact_type="plaintextHex")
+        path = resolver.get_artifact("release", role="app", artifact_type="plaintextHex")
         assert path is not None
 
         # No comms target
-        assert resolver.get_target("RELEASE", role="comms") is None
+        assert resolver.get_target("release", role="comms") is None
 
 
 # =============================================================================
@@ -470,36 +470,36 @@ class TestArtifactResolverNoManifest:
 
     def test_no_manifest_get_manifest_raises(self):
         """Builds without build.json should raise ValueError."""
-        build = _make_build("MFG_BASE", [
+        build = _make_build("mfg_base", [
             _make_artifact("109.0.8.3-BM.hex"),
             _make_artifact("108.0.8.3-BM.hex"),
         ])
         resolver = self._make_resolver_no_manifest([build])
 
         with pytest.raises(ValueError, match="no build.json manifest"):
-            resolver.get_manifest("MFG_BASE")
+            resolver.get_manifest("mfg_base")
 
     def test_no_manifest_get_artifact_raises(self):
         """get_artifact should raise when build has no manifest."""
-        build = _make_build("MFG_BASE", [
+        build = _make_build("mfg_base", [
             _make_artifact("109.0.8.3-BM.hex"),
             _make_artifact("108.0.8.3-BM.hex"),
         ])
         resolver = self._make_resolver_no_manifest([build])
 
         with pytest.raises(ValueError, match="no build.json manifest"):
-            resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
+            resolver.get_artifact("mfg_base", role="app", artifact_type="plaintextHex")
 
     def test_no_manifest_get_artifacts_raises(self):
         """get_artifacts should raise when build has no manifest."""
-        build = _make_build("MFG_BASE", [
+        build = _make_build("mfg_base", [
             _make_artifact("109.0.8.3-BM.cfw"),
             _make_artifact("108.0.8.3-BM.cfw"),
         ])
         resolver = self._make_resolver_no_manifest([build])
 
         with pytest.raises(ValueError, match="no build.json manifest"):
-            resolver.get_artifacts("MFG_BASE", artifact_type="encryptedCfw")
+            resolver.get_artifacts("mfg_base", artifact_type="encryptedCfw")
 
 
 # =============================================================================
@@ -537,15 +537,15 @@ class TestArtifactResolverErrors:
 
     def test_missing_build_label(self):
         """Test missing build label."""
-        build = _make_build("MFG_BASE", [])
+        build = _make_build("mfg_base", [])
         resolver = self._make_resolver_with_builds([build])
 
-        with pytest.raises(KeyError, match="NONEXISTENT"):
-            resolver.get_manifest("NONEXISTENT")
+        with pytest.raises(KeyError, match="nonexistent"):
+            resolver.get_manifest("nonexistent")
 
     def test_missing_artifact_role(self):
         """Test missing artifact role."""
-        build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
+        build = _make_build_with_manifest("mfg_base", ALPHA_MANIFEST)
         resolver = self._make_resolver_with_builds([build])
 
         # Mock manifest download
@@ -564,18 +564,18 @@ class TestArtifactResolverErrors:
         resolver._download_artifact = mock_download
 
         with pytest.raises(ValueError, match="No target.*role='modem'"):
-            resolver.get_artifact("MFG_BASE", role="modem", artifact_type="plaintextHex")
+            resolver.get_artifact("mfg_base", role="modem", artifact_type="plaintextHex")
 
     def test_empty_build_run(self):
         """Test empty build run."""
         resolver = self._make_resolver_with_builds([])
 
-        with pytest.raises(KeyError, match="MFG_BASE"):
-            resolver.get_manifest("MFG_BASE")
+        with pytest.raises(KeyError, match="mfg_base"):
+            resolver.get_manifest("mfg_base")
 
     def test_get_target_nonexistent_role(self):
         """Test get target nonexistent role."""
-        build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
+        build = _make_build_with_manifest("mfg_base", ALPHA_MANIFEST)
         resolver = self._make_resolver_with_builds([build])
 
         def mock_download(build_id, artifact_name):
@@ -590,7 +590,7 @@ class TestArtifactResolverErrors:
 
         resolver._download_artifact = mock_download
 
-        result = resolver.get_target("MFG_BASE", role="nonexistent")
+        result = resolver.get_target("mfg_base", role="nonexistent")
         assert result is None
 
 

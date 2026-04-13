@@ -69,8 +69,8 @@ def test_01_flash_firmware(self, ctx, pipeline_assets):
     from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
 
     # Download hex files from pipeline
-    app_hex = pipeline_assets.get_hex("MFG_BASE", "app")
-    comms_hex = pipeline_assets.get_hex("MFG_BASE", "comms")
+    app_hex = pipeline_assets.get_hex("mfg_base", "app")
+    comms_hex = pipeline_assets.get_hex("mfg_base", "comms")
     modem_zip = Path("/app/firmware/modem/mfw_nrf91x1_2.0.2.zip")
 
     # Ensure power is on for SWD access
@@ -181,9 +181,9 @@ def test_05_fuota_delivery(self, ctx, fuota_client, pipeline_assets, config):
 
     # 1. Upload CFW files
     log.info("Uploading CFW files...")
-    for cfw_path in pipeline_assets.get_cfw_files("MFG_BASE"):
+    for cfw_path in pipeline_assets.get_cfw_files("mfg_base"):
         fuota_client.upload_cfw(cfw_path)
-    for cfw_path in pipeline_assets.get_cfw_files("MFG_BUMP"):
+    for cfw_path in pipeline_assets.get_cfw_files("mfg_bump"):
         fuota_client.upload_cfw(cfw_path)
 
     # 2. Parse CFW headers for target strings
