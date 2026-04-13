@@ -228,11 +228,7 @@
                 </span>
               {/each}
             {/if}
-            {#if cfg.buildMatrix?.length}
-              <span class="flex items-center gap-1 bg-accent-muted text-accent rounded px-2 py-0.5 font-medium">
-                {cfg.buildMatrix.length} build label{cfg.buildMatrix.length !== 1 ? 's' : ''}
-              </span>
-            {:else if cfg.assetSources?.includes('BUILD_SERVICE')}
+            {#if !cfg.buildMatrix?.length && cfg.assetSources?.includes('BUILD_SERVICE')}
               <span class="bg-warning-muted text-warning rounded px-2 py-0.5 font-medium">No build labels</span>
             {/if}
           {:else}
