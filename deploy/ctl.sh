@@ -586,10 +586,13 @@ cmd_dev_update() {
   total_start=$(date +%s)
   log "${BOLD}Updating development platform${NC}"
 
-  # Rebuild + restart — --no-cache guarantees fresh source in images
+  # Rebuild + restart — Docker layer cache handles unchanged layers automatically.
+  # The COPY of source code is near the end of each Dockerfile, so only that
+  # layer (and below) rebuilds when code changes. Heavy layers (apt, pip, prisma
+  # generate, query engine download) stay cached → sub-second for unchanged services.
   step "Rebuilding containers"
   timer_start
-  $COMPOSE build --no-cache --parallel http-api git-poller build-service 2>&1 | tail -5
+  $COMPOSE build --parallel http-api git-poller build-service 2>&1 | tail -5
   timer_end "Image builds"
 
   step "Restarting containers"
