@@ -101,17 +101,22 @@ workloadTypes:
       nodes to parallelize firmware builds, container builds, etc.
 
   devops:
-    description: CI/CD job execution (nightly E2E, test sweeps, devcontainer-based pipelines)
+    description: Standalone CI platform (Helm chart: concord-ci)
     requirements:
       cpu: 8
       memory: 16Gi
-      docker: DinD sidecar (full docker-compose stack)
-      network: Outbound internet (git clone, npm install) + cluster-internal (MinIO upload)
+      docker: DinD sidecar (full docker-compose stack for nightly E2E)
+      network: Outbound internet (git clone, npm install) + cluster-internal
     services:
-      - ci-nightly (CronJob)
+      - concord-ci-minio (artifact storage, 5Gi PVC)
+      - concord-ci-admin (dashboard, SvelteKit + SQLite on 1Gi PVC)
+      - concord-ci-nightly (CronJob, daily 2 AM, DinD sidecar)
+      - concord-ci-weekly (CronJob, Saturday 3 AM, AI-powered analysis)
+    helm_chart: deploy/ci/helm/concord-ci/
     notes: >
-      Runs the full development environment inside a DinD sidecar for
-      isolated E2E testing. Nodes should have no conflicting port usage.
+      Fully independent from the main platform. Survives platform crashes.
+      Own MinIO instance, own SQLite database, own dashboard at admin.concord.local.
+      Managed via: bash deploy/ci/ctl.sh start|stop|update|status
 
   worker:
     description: Ephemeral job execution (validation runs, manufacturing jobs)
@@ -172,7 +177,7 @@ nodes:
       ip: 10.4.45.21
       cpu: 2
       memory: 4Gi
-      workloads: [platform, worker]
+      workloads: [platform, worker, data]
 
     - name: concordagent02
       ip: 10.4.45.22

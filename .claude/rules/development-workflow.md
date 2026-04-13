@@ -100,6 +100,11 @@ helm history concord -n production  # List revisions
 | Deploy production | `nx update platform -c production` |
 | Check status | `nx run platform:status -c staging` |
 | View diff | `./deploy/ctl.sh staging diff` |
+| Start CI platform | `bash deploy/ci/ctl.sh start` |
+| CI status | `bash deploy/ci/ctl.sh status` |
+| CI dashboard (local) | `cd apps/ci/admin && npm run dev` (port 4300) |
+| Trigger nightly CI | `kubectl create job --from=cronjob/concord-ci-nightly ci-manual -n devops` |
+| Run PR pipeline locally | `.ci/run pr` |
 
 ## Environment Configuration
 

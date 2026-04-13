@@ -52,6 +52,19 @@ npx nx run infrastructure:secrets -c office   # Create K8s secrets
 npx nx run infrastructure:status -c office    # Check readiness
 ```
 
+### CI Platform
+
+```bash
+npx nx run deploy-ci:start          # Install CI Helm chart (MinIO + CronJobs + dashboard)
+npx nx run deploy-ci:stop           # Uninstall (preserves PVCs)
+npx nx run deploy-ci:update         # Rebuild dashboard image + redeploy
+npx nx run deploy-ci:status         # Show CI resources in K8s
+npx nx run deploy-ci:trigger-nightly  # Manual nightly run
+npx nx run deploy-ci:trigger-weekly   # Manual weekly run
+npx nx run ci:validate              # Run PR pipeline locally (.ci/run pr)
+npx nx serve ci-admin               # Dashboard dev server on :4300
+```
+
 ## NEVER Do These
 
 ```bash
@@ -79,6 +92,8 @@ When modifying code, Nx automatically tracks dependencies:
 - `app` depends on `http-api` types
 - `validation-alpha` depends on `protocols`
 - `mtib-server` depends on `protocols`
+- `ci-admin` is independent (standalone dashboard app)
+- `deploy-ci` manages the CI Helm chart (independent from platform)
 
 After changing a library, Nx will rebuild all dependents.
 

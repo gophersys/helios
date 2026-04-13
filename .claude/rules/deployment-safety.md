@@ -158,6 +158,19 @@ kubectl delete pvc concord-postgres-pvc -n production  # DATA LOSS
 ./deploy/ctl.sh production stop  # blocked by safety gate
 ```
 
+## CI Platform (devops namespace)
+
+The CI platform (`concord-ci` Helm release) is separate from the application platform. It has its own lifecycle commands:
+
+```bash
+bash deploy/ci/ctl.sh start    # Install/upgrade CI chart
+bash deploy/ci/ctl.sh stop     # Uninstall (PVCs preserved)
+bash deploy/ci/ctl.sh status   # Check CI resources
+bash deploy/ci/ctl.sh update   # Rebuild dashboard + redeploy
+```
+
+CI PVCs (`concord-ci-minio-pvc`, `concord-ci-data`) have `helm.sh/resource-policy: keep` — they survive `helm uninstall`.
+
 ## Incident Response
 
 If deploy causes issues:

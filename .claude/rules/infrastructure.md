@@ -47,7 +47,8 @@ Every cluster defines 5 abstract workload types. Helm chart templates use `nodeS
 |---|---|---|---|
 | **platform** | Application services | http-api, frontend, docs, git-poller, pypi | servers, agent01-02 |
 | **data** | Stateful storage | postgres, minio | server03, agent03 |
-| **build** | General-purpose builds | build-service, build-workers | concordproxy, wanda |
+| **build** | General-purpose builds | build-service, build-workers | wanda |
+| **devops** | CI/CD platform (standalone) | concord-ci Helm chart: MinIO, dashboard, nightly/weekly CronJobs | concordproxy |
 | **worker** | Ephemeral job execution | validation-runner, manufacturing-jobs | agent01-03 |
 | **edge** | Hardware-attached | mtib-server | verdin-imx8mm-* (ARM64, always on-premise) |
 
@@ -97,3 +98,37 @@ See `data-protection.md` for full backup/restore procedures.
 3. Copy RBAC manifests from an existing cluster as baseline
 4. Add cluster-specific storage classes and networking config
 5. Run `npx nx test infrastructure` to verify
+
+## CI Platform (devops namespace)
+
+The CI system is a standalone Helm release (`concord-ci`) in the devops namespace. It is fully independent from the main Concord platform — if the platform crashes, CI keeps running.
+
+**Helm chart:** `deploy/ci/helm/concord-ci/`
+
+| Resource | Purpose |
+|---|---|
+| `concord-ci-minio` | CI artifact storage (5Gi PVC, separate from platform MinIO) |
+| `concord-ci-admin` | Dashboard app (SvelteKit + SQLite on 1Gi PVC) |
+| `concord-ci-nightly` | Nightly E2E CronJob (daily 2 AM, DinD sidecar) |
+| `concord-ci-weekly` | Weekly AI analysis CronJob (Saturday 3 AM) |
+| `concord-ci-config` | ConfigMap (repo URL, branch, MinIO endpoint) |
+| `concord-ci-entrypoint` | Entrypoint script for nightly job |
+| `concord-ci-secrets` | CI MinIO credentials |
+
+**Lifecycle:**
+```bash
+bash deploy/ci/ctl.sh start    # helm install
+bash deploy/ci/ctl.sh stop     # helm uninstall (preserves PVCs)
+bash deploy/ci/ctl.sh status   # show all CI resources
+bash deploy/ci/ctl.sh update   # rebuild dashboard + redeploy
+```
+
+**External secrets** (must exist before deploying):
+- `bitbucket-ssh-key` — Git clone auth
+- `corekinect-ca-certs` — Internal TLS
+- `claude-code-oauth` — AI review auth
+- `dockerhub-credentials` — Docker Hub rate limit bypass
+
+**Dashboard:** `admin.concord.local` (staging: `admin.staging.concord.local`)
+
+Pipeline code lives in `.ci/` (stages, lib, tools, pipelines). The Helm chart manages the K8s resources that execute that code.
