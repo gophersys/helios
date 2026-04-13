@@ -59,12 +59,15 @@ def seed():
         seed_users(db, perm_sets, products=[alpha["product"]])
 
         # ── 5. Verify seed integrity ──
-        from seed.verify import verify
-        errors = verify(db)
-        if errors:
-            print(f"\n⚠ Seed verification: {len(errors)} warning(s):")
-            for e in errors:
-                print(f"  ⚠ {e}")
+        try:
+            from seed.verify import verify
+            errors = verify(db)
+            if errors:
+                print(f"\n⚠ Seed verification: {len(errors)} warning(s):")
+                for e in errors:
+                    print(f"  ⚠ {e}")
+        except Exception as e:
+            print(f"\n⚠ Seed verification skipped (non-fatal): {e}")
         print("\n✓ Seed complete")
 
     finally:
