@@ -53,7 +53,7 @@
 
   // Delete
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
-  let modemDeleteTarget = $state<{ id: string; version: string } | null>(null);
+  let modemDeleteTarget = $state<{ id: string; filename: string } | null>(null);
 
   // Stage configs for this revision
   const revConfigs = $derived(
@@ -278,7 +278,7 @@
             <TimeDisplay datetime={fw.createdAt} />
             {#if canManage}
               <button
-                onclick={() => modemDeleteTarget = { id: fw.id, version: fw.version }}
+                onclick={() => modemDeleteTarget = { id: fw.id, filename: fw.filename }}
                 class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-error hover:bg-error-muted"
                 title="Delete v{fw.version}"
               >
@@ -521,7 +521,7 @@
 <ConfirmDeleteDialog
   open={!!modemDeleteTarget}
   entityType="modem firmware"
-  entityName={modemDeleteTarget ? `v${modemDeleteTarget.version}` : ''}
+  entityName={modemDeleteTarget?.filename ?? ''}
   onConfirm={() => { handleDeleteModemFirmware(modemDeleteTarget!.id); modemDeleteTarget = null; }}
   onCancel={() => (modemDeleteTarget = null)}
 />
