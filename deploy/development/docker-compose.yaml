@@ -84,6 +84,13 @@ services:
       BUILD_TIMEOUT_MINUTES: "45"
       VALIDATION_TIMEOUT_MINUTES: "60"
       MANUFACTURING_TIMEOUT_MINUTES: "120"
+      # CoreOps — device personalization (set via .env or shell exports)
+      COREOPS_SERVER_URL: ${COREOPS_SERVER_URL:-https://coreops.office.corekinect.cloud:2013}
+      COREOPS_AUTH_SERVER_URL: ${COREOPS_AUTH_SERVER_URL:-https://auth.office.corekinect.cloud:2013}
+      COREOPS_API_KEY: ${COREOPS_API_KEY:-}
+      COREOPS_AUTH_USER: ${COREOPS_AUTH_USER:-}
+      COREOPS_AUTH_PASS: ${COREOPS_AUTH_PASS:-}
+      COREOPS_VERIFY_SSL: "false"
       # K8s access — enables MTIB discovery, fixture deployment, job scheduling
       KUBECONFIG: /tmp/.kube/config
       VALIDATION_NAMESPACE: ${VALIDATION_NAMESPACE:-development}

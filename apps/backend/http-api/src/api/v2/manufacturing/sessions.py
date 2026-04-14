@@ -28,6 +28,26 @@ logger = logging.getLogger(__name__)
 # SocketIO instance — set by register_v2_routes()
 _socketio = None
 
+# CoreOps client — lazy-initialized singleton
+_coreops_client = None
+_coreops_init_attempted = False
+
+
+def _get_coreops_client():
+    """Get or initialize the CoreOps client. Returns None if credentials not configured."""
+    global _coreops_client, _coreops_init_attempted
+    if _coreops_init_attempted:
+        return _coreops_client
+    _coreops_init_attempted = True
+    try:
+        from corekinect.core_ops.client import CoreOpsClient
+        _coreops_client = CoreOpsClient()
+        logger.info("CoreOps client initialized: %s", _coreops_client._config.server_url)
+    except Exception as e:
+        logger.warning("CoreOps client not available: %s", e)
+        _coreops_client = None
+    return _coreops_client
+
 
 def set_manufacturing_socketio(sio):
     """Assign the SocketIO instance used for real-time events."""
@@ -617,16 +637,32 @@ def resolve_panel(session_id: str):
 
     derived = _derive_panel_snrs(snr, len(slots))
 
+    # Resolve each SNR against CoreOps for device ID validation
+    coreops_client = _get_coreops_client()
     result_slots = []
     for slot, d in zip(slots, derived):
+        slot_snr = d["snr"]
+        device_id = None
+        coreops_error = None
+
+        if slot_snr and coreops_client:
+            try:
+                device_id = coreops_client.assign_device_id(slot_snr)
+            except Exception as e:
+                coreops_error = str(e)
+                logger.warning("CoreOps assign_device_id failed for SNR %s: %s", slot_snr, e)
+
         result_slots.append({
             "slotIndex": slot.slotIndex,
-            "snr": d["snr"],
-            "label": slot.name if hasattr(slot, "name") and slot.name else f"Slot {slot.slotIndex + 1}",
+            "snr": slot_snr,
+            "deviceId": device_id,
+            "label": slot.label if hasattr(slot, "label") and slot.label else f"Slot {slot.slotIndex + 1}",
+            "coreopsError": coreops_error,
         })
 
     return jsonify(ApiResponse.ok({
         "primarySnr": snr,
+        "coreopsAvailable": coreops_client is not None,
         "slots": result_slots,
     }).to_dict()), 200
 
@@ -920,3 +956,99 @@ def get_manufacturing_results(session_id: str):
     }
 
     return jsonify(ApiResponse.ok(payload).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# CoreOps proxy — used by manufacturing test runners
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def coreops_assign_device_id():
+    """POST /v2/manufacturing/coreops/devices/assign
+
+    Proxy to CoreOps: assign a device ID from a board serial number.
+    """
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    snr = (body.get("snr") or "").strip()
+    if not snr:
+        return bad_request("snr is required")
+
+    client = _get_coreops_client()
+    if not client:
+        return jsonify(ApiResponse.ok({
+            "error": "CoreOps not configured",
+            "snr": snr,
+        }).to_dict()), 503
+
+    try:
+        device_id = client.assign_device_id(snr)
+        return jsonify(ApiResponse.ok({
+            "deviceId": device_id,
+            "snr": snr,
+        }).to_dict()), 200
+    except Exception as e:
+        logger.error("CoreOps assign_device_id failed for SNR %s: %s", snr, e)
+        return jsonify(ApiResponse.ok({
+            "error": str(e),
+            "snr": snr,
+        }).to_dict()), 502
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def coreops_upload_key():
+    """POST /v2/manufacturing/coreops/devices/keys
+
+    Proxy to CoreOps: upload a public key for a device.
+    """
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    device_id = (body.get("deviceId") or "").strip()
+    pub_key = (body.get("pubKey") or "").strip()
+    if not device_id or not pub_key:
+        return bad_request("deviceId and pubKey are required")
+
+    client = _get_coreops_client()
+    if not client:
+        return jsonify(ApiResponse.ok({"error": "CoreOps not configured"}).to_dict()), 503
+
+    try:
+        client.upload_public_key(device_id, pub_key)
+        return jsonify(ApiResponse.ok({"success": True}).to_dict()), 200
+    except Exception as e:
+        logger.error("CoreOps upload_public_key failed: %s", e)
+        return jsonify(ApiResponse.ok({"error": str(e)}).to_dict()), 502
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def coreops_save_iccid():
+    """POST /v2/manufacturing/coreops/devices/iccids
+
+    Proxy to CoreOps: register an ICCID/SIM.
+    """
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    iccid = (body.get("iccid") or "").strip()
+    carrier = (body.get("carrier") or "").strip()
+    snr = (body.get("snr") or "").strip()
+    imei = (body.get("imei") or "").strip()
+    if not iccid or not snr:
+        return bad_request("iccid and snr are required")
+
+    client = _get_coreops_client()
+    if not client:
+        return jsonify(ApiResponse.ok({"error": "CoreOps not configured"}).to_dict()), 503
+
+    try:
+        client.save_iccid(iccid, carrier, snr, imei)
+        return jsonify(ApiResponse.ok({"success": True}).to_dict()), 200
+    except Exception as e:
+        logger.error("CoreOps save_iccid failed: %s", e)
+        return jsonify(ApiResponse.ok({"error": str(e)}).to_dict()), 502

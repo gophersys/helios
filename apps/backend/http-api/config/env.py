@@ -86,6 +86,14 @@ class AppConfig(EnvConfig):
     MAX_CONCURRENT_MANUFACTURING_SESSIONS: int = 4
     MANUFACTURING_TIMEOUT_MINUTES: int = 120
 
+    # CoreOps — device personalization server
+    COREOPS_SERVER_URL: str = "https://coreops.office.corekinect.cloud:2013"
+    COREOPS_AUTH_SERVER_URL: str = "https://auth.office.corekinect.cloud:2013"
+    COREOPS_API_KEY: str = ""
+    COREOPS_AUTH_USER: str = ""
+    COREOPS_AUTH_PASS: str = ""
+    COREOPS_VERIFY_SSL: bool = False  # Internal network, self-signed certs
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate()

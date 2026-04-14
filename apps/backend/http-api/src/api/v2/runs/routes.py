@@ -90,6 +90,9 @@ from ..manufacturing.sessions import (
     archive_session,
     delete_session,
     get_manufacturing_results,
+    coreops_assign_device_id,
+    coreops_upload_key,
+    coreops_save_iccid,
     set_manufacturing_socketio as set_mfg_v2_socketio,
 )
 from ..manufacturing.runner import (
@@ -443,5 +446,25 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         "/manufacturing/sessions/<session_id>/runner-heartbeat",
         endpoint="mfg_runner_heartbeat",
         view_func=runner_heartbeat,
+        methods=["POST"],
+    )
+
+    # CoreOps proxy — manufacturing runners call these to personalize devices
+    api.add_url_rule(
+        "/manufacturing/coreops/devices/assign",
+        endpoint="coreops_assign_device_id",
+        view_func=coreops_assign_device_id,
+        methods=["POST"],
+    )
+    api.add_url_rule(
+        "/manufacturing/coreops/devices/keys",
+        endpoint="coreops_upload_key",
+        view_func=coreops_upload_key,
+        methods=["POST"],
+    )
+    api.add_url_rule(
+        "/manufacturing/coreops/devices/iccids",
+        endpoint="coreops_save_iccid",
+        view_func=coreops_save_iccid,
         methods=["POST"],
     )
