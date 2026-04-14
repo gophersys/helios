@@ -222,4 +222,37 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
+    # K8s API server (job creation for validation/build/manufacturing)
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.1/32
+      ports:
+        - port: 443
+          protocol: TCP
+    # External HTTPS — Bitbucket API (CkBoards, repo checks), CoreOps, Auth server
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+    # Build service (push notifications)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: concord-build-service
+      ports:
+        - port: 9002
+          protocol: TCP
+    # Edge nodes — MTIB gRPC (validation/manufacturing hardware access)
+    - to:
+        - ipBlock:
+            cidr: 10.4.45.0/24
+      ports:
+        - port: 50053
+          protocol: TCP
 {{- end }}
