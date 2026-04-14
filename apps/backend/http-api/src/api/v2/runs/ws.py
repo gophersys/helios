@@ -80,7 +80,7 @@ def register_runs_ws_handlers(socketio: SocketIO):
             key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
             db = get_db_client()
             api_key = db.apikey.find_unique(where={"keyHash": key_hash})
-            if not api_key or api_key.revoked:
+            if not api_key:
                 logger.warning("Runs WS connect rejected: invalid or revoked API key")
                 return False
             if api_key.expiresAt and api_key.expiresAt < datetime.now(timezone.utc):
