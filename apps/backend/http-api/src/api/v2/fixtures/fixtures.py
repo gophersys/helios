@@ -502,6 +502,28 @@ def delete_fixture(fixture_id: str):
             _undeploy_mtib_for_slot(db, slot.nodeId)
             freed_nodes.append(slot.nodeId)
 
+    # Check for any remaining sessions (must be archived+deleted first)
+    remaining_sessions = db.manufacturingsession.count(where={"fixtureId": fixture_id})
+    if remaining_sessions > 0:
+        return conflict(
+            f"Cannot delete fixture: {remaining_sessions} manufacturing session(s) still reference it. "
+            "Archive and delete all sessions for this fixture first."
+        )
+
+    # Check for any remaining test runs
+    remaining_runs = db.testrun.count(where={"fixtureId": fixture_id})
+    if remaining_runs > 0:
+        return conflict(
+            f"Cannot delete fixture: {remaining_runs} test run(s) still reference it. "
+            "Delete all associated sessions first."
+        )
+
+    # Disconnect queue entries (nullable FK)
+    db.validationqueueentry.update_many(
+        where={"fixtureId": fixture_id},
+        data={"fixtureId": None},
+    )
+
     db.fixture.delete(where={"id": fixture_id})
     log_audit("fixture.delete", "Fixture", fixture_id, {
         "name": existing.name, "type": existing.type, "freedNodes": freed_nodes,
