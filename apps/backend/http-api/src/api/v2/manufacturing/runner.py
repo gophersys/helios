@@ -203,8 +203,18 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
         "ARTIFACTS_DIR": "/var/log/validation",
     }
 
-    # 6. Dispatch to executor
+    # 6. Development overrides — host network, local URLs
     is_dev = env_config.ENVIRONMENT == "development"
+    if is_dev:
+        env["CONCORD_API_URL"] = "http://localhost:9001"
+        env["CONCORD_API_HOST"] = "localhost:9001"
+        env["STORAGE_URL"] = "http://localhost:8675"
+        env["TLS_VERIFY"] = "false"
+        # MOCK_MODE only if explicitly set in the host environment
+        if os.environ.get("MOCK_MODE"):
+            env["MOCK_MODE"] = os.environ["MOCK_MODE"]
+
+    # 7. Dispatch to executor
     deployment_name = None
 
     try:

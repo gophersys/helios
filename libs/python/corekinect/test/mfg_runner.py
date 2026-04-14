@@ -93,11 +93,16 @@ class ManufacturingRunnerLoop:
         signal.signal(signal.SIGTERM, self._handle_sigterm)
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
-        # 1. Connect MTIB hardware
+        # 1. Connect MTIB hardware (non-fatal — runner stays alive for panel assignments)
         log.info("Connecting to MTIB hardware...")
-        self.fixture_ctx = FixtureContext.from_env()
-        self.fixture_ctx.connect_all()
-        log.info("MTIB connected: %d slots", self.fixture_ctx.slot_count)
+        try:
+            self.fixture_ctx = FixtureContext.from_env()
+            self.fixture_ctx.connect_all()
+            log.info("MTIB connected: %d slots", self.fixture_ctx.slot_count)
+        except Exception as e:
+            log.warning("MTIB connection failed (non-fatal): %s", e)
+            log.warning("Runner will stay alive but test execution may fail without hardware")
+            self.fixture_ctx = None
 
         # 2. Connect WebSocket
         self.sio = socketio.Client(

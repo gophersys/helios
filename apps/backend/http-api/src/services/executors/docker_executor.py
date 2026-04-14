@@ -50,7 +50,6 @@ class DockerExecutor(JobExecutor):
 
         docker_cmd = [
             "docker", "run",
-            "--rm",
             "-d",
             "--name", container_name,
             "--network", self._network,

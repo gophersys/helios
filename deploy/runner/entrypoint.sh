@@ -76,13 +76,27 @@ PRESIGNED_URL=$(echo "$DOWNLOAD_JSON" | python3 -c "import sys,json; print(json.
     exit 1
 }
 
-# Step 1c: Download the actual package from the presigned URL
+# Step 1c: Download via API proxy (avoids presigned URL hostname issues in dev)
+# The API endpoint streams the file directly, so we don't need the presigned URL.
+DIRECT_URL="${CONCORD_API_URL}/v2/storage/download?key=test-packages/${PRODUCT_SLUG}/${TEST_PACKAGE_TYPE,,}/${TEST_PACKAGE_VERSION}/package.tar.gz"
+echo "Downloading from: ${DIRECT_URL}"
+
 HTTP_CODE=$(curl -sf \
     -L -o /tmp/test-package.tar.gz \
     -w "%{http_code}" \
-    "${PRESIGNED_URL}") || {
-    echo "ERROR: Failed to download test package from presigned URL"
-    exit 1
+    -H "Authorization: ApiKey ${CONCORD_API_KEY}" \
+    "${DIRECT_URL}") || {
+    # Fallback to presigned URL if direct download fails
+    echo "Direct download failed, trying presigned URL..."
+    HTTP_CODE=$(curl -sf \
+        -L -o /tmp/test-package.tar.gz \
+        -w "%{http_code}" \
+        "${PRESIGNED_URL}") || {
+        echo "ERROR: Failed to download test package"
+        echo "Direct URL: ${DIRECT_URL}"
+        echo "Presigned URL: ${PRESIGNED_URL}"
+        exit 1
+    }
 }
 
 if [ "$HTTP_CODE" != "200" ]; then
@@ -129,8 +143,7 @@ if [ "${RUNNER_MODE:-}" = "persistent" ]; then
     echo "[concord-runner] Starting persistent manufacturing runner..."
     echo "[concord-runner] Session: ${CONCORD_SESSION_ID}"
     exec python3 -m corekinect.test.mfg_runner \
-        --session-id "${CONCORD_SESSION_ID}" \
-        "$@"
+        --session-id "${CONCORD_SESSION_ID}"
 fi
 
 # One-shot mode (default)
