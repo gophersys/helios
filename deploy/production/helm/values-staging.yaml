@@ -87,6 +87,10 @@ config:
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
   CONCORD_API_HOST: "staging.concord.local"
   PYPI_URL: "http://concord-pypi:8080/simple"
+  # CoreOps — device personalization service account
+  COREOPS_SERVER_URL: "https://coreops.office.corekinect.cloud:2013"
+  COREOPS_AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
+  COREOPS_VERIFY_SSL: "false"
 
 # Build Service — lightweight orchestrator, spawns dynamic builder containers
 buildService:
@@ -142,3 +146,6 @@ secrets:
   AUTH_SERVER_API_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
   DELETE_ALL_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
   BITBUCKET_WEBHOOK_SECRET: "OVERRIDE-IN-SECRETS-OVERLAY"
+  COREOPS_API_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  COREOPS_AUTH_USER: "OVERRIDE-IN-SECRETS-OVERLAY"
+  COREOPS_AUTH_PASS: "OVERRIDE-IN-SECRETS-OVERLAY"
