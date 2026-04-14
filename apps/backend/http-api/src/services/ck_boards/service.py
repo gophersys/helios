@@ -1,38 +1,38 @@
-"""ck_boards git service — manages its own bare clone, worktree checkout, board parsing.
+"""ck_boards REST API service — fetches board definitions via Bitbucket HTTPS API.
 
-Self-contained service: clones the repo on init, fetches periodically,
-creates ephemeral worktrees per request, parses board.yml for SoC topology.
+No git clone, no SSH, no worktrees. Uses the Bitbucket 2.0 REST API to read
+board.yml files directly. Works from any network that can reach HTTPS port 443.
 
 Board directories follow {family}_{rev} naming convention:
   alpha_a0, alpha_b0  → family "alpha", revisions "a0", "b0"
   sigma5_b0, sigma5_c0 → family "sigma5", revisions "b0", "c0"
 """
 
-import base64
 import logging
-import os
 import re
-import shutil
-import stat
-import subprocess
 import threading
-import uuid
-from collections import defaultdict
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 import yaml  # type: ignore[import-untyped]
+from requests.auth import HTTPBasicAuth  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
+
+# Suppress SSL warnings for internal network
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+_API_BASE = "https://api.bitbucket.org/2.0"
 
 
 def _split_board_name(dir_name: str) -> Tuple[str, str]:
     """Split a board directory name into (family, revision).
 
-    Splits on the LAST underscore followed by a letter+digit pattern.
     Examples:
         alpha_a0   → ("alpha", "a0")
         sigma5_c0  → ("sigma5", "c0")
-        iwsck_a1   → ("iwsck", "a1")
     """
     match = re.match(r'^(.+)_([a-zA-Z]\d+)$', dir_name)
     if match:
@@ -41,10 +41,7 @@ def _split_board_name(dir_name: str) -> Tuple[str, str]:
 
 
 def _parse_board_yml(content: str) -> Dict[str, Any]:
-    """Parse a Zephyr board.yml file.
-
-    Format: top-level 'board:' key with name, vendor, socs, revision.
-    """
+    """Parse a Zephyr board.yml file."""
     raw = yaml.safe_load(content)
     if not isinstance(raw, dict):
         raise ValueError("board.yml must be a YAML mapping")
@@ -62,320 +59,215 @@ def _parse_board_yml(content: str) -> Dict[str, Any]:
 
 
 class CkBoardsService:
-    """Self-contained git service for ck_boards board discovery.
-
-    Manages its own bare clone, SSH credentials, periodic fetch, and
-    ephemeral worktrees for reading board definitions.
-    """
+    """Board discovery via Bitbucket REST API (HTTPS, no SSH/git required)."""
 
     def __init__(
         self,
-        repo_url: str,
-        base_path: str,
-        ssh_key_b64: str = "",
-        bitbucket_email: str = "",
-        bitbucket_api_token: str = "",
+        workspace: str,
+        repo_slug: str,
+        email: str,
+        api_token: str,
         fetch_interval: int = 60,
         environment: str = "development",
     ):
-        self._bare_repo = os.path.join(base_path, "ck_boards.git")
-        self._worktree_base = os.path.join(base_path, "worktrees")
-        self._ssh_key_path: Optional[str] = None
-        self._git_env: Dict[str, str] = {}
-        self._fetch_interval = fetch_interval
+        if not email or not api_token:
+            raise RuntimeError("CkBoards requires BITBUCKET_EMAIL and BITBUCKET_API_TOKEN")
+
+        self._workspace = workspace
+        self._repo_slug = repo_slug
+        self._auth = HTTPBasicAuth(email, api_token)
         self._environment = environment
-        self._ready = False
+        self._fetch_interval = fetch_interval
+
+        # Cache
+        self._cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._cache_time: Dict[str, float] = {}
+        self._cache_ttl = max(fetch_interval, 60)
         self._lock = threading.Lock()
+        self._ready = False
 
-        os.makedirs(self._worktree_base, exist_ok=True)
-
-        self._repo_url = repo_url
-
-        # Configure SSH auth with -4 (force IPv4 — pods lack IPv6 routing).
-        # K8s secret volumes are root-owned; SSH rejects group/world-readable keys.
-        # Solution: read the mounted key, write to a temp file owned by current user.
-        if ssh_key_b64:
-            self._setup_ssh_key(ssh_key_b64)
-        else:
-            candidates = ["/home/appuser/.ssh/id_rsa", os.path.expanduser("~/.ssh/id_rsa")]
-            mounted_key = next((p for p in candidates if os.path.exists(p)), None)
-            if mounted_key:
-                usable_key = self._copy_key_with_perms(mounted_key, base_path)
-                self._git_env = {
-                    "GIT_SSH_COMMAND": f"ssh -4 -i {usable_key} -o StrictHostKeyChecking=no -o BatchMode=yes",
-                }
-                logger.info("CkBoards SSH key ready (copied from %s → %s)", mounted_key, usable_key)
-            else:
-                logger.error("CkBoards: no SSH key found at %s", candidates)
-                raise RuntimeError(f"SSH key not found at any of: {candidates}")
-
-        # Clone or fetch
-        self._init_repo()
+        # Verify connectivity
+        self._verify_access()
         self._ready = True
-
-        # Start periodic fetch
-        if fetch_interval > 0:
-            self._start_fetch_timer()
+        logger.info("CkBoards service ready (REST API, workspace=%s, repo=%s)", workspace, repo_slug)
 
     @property
     def is_ready(self) -> bool:
-        """Whether the bare repo has been cloned and is ready for queries."""
         return self._ready
 
     # ------------------------------------------------------------------
-    # SSH key management
+    # Bitbucket API
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _ssh_to_https(ssh_url: str, email: str, token: str) -> str:
-        """Convert git@bitbucket.org:workspace/repo.git → HTTPS with credentials.
+    def _api_get(self, path: str, **kwargs) -> requests.Response:
+        """GET from Bitbucket API with auth."""
+        url = f"{_API_BASE}/repositories/{self._workspace}/{self._repo_slug}/{path}"
+        resp = requests.get(url, auth=self._auth, timeout=15, **kwargs)
+        resp.raise_for_status()
+        return resp
 
-        Bitbucket HTTPS auth: https://email:token@bitbucket.org/workspace/repo.git
-        Credentials are passed raw — git handles URL parsing internally.
-        """
-        # git@bitbucket.org:corekinect/ck_boards.git → bitbucket.org/corekinect/ck_boards.git
-        path = ssh_url.replace("git@", "").replace(":", "/", 1)
-        return f"https://{email}:{token}@{path}"
-
-    @staticmethod
-    def _copy_key_with_perms(src: str, base_path: str) -> str:
-        """Copy a K8s-mounted SSH key to a temp file with 0600 permissions.
-
-        K8s secret volumes are root-owned. SSH requires keys to be owned by
-        the current user with mode 0600. This copies the key content to a
-        user-owned file.
-        """
-        key_dir = os.path.join(base_path, "ssh")
-        os.makedirs(key_dir, exist_ok=True)
-        dest = os.path.join(key_dir, "id_rsa")
-        with open(src, "rb") as f:
-            key_data = f.read()
-        with open(dest, "wb") as f:
-            f.write(key_data)
-        os.chmod(dest, stat.S_IRUSR | stat.S_IWUSR)  # 0600
-        return dest
-
-    def _setup_ssh_key(self, key_b64: str) -> None:
-        """Write base64-encoded SSH key to temp file and configure git to use it."""
-        key_dir = os.path.join(os.path.dirname(self._bare_repo), "ssh")
-        os.makedirs(key_dir, exist_ok=True)
-        self._ssh_key_path = os.path.join(key_dir, "bitbucket_key")
-
-        key_bytes = base64.b64decode(key_b64)
-        with open(self._ssh_key_path, "wb") as f:
-            f.write(key_bytes)
-        os.chmod(self._ssh_key_path, stat.S_IRUSR)
-
-        self._git_env = {
-            "GIT_SSH_COMMAND": f"ssh -i {self._ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes",
-        }
-
-    # ------------------------------------------------------------------
-    # Repo management
-    # ------------------------------------------------------------------
-
-    def _init_repo(self) -> None:
-        """Clone bare repo if missing, otherwise fetch."""
-        if os.path.isdir(self._bare_repo):
-            logger.info("Fetching ck_boards updates...")
-            self._run_git(["fetch", "--prune", "origin"])
-        else:
-            logger.info("Cloning ck_boards bare repo to %s ...", self._bare_repo)
-            env = {**os.environ, **self._git_env}
-            logger.info("Git env: %s", {k: v[:20] + "..." if len(v) > 20 else v for k, v in self._git_env.items()})
-            result = subprocess.run(
-                ["git", "clone", "--bare", self._repo_url, self._bare_repo],
-                timeout=120, capture_output=True, text=True, env=env,
+    def _verify_access(self):
+        """Verify we can reach the repo."""
+        try:
+            resp = requests.get(
+                f"{_API_BASE}/repositories/{self._workspace}/{self._repo_slug}",
+                auth=self._auth, timeout=10,
             )
-            if result.returncode != 0:
-                logger.error("git clone failed (exit %d): %s", result.returncode, result.stderr.strip())
-                raise subprocess.CalledProcessError(result.returncode, result.args)
-            logger.info("ck_boards clone complete (%s)", self._bare_repo)
+            if resp.status_code == 404:
+                raise RuntimeError(f"Repository {self._workspace}/{self._repo_slug} not found")
+            if resp.status_code == 401:
+                raise RuntimeError("Bitbucket authentication failed — check BITBUCKET_EMAIL and BITBUCKET_API_TOKEN")
+            resp.raise_for_status()
+        except requests.ConnectionError as e:
+            raise RuntimeError(f"Cannot reach Bitbucket API: {e}") from e
 
-    def _start_fetch_timer(self) -> None:
-        """Periodic background fetch."""
-        def _fetch_loop():
-            """Run git fetch in a loop at the configured interval."""
-            while True:
-                threading.Event().wait(self._fetch_interval)
-                try:
-                    self._run_git(["fetch", "--prune", "origin"])
-                except Exception as e:
-                    logger.warning("ck_boards fetch failed: %s", e)
+    def _list_directory(self, branch: str, path: str = "") -> List[Dict[str, Any]]:
+        """List files/dirs at a path on a branch."""
+        entries = []
+        url_path = f"src/{branch}/{path}" if path else f"src/{branch}/"
+        page_url = f"{_API_BASE}/repositories/{self._workspace}/{self._repo_slug}/{url_path}"
 
-        t = threading.Thread(target=_fetch_loop, daemon=True)
-        t.start()
+        while page_url:
+            resp = requests.get(page_url, auth=self._auth, timeout=15)
+            if resp.status_code == 404:
+                return []
+            resp.raise_for_status()
+            data = resp.json()
+            entries.extend(data.get("values", []))
+            page_url = data.get("next")
+
+        return entries
+
+    def _get_file(self, branch: str, path: str) -> str:
+        """Get raw file content from a branch."""
+        resp = self._api_get(f"src/{branch}/{path}")
+        return resp.text
 
     # ------------------------------------------------------------------
-    # Public API
+    # Public API (same interface as before)
     # ------------------------------------------------------------------
 
     def list_refs(self) -> Dict[str, List[str]]:
-        """List all branches and tags."""
-        branches = self._git_list_branches()
-        tags = self._git_list_tags()
+        """List branches and tags."""
+        branches = []
+        tags = []
 
-        # Production: only show master/main
+        # Branches
+        url = f"{_API_BASE}/repositories/{self._workspace}/{self._repo_slug}/refs/branches"
+        while url:
+            resp = requests.get(url, auth=self._auth, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            branches.extend(b["name"] for b in data.get("values", []))
+            url = data.get("next")
+
+        # Tags
+        url = f"{_API_BASE}/repositories/{self._workspace}/{self._repo_slug}/refs/tags"
+        while url:
+            resp = requests.get(url, auth=self._auth, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            tags.extend(t["name"] for t in data.get("values", []))
+            url = data.get("next")
+
         if self._environment == "production":
             branches = [b for b in branches if b in ("main", "master")]
 
         return {"branches": branches, "tags": tags}
 
     def fetch(self) -> None:
-        """Fetch latest refs from the remote repository."""
-        self._run_git(["fetch", "--prune", "origin"])
+        """Clear cache to force fresh data on next query."""
+        with self._lock:
+            self._cache.clear()
+            self._cache_time.clear()
 
     def discover_boards(self, branch: str) -> List[Dict[str, Any]]:
-        """Scan all board directories on a branch, grouped by product family.
+        """Scan all board directories on a branch, grouped by product family."""
+        # Check cache
+        with self._lock:
+            if branch in self._cache and (time.time() - self._cache_time.get(branch, 0)) < self._cache_ttl:
+                return self._cache[branch]
 
-        Returns a list of families, each with vendor and revisions:
-        [
-          {
-            "family": "alpha",
-            "vendor": "corekinect",
-            "revisions": [
-              {"version": "a0", "ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"]},
-              {"version": "b0", "ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"]}
-            ]
-          }
-        ]
-        """
-        self._validate_ref(branch)
-        worktree_path = self._checkout_worktree(branch)
-        try:
-            return self._scan_boards(worktree_path)
-        finally:
-            self._remove_worktree(worktree_path)
+        boards = self._scan_boards(branch)
+
+        with self._lock:
+            self._cache[branch] = boards
+            self._cache_time[branch] = time.time()
+
+        return boards
 
     def discover_board_detail(self, family_name: str, branch: str) -> Dict[str, Any]:
-        """Get full details for a product family — all revisions with SoCs."""
-        self._validate_ref(branch)
-        worktree_path = self._checkout_worktree(branch)
-        try:
-            boards_dir = self._find_boards_dir(worktree_path)
-            families = self._scan_boards_in_dir(boards_dir)
-            family = families.get(family_name)
-            if not family:
-                raise ValueError(f"Board '{family_name}' not found on this branch")
-            return family
-        finally:
-            self._remove_worktree(worktree_path)
+        """Get full details for a product family."""
+        boards = self.discover_boards(branch)
+        for board in boards:
+            if board["family"] == family_name:
+                return board
+        raise ValueError(f"Board '{family_name}' not found on branch '{branch}'")
 
     # ------------------------------------------------------------------
-    # Git operations
+    # Board scanning via REST API
     # ------------------------------------------------------------------
 
-    def _run_git(self, args: List[str], cwd: Optional[str] = None) -> str:
-        """Execute a git command against the bare repo and return stdout."""
-        env = {**os.environ, **self._git_env}
-        cmd = ["git", "--git-dir", self._bare_repo] + args
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=cwd, timeout=30, env=env,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
-        return result.stdout.strip()
+    def _find_boards_path(self, branch: str) -> str:
+        """Find the boards directory path (current/boards/<vendor>/ layout)."""
+        # Try current/boards/
+        entries = self._list_directory(branch, "current/boards")
+        if entries:
+            for entry in entries:
+                if entry.get("type") == "commit_directory":
+                    # First vendor subdirectory
+                    return entry["path"]
+            return "current/boards"
 
-    def _git_list_branches(self) -> List[str]:
-        """List all branch names from the bare repo."""
-        output = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
-        return [line for line in output.splitlines() if line]
+        # Fallback: boards/
+        entries = self._list_directory(branch, "boards")
+        if entries:
+            return "boards"
 
-    def _git_list_tags(self) -> List[str]:
-        """List all tag names from the bare repo."""
-        output = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tags/"])
-        return [line for line in output.splitlines() if line]
+        return ""
 
-    def _validate_ref(self, ref: str) -> None:
-        """Raise ValueError if ref is not a known branch or tag."""
-        branches = self._git_list_branches()
-        tags = self._git_list_tags()
-        if ref not in branches and ref not in tags:
-            raise ValueError(f"Ref '{ref}' not found in ck_boards repository")
+    def _scan_boards(self, branch: str) -> List[Dict[str, Any]]:
+        """Scan board directories on a branch and group by family."""
+        boards_path = self._find_boards_path(branch)
+        if not boards_path:
+            logger.warning("No boards directory found on branch %s", branch)
+            return []
 
-    def _checkout_worktree(self, ref: str) -> str:
-        """Create an ephemeral detached worktree for the given ref."""
-        worktree_id = f"{ref.replace('/', '_')}_{uuid.uuid4().hex[:8]}"
-        worktree_path = os.path.join(self._worktree_base, worktree_id)
-        self._run_git(["worktree", "add", "--detach", worktree_path, ref])
-        return worktree_path
-
-    def _remove_worktree(self, worktree_path: str) -> None:
-        """Remove a previously created worktree and prune if needed."""
-        try:
-            self._run_git(["worktree", "remove", "--force", worktree_path])
-        except RuntimeError:
-            if os.path.exists(worktree_path):
-                shutil.rmtree(worktree_path, ignore_errors=True)
-            try:
-                self._run_git(["worktree", "prune"])
-            except RuntimeError:
-                pass
-
-    # ------------------------------------------------------------------
-    # Board scanning
-    # ------------------------------------------------------------------
-
-    def _find_boards_dir(self, worktree_path: str) -> str:
-        """Find boards at current/boards/<vendor>/ (ck_boards layout)."""
-        current_boards = os.path.join(worktree_path, "current", "boards")
-        if os.path.isdir(current_boards):
-            for vendor in os.listdir(current_boards):
-                vendor_dir = os.path.join(current_boards, vendor)
-                if os.path.isdir(vendor_dir):
-                    return vendor_dir
-            return current_boards
-        boards_dir = os.path.join(worktree_path, "boards")
-        if os.path.isdir(boards_dir):
-            return boards_dir
-        return worktree_path
-
-    def _scan_boards_in_dir(self, boards_dir: str) -> Dict[str, Dict[str, Any]]:
-        """Scan board directories and group by product family.
-
-        Returns a dict keyed by family name, each containing:
-        {
-          "family": "alpha",
-          "vendor": "corekinect",
-          "revisions": [
-            {"version": "a0", "ckBoardsName": "alpha_a0", "socs": [...]},
-            ...
-          ]
-        }
-        """
+        entries = self._list_directory(branch, boards_path)
         families: Dict[str, Dict[str, Any]] = {}
-        for entry in sorted(os.listdir(boards_dir)):
-            board_dir = os.path.join(boards_dir, entry)
-            board_yml = os.path.join(board_dir, "board.yml")
-            if os.path.isdir(board_dir) and os.path.isfile(board_yml):
-                try:
-                    with open(board_yml) as f:
-                        board_data = _parse_board_yml(f.read())
 
-                    family, version = _split_board_name(entry)
-                    if not version:
-                        # Fallback: use directory name as family, no version
-                        family = entry
-                        version = ""
+        for entry in entries:
+            if entry.get("type") != "commit_directory":
+                continue
 
-                    if family not in families:
-                        families[family] = {
-                            "family": family,
-                            "vendor": board_data["vendor"],
-                            "revisions": [],
-                        }
+            dir_name = entry["path"].split("/")[-1]
+            board_yml_path = f"{entry['path']}/board.yml"
 
-                    families[family]["revisions"].append({
-                        "version": version,
-                        "ckBoardsName": entry,
-                        "socs": board_data["socs"],
-                    })
-                except Exception as e:
-                    logger.warning("Failed to parse board %s: %s", entry, e)
-        return families
+            try:
+                content = self._get_file(branch, board_yml_path)
+                board_data = _parse_board_yml(content)
 
-    def _scan_boards(self, worktree_path: str) -> List[Dict[str, Any]]:
-        """Scan a worktree for boards and return families sorted by name."""
-        boards_dir = self._find_boards_dir(worktree_path)
-        families = self._scan_boards_in_dir(boards_dir)
+                family, version = _split_board_name(dir_name)
+                if not version:
+                    family = dir_name
+                    version = ""
+
+                if family not in families:
+                    families[family] = {
+                        "family": family,
+                        "vendor": board_data["vendor"],
+                        "revisions": [],
+                    }
+
+                families[family]["revisions"].append({
+                    "version": version,
+                    "ckBoardsName": dir_name,
+                    "socs": board_data["socs"],
+                })
+            except requests.HTTPError:
+                # No board.yml in this directory — skip
+                continue
+            except Exception as e:
+                logger.warning("Failed to parse board %s: %s", dir_name, e)
+
         return sorted(families.values(), key=lambda f: f["family"])

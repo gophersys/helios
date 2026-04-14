@@ -142,41 +142,30 @@ class TestDiscoverBoardDetail:
 
 
 class TestCheckRepo:
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_missing_slug_returns_400(self, mock_config, mock_subprocess_run, authed_client, mock_db):
+    def test_missing_slug_returns_400(self, authed_client, mock_db):
         resp = authed_client.get("/v2/products/repos/check")
         assert resp.status_code == 400
 
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_repo_exists(self, mock_config, mock_subprocess_run, authed_client, mock_db):
-        mock_config.BITBUCKET_SSH_KEY = None
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
+    @patch("api.v2.products.board_discovery.requests.get")
+    def test_repo_exists(self, mock_get, authed_client, mock_db):
+        mock_get.return_value = MagicMock(status_code=200)
         resp = authed_client.get("/v2/products/repos/check?slug=alpha_fw")
         assert resp.status_code == 200
         data = resp.get_json()["data"]
         assert data["exists"] is True
         assert data["slug"] == "alpha_fw"
 
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_repo_not_exists(self, mock_config, mock_subprocess_run, authed_client, mock_db):
-        mock_config.BITBUCKET_SSH_KEY = None
-        mock_subprocess_run.return_value = MagicMock(returncode=2)
-
+    @patch("api.v2.products.board_discovery.requests.get")
+    def test_repo_not_exists(self, mock_get, authed_client, mock_db):
+        mock_get.return_value = MagicMock(status_code=404)
         resp = authed_client.get("/v2/products/repos/check?slug=nonexistent")
         assert resp.status_code == 200
         data = resp.get_json()["data"]
         assert data["exists"] is False
 
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_exception_returns_exists_false(self, mock_config, mock_subprocess_run, authed_client, mock_db):
-        mock_config.BITBUCKET_SSH_KEY = None
-        mock_subprocess_run.side_effect = Exception("timeout")
-
+    @patch("api.v2.products.board_discovery.requests.get")
+    def test_exception_returns_exists_false(self, mock_get, authed_client, mock_db):
+        mock_get.side_effect = Exception("timeout")
         resp = authed_client.get("/v2/products/repos/check?slug=alpha_fw")
         assert resp.status_code == 200
         data = resp.get_json()["data"]
@@ -184,21 +173,16 @@ class TestCheckRepo:
 
 
 class TestListRepoBranches:
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_missing_slug_returns_400(self, mock_config, mock_subprocess_run, authed_client, mock_db):
+    def test_missing_slug_returns_400(self, authed_client, mock_db):
         resp = authed_client.get("/v2/products/repos/branches")
         assert resp.status_code == 400
 
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_returns_branches(self, mock_config, mock_subprocess_run, authed_client, mock_db):
-        mock_config.BITBUCKET_SSH_KEY = None
-        mock_subprocess_run.return_value = MagicMock(
-            returncode=0,
-            stdout="abc123\trefs/heads/main\ndef456\trefs/heads/develop\n",
+    @patch("api.v2.products.board_discovery.requests.get")
+    def test_returns_branches(self, mock_get, authed_client, mock_db):
+        mock_get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"values": [{"name": "main"}, {"name": "develop"}], "next": None},
         )
-
         resp = authed_client.get("/v2/products/repos/branches?slug=alpha_fw")
         assert resp.status_code == 200
         data = resp.get_json()["data"]
@@ -206,11 +190,9 @@ class TestListRepoBranches:
         assert "main" in data["branches"]
         assert data["branches"] == sorted(data["branches"])
 
-    @patch("subprocess.run")
-    @patch("config.env.env_config")
-    def test_git_failure_returns_empty(self, mock_config, mock_subprocess_run, authed_client, mock_db):
-        mock_config.BITBUCKET_SSH_KEY = None
-        mock_subprocess_run.return_value = MagicMock(returncode=128, stdout="")
+    @patch("api.v2.products.board_discovery.requests.get")
+    def test_api_failure_returns_empty(self, mock_get, authed_client, mock_db):
+        mock_get.return_value = MagicMock(status_code=401)
 
         resp = authed_client.get("/v2/products/repos/branches?slug=alpha_fw")
         assert resp.status_code == 200

@@ -186,14 +186,10 @@ if __name__ == "__main__":
         # Start observability polling service
         init_observability_service(poll_interval_s=5)
 
-        # Initialize CkBoards service (board definition discovery)
-        # Uses SSH with mounted key. Non-fatal — platform works without board discovery.
-        try:
-            from api.v2.products.board_discovery import init_ck_boards_service
-            init_ck_boards_service(env_config)
-            logger.info("CkBoards service ready")
-        except Exception as e:
-            logger.warning("CkBoards unavailable: %s", e)
+        # Initialize CkBoards service (board definition discovery via Bitbucket REST API)
+        from api.v2.products.board_discovery import init_ck_boards_service
+        init_ck_boards_service(env_config)
+        logger.info("CkBoards service ready")
 
         # Routes
         register_v2_routes(logger, server, socketio)
