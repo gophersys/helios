@@ -6,8 +6,10 @@
   import { PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { createAuthContext } from '$lib/stores/auth.svelte';
   import { createThemeContext } from '$lib/stores/theme.svelte';
+  import { reportJsError } from '$lib/stores/error-reporter.svelte';
   import Layout from '$lib/components/layout.svelte';
   import EnvironmentBanner from '$lib/components/ui/environment-banner.svelte';
+  import ErrorReportModal from '$lib/components/ui/error-report-modal.svelte';
 
   let { children } = $props();
 
@@ -36,16 +38,25 @@
   onMount(async () => {
     await auth.init();
 
-    // Catch unhandled errors in dev/staging
-    if (isDev) {
-      window.addEventListener('error', (e) => {
-        boundaryError = { message: e.message, stack: e.filename + ':' + e.lineno };
+    // Catch unhandled JS errors globally
+    window.addEventListener('error', (e) => {
+      boundaryError = { message: e.message, stack: e.filename + ':' + e.lineno };
+      reportJsError({
+        message: e.message,
+        stack: e.error?.stack,
+        url: e.filename,
       });
-      window.addEventListener('unhandledrejection', (e) => {
-        const msg = e.reason?.message || String(e.reason);
-        boundaryError = { message: msg, stack: e.reason?.stack };
+    });
+
+    // Catch unhandled promise rejections globally
+    window.addEventListener('unhandledrejection', (e) => {
+      const msg = e.reason?.message || String(e.reason);
+      boundaryError = { message: msg, stack: e.reason?.stack };
+      reportJsError({
+        message: msg,
+        stack: e.reason?.stack,
       });
-    }
+    });
   });
 
   // Redirect logic
@@ -97,6 +108,8 @@
 {/if}
 
 <div aria-live="polite" aria-atomic="true" class="sr-only">{routeAnnouncement}</div>
+
+<ErrorReportModal />
 
 <!-- Dev error toast — persists until dismissed -->
 {#if isDev && boundaryError}

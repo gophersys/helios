@@ -91,9 +91,22 @@ export async function apiFetch<T = unknown>(
 
   if (!res.ok) {
     const errorData = data as { errors?: { message?: string }[]; error?: string };
-    throw new Error(
-      errorData.errors?.[0]?.message || errorData.error || `Request failed (${res.status})`
-    );
+    const errorMessage =
+      errorData.errors?.[0]?.message || errorData.error || `Request failed (${res.status})`;
+
+    if (res.status >= 500) {
+      const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
+      reportApiError({
+        status: res.status,
+        url: path,
+        method: (options.method as string) || 'GET',
+        message: errorMessage,
+        requestBody: typeof options.body === 'string' ? options.body?.slice(0, 500) : undefined,
+        responseBody: JSON.stringify(data).slice(0, 500),
+      });
+    }
+
+    throw new Error(errorMessage);
   }
 
   return data as T;
@@ -126,9 +139,21 @@ export async function apiUploadRaw(
 
   if (!res.ok) {
     const data = await res.json();
-    throw new Error(
-      data.error || data.errors?.[0]?.message || `Upload failed (${res.status})`
-    );
+    const errorMessage =
+      data.error || data.errors?.[0]?.message || `Upload failed (${res.status})`;
+
+    if (res.status >= 500) {
+      const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
+      reportApiError({
+        status: res.status,
+        url: path,
+        method: 'POST',
+        message: errorMessage,
+        responseBody: JSON.stringify(data).slice(0, 500),
+      });
+    }
+
+    throw new Error(errorMessage);
   }
 
   return res;
@@ -189,13 +214,28 @@ export async function apiDownload(path: string, filename: string): Promise<void>
   }
 
   if (!res.ok) {
-    // Try to parse error message
+    let errorMessage = `Download failed (${res.status})`;
+    let responseBody: string | undefined;
     try {
       const data = await res.json();
-      throw new Error(data.error || data.errors?.[0]?.message || `Download failed (${res.status})`);
+      errorMessage = data.error || data.errors?.[0]?.message || errorMessage;
+      responseBody = JSON.stringify(data).slice(0, 500);
     } catch {
-      throw new Error(`Download failed (${res.status})`);
+      // Response wasn't JSON — use the generic message
     }
+
+    if (res.status >= 500) {
+      const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
+      reportApiError({
+        status: res.status,
+        url: path,
+        method: 'GET',
+        message: errorMessage,
+        responseBody,
+      });
+    }
+
+    throw new Error(errorMessage);
   }
 
   // Prefer server-provided filename from Content-Disposition, fall back to caller
@@ -243,9 +283,21 @@ export async function apiUpload<T = unknown>(
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(
-      data.error || data.errors?.[0]?.message || `Request failed (${res.status})`
-    );
+    const errorMessage =
+      data.error || data.errors?.[0]?.message || `Request failed (${res.status})`;
+
+    if (res.status >= 500) {
+      const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
+      reportApiError({
+        status: res.status,
+        url: path,
+        method: 'POST',
+        message: errorMessage,
+        responseBody: JSON.stringify(data).slice(0, 500),
+      });
+    }
+
+    throw new Error(errorMessage);
   }
 
   return data as T;

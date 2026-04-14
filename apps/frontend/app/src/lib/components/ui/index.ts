@@ -11,6 +11,7 @@ export { default as TextInput } from './text-input.svelte';
 export { default as FormCard } from './form-card.svelte';
 export { default as Card } from './card.svelte';
 export { default as Modal } from './modal.svelte';
+export { default as ErrorReportModal } from './error-report-modal.svelte';
 export { default as Tabs } from './tabs.svelte';
 export { default as DataList } from './data-list.svelte';
 export { default as FilterBar } from './filter-bar.svelte';
