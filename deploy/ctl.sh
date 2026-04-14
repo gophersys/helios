@@ -321,8 +321,10 @@ _helm_deploy() {
   fi
 
   timer_start
-  helm "${helm_args[@]}" --wait --rollback-on-failure --timeout 600s --history-max 5
-  timer_end "Helm upgrade"
+  # Don't use --wait (it blocks on CronJobs/Ingress which don't have Ready state).
+  # Rollout verification is handled by _verify_rollout() after this step.
+  helm "${helm_args[@]}" --timeout 600s --history-max 5
+  timer_end "Helm install"
 }
 
 _verify_rollout() {
