@@ -79,8 +79,13 @@ RUN apt-get update && \
     git \
     openssh-client \
     ca-certificates \
+    curl \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Docker CLI — needed by DockerExecutor to spawn test runner containers
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.5.1.tgz \
+    | tar xz --strip-components=1 -C /usr/local/bin docker/docker
 
 # Internal CA certificates (office network)
 COPY deploy/ca-certs/*.crt /usr/local/share/ca-certificates/
