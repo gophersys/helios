@@ -323,7 +323,7 @@ _helm_deploy() {
   timer_start
   # Don't use --wait (it blocks on CronJobs/Ingress which don't have Ready state).
   # Rollout verification is handled by _verify_rollout() after this step.
-  helm "${helm_args[@]}" --timeout 600s --history-max 5
+  helm "${helm_args[@]}" --timeout 600s
   timer_end "Helm install"
 }
 
