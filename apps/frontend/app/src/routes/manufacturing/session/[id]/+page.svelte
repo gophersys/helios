@@ -67,6 +67,17 @@
   const hasStandaloneSlot = $derived(
     !!(session?.fixture?.metadata as Record<string, unknown> | null)?.hasStandaloneSlot
   );
+  // Fixture slot info from session snapshot (MTIB node names for the scan modal)
+  const fixtureSlots = $derived.by(() => {
+    const snapshot = (session?.config as Record<string, any>)?.fixtureSnapshot;
+    if (!snapshot?.slots) return [];
+    return (snapshot.slots as any[]).map((s: any) => ({
+      slotIndex: s.slotIndex as number,
+      nodeName: s.nodeName as string | undefined,
+      nodeHostname: s.nodeHostname as string | undefined,
+      label: s.label as string | undefined,
+    }));
+  });
 
   // ── Session-level computed values ──────────────────────────
   const allRuns = $derived(session?.runs || []);
@@ -673,7 +684,7 @@
           {panelCols}
           {hasStandaloneSlot}
           targets={activeRun?.targets ?? latestRun?.targets ?? []}
-          scannable={canRun && session.status === 'ACTIVE' && runnerReady}
+          scannable={canRun && session.status === 'ACTIVE' && runnerReady && !runningRun}
           onScanPanel={() => openScanModal('panel')}
           onScanStandalone={() => openScanModal('standalone')}
           onSlotClick={handleSlotClick}
@@ -790,6 +801,7 @@
   {panelRows}
   {panelCols}
   {hasStandaloneSlot}
+  {fixtureSlots}
   runType={scanRunType}
   onClose={() => { scanModalOpen = false; }}
   onStarted={handleRunStarted}

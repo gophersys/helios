@@ -194,9 +194,6 @@ class FixtureContext:
         default_port = int(os.environ.get("MTIB_PORT", "50053"))
         addresses = [addr.strip() for addr in mtib_hosts.split(",") if addr.strip()]
 
-        snrs = _split_env("SLOT_SNRS", len(addresses))
-        device_ids = _split_env("SLOT_DEVICE_IDS", len(addresses))
-
         # SLOT_FILTER: only include specific slot indices (e.g., "0,1,2" or "4")
         slot_filter_str = os.environ.get("SLOT_FILTER", "").strip()
         if slot_filter_str:
@@ -205,7 +202,13 @@ class FixtureContext:
         else:
             allowed_indices = None  # no filter = all slots
 
+        # Validate SNR/device_id count against filtered slot count (not all hosts)
+        filtered_count = len(allowed_indices) if allowed_indices else len(addresses)
+        snrs = _split_env("SLOT_SNRS", filtered_count)
+        device_ids = _split_env("SLOT_DEVICE_IDS", filtered_count)
+
         slots = {}
+        filtered_idx = 0
         for i, addr in enumerate(addresses):
             if allowed_indices is not None and i not in allowed_indices:
                 continue
@@ -216,9 +219,10 @@ class FixtureContext:
                 slot_index=i,
                 mtib_address=host,
                 mtib_port=port,
-                serial_number=snrs[i] if i < len(snrs) else "",
-                device_id=device_ids[i] if i < len(device_ids) else "",
+                serial_number=snrs[filtered_idx] if filtered_idx < len(snrs) else "",
+                device_id=device_ids[filtered_idx] if filtered_idx < len(device_ids) else "",
             )
+            filtered_idx += 1
 
         log.info("Loaded %d slots from MTIB_HOSTS: %s", len(slots),
                  [f"{s.mtib_address}:{s.mtib_port}" for s in slots.values()])

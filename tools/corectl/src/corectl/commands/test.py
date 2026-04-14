@@ -211,34 +211,24 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
             else:
                 result.error(f"Stage '{stage_name}' directory missing: {directory}")
     elif pkg_type == "manufacturing":
-        steps = manifest.get("steps", []) or manifest.get("stages", {})
-        if not steps:
-            result.error("No steps/stages defined in manifest")
-        if isinstance(steps, list):
-            for step in steps:
-                module = step.get("module", "")
-                # Verify the module file exists
-                module_path = module.replace(".", "/") + ".py"
+        stages = manifest.get("stages", {})
+        if not stages:
+            result.error("No stages defined in manifest")
+        for stage_name, stage_cfg in stages.items():
+            directory = stage_cfg.get("directory", f"tests/{stage_name}") if isinstance(stage_cfg, dict) else f"tests/{stage_name}"
+            module = stage_cfg.get("module", "") if isinstance(stage_cfg, dict) else ""
+            if module:
+                module_path = f"{directory}/{module}.py"
                 if (project_dir / module_path).exists():
-                    result.ok(f"Step: {step.get('name', '?')} -> {module}")
+                    result.ok(f"Stage: {stage_name} -> {module_path}")
                 else:
-                    result.error(f"Step '{step.get('name', '?')}' module not found: {module_path}")
-        elif isinstance(steps, dict):
-            for stage_name, stage_cfg in steps.items():
-                directory = stage_cfg.get("directory", f"tests/{stage_name}") if isinstance(stage_cfg, dict) else f"tests/{stage_name}"
-                module = stage_cfg.get("module", "") if isinstance(stage_cfg, dict) else ""
-                if module:
-                    module_path = f"{directory}/{module}.py"
-                    if (project_dir / module_path).exists():
-                        result.ok(f"Stage: {stage_name} -> {module_path}")
-                    else:
-                        result.error(f"Stage '{stage_name}' module not found: {module_path}")
+                    result.error(f"Stage '{stage_name}' module not found: {module_path}")
+            else:
+                stage_dir = project_dir / directory
+                if stage_dir.is_dir():
+                    result.ok(f"Stage: {stage_name} -> {directory}/")
                 else:
-                    stage_dir = project_dir / directory
-                    if stage_dir.is_dir():
-                        result.ok(f"Stage: {stage_name} -> {directory}/")
-                    else:
-                        result.error(f"Stage '{stage_name}' directory missing: {directory}")
+                    result.error(f"Stage '{stage_name}' directory missing: {directory}")
 
     # Fixture profile
     fixture = manifest.get("fixture", {})
@@ -996,13 +986,9 @@ def upload(ctx, path: str, auto_release: bool):
 
     import json as json_mod
 
-    # Build stages/steps info for the upload payload
+    # Build stages info for the upload payload
     if is_v2:
-        pkg_type_str = manifest.get("package", {}).get("type", "validation")
-        if pkg_type_str == "validation":
-            stages_enabled = {name: True for name in manifest.get("stages", {}).keys()}
-        else:
-            stages_enabled = {step["name"]: True for step in manifest.get("steps", [])}
+        stages_enabled = {name: True for name in manifest.get("stages", {}).keys()}
     else:
         stages_enabled = manifest.get("stages", {})
 

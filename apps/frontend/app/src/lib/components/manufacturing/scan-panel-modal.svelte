@@ -12,6 +12,13 @@
     coreopsError: string | null;
   }
 
+  interface FixtureSlotInfo {
+    slotIndex: number;
+    nodeName?: string;
+    nodeHostname?: string;
+    label?: string;
+  }
+
   let {
     open = false,
     sessionId,
@@ -19,6 +26,7 @@
     panelCols = 1,
     hasStandaloneSlot = false,
     runType = 'panel',
+    fixtureSlots = [],
     onClose,
     onStarted,
   }: {
@@ -28,9 +36,15 @@
     panelCols?: number;
     hasStandaloneSlot?: boolean;
     runType?: 'panel' | 'standalone';
+    fixtureSlots?: FixtureSlotInfo[];
     onClose?: () => void;
     onStarted?: (runId: string) => void;
   } = $props();
+
+  // Build a lookup: slotIndex → fixture slot info (MTIB node name)
+  const fixtureSlotMap = $derived(
+    new Map(fixtureSlots.map(s => [s.slotIndex, s]))
+  );
 
   let snrInput = $state('');
   let resolving = $state(false);
@@ -209,6 +223,13 @@
               <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">
                 {slot.label}
               </span>
+
+              <!-- MTIB node (from fixture snapshot) -->
+              {#if fixtureSlotMap.get(slot.slotIndex)?.nodeName}
+                <span class="text-2xs text-text-tertiary font-mono">
+                  {fixtureSlotMap.get(slot.slotIndex)?.nodeName}
+                </span>
+              {/if}
 
               <!-- SNR -->
               <span class="text-sm font-mono font-semibold text-text-primary">

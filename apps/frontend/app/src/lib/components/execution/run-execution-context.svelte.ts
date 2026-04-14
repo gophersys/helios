@@ -200,6 +200,33 @@ export class RunExecutionContext {
         }
         this.slots = built;
 
+        // Hydrate queued test skeleton from config.testList (page reload during active run)
+        const testList = (res.data.config as Record<string, unknown>)?.testList;
+        if (testList && Array.isArray(testList)) {
+          for (const slot of built) {
+            if (slot.liveTests.length > 0) continue; // Already hydrated from executions
+            const slotTests = (testList as { name: string; module: string | null }[]).filter(t => {
+              const m = t.name?.match(/\[slot-(\d+)\]/);
+              return m ? parseInt(m[1]) === slot.slotIndex : built.length === 1;
+            });
+            if (slotTests.length > 0) {
+              slot.liveTests = slotTests.map(t => ({
+                name: t.name,
+                module: t.module,
+                status: 'queued' as const,
+                durationS: null,
+                startedAtMs: null,
+                errorMessage: null,
+                measurements: null,
+                logOutput: null,
+                expanded: false,
+                steps: [],
+              }));
+              slot.hydrated = true;
+            }
+          }
+        }
+
         // Subscribe to WebSocket if run is active
         if (this.isActive || this.isPending) {
           this._setupWebSocket();
@@ -225,7 +252,15 @@ export class RunExecutionContext {
       {
         onTestStart: (data: ValidationTestStartEvent) => {
           const slot = this._findSlot(data.targetId);
-          if (slot) slot.handleTestStart(data);
+          if (slot) {
+            slot.handleTestStart(data);
+            // Auto-scroll to the running test — use rAF to avoid lagging behind fast POST tests
+            if (slot.autoFollow) {
+              const name = data.name || data.testName || '';
+              const module = data.module || null;
+              requestAnimationFrame(() => this._scrollToTest(name, module, 10));
+            }
+          }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
           const slot = this._findSlot(data.targetId);
@@ -243,10 +278,15 @@ export class RunExecutionContext {
           if (slot) slot.handleLogChunk(data);
         },
         onTestList: (data) => {
-          // Test list applies to the active slot (or first slot)
-          const slot = this.activeSlot || this.slots[0];
+          // Route test list to the correct slot by targetId (multi-slot),
+          // or fall back to first slot (single-slot/validation)
+          const targetId = data.targetId;
+          const slot = targetId
+            ? this.slots.find(s => s.targetId === targetId)
+            : this.activeSlot || this.slots[0];
+
           if (slot && (slot.liveTests.length === 0 || slot.liveTests.every(t => t.status === 'queued'))) {
-            slot.liveTests = data.tests.map(t => ({
+            slot.liveTests = data.tests.map((t: { name: string; module: string | null }) => ({
               name: t.name,
               module: t.module,
               status: 'queued' as const,

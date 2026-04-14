@@ -207,11 +207,8 @@ def _basic_validate(data: dict) -> List[ValidationError]:
             if field not in fix:
                 errors.append(ValidationError(f"fixture.{field}", f"Missing required field"))
 
-    pkg_type = data.get("package", {}).get("type")
-    if pkg_type == "validation" and "stages" not in data:
-        errors.append(ValidationError("stages", "Required for validation packages"))
-    if pkg_type == "manufacturing" and "stages" not in data and "steps" not in data:
-        errors.append(ValidationError("stages", "Required for manufacturing packages (use 'stages' dict or 'steps' list)"))
+    if "stages" not in data:
+        errors.append(ValidationError("stages", "Required — define at least one test stage"))
 
     return errors
 

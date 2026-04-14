@@ -30,5 +30,6 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 log_cli_date_format = "%H:%M:%S"
-addopts = "-v --tb=short"
+log_capture = false
+addopts = "-v --tb=short -p no:logging"
 timeout = 600

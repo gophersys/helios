@@ -630,31 +630,61 @@ def get_manufacturing_session(session_id: str):
 # Panel SNR resolution helpers
 # ---------------------------------------------------------------------------
 
-_SNR_PATTERN = re.compile(r"^(.*?)(\d+)$")
+def _resolve_panel_snrs(primary_snr: str, slot_count: int) -> list[dict]:
+    """Resolve per-slot SNRs for a panel from a scanned barcode.
 
+    Calls CoreOps boards/assemblies/search to look up the panel assembly.
+    CoreOps returns each board's serial number and its panel position.
 
-def _derive_panel_snrs(primary_snr: str, slot_count: int) -> list[dict]:
-    """Derive sequential SNRs from a primary SNR for panel slots.
+    For singletons (slot_count=1), the scanned SNR is the DUT's SNR.
+    For panels, CoreOps returns all board SNRs at their positions.
 
-    If the SNR ends with digits (e.g., "0964" or "DUT-0964"), increment the
-    numeric suffix for each subsequent slot. Zero-pads to the original width.
+    Falls back to the scanned SNR on slot-0 if CoreOps is unavailable
+    or the SNR isn't in the assembly database.
 
-    Returns a list of dicts: [{"slotIndex": 0, "snr": "0964"}, ...].
+    Returns a list of dicts: [{"slotIndex": 0, "snr": "0A2J", "deviceId": None}, ...].
     """
-    m = _SNR_PATTERN.match(primary_snr)
-    if not m:
-        # Non-numeric SNR — use as-is for slot 0, leave others empty
-        return [{"slotIndex": i, "snr": primary_snr if i == 0 else None} for i in range(slot_count)]
+    result = [{"slotIndex": i, "snr": None, "deviceId": None} for i in range(slot_count)]
 
-    prefix = m.group(1)
-    num_str = m.group(2)
-    num_width = len(num_str)
-    base_num = int(num_str)
+    # Singleton: scanned SNR is the DUT
+    if slot_count == 1:
+        result[0]["snr"] = primary_snr
+        return result
 
-    return [
-        {"slotIndex": i, "snr": f"{prefix}{str(base_num + i).zfill(num_width)}"}
-        for i in range(slot_count)
-    ]
+    # Panel: look up assembly in CoreOps
+    coreops = _get_coreops_client()
+    if not coreops:
+        logger.warning("CoreOps not available — using scanned SNR on slot-0 only")
+        result[0]["snr"] = primary_snr
+        return result
+
+    try:
+        assembly = coreops.search_board_assembly(primary_snr)
+        boards = assembly.get("boards", [])
+
+        if not boards:
+            logger.warning("No boards found in CoreOps for SNR %s", primary_snr)
+            result[0]["snr"] = primary_snr
+            return result
+
+        # Map each board to its panel position (0-indexed)
+        for board in boards:
+            position = board.get("panelPosition")
+            board_snr = board.get("boardSerialNumber")
+            if position is not None and 0 <= position < slot_count and board_snr:
+                result[position]["snr"] = board_snr
+
+        logger.info(
+            "Resolved panel %s → %s",
+            primary_snr,
+            ", ".join(f"slot-{r['slotIndex']}={r['snr']}" for r in result if r["snr"]),
+        )
+
+    except Exception as e:
+        logger.warning("CoreOps assembly search failed for %s: %s", primary_snr, e)
+        result[0]["snr"] = primary_snr
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -699,13 +729,14 @@ def resolve_panel(session_id: str):
     if not slots:
         return bad_request("Fixture has no active slots")
 
-    derived = _derive_panel_snrs(snr, len(slots))
+    # Resolve panel assembly via CoreOps to get per-slot SNRs
+    resolved = _resolve_panel_snrs(snr, len(slots))
 
-    # Resolve each SNR against CoreOps for device ID validation
+    # Also resolve device IDs for each board
     coreops_client = _get_coreops_client()
     result_slots = []
-    for slot, d in zip(slots, derived):
-        slot_snr = d["snr"]
+    for slot, r in zip(slots, resolved):
+        slot_snr = r.get("snr")
         device_id = None
         coreops_error = None
 
@@ -824,25 +855,54 @@ def add_manufacturing_run(session_id: str):
     run = db.testrun.create(data=run_data)
 
     # Auto-create RunTarget records (one per active fixture slot).
-    # For standalone runs, the qrCode IS the DUT serial number — assign it
-    # to the single target. For panel runs, use pre-resolved SNRs or fixture dutSnr.
-    for slot in slots:
-        if run_type == "standalone":
-            serial_number = snr_lookup.get(slot.slotIndex, qr_code)
-        else:
-            serial_number = snr_lookup.get(
-                slot.slotIndex,
-                slot.dutSnr if hasattr(slot, "dutSnr") else None,
+    # For standalone runs, the qrCode IS the DUT serial number.
+    # For panel runs, resolve per-slot SNRs via CoreOps assembly lookup.
+    if run_type == "panel" and not slot_snrs:
+        # Look up panel assembly in CoreOps to get each board's unique SNR
+        resolved = _resolve_panel_snrs(qr_code, len(slots))
+        resolved_lookup = {r["slotIndex"]: r for r in resolved}
+
+        # Also resolve device IDs for each board
+        coreops_client = _get_coreops_client()
+        for slot in slots:
+            r = resolved_lookup.get(slot.slotIndex, {})
+            slot_snr = snr_lookup.get(slot.slotIndex, r.get("snr"))
+            device_id = None
+
+            if slot_snr and coreops_client:
+                try:
+                    device_id = coreops_client.assign_device_id(slot_snr)
+                except Exception as e:
+                    logger.warning("CoreOps assign_device_id failed for SNR %s: %s", slot_snr, e)
+
+            db.runtarget.create(
+                data={
+                    "runId": run.id,
+                    "slotIndex": slot.slotIndex,
+                    "slotId": slot.id,
+                    "serialNumber": slot_snr,
+                    "deviceId": device_id or (slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None),
+                },
             )
-        db.runtarget.create(
-            data={
-                "runId": run.id,
-                "slotIndex": slot.slotIndex,
-                "slotId": slot.id,
-                "serialNumber": serial_number,
-                "deviceId": slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None,
-            },
-        )
+    else:
+        # Standalone or explicit slotSnrs
+        for slot in slots:
+            if run_type == "standalone":
+                serial_number = snr_lookup.get(slot.slotIndex, qr_code)
+            else:
+                serial_number = snr_lookup.get(
+                    slot.slotIndex,
+                    slot.dutSnr if hasattr(slot, "dutSnr") else None,
+                )
+            db.runtarget.create(
+                data={
+                    "runId": run.id,
+                    "slotIndex": slot.slotIndex,
+                    "slotId": slot.id,
+                    "serialNumber": serial_number,
+                    "deviceId": slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None,
+                },
+            )
 
     # Re-fetch run with targets and test package for the response
     run = db.testrun.find_unique(

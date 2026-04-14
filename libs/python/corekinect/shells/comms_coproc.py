@@ -48,10 +48,13 @@ class ModemFirmware:
 class SimInfo:
     """Result from get_sim_info (imei_iccid command).
 
-    Firmware response format (v2):
+    Response format:
         IMEI,EID0,ICCID0[,EID1,ICCID1]: <15d>,<32d>,<19-20d>[,<32d>,<19-20d>]
-    Legacy format (v1):
-        IMEI,ICCID: <15d>,<19-20d>[,<19-20d>]
+
+    Fields classified by digit count:
+        15 digits  → IMEI
+        30-34 digits → EID (eUICC identifier)
+        19-20 digits → ICCID
     """
     imei: Optional[str] = None
     eids: List[str] = field(default_factory=list)
@@ -193,7 +196,7 @@ class CommsCoprocShell:
             if remaining <= 0:
                 break
 
-            # Accept both v1 "IMEI,ICCID" and v2 "IMEI,EID0,ICCID0" headers
+            # Match any response header starting with "IMEI,"
             lines, err = self._cmd.send(
                 "imei_iccid",
                 success_patterns=["IMEI,"],
@@ -230,10 +233,7 @@ class CommsCoprocShell:
     def _parse_sim_response(lines: list) -> SimInfo:
         """Parse IMEI/EID/ICCID from response lines.
 
-        Handles both firmware formats:
-          v2: IMEI,EID0,ICCID0[,EID1,ICCID1]: 355...,890410...,891480...,,...
-          v1: IMEI,ICCID: 355...,891480...
-
+        Parses comma-separated values after the header colon.
         Classification by digit count:
           15 digits  → IMEI
           32 digits  → EID (eUICC identifier)
@@ -389,19 +389,35 @@ class CommsCoprocShell:
         """
         lines, err = self._cmd.send(
             f"read_ext_flash {address} {num_bytes}",
-            success_patterns=["Reading", "Mfg shell:", "Comms Mfg:"],
+            success_patterns=["Reading", "Mfg shell:", "Comms Mfg:", "bytes from address"],
             timeout_s=timeout_s,
         )
+        # If send() timed out but there's data in the buffer, try parsing it
+        if err and not lines:
+            import time
+            time.sleep(1)
+            text = self._cmd._stream.get_text()
+            if text:
+                lines = [l for l in text.splitlines() if l.strip()]
         if err:
             return None, err
 
         hex_data = ""
         for line in lines:
-            if ":" in line and "|" in line:
-                hex_part = line.split("|")[0].strip()
-                if ":" in hex_part:
-                    hex_values = hex_part.split(":", 1)[1].strip()
-                    hex_data += hex_values.replace(" ", "")
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Format: "AA BB CC DD EE FF ...  |ASCII text|"
+            # Hex bytes separated by spaces, optionally followed by |...|
+            if "|" in stripped:
+                hex_part = stripped.split("|")[0].strip()
+                # Extract hex bytes (pairs of hex digits separated by spaces)
+                hex_bytes = re.findall(r"[0-9A-Fa-f]{2}", hex_part)
+                if hex_bytes:
+                    hex_data += "".join(hex_bytes)
+            # Format: "AA BB CC DD" (no ASCII sidebar)
+            elif re.match(r"^(?:[0-9A-Fa-f]{2}\s*)+$", stripped):
+                hex_data += re.sub(r"\s+", "", stripped)
 
         if hex_data:
             return hex_data, None

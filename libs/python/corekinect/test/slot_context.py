@@ -99,18 +99,9 @@ class SlotTestContext:
             self.uart.start()
             log.info("Slot %s: UART capture started", self.slot.slot_id)
 
-        # Wire UART to telemetry (tagged by slot_id)
+        # Wire UART to telemetry for live streaming
         if self.uart and self.telemetry:
-            original_push = self.telemetry.push_uart
-
-            def _tagged_uart_push(ts, target, line):
-                original_push(ts, target, line, slot=self.slot.slot_id)
-
-            # Only tag if the streamer supports it; otherwise use default
-            try:
-                self.uart.on_line = _tagged_uart_push
-            except Exception:
-                self.uart.on_line = self.telemetry.push_uart
+            self.uart.on_line = self.telemetry.push_uart
 
         # Start background power polling
         if self.power:
@@ -144,14 +135,30 @@ class SlotTestContext:
             self.telemetry.set_test(test_name, module=module)
 
     def teardown_test(self, test_name: str, artifacts_dir: Optional[str] = None) -> None:
-        """Dump per-slot UART log to artifacts directory."""
-        if not artifacts_dir or not self.uart:
+        """Dump per-slot UART log to local artifacts dir and upload to MinIO.
+
+        Local path: {artifacts_dir}/{slot_id}/{test_name}_uart.log
+        MinIO path: sessions/{run_id}/logs/{serial_number}/{test_name}_uart.log
+        """
+        if not self.uart:
             return
 
-        slot_dir = os.path.join(artifacts_dir, self.slot.slot_id)
-        os.makedirs(slot_dir, exist_ok=True)
-        log_path = os.path.join(slot_dir, f"{test_name}_uart.log")
-        self.uart.dump_to_file(log_path)
+        # Dump to local filesystem
+        if artifacts_dir:
+            slot_dir = os.path.join(artifacts_dir, self.slot.slot_id)
+            os.makedirs(slot_dir, exist_ok=True)
+            log_path = os.path.join(slot_dir, f"{test_name}_uart.log")
+            self.uart.dump_to_file(log_path)
+
+            # Upload to MinIO via ArtifactWriter if available
+            if self.artifact_writer and os.path.isfile(log_path):
+                serial = self.slot.serial_number or self.slot.slot_id
+                object_path = f"{serial}/{test_name}_uart.log"
+                try:
+                    with open(log_path, "rb") as f:
+                        self.artifact_writer.write_bytes(object_path, f.read())
+                except Exception as e:
+                    log.warning("Slot %s: failed to upload UART log: %s", self.slot.slot_id, e)
 
     # ── Power polling ────────────────────────────────────────────────
 

@@ -87,10 +87,13 @@ def _get_run_or_404(run_id: str):
 
 
 def _resolve_target(db, run_id: str, body: dict):
-    """Find a RunTarget by explicit targetId, (runId, slotIndex), or default to slot 0.
+    """Find a RunTarget by explicit targetId, slotIndex, deviceSerial, or default.
 
-    The corekinect reporter doesn't send slotIndex (it doesn't know which slot
-    it's running on). For single-slot validation runs, default to the first target.
+    Resolution priority:
+      1. targetId — direct ID lookup
+      2. slotIndex — (runId, slotIndex) compound key
+      3. deviceSerial — match RunTarget.serialNumber (multi-slot manufacturing)
+      4. Default to first target (single-slot validation)
 
     Returns (target, None) or (None, error_response).
     """
@@ -113,7 +116,16 @@ def _resolve_target(db, run_id: str, body: dict):
             return None, not_found(f"No target at slot {slot_index} in run {run_id}")
         return target, None
 
-    # Default: find the first (or only) target for this run
+    # Priority 3: deviceSerial → RunTarget.serialNumber (multi-slot)
+    device_serial = body.get("deviceSerial")
+    if device_serial:
+        target = db.runtarget.find_first(
+            where={"runId": run_id, "serialNumber": device_serial},
+        )
+        if target:
+            return target, None
+
+    # Default: first target (single-slot validation runs)
     target = db.runtarget.find_first(
         where={"runId": run_id},
         order={"slotIndex": "asc"},
@@ -285,7 +297,11 @@ def report_start(run_id: str):
 
 @require_auth
 def report_test_list(run_id: str):
-    """POST /v2/runs/<run_id>/report/test-list -- Full test list after collection."""
+    """POST /v2/runs/<run_id>/report/test-list -- Full test list after collection.
+
+    For multi-slot runs, parses [slot-N] from test names and emits
+    per-target events so the frontend can populate each slot's skeleton.
+    """
     body = request.get_json()
     if not body:
         return bad_request("Request body required")
@@ -293,6 +309,8 @@ def report_test_list(run_id: str):
     tests = body.get("tests", [])
 
     db = get_db_client()
+
+    # Persist full test list in run config (for page reload hydration)
     try:
         run = db.testrun.find_unique(where={"id": run_id})
         if run:
@@ -305,7 +323,41 @@ def report_test_list(run_id: str):
     except Exception as e:
         logger.warning("Failed to persist test list for run %s: %s", run_id, e)
 
-    _emit("run_test_list", {"runId": run_id, "tests": tests}, run_id)
+    # Group tests by slot index for multi-slot routing
+    targets = db.runtarget.find_many(
+        where={"runId": run_id}, order={"slotIndex": "asc"},
+    )
+
+    if len(targets) > 1:
+        # Multi-slot: parse [slot-N] from test names and emit per-target
+        import re as _re
+        tests_by_slot: dict = {}
+        for test in tests:
+            m = _re.search(r"\[slot-(\d+)\]", test.get("name", ""))
+            slot_idx = int(m.group(1)) if m else 0
+            tests_by_slot.setdefault(slot_idx, []).append(test)
+
+        for target in targets:
+            slot_tests = tests_by_slot.get(target.slotIndex, [])
+            if slot_tests:
+                _emit("run_test_list", {
+                    "runId": run_id,
+                    "targetId": target.id,
+                    "tests": slot_tests,
+                }, run_id)
+
+        logger.info(
+            "Test list for run %s: %d tests across %d slots",
+            run_id, len(tests), len(targets),
+        )
+    else:
+        # Single-slot: emit all tests to the run room
+        _emit("run_test_list", {
+            "runId": run_id,
+            "targetId": targets[0].id if targets else None,
+            "tests": tests,
+        }, run_id)
+
     return jsonify(ApiResponse.ok({"count": len(tests)}).to_dict()), 200
 
 
@@ -429,13 +481,33 @@ def report_execution_result(run_id: str):
     if err:
         return err
 
-    execution, err = _find_execution_by_name(db, target.id, name)
-    if err:
-        return err
+    # Find existing execution or auto-create (handles setup-phase skips
+    # where execution-start never fired)
+    execution = db.testexecution.find_first(
+        where={"targetId": target.id, "name": name},
+    )
+    if not execution:
+        exec_index = db.testexecution.count(where={"targetId": target.id})
+        execution = db.testexecution.create(
+            data={
+                "targetId": target.id,
+                "executionIndex": exec_index,
+                "name": name,
+                "module": body.get("module"),
+                "status": "RUNNING",
+                "startedAt": datetime.now(timezone.utc),
+            },
+        )
 
     now = datetime.now(timezone.utc)
+    skipped = body.get("skipped", False)
     passed = body.get("passed", False)
-    new_status = "PASSED" if passed else "FAILED"
+    if skipped:
+        new_status = "SKIPPED"
+    elif passed:
+        new_status = "PASSED"
+    else:
+        new_status = "FAILED"
 
     # Accept both "durationMs" and "durationS" (corekinect sends seconds)
     duration_ms = body.get("durationMs")
@@ -469,7 +541,9 @@ def report_execution_result(run_id: str):
         "targetId": target.id,
         "executionId": execution.id,
         "name": name,
+        "module": body.get("module"),
         "passed": passed,
+        "skipped": skipped,
         "durationMs": body.get("durationMs"),
         "errorMessage": body.get("errorMessage"),
         "measurements": body.get("measurements"),
@@ -477,7 +551,7 @@ def report_execution_result(run_id: str):
 
     logger.info(
         "Execution '%s' %s in run %s",
-        name, "PASSED" if passed else "FAILED", run_id,
+        name, new_status, run_id,
     )
     return jsonify(ApiResponse.ok({
         "executionId": execution.id,
@@ -728,8 +802,8 @@ def report_finish(run_id: str):
         data={"status": "ERROR", "completedAt": now},
     )
 
-    # Mark remaining PENDING/RUNNING executions as FAILED
-    # Fetch target IDs for this run first
+    # Mark remaining PENDING/RUNNING executions as SKIPPED (not FAILED —
+    # these are tests that never ran, not tests that failed)
     targets = db.runtarget.find_many(where={"runId": run_id}, include={"executions": True})
     target_ids = [t.id for t in targets]
     if target_ids:
@@ -738,7 +812,7 @@ def report_finish(run_id: str):
                 "targetId": {"in": target_ids},
                 "status": {"in": ["PENDING", "RUNNING"]},
             },
-            data={"status": "FAILED", "completedAt": now},
+            data={"status": "SKIPPED", "completedAt": now},
         )
 
     run_update: dict = {

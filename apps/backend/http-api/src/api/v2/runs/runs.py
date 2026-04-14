@@ -13,6 +13,7 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import CreateRunRequest, _serialize_execution, _serialize_run, _serialize_target
+from .ws import emit_to_run, emit_to_mfg_session
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +259,17 @@ def cancel_run(run_id: str):
         )
 
         log_audit("run.cancel", "TestRun", run_id, {"previousStatus": "ACTIVE"})
+
+        # Emit cancel events so the runner can kill the pytest subprocess
+        emit_to_run("run_cancelled", {"runId": run_id}, run_id)
+
+        # Also emit to the manufacturing session room if this is a mfg run
+        if run.manufacturingSessionId:
+            emit_to_mfg_session(
+                "manufacturing_run_cancelled",
+                {"runId": run_id, "sessionId": run.manufacturingSessionId},
+                run.manufacturingSessionId,
+            )
 
         return jsonify(ApiResponse.ok(_serialize_run(run, include_targets=True)).to_dict()), 200
 

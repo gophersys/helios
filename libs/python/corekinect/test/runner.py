@@ -592,6 +592,8 @@ class TestRunner:
         self.preflight = PreflightChecker(self.config)
         self.reporter = RunReporter(run_id)
         self.collector = ArtifactCollector(self.config, self.reporter)
+        self._process: Optional[subprocess.Popen] = None
+        self._cancelled = False
 
     def run(self) -> int:
         """Execute the full test run. Returns exit code."""
@@ -641,6 +643,20 @@ class TestRunner:
             self.reporter.report_run_failed(str(e), "exception")
             return 1
 
+    def cancel(self) -> None:
+        """Cancel the running pytest subprocess."""
+        self._cancelled = True
+        proc = self._process
+        if proc and proc.poll() is None:
+            log.info("Cancelling pytest subprocess (pid=%d)", proc.pid)
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                log.warning("pytest did not exit after SIGTERM — sending SIGKILL")
+                proc.kill()
+                proc.wait(timeout=5)
+
     def _run_pytest(self) -> int:
         """Run pytest and return exit code."""
         args = [
@@ -665,13 +681,17 @@ class TestRunner:
         pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = pythonpath
 
-        result = subprocess.run(
+        self._process = subprocess.Popen(
             args,
             env=env,
             cwd=os.getcwd(),
         )
 
-        return result.returncode
+        self._process.wait()
+        exit_code = self._process.returncode
+        self._process = None
+
+        return exit_code
 
     def _cleanup(self):
         """Final cleanup tasks."""

@@ -469,20 +469,61 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     fctx = FixtureContext.from_env()
     fctx.connect_all()
 
+    # Create telemetry streamer for live power/UART streaming to frontend
+    telemetry = None
+    run_id = _os.environ.get("CONCORD_RUN_ID", "").strip()
+    api_url = _os.environ.get("CONCORD_API_URL", "").strip()
+    api_key = _os.environ.get("CONCORD_API_KEY", "").strip()
+    if run_id and api_url and api_key:
+        from .telemetry import TelemetryStreamer
+        from .artifact_writer import ArtifactWriter
+
+        artifact_writer = ArtifactWriter()
+
+        def _telemetry_storage(object_path: str, content_bytes: bytes) -> None:
+            artifact_writer.write_bytes(object_path, content_bytes)
+
+        telemetry = TelemetryStreamer(
+            run_id=run_id,
+            api_url=api_url,
+            api_key=api_key,
+            on_flush_storage=_telemetry_storage,
+        )
+        telemetry.start()
+
     # Build per-slot rich contexts (UART, power, artifacts)
-    slot_test_ctxs = fctx.build_slot_test_contexts()
+    slot_test_ctxs = fctx.build_slot_test_contexts(telemetry=telemetry)
     for stc in slot_test_ctxs.values():
         stc.connect()
     fctx._slot_test_contexts = slot_test_ctxs
+    fctx._telemetry = telemetry
+
+    # Store slot_index → serial_number mapping on the reporter.
+    # The reporter uses this in pytest_runtest_logstart to set deviceSerial
+    # BEFORE execution-start fires — critical for multi-slot result routing.
+    slot_serials = {
+        stc.slot.slot_index: stc.slot.serial_number
+        for stc in slot_test_ctxs.values()
+        if stc.slot.serial_number
+    }
+    reporter = getattr(request.config, "_concord_reporter", None)
+    if reporter and slot_serials:
+        reporter._slot_serials = slot_serials
+        log.info("Slot→serial mapping for reporter: %s", slot_serials)
 
     yield fctx
 
-    # Teardown: disconnect per-slot services, then MTIB connections
+    # Teardown: disconnect per-slot services, stop telemetry, disconnect MTIB
     for stc in slot_test_ctxs.values():
         try:
             stc.disconnect()
         except Exception as e:
             log.warning("Error disconnecting slot test context: %s", e)
+    if telemetry:
+        try:
+            telemetry.stop()
+        except Exception as e:
+            log.warning("Error stopping telemetry: %s", e)
     fctx.disconnect_all()
 
 
@@ -630,6 +671,79 @@ def _test_lifecycle(request: pytest.FixtureRequest):
         slot_val = request.getfixturevalue("slot")
         if hasattr(slot_val, "teardown_test"):
             slot_val.teardown_test(test_name, artifacts_dir)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Per-slot cascade failure tracking
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Tracks which slots have failed, keyed by slot_id.
+# When a test fails for a slot, all remaining tests for that slot are skipped.
+# This gives per-slot independence: slot-0 can pass while slot-2 fails.
+_slot_failures: dict = {}
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call):
+    """Record per-slot test failures for cascade skipping.
+
+    When a multi-slot test (parametrized by slot) fails, record the failure
+    so subsequent tests for the same slot are auto-skipped. Other slots
+    are unaffected.
+    """
+    outcome = yield
+    report = outcome.get_result()
+
+    # Only track call-phase failures (not setup/teardown)
+    if report.when != "call" or not report.failed:
+        return
+
+    # Extract slot ID from the test's parametrize suffix: [slot-N]
+    import re as _re
+    m = _re.search(r"\[slot-(\d+)\]", item.nodeid)
+    if not m:
+        return
+
+    slot_id = f"slot-{m.group(1)}"
+    # Extract module (stage) from the file path
+    parts = item.nodeid.split("::")
+    module = None
+    if len(parts) >= 2:
+        file_part = parts[0]
+        if "/" in file_part:
+            file_part = file_part.rsplit("/", 1)[-1]
+        if file_part.endswith(".py"):
+            module = file_part[:-3]
+
+    _slot_failures[slot_id] = {
+        "failed_test": item.name,
+        "module": module,
+    }
+    log.info("Cascade: slot %s failed at %s (module=%s) — remaining tests for this slot will skip", slot_id, item.name, module)
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Skip tests for slots that have already failed.
+
+    This gives manufacturing per-slot independence: if slot-2 fails during
+    firmware flash, all remaining tests for slot-2 (flash + POST) are
+    skipped, but slots 0, 1, 3 continue independently.
+    """
+    import re as _re
+    m = _re.search(r"\[slot-(\d+)\]", item.nodeid)
+    if not m:
+        return
+
+    slot_id = f"slot-{m.group(1)}"
+    failure = _slot_failures.get(slot_id)
+    if not failure:
+        return
+
+    # This slot has a recorded failure — skip this test
+    pytest.skip(
+        f"Skipped: {slot_id} failed at {failure['failed_test']} "
+        f"(stage {failure['module']})"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

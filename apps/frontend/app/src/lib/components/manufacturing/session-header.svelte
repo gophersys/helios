@@ -163,11 +163,20 @@
   <!-- Action buttons -->
   {#if canManage}
     <div class="flex items-center gap-2 border-t border-border pt-4 mt-4">
+      {#if activeRunExists}
+        <div class="flex items-center gap-2 text-accent text-sm font-medium">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+          </span>
+          Run in progress — scanning locked
+        </div>
+      {/if}
       {#if session.status === 'ACTIVE'}
         <button
           onclick={onEndSession}
           disabled={activeRunExists}
-          class="btn btn-sm btn-secondary"
+          class="btn btn-sm btn-secondary {activeRunExists ? 'ml-auto' : ''}"
           title={activeRunExists ? 'A test run is actively executing — wait for it to finish' : 'End this session'}
         >
           <StopCircle size={14} />

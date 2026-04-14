@@ -60,6 +60,7 @@ class ManufacturingRunnerLoop:
         self.sio: Optional[socketio.Client] = None
         self._running_lock = threading.Lock()
         self._current_run_id: Optional[str] = None
+        self._current_runner: Optional[TestRunner] = None
         self._shutting_down = False
 
         # Auth header for HTTP calls
@@ -207,6 +208,10 @@ class ManufacturingRunnerLoop:
         def on_manufacturing_run_start(data):
             self._on_manufacturing_run_start(data)
 
+        @sio.on("manufacturing_run_cancelled", namespace="/runs")
+        def on_manufacturing_run_cancelled(data):
+            self._on_manufacturing_run_cancelled(data)
+
         @sio.on("manufacturing_session_end", namespace="/runs")
         def on_manufacturing_session_end(data):
             self._on_manufacturing_session_end(data)
@@ -279,6 +284,8 @@ class ManufacturingRunnerLoop:
 
         try:
             runner = TestRunner(stage="manufacturing", run_id=run_id)
+            with self._running_lock:
+                self._current_runner = runner
             exit_code = runner.run()
             log.info(
                 "Panel %s completed: exit_code=%d",
@@ -293,7 +300,25 @@ class ManufacturingRunnerLoop:
         finally:
             with self._running_lock:
                 self._current_run_id = None
+                self._current_runner = None
             self._send_heartbeat("READY")
+
+    def _on_manufacturing_run_cancelled(self, data: dict) -> None:
+        """Handle cancel event — kill the pytest subprocess if it matches."""
+        cancelled_run_id = data.get("runId")
+        log.info("Received cancel for run %s", cancelled_run_id)
+
+        with self._running_lock:
+            if self._current_run_id != cancelled_run_id:
+                log.info("Cancel ignored — run %s is not the current run", cancelled_run_id)
+                return
+            runner = self._current_runner
+
+        if runner:
+            log.info("Killing pytest subprocess for run %s", cancelled_run_id)
+            runner.cancel()
+        else:
+            log.warning("No active TestRunner to cancel for run %s", cancelled_run_id)
 
     def _on_manufacturing_session_end(self, data: dict) -> None:
         """Handle session end -- graceful shutdown.
@@ -390,11 +415,23 @@ class ManufacturingRunnerLoop:
     # ------------------------------------------------------------------
 
     def _recover_pending_runs(self) -> None:
-        """Recover from a crash or reconnect by checking session state.
+        """Recover from a crash by checking session state on first startup.
+
+        Only runs once (guarded by _recovery_done flag). Skips if a run
+        is currently being executed by this runner instance.
 
         - Runs with status ACTIVE (was running when we crashed) -> mark FAILED
         - Runs with status PENDING (not yet started) -> execute them
         """
+        if getattr(self, '_recovery_done', False):
+            return
+        self._recovery_done = True
+
+        # Don't mark runs as crashed if we're currently executing one
+        with self._running_lock:
+            if self._current_run_id:
+                return
+
         url = f"{self.api_url}/v2/manufacturing/sessions/{self.session_id}"
         try:
             resp = requests.get(
@@ -414,7 +451,7 @@ class ManufacturingRunnerLoop:
             log.warning("Recovery check failed: %s", e)
             return
 
-        # Mark ACTIVE runs as FAILED (they were interrupted by our crash)
+        # Mark ACTIVE runs as FAILED (they were interrupted by a previous crash)
         for run in runs:
             if run.get("status") == "ACTIVE":
                 run_id = run.get("id")

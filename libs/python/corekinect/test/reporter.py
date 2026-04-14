@@ -238,7 +238,7 @@ class ConcordReporter:
         self._current_test_nodeid: Optional[str] = None
         self._log_buffer: str = ""
         self._log_buffer_lock = threading.Lock()
-        self._log_offset: int = 0
+        self._log_offsets: Dict[str, int] = {}  # per-device log offsets
         self._flush_thread: Optional[threading.Thread] = None
         self._flush_stop_event = threading.Event()
         self._original_stdout = None
@@ -349,22 +349,31 @@ class ConcordReporter:
         # Build payload (outside lock to avoid blocking)
         try:
             encoded = base64.b64encode(data.encode("utf-8", errors="replace")).decode("ascii")
+            # Per-slot log isolation: if device_serial is set (multi-slot),
+            # prefix the file with the serial so each DUT gets its own log.
+            # Single-slot runs keep "output.log" for backward compat.
+            if device_serial:
+                log_file = f"{device_serial}/output.log"
+            else:
+                log_file = "output.log"
+
+            offset_key = device_serial or "__default__"
+            current_offset = self._log_offsets.get(offset_key, 0)
+
             payload: Dict[str, Any] = {
-                "file": "output.log",
-                "offset": self._log_offset,
+                "file": log_file,
+                "offset": current_offset,
                 "data": encoded,
                 "testName": test_name,
                 "timestamp": int(time.time() * 1000),
             }
-            # Include step context when inside a step
             if step_index is not None:
                 payload["stepIndex"] = step_index
-            # Include device serial when set
             if device_serial is not None:
                 payload["deviceSerial"] = device_serial
 
             self._post("report/log-chunk", payload)
-            self._log_offset += len(data.encode("utf-8", errors="replace"))
+            self._log_offsets[offset_key] = current_offset + len(data.encode("utf-8", errors="replace"))
         except Exception as e:
             # Reporter must never fail tests — log and continue
             log.warning("ConcordReporter: log flush failed: %s", e)
@@ -468,6 +477,18 @@ class ConcordReporter:
         # Flush any pending logs before starting new test
         self._flush_log_buffer()
 
+        # Multi-slot: extract slot index from nodeid (e.g., "test_01[slot-2]")
+        # and set deviceSerial BEFORE sending execution-start. This is critical
+        # because pytest_runtest_logstart fires before fixture setup, so the
+        # _test_lifecycle fixture's set_device() call hasn't happened yet.
+        import re as _re
+        slot_match = _re.search(r"\[slot-(\d+)\]", nodeid)
+        if slot_match and hasattr(self, "_slot_serials"):
+            slot_idx = int(slot_match.group(1))
+            serial = self._slot_serials.get(slot_idx)
+            if serial:
+                self._current_device = serial
+
         payload: Dict[str, Any] = {
             "testName": test_name,
             "module": module,
@@ -483,8 +504,20 @@ class ConcordReporter:
     def _handle_skip_result(self, item: pytest.Item) -> None:
         """Report a skipped test (setup-phase skip, no call phase follows)."""
         self._total += 1
+
+        # Extract module from nodeid so skipped tests get grouped correctly
+        parts = item.nodeid.split("::")
+        module = None
+        if len(parts) >= 2:
+            file_part = parts[0]
+            if "/" in file_part:
+                file_part = file_part.rsplit("/", 1)[-1]
+            if file_part.endswith(".py"):
+                module = file_part[:-3]
+
         payload: Dict[str, Any] = {
             "testName": item.name,
+            "module": module,
             "passed": True,
             "durationS": 0,
             "errorMessage": None,
@@ -496,17 +529,15 @@ class ConcordReporter:
         self._post("report/execution-result", payload)
 
     def _accumulate_output(self, item: pytest.Item, report) -> None:
-        """Accumulate captured output from a test phase (setup/call/teardown)."""
+        """Accumulate captured output from a test phase (setup/call/teardown).
+
+        Only captures stderr (the primary log stream) to avoid duplicate
+        output from pytest's section capture (which repeats the same lines
+        under different headers like 'Captured stderr call', 'Captured log call').
+        """
         captured = ""
-        if report.capstdout:
-            captured += report.capstdout
         if report.capstderr:
             captured += report.capstderr
-        if report.caplog:
-            captured += report.caplog
-        # Also capture sections (pytest log output, etc.)
-        for title, content in report.sections:
-            captured += f"\n--- {title} ---\n{content}"
 
         if captured.strip():
             prev = self._test_output.get(item.nodeid, "")
@@ -518,7 +549,9 @@ class ConcordReporter:
         test_name = item.name
         passed = report.passed
 
-        if report.passed:
+        if report.skipped:
+            pass  # Skipped — don't count as passed, failed, or error
+        elif report.passed:
             self._passed += 1
         elif report.failed:
             self._failed += 1
@@ -581,6 +614,7 @@ class ConcordReporter:
             "testName": test_name,
             "module": module,
             "passed": passed,
+            "skipped": bool(report.skipped),
             "durationS": duration_s,
             "errorMessage": error_message,
             "measurements": measurements,

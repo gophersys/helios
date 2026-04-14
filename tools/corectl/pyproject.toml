@@ -14,6 +14,7 @@ dependencies = [
     "requests>=2.26",
     "rich>=13.0",
     "pyyaml>=6.0",
+    "jsonschema>=4.0",
 ]
 
 [project.scripts]

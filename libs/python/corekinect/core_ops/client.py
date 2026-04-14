@@ -239,6 +239,32 @@ class CoreOpsClient:
     # Public API
     # ═══════════════════════════════════════════════════════════════════════
 
+    def search_board_assembly(self, snr: str) -> dict:
+        """Search for a board assembly by serial number.
+
+        Returns panel information including all boards and their positions.
+        Used for panel manufacturing to resolve per-slot SNRs from a
+        single scanned barcode.
+
+        Args:
+            snr: Board serial number (scanned from panel or individual DUT)
+
+        Returns:
+            Dict with keys:
+                panelSerialNumber: Panel barcode (None for singletons)
+                boards: List of {panelPosition, boardSerialNumber}
+
+        Raises:
+            requests.HTTPError: On API error
+        """
+        resp = self._request(
+            "GET",
+            "/boards/assemblies/search",
+            params={"boardSerialNumber": snr},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def assign_device_id(self, snr: str) -> str:
         """Assign a device ID for a board serial number.
 

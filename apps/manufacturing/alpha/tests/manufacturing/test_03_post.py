@@ -278,7 +278,89 @@ def test_08_imei_iccid(slot, config, report):
 
 @pytest.mark.post
 @pytest.mark.sequential
-def test_09_personalize(slot, config, report):
+def test_09_ext_flash(slot, config, report):
+    """Verify external flash on both processors (write/read/verify).
+
+    Known issue: UART contention between ShellCommander and UartDemuxer
+    causes read_ext_flash to return empty data when SlotTestContext UART
+    capture is active. Also, firmware read-back returns different data
+    than what was written (possible address mapping issue).
+    Skip until firmware ext flash commands are verified independently.
+    """
+    pytest.skip("External flash test disabled — UART contention with SlotTestContext + firmware read-back mismatch under investigation")
+    require_prior(slot, "post_booted", "test_01_boot must pass first")
+
+    import base64
+    import random
+
+    test_pattern = config.get("post_ext_flash_test_pattern", "ALPHA_POST_TEST_2024")
+    data_b64 = base64.b64encode(test_pattern.encode("utf-8")).decode("utf-8")
+    address = "0x000000"
+
+    app, comms = get_shells(slot)
+
+    with report.step("Write + read + verify comms ext flash") as step:
+        ok, err = comms.write_ext_flash(address, data_b64)
+        assert err is None, f"Comms write failed: {err}"
+
+        hex_data, err = comms.read_ext_flash(address, len(test_pattern))
+        assert err is None, f"Comms read failed: {err}"
+        assert hex_data, "Comms read returned no data"
+
+        read_string = bytes.fromhex(hex_data).decode("utf-8", errors="ignore")
+        step.record("comms_match", read_string == test_pattern)
+        step.record("comms_read", read_string[:30])
+        assert read_string == test_pattern, (
+            f"Comms data mismatch: expected '{test_pattern}', got '{read_string}'"
+        )
+        log.info("Comms ext flash verified: '%s'", read_string)
+        comms.erase_ext_flash()
+
+    with report.step("Write + read + verify app ext flash") as step:
+        # App shell uses the same write/read commands via _cmd.send
+        lines, err = app._cmd.send(
+            f"write_ext_flash {address} {data_b64}",
+            success_patterns=["Writing", "Mfg shell:"],
+            timeout_s=15,
+        )
+        assert not err, f"App write failed: {err}"
+
+        lines, err = app._cmd.send(
+            f"read_ext_flash {address} {len(test_pattern)}",
+            success_patterns=["Reading", "Mfg shell:"],
+            timeout_s=15,
+        )
+        assert not err, f"App read failed: {err}"
+
+        import re
+        hex_data = ""
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if "|" in stripped:
+                hex_part = stripped.split("|")[0].strip()
+                hex_bytes = re.findall(r"[0-9A-Fa-f]{2}", hex_part)
+                if hex_bytes:
+                    hex_data += "".join(hex_bytes)
+            elif re.match(r"^(?:[0-9A-Fa-f]{2}\s*)+$", stripped):
+                hex_data += re.sub(r"\s+", "", stripped)
+
+        assert hex_data, f"App read returned no hex data from: {lines}"
+        read_string = bytes.fromhex(hex_data).decode("utf-8", errors="ignore")
+        step.record("app_match", read_string == test_pattern)
+        step.record("app_read", read_string[:30])
+        assert read_string == test_pattern, (
+            f"App data mismatch: expected '{test_pattern}', got '{read_string}'"
+        )
+        log.info("App ext flash verified: '%s'", read_string)
+
+        app._cmd.send("erase_ext_flash", success_patterns=["Erasing flash"], timeout_s=30)
+
+
+@pytest.mark.post
+@pytest.mark.sequential
+def test_10_personalize(slot, config, report):
     """Personalize device via CoreOps proxy."""
     require_prior(slot, "post_booted", "test_01_boot must pass first")
 
@@ -316,7 +398,7 @@ def test_09_personalize(slot, config, report):
 
 @pytest.mark.post
 @pytest.mark.sequential
-def test_10_rekey_ipc(slot, config, report):
+def test_11_rekey_ipc(slot, config, report):
     """Rekey IPC encryption."""
     require_prior(slot, "post_booted", "test_01_boot must pass first")
 

@@ -16,6 +16,7 @@
     slotLabel = '',
     socLabels = [],
     isLive = false,
+    showHeader = true,
   }: {
     slot: SlotContext;
     productName?: string;
@@ -24,6 +25,7 @@
     slotLabel?: string;
     socLabels?: string[];
     isLive?: boolean;
+    showHeader?: boolean;
   } = $props();
 
   // Provide SlotContext to all children via Svelte context
@@ -49,7 +51,9 @@
     </div>
   </div>
 {:else if slot.liveTests.length > 0}
-  <SlotHeader {productName} {boardRevision} {firmwareVersion} {slotLabel} {isLive} />
+  {#if showHeader}
+    <SlotHeader {productName} {boardRevision} {firmwareVersion} {slotLabel} {isLive} />
+  {/if}
 
   <div class="flex flex-col relative" style="height: calc(100vh - 160px);">
     <!-- Telemetry loading overlay -->

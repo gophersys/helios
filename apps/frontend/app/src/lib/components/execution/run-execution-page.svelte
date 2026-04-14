@@ -116,17 +116,21 @@
       />
     {/if}
 
-    <!-- Slot execution view -->
+    <!-- Slot execution view — {#key} forces full recreation when switching slots
+         so setSlotContext() runs fresh and children get the correct slot -->
     {#if activeSlot}
-      <SlotExecutionView
-        slot={activeSlot}
-        productName={ctx.productName}
-        boardRevision={ctx.boardRevision}
-        firmwareVersion={ctx.firmwareVersion}
-        slotLabel={ctx.isMultiSlot ? `Slot ${activeSlot.slotIndex + 1}` : (activeSlot.serialNumber || '')}
-        socLabels={ctx.socLabels}
-        isLive={ctx.isActive}
-      />
+      {#key activeSlot.targetId}
+        <SlotExecutionView
+          slot={activeSlot}
+          productName={ctx.productName}
+          boardRevision={ctx.boardRevision}
+          firmwareVersion={ctx.firmwareVersion}
+          slotLabel={ctx.isMultiSlot ? `Slot ${activeSlot.slotIndex + 1}` : (activeSlot.serialNumber || '')}
+          socLabels={ctx.socLabels}
+          isLive={ctx.isActive}
+          showHeader={false}
+        />
+      {/key}
     {:else}
       <div class="flex items-center justify-center h-64 text-text-tertiary text-sm">
         No test data yet. Waiting for test runner...

@@ -367,16 +367,17 @@ export class SlotContext {
     const test = this.liveTests.find(t => t.name === name && t.module === module);
     if (!test) {
       // Late result for unknown test — create it
+      const status = data.skipped ? 'skipped' : data.passed ? 'passed' : 'failed';
       this.liveTests.push({
         name,
         module,
-        status: data.passed ? 'passed' : 'failed',
+        status,
         durationS: data.durationMs ? data.durationMs / 1000 : data.durationS ?? null,
         startedAtMs: null,
         errorMessage: data.errorMessage ?? null,
         measurements: data.measurements ?? null,
         logOutput: data.logOutput ?? null,
-        expanded: !data.passed,
+        expanded: status === 'failed',
         steps: [],
       });
       this.liveTests = this.liveTests;
@@ -384,15 +385,15 @@ export class SlotContext {
     }
 
     // Idempotent: don't downgrade terminal status
-    if (test.status === 'passed' || test.status === 'failed') return;
+    if (test.status === 'passed' || test.status === 'failed' || test.status === 'skipped') return;
 
-    test.status = data.passed ? 'passed' : 'failed';
+    test.status = data.skipped ? 'skipped' : data.passed ? 'passed' : 'failed';
     test.durationS = data.durationMs ? data.durationMs / 1000 : data.durationS ?? test.durationS;
     test.errorMessage = data.errorMessage ?? test.errorMessage;
     test.measurements = data.measurements ?? test.measurements;
     if (data.logOutput) test.logOutput = data.logOutput;
 
-    if (!data.passed) {
+    if (test.status === 'failed') {
       test.expanded = true;
     }
 

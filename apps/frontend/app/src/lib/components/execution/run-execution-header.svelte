@@ -42,8 +42,9 @@
     <h1 class="text-sm font-semibold text-text-primary truncate">{ctx.runTitle}</h1>
     <StatusBadge status={ctx.run.status} />
 
-    <!-- LIVE indicator -->
-    {#if ctx.isActive && slot?.liveRunning}
+    <!-- LIVE indicator — based on run status, not active slot's running state.
+         In multi-slot runs, tests execute sequentially so individual slots may be idle. -->
+    {#if ctx.isActive}
       <span class="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-2xs font-medium text-success shrink-0">
         <span class="relative flex h-1.5 w-1.5">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
