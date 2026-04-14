@@ -269,8 +269,43 @@ _push_images() {
   fi
 }
 
+_cleanup_orphaned_pvcs() {
+  # PVCs bound to non-existent PVs cause pods to hang in Pending forever.
+  # This happens when PVs are deleted (e.g., finalizer removal) but PVCs survive
+  # (helm.sh/resource-policy: keep). Fix: delete orphaned PVCs so Helm recreates them.
+  local env="$1"
+  local orphaned=0
+  for pvc in $(kubectl get pvc -n "${env}" -o jsonpath='{range .items[*]}{.metadata.name}={.spec.volumeName}{"\n"}{end}' 2>/dev/null); do
+    local pvc_name="${pvc%%=*}"
+    local pv_name="${pvc##*=}"
+    if [[ -n "${pv_name}" ]] && ! kubectl get pv "${pv_name}" &>/dev/null; then
+      info "  Removing orphaned PVC ${pvc_name} (PV ${pv_name} gone)"
+      kubectl delete pvc "${pvc_name}" -n "${env}" --force --grace-period=0 &>/dev/null || true
+      orphaned=$((orphaned + 1))
+    fi
+  done
+  # Also clear any PVs stuck in Terminating with dead finalizers
+  for pv in $(kubectl get pv -o jsonpath='{range .items[?(@.status.phase=="Terminating")]}{.metadata.name}{"\n"}{end}' 2>/dev/null); do
+    kubectl patch pv "${pv}" -p '{"metadata":{"finalizers":null}}' &>/dev/null || true
+  done
+  [[ $orphaned -gt 0 ]] && info "  Cleaned ${orphaned} orphaned PVC(s)"
+}
+
 _helm_deploy() {
   local env="$1"
+
+  # Clean orphaned PVCs before Helm install (prevents Pending pod deadlock)
+  _cleanup_orphaned_pvcs "${env}"
+
+  # Clean stale Helm release secrets (prevents "release not found" on upgrade)
+  local release_count
+  release_count=$(kubectl get secrets -n "${env}" -l "name=concord,owner=helm" --no-headers 2>/dev/null | wc -l)
+  if [[ "${release_count}" -gt 5 ]]; then
+    kubectl get secrets -n "${env}" -l "name=concord,owner=helm" \
+      --sort-by=.metadata.creationTimestamp -o name 2>/dev/null \
+      | head -n -5 | xargs kubectl delete -n "${env}" 2>/dev/null || true
+  fi
+
   local helm_args=(
     upgrade --install concord
     "${HELM_DIR}/concord"
@@ -286,7 +321,7 @@ _helm_deploy() {
   fi
 
   timer_start
-  helm "${helm_args[@]}" --wait --rollback-on-failure --timeout 600s
+  helm "${helm_args[@]}" --wait --rollback-on-failure --timeout 600s --history-max 5
   timer_end "Helm upgrade"
 }
 
