@@ -94,8 +94,8 @@ def _notify_build_service(db, count: int):
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # Best-effort — build-service will poll regardless
+    except Exception as e:
+        logger.debug("Failed to notify build-service: %s", e)
 
 
 # ---------------------------------------------------------------------------

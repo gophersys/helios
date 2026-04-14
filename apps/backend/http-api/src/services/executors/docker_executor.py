@@ -79,8 +79,8 @@ class DockerExecutor(JobExecutor):
             try:
                 cpus = float(resource_limits["cpu"].rstrip("m")) / 1000 if resource_limits["cpu"].endswith("m") else float(resource_limits["cpu"])
                 docker_cmd.extend(["--cpus", str(cpus)])
-            except (ValueError, AttributeError):
-                pass
+            except (ValueError, AttributeError) as e:
+                logger.debug("Failed to parse CPU limit %r: %s", resource_limits.get("cpu"), e)
 
         # Stop timeout
         docker_cmd.extend(["--stop-timeout", str(timeout_seconds or self._timeout)])

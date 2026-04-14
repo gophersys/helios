@@ -44,11 +44,6 @@ class KubernetesExecutor(JobExecutor):
         timeout_seconds: int = 3600,
         volumes: Optional[List[VolumeMount]] = None,
     ) -> ExecutorResult:
-        try:
-            batch_v1_getter = _get_batch_v1
-        except Exception:
-            return ExecutorResult(success=False, error="K8s client not available")
-
         job_name = self._make_job_name(job_id, labels)
 
         # Build env list

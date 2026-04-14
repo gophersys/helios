@@ -129,8 +129,8 @@ def check_repo():
             timeout=10,
         )
         result["exists"] = resp.status_code == 200
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to check repo %s: %s", slug, e)
 
     return jsonify(ApiResponse.ok(result).to_dict()), 200
 
@@ -158,7 +158,7 @@ def list_repo_branches():
             data = resp.json()
             branches.extend(b["name"] for b in data.get("values", []))
             url = data.get("next")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to list branches for repo %s: %s", slug, e)
 
     return jsonify(ApiResponse.ok({"slug": slug, "branches": sorted(branches)}).to_dict()), 200
