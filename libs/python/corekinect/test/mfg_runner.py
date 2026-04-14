@@ -266,13 +266,16 @@ class ManufacturingRunnerLoop:
             total_slots = len([a for a in mtib_hosts.split(",") if a.strip()]) if mtib_hosts else 0
             snrs = [""] * total_slots
             device_ids = [""] * total_slots
+            target_ids = [""] * total_slots
             for t in targets_sorted:
                 idx = t.get("slotIndex", 0)
                 if idx < total_slots:
                     snrs[idx] = t.get("serialNumber") or ""
                     device_ids[idx] = t.get("deviceId") or ""
+                    target_ids[idx] = t.get("id") or ""
             os.environ["SLOT_SNRS"] = ",".join(snrs)
             os.environ["SLOT_DEVICE_IDS"] = ",".join(device_ids)
+            os.environ["SLOT_TARGET_IDS"] = ",".join(target_ids)
 
             log.info("Run targets: %s",
                      ", ".join(f"slot-{t.get('slotIndex')}={t.get('serialNumber','?')}"
@@ -281,6 +284,7 @@ class ManufacturingRunnerLoop:
             os.environ.pop("SLOT_FILTER", None)
             os.environ.pop("SLOT_SNRS", None)
             os.environ.pop("SLOT_DEVICE_IDS", None)
+            os.environ.pop("SLOT_TARGET_IDS", None)
 
         try:
             runner = TestRunner(stage="manufacturing", run_id=run_id)

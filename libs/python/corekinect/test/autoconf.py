@@ -491,8 +491,22 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
         )
         telemetry.start()
 
+    # Build slot_id → RunTarget ID mapping from SLOT_TARGET_IDS env var.
+    # The mfg_runner sets this from the run assignment targets so each
+    # slot's telemetry (power, UART) includes the targetId for frontend routing.
+    slot_target_id_env = _os.environ.get("SLOT_TARGET_IDS", "").strip()
+    slot_target_ids: dict = {}  # slot_id (e.g., "slot-0") → RunTarget ID
+    if slot_target_id_env:
+        parts = [p.strip() for p in slot_target_id_env.split(",")]
+        for i, tid in enumerate(parts):
+            if tid:
+                slot_target_ids[f"slot-{i}"] = tid
+
     # Build per-slot rich contexts (UART, power, artifacts)
-    slot_test_ctxs = fctx.build_slot_test_contexts(telemetry=telemetry)
+    slot_test_ctxs = fctx.build_slot_test_contexts(
+        telemetry=telemetry,
+        target_ids=slot_target_ids,
+    )
     for stc in slot_test_ctxs.values():
         stc.connect()
     fctx._slot_test_contexts = slot_test_ctxs
@@ -510,6 +524,8 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     if reporter and slot_serials:
         reporter._slot_serials = slot_serials
         log.info("Slot→serial mapping for reporter: %s", slot_serials)
+    if slot_target_ids:
+        log.info("Slot→targetId mapping for telemetry: %s", slot_target_ids)
 
     yield fctx
 

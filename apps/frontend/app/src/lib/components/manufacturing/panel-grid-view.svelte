@@ -73,11 +73,11 @@
   <!-- Panel grid widget -->
   <div
     class="rounded-lg border border-border bg-surface-0 p-4 relative transition-all
-      {scannable && !panelHasTargets ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
-    role={scannable && !panelHasTargets ? 'button' : undefined}
-    tabindex={scannable && !panelHasTargets ? 0 : undefined}
-    onclick={() => { if (scannable && !panelHasTargets) onScanPanel?.(); }}
-    onkeydown={(e) => { if (e.key === 'Enter' && scannable && !panelHasTargets) onScanPanel?.(); }}
+      {scannable ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
+    role={scannable ? 'button' : undefined}
+    tabindex={scannable ? 0 : undefined}
+    onclick={() => { if (scannable) onScanPanel?.(); }}
+    onkeydown={(e) => { if (e.key === 'Enter' && scannable) onScanPanel?.(); }}
     onmouseenter={() => { panelHovered = true; }}
     onmouseleave={() => { panelHovered = false; }}
   >
@@ -88,8 +88,8 @@
       <span class="text-2xs text-text-tertiary ml-auto">{panelSlotCount} slots &middot; {panelRows}&times;{panelCols}</span>
     </div>
 
-    <!-- Scan overlay (when no targets yet and scannable) -->
-    {#if scannable && !panelHasTargets}
+    <!-- Scan overlay (always shown when scannable — covers previous results too) -->
+    {#if scannable}
       <div class="absolute inset-0 flex items-center justify-center rounded-lg transition-opacity z-10
         {panelHovered ? 'opacity-100 bg-accent/5' : 'opacity-0'}">
         <div class="flex items-center gap-2 text-accent font-medium text-sm">
@@ -101,7 +101,7 @@
 
     <!-- Grid -->
     <div
-      class="grid gap-2 mx-auto {scannable && !panelHasTargets && panelHovered ? 'opacity-30' : ''} transition-opacity"
+      class="grid gap-2 mx-auto {scannable && panelHovered ? 'opacity-30' : ''} transition-opacity"
       style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 120, 600)}px;"
     >
       {#each slots as slot (slot.index)}
@@ -135,16 +135,16 @@
   {#if hasStandaloneSlot}
     <div
       class="rounded-lg border border-border bg-surface-0 p-4 relative transition-all
-        {scannable && !standaloneTarget ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
-      role={scannable && !standaloneTarget ? 'button' : undefined}
-      tabindex={scannable && !standaloneTarget ? 0 : undefined}
-      onclick={() => { if (scannable && !standaloneTarget) onScanStandalone?.(); }}
-      onkeydown={(e) => { if (e.key === 'Enter' && scannable && !standaloneTarget) onScanStandalone?.(); }}
+        {scannable ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
+      role={scannable ? 'button' : undefined}
+      tabindex={scannable ? 0 : undefined}
+      onclick={() => { if (scannable) onScanStandalone?.(); }}
+      onkeydown={(e) => { if (e.key === 'Enter' && scannable) onScanStandalone?.(); }}
       onmouseenter={() => { standaloneHovered = true; }}
       onmouseleave={() => { standaloneHovered = false; }}
     >
       <!-- Scan overlay -->
-      {#if scannable && !standaloneTarget}
+      {#if scannable}
         <div class="absolute inset-0 flex items-center justify-center rounded-lg transition-opacity z-10
           {standaloneHovered ? 'opacity-100 bg-accent/5' : 'opacity-0'}">
           <div class="flex items-center gap-2 text-accent font-medium text-sm">
@@ -154,35 +154,30 @@
         </div>
       {/if}
 
-      <div class="{scannable && !standaloneTarget && standaloneHovered ? 'opacity-30' : ''} transition-opacity">
+      <div class="{scannable && standaloneHovered ? 'opacity-30' : ''} transition-opacity">
         <div class="flex items-center gap-2 mb-3">
           <LayoutGrid size={14} class="text-text-tertiary" />
           <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">Standalone Slot</span>
         </div>
 
-        <button
-          type="button"
-          onclick={(e) => { if (standaloneTarget) { e.stopPropagation(); onSlotClick?.(panelSlotCount); } }}
-          disabled={!standaloneTarget}
-          class="flex items-center gap-3 w-full text-left rounded-lg p-2 transition-colors
-            {standaloneTarget ? 'hover:bg-surface-2 cursor-pointer' : ''}"
-        >
-          <div
-            class="flex flex-col items-center justify-center rounded-lg border-2 w-16 h-16 shrink-0
+        <div class="flex justify-center">
+          <button
+            type="button"
+            onclick={(e) => { if (standaloneTarget) { e.stopPropagation(); onSlotClick?.(panelSlotCount); } }}
+            disabled={!standaloneTarget}
+            class="flex flex-col items-center justify-center rounded-lg border-2 aspect-square min-h-16 w-24
+              transition-all {standaloneTarget ? 'cursor-pointer hover:shadow-card-hover' : ''}
               {standaloneTarget ? slotClasses(standaloneTarget) : 'border-border-subtle bg-surface-2 text-text-tertiary'}"
           >
             <span class="text-xs font-semibold">{panelSlotCount + 1}</span>
-            <span class="text-2xs">SA</span>
-          </div>
-          <div class="min-w-0">
             {#if standaloneTarget?.serialNumber}
-              <p class="text-sm font-mono font-medium text-text-primary">{standaloneTarget.serialNumber}</p>
+              <span class="text-2xs font-mono truncate max-w-full px-1">{standaloneTarget.serialNumber}</span>
               <div class="mt-0.5"><StatusBadge status={standaloneTarget.status} /></div>
             {:else}
-              <p class="text-xs text-text-tertiary">No unit scanned</p>
+              <span class="text-2xs opacity-50">SA</span>
             {/if}
-          </div>
-        </button>
+          </button>
+        </div>
       </div>
     </div>
   {/if}

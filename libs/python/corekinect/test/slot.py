@@ -286,18 +286,30 @@ class FixtureContext:
                 log.warning("Error disconnecting slot %s: %s", slot.slot_id, e)
         log.info("All slots disconnected")
 
-    def build_slot_test_contexts(self, telemetry=None) -> Dict[str, "SlotTestContext"]:
+    def build_slot_test_contexts(self, telemetry=None,
+                                   target_ids: Optional[Dict[str, str]] = None,
+                                   ) -> Dict[str, "SlotTestContext"]:
         """Wrap each connected SlotContext in a SlotTestContext with UART/power/artifacts.
+
+        Args:
+            telemetry: Shared TelemetryStreamer instance.
+            target_ids: Mapping of slot_id → RunTarget ID for per-slot
+                telemetry routing. Each slot's UART/power samples will
+                include the target_id so the frontend can route them.
 
         Returns a dict keyed by slot_id. Only wraps slots that have a connected MTIB.
         Call connect() on each returned SlotTestContext to start per-slot services.
         """
         from .slot_context import SlotTestContext
 
+        target_ids = target_ids or {}
         result = {}
         for slot_id, slot in self.slots.items():
             if slot.mtib:
-                result[slot_id] = SlotTestContext.from_slot(slot, telemetry=telemetry)
+                tid = target_ids.get(slot_id)
+                result[slot_id] = SlotTestContext.from_slot(
+                    slot, telemetry=telemetry, target_id=tid,
+                )
         return result
 
 

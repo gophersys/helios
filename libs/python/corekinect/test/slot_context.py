@@ -37,8 +37,9 @@ class SlotTestContext:
         slot: The underlying SlotContext (mtib, fixture, shared_data).
         uart: Per-slot UART demuxer (app + comms targets).
         power: Per-slot power profiler.
-        telemetry: Shared telemetry streamer (pushes tagged by slot_id).
+        telemetry: Shared telemetry streamer (pushes tagged by target_id).
         artifact_writer: Per-slot artifact writer (uploads to slot prefix).
+        target_id: RunTarget ID for per-slot telemetry routing.
     """
 
     def __init__(
@@ -48,12 +49,14 @@ class SlotTestContext:
         power: Optional[PowerProfiler] = None,
         telemetry: Optional[TelemetryStreamer] = None,
         artifact_writer: Optional[ArtifactWriter] = None,
+        target_id: Optional[str] = None,
     ):
         self.slot = slot
         self.uart = uart
         self.power = power
         self.telemetry = telemetry
         self.artifact_writer = artifact_writer or ArtifactWriter()
+        self.target_id = target_id
 
         self._power_poll_stop: Optional[threading.Event] = None
         self._power_poll_thread: Optional[threading.Thread] = None
@@ -75,6 +78,7 @@ class SlotTestContext:
         cls,
         slot: SlotContext,
         telemetry: Optional[TelemetryStreamer] = None,
+        target_id: Optional[str] = None,
     ) -> "SlotTestContext":
         """Build a SlotTestContext from a connected SlotContext.
 
@@ -89,6 +93,7 @@ class SlotTestContext:
             uart=uart,
             power=power,
             telemetry=telemetry,
+            target_id=target_id,
         )
 
     # ── Lifecycle ────────────────────────────────────────────────────
@@ -97,11 +102,17 @@ class SlotTestContext:
         """Start per-slot UART capture, power polling, and telemetry wiring."""
         if self.uart:
             self.uart.start()
-            log.info("Slot %s: UART capture started", self.slot.slot_id)
+            log.info("Slot %s: UART capture started (target_id=%s)",
+                     self.slot.slot_id, self.target_id)
 
-        # Wire UART to telemetry for live streaming
+        # Wire UART to telemetry for live streaming, including target_id for routing
         if self.uart and self.telemetry:
-            self.uart.on_line = self.telemetry.push_uart
+            tid = self.target_id
+
+            def _push_uart_with_target(target_name: str, posix_us: int, line: str) -> None:
+                self.telemetry.push_uart(target_name, posix_us, line, target_id=tid)
+
+            self.uart.on_line = _push_uart_with_target
 
         # Start background power polling
         if self.power:
@@ -163,8 +174,10 @@ class SlotTestContext:
     # ── Power polling ────────────────────────────────────────────────
 
     def _power_poll_loop(self) -> None:
-        """Poll power at ~2 Hz and push to telemetry (tagged by slot_id)."""
+        """Poll power at ~2 Hz and push to telemetry with target_id for per-slot routing."""
         from corekinect.mtib_client.v1.client.types import PowerChannel
+
+        tid = self.target_id
 
         while not self._power_poll_stop.wait(0.5):
             try:
@@ -172,13 +185,17 @@ class SlotTestContext:
                 ch0, err0 = self.slot.mtib.PowerRead(channel=PowerChannel.DUT)
                 if not err0 and ch0:
                     if self.telemetry:
-                        self.telemetry.push_power(ts, ch0.current_ma, ch0.voltage_v * 1000)
+                        self.telemetry.push_power(
+                            ts, ch0.current_ma, ch0.voltage_v * 1000,
+                            target_id=tid,
+                        )
 
                 ch1, err1 = self.slot.mtib.PowerRead(channel=PowerChannel.CHARGER)
                 if not err1 and ch1 and self.telemetry:
                     self.telemetry.push(
                         "power_chg",
                         {"mA": round(ch1.current_ma, 2), "mV": round(ch1.voltage_v * 1000, 1)},
+                        target_id=tid,
                     )
             except Exception as exc:
                 log.debug("Slot %s power poll error: %s", self.slot.slot_id, exc)

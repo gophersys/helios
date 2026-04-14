@@ -189,8 +189,16 @@ class TelemetryStreamer:
 
     # ── Data ingestion ────────────────────────────────────────
 
-    def push_uart(self, target_name: str, posix_us: int, line: str) -> None:
-        """Push a UART line (called by UartDemuxer.on_line callback)."""
+    def push_uart(self, target_name: str, posix_us: int, line: str,
+                  target_id: Optional[str] = None) -> None:
+        """Push a UART line (called by UartDemuxer.on_line callback).
+
+        Args:
+            target_name: UART target ("app" or "comms")
+            posix_us: Timestamp in microseconds
+            line: UART line content
+            target_id: RunTarget ID for per-slot routing in multi-slot runs
+        """
         t = posix_us / 1_000_000
         channel = self._channel_name("uart", target_name)
 
@@ -205,14 +213,21 @@ class TelemetryStreamer:
             "test": self._current_test,
             "line": line,
         }
+        if target_id:
+            ws_sample["targetId"] = target_id
 
         self._push_to_channel(channel, channel_sample, "text")
         self._push_to_ws(ws_sample)
         self._push_to_test(ws_sample)
         self._total_samples += 1
 
-    def push_power(self, timestamp_s: float, current_ma: float, voltage_mv: float) -> None:
-        """Push a power measurement sample."""
+    def push_power(self, timestamp_s: float, current_ma: float, voltage_mv: float,
+                   target_id: Optional[str] = None) -> None:
+        """Push a power measurement sample.
+
+        Args:
+            target_id: RunTarget ID for per-slot routing in multi-slot runs
+        """
         mA = round(current_ma, 2)
         mV = round(voltage_mv, 1)
 
@@ -224,6 +239,8 @@ class TelemetryStreamer:
             "mA": mA,
             "mV": mV,
         }
+        if target_id:
+            ws_sample["targetId"] = target_id
 
         self._push_to_channel("power", channel_sample, "timeseries", unit="mA")
         self._push_to_ws(ws_sample)
@@ -231,13 +248,15 @@ class TelemetryStreamer:
         self._total_samples += 1
 
     def push(self, sample_type: str, data: Dict[str, Any],
-             target: Optional[str] = None) -> None:
+             target: Optional[str] = None,
+             target_id: Optional[str] = None) -> None:
         """Push a generic telemetry sample. Channel is auto-created on first push.
 
         Args:
             sample_type: e.g., "power_chg", "accel", "temp", "adc", "gpio"
             data: Payload dict (don't include "t" -- added automatically).
             target: Optional sub-target (e.g., "ch0" for ADC channels).
+            target_id: RunTarget ID for per-slot routing in multi-slot runs.
         """
         t = time.time()
         channel = self._channel_name(sample_type, target)
@@ -251,6 +270,8 @@ class TelemetryStreamer:
         }
         if target:
             ws_sample["target"] = target
+        if target_id:
+            ws_sample["targetId"] = target_id
 
         # Infer channel type from data shape
         ch_type = "timeseries"

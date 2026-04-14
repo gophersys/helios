@@ -382,6 +382,7 @@ export interface RunExecutionResultEvent {
   errorMessage: string | null;
   measurements: Record<string, unknown> | null;
   logOutput: string | null;
+  targetId?: string;
 }
 
 export interface RunFinishEvent {
@@ -403,6 +404,7 @@ export interface RunLogChunkEvent {
   data: string;  // base64 encoded
   chunk?: string; // raw text (alternative to base64)
   timestamp: number;
+  targetId?: string;
 }
 
 export interface TelemetrySample {
@@ -447,7 +449,7 @@ export function subscribeRunWithLogs(
     onRunStart?: (data: { runId: string; status: string }) => void;
     onLogChunk?: (data: RunLogChunkEvent) => void;
     onTelemetry?: (data: RunTelemetryEvent) => void;
-    onTestList?: (data: { runId: string; tests: { name: string; module: string | null }[] }) => void;
+    onTestList?: (data: { runId: string; targetId?: string; tests: { name: string; module: string | null }[] }) => void;
   },
   onError?: (message: string) => void
 ): () => void {
@@ -482,7 +484,7 @@ export function subscribeRunWithLogs(
     callbacks.onTelemetry?.(data);
   };
 
-  const testListHandler = (data: { runId: string; tests: { name: string; module: string | null }[] }) => {
+  const testListHandler = (data: { runId: string; targetId?: string; tests: { name: string; module: string | null }[] }) => {
     callbacks.onTestList?.(data);
   };
 

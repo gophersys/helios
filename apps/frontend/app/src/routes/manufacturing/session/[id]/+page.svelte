@@ -729,8 +729,7 @@
                 <thead>
                   <tr class="border-b border-border bg-surface-2">
                     <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Panel</th>
-                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Targets</th>
-                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Result</th>
+                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Slot Results</th>
                     <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Duration</th>
                     <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">When</th>
                     <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
@@ -748,20 +747,22 @@
                         </span>
                       </td>
                       <td class="px-4 py-3">
-                        <span class="text-sm text-text-secondary">
-                          {run.targetCount || (run.targets || []).length}
-                        </span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="flex items-center gap-2 text-sm">
-                          {#if run.passedCount > 0}
-                            <span class="text-success font-medium">{run.passedCount} pass</span>
-                          {/if}
-                          {#if run.failedCount > 0}
-                            <span class="text-error font-medium">{run.failedCount} fail</span>
-                          {/if}
-                          {#if !run.passedCount && !run.failedCount}
-                            <span class="text-text-tertiary">—</span>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          {#if run.targets?.length}
+                            {#each [...(run.targets as RunTarget[])].sort((a, b) => a.slotIndex - b.slotIndex) as target (target.id)}
+                              <span
+                                class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-mono font-medium
+                                  {target.status === 'PASSED' ? 'bg-success-muted text-success' :
+                                   target.status === 'FAILED' || target.status === 'ERROR' ? 'bg-error-muted text-error' :
+                                   target.status === 'RUNNING' ? 'bg-accent-muted text-accent' :
+                                   'bg-surface-2 text-text-tertiary'}"
+                                title="Slot {target.slotIndex + 1}: {target.status}"
+                              >
+                                {target.serialNumber || `S${target.slotIndex + 1}`}
+                              </span>
+                            {/each}
+                          {:else}
+                            <span class="text-text-tertiary text-sm">—</span>
                           {/if}
                         </div>
                       </td>

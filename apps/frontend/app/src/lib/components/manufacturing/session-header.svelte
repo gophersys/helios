@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { ArrowLeft, Factory, User, Clock, Cpu, Wifi, Archive, Trash2, StopCircle, Server } from 'lucide-svelte';
+  import { ArrowLeft, Factory, Clock, Cpu, Archive, Trash2, StopCircle } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import { formatDateTime, formatDuration } from '$lib/utils/formatting';
+  import { formatDuration } from '$lib/utils/formatting';
   import type { ManufacturingSession } from '$lib/types/models';
 
   let {
@@ -26,9 +26,38 @@
   let timer: ReturnType<typeof setInterval> | null = null;
 
   const runs = $derived(session.runs || []);
-  const panelCount = $derived(runs.length);
-  const passCount = $derived(runs.reduce((sum, r) => sum + (r.passedCount || 0), 0));
-  const failCount = $derived(runs.reduce((sum, r) => sum + (r.failedCount || 0), 0));
+
+  // Deduplicate by panelIdentifier — keep only the latest run per panel
+  const latestRunPerPanel = $derived.by(() => {
+    const map = new Map<string, (typeof runs)[0]>();
+    for (const r of runs) {
+      const key = r.panelIdentifier || r.id;
+      const existing = map.get(key);
+      if (!existing || new Date(r.createdAt || 0) > new Date(existing.createdAt || 0)) {
+        map.set(key, r);
+      }
+    }
+    return Array.from(map.values());
+  });
+
+  const panelCount = $derived(latestRunPerPanel.length);
+
+  // Count boards (targets) that PASSED or FAILED across latest runs
+  const boardPassCount = $derived(
+    latestRunPerPanel.reduce((sum, r) => {
+      if (!r.targets) return sum;
+      return sum + r.targets.filter(t => t.status === 'PASSED').length;
+    }, 0)
+  );
+  const boardFailCount = $derived(
+    latestRunPerPanel.reduce((sum, r) => {
+      if (!r.targets) return sum;
+      return sum + r.targets.filter(t => t.status === 'FAILED' || t.status === 'ERROR').length;
+    }, 0)
+  );
+  const totalBoards = $derived(
+    latestRunPerPanel.reduce((sum, r) => sum + (r.targets?.length || r.targetCount || 0), 0)
+  );
 
   const RUNNER_STATUS_CONFIG: Record<string, { dotClass: string; label: string }> = {
     CHECKING_MTIBS: { dotClass: 'bg-text-tertiary animate-pulse', label: 'Checking MTIBs...' },
@@ -65,136 +94,92 @@
 <!-- Back link -->
 <button
   onclick={() => goto('/manufacturing')}
-  class="mb-3 flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+  class="mb-2 flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
 >
   <ArrowLeft size={14} />
   Manufacturing
 </button>
 
-<!-- Session info card -->
-<div class="card card-sm mb-6">
-  <!-- Top row: title + status + stats -->
-  <div class="flex items-start justify-between gap-4 mb-4">
-    <div>
-      <div class="flex items-center gap-3">
-        <h1 class="text-lg font-semibold text-text-primary">
-          {session.product?.name || 'Session'}
-        </h1>
-        <StatusBadge status={session.status} />
-        {#if runnerDisplay}
-          <span class="flex items-center gap-1.5 text-xs">
-            <span class="inline-block h-2 w-2 rounded-full {runnerDisplay.dotClass}"></span>
-            <span class="text-text-secondary">{runnerDisplay.label}</span>
-          </span>
-        {/if}
-      </div>
-    </div>
+<!-- Compact single-row session header -->
+<div class="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg bg-surface-1 border border-border">
+  <!-- Title + status -->
+  <h1 class="text-sm font-semibold text-text-primary truncate">
+    {session.product?.name || 'Session'}
+  </h1>
+  <StatusBadge status={session.status} />
 
-    <!-- Stat counters -->
-    <div class="flex items-center gap-4 shrink-0">
-      <div class="text-center">
-        <div class="text-xl font-semibold text-text-primary tabular-nums">{panelCount}</div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Panels</div>
-      </div>
-      <div class="text-center">
-        <div class="text-xl font-semibold text-success tabular-nums">{passCount}</div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Pass</div>
-      </div>
-      <div class="text-center">
-        <div class="text-xl font-semibold tabular-nums {failCount > 0 ? 'text-error' : 'text-text-primary'}">{failCount}</div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Fail</div>
-      </div>
-    </div>
+  {#if runnerDisplay}
+    <span class="flex items-center gap-1.5 text-xs shrink-0">
+      <span class="inline-block h-1.5 w-1.5 rounded-full {runnerDisplay.dotClass}"></span>
+      <span class="text-text-secondary">{runnerDisplay.label}</span>
+    </span>
+  {/if}
+
+  <div class="w-px h-4 bg-border"></div>
+
+  <!-- Metadata -->
+  <div class="flex items-center gap-3 text-xs text-text-tertiary">
+    <span class="flex items-center gap-1">
+      <Factory size={12} />
+      {session.fixture?.name || '—'}
+    </span>
+    {#if session.assetSet}
+      <span class="flex items-center gap-1">
+        <Cpu size={12} />
+        <span class="font-mono text-2xs">v{session.assetSet.version}</span>
+      </span>
+    {/if}
+    <span class="flex items-center gap-1 tabular-nums">
+      <Clock size={12} />
+      {elapsed || '—'}
+    </span>
   </div>
 
-  <!-- Detail grid -->
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-border pt-4">
-    <div class="flex items-start gap-2">
-      <Factory size={14} class="text-text-tertiary mt-0.5 shrink-0" />
-      <div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Fixture</div>
-        <div class="text-sm text-text-primary">{session.fixture?.name || '—'}</div>
-      </div>
-    </div>
-    <div class="flex items-start gap-2">
-      <User size={14} class="text-text-tertiary mt-0.5 shrink-0" />
-      <div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Operator</div>
-        <div class="text-sm text-text-primary">{session.operator?.name || '—'}</div>
-      </div>
-    </div>
-    <div class="flex items-start gap-2">
-      <Clock size={14} class="text-text-tertiary mt-0.5 shrink-0" />
-      <div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">{session.status === 'ACTIVE' ? 'Elapsed' : 'Duration'}</div>
-        <div class="text-sm text-text-primary tabular-nums">{elapsed || '—'}</div>
-        {#if session.startedAt}
-          <div class="text-2xs text-text-tertiary">{formatDateTime(session.startedAt)}</div>
-        {/if}
-      </div>
-    </div>
-    <div class="flex items-start gap-2">
-      <Cpu size={14} class="text-text-tertiary mt-0.5 shrink-0" />
-      <div>
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Firmware</div>
-        {#if session.assetSet}
-          <div class="text-sm text-text-primary">v{session.assetSet.version}</div>
-          <div class="text-2xs text-text-tertiary">{session.assetSet.variant}</div>
-        {:else}
-          <div class="text-sm text-text-tertiary">—</div>
-        {/if}
-      </div>
-    </div>
-    {#if ((session.config as Record<string, any>)?.fixtureSnapshot?.slots?.filter((s: any) => s.mtibDeploymentName) || []).length > 0}
-      {@const mtibSlots = ((session.config as Record<string, any>)?.fixtureSnapshot?.slots?.filter((s: any) => s.mtibDeploymentName) || [])}
-      <div class="flex items-start gap-2">
-        <Server size={14} class="text-text-tertiary mt-0.5 shrink-0" />
-        <div>
-          <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">MTIBs</div>
-          <div class="text-sm text-text-primary">{mtibSlots.length} node{mtibSlots.length !== 1 ? 's' : ''}</div>
-          {#if mtibSlots[0]?.mtibImageSha}
-            <div class="text-2xs text-text-tertiary font-mono">{mtibSlots[0].mtibImageSha.split(':').pop()?.substring(0, 12) || ''}</div>
-          {/if}
-        </div>
-      </div>
+  <!-- Counters: panels + board-level pass/fail (latest run per panel) -->
+  <div class="flex items-center gap-3 text-xs shrink-0 ml-auto">
+    <span class="text-text-secondary">{panelCount} panel{panelCount !== 1 ? 's' : ''}</span>
+    <span class="text-text-tertiary">&middot;</span>
+    <span class="text-success font-medium">{boardPassCount}/{totalBoards} boards</span>
+    {#if boardFailCount > 0}
+      <span class="text-error font-medium">{boardFailCount} fail</span>
     {/if}
   </div>
 
+  <div class="w-px h-4 bg-border"></div>
+
+  <!-- Active run indicator -->
+  {#if activeRunExists}
+    <span class="flex items-center gap-1.5 text-xs text-accent font-medium shrink-0">
+      <span class="relative flex h-1.5 w-1.5">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent"></span>
+      </span>
+      Running
+    </span>
+  {/if}
+
   <!-- Action buttons -->
-  {#if canManage}
-    <div class="flex items-center gap-2 border-t border-border pt-4 mt-4">
-      {#if activeRunExists}
-        <div class="flex items-center gap-2 text-accent text-sm font-medium">
-          <span class="relative flex h-2 w-2">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
-          </span>
-          Run in progress — scanning locked
-        </div>
-      {/if}
-      {#if session.status === 'ACTIVE'}
-        <button
-          onclick={onEndSession}
-          disabled={activeRunExists}
-          class="btn btn-sm btn-secondary {activeRunExists ? 'ml-auto' : ''}"
-          title={activeRunExists ? 'A test run is actively executing — wait for it to finish' : 'End this session'}
-        >
-          <StopCircle size={14} />
-          End Session
-        </button>
-      {/if}
-      {#if session.status === 'COMPLETED' || session.status === 'CANCELLED'}
-        <button onclick={onArchive} class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20">
-          <Archive size={14} />
-          Archive
-        </button>
-      {/if}
-      {#if session.status === 'ARCHIVED'}
-        <button onclick={onDelete} class="btn btn-sm btn-danger">
-          <Trash2 size={14} />
-          Delete
-        </button>
-      {/if}
-    </div>
+  {#if canManage && session.status === 'ACTIVE'}
+    <button
+      onclick={onEndSession}
+      disabled={activeRunExists}
+      class="shrink-0 flex items-center gap-1.5 rounded-lg border border-error/30 bg-error/10 px-3 py-1 text-xs font-medium text-error hover:bg-error/20 transition-colors disabled:opacity-50"
+      title={activeRunExists ? 'Wait for run to finish' : 'End session'}
+    >
+      <StopCircle size={12} />
+      End
+    </button>
+  {/if}
+  {#if canManage && (session.status === 'COMPLETED' || session.status === 'CANCELLED')}
+    <button onclick={onArchive} class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20 shrink-0">
+      <Archive size={12} />
+      Archive
+    </button>
+  {/if}
+  {#if canManage && session.status === 'ARCHIVED'}
+    <button onclick={onDelete} class="btn btn-sm btn-danger shrink-0">
+      <Trash2 size={12} />
+      Delete
+    </button>
   {/if}
 </div>

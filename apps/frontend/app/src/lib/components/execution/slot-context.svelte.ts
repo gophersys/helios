@@ -456,34 +456,57 @@ export class SlotContext {
 
   handleTelemetry(data: { samples?: Array<Record<string, unknown>> }): void {
     if (!data.samples) return;
+    let hasPower = false;
+    let hasUart = false;
+
     for (const s of data.samples) {
       const t = (s.t as number) || 0;
-      // Dedup: skip if timestamp not newer than last seen
-      if (t <= this._lastPowerT && this._lastPowerT > 0) continue;
 
-      if (s.type === 'power' && s.mA !== undefined) {
+      if (s.type === 'uart' && s.line) {
+        // Route UART telemetry samples to the correct terminal
+        const target = (s.target as string) || '';
+        const isComms = target === 'comms' || target.includes('comms') || target.includes('9151');
+        const ts = new Date(t * 1000).toISOString().slice(11, 23);
+        const formatted = `\x1b[36m[${ts}]\x1b[0m ${s.line as string}`;
+        if (isComms) {
+          this._uartCommsPending.push(formatted);
+        } else {
+          this._uartAppPending.push(formatted);
+        }
+        hasUart = true;
+      } else if (s.type === 'power' && s.mA !== undefined) {
         this.powerSamples.push({ t, mA: s.mA as number, mV: (s.mV as number) || 0 });
         this._lastPowerT = t;
+        hasPower = true;
       } else if (s.type === 'power_chg' && s.mA !== undefined) {
         this.powerChgSamples.push({ t, mA: s.mA as number, mV: (s.mV as number) || 0 });
+        hasPower = true;
       } else if (s.type === 'power_js' && s.uA !== undefined) {
         this.powerJsSamples.push({ t, uA: s.uA as number, mV: (s.mV as number) || 0, nA: s.nA as number | undefined });
+        hasPower = true;
       } else if (s.type === 'accel' && s.x !== undefined) {
         this.accelSamples.push({ t, x: s.x as number, y: s.y as number, z: s.z as number });
       }
     }
 
-    // Trim to sliding window
-    const cutoff = (Date.now() / 1000) - this.POWER_WINDOW_S * 2;
-    if (this.powerSamples.length > 2000) {
-      this.powerSamples = this.powerSamples.filter(s => s.t > cutoff);
+    // Flush UART lines
+    if (hasUart) {
+      this._scheduleFlush();
     }
 
-    // Trigger reactivity
-    this.powerSamples = this.powerSamples;
-    this.powerChgSamples = this.powerChgSamples;
-    this.powerJsSamples = this.powerJsSamples;
-    this.accelSamples = this.accelSamples;
+    if (hasPower) {
+      // Trim to sliding window
+      const cutoff = (Date.now() / 1000) - this.POWER_WINDOW_S * 2;
+      if (this.powerSamples.length > 2000) {
+        this.powerSamples = this.powerSamples.filter(s => s.t > cutoff);
+      }
+
+      // Trigger reactivity
+      this.powerSamples = this.powerSamples;
+      this.powerChgSamples = this.powerChgSamples;
+      this.powerJsSamples = this.powerJsSamples;
+      this.accelSamples = this.accelSamples;
+    }
   }
 
   handleRunFinish(): void {

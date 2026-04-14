@@ -63,7 +63,7 @@ const MAX_UART_LINES = 1500;
 
 export class RunExecutionContext {
   // Config (immutable after construction)
-  readonly config: RunExecutionConfig;
+  readonly config!: RunExecutionConfig;
 
   // Core run state
   run = $state<TestRun | null>(null);
@@ -302,9 +302,38 @@ export class RunExecutionContext {
           }
         },
         onTelemetry: (data: TelemetryEvent) => {
-          // Route telemetry to the target's slot, fall back to active
-          const slot = this._findSlotByTelemetry(data) || this.activeSlot;
-          if (slot) slot.handleTelemetry(data);
+          // Route telemetry samples by targetId for per-slot power/UART
+          if (data.samples && this.slots.length > 1) {
+            // Group samples by targetId for multi-slot routing
+            const byTarget = new Map<string, Array<Record<string, unknown>>>();
+            const unrouted: Array<Record<string, unknown>> = [];
+
+            for (const sample of data.samples) {
+              const tid = (sample as Record<string, unknown>).targetId as string | undefined;
+              if (tid) {
+                if (!byTarget.has(tid)) byTarget.set(tid, []);
+                byTarget.get(tid)!.push(sample as Record<string, unknown>);
+              } else {
+                unrouted.push(sample as Record<string, unknown>);
+              }
+            }
+
+            // Deliver per-target batches to correct slots
+            for (const [tid, samples] of byTarget) {
+              const slot = this.slots.find(s => s.targetId === tid);
+              if (slot) slot.handleTelemetry({ ...data, samples: samples as TelemetryEvent['samples'] });
+            }
+
+            // Unrouted samples go to active slot (backward compat / single-slot)
+            if (unrouted.length > 0) {
+              const slot = this.activeSlot;
+              if (slot) slot.handleTelemetry({ ...data, samples: unrouted as TelemetryEvent['samples'] });
+            }
+          } else {
+            // Single-slot: all samples to the only slot
+            const slot = this._findSlotByTelemetry(data) || this.activeSlot;
+            if (slot) slot.handleTelemetry(data);
+          }
         },
       },
     );
@@ -393,13 +422,13 @@ export class RunExecutionContext {
     const token = getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    // Target slot for loading (first slot — multi-slot per-target channels are future work)
-    const slot = this.slots[0];
-    if (!slot) return;
+    if (this.slots.length === 0) return;
 
-    slot.telemetryLoading = true;
+    // Mark all slots as loading
+    for (const s of this.slots) s.telemetryLoading = true;
 
     try {
+      // Parse all channel data once, then distribute to all slots
       const channelEntries = Object.entries(manifest.channels);
       await Promise.all(channelEntries.map(async ([name, _info]) => {
         try {
@@ -420,8 +449,10 @@ export class RunExecutionContext {
                 samples.push({ t: s.t, mA: s.mA, mV: s.mV });
               } catch { /* skip malformed */ }
             }
-            if (name === 'power') slot.historicalPower = samples;
-            else slot.historicalPowerChg = samples;
+            for (const slot of this.slots) {
+              if (name === 'power') slot.historicalPower = samples;
+              else slot.historicalPowerChg = samples;
+            }
           } else if (name === 'power_js') {
             const samples: JoulescopeSample[] = [];
             for (const line of text.split('\n')) {
@@ -431,7 +462,9 @@ export class RunExecutionContext {
                 samples.push({ t: s.t, uA: s.uA ?? 0, mV: s.mV ?? 0, nA: s.nA });
               } catch { /* skip malformed */ }
             }
-            slot.historicalPowerJs = samples;
+            for (const slot of this.slots) {
+              slot.historicalPowerJs = samples;
+            }
           } else if (name === 'uart_app' || name === 'uart_comms') {
             const lines: string[] = [];
             for (const line of text.split('\n')) {
@@ -442,25 +475,39 @@ export class RunExecutionContext {
                 lines.push(`\x1b[36m[${ts}]\x1b[0m ${s.line}`);
               } catch { /* skip malformed */ }
             }
-            if (name === 'uart_app') slot.uartAppLines = lines;
-            else slot.uartCommsLines = lines;
+            for (const slot of this.slots) {
+              if (name === 'uart_app') slot.uartAppLines = lines;
+              else slot.uartCommsLines = lines;
+            }
           }
         } catch { /* skip failed channels */ }
       }));
     } finally {
-      slot.telemetryLoading = false;
+      for (const s of this.slots) s.telemetryLoading = false;
     }
   }
 
   // ── Snapshot live data ──────────────────────────────────────────
 
   private _snapshotAllSlots(): void {
+    // Collect power samples from all slots (live telemetry may have landed on different slots)
+    let allPower: PowerSample[] = [];
+    let allPowerChg: PowerSample[] = [];
     for (const slot of this.slots) {
-      if (slot.historicalPower.length === 0 && slot.powerSamples.length > 0) {
-        slot.historicalPower = [...slot.powerSamples];
+      if (slot.powerSamples.length > 0) allPower = [...allPower, ...slot.powerSamples];
+      if (slot.powerChgSamples.length > 0) allPowerChg = [...allPowerChg, ...slot.powerChgSamples];
+    }
+    // Sort by timestamp and deduplicate
+    allPower.sort((a, b) => a.t - b.t);
+    allPowerChg.sort((a, b) => a.t - b.t);
+
+    // Distribute to all slots that don't have historical data yet
+    for (const slot of this.slots) {
+      if (slot.historicalPower.length === 0 && allPower.length > 0) {
+        slot.historicalPower = allPower;
       }
-      if (slot.historicalPowerChg.length === 0 && slot.powerChgSamples.length > 0) {
-        slot.historicalPowerChg = [...slot.powerChgSamples];
+      if (slot.historicalPowerChg.length === 0 && allPowerChg.length > 0) {
+        slot.historicalPowerChg = allPowerChg;
       }
     }
   }
