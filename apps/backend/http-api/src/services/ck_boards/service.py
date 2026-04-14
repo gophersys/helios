@@ -91,20 +91,22 @@ class CkBoardsService:
 
         self._repo_url = repo_url
 
-        # Configure SSH auth with -4 (force IPv4 — pods don't have IPv6 routing).
-        # K8s secret volume mounts need defaultMode: 0444 for non-root containers.
+        # Configure SSH auth with -4 (force IPv4 — pods lack IPv6 routing).
+        # K8s secret volumes are root-owned; SSH rejects group/world-readable keys.
+        # Solution: read the mounted key, write to a temp file owned by current user.
         if ssh_key_b64:
             self._setup_ssh_key(ssh_key_b64)
         else:
             candidates = ["/home/appuser/.ssh/id_rsa", os.path.expanduser("~/.ssh/id_rsa")]
-            ssh_key_path = next((p for p in candidates if os.path.exists(p)), None)
-            if ssh_key_path:
+            mounted_key = next((p for p in candidates if os.path.exists(p)), None)
+            if mounted_key:
+                usable_key = self._copy_key_with_perms(mounted_key, base_path)
                 self._git_env = {
-                    "GIT_SSH_COMMAND": f"ssh -4 -i {ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes",
+                    "GIT_SSH_COMMAND": f"ssh -4 -i {usable_key} -o StrictHostKeyChecking=no -o BatchMode=yes",
                 }
-                logger.info("CkBoards using SSH key at %s (IPv4 forced)", ssh_key_path)
+                logger.info("CkBoards SSH key ready (copied from %s → %s)", mounted_key, usable_key)
             else:
-                logger.error("CkBoards: no SSH key found at %s — git clone will fail", candidates)
+                logger.error("CkBoards: no SSH key found at %s", candidates)
                 raise RuntimeError(f"SSH key not found at any of: {candidates}")
 
         # Clone or fetch
@@ -134,6 +136,24 @@ class CkBoardsService:
         # git@bitbucket.org:corekinect/ck_boards.git → bitbucket.org/corekinect/ck_boards.git
         path = ssh_url.replace("git@", "").replace(":", "/", 1)
         return f"https://{email}:{token}@{path}"
+
+    @staticmethod
+    def _copy_key_with_perms(src: str, base_path: str) -> str:
+        """Copy a K8s-mounted SSH key to a temp file with 0600 permissions.
+
+        K8s secret volumes are root-owned. SSH requires keys to be owned by
+        the current user with mode 0600. This copies the key content to a
+        user-owned file.
+        """
+        key_dir = os.path.join(base_path, "ssh")
+        os.makedirs(key_dir, exist_ok=True)
+        dest = os.path.join(key_dir, "id_rsa")
+        with open(src, "rb") as f:
+            key_data = f.read()
+        with open(dest, "wb") as f:
+            f.write(key_data)
+        os.chmod(dest, stat.S_IRUSR | stat.S_IWUSR)  # 0600
+        return dest
 
     def _setup_ssh_key(self, key_b64: str) -> None:
         """Write base64-encoded SSH key to temp file and configure git to use it."""
