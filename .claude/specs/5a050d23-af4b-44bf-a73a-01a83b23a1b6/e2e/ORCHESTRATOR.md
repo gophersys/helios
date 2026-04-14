@@ -212,7 +212,7 @@ NEVER wipe the entire DB during wave execution.
 
 ### Hardware Is Serial
 
-MTIB (10.4.45.33) can only be used by ONE stage at a time.
+MTIB (<MTIB_HOST>) can only be used by ONE stage at a time.
 Stages 9 and 13 (which need MTIB) run in Wave 4 SEQUENTIALLY, never parallel.
 
 ### Include in EVERY Teammate Prompt

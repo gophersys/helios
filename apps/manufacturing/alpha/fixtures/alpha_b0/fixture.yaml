@@ -1,0 +1,30 @@
+product: alpha
+board: alpha_b0
+mtib_revision: "1.2"
+
+capabilities:
+  - power
+  - jlink
+
+power:
+  battery_installed: false
+  dut_voltage: 4.5
+  charger_voltage: 5.0
+  boot_settle_s: 3
+
+# Manufacturing-specific electrical thresholds
+thresholds:
+  uvlo_voltage_v: 3.4
+  nominal_voltage_v: 3.7
+  high_voltage_v: 4.5
+  stabilization_period_s: 30
+  min_boot_current_ma: 5.0
+
+# Not wired on manufacturing fixtures
+button: null
+peltier: null
+charger_relay: null
+ppg_simulator: null
+led_sensor: null
+nfc_reader: null
+motion: null

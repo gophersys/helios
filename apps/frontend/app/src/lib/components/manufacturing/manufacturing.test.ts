@@ -36,7 +36,7 @@ function createSession(overrides: Partial<ManufacturingSession> = {}): Manufactu
     startedAt: '2026-04-01T10:00:00Z',
     createdAt: '2026-04-01T10:00:00Z',
     product: { id: 'prod-1', name: 'Alpha B0' },
-    fixture: { id: 'fix-1', name: 'Fixture A' },
+    fixture: { id: 'fix-1', name: 'Fixture A', panelRows: 2, panelCols: 3, metadata: null },
     operator: { id: 'user-1', name: 'Mateo', email: 'mateo@example.com' },
     ...overrides,
   };

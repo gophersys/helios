@@ -69,8 +69,7 @@
         <h3 class="font-semibold text-sm">General Settings</h3>
       </div>
       {#if canManage && !editing}
-        <button onclick={startEdit}
-          class="px-3 py-1.5 text-xs rounded-lg text-(--color-text-secondary) hover:bg-surface-2 transition-colors">
+        <button onclick={startEdit} class="btn btn-sm btn-ghost">
           Edit
         </button>
       {/if}
@@ -80,21 +79,17 @@
       <div class="space-y-3">
         <label class="block">
           <span class="block text-xs font-medium text-(--color-text-tertiary) mb-1">Name</span>
-          <input type="text" bind:value={editName}
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-(--color-text-primary) focus:border-accent focus:outline-hidden" />
+          <input type="text" bind:value={editName} class="input input-md" />
         </label>
         <label class="block">
           <span class="block text-xs font-medium text-(--color-text-tertiary) mb-1">Description</span>
-          <textarea bind:value={editDescription} rows={3}
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-(--color-text-primary) focus:border-accent focus:outline-hidden"></textarea>
+          <textarea bind:value={editDescription} rows={3} class="input input-md"></textarea>
         </label>
         <div class="flex justify-end gap-2">
-          <button onclick={cancelEdit}
-            class="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg text-(--color-text-secondary) hover:bg-surface-2">
+          <button onclick={cancelEdit} class="btn btn-sm btn-ghost">
             <X size={14} /> Cancel
           </button>
-          <button onclick={saveChanges} disabled={saving}
-            class="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-accent text-white hover:opacity-90 disabled:opacity-50">
+          <button onclick={saveChanges} disabled={saving} class="btn btn-sm btn-primary">
             <Save size={14} /> {saving ? 'Saving...' : 'Save'}
           </button>
         </div>

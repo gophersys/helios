@@ -52,7 +52,7 @@ test('Step 4: review and save → config created')
 ```
 test('create MANUFACTURING fixture design for Alpha B0')
 test('create MANUFACTURING fixture instance')
-test('assign MTIB node (10.4.45.33) to fixture slot')
+test('assign MTIB node (<MTIB_HOST>) to fixture slot')
 test('fixture shows AVAILABLE on manufacturing page')
 test('manufacturing fixtures page shows fixture card with "New Session"')
 test('Operator can see manufacturing fixtures (manufacturing:view)')

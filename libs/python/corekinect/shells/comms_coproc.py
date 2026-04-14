@@ -46,8 +46,15 @@ class ModemFirmware:
 
 @dataclass
 class SimInfo:
-    """Result from get_sim_info (imei_iccid command)."""
+    """Result from get_sim_info (imei_iccid command).
+
+    Firmware response format (v2):
+        IMEI,EID0,ICCID0[,EID1,ICCID1]: <15d>,<32d>,<19-20d>[,<32d>,<19-20d>]
+    Legacy format (v1):
+        IMEI,ICCID: <15d>,<19-20d>[,<19-20d>]
+    """
     imei: Optional[str] = None
+    eids: List[str] = field(default_factory=list)
     iccids: List[str] = field(default_factory=list)
 
 
@@ -160,52 +167,105 @@ class CommsCoprocShell:
         The firmware's imei_iccid command is async: it prints the
         header immediately, returns control to the shell (prompt
         printed), and the modem data arrives 1-5s later. When the
-        modem is warm, data arrives within 0.1s; when cold, up to 5s.
+        modem is warm, data arrives within 0.1s; when cold (e.g. after
+        modem DFU), up to 30s while the modem re-registers.
 
-        Strategy: send command normally. If data isn't in the initial
-        response, keep watching the stream buffer for the modem data
-        to arrive asynchronously.
+        Strategy: send command, watch buffer for modem data. If no
+        response, re-send the command and try again. Repeats until
+        timeout_s expires. This keeps the retry logic inside the
+        command so callers don't need their own retry loops.
 
         Returns:
             (SimInfo, error) — error is None on success.
         """
-        lines, err = self._cmd.send(
-            "imei_iccid",
-            success_patterns=["IMEI,ICCID"],
-            timeout_s=timeout_s,
-        )
-        if err:
-            return SimInfo(), err
+        import logging
+        _log = logging.getLogger("comms_coproc")
 
-        # Try parsing from send() response (warm modem path)
-        result = self._parse_sim_lines(lines)
-        if result.imei:
-            return result, None
+        deadline = time.time() + timeout_s
+        attempt = 0
+        # Each attempt: send command (5s), then watch buffer (up to 10s).
+        # Re-send if the modem hasn't responded yet.
+        cmd_timeout = min(timeout_s, 5.0)
 
-        # Cold modem: data arrives after the shell prompt.
-        # Watch the stream buffer for IMEI (15 digits) + ICCID (19-20 digits).
-        deadline = time.time() + min(timeout_s, 10.0)
         while time.time() < deadline:
-            text = self._cmd._stream.get_text()
-            m = re.search(r"(\d{15}),(\d{19,20}(?:,\d{19,20})*)", text)
-            if m:
-                imei = m.group(1)
-                iccids = m.group(2).split(",")
-                return SimInfo(imei=imei, iccids=iccids), None
-            self._cmd._stream._data_event.clear()
-            self._cmd._stream._data_event.wait(timeout=0.2)
+            attempt += 1
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
 
-        return SimInfo(), f"Modem did not respond within timeout"
+            # Accept both v1 "IMEI,ICCID" and v2 "IMEI,EID0,ICCID0" headers
+            lines, err = self._cmd.send(
+                "imei_iccid",
+                success_patterns=["IMEI,"],
+                timeout_s=min(cmd_timeout, remaining),
+            )
+
+            if err is None:
+                # Try parsing from send() response (warm modem path)
+                result = self._parse_sim_response(lines)
+                if result.imei:
+                    return result, None
+
+            # Cold modem: data arrives after the shell prompt.
+            # Watch the stream buffer for a line of comma-separated numeric fields
+            # starting with a 15-digit IMEI.
+            watch_until = min(time.time() + 10.0, deadline)
+            while time.time() < watch_until:
+                text = self._cmd._stream.get_text()
+                result = self._parse_sim_response(text.splitlines())
+                if result.imei:
+                    return result, None
+                self._cmd._stream._data_event.clear()
+                self._cmd._stream._data_event.wait(timeout=0.2)
+
+            if time.time() < deadline:
+                _log.info(
+                    "IMEI/ICCID attempt %d — no response, re-sending (%.0fs left)",
+                    attempt, deadline - time.time(),
+                )
+
+        return SimInfo(), f"Modem did not respond within {timeout_s:.0f}s ({attempt} attempts)"
 
     @staticmethod
-    def _parse_sim_lines(lines: list) -> SimInfo:
-        """Parse IMEI/ICCID from response lines."""
+    def _parse_sim_response(lines: list) -> SimInfo:
+        """Parse IMEI/EID/ICCID from response lines.
+
+        Handles both firmware formats:
+          v2: IMEI,EID0,ICCID0[,EID1,ICCID1]: 355...,890410...,891480...,,...
+          v1: IMEI,ICCID: 355...,891480...
+
+        Classification by digit count:
+          15 digits  → IMEI
+          32 digits  → EID (eUICC identifier)
+          19-20 digits → ICCID
+        """
         for line in lines:
-            m = re.search(r"IMEI,ICCID[^:]*:\s*(.+)", line)
-            if m:
-                parts = [p.strip() for p in m.group(1).split(",")]
-                if len(parts) >= 2:
-                    return SimInfo(imei=parts[0], iccids=parts[1:])
+            # Match header line with colon-separated data
+            m = re.search(r"IMEI[^:]*:\s*(.+)", line)
+            if not m:
+                continue
+            raw = m.group(1).strip()
+            parts = [p.strip() for p in raw.split(",")]
+
+            imei = None
+            eids = []
+            iccids = []
+            for part in parts:
+                if not part:
+                    continue
+                if not part.isdigit():
+                    continue
+                n = len(part)
+                if n == 15 and imei is None:
+                    imei = part
+                elif 30 <= n <= 34:
+                    eids.append(part)
+                elif 19 <= n <= 20:
+                    iccids.append(part)
+
+            if imei and iccids:
+                return SimInfo(imei=imei, eids=eids, iccids=iccids)
+
         return SimInfo()
 
     # ── Security / personalization ───────────────────

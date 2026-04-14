@@ -329,13 +329,20 @@ class PreflightChecker:
         """Verify MTIB gRPC connection(s).
 
         Supports both single-slot (MTIB_ADDRESS/MTIB_HOST) and
-        multi-slot (MTIB_HOSTS) configurations. For multi-slot,
-        all addresses must be reachable.
+        multi-slot (MTIB_HOSTS) configurations. When SLOT_FILTER is set,
+        only checks the addresses for those specific slot indices.
         """
         # Collect addresses to check
         mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
         if mtib_hosts:
-            addresses = [a.strip() for a in mtib_hosts.split(",") if a.strip()]
+            all_addresses = [a.strip() for a in mtib_hosts.split(",") if a.strip()]
+            # Apply SLOT_FILTER — only check addresses for targeted slots
+            slot_filter = os.environ.get("SLOT_FILTER", "").strip()
+            if slot_filter:
+                allowed = {int(x.strip()) for x in slot_filter.split(",") if x.strip()}
+                addresses = [a for i, a in enumerate(all_addresses) if i in allowed]
+            else:
+                addresses = all_addresses
         else:
             address = os.environ.get("MTIB_ADDRESS")
             if not address:
@@ -509,7 +516,7 @@ class RunReporter:
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
-            log.warning("Reporter POST failed: %s - %s", endpoint, e)
+            log.error("Reporter POST failed: %s - %s", endpoint, e)
             return None
 
     def report_preflight_start(self):

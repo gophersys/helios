@@ -129,7 +129,10 @@ class FirmwareHandler:
                     if key in self.programmers:
                         continue
 
-                    # Try to detect device at this mux position
+                    # Try to detect device at this mux position.
+                    # If APPROTECT is enabled, the probe IS connected but device
+                    # info can't be read. We still register it — the flash flow
+                    # runs --recover first which clears APPROTECT.
                     try:
                         result = subprocess.check_output(
                             ["nrfjprog", "--snr", serial, "--deviceversion",
@@ -138,15 +141,26 @@ class FirmwareHandler:
                         ).decode()
                         result_upper = result.strip().upper()
 
-                        # Check if we found the expected target
                         if target_type == HostType.HOST_TYPE_NRF52840 and "NRF52840" in result_upper:
                             self.programmers[key] = (HostType.HOST_TYPE_NRF52840, True)
-                            self.logger.info(f"J-Link {serial} connects to nRF52840 at mux position P0={'HIGH' if swap else 'LOW'}")
+                            self.logger.info(f"J-Link {serial} → nRF52840 (P0={'HIGH' if swap else 'LOW'})")
                         elif target_type == HostType.HOST_TYPE_NRF9151 and ("NRF9151" in result_upper or "NRF9120" in result_upper):
                             self.programmers[key] = (HostType.HOST_TYPE_NRF9151, True)
-                            self.logger.info(f"J-Link {serial} connects to nRF9151 at mux position P0={'HIGH' if swap else 'LOW'}")
-                    except subprocess.CalledProcessError:
-                        pass  # This J-Link doesn't connect to this target at this mux position
+                            self.logger.info(f"J-Link {serial} → nRF9151 (P0={'HIGH' if swap else 'LOW'})")
+                        elif "ACCESS" in result_upper and "PROTECT" in result_upper:
+                            # APPROTECT is on — probe IS connected, just can't read device info.
+                            # Register it; --recover during flash will clear protection.
+                            self.programmers[key] = (target_type, True)
+                            self.logger.info(f"J-Link {serial} → {target_name} (APPROTECT — will recover on flash)")
+                    except subprocess.CalledProcessError as e:
+                        err_msg = (e.output or b"").decode().upper() if e.output else str(e).upper()
+                        if "ACCESS" in err_msg and "PROTECT" in err_msg:
+                            self.programmers[key] = (target_type, True)
+                            self.logger.info(f"J-Link {serial} → {target_name} (APPROTECT — will recover on flash)")
+                        elif "ERROR" in err_msg and serial in subprocess.check_output(["nrfjprog", "--ids"]).decode():
+                            # Probe exists but can't talk to target — likely APPROTECT or unpowered
+                            self.programmers[key] = (target_type, False)
+                            self.logger.info(f"J-Link {serial} → {target_name} (probe present, target unreachable)")
                     except Exception as e:
                         self.logger.debug(f"Error scanning J-Link {serial}: {e}")
             return
@@ -178,10 +192,11 @@ class FirmwareHandler:
             # Log the raw output for debugging
             result_upper = result.strip().upper()
 
-            # Check for access protection error
+            # APPROTECT is on — probe IS connected, just can't read device info
             if "ACCESS PROTECTION IS ENABLED" in result_upper:
-                self.logger.info(f"J-Link {serial} has access protection enabled")
-                return False
+                self.logger.info(f"J-Link {serial} has APPROTECT — registering as connected (will recover on flash)")
+                self.programmers[serial] = (None, True)
+                return True
 
             # Check for other error conditions
             if "LOW VOLTAGE" in result_upper or "ERROR" in result_upper:

@@ -234,23 +234,27 @@ class MtibV1Provider(MtibV1Servicer):
         """Initialize the servicer function handlers."""
         # Create I2C-based drivers with shared bus
         from src.drivers.mcp4017 import MCP4017
-        from src.drivers.bme280 import BME280
 
         mcp4017 = MCP4017(i2c_bus=self._i2c_bus, logger=self.logger)
 
-        # Try BME280 at common addresses
+        # BME280: try kernel IIO first (kernel bmp280 driver owns the device),
+        # fall back to raw I2C if IIO not available
         bme280 = None
-        for address in [0x77, 0x76]:
-            try:
-                candidate = BME280(i2c_bus=self._i2c_bus, address=address, logger=self.logger)
-                if candidate.initialize():
-                    bme280 = candidate
-                    self.logger.info(f"BME280 initialized at address 0x{address:02x}")
-                    break
-            except Exception as e:
-                self.logger.debug(f"BME280 at 0x{address:02x} not available: {e}")
+        from src.drivers.bme280_iio import BME280Iio
+        bme280 = BME280Iio.find(logger=self.logger)
         if bme280 is None:
-            self.logger.warning("BME280 sensor not found on I2C bus")
+            from src.drivers.bme280 import BME280
+            for address in [0x77, 0x76]:
+                try:
+                    candidate = BME280(i2c_bus=self._i2c_bus, address=address, logger=self.logger)
+                    if candidate.initialize():
+                        bme280 = candidate
+                        self.logger.info(f"BME280 initialized via raw I2C at 0x{address:02x}")
+                        break
+                except Exception as e:
+                    self.logger.debug(f"BME280 at 0x{address:02x} not available: {e}")
+        if bme280 is None:
+            self.logger.warning("BME280 sensor not found (IIO or I2C)")
 
         # Try to initialize Joulescope USB driver (optional)
         joulescope_driver = None

@@ -129,25 +129,9 @@ def create_node():
         logger.error("Failed to create MTIB node: %s", e)
         return internal_error("Failed to create MTIB")
 
-    # Auto-deploy MTIB server
-    try:
-        deploy_name = _deploy_mtib_for_node(
-            hostname=data.hostname,
-            node_type=data.type,
-        )
-        if deploy_name:
-            meta = node.metadata if isinstance(node.metadata, dict) else {}
-            meta["deployment_name"] = deploy_name
-            node = db.node.update(
-                where={"id": node.id},
-                data={"metadata": Json(meta)},
-                include={"fixtureSlot": True},
-            )
-            logger.info("Auto-deployed MTIB server %s for node %s", deploy_name, data.hostname)
-        else:
-            logger.warning("Failed to auto-deploy MTIB server for node %s", data.hostname)
-    except Exception as e:
-        logger.error("Error auto-deploying MTIB server for node %s: %s", data.hostname, e)
+    # MTIB server deployment happens on slot assignment (POST /fixtures/:id/slots/:slotId/assign),
+    # not here. Deploying at registration causes duplicate deployments when the node
+    # is immediately assigned to a fixture slot.
 
     log_audit("node.create", "Node", node.id, {"name": data.name, "hostname": data.hostname, "type": data.type})
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 201

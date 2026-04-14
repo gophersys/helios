@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Play, Square, RotateCcw, Rocket, ChevronDown, ChevronUp } from 'lucide-svelte';
+  import { Play, Square, RotateCcw, Rocket, ChevronDown, ChevronUp, Trash2, Pencil, X, Check, Loader2 } from 'lucide-svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import SlotAssignment from './slot-assignment.svelte';
@@ -8,10 +8,11 @@
   import type { Fixture, ConcordNode, ConcordDeployment } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
-  let { fixture, canManage, onRefresh }: {
+  let { fixture, canManage, onRefresh, onDeleted }: {
     fixture: Fixture;
     canManage: boolean;
     onRefresh: () => void;
+    onDeleted?: () => void;
   } = $props();
 
   let error = $state<string | null>(null);
@@ -81,22 +82,74 @@
   async function handleAssign(slotId: string, nodeId: string) {
     error = null;
     try {
-      await api.put(`/v2/fixtures/${fixture.id}/slots/${slotId}`, { nodeId });
+      await api.post(`/v2/fixtures/${fixture.id}/slots/${slotId}/assign`, { nodeId });
       onRefresh();
       fetchAvailableNodes();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to assign node';
+    } catch (err: any) {
+      error = err?.data?.errors?.[0]?.message || (err instanceof Error ? err.message : 'Failed to assign node');
     }
   }
 
   async function handleUnassign(slotId: string) {
     error = null;
     try {
-      await api.put(`/v2/fixtures/${fixture.id}/slots/${slotId}`, { nodeId: null });
+      await api.post(`/v2/fixtures/${fixture.id}/slots/${slotId}/assign`, { nodeId: null });
       onRefresh();
       fetchAvailableNodes();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to unassign node';
+    } catch (err: any) {
+      error = err?.data?.errors?.[0]?.message || (err instanceof Error ? err.message : 'Failed to unassign node');
+    }
+  }
+
+  // ── Edit ──
+  let editing = $state(false);
+  let editName = $state('');
+  let editDescription = $state('');
+  let editActive = $state(true);
+  let saving = $state(false);
+
+  function startEdit() {
+    editName = fixture.name;
+    editDescription = fixture.description || '';
+    editActive = fixture.active;
+    editing = true;
+  }
+
+  async function saveEdit() {
+    saving = true;
+    error = null;
+    try {
+      await api.put(`/v2/fixtures/${fixture.id}`, {
+        name: editName.trim(),
+        description: editDescription.trim() || null,
+        active: editActive,
+      });
+      editing = false;
+      onRefresh();
+    } catch (err: any) {
+      error = err?.data?.errors?.[0]?.message || (err instanceof Error ? err.message : 'Failed to update fixture');
+    } finally {
+      saving = false;
+    }
+  }
+
+  // ── Delete ──
+  let showDeleteConfirm = $state(false);
+  let deleting = $state(false);
+
+  async function handleDelete() {
+    deleting = true;
+    error = null;
+    try {
+      await api.delete(`/v2/fixtures/${fixture.id}`);
+      showDeleteConfirm = false;
+      onDeleted?.();
+    } catch (err: any) {
+      const msg = err?.data?.errors?.[0]?.message || (err instanceof Error ? err.message : 'Failed to delete fixture');
+      error = msg;
+      showDeleteConfirm = false;
+    } finally {
+      deleting = false;
     }
   }
 
@@ -183,19 +236,63 @@
     <!-- Header -->
     <div class="flex items-start justify-between">
       <div class="flex-1">
-        <div class="flex items-center gap-3">
-          <h2 class="text-lg font-semibold text-text-primary">{fixture.name}</h2>
-          <StatusBadge status={fixture.type} />
-          <StatusBadge status={fixture.active ? 'ACTIVE' : 'INACTIVE'} />
-        </div>
-        {#if fixture.description}
-          <p class="mt-1 text-sm text-text-secondary">{fixture.description}</p>
-        {/if}
-        {#if fixture.productName}
-          <p class="mt-1 text-2xs text-text-tertiary">Product: <span class="text-text-secondary">{fixture.productName}</span></p>
+        {#if editing}
+          <div class="space-y-3">
+            <input type="text" bind:value={editName} class="input input-md w-full" placeholder="Fixture name" />
+            <input type="text" bind:value={editDescription} class="input input-sm w-full" placeholder="Description (optional)" />
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" bind:checked={editActive} class="h-4 w-4 rounded border-border text-accent" />
+              <span class="text-sm text-text-secondary">Active</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <button onclick={saveEdit} disabled={saving || !editName.trim()} class="btn btn-sm btn-primary">
+                {#if saving}<Loader2 size={14} class="animate-spin" />{:else}<Check size={14} />{/if} Save
+              </button>
+              <button onclick={() => editing = false} class="btn btn-sm btn-ghost">Cancel</button>
+            </div>
+          </div>
+        {:else}
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-semibold text-text-primary">{fixture.name}</h2>
+            <StatusBadge status={fixture.type} />
+            <StatusBadge status={fixture.active ? 'ACTIVE' : 'INACTIVE'} />
+            {#if fixture.status === 'LOCKED'}
+              <StatusBadge status="LOCKED" />
+            {/if}
+          </div>
+          {#if fixture.description}
+            <p class="mt-1 text-sm text-text-secondary">{fixture.description}</p>
+          {/if}
+          {#if fixture.productName}
+            <p class="mt-1 text-2xs text-text-tertiary">Product: <span class="text-text-secondary">{fixture.productName}</span></p>
+          {/if}
         {/if}
       </div>
+      {#if canManage && !editing}
+        <div class="flex items-center gap-1">
+          <button onclick={startEdit} class="btn btn-sm btn-ghost" title="Edit fixture">
+            <Pencil size={14} />
+          </button>
+          <button onclick={() => showDeleteConfirm = true} class="btn btn-sm btn-ghost text-error" title="Delete fixture" disabled={fixture.status === 'LOCKED'}>
+            <Trash2 size={14} />
+          </button>
+        </div>
+      {/if}
     </div>
+
+    <!-- Delete confirmation -->
+    {#if showDeleteConfirm}
+      <div class="mt-3 rounded-lg border border-error/30 bg-error-muted p-4">
+        <p class="text-sm font-medium text-error">Delete "{fixture.name}"?</p>
+        <p class="mt-1 text-2xs text-text-secondary">This will undeploy all MTIB servers and free assigned nodes. This cannot be undone.</p>
+        <div class="mt-3 flex items-center gap-2">
+          <button onclick={handleDelete} disabled={deleting} class="btn btn-sm btn-danger">
+            {#if deleting}<Loader2 size={14} class="animate-spin" />{:else}<Trash2 size={14} />{/if} Delete
+          </button>
+          <button onclick={() => showDeleteConfirm = false} class="btn btn-sm btn-ghost">Cancel</button>
+        </div>
+      </div>
+    {/if}
 
     <!-- Deployment section -->
     <div class="mt-6 border-t border-border pt-6">
@@ -352,7 +449,7 @@
                     {#if slot.node}
                       <div>
                         <span class="text-text-primary">{slot.node.name}</span>
-                        <span class="ml-2 text-2xs text-text-tertiary">{slot.node.hostname}</span>
+                        <span class="ml-2 font-mono text-2xs text-text-tertiary">{slot.node.hostname}</span>
                       </div>
                     {:else}
                       <span class="text-text-tertiary">Unassigned</span>

@@ -15,7 +15,7 @@ Environment variables:
     MTIB_HOSTS          Comma-separated MTIB addresses (multi-slot)
     MTIB_HOST           Single MTIB address (single-slot)
     FIXTURE_CONFIG_PATH Path to fixture config JSON
-    BUILD_RUN_ID        Build run ID (firmware artifact resolution)
+    ASSET_SET_ID        AssetSet ID (firmware resolution via Concord API)
     ARTIFACTS_DIR       Directory for test artifacts
     MOCK_MODE           Set to "1" for offline testing
 """

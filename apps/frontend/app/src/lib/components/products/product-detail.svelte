@@ -130,25 +130,25 @@
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="block">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">Product Name *</span>
-            <input type="text" bind:value={editName} class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden" />
+            <input type="text" bind:value={editName} class="input input-md" />
           </label>
           <label class="block">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">Slug</span>
-            <input type="text" bind:value={editSlug} placeholder="URL-safe identifier" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden" />
+            <input type="text" bind:value={editSlug} placeholder="URL-safe identifier" class="input input-md font-mono" />
           </label>
         </div>
         <label class="block">
           <span class="mb-1 block text-2xs font-medium text-text-tertiary">Description</span>
-          <input type="text" bind:value={editDescription} placeholder="Optional description" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden" />
+          <input type="text" bind:value={editDescription} placeholder="Optional description" class="input input-md" />
         </label>
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="block">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Repo Slug</span>
-            <input type="text" bind:value={editFwRepoSlug} placeholder="e.g. alpha_fw" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden" />
+            <input type="text" bind:value={editFwRepoSlug} placeholder="e.g. alpha_fw" class="input input-md font-mono" />
           </label>
           <label class="block">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">Mfg Firmware Repo Slug</span>
-            <input type="text" bind:value={editMfgFwRepoSlug} placeholder="e.g. alpha_mfg_fw" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden" />
+            <input type="text" bind:value={editMfgFwRepoSlug} placeholder="e.g. alpha_mfg_fw" class="input input-md font-mono" />
           </label>
         </div>
       </div>

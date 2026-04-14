@@ -15,7 +15,12 @@
     Radio,
     Cpu,
     RefreshCw,
+    Ban,
+    Box,
+    Wrench,
+    Package,
   } from 'lucide-svelte';
+  import LinkChip from '$lib/components/ui/link-chip.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ValidationRun, ValidationStage, Product, Pagination } from '$lib/types/models';
@@ -31,6 +36,8 @@
   import FilterPills from '$lib/components/ui/filter-pills.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import Select from '$lib/components/ui/select.svelte';
+  import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import PaginationNav from '$lib/components/ui/pagination.svelte';
   import TextInput from '$lib/components/ui/text-input.svelte';
   import { BitbucketIcon } from '$lib/components/icons';
@@ -113,6 +120,40 @@
   let submitting = $state(false);
   let products = $state<{ value: string; label: string }[]>([]);
   let nodes = $state<{ value: string; label: string }[]>([]);
+
+  // Selection + batch
+  let selectedIds = $state<Set<string>>(new Set());
+  let batchLoading = $state(false);
+
+  function toggleItem(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedIds = next;
+  }
+  function selectAll() { selectedIds = new Set(filteredRuns.map(r => r.id)); }
+  function clearSelection() { selectedIds = new Set(); }
+
+  async function batchAction(action: string) {
+    if (selectedIds.size === 0) return;
+    batchLoading = true;
+    error = null;
+    try {
+      const res = await api.post<ApiResponse<any>>('/v2/runs/batch', {
+        action,
+        ids: [...selectedIds],
+      });
+      const result = res.data;
+      if (result.failed?.length > 0) {
+        error = `${result.succeeded.length} ${action}led, ${result.failed.length} failed: ${result.failed[0].reason}`;
+      }
+      selectedIds = new Set();
+      fetchRuns();
+    } catch (err: any) {
+      error = err instanceof Error ? err.message : `Batch ${action} failed`;
+    } finally {
+      batchLoading = false;
+    }
+  }
 
   // Auto-refresh
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -435,6 +476,17 @@
     </span>
   </FilterBar>
 
+  <!-- Selection bar -->
+  <SelectionBar
+    selectedCount={selectedIds.size}
+    totalCount={filteredRuns.length}
+    onSelectAll={selectAll}
+    onClearSelection={clearSelection}
+    actions={[
+      { label: 'Cancel', icon: Ban, variant: 'danger' as const, loading: batchLoading, onclick: () => batchAction('cancel') },
+    ]}
+  />
+
   <!-- Runs list -->
   {#if loading}
     <LoadingState message="Loading validation runs..." />
@@ -446,145 +498,116 @@
       {/if}
     </EmptyState>
   {:else}
-    <div class="divide-y divide-border-subtle rounded-lg border border-border bg-surface-0">
-      {#each filteredRuns as run (run.id)}
-        {@const stage = getStage(run)}
-        {@const stageBadge = STAGE_BADGE[stage]}
-        {@const config = run.config as Record<string, unknown> | null}
-        {@const failedTests = getFailedTests(run)}
-        {@const currentTest = getCurrentTest(run)}
-        {@const serialNumber = getSerialNumber(run)}
-        {@const fwVersion = getFirmwareVersion(run)}
-        {@const fixtureName = getFixtureName(run)}
-        {@const triggerType = getTriggerType(run)}
-        {@const { passed, failed, total } = getStatusCounts(run)}
-
-        <button
-          onclick={() => goto(`/validation/runs/${run.id}`)}
-          class="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-2/50"
-        >
-          <!-- Left: Run info -->
-          <div class="min-w-0 flex-1">
-            <!-- Row 1: Product + badges -->
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-medium text-text-primary">
-                {run.product?.name || 'Unknown'}
-              </span>
-              <!-- Stage badge -->
-              {#if stageBadge}
-                {@const StageBadgeIcon = stageBadge.icon}
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium {stageBadge.color}">
-                  <StageBadgeIcon size={10} />
-                  {stage.toUpperCase()}
-                </span>
-              {/if}
-              <!-- Firmware version -->
-              {#if fwVersion}
-                <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-mono font-medium">
-                  {fwVersion}
-                </span>
-              {/if}
-              <!-- Serial number -->
-              {#if serialNumber}
-                <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary font-mono">
-                  {serialNumber}
-                </span>
-              {/if}
-              <!-- Fixture name -->
-              {#if fixtureName}
-                <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary">
-                  {fixtureName}
-                </span>
-              {/if}
-              <!-- Trigger source -->
-              {#if config?.runId}
-                <span
-                  role="link"
-                  tabindex="0"
-                  onclick={(e) => { e.stopPropagation(); goto(`/builds/runs/${config?.runId}`); }}
-                  onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); goto(`/builds/runs/${config?.runId}`); }}}
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info-muted text-info text-2xs font-medium hover:bg-info/20 cursor-pointer transition-colors"
-                  title="View build run"
-                >
-                  <GitCommit size={10} />
-                  Build
-                </span>
-              {:else if triggerType === 'bitbucket'}
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info-muted text-info text-2xs font-medium">
-                  <BitbucketIcon size={10} />
-                  {getTriggerLabel(run)}
-                </span>
-              {:else if triggerType === 'scheduled'}
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning-muted text-warning text-2xs font-medium">
-                  <Moon size={10} />
-                  Scheduled
-                </span>
-              {:else}
-                <span class="text-2xs text-text-tertiary">
-                  {getTriggerLabel(run)}
-                </span>
-              {/if}
-            </div>
-
-            <!-- Row 2: Test counts + progress + failed tests / current test -->
-            <div class="flex items-center gap-3 mt-1.5 text-2xs flex-wrap">
-              <StatusBadge status={run.status} />
-              {#if run.status === 'ACTIVE'}
-                <Loader2 size={12} class="text-accent animate-spin" />
-              {/if}
-              <!-- Test counts -->
-              <span class="flex items-center gap-1">
-                <CheckCircle2 size={11} class="text-success" />
-                <span class="text-text-primary font-medium">{passed}</span>
-              </span>
-              {#if failed > 0}
-                <span class="flex items-center gap-1 text-error">
-                  <XCircle size={11} />
-                  <span class="font-medium">{failed}</span>
-                </span>
-              {/if}
-              <span class="text-text-tertiary">/ {total} tests</span>
-
-              <!-- Progress bar -->
-              {#if total > 0}
-                <div class="w-24 h-1.5 bg-surface-2 rounded-full overflow-hidden shrink-0">
-                  <div
-                    class="h-full rounded-full transition-all duration-500 {failed > 0 ? 'bg-error' : run.status === 'ACTIVE' ? 'bg-accent' : 'bg-success'}"
-                    style="width: {Math.round((passed + failed) / total * 100)}%"
-                  ></div>
-                </div>
-              {/if}
-
-              <!-- Failed tests or current test -->
-              {#if failedTests.length > 0}
-                <div class="flex items-center gap-1 ml-auto">
-                  {#each failedTests as testName}
-                    <span class="px-1.5 py-0.5 rounded bg-error/10 text-error font-mono">{testName}</span>
-                  {/each}
-                  {#if failed > 3}
-                    <span class="text-error">+{failed - 3}</span>
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="table-header w-10">
+              <input
+                type="checkbox"
+                checked={selectedIds.size > 0 && selectedIds.size === filteredRuns.length}
+                indeterminate={selectedIds.size > 0 && selectedIds.size < filteredRuns.length}
+                onchange={() => selectedIds.size === filteredRuns.length ? clearSelection() : selectAll()}
+                class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+              />
+            </th>
+            <th class="table-header">Name</th>
+            <th class="table-header">Product</th>
+            <th class="table-header">Stage</th>
+            <th class="table-header">Status</th>
+            <th class="table-header">Pass / Fail</th>
+            <th class="table-header">Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredRuns as run (run.id)}
+            {@const stage = getStage(run)}
+            {@const stageBadge = STAGE_BADGE[stage]}
+            {@const { passed, failed, total } = getStatusCounts(run)}
+            {@const duration = getDuration(run)}
+            <tr
+              class="table-row cursor-pointer"
+              onclick={() => goto(`/validation/runs/${run.id}`)}
+            >
+              <td class="table-cell" onclick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(run.id)}
+                  onchange={() => toggleItem(run.id)}
+                  class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                />
+              </td>
+              <td class="table-cell">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-text-primary text-sm truncate max-w-48">
+                    {run.name || 'Unnamed'}
+                  </span>
+                  {#if run.status === 'ACTIVE'}
+                    <Loader2 size={12} class="text-accent animate-spin shrink-0" />
                   {/if}
                 </div>
-              {:else if run.status === 'ACTIVE' && currentTest}
-                <div class="flex items-center gap-1.5 ml-auto">
-                  <Play size={10} class="text-accent" />
-                  <span class="font-mono text-text-secondary">{currentTest}</span>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  {#if run.product}
+                    <LinkChip icon={Box} href="/products/{run.productId}">{run.product.name}</LinkChip>
+                  {/if}
+                  {#if run.fixture}
+                    <LinkChip icon={Wrench} href="/fixtures/{run.fixtureId}">{run.fixture.name}</LinkChip>
+                  {/if}
+                  {#if run.buildRun}
+                    <LinkChip icon={GitCommit} href="/builds/runs/{run.buildRunId}">#{run.buildRun.commitSha?.slice(0, 7)}</LinkChip>
+                  {/if}
+                  {#if run.testPackage}
+                    <LinkChip icon={Package}>v{run.testPackage.version}</LinkChip>
+                  {/if}
                 </div>
-              {/if}
-            </div>
-          </div>
-
-          <!-- Right: Duration + time -->
-          <div class="flex flex-col items-end gap-1 text-2xs text-text-tertiary shrink-0">
-            {#if getDuration(run)}
-              <span class="tabular-nums">{getDuration(run)}</span>
-            {/if}
-            <span title={formatDateTime(run.createdAt)}>
-              {formatTimeAgo(run.createdAt)}
-            </span>
-          </div>
-        </button>
-      {/each}
+              </td>
+              <td class="table-cell text-text-secondary">
+                {run.product?.name || 'Unknown'}
+              </td>
+              <td class="table-cell">
+                {#if stageBadge}
+                  {@const StageBadgeIcon = stageBadge.icon}
+                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium {stageBadge.color}">
+                    <StageBadgeIcon size={10} />
+                    {stage.toUpperCase()}
+                  </span>
+                {:else}
+                  <span class="text-2xs text-text-tertiary">{stage}</span>
+                {/if}
+              </td>
+              <td class="table-cell">
+                <StatusBadge status={run.status} />
+              </td>
+              <td class="table-cell">
+                <div class="flex items-center gap-2 text-2xs">
+                  <span class="flex items-center gap-1">
+                    <CheckCircle2 size={11} class="text-success" />
+                    <span class="text-text-primary font-medium">{passed}</span>
+                  </span>
+                  {#if failed > 0}
+                    <span class="flex items-center gap-1 text-error">
+                      <XCircle size={11} />
+                      <span class="font-medium">{failed}</span>
+                    </span>
+                  {/if}
+                  <span class="text-text-tertiary">/ {total}</span>
+                  {#if total > 0}
+                    <div class="w-16 h-1.5 bg-surface-2 rounded-full overflow-hidden shrink-0">
+                      <div
+                        class="h-full rounded-full transition-all duration-500 {failed > 0 ? 'bg-error' : run.status === 'ACTIVE' ? 'bg-accent' : 'bg-success'}"
+                        style="width: {Math.round((passed + failed) / total * 100)}%"
+                      ></div>
+                    </div>
+                  {/if}
+                </div>
+              </td>
+              <td class="table-cell text-2xs text-text-tertiary tabular-nums">
+                {duration || '—'}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   {/if}
 

@@ -6,7 +6,7 @@
   import { PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { createAuthContext } from '$lib/stores/auth.svelte';
   import { createThemeContext } from '$lib/stores/theme.svelte';
-  import { reportJsError } from '$lib/stores/error-reporter.svelte';
+  import { reportJsError, trackNavigation } from '$lib/stores/error-reporter.svelte';
   import Layout from '$lib/components/layout.svelte';
   import EnvironmentBanner from '$lib/components/ui/environment-banner.svelte';
   import ErrorReportModal from '$lib/components/ui/error-report-modal.svelte';
@@ -29,9 +29,10 @@
   let boundaryError = $state<{ message: string; stack?: string } | null>(null);
   const isDev = PUBLIC_APP_ENVIRONMENT === 'development' || PUBLIC_APP_ENVIRONMENT === 'local' || !PUBLIC_APP_ENVIRONMENT;
 
-  afterNavigate(() => {
+  afterNavigate(({ to }) => {
     const title = document.title || $page.url.pathname;
     routeAnnouncement = 'Navigated to ' + title;
+    if (to?.url) trackNavigation(to.url.pathname);
   });
 
   // Initialize auth on mount

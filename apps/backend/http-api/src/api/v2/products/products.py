@@ -650,3 +650,69 @@ def sync_product_revisions(product_id: str):
         "added": added,
         "existing": list(existing_versions),
     }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+#  POST /v2/products/batch — batch action on multiple products
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def batch_products_action():
+    """Apply an action to multiple products at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    ids = body.get("ids", [])
+
+    if action not in ("archive", "delete"):
+        return bad_request("action must be 'archive' or 'delete'")
+    if not isinstance(ids, list) or not ids:
+        return bad_request("ids must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for pid in ids:
+        product = db.product.find_unique(where={"id": pid})
+        if not product:
+            failed.append({"id": pid, "reason": "Not found"})
+            continue
+
+        if action == "archive":
+            if product.status == "ARCHIVED":
+                succeeded.append(pid)
+                continue
+            # Check for active builds or tests
+            active_builds = db.buildrun.count(
+                where={"productId": pid, "status": {"in": ["PENDING", "BUILDING", "VALIDATING"]}}
+            )
+            if active_builds > 0:
+                failed.append({"id": pid, "reason": f"{active_builds} active build run(s)"})
+                continue
+            active_tests = db.testrun.count(
+                where={"productId": pid, "status": {"in": ["PENDING", "ACTIVE"]}}
+            )
+            if active_tests > 0:
+                failed.append({"id": pid, "reason": f"{active_tests} active test run(s)"})
+                continue
+            db.product.update(where={"id": pid}, data={"status": "ARCHIVED"})
+            log_audit("product.archive", "Product", pid, {"batch": True})
+            succeeded.append(pid)
+
+        elif action == "delete":
+            if product.status != "ARCHIVED":
+                failed.append({"id": pid, "reason": "Product must be archived before deletion"})
+                continue
+            db.product.delete(where={"id": pid})
+            log_audit("product.delete", "Product", pid, {"batch": True})
+            succeeded.append(pid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200

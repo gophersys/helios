@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { Plus, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon, List, LayoutGrid } from 'lucide-svelte';
+  import { Plus, Trash2, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon, List, LayoutGrid, Box } from 'lucide-svelte';
+  import LinkChip from '$lib/components/ui/link-chip.svelte';
   import FixtureGridCard from '$lib/components/fixtures/fixture-grid-card.svelte';
   import FixtureCreateWizard from '$lib/components/fixtures/fixture-create-wizard.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
@@ -13,7 +14,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import FixtureDetail from '$lib/components/fixtures/fixture-detail.svelte';
+  import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import type { Fixture, Product, Board, FixtureDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
@@ -41,8 +42,39 @@
     }
   });
 
-  // Detail
-  let selectedFixture = $state<Fixture | null>(null);
+  // Selection + batch
+  let selectedIds = $state<Set<string>>(new Set());
+  let batchLoading = $state(false);
+  let confirmBatchDelete = $state(false);
+
+  function toggleItem(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedIds = next;
+  }
+  function selectAll() { selectedIds = new Set(filtered.map(f => f.id)); }
+  function clearSelection() { selectedIds = new Set(); confirmBatchDelete = false; }
+
+  async function batchAction(action: 'delete') {
+    if (selectedIds.size === 0) return;
+    if (action === 'delete' && !confirmBatchDelete) { confirmBatchDelete = true; return; }
+    confirmBatchDelete = false;
+    batchLoading = true;
+    error = null;
+    try {
+      const res = await api.post<ApiResponse<any>>('/v2/fixtures/batch', {
+        action, ids: [...selectedIds],
+      });
+      const result = res.data;
+      if (result.failed?.length > 0) {
+        error = `${result.succeeded.length} deleted, ${result.failed.length} failed: ${result.failed[0].reason}`;
+      }
+      selectedIds = new Set();
+      fetchFixtures();
+    } catch (err: any) {
+      error = err instanceof Error ? err.message : 'Batch delete failed';
+    } finally { batchLoading = false; }
+  }
 
   // Create form
   let showCreate = $state(false);
@@ -128,15 +160,6 @@
   $effect(() => { if (formProductId) fetchBoardsForProduct(formProductId); else boards = []; });
   $effect(() => { if (formBoardRevisionId) fetchDesignsForRevision(formBoardRevisionId); else { availableDesigns = []; formDesignId = ''; } });
 
-  async function fetchDetail(id: string) {
-    try {
-      const res = await apiFetch<ApiResponse<Fixture>>(`/v2/fixtures/${id}`);
-      selectedFixture = res.data;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load fixture';
-    }
-  }
-
   async function handleCreate(e: Event) {
     e.preventDefault();
     if (!formDesignId) { error = 'Fixture design is required'; return; }
@@ -198,10 +221,11 @@
     fetchFixtures();
     fetchProducts();
 
-    // Auto-open detail panel if ?selected=<id> is in the URL (e.g. from dashboard)
+    // Redirect to detail page if ?selected=<id> is in the URL (e.g. from dashboard)
     const selectedId = $page.url.searchParams.get('selected');
     if (selectedId) {
-      fetchDetail(selectedId);
+      goto(`/fixtures/${selectedId}`);
+      return;
     }
   });
 </script>
@@ -258,6 +282,32 @@
     </div>
   </FilterBar>
 
+  <!-- Selection bar -->
+  {#if canManage}
+    <SelectionBar
+      selectedCount={selectedIds.size}
+      totalCount={filtered.length}
+      onSelectAll={selectAll}
+      onClearSelection={clearSelection}
+      actions={[
+        { label: 'Delete', icon: Trash2, variant: 'danger' as const, loading: batchLoading, onclick: () => batchAction('delete') },
+      ]}
+    />
+  {/if}
+
+  <!-- Inline delete confirmation -->
+  {#if confirmBatchDelete}
+    <div class="mb-3 flex items-center gap-3 rounded-lg border border-error/30 bg-error-muted px-4 py-2.5">
+      <span class="text-sm text-text-primary">
+        Permanently delete {selectedIds.size} fixture{selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.
+      </span>
+      <div class="ml-auto flex items-center gap-2">
+        <button onclick={() => { confirmBatchDelete = false; }} class="btn btn-sm btn-ghost">Cancel</button>
+        <button onclick={() => batchAction('delete')} class="btn btn-sm btn-danger">Confirm Delete</button>
+      </div>
+    </div>
+  {/if}
+
   <!-- Fixture list -->
   {#if loading}
     <LoadingState message="Loading fixtures..." />
@@ -271,13 +321,24 @@
       <table class="table">
         <thead>
           <tr>
+            {#if canManage}
+              <th class="table-header w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size > 0 && selectedIds.size === filtered.length}
+                  indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
+                  onchange={() => selectedIds.size === filtered.length ? clearSelection() : selectAll()}
+                  class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                />
+              </th>
+            {/if}
             <th class="table-header">Name</th>
             <th class="table-header">Product</th>
             <th class="table-header">Type</th>
             <th class="table-header">Design</th>
             <th class="table-header">Slots</th>
+            <th class="table-header">Status</th>
             <th class="table-header">Health</th>
-            <th class="table-header">Revision</th>
           </tr>
         </thead>
         <tbody>
@@ -285,10 +346,29 @@
             {@const health = healthIcon(fixture)}
             <tr
               class="table-row cursor-pointer"
-              onclick={() => fetchDetail(fixture.id)}
+              onclick={() => goto(`/fixtures/${fixture.id}`)}
             >
+              {#if canManage}
+                <td class="table-cell w-10" onclick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(fixture.id)}
+                    onchange={() => toggleItem(fixture.id)}
+                    class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                </td>
+              {/if}
               <td class="table-cell">
                 <span class="font-medium text-text-primary">{fixture.name}</span>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  {#if fixture.productName}
+                    <LinkChip icon={Box} href="/products/{fixture.productId}">{fixture.productName}</LinkChip>
+                  {/if}
+                  {#if fixture.design?.name}
+                    <LinkChip icon={Wrench}>{fixture.design.name}</LinkChip>
+                  {/if}
+                  <LinkChip icon={LayoutGrid}>{fixture.panelRows}&times;{fixture.panelCols}</LinkChip>
+                </div>
               </td>
               <td class="table-cell text-text-secondary">{fixture.productName || '—'}</td>
               <td class="table-cell">
@@ -302,10 +382,17 @@
                 <span class="text-2xs text-text-tertiary ml-1">assigned</span>
               </td>
               <td class="table-cell">
-                <svelte:component this={health.icon} size={14} class={health.color} />
+                {#if fixture.status === 'LOCKED'}
+                  <div class="flex items-center gap-1">
+                    <Lock size={12} class="text-warning" />
+                    <span class="text-2xs text-warning">Locked</span>
+                  </div>
+                {:else}
+                  <span class="text-2xs text-text-tertiary">Available</span>
+                {/if}
               </td>
-              <td class="table-cell text-2xs text-text-tertiary">
-                {fixture.boardRevision?.version || '—'}
+              <td class="table-cell">
+                <svelte:component this={health.icon} size={14} class={health.color} />
               </td>
             </tr>
           {/each}
@@ -315,23 +402,9 @@
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {#each filtered as fixture (fixture.id)}
-        <FixtureGridCard {fixture} onclick={() => fetchDetail(fixture.id)} />
+        <FixtureGridCard {fixture} onclick={() => goto(`/fixtures/${fixture.id}`)} />
       {/each}
     </div>
   {/if}
 
-  <!-- Detail panel -->
-  {#if selectedFixture}
-    <div class="fixed inset-0 z-50 flex">
-      <button onclick={() => selectedFixture = null} class="absolute inset-0 bg-black/30"></button>
-      <div class="relative ml-auto w-full max-w-2xl bg-surface-1 border-l border-border shadow-modal overflow-y-auto p-6">
-        <button onclick={() => selectedFixture = null} class="absolute top-4 right-4 text-text-tertiary hover:text-text-primary">✕</button>
-        <FixtureDetail
-          fixture={selectedFixture}
-          {canManage}
-          onRefresh={() => { fetchDetail(selectedFixture!.id); fetchFixtures(); }}
-        />
-      </div>
-    </div>
-  {/if}
 </div>

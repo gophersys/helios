@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { trackAction } from '$lib/stores/error-reporter.svelte';
 
 const TOKEN_KEY = 'concord-token';
 const VIEW_AS_KEY = 'concord-view-as-role';
@@ -69,7 +70,12 @@ export async function apiFetch<T = unknown>(
     headers['X-View-As-Role'] = viewAs;
   }
 
+  const method = (options.method as string) || 'GET';
+  trackAction(`api ${method} ${path}`);
+
+  const startTime = Date.now();
   const res = await fetch(path, { ...options, headers });
+  const durationMs = Date.now() - startTime;
 
   if (res.status === 401) {
     clearToken();
@@ -94,15 +100,20 @@ export async function apiFetch<T = unknown>(
     const errorMessage =
       errorData.errors?.[0]?.message || errorData.error || `Request failed (${res.status})`;
 
-    if (res.status >= 500) {
+    trackAction(`api ${method} ${path} → ${res.status} (${durationMs}ms)`);
+
+    // Report 500+ always, 4xx on mutations (POST/PUT/PATCH/DELETE) as they indicate code bugs
+    const isMutation = method !== 'GET';
+    if (res.status >= 500 || (isMutation && res.status >= 400)) {
       const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
       reportApiError({
         status: res.status,
         url: path,
-        method: (options.method as string) || 'GET',
+        method,
         message: errorMessage,
         requestBody: typeof options.body === 'string' ? options.body?.slice(0, 500) : undefined,
         responseBody: JSON.stringify(data).slice(0, 500),
+        requestDurationMs: durationMs,
       });
     }
 
@@ -123,11 +134,15 @@ export async function apiUploadRaw(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  trackAction(`upload POST ${path}`);
+
+  const startTime = Date.now();
   const res = await fetch(path, {
     method: 'POST',
     headers,
     body: formData
   });
+  const durationMs = Date.now() - startTime;
 
   if (res.status === 401) {
     clearToken();
@@ -142,6 +157,8 @@ export async function apiUploadRaw(
     const errorMessage =
       data.error || data.errors?.[0]?.message || `Upload failed (${res.status})`;
 
+    trackAction(`upload POST ${path} → ${res.status} (${durationMs}ms)`);
+
     if (res.status >= 500) {
       const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
       reportApiError({
@@ -150,6 +167,7 @@ export async function apiUploadRaw(
         method: 'POST',
         message: errorMessage,
         responseBody: JSON.stringify(data).slice(0, 500),
+        requestDurationMs: durationMs,
       });
     }
 
@@ -203,7 +221,11 @@ export async function apiDownload(path: string, filename: string): Promise<void>
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  trackAction(`download GET ${path}`);
+
+  const startTime = Date.now();
   const res = await fetch(path, { method: 'GET', headers });
+  const durationMs = Date.now() - startTime;
 
   if (res.status === 401) {
     clearToken();
@@ -224,6 +246,8 @@ export async function apiDownload(path: string, filename: string): Promise<void>
       // Response wasn't JSON — use the generic message
     }
 
+    trackAction(`download GET ${path} → ${res.status} (${durationMs}ms)`);
+
     if (res.status >= 500) {
       const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
       reportApiError({
@@ -232,6 +256,7 @@ export async function apiDownload(path: string, filename: string): Promise<void>
         method: 'GET',
         message: errorMessage,
         responseBody,
+        requestDurationMs: durationMs,
       });
     }
 
@@ -265,12 +290,15 @@ export async function apiUpload<T = unknown>(
     headers['Authorization'] = `Bearer ${token}`;
   }
   // Do NOT set Content-Type — browser sets it with boundary for multipart
+  trackAction(`upload POST ${path}`);
 
+  const startTime = Date.now();
   const res = await fetch(path, {
     method: 'POST',
     headers,
     body: formData
   });
+  const durationMs = Date.now() - startTime;
 
   if (res.status === 401) {
     clearToken();
@@ -286,6 +314,8 @@ export async function apiUpload<T = unknown>(
     const errorMessage =
       data.error || data.errors?.[0]?.message || `Request failed (${res.status})`;
 
+    trackAction(`upload POST ${path} → ${res.status} (${durationMs}ms)`);
+
     if (res.status >= 500) {
       const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
       reportApiError({
@@ -294,6 +324,7 @@ export async function apiUpload<T = unknown>(
         method: 'POST',
         message: errorMessage,
         responseBody: JSON.stringify(data).slice(0, 500),
+        requestDurationMs: durationMs,
       });
     }
 

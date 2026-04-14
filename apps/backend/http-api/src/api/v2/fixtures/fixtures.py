@@ -730,7 +730,17 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
 
         # gRPC health check — poll TCP 50053 on the node IP
         if node.ipAddress:
-            _poll_grpc_health(node.ipAddress, 50053, timeout_s=60)
+            healthy = _poll_grpc_health(node.ipAddress, 50053, timeout_s=60)
+            if healthy:
+                # Record the running image SHA for traceability
+                try:
+                    from src.services.kubernetes.mtib_deployments import get_mtib_pod_image_sha
+                    image_sha = get_mtib_pod_image_sha(deploy_name)
+                    if image_sha:
+                        meta["mtibImageSha"] = image_sha
+                        db.node.update(where={"id": node.id}, data={"metadata": Json(meta)})
+                except Exception as e:
+                    logger.warning("Failed to get MTIB image SHA for %s: %s", deploy_name, e)
 
     return deploy_name
 
@@ -873,3 +883,68 @@ def get_fixture_deploy_status(fixture_id: str):
         slot_statuses.append(entry)
 
     return jsonify(ApiResponse.ok({"slots": slot_statuses}).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+#  POST /v2/fixtures/batch — batch action on multiple fixtures
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.FIXTURES_MANAGE)
+def batch_fixtures_action():
+    """Apply an action to multiple fixtures at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    ids = body.get("ids", [])
+
+    if action not in ("delete",):
+        return bad_request("action must be 'delete'")
+    if not isinstance(ids, list) or not ids:
+        return bad_request("ids must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for fid in ids:
+        fixture = db.fixture.find_unique(
+            where={"id": fid},
+            include={"slots": True},
+        )
+        if not fixture:
+            failed.append({"id": fid, "reason": "Not found"})
+            continue
+
+        # Check for active manufacturing sessions
+        active_sessions = db.manufacturingsession.count(
+            where={"fixtureId": fid, "status": "ACTIVE"}
+        )
+        if active_sessions > 0:
+            failed.append({"id": fid, "reason": f"{active_sessions} active manufacturing session(s)"})
+            continue
+
+        # Check for active test runs
+        active_runs = db.testrun.count(
+            where={"fixtureId": fid, "status": {"in": ["ACTIVE"]}}
+        )
+        if active_runs > 0:
+            failed.append({"id": fid, "reason": f"{active_runs} active test run(s)"})
+            continue
+
+        # Undeploy MTIB servers for each assigned slot before deleting
+        for slot in (getattr(fixture, "slots", None) or []):
+            if slot.nodeId:
+                _undeploy_mtib_for_slot(db, slot.nodeId)
+
+        db.fixture.delete(where={"id": fid})
+        log_audit("fixture.delete", "Fixture", fid, {"batch": True})
+        succeeded.append(fid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200

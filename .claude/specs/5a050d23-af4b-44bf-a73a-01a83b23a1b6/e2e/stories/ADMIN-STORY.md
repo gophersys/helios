@@ -12,7 +12,7 @@
 - All backend services running (`nx start platform`)
 - Frontend on `:4200` (`npx nx serve app`)
 - `AUTH_ENABLED=false` (dev login flow active)
-- MTIB at 10.4.45.33:50053 reachable
+- MTIB at <MTIB_HOST>:50053 reachable
 - Bitbucket API token valid for `corekinect` workspace
 
 ---
@@ -689,11 +689,11 @@ expect(response.status()).toBe(201);
 
 **Expected UI State:**
 - Fixture card/detail shows status badge: "AVAILABLE"
-- Slot shows assigned node with IP 10.4.45.33
+- Slot shows assigned node with IP <MTIB_HOST>
 - Deploy status indicator (green/active)
 
 **Backend Verification:**
-- `GET /v2/fixtures/{fixtureId}` → `{ status: "AVAILABLE", slots: [{ nodeId: ..., node: { ip: "10.4.45.33" } }] }`
+- `GET /v2/fixtures/{fixtureId}` → `{ status: "AVAILABLE", slots: [{ nodeId: ..., node: { ip: "<MTIB_HOST>" } }] }`
 
 ---
 

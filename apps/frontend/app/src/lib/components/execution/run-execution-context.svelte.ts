@@ -1,0 +1,529 @@
+/**
+ * RunExecutionContext — unified run-level state for both validation and manufacturing.
+ *
+ * Manages one TestRun with N RunTargets (1 for validation, N for manufacturing).
+ * Each target gets its own SlotContext. WebSocket events route to the correct slot
+ * by targetId. Telemetry manifest loads into each slot for post-run analysis.
+ *
+ * Usage:
+ *   const ctx = new RunExecutionContext({
+ *     runId: 'abc',
+ *     backPath: '/validation/runs',
+ *     backLabel: 'Back to runs',
+ *     permission: 'validation:view',
+ *   });
+ *   ctx.subscribe();    // fetch + WebSocket + polling
+ *   ctx.destroy();      // cleanup
+ */
+
+import { getContext, setContext } from 'svelte';
+import { apiFetch, api, getToken } from '$lib/api';
+import { SlotContext } from './slot-context.svelte';
+import {
+  subscribeRunWithLogs,
+  type ValidationTestStartEvent,
+  type ValidationTestResultEvent,
+  type ValidationRunFinishEvent,
+  type ValidationLogChunkEvent,
+  type TelemetryEvent,
+} from '$lib/services/websocket';
+import type { TestRun } from '$lib/types/models';
+import type { ApiResponse } from '$lib/types';
+import type { TelemetryManifest, TimeRange } from '$lib/components/validation/time-context';
+import type { PowerSample, JoulescopeSample } from '$lib/components/validation/types';
+
+// ── Config ────────────────────────────────────────────────────────────
+
+export interface RunHardwareInfo {
+  productName: string;
+  boardRevision: string;
+  firmwareVersion: string;
+  socLabels: string[];
+}
+
+export interface RunExecutionConfig {
+  runId: string;
+  backPath: string;
+  backLabel: string;
+  permission: string;
+  /** Extract hardware info from the fetched run. */
+  getHardwareInfo?: (run: TestRun) => RunHardwareInfo;
+}
+
+// ── Timestamped UART line (for historical analysis) ───────────────────
+
+interface TimestampedLine {
+  t: number;
+  line: string;
+}
+
+// ── Context class ─────────────────────────────────────────────────────
+
+const MAX_UART_LINES = 1500;
+
+export class RunExecutionContext {
+  // Config (immutable after construction)
+  readonly config: RunExecutionConfig;
+
+  // Core run state
+  run = $state<TestRun | null>(null);
+  loading = $state(true);
+  error = $state<string | null>(null);
+
+  // Per-slot contexts (one per RunTarget)
+  slots = $state<SlotContext[]>([]);
+  activeSlotIdx = $state(0);
+
+  // Hardware info (extracted from run after fetch)
+  productName = $state('');
+  boardRevision = $state('');
+  firmwareVersion = $state('');
+  socLabels = $state<string[]>([]);
+
+  // Cancel state
+  cancelling = $state(false);
+  confirmCancel = $state(false);
+  cancelConfirmText = $state('');
+
+  // Live clock (drives duration timers in UI)
+  nowMs = $state(Date.now());
+
+  // Lifecycle handles
+  private _pollInterval: ReturnType<typeof setInterval> | null = null;
+  private _clockInterval: ReturnType<typeof setInterval> | null = null;
+  private _unsubscribeWs: (() => void) | null = null;
+  private _telemetryFetched = false;
+  private _initialFocusDone = false;
+
+  // ── Derived values ──────────────────────────────────────────────
+
+  readonly activeSlot = $derived(this.slots[this.activeSlotIdx] || null);
+  readonly isActive = $derived(this.run?.status === 'ACTIVE');
+  readonly isPending = $derived(this.run?.status === 'PENDING');
+  readonly isComplete = $derived(
+    !!this.run && this.run.status !== 'ACTIVE' && this.run.status !== 'PENDING'
+  );
+  readonly isMultiSlot = $derived(this.slots.length > 1);
+  readonly runTitle = $derived(
+    this.run?.panelIdentifier || this.run?.name || this.config.runId.slice(0, 8)
+  );
+
+  readonly slotTabs = $derived(this.slots.map((s) => ({
+    index: s.slotIndex,
+    label: `Slot ${s.slotIndex + 1}`,
+    serialNumber: s.serialNumber || undefined,
+    status: s.status,
+  })));
+
+  readonly durationMs = $derived.by(() => {
+    if (!this.run?.startedAt) return null;
+    const start = new Date(this.run.startedAt).getTime();
+    const end = this.run.completedAt
+      ? new Date(this.run.completedAt).getTime()
+      : this.nowMs;
+    return end - start;
+  });
+
+  // Aggregate counts across all slots
+  readonly totalPassed = $derived(
+    this.slots.reduce((sum, s) => sum + s.livePassedCount, 0)
+  );
+  readonly totalFailed = $derived(
+    this.slots.reduce((sum, s) => sum + s.liveFailedCount, 0)
+  );
+  readonly totalSkipped = $derived(
+    this.slots.reduce((sum, s) => sum + s.liveSkippedCount, 0)
+  );
+  readonly totalTests = $derived(
+    this.slots.reduce((sum, s) => sum + s.liveTests.length, 0)
+  );
+
+  // ── Constructor ─────────────────────────────────────────────────
+
+  constructor(config: RunExecutionConfig) {
+    this.config = config;
+  }
+
+  get runId(): string {
+    return this.config.runId;
+  }
+
+  // ── Lifecycle ───────────────────────────────────────────────────
+
+  subscribe(): void {
+    this._fetchRun();
+    this._clockInterval = setInterval(() => { this.nowMs = Date.now(); }, 1000);
+    this._pollInterval = setInterval(() => {
+      if (this.isActive && !this.activeSlot?.liveRunning) {
+        this._fetchRun();
+      }
+    }, 5000);
+  }
+
+  destroy(): void {
+    if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
+    if (this._clockInterval) { clearInterval(this._clockInterval); this._clockInterval = null; }
+    if (this._unsubscribeWs) { this._unsubscribeWs(); this._unsubscribeWs = null; }
+    for (const s of this.slots) s.destroy();
+  }
+
+  // ── Data fetching ───────────────────────────────────────────────
+
+  private async _fetchRun(): Promise<void> {
+    try {
+      const res = await apiFetch<ApiResponse<TestRun>>(`/v2/runs/${this.config.runId}`);
+      this.run = res.data;
+      this.error = null;
+
+      // Extract hardware info
+      if (this.config.getHardwareInfo) {
+        const hw = this.config.getHardwareInfo(res.data);
+        this.productName = hw.productName;
+        this.boardRevision = hw.boardRevision;
+        this.firmwareVersion = hw.firmwareVersion;
+        this.socLabels = hw.socLabels;
+      }
+
+      // Build slot contexts from targets (only on first fetch)
+      const targets = res.data.targets || [];
+      if (this.slots.length === 0 && targets.length > 0) {
+        const built: SlotContext[] = [];
+        for (const target of targets) {
+          const slot = new SlotContext(
+            target.id,
+            target.slotIndex,
+            target.serialNumber || '',
+          );
+          slot.hydrateFromTarget(target);
+          slot.startClock();
+          built.push(slot);
+        }
+        this.slots = built;
+
+        // Subscribe to WebSocket if run is active
+        if (this.isActive || this.isPending) {
+          this._setupWebSocket();
+        }
+      }
+
+      // Check for telemetry on completed runs
+      this._checkTelemetryFetch();
+    } catch (err: unknown) {
+      this.error = err instanceof Error ? err.message : 'Failed to load run';
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  // ── WebSocket ───────────────────────────────────────────────────
+
+  private _setupWebSocket(): void {
+    if (this._unsubscribeWs) return;
+
+    this._unsubscribeWs = subscribeRunWithLogs(
+      this.config.runId,
+      {
+        onTestStart: (data: ValidationTestStartEvent) => {
+          const slot = this._findSlot(data.targetId);
+          if (slot) slot.handleTestStart(data);
+        },
+        onTestResult: (data: ValidationTestResultEvent) => {
+          const slot = this._findSlot(data.targetId);
+          if (slot) slot.handleTestResult(data);
+        },
+        onRunFinish: (_data: ValidationRunFinishEvent) => {
+          for (const s of this.slots) s.handleRunFinish();
+          // Snapshot live data before fetching telemetry
+          this._snapshotAllSlots();
+          this._fetchRun();
+        },
+        onLogChunk: (data: ValidationLogChunkEvent) => {
+          // Route to the target's slot, fall back to active slot
+          const slot = this._findSlot(data.targetId) || this.activeSlot;
+          if (slot) slot.handleLogChunk(data);
+        },
+        onTestList: (data) => {
+          // Test list applies to the active slot (or first slot)
+          const slot = this.activeSlot || this.slots[0];
+          if (slot && (slot.liveTests.length === 0 || slot.liveTests.every(t => t.status === 'queued'))) {
+            slot.liveTests = data.tests.map(t => ({
+              name: t.name,
+              module: t.module,
+              status: 'queued' as const,
+              durationS: null,
+              startedAtMs: null,
+              errorMessage: null,
+              measurements: null,
+              logOutput: null,
+              expanded: false,
+              steps: [],
+            }));
+            slot.hydrated = true;
+          }
+        },
+        onTelemetry: (data: TelemetryEvent) => {
+          // Route telemetry to the target's slot, fall back to active
+          const slot = this._findSlotByTelemetry(data) || this.activeSlot;
+          if (slot) slot.handleTelemetry(data);
+        },
+      },
+    );
+  }
+
+  private _findSlot(targetId?: string): SlotContext | undefined {
+    if (!targetId) return this.activeSlot || this.slots[0];
+    return this.slots.find((s) => s.targetId === targetId) || this.activeSlot;
+  }
+
+  private _findSlotByTelemetry(data: TelemetryEvent): SlotContext | undefined {
+    // If telemetry samples include a target hint, route accordingly
+    // Otherwise falls back to active slot
+    const firstSample = data.samples?.[0];
+    if (firstSample && 'targetId' in firstSample) {
+      return this._findSlot((firstSample as Record<string, unknown>).targetId as string);
+    }
+    return undefined;
+  }
+
+  // ── Cancel ──────────────────────────────────────────────────────
+
+  async cancelRun(): Promise<void> {
+    this.cancelling = true;
+    try {
+      await api.post(`/v2/runs/${this.config.runId}/cancel`);
+
+      // Mark remaining tests as skipped in all slots
+      for (const slot of this.slots) {
+        for (const t of slot.liveTests) {
+          if (t.status === 'queued' || t.status === 'running') {
+            t.status = 'skipped';
+          }
+        }
+        slot.liveTests = slot.liveTests;
+        slot.liveRunning = false;
+        slot.liveFinished = true;
+      }
+
+      // Disconnect WebSocket
+      if (this._unsubscribeWs) {
+        this._unsubscribeWs();
+        this._unsubscribeWs = null;
+      }
+
+      // Snapshot live data and re-fetch
+      this._snapshotAllSlots();
+      await this._fetchRun();
+    } catch (err: unknown) {
+      this.error = err instanceof Error ? err.message : 'Failed to cancel run';
+    } finally {
+      this.cancelling = false;
+    }
+  }
+
+  // ── Telemetry (post-run analysis) ───────────────────────────────
+
+  private _checkTelemetryFetch(): void {
+    if (this.run && !this.isActive && !this.isPending && !this._telemetryFetched) {
+      this._telemetryFetched = true;
+      this._fetchTelemetryManifest();
+    }
+  }
+
+  private async _fetchTelemetryManifest(): Promise<void> {
+    try {
+      const res = await apiFetch<{ data: TelemetryManifest }>(
+        `/v2/runs/${this.config.runId}/telemetry/manifest`
+      );
+      if (!res.data) return;
+
+      // Load manifest into each slot (single-slot: slot[0], multi-slot: all get same manifest)
+      // TODO: per-slot manifests when backend supports per-target telemetry files
+      for (const slot of this.slots) {
+        slot.telemetryManifest = res.data;
+      }
+
+      await this._loadTelemetryChannels(res.data);
+    } catch {
+      // No manifest available — that's fine, historical data just won't be available
+    }
+  }
+
+  private async _loadTelemetryChannels(manifest: TelemetryManifest): Promise<void> {
+    const headers: Record<string, string> = {};
+    const token = getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    // Target slot for loading (first slot — multi-slot per-target channels are future work)
+    const slot = this.slots[0];
+    if (!slot) return;
+
+    slot.telemetryLoading = true;
+
+    try {
+      const channelEntries = Object.entries(manifest.channels);
+      await Promise.all(channelEntries.map(async ([name, _info]) => {
+        try {
+          const res = await fetch(
+            `/v2/runs/${this.config.runId}/telemetry/${name}`,
+            { headers },
+          );
+          if (!res.ok) return;
+          const text = await res.text();
+          if (!text) return;
+
+          if (name === 'power' || name === 'power_chg') {
+            const samples: PowerSample[] = [];
+            for (const line of text.split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const s = JSON.parse(line);
+                samples.push({ t: s.t, mA: s.mA, mV: s.mV });
+              } catch { /* skip malformed */ }
+            }
+            if (name === 'power') slot.historicalPower = samples;
+            else slot.historicalPowerChg = samples;
+          } else if (name === 'power_js') {
+            const samples: JoulescopeSample[] = [];
+            for (const line of text.split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const s = JSON.parse(line);
+                samples.push({ t: s.t, uA: s.uA ?? 0, mV: s.mV ?? 0, nA: s.nA });
+              } catch { /* skip malformed */ }
+            }
+            slot.historicalPowerJs = samples;
+          } else if (name === 'uart_app' || name === 'uart_comms') {
+            const lines: string[] = [];
+            for (const line of text.split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const s = JSON.parse(line);
+                const ts = new Date(s.t * 1000).toISOString().slice(11, 23);
+                lines.push(`\x1b[36m[${ts}]\x1b[0m ${s.line}`);
+              } catch { /* skip malformed */ }
+            }
+            if (name === 'uart_app') slot.uartAppLines = lines;
+            else slot.uartCommsLines = lines;
+          }
+        } catch { /* skip failed channels */ }
+      }));
+    } finally {
+      slot.telemetryLoading = false;
+    }
+  }
+
+  // ── Snapshot live data ──────────────────────────────────────────
+
+  private _snapshotAllSlots(): void {
+    for (const slot of this.slots) {
+      if (slot.historicalPower.length === 0 && slot.powerSamples.length > 0) {
+        slot.historicalPower = [...slot.powerSamples];
+      }
+      if (slot.historicalPowerChg.length === 0 && slot.powerChgSamples.length > 0) {
+        slot.historicalPowerChg = [...slot.powerChgSamples];
+      }
+    }
+  }
+
+  // ── Auto-focus helpers ──────────────────────────────────────────
+
+  tryInitialFocus(): void {
+    if (this._initialFocusDone || !this.run || !this.isActive) return;
+    const slot = this.activeSlot;
+    if (!slot) return;
+
+    const runningTest = slot.liveTests.find(t => t.status === 'running');
+    if (!runningTest) return;
+
+    this._initialFocusDone = true;
+    slot.autoFollow = true;
+    slot.liveRunning = true;
+
+    if (runningTest.module && runningTest.module !== slot.selectedStage) {
+      slot.selectedStage = runningTest.module;
+    }
+
+    for (const t of slot.liveTests) {
+      t.expanded = (t === runningTest);
+    }
+    slot.liveTests = slot.liveTests;
+
+    setTimeout(() => {
+      this._scrollToTest(runningTest.name, runningTest.module, 30);
+    }, 200);
+  }
+
+  autoSelectStage(): void {
+    const slot = this.activeSlot;
+    if (!slot) return;
+    slot.autoSelectStage();
+  }
+
+  handleRangeChange(): void {
+    const slot = this.activeSlot;
+    if (!slot) return;
+    const manifest = slot.activeManifest;
+    if (!manifest || !slot.selectedRange) return;
+
+    const step = manifest.steps.find(
+      s => Math.abs(s.startedAt - slot.selectedRange!.start) < 1
+        && Math.abs(s.finishedAt - slot.selectedRange!.end) < 1
+    );
+    if (!step) return;
+
+    if (step.module && step.module !== slot.selectedStage) {
+      slot.selectedStage = step.module;
+    }
+
+    for (const t of slot.liveTests) {
+      t.expanded = (t.name === step.name && t.module === step.module);
+    }
+    slot.liveTests = slot.liveTests;
+
+    setTimeout(() => this._scrollToTest(step.name, step.module, 10), 50);
+  }
+
+  /** Scroll test list panel so the target test is visible. */
+  private _scrollToTest(name: string, module: string | null, attempts: number): void {
+    const tryScroll = (remaining: number) => {
+      const el = document.querySelector(
+        `[data-test-name="${name}"][data-test-module="${module}"]`
+      ) as HTMLElement;
+      if (el) {
+        let panel: HTMLElement | null = el.parentElement;
+        while (panel && panel.scrollHeight <= panel.clientHeight) {
+          panel = panel.parentElement;
+        }
+        if (panel) {
+          let offset = 0;
+          let node: HTMLElement | null = el;
+          while (node && node !== panel) {
+            offset += node.offsetTop;
+            node = node.offsetParent as HTMLElement | null;
+            if (node && !panel.contains(node)) break;
+          }
+          panel.scrollTop = offset;
+        } else {
+          el.scrollIntoView({ block: 'start' });
+        }
+      } else if (remaining > 0) {
+        setTimeout(() => tryScroll(remaining - 1), 50);
+      }
+    };
+    tryScroll(attempts);
+  }
+}
+
+// ── Svelte context helpers ────────────────────────────────────────────
+
+const RUN_EXEC_CTX_KEY = Symbol('run-execution-context');
+
+export function createRunExecutionContext(config: RunExecutionConfig): RunExecutionContext {
+  const ctx = new RunExecutionContext(config);
+  setContext(RUN_EXEC_CTX_KEY, ctx);
+  return ctx;
+}
+
+export function getRunExecutionContext(): RunExecutionContext {
+  return getContext<RunExecutionContext>(RUN_EXEC_CTX_KEY);
+}

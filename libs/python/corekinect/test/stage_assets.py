@@ -6,7 +6,7 @@ label + role instead of ad-hoc string lookups.
     assets = StageAssets.from_build_run("run-42", "fuota", api_url, api_key)
     app_hex = assets.hex("app", "debug")           # downloads lazily from MinIO
     app, comms = assets.hex_pair("debug")           # both processors at once
-    cfws = assets.by_label("FUT_APP_BASE_B").cfws() # escape hatch
+    cfws = assets.by_label("fut_app_base_b").cfws() # escape hatch
     missing = assets.missing_labels()               # [] if all present
 """
 
@@ -43,7 +43,7 @@ class BuildAsset:
 
     @property
     def label(self) -> str:
-        """Build matrix label (e.g., 'SMOKE_APP_DEBUG', 'FUT_APP_BASE_A')."""
+        """Build matrix label (e.g., 'smoke_app_debug', 'fut_app_base_a')."""
         return self._label
 
     def hex(self, target: str) -> str:
@@ -211,13 +211,13 @@ class StageAssets:
     def stage_prefix(self) -> str:
         """Auto-detect the stage prefix from available labels.
 
-        All labels in a stage share a prefix: SMOKE_, DRIVER_, INT_, REG_, FUT_, MFG_
-        Detects by finding the common prefix of all non-MODEM labels.
+        All labels in a stage share a prefix: smoke_, driver_, int_, reg_, fut_, mfg_
+        Detects by finding the common prefix of all non-modem labels.
         """
-        non_modem = [k for k in self._assets.keys() if k != "MODEM_FW"]
+        non_modem = [k for k in self._assets.keys() if k != "modem_fw"]
         if not non_modem:
             return ""
-        for prefix in ("SMOKE", "DRIVER", "INT", "REG", "FUT", "MFG"):
+        for prefix in ("smoke", "driver", "int", "reg", "fut", "mfg"):
             if any(k.startswith(prefix + "_") for k in non_modem):
                 return prefix
         return ""
@@ -227,12 +227,12 @@ class StageAssets:
         """Which variants are available in this stage: ['debug', 'release']."""
         variants: Set[str] = set()
         for label in self._assets:
-            if label == "MODEM_FW":
+            if label == "modem_fw":
                 continue
-            upper = label.upper()
-            if "DEBUG" in upper or "BASE" in upper:
+            label_check = label.lower()
+            if "debug" in label_check or "base" in label_check:
                 variants.add("debug")
-            elif "RELEASE" in upper or "QUIET" in upper:
+            elif "release" in label_check or "quiet" in label_check:
                 variants.add("release")
         return sorted(variants)
 
@@ -248,9 +248,9 @@ class StageAssets:
             suffix: optional suffix like "A" or "B" (for FUOTA transitions)
 
         Examples:
-            stage_assets.hex("app", "debug")      -> SMOKE_APP_DEBUG -> downloads hex
-            stage_assets.hex("comms", "release")   -> MFG_COMMS_RELEASE -> downloads hex
-            stage_assets.hex("app", "debug", "A")  -> FUT_APP_BASE_A -> downloads hex
+            stage_assets.hex("app", "debug")      -> smoke_app_debug -> downloads hex
+            stage_assets.hex("comms", "release")   -> mfg_comms_release -> downloads hex
+            stage_assets.hex("app", "debug", "A")  -> fut_app_base_a -> downloads hex
         """
         label = self._resolve_label(role, variant, suffix)
         asset = self.by_label(label)
@@ -284,18 +284,18 @@ class StageAssets:
         For others: debug maps to DEBUG, release maps to RELEASE
         """
         prefix = self.stage_prefix
-        role_upper = role.upper()  # APP, COMMS
+        role_lower = role.lower()  # app, comms
 
-        if prefix == "FUT":
-            # FUOTA uses BASE (debug/verbose) and QUIET (release/no-logging)
-            variant_key = "BASE" if variant == "debug" else "QUIET"
+        if prefix == "fut":
+            # FUOTA uses base (debug/verbose) and quiet (release/no-logging)
+            variant_key = "base" if variant == "debug" else "quiet"
         else:
-            variant_key = variant.upper()  # DEBUG, RELEASE
+            variant_key = variant.lower()  # debug, release
 
         if suffix:
-            label = f"{prefix}_{role_upper}_{variant_key}_{suffix}"
+            label = f"{prefix}_{role_lower}_{variant_key}_{suffix.lower()}"
         else:
-            label = f"{prefix}_{role_upper}_{variant_key}"
+            label = f"{prefix}_{role_lower}_{variant_key}"
 
         return label
 
@@ -317,7 +317,7 @@ class StageAssets:
 
         # 2. Try from build manifest (legacy — from build run) — use any available label
         for label in sorted(self._assets.keys()):
-            if label == "MODEM_FW":
+            if label == "modem_fw":
                 continue
             path = self._resolver.get_modem_firmware(label)
             if path:

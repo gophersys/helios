@@ -9,6 +9,7 @@ from flask_socketio import SocketIO
 
 # Run CRUD + listing
 from .runs import (
+    batch_runs_action,
     create_run,
     list_runs,
     get_run,
@@ -21,6 +22,7 @@ from .runs import (
 # Reporter callbacks
 from .reporter import (
     init_socketio,
+    report_preflight,
     report_start,
     report_test_list,
     report_target_start,
@@ -61,6 +63,7 @@ from .demo import simulate_run
 
 # Queue
 from .queue import (
+    batch_queue_action,
     list_queue,
     get_queue_entry,
     create_queue_entry,
@@ -86,9 +89,11 @@ from ..manufacturing.sessions import (
     get_manufacturing_session,
     add_manufacturing_run,
     resolve_panel,
+    redeploy_manufacturing_runner,
     end_manufacturing_session,
     archive_session,
     delete_session,
+    batch_sessions_action,
     get_manufacturing_results,
     coreops_assign_device_id,
     coreops_upload_key,
@@ -150,6 +155,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         methods=["POST"],
     )
     api.add_url_rule(
+        "/runs/batch",
+        endpoint="batch_runs",
+        view_func=batch_runs_action,
+        methods=["POST"],
+    )
+    api.add_url_rule(
         "/runs/<run_id>/trigger",
         endpoint="trigger_run",
         view_func=trigger_run,
@@ -178,6 +189,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
     #  Reporter callbacks (called by K8s Jobs via API key auth)
     # ─────────────────────────────────────────────────────────────
 
+    api.add_url_rule(
+        "/runs/<run_id>/report/preflight",
+        endpoint="run_report_preflight",
+        view_func=report_preflight,
+        methods=["POST"],
+    )
     api.add_url_rule(
         "/runs/<run_id>/report/start",
         endpoint="run_report_start",
@@ -377,6 +394,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         view_func=trigger_scheduler,
         methods=["POST"],
     )
+    api.add_url_rule(
+        "/runs/queue/batch",
+        endpoint="batch_queue",
+        view_func=batch_queue_action,
+        methods=["POST"],
+    )
 
     # ─────────────────────────────────────────────────────────────
     #  Manufacturing fixtures + sessions (TestRun-based)
@@ -419,6 +442,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         methods=["POST"],
     )
     api.add_url_rule(
+        "/manufacturing/sessions/<session_id>/redeploy-runner",
+        endpoint="redeploy_mfg_runner",
+        view_func=redeploy_manufacturing_runner,
+        methods=["POST"],
+    )
+    api.add_url_rule(
         "/manufacturing/sessions/<session_id>/end",
         endpoint="end_mfg_session",
         view_func=end_manufacturing_session,
@@ -435,6 +464,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         endpoint="delete_mfg_session",
         view_func=delete_session,
         methods=["DELETE"],
+    )
+    api.add_url_rule(
+        "/manufacturing/sessions/batch",
+        endpoint="batch_mfg_sessions",
+        view_func=batch_sessions_action,
+        methods=["POST"],
     )
     api.add_url_rule(
         "/manufacturing/sessions/<session_id>/results",

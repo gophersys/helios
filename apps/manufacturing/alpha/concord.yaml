@@ -3,7 +3,7 @@ schema: "2.0"
 package:
   type: manufacturing
   version: "1.0.0"
-  framework: ">=0.1.0"
+  framework: ">=0.2.0"
 
 product:
   slug: alpha
@@ -15,19 +15,22 @@ product:
 fixture:
   design: Alpha B0 Manufacturing Fixture
   revision: "1.0"
-  controller: conftest.MockMtibClient
-  profile: fixtures/alpha_b0.yaml
+  controller: fixtures.alpha_b0.controller.AlphaB0MfgFixture
+  profile: fixtures/alpha_b0/fixture.yaml
   multi_slot: true
 
-steps:
-  - name: Electrical
-    module: tests.manufacturing.test_electrical
+stages:
+  electrical:
+    directory: tests/manufacturing
+    module: test_01_electrical
     timeout_s: 120
 
-  - name: Firmware Flash
-    module: tests.manufacturing.test_fw_flash
+  fw_flash:
+    directory: tests/manufacturing
+    module: test_02_fw_flash
     timeout_s: 300
 
-  - name: POST
-    module: tests.manufacturing.test_post
+  post:
+    directory: tests/manufacturing
+    module: test_03_post
     timeout_s: 600

@@ -61,21 +61,99 @@
     return grid;
   });
 
-  // Step 6: MTIB Mapping
-  let availableNodes = $state<any[]>([]);
-  let slotMtibMap = $state<Record<number, string>>({}); // slotIndex → nodeId
+  // Step 6: MTIB Mapping (discovery-based)
+  interface AssignableNode {
+    id: string | null;
+    name: string;
+    hostname: string;
+    ipAddress: string | null;
+    source: 'registered' | 'discovered';
+  }
 
-  // Load available MTIB nodes when reaching step 6
+  let assignableNodes = $state<AssignableNode[]>([]);
+  let slotMtibMap = $state<Record<number, string>>({}); // slotIndex → nodeId
+  let discoverLoading = $state(false);
+  let registeringNode = $state<string | null>(null);
+
+  function mtibNameFromHostname(hostname: string): string {
+    const digits = hostname.replace(/\D/g, '');
+    return `MTIB-${digits.slice(-4)}`;
+  }
+
+  async function loadAssignableNodes() {
+    discoverLoading = true;
+    assignableNodes = [];
+    try {
+      // 1. Discover K8s edge nodes (finds unregistered arm64 nodes)
+      let discovered: AssignableNode[] = [];
+      try {
+        const discoverRes = await api.post<ApiResponse<any>>('/v2/devices/mtibs/discover', {});
+        const discoverData = discoverRes.data;
+        for (const n of (discoverData.discovered ?? [])) {
+          discovered.push({ id: null, name: mtibNameFromHostname(n.hostname), hostname: n.hostname, ipAddress: n.ip ?? null, source: 'discovered' });
+        }
+      } catch { /* K8s not available in dev — fall through to registered */ }
+
+      // 2. Fetch registered nodes — only unassigned ones are available
+      let registered: AssignableNode[] = [];
+      try {
+        const listRes = await apiFetch<ApiResponse<any>>(`/v2/devices/mtibs?type=${selectedType}&limit=100`);
+        const payload = listRes.data;
+        const nodes = Array.isArray(payload) ? payload : (payload as any)?.data ?? [];
+        for (const n of nodes) {
+          if (n.fixtureSlot) continue; // already assigned — not available
+          registered.push({ id: n.id, name: n.name, hostname: n.hostname, ipAddress: n.ipAddress ?? null, source: 'registered' });
+        }
+      } catch { /* ignore */ }
+
+      // 3. Merge — discovered nodes that were just registered won't appear in both
+      //    because discover only returns nodes NOT in DB
+      assignableNodes = [...registered, ...discovered];
+    } finally {
+      discoverLoading = false;
+    }
+  }
+
   $effect(() => {
     if (step === 6 && selectedType) {
-      apiFetch<ApiResponse<any>>(`/v2/devices/mtibs?type=${selectedType}&limit=100`).then(res => {
-        const payload = res.data;
-        const nodes = Array.isArray(payload) ? payload : (payload as any)?.data ?? [];
-        // Only show unassigned nodes
-        availableNodes = nodes.filter((n: any) => !n.fixtureSlot);
-      }).catch(() => { availableNodes = []; });
+      slotMtibMap = {};
+      loadAssignableNodes();
     }
   });
+
+  async function autoRegisterNode(hostname: string): Promise<string | null> {
+    registeringNode = hostname;
+    try {
+      const res = await api.post<ApiResponse<any>>('/v2/devices/mtibs', { name: mtibNameFromHostname(hostname), hostname, type: selectedType });
+      const created = res.data;
+      assignableNodes = assignableNodes.map(n =>
+        n.hostname === hostname ? { ...n, id: created.id, name: created.name, source: 'registered' as const } : n
+      );
+      return created.id;
+    } catch {
+      return null;
+    } finally {
+      registeringNode = null;
+    }
+  }
+
+  async function handleSlotNodeSelect(slotIndex: number, value: string) {
+    if (!value) {
+      const copy = { ...slotMtibMap };
+      delete copy[slotIndex];
+      slotMtibMap = copy;
+      return;
+    }
+    const node = assignableNodes.find(n => (n.id ?? n.hostname) === value);
+    if (!node) return;
+
+    if (node.source === 'discovered' && !node.id) {
+      const newId = await autoRegisterNode(node.hostname);
+      if (newId) slotMtibMap = { ...slotMtibMap, [slotIndex]: newId };
+    } else if (node.id) {
+      slotMtibMap = { ...slotMtibMap, [slotIndex]: node.id };
+    }
+  }
 
   // Step 7: Name
   let fixtureName = $state('');
@@ -172,18 +250,21 @@
     }
   });
 
+  let createProgress = $state('');
+
   async function handleCreate() {
     if (!fixtureName.trim() || !selectedDesignId) return;
     submitting = true;
     error = null;
+    createProgress = 'Creating fixture...';
+
     try {
-      // Build slots from panel grid + MTIB assignments
       const slots = slotGrid.map(slot => ({
         slotIndex: slot.index - 1, // 0-based in DB
         label: slot.label,
       }));
 
-      await api.post('/v2/fixtures', {
+      const res = await api.post<ApiResponse<any>>('/v2/fixtures', {
         name: fixtureName.trim(),
         productId: selectedProductId,
         designId: selectedDesignId,
@@ -194,14 +275,39 @@
         metadata: hasStandaloneSlot ? { hasStandaloneSlot: true } : undefined,
       });
 
-      // After creation, assign MTIBs to slots if any were mapped
-      // (slot assignment is a separate API call per slot)
-      // TODO: assign nodes after fixture creation
+      const fixture = res.data;
+      const fixtureId = fixture.id;
+      const createdSlots: { id: string; slotIndex: number }[] = fixture.slots ?? [];
 
+      // Assign MTIB nodes to slots
+      const mappedEntries = Object.entries(slotMtibMap);
+      if (mappedEntries.length > 0 && createdSlots.length > 0) {
+        let assigned = 0;
+        const total = mappedEntries.length;
+
+        for (const [wizardIdx, nodeId] of mappedEntries) {
+          const dbSlotIndex = Number(wizardIdx) - 1; // wizard uses 1-based, DB uses 0-based
+          const slot = createdSlots.find(s => s.slotIndex === dbSlotIndex);
+          if (!slot) continue;
+
+          assigned++;
+          createProgress = `Assigning MTIB ${assigned} of ${total}...`;
+
+          try {
+            await api.post(`/v2/fixtures/${fixtureId}/slots/${slot.id}/assign`, { nodeId });
+          } catch (e: any) {
+            const msg = e?.data?.errors?.[0]?.message || 'Assignment failed';
+            console.warn(`Slot ${dbSlotIndex} assignment failed: ${msg}`);
+          }
+        }
+      }
+
+      createProgress = '';
       onCreated();
       resetAndClose();
     } catch (e: any) {
       error = e?.data?.errors?.[0]?.message || (e instanceof Error ? e.message : 'Failed to create fixture');
+      createProgress = '';
     } finally {
       submitting = false;
     }
@@ -215,6 +321,12 @@
     selectedDesignId = '';
     fixtureName = '';
     error = null;
+    createProgress = '';
+    slotMtibMap = {};
+    assignableNodes = [];
+    panelRows = 1;
+    panelCols = 1;
+    hasStandaloneSlot = false;
     onClose();
   }
 </script>
@@ -506,118 +618,117 @@
       <!-- Step 6: MTIB Mapping -->
       {:else if step === 6}
         <div class="max-w-3xl space-y-4">
-          <p class="text-sm text-text-secondary">Assign an MTIB controller to each slot. <strong>Top-down view</strong> — matches the panel layout.</p>
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-text-secondary">Assign an MTIB controller to each slot. Discovered nodes are auto-registered on selection.</p>
+            <button onclick={loadAssignableNodes} disabled={discoverLoading} class="btn btn-sm btn-ghost">
+              {#if discoverLoading}<Loader2 size={14} class="animate-spin" />{/if}
+              Refresh
+            </button>
+          </div>
 
-          <!-- Panel grid with MTIB dropdowns -->
-          <div class="card card-md">
-            <div class="flex items-center gap-2 mb-3">
-              <Cable size={14} class="text-text-tertiary" />
-              <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">MTIB → Slot Mapping (Top-Down View)</span>
-              <span class="text-2xs text-text-tertiary ml-auto">{totalSlotCount} slot{totalSlotCount !== 1 ? 's' : ''}</span>
+          {#if discoverLoading && assignableNodes.length === 0}
+            <div class="card card-md flex items-center justify-center py-12">
+              <Loader2 size={20} class="animate-spin text-text-tertiary mr-2" />
+              <span class="text-sm text-text-tertiary">Discovering MTIB nodes...</span>
             </div>
+          {:else}
+            <div class="card card-md">
+              <div class="flex items-center gap-2 mb-3">
+                <Cable size={14} class="text-text-tertiary" />
+                <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">Top-Down View</span>
+                <span class="text-2xs text-text-tertiary ml-auto">{Object.keys(slotMtibMap).length}/{totalSlotCount} assigned</span>
+              </div>
 
-            <!-- Panel grid slots -->
-            <div
-              class="grid gap-3 mx-auto"
-              style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 200, 800)}px;"
-            >
-              {#each slotGrid.filter(s => !s.standalone) as slot}
-                {@const assignedNodeId = slotMtibMap[slot.index] ?? ''}
-                {@const assignedNode = availableNodes.find((n: any) => n.id === assignedNodeId)}
-                <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-border bg-surface-0'} p-3 transition-all">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-bold text-text-primary">{slot.label}</span>
-                    {#if assignedNodeId}
-                      <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">Assigned</span>
-                    {:else}
-                      <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">Unassigned</span>
-                    {/if}
-                  </div>
-                  <select
-                    value={assignedNodeId}
-                    onchange={(e) => {
-                      const val = (e.target as HTMLSelectElement).value;
-                      if (val) {
-                        slotMtibMap = { ...slotMtibMap, [slot.index]: val };
-                      } else {
-                        const copy = { ...slotMtibMap };
-                        delete copy[slot.index];
-                        slotMtibMap = copy;
-                      }
-                    }}
-                    class="input input-sm w-full"
-                  >
-                    <option value="">Select MTIB...</option>
-                    {#each availableNodes as node}
-                      {@const usedByOther = Object.entries(slotMtibMap).some(([idx, nid]) => nid === node.id && Number(idx) !== slot.index)}
-                      <option value={node.id} disabled={usedByOther}>
-                        {node.name} ({node.ipAddress ?? node.hostname})
-                        {usedByOther ? ' (in use)' : ''}
-                      </option>
-                    {/each}
-                  </select>
-                  {#if assignedNode}
-                    <p class="text-2xs text-text-tertiary mt-1 truncate">{assignedNode.ipAddress ?? assignedNode.hostname}</p>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-            <!-- Standalone slot MTIB assignment -->
-            {#if hasStandaloneSlot}
-              {@const standaloneSlot = slotGrid.find(s => s.standalone)}
-              {#if standaloneSlot}
-                {@const assignedNodeId = slotMtibMap[standaloneSlot.index] ?? ''}
-                {@const assignedNode = availableNodes.find((n: any) => n.id === assignedNodeId)}
-                <div class="mt-4 pt-4 border-t border-border-subtle">
-                  <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-warning/30 bg-warning-muted/10'} p-3 max-w-xs">
+              <!-- Panel grid slots -->
+              <div
+                class="grid gap-3 mx-auto"
+                style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 200, 800)}px;"
+              >
+                {#each slotGrid.filter(s => !s.standalone) as slot}
+                  {@const assignedNodeId = slotMtibMap[slot.index] ?? ''}
+                  {@const assignedNode = assignableNodes.find(n => n.id === assignedNodeId)}
+                  {@const isRegistering = registeringNode !== null}
+                  <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-border bg-surface-0'} p-3 transition-all">
                     <div class="flex items-center justify-between mb-2">
-                      <span class="text-sm font-bold text-warning">Standalone</span>
+                      <span class="text-sm font-bold text-text-primary">{slot.label}</span>
                       {#if assignedNodeId}
-                        <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">Assigned</span>
+                        <span class="badge badge-success">Assigned</span>
                       {:else}
-                        <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">Unassigned</span>
+                        <span class="badge badge-neutral">Empty</span>
                       {/if}
                     </div>
                     <select
                       value={assignedNodeId}
-                      onchange={(e) => {
-                        const val = (e.target as HTMLSelectElement).value;
-                        if (val) {
-                          slotMtibMap = { ...slotMtibMap, [standaloneSlot.index]: val };
-                        } else {
-                          const copy = { ...slotMtibMap };
-                          delete copy[standaloneSlot.index];
-                          slotMtibMap = copy;
-                        }
-                      }}
+                      onchange={(e) => handleSlotNodeSelect(slot.index, (e.target as HTMLSelectElement).value)}
+                      disabled={isRegistering}
                       class="input input-sm w-full"
                     >
                       <option value="">Select MTIB...</option>
-                      {#each availableNodes as node}
-                        {@const usedByOther = Object.entries(slotMtibMap).some(([idx, nid]) => nid === node.id && Number(idx) !== standaloneSlot.index)}
-                        <option value={node.id} disabled={usedByOther}>
-                          {node.name} ({node.ipAddress ?? node.hostname})
-                          {usedByOther ? ' (in use)' : ''}
+                      {#each assignableNodes as node}
+                        {@const nodeKey = node.id ?? node.hostname}
+                        {@const usedByOther = Object.entries(slotMtibMap).some(([idx, nid]) => nid === nodeKey && Number(idx) !== slot.index)}
+                        <option value={nodeKey} disabled={usedByOther}>
+                          {node.name}{node.source === 'discovered' ? ' (new)' : ''}{usedByOther ? ' (in use)' : ''}
                         </option>
                       {/each}
                     </select>
                     {#if assignedNode}
-                      <p class="text-2xs text-text-tertiary mt-1 truncate">{assignedNode.ipAddress ?? assignedNode.hostname}</p>
+                      <p class="text-2xs text-text-tertiary mt-1 truncate">{assignedNode.hostname}</p>
                     {/if}
                   </div>
+                {/each}
+              </div>
+
+              <!-- Standalone slot -->
+              {#if hasStandaloneSlot}
+                {@const standaloneSlot = slotGrid.find(s => s.standalone)}
+                {#if standaloneSlot}
+                  {@const assignedNodeId = slotMtibMap[standaloneSlot.index] ?? ''}
+                  {@const assignedNode = assignableNodes.find(n => n.id === assignedNodeId)}
+                  <div class="mt-4 pt-4 border-t border-border-subtle">
+                    <div class="rounded-lg border-2 {assignedNodeId ? 'border-success/40 bg-success-muted/20' : 'border-warning/30 bg-warning-muted/10'} p-3 max-w-xs">
+                      <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-bold text-warning">Standalone</span>
+                        {#if assignedNodeId}
+                          <span class="badge badge-success">Assigned</span>
+                        {:else}
+                          <span class="badge badge-neutral">Empty</span>
+                        {/if}
+                      </div>
+                      <select
+                        value={assignedNodeId}
+                        onchange={(e) => handleSlotNodeSelect(standaloneSlot.index, (e.target as HTMLSelectElement).value)}
+                        disabled={registeringNode !== null}
+                        class="input input-sm w-full"
+                      >
+                        <option value="">Select MTIB...</option>
+                        {#each assignableNodes as node}
+                          {@const nodeKey = node.id ?? node.hostname}
+                          {@const usedByOther = Object.entries(slotMtibMap).some(([idx, nid]) => nid === nodeKey && Number(idx) !== standaloneSlot.index)}
+                          <option value={nodeKey} disabled={usedByOther}>
+                            {node.name}{node.source === 'discovered' ? ' (new)' : ''}{usedByOther ? ' (in use)' : ''}
+                          </option>
+                        {/each}
+                      </select>
+                      {#if assignedNode}
+                        <p class="text-2xs text-text-tertiary mt-1 truncate">{assignedNode.hostname}</p>
+                      {/if}
+                    </div>
+                  </div>
+                {/if}
+              {/if}
+
+              {#if assignableNodes.length === 0 && !discoverLoading}
+                <div class="mt-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning text-center">
+                  No available MTIB nodes. Ensure edge nodes are powered and connected to the cluster.
                 </div>
               {/if}
-            {/if}
 
-            {#if availableNodes.length === 0}
-              <div class="mt-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning text-center">
-                No unassigned MTIB nodes found. Register MTIB nodes first.
-              </div>
-            {/if}
-            <p class="text-2xs text-text-tertiary mt-3 text-center">
-              Each slot requires exactly one MTIB. 1 MTIB = 1 DUT position.
-            </p>
-          </div>
+              <p class="text-2xs text-text-tertiary mt-3 text-center">
+                1 MTIB = 1 DUT position. Nodes marked <em>(new)</em> are auto-registered when selected.
+              </p>
+            </div>
+          {/if}
         </div>
 
       <!-- Step 7: Name & Create -->
@@ -697,7 +808,7 @@
             class="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
           >
             {#if submitting}
-              <Loader2 size={16} class="animate-spin" /> Creating...
+              <Loader2 size={16} class="animate-spin" /> {createProgress || 'Creating...'}
             {:else}
               <Check size={16} /> Create Fixture
             {/if}

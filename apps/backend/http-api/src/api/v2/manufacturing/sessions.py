@@ -447,6 +447,67 @@ def create_manufacturing_session():
         },
     )
     if fixture_with_slots:
+        # Snapshot the fixture configuration at session start for traceability.
+        # This preserves the exact slot→node mapping even if nodes are reassigned later.
+        snapshot_slots = []
+        for s in (fixture_with_slots.slots or []):
+            node = s.node if hasattr(s, "node") and s.node else None
+            node_meta = node.metadata if node and isinstance(node.metadata, dict) else {}
+            snapshot_slots.append({
+                "slotIndex": s.slotIndex,
+                "slotId": s.id,
+                "label": s.label,
+                "nodeId": s.nodeId,
+                "nodeName": node.name if node else None,
+                "nodeHostname": node.hostname if node else None,
+                "nodeIp": node.ipAddress if node else None,
+                "dutSnr": s.dutSnr if hasattr(s, "dutSnr") else None,
+                "dutDeviceId": s.dutDeviceId if hasattr(s, "dutDeviceId") else None,
+                # MTIB traceability — record exact deployment + image at session start
+                "mtibDeploymentName": node_meta.get("deployment_name"),
+                "mtibImageSha": node_meta.get("mtibImageSha"),
+            })
+
+        snapshot = {
+            "fixtureId": fixture_with_slots.id,
+            "fixtureName": fixture_with_slots.name,
+            "fixtureType": fixture_with_slots.type,
+            "panelRows": fixture_with_slots.panelRows,
+            "panelCols": fixture_with_slots.panelCols,
+            "slots": snapshot_slots,
+            "capturedAt": datetime.now(timezone.utc).isoformat(),
+        }
+        existing_config = session.config if isinstance(session.config, dict) else {}
+        existing_config["fixtureSnapshot"] = snapshot
+
+        # ── MTIB health check — verify all nodes are reachable before deploying runner ──
+        db.manufacturingsession.update(
+            where={"id": session.id},
+            data={"runnerStatus": "CHECKING_MTIBS", "config": Json(existing_config)},
+        )
+
+        from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
+        mtib_check = wait_for_mtibs_healthy(snapshot_slots, timeout_s=30)
+        if mtib_check["unhealthy"]:
+            unhealthy_names = [
+                s.get("nodeHostname") or f"slot-{s['slotIndex']}"
+                for s in mtib_check["unhealthy"]
+            ]
+            logger.warning(
+                "MTIB health check failed for session %s: %s",
+                session.id, unhealthy_names,
+            )
+            # Don't block — set warning in config but continue with runner deploy
+            existing_config["mtibHealthWarning"] = {
+                "unhealthyNodes": unhealthy_names,
+                "checkedAt": datetime.now(timezone.utc).isoformat(),
+            }
+            db.manufacturingsession.update(
+                where={"id": session.id},
+                data={"config": Json(existing_config)},
+            )
+
+        # ── Deploy persistent manufacturing runner ──
         from src.api.v2.manufacturing.runner import deploy_manufacturing_runner
         runner_name = deploy_manufacturing_runner(db, session, fixture_with_slots, product)
         if not runner_name:
@@ -487,6 +548,9 @@ def list_manufacturing_sessions():
     product_id = request.args.get("productId")
     if product_id:
         where["productId"] = product_id
+    fixture_id = request.args.get("fixtureId")
+    if fixture_id:
+        where["fixtureId"] = fixture_id
     status = request.args.get("status")
     if status:
         where["status"] = status
@@ -716,13 +780,18 @@ def add_manufacturing_run(session_id: str):
 
     operator_id = g.current_user["sub"]
 
-    # Determine active slots from the fixture
+    # Determine active slots from the fixture, split by panel vs standalone
     fixture = session.fixture
-    slots = [s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else []) if s.active]
+    all_slots = [s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else []) if s.active]
 
-    # For standalone runs, only create one target (slot 0)
+    # Standalone slot is identified by label (set by the fixture wizard)
+    panel_slots = [s for s in all_slots if not (s.label or "").lower().startswith("standalone")]
+    standalone_slots = [s for s in all_slots if (s.label or "").lower().startswith("standalone")]
+
     if run_type == "standalone":
-        slots = slots[:1] if slots else []
+        slots = standalone_slots if standalone_slots else all_slots[-1:]
+    else:
+        slots = panel_slots if panel_slots else all_slots
 
     target_count = len(slots)
 
@@ -754,13 +823,17 @@ def add_manufacturing_run(session_id: str):
 
     run = db.testrun.create(data=run_data)
 
-    # Auto-create RunTarget records (one per active fixture slot)
+    # Auto-create RunTarget records (one per active fixture slot).
+    # For standalone runs, the qrCode IS the DUT serial number — assign it
+    # to the single target. For panel runs, use pre-resolved SNRs or fixture dutSnr.
     for slot in slots:
-        # Use pre-resolved SNR if provided, otherwise fall back to fixture's dutSnr
-        serial_number = snr_lookup.get(
-            slot.slotIndex,
-            slot.dutSnr if hasattr(slot, "dutSnr") else None,
-        )
+        if run_type == "standalone":
+            serial_number = snr_lookup.get(slot.slotIndex, qr_code)
+        else:
+            serial_number = snr_lookup.get(
+                slot.slotIndex,
+                slot.dutSnr if hasattr(slot, "dutSnr") else None,
+            )
         db.runtarget.create(
             data={
                 "runId": run.id,
@@ -790,6 +863,62 @@ def add_manufacturing_run(session_id: str):
     payload = _serialize_run(run, include_targets=True)
     _emit("manufacturing_run_start", payload, f"mfg-session:{session_id}")
     return jsonify(ApiResponse.ok(payload).to_dict()), 201
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/redeploy-runner — retry runner deploy
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def redeploy_manufacturing_runner(session_id: str):
+    """Tear down the current runner (if any) and redeploy for an active session."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "product": True,
+            "fixture": {
+                "include": {
+                    "slots": {
+                        "where": {"active": True},
+                        "order_by": {"slotIndex": "asc"},
+                        "include": {"node": True},
+                    },
+                },
+            },
+        },
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+    if session.status != "ACTIVE":
+        return bad_request("Session is not active")
+
+    # Tear down existing runner if any
+    from src.api.v2.manufacturing.runner import (
+        teardown_manufacturing_runner,
+        deploy_manufacturing_runner,
+    )
+    teardown_manufacturing_runner(db, session)
+
+    # Redeploy
+    runner_name = deploy_manufacturing_runner(db, session, session.fixture, session.product)
+    if not runner_name:
+        return internal_error("Runner deployment failed — check Docker/K8s availability")
+
+    # Re-fetch with updated runner fields
+    refreshed = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": True,
+        },
+    )
+    payload = _serialize_session(refreshed or session, include_runs=True)
+    return jsonify(ApiResponse.ok(payload).to_dict()), 200
 
 
 # ---------------------------------------------------------------------------
@@ -897,6 +1026,70 @@ def delete_session(session_id: str):
     db.manufacturingsession.delete(where={"id": session_id})
     log_audit("manufacturing.session.delete", "ManufacturingSession", session_id, {})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/batch — batch archive or delete
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_MANAGE)
+def batch_sessions_action():
+    """Apply an action to multiple manufacturing sessions at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    session_ids = body.get("sessionIds", [])
+
+    if action not in ("archive", "delete"):
+        return bad_request("action must be 'archive' or 'delete'")
+    if not isinstance(session_ids, list) or not session_ids:
+        return bad_request("sessionIds must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for sid in session_ids:
+        session = db.manufacturingsession.find_unique(where={"id": sid})
+        if not session:
+            failed.append({"id": sid, "reason": "Not found"})
+            continue
+
+        if action == "archive":
+            if session.status == "ACTIVE":
+                failed.append({"id": sid, "reason": "Cannot archive active session"})
+                continue
+            if session.status == "ARCHIVED":
+                succeeded.append(sid)
+                continue
+            db.manufacturingsession.update(
+                where={"id": sid}, data={"status": "ARCHIVED"},
+            )
+            log_audit("manufacturing.session.archive", "ManufacturingSession", sid, {"batch": True})
+            succeeded.append(sid)
+
+        elif action == "delete":
+            if session.status not in ("ARCHIVED", "COMPLETED", "CANCELLED"):
+                failed.append({"id": sid, "reason": f"Cannot delete {session.status} session"})
+                continue
+            active_runs = db.testrun.count(
+                where={"manufacturingSessionId": sid, "status": {"in": ["ACTIVE", "PENDING"]}}
+            )
+            if active_runs > 0:
+                failed.append({"id": sid, "reason": f"{active_runs} active run(s)"})
+                continue
+            db.manufacturingsession.delete(where={"id": sid})
+            log_audit("manufacturing.session.delete", "ManufacturingSession", sid, {"batch": True})
+            succeeded.append(sid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200
 
 
 # ---------------------------------------------------------------------------

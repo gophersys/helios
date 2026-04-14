@@ -2,10 +2,6 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import {
-    ChevronLeft,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
     Plus,
     Pencil,
     Trash2,
@@ -17,10 +13,15 @@
   import { formatTimeAgo } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import FormCard from '$lib/components/ui/form-card.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
+  import PaginationNav from '$lib/components/ui/pagination.svelte';
   import Select from '$lib/components/ui/select.svelte';
+  import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TextInput from '$lib/components/ui/text-input.svelte';
   import { fetchBenches, updateBench, deleteBench } from '$lib/services/validation';
@@ -43,6 +44,55 @@
   let page = $state(1);
   let statusFilter = $state('');
   let productFilter = $state('');
+  let searchQuery = $state('');
+
+  // Selection + batch
+  let selectedIds = $state<Set<string>>(new Set());
+  let batchLoading = $state(false);
+  let confirmBatchDelete = $state(false);
+
+  // Filtered benches (client-side search on top of server filters)
+  const filteredBenches = $derived.by(() => {
+    if (!searchQuery.trim()) return benches;
+    const q = searchQuery.toLowerCase().trim();
+    return benches.filter((b) =>
+      b.name.toLowerCase().includes(q) ||
+      b.stationId?.toLowerCase().includes(q) ||
+      b.dutProduct?.toLowerCase().includes(q) ||
+      b.dutSnr?.toLowerCase().includes(q) ||
+      b.id.toLowerCase().includes(q)
+    );
+  });
+
+  function toggleItem(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedIds = next;
+  }
+  function selectAll() { selectedIds = new Set(filteredBenches.map(b => b.id)); }
+  function clearSelection() { selectedIds = new Set(); confirmBatchDelete = false; }
+
+  async function batchAction(action: string) {
+    if (selectedIds.size === 0) return;
+    if (action === 'delete' && !confirmBatchDelete) { confirmBatchDelete = true; return; }
+    confirmBatchDelete = false;
+    batchLoading = true;
+    error = null;
+    try {
+      const ids = [...selectedIds];
+      let failed = 0;
+      for (const id of ids) {
+        try { await deleteBench(id); } catch { failed++; }
+      }
+      if (failed > 0) error = `${ids.length - failed} deleted, ${failed} failed`;
+      selectedIds = new Set();
+      await loadBenches();
+    } catch (err: any) {
+      error = err instanceof Error ? err.message : 'Batch delete failed';
+    } finally {
+      batchLoading = false;
+    }
+  }
 
   // Edit form state
   let showForm = $state(false);
@@ -204,7 +254,29 @@
     <PageHeader
       title="Test Benches"
       description="Registered validation test benches with DUT info and hardware configuration."
-    />
+    >
+      {#snippet actions()}
+        <div class="flex items-center gap-2">
+          <button
+            onclick={() => loadBenches()}
+            class="btn btn-sm flex items-center gap-1.5"
+            title="Refresh"
+          >
+            <RefreshCw size={14} />
+            Refresh
+          </button>
+          {#if canManage}
+            <button
+              onclick={() => goto('/validation/benches/register')}
+              class="btn btn-sm btn-primary flex items-center gap-1.5"
+            >
+              <Plus size={14} />
+              Register MTIB
+            </button>
+          {/if}
+        </div>
+      {/snippet}
+    </PageHeader>
   </div>
 
   <ErrorAlert message={error} />
@@ -316,37 +388,62 @@
     </FormCard>
   {/if}
 
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <Select bind:value={statusFilter} placeholder="All statuses" options={STATUS_OPTIONS} />
-    <TextInput bind:value={productFilter} placeholder="Filter by product..." class="w-36" />
-    <button
-      onclick={() => loadBenches()}
-      class="rounded-lg p-2 text-text-secondary hover:bg-surface-1"
-      title="Refresh"
-    >
-      <RefreshCw size={16} />
-    </button>
-    <span class="ml-auto text-2xs text-text-tertiary">{pagination.total} benches</span>
-    {#if canManage}
-      <button
-        onclick={() => goto('/validation/benches/register')}
-        class="btn btn-sm btn-primary flex items-center gap-1.5"
-      >
-        <Plus size={14} />
-        Register MTIB
-      </button>
-    {/if}
-  </div>
+  <FilterBar class="mb-4">
+    {#snippet filters()}
+      <FilterSelect label="Status" value={statusFilter} onchange={(v) => { statusFilter = v; }} options={STATUS_OPTIONS} />
+      <FilterSearch bind:value={searchQuery} placeholder="Search name, station, product..." class="w-64" />
+    {/snippet}
+    <span class="ml-auto text-2xs text-text-tertiary shrink-0">
+      {filteredBenches.length} of {pagination.total} benches
+    </span>
+  </FilterBar>
+
+  <!-- Selection bar -->
+  {#if canManage}
+    <SelectionBar
+      selectedCount={selectedIds.size}
+      totalCount={filteredBenches.length}
+      onSelectAll={selectAll}
+      onClearSelection={clearSelection}
+      actions={[
+        { label: 'Delete', icon: Trash2, variant: 'danger' as const, loading: batchLoading, onclick: () => batchAction('delete') },
+      ]}
+    />
+  {/if}
+
+  <!-- Inline delete confirmation -->
+  {#if confirmBatchDelete}
+    <div class="mb-3 flex items-center gap-3 rounded-lg border border-error/30 bg-error-muted px-4 py-2.5">
+      <span class="text-sm text-text-primary">
+        Permanently delete {selectedIds.size} bench{selectedIds.size !== 1 ? 'es' : ''}? This cannot be undone.
+      </span>
+      <div class="ml-auto flex items-center gap-2">
+        <button onclick={() => { confirmBatchDelete = false; }} class="btn btn-sm btn-ghost">Cancel</button>
+        <button onclick={() => batchAction('delete')} class="btn btn-sm btn-danger">Confirm Delete</button>
+      </div>
+    </div>
+  {/if}
 
   {#if loading}
     <LoadingState message="Loading test benches..." />
-  {:else if benches.length === 0}
-    <EmptyState message="No test benches found." icon={Cpu} />
+  {:else if filteredBenches.length === 0}
+    <EmptyState message={searchQuery ? 'No benches match your search.' : 'No test benches found.'} icon={Cpu} />
   {:else}
     <div class="table-wrapper">
       <table class="table">
         <thead>
           <tr class="border-b border-border">
+            {#if canManage}
+              <th class="table-header w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size > 0 && selectedIds.size === filteredBenches.length}
+                  indeterminate={selectedIds.size > 0 && selectedIds.size < filteredBenches.length}
+                  onchange={() => selectedIds.size === filteredBenches.length ? clearSelection() : selectAll()}
+                  class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                />
+              </th>
+            {/if}
             <th class="table-header">Station</th>
             <th class="table-header">Name</th>
             <th class="table-header">Product</th>
@@ -360,8 +457,18 @@
           </tr>
         </thead>
         <tbody>
-          {#each benches as bench (bench.id)}
+          {#each filteredBenches as bench (bench.id)}
             <tr class="table-row">
+              {#if canManage}
+                <td class="table-cell w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(bench.id)}
+                    onchange={() => toggleItem(bench.id)}
+                    class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                </td>
+              {/if}
               <td class="table-cell font-mono text-sm text-text-secondary">{bench.stationId}</td>
               <td class="table-cell font-medium text-text-primary">{bench.name}</td>
               <td class="table-cell">
@@ -411,40 +518,11 @@
   {#if pagination.pages > 1}
     <div class="mt-4 flex items-center justify-between">
       <span class="text-2xs text-text-tertiary">Page {pagination.page} of {pagination.pages}</span>
-      <div class="flex items-center gap-1">
-        <button
-          onclick={() => (page = 1)}
-          disabled={page <= 1}
-          aria-label="First page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <ChevronsLeft size={16} />
-        </button>
-        <button
-          onclick={() => (page = Math.max(1, page - 1))}
-          disabled={page <= 1}
-          aria-label="Previous page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <button
-          onclick={() => (page = Math.min(pagination.pages, page + 1))}
-          disabled={page >= pagination.pages}
-          aria-label="Next page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <ChevronRight size={16} />
-        </button>
-        <button
-          onclick={() => (page = pagination.pages)}
-          disabled={page >= pagination.pages}
-          aria-label="Last page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <ChevronsRight size={16} />
-        </button>
-      </div>
+      <PaginationNav
+        page={page}
+        totalPages={pagination.pages}
+        onPageChange={(p) => { page = p; }}
+      />
     </div>
   {/if}
 </div>

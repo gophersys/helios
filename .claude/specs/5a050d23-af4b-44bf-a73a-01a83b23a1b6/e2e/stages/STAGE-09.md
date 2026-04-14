@@ -28,7 +28,7 @@ If you are reading this after context compaction:
 ## Preconditions
 
 - Queue entry ASSIGNED to fixture with MTIB node (from Stage 8)
-- MTIB 10.4.45.33 reachable and healthy
+- MTIB <MTIB_HOST> reachable and healthy
 - DUT Alpha B0 (SNR 0964) powered and responsive
 
 ---
@@ -101,7 +101,7 @@ E2E Test (Playwright)
 Meanwhile (in K8s or local):
     Validation Runner Pod
         │
-        ├─→ Connects to MTIB 10.4.45.33:50053 (gRPC)
+        ├─→ Connects to MTIB <MTIB_HOST>:50053 (gRPC)
         │     ├─→ PowerEnable(ch0=4.5V)
         │     ├─→ GpioConfig(0,1 = OUTPUT LOW)
         │     ├─→ UartStream (capture boot output)

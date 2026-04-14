@@ -83,7 +83,7 @@ All backend services run locally in docker-compose.
 | **Bitbucket** | SSH key + API token (mateo@corekinect.com) | Create/delete branches and PRs in `alpha_fw` and `alpha_mfg_fw` repos. Keep `concord-main` synced with `main`. |
 | **CoreCloud** | Basic Auth + X-API-KEY | Device registration, FUOTA plan creation, firmware upload, progress monitoring. Val instance at `val.office.corekinect.cloud:2018`. |
 | **CoreOps** | Basic Auth + X-API-KEY | Device personalization (assign device ID, upload EC public key, save SIM info). |
-| **MTIB** | None (private network, gRPC) | Power control, GPIO, UART streaming, J-Link flashing. Dev pool MTIB at 10.4.45.33:50053. |
+| **MTIB** | None (private network, gRPC) | Power control, GPIO, UART streaming, J-Link flashing. Dev pool MTIB at <MTIB_HOST>:50053. |
 | **MinIO** | Access key + secret | Firmware artifact storage, build script storage, session logs. |
 
 ### 3.3 Database
@@ -511,7 +511,7 @@ PHASE 8: FIXTURE CREATION
   38. Create Node (MTIB):
       a. Hostname: "mtib-e2e-dev"
       b. Type: VALIDATION
-      c. IP: 10.4.45.33
+      c. IP: <MTIB_HOST>
       d. Hardware revision: "REV1.2"
   39. Assign Node to Slot:
       a. Auto-deploys MTIB server (or verify existing deployment)
@@ -715,7 +715,7 @@ PHASE 4: CLEANUP
 - [ ] All 4 role stories execute completely without manual intervention
 - [ ] Real Bitbucket branches/PRs created and cleaned up
 - [ ] Real firmware builds compile on Build Service
-- [ ] Real validation tests execute on MTIB 10.4.45.33 with DUT Alpha B0
+- [ ] Real validation tests execute on MTIB <MTIB_HOST> with DUT Alpha B0
 - [ ] Build caching verified (second identical build returns CACHED)
 - [ ] Validation queue correctly assigns runs when fixtures become available
 - [ ] WebSocket real-time updates verified (test results stream to UI)

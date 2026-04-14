@@ -48,9 +48,9 @@ def create_mtib_deployment(
         logger.error("Kubernetes client not available")
         return None
 
+    from config.env import env_config as _env
     template_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        "assets", "templates", "mtib_server_deployment.yaml"
+        _env.ASSETS_FOLDER, "templates", "mtib_server_deployment.yaml"
     )
 
     try:
@@ -176,6 +176,80 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
             return None
         logger.error("Failed to get deployment status %s: %s", deploy_name, e.reason)
         return None
+
+
+def get_mtib_pod_image_sha(deploy_name: str) -> str | None:
+    """Get the actual running image digest for an MTIB deployment.
+
+    Queries the pod's container_statuses[0].image_id for the resolved SHA.
+    Returns the digest string (e.g., 'sha256:abc123...') or None.
+    """
+    try:
+        from src.services.kubernetes.client import get_apps_v1_api, get_core_v1_api
+        from kubernetes.client.exceptions import ApiException
+    except ImportError:
+        return None
+
+    try:
+        namespace = _get_mtib_namespace()
+        apps_v1 = get_apps_v1_api()
+        dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace=namespace)
+
+        core_v1 = get_core_v1_api()
+        selector = ",".join(
+            f"{k}={v}" for k, v in (dep.spec.selector.match_labels or {}).items()
+        )
+        pods = core_v1.list_namespaced_pod(namespace=namespace, label_selector=selector)
+        for pod in pods.items:
+            for cs in (pod.status.container_statuses or []):
+                if cs.image_id:
+                    return cs.image_id
+        return None
+    except (ApiException, Exception) as e:
+        logger.warning("Failed to get image SHA for %s: %s", deploy_name, e)
+        return None
+
+
+def wait_for_mtibs_healthy(
+    slots: list[dict],
+    port: int = 50053,
+    timeout_s: int = 30,
+) -> dict:
+    """Check TCP health of MTIB servers on multiple nodes in parallel.
+
+    Each slot dict must have 'nodeIp'. Returns:
+        {"healthy": [...], "unhealthy": [...]}
+    """
+    import socket
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def check_one(slot: dict) -> tuple[dict, bool]:
+        ip = slot.get("nodeIp")
+        if not ip:
+            return slot, False
+        try:
+            sock = socket.create_connection((ip, port), timeout=timeout_s)
+            sock.close()
+            return slot, True
+        except (OSError, socket.timeout):
+            return slot, False
+
+    healthy, unhealthy = [], []
+    with ThreadPoolExecutor(max_workers=min(len(slots), 8)) as pool:
+        futures = {pool.submit(check_one, s): s for s in slots if s.get("nodeIp")}
+        for future in as_completed(futures, timeout=timeout_s + 5):
+            try:
+                slot, ok = future.result()
+                (healthy if ok else unhealthy).append(slot)
+            except Exception:
+                unhealthy.append(futures[future])
+
+    # Slots without nodeIp are unhealthy
+    for s in slots:
+        if not s.get("nodeIp") and s not in unhealthy:
+            unhealthy.append(s)
+
+    return {"healthy": healthy, "unhealthy": unhealthy}
 
 
 def list_mtib_deployments() -> list:

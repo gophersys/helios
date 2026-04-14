@@ -240,6 +240,27 @@ def _process_queue() -> None:
 
 
 @require_auth
+def report_preflight(run_id: str):
+    """POST /v2/runs/<run_id>/report/preflight -- Preflight check results."""
+    run, err = _get_run_or_404(run_id)
+    if err:
+        return err
+
+    body = request.get_json() or {}
+    status = body.get("status", "UNKNOWN")
+    checks = body.get("checks", [])
+
+    _emit("run_preflight", {
+        "runId": run_id,
+        "status": status,
+        "checks": checks,
+    }, run_id)
+
+    logger.info("Run %s preflight: %s (%d checks)", run_id, status, len(checks))
+    return jsonify(ApiResponse.ok({"runId": run_id, "preflight": status}).to_dict()), 200
+
+
+@require_auth
 def report_start(run_id: str):
     """POST /v2/runs/<run_id>/report/start -- Run started."""
     run, err = _get_run_or_404(run_id)

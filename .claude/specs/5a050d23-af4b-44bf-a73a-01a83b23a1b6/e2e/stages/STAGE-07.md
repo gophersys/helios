@@ -75,7 +75,7 @@ test('slot shows assigned node after assignment')
 ### `e2e/stories/fixtures/deployment.spec.ts` (~5 tests)
 
 ```
-test('create Node: hostname="mtib-e2e-dev", type=VALIDATION, ip=10.4.45.33')
+test('create Node: hostname="mtib-e2e-dev", type=VALIDATION, ip=<MTIB_HOST>')
 test('assign node to fixture slot → MTIB deployment triggered')
 test('fixture deploy-status shows slot deployment state')
 test('deploy all slots button deploys all assigned slots')
@@ -96,13 +96,13 @@ test('after fixture deletion, node is unassigned and available')
 
 ## MTIB Node Configuration
 
-For the dev pool MTIB (10.4.45.33):
+For the dev pool MTIB (<MTIB_HOST>):
 
 ```typescript
 const DEV_MTIB_NODE = {
   hostname: 'mtib-e2e-dev',
   type: 'VALIDATION',
-  ipAddress: '10.4.45.33',
+  ipAddress: '<MTIB_HOST>',
   hardwareRevision: 'REV1.2',
   metadata: {
     jlinkAppSerial: '821009543',
@@ -167,7 +167,7 @@ Backend:
 
 ```
 K8s hostname:  verdin-imx8mm-15005665
-IP:            10.4.45.33
+IP:            <MTIB_HOST>
 Role:          edge
 gRPC port:     50053 (via hostPort on K8s Deployment)
 J-Link App:    821009543 (NRF52)

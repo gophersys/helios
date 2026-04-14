@@ -71,9 +71,7 @@
     <div class="rounded-lg border border-dashed border-border bg-surface-0 px-4 py-5 text-center">
       <Wrench size={20} class="mx-auto text-text-tertiary mb-2 opacity-40" />
       <p class="text-xs text-text-secondary">No fixture designs yet.</p>
-      <p class="text-2xs text-text-tertiary mt-1">
-        Designs are auto-extracted when a test app is uploaded via <code class="font-mono">corectl test upload</code>.
-      </p>
+      <p class="text-2xs text-text-tertiary mt-1">Release a test app to publish a fixture design.</p>
     </div>
   {:else}
     <div class="space-y-3">

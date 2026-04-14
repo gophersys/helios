@@ -55,24 +55,51 @@ def _create_job_api_key(db, entry_id: str) -> str:
 def _resolve_all_slot_info(fixture):
     """Extract DUT info and node addresses from ALL active fixture slots.
 
+    Node IPs are resolved from the K8s API at call time — never uses stored IPs.
     Returns a list of slot dicts with keys:
         slotIndex, slotId, dutSnr, dutDeviceId, nodeIp, nodeHostname
     """
     slots = fixture.slots if hasattr(fixture, "slots") and fixture.slots else []
+
+    # Collect hostnames for K8s IP resolution
+    hostnames = []
+    for slot in slots:
+        if slot.active and slot.nodeId:
+            node = slot.node if hasattr(slot, "node") and slot.node else None
+            if node:
+                hostnames.append(node.hostname)
+
+    # Resolve IPs from K8s (live, not cached)
+    ip_map: dict[str, str] = {}
+    if hostnames:
+        try:
+            from src.services.kubernetes.client import resolve_node_ips
+            ip_map = resolve_node_ips(hostnames)
+        except Exception:
+            logger.warning("K8s IP resolution failed — falling back to stored IPs")
+            for slot in slots:
+                node = slot.node if hasattr(slot, "node") and slot.node else None
+                if node and node.ipAddress:
+                    ip_map[node.hostname] = node.ipAddress
+
     result = []
     for slot in slots:
         if not slot.active or not slot.nodeId:
             continue
         node = slot.node if hasattr(slot, "node") and slot.node else None
-        if not node or not node.ipAddress:
+        if not node:
+            continue
+        hostname = node.hostname
+        ip = ip_map.get(hostname)
+        if not ip:
             continue
         result.append({
             "slotIndex": slot.slotIndex,
             "slotId": slot.id,
             "dutSnr": slot.dutSnr or f"slot-{slot.slotIndex}",
             "dutDeviceId": slot.dutDeviceId,
-            "nodeIp": node.ipAddress,
-            "nodeHostname": getattr(node, "hostname", None),
+            "nodeIp": ip,
+            "nodeHostname": hostname,
         })
     return result
 

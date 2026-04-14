@@ -642,9 +642,11 @@ export interface TestRun {
   completedCount: number;
   passedCount: number;
   failedCount: number;
+  stage?: string;
   config?: Record<string, any>;
   notes?: string;
   errorMessage?: string;
+  createdBy?: { id: string; name: string; email?: string } | null;
   startedAt?: string;
   completedAt?: string;
   durationMs?: number;
@@ -921,6 +923,7 @@ export interface Fixture {
   boardRevisionId: string | null;
   designId: string | null;
   type: string;
+  status: string;
   panelRows: number;
   panelCols: number;
   description: string | null;

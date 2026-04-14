@@ -206,7 +206,7 @@
   /* ─────────────────────────────────────────────────────────────────────
      BUTTONS - Consistent sizing aligned to 8px grid
      ───────────────────────────────────────────────────────────────────── */
-  @apply inline-flex items-center justify-center gap-2 font-medium rounded-md
+  @apply inline-flex items-center justify-center gap-2 font-medium rounded-lg
            transition-colors duration-150 ease-out
            disabled:opacity-50 disabled:cursor-not-allowed;
 }
@@ -256,7 +256,7 @@
   /* ─────────────────────────────────────────────────────────────────────
      INPUTS - Consistent sizing aligned to 8px grid
      ───────────────────────────────────────────────────────────────────── */
-  @apply w-full rounded-md border border-border bg-surface-1 text-text-primary
+  @apply w-full rounded-lg border border-border bg-surface-1 text-text-primary
            placeholder:text-text-tertiary
            focus:outline-hidden focus:border-accent
            transition-colors duration-150;
@@ -270,7 +270,7 @@
 }
 
 @utility input-md {
-  @apply h-10 px-3 text-sm; /* 40px height */
+  @apply h-10 px-4 text-sm; /* 40px height, px-4 matches btn-md */
 }
 
 @utility input-lg {
@@ -348,7 +348,7 @@
 }
 
 @utility table-cell {
-  @apply h-12 px-4 text-sm align-middle;
+  @apply py-3 px-4 text-sm align-middle;
 }
 
 @utility table-row {

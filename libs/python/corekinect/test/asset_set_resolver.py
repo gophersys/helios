@@ -9,7 +9,7 @@ rather than built by Concord's build service.
         api_url="http://localhost:9001",
         api_key="ck_...",
     )
-    hex_path = resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
+    hex_path = resolver.get_artifact("mfg_base", role="app", artifact_type="plaintextHex")
 
 Compatible with StageAssets/BuildAsset — same interface as ArtifactResolver.
 """

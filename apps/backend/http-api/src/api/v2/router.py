@@ -40,6 +40,7 @@ from .products.board_discovery import (
 )
 from .products.products import (
     archive_product,
+    batch_products_action,
     create_product,
     delete_product,
     export_product,
@@ -145,6 +146,7 @@ from .nodes.nodes import (
 
 # Fixture management handlers
 from .fixtures.fixtures import (
+    batch_fixtures_action,
     dashboard_overview,
     list_fixtures,
     create_fixture as create_managed_fixture,
@@ -218,6 +220,7 @@ from .builds.queue_priority import (
     demote_build,
 )
 from .builds.build_runs import (
+    batch_build_runs_action,
     list_build_runs as list_ci_build_runs,
     get_build_run as get_ci_build_run,
     create_build_run as create_ci_build_run,
@@ -378,6 +381,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/archive",          endpoint="archive_product",       view_func=archive_product,        methods=["POST"])
     v2.add_url_rule("/products/<product_id>/unarchive",        endpoint="unarchive_product",     view_func=unarchive_product,      methods=["POST"])
     v2.add_url_rule("/products/<product_id>/export",           endpoint="export_product",        view_func=export_product,         methods=["POST"])
+    v2.add_url_rule("/products/batch",                           endpoint="batch_products",        view_func=batch_products_action,  methods=["POST"])
 
     # Products - Boards
     v2.add_url_rule("/products/<product_id>/boards",                                               view_func=list_boards,            methods=["GET"])
@@ -516,6 +520,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/fixtures/<fixture_id>/deploy",                    endpoint="deploy_fixture",          view_func=deploy_fixture,           methods=["POST"])
     v2.add_url_rule("/fixtures/<fixture_id>/undeploy",                  endpoint="undeploy_fixture",        view_func=undeploy_fixture,         methods=["POST"])
     v2.add_url_rule("/fixtures/<fixture_id>/deploy-status",            endpoint="fixture_deploy_status",   view_func=get_fixture_deploy_status, methods=["GET"])
+    v2.add_url_rule("/fixtures/batch",                                  endpoint="batch_fixtures",          view_func=batch_fixtures_action,     methods=["POST"])
 
     # Fixtures - Benches (legacy compat, backed by Fixture model)
     v2.add_url_rule("/fixtures/benches",                                                                endpoint="list_benches",                 view_func=list_benches,             methods=["GET"])
@@ -658,6 +663,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/runs/<run_id>/artifacts/download",                       endpoint="download_build_run_artifacts", view_func=download_ci_build_run_artifacts, methods=["GET"])
     v2.add_url_rule("/builds/runs/<run_id>/sessions",                               endpoint="list_build_run_sessions",  view_func=list_ci_build_run_sessions, methods=["GET"])
     v2.add_url_rule("/builds/runs/<run_id>/validate-artifacts",                     endpoint="validate_build_run_artifacts", view_func=validate_ci_build_run_artifacts, methods=["POST"])
+    v2.add_url_rule("/builds/runs/batch",                                            endpoint="batch_build_runs",             view_func=batch_build_runs_action,         methods=["POST"])
 
     # Builds - Settings
     v2.add_url_rule("/builds/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])

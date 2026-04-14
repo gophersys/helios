@@ -185,15 +185,30 @@ class FixtureContext:
 
     @classmethod
     def _from_hosts_env(cls, mtib_hosts: str) -> "FixtureContext":
-        """Build from MTIB_HOSTS comma-separated addresses."""
+        """Build from MTIB_HOSTS comma-separated addresses.
+
+        If SLOT_FILTER is set (comma-separated slot indices), only builds
+        SlotContexts for those indices. This allows the manufacturing runner
+        to target specific slots per run (panel vs standalone).
+        """
         default_port = int(os.environ.get("MTIB_PORT", "50053"))
         addresses = [addr.strip() for addr in mtib_hosts.split(",") if addr.strip()]
 
         snrs = _split_env("SLOT_SNRS", len(addresses))
         device_ids = _split_env("SLOT_DEVICE_IDS", len(addresses))
 
+        # SLOT_FILTER: only include specific slot indices (e.g., "0,1,2" or "4")
+        slot_filter_str = os.environ.get("SLOT_FILTER", "").strip()
+        if slot_filter_str:
+            allowed_indices = {int(x.strip()) for x in slot_filter_str.split(",") if x.strip()}
+            log.info("SLOT_FILTER active: only slots %s", sorted(allowed_indices))
+        else:
+            allowed_indices = None  # no filter = all slots
+
         slots = {}
         for i, addr in enumerate(addresses):
+            if allowed_indices is not None and i not in allowed_indices:
+                continue
             host, port = _parse_address(addr, default_port)
             slot_id = f"slot-{i}"
             slots[slot_id] = SlotContext(
@@ -205,7 +220,8 @@ class FixtureContext:
                 device_id=device_ids[i] if i < len(device_ids) else "",
             )
 
-        log.info("Loaded %d slots from MTIB_HOSTS: %s", len(slots), addresses)
+        log.info("Loaded %d slots from MTIB_HOSTS: %s", len(slots),
+                 [f"{s.mtib_address}:{s.mtib_port}" for s in slots.values()])
         return cls(slots=slots)
 
     @classmethod
@@ -238,6 +254,25 @@ class FixtureContext:
             slot.connect(fixture_factory=fixture_factory)
         log.info("All %d slots connected", len(self.slots))
 
+    def connect_available(self, fixture_factory: Optional[Callable] = None) -> int:
+        """Connect as many slots as possible, skipping failures.
+
+        Used by the manufacturing runner at startup — connects all MTIBs
+        that are reachable. Per-run SLOT_FILTER then validates only the
+        needed slots before test execution.
+
+        Returns the number of successfully connected slots.
+        """
+        connected = 0
+        for slot in self.slots.values():
+            try:
+                slot.connect(fixture_factory=fixture_factory)
+                connected += 1
+            except Exception as e:
+                log.warning("Slot %s connection failed (skipping): %s", slot.slot_id, e)
+        log.info("Connected %d/%d slots", connected, len(self.slots))
+        return connected
+
     def disconnect_all(self) -> None:
         """Disconnect all slots (best-effort, logs errors)."""
         for slot in self.slots.values():
@@ -246,6 +281,58 @@ class FixtureContext:
             except Exception as e:
                 log.warning("Error disconnecting slot %s: %s", slot.slot_id, e)
         log.info("All slots disconnected")
+
+    def build_slot_test_contexts(self, telemetry=None) -> Dict[str, "SlotTestContext"]:
+        """Wrap each connected SlotContext in a SlotTestContext with UART/power/artifacts.
+
+        Returns a dict keyed by slot_id. Only wraps slots that have a connected MTIB.
+        Call connect() on each returned SlotTestContext to start per-slot services.
+        """
+        from .slot_context import SlotTestContext
+
+        result = {}
+        for slot_id, slot in self.slots.items():
+            if slot.mtib:
+                result[slot_id] = SlotTestContext.from_slot(slot, telemetry=telemetry)
+        return result
+
+
+# ── Public Utilities ─────────────────────────────────────────────────────
+
+
+def get_slot_ids_from_env() -> List[str]:
+    """Determine which slot IDs should be used for test parametrization.
+
+    Called at pytest collection time by product conftest files.
+    Respects SLOT_FILTER (set per-run by the manufacturing runner),
+    MTIB_HOSTS (multi-slot), MTIB_HOST (single-slot), and
+    FIXTURE_CONFIG_PATH. Centralizes the logic so product conftest
+    files don't need to re-implement it.
+    """
+    # SLOT_FILTER takes priority — set by the manufacturing runner per run
+    slot_filter = os.environ.get("SLOT_FILTER", "").strip()
+    if slot_filter:
+        indices = sorted(int(x.strip()) for x in slot_filter.split(",") if x.strip())
+        return [f"slot-{i}" for i in indices]
+
+    mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
+    if mtib_hosts:
+        count = len([a for a in mtib_hosts.split(",") if a.strip()])
+        return [f"slot-{i}" for i in range(count)]
+
+    config_path = os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
+    if config_path and os.path.isfile(config_path):
+        import json
+        with open(config_path) as f:
+            data = json.load(f)
+        slot_count = len(data.get("slots", []))
+        if slot_count:
+            return [f"slot-{i}" for i in range(slot_count)]
+
+    if os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST"):
+        return ["slot-0"]
+
+    return ["slot-0"]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────

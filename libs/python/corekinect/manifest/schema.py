@@ -210,8 +210,8 @@ def _basic_validate(data: dict) -> List[ValidationError]:
     pkg_type = data.get("package", {}).get("type")
     if pkg_type == "validation" and "stages" not in data:
         errors.append(ValidationError("stages", "Required for validation packages"))
-    if pkg_type == "manufacturing" and "steps" not in data:
-        errors.append(ValidationError("steps", "Required for manufacturing packages"))
+    if pkg_type == "manufacturing" and "stages" not in data and "steps" not in data:
+        errors.append(ValidationError("stages", "Required for manufacturing packages (use 'stages' dict or 'steps' list)"))
 
     return errors
 

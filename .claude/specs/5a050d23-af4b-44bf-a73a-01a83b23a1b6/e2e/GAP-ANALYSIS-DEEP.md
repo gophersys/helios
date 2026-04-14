@@ -152,7 +152,7 @@
 - **Fixture creation requires a design to exist first** — The spec mentions this flow but tests must ensure design creation precedes fixture creation.
 
 ### RISK
-- **MTIB at 10.4.45.33 may not be reachable** — MEMORY.md D10 notes the dev machine (172.22.x.x codespace) cannot reach 10.4.45.33. MTIB deploy/health checks will fail from the codespace. Tests requiring MTIB must run from the office network.
+- **MTIB at <MTIB_HOST> may not be reachable** — MEMORY.md D10 notes the dev machine (172.22.x.x codespace) cannot reach <MTIB_HOST>. MTIB deploy/health checks will fail from the codespace. Tests requiring MTIB must run from the office network.
 
 ---
 

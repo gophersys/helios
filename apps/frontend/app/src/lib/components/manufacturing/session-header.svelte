@@ -1,28 +1,41 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { ArrowLeft } from 'lucide-svelte';
+  import { ArrowLeft, Factory, User, Clock, Cpu, Wifi, Archive, Trash2, StopCircle, Server } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import { formatDateTime, formatDuration } from '$lib/utils/formatting';
   import type { ManufacturingSession } from '$lib/types/models';
 
-  let { session }: { session: ManufacturingSession } = $props();
+  let {
+    session,
+    canManage = false,
+    onEndSession,
+    onArchive,
+    onDelete,
+    activeRunExists = false,
+  }: {
+    session: ManufacturingSession;
+    canManage?: boolean;
+    onEndSession?: () => void;
+    onArchive?: () => void;
+    onDelete?: () => void;
+    activeRunExists?: boolean;
+  } = $props();
 
   let elapsed = $state('');
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  // Aggregate counts from runs
   const runs = $derived(session.runs || []);
   const panelCount = $derived(runs.length);
   const passCount = $derived(runs.reduce((sum, r) => sum + (r.passedCount || 0), 0));
   const failCount = $derived(runs.reduce((sum, r) => sum + (r.failedCount || 0), 0));
 
-  // Runner status display config
   const RUNNER_STATUS_CONFIG: Record<string, { dotClass: string; label: string }> = {
-    DEPLOYING: { dotClass: 'bg-text-tertiary', label: 'Runner deploying...' },
-    READY: { dotClass: 'bg-success', label: 'Runner ready' },
-    RUNNING: { dotClass: 'bg-warning animate-pulse', label: 'Running tests...' },
-    ERROR: { dotClass: 'bg-error', label: 'Runner error' },
+    CHECKING_MTIBS: { dotClass: 'bg-text-tertiary animate-pulse', label: 'Checking MTIBs...' },
+    DEPLOYING: { dotClass: 'bg-text-tertiary animate-pulse', label: 'Deploying...' },
+    READY: { dotClass: 'bg-success', label: 'Ready' },
+    RUNNING: { dotClass: 'bg-warning animate-pulse', label: 'Running' },
+    ERROR: { dotClass: 'bg-error', label: 'Error' },
   };
 
   const runnerDisplay = $derived(
@@ -30,10 +43,7 @@
   );
 
   function updateElapsed() {
-    if (!session.startedAt) {
-      elapsed = '';
-      return;
-    }
+    if (!session.startedAt) { elapsed = ''; return; }
     const start = new Date(session.startedAt).getTime();
     const end = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
     elapsed = formatDuration(end - start);
@@ -49,75 +59,133 @@
     }
   });
 
-  onDestroy(() => {
-    if (timer) clearInterval(timer);
-  });
+  onDestroy(() => { if (timer) clearInterval(timer); });
 </script>
 
-<div class="mb-4">
-  <button
-    onclick={() => goto('/manufacturing')}
-    class="mb-3 flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
-  >
-    <ArrowLeft size={14} />
-    Manufacturing
-  </button>
+<!-- Back link -->
+<button
+  onclick={() => goto('/manufacturing')}
+  class="mb-3 flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+>
+  <ArrowLeft size={14} />
+  Manufacturing
+</button>
 
-  <div class="flex items-start justify-between gap-4">
+<!-- Session info card -->
+<div class="card card-sm mb-6">
+  <!-- Top row: title + status + stats -->
+  <div class="flex items-start justify-between gap-4 mb-4">
     <div>
-      <div class="flex items-center gap-3 mb-1">
+      <div class="flex items-center gap-3">
         <h1 class="text-lg font-semibold text-text-primary">
           {session.product?.name || 'Session'}
         </h1>
         <StatusBadge status={session.status} />
-      </div>
-
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
-        {#if session.fixture?.name}
-          <span>Fixture: <span class="font-medium text-text-primary">{session.fixture.name}</span></span>
-        {/if}
-        {#if session.operator?.name}
-          <span>Operator: <span class="font-medium text-text-primary">{session.operator.name}</span></span>
-        {/if}
-        {#if session.startedAt}
-          <span title={formatDateTime(session.startedAt)}>
-            Started: <span class="font-medium text-text-primary">{formatDateTime(session.startedAt)}</span>
+        {#if runnerDisplay}
+          <span class="flex items-center gap-1.5 text-xs">
+            <span class="inline-block h-2 w-2 rounded-full {runnerDisplay.dotClass}"></span>
+            <span class="text-text-secondary">{runnerDisplay.label}</span>
           </span>
         {/if}
-        {#if elapsed}
-          <span>Elapsed: <span class="font-medium text-text-primary tabular-nums">{elapsed}</span></span>
-        {/if}
       </div>
-
-      <!-- Firmware version + runner status row -->
-      {#if session.assetSet || runnerDisplay}
-        <div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
-          {#if session.assetSet}
-            <span>Firmware: <span class="font-medium text-text-primary">v{session.assetSet.version} ({session.assetSet.variant})</span></span>
-          {/if}
-          {#if runnerDisplay}
-            <span class="flex items-center gap-1.5">
-              <span class="inline-block h-2 w-2 rounded-full {runnerDisplay.dotClass}"></span>
-              <span class="font-medium text-text-primary">{runnerDisplay.label}</span>
-            </span>
-          {/if}
-        </div>
-      {/if}
     </div>
 
-    <div class="flex items-center gap-3 text-xs">
+    <!-- Stat counters -->
+    <div class="flex items-center gap-4 shrink-0">
       <div class="text-center">
-        <div class="text-lg font-semibold text-text-primary">{panelCount}</div>
-        <div class="text-text-tertiary">Panels</div>
+        <div class="text-xl font-semibold text-text-primary tabular-nums">{panelCount}</div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Panels</div>
       </div>
       <div class="text-center">
-        <div class="text-lg font-semibold text-success">{passCount}</div>
-        <div class="text-text-tertiary">Pass</div>
+        <div class="text-xl font-semibold text-success tabular-nums">{passCount}</div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Pass</div>
       </div>
       <div class="text-center">
-        <div class="text-lg font-semibold {failCount > 0 ? 'text-error' : 'text-text-primary'}">{failCount}</div>
-        <div class="text-text-tertiary">Fail</div>
+        <div class="text-xl font-semibold tabular-nums {failCount > 0 ? 'text-error' : 'text-text-primary'}">{failCount}</div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Fail</div>
       </div>
     </div>
   </div>
+
+  <!-- Detail grid -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-border pt-4">
+    <div class="flex items-start gap-2">
+      <Factory size={14} class="text-text-tertiary mt-0.5 shrink-0" />
+      <div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Fixture</div>
+        <div class="text-sm text-text-primary">{session.fixture?.name || '—'}</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-2">
+      <User size={14} class="text-text-tertiary mt-0.5 shrink-0" />
+      <div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Operator</div>
+        <div class="text-sm text-text-primary">{session.operator?.name || '—'}</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-2">
+      <Clock size={14} class="text-text-tertiary mt-0.5 shrink-0" />
+      <div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">{session.status === 'ACTIVE' ? 'Elapsed' : 'Duration'}</div>
+        <div class="text-sm text-text-primary tabular-nums">{elapsed || '—'}</div>
+        {#if session.startedAt}
+          <div class="text-2xs text-text-tertiary">{formatDateTime(session.startedAt)}</div>
+        {/if}
+      </div>
+    </div>
+    <div class="flex items-start gap-2">
+      <Cpu size={14} class="text-text-tertiary mt-0.5 shrink-0" />
+      <div>
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Firmware</div>
+        {#if session.assetSet}
+          <div class="text-sm text-text-primary">v{session.assetSet.version}</div>
+          <div class="text-2xs text-text-tertiary">{session.assetSet.variant}</div>
+        {:else}
+          <div class="text-sm text-text-tertiary">—</div>
+        {/if}
+      </div>
+    </div>
+    {#if ((session.config as Record<string, any>)?.fixtureSnapshot?.slots?.filter((s: any) => s.mtibDeploymentName) || []).length > 0}
+      {@const mtibSlots = ((session.config as Record<string, any>)?.fixtureSnapshot?.slots?.filter((s: any) => s.mtibDeploymentName) || [])}
+      <div class="flex items-start gap-2">
+        <Server size={14} class="text-text-tertiary mt-0.5 shrink-0" />
+        <div>
+          <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">MTIBs</div>
+          <div class="text-sm text-text-primary">{mtibSlots.length} node{mtibSlots.length !== 1 ? 's' : ''}</div>
+          {#if mtibSlots[0]?.mtibImageSha}
+            <div class="text-2xs text-text-tertiary font-mono">{mtibSlots[0].mtibImageSha.split(':').pop()?.substring(0, 12) || ''}</div>
+          {/if}
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <!-- Action buttons -->
+  {#if canManage}
+    <div class="flex items-center gap-2 border-t border-border pt-4 mt-4">
+      {#if session.status === 'ACTIVE'}
+        <button
+          onclick={onEndSession}
+          disabled={activeRunExists}
+          class="btn btn-sm btn-secondary"
+          title={activeRunExists ? 'A test run is actively executing — wait for it to finish' : 'End this session'}
+        >
+          <StopCircle size={14} />
+          End Session
+        </button>
+      {/if}
+      {#if session.status === 'COMPLETED' || session.status === 'CANCELLED'}
+        <button onclick={onArchive} class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20">
+          <Archive size={14} />
+          Archive
+        </button>
+      {/if}
+      {#if session.status === 'ARCHIVED'}
+        <button onclick={onDelete} class="btn btn-sm btn-danger">
+          <Trash2 size={14} />
+          Delete
+        </button>
+      {/if}
+    </div>
+  {/if}
 </div>

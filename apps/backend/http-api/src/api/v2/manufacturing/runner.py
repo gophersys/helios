@@ -57,23 +57,46 @@ def _emit(event: str, data: dict, room: str | None = None):
 def _resolve_slot_info(fixture) -> list[dict]:
     """Extract DUT info and node addresses from active fixture slots.
 
+    Node IPs are resolved from the K8s API at call time — never uses stored IPs.
     Returns a list of slot dicts with keys:
         slotIndex, slotId, dutSnr, dutDeviceId, nodeIp, nodeHostname
     """
     slots = fixture.slots if hasattr(fixture, "slots") and fixture.slots else []
+
+    # Collect hostnames for K8s IP resolution
+    hostnames = []
+    for slot in slots:
+        if slot.active:
+            node = slot.node if hasattr(slot, "node") and slot.node else None
+            if node:
+                hostnames.append(node.hostname)
+
+    # Resolve IPs from K8s (live, not cached)
+    ip_map: dict[str, str] = {}
+    if hostnames:
+        try:
+            from src.services.kubernetes.client import resolve_node_ips
+            ip_map = resolve_node_ips(hostnames)
+        except Exception:
+            logger.warning("K8s IP resolution failed — falling back to stored IPs")
+            for slot in slots:
+                node = slot.node if hasattr(slot, "node") and slot.node else None
+                if node and node.ipAddress:
+                    ip_map[node.hostname] = node.ipAddress
+
     result = []
     for slot in slots:
         if not slot.active:
             continue
         node = slot.node if hasattr(slot, "node") and slot.node else None
-        node_ip = node.ipAddress if node else None
+        hostname = getattr(node, "hostname", None) if node else None
         result.append({
             "slotIndex": slot.slotIndex,
             "slotId": slot.id,
             "dutSnr": slot.dutSnr if hasattr(slot, "dutSnr") else None,
             "dutDeviceId": slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None,
-            "nodeIp": node_ip,
-            "nodeHostname": getattr(node, "hostname", None) if node else None,
+            "nodeIp": ip_map.get(hostname) if hostname else None,
+            "nodeHostname": hostname,
         })
     return result
 
@@ -156,7 +179,9 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
         if s["nodeIp"]
     )
     slot_snrs = ",".join(s["dutSnr"] or f"slot-{s['slotIndex']}" for s in slot_infos)
-    slot_device_ids = ",".join(s.get("dutDeviceId") or "" for s in slot_infos)
+    # Only build SLOT_DEVICE_IDS if at least one slot has a real device ID
+    device_id_values = [s.get("dutDeviceId") or "" for s in slot_infos]
+    slot_device_ids = ",".join(device_id_values) if any(device_id_values) else ""
 
     # 2. Resolve test package
     from src.api.v2.manufacturing.sessions import _resolve_test_package
@@ -202,6 +227,10 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
         "ASSET_SET_ID": session.assetSetId or "",
         "ARTIFACTS_DIR": "/var/log/validation",
     }
+
+    # ASSET_SET_ID is already set above — the test framework downloads
+    # firmware directly from the asset set API. No BUILD_RUN_ID needed;
+    # manufacturing is independent of the build system.
 
     # 6. Development overrides — host network, local URLs
     is_dev = env_config.ENVIRONMENT == "development"

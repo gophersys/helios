@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '$lib/api';
+import { reportWsError, trackAction } from '$lib/stores/error-reporter.svelte';
 
 let systemSocket: Socket | null = null;
 let runSocket: Socket | null = null;
@@ -59,14 +60,17 @@ export function getSystemSocket(): Socket | null {
 
   systemSocket.on('connect', () => {
     console.log('System WebSocket connected');
+    trackAction('ws /kubernetes connected');
   });
 
   systemSocket.on('connect_error', (err) => {
     console.error('System WebSocket connection error:', err.message);
+    reportWsError({ message: `System WS connect error: ${err.message}`, namespace: '/kubernetes' });
   });
 
   systemSocket.on('disconnect', (reason) => {
     console.log('System WebSocket disconnected:', reason);
+    trackAction(`ws /kubernetes disconnected: ${reason}`);
   });
 
   return systemSocket;
@@ -118,14 +122,17 @@ export function getRunSocket(): Socket | null {
 
   runSocket.on('connect', () => {
     console.log('Run WebSocket connected');
+    trackAction('ws /runs connected');
   });
 
   runSocket.on('connect_error', (err) => {
     console.error('Run WebSocket connection error:', err.message);
+    reportWsError({ message: `Run WS connect error: ${err.message}`, namespace: '/runs' });
   });
 
   runSocket.on('disconnect', (reason) => {
     console.log('Run WebSocket disconnected:', reason);
+    trackAction(`ws /runs disconnected: ${reason}`);
   });
 
   return runSocket;

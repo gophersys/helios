@@ -283,15 +283,15 @@
     <div class="grid gap-3 sm:grid-cols-3">
       <label class="block">
         <span class="mb-1 block text-2xs font-medium text-text-tertiary">Version *</span>
-        <input type="text" bind:value={addVersion} placeholder="e.g. C0" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden" />
+        <input type="text" bind:value={addVersion} placeholder="e.g. C0" class="input input-md" />
       </label>
       <label class="block">
         <span class="mb-1 block text-2xs font-medium text-text-tertiary">Board Name *</span>
-        <input type="text" bind:value={addCkBoardsName} placeholder="e.g. alpha_c0" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
+        <input type="text" bind:value={addCkBoardsName} placeholder="e.g. alpha_c0" class="input input-md font-mono" />
       </label>
       <label class="block">
         <span class="mb-1 block text-2xs font-medium text-text-tertiary">SoCs (comma-separated)</span>
-        <input type="text" bind:value={addSocs} placeholder="nrf52840, nrf9151" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
+        <input type="text" bind:value={addSocs} placeholder="nrf52840, nrf9151" class="input input-md font-mono" />
       </label>
     </div>
     <div class="flex justify-end gap-2">
@@ -335,11 +335,11 @@
             <div class="grid gap-3 sm:grid-cols-2">
               <label class="block">
                 <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type</span>
-                <input type="number" min="0" bind:value={editRevDeviceType} class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
+                <input type="number" min="0" bind:value={editRevDeviceType} class="input input-md font-mono" />
               </label>
               <label class="block">
                 <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant</span>
-                <input type="number" min="0" bind:value={editRevDeviceVariant} class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
+                <input type="number" min="0" bind:value={editRevDeviceVariant} class="input input-md font-mono" />
               </label>
             </div>
             <div class="space-y-2">
@@ -352,7 +352,7 @@
                   <div class="flex-1"></div>
                   <label class="flex items-center gap-1.5">
                     <span class="text-2xs text-text-tertiary">AppID</span>
-                    <input type="number" min="0" bind:value={target.appId} class="w-20 rounded border border-border bg-surface-0 px-2 py-1 text-xs font-mono text-text-primary focus:border-accent focus:outline-hidden" />
+                    <input type="number" min="0" bind:value={target.appId} class="input input-sm w-20 font-mono" />
                   </label>
                 </div>
               {/each}

@@ -346,30 +346,12 @@ def _apply_cli_overrides(config: pytest.Config) -> None:
 def _get_slot_ids() -> List[str]:
     """Resolve slot IDs from environment at collection time.
 
-    Mock mode returns 4 slots. MTIB_HOSTS returns one per address.
-    FIXTURE_CONFIG_PATH reads the JSON. Falls back to single slot.
+    Delegates to get_slot_ids_from_env() which respects SLOT_FILTER
+    (set per-panel by the manufacturing runner), MTIB_HOSTS, and
+    FIXTURE_CONFIG_PATH. No mock fallbacks — real hardware or fail.
     """
-    mock = (
-        os.environ.get("MOCK_MODE") or os.environ.get("MOCK_CLOUD") or ""
-    ).strip().lower()
-    if mock in ("1", "true", "yes"):
-        return ["slot-0", "slot-1", "slot-2", "slot-3"]
-
-    mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
-    if mtib_hosts:
-        count = len([a for a in mtib_hosts.split(",") if a.strip()])
-        return [f"slot-{i}" for i in range(count)]
-
-    config_path = os.environ.get("FIXTURE_CONFIG_PATH")
-    if config_path and os.path.isfile(config_path):
-        import json
-        with open(config_path) as f:
-            data = json.load(f)
-        slot_count = len(data.get("slots", []))
-        if slot_count:
-            return [f"slot-{i}" for i in range(slot_count)]
-
-    return ["slot-0"]
+    from corekinect.test.slot import get_slot_ids_from_env
+    return get_slot_ids_from_env()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -458,42 +440,68 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
 
 @pytest.fixture(scope="session")
 def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
-    """Session-scoped multi-slot fixture context for manufacturing.
+    """Session-scoped multi-slot fixture context.
 
     Connects all MTIB slots defined by MTIB_HOSTS or FIXTURE_CONFIG_PATH.
     Each slot gets its own MTIB client for parallel DUT access.
+    Also builds SlotTestContexts with per-slot UART/power/artifacts.
+
+    Mock mode (MOCK_MODE=1 or --mock-cloud):
+        Returns a context with mock MTIB clients. No hardware or network.
     """
     if _manifest is None:
         pytest.skip("No concord.yaml manifest — fixture_ctx unavailable")
 
     _apply_cli_overrides(request.config)
 
-    if _is_mock_mode(request.config):
-        fctx = _build_mock_fixture_context()
-        yield fctx
-        return
-
     from corekinect.test.slot import FixtureContext
 
-    try:
-        fctx = FixtureContext.from_env()
-        fctx.connect_all()
-    except Exception as exc:
-        pytest.skip(f"Cannot connect multi-slot fixture: {exc}")
+    # Validate required env vars before attempting connection
+    import os as _os
+    mtib_hosts = _os.environ.get("MTIB_HOSTS", "").strip()
+    mtib_host = _os.environ.get("MTIB_HOST", "") or _os.environ.get("MTIB_ADDRESS", "")
+    fixture_config = _os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
+    if not mtib_hosts and not mtib_host and not fixture_config:
+        pytest.skip(
+            "No MTIB hardware configured (MTIB_HOSTS, MTIB_HOST, or FIXTURE_CONFIG_PATH required)"
+        )
+
+    fctx = FixtureContext.from_env()
+    fctx.connect_all()
+
+    # Build per-slot rich contexts (UART, power, artifacts)
+    slot_test_ctxs = fctx.build_slot_test_contexts()
+    for stc in slot_test_ctxs.values():
+        stc.connect()
+    fctx._slot_test_contexts = slot_test_ctxs
 
     yield fctx
+
+    # Teardown: disconnect per-slot services, then MTIB connections
+    for stc in slot_test_ctxs.values():
+        try:
+            stc.disconnect()
+        except Exception as e:
+            log.warning("Error disconnecting slot test context: %s", e)
     fctx.disconnect_all()
 
 
 @pytest.fixture(params=_get_slot_ids())
 def slot(fixture_ctx, request):
-    """Per-slot fixture for manufacturing — parametrizes tests across all slots.
+    """Per-slot fixture — parametrizes tests across all DUT slots.
 
-    Each test using this fixture runs once per physical DUT slot.
+    Returns a SlotTestContext (with UART/power) if available,
+    otherwise the raw SlotContext. Tests can use slot.mtib,
+    slot.shared_data, slot.serial_number etc. either way.
     """
     slot_id = request.param
     if slot_id not in fixture_ctx.slots:
         pytest.skip(f"Slot {slot_id} not configured in fixture context")
+
+    # Prefer the rich SlotTestContext if available
+    slot_test_ctxs = getattr(fixture_ctx, "_slot_test_contexts", {})
+    if slot_id in slot_test_ctxs:
+        return slot_test_ctxs[slot_id]
     return fixture_ctx.slots[slot_id]
 
 
@@ -506,7 +514,7 @@ def stage_assets():
 
         hex_path = stage_assets.hex("app", "debug")
         app, comms = stage_assets.hex_pair("debug")
-        version = stage_assets.by_label("SMOKE_APP_DEBUG").version()
+        version = stage_assets.by_label("smoke_app_debug").version()
 
     Returns None if BUILD_RUN_ID is not set (manual run).
     """
@@ -566,32 +574,44 @@ def report(request: pytest.FixtureRequest):
 def _test_lifecycle(request: pytest.FixtureRequest):
     """Per-test setup/teardown — auto-applied to every test.
 
-    When the test uses the ``ctx`` fixture (validation):
+    When the test uses ``ctx`` (single-slot validation):
         Before: clears UART buffer, marks test start for cloud polling
         After: dumps UART logs, uploads artifacts
 
-    When the test uses ``fixture_ctx`` (manufacturing):
-        After: dumps UART logs to artifacts directory
+    When the test uses ``slot`` (multi-slot manufacturing/validation):
+        Before: sets reporter device to slot SNR, clears per-slot UART
+        After: dumps per-slot UART logs to artifacts directory
 
     No-op for tests that don't use either context fixture.
     """
-    # Determine which context fixture is in use
     has_ctx = "ctx" in request.fixturenames
-    has_fixture_ctx = "fixture_ctx" in request.fixturenames
+    has_slot = "slot" in request.fixturenames
 
-    if not has_ctx and not has_fixture_ctx:
+    if not has_ctx and not has_slot:
         yield
         return
+
+    test_name = request.node.name
+    module_name = None
+    if hasattr(request.node, "module") and request.node.module:
+        mod_name = getattr(request.node.module, "__name__", "")
+        if "." in mod_name:
+            module_name = mod_name.rsplit(".", 1)[-1]
 
     # ── Setup ──
     if has_ctx:
         ctx = request.getfixturevalue("ctx")
-        module_name = None
-        if hasattr(request.node, "module") and request.node.module:
-            mod_name = getattr(request.node.module, "__name__", "")
-            if "." in mod_name:
-                module_name = mod_name.rsplit(".", 1)[-1]
-        ctx.setup_test(test_name=request.node.name, module=module_name)
+        ctx.setup_test(test_name=test_name, module=module_name)
+
+    elif has_slot:
+        slot_val = request.getfixturevalue("slot")
+        # Tag reporter with this slot's serial number for RunTarget mapping
+        reporter = getattr(request.config, "_concord_reporter", None)
+        if reporter and hasattr(slot_val, "serial_number") and slot_val.serial_number:
+            reporter.set_device(slot_val.serial_number)
+        # Clear per-slot UART if SlotTestContext
+        if hasattr(slot_val, "setup_test"):
+            slot_val.setup_test(test_name=test_name, module=module_name)
 
     yield
 
@@ -600,15 +620,16 @@ def _test_lifecycle(request: pytest.FixtureRequest):
 
     if has_ctx:
         ctx = request.getfixturevalue("ctx")
-        ctx.teardown_test(request.node.name, artifacts_dir)
-        # Upload UART log artifact (fire-and-forget)
+        ctx.teardown_test(test_name, artifacts_dir)
         if artifacts_dir and ctx.artifacts.enabled:
-            uart_log = os.path.join(artifacts_dir, f"{request.node.name}_uart.log")
+            uart_log = os.path.join(artifacts_dir, f"{test_name}_uart.log")
             if os.path.isfile(uart_log):
-                ctx.artifacts.upload(uart_log, f"{request.node.name}_uart.log")
+                ctx.artifacts.upload(uart_log, f"{test_name}_uart.log")
 
-    elif has_fixture_ctx and artifacts_dir:
-        os.makedirs(artifacts_dir, exist_ok=True)
+    elif has_slot and artifacts_dir:
+        slot_val = request.getfixturevalue("slot")
+        if hasattr(slot_val, "teardown_test"):
+            slot_val.teardown_test(test_name, artifacts_dir)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

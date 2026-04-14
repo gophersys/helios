@@ -19,12 +19,11 @@ from src.shared.types import (
 )
 
 # Drivers
-from src.drivers.bme280 import BME280
 from src.drivers.lis2de12 import LIS2DE12
 
 
 class SensorsHandler:
-    def __init__(self, logger: Logger, bme280: BME280 | None):
+    def __init__(self, logger: Logger, bme280=None):
         self.logger = logger
         self.bme280 = bme280
         self._lis2de12 = LIS2DE12(logger)

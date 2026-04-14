@@ -504,3 +504,54 @@ def trigger_scheduler():
             "processed": False,
             "reason": f"Scheduler error: {e}",
         }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+#  POST /v2/runs/queue/batch — batch action on multiple queue entries
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.VALIDATION_MANAGE)
+def batch_queue_action():
+    """Apply an action to multiple validation queue entries at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    ids = body.get("ids", [])
+
+    if action not in ("cancel",):
+        return bad_request("action must be 'cancel'")
+    if not isinstance(ids, list) or not ids:
+        return bad_request("ids must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for eid in ids:
+        entry = db.validationqueueentry.find_unique(where={"id": eid})
+        if not entry:
+            failed.append({"id": eid, "reason": "Not found"})
+            continue
+
+        if entry.status != "QUEUED":
+            failed.append({"id": eid, "reason": f"Cannot cancel entry with status {entry.status}"})
+            continue
+
+        db.validationqueueentry.update(
+            where={"id": eid},
+            data={
+                "status": "CANCELLED",
+                "completedAt": datetime.now(timezone.utc),
+            },
+        )
+        log_audit("validation.queue.cancel", "ValidationQueueEntry", eid, {"batch": True})
+        succeeded.append(eid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200

@@ -74,3 +74,31 @@ def get_networking_v1_api() -> k8s_client.NetworkingV1Api:
 def get_rbac_v1_api() -> k8s_client.RbacAuthorizationV1Api:
     """Get RBAC V1 API client using the global Kubernetes client"""
     return k8s_client.RbacAuthorizationV1Api(get_k8s_client())
+
+
+def resolve_node_ips(hostnames: list[str]) -> dict[str, str]:
+    """Resolve current InternalIPs for K8s nodes by hostname.
+
+    Queries the K8s API for live node addresses — never uses stored/cached IPs.
+    Returns {hostname: ip} for each resolved node. Missing nodes are omitted.
+    """
+    if not hostnames:
+        return {}
+    try:
+        core_v1 = get_core_v1_api()
+        k8s_nodes = core_v1.list_node()
+    except Exception:
+        logger.warning("Cannot resolve node IPs — K8s API unavailable")
+        return {}
+
+    result: dict[str, str] = {}
+    target_set = set(hostnames)
+    for node in k8s_nodes.items:
+        name = node.metadata.name
+        if name not in target_set:
+            continue
+        for addr in (node.status.addresses or []):
+            if addr.type == "InternalIP":
+                result[name] = addr.address
+                break
+    return result

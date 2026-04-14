@@ -93,16 +93,32 @@ class ManufacturingRunnerLoop:
         signal.signal(signal.SIGTERM, self._handle_sigterm)
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
-        # 1. Connect MTIB hardware (non-fatal — runner stays alive for panel assignments)
-        log.info("Connecting to MTIB hardware...")
+        # Max lifetime safety net — self-terminate if session was never ended
+        max_lifetime_h = int(os.environ.get("RUNNER_MAX_LIFETIME_HOURS", "8"))
+        import time as _time
+        self._start_time = _time.monotonic()
+        self._max_lifetime_s = max_lifetime_h * 3600
+        log.info("  max_lifetime = %dh", max_lifetime_h)
+
+        # 1. Connect MTIB hardware — connect what's available, skip the rest.
+        # Per-run SLOT_FILTER will validate only the needed slots before test execution.
+        mock_mode = os.environ.get("MOCK_MODE", "0") in ("1", "true", "yes")
+        log.info("Connecting to MTIB hardware...%s", " (MOCK_MODE)" if mock_mode else "")
         try:
             self.fixture_ctx = FixtureContext.from_env()
-            self.fixture_ctx.connect_all()
-            log.info("MTIB connected: %d slots", self.fixture_ctx.slot_count)
+            connected = self.fixture_ctx.connect_available()
+            if connected == 0 and not mock_mode:
+                log.error("No MTIB connections available. Hardware unreachable.")
+                self._send_heartbeat("ERROR")
+                sys.exit(1)
         except Exception as e:
-            log.warning("MTIB connection failed (non-fatal): %s", e)
-            log.warning("Runner will stay alive but test execution may fail without hardware")
-            self.fixture_ctx = None
+            if mock_mode:
+                log.warning("MTIB init failed (mock mode — continuing): %s", e)
+                self.fixture_ctx = None
+            else:
+                log.error("MTIB init failed: %s", e)
+                self._send_heartbeat("ERROR")
+                sys.exit(1)
 
         # 2. Connect WebSocket
         self.sio = socketio.Client(
@@ -133,9 +149,10 @@ class ManufacturingRunnerLoop:
                 log.warning("WebSocket connection failed (attempt %d/10): %s — retrying in %ds", attempt + 1, e, delay)
                 time.sleep(delay)
         else:
-            log.error("WebSocket connection failed after 10 attempts — running without real-time events")
-            log.error("The runner will poll for panel assignments instead")
-            # Fall through — runner stays alive and polls
+            log.error("WebSocket connection failed after 10 attempts")
+            log.error("Cannot receive panel assignments without WebSocket. Reporting ERROR.")
+            self._send_heartbeat("ERROR")
+            sys.exit(1)
 
         # 3. Join session room (only if connected)
         if self.sio and self.sio.connected:
@@ -148,20 +165,18 @@ class ManufacturingRunnerLoop:
         # 4. Send initial heartbeat
         self._send_heartbeat("READY")
 
-        # 5. Recover any pending/crashed runs
+        # 5. Start periodic heartbeat + lifetime watchdog
+        self._heartbeat_thread = threading.Thread(
+            target=self._heartbeat_loop, daemon=True, name="heartbeat"
+        )
+        self._heartbeat_thread.start()
+
+        # 6. Recover any pending/crashed runs
         self._recover_pending_runs()
 
-        # 6. Block until disconnected (or poll if WS failed)
+        # 7. Block until disconnected
         log.info("Runner ready -- waiting for panel assignments")
-        if self.sio and self.sio.connected:
-            self.sio.wait()
-        else:
-            # Poll mode — check for pending runs periodically
-            log.info("WebSocket unavailable — falling back to polling mode")
-            import time
-            while not self._shutting_down:
-                self._recover_pending_runs()
-                time.sleep(5)
+        self.sio.wait()
         log.info("Event loop exited")
 
     # ------------------------------------------------------------------
@@ -227,6 +242,41 @@ class ManufacturingRunnerLoop:
         os.environ["CONCORD_RUN_ID"] = run_id
         os.environ["CONCORD_SESSION_ID"] = run_id
 
+        # Extract target info from the run assignment and set env vars.
+        # pytest/autoconf creates a fresh FixtureContext per run that reads
+        # SLOT_FILTER, SLOT_SNRS, and SLOT_DEVICE_IDS from the environment.
+        targets = data.get("targets", [])
+        if targets:
+            targets_sorted = sorted(targets, key=lambda t: t.get("slotIndex", 0))
+
+            # SLOT_FILTER: which slot indices to test for this panel
+            target_indices = [t.get("slotIndex", 0) for t in targets_sorted]
+            os.environ["SLOT_FILTER"] = ",".join(str(i) for i in target_indices)
+
+            # SLOT_SNRS + SLOT_DEVICE_IDS: per-slot DUT identity for this panel
+            # These must be comma-separated aligned with MTIB_HOSTS order (all slots),
+            # not just the filtered ones. Build a full-width list with blanks for
+            # slots not in this run, then FixtureContext.from_env() picks them up.
+            mtib_hosts = os.environ.get("MTIB_HOSTS", "")
+            total_slots = len([a for a in mtib_hosts.split(",") if a.strip()]) if mtib_hosts else 0
+            snrs = [""] * total_slots
+            device_ids = [""] * total_slots
+            for t in targets_sorted:
+                idx = t.get("slotIndex", 0)
+                if idx < total_slots:
+                    snrs[idx] = t.get("serialNumber") or ""
+                    device_ids[idx] = t.get("deviceId") or ""
+            os.environ["SLOT_SNRS"] = ",".join(snrs)
+            os.environ["SLOT_DEVICE_IDS"] = ",".join(device_ids)
+
+            log.info("Run targets: %s",
+                     ", ".join(f"slot-{t.get('slotIndex')}={t.get('serialNumber','?')}"
+                               for t in targets_sorted))
+        else:
+            os.environ.pop("SLOT_FILTER", None)
+            os.environ.pop("SLOT_SNRS", None)
+            os.environ.pop("SLOT_DEVICE_IDS", None)
+
         try:
             runner = TestRunner(stage="manufacturing", run_id=run_id)
             exit_code = runner.run()
@@ -267,6 +317,29 @@ class ManufacturingRunnerLoop:
     # ------------------------------------------------------------------
     # HTTP helpers
     # ------------------------------------------------------------------
+
+    def _heartbeat_loop(self) -> None:
+        """Periodic heartbeat every 30s + lifetime watchdog."""
+        import time as _time
+        while not self._shutting_down:
+            _time.sleep(30)
+            if self._shutting_down:
+                break
+
+            # Check max lifetime
+            elapsed = _time.monotonic() - self._start_time
+            if elapsed > self._max_lifetime_s:
+                hours = self._max_lifetime_s / 3600
+                log.error("Runner exceeded max lifetime (%dh) -- shutting down", hours)
+                self._send_heartbeat("ERROR")
+                self._shutting_down = True
+                self._shutdown()
+                return
+
+            # Send periodic heartbeat (READY or RUNNING depending on state)
+            with self._running_lock:
+                status = "RUNNING" if self._current_run_id else "READY"
+            self._send_heartbeat(status)
 
     def _send_heartbeat(self, status: str) -> None:
         """POST runner heartbeat to the backend.

@@ -1,9 +1,16 @@
 <script lang="ts">
-  import { QrCode, LayoutGrid, Loader2 } from 'lucide-svelte';
+  import { QrCode, LayoutGrid, Loader2, Check, AlertTriangle, Fingerprint } from 'lucide-svelte';
   import Modal from '$lib/components/ui/modal.svelte';
-  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import { api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
+
+  interface ResolvedSlot {
+    slotIndex: number;
+    snr: string | null;
+    deviceId: string | null;
+    label: string;
+    coreopsError: string | null;
+  }
 
   let {
     open = false,
@@ -29,13 +36,14 @@
   let resolving = $state(false);
   let starting = $state(false);
   let error = $state<string | null>(null);
-  let resolvedSlots = $state<{ slotIndex: number; serialNumber: string }[]>([]);
+  let resolvedSlots = $state<ResolvedSlot[]>([]);
   let resolved = $state(false);
+  let coreopsAvailable = $state(false);
 
-  const panelSlotCount = $derived(panelRows * panelCols);
   const isStandalone = $derived(runType === 'standalone');
   const canResolve = $derived(!resolving && snrInput.trim().length > 0 && !resolved);
   const canStart = $derived(!starting && (isStandalone ? snrInput.trim().length > 0 : resolved && resolvedSlots.length > 0));
+  const hasCoreopsErrors = $derived(resolvedSlots.some(s => s.coreopsError));
 
   const title = $derived(isStandalone ? 'Scan Standalone' : 'Scan Panel');
 
@@ -44,11 +52,29 @@
     resolving = true;
     error = null;
     try {
-      const res = await api.post<ApiResponse<{ slots: { slotIndex: number; serialNumber: string }[] }>>(
+      const res = await api.post<ApiResponse<{ primarySnr: string; coreopsAvailable: boolean; slots: ResolvedSlot[] }>>(
         `/v2/manufacturing/sessions/${sessionId}/resolve-panel`,
         { snr: snrInput.trim() }
       );
-      resolvedSlots = (res as any).data?.slots || [];
+      const data = (res as any).data;
+      const allSlots: ResolvedSlot[] = data?.slots || [];
+      // Panel scan: only show grid slots (first rows*cols), not standalone
+      const panelSlotCount = panelRows * panelCols;
+      const panelOnly = allSlots.filter(s => s.slotIndex < panelSlotCount);
+
+      // If most slots have no SNR, the input was bad — stay on input screen
+      const slotsWithSnr = panelOnly.filter(s => s.snr);
+      if (slotsWithSnr.length === 0) {
+        error = 'Could not derive serial numbers from this input. Check the SNR and try again.';
+        return;
+      }
+      if (slotsWithSnr.length < panelOnly.length / 2) {
+        error = `Only ${slotsWithSnr.length} of ${panelOnly.length} slots resolved. The SNR may be invalid.`;
+        return;
+      }
+
+      resolvedSlots = panelOnly;
+      coreopsAvailable = data?.coreopsAvailable ?? false;
       resolved = true;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to resolve panel SNRs';
@@ -67,7 +93,10 @@
         runType,
       };
       if (!isStandalone && resolvedSlots.length > 0) {
-        body.slotSnrs = resolvedSlots;
+        body.slotSnrs = resolvedSlots.map(s => ({
+          slotIndex: s.slotIndex,
+          snr: s.snr,
+        }));
       }
       const res = await api.post<ApiResponse<{ id: string }>>(
         `/v2/manufacturing/sessions/${sessionId}/runs`,
@@ -97,6 +126,7 @@
     snrInput = '';
     resolvedSlots = [];
     resolved = false;
+    coreopsAvailable = false;
     error = null;
     resolving = false;
     starting = false;
@@ -106,9 +136,17 @@
     resetState();
     onClose?.();
   }
+
+  function handleRescan() {
+    snrInput = '';
+    resolvedSlots = [];
+    resolved = false;
+    coreopsAvailable = false;
+    error = null;
+  }
 </script>
 
-<Modal {open} {title} onclose={handleClose} size="md">
+<Modal {open} {title} onclose={handleClose} size={resolved ? 'lg' : 'md'}>
   <div class="space-y-4">
     <!-- SNR input -->
     <div class="space-y-1.5">
@@ -126,6 +164,11 @@
           class="input input-md pl-9 w-full"
         />
       </div>
+      {#if resolved}
+        <button onclick={handleRescan} class="btn btn-sm btn-ghost text-accent">
+          Scan different panel
+        </button>
+      {/if}
     </div>
 
     <!-- Error -->
@@ -135,24 +178,75 @@
 
     <!-- Resolved panel grid (panel mode only) -->
     {#if !isStandalone && resolved && resolvedSlots.length > 0}
-      <div class="rounded-lg border border-border bg-surface-0 p-3">
-        <div class="flex items-center gap-2 mb-2">
-          <LayoutGrid size={14} class="text-text-tertiary" />
-          <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">
-            Resolved — {resolvedSlots.length} SNRs
+      <div class="rounded-lg border border-border bg-surface-0 p-4">
+        <!-- Header -->
+        <div class="flex items-center gap-2 mb-3">
+          <LayoutGrid size={14} class="text-accent" />
+          <span class="text-2xs font-semibold text-text-primary uppercase tracking-wider">
+            Panel Layout
+          </span>
+          <span class="text-2xs text-text-tertiary ml-auto">
+            {resolvedSlots.length} slots &middot; {panelRows}x{panelCols}
           </span>
         </div>
+
+        <!-- Grid matches fixture physical layout -->
         <div
-          class="grid gap-1.5 mx-auto"
-          style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr)); max-width: {Math.min(panelCols * 100, 400)}px;"
+          class="grid gap-2"
+          style="grid-template-columns: repeat({panelCols}, minmax(0, 1fr));"
         >
           {#each resolvedSlots as slot (slot.slotIndex)}
-            <div class="flex flex-col items-center justify-center rounded-lg border border-border bg-surface-2 p-2 text-center min-h-12">
-              <span class="text-2xs font-semibold text-text-primary">{slot.slotIndex + 1}</span>
-              <span class="text-2xs font-mono text-text-secondary truncate max-w-full">{slot.serialNumber}</span>
+            <div
+              class="flex flex-col items-center gap-1 rounded-lg border-2 p-3 text-center transition-colors
+                {slot.coreopsError
+                  ? 'border-warning/50 bg-warning-muted/30'
+                  : slot.deviceId
+                    ? 'border-success/40 bg-success-muted/30'
+                    : 'border-border bg-surface-2'
+                }"
+            >
+              <!-- Slot number -->
+              <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">
+                {slot.label}
+              </span>
+
+              <!-- SNR -->
+              <span class="text-sm font-mono font-semibold text-text-primary">
+                {slot.snr || '—'}
+              </span>
+
+              <!-- Device ID or CoreOps status -->
+              {#if slot.deviceId}
+                <div class="flex items-center gap-1">
+                  <Fingerprint size={10} class="text-success shrink-0" />
+                  <span class="text-2xs font-mono text-success break-all">{slot.deviceId}</span>
+                </div>
+              {:else if slot.coreopsError}
+                <div class="flex items-center gap-1">
+                  <AlertTriangle size={10} class="text-warning" />
+                  <span class="text-2xs text-warning">ID failed</span>
+                </div>
+              {:else if !coreopsAvailable}
+                <span class="text-2xs text-text-tertiary">No CoreOps</span>
+              {:else}
+                <span class="text-2xs text-text-tertiary">Pending</span>
+              {/if}
             </div>
           {/each}
         </div>
+
+        <!-- CoreOps warning -->
+        {#if hasCoreopsErrors}
+          <p class="mt-3 text-2xs text-warning flex items-center gap-1">
+            <AlertTriangle size={12} />
+            Some device IDs could not be resolved. Run will continue without them.
+          </p>
+        {:else if coreopsAvailable && resolvedSlots.every(s => s.deviceId)}
+          <p class="mt-3 text-2xs text-success flex items-center gap-1">
+            <Check size={12} />
+            All device IDs resolved via CoreOps.
+          </p>
+        {/if}
       </div>
     {/if}
 

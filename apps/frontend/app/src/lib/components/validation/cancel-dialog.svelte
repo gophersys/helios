@@ -26,17 +26,17 @@
           type="text"
           bind:value={ctx.cancelConfirmText}
           placeholder={ctx.runId}
-          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden font-mono"
+          class="input input-md font-mono"
         />
       </div>
       <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
-        <button onclick={() => { ctx.confirmCancel = false; ctx.cancelConfirmText = ''; }} class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">
+        <button onclick={() => { ctx.confirmCancel = false; ctx.cancelConfirmText = ''; }} class="btn btn-sm btn-ghost">
           Keep Running
         </button>
         <button
           onclick={() => { ctx.confirmCancel = false; ctx.cancelConfirmText = ''; ctx.cancelRun(); }}
           disabled={ctx.cancelling || ctx.cancelConfirmText !== ctx.runId}
-          class="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="btn btn-sm btn-danger"
         >
           {#if ctx.cancelling}
             <Loader2 size={14} class="animate-spin" />

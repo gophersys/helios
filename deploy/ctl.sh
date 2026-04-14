@@ -129,7 +129,7 @@ cmd_build() {
   local env="${1:-staging}"
   shift || true
   local targets=("$@")
-  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "docs")
+  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "runner" "docs")
 
   # In CI, stream docker build output instead of suppressing it
   local build_redirect="/dev/null"
@@ -447,7 +447,7 @@ cmd_deploy() {
   local env="$1"
   shift || true
   local targets=("$@")
-  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "docs")
+  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "runner" "docs")
 
   local version
   version=$(get_version)
@@ -630,6 +630,8 @@ cmd_dev_update() {
   step "Rebuilding containers"
   timer_start
   $COMPOSE build --parallel http-api git-poller build-service 2>&1 | tail -5
+  # Test runner is not a compose service — built separately (spawned on-demand by API)
+  cmd_build development runner 2>&1 | tail -3
   timer_end "Image builds"
 
   step "Restarting containers"

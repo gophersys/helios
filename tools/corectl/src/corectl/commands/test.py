@@ -34,17 +34,16 @@ MANUFACTURING_STAGES = ["manufacturing"]
 ALL_STAGES = STANDARD_STAGES + MANUFACTURING_STAGES
 
 # Required files in a valid test project (v2)
+# pytest config can live in pytest.ini OR pyproject.toml
 REQUIRED_FILES_V2 = [
     "concord.yaml",
     "conftest.py",
-    "pytest.ini",
 ]
 
 # Required files for legacy v1 projects
 REQUIRED_FILES_V1 = [
     "concord.test.yaml",
     "conftest.py",
-    "pytest.ini",
 ]
 
 # Try to import the manifest library (optional — not always installed)
@@ -165,11 +164,11 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
         else:
             result.error(f"Missing: {filename}")
 
-    # pyproject.toml (recommended, not required)
+    # pyproject.toml (required for runner pip install)
     if (project_dir / "pyproject.toml").exists():
         result.ok("pyproject.toml")
     else:
-        result.warn("No pyproject.toml — needed for standalone installation")
+        result.error("Missing: pyproject.toml — the runner needs this to install the package")
 
     if not manifest:
         result.error(f"{MANIFEST_NAME} is empty or invalid YAML")
@@ -186,19 +185,21 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
             return manifest
     else:
         result.warn("corekinect.manifest not installed — skipping JSON Schema validation")
-        # Basic field checks as fallback
         for fld in ["schema", "package", "product", "fixture"]:
             if fld not in manifest:
                 result.error(f"Manifest missing '{fld}' field")
 
     pkg_type = manifest.get("package", {}).get("type", "validation")
 
-    # Validate stage/step directories exist
+    # Validate stage/step directories exist and have tests
     if pkg_type == "validation":
         stages = manifest.get("stages", {})
         if not stages:
             result.error("No stages defined in manifest")
         for stage_name, stage_cfg in stages.items():
+            if isinstance(stage_cfg, dict) and stage_cfg.get("enabled") is False:
+                result.ok(f"Stage '{stage_name}' (disabled)")
+                continue
             directory = stage_cfg.get("directory", f"tests/{stage_name}") if isinstance(stage_cfg, dict) else f"tests/{stage_name}"
             stage_dir = project_dir / directory
             if stage_dir.is_dir():
@@ -210,12 +211,34 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
             else:
                 result.error(f"Stage '{stage_name}' directory missing: {directory}")
     elif pkg_type == "manufacturing":
-        steps = manifest.get("steps", [])
+        steps = manifest.get("steps", []) or manifest.get("stages", {})
         if not steps:
-            result.error("No steps defined in manifest")
-        for step in steps:
-            module = step.get("module", "")
-            result.ok(f"Step: {step.get('name', '?')} -> {module}")
+            result.error("No steps/stages defined in manifest")
+        if isinstance(steps, list):
+            for step in steps:
+                module = step.get("module", "")
+                # Verify the module file exists
+                module_path = module.replace(".", "/") + ".py"
+                if (project_dir / module_path).exists():
+                    result.ok(f"Step: {step.get('name', '?')} -> {module}")
+                else:
+                    result.error(f"Step '{step.get('name', '?')}' module not found: {module_path}")
+        elif isinstance(steps, dict):
+            for stage_name, stage_cfg in steps.items():
+                directory = stage_cfg.get("directory", f"tests/{stage_name}") if isinstance(stage_cfg, dict) else f"tests/{stage_name}"
+                module = stage_cfg.get("module", "") if isinstance(stage_cfg, dict) else ""
+                if module:
+                    module_path = f"{directory}/{module}.py"
+                    if (project_dir / module_path).exists():
+                        result.ok(f"Stage: {stage_name} -> {module_path}")
+                    else:
+                        result.error(f"Stage '{stage_name}' module not found: {module_path}")
+                else:
+                    stage_dir = project_dir / directory
+                    if stage_dir.is_dir():
+                        result.ok(f"Stage: {stage_name} -> {directory}/")
+                    else:
+                        result.error(f"Stage '{stage_name}' directory missing: {directory}")
 
     # Fixture profile
     fixture = manifest.get("fixture", {})
@@ -224,8 +247,51 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
         full_path = project_dir / profile_path
         if full_path.exists():
             result.ok(f"Fixture profile: {profile_path}")
+            # Validate fixture YAML content
+            try:
+                with open(full_path) as f:
+                    profile_data = yaml.safe_load(f)
+                if not profile_data:
+                    result.error(f"Fixture profile is empty: {profile_path}")
+                else:
+                    if "power" not in profile_data:
+                        result.error(f"Fixture profile missing 'power' config: {profile_path}")
+                    else:
+                        result.ok(f"Fixture profile has power config")
+            except Exception as exc:
+                result.error(f"Fixture profile invalid YAML: {exc}")
         else:
-            result.warn(f"Fixture profile not found: {profile_path}")
+            result.error(f"Fixture profile not found: {profile_path}")
+
+    # Fixture controller
+    controller = fixture.get("controller", "")
+    if controller:
+        # Convert dotted path to file path
+        parts = controller.rsplit(".", 1)
+        if len(parts) == 2:
+            module_path = parts[0].replace(".", "/") + ".py"
+            class_name = parts[1]
+            if (project_dir / module_path).exists():
+                # Verify the class exists in the file
+                content = (project_dir / module_path).read_text()
+                if f"class {class_name}" in content:
+                    result.ok(f"Fixture controller: {controller}")
+                else:
+                    result.error(f"Fixture controller class '{class_name}' not found in {module_path}")
+            else:
+                result.error(f"Fixture controller module not found: {module_path}")
+
+    # Timeout sanity checks
+    for stage_name, stage_cfg in (manifest.get("stages", {}) or {}).items():
+        if isinstance(stage_cfg, dict):
+            timeout = stage_cfg.get("timeout_s", 0)
+            if timeout and (timeout < 5 or timeout > 14400):
+                result.warn(f"Stage '{stage_name}' timeout {timeout}s outside reasonable range [5, 14400]")
+    for step in (manifest.get("steps", []) or []):
+        if isinstance(step, dict):
+            timeout = step.get("timeout_s", 0)
+            if timeout and (timeout < 5 or timeout > 14400):
+                result.warn(f"Step '{step.get('name', '?')}' timeout {timeout}s outside reasonable range [5, 14400]")
 
     return manifest
 
@@ -310,17 +376,34 @@ def _validate_semantics(project_dir: Path, manifest: dict, is_v2: bool, result: 
     product = manifest.get("product", {})
 
     if is_v2:
-        # v2: device info is nested under product.device
         device = product.get("device", {})
         dt = device.get("type_id", 0)
         dv = device.get("variant_id", 0)
     else:
-        # v1: flat fields on product
         dt = product.get("device_type_id", 0)
         dv = product.get("device_variant_id", 0)
 
     if dt == 0 or dv == 0:
         result.warn(f"Device type={dt}, variant={dv} — set these for production use")
+
+    # conftest.py must declare autoconf plugin
+    conftest_path = project_dir / "conftest.py"
+    if conftest_path.exists():
+        content = conftest_path.read_text()
+        if "corekinect.test.autoconf" in content:
+            result.ok("conftest.py loads autoconf plugin")
+        elif "corekinect.test.reporter" in content:
+            result.ok("conftest.py loads reporter plugin")
+        else:
+            result.warn("conftest.py does not load corekinect.test.autoconf — multi-slot and lifecycle fixtures unavailable")
+
+    # multi_slot consistency
+    if is_v2:
+        fixture = manifest.get("fixture", {})
+        pkg_type = manifest.get("package", {}).get("type", "validation")
+        multi_slot = fixture.get("multi_slot", False)
+        if pkg_type == "manufacturing" and not multi_slot:
+            result.warn("Manufacturing package with multi_slot=false — most manufacturing fixtures are multi-slot")
 
     # Validate fixture profiles (JSON legacy + YAML new)
     fixtures_dir = project_dir / "fixtures"
@@ -355,26 +438,31 @@ def _validate_semantics(project_dir: Path, manifest: dict, is_v2: bool, result: 
             except Exception as exc:
                 result.error(f"{yaml_path.parent.name}/fixture.yaml: invalid YAML -- {exc}")
 
-    # Check pytest markers in pytest.ini
+    # Check pytest markers in pytest.ini or pyproject.toml
     pytest_ini = project_dir / "pytest.ini"
+    pyproject = project_dir / "pyproject.toml"
+    marker_content = ""
     if pytest_ini.exists():
-        ini_content = pytest_ini.read_text()
+        marker_content = pytest_ini.read_text()
+    elif pyproject.exists():
+        marker_content = pyproject.read_text()
 
+    if marker_content:
         if is_v2:
             # v2: check markers declared in stage configs
             stages = manifest.get("stages", {})
             for stage_name, stage_cfg in stages.items():
                 if isinstance(stage_cfg, dict):
                     for marker in stage_cfg.get("markers", []):
-                        if marker not in ini_content:
-                            result.warn(f"Stage '{stage_name}' uses marker '{marker}' not in pytest.ini")
+                        if marker not in marker_content:
+                            result.warn(f"Stage '{stage_name}' uses marker '{marker}' not in pytest config")
         else:
             # v1: hardcoded marker checks
             stages = manifest.get("stages", {})
-            if stages.get("regression") and "health_check" not in ini_content:
-                result.warn("Regression enabled but 'health_check' marker not in pytest.ini")
-            if stages.get("fuota") and "fuota_fast" not in ini_content:
-                result.warn("FUOTA enabled but 'fuota_fast' marker not in pytest.ini")
+            if stages.get("regression") and "health_check" not in marker_content:
+                result.warn("Regression enabled but 'health_check' marker not in pytest config")
+            if stages.get("fuota") and "fuota_fast" not in marker_content:
+                result.warn("FUOTA enabled but 'fuota_fast' marker not in pytest config")
 
 
 def _validate_compatibility(project_dir: Path, manifest: dict, is_v2: bool, result: ValidationResult) -> None:
@@ -782,15 +870,17 @@ def package(path: str):
 
 @test.command()
 @click.argument("path", default=".", required=False)
+@click.option("--release", "auto_release", is_flag=True, help="Upload and release in one step (auto-versioned)")
 @click.pass_context
-def upload(ctx, path: str):
+def upload(ctx, path: str, auto_release: bool):
     """Upload test package to Concord platform as a development version.
 
-    Auto-generates version from git SHA. Mutable — overwrites previous.
-    Use 'corectl test release' to promote a dev package to released.
+    Auto-generates version from git SHA + timestamp for uniqueness.
+    Use --release to upload and promote to released in one step.
 
     Examples:
-        corectl test upload                    # dev-abc12345
+        corectl upload                     # dev-abc12345-1713100800
+        corectl upload --release           # upload + auto-release
     """
     import tarfile
     import hashlib
@@ -809,18 +899,39 @@ def upload(ctx, path: str):
 
     slug = _get_slug(manifest, is_v2)
 
-    # Development version from git SHA
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--short=8", "HEAD"],
-            capture_output=True, text=True, cwd=str(project_dir),
-        )
-        sha = result.stdout.strip() or "unknown"
-    except Exception:
-        sha = "unknown"
-    version = f"dev-{sha}"
+    # ── Pre-upload validation ──
+    click.echo("Pre-upload validation...")
+    pre_result = ValidationResult()
+    if is_v2:
+        _validate_structure_v2(project_dir, pre_result)
+    else:
+        _validate_structure_v1(project_dir, pre_result)
+    if manifest:
+        _validate_semantics(project_dir, manifest, is_v2, pre_result)
 
-    # Collect git state for traceability
+    if pre_result.errors:
+        click.echo()
+        for msg in pre_result.errors:
+            click.echo(click.style(f"  ✗ {msg}", fg="red"))
+        for msg in pre_result.warnings:
+            click.echo(click.style(f"  ⚠ {msg}", fg="yellow"))
+        click.echo()
+        click.echo(click.style(
+            f"Upload blocked — {len(pre_result.errors)} validation error(s). "
+            "Run 'corectl test validate' for details.",
+            fg="red",
+        ))
+        raise SystemExit(1)
+
+    if pre_result.warnings:
+        for msg in pre_result.warnings:
+            click.echo(click.style(f"  ⚠ {msg}", fg="yellow"))
+        click.echo()
+
+    click.echo(click.style("  ✓ Validation passed", fg="green"))
+    click.echo()
+
+    # Collect git state for traceability + version generation
     git_sha = ""
     git_dirty = False
     try:
@@ -836,6 +947,15 @@ def upload(ctx, path: str):
         git_dirty = bool(result.stdout.strip())
     except Exception:
         pass
+
+    # Development version: git SHA + epoch suffix for uniqueness on dirty trees
+    sha = git_sha or "unknown"
+    if git_dirty:
+        import time as _time
+        epoch = int(_time.time())
+        version = f"dev-{sha}-{epoch}"
+    else:
+        version = f"dev-{sha}"
 
     # Prompt for upload message
     dirty_hint = " (dirty)" if git_dirty else ""
@@ -914,11 +1034,29 @@ def upload(ctx, path: str):
 
     if resp.status_code in (200, 201):
         data = resp.json().get("data", {})
+        package_id = data.get("id", "unknown")
         click.echo(click.style(f"Uploaded: {slug}@{version}", fg="green"))
-        click.echo(f"  ID: {data.get('id', 'unknown')}")
+        click.echo(f"  ID: {package_id}")
         click.echo(f"  Status: {status}")
         click.echo(f"  Type: {package_type}")
         click.echo(f"  Tests: {data.get('testCount', '?')}")
+
+        # Auto-release if --release flag was passed
+        if auto_release and package_id != "unknown":
+            release_resp = requests.post(
+                f"{api_url}/v2/products/{slug}/test-packages/{package_id}/release",
+                headers={"Authorization": f"ApiKey {token}"},
+                verify=False,
+            )
+            if release_resp.status_code in (200, 201):
+                rel_data = release_resp.json().get("data", {})
+                rel_ver = rel_data.get("releasedVersion", rel_data.get("version", version))
+                click.echo(click.style(f"  Released as {rel_ver}", fg="green"))
+            else:
+                click.echo(click.style(
+                    f"  Release failed: HTTP {release_resp.status_code} — {release_resp.text[:200]}",
+                    fg="yellow",
+                ), err=True)
     elif resp.status_code == 409:
         click.echo(click.style(
             f"Version {version} already exists. Re-run to generate a new dev version.",

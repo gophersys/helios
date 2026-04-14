@@ -11,8 +11,11 @@
     Plus,
     RefreshCw,
     Upload,
+    XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
+  import { api } from '$lib/api';
+  import type { ApiResponse } from '$lib/types';
   import type {
     BuildJob,
     BuildArtifact,
@@ -46,6 +49,8 @@
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
   import FilterPills from '$lib/components/ui/filter-pills.svelte';
   import PaginationNav from '$lib/components/ui/pagination.svelte';
+  import SelectionBar from '$lib/components/ui/selection-bar.svelte';
+  import LinkChip from '$lib/components/ui/link-chip.svelte';
   import TriggerBadge from '$lib/components/ui/trigger-badge.svelte';
   import StagePills from '$lib/components/ui/stage-pills.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
@@ -144,6 +149,39 @@
   let formSerialNumber = $state('');
   let formValidate = $state(false);
   let submitting = $state(false);
+
+  // ── Selection + batch (runs tab only) ─────────────────────────
+  let selectedRunIds = $state<Set<string>>(new Set());
+  let batchLoading = $state(false);
+
+  function toggleRun(id: string) {
+    const next = new Set(selectedRunIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedRunIds = next;
+  }
+  function selectAllRuns() { selectedRunIds = new Set(buildRuns.map(r => r.id)); }
+  function clearRunSelection() { selectedRunIds = new Set(); }
+
+  async function batchCancelRuns() {
+    if (selectedRunIds.size === 0) return;
+    batchLoading = true;
+    error = null;
+    try {
+      const res = await api.post<ApiResponse<any>>('/v2/builds/runs/batch', {
+        action: 'cancel', ids: [...selectedRunIds],
+      });
+      const result = res.data;
+      if (result.failed?.length > 0) {
+        error = `${result.succeeded.length} cancelled, ${result.failed.length} failed`;
+      }
+      selectedRunIds = new Set();
+      loadData();
+    } catch (err: any) {
+      error = err instanceof Error ? err.message : 'Batch cancel failed';
+    } finally {
+      batchLoading = false;
+    }
+  }
 
   // ── Helper functions ──────────────────────────────────────────
 
@@ -275,6 +313,7 @@
   function switchTab(tab: Tab): void {
     activeTab = tab;
     currentPage = 1;
+    selectedRunIds = new Set();
     loading = true;
     loadData();
   }
@@ -719,6 +758,18 @@
 
   <!-- Build Runs View -->
   {:else}
+    {#if canManage}
+      <SelectionBar
+        selectedCount={selectedRunIds.size}
+        totalCount={buildRuns.length}
+        onSelectAll={selectAllRuns}
+        onClearSelection={clearRunSelection}
+        actions={[
+          { label: 'Cancel', icon: XCircle, variant: 'danger' as const, loading: batchLoading, onclick: () => batchCancelRuns() },
+        ]}
+      />
+    {/if}
+
     {#if buildRuns.length === 0}
       {@const hasRunFilters = runsProductFilter || runsStageFilter || runsStatusFilter.size > 0 || runsTriggerFilter}
       <EmptyState message={hasRunFilters ? 'No build runs match your filters.' : 'No builds yet.'}>
@@ -727,58 +778,99 @@
         {/if}
       </EmptyState>
     {:else}
-      <div class="space-y-0">
-        {#each buildRuns as run (run.id)}
-          <button
-            onclick={() => goto(`/builds/runs/${run.id}`)}
-            class="flex w-full items-center gap-4 px-4 py-3 border-b border-border-subtle hover:bg-surface-2/50 cursor-pointer transition-colors text-left"
-          >
-            <!-- Run ID -->
-            <span class="text-2xs font-mono text-text-tertiary shrink-0 w-16">
-              {run.id.slice(0, 8)}
-            </span>
-
-            <!-- Product -->
-            <span class="text-sm font-medium text-text-primary shrink-0">
-              {run.product || 'Unknown'}
-            </span>
-
-            <!-- Stage -->
-            {#if run.stage}
-              {@const stageName = STAGE_NAMES[run.stage]}
-              <span class="badge badge-neutral shrink-0">
-                {run.stage} {stageName ?? ''}
-              </span>
-            {/if}
-
-            <!-- Trigger -->
-            <div class="shrink-0">
-              <TriggerBadge type={run.triggerType ?? 'manual'} prNumber={run.prNumber ?? undefined} />
-            </div>
-
-            <!-- Status + build progress -->
-            <div class="flex items-center gap-2 shrink-0">
-              <StatusBadge status={run.status} />
-              <span class="text-2xs text-text-tertiary tabular-nums">
-                {run.completedBuilds ?? 0}/{run.expectedBuilds ?? 0} builds
-              </span>
-            </div>
-
-            <!-- Branch -->
-            {#if run.branch}
-              <div class="hidden lg:flex items-center gap-1 text-2xs text-text-secondary shrink-0 min-w-0">
-                <GitBranch size={10} class="text-text-tertiary shrink-0" />
-                <span class="font-mono truncate max-w-32">{run.branch}</span>
-              </div>
-            {/if}
-
-            <!-- Duration + time (right-aligned) -->
-            <div class="ml-auto flex items-center gap-3 text-2xs text-text-tertiary shrink-0">
-              <span class="tabular-nums">{runDuration(run)}</span>
-              <TimeDisplay datetime={run.createdAt} />
-            </div>
-          </button>
-        {/each}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr class="border-b border-border">
+              {#if canManage}
+                <th class="table-header w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedRunIds.size > 0 && selectedRunIds.size === buildRuns.length}
+                    indeterminate={selectedRunIds.size > 0 && selectedRunIds.size < buildRuns.length}
+                    onchange={() => selectedRunIds.size === buildRuns.length ? clearRunSelection() : selectAllRuns()}
+                    class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                </th>
+              {/if}
+              <th class="table-header">Run</th>
+              <th class="table-header">Product</th>
+              <th class="table-header">Stage</th>
+              <th class="table-header">Trigger</th>
+              <th class="table-header">Status</th>
+              <th class="table-header">Branch</th>
+              <th class="table-header text-right">Duration</th>
+              <th class="table-header text-right">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each buildRuns as run (run.id)}
+              <tr
+                class="table-row cursor-pointer"
+                onclick={() => goto(`/builds/runs/${run.id}`)}
+              >
+                {#if canManage}
+                  <td class="table-cell w-10" onclick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedRunIds.has(run.id)}
+                      onchange={() => toggleRun(run.id)}
+                      class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                    />
+                  </td>
+                {/if}
+                <td class="table-cell">
+                  <span class="font-mono text-2xs text-text-tertiary">{run.id.slice(0, 8)}</span>
+                </td>
+                <td class="table-cell">
+                  <span class="font-medium text-text-primary">{run.product || 'Unknown'}</span>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    <LinkChip icon={GitBranch}>{run.branch}</LinkChip>
+                    {#if run.prNumber}
+                      <LinkChip icon={GitPullRequest} href={run.prUrl ?? undefined} external>PR #{run.prNumber}</LinkChip>
+                    {/if}
+                    {#if run.commitSha}
+                      <LinkChip icon={GitCommit}>{run.commitSha.slice(0, 7)}</LinkChip>
+                    {/if}
+                  </div>
+                </td>
+                <td class="table-cell">
+                  {#if run.stage}
+                    {@const stageName = STAGE_NAMES[run.stage]}
+                    <span class="badge badge-neutral">{run.stage} {stageName ?? ''}</span>
+                  {:else}
+                    <span class="text-text-tertiary">--</span>
+                  {/if}
+                </td>
+                <td class="table-cell">
+                  <TriggerBadge type={run.triggerType ?? 'manual'} prNumber={run.prNumber ?? undefined} />
+                </td>
+                <td class="table-cell">
+                  <div class="flex items-center gap-2">
+                    <StatusBadge status={run.status} />
+                    <span class="text-2xs text-text-tertiary tabular-nums">
+                      {run.completedBuilds ?? 0}/{run.expectedBuilds ?? 0}
+                    </span>
+                  </div>
+                </td>
+                <td class="table-cell">
+                  {#if run.branch}
+                    <div class="flex items-center gap-1 text-2xs text-text-secondary">
+                      <GitBranch size={10} class="text-text-tertiary shrink-0" />
+                      <span class="font-mono truncate max-w-32">{run.branch}</span>
+                    </div>
+                  {/if}
+                </td>
+                <td class="table-cell text-right">
+                  <span class="text-2xs text-text-tertiary tabular-nums">{runDuration(run)}</span>
+                </td>
+                <td class="table-cell text-right">
+                  <TimeDisplay datetime={run.createdAt} />
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
     {/if}
   {/if}

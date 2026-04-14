@@ -68,14 +68,14 @@ class BME280:
                 self._bus.read_byte_data(self._addr, 0x00, force=True)
             except Exception:
                 if self.logger:
-                    self.logger.error("BME280 sensor not responding")
+                    self.logger.debug("BME280 not responding at 0x%02x (not installed)", self._addr)
                 return False
 
             # Check chip ID
             chip_id = self._bus.read_byte_data(self._addr, self.REGISTER_CHIPID, force=True)
             if chip_id != self.CHIP_ID_BME280:
                 if self.logger:
-                    self.logger.error(f"Invalid chip ID: 0x{chip_id:02x}, expected 0x{self.CHIP_ID_BME280:02x}")
+                    self.logger.debug(f"No BME280 at 0x{self._addr:02x} (chip ID 0x{chip_id:02x}, expected 0x{self.CHIP_ID_BME280:02x})")
                 return False
 
             if self.logger:

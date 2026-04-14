@@ -21,7 +21,7 @@ Manufacturing workflow is nearly identical to validation but with 1 stage and ty
 Everything must be cleaned up: DB, CoreCloud, Bitbucket branches/PRs, MinIO artifacts. Only purposeful post-analysis artifacts are kept.
 
 ### D7: Dev MTIB Assignment (2026-04-08)
-Dedicated dev pool MTIB: 10.4.45.33 (REV 1.2), DUT SNR 0964 (Alpha B0 without battery, ch0 only at 4.5V). This MTIB is exclusively for development/E2E — never used by validation or production.
+Dedicated dev pool MTIB: <MTIB_HOST> (REV 1.2), DUT SNR 0964 (Alpha B0 without battery, ch0 only at 4.5V). This MTIB is exclusively for development/E2E — never used by validation or production.
 
 ### D8: Bitbucket Real Repos (2026-04-08)
 Tests use real `alpha_fw` and `alpha_mfg_fw` repos. Must keep `concord-main` synced with `main` as part of test setup.
@@ -42,7 +42,7 @@ Current MTIB auto-deploy works but auto-undeploy has TODOs. Must fix for both Do
 Operator can: start manufacturing sessions, view manufacturing fixtures, enter QR codes, run panels, view results. The manufacturing:run permission must gate actual endpoints.
 
 ### D10: MTIB Reachability Constraint (2026-04-08)
-Dev machine (172.22.x.x codespace) can reach CoreCloud and Bitbucket but NOT the MTIB directly (10.4.45.33 unreachable). Tests requiring MTIB must run from office network or K8s pod. Other 10.4.45.x hosts (.31, .32) are reachable — .33 was offline during check.
+Dev machine (172.22.x.x codespace) can reach CoreCloud and Bitbucket but NOT the MTIB directly (<MTIB_HOST> unreachable). Tests requiring MTIB must run from office network or K8s pod. Other 10.4.45.x hosts (.31, .32) are reachable — .33 was offline during check.
 
 ## Review Findings (2026-04-08 — Post-Review Pass)
 
@@ -99,7 +99,7 @@ The http-api container has kubeconfig access to the office K3s cluster (10.4.45.
 
 ### D25: MTIB K8s node identity (2026-04-09)
 - K8s hostname: `verdin-imx8mm-15005665` (NOT "mtib-e2e-dev")
-- IP: 10.4.45.33
+- IP: <MTIB_HOST>
 - Role: edge
 - Status: Ready
 - No MTIB server pod currently deployed (gRPC 50053 refused)

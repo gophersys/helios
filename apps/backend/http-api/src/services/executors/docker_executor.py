@@ -120,19 +120,20 @@ class DockerExecutor(JobExecutor):
 
     def cancel(self, job_name: str, namespace: str = "default") -> bool:
         try:
+            # docker rm -f: stops (SIGKILL) + removes in one command
             result = subprocess.run(
-                ["docker", "kill", job_name],
+                ["docker", "rm", "-f", job_name],
                 capture_output=True,
                 text=True,
                 timeout=15,
             )
             if result.returncode == 0:
-                logger.info("Killed container %s", job_name)
+                logger.info("Removed container %s", job_name)
                 return True
-            logger.warning("Failed to kill container %s: %s", job_name, result.stderr.strip())
+            logger.warning("Failed to remove container %s: %s", job_name, result.stderr.strip())
             return False
         except Exception as e:
-            logger.error("Error killing container %s: %s", job_name, e)
+            logger.error("Error removing container %s: %s", job_name, e)
             return False
 
     def is_alive(self, job_name: str, namespace: str = "default") -> Optional[bool]:

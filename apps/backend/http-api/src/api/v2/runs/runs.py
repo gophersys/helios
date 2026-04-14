@@ -384,3 +384,52 @@ def list_executions(run_id: str):
             "pages": math.ceil(total / limit) if limit > 0 else 0,
         },
     }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+#  POST /v2/runs/batch — batch action on multiple validation runs
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.VALIDATION_MANAGE)
+def batch_runs_action():
+    """Apply an action to multiple validation runs at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    ids = body.get("ids", [])
+
+    if action not in ("cancel",):
+        return bad_request("action must be 'cancel'")
+    if not isinstance(ids, list) or not ids:
+        return bad_request("ids must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for rid in ids:
+        run = db.testrun.find_unique(where={"id": rid})
+        if not run:
+            failed.append({"id": rid, "reason": "Not found"})
+            continue
+
+        if run.status not in ("PENDING", "ACTIVE"):
+            failed.append({"id": rid, "reason": f"Cannot cancel run with status {run.status}"})
+            continue
+
+        now = datetime.now(timezone.utc)
+        db.testrun.update(
+            where={"id": rid},
+            data={"status": "CANCELLED", "completedAt": now},
+        )
+        log_audit("validation.run.cancel", "TestRun", rid, {"batch": True})
+        succeeded.append(rid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200

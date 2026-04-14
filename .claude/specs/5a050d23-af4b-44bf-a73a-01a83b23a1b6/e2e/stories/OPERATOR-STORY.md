@@ -347,7 +347,7 @@ POST /v2/manufacturing/sessions      → 201 (manufacturing:run) — tested in P
 | Dimension | Detail |
 |-----------|--------|
 | **Scenario** | Manufacturing test runner cannot connect to MTIB hardware. |
-| **Expected UI** | All units in the panel show "ERROR" status. Error message: "MTIB connection failed: 10.4.45.33 unreachable". Panel status = FAILED. |
+| **Expected UI** | All units in the panel show "ERROR" status. Error message: "MTIB connection failed: <MTIB_HOST> unreachable". Panel status = FAILED. |
 | **Backend Required** | Test runner reports error via `unit-result` with `status: "ERROR"` and error message. |
 | **Assertion Strategy** | Assert all unit cards show "ERROR". Assert error message mentions MTIB. |
 

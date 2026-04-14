@@ -1,17 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Plus, Trash2, GitBranch, ExternalLink, Archive, ArchiveRestore } from 'lucide-svelte';
+  import { Plus, Trash2, Archive, GitBranch, CircuitBoard } from 'lucide-svelte';
+  import LinkChip from '$lib/components/ui/link-chip.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog } from '$lib/components/ui';
+  import { PageHeader, ErrorAlert, EmptyState, LoadingState } from '$lib/components/ui';
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Pagination from '$lib/components/ui/pagination.svelte';
+  import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
-  import { archiveProduct, unarchiveProduct } from '$lib/services/products';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
@@ -31,8 +32,10 @@
   let currentPage = $state(1);
   const pageSize = 20;
 
-  // Delete confirmation
-  let deleteTarget = $state<{ id: string; name: string } | null>(null);
+  // Selection + batch
+  let selectedIds = $state<Set<string>>(new Set());
+  let batchLoading = $state(false);
+  let confirmBatchDelete = $state(false);
 
   // Wizard state
   let showWizard = $state(false);
@@ -74,6 +77,40 @@
     }
   }
 
+  // Selection helpers
+  function toggleItem(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedIds = next;
+  }
+  function selectAll() { selectedIds = new Set(paginatedProducts.map(p => p.id)); }
+  function clearSelection() { selectedIds = new Set(); confirmBatchDelete = false; }
+
+  async function batchAction(action: 'archive' | 'delete') {
+    if (selectedIds.size === 0) return;
+    if (action === 'delete' && !confirmBatchDelete) { confirmBatchDelete = true; return; }
+    confirmBatchDelete = false;
+    batchLoading = true;
+    error = null;
+    try {
+      const res = await api.post<ApiResponse<any>>('/v2/products/batch', {
+        action, ids: [...selectedIds],
+      });
+      const result = res.data;
+      if (result.failed?.length > 0) {
+        error = `${result.succeeded.length} ${action}d, ${result.failed.length} failed: ${result.failed[0].reason}`;
+      }
+      selectedIds = new Set();
+      fetchProducts();
+    } catch (err: any) {
+      error = err instanceof Error ? err.message : `Batch ${action} failed`;
+    } finally { batchLoading = false; }
+  }
+
+  function getRevisions(p: Product) {
+    return ((p as any).revisions || []) as Array<{ version: string; status: string }>;
+  }
+
   onMount(() => {
     if (!auth.hasPermission('products:view')) {
       goto('/');
@@ -81,49 +118,6 @@
     }
     fetchProducts();
   });
-
-  function promptDelete(id: string) {
-    const target = products.find((p) => p.id === id);
-    deleteTarget = { id, name: target?.name || '' };
-  }
-
-  async function handleDelete(id: string) {
-    error = null;
-    try {
-      await api.delete(`/v2/products/${id}`);
-      fetchProducts();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to delete';
-    }
-  }
-
-  async function handleArchive(id: string) {
-    error = null;
-    try {
-      await archiveProduct(id);
-      fetchProducts();
-    } catch (err: any) {
-      error = err?.data?.errors?.[0]?.message || err?.message || 'Failed to archive';
-    }
-  }
-
-  async function handleUnarchive(id: string) {
-    error = null;
-    try {
-      await unarchiveProduct(id);
-      fetchProducts();
-    } catch (err: any) {
-      error = err?.data?.errors?.[0]?.message || err?.message || 'Failed to unarchive';
-    }
-  }
-
-  function getStageConfigs(p: Product) {
-    return ((p as any).stageConfigs || []) as Array<{ stage: number; enabled: boolean; type?: string }>;
-  }
-
-  function getRevisions(p: Product) {
-    return ((p as any).revisions || []) as Array<{ version: string; status: string }>;
-  }
 </script>
 
 <svelte:head>
@@ -181,115 +175,111 @@
       </span>
     </FilterBar>
 
-    <!-- Product list -->
+    <!-- Selection bar -->
+    {#if canManage}
+      <SelectionBar
+        selectedCount={selectedIds.size}
+        totalCount={paginatedProducts.length}
+        onSelectAll={selectAll}
+        onClearSelection={clearSelection}
+        actions={[
+          { label: 'Archive', icon: Archive, variant: 'ghost' as const, loading: batchLoading, onclick: () => batchAction('archive') },
+          { label: 'Delete', icon: Trash2, variant: 'danger' as const, loading: batchLoading, onclick: () => batchAction('delete') },
+        ]}
+      />
+    {/if}
+
+    <!-- Inline delete confirmation -->
+    {#if confirmBatchDelete}
+      <div class="mb-3 flex items-center gap-3 rounded-lg border border-error/30 bg-error-muted px-4 py-2.5">
+        <span class="text-sm text-text-primary">
+          Permanently delete {selectedIds.size} product{selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.
+        </span>
+        <div class="ml-auto flex items-center gap-2">
+          <button onclick={() => { confirmBatchDelete = false; }} class="btn btn-sm btn-ghost">Cancel</button>
+          <button onclick={() => batchAction('delete')} class="btn btn-sm btn-danger">Confirm Delete</button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Product table -->
     {#if filteredProducts.length === 0}
       <EmptyState message={searchQuery || statusFilter !== 'all' ? 'No products match your filters.' : 'No products yet.'} />
     {:else}
-      <div class="space-y-3">
-        {#each paginatedProducts as p (p.id)}
-          {@const revisions = getRevisions(p)}
-
-          <div
-            role="button"
-            tabindex="0"
-            onclick={() => goto(`/products/${p.id}`)}
-            onkeydown={(e) => e.key === 'Enter' && goto(`/products/${p.id}`)}
-            class="group card card-interactive card-md"
-            class:opacity-60={p.status === 'ARCHIVED'}
-          >
-            <!-- Row 1: Name + Status -->
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-3">
-                  <h3 class="text-sm font-semibold text-text-primary">{p.name}</h3>
-                  <StatusBadge status={p.status} />
-                </div>
-                {#if p.description}
-                  <p class="text-xs text-text-secondary mt-0.5">{p.description}</p>
-                {/if}
-              </div>
-
-              <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100">
-                {#if canManage && p.status === 'ACTIVE'}
-                  <button
-                    onclick={(e) => { e.stopPropagation(); handleArchive(p.id); }}
-                    class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-warning hover:bg-warning-muted"
-                    title="Archive product" aria-label="Archive {p.name}"
-                  >
-                    <Archive size={14} />
-                  </button>
-                {/if}
-                {#if canManage && p.status === 'ARCHIVED'}
-                  <button
-                    onclick={(e) => { e.stopPropagation(); handleUnarchive(p.id); }}
-                    class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-success hover:bg-success-muted"
-                    title="Unarchive product" aria-label="Unarchive {p.name}"
-                  >
-                    <ArchiveRestore size={14} />
-                  </button>
-                  <button
-                    onclick={(e) => { e.stopPropagation(); promptDelete(p.id); }}
-                    class="btn btn-sm btn-icon btn-ghost text-text-tertiary hover:text-error hover:bg-error-muted"
-                    title="Delete" aria-label="Delete {p.name}"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                {/if}
-              </div>
-            </div>
-
-            <!-- Row 2: Metadata -->
-            <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-              <!-- Hardware revisions -->
-              {#if revisions.length > 0}
-                <div class="flex items-center gap-2">
-                  <span class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Hardware</span>
-                  <div class="flex gap-1">
-                    {#each revisions as rev}
-                      <span class="badge {rev.status === 'ACTIVE' ? 'badge-accent' : 'badge-neutral'} font-mono">
-                        {rev.version.toUpperCase()}
-                      </span>
-                    {/each}
-                  </div>
-                </div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              {#if canManage}
+                <th class="table-header w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size > 0 && selectedIds.size === paginatedProducts.length}
+                    indeterminate={selectedIds.size > 0 && selectedIds.size < paginatedProducts.length}
+                    onchange={() => selectedIds.size === paginatedProducts.length ? clearSelection() : selectAll()}
+                    class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                </th>
               {/if}
-
-              <!-- Repositories -->
-              {#if p.fwRepoSlug || p.mfgFwRepoSlug}
-                <div class="flex items-center gap-2">
-                  <span class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Repos</span>
-                  <div class="flex gap-1.5">
+              <th class="table-header">Name</th>
+              <th class="table-header">Status</th>
+              <th class="table-header">Boards</th>
+              <th class="table-header">Revisions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each paginatedProducts as p (p.id)}
+              {@const revisions = getRevisions(p)}
+              <tr
+                class="table-row cursor-pointer"
+                class:opacity-60={p.status === 'ARCHIVED'}
+                onclick={() => goto(`/products/${p.id}`)}
+              >
+                {#if canManage}
+                  <td class="table-cell w-10" onclick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onchange={() => toggleItem(p.id)}
+                      class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                    />
+                  </td>
+                {/if}
+                <td class="table-cell">
+                  <span class="font-medium text-text-primary">{p.name}</span>
+                  {#if p.description}
+                    <p class="text-2xs text-text-tertiary mt-0.5 truncate max-w-xs">{p.description}</p>
+                  {/if}
+                  <div class="flex flex-wrap gap-1 mt-1">
                     {#if p.fwRepoSlug}
-                      <a
-                        href="https://bitbucket.org/corekinect/{p.fwRepoSlug}"
-                        target="_blank" rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 rounded-md bg-surface-0 px-2 py-0.5 font-mono text-2xs text-text-secondary hover:text-accent transition-colors"
-                        onclick={(e) => e.stopPropagation()}
-                      >
-                        <GitBranch size={10} />
-                        {p.fwRepoSlug}
-                        <ExternalLink size={8} class="opacity-40" />
-                      </a>
+                      <LinkChip icon={GitBranch} href="https://bitbucket.org/corekinect/{p.fwRepoSlug}" external>{p.fwRepoSlug}</LinkChip>
                     {/if}
-                    {#if p.mfgFwRepoSlug}
-                      <a
-                        href="https://bitbucket.org/corekinect/{p.mfgFwRepoSlug}"
-                        target="_blank" rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 rounded-md bg-surface-0 px-2 py-0.5 font-mono text-2xs text-text-secondary hover:text-accent transition-colors"
-                        onclick={(e) => e.stopPropagation()}
-                      >
-                        <GitBranch size={10} />
-                        {p.mfgFwRepoSlug}
-                        <ExternalLink size={8} class="opacity-40" />
-                      </a>
-                    {/if}
+                    <LinkChip icon={CircuitBoard}>{revisions.length} revision{revisions.length !== 1 ? 's' : ''}</LinkChip>
                   </div>
-                </div>
-              {/if}
-
-            </div>
-          </div>
-        {/each}
+                </td>
+                <td class="table-cell">
+                  <StatusBadge status={p.status} />
+                </td>
+                <td class="table-cell">
+                  <span class="text-text-secondary">{(p as any).boards?.length ?? 0}</span>
+                </td>
+                <td class="table-cell">
+                  {#if revisions.length > 0}
+                    <div class="flex gap-1 flex-wrap">
+                      {#each revisions as rev}
+                        <span class="badge {rev.status === 'ACTIVE' ? 'badge-accent' : 'badge-neutral'} font-mono">
+                          {rev.version.toUpperCase()}
+                        </span>
+                      {/each}
+                    </div>
+                  {:else}
+                    <span class="text-text-tertiary">—</span>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
 
       {#if totalPages > 1}
@@ -302,13 +292,5 @@
         </div>
       {/if}
     {/if}
-
-    <ConfirmDeleteDialog
-      open={!!deleteTarget}
-      entityType="product"
-      entityName={deleteTarget?.name || ''}
-      onConfirm={() => { handleDelete(deleteTarget!.id); deleteTarget = null; }}
-      onCancel={() => (deleteTarget = null)}
-    />
   {/if}
 </div>

@@ -489,3 +489,51 @@ def validate_build_run_artifacts_endpoint(run_id: str):
     except Exception as e:
         logger.error("Failed to validate artifacts for build run %s: %s", run_id, e)
         return internal_error("Failed to validate build run artifacts")
+
+
+# ---------------------------------------------------------------------------
+#  POST /v2/builds/runs/batch — batch action on multiple build runs
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def batch_build_runs_action():
+    """Apply an action to multiple build runs at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    ids = body.get("ids", [])
+
+    if action not in ("cancel",):
+        return bad_request("action must be 'cancel'")
+    if not isinstance(ids, list) or not ids:
+        return bad_request("ids must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for rid in ids:
+        build_run = db.buildrun.find_unique(where={"id": rid})
+        if not build_run:
+            failed.append({"id": rid, "reason": "Not found"})
+            continue
+
+        if build_run.status in ("SUCCESS", "FAILED", "CANCELLED"):
+            failed.append({"id": rid, "reason": f"Build run already in terminal state: {build_run.status}"})
+            continue
+
+        db.buildrun.update(
+            where={"id": rid},
+            data={"status": "CANCELLED", "finishedAt": datetime.now(timezone.utc)},
+        )
+        log_audit("ci.build_run.cancel", "BuildRun", rid, {"batch": True})
+        succeeded.append(rid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200

@@ -2,18 +2,18 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import {
-    ChevronLeft,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
     ArrowUpCircle,
     XCircle,
     Clock,
     RefreshCw,
     ListOrdered,
     BarChart3,
+    Box,
+    Wrench,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
+  import { api } from '$lib/api';
+  import type { ApiResponse } from '$lib/types';
   import type { ValidationQueueEntry, QueueStats, QueueEntryStatus } from '$lib/types/queue';
   import type { Pagination } from '$lib/types/models';
   import { STAGE_NAMES } from '$lib/types/stages';
@@ -26,7 +26,10 @@
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
+  import PaginationNav from '$lib/components/ui/pagination.svelte';
+  import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import LinkChip from '$lib/components/ui/link-chip.svelte';
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('validation:manage'));
@@ -60,6 +63,39 @@
   let searchQuery = $state('');
   let page = $state(1);
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Selection + batch
+  let selectedIds = $state<Set<string>>(new Set());
+  let batchLoading = $state(false);
+
+  function toggleItem(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    selectedIds = next;
+  }
+  function selectAll() { selectedIds = new Set(filteredEntries.map(e => e.id)); }
+  function clearSelection() { selectedIds = new Set(); }
+
+  async function batchCancelEntries() {
+    if (selectedIds.size === 0) return;
+    batchLoading = true;
+    actionError = null;
+    try {
+      const res = await api.post<ApiResponse<any>>('/v2/runs/queue/batch', {
+        action: 'cancel', ids: [...selectedIds],
+      });
+      const result = res.data;
+      if (result.failed?.length > 0) {
+        actionError = `${result.succeeded.length} cancelled, ${result.failed.length} failed`;
+      }
+      selectedIds = new Set();
+      await refresh();
+    } catch (err: any) {
+      actionError = err instanceof Error ? err.message : 'Batch cancel failed';
+    } finally {
+      batchLoading = false;
+    }
+  }
 
   // Filtered entries (client-side search on top of server filters)
   const filteredEntries = $derived.by(() => {
@@ -267,140 +303,181 @@
   <ErrorAlert message={error} />
   <ErrorAlert message={actionError} />
 
+  <!-- Selection bar -->
+  {#if canManage}
+    <SelectionBar
+      selectedCount={selectedIds.size}
+      totalCount={filteredEntries.length}
+      onSelectAll={selectAll}
+      onClearSelection={clearSelection}
+      actions={[
+        { label: 'Cancel', icon: XCircle, variant: 'danger' as const, loading: batchLoading, onclick: () => batchCancelEntries() },
+      ]}
+    />
+  {/if}
+
   <!-- Table -->
   {#if loading}
     <LoadingState message="Loading queue entries..." />
   {:else if filteredEntries.length === 0}
     <EmptyState message={searchQuery ? 'No entries match your search.' : 'Queue is empty. Entries appear when build runs request validation.'} />
   {:else}
-    <div class="overflow-hidden rounded-lg border border-border">
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead>
-            <tr class="border-b border-border bg-surface-2">
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Priority</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stage</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Asset Set</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Bench</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Requested</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Wait Time</th>
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr class="border-b border-border">
+            {#if canManage}
+              <th class="table-header w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size > 0 && selectedIds.size === filteredEntries.length}
+                  indeterminate={selectedIds.size > 0 && selectedIds.size < filteredEntries.length}
+                  onchange={() => selectedIds.size === filteredEntries.length ? clearSelection() : selectAll()}
+                  class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                />
+              </th>
+            {/if}
+            <th class="table-header">Priority</th>
+            <th class="table-header">Stage</th>
+            <th class="table-header">Asset Set</th>
+            <th class="table-header">Status</th>
+            <th class="table-header">Bench</th>
+            <th class="table-header">Requested</th>
+            <th class="table-header">Wait Time</th>
+            {#if canManage}
+              <th class="table-header text-right">Actions</th>
+            {/if}
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredEntries as entry (entry.id)}
+            <tr class="table-row">
               {#if canManage}
-                <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Actions</th>
+                <td class="table-cell w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(entry.id)}
+                    onchange={() => toggleItem(entry.id)}
+                    class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                </td>
+              {/if}
+
+              <!-- Priority -->
+              <td class="table-cell">
+                <span class="font-mono text-sm font-bold tabular-nums {priorityColorClass(entry.priority)}">
+                  {entry.priority}
+                </span>
+              </td>
+
+              <!-- Stage -->
+              <td class="table-cell">
+                <div class="flex items-center gap-2">
+                  <span class="flex h-5 w-5 items-center justify-center rounded bg-surface-2 text-2xs font-bold text-text-secondary">
+                    {entry.stage}
+                  </span>
+                  <span class="text-sm text-text-primary">{STAGE_NAMES[entry.stage] ?? `Stage ${entry.stage}`}</span>
+                </div>
+              </td>
+
+              <!-- Asset Set -->
+              <td class="table-cell">
+                {#if entry.assetSet}
+                  <span class="font-medium text-text-primary">
+                    {entry.assetSet.name ?? entry.assetSetId.slice(0, 8)}
+                  </span>
+                  <div class="flex flex-wrap gap-1 mt-1">
+                    {#if entry.assetSet.product}
+                      <LinkChip icon={Box}>{entry.assetSet.product}</LinkChip>
+                    {/if}
+                    {#if entry.fixture}
+                      <LinkChip icon={Wrench}>{entry.fixture.name}</LinkChip>
+                    {/if}
+                    {#if entry.priority != null}
+                      <LinkChip icon={ListOrdered} variant={entry.priority >= 80 ? 'error' : entry.priority >= 50 ? 'warning' : 'default'}>P{entry.priority}</LinkChip>
+                    {/if}
+                  </div>
+                {:else}
+                  <span class="font-mono text-sm text-text-tertiary">{entry.assetSetId.slice(0, 12)}</span>
+                {/if}
+              </td>
+
+              <!-- Status -->
+              <td class="table-cell">
+                <StatusBadge status={entry.status} />
+                {#if entry.errorMessage}
+                  <div class="mt-1 max-w-48 truncate text-2xs text-error" title={entry.errorMessage}>
+                    {entry.errorMessage}
+                  </div>
+                {/if}
+              </td>
+
+              <!-- Fixture -->
+              <td class="table-cell">
+                {#if entry.fixture}
+                  <span class="text-sm text-text-primary">{entry.fixture.name}</span>
+                  {#if entry.fixture.stationId}
+                    <div class="text-2xs text-text-tertiary">{entry.fixture.stationId}</div>
+                  {/if}
+                {:else}
+                  <span class="text-sm text-text-tertiary">---</span>
+                {/if}
+              </td>
+
+              <!-- Requested -->
+              <td class="table-cell">
+                <span class="text-sm text-text-secondary" title={formatDateTime(entry.requestedAt)}>
+                  {formatTimeAgo(entry.requestedAt)}
+                </span>
+              </td>
+
+              <!-- Wait Time -->
+              <td class="table-cell">
+                <span class="font-mono text-sm tabular-nums text-text-tertiary">
+                  {formatWaitTime(entry)}
+                </span>
+              </td>
+
+              <!-- Actions -->
+              {#if canManage}
+                <td class="table-cell text-right">
+                  {#if entry.status === 'QUEUED'}
+                    <div class="flex items-center justify-end gap-1">
+                      <button
+                        onclick={() => handlePromote(entry.id)}
+                        class="btn btn-sm btn-secondary gap-1"
+                        title="Boost priority +50"
+                      >
+                        <ArrowUpCircle size={12} />
+                        Promote
+                      </button>
+                      <button
+                        onclick={() => handleCancel(entry.id)}
+                        class="btn btn-sm btn-danger gap-1"
+                        title="Cancel this queue entry"
+                      >
+                        <XCircle size={12} />
+                        Cancel
+                      </button>
+                    </div>
+                  {:else if entry.status === 'ASSIGNED'}
+                    <div class="flex items-center justify-end gap-1">
+                      <button
+                        onclick={() => handleCancel(entry.id)}
+                        class="btn btn-sm btn-danger gap-1"
+                        title="Cancel this queue entry"
+                      >
+                        <XCircle size={12} />
+                        Cancel
+                      </button>
+                    </div>
+                  {/if}
+                </td>
               {/if}
             </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            {#each filteredEntries as entry (entry.id)}
-              <tr class="transition-colors hover:bg-surface-2">
-                <!-- Priority -->
-                <td class="px-4 py-3">
-                  <span class="font-mono text-sm font-bold tabular-nums {priorityColorClass(entry.priority)}">
-                    {entry.priority}
-                  </span>
-                </td>
-
-                <!-- Stage -->
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-2">
-                    <span class="flex h-5 w-5 items-center justify-center rounded bg-surface-2 text-2xs font-bold text-text-secondary">
-                      {entry.stage}
-                    </span>
-                    <span class="text-sm text-text-primary">{STAGE_NAMES[entry.stage] ?? `Stage ${entry.stage}`}</span>
-                  </div>
-                </td>
-
-                <!-- Asset Set -->
-                <td class="px-4 py-3">
-                  {#if entry.assetSet}
-                    <span class="text-sm font-medium text-text-primary">
-                      {entry.assetSet.name ?? entry.assetSetId.slice(0, 8)}
-                    </span>
-                    <div class="mt-0.5 text-2xs text-text-tertiary">
-                      {entry.assetSet.product} · <StatusBadge status={entry.assetSet.status} />
-                    </div>
-                  {:else}
-                    <span class="font-mono text-sm text-text-tertiary">{entry.assetSetId.slice(0, 12)}</span>
-                  {/if}
-                </td>
-
-                <!-- Status -->
-                <td class="px-4 py-3">
-                  <StatusBadge status={entry.status} />
-                  {#if entry.errorMessage}
-                    <div class="mt-1 max-w-48 truncate text-2xs text-error" title={entry.errorMessage}>
-                      {entry.errorMessage}
-                    </div>
-                  {/if}
-                </td>
-
-                <!-- Fixture -->
-                <td class="px-4 py-3">
-                  {#if entry.fixture}
-                    <span class="text-sm text-text-primary">{entry.fixture.name}</span>
-                    {#if entry.fixture.stationId}
-                      <div class="text-2xs text-text-tertiary">{entry.fixture.stationId}</div>
-                    {/if}
-                  {:else}
-                    <span class="text-sm text-text-tertiary">---</span>
-                  {/if}
-                </td>
-
-                <!-- Requested -->
-                <td class="px-4 py-3">
-                  <span class="text-sm text-text-secondary" title={formatDateTime(entry.requestedAt)}>
-                    {formatTimeAgo(entry.requestedAt)}
-                  </span>
-                </td>
-
-                <!-- Wait Time -->
-                <td class="px-4 py-3">
-                  <span class="font-mono text-sm tabular-nums text-text-tertiary">
-                    {formatWaitTime(entry)}
-                  </span>
-                </td>
-
-                <!-- Actions -->
-                {#if canManage}
-                  <td class="px-4 py-3 text-right">
-                    {#if entry.status === 'QUEUED'}
-                      <div class="flex items-center justify-end gap-1">
-                        <button
-                          onclick={() => handlePromote(entry.id)}
-                          class="btn btn-sm btn-secondary gap-1"
-                          title="Boost priority +50"
-                        >
-                          <ArrowUpCircle size={12} />
-                          Promote
-                        </button>
-                        <button
-                          onclick={() => handleCancel(entry.id)}
-                          class="btn btn-sm btn-danger gap-1"
-                          title="Cancel this queue entry"
-                        >
-                          <XCircle size={12} />
-                          Cancel
-                        </button>
-                      </div>
-                    {:else if entry.status === 'ASSIGNED'}
-                      <div class="flex items-center justify-end gap-1">
-                        <button
-                          onclick={() => handleCancel(entry.id)}
-                          class="btn btn-sm btn-danger gap-1"
-                          title="Cancel this queue entry"
-                        >
-                          <XCircle size={12} />
-                          Cancel
-                        </button>
-                      </div>
-                    {/if}
-                  </td>
-                {/if}
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+          {/each}
+        </tbody>
+      </table>
     </div>
 
     <!-- Pagination -->
@@ -409,40 +486,11 @@
         <span class="text-2xs text-text-tertiary">
           Page {pagination.page} of {pagination.pages} ({pagination.total} total)
         </span>
-        <div class="flex items-center gap-1">
-          <button
-            onclick={() => (page = 1)}
-            disabled={page <= 1}
-            aria-label="First page"
-            class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-          >
-            <ChevronsLeft size={16} />
-          </button>
-          <button
-            onclick={() => (page = Math.max(1, page - 1))}
-            disabled={page <= 1}
-            aria-label="Previous page"
-            class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onclick={() => (page = Math.min(pagination.pages, page + 1))}
-            disabled={page >= pagination.pages}
-            aria-label="Next page"
-            class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-          >
-            <ChevronRight size={16} />
-          </button>
-          <button
-            onclick={() => (page = pagination.pages)}
-            disabled={page >= pagination.pages}
-            aria-label="Last page"
-            class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
-          >
-            <ChevronsRight size={16} />
-          </button>
-        </div>
+        <PaginationNav
+          page={page}
+          totalPages={pagination.pages}
+          onPageChange={(p) => { page = p; }}
+        />
       </div>
     {/if}
   {/if}

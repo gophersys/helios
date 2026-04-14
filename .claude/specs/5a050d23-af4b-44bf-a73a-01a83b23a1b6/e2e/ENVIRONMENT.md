@@ -13,7 +13,7 @@
 
 | Resource | Purpose | Access Method | Status |
 |----------|---------|---------------|--------|
-| MTIB 10.4.45.33 | Hardware-in-loop testing (power, GPIO, UART, J-Link) | gRPC :50053 | Requires office network |
+| MTIB <MTIB_HOST> | Hardware-in-loop testing (power, GPIO, UART, J-Link) | gRPC :50053 | Requires office network |
 | J-Link 821009543 | Flash nRF52840 app processor | Via MTIB gRPC | On MTIB REV 1.2 |
 | J-Link 821009541 | Flash nRF9151 comms coprocessor | Via MTIB gRPC | On MTIB REV 1.2 |
 | DUT Alpha B0 (SNR 0964) | Device under test | Via MTIB (power, UART, J-Link) | No battery, ch0 only @ 4.5V |
@@ -38,8 +38,8 @@
 | auth.office.corekinect.cloud:2013 | User auth, CoreCloud auth | HTTPS | Reachable | Reachable |
 | val.office.corekinect.cloud:2018 | CoreCloud REST API (devices, FUOTA) | HTTPS | Reachable | Reachable |
 | api.bitbucket.org | Branch/PR management, repo access | HTTPS | Reachable | Reachable |
-| 10.4.45.33:50053 | MTIB gRPC (power, GPIO, UART, flash) | gRPC | **UNREACHABLE** | Reachable |
-| 10.4.45.33:22 | MTIB SSH (maintenance) | SSH | **UNREACHABLE** | Reachable |
+| <MTIB_HOST>:50053 | MTIB gRPC (power, GPIO, UART, flash) | gRPC | **UNREACHABLE** | Reachable |
+| <MTIB_HOST>:22 | MTIB SSH (maintenance) | SSH | **UNREACHABLE** | Reachable |
 | localhost:9001 | Concord HTTP API | HTTP | Local | Local |
 | localhost:4200 | SvelteKit frontend | HTTP | Local | Local |
 | localhost:5433 | PostgreSQL | TCP | Local | Local |
@@ -92,11 +92,11 @@ timeout 5 bash -c 'echo | openssl s_client -connect auth.office.corekinect.cloud
 curl -s -o /dev/null -w "%{http_code}" https://api.bitbucket.org/2.0/
 
 # Network: MTIB
-timeout 3 ping -c 1 10.4.45.33
+timeout 3 ping -c 1 <MTIB_HOST>
 
 # Network: Other office hosts
 timeout 3 ping -c 1 10.4.45.31
-timeout 3 ping -c 1 10.4.45.32
+timeout 3 ping -c 1 <MTIB_HOST>
 ```
 
 ## Execution Environment Constraint

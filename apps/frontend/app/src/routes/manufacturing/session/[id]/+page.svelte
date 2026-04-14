@@ -2,14 +2,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft, Archive, Trash2, QrCode } from 'lucide-svelte';
+  import { ArrowLeft, Search, Loader2, ServerCrash, RefreshCw } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { ErrorAlert, EmptyState, LoadingState, Modal, ConfirmDeleteDialog, StatusBadge } from '$lib/components/ui';
   import SessionHeader from '$lib/components/manufacturing/session-header.svelte';
   import PanelGridView from '$lib/components/manufacturing/panel-grid-view.svelte';
   import ScanPanelModal from '$lib/components/manufacturing/scan-panel-modal.svelte';
-  import PanelHistory from '$lib/components/manufacturing/panel-history.svelte';
   import SlotNavigator from '$lib/components/execution/slot-navigator.svelte';
   import SlotExecutionView from '$lib/components/execution/slot-execution-view.svelte';
   import { SlotContext } from '$lib/components/execution/slot-context.svelte';
@@ -19,6 +18,8 @@
     getRunSocket,
     disconnectRunSocket,
   } from '$lib/services/websocket';
+  import { formatTimeAgo, formatDuration } from '$lib/utils/formatting';
+  import { reportValidationError } from '$lib/stores/error-reporter.svelte';
   import type { ManufacturingSession, TestRun, RunTarget, TestExecution } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
@@ -35,6 +36,10 @@
   // ── Scan modal state ───────────────────────────────────────
   let scanModalOpen = $state(false);
   let scanRunType = $state<'panel' | 'standalone'>('panel');
+
+  // ── Run history filter ─────────────────────────────────────
+  let runStatusFilter = $state('all');
+  let runSearch = $state('');
 
   // ── Detail view state ──────────────────────────────────────
   let detailRunId = $state<string | null>(null);
@@ -64,19 +69,126 @@
   );
 
   // ── Session-level computed values ──────────────────────────
+  const allRuns = $derived(session?.runs || []);
+
+  // A run that's either executing or waiting to execute
   const activeRun = $derived(
-    (session?.runs || []).find((r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING')
+    allRuns.find((r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING')
+  );
+
+  // Only truly executing (blocks end session)
+  const runningRun = $derived(
+    allRuns.find((r: TestRun) => r.status === 'ACTIVE')
   );
 
   const latestRun = $derived(
-    (session?.runs || []).length > 0
-      ? (session?.runs || [])[(session?.runs || []).length - 1]
-      : undefined
+    allRuns.length > 0 ? allRuns[allRuns.length - 1] : undefined
   );
 
-  const completedRuns = $derived(
-    (session?.runs || []).filter((r: TestRun) => r.status !== 'ACTIVE' && r.status !== 'PENDING')
+  // Runner deployment state — gates scanning until runner is connected
+  const runnerStatus = $derived(session?.runnerStatus || null);
+  const isDeploying = $derived(
+    session?.status === 'ACTIVE' && (
+      !runnerStatus || runnerStatus === 'DEPLOYING' || runnerStatus === 'CHECKING_MTIBS'
+    )
   );
+  const runnerFailed = $derived(
+    session?.status === 'ACTIVE' && runnerStatus === 'ERROR'
+  );
+  const runnerReady = $derived(
+    runnerStatus === 'READY' || runnerStatus === 'RUNNING'
+  );
+  let deployTimedOut = $state(false);
+  const checkingMtibs = $derived(runnerStatus === 'CHECKING_MTIBS');
+  const deployingRunner = $derived(runnerStatus === 'DEPLOYING');
+  const mtibsDone = $derived(deployingRunner || !runnerStatus);
+
+  // Deployment polling + timeout
+  let deployPollTimer: ReturnType<typeof setInterval> | null = null;
+  let deployTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  let deployElapsed = $state(0);
+  let deployElapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+  const DEPLOY_TIMEOUT_S = 120;
+  const DEPLOY_POLL_S = 5;
+
+  function startDeploymentWatcher() {
+    stopDeploymentWatcher();
+    deployElapsed = 0;
+    deployTimedOut = false;
+
+    // Tick elapsed counter every second
+    deployElapsedTimer = setInterval(() => { deployElapsed++; }, 1000);
+
+    // Poll session every 5s to catch status changes WebSocket might miss
+    deployPollTimer = setInterval(async () => {
+      if (!isDeploying) { stopDeploymentWatcher(); return; }
+      await fetchSession();
+    }, DEPLOY_POLL_S * 1000);
+
+    // Timeout after 120s
+    deployTimeoutTimer = setTimeout(() => {
+      if (isDeploying) {
+        deployTimedOut = true;
+        stopDeploymentWatcher();
+        reportValidationError({
+          message: `Manufacturing runner deployment timed out after ${DEPLOY_TIMEOUT_S}s`,
+          details: `Session ${sessionId} — runner did not send READY heartbeat within the timeout window`,
+          entityType: 'ManufacturingSession',
+          entityId: sessionId,
+        });
+      }
+    }, DEPLOY_TIMEOUT_S * 1000);
+  }
+
+  function stopDeploymentWatcher() {
+    if (deployPollTimer) { clearInterval(deployPollTimer); deployPollTimer = null; }
+    if (deployTimeoutTimer) { clearTimeout(deployTimeoutTimer); deployTimeoutTimer = null; }
+    if (deployElapsedTimer) { clearInterval(deployElapsedTimer); deployElapsedTimer = null; }
+  }
+
+  // Start/stop watcher based on deployment state
+  $effect(() => {
+    if (isDeploying && !deployPollTimer) {
+      startDeploymentWatcher();
+    } else if (!isDeploying && deployPollTimer) {
+      stopDeploymentWatcher();
+    }
+  });
+
+  // Report runner failure to error reporter
+  $effect(() => {
+    if (runnerFailed) {
+      reportValidationError({
+        message: 'Manufacturing runner deployment failed',
+        details: `Session ${sessionId} — runner status is ERROR. Container may have crashed.`,
+        entityType: 'ManufacturingSession',
+        entityId: sessionId,
+      });
+    }
+  });
+
+  // Filtered run history
+  const filteredRuns = $derived.by(() => {
+    let runs = [...allRuns];
+    if (runStatusFilter !== 'all') {
+      runs = runs.filter(r => r.status === runStatusFilter);
+    }
+    if (runSearch.trim()) {
+      const q = runSearch.trim().toLowerCase();
+      runs = runs.filter(r =>
+        (r.panelIdentifier || '').toLowerCase().includes(q) ||
+        (r.name || '').toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q)
+      );
+    }
+    return runs;
+  });
+
+  const runStatusOptions = $derived.by(() => {
+    const statuses = new Set(allRuns.map(r => r.status));
+    return ['all', ...Array.from(statuses)];
+  });
 
   // ── Data fetching ──────────────────────────────────────────
 
@@ -116,7 +228,7 @@
   async function handleRunStarted(runId: string) {
     scanModalOpen = false;
     await fetchSession();
-    const newRun = (session?.runs || []).find(
+    const newRun = allRuns.find(
       (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
     );
     if (newRun) {
@@ -200,6 +312,18 @@
   function _findSlotByTargetId(targetId?: string): SlotContext | undefined {
     if (!targetId) return detailSlots[detailActiveSlot];
     return detailSlots.find(s => s.targetId === targetId) || detailSlots[detailActiveSlot];
+  }
+
+  // ── Panel/standalone click handlers ────────────────────────
+
+  function handleSlotClick(slotIndex: number) {
+    // If there's an active or latest run with this target, navigate to run detail
+    const run = activeRun || latestRun;
+    if (!run) return;
+    const target = (run.targets || []).find((t: RunTarget) => t.slotIndex === slotIndex);
+    if (target) {
+      goto(`/manufacturing/session/${sessionId}/run/${run.id}`);
+    }
   }
 
   // ── Session-level WebSocket ────────────────────────────────
@@ -330,6 +454,16 @@
     unsubscribeRunnerStatus = () => { socket.off('manufacturing_runner_status', handler); };
   }
 
+  async function retryDeployment() {
+    error = null;
+    try {
+      await api.post(`/v2/manufacturing/sessions/${sessionId}/redeploy-runner`);
+      await fetchSession();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to redeploy runner';
+    }
+  }
+
   async function handleEndSession() {
     error = null;
     try {
@@ -375,18 +509,6 @@
     }
   }
 
-  function handleSelectUnit(run: TestRun, target: RunTarget) {
-    openSlotDetail(run, target.slotIndex);
-  }
-
-  function handleSlotClick(slotIndex: number) {
-    if (!activeRun) return;
-    const target = (activeRun.targets || []).find((t: RunTarget) => t.slotIndex === slotIndex);
-    if (target) {
-      openSlotDetail(activeRun, slotIndex);
-    }
-  }
-
   // Svelte action: remove max-w constraint for full-width layout
   function fullWidth(node: HTMLElement) {
     const parent = node.closest('.max-w-7xl');
@@ -418,6 +540,7 @@
   });
 
   onDestroy(() => {
+    stopDeploymentWatcher();
     if (unsubscribeRun) unsubscribeRun();
     if (unsubscribeRunnerStatus) unsubscribeRunnerStatus();
     closeSlotDetail();
@@ -467,7 +590,15 @@
 
     <!-- ── Session View ──────────────────────────────────── -->
     {:else}
-      <SessionHeader {session} />
+      <!-- Session info card -->
+      <SessionHeader
+        {session}
+        canManage={canRun}
+        activeRunExists={!!runningRun}
+        onEndSession={() => { showEndConfirm = true; }}
+        onArchive={() => { showArchiveConfirm = true; }}
+        onDelete={() => { showDeleteConfirm = true; }}
+      />
 
       {#if session.status === 'ARCHIVED'}
         <div class="mb-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning">
@@ -475,106 +606,179 @@
         </div>
       {/if}
 
-      <!-- Panel Grid + Scan Controls -->
-      <div class="mb-6 space-y-4">
-        <!-- Scan action buttons -->
-        {#if canRun && session.status === 'ACTIVE'}
-          <div class="flex items-center gap-2">
-            <button onclick={() => openScanModal('panel')} class="btn btn-md btn-primary">
-              <QrCode size={16} />
-              Scan Panel
-            </button>
-            {#if hasStandaloneSlot}
-              <button onclick={() => openScanModal('standalone')} class="btn btn-md btn-ghost">
-                Scan Standalone
+      <!-- ── Runner deployment gate (ACTIVE sessions only) ── -->
+      {#if isDeploying && !deployTimedOut}
+        <div class="card card-lg mb-6">
+          <div class="flex flex-col items-center justify-center py-8 text-center">
+            <Loader2 size={28} class="text-accent animate-spin mb-4" />
+            <h3 class="text-sm font-semibold text-text-primary mb-1">
+              {checkingMtibs ? 'Verifying Hardware' : 'Deploying Test Runner'}
+            </h3>
+            <p class="text-sm text-text-secondary max-w-md mb-4">
+              {checkingMtibs
+                ? 'Checking that all MTIB servers on the fixture nodes are healthy and reachable.'
+                : 'Starting the runner container, downloading the test package, and connecting to hardware.'}
+            </p>
+
+            <!-- Progress steps driven by actual status -->
+            <div class="w-full max-w-xs space-y-2 text-left mb-4">
+              <div class="flex items-center gap-2 text-xs">
+                <span class="inline-block h-1.5 w-1.5 rounded-full {mtibsDone ? 'bg-success' : 'bg-text-tertiary animate-pulse'}"></span>
+                <span class="{checkingMtibs || mtibsDone ? 'text-text-primary' : 'text-text-tertiary'}">Verifying MTIB health</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="inline-block h-1.5 w-1.5 rounded-full {!deployingRunner && !checkingMtibs && deployElapsed > 5 ? 'bg-text-tertiary animate-pulse' : deployingRunner ? 'bg-text-tertiary animate-pulse' : mtibsDone ? 'bg-success' : 'bg-surface-3'}"></span>
+                <span class="{mtibsDone ? 'text-text-primary' : 'text-text-tertiary'}">Deploying test runner</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="inline-block h-1.5 w-1.5 rounded-full {!runnerStatus && deployElapsed > 10 ? 'bg-text-tertiary animate-pulse' : 'bg-surface-3'}"></span>
+                <span class="{!runnerStatus && deployElapsed > 10 ? 'text-text-primary' : 'text-text-tertiary'}">Connecting to hardware + WebSocket</span>
+              </div>
+            </div>
+
+            <div class="text-2xs text-text-tertiary tabular-nums">
+              {deployElapsed}s elapsed {#if deployElapsed > 30}&middot; this is taking longer than usual{/if}
+            </div>
+          </div>
+        </div>
+      {:else if runnerFailed || deployTimedOut}
+        <div class="card card-lg mb-6">
+          <div class="flex flex-col items-center justify-center py-8 text-center">
+            <ServerCrash size={28} class="text-error mb-4" />
+            <h3 class="text-sm font-semibold text-text-primary mb-1">
+              {deployTimedOut ? 'Runner Deployment Timed Out' : 'Runner Deployment Failed'}
+            </h3>
+            <p class="text-sm text-text-secondary max-w-md mb-4">
+              {#if deployTimedOut}
+                The runner did not report ready within {DEPLOY_TIMEOUT_S}s. The container may still be starting, or it crashed during boot.
+              {:else}
+                The test runner container failed to start. Check that Docker is available, the test package exists, and the container image is built.
+              {/if}
+            </p>
+            <div class="flex items-center gap-2">
+              <button onclick={retryDeployment} class="btn btn-sm btn-primary">
+                <RefreshCw size={14} />
+                Retry Deployment
               </button>
-            {/if}
-            <div class="ml-auto">
-              <button
-                onclick={() => { showEndConfirm = true; }}
-                disabled={!!activeRun}
-                class="btn btn-sm btn-secondary"
-              >
+              <button onclick={() => { showEndConfirm = true; }} class="btn btn-sm btn-ghost">
                 End Session
               </button>
             </div>
           </div>
-        {/if}
-
-        <!-- Live panel grid -->
+        </div>
+      {:else}
+        <!-- Panel widget + run history (runner ready or session not active) -->
         <PanelGridView
           {panelRows}
           {panelCols}
           {hasStandaloneSlot}
           targets={activeRun?.targets ?? latestRun?.targets ?? []}
+          scannable={canRun && session.status === 'ACTIVE' && runnerReady}
+          onScanPanel={() => openScanModal('panel')}
+          onScanStandalone={() => openScanModal('standalone')}
           onSlotClick={handleSlotClick}
         />
-      </div>
-
-      <!-- Archive / Delete buttons -->
-      {#if canRun && (session.status === 'COMPLETED' || session.status === 'CANCELLED')}
-        <div class="mb-4 flex items-center gap-2">
-          <button
-            onclick={() => { showArchiveConfirm = true; }}
-            class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20"
-          >
-            <Archive size={14} />
-            Archive Session
-          </button>
-        </div>
       {/if}
 
-      {#if canRun && session.status === 'ARCHIVED'}
-        <div class="mb-4 flex items-center gap-2">
-          <button
-            onclick={() => { showDeleteConfirm = true; }}
-            class="btn btn-sm btn-danger"
-          >
-            <Trash2 size={14} />
-            Delete Session
-          </button>
-        </div>
-      {/if}
-
-      <!-- Run History -->
-      {#if (session.runs || []).length > 0}
-        <div>
-          <h2 class="text-sm font-semibold text-text-primary mb-3">
-            Run History ({(session.runs || []).length})
+      <!-- Run History (always visible) -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-text-primary">
+            Run History
           </h2>
-          <div class="space-y-2">
-            {#each (session.runs || []) as run (run.id)}
-              <a
-                href="/manufacturing/session/{session.id}/run/{run.id}"
-                class="card card-sm block transition-colors hover:bg-surface-2/50"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <span class="text-xs font-medium text-text-primary">
-                      {run.panelIdentifier || run.name || run.id.slice(0, 8)}
-                    </span>
-                    <span class="text-2xs text-text-tertiary">
-                      {run.passedCount}/{run.targetCount} passed
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    {#if run.durationMs}
-                      <span class="text-2xs tabular-nums text-text-tertiary">
-                        {Math.round(run.durationMs / 1000)}s
-                      </span>
-                    {/if}
-                    <StatusBadge status={run.status} />
-                  </div>
-                </div>
-              </a>
-            {/each}
-          </div>
+          <span class="text-2xs text-text-tertiary">{filteredRuns.length} run{filteredRuns.length !== 1 ? 's' : ''}</span>
         </div>
-      {:else if session.status === 'ACTIVE'}
-        <EmptyState message="Scan a panel QR code to begin manufacturing." />
-      {:else}
-        <EmptyState message="No runs were recorded during this session." />
-      {/if}
+
+        {#if allRuns.length > 0}
+          <!-- Filter bar -->
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs text-text-secondary">Status:</span>
+            <select bind:value={runStatusFilter} class="input input-sm w-auto">
+              {#each runStatusOptions as opt}
+                <option value={opt}>{opt === 'all' ? 'All' : opt}</option>
+              {/each}
+            </select>
+            <div class="relative flex-1 max-w-xs">
+              <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+              <input
+                type="text"
+                bind:value={runSearch}
+                placeholder="Search runs..."
+                class="input input-sm pl-9"
+              />
+            </div>
+          </div>
+
+          <!-- Run list table -->
+          {#if filteredRuns.length === 0}
+            <EmptyState message="No runs match your filters." />
+          {:else}
+            <div class="overflow-hidden rounded-lg border border-border">
+              <table class="w-full">
+                <thead>
+                  <tr class="border-b border-border bg-surface-2">
+                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Panel</th>
+                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Targets</th>
+                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Result</th>
+                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Duration</th>
+                    <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">When</th>
+                    <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredRuns as run (run.id)}
+                    <tr
+                      class="border-b border-border-subtle last:border-0 hover:bg-surface-2 transition-colors cursor-pointer"
+                      onclick={() => goto(`/manufacturing/session/${sessionId}/run/${run.id}`)}
+                    >
+                      <td class="px-4 py-3">
+                        <span class="text-sm font-medium text-text-primary">
+                          {run.panelIdentifier || run.name || run.id.slice(0, 8)}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-sm text-text-secondary">
+                          {run.targetCount || (run.targets || []).length}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-2 text-sm">
+                          {#if run.passedCount > 0}
+                            <span class="text-success font-medium">{run.passedCount} pass</span>
+                          {/if}
+                          {#if run.failedCount > 0}
+                            <span class="text-error font-medium">{run.failedCount} fail</span>
+                          {/if}
+                          {#if !run.passedCount && !run.failedCount}
+                            <span class="text-text-tertiary">—</span>
+                          {/if}
+                        </div>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-sm tabular-nums text-text-secondary">
+                          {run.durationMs ? formatDuration(run.durationMs) : '—'}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="text-sm text-text-tertiary">
+                          {run.createdAt ? formatTimeAgo(run.createdAt) : '—'}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <StatusBadge status={run.status} />
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        {:else if session.status === 'ACTIVE'}
+          <EmptyState message="Click the panel above to scan and begin manufacturing." />
+        {:else}
+          <EmptyState message="No runs were recorded during this session." />
+        {/if}
+      </div>
     {/if}
   {/if}
 </div>
@@ -593,22 +797,22 @@
 
 <!-- End session confirmation -->
 <Modal open={showEndConfirm} title="End Manufacturing Session?" onclose={() => { showEndConfirm = false; }} size="sm">
-  <p class="text-sm text-text-secondary">
-    This will finalize the session. No more panels can be run after ending.
-  </p>
+  <div class="space-y-3">
+    <p class="text-sm text-text-secondary">
+      This will finalize the session. No more panels can be scanned after ending.
+    </p>
+    {#if allRuns.some(r => r.status === 'PENDING')}
+      <p class="text-sm text-warning">
+        {allRuns.filter(r => r.status === 'PENDING').length} pending run(s) will be cancelled.
+      </p>
+    {/if}
+    <p class="text-sm text-text-secondary">
+      The fixture will be unlocked and the test runner will be stopped.
+    </p>
+  </div>
   {#snippet footer()}
-    <button
-      onclick={() => { showEndConfirm = false; }}
-      class="btn btn-sm btn-ghost"
-    >
-      Cancel
-    </button>
-    <button
-      onclick={() => { showEndConfirm = false; handleEndSession(); }}
-      class="btn btn-sm btn-danger"
-    >
-      End Session
-    </button>
+    <button onclick={() => { showEndConfirm = false; }} class="btn btn-sm btn-ghost">Cancel</button>
+    <button onclick={() => { showEndConfirm = false; handleEndSession(); }} class="btn btn-sm btn-danger">End Session</button>
   {/snippet}
 </Modal>
 
@@ -618,24 +822,14 @@
     Archiving hides this session from default views. You can still find it using the Archived status filter.
   </p>
   {#snippet footer()}
-    <button
-      onclick={() => { showArchiveConfirm = false; }}
-      disabled={archiving}
-      class="btn btn-sm btn-ghost"
-    >
-      Cancel
-    </button>
-    <button
-      onclick={handleArchive}
-      disabled={archiving}
-      class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20"
-    >
+    <button onclick={() => { showArchiveConfirm = false; }} disabled={archiving} class="btn btn-sm btn-ghost">Cancel</button>
+    <button onclick={handleArchive} disabled={archiving} class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20">
       {archiving ? 'Archiving...' : 'Archive Session'}
     </button>
   {/snippet}
 </Modal>
 
-<!-- Delete confirmation dialog (type-to-confirm) -->
+<!-- Delete confirmation dialog -->
 <ConfirmDeleteDialog
   open={showDeleteConfirm}
   resourceType="session"

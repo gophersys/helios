@@ -7,8 +7,8 @@ All artifact downloads go through the Concord HTTP API — this library
 NEVER accesses storage (MinIO/S3) directly.
 
     resolver = ArtifactResolver("run-42", api_url, api_key)
-    app_hex = resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
-    cfws = resolver.get_artifacts("MFG_BASE", artifact_type="encryptedCfw")
+    app_hex = resolver.get_artifact("mfg_base", role="app", artifact_type="plaintextHex")
+    cfws = resolver.get_artifacts("mfg_base", artifact_type="encryptedCfw")
 """
 
 import json
@@ -569,7 +569,7 @@ class ArtifactResolver:
         """Download artifact and return local path.
 
         Args:
-            label: Build matrix label (e.g., "MFG_BASE").
+            label: Build matrix label (e.g., "mfg_base").
             role: "app" or "comms".
             artifact_type: "plaintextHex" or "encryptedCfw".
         """
