@@ -469,9 +469,12 @@ def update_fixture(fixture_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_fixture(fixture_id: str):
-    """Delete a fixture if it has no slots with assigned nodes."""
+    """Delete a fixture — undeploys MTIB servers and frees all assigned nodes."""
     db = get_db_client()
-    existing = db.fixture.find_unique(where={"id": fixture_id})
+    existing = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={"slots": True},
+    )
     if not existing:
         return not_found("Fixture not found")
 
@@ -482,13 +485,27 @@ def delete_fixture(fixture_id: str):
     if active_sessions > 0:
         return conflict(f"Cannot delete fixture: {active_sessions} active manufacturing session(s)")
 
-    # Check for associated test runs
-    test_runs = db.testrun.count(where={"fixtureId": fixture_id})
-    if test_runs > 0:
-        return conflict(f"Cannot delete — {test_runs} test run(s) reference this fixture")
+    # Check for truly active test runs — orphaned PENDING runs from dead sessions don't block
+    active_runs = db.testrun.count(
+        where={
+            "fixtureId": fixture_id,
+            "status": {"in": ["ACTIVE"]},
+        }
+    )
+    if active_runs > 0:
+        return conflict(f"Cannot delete — {active_runs} active test run(s) on this fixture")
+
+    # Undeploy MTIB servers and free assigned nodes before deleting
+    freed_nodes = []
+    for slot in (getattr(existing, "slots", None) or []):
+        if slot.nodeId:
+            _undeploy_mtib_for_slot(db, slot.nodeId)
+            freed_nodes.append(slot.nodeId)
 
     db.fixture.delete(where={"id": fixture_id})
-    log_audit("fixture.delete", "Fixture", fixture_id, {"name": existing.name, "type": existing.type})
+    log_audit("fixture.delete", "Fixture", fixture_id, {
+        "name": existing.name, "type": existing.type, "freedNodes": freed_nodes,
+    })
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
@@ -737,7 +754,7 @@ def _undeploy_mtib_for_slot(db, node_id: str) -> bool:
         logger.warning("K8s client not available — skipping MTIB undeploy for %s", node.hostname)
 
     meta.pop("deployment_name", None)
-    db.node.update(where={"id": node_id}, data={"metadata": meta})
+    db.node.update(where={"id": node_id}, data={"metadata": Json(meta)})
     return True
 
 

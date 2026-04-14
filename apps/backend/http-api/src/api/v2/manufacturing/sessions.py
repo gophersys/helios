@@ -824,6 +824,12 @@ def end_manufacturing_session(session_id: str):
         },
     )
 
+    # Clean up orphaned PENDING runs — they'll never execute now
+    db.testrun.update_many(
+        where={"manufacturingSessionId": session_id, "status": "PENDING"},
+        data={"status": "FAILED", "errorMessage": "Session ended before run started"},
+    )
+
     # Unlock the fixture
     db.fixture.update(
         where={"id": session.fixtureId},
