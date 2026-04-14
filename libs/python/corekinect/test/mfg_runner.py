@@ -118,19 +118,32 @@ class ManufacturingRunnerLoop:
         ws_auth = {"apiKey": self.api_key}
 
         log.info("Connecting to WebSocket: %s (namespace=/runs)", ws_url)
-        self.sio.connect(
-            ws_url,
-            namespaces=["/runs"],
-            auth=ws_auth,
-            wait_timeout=30,
-        )
+        import time
+        for attempt in range(10):
+            try:
+                self.sio.connect(
+                    ws_url,
+                    namespaces=["/runs"],
+                    auth=ws_auth,
+                    wait_timeout=30,
+                )
+                break
+            except Exception as e:
+                delay = min(2 ** attempt, 30)
+                log.warning("WebSocket connection failed (attempt %d/10): %s — retrying in %ds", attempt + 1, e, delay)
+                time.sleep(delay)
+        else:
+            log.error("WebSocket connection failed after 10 attempts — running without real-time events")
+            log.error("The runner will poll for panel assignments instead")
+            # Fall through — runner stays alive and polls
 
-        # 3. Join session room
-        self.sio.emit(
-            "subscribe_mfg_session",
-            {"sessionId": self.session_id},
-            namespace="/runs",
-        )
+        # 3. Join session room (only if connected)
+        if self.sio and self.sio.connected:
+            self.sio.emit(
+                "subscribe_mfg_session",
+                {"sessionId": self.session_id},
+                namespace="/runs",
+            )
 
         # 4. Send initial heartbeat
         self._send_heartbeat("READY")
@@ -138,9 +151,17 @@ class ManufacturingRunnerLoop:
         # 5. Recover any pending/crashed runs
         self._recover_pending_runs()
 
-        # 6. Block until disconnected
+        # 6. Block until disconnected (or poll if WS failed)
         log.info("Runner ready -- waiting for panel assignments")
-        self.sio.wait()
+        if self.sio and self.sio.connected:
+            self.sio.wait()
+        else:
+            # Poll mode — check for pending runs periodically
+            log.info("WebSocket unavailable — falling back to polling mode")
+            import time
+            while not self._shutting_down:
+                self._recover_pending_runs()
+                time.sleep(5)
         log.info("Event loop exited")
 
     # ------------------------------------------------------------------
