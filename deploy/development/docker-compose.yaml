@@ -47,6 +47,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/backend/http-api/deploy/Dockerfile
+    group_add:
+      - "999"  # Docker socket group — enables DockerExecutor for spawning test runners
     ports:
       - "9001:9001"
     environment:
@@ -82,8 +84,12 @@ services:
       BUILD_TIMEOUT_MINUTES: "45"
       VALIDATION_TIMEOUT_MINUTES: "60"
       MANUFACTURING_TIMEOUT_MINUTES: "120"
+      # K8s access — enables MTIB discovery, fixture deployment, job scheduling
+      KUBECONFIG: /tmp/.kube/config
+      VALIDATION_NAMESPACE: ${VALIDATION_NAMESPACE:-development}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${KUBECONFIG_HOST_PATH:-/home/mateo/.kube}:/tmp/.kube:ro
     depends_on:
       db:
         condition: service_healthy
