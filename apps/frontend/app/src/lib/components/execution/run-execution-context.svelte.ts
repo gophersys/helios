@@ -300,7 +300,8 @@ export class RunExecutionContext {
           for (const s of this.slots) s.handleRunFinish();
           // Snapshot live data before fetching telemetry
           this._snapshotAllSlots();
-          this._fetchRun();
+          // Delay re-fetch to let DB writes settle before overwriting WS state
+          setTimeout(() => this._fetchRun(), 2000);
         },
         onLogChunk: (data: ValidationLogChunkEvent) => {
           // Route to the target's slot, fall back to active slot

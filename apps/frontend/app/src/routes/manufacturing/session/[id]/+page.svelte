@@ -300,7 +300,8 @@
             for (const slot of detailSlots) {
               slot.handleRunFinish();
             }
-            fetchSession();
+            // Delay re-fetch to let DB writes settle before overwriting WS state
+            setTimeout(fetchSession, 2000);
           },
         });
       }
@@ -429,7 +430,8 @@
             run.durationMs = data.durationMs ?? undefined;
             session = { ...session! };
           }
-          fetchSession();
+          // Delay re-fetch to let DB writes settle before overwriting WS state
+          setTimeout(fetchSession, 2000);
         },
       },
       (errMsg) => {
