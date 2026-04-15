@@ -99,7 +99,7 @@
       result = result.filter(a => a.source === filterSource);
     }
 
-    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   });
 
   const hasActiveFilters = $derived(

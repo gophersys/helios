@@ -78,24 +78,19 @@
     </div>
   </div>
 
-  <!-- Center: Unit pass/fail counts -->
+  <!-- Center: Board pass/fail counts (unique by SNR, latest result) -->
   <div class="flex items-center gap-3 shrink-0">
     {#if totalUnits > 0}
-      <span class="flex items-center gap-1">
-        <CheckCircle2 size={12} class="text-success" />
-        <span class="text-sm font-semibold text-success tabular-nums">{passedUnits}</span>
-      </span>
+      <span class="text-sm font-medium text-success tabular-nums">{passedUnits}/{totalUnits}</span>
+      <span class="text-2xs text-text-tertiary">boards</span>
       {#if failedUnits > 0}
         <span class="flex items-center gap-1">
           <XCircle size={12} class="text-error" />
-          <span class="text-sm font-semibold text-error tabular-nums">{failedUnits}</span>
+          <span class="text-sm font-semibold text-error tabular-nums">{failedUnits} fail</span>
         </span>
       {/if}
-      <span class="text-2xs text-text-tertiary">
-        {totalUnits} unit{totalUnits !== 1 ? 's' : ''}
-      </span>
     {:else}
-      <span class="text-2xs text-text-tertiary">No units tested</span>
+      <span class="text-2xs text-text-tertiary">No boards tested</span>
     {/if}
   </div>
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   const COLORS: Record<string, string> = {
     // Existing
-    ACTIVE: 'bg-success-muted text-success',
+    ACTIVE: 'bg-accent-muted text-accent',
     DEPRECATED: 'bg-warning-muted text-warning',
     EOL: 'bg-error-muted text-error',
     DRAFT: 'bg-accent-muted text-accent',

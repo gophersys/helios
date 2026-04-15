@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _VALID_RUN_TRANSITIONS = {
-    "PENDING": {"ACTIVE", "CANCELLED"},
+    "PENDING": {"ACTIVE", "FAILED", "CANCELLED"},
     "ACTIVE": {"ACTIVE", "COMPLETED", "FAILED", "CANCELLED"},  # ACTIVE→ACTIVE is idempotent
     "COMPLETED": set(),
     "FAILED": set(),

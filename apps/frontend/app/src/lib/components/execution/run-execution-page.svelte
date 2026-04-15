@@ -91,7 +91,7 @@
   <title>{ctx.runTitle} — Concord</title>
 </svelte:head>
 
-<div class="animate-fade-in" use:fullWidth>
+<div class="animate-fade-in flex flex-col" use:fullWidth style="height: calc(100vh - 48px);">
   {#if ctx.loading}
     <LoadingState message="Loading run..." />
   {:else if ctx.error && !ctx.run}

@@ -81,20 +81,17 @@ class FirmwareHandler:
         if self._gpio_expander is None:
             return None  # No GPIO expander configured
 
-        # Skip mux if multiple J-Links are detected — each probe is
-        # directly connected to its target, no mux switching needed.
-        if self._num_jlinks > 1:
-            return None
-
         try:
-            # REV 1.2 single-J-Link mux: P0 controls SN74CBT3257C
+            # REV 1.2: P0 controls SN74CBT3257C mux — ALWAYS switch,
+            # even with 2 probes. The mux routes SWD lines to the chip,
+            # probes connect through the mux output.
             # P0=LOW -> nRF9151, P0=HIGH -> nRF52840
             is_nrf52840 = target in (HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340)
             swap = is_nrf52840
             self._gpio_expander.set_jlink_mux(swap)
             target_name = "nRF52840" if is_nrf52840 else "nRF9151"
-            self.logger.info(f"J-Link mux set to {target_name} (P0={'HIGH' if swap else 'LOW'})")
-            time.sleep(0.5)
+            self.logger.info(f"J-Link mux → {target_name} (P0={'HIGH' if swap else 'LOW'})")
+            time.sleep(0.3)
             return None
         except Exception as e:
             self.logger.error(f"Failed to set J-Link mux: {e}")
@@ -287,26 +284,50 @@ class FirmwareHandler:
                             need_91 = False
 
             # Unassigned probes: APPROTECT blocks --deviceversion.
-            # Assign by elimination — NO --recover here (would erase firmware).
-            # The actual flash step runs --recover before programming.
+            # Assign by elimination when possible. When both are unassigned,
+            # try --recover at each mux position to clear APPROTECT and detect.
+            # This is safe because the flash step runs --recover anyway.
             unassigned = set(serials) - nrf52_responders - nrf91_responders
             if unassigned:
                 self.logger.info(f"Unassigned probes (APPROTECT blocking detection): {unassigned}")
 
-                for serial in unassigned:
+                for serial in list(unassigned):
                     if nrf91_responders and serial not in nrf91_responders:
-                        # We know which probe is nRF9151 — this one must be nRF52840
                         self.programmers[serial] = (HostType.HOST_TYPE_NRF52840, True)
                         self.logger.info(f"J-Link {serial} → nRF52840 (by elimination)")
+                        unassigned.discard(serial)
                     elif nrf52_responders and serial not in nrf52_responders:
-                        # We know which probe is nRF52840 — this one must be nRF9151
                         self.programmers[serial] = (HostType.HOST_TYPE_NRF9151, True)
                         self.logger.info(f"J-Link {serial} → nRF9151 (by elimination)")
-                    else:
-                        # Both unassigned — can't determine without recovery.
-                        # Register as unknown; flash will fail with clear error.
-                        self.programmers[serial] = (None, True)
-                        self.logger.warning(f"J-Link {serial} — target unknown (both chips have APPROTECT)")
+                        unassigned.discard(serial)
+
+                # Both still unassigned — recover at each mux position to detect
+                if len(unassigned) >= 2:
+                    self.logger.info("Both probes undetected — recovering to identify targets")
+                    probe_list = sorted(unassigned)
+
+                    for serial in probe_list:
+                        # Try nRF52840 first
+                        self._gpio_expander.set_jlink_mux(True)  # P0=HIGH → nRF52840
+                        time.sleep(0.3)
+                        try:
+                            subprocess.run(
+                                ["nrfjprog", "--recover", "--snr", serial,
+                                 "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ), "-f", "NRF52"],
+                                capture_output=True, text=True, check=True, timeout=30,
+                            )
+                            # Recover succeeded — this probe reaches nRF52840
+                            self.programmers[serial] = (HostType.HOST_TYPE_NRF52840, True)
+                            self.logger.info(f"J-Link {serial} → nRF52840 (recovered)")
+                            unassigned.discard(serial)
+                            break  # Found the nRF52840 probe, remaining one is nRF9151
+                        except Exception:
+                            pass
+
+                    # Remaining probe must be nRF9151
+                    for serial in unassigned:
+                        self.programmers[serial] = (HostType.HOST_TYPE_NRF9151, True)
+                        self.logger.info(f"J-Link {serial} → nRF9151 (remaining after recovery)")
         else:
             # No mux: try each family flag per probe
             family_attempts = [
@@ -624,8 +645,13 @@ class FirmwareHandler:
                     if current_sha256 != request.file_info.sha256_digest:
                         return FlashFwFileResponse(success=False, message="SHA256 digest mismatch", time_ms=0)
 
-                # Find a suitable programmer
+                # Find a suitable programmer — if not found, clear cache and re-scan
                 programmer = self._find_programmer(request.file_info.target)
+                if not programmer:
+                    self.logger.warning(f"No programmer for target {request.file_info.target} — clearing cache and re-scanning")
+                    self.programmers.clear()
+                    self._assign_jlinks(force_recovery=True)
+                    programmer = self._find_programmer(request.file_info.target)
                 if not programmer:
                     return FlashFwFileResponse(
                         success=False,
@@ -666,6 +692,8 @@ class FirmwareHandler:
                         if e.stdout:
                             error_msg += f"\nstdout: {e.stdout}"
                         self.logger.error(error_msg)
+                        # Clear probe cache — assignment may be wrong
+                        self.programmers.clear()
                         return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
                     except FileNotFoundError:
                         error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."

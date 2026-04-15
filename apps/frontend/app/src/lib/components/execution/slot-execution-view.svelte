@@ -55,7 +55,7 @@
     <SlotHeader {productName} {boardRevision} {firmwareVersion} {slotLabel} {isLive} />
   {/if}
 
-  <div class="flex flex-col relative" style="height: calc(100vh - 160px);">
+  <div class="flex flex-col relative flex-1 min-h-0" data-resize-container>
     <!-- Telemetry loading overlay -->
     {#if slot.telemetryLoading && slot.analysisMode}
       <div class="absolute inset-0 z-20 flex items-center justify-center bg-surface-0/60 backdrop-blur-xs rounded-lg">

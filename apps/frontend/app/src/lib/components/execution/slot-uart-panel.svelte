@@ -6,10 +6,12 @@
 
   const ctx = getSlotContext();
 
-  // Dynamic labels from boardRevision.socs, with fallbacks
-  const appLabel = $derived(socLabels[0] ? `${socLabels[0]} (App)` : 'UART App');
-  const commsLabel = $derived(socLabels[1] ? `${socLabels[1]} (Comms)` : socLabels.length === 1 ? 'UART Comms' : 'UART Comms');
-  const showComms = $derived(socLabels.length !== 1); // Hide comms if only one SOC
+  // Derive App/Comms labels from SoC names — nrf52840 is always App, nrf9151/nrf9160 is Comms
+  const appSoc = $derived(socLabels.find(s => s.includes('52')) || socLabels[0] || '');
+  const commsSoc = $derived(socLabels.find(s => s.includes('91')) || socLabels[1] || '');
+  const appLabel = $derived(appSoc ? `${appSoc} (App)` : 'UART App');
+  const commsLabel = $derived(commsSoc ? `${commsSoc} (Comms)` : 'UART Comms');
+  const showComms = $derived(socLabels.length > 1);
 </script>
 
 <div class="grid gap-2 h-full {showComms ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}">

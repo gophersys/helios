@@ -162,6 +162,32 @@ def _serialize_run(run, include_targets=False) -> dict:
     return d
 
 
+def _compute_board_counts(s) -> dict:
+    """Compute unique board pass/fail counts from targets across all runs.
+
+    Deduplicates by serialNumber — keeps the latest result per board.
+    A board is PASSED if its target status is PASSED, FAILED if FAILED/ERROR.
+    """
+    if not hasattr(s, "runs") or not s.runs:
+        return {"totalUnits": 0, "passedUnits": 0, "failedUnits": 0}
+
+    # Collect latest target status per unique SNR
+    board_status: dict = {}  # snr → status
+    # Process runs newest-first so first-seen SNR is the latest result
+    sorted_runs = sorted(s.runs, key=lambda r: r.createdAt or r.id, reverse=True)
+    for run in sorted_runs:
+        targets = run.targets if hasattr(run, "targets") and run.targets else []
+        for t in targets:
+            snr = t.serialNumber or t.id
+            if snr not in board_status:
+                board_status[snr] = t.status
+
+    total = len(board_status)
+    passed = sum(1 for st in board_status.values() if st == "PASSED")
+    failed = sum(1 for st in board_status.values() if st in ("FAILED", "ERROR"))
+    return {"totalUnits": total, "passedUnits": passed, "failedUnits": failed}
+
+
 def _serialize_session(s, include_runs=False) -> dict:
     d = {
         "id": s.id,
@@ -207,9 +233,7 @@ def _serialize_session(s, include_runs=False) -> dict:
             else None
         ),
         "runCount": len(s.runs) if hasattr(s, "runs") and s.runs else 0,
-        "totalUnits": sum(r.targetCount or 0 for r in s.runs) if hasattr(s, "runs") and s.runs else 0,
-        "passedUnits": sum(r.passedCount or 0 for r in s.runs) if hasattr(s, "runs") and s.runs else 0,
-        "failedUnits": sum(r.failedCount or 0 for r in s.runs) if hasattr(s, "runs") and s.runs else 0,
+        **_compute_board_counts(s),
         "runnerStatus": getattr(s, "runnerStatus", None),
         "runnerDeploymentName": getattr(s, "runnerDeploymentName", None),
         "runnerLastHeartbeat": (
@@ -565,7 +589,7 @@ def list_manufacturing_sessions():
             "fixture": True,
             "operator": True,
             "assetSet": True,
-            "runs": True,
+            "runs": {"include": {"targets": True}},
         },
         skip=skip,
         take=limit,

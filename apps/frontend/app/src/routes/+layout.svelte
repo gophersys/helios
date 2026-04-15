@@ -86,7 +86,7 @@
   {@render children()}
 {:else if auth.isAuthenticated}
   <Layout>
-    <svelte:boundary onerror={(e: unknown, _reset: () => void) => { const err = e as Error; boundaryError = { message: err.message, stack: err.stack }; console.error('[boundary]', e); }}>
+    <svelte:boundary onerror={(e: unknown, _reset: () => void) => { const msg = e instanceof Error ? e.message : String(e ?? 'Unknown error'); const stack = e instanceof Error ? e.stack : undefined; boundaryError = { message: msg, stack }; console.error('[boundary]', e); }}>
       {@render children()}
       {#snippet failed(error: unknown, reset: () => void)}
         <div class="p-8">

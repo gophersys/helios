@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/state';
+  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
@@ -12,7 +12,7 @@
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
-  const productId = $derived(page.params.id);
+  const productId = $derived($page.params.id);
 
   let product = $state<Product | null>(null);
   let loading = $state(true);

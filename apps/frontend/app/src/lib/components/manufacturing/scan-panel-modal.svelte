@@ -214,6 +214,7 @@
           type="text"
           bind:this={inputEl}
           bind:value={snrInput}
+          oninput={() => { snrInput = snrInput.toUpperCase(); }}
           onkeydown={handleKeydown}
           placeholder="Scan or type SNR..."
           disabled={resolved}
