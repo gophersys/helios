@@ -193,6 +193,8 @@
         r.id.toLowerCase().includes(q)
       );
     }
+    // Latest first
+    runs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     return runs;
   });
 
@@ -777,7 +779,11 @@
                         </span>
                       </td>
                       <td class="px-4 py-3 text-right">
-                        <StatusBadge status={run.status} />
+                        {#if run.status === 'COMPLETED' && !run.failedCount}
+                          <span class="badge badge-success">PASSED</span>
+                        {:else}
+                          <StatusBadge status={run.status} />
+                        {/if}
                       </td>
                     </tr>
                   {/each}

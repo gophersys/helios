@@ -200,16 +200,20 @@ export class RunExecutionContext {
         }
         this.slots = built;
 
-        // Hydrate queued test skeleton from config.testList (page reload during active run)
+        // Hydrate test skeleton from config.testList — MERGE with any existing
+        // execution data so page reloads mid-run show the full test plan, not
+        // just the tests that have already started.
         const testList = (res.data.config as Record<string, unknown>)?.testList;
         if (testList && Array.isArray(testList)) {
           for (const slot of built) {
-            if (slot.liveTests.length > 0) continue; // Already hydrated from executions
             const slotTests = (testList as { name: string; module: string | null }[]).filter(t => {
               const m = t.name?.match(/\[slot-(\d+)\]/);
               return m ? parseInt(m[1]) === slot.slotIndex : built.length === 1;
             });
-            if (slotTests.length > 0) {
+            if (slotTests.length === 0) continue;
+
+            if (slot.liveTests.length === 0) {
+              // No executions yet — populate full skeleton
               slot.liveTests = slotTests.map(t => ({
                 name: t.name,
                 module: t.module,
@@ -222,8 +226,34 @@ export class RunExecutionContext {
                 expanded: false,
                 steps: [],
               }));
-              slot.hydrated = true;
+            } else {
+              // Some executions exist — merge: add queued entries for tests
+              // not already in liveTests so the full skeleton is visible
+              const existingNames = new Set(slot.liveTests.map(t => t.name));
+              for (const t of slotTests) {
+                if (!existingNames.has(t.name)) {
+                  slot.liveTests.push({
+                    name: t.name,
+                    module: t.module,
+                    status: 'queued' as const,
+                    durationS: null,
+                    startedAtMs: null,
+                    errorMessage: null,
+                    measurements: null,
+                    logOutput: null,
+                    expanded: false,
+                    steps: [],
+                  });
+                }
+              }
+              // Sort by testList order (preserves the test plan order)
+              const orderMap = new Map(slotTests.map((t, i) => [t.name, i]));
+              slot.liveTests.sort((a, b) =>
+                (orderMap.get(a.name) ?? 999) - (orderMap.get(b.name) ?? 999)
+              );
+              slot.liveTests = slot.liveTests; // trigger reactivity
             }
+            slot.hydrated = true;
           }
         }
 

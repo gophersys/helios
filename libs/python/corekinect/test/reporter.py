@@ -224,6 +224,9 @@ class ConcordReporter:
         # Multi-device support: serial of the currently active DUT
         self._current_device: Optional[str] = None
 
+        # Track which slot indices have had target-start reported
+        self._started_slots: set = set()
+
         # Sub-step tracking (reset per test)
         self._step_counter: int = 0
         self._current_step_index: Optional[int] = None
@@ -488,6 +491,18 @@ class ConcordReporter:
             serial = self._slot_serials.get(slot_idx)
             if serial:
                 self._current_device = serial
+
+        # Report target-start the first time we see a test for each slot.
+        # This transitions the RunTarget status from PENDING → RUNNING in the DB
+        # so the session page shows the correct live status.
+        if slot_match:
+            slot_idx = int(slot_match.group(1))
+            if slot_idx not in self._started_slots:
+                self._started_slots.add(slot_idx)
+                target_start_payload: Dict[str, Any] = {"slotIndex": slot_idx}
+                if self._current_device:
+                    target_start_payload["serialNumber"] = self._current_device
+                self._post("report/target-start", target_start_payload)
 
         payload: Dict[str, Any] = {
             "testName": test_name,

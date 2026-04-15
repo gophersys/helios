@@ -207,6 +207,9 @@ def _serialize_session(s, include_runs=False) -> dict:
             else None
         ),
         "runCount": len(s.runs) if hasattr(s, "runs") and s.runs else 0,
+        "totalUnits": sum(r.targetCount or 0 for r in s.runs) if hasattr(s, "runs") and s.runs else 0,
+        "passedUnits": sum(r.passedCount or 0 for r in s.runs) if hasattr(s, "runs") and s.runs else 0,
+        "failedUnits": sum(r.failedCount or 0 for r in s.runs) if hasattr(s, "runs") and s.runs else 0,
         "runnerStatus": getattr(s, "runnerStatus", None),
         "runnerDeploymentName": getattr(s, "runnerDeploymentName", None),
         "runnerLastHeartbeat": (
@@ -630,7 +633,27 @@ def get_manufacturing_session(session_id: str):
 # Panel SNR resolution helpers
 # ---------------------------------------------------------------------------
 
-def _resolve_panel_snrs(primary_snr: str, slot_count: int) -> list[dict]:
+def _parse_position_map(raw) -> dict[int, int] | None:
+    """Parse a panelPositionMap from fixture metadata.
+
+    Accepts either a dict of string keys {"0": 1, "1": 0, ...}
+    or a list [1, 0, 3, 2] (index = CoreOps position, value = fixture slot).
+    Returns {coreops_position: fixture_slot_index} or None if not configured.
+    """
+    if not raw:
+        return None
+    if isinstance(raw, list):
+        return {i: int(v) for i, v in enumerate(raw)}
+    if isinstance(raw, dict):
+        return {int(k): int(v) for k, v in raw.items()}
+    return None
+
+
+def _resolve_panel_snrs(
+    primary_snr: str,
+    slot_count: int,
+    position_map: dict | None = None,
+) -> list[dict]:
     """Resolve per-slot SNRs for a panel from a scanned barcode.
 
     Calls CoreOps boards/assemblies/search to look up the panel assembly.
@@ -639,8 +662,13 @@ def _resolve_panel_snrs(primary_snr: str, slot_count: int) -> list[dict]:
     For singletons (slot_count=1), the scanned SNR is the DUT's SNR.
     For panels, CoreOps returns all board SNRs at their positions.
 
-    Falls back to the scanned SNR on slot-0 if CoreOps is unavailable
-    or the SNR isn't in the assembly database.
+    Args:
+        primary_snr: Scanned barcode (one board's SNR from the panel).
+        slot_count: Number of panel slots on the fixture.
+        position_map: Optional mapping from CoreOps panelPosition (int) to
+            fixture slotIndex (int). Needed when the physical panel layout
+            doesn't match CoreOps's position numbering.
+            Example: {0: 1, 1: 0, 2: 3, 3: 2} swaps positions 0↔1 and 2↔3.
 
     Returns a list of dicts: [{"slotIndex": 0, "snr": "0A2J", "deviceId": None}, ...].
     """
@@ -667,17 +695,26 @@ def _resolve_panel_snrs(primary_snr: str, slot_count: int) -> list[dict]:
             result[0]["snr"] = primary_snr
             return result
 
-        # Map each board to its panel position (0-indexed)
+        # Map each board to its fixture slot.
+        # CoreOps returns panelPosition (assembly order).
+        # position_map translates CoreOps position → fixture slotIndex.
         for board in boards:
-            position = board.get("panelPosition")
+            coreops_position = board.get("panelPosition")
             board_snr = board.get("boardSerialNumber")
-            if position is not None and 0 <= position < slot_count and board_snr:
-                result[position]["snr"] = board_snr
+            if coreops_position is None or not board_snr:
+                continue
+
+            # Apply position remap if configured
+            slot_idx = position_map.get(coreops_position, coreops_position) if position_map else coreops_position
+
+            if 0 <= slot_idx < slot_count:
+                result[slot_idx]["snr"] = board_snr
 
         logger.info(
-            "Resolved panel %s → %s",
+            "Resolved panel %s → %s%s",
             primary_snr,
             ", ".join(f"slot-{r['slotIndex']}={r['snr']}" for r in result if r["snr"]),
+            f" (position_map={position_map})" if position_map else "",
         )
 
     except Exception as e:
@@ -720,40 +757,69 @@ def resolve_panel(session_id: str):
     if not snr:
         return bad_request("snr is required")
 
+    run_type = (body.get("runType") or "panel").strip().lower()
+
     fixture = session.fixture
-    slots = [
+    all_slots = [
         s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else [])
         if s.active
     ]
 
-    if not slots:
+    if not all_slots:
         return bad_request("Fixture has no active slots")
 
-    # Resolve panel assembly via CoreOps to get per-slot SNRs
-    resolved = _resolve_panel_snrs(snr, len(slots))
+    # Split panel vs standalone slots
+    panel_slots = [s for s in all_slots if not (s.label or "").lower().startswith("standalone")]
+    standalone_slots = [s for s in all_slots if (s.label or "").lower().startswith("standalone")]
 
-    # Also resolve device IDs for each board
     coreops_client = _get_coreops_client()
     result_slots = []
-    for slot, r in zip(slots, resolved):
-        slot_snr = r.get("snr")
-        device_id = None
-        coreops_error = None
 
-        if slot_snr and coreops_client:
-            try:
-                device_id = coreops_client.assign_device_id(slot_snr)
-            except Exception as e:
-                coreops_error = str(e)
-                logger.warning("CoreOps assign_device_id failed for SNR %s: %s", slot_snr, e)
+    if run_type == "standalone":
+        # Standalone: scanned SNR is the DUT directly
+        slots = standalone_slots if standalone_slots else all_slots[-1:]
+        for slot in slots:
+            device_id = None
+            coreops_error = None
+            if coreops_client:
+                try:
+                    device_id = coreops_client.assign_device_id(snr)
+                except Exception as e:
+                    coreops_error = str(e)
+                    logger.warning("CoreOps assign_device_id failed for SNR %s: %s", snr, e)
+            result_slots.append({
+                "slotIndex": slot.slotIndex,
+                "snr": snr,
+                "deviceId": device_id,
+                "label": slot.label if hasattr(slot, "label") and slot.label else f"Slot {slot.slotIndex + 1}",
+                "coreopsError": coreops_error,
+            })
+    else:
+        # Panel: resolve via CoreOps assembly lookup
+        slots = panel_slots if panel_slots else all_slots
+        fixture_meta = fixture.metadata if hasattr(fixture, "metadata") and isinstance(fixture.metadata, dict) else {}
+        position_map = _parse_position_map(fixture_meta.get("panelPositionMap"))
+        resolved = _resolve_panel_snrs(snr, len(slots), position_map=position_map)
 
-        result_slots.append({
-            "slotIndex": slot.slotIndex,
-            "snr": slot_snr,
-            "deviceId": device_id,
-            "label": slot.label if hasattr(slot, "label") and slot.label else f"Slot {slot.slotIndex + 1}",
-            "coreopsError": coreops_error,
-        })
+        for slot, r in zip(slots, resolved):
+            slot_snr = r.get("snr")
+            device_id = None
+            coreops_error = None
+
+            if slot_snr and coreops_client:
+                try:
+                    device_id = coreops_client.assign_device_id(slot_snr)
+                except Exception as e:
+                    coreops_error = str(e)
+                    logger.warning("CoreOps assign_device_id failed for SNR %s: %s", slot_snr, e)
+
+            result_slots.append({
+                "slotIndex": slot.slotIndex,
+                "snr": slot_snr,
+                "deviceId": device_id,
+                "label": slot.label if hasattr(slot, "label") and slot.label else f"Slot {slot.slotIndex + 1}",
+                "coreopsError": coreops_error,
+            })
 
     return jsonify(ApiResponse.ok({
         "primarySnr": snr,
@@ -858,8 +924,11 @@ def add_manufacturing_run(session_id: str):
     # For standalone runs, the qrCode IS the DUT serial number.
     # For panel runs, resolve per-slot SNRs via CoreOps assembly lookup.
     if run_type == "panel" and not slot_snrs:
-        # Look up panel assembly in CoreOps to get each board's unique SNR
-        resolved = _resolve_panel_snrs(qr_code, len(slots))
+        # Look up panel assembly in CoreOps to get each board's unique SNR.
+        # position_map remaps CoreOps panelPosition → fixture slotIndex.
+        fixture_meta = fixture.metadata if hasattr(fixture, "metadata") and isinstance(fixture.metadata, dict) else {}
+        position_map = _parse_position_map(fixture_meta.get("panelPositionMap"))
+        resolved = _resolve_panel_snrs(qr_code, len(slots), position_map=position_map)
         resolved_lookup = {r["slotIndex"]: r for r in resolved}
 
         # Also resolve device IDs for each board

@@ -38,7 +38,7 @@ from src.shared.types import (
 
 
 class FirmwareHandler:
-    JLINK_CLOCKSPEED_KHZ = 4000  # Per hardware rules: always use 4000 for SWD through MTIB mux
+    JLINK_CLOCKSPEED_KHZ = 2000  # Reduced from 4MHz to 2MHz — 4MHz caused verify failures on some boards through the MTIB mux
 
     def __init__(self, logger: Logger):
         self.logger = logger
@@ -58,6 +58,7 @@ class FirmwareHandler:
 
         # J-Link mux support via TCA9534A (set via set_hw_context)
         self._gpio_expander = None
+        self._num_jlinks = 0  # Detected J-Link probe count
 
     def set_gpio_expander(self, gpio_expander) -> None:
         """Set the TCA9534A GPIO expander for REV 1.2 J-Link mux control.
@@ -71,20 +72,28 @@ class FirmwareHandler:
     def _select_jlink_target(self, target: HostType) -> Optional[str]:
         """Select the J-Link mux target on REV 1.2 before flash/erase operations.
 
+        When a single J-Link is muxed between both chips (SN74CBT3257C),
+        P0 on the TCA9534A selects the target. When 2+ separate J-Links
+        are present (each hardwired to one chip), the mux is not needed.
+
         Returns error string on failure, None on success.
         """
         if self._gpio_expander is None:
             return None  # No GPIO expander configured
 
+        # Skip mux if multiple J-Links are detected — each probe is
+        # directly connected to its target, no mux switching needed.
+        if self._num_jlinks > 1:
+            return None
+
         try:
-            # REV 1.2: P0 controls SN74CBT3257C mux
-            # Empirically verified: P0=LOW -> nRF9151, P0=HIGH -> nRF52840
+            # REV 1.2 single-J-Link mux: P0 controls SN74CBT3257C
+            # P0=LOW -> nRF9151, P0=HIGH -> nRF52840
             is_nrf52840 = target in (HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340)
-            swap = is_nrf52840  # P0=HIGH for nRF52840, P0=LOW for nRF9151
+            swap = is_nrf52840
             self._gpio_expander.set_jlink_mux(swap)
             target_name = "nRF52840" if is_nrf52840 else "nRF9151"
             self.logger.info(f"J-Link mux set to {target_name} (P0={'HIGH' if swap else 'LOW'})")
-            # Allow mux to settle before J-Link operations
             time.sleep(0.5)
             return None
         except Exception as e:
@@ -105,15 +114,27 @@ class FirmwareHandler:
             self.logger.error(f"Error getting J-Link serials: {e}")
             serials = []
 
+        self._num_jlinks = len(serials)
+
         if not serials:
             self.logger.warning("No J-Link probes detected")
             return
 
-        # REV 1.2 with J-Link mux: scan at each mux position to find which
-        # J-Link can reach each target. This handles both true mux setups
-        # (one J-Link, mux routes to different targets) and multi-J-Link
-        # setups where different probes connect to different targets.
-        if self._gpio_expander:
+        self.logger.info(f"Found {len(serials)} J-Link probe(s): {', '.join(serials)}")
+
+        # Don't re-scan if all probes already have confirmed assignments
+        all_assigned = all(
+            any(k.startswith(s) and v[1] and v[0] is not None
+                for k, v in self.programmers.items())
+            for s in serials
+        )
+        if all_assigned:
+            self.logger.info("All probes already assigned — skipping re-scan")
+            return
+
+        # REV 1.2 with J-Link mux AND single probe: scan at each mux position.
+        # With 2+ probes, each is directly connected — skip mux, use fallback path.
+        if self._gpio_expander and len(serials) == 1:
             mux_positions = [
                 (HostType.HOST_TYPE_NRF52840, True, "nRF52840"),   # swap=True -> P0=HIGH
                 (HostType.HOST_TYPE_NRF9151, False, "nRF9151"),    # swap=False -> P0=LOW
@@ -165,21 +186,158 @@ class FirmwareHandler:
                         self.logger.debug(f"Error scanning J-Link {serial}: {e}")
             return
 
-        # Fallback (no mux): detect which device is connected to each J-Link
-        for serial in serials:
-            # Skip if already successfully detected
-            if serial in self.programmers:
-                existing_type, existing_connected = self.programmers[serial]
-                if existing_connected:
-                    continue
+        # With a mux: the SN74CBT3257C routes ALL SWD lines to one chip at a time.
+        # At each mux position, every probe sees the SAME chip. To find which
+        # probe is physically wired to which chip, we scan at each position and
+        # look for the probe that ONLY works at that position (not both).
+        #
+        # Strategy: scan all probes at nRF52840 position, then at nRF9151 position.
+        # A probe that responds at nRF52840-position but NOT at nRF9151-position
+        # is the nRF52840 probe (and vice versa). If both respond at both positions
+        # (true mux with 1 probe), register the single probe for both targets.
+        if self._gpio_expander:
+            nrf52_responders = set()
+            nrf91_responders = set()
 
-            # Try to get device version
-            success = self._try_detect_device(serial)
-            if not success:
-                if force_recovery:
-                    self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
-                    if self._try_recover_device(serial):
-                        self._try_detect_device(serial)
+            # Scan at nRF52840 mux position
+            self._gpio_expander.set_jlink_mux(True)  # P0=HIGH → nRF52840
+            self.logger.info("Mux → nRF52840 (P0=HIGH), scanning probes...")
+            time.sleep(0.3)
+            for serial in serials:
+                try:
+                    result = subprocess.check_output(
+                        ["nrfjprog", "--snr", serial, "--deviceversion",
+                         "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ), "-f", "NRF52"],
+                        stderr=subprocess.STDOUT, timeout=10,
+                    ).decode().upper()
+                    if "NRF52840" in result:
+                        nrf52_responders.add(serial)
+                        self.logger.info(f"  {serial}: sees nRF52840")
+                except subprocess.CalledProcessError as e:
+                    err = (e.output or b"").decode().upper()
+                    if "ACCESS" in err and "PROTECT" in err:
+                        nrf52_responders.add(serial)
+                        self.logger.info(f"  {serial}: APPROTECT (likely nRF52840)")
+                    else:
+                        self.logger.info(f"  {serial}: no response at nRF52840 position")
+                except Exception:
+                    pass
+
+            # Scan at nRF9151 mux position
+            self._gpio_expander.set_jlink_mux(False)  # P0=LOW → nRF9151
+            self.logger.info("Mux → nRF9151 (P0=LOW), scanning probes...")
+            time.sleep(0.3)
+            for serial in serials:
+                try:
+                    result = subprocess.check_output(
+                        ["nrfjprog", "--snr", serial, "--deviceversion",
+                         "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ), "-f", "NRF91"],
+                        stderr=subprocess.STDOUT, timeout=10,
+                    ).decode().upper()
+                    if any(m in result for m in ["NRF9151", "NRF9120", "NRF9160"]):
+                        nrf91_responders.add(serial)
+                        self.logger.info(f"  {serial}: sees nRF9151")
+                except subprocess.CalledProcessError as e:
+                    err = (e.output or b"").decode().upper()
+                    if "ACCESS" in err and "PROTECT" in err:
+                        nrf91_responders.add(serial)
+                        self.logger.info(f"  {serial}: APPROTECT (likely nRF9151)")
+                    else:
+                        self.logger.info(f"  {serial}: no response at nRF9151 position")
+                except Exception:
+                    pass
+
+            # Assign probes based on which positions they responded at
+            self.logger.info(f"nRF52840 responders: {nrf52_responders}, nRF9151 responders: {nrf91_responders}")
+
+            # Probes that ONLY respond at one position are definitively assigned
+            only_52 = nrf52_responders - nrf91_responders
+            only_91 = nrf91_responders - nrf52_responders
+            both = nrf52_responders & nrf91_responders
+
+            for serial in only_52:
+                self.programmers[serial] = (HostType.HOST_TYPE_NRF52840, True)
+                self.logger.info(f"J-Link {serial} → nRF52840 (exclusive)")
+
+            for serial in only_91:
+                self.programmers[serial] = (HostType.HOST_TYPE_NRF9151, True)
+                self.logger.info(f"J-Link {serial} → nRF9151 (exclusive)")
+
+            if both:
+                if len(both) == 1 and not only_52 and not only_91:
+                    # Truly single probe on a mux — register for both targets
+                    serial = list(both)[0]
+                    self.programmers[serial] = (HostType.HOST_TYPE_NRF52840, True)
+                    self.programmers[f"{serial}:nrf91"] = (HostType.HOST_TYPE_NRF9151, True)
+                    self.logger.info(f"J-Link {serial} → BOTH via mux (single-probe mux)")
+                else:
+                    # Multi-probe: "both" probes see both targets through the mux.
+                    # Exclusive probes already assigned above. Assign remaining
+                    # "both" probes to whichever target still needs one.
+                    need_52 = not only_52  # No exclusive nRF52840 probe found
+                    need_91 = not only_91  # No exclusive nRF9151 probe found
+                    for serial in sorted(both):
+                        if need_52:
+                            self.programmers[serial] = (HostType.HOST_TYPE_NRF52840, True)
+                            self.logger.info(f"J-Link {serial} → nRF52840 (remaining assignment)")
+                            need_52 = False
+                        elif need_91:
+                            self.programmers[serial] = (HostType.HOST_TYPE_NRF9151, True)
+                            self.logger.info(f"J-Link {serial} → nRF9151 (remaining assignment)")
+                            need_91 = False
+
+            # Unassigned probes: APPROTECT blocks --deviceversion.
+            # Assign by elimination — NO --recover here (would erase firmware).
+            # The actual flash step runs --recover before programming.
+            unassigned = set(serials) - nrf52_responders - nrf91_responders
+            if unassigned:
+                self.logger.info(f"Unassigned probes (APPROTECT blocking detection): {unassigned}")
+
+                for serial in unassigned:
+                    if nrf91_responders and serial not in nrf91_responders:
+                        # We know which probe is nRF9151 — this one must be nRF52840
+                        self.programmers[serial] = (HostType.HOST_TYPE_NRF52840, True)
+                        self.logger.info(f"J-Link {serial} → nRF52840 (by elimination)")
+                    elif nrf52_responders and serial not in nrf52_responders:
+                        # We know which probe is nRF52840 — this one must be nRF9151
+                        self.programmers[serial] = (HostType.HOST_TYPE_NRF9151, True)
+                        self.logger.info(f"J-Link {serial} → nRF9151 (by elimination)")
+                    else:
+                        # Both unassigned — can't determine without recovery.
+                        # Register as unknown; flash will fail with clear error.
+                        self.programmers[serial] = (None, True)
+                        self.logger.warning(f"J-Link {serial} — target unknown (both chips have APPROTECT)")
+        else:
+            # No mux: try each family flag per probe
+            family_attempts = [
+                ("NRF52", ["-f", "NRF52"], HostType.HOST_TYPE_NRF52840, ["NRF52840", "NRF52833"]),
+                ("NRF91", ["-f", "NRF91"], HostType.HOST_TYPE_NRF9151, ["NRF9151", "NRF9120", "NRF9160"]),
+                ("NRF53", ["-f", "NRF53"], HostType.HOST_TYPE_NRF5340, ["NRF5340"]),
+            ]
+            for serial in serials:
+                if serial in self.programmers:
+                    existing_type, _ = self.programmers[serial]
+                    if existing_type is not None:
+                        continue
+                for family_name, family_flag, host_type, markers in family_attempts:
+                    try:
+                        result = subprocess.check_output(
+                            ["nrfjprog", "--snr", serial, "--deviceversion",
+                             "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag,
+                            stderr=subprocess.STDOUT, timeout=10,
+                        ).decode().upper()
+                        if any(m in result for m in markers):
+                            self.programmers[serial] = (host_type, True)
+                            self.logger.info(f"J-Link {serial} → {family_name} (direct)")
+                            break
+                    except subprocess.CalledProcessError as e:
+                        err = (e.output or b"").decode().upper()
+                        if "ACCESS" in err and "PROTECT" in err:
+                            self.programmers[serial] = (host_type, True)
+                            self.logger.info(f"J-Link {serial} → {family_name} (APPROTECT)")
+                            break
+                    except Exception:
+                        continue
 
     def _try_detect_device(self, serial: str) -> bool:
         """Try to detect device type for a J-Link serial number. Returns True if successful."""
@@ -518,6 +676,30 @@ class FirmwareHandler:
                         self.logger.error(error_msg)
                         return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
+                # Step 1.5: Explicit erase after recover to ensure clean flash.
+                # --recover clears APPROTECT but may leave flash in a partial state.
+                # An explicit --eraseall guarantees all flash is 0xFF before programming.
+                if request.recover:
+                    try:
+                        erase_cmd = [
+                            "nrfjprog",
+                            "--eraseall",
+                            "--snr",
+                            programmer,
+                            "--clockspeed",
+                            str(self.JLINK_CLOCKSPEED_KHZ),
+                        ] + family_flag
+                        self.logger.info(f"Running eraseall: {' '.join(erase_cmd)}")
+                        subprocess.run(
+                            erase_cmd,
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                            timeout=30,
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"Eraseall failed (non-fatal, chiperase will retry): {e}")
+
                 # Step 2: Build the nrfjprog programming command
                 is_nrf91 = request.file_info.target in (
                     HostType.HOST_TYPE_NRF9160,
@@ -649,69 +831,58 @@ class FirmwareHandler:
                         success=False, message=f"No suitable programmer found for target {request.target}"
                     )
 
-                # Determine chip family and protection parameters
-                if request.target in [HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340]:
-                    # NRF52 family
-                    family = "NRF52"
-                    protect_addr = "0x10001208"
-                    protect_val = "0xFFFFFF00"
-                elif request.target in [
-                    HostType.HOST_TYPE_NRF9160,
-                    HostType.HOST_TYPE_NRF9160_MODEM,
-                    HostType.HOST_TYPE_NRF9151,
-                    HostType.HOST_TYPE_NRF9151_MODEM,
-                ]:
-                    # NRF91 family
-                    family = "NRF91"
-                    protect_addr = "0x00FF8000"
-                    protect_val = "0"
-                else:
+                # Determine chip family for nrfjprog --rbp ALL
+                # --rbp ALL works for all Nordic chips:
+                #   nRF52840: writes UICR.APPROTECT (0x10001208) = 0x00
+                #   nRF9160:  writes UICR.APPROTECT + SECUREAPPROTECT
+                #   nRF9151:  writes UICR.APPROTECT + SECUREAPPROTECT (91x1 series)
+                #   nRF5340:  writes UICR.APPROTECT per core (needs --coprocessor)
+                family_flag = self._get_family_flag(request.target)
+
+                if not family_flag:
                     return EnableAppProtectResponse(
                         success=False, message=f"Unsupported target {request.target} for App Protect"
                     )
 
-                self.logger.info(f"Enabling App Protect for {family} family on programmer {programmer}")
+                family_name = family_flag[1] if len(family_flag) > 1 else "unknown"
+                self.logger.info(f"Enabling App Protect ({family_name}) on programmer {programmer}")
 
-                # Step 1: Write the App Protect value
+                # Step 1: Enable readback protection via --rbp ALL
                 try:
                     protect_cmd = [
                         "nrfjprog",
-                        "--family",
-                        family,
-                        "--memwr",
-                        protect_addr,
-                        "--val",
-                        protect_val,
-                        "--snr",
-                        programmer,
-                        "--clockspeed",
-                        str(self.JLINK_CLOCKSPEED_KHZ),
-                    ]
-                    self.logger.info(f"Running App Protect write: {' '.join(protect_cmd)}")
-                    subprocess.run(
+                        "--rbp", "ALL",
+                        "--snr", programmer,
+                        "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ),
+                    ] + family_flag
+
+                    self.logger.info(f"Running: {' '.join(protect_cmd)}")
+                    result = subprocess.run(
                         protect_cmd,
                         capture_output=True,
                         text=True,
                         check=True,
-                        timeout=30,  # 30 second timeout
+                        timeout=30,
                     )
-                    self.logger.info(f"Successfully wrote App Protect value {protect_val} to address {protect_addr}")
+                    self.logger.info(f"Successfully enabled readback protection for {family_name}")
+                    if result.stdout:
+                        self.logger.debug(f"rbp stdout: {result.stdout.strip()}")
                 except subprocess.TimeoutExpired:
-                    error_msg = f"App Protect write operation timed out after 30 seconds for programmer {programmer}"
+                    error_msg = f"App Protect timed out after 30s for programmer {programmer}"
                     self.logger.error(error_msg)
                     return EnableAppProtectResponse(success=False, message=error_msg)
                 except subprocess.CalledProcessError as e:
-                    error_msg = f"Failed to write App Protect value: {e.stderr if e.stderr else str(e)}"
+                    error_msg = f"Failed to enable App Protect: {e.stderr if e.stderr else str(e)}"
                     if e.stdout:
                         error_msg += f"\nstdout: {e.stdout}"
                     self.logger.error(error_msg)
                     return EnableAppProtectResponse(success=False, message=error_msg)
                 except FileNotFoundError:
-                    error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                    error_msg = "nrfjprog command not found."
                     self.logger.error(error_msg)
                     return EnableAppProtectResponse(success=False, message=error_msg)
                 except Exception as e:
-                    error_msg = f"Unexpected error during App Protect write: {str(e)}"
+                    error_msg = f"Unexpected error during App Protect: {str(e)}"
                     self.logger.error(error_msg)
                     return EnableAppProtectResponse(success=False, message=error_msg)
 
@@ -724,7 +895,7 @@ class FirmwareHandler:
                         programmer,
                         "--clockspeed",
                         str(self.JLINK_CLOCKSPEED_KHZ),
-                    ]
+                    ] + family_flag
                     self.logger.info(f"Running reset: {' '.join(reset_cmd)}")
                     result = subprocess.run(
                         reset_cmd,
@@ -765,8 +936,6 @@ class FirmwareHandler:
                 try:
                     verify_cmd = [
                         "nrfjprog",
-                        "--family",
-                        family,
                         "--memrd",
                         "0x00000000",
                         "--n",
@@ -775,7 +944,7 @@ class FirmwareHandler:
                         programmer,
                         "--clockspeed",
                         str(self.JLINK_CLOCKSPEED_KHZ),
-                    ]
+                    ] + family_flag
                     self.logger.info(f"Running protection verification: {' '.join(verify_cmd)}")
                     result = subprocess.run(
                         verify_cmd,

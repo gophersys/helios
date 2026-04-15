@@ -27,37 +27,28 @@
 
   const runs = $derived(session.runs || []);
 
-  // Deduplicate by panelIdentifier — keep only the latest run per panel
-  const latestRunPerPanel = $derived.by(() => {
-    const map = new Map<string, (typeof runs)[0]>();
-    for (const r of runs) {
-      const key = r.panelIdentifier || r.id;
-      const existing = map.get(key);
-      if (!existing || new Date(r.createdAt || 0) > new Date(existing.createdAt || 0)) {
-        map.set(key, r);
+  // Deduplicate boards by SNR — keep latest result per unique board
+  const boardResults = $derived.by(() => {
+    const map = new Map<string, { snr: string; status: string; runCreatedAt: string }>();
+    // Process runs newest-first so the first seen SNR is the latest result
+    const sorted = [...runs].sort((a, b) =>
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+    for (const r of sorted) {
+      for (const t of (r.targets || [])) {
+        const snr = t.serialNumber || t.id;
+        if (!map.has(snr)) {
+          map.set(snr, { snr, status: t.status, runCreatedAt: r.createdAt || '' });
+        }
       }
     }
     return Array.from(map.values());
   });
 
-  const panelCount = $derived(latestRunPerPanel.length);
-
-  // Count boards (targets) that PASSED or FAILED across latest runs
-  const boardPassCount = $derived(
-    latestRunPerPanel.reduce((sum, r) => {
-      if (!r.targets) return sum;
-      return sum + r.targets.filter(t => t.status === 'PASSED').length;
-    }, 0)
-  );
-  const boardFailCount = $derived(
-    latestRunPerPanel.reduce((sum, r) => {
-      if (!r.targets) return sum;
-      return sum + r.targets.filter(t => t.status === 'FAILED' || t.status === 'ERROR').length;
-    }, 0)
-  );
-  const totalBoards = $derived(
-    latestRunPerPanel.reduce((sum, r) => sum + (r.targets?.length || r.targetCount || 0), 0)
-  );
+  const uniquePanels = $derived(new Set(runs.map(r => r.panelIdentifier || r.id)).size);
+  const totalBoards = $derived(boardResults.length);
+  const boardPassCount = $derived(boardResults.filter(b => b.status === 'PASSED').length);
+  const boardFailCount = $derived(boardResults.filter(b => b.status === 'FAILED' || b.status === 'ERROR').length);
 
   const RUNNER_STATUS_CONFIG: Record<string, { dotClass: string; label: string }> = {
     CHECKING_MTIBS: { dotClass: 'bg-text-tertiary animate-pulse', label: 'Checking MTIBs...' },
@@ -129,15 +120,20 @@
         <span class="font-mono text-2xs">v{session.assetSet.version}</span>
       </span>
     {/if}
+    {#if (session.config as Record<string, any>)?.testPackageVersion}
+      <span class="font-mono text-2xs bg-surface-2 px-1.5 py-0.5 rounded">
+        app {(session.config as Record<string, any>).testPackageVersion}
+      </span>
+    {/if}
     <span class="flex items-center gap-1 tabular-nums">
       <Clock size={12} />
       {elapsed || '—'}
     </span>
   </div>
 
-  <!-- Counters: panels + board-level pass/fail (latest run per panel) -->
+  <!-- Counters: unique boards pass/fail (latest result per SNR) -->
   <div class="flex items-center gap-3 text-xs shrink-0 ml-auto">
-    <span class="text-text-secondary">{panelCount} panel{panelCount !== 1 ? 's' : ''}</span>
+    <span class="text-text-secondary">{runs.length} run{runs.length !== 1 ? 's' : ''}</span>
     <span class="text-text-tertiary">&middot;</span>
     <span class="text-success font-medium">{boardPassCount}/{totalBoards} boards</span>
     {#if boardFailCount > 0}

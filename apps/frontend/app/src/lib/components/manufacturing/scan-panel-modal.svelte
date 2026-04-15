@@ -56,7 +56,7 @@
 
   const isStandalone = $derived(runType === 'standalone');
   const canResolve = $derived(!resolving && snrInput.trim().length > 0 && !resolved);
-  const canStart = $derived(!starting && (isStandalone ? snrInput.trim().length > 0 : resolved && resolvedSlots.length > 0));
+  const canStart = $derived(!starting && resolved);
   const hasCoreopsErrors = $derived(resolvedSlots.some(s => s.coreopsError));
 
   const title = $derived(isStandalone ? 'Scan Standalone' : 'Scan Panel');
@@ -68,26 +68,45 @@
     try {
       const res = await api.post<ApiResponse<{ primarySnr: string; coreopsAvailable: boolean; slots: ResolvedSlot[] }>>(
         `/v2/manufacturing/sessions/${sessionId}/resolve-panel`,
-        { snr: snrInput.trim() }
+        { snr: snrInput.trim(), runType }
       );
       const data = (res as any).data;
       const allSlots: ResolvedSlot[] = data?.slots || [];
-      // Panel scan: only show grid slots (first rows*cols), not standalone
-      const panelSlotCount = panelRows * panelCols;
-      const panelOnly = allSlots.filter(s => s.slotIndex < panelSlotCount);
 
-      // If most slots have no SNR, the input was bad — stay on input screen
-      const slotsWithSnr = panelOnly.filter(s => s.snr);
-      if (slotsWithSnr.length === 0) {
-        error = 'Could not derive serial numbers from this input. Check the SNR and try again.';
-        return;
-      }
-      if (slotsWithSnr.length < panelOnly.length / 2) {
-        error = `Only ${slotsWithSnr.length} of ${panelOnly.length} slots resolved. The SNR may be invalid.`;
-        return;
-      }
+      if (isStandalone) {
+        // Standalone: show only the standalone slot
+        const panelSlotCount = panelRows * panelCols;
+        const standaloneOnly = allSlots.filter(s => s.slotIndex >= panelSlotCount);
+        if (standaloneOnly.length === 0) {
+          // If no standalone slot returned, create one from the input SNR
+          resolvedSlots = [{
+            slotIndex: panelSlotCount,
+            snr: snrInput.trim(),
+            deviceId: data?.slots?.[0]?.deviceId || null,
+            label: 'Standalone',
+            coreopsError: data?.slots?.[0]?.coreopsError || null,
+          }];
+        } else {
+          resolvedSlots = standaloneOnly;
+        }
+      } else {
+        // Panel: only show grid slots (first rows*cols), not standalone
+        const panelSlotCount = panelRows * panelCols;
+        const panelOnly = allSlots.filter(s => s.slotIndex < panelSlotCount);
 
-      resolvedSlots = panelOnly;
+        // If most slots have no SNR, the input was bad
+        const slotsWithSnr = panelOnly.filter(s => s.snr);
+        if (slotsWithSnr.length === 0) {
+          error = 'Could not derive serial numbers from this input. Check the SNR and try again.';
+          return;
+        }
+        if (slotsWithSnr.length < panelOnly.length / 2) {
+          error = `Only ${slotsWithSnr.length} of ${panelOnly.length} slots resolved. The SNR may be invalid.`;
+          return;
+        }
+
+        resolvedSlots = panelOnly;
+      }
       coreopsAvailable = data?.coreopsAvailable ?? false;
       resolved = true;
     } catch (err) {
@@ -128,7 +147,7 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
-      if (!resolved && !isStandalone) {
+      if (!resolved) {
         handleResolve();
       } else {
         handleStart();
@@ -157,8 +176,31 @@
     resolved = false;
     coreopsAvailable = false;
     error = null;
+    focusInput();
   }
+
+  let inputEl: HTMLInputElement;
+
+  function focusInput() {
+    requestAnimationFrame(() => {
+      inputEl?.focus();
+    });
+  }
+
+  $effect(() => {
+    if (open) focusInput();
+  });
 </script>
+
+<svelte:window onkeydown={(e) => {
+  if (!open || e.key !== 'Enter') return;
+  e.preventDefault();
+  if (!resolved && canResolve) {
+    handleResolve();
+  } else if (resolved && canStart) {
+    handleStart();
+  }
+}} />
 
 <Modal {open} {title} onclose={handleClose} size={resolved ? 'lg' : 'md'}>
   <div class="space-y-4">
@@ -170,6 +212,7 @@
         <!-- svelte-ignore a11y_autofocus -->
         <input
           type="text"
+          bind:this={inputEl}
           bind:value={snrInput}
           onkeydown={handleKeydown}
           placeholder="Scan or type SNR..."
@@ -271,12 +314,41 @@
       </div>
     {/if}
 
-    <!-- Standalone confirmation -->
-    {#if isStandalone && snrInput.trim()}
-      <div class="rounded-lg border border-warning/30 bg-warning-muted/30 p-3">
-        <p class="text-sm text-text-primary">
-          Standalone run for SNR: <span class="font-mono font-medium">{snrInput.trim()}</span>
-        </p>
+    <!-- Standalone resolved view -->
+    {#if isStandalone && resolved && resolvedSlots.length > 0}
+      <div class="rounded-lg border border-border bg-surface-0 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <LayoutGrid size={14} class="text-accent" />
+          <span class="text-2xs font-semibold text-text-primary uppercase tracking-wider">Standalone</span>
+        </div>
+        <div class="flex justify-center">
+          {#each resolvedSlots as slot (slot.slotIndex)}
+            <div class="flex flex-col items-center gap-1 rounded-lg border-2 p-4 text-center w-48
+              {slot.coreopsError
+                ? 'border-warning/50 bg-warning-muted/30'
+                : slot.deviceId
+                  ? 'border-success/40 bg-success-muted/30'
+                  : 'border-border bg-surface-2'
+              }">
+              <span class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider">{slot.label}</span>
+              {#if fixtureSlotMap.get(slot.slotIndex)?.nodeName}
+                <span class="text-2xs text-text-tertiary font-mono">{fixtureSlotMap.get(slot.slotIndex)?.nodeName}</span>
+              {/if}
+              <span class="text-sm font-mono font-semibold text-text-primary">{slot.snr || '—'}</span>
+              {#if slot.deviceId}
+                <div class="flex items-center gap-1">
+                  <Fingerprint size={10} class="text-success shrink-0" />
+                  <span class="text-2xs font-mono text-success break-all">{slot.deviceId}</span>
+                </div>
+              {:else if slot.coreopsError}
+                <div class="flex items-center gap-1">
+                  <AlertTriangle size={10} class="text-warning" />
+                  <span class="text-2xs text-warning">ID pending</span>
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
   </div>
@@ -286,13 +358,13 @@
       Cancel
     </button>
 
-    {#if !isStandalone && !resolved}
+    {#if !resolved}
       <button onclick={handleResolve} disabled={!canResolve} class="btn btn-sm btn-secondary">
         {#if resolving}
           <Loader2 size={14} class="animate-spin" />
-          Resolving...
+          Verifying...
         {:else}
-          Resolve
+          Verify
         {/if}
       </button>
     {:else}

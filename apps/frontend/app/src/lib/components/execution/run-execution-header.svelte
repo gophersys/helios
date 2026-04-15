@@ -40,7 +40,11 @@
 
     <!-- Run title + status -->
     <h1 class="text-sm font-semibold text-text-primary truncate">{ctx.runTitle}</h1>
-    <StatusBadge status={ctx.run.status} />
+    {#if ctx.run.status === 'COMPLETED' && ctx.totalFailed === 0}
+      <span class="badge badge-success">PASSED</span>
+    {:else}
+      <StatusBadge status={ctx.run.status} />
+    {/if}
 
     <!-- LIVE indicator — based on run status, not active slot's running state.
          In multi-slot runs, tests execute sequentially so individual slots may be idle. -->

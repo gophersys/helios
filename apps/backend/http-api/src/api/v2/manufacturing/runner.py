@@ -19,6 +19,7 @@ from typing import Optional
 from urllib.parse import urlparse, urlunparse
 
 import yaml  # type: ignore[import-untyped]
+from database import Json
 from flask import g, jsonify, request
 
 from config.env import env_config
@@ -226,6 +227,14 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
         "FIXTURE_CONFIG_PATH": "",
         "ASSET_SET_ID": session.assetSetId or "",
         "ARTIFACTS_DIR": "/var/log/validation",
+        # CoreOps credentials — needed for device personalization during POST tests.
+        # Passed from the backend's environment so the runner can call CoreOps directly.
+        "COREOPS_SERVER_URL": os.environ.get("COREOPS_SERVER_URL", ""),
+        "COREOPS_API_KEY": os.environ.get("COREOPS_API_KEY", ""),
+        "COREOPS_AUTH_SERVER_URL": os.environ.get("COREOPS_AUTH_SERVER_URL", ""),
+        "COREOPS_AUTH_USER": os.environ.get("COREOPS_AUTH_USER", ""),
+        "COREOPS_AUTH_PASS": os.environ.get("COREOPS_AUTH_PASS", ""),
+        "COREOPS_VERIFY_SSL": os.environ.get("COREOPS_VERIFY_SSL", "false"),
     }
 
     # ASSET_SET_ID is already set above — the test framework downloads
@@ -254,13 +263,19 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
     except Exception:
         logger.exception("Failed to deploy manufacturing runner for session %s", session_id)
 
-    # 7. Update session with runner info
+    # 7. Update session with runner info + store test package version in config
     runner_status = "DEPLOYING" if deployment_name else "ERROR"
+    existing_config = session.config if isinstance(session.config, dict) else {}
+    existing_config["testPackageVersion"] = test_package_version
+    if tp:
+        existing_config["testPackageId"] = tp.id
+
     db.manufacturingsession.update(
         where={"id": session_id},
         data={
             "runnerStatus": runner_status,
             "runnerDeploymentName": deployment_name,
+            "config": Json(existing_config),
         },
     )
 

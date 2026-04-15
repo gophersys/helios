@@ -796,12 +796,6 @@ def report_finish(run_id: str):
     if duration_ms is None and body.get("durationS") is not None:
         duration_ms = int(body["durationS"] * 1000)
 
-    # Mark remaining PENDING/RUNNING targets as ERROR
-    db.runtarget.update_many(
-        where={"runId": run_id, "status": {"in": ["PENDING", "RUNNING"]}},
-        data={"status": "ERROR", "completedAt": now},
-    )
-
     # Mark remaining PENDING/RUNNING executions as SKIPPED (not FAILED —
     # these are tests that never ran, not tests that failed)
     targets = db.runtarget.find_many(where={"runId": run_id}, include={"executions": True})
@@ -813,6 +807,26 @@ def report_finish(run_id: str):
                 "status": {"in": ["PENDING", "RUNNING"]},
             },
             data={"status": "SKIPPED", "completedAt": now},
+        )
+
+    # Compute per-target final status from their executions.
+    # A target PASSED if it has at least one execution and zero failures.
+    # A target with any FAILED execution is FAILED. Otherwise ERROR.
+    for target in targets:
+        if target.status not in ("PENDING", "RUNNING"):
+            continue  # already finalized (e.g., by report_target_result)
+        execs = target.executions or []
+        has_failed = any(e.status in ("FAILED", "ERROR") for e in execs)
+        has_passed = any(e.status == "PASSED" for e in execs)
+        if has_failed:
+            target_status = "FAILED"
+        elif has_passed:
+            target_status = "PASSED"
+        else:
+            target_status = "ERROR"
+        db.runtarget.update(
+            where={"id": target.id},
+            data={"status": target_status, "completedAt": now},
         )
 
     run_update: dict = {

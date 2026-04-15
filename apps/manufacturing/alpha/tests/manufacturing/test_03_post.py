@@ -33,32 +33,25 @@ log = logging.getLogger("manufacturing.post")
 
 # ── CoreOps helpers ───────────────────────────────────────────────────────
 
-def _get_device_id(proxy_url: str, snr: str) -> Tuple[Optional[str], Optional[str]]:
-    """Assign a device ID from CoreOps proxy server."""
-    import requests
+def _get_coreops_client():
+    """Get a CoreOps client instance (same as the backend uses)."""
+    from corekinect.core_ops.client import CoreOpsClient
+    return CoreOpsClient()
+
+
+def _get_device_id(client, snr: str) -> Tuple[Optional[str], Optional[str]]:
+    """Assign a device ID via CoreOps client."""
     try:
-        resp = requests.post(
-            f"{proxy_url}/v1/devices/ids/assign",
-            json={"snr": snr}, verify=False, timeout=15,
-        )
-        if resp.status_code == 200:
-            return resp.json().get("deviceId"), None
-        return None, f"HTTP {resp.status_code}: {resp.content.decode()}"
+        device_id = client.assign_device_id(snr)
+        return device_id, None
     except Exception as e:
         return None, str(e)
 
 
-def _save_device_info(proxy_url, device_id, base64_key, imei, iccids, snr) -> Optional[str]:
-    """Upload device keys and SIM info to CoreOps proxy."""
-    import requests
+def _save_device_info(client, device_id, base64_key, imei, iccids, snr) -> Optional[str]:
+    """Upload device keys and SIM info via CoreOps client."""
     try:
-        resp = requests.post(
-            f"{proxy_url}/v1/devices/keys/upload",
-            json={"deviceId": device_id, "pubKey": base64_key},
-            verify=False, timeout=15,
-        )
-        if resp.status_code != 200:
-            return f"Key upload failed: HTTP {resp.status_code}"
+        client.upload_public_key(device_id, base64_key)
 
         for iccid in iccids:
             carrier = ""
@@ -68,13 +61,7 @@ def _save_device_info(proxy_url, device_id, base64_key, imei, iccids, snr) -> Op
                     break
             if not carrier:
                 return f"Unknown carrier for ICCID {iccid}"
-            resp = requests.post(
-                f"{proxy_url}/v1/devices/iccids/save",
-                json={"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei},
-                verify=False, timeout=15,
-            )
-            if resp.status_code != 200:
-                return f"ICCID save failed for {iccid}: HTTP {resp.status_code}"
+            client.save_iccid(iccid=iccid, carrier=carrier, snr=snr, imei=imei)
         return None
     except Exception as e:
         return str(e)
@@ -279,29 +266,21 @@ def test_08_imei_iccid(slot, config, report):
 @pytest.mark.post
 @pytest.mark.sequential
 def test_09_ext_flash(slot, config, report):
-    """Verify external flash on both processors (write/read/verify).
-
-    Known issue: UART contention between ShellCommander and UartDemuxer
-    causes read_ext_flash to return empty data when SlotTestContext UART
-    capture is active. Also, firmware read-back returns different data
-    than what was written (possible address mapping issue).
-    Skip until firmware ext flash commands are verified independently.
-    """
-    pytest.skip("External flash test disabled — UART contention with SlotTestContext + firmware read-back mismatch under investigation")
+    """Verify external flash on both processors (write/read/verify)."""
+    pytest.skip("Blocked by dual-stream UART contention — needs MTIB server fix")
     require_prior(slot, "post_booted", "test_01_boot must pass first")
-
-    import base64
-    import random
-
-    test_pattern = config.get("post_ext_flash_test_pattern", "ALPHA_POST_TEST_2024")
-    data_b64 = base64.b64encode(test_pattern.encode("utf-8")).decode("utf-8")
-    address = "0x000000"
 
     app, comms = get_shells(slot)
 
-    with report.step("Write + read + verify comms ext flash") as step:
+    with report.step("Comms ext flash write/read/verify") as step:
+        test_pattern = "ALPHA_MFG_POST"
+        import base64
+        data_b64 = base64.b64encode(test_pattern.encode("utf-8")).decode("utf-8")
+        address = "0x000000"
+
         ok, err = comms.write_ext_flash(address, data_b64)
         assert err is None, f"Comms write failed: {err}"
+        step.record("comms_write", "ok")
 
         hex_data, err = comms.read_ext_flash(address, len(test_pattern))
         assert err is None, f"Comms read failed: {err}"
@@ -314,59 +293,30 @@ def test_09_ext_flash(slot, config, report):
             f"Comms data mismatch: expected '{test_pattern}', got '{read_string}'"
         )
         log.info("Comms ext flash verified: '%s'", read_string)
+
         comms.erase_ext_flash()
+        step.record("comms_erased", True)
 
-    with report.step("Write + read + verify app ext flash") as step:
-        # App shell uses the same write/read commands via _cmd.send
-        lines, err = app._cmd.send(
-            f"write_ext_flash {address} {data_b64}",
-            success_patterns=["Writing", "Mfg shell:"],
-            timeout_s=15,
-        )
-        assert not err, f"App write failed: {err}"
-
-        lines, err = app._cmd.send(
-            f"read_ext_flash {address} {len(test_pattern)}",
-            success_patterns=["Reading", "Mfg shell:"],
-            timeout_s=15,
-        )
-        assert not err, f"App read failed: {err}"
-
-        import re
-        hex_data = ""
-        for line in lines:
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if "|" in stripped:
-                hex_part = stripped.split("|")[0].strip()
-                hex_bytes = re.findall(r"[0-9A-Fa-f]{2}", hex_part)
-                if hex_bytes:
-                    hex_data += "".join(hex_bytes)
-            elif re.match(r"^(?:[0-9A-Fa-f]{2}\s*)+$", stripped):
-                hex_data += re.sub(r"\s+", "", stripped)
-
-        assert hex_data, f"App read returned no hex data from: {lines}"
-        read_string = bytes.fromhex(hex_data).decode("utf-8", errors="ignore")
-        step.record("app_match", read_string == test_pattern)
-        step.record("app_read", read_string[:30])
-        assert read_string == test_pattern, (
-            f"App data mismatch: expected '{test_pattern}', got '{read_string}'"
-        )
-        log.info("App ext flash verified: '%s'", read_string)
-
-        app._cmd.send("erase_ext_flash", success_patterns=["Erasing flash"], timeout_s=30)
+    with report.step("App ext flash write/read/verify") as step:
+        result, err = app.test_ext_flash()
+        assert err is None, f"App ext flash failed: {err}"
+        step.record("app_write", result.write_ok)
+        step.record("app_read", result.read_ok)
+        step.record("app_match", result.data_match)
+        assert result.write_ok, "App ext flash write failed"
+        assert result.read_ok, "App ext flash read failed"
+        assert result.data_match, "App ext flash data mismatch"
+        log.info("App ext flash verified: write=%s read=%s match=%s",
+                 result.write_ok, result.read_ok, result.data_match)
 
 
 @pytest.mark.post
 @pytest.mark.sequential
 def test_10_personalize(slot, config, report):
-    """Personalize device via CoreOps proxy."""
+    """Personalize device via CoreOps (direct client, same as backend)."""
     require_prior(slot, "post_booted", "test_01_boot must pass first")
 
-    proxy_url = os.environ.get("PROXY_SERVER_URL", "")
-    if not proxy_url:
-        pytest.skip("No PROXY_SERVER_URL configured")
+    client = _get_coreops_client()
 
     with report.step("Personalize device with CoreOps") as step:
         imei = slot.shared_data.get("imei")
@@ -378,7 +328,7 @@ def test_10_personalize(slot, config, report):
         snr = slot.serial_number
         device_snr = config.get("snrs", {}).get(slot.slot_id, snr)
 
-        device_id, err = _get_device_id(proxy_url, device_snr)
+        device_id, err = _get_device_id(client, device_snr)
         assert err is None, f"Failed to get device ID: {err}"
         assert device_id, "CoreOps returned empty device ID"
         step.record("device_id", device_id)
@@ -390,7 +340,7 @@ def test_10_personalize(slot, config, report):
         step.record("has_public_key", True)
         log.info("Device personalized, public key: %s...", keys.base64_key[:20])
 
-        err = _save_device_info(proxy_url, device_id, keys.base64_key, imei, iccids, device_snr)
+        err = _save_device_info(client, device_id, keys.base64_key, imei, iccids, device_snr)
         assert err is None, f"Failed to save device info: {err}"
         step.record("info_uploaded", True)
         log.info("Device info saved to CoreOps")
