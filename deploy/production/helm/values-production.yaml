@@ -87,6 +87,7 @@ config:
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
   CONCORD_API_HOST: "concord.local"
+  CONCORD_API_URL: "http://concord-http-api.production.svc.cluster.local:9001"
   PYPI_URL: "http://concord-pypi:8080/simple"
   # CoreOps — device personalization service account
   COREOPS_SERVER_URL: "https://coreops.office.corekinect.cloud:2013"

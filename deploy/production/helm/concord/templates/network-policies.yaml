@@ -222,12 +222,17 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # K8s API server (job creation for validation/build/manufacturing)
+    # K8s API server (job/deployment creation for validation/build/manufacturing)
+    # Control plane nodes: 10.4.45.11-13 on port 6443
     - to:
         - ipBlock:
-            cidr: 10.43.0.1/32
+            cidr: 10.4.45.11/32
+        - ipBlock:
+            cidr: 10.4.45.12/32
+        - ipBlock:
+            cidr: 10.4.45.13/32
       ports:
-        - port: 443
+        - port: 6443
           protocol: TCP
     # External HTTPS — Bitbucket API (CkBoards, repo checks), CoreOps, Auth server
     - to:

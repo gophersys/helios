@@ -50,3 +50,24 @@ subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: Group
     name: concord-developers
+---
+# Service account binding: allows http-api (staging/production) to create
+# manufacturing runner deployments and validation jobs in this namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-api-runner-manager
+  namespace: validation
+  labels:
+    app.kubernetes.io/part-of: concord
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - kind: ServiceAccount
+    name: concord-api
+    namespace: staging
+  - kind: ServiceAccount
+    name: concord-api
+    namespace: production

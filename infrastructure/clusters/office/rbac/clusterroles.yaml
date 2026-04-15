@@ -115,10 +115,11 @@ rules:
   - apiGroups: [""]
     resources: [pods]
     verbs: [delete]
+  # Deployments: create/delete needed for manufacturing runners and validation jobs.
+  # Scale needed for horizontal scaling from the admin UI.
   - apiGroups: ["apps"]
     resources: [deployments, replicasets, statefulsets, daemonsets]
-    verbs: [get, list, watch]
-  # Deployment scale: needed for the API to trigger horizontal scaling.
+    verbs: [get, list, watch, create, update, delete]
   - apiGroups: ["apps"]
     resources: [deployments/scale]
     verbs: [get, patch, update]
