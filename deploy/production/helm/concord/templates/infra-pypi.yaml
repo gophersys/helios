@@ -44,7 +44,7 @@ spec:
       {{- end }}
       containers:
       - name: pypi
-        image: pypiserver/pypiserver:2.3.2
+        image: pypiserver/pypiserver:v2.3.2
         {{- if .Values.infrastructure.pypi.auth.enabled }}
         args: ["run", "-P", "/data/.htpasswd", "-a", "update", "/data/packages"]
         {{- else }}
