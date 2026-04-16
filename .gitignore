@@ -74,9 +74,13 @@ CMakeCache.tmp
 # ---------------------------------------------------------------------------
 .env
 deploy/production/helm/values-*-secrets.yaml
-*.pem
 *.key
 **/credentials.json
+
+# ---------------------------------------------------------------------------
+# Infrastructure secrets (private keys, env files with passwords)
+# ---------------------------------------------------------------------------
+infrastructure/clusters/*/secrets/.env
 
 # ---------------------------------------------------------------------------
 # IDE & editors
@@ -121,7 +125,9 @@ infrastructure/clusters/office/networking/certs/*.key
 infrastructure/clusters/*/kubeconfigs/generated/
 
 # ---------------------------------------------------------------------------
-# Backups (local staging/production data snapshots)
+# Backups & data exports (local staging/production data snapshots)
 # ---------------------------------------------------------------------------
 .backups/
+*.dump
+manufacturing-*.zip
 __pycache__/

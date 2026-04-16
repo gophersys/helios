@@ -52,20 +52,20 @@ docs:
 
 ingress:
   enabled: true
-  host: staging.concord.local
+  host: staging.concord.ad.corekinect.com
   className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
   tls:
-    secretName: staging-concord-tls
+    secretName: concord-tls
 
 config:
   SERVER_PORT: "9001"
   LOG_LEVEL: "4"
   LOG_PATH: "logs"
   ASSETS_FOLDER: "assets"
-  CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
+  CORS_ORIGINS: "https://staging.concord.ad.corekinect.com,http://staging.concord.ad.corekinect.com,http://localhost:4200"
   MTIB_PORT: "50053"
   BITBUCKET_EMAIL: "mateo@corekinect.com"
   BITBUCKET_POLLER_ENABLED: "true"
@@ -85,7 +85,7 @@ config:
   STORAGE_URL: "http://concord-minio:9000"
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
-  CONCORD_API_HOST: "staging.concord.local"
+  CONCORD_API_HOST: "staging.concord.ad.corekinect.com"
   CONCORD_API_URL: "http://concord-http-api.staging.svc.cluster.local:9001"
   PYPI_URL: "http://concord-pypi:8080/simple"
   # CoreOps — device personalization service account
