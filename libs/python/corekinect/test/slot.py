@@ -33,6 +33,7 @@ Environment variables:
 
 import json
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
@@ -41,6 +42,11 @@ from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.utils import Logger
 
 log = Logger(log_name="test_slot")
+
+# Connect retry defaults — MTIBs can be momentarily unavailable after restarts
+# or during hardware hiccups. Short retry loop hides transient failures.
+CONNECT_MAX_ATTEMPTS = int(os.environ.get("MTIB_CONNECT_MAX_ATTEMPTS", "5"))
+CONNECT_RETRY_DELAY_S = float(os.environ.get("MTIB_CONNECT_RETRY_DELAY_S", "2"))
 
 
 @dataclass
@@ -66,30 +72,91 @@ class SlotContext:
     fixture: Optional[Any] = field(default=None, repr=False)
 
     def connect(self, fixture_factory: Optional[Callable] = None) -> None:
-        """Connect MTIB client and create fixture controller."""
-        config = MtibV1Client.Config(
-            net=NetConfig(addr=self.mtib_address, port=self.mtib_port)
+        """Connect MTIB client and create fixture controller.
+
+        Retries on transient failures (e.g., MTIB mid-restart, gRPC
+        connection reset). Gives up after CONNECT_MAX_ATTEMPTS attempts.
+        """
+        last_err: Optional[str] = None
+        for attempt in range(1, CONNECT_MAX_ATTEMPTS + 1):
+            try:
+                config = MtibV1Client.Config(
+                    net=NetConfig(addr=self.mtib_address, port=self.mtib_port)
+                )
+                self.mtib = MtibV1Client(config)
+                err = self.mtib.connect()
+                if err:
+                    raise ConnectionError(f"connect() returned error: {err}")
+
+                ready, errors, err = self.mtib.HealthCheck()
+                if err:
+                    raise ConnectionError(f"HealthCheck returned error: {err}")
+                if not ready:
+                    raise ConnectionError(f"MTIB not ready: {errors}")
+
+                if fixture_factory:
+                    self.fixture = fixture_factory(self.mtib)
+
+                log.info(
+                    "Slot %s connected: %s:%d (snr=%s)%s",
+                    self.slot_id, self.mtib_address, self.mtib_port,
+                    self.serial_number or "n/a",
+                    f" [attempt {attempt}/{CONNECT_MAX_ATTEMPTS}]" if attempt > 1 else "",
+                )
+                return
+            except Exception as e:
+                last_err = str(e)
+                # Drop stale client before retrying
+                if self.mtib:
+                    try:
+                        self.mtib.disconnect()
+                    except Exception:
+                        pass
+                    self.mtib = None
+                if attempt < CONNECT_MAX_ATTEMPTS:
+                    log.warning(
+                        "Slot %s connect attempt %d/%d failed (%s) — retrying in %.1fs",
+                        self.slot_id, attempt, CONNECT_MAX_ATTEMPTS, last_err,
+                        CONNECT_RETRY_DELAY_S,
+                    )
+                    time.sleep(CONNECT_RETRY_DELAY_S)
+
+        raise ConnectionError(
+            f"Slot {self.slot_id}: MTIB connection to "
+            f"{self.mtib_address}:{self.mtib_port} failed after "
+            f"{CONNECT_MAX_ATTEMPTS} attempts: {last_err}"
         )
-        self.mtib = MtibV1Client(config)
-        err = self.mtib.connect()
-        if err:
-            raise ConnectionError(
-                f"Slot {self.slot_id}: MTIB connection to {self.mtib_address}:{self.mtib_port} failed: {err}"
-            )
 
-        ready, errors, err = self.mtib.HealthCheck()
-        if err:
-            raise ConnectionError(f"Slot {self.slot_id}: MTIB health check failed: {err}")
-        if not ready:
-            raise ConnectionError(f"Slot {self.slot_id}: MTIB not ready: {errors}")
+    def ensure_connected(self, fixture_factory: Optional[Callable] = None) -> bool:
+        """Health-check the current connection, reconnect if stale.
 
-        if fixture_factory:
-            self.fixture = fixture_factory(self.mtib)
+        Call this before running tests on a slot whose MTIB may have
+        restarted since the runner started up. Returns True if the slot
+        is healthy (reconnected if needed).
+        """
+        if self.mtib:
+            try:
+                ready, _errors, err = self.mtib.HealthCheck()
+                if not err and ready:
+                    return True
+                log.warning(
+                    "Slot %s stale connection (healthcheck err=%s, ready=%s) — reconnecting",
+                    self.slot_id, err, ready,
+                )
+            except Exception as e:
+                log.warning("Slot %s healthcheck raised %s — reconnecting", self.slot_id, e)
+            try:
+                self.mtib.disconnect()
+            except Exception:
+                pass
+            self.mtib = None
 
-        log.info(
-            "Slot %s connected: %s:%d (snr=%s)",
-            self.slot_id, self.mtib_address, self.mtib_port, self.serial_number or "n/a",
-        )
+        try:
+            self.connect(fixture_factory=fixture_factory)
+            return True
+        except Exception as e:
+            log.error("Slot %s reconnect failed: %s", self.slot_id, e)
+            return False
 
     def disconnect(self) -> None:
         """Disconnect MTIB client."""
@@ -276,6 +343,19 @@ class FixtureContext:
                 log.warning("Slot %s connection failed (skipping): %s", slot.slot_id, e)
         log.info("Connected %d/%d slots", connected, len(self.slots))
         return connected
+
+    def ensure_all_connected(self, fixture_factory: Optional[Callable] = None) -> int:
+        """Health-check every slot, reconnect any that are stale.
+
+        Returns count of slots currently healthy. Used by the runner before
+        starting a panel run to self-heal after MTIB restarts.
+        """
+        healthy = 0
+        for slot in self.slots.values():
+            if slot.ensure_connected(fixture_factory=fixture_factory):
+                healthy += 1
+        log.info("Ensured connections: %d/%d slots healthy", healthy, len(self.slots))
+        return healthy
 
     def disconnect_all(self) -> None:
         """Disconnect all slots (best-effort, logs errors)."""

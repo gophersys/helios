@@ -243,6 +243,15 @@ class ManufacturingRunnerLoop:
 
         self._send_heartbeat("RUNNING")
 
+        # Self-heal MTIB connections that may have gone stale (e.g., MTIB
+        # servers restarted while the runner was idle). Reconnect before
+        # preflight so transient restarts don't fail the panel.
+        if self.fixture_ctx:
+            try:
+                self.fixture_ctx.ensure_all_connected()
+            except Exception as e:
+                log.warning("ensure_all_connected raised: %s", e)
+
         # Set environment for TestRunner and reporter
         os.environ["CONCORD_RUN_ID"] = run_id
         os.environ["CONCORD_SESSION_ID"] = run_id

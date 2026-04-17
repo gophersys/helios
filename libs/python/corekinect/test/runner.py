@@ -373,36 +373,57 @@ class PreflightChecker:
 
     @staticmethod
     def _check_single_mtib(address: str) -> Tuple[bool, str]:
-        """Verify a single MTIB gRPC connection."""
-        try:
-            from corekinect.mtib_client.v1.client.config import NetConfig
-            from corekinect.mtib_client.v1.client.core import MtibV1Client
+        """Verify a single MTIB gRPC connection, with retry on transient failures.
 
-            parts = address.rsplit(":", 1)
-            host = parts[0]
-            port = int(parts[1]) if len(parts) > 1 else 50053
-            cfg = MtibV1Client.Config(net=NetConfig(addr=host, port=port))
-            client = MtibV1Client(cfg)
+        MTIBs can be momentarily unavailable after restarts or under load.
+        Retry a few times with backoff before failing the preflight check.
+        """
+        import time as _time
+        from corekinect.mtib_client.v1.client.config import NetConfig
+        from corekinect.mtib_client.v1.client.core import MtibV1Client
 
-            err = client.connect()
-            if err:
-                return False, f"Connection failed: {err}"
+        max_attempts = int(os.environ.get("MTIB_PREFLIGHT_MAX_ATTEMPTS", "5"))
+        retry_delay = float(os.environ.get("MTIB_PREFLIGHT_RETRY_DELAY_S", "2"))
 
-            result = client.HealthCheck()
-            client.disconnect()
+        last_msg = "unknown error"
+        for attempt in range(1, max_attempts + 1):
+            client = None
+            try:
+                parts = address.rsplit(":", 1)
+                host = parts[0]
+                port = int(parts[1]) if len(parts) > 1 else 50053
+                cfg = MtibV1Client.Config(net=NetConfig(addr=host, port=port))
+                client = MtibV1Client(cfg)
 
-            if isinstance(result, tuple) and len(result) >= 3:
-                ok, details, err = result[0], result[1], result[2]
-            else:
-                ok, err = result if isinstance(result, tuple) else (result, None)
+                err = client.connect()
+                if err:
+                    last_msg = f"Connection failed: {err}"
+                else:
+                    result = client.HealthCheck()
+                    if isinstance(result, tuple) and len(result) >= 3:
+                        ok, _details, err = result[0], result[1], result[2]
+                    else:
+                        ok, err = result if isinstance(result, tuple) else (result, None)
 
-            if err:
-                return False, f"Health check failed: {err}"
+                    if err:
+                        last_msg = f"Health check failed: {err}"
+                    elif not ok:
+                        last_msg = "MTIB not ready"
+                    else:
+                        return True, "OK" if attempt == 1 else f"OK (attempt {attempt})"
+            except Exception as e:
+                last_msg = str(e)
+            finally:
+                if client is not None:
+                    try:
+                        client.disconnect()
+                    except Exception:
+                        pass
 
-            return True, "OK"
+            if attempt < max_attempts:
+                _time.sleep(retry_delay)
 
-        except Exception as e:
-            return False, str(e)
+        return False, last_msg
 
     def _check_storage(self) -> Tuple[bool, str]:
         """Verify sufficient disk space."""
