@@ -18,6 +18,7 @@
   import type { BoardRevision, AssetSet, AssetFile, ModemFirmware } from '$lib/types/models';
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
   import { stageName } from '$lib/types/stages';
+  import { actionable } from '$lib/actions/actionable';
 
   interface Props {
     productId: string;
@@ -251,7 +252,7 @@
       <span class="text-2xs text-text-tertiary">{modemFirmwares.length} version{modemFirmwares.length === 1 ? '' : 's'}</span>
       {#if canManage}
         <div class="ml-auto flex items-center gap-2">
-          <label class="btn btn-sm btn-primary cursor-pointer">
+          <label use:actionable={{ id: 'upload-modem-fw', label: 'Upload modem firmware' }} class="btn btn-sm btn-primary cursor-pointer">
             {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
             Upload .zip
             <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading} />
@@ -319,7 +320,7 @@
         {filteredAssets.length} asset set{filteredAssets.length !== 1 ? 's' : ''}
       </span>
       {#if canManage}
-        <button onclick={() => showUploadWizard = true} class="btn btn-sm btn-primary">
+        <button use:actionable={{ id: 'upload-fw', label: 'Upload firmware' }} onclick={() => showUploadWizard = true} class="btn btn-sm btn-primary">
           <Upload size={14} /> Upload .zip
         </button>
       {/if}

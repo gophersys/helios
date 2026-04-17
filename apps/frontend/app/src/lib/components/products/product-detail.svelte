@@ -13,8 +13,18 @@
   } from 'lucide-svelte';
   import type { Product, BoardRevision } from '$lib/types/models';
   import { api } from '$lib/api';
+  import { actionable } from '$lib/actions/actionable';
+  import type { ActionableId } from '$lib/actions/registry';
 
   type Tab = 'overview' | 'hardware' | 'assets' | 'manufacturing' | 'stages';
+
+  const tabActionIds: Record<Tab, ActionableId> = {
+    overview: 'tab-overview',
+    hardware: 'tab-hardware',
+    assets: 'tab-assets',
+    manufacturing: 'tab-manufacturing',
+    stages: 'tab-stages',
+  };
 
   interface Props {
     product: Product;
@@ -164,7 +174,7 @@
             <h2 class="text-xl font-semibold text-text-primary">{product.name}</h2>
             <StatusBadge status={product.status} />
             {#if canManage && product.status !== 'ARCHIVED'}
-              <button onclick={startEditProduct} title="Edit product" aria-label="Edit product" class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary">
+              <button use:actionable={{ id: 'edit-product', label: 'Edit product' }} onclick={startEditProduct} title="Edit product" aria-label="Edit product" class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary">
                 <Pencil size={14} />
               </button>
             {/if}
@@ -182,6 +192,7 @@
         {#each tabs as tab}
           {@const TabIcon = tab.icon}
           <button
+            use:actionable={{ id: tabActionIds[tab.key], label: `${tab.label} tab` }}
             onclick={() => (activeTab = tab.key)}
             class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors {activeTab === tab.key ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
           >

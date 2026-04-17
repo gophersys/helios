@@ -2,6 +2,7 @@
   import { LayoutGrid, QrCode } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { RunTarget } from '$lib/types/models';
+  import { actionable } from '$lib/actions/actionable';
 
   let {
     panelRows = 1,
@@ -72,6 +73,7 @@
 <div class="space-y-4">
   <!-- Panel grid widget -->
   <div
+    use:actionable={{ id: 'scan-panel', label: 'Scan panel' }}
     class="rounded-lg border border-border bg-surface-0 p-4 relative transition-all
       {scannable ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
     role={scannable ? 'button' : undefined}
@@ -134,6 +136,7 @@
   <!-- Standalone slot widget -->
   {#if hasStandaloneSlot}
     <div
+      use:actionable={{ id: 'scan-standalone', label: 'Scan standalone slot' }}
       class="rounded-lg border border-border bg-surface-0 p-4 relative transition-all
         {scannable ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
       role={scannable ? 'button' : undefined}

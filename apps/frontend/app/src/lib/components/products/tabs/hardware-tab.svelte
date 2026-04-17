@@ -5,6 +5,7 @@
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
   import { api } from '$lib/api';
   import { formatTimeAgo } from '$lib/utils/formatting';
+  import { actionable } from '$lib/actions/actionable';
 
   interface Props {
     product: Product;
@@ -236,6 +237,7 @@
   <div class="flex items-center gap-2">
     {#if canManage && board}
       <button
+        use:actionable={{ id: 'sync-from-repo', label: 'Sync from repo' }}
         onclick={syncFromRepo}
         disabled={syncing || !syncAvailable}
         class="btn btn-sm btn-secondary"
@@ -249,7 +251,7 @@
         Sync from ck_boards
       </button>
       {#if !showAddForm}
-        <button onclick={() => (showAddForm = true)} class="btn btn-sm btn-primary">
+        <button use:actionable={{ id: 'add-revision', label: 'Add revision' }} onclick={() => (showAddForm = true)} class="btn btn-sm btn-primary">
           <Plus size={14} /> Add Revision
         </button>
       {/if}

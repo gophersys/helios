@@ -16,6 +16,7 @@
   import PaginationNav from '$lib/components/ui/pagination.svelte';
   import SessionCard from '$lib/components/manufacturing/session-card.svelte';
   import SessionCreateWizard from '$lib/components/manufacturing/session-create-wizard.svelte';
+  import { actionable } from '$lib/actions/actionable';
 
   const auth = getAuth();
   const canRun = $derived(auth.hasPermission('manufacturing:run'));
@@ -147,7 +148,7 @@
         <RefreshCw size={14} class={refreshing ? 'animate-spin' : ''} />
       </button>
       {#if canRun}
-        <button onclick={() => showCreateWizard = true} class="btn btn-sm btn-primary">
+        <button use:actionable={{ id: 'new-session', label: 'New session' }} onclick={() => showCreateWizard = true} class="btn btn-sm btn-primary">
           <Plus size={16} /> New Session
         </button>
       {/if}

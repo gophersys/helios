@@ -10,6 +10,9 @@
   import Layout from '$lib/components/layout.svelte';
   import EnvironmentBanner from '$lib/components/ui/environment-banner.svelte';
   import ErrorReportModal from '$lib/components/ui/error-report-modal.svelte';
+  import ActionContextMenu from '$lib/components/ui/action-context-menu.svelte';
+  import ToastContainer from '$lib/components/ui/toast-container.svelte';
+  import { highlightAction, readActionFromUrl } from '$lib/actions/deep-link';
 
   let { children } = $props();
 
@@ -33,6 +36,17 @@
     const title = document.title || $page.url.pathname;
     routeAnnouncement = 'Navigated to ' + title;
     if (to?.url) trackNavigation(to.url.pathname);
+
+    // Deep-link handler: if the URL has ?a=<actionId> and a matching
+    // element exists on the loaded page, scroll to it and pulse it.
+    // Wait two animation frames so the page's onMount/effects have
+    // stamped their data-action attributes into the DOM.
+    const actionId = readActionFromUrl($page.url);
+    if (actionId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => highlightAction(actionId));
+      });
+    }
   });
 
   // Initialize auth on mount
@@ -111,6 +125,8 @@
 <div aria-live="polite" aria-atomic="true" class="sr-only">{routeAnnouncement}</div>
 
 <ErrorReportModal />
+<ActionContextMenu />
+<ToastContainer />
 
 <!-- Dev error toast — persists until dismissed -->
 {#if isDev && boundaryError}

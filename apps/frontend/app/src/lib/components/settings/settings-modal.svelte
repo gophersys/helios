@@ -12,6 +12,7 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import { formatDate } from '$lib/utils/formatting';
+  import { actionable } from '$lib/actions/actionable';
 
   // Type imports
   import type { ApiResponse } from '$lib/types';
@@ -627,6 +628,7 @@
               </form>
             {:else}
               <button
+                use:actionable={{ id: 'create-api-key', label: 'Create API key' }}
                 onclick={() => (showCreateKey = true)}
                 class="btn btn-sm btn-secondary"
               >

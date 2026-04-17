@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Zap, Cpu, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-svelte';
   import type { ManufacturingStageConfig } from '$lib/types/models';
+  import { actionable } from '$lib/actions/actionable';
 
   interface Props {
     stage: ManufacturingStageConfig;
@@ -43,7 +44,7 @@
 <div class="rounded-lg border border-border bg-surface-0">
   <!-- Header -->
   <div class="flex items-center gap-3 p-3">
-    <label class="relative inline-flex cursor-pointer items-center">
+    <label use:actionable={{ id: 'disable-mfg-stage', label: 'Toggle manufacturing stage' }} class="relative inline-flex cursor-pointer items-center">
       <input type="checkbox" checked={stage.enabled} onchange={toggle} class="peer sr-only" />
       <div class="peer h-5 w-9 rounded-full bg-surface-2 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-accent peer-checked:after:translate-x-full"></div>
     </label>

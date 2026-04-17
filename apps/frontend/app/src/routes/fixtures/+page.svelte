@@ -17,6 +17,7 @@
   import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import type { Fixture, Product, Board, FixtureDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
+  import { actionable } from '$lib/actions/actionable';
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('fixtures:manage'));
@@ -238,7 +239,7 @@
   <div class="mb-6 flex items-start justify-between">
     <PageHeader title="Fixtures" description="Physical test stations and MTIB assignments." />
     {#if canManage}
-      <button onclick={() => showCreate = true} class="btn btn-sm btn-primary">
+      <button use:actionable={{ id: 'create-fixture', label: 'Create fixture' }} onclick={() => showCreate = true} class="btn btn-sm btn-primary">
         <Plus size={16} /> New Fixture
       </button>
     {/if}

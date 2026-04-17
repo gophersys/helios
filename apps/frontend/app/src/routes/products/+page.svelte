@@ -13,6 +13,7 @@
   import Pagination from '$lib/components/ui/pagination.svelte';
   import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
+  import { actionable } from '$lib/actions/actionable';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
@@ -132,6 +133,7 @@
     />
     {#if canManage && !showWizard}
       <button
+        use:actionable={{ id: 'new-product', label: 'New product' }}
         onclick={() => { showWizard = true; }}
         class="btn btn-md btn-primary flex items-center gap-2"
       >

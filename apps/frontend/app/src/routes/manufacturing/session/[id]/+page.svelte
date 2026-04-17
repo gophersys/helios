@@ -20,6 +20,7 @@
   } from '$lib/services/websocket';
   import { formatTimeAgo, formatDuration } from '$lib/utils/formatting';
   import { reportValidationError } from '$lib/stores/error-reporter.svelte';
+  import { actionable } from '$lib/actions/actionable';
   import type { ManufacturingSession, TestRun, RunTarget, TestExecution } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
@@ -675,7 +676,7 @@
                 <RefreshCw size={14} />
                 Retry Deployment
               </button>
-              <button onclick={() => { showEndConfirm = true; }} class="btn btn-sm btn-ghost">
+              <button use:actionable={{ id: 'end-session', label: 'End session' }} onclick={() => { showEndConfirm = true; }} class="btn btn-sm btn-ghost">
                 End Session
               </button>
             </div>

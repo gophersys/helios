@@ -120,6 +120,7 @@
   --animate-overlay-in: overlay-in 150ms ease-out;
   --animate-modal-in: modal-in 200ms ease-out;
   --animate-slide-in-right: slide-in-right 0.3s ease-out;
+  --animate-deep-link-highlight: deep-link-highlight 1.2s ease-out;
 
   --container-prose: 65ch;
   --container-form: 480px;
@@ -178,6 +179,31 @@
       transform: translateX(0);
     }
   }
+  @keyframes deep-link-highlight {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+    20% {
+      box-shadow: 0 0 0 6px var(--color-accent-muted);
+    }
+    50% {
+      box-shadow: 0 0 0 10px var(--color-accent-muted);
+    }
+  }
+}
+
+/*
+  Deep-link highlight — applied by the layout effect when the URL has
+  `?a=<actionId>` and the matching element is found. Pulses twice, then
+  the class is removed.
+*/
+.deep-link-highlight {
+  animation: var(--animate-deep-link-highlight);
+  animation-iteration-count: 2;
+  border-radius: inherit;
+  position: relative;
+  z-index: 1;
 }
 
 /*

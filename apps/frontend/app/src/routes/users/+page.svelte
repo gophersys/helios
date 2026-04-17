@@ -12,6 +12,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import { formatDate } from '$lib/utils/formatting';
   import PermissionSetsTab from '$lib/components/users/permission-sets-tab.svelte';
+  import { actionable } from '$lib/actions/actionable';
 
   const auth = getAuth();
 
@@ -132,6 +133,7 @@
       {#snippet actions()}
         {#if activeTab === 'users' && canManage}
           <button
+            use:actionable={{ id: 'add-user', label: 'Add user' }}
             onclick={() => (showCreate = !showCreate)}
             class="btn btn-sm btn-primary"
           >

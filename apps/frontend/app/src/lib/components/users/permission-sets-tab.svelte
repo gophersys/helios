@@ -16,6 +16,7 @@
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
+  import { actionable } from '$lib/actions/actionable';
 
   const auth = getAuth();
 
@@ -467,6 +468,7 @@
   {#if canManage && !showForm}
     <div class="mb-4 flex justify-end">
       <button
+        use:actionable={{ id: 'create-permission-set', label: 'Create permission set' }}
         onclick={() => {
           resetForm();
           showForm = true;
