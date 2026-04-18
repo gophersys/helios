@@ -376,6 +376,22 @@ def _validate_semantics(project_dir: Path, manifest: dict, is_v2: bool, result: 
     if dt == 0 or dv == 0:
         result.warn(f"Device type={dt}, variant={dv} — set these for production use")
 
+    # ── Test-depth: enforce the two-level contract the runner + UI assume ──
+    # The reporter's thread-local step counter and the frontend's two-level
+    # tree render assume ``def test_*`` functions open at most one
+    # ``with report.step(...)`` at a time, and helper functions never open
+    # their own step. Violations here would corrupt step indices under the
+    # slot-parallel runner and mis-render the UI.
+    from corectl.commands.test_depth import validate_project
+
+    depth_errors = validate_project(project_dir)
+    if depth_errors:
+        for err in depth_errors:
+            rel = err.file.relative_to(project_dir) if err.file.is_relative_to(project_dir) else err.file
+            result.error(f"{rel}:{err.line}: {err.message}")
+    else:
+        result.ok("Test depth: all tests respect the two-level step contract")
+
     # conftest.py must declare autoconf plugin
     conftest_path = project_dir / "conftest.py"
     if conftest_path.exists():

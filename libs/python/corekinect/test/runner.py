@@ -679,7 +679,20 @@ class TestRunner:
                 proc.wait(timeout=5)
 
     def _run_pytest(self) -> int:
-        """Run pytest and return exit code."""
+        """Run pytest in a single subprocess and return the exit code.
+
+        For multi-slot manufacturing runs, the `slot_parallel` pytest
+        plugin (registered by autoconf when SLOT_FILTER targets >1 slot)
+        fans tests out to a thread pool inside this one process so slots
+        advance in lock-step through each top-level test. Single-slot
+        runs skip the plugin entirely.
+        """
+        slot_indices = self._slot_indices_for_run()
+        log.info(
+            "pytest run targeting %d slot(s): %s",
+            len(slot_indices), slot_indices,
+        )
+
         args = [
             sys.executable,
             "-m",
@@ -689,61 +702,36 @@ class TestRunner:
             *self.config.pytest_args,
         ]
 
-        # ── Per-slot parallel execution via pytest-xdist ──
-        # When more than one slot is targeted, run each slot's tests on its
-        # own worker so panel runs advance in parallel instead of round-robin
-        # serial. xdist uses the `xdist_group` marker (set in autoconf based
-        # on the [slot-N] parameterization) so each worker sticks to one slot.
-        # Single-slot/standalone runs skip xdist entirely (no overhead).
-        # Override with PYTEST_PARALLEL=0 to force serial execution.
-        slot_count = self._slot_worker_count()
-        parallel_disabled = os.environ.get("PYTEST_PARALLEL", "1") in ("0", "false", "no")
-        if slot_count > 1 and not parallel_disabled:
-            args.extend(["-n", str(slot_count), "--dist=loadgroup"])
-            log.info("Parallel execution: %d slots → %d xdist workers", slot_count, slot_count)
-
-        # Optional test filter from env (e.g. "test_02" to skip test_01)
         pytest_filter = os.environ.get("PYTEST_FILTER", "").strip()
         if pytest_filter:
             args.extend(["-k", pytest_filter])
-            log.info("pytest filter: -k %s", pytest_filter)
 
         log.info("pytest command: %s", " ".join(args))
 
         env = os.environ.copy()
-        # Ensure PYTHONPATH includes our libs
-        pythonpath = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = pythonpath
-
-        self._process = subprocess.Popen(
-            args,
-            env=env,
-            cwd=os.getcwd(),
-        )
-
+        self._process = subprocess.Popen(args, env=env, cwd=os.getcwd())
         self._process.wait()
         exit_code = self._process.returncode
         self._process = None
-
         return exit_code
 
-    def _slot_worker_count(self) -> int:
-        """Compute how many parallel xdist workers to use.
+    def _slot_indices_for_run(self) -> List[int]:
+        """Return the list of slot indices targeted by this run.
 
-        Counts the slots targeted by this run:
-          - SLOT_FILTER (set per-panel by mfg_runner): "0,1,2,3" → 4
-          - MTIB_HOSTS without filter: count of comma-separated hosts
-          - Single-slot env (MTIB_ADDRESS/MTIB_HOST or none): 1
+        Prefers SLOT_FILTER (the explicit per-panel list set by
+        mfg_runner). Falls back to MTIB_HOSTS (one index per host) and
+        finally a single-slot default.
         """
         slot_filter = os.environ.get("SLOT_FILTER", "").strip()
         if slot_filter:
-            return len([x for x in slot_filter.split(",") if x.strip()])
+            return sorted({int(x) for x in slot_filter.split(",") if x.strip()})
 
         mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
         if mtib_hosts:
-            return len([h for h in mtib_hosts.split(",") if h.strip()])
+            count = len([h for h in mtib_hosts.split(",") if h.strip()])
+            return list(range(count))
 
-        return 1
+        return [0]
 
     def _cleanup(self):
         """Final cleanup tasks."""

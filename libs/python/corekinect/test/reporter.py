@@ -209,59 +209,40 @@ class ConcordReporter:
         self.api_key = os.environ.get("CONCORD_API_KEY") or ""
         self.enabled = bool(self.run_id and self.api_url)
 
-        # pytest-xdist: detect if we're running inside an xdist worker
-        # vs the controller process vs a serial (no-xdist) run.
+        # ── Thread-safety primitives ──────────────────────────────────
+        # The slot_parallel pytest plugin runs slot parametrizations on
+        # worker threads inside this single process, so the reporter's
+        # shared state must be protected.
         #
-        # Workers run tests and post per-execution events to the API, but
-        # MUST NOT post session-level events (start/finish) — only the
-        # controller does, with aggregated counts.
-        #
-        # Counter aggregation uses different hooks depending on mode:
-        # - Serial: pytest_runtest_makereport increments counters
-        # - xdist worker: makereport fires but counters aren't sent
-        # - xdist controller: pytest_runtest_logreport (for forwarded
-        #   worker reports) increments counters; makereport doesn't fire
-        self._is_xdist_worker = bool(
-            config is not None and hasattr(config, "workerinput")
-        )
-        # Controller runs only when -n / --numprocesses is in effect AND
-        # we're not inside a worker.
-        self._is_xdist_controller = bool(
-            config is not None
-            and not self._is_xdist_worker
-            and getattr(getattr(config, "option", None), "numprocesses", None)
-        )
+        # `_state_lock` (RLock, reentrant) guards the session-wide
+        # counters and the dictionaries keyed by nodeid. `_tls` holds
+        # per-test scratch state (current step index, device serial,
+        # step counter) so parallel threads never clobber each other's
+        # values. The log-buffer lock is separate (below) because it's
+        # on the hot path and shouldn't share a lock with counters.
+        self._state_lock = threading.RLock()
+        self._tls = threading.local()
 
-        # Accumulated counters
+        # Accumulated session-wide counters — mutate under _state_lock
         self._total = 0
         self._passed = 0
         self._failed = 0
         self._errors = 0
         self._start_time: Optional[float] = None
 
-        # Per-test tracking: nodeid -> start time
+        # Per-test tracking dicts — keyed by nodeid; mutate under _state_lock
         self._test_starts: Dict[str, float] = {}
-        # Per-test captured output: nodeid -> log lines
         self._test_output: Dict[str, str] = {}
-
-        # Multi-device support: serial of the currently active DUT
-        self._current_device: Optional[str] = None
 
         # Track which slot indices have had target-start reported
         self._started_slots: set = set()
-
-        # Sub-step tracking (reset per test)
-        self._step_counter: int = 0
-        self._current_step_index: Optional[int] = None
 
         # Execution-level measurements — test code can attach custom data
         # that gets merged into the execution-result payload alongside
         # auto-extracted power measurements. Reset per test.
         self.execution_measurements: Dict[str, Any] = {}
 
-        # Live log streaming state
-        self._current_test_name: Optional[str] = None
-        self._current_test_nodeid: Optional[str] = None
+        # Live log streaming state — existing lock already protects this
         self._log_buffer: str = ""
         self._log_buffer_lock = threading.Lock()
         self._log_offsets: Dict[str, int] = {}  # per-device log offsets
@@ -292,6 +273,44 @@ class ConcordReporter:
         else:
             log.debug("ConcordReporter: inactive (CONCORD_SESSION_ID / CONCORD_RUN_ID not set)")
 
+    # ── Thread-local per-test state ────────────────────────────────────
+    # These values belong to "the test currently executing on this
+    # thread". Storing them on a threading.local() object means each
+    # worker thread has its own view without needing to pass references
+    # through the whole reporter/StepReporter/log-capture stack.
+
+    @property
+    def _current_test_name(self) -> Optional[str]:
+        return getattr(self._tls, "current_test_name", None)
+
+    @_current_test_name.setter
+    def _current_test_name(self, value: Optional[str]) -> None:
+        self._tls.current_test_name = value
+
+    @property
+    def _current_test_nodeid(self) -> Optional[str]:
+        return getattr(self._tls, "current_test_nodeid", None)
+
+    @_current_test_nodeid.setter
+    def _current_test_nodeid(self, value: Optional[str]) -> None:
+        self._tls.current_test_nodeid = value
+
+    @property
+    def _current_device(self) -> Optional[str]:
+        return getattr(self._tls, "current_device", None)
+
+    @_current_device.setter
+    def _current_device(self, value: Optional[str]) -> None:
+        self._tls.current_device = value
+
+    @property
+    def _current_step_index(self) -> Optional[int]:
+        return getattr(self._tls, "current_step_index", None)
+
+    @_current_step_index.setter
+    def _current_step_index(self, value: Optional[int]) -> None:
+        self._tls.current_step_index = value
+
     # -- Multi-device support -----------------------------------------
 
     def set_device(self, serial: str) -> None:
@@ -305,9 +324,19 @@ class ConcordReporter:
         return StepReporter(self, name)
 
     def _next_step_index(self) -> int:
-        """Increment and return the next step index for the current test."""
-        self._step_counter += 1
-        return self._step_counter
+        """Increment and return the next step index for the current test.
+
+        Counter is thread-local: each worker thread has its own sequence
+        starting at 0, so parametrized slot tests running in parallel
+        never clash on step indices.
+        """
+        next_idx = getattr(self._tls, "step_counter", 0)
+        self._tls.step_counter = next_idx + 1
+        return next_idx
+
+    def _reset_step_counter(self) -> None:
+        """Reset this thread's step counter — called at test start."""
+        self._tls.step_counter = 0
 
     # -- HTTP helpers -------------------------------------------------
 
@@ -448,21 +477,13 @@ class ConcordReporter:
         if not self.enabled:
             return
         self._start_time = time.monotonic()
-        # Skip the run-level start event from xdist workers — only the
-        # controller sends start/finish so the run isn't started/completed
-        # multiple times in parallel runs.
-        if not self._is_xdist_worker:
-            self._post("report/start", {"started": True})
-        # Live log streaming runs per-process, in both controller and workers
+        self._post("report/start", {"started": True})
+        # Start live log streaming
         self._start_stream_capture()
 
     def pytest_collection_finish(self, session: pytest.Session) -> None:
         """Called after collection is complete — send full test list for pre-population."""
         if not self.enabled:
-            return
-        # Only the controller sends the canonical test list — workers see
-        # only their assigned subset (after xdist distribution).
-        if self._is_xdist_worker:
             return
 
         tests = []
@@ -485,10 +506,13 @@ class ConcordReporter:
         if not self.enabled:
             return
 
-        self._test_starts[nodeid] = time.monotonic()
+        with self._state_lock:
+            self._test_starts[nodeid] = time.monotonic()
 
-        # Reset step counter and execution measurements for each new test
-        self._step_counter = 0
+        # Reset per-test thread-local state. In parallel mode this only
+        # affects the thread running THIS test; sibling threads running
+        # other parametrizations keep their own counters intact.
+        self._reset_step_counter()
         self._current_step_index = None
         self.execution_measurements = {}
 
@@ -528,8 +552,12 @@ class ConcordReporter:
         # so the session page shows the correct live status.
         if slot_match:
             slot_idx = int(slot_match.group(1))
-            if slot_idx not in self._started_slots:
-                self._started_slots.add(slot_idx)
+            should_fire_target_start = False
+            with self._state_lock:
+                if slot_idx not in self._started_slots:
+                    self._started_slots.add(slot_idx)
+                    should_fire_target_start = True
+            if should_fire_target_start:
                 target_start_payload: Dict[str, Any] = {"slotIndex": slot_idx}
                 if self._current_device:
                     target_start_payload["serialNumber"] = self._current_device
@@ -549,7 +577,8 @@ class ConcordReporter:
 
     def _handle_skip_result(self, item: pytest.Item) -> None:
         """Report a skipped test (setup-phase skip, no call phase follows)."""
-        self._total += 1
+        with self._state_lock:
+            self._total += 1
 
         # Extract module from nodeid so skipped tests get grouped correctly
         parts = item.nodeid.split("::")
@@ -586,27 +615,30 @@ class ConcordReporter:
             captured += report.capstderr
 
         if captured.strip():
-            prev = self._test_output.get(item.nodeid, "")
-            self._test_output[item.nodeid] = prev + captured
+            with self._state_lock:
+                prev = self._test_output.get(item.nodeid, "")
+                self._test_output[item.nodeid] = prev + captured
 
     def _report_test_result(self, item: pytest.Item, report) -> None:
         """Build and POST test-result payload (called once during the call phase)."""
-        self._total += 1
+        with self._state_lock:
+            self._total += 1
+            if report.skipped:
+                pass  # Skipped — don't count as passed, failed, or error
+            elif report.passed:
+                self._passed += 1
+            elif report.failed:
+                self._failed += 1
+            else:
+                self._errors += 1
+
         test_name = item.name
         passed = report.passed
 
-        if report.skipped:
-            pass  # Skipped — don't count as passed, failed, or error
-        elif report.passed:
-            self._passed += 1
-        elif report.failed:
-            self._failed += 1
-        else:
-            self._errors += 1
-
         # Calculate duration
         duration_s = None
-        start = self._test_starts.get(item.nodeid)
+        with self._state_lock:
+            start = self._test_starts.get(item.nodeid)
         if start is not None:
             duration_s = time.monotonic() - start
 
@@ -620,7 +652,8 @@ class ConcordReporter:
 
         # Collect captured log output for this test.
         # Sources: pytest captured output + StreamCapture _on_output
-        log_output = self._test_output.pop(item.nodeid, None)
+        with self._state_lock:
+            log_output = self._test_output.pop(item.nodeid, None)
         if log_output:
             log_output = log_output.strip()[:10000]  # Cap at 10KB
 
@@ -701,46 +734,6 @@ class ConcordReporter:
 
         self._report_test_result(item, report)
 
-    def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
-        """Aggregate counts on the xdist controller from worker reports.
-
-        Workers run tests and call `pytest_runtest_makereport` locally to
-        report per-execution events to the API. In an xdist run, the
-        controller does not call `pytest_runtest_makereport` itself, so its
-        own counters stay at zero — meaning the run-level
-        passed/failed/total totals it sends in `pytest_sessionfinish`
-        would be wrong. This hook fires on the controller for every test
-        result forwarded from workers, so we aggregate the totals here.
-
-        On non-xdist (serial) runs and on workers, this hook still fires
-        for local reports, but we skip it there to avoid double-counting
-        with `pytest_runtest_makereport`.
-        """
-        if not self.enabled:
-            return
-        # Only aggregate counts on the xdist controller. In serial mode,
-        # `pytest_runtest_makereport` already increments counters, so this
-        # hook would double-count. On workers, both fire but their counters
-        # aren't sent in `pytest_sessionfinish` (gated above).
-        if not self._is_xdist_controller:
-            return
-        if report.when == "setup" and report.failed:
-            # Setup failure → counts as an error for this test
-            self._errors += 1
-            return
-        if report.when != "call":
-            return
-        self._total += 1
-        if report.passed:
-            self._passed += 1
-        elif report.failed:
-            if hasattr(report, "wasxfail"):
-                pass  # expected failure, not counted as failure
-            else:
-                self._failed += 1
-        # Skipped tests are not counted in passed/failed; that matches the
-        # existing makereport behavior.
-
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:
         """Called after whole test run finished."""
         if not self.enabled:
@@ -748,11 +741,6 @@ class ConcordReporter:
 
         # Stop live log streaming (this flushes remaining logs)
         self._stop_stream_capture()
-
-        # Skip the run-level finish event from xdist workers — only the
-        # controller marks the run complete with aggregated totals.
-        if self._is_xdist_worker:
-            return
 
         duration_s = None
         if self._start_time is not None:

@@ -34,19 +34,12 @@ from __future__ import annotations
 
 import importlib
 import os
-import re
 import time
 import warnings
 from pathlib import Path
 from typing import Any, List, Optional, TYPE_CHECKING
 
 import pytest
-
-# Regex for extracting the slot index from a parametrized test node id like
-# "tests/foo.py::test_x[slot-2]". Used to assign each test to an xdist
-# group so pytest-xdist runs all tests for a given slot on the same worker
-# (and different slots run in parallel on different workers).
-_SLOT_PARAM_RE = re.compile(r"\[slot-(\d+)\]")
 
 if TYPE_CHECKING:
     from corekinect.manifest.types import Manifest
@@ -122,6 +115,44 @@ def _patch_sleep_for_mock() -> None:
     """
     real_sleep = time.sleep
     time.sleep = lambda s: real_sleep(min(s, 0.01))
+
+
+def _maybe_register_slot_parallel(config: pytest.Config) -> None:
+    """Register the slot_parallel plugin when the run targets >1 slot.
+
+    The plugin fans every top-level test out to a thread pool so slot
+    parametrizations run concurrently with a barrier between tests. It
+    is only activated when:
+      * the caller targets more than one slot (SLOT_FILTER or MTIB_HOSTS
+        implies ≥2 slots), AND
+      * PYTEST_PARALLEL is not set to ``0/false/no``.
+
+    Single-slot and standalone runs always use the default pytest loop.
+    """
+    # Respect explicit opt-out
+    if os.environ.get("PYTEST_PARALLEL", "1") in ("0", "false", "no", "False"):
+        return
+
+    # Count slots — cheap, no network
+    slot_filter = os.environ.get("SLOT_FILTER", "").strip()
+    if slot_filter:
+        slot_count = len([x for x in slot_filter.split(",") if x.strip()])
+    else:
+        mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
+        slot_count = (
+            len([h for h in mtib_hosts.split(",") if h.strip()])
+            if mtib_hosts else 1
+        )
+
+    if slot_count <= 1:
+        return
+
+    if not config.pluginmanager.has_plugin("corekinect.test.slot_parallel"):
+        config.pluginmanager.import_plugin("corekinect.test.slot_parallel")
+        log.info(
+            "autoconf: slot_parallel registered (targeting %d slots)",
+            slot_count,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -238,6 +269,14 @@ def pytest_configure(config: pytest.Config) -> None:
     if not config.pluginmanager.has_plugin("concord_reporter"):
         reporter_configure(config)
 
+    # ── 3b. Register slot_parallel plugin for multi-slot manufacturing ──
+    # Activated when the run targets >1 slot AND PYTEST_PARALLEL isn't
+    # explicitly disabled. The plugin's own hooks no-op when the run has
+    # only singleton groups (e.g., validation), so this is safe to
+    # register unconditionally, but we gate here to keep the plugin
+    # opt-in and debuggable from env flags.
+    _maybe_register_slot_parallel(config)
+
     # ── 4. Register custom markers from manifest stages ──
     if manifest.is_validation:
         for stage in manifest.stages.values():
@@ -305,20 +344,6 @@ def pytest_collection_modifyitems(
         return (-1, item.nodeid)
 
     items.sort(key=_variant_sort_key)
-
-    # ── Assign xdist_group per slot for parallel execution ──
-    # When pytest-xdist is invoked with `--dist=loadgroup`, all tests sharing
-    # the same group run on the same worker, and different groups run on
-    # different workers in parallel. By grouping tests by their [slot-N]
-    # parameterization, each slot runs all its tests on a dedicated worker
-    # while slots advance in parallel. Single-slot/standalone runs naturally
-    # collapse to one worker (one group → one worker), so this is safe for
-    # both panel and standalone runs.
-    for item in items:
-        match = _SLOT_PARAM_RE.search(item.nodeid)
-        if match:
-            slot_id = f"slot-{match.group(1)}"
-            item.add_marker(pytest.mark.xdist_group(name=slot_id))
 
 
 def _has_cloud_db() -> bool:
