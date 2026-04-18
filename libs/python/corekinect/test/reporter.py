@@ -209,6 +209,29 @@ class ConcordReporter:
         self.api_key = os.environ.get("CONCORD_API_KEY") or ""
         self.enabled = bool(self.run_id and self.api_url)
 
+        # pytest-xdist: detect if we're running inside an xdist worker
+        # vs the controller process vs a serial (no-xdist) run.
+        #
+        # Workers run tests and post per-execution events to the API, but
+        # MUST NOT post session-level events (start/finish) — only the
+        # controller does, with aggregated counts.
+        #
+        # Counter aggregation uses different hooks depending on mode:
+        # - Serial: pytest_runtest_makereport increments counters
+        # - xdist worker: makereport fires but counters aren't sent
+        # - xdist controller: pytest_runtest_logreport (for forwarded
+        #   worker reports) increments counters; makereport doesn't fire
+        self._is_xdist_worker = bool(
+            config is not None and hasattr(config, "workerinput")
+        )
+        # Controller runs only when -n / --numprocesses is in effect AND
+        # we're not inside a worker.
+        self._is_xdist_controller = bool(
+            config is not None
+            and not self._is_xdist_worker
+            and getattr(getattr(config, "option", None), "numprocesses", None)
+        )
+
         # Accumulated counters
         self._total = 0
         self._passed = 0
@@ -425,13 +448,21 @@ class ConcordReporter:
         if not self.enabled:
             return
         self._start_time = time.monotonic()
-        self._post("report/start", {"started": True})
-        # Start live log streaming
+        # Skip the run-level start event from xdist workers — only the
+        # controller sends start/finish so the run isn't started/completed
+        # multiple times in parallel runs.
+        if not self._is_xdist_worker:
+            self._post("report/start", {"started": True})
+        # Live log streaming runs per-process, in both controller and workers
         self._start_stream_capture()
 
     def pytest_collection_finish(self, session: pytest.Session) -> None:
         """Called after collection is complete — send full test list for pre-population."""
         if not self.enabled:
+            return
+        # Only the controller sends the canonical test list — workers see
+        # only their assigned subset (after xdist distribution).
+        if self._is_xdist_worker:
             return
 
         tests = []
@@ -670,6 +701,46 @@ class ConcordReporter:
 
         self._report_test_result(item, report)
 
+    def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
+        """Aggregate counts on the xdist controller from worker reports.
+
+        Workers run tests and call `pytest_runtest_makereport` locally to
+        report per-execution events to the API. In an xdist run, the
+        controller does not call `pytest_runtest_makereport` itself, so its
+        own counters stay at zero — meaning the run-level
+        passed/failed/total totals it sends in `pytest_sessionfinish`
+        would be wrong. This hook fires on the controller for every test
+        result forwarded from workers, so we aggregate the totals here.
+
+        On non-xdist (serial) runs and on workers, this hook still fires
+        for local reports, but we skip it there to avoid double-counting
+        with `pytest_runtest_makereport`.
+        """
+        if not self.enabled:
+            return
+        # Only aggregate counts on the xdist controller. In serial mode,
+        # `pytest_runtest_makereport` already increments counters, so this
+        # hook would double-count. On workers, both fire but their counters
+        # aren't sent in `pytest_sessionfinish` (gated above).
+        if not self._is_xdist_controller:
+            return
+        if report.when == "setup" and report.failed:
+            # Setup failure → counts as an error for this test
+            self._errors += 1
+            return
+        if report.when != "call":
+            return
+        self._total += 1
+        if report.passed:
+            self._passed += 1
+        elif report.failed:
+            if hasattr(report, "wasxfail"):
+                pass  # expected failure, not counted as failure
+            else:
+                self._failed += 1
+        # Skipped tests are not counted in passed/failed; that matches the
+        # existing makereport behavior.
+
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:
         """Called after whole test run finished."""
         if not self.enabled:
@@ -677,6 +748,11 @@ class ConcordReporter:
 
         # Stop live log streaming (this flushes remaining logs)
         self._stop_stream_capture()
+
+        # Skip the run-level finish event from xdist workers — only the
+        # controller marks the run complete with aggregated totals.
+        if self._is_xdist_worker:
+            return
 
         duration_s = None
         if self._start_time is not None:

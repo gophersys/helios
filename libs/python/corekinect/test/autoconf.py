@@ -34,12 +34,19 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import time
 import warnings
 from pathlib import Path
 from typing import Any, List, Optional, TYPE_CHECKING
 
 import pytest
+
+# Regex for extracting the slot index from a parametrized test node id like
+# "tests/foo.py::test_x[slot-2]". Used to assign each test to an xdist
+# group so pytest-xdist runs all tests for a given slot on the same worker
+# (and different slots run in parallel on different workers).
+_SLOT_PARAM_RE = re.compile(r"\[slot-(\d+)\]")
 
 if TYPE_CHECKING:
     from corekinect.manifest.types import Manifest
@@ -298,6 +305,20 @@ def pytest_collection_modifyitems(
         return (-1, item.nodeid)
 
     items.sort(key=_variant_sort_key)
+
+    # ── Assign xdist_group per slot for parallel execution ──
+    # When pytest-xdist is invoked with `--dist=loadgroup`, all tests sharing
+    # the same group run on the same worker, and different groups run on
+    # different workers in parallel. By grouping tests by their [slot-N]
+    # parameterization, each slot runs all its tests on a dedicated worker
+    # while slots advance in parallel. Single-slot/standalone runs naturally
+    # collapse to one worker (one group → one worker), so this is safe for
+    # both panel and standalone runs.
+    for item in items:
+        match = _SLOT_PARAM_RE.search(item.nodeid)
+        if match:
+            slot_id = f"slot-{match.group(1)}"
+            item.add_marker(pytest.mark.xdist_group(name=slot_id))
 
 
 def _has_cloud_db() -> bool:

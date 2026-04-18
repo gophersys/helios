@@ -2,6 +2,7 @@ grpcio==1.76.0
 grpcio-tools==1.75.0
 pytest==9.0.2
 pytest-timeout==2.4.0
+pytest-xdist==3.6.1
 requests==2.32.5
 minio==7.2.20
 boto3==1.42.65
