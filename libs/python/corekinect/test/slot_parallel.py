@@ -449,37 +449,56 @@ def _patch_fixturedef_cached_result_per_thread() -> None:
     FixtureDef._slot_parallel_tls_cached_result = True
 
 
-def _disable_pytest_timeout_timer() -> None:
-    """Stop pytest-timeout from arming its own per-test timer.
+class _PytestTimeoutNeutralizer:
+    """Hookimpls that pre-empt pytest-timeout's per-test timer.
 
-    pytest-timeout auto-switches from ``signal`` to ``thread`` mode
-    when invoked from a worker thread (pytest_timeout.py:307) and
-    its ``thread`` mode hard-kills the runner via ``os._exit(1)`` on
-    every per-test timeout (pytest_timeout.py:542). Under
-    slot_parallel that means the first ``@pytest.mark.timeout(N)``
-    mark to expire takes the whole panel down.
+    pytest-timeout's ``thread`` mode (which it auto-selects in any
+    worker thread, see ``pytest_timeout.py:307``) hard-kills the
+    runner via ``os._exit(1)`` on every per-test timeout
+    (``:542``). With slot_parallel that means the first
+    ``@pytest.mark.timeout(N)`` to expire takes the whole panel
+    down.
 
-    Patch ``pytest_timeout_set_timer`` to a no-op that claims
-    ownership (returns ``True``) so pytest-timeout's default
-    ``trylast`` implementation is skipped. The runner's
-    ``--timeout=N`` CLI flag is still recognized; it just doesn't
-    arm anything. Per-test budgets remain enforced by
-    :func:`_run_one_item`'s soft Timer, which fails the test cleanly
-    instead of killing the process.
+    Both ``pytest_timeout_set_timer`` and
+    ``pytest_timeout_cancel_timer`` hookspecs are declared
+    ``firstresult=True``: returning ``True`` from a ``tryfirst``
+    hookimpl preempts the default ``trylast`` ones. We claim
+    ownership of the timer (so pytest-timeout doesn't arm
+    anything) and install a no-op ``cancel_timeout`` for the
+    matching cancel call.
+
+    Per-test budgets remain enforced by the soft Timer in
+    :func:`_run_one_item`, which fails the test cleanly instead of
+    killing the process.
+
+    Wrapped in a class so we can register/skip the hookimpls only
+    when pytest-timeout is actually loaded — pluggy raises
+    ``PluginValidationError`` for hookimpls whose hookspecs aren't
+    declared, which would break test environments that don't depend
+    on pytest-timeout.
     """
-    try:
-        import pytest_timeout as _pt
-    except ImportError:
-        return
-    if getattr(_pt, "_slot_parallel_disabled_timer", False):
-        return
 
-    def _noop_set_timer(item, settings):
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_timeout_set_timer(self, item, settings):
         item.cancel_timeout = lambda: None
         return True
 
-    _pt.pytest_timeout_set_timer = _noop_set_timer
-    _pt._slot_parallel_disabled_timer = True
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_timeout_cancel_timer(self, item):
+        return True
+
+
+def _maybe_register_pytest_timeout_neutralizer(config: pytest.Config) -> None:
+    pm = config.pluginmanager
+    # pytest-timeout registers itself under the entry-point name
+    # ``timeout`` (not the import name), so check both.
+    if not (pm.hasplugin("timeout") or pm.hasplugin("pytest_timeout")):
+        return
+    if pm.has_plugin("slot_parallel_timeout_neutralizer"):
+        return
+    pm.register(
+        _PytestTimeoutNeutralizer(), name="slot_parallel_timeout_neutralizer",
+    )
 
 
 def _patch_update_current_test_var_for_threads() -> None:
@@ -526,4 +545,4 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "slot_parallel: loaded by slot_parallel plugin")
     _patch_update_current_test_var_for_threads()
     _patch_fixturedef_cached_result_per_thread()
-    _disable_pytest_timeout_timer()
+    _maybe_register_pytest_timeout_neutralizer(config)
