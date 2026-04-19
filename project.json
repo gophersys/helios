@@ -1,0 +1,34 @@
+{
+  "name": "libs",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "root": "shared/libs",
+  "sourceRoot": "shared/libs",
+  "projectType": "application",
+  "tags": ["shared", "libs"],
+  "targets": {
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh status",
+        "cwd": "shared/libs"
+      },
+      "cache": false
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "shared/libs"
+      },
+      "cache": false
+    },
+    "propagate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh propagate",
+        "cwd": "shared/libs"
+      },
+      "cache": false
+    }
+  }
+}
