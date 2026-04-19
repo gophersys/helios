@@ -305,10 +305,71 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Collection-time attribution
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Every pytest item parametrized by ``[slot-N]`` is tied to exactly one
+# slot's hardware. The reporter, telemetry streamer, and backend target
+# lookup all depend on knowing that slot-to-item mapping; previously
+# each of them re-derived it from the nodeid + a session-scoped
+# fixture map, creating a race where the first test on each slot
+# shipped before the map was populated.
+#
+# We now resolve attribution ONCE at collection time and stash a
+# :class:`SlotBinding` on every matching item. Downstream consumers
+# read ``item.stash[SLOT_BINDING_KEY]`` and never re-parse the nodeid
+# or the environment.
+
+_SLOT_SUFFIX_RE = __import__("re").compile(r"\[slot-(\d+)\]")
+
+
+def _attach_slot_bindings(items: List[pytest.Item]) -> None:
+    """Stash a :class:`SlotBinding` on every parametrized item.
+
+    Items whose nodeid does not contain ``[slot-N]`` (single-slot
+    validation, unparametrized maintenance tests) are left alone —
+    their reporter path uses the single-target backend fallback.
+
+    When ``resolve_slot_bindings()`` returns empty (no ``MTIB_HOSTS``),
+    this is a no-op. When a binding for a given ``slot_index`` does
+    not exist (e.g. the item was collected but ``SLOT_FILTER``
+    excluded the slot), the item is left unstashed — pytest itself
+    limits collection via ``_get_slot_ids()`` so this is rare, but we
+    handle it gracefully rather than raise.
+    """
+    from corekinect.test.slot_env import (
+        resolve_slot_bindings,
+        slot_bindings_by_index,
+    )
+    from corekinect.test.slot_binding import attach_binding
+
+    bindings = resolve_slot_bindings()
+    if not bindings:
+        return
+
+    by_index = slot_bindings_by_index(bindings)
+
+    for item in items:
+        match = _SLOT_SUFFIX_RE.search(item.nodeid)
+        if not match:
+            continue
+        slot_index = int(match.group(1))
+        binding = by_index.get(slot_index)
+        if binding is None:
+            continue
+        attach_binding(item, binding)
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config, items: List[pytest.Item]
 ) -> None:
-    """Reorder parametrized tests and skip cloud-dependent tests when needed.
+    """Stash slot attribution, skip cloud tests, and reorder for variant grouping.
+
+    Slot attribution:
+        For every ``[slot-N]`` item, resolve the :class:`SlotBinding`
+        from the environment once and stash it on the item. Reporter
+        and telemetry read from the stash — no runtime re-derivation.
 
     Firmware variant grouping:
         Default pytest interleaves: test_A[debug], test_A[release], test_B[debug]...
@@ -319,6 +380,10 @@ def pytest_collection_modifyitems(
         Tests marked @pytest.mark.corecloud are skipped in mock mode or
         when CoreCloud DB credentials are not configured.
     """
+    # Slot attribution runs unconditionally — the function is a no-op
+    # when the env is unconfigured, so it doesn't need the manifest gate.
+    _attach_slot_bindings(items)
+
     if _manifest is None:
         return
 
@@ -558,18 +623,10 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     fctx._slot_test_contexts = slot_test_ctxs
     fctx._telemetry = telemetry
 
-    # Store slot_index → serial_number mapping on the reporter.
-    # The reporter uses this in pytest_runtest_logstart to set deviceSerial
-    # BEFORE execution-start fires — critical for multi-slot result routing.
-    slot_serials = {
-        stc.slot.slot_index: stc.slot.serial_number
-        for stc in slot_test_ctxs.values()
-        if stc.slot.serial_number
-    }
-    reporter = getattr(request.config, "_concord_reporter", None)
-    if reporter and slot_serials:
-        reporter._slot_serials = slot_serials
-        log.info("Slot→serial mapping for reporter: %s", slot_serials)
+    # Slot attribution is resolved at collection time by
+    # ``_attach_slot_bindings`` and stashed on each pytest item.
+    # The reporter reads from that stash, not from a reporter-side
+    # map, so there is nothing to inject here.
     if slot_target_ids:
         log.info("Slot→targetId mapping for telemetry: %s", slot_target_ids)
 
@@ -589,13 +646,19 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     fctx.disconnect_all()
 
 
-@pytest.fixture(params=_get_slot_ids())
+@pytest.fixture(scope="module", params=_get_slot_ids())
 def slot(fixture_ctx, request):
     """Per-slot fixture — parametrizes tests across all DUT slots.
 
     Returns a SlotTestContext (with UART/power) if available,
     otherwise the raw SlotContext. Tests can use slot.mtib,
     slot.shared_data, slot.serial_number etc. either way.
+
+    Scope is ``"module"`` because the underlying ``SlotTestContext`` is
+    just a handle into session-scoped ``fixture_ctx`` state — there is
+    nothing per-test about it. Module scope lets downstream fixtures
+    (like ``booted_device``) be module-scoped too, which avoids one
+    full power-cycle + dual shell-lock round-trip per test in a stage.
     """
     slot_id = request.param
     if slot_id not in fixture_ctx.slots:
@@ -708,10 +771,8 @@ def _test_lifecycle(request: pytest.FixtureRequest):
 
     elif has_slot:
         slot_val = request.getfixturevalue("slot")
-        # Tag reporter with this slot's serial number for RunTarget mapping
-        reporter = getattr(request.config, "_concord_reporter", None)
-        if reporter and hasattr(slot_val, "serial_number") and slot_val.serial_number:
-            reporter.set_device(slot_val.serial_number)
+        # Attribution comes from the item's SlotBinding stash, which
+        # the reporter reads directly — no per-test injection here.
         # Clear per-slot UART if SlotTestContext
         if hasattr(slot_val, "setup_test"):
             slot_val.setup_test(test_name=test_name, module=module_name)
@@ -733,79 +794,6 @@ def _test_lifecycle(request: pytest.FixtureRequest):
         slot_val = request.getfixturevalue("slot")
         if hasattr(slot_val, "teardown_test"):
             slot_val.teardown_test(test_name, artifacts_dir)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Per-slot cascade failure tracking
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Tracks which slots have failed, keyed by slot_id.
-# When a test fails for a slot, all remaining tests for that slot are skipped.
-# This gives per-slot independence: slot-0 can pass while slot-2 fails.
-_slot_failures: dict = {}
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item: pytest.Item, call):
-    """Record per-slot test failures for cascade skipping.
-
-    When a multi-slot test (parametrized by slot) fails, record the failure
-    so subsequent tests for the same slot are auto-skipped. Other slots
-    are unaffected.
-    """
-    outcome = yield
-    report = outcome.get_result()
-
-    # Only track call-phase failures (not setup/teardown)
-    if report.when != "call" or not report.failed:
-        return
-
-    # Extract slot ID from the test's parametrize suffix: [slot-N]
-    import re as _re
-    m = _re.search(r"\[slot-(\d+)\]", item.nodeid)
-    if not m:
-        return
-
-    slot_id = f"slot-{m.group(1)}"
-    # Extract module (stage) from the file path
-    parts = item.nodeid.split("::")
-    module = None
-    if len(parts) >= 2:
-        file_part = parts[0]
-        if "/" in file_part:
-            file_part = file_part.rsplit("/", 1)[-1]
-        if file_part.endswith(".py"):
-            module = file_part[:-3]
-
-    _slot_failures[slot_id] = {
-        "failed_test": item.name,
-        "module": module,
-    }
-    log.info("Cascade: slot %s failed at %s (module=%s) — remaining tests for this slot will skip", slot_id, item.name, module)
-
-
-def pytest_runtest_setup(item: pytest.Item) -> None:
-    """Skip tests for slots that have already failed.
-
-    This gives manufacturing per-slot independence: if slot-2 fails during
-    firmware flash, all remaining tests for slot-2 (flash + POST) are
-    skipped, but slots 0, 1, 3 continue independently.
-    """
-    import re as _re
-    m = _re.search(r"\[slot-(\d+)\]", item.nodeid)
-    if not m:
-        return
-
-    slot_id = f"slot-{m.group(1)}"
-    failure = _slot_failures.get(slot_id)
-    if not failure:
-        return
-
-    # This slot has a recorded failure — skip this test
-    pytest.skip(
-        f"Skipped: {slot_id} failed at {failure['failed_test']} "
-        f"(stage {failure['module']})"
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

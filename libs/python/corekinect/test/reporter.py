@@ -1,20 +1,55 @@
-"""Pytest plugin that reports test results to the Concord HTTP API.
+"""Pytest plugin that streams test results to the Concord HTTP API.
 
-Activated by env vars: CONCORD_SESSION_ID (or legacy CONCORD_RUN_ID),
-CONCORD_API_URL, CONCORD_API_KEY.
-When not set, the plugin is inert -- tests run normally with zero overhead.
+Design
+------
 
-All HTTP calls are fire-and-forget. The reporter never causes a test to fail.
+The reporter is a near-stateless payload builder:
 
-Features:
-  - Test start/result/finish callbacks to /v2/runs/<id>/report/*
-  - Live stdout/stderr streaming via log-chunk endpoint
-  - Sub-step reporting via ``report.step("name")`` context manager
-  - Multi-device support via ``reporter.set_device(serial)``
+* Construction takes explicit kwargs (``run_id``, ``api_url``,
+  ``api_key``, ``enabled``). The :meth:`ConcordReporter.from_env`
+  classmethod is the one production entry point that reads
+  ``CONCORD_*`` env vars and returns ``None`` when the reporter should
+  stay inert.
+* Every outgoing payload flows through a single
+  :meth:`ConcordReporter._emit` helper. It reads the
+  :class:`~corekinect.test.slot_binding.SlotBinding` stashed on the
+  pytest item by the autoconf plugin (see S1:
+  :mod:`corekinect.test.slot_binding`) and injects
+  ``slotIndex`` / ``deviceSerial`` exactly when the binding says so.
+* Thread-local state is limited to two concerns that genuinely need
+  per-thread scoping:
 
-Registration (in conftest.py):
-    pytest_plugins = ["corekinect.test.reporter"]
+    * step counter and current step index — the ``slot_parallel``
+      plugin dispatches slot parametrizations to worker threads, so
+      each thread owns an independent step sequence.
+    * current test nodeid — the background log-flush thread needs to
+      know which test is actively producing stdout/stderr on each
+      worker so it can tag chunks correctly.
+
+  Device serial, slot index and test name are **not** on the TLS
+  anymore; they are read from the item's stash at emit time.
+
+Wire contract (see S4 backend update)
+-------------------------------------
+
+Attributed payloads (must carry ``slotIndex``, plus ``deviceSerial``
+when known):
+
+* ``report/execution-start``
+* ``report/execution-result``
+* ``report/step-start``
+* ``report/step-result``
+* ``report/target-start``
+
+Session- or file-level payloads that do **not** need attribution:
+
+* ``report/start``
+* ``report/finish``
+* ``report/test-list``
+* ``report/log-chunk``
 """
+
+from __future__ import annotations
 
 import base64
 import io
@@ -22,12 +57,13 @@ import os
 import sys
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
 from corekinect.test.env import get_run_id
-from corekinect.utils import EnvConfig, Logger
+from corekinect.test.slot_binding import SLOT_BINDING_KEY, SlotBinding, get_binding
+from corekinect.utils import Logger
 
 log = Logger(log_name="concord_reporter")
 
@@ -41,117 +77,130 @@ _LOG_FLUSH_INTERVAL = float(os.environ.get("CONCORD_LOG_FLUSH_INTERVAL", "1.0"))
 # Attempt to import requests; if not installed, reporter is disabled.
 try:
     import requests
+
     _HAS_REQUESTS = True
 except ImportError:
     _HAS_REQUESTS = False
 
 
+# ──────────────────────────────────────────────────────────────────────
+# nodeid parsing — single source of truth
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _parse_nodeid(nodeid: str) -> Tuple[Optional[str], str]:
+    """Return ``(module, test_name)`` for a pytest nodeid.
+
+    ``module`` is the stem of the test file path (``tests/a/test_x.py``
+    → ``test_x``); ``None`` when the nodeid has no ``::`` separator.
+    ``test_name`` is the last ``::`` component including any
+    parametrize suffix.
+    """
+    parts = nodeid.split("::")
+    test_name = parts[-1] if parts else nodeid
+    module: Optional[str] = None
+    if len(parts) >= 2:
+        file_part = parts[0]
+        if "/" in file_part:
+            file_part = file_part.rsplit("/", 1)[-1]
+        if file_part.endswith(".py"):
+            module = file_part[:-3]
+    return module, test_name
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Stream capture — tees stdout/stderr to a callback
+# ──────────────────────────────────────────────────────────────────────
+
+
 class StreamCapture(io.TextIOBase):
-    """Tee stream writes to a callback while passing through to the original stream."""
+    """Tee stream writes to a callback while passing through to the original."""
 
     def __init__(self, original_stream, callback):
-        """  init  ."""
         self.original = original_stream
         self.callback = callback
         self._lock = threading.Lock()
 
     def write(self, data):
-        """Write."""
         if data:
             with self._lock:
-                # Write to original stream
                 if self.original:
                     self.original.write(data)
                     self.original.flush()
-                # Notify callback
                 self.callback(data)
         return len(data) if data else 0
 
     def flush(self):
-        """Flush."""
         if self.original:
             self.original.flush()
 
     def fileno(self):
-        """Fileno."""
         if self.original:
             return self.original.fileno()
         raise io.UnsupportedOperation("fileno")
 
     def isatty(self):
-        """Isatty."""
         return self.original.isatty() if self.original else False
 
 
-class StepReporter:
-    """Context manager for sub-step tracking. Fires step-start/step-result callbacks.
+# ──────────────────────────────────────────────────────────────────────
+# Step reporter — step-start / step-result with item-derived attribution
+# ──────────────────────────────────────────────────────────────────────
 
-    If the block raises, the step is marked failed and the exception propagates.
+
+class StepReporter:
+    """Context manager for sub-step tracking.
+
+    Attribution (slotIndex, deviceSerial) is captured from the parent
+    item's stash when the step is opened, so the payload is
+    self-contained and doesn't depend on any thread-local at emit time.
+
+    If the ``with`` block raises, the step is marked failed and the
+    exception propagates.
     """
 
-    def __init__(self, reporter: "ConcordReporter", step_name: str):
-        """  init  ."""
+    def __init__(self, reporter: "ConcordReporter", item: Any, step_name: str):
         self.reporter = reporter
+        self.item = item
         self.step_name = step_name
         self.step_index = reporter._next_step_index()
-        self.measurements = {}
+        self.measurements: Dict[str, Any] = {}
+        _, self.test_name = _parse_nodeid(getattr(item, "nodeid", ""))
 
     def __enter__(self):
-        """  enter  ."""
-        self.reporter._fire_callback("step-start", {
-            "testName": self.reporter._current_test_name,
-            "deviceSerial": self.reporter._current_device,
-            "stepName": self.step_name,
-            "stepIndex": self.step_index,
-        })
-        self.reporter._current_step_index = self.step_index
+        self.reporter._emit(
+            self.item,
+            "step-start",
+            testName=self.test_name,
+            stepName=self.step_name,
+            stepIndex=self.step_index,
+        )
+        self.reporter._tls.current_step_index = self.step_index
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """  exit  ."""
         passed = exc_type is None
-        payload = {
-            "testName": self.reporter._current_test_name,
-            "deviceSerial": self.reporter._current_device,
-            "stepIndex": self.step_index,
-            "passed": passed,
-            "errorMessage": str(exc_val) if exc_val else None,
-        }
-        if self.measurements:
-            payload["measurements"] = self.measurements
-        self.reporter._fire_callback("step-result", payload)
-        self.reporter._current_step_index = None
+        self.reporter._emit(
+            self.item,
+            "step-result",
+            testName=self.test_name,
+            stepIndex=self.step_index,
+            passed=passed,
+            errorMessage=str(exc_val) if exc_val else None,
+            measurements=self.measurements or None,
+        )
+        self.reporter._tls.current_step_index = None
         return False  # Don't suppress exceptions
 
     def record(self, key: str, value, unit: str = None):
-        """Record a measurement for this step.
-
-        Usage::
-
-            with report.step("Verify voltage") as step:
-                voltage = read_voltage()
-                step.record("voltage_3v3", voltage, unit="V")
-                step.record("current", current, unit="mA")
-                assert voltage > 3.0
-        """
+        """Record a measurement for this step."""
         entry = {"value": value}
         if unit:
             entry["unit"] = unit
         self.measurements[key] = entry
 
     def record_dict(self, data: dict):
-        """Record multiple measurements at once.
-
-        Usage::
-
-            with report.step("Electrical state") as step:
-                step.record_dict({
-                    "batt_sys_voltage": {"value": 3.7, "unit": "V"},
-                    "current_a": {"value": 0.015, "unit": "A"},
-                    "voltage_3v3": {"value": 3.31, "unit": "V"},
-                })
-                assert ...
-        """
+        """Record multiple measurements at once."""
         self.measurements.update(data)
 
 
@@ -159,23 +208,18 @@ class NoOpStepReporter:
     """No-op step context manager for offline mode."""
 
     def __init__(self):
-        """  init  ."""
-        self.measurements = {}
+        self.measurements: Dict[str, Any] = {}
 
     def __enter__(self):
-        """  enter  ."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """  exit  ."""
         return False
 
     def record(self, key: str, value, unit: str = None):
-        """No-op measurement recording."""
         pass
 
     def record_dict(self, data: dict):
-        """No-op batch measurement recording."""
         pass
 
 
@@ -183,83 +227,96 @@ class NoOpReporter:
     """No-op reporter for offline/local runs. Same interface as ConcordReporter."""
 
     def __init__(self):
-        """  init  ."""
         self.execution_measurements: Dict[str, Any] = {}
 
     def step(self, name: str) -> NoOpStepReporter:
-        """Return a no-op step context manager."""
         return NoOpStepReporter()
 
-    def set_device(self, serial: str) -> None:
-        """No-op device setter."""
-        pass
+    def step_for(self, item: Any, name: str) -> NoOpStepReporter:
+        return NoOpStepReporter()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# ConcordReporter
+# ──────────────────────────────────────────────────────────────────────
 
 
 class ConcordReporter:
     """Pytest plugin that streams test results to the Concord API.
 
-    Inert when CONCORD_SESSION_ID / CONCORD_RUN_ID is not set. All HTTP calls
-    are fire-and-forget.
+    Construct with explicit kwargs. Use :meth:`from_env` to build from
+    the production ``CONCORD_*`` env vars and get ``None`` when the
+    reporter should stay inert.
     """
 
-    def __init__(self, config: Optional[Any] = None):
-        """Initialize from CONCORD_* env vars. Inert if run ID not set."""
-        self.run_id = get_run_id()
-        self.api_url = (os.environ.get("CONCORD_API_URL") or "").rstrip("/")
-        self.api_key = os.environ.get("CONCORD_API_KEY") or ""
-        self.enabled = bool(self.run_id and self.api_url)
+    def __init__(
+        self,
+        *,
+        run_id: str,
+        api_url: str,
+        api_key: Optional[str] = None,
+        enabled: bool = True,
+    ) -> None:
+        """Initialize with explicit connection parameters.
+
+        Parameters
+        ----------
+        run_id
+            Concord run (session) ID. Interpolated into every
+            ``/v2/runs/<id>/report/*`` URL.
+        api_url
+            Base API URL. Trailing slash stripped.
+        api_key
+            Optional bearer key sent as ``Authorization: ApiKey ...``.
+        enabled
+            When ``False``, every payload is silently dropped. Useful
+            for tests that want to construct the reporter but skip I/O.
+        """
+        self.run_id = run_id
+        self.api_url = (api_url or "").rstrip("/")
+        self.api_key = api_key
+        self.enabled = bool(enabled)
 
         # ── Thread-safety primitives ──────────────────────────────────
-        # The slot_parallel pytest plugin runs slot parametrizations on
-        # worker threads inside this single process, so the reporter's
-        # shared state must be protected.
-        #
-        # `_state_lock` (RLock, reentrant) guards the session-wide
-        # counters and the dictionaries keyed by nodeid. `_tls` holds
-        # per-test scratch state (current step index, device serial,
-        # step counter) so parallel threads never clobber each other's
-        # values. The log-buffer lock is separate (below) because it's
-        # on the hot path and shouldn't share a lock with counters.
+        # ``_state_lock`` (RLock) guards session-wide counters and
+        # per-slot tracking. ``_tls`` carries the short list of values
+        # that genuinely need per-thread scoping (step counter, current
+        # step index, current test nodeid — see module docstring).
         self._state_lock = threading.RLock()
         self._tls = threading.local()
 
-        # Accumulated session-wide counters — mutate under _state_lock
+        # Accumulated session-wide counters — mutate under _state_lock.
         self._total = 0
         self._passed = 0
         self._failed = 0
         self._errors = 0
         self._start_time: Optional[float] = None
 
-        # Per-test tracking dicts — keyed by nodeid; mutate under _state_lock
+        # Per-test tracking dicts — keyed by nodeid; mutate under _state_lock.
         self._test_starts: Dict[str, float] = {}
         self._test_output: Dict[str, str] = {}
 
-        # Track which slot indices have had target-start reported
+        # Track which slot indices have had target-start reported.
         self._started_slots: set = set()
 
-        # Execution-level measurements — test code can attach custom data
-        # that gets merged into the execution-result payload alongside
-        # auto-extracted power measurements. Reset per test.
+        # Execution-level measurements — test code can attach custom
+        # data that gets merged into the execution-result payload.
         self.execution_measurements: Dict[str, Any] = {}
 
-        # Live log streaming state — existing lock already protects this
+        # Live log streaming state.
         self._log_buffer: str = ""
         self._log_buffer_lock = threading.Lock()
-        self._log_offsets: Dict[str, int] = {}  # per-device log offsets
+        self._log_offsets: Dict[str, int] = {}
         self._flush_thread: Optional[threading.Thread] = None
         self._flush_stop_event = threading.Event()
         self._original_stdout = None
         self._original_stderr = None
         self._stream_capture_enabled = _LOG_STREAM_ENABLED
 
-        # Store reference on config for the report fixture to find
-        if config is not None:
-            config._concord_reporter = self
-
         if self.enabled and not _HAS_REQUESTS:
             log.warning(
-                "ConcordReporter: CONCORD_RUN_ID is set but 'requests' "
-                "package is not installed. Reporter disabled."
+                "ConcordReporter: enabled but 'requests' package is not "
+                "installed; disabling reporter."
             )
             self.enabled = False
 
@@ -271,147 +328,183 @@ class ConcordReporter:
                 self._stream_capture_enabled,
             )
         else:
-            log.debug("ConcordReporter: inactive (CONCORD_SESSION_ID / CONCORD_RUN_ID not set)")
+            log.debug("ConcordReporter: inactive")
 
-    # ── Thread-local per-test state ────────────────────────────────────
-    # These values belong to "the test currently executing on this
-    # thread". Storing them on a threading.local() object means each
-    # worker thread has its own view without needing to pass references
-    # through the whole reporter/StepReporter/log-capture stack.
+    # ─────────────────────────────────────────────────────────────────
+    # Construction from environment
+    # ─────────────────────────────────────────────────────────────────
 
-    @property
-    def _current_test_name(self) -> Optional[str]:
-        return getattr(self._tls, "current_test_name", None)
+    @classmethod
+    def from_env(cls) -> Optional["ConcordReporter"]:
+        """Build a reporter from ``CONCORD_*`` env vars, or return ``None``.
 
-    @_current_test_name.setter
-    def _current_test_name(self, value: Optional[str]) -> None:
-        self._tls.current_test_name = value
+        The reporter is inert (returns ``None``) unless both
+        ``CONCORD_RUN_ID`` / ``CONCORD_SESSION_ID`` and
+        ``CONCORD_API_URL`` are set. Callers (``pytest_configure``)
+        only register the plugin when this returns an instance.
+        """
+        run_id = get_run_id()
+        api_url = (os.environ.get("CONCORD_API_URL") or "").strip()
+        if not run_id or not api_url:
+            return None
+        api_key = os.environ.get("CONCORD_API_KEY") or None
+        return cls(run_id=run_id, api_url=api_url, api_key=api_key, enabled=True)
 
-    @property
-    def _current_test_nodeid(self) -> Optional[str]:
-        return getattr(self._tls, "current_test_nodeid", None)
+    # ─────────────────────────────────────────────────────────────────
+    # Public API used by tests (``report`` fixture)
+    # ─────────────────────────────────────────────────────────────────
 
-    @_current_test_nodeid.setter
-    def _current_test_nodeid(self, value: Optional[str]) -> None:
-        self._tls.current_test_nodeid = value
+    def step(self, name: str) -> "StepReporter | NoOpStepReporter":
+        """Context manager for a named sub-step.
 
-    @property
-    def _current_device(self) -> Optional[str]:
-        return getattr(self._tls, "current_device", None)
+        .. note::
 
-    @_current_device.setter
-    def _current_device(self, value: Optional[str]) -> None:
-        self._tls.current_device = value
+           This variant infers the owning pytest item from the caller's
+           thread-local state and is kept for backward compatibility
+           with the ``report.step("...")`` call sites. For new code and
+           tests, prefer :meth:`step_for` which takes the item
+           explicitly.
+        """
+        item = getattr(self._tls, "current_item", None)
+        if item is None:
+            return NoOpStepReporter()
+        return StepReporter(self, item, name)
 
-    @property
-    def _current_step_index(self) -> Optional[int]:
-        return getattr(self._tls, "current_step_index", None)
+    def step_for(self, item: Any, name: str) -> StepReporter:
+        """Context manager for a sub-step bound to a specific pytest item."""
+        return StepReporter(self, item, name)
 
-    @_current_step_index.setter
-    def _current_step_index(self, value: Optional[int]) -> None:
-        self._tls.current_step_index = value
+    # ─────────────────────────────────────────────────────────────────
+    # Single-emit payload path
+    # ─────────────────────────────────────────────────────────────────
 
-    # -- Multi-device support -----------------------------------------
+    def _emit(self, item: Any, endpoint: str, **fields: Any) -> None:
+        """Build and POST a payload for ``endpoint`` attributed to ``item``.
 
-    def set_device(self, serial: str) -> None:
-        """Set the active device serial for subsequent callbacks."""
-        self._current_device = serial
+        Reads the :class:`SlotBinding` from ``item.stash`` (when
+        present) and injects ``slotIndex`` / ``deviceSerial``. ``None``
+        values in ``fields`` are dropped so the backend doesn't see
+        explicit nulls.
+        """
+        if not self.enabled:
+            return
+        payload: Dict[str, Any] = {k: v for k, v in fields.items() if v is not None}
+        binding = self._binding_for(item)
+        if binding is not None:
+            payload["slotIndex"] = binding.slot_index
+            if binding.serial_number is not None:
+                payload["deviceSerial"] = binding.serial_number
+        self._post(f"report/{endpoint}", payload)
 
-    # -- Sub-step support ---------------------------------------------
+    @staticmethod
+    def _binding_for(item: Any) -> Optional[SlotBinding]:
+        """Return the :class:`SlotBinding` stashed on ``item``, or ``None``.
 
-    def step(self, name: str) -> StepReporter:
-        """Return a sub-step context manager that fires step-start/step-result."""
-        return StepReporter(self, name)
+        Tolerant of stub items whose ``stash`` is a plain dict or whose
+        ``get_binding`` dispatch would otherwise fail.
+        """
+        if item is None:
+            return None
+        stash = getattr(item, "stash", None)
+        if stash is None:
+            return None
+        # Prefer the typed helper when the stash object supports it.
+        try:
+            return get_binding(item)
+        except Exception:  # pragma: no cover — defensive for exotic stubs
+            return None
+
+    # ─────────────────────────────────────────────────────────────────
+    # Step counter (thread-local)
+    # ─────────────────────────────────────────────────────────────────
 
     def _next_step_index(self) -> int:
-        """Increment and return the next step index for the current test.
-
-        Counter is thread-local: each worker thread has its own sequence
-        starting at 0, so parametrized slot tests running in parallel
-        never clash on step indices.
-        """
+        """Increment and return the next step index for the current thread."""
         next_idx = getattr(self._tls, "step_counter", 0)
         self._tls.step_counter = next_idx + 1
         return next_idx
 
     def _reset_step_counter(self) -> None:
-        """Reset this thread's step counter — called at test start."""
         self._tls.step_counter = 0
+        self._tls.current_step_index = None
 
-    # -- HTTP helpers -------------------------------------------------
+    # ─────────────────────────────────────────────────────────────────
+    # HTTP
+    # ─────────────────────────────────────────────────────────────────
 
     def _headers(self) -> Dict[str, str]:
-        """ headers."""
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"ApiKey {self.api_key}"
-        # Allow Host header override for ingress routing when using IP address
         host_header = os.environ.get("CONCORD_API_HOST")
         if host_header:
             headers["Host"] = host_header
         return headers
 
     def _post(self, path: str, json_data: Dict[str, Any]) -> Optional[Dict]:
-        """POST to Concord API. Returns JSON or None on failure."""
+        """POST to Concord API. Returns JSON or ``None`` on failure.
+
+        Reporter must never fail a test — every network error is
+        swallowed and logged.
+        """
         url = f"{self.api_url}/v2/runs/{self.run_id}/{path}"
         try:
-            resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10, verify=_TLS_VERIFY)
+            resp = requests.post(
+                url,
+                json=json_data,
+                headers=self._headers(),
+                timeout=10,
+                verify=_TLS_VERIFY,
+            )
             if resp.status_code >= 400:
                 log.warning(
                     "ConcordReporter: %s returned %d: %s",
-                    path, resp.status_code, resp.text[:200],
+                    path,
+                    resp.status_code,
+                    resp.text[:200],
                 )
                 return None
             return resp.json()
-        except Exception as e:
-            # Reporter must never fail tests — log and continue
-            log.warning("ConcordReporter: %s failed: %s", path, e)
+        except Exception as exc:
+            log.warning("ConcordReporter: %s failed: %s", path, exc)
             return None
 
-    def _fire_callback(self, endpoint: str, payload: Dict[str, Any]) -> None:
-        """Fire-and-forget POST. Strips None keys for backward compat."""
-        if not self.enabled:
-            return
-        # Remove None values so the backend doesn't receive explicit nulls
-        # for fields it doesn't expect yet (backwards compat)
-        clean = {k: v for k, v in payload.items() if v is not None}
-        self._post(f"report/{endpoint}", clean)
-
-    # -- Live log streaming -------------------------------------------
+    # ─────────────────────────────────────────────────────────────────
+    # Live log streaming
+    # ─────────────────────────────────────────────────────────────────
 
     def _on_output(self, data: str) -> None:
-        """Callback for captured stdout/stderr data."""
+        """Callback for captured stdout/stderr writes."""
         with self._log_buffer_lock:
             self._log_buffer += data
-            # Also accumulate per-test output for the test-result logOutput field.
-            # This ensures logOutput is populated even with -s (no pytest capture).
-            nodeid = self._current_test_nodeid
+            nodeid = getattr(self._tls, "current_test_nodeid", None)
             if nodeid:
                 prev = self._test_output.get(nodeid, "")
                 self._test_output[nodeid] = prev + data
 
     def _flush_log_buffer(self) -> None:
-        """Drain log buffer and POST base64-encoded content to log-chunk."""
+        """Drain the log buffer and POST a base64 chunk.
+
+        Log chunks are session/file-level: the backend demuxes by
+        ``file`` path (per-slot if a device serial is known), not by
+        ``slotIndex``. No :meth:`_emit` here.
+        """
         with self._log_buffer_lock:
             if not self._log_buffer:
                 return
             data = self._log_buffer
             self._log_buffer = ""
-            test_name = self._current_test_name
-            step_index = self._current_step_index
-            device_serial = self._current_device
+            test_name = getattr(self._tls, "current_test_name", None)
+            step_index = getattr(self._tls, "current_step_index", None)
+            device_serial = getattr(self._tls, "current_device_for_logs", None)
 
-        # Build payload (outside lock to avoid blocking)
         try:
-            encoded = base64.b64encode(data.encode("utf-8", errors="replace")).decode("ascii")
-            # Per-slot log isolation: if device_serial is set (multi-slot),
-            # prefix the file with the serial so each DUT gets its own log.
-            # Single-slot runs keep "output.log" for backward compat.
-            if device_serial:
-                log_file = f"{device_serial}/output.log"
-            else:
-                log_file = "output.log"
-
+            encoded = base64.b64encode(
+                data.encode("utf-8", errors="replace")
+            ).decode("ascii")
+            # Per-slot log routing: if a serial is known, file under it;
+            # single-slot runs keep the legacy ``output.log`` name.
+            log_file = f"{device_serial}/output.log" if device_serial else "output.log"
             offset_key = device_serial or "__default__"
             current_offset = self._log_offsets.get(offset_key, 0)
 
@@ -426,205 +519,240 @@ class ConcordReporter:
                 payload["stepIndex"] = step_index
             if device_serial is not None:
                 payload["deviceSerial"] = device_serial
-
-            self._post("report/log-chunk", payload)
-            self._log_offsets[offset_key] = current_offset + len(data.encode("utf-8", errors="replace"))
-        except Exception as e:
-            # Reporter must never fail tests — log and continue
-            log.warning("ConcordReporter: log flush failed: %s", e)
+            self._log_offsets[offset_key] = current_offset + len(
+                data.encode("utf-8", errors="replace")
+            )
+            # Strip None values for the same reason _emit does.
+            payload = {k: v for k, v in payload.items() if v is not None}
+            if self.enabled:
+                self._post("report/log-chunk", payload)
+        except Exception as exc:
+            log.warning("ConcordReporter: log flush failed: %s", exc)
 
     def _flush_loop(self) -> None:
-        """Background thread that periodically flushes log buffer."""
+        """Background flush thread."""
         while not self._flush_stop_event.wait(_LOG_FLUSH_INTERVAL):
             self._flush_log_buffer()
         # Final flush on stop
         self._flush_log_buffer()
 
     def _start_stream_capture(self) -> None:
-        """Install stream capture and start flush thread."""
         if not self._stream_capture_enabled:
             return
-
         self._original_stdout = sys.stdout
         self._original_stderr = sys.stderr
         sys.stdout = StreamCapture(self._original_stdout, self._on_output)
         sys.stderr = StreamCapture(self._original_stderr, self._on_output)
-
         self._flush_stop_event.clear()
         self._flush_thread = threading.Thread(target=self._flush_loop, daemon=True)
         self._flush_thread.start()
 
     def _stop_stream_capture(self) -> None:
-        """Restore original streams and stop flush thread."""
         if not self._stream_capture_enabled:
             return
-
-        # Stop flush thread
         self._flush_stop_event.set()
         if self._flush_thread and self._flush_thread.is_alive():
             self._flush_thread.join(timeout=5)
-
-        # Restore streams
         if self._original_stdout:
             sys.stdout = self._original_stdout
         if self._original_stderr:
             sys.stderr = self._original_stderr
 
-    # -- pytest hooks -------------------------------------------------
+    # ─────────────────────────────────────────────────────────────────
+    # pytest hooks
+    # ─────────────────────────────────────────────────────────────────
 
     def pytest_sessionstart(self, session: pytest.Session) -> None:
-        """Called after Session object created, before collection."""
+        """Fire ``report/start`` and install the stream capture hooks."""
         if not self.enabled:
             return
         self._start_time = time.monotonic()
         self._post("report/start", {"started": True})
-        # Start live log streaming
         self._start_stream_capture()
 
     def pytest_collection_finish(self, session: pytest.Session) -> None:
-        """Called after collection is complete — send full test list for pre-population."""
+        """Pre-populate the run's test list — session-level, no attribution."""
         if not self.enabled:
             return
-
         tests = []
         for item in session.items:
-            parts = item.nodeid.split("::")
-            test_name = parts[-1] if parts else item.nodeid
-            module = None
-            if len(parts) >= 2:
-                file_part = parts[0]
-                if "/" in file_part:
-                    file_part = file_part.rsplit("/", 1)[-1]
-                if file_part.endswith(".py"):
-                    module = file_part[:-3]
+            module, test_name = _parse_nodeid(item.nodeid)
             tests.append({"name": test_name, "module": module})
-
         self._post("report/test-list", {"tests": tests})
 
     def pytest_runtest_logstart(self, nodeid: str, location: tuple) -> None:
-        """Called at the start of running a test item."""
+        """Mark test start time, reset per-thread step counter.
+
+        This hook doesn't emit any attributed payload. The actual
+        ``execution-start`` fires from :meth:`pytest_runtest_setup`
+        where the pytest ``item`` (and its stash) is in scope.
+        """
         if not self.enabled:
             return
-
         with self._state_lock:
             self._test_starts[nodeid] = time.monotonic()
-
-        # Reset per-test thread-local state. In parallel mode this only
-        # affects the thread running THIS test; sibling threads running
-        # other parametrizations keep their own counters intact.
         self._reset_step_counter()
-        self._current_step_index = None
         self.execution_measurements = {}
-
-        # Extract module and test name from nodeid
-        # e.g., "tests/stage4/test_boot.py::test_power_cycle" -> module=test_boot, name=test_power_cycle
-        parts = nodeid.split("::")
-        test_name = parts[-1] if parts else nodeid
-        module = None
-        if len(parts) >= 2:
-            # Extract module name from file path
-            file_part = parts[0]
-            if "/" in file_part:
-                file_part = file_part.rsplit("/", 1)[-1]
-            if file_part.endswith(".py"):
-                module = file_part[:-3]
-
-        # Set current test for log streaming + per-test output accumulation
-        self._current_test_name = test_name
-        self._current_test_nodeid = nodeid
-        # Flush any pending logs before starting new test
+        # TLS: record the nodeid so the log flush thread can tag chunks.
+        _, test_name = _parse_nodeid(nodeid)
+        self._tls.current_test_nodeid = nodeid
+        self._tls.current_test_name = test_name
+        # Flush any pending logs before the new test's output begins.
         self._flush_log_buffer()
 
-        # Multi-slot: extract slot index from nodeid (e.g., "test_01[slot-2]")
-        # and set deviceSerial BEFORE sending execution-start. This is critical
-        # because pytest_runtest_logstart fires before fixture setup, so the
-        # _test_lifecycle fixture's set_device() call hasn't happened yet.
-        import re as _re
-        slot_match = _re.search(r"\[slot-(\d+)\]", nodeid)
-        if slot_match and hasattr(self, "_slot_serials"):
-            slot_idx = int(slot_match.group(1))
-            serial = self._slot_serials.get(slot_idx)
-            if serial:
-                self._current_device = serial
+    def pytest_runtest_setup(self, item: pytest.Item) -> None:
+        """Fire ``target-start`` (once per slot) and ``execution-start``.
 
-        # Report target-start the first time we see a test for each slot.
-        # This transitions the RunTarget status from PENDING → RUNNING in the DB
-        # so the session page shows the correct live status.
-        if slot_match:
-            slot_idx = int(slot_match.group(1))
-            should_fire_target_start = False
+        The stash-based attribution is read here — by this point the
+        collection phase has already stashed any :class:`SlotBinding`
+        on the item.
+        """
+        if not self.enabled:
+            return
+        # Stash the item on TLS so the legacy ``report.step("name")``
+        # call (which takes no item arg) can find it.
+        self._tls.current_item = item
+
+        binding = self._binding_for(item)
+
+        # Update the log router's per-thread device hint so log chunks
+        # file under the right serial (independent of _emit attribution).
+        if binding is not None and binding.serial_number:
+            self._tls.current_device_for_logs = binding.serial_number
+        else:
+            self._tls.current_device_for_logs = None
+
+        # Fire target-start the first time we see a test for each slot.
+        if binding is not None:
+            fire_target_start = False
             with self._state_lock:
-                if slot_idx not in self._started_slots:
-                    self._started_slots.add(slot_idx)
-                    should_fire_target_start = True
-            if should_fire_target_start:
-                target_start_payload: Dict[str, Any] = {"slotIndex": slot_idx}
-                if self._current_device:
-                    target_start_payload["serialNumber"] = self._current_device
-                self._post("report/target-start", target_start_payload)
+                if binding.slot_index not in self._started_slots:
+                    self._started_slots.add(binding.slot_index)
+                    fire_target_start = True
+            if fire_target_start:
+                self._emit(
+                    item,
+                    "target-start",
+                    serialNumber=binding.serial_number,
+                )
 
-        payload: Dict[str, Any] = {
-            "testName": test_name,
-            "module": module,
-        }
-        # Include device serial when set
-        if self._current_device is not None:
-            payload["deviceSerial"] = self._current_device
+        module, test_name = _parse_nodeid(item.nodeid)
+        self._emit(item, "execution-start", testName=test_name, module=module)
 
-        self._post("report/execution-start", payload)
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo):
+        """Dispatch to skip/result helpers based on phase and outcome."""
+        outcome = yield
+        if not self.enabled:
+            return
+        report = outcome.get_result()
+        if report.when == "setup" and report.skipped:
+            self._handle_skip_result(item)
+            return
+        # A setup-phase failure means a fixture raised before the test
+        # body ran — pytest reports it as ERROR and never invokes the
+        # call phase. Without this branch the execution row stays at
+        # its initial state forever and the failure is silent.
+        if report.when == "setup" and report.failed:
+            self._accumulate_output(item, report)
+            self._handle_setup_error(item, report)
+            return
+        self._accumulate_output(item, report)
+        if report.when != "call":
+            return
+        self._report_test_result(item, report)
 
-    # -- Report helpers (extracted from pytest_runtest_makereport) -------
+    def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:
+        """Flush logs and fire the session summary."""
+        if not self.enabled:
+            return
+        self._stop_stream_capture()
+        duration_s = None
+        if self._start_time is not None:
+            duration_s = time.monotonic() - self._start_time
+        self._post(
+            "report/finish",
+            {
+                "total": self._total,
+                "passed": self._passed,
+                "failed": self._failed,
+                "errors": self._errors,
+                "durationS": round(duration_s, 2) if duration_s is not None else None,
+            },
+        )
+        log.info(
+            "ConcordReporter: session finished — %d total, %d passed, %d failed, %d errors",
+            self._total,
+            self._passed,
+            self._failed,
+            self._errors,
+        )
+
+    # ─────────────────────────────────────────────────────────────────
+    # makereport helpers
+    # ─────────────────────────────────────────────────────────────────
 
     def _handle_skip_result(self, item: pytest.Item) -> None:
-        """Report a skipped test (setup-phase skip, no call phase follows)."""
+        """Fire ``execution-result`` for a setup-phase skip."""
         with self._state_lock:
             self._total += 1
+        module, _ = _parse_nodeid(item.nodeid)
+        self._emit(
+            item,
+            "execution-result",
+            testName=item.name,
+            module=module,
+            passed=True,
+            durationS=0,
+            skipped=True,
+        )
 
-        # Extract module from nodeid so skipped tests get grouped correctly
-        parts = item.nodeid.split("::")
-        module = None
-        if len(parts) >= 2:
-            file_part = parts[0]
-            if "/" in file_part:
-                file_part = file_part.rsplit("/", 1)[-1]
-            if file_part.endswith(".py"):
-                module = file_part[:-3]
+    def _handle_setup_error(self, item: pytest.Item, report) -> None:
+        """Fire ``execution-result`` for a setup-phase fixture failure.
 
-        payload: Dict[str, Any] = {
-            "testName": item.name,
-            "module": module,
-            "passed": True,
-            "durationS": 0,
-            "errorMessage": None,
-            "measurements": None,
-            "skipped": True,
-        }
-        if self._current_device is not None:
-            payload["deviceSerial"] = self._current_device
-        self._post("report/execution-result", payload)
+        Pytest reports a fixture exception as ``report.failed`` with
+        ``report.when == "setup"`` and never invokes the call phase.
+        Emit a fail result with the captured traceback so the operator
+        sees *why* the fixture cascade-skipped downstream tests.
+        """
+        with self._state_lock:
+            self._total += 1
+            self._errors += 1
+        module, _ = _parse_nodeid(item.nodeid)
+        # ``report.longreprtext`` is pytest's pre-rendered traceback;
+        # fall back to ``str(longrepr)`` for older pytest versions.
+        err_text = (
+            getattr(report, "longreprtext", None)
+            or (str(report.longrepr) if report.longrepr else "fixture setup failed")
+        )
+        # Trim to keep payloads reasonable; the full log is still in MinIO.
+        if len(err_text) > 4000:
+            err_text = err_text[:4000] + "\n... (truncated)"
+        self._emit(
+            item,
+            "execution-result",
+            testName=item.name,
+            module=module,
+            passed=False,
+            durationS=0,
+            skipped=False,
+            errorMessage=err_text,
+        )
 
     def _accumulate_output(self, item: pytest.Item, report) -> None:
-        """Accumulate captured output from a test phase (setup/call/teardown).
-
-        Only captures stderr (the primary log stream) to avoid duplicate
-        output from pytest's section capture (which repeats the same lines
-        under different headers like 'Captured stderr call', 'Captured log call').
-        """
-        captured = ""
-        if report.capstderr:
-            captured += report.capstderr
-
+        """Merge captured output from a test phase into the per-test buffer."""
+        captured = getattr(report, "capstderr", "") or ""
         if captured.strip():
             with self._state_lock:
                 prev = self._test_output.get(item.nodeid, "")
                 self._test_output[item.nodeid] = prev + captured
 
     def _report_test_result(self, item: pytest.Item, report) -> None:
-        """Build and POST test-result payload (called once during the call phase)."""
+        """Fire ``execution-result`` once per call phase (pass/fail/skipped)."""
         with self._state_lock:
             self._total += 1
             if report.skipped:
-                pass  # Skipped — don't count as passed, failed, or error
+                pass
             elif report.passed:
                 self._passed += 1
             elif report.failed:
@@ -632,36 +760,26 @@ class ConcordReporter:
             else:
                 self._errors += 1
 
-        test_name = item.name
-        passed = report.passed
-
-        # Calculate duration
-        duration_s = None
+        duration_s: Optional[float] = None
         with self._state_lock:
             start = self._test_starts.get(item.nodeid)
         if start is not None:
             duration_s = time.monotonic() - start
 
-        # Extract error message
-        error_message = None
+        error_message: Optional[str] = None
         if report.failed and report.longrepr:
-            error_message = str(report.longrepr)[:2000]  # Truncate for API
+            error_message = str(report.longrepr)[:2000]
 
-        # Flush any pending stream capture so _test_output is complete
+        # Drain any pending log buffer so per-test output is complete.
         self._flush_log_buffer()
-
-        # Collect captured log output for this test.
-        # Sources: pytest captured output + StreamCapture _on_output
         with self._state_lock:
             log_output = self._test_output.pop(item.nodeid, None)
         if log_output:
-            log_output = log_output.strip()[:10000]  # Cap at 10KB
+            log_output = log_output.strip()[:10000]
 
-        # Build measurements dict from auto-extracted power data and
-        # any custom measurements the test code attached via
-        # reporter.execution_measurements.
-        measurements = None
-        ctx = item.funcargs.get("ctx")
+        # Auto-extract power measurements from ctx.power when present.
+        measurements: Optional[Dict[str, Any]] = None
+        ctx = item.funcargs.get("ctx") if hasattr(item, "funcargs") else None
         if ctx and hasattr(ctx, "power") and hasattr(ctx.power, "last_measurement"):
             meas = ctx.power.last_measurement
             if meas:
@@ -671,100 +789,32 @@ class ConcordReporter:
                     "power_mw": getattr(meas, "power_mw", None),
                     "duration_s": getattr(meas, "duration_s", None),
                 }
-
-        # Merge custom execution measurements (test code writes these
-        # via reporter.execution_measurements dict)
         if self.execution_measurements:
-            if measurements is None:
-                measurements = {}
-            measurements.update(self.execution_measurements)
+            measurements = {**(measurements or {}), **self.execution_measurements}
 
-        # Resolve module from nodeid (same logic as test-start)
-        parts = item.nodeid.split("::")
-        module = None
-        if len(parts) >= 2:
-            file_part = parts[0]
-            if "/" in file_part:
-                file_part = file_part.rsplit("/", 1)[-1]
-            if file_part.endswith(".py"):
-                module = file_part[:-3]
-
-        payload: Dict[str, Any] = {
-            "testName": test_name,
-            "module": module,
-            "passed": passed,
-            "skipped": bool(report.skipped),
-            "durationS": duration_s,
-            "errorMessage": error_message,
-            "measurements": measurements,
-            "logOutput": log_output,
-        }
-        # Include device serial when set
-        if self._current_device is not None:
-            payload["deviceSerial"] = self._current_device
-
-        self._post("report/execution-result", payload)
-
-    # -- pytest hook: makereport ----------------------------------------
-
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
-        """Called to create a TestReport for each test phase (setup/call/teardown).
-
-        Dispatches to helper methods for skip handling, output accumulation,
-        and result reporting to keep each concern isolated.
-        """
-        outcome = yield
-        if not self.enabled:
-            return
-
-        report = outcome.get_result()
-
-        # Handle skips during setup phase (no call phase will follow)
-        if report.when == "setup" and report.skipped:
-            self._handle_skip_result(item)
-            return
-
-        # Accumulate captured output from all phases
-        self._accumulate_output(item, report)
-
-        # Only report on the "call" phase (the actual test), not setup/teardown
-        if report.when != "call":
-            return
-
-        self._report_test_result(item, report)
-
-    def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:
-        """Called after whole test run finished."""
-        if not self.enabled:
-            return
-
-        # Stop live log streaming (this flushes remaining logs)
-        self._stop_stream_capture()
-
-        duration_s = None
-        if self._start_time is not None:
-            duration_s = time.monotonic() - self._start_time
-
-        self._post("report/finish", {
-            "total": self._total,
-            "passed": self._passed,
-            "failed": self._failed,
-            "errors": self._errors,
-            "durationS": round(duration_s, 2) if duration_s is not None else None,
-        })
-
-        log.info(
-            "ConcordReporter: session finished — %d total, %d passed, %d failed, %d errors",
-            self._total, self._passed, self._failed, self._errors,
+        module, _ = _parse_nodeid(item.nodeid)
+        self._emit(
+            item,
+            "execution-result",
+            testName=item.name,
+            module=module,
+            passed=bool(report.passed),
+            skipped=bool(report.skipped),
+            durationS=duration_s,
+            errorMessage=error_message,
+            measurements=measurements,
+            logOutput=log_output,
         )
 
 
-# -- Pytest fixtures --------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
+# Pytest fixtures
+# ──────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def report(request):
-    """Active ConcordReporter or NoOpReporter for offline mode.
+    """Active :class:`ConcordReporter` or :class:`NoOpReporter` offline.
 
     Usage::
 
@@ -778,14 +828,20 @@ def report(request):
     return reporter
 
 
-# -- Plugin registration ----------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
+# Plugin registration
+# ──────────────────────────────────────────────────────────────────────
+
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Register ConcordReporter if CONCORD_SESSION_ID or CONCORD_RUN_ID is set.
+    """Register a :class:`ConcordReporter` when env vars are set.
 
-    This function is discovered by pytest when this module is listed
-    in pytest_plugins or when the package is installed as a plugin.
+    Stashes the instance on ``config._concord_reporter`` for the
+    ``report`` fixture to find, then registers it with the plugin
+    manager so the pytest hooks fire.
     """
-    if get_run_id():
-        reporter = ConcordReporter(config)
-        config.pluginmanager.register(reporter, "concord_reporter")
+    reporter = ConcordReporter.from_env()
+    if reporter is None:
+        return
+    config._concord_reporter = reporter
+    config.pluginmanager.register(reporter, "concord_reporter")

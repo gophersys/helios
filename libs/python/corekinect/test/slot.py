@@ -206,16 +206,51 @@ class FixtureContext:
             1. FIXTURE_CONFIG_PATH — JSON with full slot definitions
             2. MTIB_HOSTS — comma-separated addresses (multi-slot)
             3. MTIB_ADDRESS / MTIB_HOST — single address (single-slot)
+
+        Multi-slot env parsing delegates to
+        :func:`corekinect.test.slot_env.resolve_slot_bindings` so this
+        class shares a single source of truth with the autoconf
+        collection-time attribution step.
         """
         config_path = os.environ.get("FIXTURE_CONFIG_PATH")
         if config_path:
             return cls._from_config_file(config_path)
 
-        mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
-        if mtib_hosts:
-            return cls._from_hosts_env(mtib_hosts)
+        if os.environ.get("MTIB_HOSTS", "").strip():
+            return cls._from_slot_bindings()
 
         return cls._from_single_env()
+
+    @classmethod
+    def _from_slot_bindings(cls) -> "FixtureContext":
+        """Build from :func:`resolve_slot_bindings` — MTIB_HOSTS path.
+
+        Honours ``SLOT_FILTER`` / ``SLOT_SNRS`` / ``SLOT_DEVICE_IDS``
+        exactly as the autoconf item-stash attribution does. One env
+        parser, two consumers, zero drift.
+        """
+        # Local import to avoid a circular import chain through
+        # ``slot_binding`` (uses ``pytest.StashKey`` at module scope).
+        from corekinect.test.slot_env import resolve_slot_bindings
+
+        bindings = resolve_slot_bindings()
+        slots: Dict[str, SlotContext] = {}
+        for b in bindings:
+            slot_id = f"slot-{b.slot_index}"
+            slots[slot_id] = SlotContext(
+                slot_id=slot_id,
+                slot_index=b.slot_index,
+                mtib_address=b.mtib_host,
+                mtib_port=b.mtib_port,
+                serial_number=b.serial_number or "",
+                device_id=b.device_id or "",
+            )
+        log.info(
+            "Loaded %d slots from MTIB_HOSTS: %s",
+            len(slots),
+            [f"{s.mtib_address}:{s.mtib_port}" for s in slots.values()],
+        )
+        return cls(slots=slots)
 
     @classmethod
     def _from_config_file(cls, config_path: str) -> "FixtureContext":
@@ -249,51 +284,6 @@ class FixtureContext:
         config = data.get("config", {})
         log.info("Loaded %d slots from config file: %s", len(slots), config_path)
         return cls(slots=slots, config=config)
-
-    @classmethod
-    def _from_hosts_env(cls, mtib_hosts: str) -> "FixtureContext":
-        """Build from MTIB_HOSTS comma-separated addresses.
-
-        If SLOT_FILTER is set (comma-separated slot indices), only builds
-        SlotContexts for those indices. This allows the manufacturing runner
-        to target specific slots per run (panel vs standalone).
-        """
-        default_port = int(os.environ.get("MTIB_PORT", "50053"))
-        addresses = [addr.strip() for addr in mtib_hosts.split(",") if addr.strip()]
-
-        # SLOT_FILTER: only include specific slot indices (e.g., "0,1,2" or "4")
-        slot_filter_str = os.environ.get("SLOT_FILTER", "").strip()
-        if slot_filter_str:
-            allowed_indices = {int(x.strip()) for x in slot_filter_str.split(",") if x.strip()}
-            log.info("SLOT_FILTER active: only slots %s", sorted(allowed_indices))
-        else:
-            allowed_indices = None  # no filter = all slots
-
-        # Validate SNR/device_id count against filtered slot count (not all hosts)
-        filtered_count = len(allowed_indices) if allowed_indices else len(addresses)
-        snrs = _split_env("SLOT_SNRS", filtered_count)
-        device_ids = _split_env("SLOT_DEVICE_IDS", filtered_count)
-
-        slots = {}
-        filtered_idx = 0
-        for i, addr in enumerate(addresses):
-            if allowed_indices is not None and i not in allowed_indices:
-                continue
-            host, port = _parse_address(addr, default_port)
-            slot_id = f"slot-{i}"
-            slots[slot_id] = SlotContext(
-                slot_id=slot_id,
-                slot_index=i,
-                mtib_address=host,
-                mtib_port=port,
-                serial_number=snrs[filtered_idx] if filtered_idx < len(snrs) else "",
-                device_id=device_ids[filtered_idx] if filtered_idx < len(device_ids) else "",
-            )
-            filtered_idx += 1
-
-        log.info("Loaded %d slots from MTIB_HOSTS: %s", len(slots),
-                 [f"{s.mtib_address}:{s.mtib_port}" for s in slots.values()])
-        return cls(slots=slots)
 
     @classmethod
     def _from_single_env(cls) -> "FixtureContext":
@@ -440,17 +430,3 @@ def _parse_address(addr: str, default_port: int) -> tuple:
         host, port_str = addr.rsplit(":", 1)
         return host, int(port_str)
     return addr, default_port
-
-
-def _split_env(var_name: str, expected: int) -> List[str]:
-    """Split a comma-separated env var, return empty list if unset."""
-    val = os.environ.get(var_name, "").strip()
-    if not val:
-        return []
-    parts = [p.strip() for p in val.split(",") if p.strip()]
-    if len(parts) != expected:
-        log.warning(
-            "%s has %d values but %d slots — ignoring", var_name, len(parts), expected
-        )
-        return []
-    return parts
