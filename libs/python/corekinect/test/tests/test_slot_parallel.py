@@ -304,6 +304,91 @@ def test_plugin_emits_report_for_every_item(pytester: pytest.Pytester) -> None:
     result.assert_outcomes(passed=11, failed=1)
 
 
+def test_module_scoped_fixture_shared_across_slot_parametrized_tests(
+    pytester: pytest.Pytester,
+) -> None:
+    """A module-scoped fixture must run ONCE per (module, slot), not once per test.
+
+    Before the per-slot ``nextitem`` propagation fix, every call to
+    ``pytest_runtest_protocol(item, nextitem=None)`` told pytest "this
+    is the last item in scope" so module-scoped fixtures were torn
+    down after every test. That silently turned a one-boot-per-stage
+    fixture into a one-boot-per-test fixture, adding minutes of
+    overhead to a panel run.
+
+    The fake suite increments a counter inside a module-scoped
+    fixture and writes the observed value at every test entry. With
+    correct sharing each (module, slot) pair sees the same setup-id
+    across every test in the module.
+    """
+    trace_file = str(_trace_path(pytester))
+    pytester.makeconftest(textwrap.dedent(f'''
+        import json, threading, itertools
+        import pytest
+
+        pytest_plugins = ["corekinect.test.slot_parallel"]
+
+        _COUNTER = itertools.count(1)
+        _LOCK = threading.Lock()
+
+
+        @pytest.fixture(scope="module", params=["slot-0", "slot-1", "slot-2"])
+        def slot_fixture(request):
+            with _LOCK:
+                setup_id = next(_COUNTER)
+            with open({trace_file!r}, "a") as fh:
+                fh.write(json.dumps({{
+                    "event": "setup",
+                    "slot": request.param,
+                    "setup_id": setup_id,
+                }}) + "\\n")
+            yield {{"slot": request.param, "setup_id": setup_id}}
+            with open({trace_file!r}, "a") as fh:
+                fh.write(json.dumps({{
+                    "event": "teardown",
+                    "slot": request.param,
+                    "setup_id": setup_id,
+                }}) + "\\n")
+    ''').lstrip())
+
+    test_body: List[str] = ["import json"]
+    for t_idx in range(3):
+        test_body.append(f"def test_{t_idx:02d}(slot_fixture):")
+        test_body.append(f"    with open({trace_file!r}, 'a') as fh:")
+        test_body.append("        fh.write(json.dumps({"
+                         f"'event': 'use', 'test': {t_idx},"
+                         " 'slot': slot_fixture['slot'],"
+                         " 'setup_id': slot_fixture['setup_id']}) + '\\n')")
+        test_body.append("")
+    pytester.makepyfile(test_module_scope="\n".join(test_body))
+
+    result = pytester.runpytest("-v", "-p", "no:cacheprovider", "-p", "no:randomly")
+    result.assert_outcomes(passed=9)  # 3 tests × 3 slots
+
+    events = _read_trace(pytester)
+    setups = [e for e in events if e["event"] == "setup"]
+    teardowns = [e for e in events if e["event"] == "teardown"]
+    uses = [e for e in events if e["event"] == "use"]
+
+    # Exactly one setup and one teardown per slot — proving module-scope sharing.
+    assert len(setups) == 3, (
+        f"expected 3 module-scope setups (one per slot), got {len(setups)}: {setups}"
+    )
+    assert len(teardowns) == 3, (
+        f"expected 3 teardowns at end of module, got {len(teardowns)}: {teardowns}"
+    )
+
+    # Every (slot, test) use must report the same setup_id as the slot's
+    # single setup — i.e. the fixture was shared, not re-instantiated.
+    setup_id_by_slot = {s["slot"]: s["setup_id"] for s in setups}
+    for use in uses:
+        assert use["setup_id"] == setup_id_by_slot[use["slot"]], (
+            f"slot {use['slot']} test {use['test']} got setup_id {use['setup_id']} "
+            f"but slot's module-scoped setup_id was {setup_id_by_slot[use['slot']]} "
+            "— fixture was re-instantiated mid-module"
+        )
+
+
 def test_parallel_is_actually_faster_than_serial(pytester: pytest.Pytester) -> None:
     """Wall-clock proof: 4-slot parallel ≈ single-slot time, not 4×.
 
@@ -327,3 +412,77 @@ def test_parallel_is_actually_faster_than_serial(pytester: pytest.Pytester) -> N
     assert elapsed < 0.6, (
         f"expected <0.6s (parallel), got {elapsed:.3f}s — indicates serial execution"
     )
+
+
+def test_per_test_timeout_mark_fires_soft_failure(pytester: pytest.Pytester) -> None:
+    """``@pytest.mark.timeout(N)`` triggers a soft failure, not a process kill.
+
+    The previous pytest-timeout-based approach hard-killed the runner
+    on the first timeout (``os._exit(1)``), losing all results from
+    in-flight slots. The replacement uses ``PyThreadState_SetAsyncExc``
+    to inject a ``BaseException`` into the timed-out worker; the test
+    fails normally and the rest of the panel completes.
+
+    The fake suite has 4 slot-parametrized tests and one of them
+    sleeps past its budget. Every other slot's parametrization must
+    still complete and report.
+    """
+    pytester.makeconftest(textwrap.dedent('''
+        pytest_plugins = ["corekinect.test.slot_parallel"]
+    ''').lstrip())
+    pytester.makepyfile(test_softtimeout=textwrap.dedent('''
+        import time
+        import pytest
+
+
+        @pytest.mark.parametrize("slot", ["slot-0", "slot-1", "slot-2", "slot-3"])
+        @pytest.mark.timeout(1)
+        def test_with_timeout(slot):
+            if slot == "slot-2":
+                # Sleep past the 1-second budget.
+                time.sleep(5.0)
+            else:
+                time.sleep(0.05)
+    '''))
+    # ``-p no:timeout`` disables pytest-timeout in the inner suite — its
+    # `signal` mode no-ops and `thread` mode would ``os._exit(1)`` before
+    # our soft timer ever fired. The unit under test is the soft timer.
+    result = pytester.runpytest(
+        "-v", "-p", "no:cacheprovider", "-p", "no:randomly", "-p", "no:timeout",
+    )
+    # 3 fast slots pass, slot-2 fails with the timeout exception.
+    result.assert_outcomes(passed=3, failed=1)
+
+
+def test_per_test_timeout_does_not_kill_session(pytester: pytest.Pytester) -> None:
+    """A timeout on one test must not abort downstream tests on other slots.
+
+    Two top-level tests; the first times out on slot-2 only. The
+    second top-level test must still execute on every slot. With the
+    old pytest-timeout ``thread`` mode the process would have died on
+    the first timeout and the second test would never run.
+    """
+    pytester.makeconftest(textwrap.dedent('''
+        pytest_plugins = ["corekinect.test.slot_parallel"]
+    ''').lstrip())
+    pytester.makepyfile(test_session_survives=textwrap.dedent('''
+        import time
+        import pytest
+
+
+        @pytest.mark.parametrize("slot", ["slot-0", "slot-1", "slot-2"])
+        @pytest.mark.timeout(1)
+        def test_first(slot):
+            if slot == "slot-2":
+                time.sleep(5.0)
+
+
+        @pytest.mark.parametrize("slot", ["slot-0", "slot-1", "slot-2"])
+        def test_second(slot):
+            pass
+    '''))
+    result = pytester.runpytest(
+        "-v", "-p", "no:cacheprovider", "-p", "no:randomly", "-p", "no:timeout",
+    )
+    # First test: 2 pass, 1 fail. Second test: 3 pass.
+    result.assert_outcomes(passed=5, failed=1)
