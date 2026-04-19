@@ -1,0 +1,34 @@
+{
+  "name": "ci-libs",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "root": ".ci",
+  "sourceRoot": ".ci",
+  "projectType": "application",
+  "tags": ["scope:libs", "type:ci"],
+  "targets": {
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": ".ci"
+      },
+      "cache": false
+    },
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh status",
+        "cwd": ".ci"
+      },
+      "cache": false
+    },
+    "release-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh release-check",
+        "cwd": ".ci"
+      },
+      "cache": false
+    }
+  }
+}
