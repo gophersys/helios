@@ -69,8 +69,9 @@ function count_libs_in() {
     return 0
   fi
   local count=0
-  # shellcheck disable=SC2044  # find output is controlled (no spaces in lib dirs by convention)
-  for dir in $(find "$base" -mindepth 1 -maxdepth 4 -type f -name project.json -printf '%h\n' | sort -u); do
+  local dirs=()
+  mapfile -t dirs < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name project.json -printf '%h\n' | sort -u)
+  for dir in "${dirs[@]}"; do
     if [[ -f "$dir/ctl.sh" ]]; then
       count=$((count + 1))
     fi

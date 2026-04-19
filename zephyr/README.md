@@ -51,3 +51,9 @@ See the skill documentation at:
 ```
 brain/.claude/skills/development-nx-run-command/
 ```
+
+The project interface is `project.json` + `ctl.sh`. Zephyr's build
+system and module plumbing (`CMakeLists.txt`, `Kconfig`,
+`zephyr/module.yml`) are permitted at the module root because the
+Zephyr / west toolchain requires them; see the brain skill's
+`hard-rules.md` rule 1.

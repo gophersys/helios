@@ -4,7 +4,7 @@
   "root": "shared/libs",
   "sourceRoot": "shared/libs",
   "projectType": "application",
-  "tags": ["shared", "libs"],
+  "tags": ["scope:shared", "type:libs"],
   "targets": {
     "status": {
       "executor": "nx:run-commands",
@@ -20,7 +20,13 @@
         "command": "bash ./ctl.sh validate",
         "cwd": "shared/libs"
       },
-      "cache": false
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/ctl.sh",
+        "{projectRoot}/project.json",
+        "{projectRoot}/**/ctl.sh",
+        "{projectRoot}/**/project.json"
+      ]
     },
     "propagate": {
       "executor": "nx:run-commands",

@@ -42,3 +42,8 @@ See the skill documentation at:
 ```
 brain/.claude/skills/development-nx-run-command/
 ```
+
+The project interface is `project.json` + `ctl.sh`. The language-native
+manifest (`pyproject.toml`) is permitted at the library root because the
+Python toolchain requires it; see the brain skill's `hard-rules.md`
+rule 1.

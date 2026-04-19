@@ -45,5 +45,7 @@ brain/.claude/skills/development-nx-run-command/
 ```
 
 The `templates/ctl.sh` and `templates/project-no-configurations.json`
-files are the canonical starting points. Do not add files beyond
-`project.json` + `ctl.sh` at the library root.
+files are the canonical starting points. The project interface is
+`project.json` + `ctl.sh`. Language-native manifests (`package.json`,
+`tsconfig.json`) are permitted because `tsc` requires them; see the
+brain skill's `hard-rules.md` rule 1.

@@ -44,3 +44,8 @@ See the skill documentation at:
 ```
 brain/.claude/skills/development-nx-run-command/
 ```
+
+The project interface is `project.json` + `ctl.sh`. The language-native
+manifest (`Cargo.toml`, plus `Cargo.lock` when tracked) is permitted at
+the crate root because `cargo` requires it; see the brain skill's
+`hard-rules.md` rule 1.
