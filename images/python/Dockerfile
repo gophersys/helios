@@ -6,7 +6,8 @@
 # let it manage the Python interpreter, which keeps the image slim (no
 # apt python3 that drifts with Ubuntu's release cadence) and gives us a
 # reproducible interpreter pin.
-FROM ghcr.io/gophersys/base:latest
+ARG BASE_TAG=latest
+FROM ghcr.io/gophersys/base:${BASE_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="Python 3.12 via uv"

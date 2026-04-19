@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for images-go
+# ctl.sh — control script for the go devcontainer image
 #
-# Builds, pushes, pulls, and inspects the base image:
-#   ghcr.io/gophersys/base
+# Builds, pushes, pulls, and inspects the go image (ghcr.io/gophersys/go).
 #
 # Usage: ./ctl.sh <command> [args...]
 #

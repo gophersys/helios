@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for images-node
+# ctl.sh — control script for the node devcontainer image
 #
-# Builds, pushes, pulls, and inspects the base image:
-#   ghcr.io/gophersys/base
+# Builds, pushes, pulls, and inspects the node image (ghcr.io/gophersys/node).
 #
 # Usage: ./ctl.sh <command> [args...]
 #

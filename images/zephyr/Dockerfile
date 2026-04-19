@@ -8,7 +8,8 @@
 # The SDK archive is large (~1GB). We install a minimal subset of toolchains
 # to keep the image reasonable — expand the ZSDK_TOOLCHAINS arg if a
 # downstream project needs an arch that isn't included.
-FROM ghcr.io/gophersys/python:latest
+ARG BASE_TAG=latest
+FROM ghcr.io/gophersys/python:${BASE_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="Zephyr RTOS build host: west + Zephyr SDK"

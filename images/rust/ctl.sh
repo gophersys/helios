@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for images-rust
+# ctl.sh — control script for the rust devcontainer image
 #
-# Builds, pushes, pulls, and inspects the base image:
-#   ghcr.io/gophersys/base
+# Builds, pushes, pulls, and inspects the rust image (ghcr.io/gophersys/rust).
 #
 # Usage: ./ctl.sh <command> [args...]
 #

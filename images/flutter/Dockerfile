@@ -9,7 +9,8 @@
 #
 # This image covers Android builds only. iOS builds require macOS runners
 # and are not in scope for a Linux container.
-FROM ghcr.io/gophersys/node:latest
+ARG BASE_TAG=latest
+FROM ghcr.io/gophersys/node:${BASE_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="Flutter stable SDK + Android toolchain layer"

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for images-python
+# ctl.sh — control script for the python devcontainer image
 #
-# Builds, pushes, pulls, and inspects the base image:
-#   ghcr.io/gophersys/base
+# Builds, pushes, pulls, and inspects the python image (ghcr.io/gophersys/python).
 #
 # Usage: ./ctl.sh <command> [args...]
 #

@@ -36,7 +36,14 @@
         "command": "bash ./ctl.sh validate",
         "cwd": "."
       },
-      "cache": false
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/ctl.sh",
+        "{projectRoot}/project.json",
+        "{projectRoot}/images/*/ctl.sh",
+        "{projectRoot}/images/*/Dockerfile",
+        "{projectRoot}/images/*/project.json"
+      ]
     },
     "propagate": {
       "executor": "nx:run-commands",

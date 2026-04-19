@@ -5,7 +5,8 @@
 # Installed from the official go.dev tarball (not apt) so the version is
 # current and controlled by a single ARG, and there is no dependency on
 # Ubuntu's packaging cadence.
-FROM ghcr.io/gophersys/base:latest
+ARG BASE_TAG=latest
+FROM ghcr.io/gophersys/base:${BASE_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="Go toolchain from go.dev official tarball"

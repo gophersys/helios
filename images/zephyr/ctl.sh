@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for images-zephyr
+# ctl.sh — control script for the zephyr devcontainer image
 #
-# Builds, pushes, pulls, and inspects the base image:
-#   ghcr.io/gophersys/base
+# Builds, pushes, pulls, and inspects the zephyr image (ghcr.io/gophersys/zephyr).
 #
 # Usage: ./ctl.sh <command> [args...]
 #

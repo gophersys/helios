@@ -5,7 +5,8 @@
 # Provides: node (LTS), npm, corepack-managed yarn + pnpm. The yarn channel
 # is enabled through corepack so projects can pin their own yarn version
 # via `packageManager` in package.json without reinstalling node.
-FROM ghcr.io/gophersys/base:latest
+ARG BASE_TAG=latest
+FROM ghcr.io/gophersys/base:${BASE_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="Node.js LTS via nvm, corepack-managed yarn/pnpm"

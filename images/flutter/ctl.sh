@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for images-flutter
+# ctl.sh — control script for the flutter devcontainer image
 #
-# Builds, pushes, pulls, and inspects the base image:
-#   ghcr.io/gophersys/base
+# Builds, pushes, pulls, and inspects the flutter image (ghcr.io/gophersys/flutter).
 #
 # Usage: ./ctl.sh <command> [args...]
 #

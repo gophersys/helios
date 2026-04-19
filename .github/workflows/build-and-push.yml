@@ -65,6 +65,8 @@ jobs:
           context: images/node
           file: images/node/Dockerfile
           push: true
+          build-args: |
+            BASE_TAG=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/node:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/node:${{ steps.sha.outputs.short }}
@@ -93,6 +95,8 @@ jobs:
           context: images/python
           file: images/python/Dockerfile
           push: true
+          build-args: |
+            BASE_TAG=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/python:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/python:${{ steps.sha.outputs.short }}
@@ -121,6 +125,8 @@ jobs:
           context: images/go
           file: images/go/Dockerfile
           push: true
+          build-args: |
+            BASE_TAG=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/go:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/go:${{ steps.sha.outputs.short }}
@@ -149,6 +155,8 @@ jobs:
           context: images/rust
           file: images/rust/Dockerfile
           push: true
+          build-args: |
+            BASE_TAG=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/rust:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/rust:${{ steps.sha.outputs.short }}
@@ -177,6 +185,8 @@ jobs:
           context: images/flutter
           file: images/flutter/Dockerfile
           push: true
+          build-args: |
+            BASE_TAG=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ steps.sha.outputs.short }}
@@ -205,6 +215,8 @@ jobs:
           context: images/zephyr
           file: images/zephyr/Dockerfile
           push: true
+          build-args: |
+            BASE_TAG=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ steps.sha.outputs.short }}

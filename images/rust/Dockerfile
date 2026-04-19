@@ -5,7 +5,8 @@
 # rustup installs the `stable` toolchain globally. Cargo's target cache
 # lives under the dev user's home so bind mounts survive container
 # rebuilds during local dev.
-FROM ghcr.io/gophersys/base:latest
+ARG BASE_TAG=latest
+FROM ghcr.io/gophersys/base:${BASE_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="Rust stable via rustup"
