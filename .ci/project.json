@@ -1,0 +1,60 @@
+{
+  "name": "ci-devcontainer",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "root": ".ci",
+  "sourceRoot": ".ci",
+  "projectType": "application",
+  "tags": ["scope:shared", "type:ci-orchestration"],
+  "targets": {
+    "ci-.devcontainer-validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash .ci/ctl.sh validate",
+        "cwd": "."
+      },
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/.ci/ctl.sh",
+        "{workspaceRoot}/.ci/smoke.sh",
+        "{workspaceRoot}/.ci/project.json",
+        "{workspaceRoot}/ctl.sh",
+        "{workspaceRoot}/project.json",
+        "{workspaceRoot}/images/*/ctl.sh",
+        "{workspaceRoot}/images/*/Dockerfile",
+        "{workspaceRoot}/images/*/project.json"
+      ]
+    },
+    "ci-.devcontainer-build-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash .ci/ctl.sh build-all",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "ci-.devcontainer-build-all-multi-arch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash .ci/ctl.sh build-all-multi-arch",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "ci-.devcontainer-push-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash .ci/ctl.sh push-all",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "ci-.devcontainer-smoke-test-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash .ci/ctl.sh smoke-test-all",
+        "cwd": "."
+      },
+      "cache": false
+    }
+  }
+}

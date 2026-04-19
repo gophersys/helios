@@ -15,10 +15,10 @@ ARG BUILDPLATFORM
 # -------------------------------------------------------------------------
 # Tool versions — latest LTS / stable as of 2026-04-19.
 # -------------------------------------------------------------------------
-ARG JAVA_VERSION=17                                                    # latest LTS as of 2026-04-19
+ARG JAVA_VERSION=21                                                    # latest LTS as of 2026-04-19
 ARG ANDROID_CMDLINE_TOOLS_VERSION=14742923                             # latest LTS as of 2026-04-19
-ARG ANDROID_PLATFORM_VERSION=34                                        # latest LTS as of 2026-04-19
-ARG ANDROID_BUILDTOOLS_VERSION=34.0.0                                  # latest LTS as of 2026-04-19
+ARG ANDROID_PLATFORM_VERSION=36                                        # latest LTS as of 2026-04-19
+ARG ANDROID_BUILDTOOLS_VERSION=36.1.0                                  # latest LTS as of 2026-04-19
 ARG FLUTTER_VERSION=3.41.7                                             # latest LTS as of 2026-04-19
 ARG FLUTTER_CHANNEL=stable                                             # latest LTS as of 2026-04-19
 
@@ -58,7 +58,8 @@ RUN case "${TARGETPLATFORM}" in \
  && unzip -q /tmp/cmdline-tools.zip -d "${ANDROID_SDK_ROOT}/cmdline-tools" \
  && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
  && rm /tmp/cmdline-tools.zip \
- && yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null \
+ && ( for _ in $(seq 1 100); do echo y; done ) \
+      | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null \
  && "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
       "platform-tools" \
       "platforms;android-${ANDROID_PLATFORM_VERSION}" \
@@ -80,11 +81,11 @@ RUN curl -fsSL \
  && tar -C /opt -xJf /tmp/flutter.tar.xz \
  && rm /tmp/flutter.tar.xz \
  && git config --global --add safe.directory /opt/flutter \
- && chown -R "${USERNAME}:${USERNAME}" /opt/flutter \
- && su "${USERNAME}" -c "flutter --version" \
- && su "${USERNAME}" -c "flutter config --no-analytics --android-sdk ${ANDROID_SDK_ROOT}" \
- && su "${USERNAME}" -c "flutter precache --universal --linux --no-ios" \
- && (su "${USERNAME}" -c "flutter doctor -v" || true)
+ && chown -R "${USERNAME}:${USERNAME}" /opt/flutter
+# NOTE: no flutter --version / flutter doctor / flutter precache smoke here —
+# Flutter SDK uses the bundled dart runtime (native arch) which fails under
+# QEMU cross-arch build; flutter config/precache/doctor run in post-build
+# smoke test instead.
 
 ENV GOPHERSYS_DEVCONTAINER=flutter
 

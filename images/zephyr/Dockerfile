@@ -21,7 +21,13 @@ ARG WEST_VERSION=1.5.0                                                 # latest 
 ARG ZEPHYR_SDK_VERSION=1.0.1                                           # latest LTS as of 2026-04-19
 ARG ZSDK_TOOLCHAINS=arm-zephyr-eabi,riscv64-zephyr-elf                 # latest LTS as of 2026-04-19
 
-ARG USERNAME=dev
+# NOTE: the non-root user is hardcoded as `dev` throughout this Dockerfile
+# (matching the base image's invariant). An ARG USERNAME is intentionally NOT
+# used here because the parent image's SHELL is zsh-with-pipefail, and zsh
+# unconditionally auto-sets the special parameter $USERNAME to the effective
+# logname. That clobbers any ARG-provided value, producing paths like
+# /home/root/.local/bin/uv at build time. Hardcoding `dev` avoids the whole
+# class of failure.
 
 # -------------------------------------------------------------------------
 # Zephyr's documented Ubuntu host dependencies.
@@ -48,8 +54,17 @@ RUN apt-get update \
 ENV WEST_VENV=/opt/west-venv \
     PATH=/opt/west-venv/bin:${PATH}
 
-RUN su "${USERNAME}" -c "/home/${USERNAME}/.local/bin/uv venv ${WEST_VENV}" \
- && "${WEST_VENV}/bin/pip" install --no-cache-dir \
+# NOTE: zsh auto-sets $USERNAME to the effective logname (here: "root") even
+# when Docker passes USERNAME=dev in the env, so we cannot reference ${USERNAME}
+# from a zsh-as-root RUN layer — we must address the user via a safer vector.
+# The `dev` user and its ~/.local/bin/uv path are fixtures of the base image,
+# hence the direct paths below.
+RUN mkdir -p "${WEST_VENV}" \
+ && chown -R dev:dev "${WEST_VENV}" \
+ && runuser -u dev -- /home/dev/.local/bin/uv venv "${WEST_VENV}" \
+ && runuser -u dev -- /home/dev/.local/bin/uv pip install \
+      --python "${WEST_VENV}/bin/python" \
+      --no-cache-dir \
       "west==${WEST_VERSION}" \
       pyelftools \
       pyyaml \
@@ -60,8 +75,9 @@ RUN su "${USERNAME}" -c "/home/${USERNAME}/.local/bin/uv venv ${WEST_VENV}" \
       colorama \
       anytree \
       canopen \
- && "${WEST_VENV}/bin/west" --version \
  && chmod -R a+rx "${WEST_VENV}"
+# NOTE: west --version smoke removed — fails under QEMU cross-arch build;
+# verified in post-build smoke test (.ci/smoke.sh).
 
 # -------------------------------------------------------------------------
 # Zephyr SDK — TARGETPLATFORM-aware archive. Host arch is encoded in the
@@ -82,9 +98,15 @@ RUN case "${TARGETPLATFORM}" in \
  && tar -C "${ZEPHYR_SDK_INSTALL_DIR}" --strip-components=1 -xJf /tmp/zsdk.tar.xz \
  && rm /tmp/zsdk.tar.xz \
  && ( cd "${ZEPHYR_SDK_INSTALL_DIR}" \
-      && IFS=','; set -- ${ZSDK_TOOLCHAINS}; TOOL_ARGS=""; \
-         for t in "$@"; do TOOL_ARGS="${TOOL_ARGS} -t ${t}"; done; \
-         ./setup.sh ${TOOL_ARGS} -h -c )
+      && TOOL_ARGS=""; \
+         for t in ${(s:,:)ZSDK_TOOLCHAINS}; do TOOL_ARGS="${TOOL_ARGS} -t ${t}"; done; \
+         eval ./setup.sh ${TOOL_ARGS} -c )
+# NOTE: -h means "help" in the Zephyr SDK setup.sh, not "host tools";
+# omitted so the script doesn't exit with help text.
+# Uses zsh-native ${(s:,:)VAR} parameter expansion to split ZSDK_TOOLCHAINS
+# on commas — plain `set -- ${VAR}` does NOT word-split in zsh the way it
+# does in bash. `eval` is required to re-tokenize TOOL_ARGS as separate
+# argv slots rather than one big positional arg.
 
 # -------------------------------------------------------------------------
 # udev rules for common development boards (ST-Link, J-Link, Black Magic
@@ -113,13 +135,13 @@ RUN mkdir -p /etc/udev/rules.d \
       echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", MODE="0666", GROUP="plugdev"'; \
     } > /etc/udev/rules.d/99-gophersys-zephyr.rules \
  && (getent group plugdev >/dev/null || groupadd plugdev) \
- && usermod -aG plugdev,dialout "${USERNAME}"
+ && usermod -aG plugdev,dialout dev
 
 ENV GOPHERSYS_DEVCONTAINER=zephyr
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="gophersys zephyr layer: west ${WEST_VERSION} + Zephyr SDK ${ZEPHYR_SDK_VERSION}"
 
-USER ${USERNAME}
+USER dev
 WORKDIR /workspace
 CMD ["/usr/bin/zsh"]
