@@ -294,37 +294,56 @@ def pytest_runtestloop(session: pytest.Session):
     if not items:
         return None
 
-    groups = items_to_groups(items)
     nextitem_map = build_per_slot_nextitem(items)
 
-    # If every group is a singleton, there's nothing to parallelize —
-    # defer to pytest's default loop so we keep standard semantics
-    # (teardown optimization for same-fixture neighbors, etc.).
-    if all(len(g) == 1 for g in groups):
+    # Bucket items per slot, preserving collection order within a slot.
+    # Items without a ``[slot-N]`` suffix are run inline on the main
+    # thread first, in their collected order, where pytest's usual
+    # SetupState semantics apply.
+    inline_items: List[Any] = []
+    items_by_slot: Dict[str, List[Any]] = {}
+    for item in items:
+        slot_id = _slot_key(item.nodeid)
+        if not slot_id:
+            inline_items.append(item)
+        else:
+            items_by_slot.setdefault(slot_id, []).append(item)
+
+    # Nothing to parallelize — let pytest's default loop run.
+    if not items_by_slot:
         return None
 
-    # Each slot needs a stable worker thread for the whole session so
-    # that pytest's SetupState (held in thread-local storage by
-    # _ThreadLocalSetupState) survives across groups. Without per-slot
-    # worker affinity a fresh thread per group would observe an empty
-    # SetupState and re-instantiate every module/class-scoped fixture
-    # before each test — silently turning module scope into function
-    # scope and forcing redundant power cycles in the manufacturing
-    # POST stage.
-    slot_ids = sorted({_slot_key(it.nodeid) for it in items if _slot_key(it.nodeid)})
+    slot_ids = sorted(items_by_slot.keys())
+
+    # Single slot: no parallelism to gain. Fall back to pytest's default
+    # loop so we keep standard SetupState semantics on the main thread —
+    # the patches we install in :func:`pytest_configure` are no-ops here
+    # (no concurrent FixtureDef requests, no env-var race) so the
+    # default loop is safe and slightly faster.
+    if len(slot_ids) == 1 and not inline_items:
+        return None
     log.info(
-        "slot_parallel: %d item(s) organized into %d group(s); "
-        "%d persistent worker(s) (one per slot)",
+        "slot_parallel: %d item(s) — %d inline + %d slot(s) × ~%d test(s) each",
         len(items),
-        len(groups),
+        len(inline_items),
         len(slot_ids),
+        max(len(v) for v in items_by_slot.values()),
     )
 
-    # One single-worker pool per slot. Single-worker guarantees FIFO
-    # execution on a stable thread; the pools live for the whole
-    # session so module-scoped fixture setup/teardown happens at the
-    # natural pytest boundary (last item in scope) rather than every
-    # group transition.
+    # Run inline (non-parametrized) items first, on the main thread.
+    for item in inline_items:
+        _run_one_item(item, nextitem_map.get(item.nodeid))
+        if session.shouldstop or session.shouldfail:
+            return True
+
+    # One single-worker pool per slot. Each slot runs its own ordered
+    # sequence sequentially in its own thread; slots run concurrently
+    # with NO inter-slot synchronization. The previous group-by-test
+    # model added a barrier between every pair of tests, which spent
+    # ~3-5 s per group × N tests on reporter flush + thread wakeup
+    # (≈ 80 s of avoidable wall-clock on a 19-test panel run). Without
+    # the barrier the panel wall-clock collapses to roughly
+    # ``max(slot_durations)``.
     slot_pools: Dict[str, ThreadPoolExecutor] = {
         slot_id: ThreadPoolExecutor(
             max_workers=1, thread_name_prefix=f"slot-parallel-{slot_id}",
@@ -332,52 +351,33 @@ def pytest_runtestloop(session: pytest.Session):
         for slot_id in slot_ids
     }
 
+    def _run_slot_sequence(slot_id: str) -> None:
+        for item in items_by_slot[slot_id]:
+            if session.shouldstop or session.shouldfail:
+                return
+            _run_one_item(item, nextitem_map.get(item.nodeid))
+
     # Swap in a thread-local SetupState for the duration of the parallel
     # run so concurrent fixture setup/teardown doesn't corrupt each
     # other's stack. Restore the original on exit.
     original_setupstate = session._setupstate
     session._setupstate = _ThreadLocalSetupState()
     try:
-        for group_idx, group in enumerate(groups):
-            top_level = _strip_slot_suffix(group[0].nodeid)
-            if len(group) == 1 and not _slot_key(group[0].nodeid):
-                # Genuine singleton (no [slot-N] parametrization) — run
-                # inline on the main thread where pytest's usual
-                # SetupState semantics apply.
-                log.info(
-                    "[group %d/%d] %s — running inline",
-                    group_idx + 1, len(groups), top_level,
-                )
-                _run_one_item(group[0], nextitem_map.get(group[0].nodeid))
-                continue
-
-            log.info(
-                "[group %d/%d] %s — running %d slot(s) in parallel",
-                group_idx + 1, len(groups), top_level, len(group),
+        futures = [
+            slot_pools[slot_id].submit(_run_slot_sequence, slot_id)
+            for slot_id in slot_ids
+        ]
+        done, not_done = wait(futures)
+        # ``pytest_runtest_protocol`` catches test exceptions internally,
+        # so a slot's future should only raise on plugin bugs or interrupts.
+        for f in done:
+            exc = f.exception()
+            if exc is not None:
+                raise exc
+        if not_done:
+            raise RuntimeError(
+                f"slot_parallel: {len(not_done)} slot(s) did not complete"
             )
-            futures = [
-                slot_pools[_slot_key(item.nodeid)].submit(
-                    _run_one_item, item, nextitem_map.get(item.nodeid),
-                )
-                for item in group
-            ]
-            done, not_done = wait(futures)
-            # All futures should complete because pytest_runtest_protocol
-            # catches test exceptions internally. If any escaped (plugin
-            # bug, keyboard interrupt, etc.), re-raise so the session aborts.
-            for f in done:
-                exc = f.exception()
-                if exc is not None:
-                    raise exc
-            if not_done:
-                raise RuntimeError(
-                    f"slot_parallel: {len(not_done)} item(s) did not complete"
-                )
-
-            # Honor session-level stop conditions (--maxfail, etc.) between groups.
-            if session.shouldstop or session.shouldfail:
-                log.info("slot_parallel: session requested stop — aborting remaining groups")
-                break
     finally:
         for pool in slot_pools.values():
             pool.shutdown(wait=True)
@@ -449,6 +449,39 @@ def _patch_fixturedef_cached_result_per_thread() -> None:
     FixtureDef._slot_parallel_tls_cached_result = True
 
 
+def _disable_pytest_timeout_timer() -> None:
+    """Stop pytest-timeout from arming its own per-test timer.
+
+    pytest-timeout auto-switches from ``signal`` to ``thread`` mode
+    when invoked from a worker thread (pytest_timeout.py:307) and
+    its ``thread`` mode hard-kills the runner via ``os._exit(1)`` on
+    every per-test timeout (pytest_timeout.py:542). Under
+    slot_parallel that means the first ``@pytest.mark.timeout(N)``
+    mark to expire takes the whole panel down.
+
+    Patch ``pytest_timeout_set_timer`` to a no-op that claims
+    ownership (returns ``True``) so pytest-timeout's default
+    ``trylast`` implementation is skipped. The runner's
+    ``--timeout=N`` CLI flag is still recognized; it just doesn't
+    arm anything. Per-test budgets remain enforced by
+    :func:`_run_one_item`'s soft Timer, which fails the test cleanly
+    instead of killing the process.
+    """
+    try:
+        import pytest_timeout as _pt
+    except ImportError:
+        return
+    if getattr(_pt, "_slot_parallel_disabled_timer", False):
+        return
+
+    def _noop_set_timer(item, settings):
+        item.cancel_timeout = lambda: None
+        return True
+
+    _pt.pytest_timeout_set_timer = _noop_set_timer
+    _pt._slot_parallel_disabled_timer = True
+
+
 def _patch_update_current_test_var_for_threads() -> None:
     """Make ``_update_current_test_var`` race-safe under concurrent workers.
 
@@ -493,3 +526,4 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "slot_parallel: loaded by slot_parallel plugin")
     _patch_update_current_test_var_for_threads()
     _patch_fixturedef_cached_result_per_thread()
+    _disable_pytest_timeout_timer()
