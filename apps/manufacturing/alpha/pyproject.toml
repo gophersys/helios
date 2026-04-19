@@ -1,6 +1,6 @@
 [project]
 name = "manufacturing-alpha"
-version = "1.0.0"
+version = "1.6.0"
 requires-python = ">=3.10"
 description = "Manufacturing test suite for Alpha product (electrical, flash, POST)"
 
@@ -31,5 +31,13 @@ log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 log_cli_date_format = "%H:%M:%S"
 log_capture = false
-addopts = "-v --tb=short -p no:logging"
-timeout = 600
+addopts = "-v --tb=short -p no:logging -p no:timeout"
+# pytest-timeout is intentionally disabled at the plugin level. Both modes are
+# unusable with slot_parallel:
+#   - `signal`: silently no-ops in worker threads (signal.signal raises
+#     ValueError outside the main thread).
+#   - `thread`: works, but on every per-test timeout calls ``os._exit(1)`` —
+#     hard-killing the runner process before any test result can be reported.
+# Per-test ``@pytest.mark.timeout(N)`` budgets are still honored, enforced by
+# slot_parallel's own soft timer (PyThreadState_SetAsyncExc → fails the test
+# cleanly, session continues, downstream tests still run and report).

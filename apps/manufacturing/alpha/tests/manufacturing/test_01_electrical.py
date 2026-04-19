@@ -37,6 +37,7 @@ def _get_config(config: dict) -> dict:
 
 @pytest.mark.electrical
 @pytest.mark.sequential
+@pytest.mark.timeout(30)  # observed p95=21s, max=24s; budget = max + 6s
 def test_01_uvlo_off_state(slot, config, report):
     """Apply sub-threshold voltage and verify the DUT stays off."""
     mtib = slot.mtib
@@ -81,6 +82,7 @@ def test_01_uvlo_off_state(slot, config, report):
 
 @pytest.mark.electrical
 @pytest.mark.sequential
+@pytest.mark.timeout(35)  # observed p95=22s, max=25s (corectl budgets suggest); tail is slow-rail stabilization under contention
 def test_02_nominal_power(slot, config, report):
     """Apply nominal voltage (3.7V) and verify the DUT powers up."""
     mtib = slot.mtib
@@ -99,6 +101,7 @@ def test_02_nominal_power(slot, config, report):
 
 @pytest.mark.electrical
 @pytest.mark.sequential
+@pytest.mark.timeout(50)  # observed p95=26s, max=41s (corectl budgets suggest); tail is +SYS tracking under load
 def test_03_high_voltage(slot, config, report):
     """Apply high voltage (4.5V) and verify rails track correctly."""
     mtib = slot.mtib
@@ -118,6 +121,7 @@ def test_03_high_voltage(slot, config, report):
 
 @pytest.mark.electrical
 @pytest.mark.sequential
+@pytest.mark.timeout(55)  # observed p95=15s, max=48s (corectl budgets suggest); tail is charger handoff under USB pathway latency
 def test_04_charger_load_sharing(slot, config, report):
     """Apply 5V to charger input and verify load-sharing handoff."""
     mtib = slot.mtib

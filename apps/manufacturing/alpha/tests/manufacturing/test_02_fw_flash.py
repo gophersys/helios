@@ -85,6 +85,7 @@ def _upload_and_flash(mtib, hex_path: str, host_type, recover: bool = True, max_
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
+@pytest.mark.timeout(40)  # observed p95=17s, max=35s (corectl budgets suggest); tail is power rail settling
 def test_01_power_on(slot, config, report):
     """Power up DUT for J-Link access."""
     battery_installed = config.get("battery_installed", False)
@@ -100,6 +101,7 @@ def test_01_power_on(slot, config, report):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
+@pytest.mark.timeout(40)  # observed p95=31s, max=31s (corectl budgets suggest); tightened from 60 based on real data
 def test_02_flash_app(slot, config, report, mfg_assets):
     """Flash nRF52840 (app processor) via J-Link."""
     with report.step("Flash nRF52840 app firmware") as step:
@@ -126,6 +128,7 @@ def test_02_flash_app(slot, config, report, mfg_assets):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
+@pytest.mark.timeout(40)  # observed p95=26s, max=33s (corectl budgets suggest); tightened from 60 based on real data
 def test_03_flash_comms(slot, config, report, mfg_assets):
     """Flash nRF9151 (comms processor) via J-Link."""
     step2_recover = config.get("fw_flash_step2_recover", True)
@@ -154,6 +157,7 @@ def test_03_flash_comms(slot, config, report, mfg_assets):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
+@pytest.mark.timeout(65)  # observed p95=52s, max=56s (corectl budgets suggest); tightened from 90 based on real data
 def test_04_flash_modem(slot, config, report, mfg_assets):
     """Flash modem firmware via DFU (if available in asset set)."""
     with report.step("Flash nRF9151 modem firmware") as step:
@@ -176,6 +180,7 @@ def test_04_flash_modem(slot, config, report, mfg_assets):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
+@pytest.mark.timeout(45)  # observed p95=33s, max=38s (corectl budgets suggest); two EnableAppProtect + UICR writes
 def test_05_ap_protect(slot, config, report):
     """Set AP protect on both processors.
 
