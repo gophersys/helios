@@ -288,7 +288,13 @@ _cleanup_orphaned_pvcs() {
   for pv in $(kubectl get pv -o jsonpath='{range .items[?(@.status.phase=="Terminating")]}{.metadata.name}{"\n"}{end}' 2>/dev/null); do
     kubectl patch pv "${pv}" -p '{"metadata":{"finalizers":null}}' &>/dev/null || true
   done
-  [[ $orphaned -gt 0 ]] && info "  Cleaned ${orphaned} orphaned PVC(s)"
+  # `[[ ]] && info` returns non-zero when the guard is false, which `set -e`
+  # treats as a fatal error at function-exit scope on some bash versions —
+  # use an explicit if/then so a "nothing was orphaned" path never kills the
+  # deploy before helm runs.
+  if (( orphaned > 0 )); then
+    info "  Cleaned ${orphaned} orphaned PVC(s)"
+  fi
 }
 
 _helm_deploy() {
@@ -359,22 +365,34 @@ _smoke_test() {
     return 1
   fi
 
-  # Smoke test each service endpoint from inside the cluster
+  # Smoke test each service endpoint from inside the cluster.
+  #
+  # Only services the http-api pod is allowed to reach per
+  # concord-http-api-restrict's egress list. Frontend + docs listen on
+  # port 80 which is NOT in that list, so smoke-ing them from the
+  # http-api pod will always hit ``Connection refused`` — not a deploy
+  # regression, just a NetworkPolicy boundary. Their readiness probes
+  # (kube-probe from the node) already gate the rollout; if those
+  # succeed the pods are serving traffic.
   local -A checks=(
     ["http-api|concord-http-api:9001/v2/docs"]="API docs"
-    ["frontend|concord-frontend:80/"]="Frontend"
-    ["docs|concord-docs:80/"]="Docs"
   )
 
+  # Endpoints can be momentarily unreachable immediately after rollout
+  # (Service DNS propagation, iptables update, pod listen-port warmup).
+  # Retry each check up to 5 times with a 4 s gap — still ~20 s worst-case,
+  # but enough to mask the known startup race without masking real regressions.
   for key in "${!checks[@]}"; do
     local label="${checks[$key]}"
     local url="http://${key#*|}"
     local svc="${key%%|*}"
 
-    local status
-    status=$(kubectl exec -n "${env}" "${api_pod}" -- \
-      python3 -c "
-import urllib.request, sys
+    local status=""
+    local attempt
+    for attempt in 1 2 3 4 5; do
+      status=$(kubectl exec -n "${env}" "${api_pod}" -- \
+        python3 -c "
+import urllib.request
 try:
     r = urllib.request.urlopen('${url}', timeout=10)
     print(r.status)
@@ -382,10 +400,18 @@ except Exception as e:
     print(f'ERR:{e}')
 " 2>/dev/null || echo "ERR:exec-failed")
 
+      if [[ "${status}" =~ ^2[0-9][0-9]$ ]]; then
+        break
+      fi
+      if [[ "${attempt}" -lt 5 ]]; then
+        sleep 4
+      fi
+    done
+
     if [[ "${status}" =~ ^2[0-9][0-9]$ ]]; then
       info "  ✓ ${label} → ${status}"
     else
-      warn "  ✗ ${label} → ${status}"
+      warn "  ✗ ${label} → ${status} (after 5 attempts)"
       all_ok=false
     fi
   done

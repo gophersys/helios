@@ -347,3 +347,62 @@ class TestPowerSampleDataclass:
         )
         assert sample.js_current_na == 50000000
         assert sample.js_voltage_mv == 3300
+
+
+class TestMinioClientTimeouts:
+    """Regression tests for the MinIO client timeout contract.
+
+    When the MinIO Python SDK is constructed without ``http_client=``,
+    connect() blocks indefinitely on a dropped packet. That deadlocks
+    every parallel slot's teardown under an outage / misconfigured
+    NetworkPolicy and masks the root cause behind a generic pytest
+    timeout. ``ArtifactWriter`` must always build a bounded PoolManager.
+    """
+
+    def test_pool_manager_is_bounded(self):
+        """The shared builder returns a PoolManager with a finite timeout."""
+        from corekinect.test.artifact_writer import _build_minio_http_client
+
+        pool = _build_minio_http_client()
+        assert pool is not None, "urllib3 must be available at runtime"
+
+        # Underlying connection_pool_kw carries the Timeout the PoolManager
+        # will pass to each new pool. Assert both connect + read are bounded.
+        timeout = pool.connection_pool_kw.get("timeout")
+        assert timeout is not None, "PoolManager must carry a Timeout"
+        assert timeout.connect_timeout is not None and timeout.connect_timeout <= 10, (
+            f"connect timeout must be ≤10s (was {timeout.connect_timeout})"
+        )
+        assert timeout.read_timeout is not None and timeout.read_timeout <= 30, (
+            f"read timeout must be ≤30s (was {timeout.read_timeout})"
+        )
+
+    def test_writer_wires_bounded_client_into_minio(self):
+        """ArtifactWriter._get_client() passes the bounded PoolManager to Minio()."""
+        from corekinect.test import artifact_writer as aw
+
+        captured = {}
+
+        class _FakeMinio:
+            def __init__(self, *args, **kwargs):
+                captured["kwargs"] = kwargs
+
+        with patch.object(aw, "Minio", _FakeMinio), \
+             patch.object(aw, "_HAS_MINIO", True), \
+             patch.dict("os.environ", {
+                 "STORAGE_URL": "http://concord-minio.production.svc.cluster.local:9000",
+                 "STORAGE_ACCESS_KEY": "test",
+                 "STORAGE_SECRET_ACCESS_KEY": "test",
+                 "CONCORD_RUN_ID": "run-timeout-test",
+             }):
+            writer = aw.ArtifactWriter()
+            # Force client construction.
+            writer._get_client()
+
+        http_client = captured["kwargs"].get("http_client")
+        assert http_client is not None, (
+            "Minio() must be called with http_client= so connect() is bounded"
+        )
+        timeout = http_client.connection_pool_kw.get("timeout")
+        assert timeout.connect_timeout is not None and timeout.connect_timeout <= 10
+        assert timeout.read_timeout is not None and timeout.read_timeout <= 30

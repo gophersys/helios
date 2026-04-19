@@ -124,8 +124,29 @@ spec:
       ports:
         - port: 9000
           protocol: TCP
+    # Manufacturing + validation runners (deployed to the `validation`
+    # namespace by http-api/runner.py; they stream telemetry artifacts
+    # straight to MinIO during test teardown). Opened at namespace scope
+    # because runner pod names are per-session (mfg-alpha-<session-id>,
+    # validation-<run-id>-…) and change over time.
+    #
+    # Both selectors must be present under the same `from` entry: k3s's
+    # embedded kube-router enforces namespaceSelector-only rules
+    # inconsistently (pods silently fall through to default-deny unless
+    # paired with an explicit empty podSelector).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: validation
+          podSelector: {}
+      ports:
+        - port: 9000
+          protocol: TCP
   # MinIO is a server — no outbound connections needed
   egress: []
+# NOTE: concord-postgres-restrict intentionally has no validation-ns rule.
+# Manufacturing runners reach Postgres only via http-api (already allowed
+# above in concord-http-api-restrict), never directly.
 ---
 # ── http-api: ingress + internal services only ─────────────
 apiVersion: networking.k8s.io/v1

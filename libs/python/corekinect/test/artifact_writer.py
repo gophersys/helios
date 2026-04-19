@@ -40,10 +40,54 @@ except ImportError:
     _HAS_MINIO = False
 
 try:
+    import urllib3
+    _HAS_URLLIB3 = True
+except ImportError:
+    _HAS_URLLIB3 = False
+
+try:
     import requests
     _HAS_REQUESTS = True
 except ImportError:
     _HAS_REQUESTS = False
+
+# MinIO HTTP client timeouts — bounded so a dropped packet / network-policy
+# outage surfaces as an exception (logged, best-effort swallowed) instead of
+# blocking test teardown indefinitely. Tuned to expire well before any
+# `@pytest.mark.timeout(N)` marker on a manufacturing test.
+_MINIO_CONNECT_TIMEOUT_S = 5.0
+_MINIO_READ_TIMEOUT_S = 15.0
+_MINIO_POOL_MAXSIZE = 10
+_MINIO_RETRY_TOTAL = 2
+_MINIO_RETRY_BACKOFF_S = 0.5
+
+
+def _build_minio_http_client() -> Optional["urllib3.PoolManager"]:
+    """Construct a timeout-bounded PoolManager for MinIO, or None if urllib3 is missing.
+
+    The MinIO Python SDK accepts ``http_client=`` in its constructor. When
+    omitted, urllib3's default has no connect timeout, so a dropped SYN
+    (e.g. a NetworkPolicy blocking cross-namespace traffic) will block
+    ``sock.connect()`` until pytest-timeout kills the whole process and
+    every slot's teardown deadlocks together. Binding connect + read
+    timeouts eliminates that failure mode.
+    """
+    if not _HAS_URLLIB3:
+        return None
+    timeout = urllib3.Timeout(
+        connect=_MINIO_CONNECT_TIMEOUT_S,
+        read=_MINIO_READ_TIMEOUT_S,
+    )
+    retries = urllib3.Retry(
+        total=_MINIO_RETRY_TOTAL,
+        backoff_factor=_MINIO_RETRY_BACKOFF_S,
+        status_forcelist=(500, 502, 503, 504),
+    )
+    return urllib3.PoolManager(
+        timeout=timeout,
+        retries=retries,
+        maxsize=_MINIO_POOL_MAXSIZE,
+    )
 
 # TLS verification — enabled by default, can be disabled for local dev with self-signed certs
 _TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
@@ -165,7 +209,13 @@ class ArtifactWriter:
             log.debug("ArtifactWriter: disabled (storage not configured)")
 
     def _get_client(self) -> "Minio":
-        """Get or create MinIO client."""
+        """Get or create MinIO client.
+
+        Always constructed with a timeout-bounded ``urllib3.PoolManager``
+        so any storage outage (network policy, pod eviction, slow disk)
+        surfaces as a prompt exception rather than blocking test
+        teardown until the session-level timeout fires.
+        """
         if self._client is None:
             endpoint = self.storage_url.replace("http://", "").replace("https://", "")
             secure = self.storage_url.startswith("https://")
@@ -174,6 +224,7 @@ class ArtifactWriter:
                 access_key=self.access_key,
                 secret_key=self.secret_key,
                 secure=secure,
+                http_client=_build_minio_http_client(),
             )
         return self._client
 
