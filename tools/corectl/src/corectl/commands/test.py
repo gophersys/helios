@@ -382,15 +382,48 @@ def _validate_semantics(project_dir: Path, manifest: dict, is_v2: bool, result: 
     # ``with report.step(...)`` at a time, and helper functions never open
     # their own step. Violations here would corrupt step indices under the
     # slot-parallel runner and mis-render the UI.
-    from corectl.commands.test_depth import validate_project
+    from corectl.commands.test_depth import validate_project as _validate_depth
 
-    depth_errors = validate_project(project_dir)
+    depth_errors = _validate_depth(project_dir)
     if depth_errors:
         for err in depth_errors:
             rel = err.file.relative_to(project_dir) if err.file.is_relative_to(project_dir) else err.file
             result.error(f"{rel}:{err.line}: {err.message}")
     else:
         result.ok("Test depth: all tests respect the two-level step contract")
+
+    # ── Runner contracts: per-test timeouts + step.record usage ──
+    # The parallel runner buckets slot execution per top-level test; a
+    # missing timeout lets one hung slot dominate the whole panel's wall
+    # clock. Empty step blocks render as blank UI cards — almost always a
+    # test bug. Scoped to files the manifest actually schedules so E2E
+    # harness modules (tests/e2e/…) aren't swept in.
+    from corectl.commands.test_contracts import validate_files as _validate_contracts
+
+    stage_files: List[Path] = []
+    if is_v2:
+        for stage_cfg in manifest.get("stages", {}).values():
+            if not isinstance(stage_cfg, dict):
+                continue
+            directory = stage_cfg.get("directory")
+            module = stage_cfg.get("module")
+            if directory and module:
+                stage_files.append(project_dir / directory / f"{module}.py")
+
+    contract_violations = _validate_contracts(stage_files) if stage_files else []
+    errors = [v for v in contract_violations if v.severity == "error"]
+    warnings = [v for v in contract_violations if v.severity == "warning"]
+    for v in errors:
+        rel = v.file.relative_to(project_dir) if v.file.is_relative_to(project_dir) else v.file
+        result.error(f"{rel}:{v.line}: [{v.code}] {v.message}")
+    for v in warnings:
+        rel = v.file.relative_to(project_dir) if v.file.is_relative_to(project_dir) else v.file
+        result.warn(f"{rel}:{v.line}: [{v.code}] {v.message}")
+    if stage_files and not errors:
+        result.ok(
+            "Test contracts: every stage test declares @pytest.mark.timeout"
+            + (f" ({len(warnings)} warnings)" if warnings else "")
+        )
 
     # conftest.py must declare autoconf plugin
     conftest_path = project_dir / "conftest.py"

@@ -21,7 +21,7 @@ import click
 
 from . import __version__
 from .config import load_config
-from .commands import auth, test
+from .commands import auth, budgets, runs, test
 
 
 @click.group(invoke_without_command=True)
@@ -37,6 +37,8 @@ def main(ctx):
 
 # ── Resource groups ──
 main.add_command(auth.auth)
+main.add_command(budgets.budgets)
+main.add_command(runs.runs)
 main.add_command(test.test)
 
 # ── Shortcuts (work from project root without typing "test") ──
