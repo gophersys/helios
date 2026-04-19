@@ -122,6 +122,7 @@ class TestTargetStart:
 class TestExecutionStart:
     def test_creates_execution(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _target()
         mock_db.testexecution.find_first.return_value = None
         mock_db.testexecution.count.return_value = 0
@@ -150,6 +151,7 @@ class TestExecutionStart:
 class TestExecutionResult:
     def test_updates_execution_status(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _target()
         mock_db.testexecution.find_first.return_value = _execution()
         mock_db.testexecution.update.return_value = _execution(status="PASSED")
@@ -166,6 +168,7 @@ class TestExecutionResult:
 
     def test_returns_404_if_execution_missing(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _target()
         mock_db.testexecution.find_first.return_value = None
 

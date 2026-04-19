@@ -1452,6 +1452,11 @@ model TestExecution {
   steps  TestStep[]
 
   @@unique([targetId, executionIndex])
+  // Name is unique per target — a given test function name runs at most
+  // once per RunTarget. Enforced at the DB level so a reporter regression
+  // (e.g. dropping slotIndex and falling through to the wrong target) can
+  // never create duplicate rows silently; instead it surfaces as a 409.
+  @@unique([targetId, name])
   @@index([targetId])
   @@map("test_executions")
 }

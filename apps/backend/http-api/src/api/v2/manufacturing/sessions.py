@@ -1112,6 +1112,43 @@ def end_manufacturing_session(session_id: str):
         data={"status": "FAILED", "errorMessage": "Session ended before run started"},
     )
 
+    # Reconcile orphaned ACTIVE runs. When the runner pod exits without
+    # calling ``/report/finish`` (SIGTERM from the deployment tearing
+    # down, pytest-timeout kill before the reporter's session-finish
+    # hook, OOM, etc.), the TestRun row stays ``ACTIVE`` forever and
+    # clients polling for a terminal status hang until their own
+    # watchdog fires. Ending the session is the authoritative signal
+    # that no further /report/* callbacks will land for these runs, so
+    # we close them here with a clear reason so dashboards and
+    # ``corectl runs watch`` stop spinning.
+    reconciled_at = now
+    reconciled = db.testrun.update_many(
+        where={"manufacturingSessionId": session_id, "status": "ACTIVE"},
+        data={
+            "status": "CANCELLED",
+            "completedAt": reconciled_at,
+            "errorMessage": (
+                "Session ended while run was still ACTIVE — runner never "
+                "reported /finish (likely SIGTERM or pytest-timeout kill). "
+                "Reconciled by end_session."
+            ),
+        },
+    )
+    if reconciled:
+        logger.info(
+            "Reconciled %d orphan ACTIVE run(s) to CANCELLED for session %s",
+            reconciled, session_id,
+        )
+        # Also transition their targets to terminal. Leaving them RUNNING
+        # would still misrender per-slot progress bars as in-flight.
+        db.runtarget.update_many(
+            where={
+                "run": {"manufacturingSessionId": session_id},
+                "status": {"in": ["PENDING", "RUNNING"]},
+            },
+            data={"status": "ERROR", "completedAt": reconciled_at},
+        )
+
     # Unlock the fixture
     db.fixture.update(
         where={"id": session.fixtureId},

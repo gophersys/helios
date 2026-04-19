@@ -186,6 +186,7 @@ class TestReportExecutionStart:
 
     def test_creates_new_execution(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = None
         mock_db.testexecution.count.return_value = 0
@@ -205,6 +206,7 @@ class TestReportExecutionStart:
 
     def test_accepts_name_field(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = None
         mock_db.testexecution.count.return_value = 0
@@ -222,6 +224,7 @@ class TestReportExecutionStart:
 
     def test_updates_existing_execution(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         existing = _make_execution(status="PASSED")
         mock_db.testexecution.find_first.return_value = existing
@@ -282,6 +285,7 @@ class TestReportExecutionResult:
 
     def test_passed_execution(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = _make_execution()
 
@@ -303,6 +307,7 @@ class TestReportExecutionResult:
 
     def test_failed_with_error_message(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = _make_execution()
 
@@ -325,6 +330,7 @@ class TestReportExecutionResult:
     def test_accepts_duration_seconds(self, authed_client, mock_db):
         """durationS is converted to durationMs."""
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = _make_execution()
 
@@ -344,6 +350,7 @@ class TestReportExecutionResult:
 
     def test_execution_not_found_returns_404(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = None
 
@@ -370,6 +377,7 @@ class TestReportStepStart:
 
     def test_creates_step(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = _make_execution()
         mock_db.teststep.create.return_value = _make_step()
@@ -406,6 +414,7 @@ class TestReportStepStart:
 
     def test_execution_not_found_returns_404(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = None
 
@@ -428,6 +437,7 @@ class TestReportStepResult:
 
     def test_updates_existing_step(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = _make_execution()
         mock_db.teststep.find_first.return_value = _make_step()
@@ -450,6 +460,7 @@ class TestReportStepResult:
 
     def test_creates_step_when_no_prior_start(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = _make_execution()
         mock_db.teststep.find_first.return_value = None

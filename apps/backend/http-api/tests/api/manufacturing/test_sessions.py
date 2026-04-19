@@ -314,6 +314,57 @@ class TestEndSession:
         resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")
         assert resp.status_code == 400
 
+    def test_reconciles_orphan_active_runs_to_cancelled(self, authed_client, mock_db):
+        """End-session is the authoritative "no more /report/* for this session".
+
+        Any TestRun still ACTIVE at this point won't get a /report/finish
+        — the runner pod is about to be torn down. Mark those runs
+        CANCELLED and their targets ERROR so dashboards and
+        wait_for_run callers don't spin forever.
+        """
+        mock_db.manufacturingsession.find_unique.return_value = _session()
+        mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
+        mock_db.fixture.update.return_value = _fixture(status="AVAILABLE", lockedBy=None)
+
+        # Two update_many calls are expected: PENDING→FAILED, ACTIVE→CANCELLED.
+        # The second return value exercises the "reconciled > 0" branch that
+        # also flips lingering RunTargets.
+        mock_db.testrun.update_many.return_value = 2  # two ACTIVE runs reconciled
+
+        resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")
+        assert resp.status_code == 200
+
+        # PENDING cleanup + ACTIVE reconcile + RunTarget cleanup = 3 update_many calls
+        assert mock_db.testrun.update_many.call_count >= 2
+        # Find the ACTIVE-reconcile call by its where clause
+        active_calls = [
+            c for c in mock_db.testrun.update_many.call_args_list
+            if c.kwargs.get("where", {}).get("status") == "ACTIVE"
+        ]
+        assert len(active_calls) == 1
+        data = active_calls[0].kwargs["data"]
+        assert data["status"] == "CANCELLED"
+        assert "Reconciled by end_session" in data["errorMessage"]
+        # RunTarget cleanup must also have fired since reconciled > 0
+        assert mock_db.runtarget.update_many.call_count >= 1
+        rt_data = mock_db.runtarget.update_many.call_args_list[-1].kwargs["data"]
+        assert rt_data["status"] == "ERROR"
+
+    def test_skips_runtarget_cleanup_when_no_orphans(self, authed_client, mock_db):
+        """If every run already hit /report/finish, don't touch run targets."""
+        mock_db.manufacturingsession.find_unique.return_value = _session()
+        mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
+        mock_db.fixture.update.return_value = _fixture(status="AVAILABLE", lockedBy=None)
+        mock_db.testrun.update_many.return_value = 0  # no orphans
+
+        resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")
+        assert resp.status_code == 200
+
+        # PENDING cleanup (return=0) + ACTIVE cleanup (return=0) — still 2
+        # testrun.update_many calls, but NO runtarget.update_many because
+        # the reconcile is guarded behind reconciled > 0.
+        assert mock_db.runtarget.update_many.call_count == 0
+
 
 # ---------------------------------------------------------------------------
 # GET /v2/manufacturing/sessions/<id>/results — get session results

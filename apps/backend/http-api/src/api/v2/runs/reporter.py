@@ -17,9 +17,10 @@ from typing import Optional
 from database import Json
 from flask import jsonify, request
 from flask_socketio import SocketIO
+from prisma.errors import UniqueViolationError
 
 from src.lib.decorators import require_auth
-from src.lib.errors import bad_request, internal_error, not_found
+from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import (
@@ -87,26 +88,21 @@ def _get_run_or_404(run_id: str):
 
 
 def _resolve_target(db, run_id: str, body: dict):
-    """Find a RunTarget by explicit targetId, slotIndex, deviceSerial, or default.
+    """Resolve a RunTarget by slotIndex (multi-slot) or sole target (single-slot).
 
-    Resolution priority:
-      1. targetId — direct ID lookup
-      2. slotIndex — (runId, slotIndex) compound key
-      3. deviceSerial — match RunTarget.serialNumber (multi-slot manufacturing)
-      4. Default to first target (single-slot validation)
+    Contract (see Stream S4 of the test framework refactor plan):
+      * Multi-slot runs MUST ship ``slotIndex`` in the payload. No silent
+        fallback to first-target, no deviceSerial guessing, no targetId
+        escape hatch.
+      * Single-slot runs: ``slotIndex`` is optional; when absent the sole
+        target resolves.
+      * Anything else is 400/404.
 
     Returns (target, None) or (None, error_response).
     """
-    target_id = body.get("targetId")
-    if target_id:
-        target = db.runtarget.find_unique(where={"id": target_id})
-        if not target:
-            return None, not_found(f"Target {target_id} not found")
-        return target, None
-
-    slot_index = body.get("targetSlotIndex")
+    slot_index = body.get("slotIndex")
     if slot_index is None:
-        slot_index = body.get("slotIndex")
+        slot_index = body.get("targetSlotIndex")
 
     if slot_index is not None:
         target = db.runtarget.find_unique(
@@ -116,23 +112,14 @@ def _resolve_target(db, run_id: str, body: dict):
             return None, not_found(f"No target at slot {slot_index} in run {run_id}")
         return target, None
 
-    # Priority 3: deviceSerial → RunTarget.serialNumber (multi-slot)
-    device_serial = body.get("deviceSerial")
-    if device_serial:
-        target = db.runtarget.find_first(
-            where={"runId": run_id, "serialNumber": device_serial},
-        )
-        if target:
-            return target, None
-
-    # Default: first target (single-slot validation runs)
-    target = db.runtarget.find_first(
-        where={"runId": run_id},
-        order={"slotIndex": "asc"},
-    )
-    if not target:
+    count = db.runtarget.count(where={"runId": run_id})
+    if count == 0:
         return None, not_found(f"No targets found for run {run_id}")
-    return target, None
+    if count == 1:
+        target = db.runtarget.find_first(where={"runId": run_id})
+        return target, None
+
+    return None, bad_request("slotIndex required for multi-target runs")
 
 
 def _find_execution_by_name(db, target_id: str, name: str):
@@ -436,16 +423,29 @@ def report_execution_start(run_id: str):
         )
     else:
         exec_index = db.testexecution.count(where={"targetId": target.id})
-        execution = db.testexecution.create(
-            data={
-                "targetId": target.id,
-                "executionIndex": exec_index,
-                "name": name,
-                "module": module,
-                "status": "RUNNING",
-                "startedAt": now,
-            },
-        )
+        try:
+            execution = db.testexecution.create(
+                data={
+                    "targetId": target.id,
+                    "executionIndex": exec_index,
+                    "name": name,
+                    "module": module,
+                    "status": "RUNNING",
+                    "startedAt": now,
+                },
+            )
+        except UniqueViolationError:
+            # Race: a sibling request created the row between our find_first
+            # and create. Re-read and continue; the unique constraint on
+            # (targetId, name) guarantees we now have the winner's row.
+            execution = db.testexecution.find_first(
+                where={"targetId": target.id, "name": name},
+            )
+            if not execution:
+                return conflict(
+                    f"Execution '{name}' conflicted with an existing row for "
+                    f"target {target.id} and could not be resolved"
+                )
 
     _emit("run_execution_start", {
         "runId": run_id,
@@ -488,16 +488,28 @@ def report_execution_result(run_id: str):
     )
     if not execution:
         exec_index = db.testexecution.count(where={"targetId": target.id})
-        execution = db.testexecution.create(
-            data={
-                "targetId": target.id,
-                "executionIndex": exec_index,
-                "name": name,
-                "module": body.get("module"),
-                "status": "RUNNING",
-                "startedAt": datetime.now(timezone.utc),
-            },
-        )
+        try:
+            execution = db.testexecution.create(
+                data={
+                    "targetId": target.id,
+                    "executionIndex": exec_index,
+                    "name": name,
+                    "module": body.get("module"),
+                    "status": "RUNNING",
+                    "startedAt": datetime.now(timezone.utc),
+                },
+            )
+        except UniqueViolationError:
+            # Race with a concurrent execution-start / execution-result.
+            # Re-read; the DB constraint guarantees a single winning row.
+            execution = db.testexecution.find_first(
+                where={"targetId": target.id, "name": name},
+            )
+            if not execution:
+                return conflict(
+                    f"Execution '{name}' conflicted with an existing row for "
+                    f"target {target.id} and could not be resolved"
+                )
 
     now = datetime.now(timezone.utc)
     skipped = body.get("skipped", False)

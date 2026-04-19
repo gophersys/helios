@@ -49,35 +49,31 @@ def _load_reporter():
 
 
 def test_reporter_inactive_by_default():
-    """Reporter is disabled when CONCORD_RUN_ID is not set."""
+    """``from_env`` returns ``None`` when CONCORD_RUN_ID is not set."""
     env = {k: v for k, v in os.environ.items() if k != "CONCORD_RUN_ID"}
     with patch.dict(os.environ, env, clear=True):
         mod = _load_reporter()
-        reporter = mod.ConcordReporter()
-        assert reporter.enabled is False
+        assert mod.ConcordReporter.from_env() is None
 
 
 def test_reporter_inactive_without_api_url():
-    """Reporter is disabled when CONCORD_API_URL is missing."""
+    """``from_env`` returns ``None`` when CONCORD_API_URL is missing."""
     env = {k: v for k, v in os.environ.items() if k != "CONCORD_API_URL"}
     env["CONCORD_RUN_ID"] = "run-1"
     with patch.dict(os.environ, env, clear=True):
         mod = _load_reporter()
-        reporter = mod.ConcordReporter()
-        assert reporter.enabled is False
+        assert mod.ConcordReporter.from_env() is None
 
 
 def test_reporter_noop_when_inactive():
-    """Inactive reporter's hooks do nothing (no HTTP calls)."""
-    env = {k: v for k, v in os.environ.items() if k != "CONCORD_RUN_ID"}
-    with patch.dict(os.environ, env, clear=True):
-        mod = _load_reporter()
-        reporter = mod.ConcordReporter()
+    """An explicitly disabled reporter's hooks do nothing (no HTTP calls)."""
+    mod = _load_reporter()
+    reporter = mod.ConcordReporter(run_id="", api_url="", enabled=False)
 
-        # These should all be no-ops
-        reporter.pytest_sessionstart(MagicMock())
-        reporter.pytest_runtest_logstart("test_foo", ("file", 1, "test_foo"))
-        reporter.pytest_sessionfinish(MagicMock(), 0)
+    # These should all be no-ops
+    reporter.pytest_sessionstart(MagicMock())
+    reporter.pytest_runtest_logstart("test_foo", ("file", 1, "test_foo"))
+    reporter.pytest_sessionfinish(MagicMock(), 0)
 
 
 # ── Active mode ───────────────────────────────────────────
@@ -102,7 +98,8 @@ def reporter_mod():
 def active_reporter(reporter_mod):
     """Create an active reporter with mocked HTTP."""
     mod, _ = reporter_mod
-    reporter = mod.ConcordReporter()
+    reporter = mod.ConcordReporter.from_env()
+    assert reporter is not None
     assert reporter.enabled is True
     return reporter
 
@@ -143,15 +140,22 @@ def test_session_start_posts(active_reporter, mock_requests):
 
 
 def test_test_start_posts(active_reporter, mock_requests):
-    """pytest_runtest_logstart posts to /report/test-start."""
+    """``pytest_runtest_setup`` posts ``/report/execution-start`` with testName + module."""
     _setup_ok_response(mock_requests)
 
-    active_reporter.pytest_runtest_logstart(
-        "tests/stage4/test_boot.py::test_power_cycle",
-        ("tests/stage4/test_boot.py", 10, "test_power_cycle"),
-    )
+    nodeid = "tests/stage4/test_boot.py::test_power_cycle"
+    active_reporter.pytest_runtest_logstart(nodeid, (nodeid, 10, "test_power_cycle"))
+    # Reset the mock so we only see the setup-hook post.
+    mock_requests.post.reset_mock()
+
+    item = MagicMock()
+    item.nodeid = nodeid
+    item.stash = {}
+    active_reporter.pytest_runtest_setup(item)
 
     mock_requests.post.assert_called_once()
+    url = mock_requests.post.call_args[0][0]
+    assert url.endswith("/report/execution-start")
     json_data = mock_requests.post.call_args[1]["json"]
     assert json_data["testName"] == "test_power_cycle"
     assert json_data["module"] == "test_boot"
