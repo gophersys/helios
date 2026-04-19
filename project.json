@@ -1,0 +1,50 @@
+{
+  "name": "devcontainer",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "root": ".",
+  "sourceRoot": ".",
+  "projectType": "application",
+  "tags": ["scope:shared", "type:container-images"],
+  "targets": {
+    "build-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh build-all",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "push-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh push-all",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "list": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh list",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "propagate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh propagate",
+        "cwd": "."
+      },
+      "cache": false
+    }
+  }
+}
