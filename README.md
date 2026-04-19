@@ -1,52 +1,52 @@
 # .devcontainer
 
-Shared base container images for every project in the brain ecosystem.
+Shared IDP (internal developer platform) images for every project in the
+brain ecosystem. The repo produces **three** container images: one rich
+base that most projects can run directly, and two domain-specific layers
+on top (flutter, zephyr).
 
-Each image here serves two roles:
+Each image serves two roles:
 
 - **Local dev environment.** Projects reference these via the standard
   `.devcontainer/` convention (VS Code / JetBrains Gateway / devpod / etc.).
+  You `docker pull` the image and do your work *inside* it — zsh + oh-my-zsh
+  is the default shell, `/workspace` is the bind-mount target, the
+  non-root `dev` user (uid 1000) has sudo-nopasswd.
 - **CI runtime.** The GitHub Actions workflows in each project monorepo
   run `nx affected` inside these same images, so local and CI execute in
   an identical environment.
 
-This repo has **no Nx workspace of its own**. It is consumed as a submodule
-by every project monorepo; the parent provides the Nx runtime. Each image
-follows the `project.json` + `ctl.sh` pattern enforced across the
-ecosystem.
+This repo has **no Nx workspace of its own**. It is consumed as a
+submodule by every project monorepo; the parent provides the Nx runtime.
+Each image follows the `project.json` + `ctl.sh` pattern enforced across
+the ecosystem, and `bash ./ctl.sh <cmd>` works directly with or without Nx.
 
 ## Image inventory
 
-| Image | Contents | Base |
+| Image | Intent | `GOPHERSYS_DEVCONTAINER` |
 |---|---|---|
-| `ghcr.io/gophersys/base` | `ubuntu:24.04`, bash, git, curl, jq, shellcheck, openssh-client, Bitwarden CLI, non-root `dev` user (uid 1000) | `ubuntu:24.04` |
-| `ghcr.io/gophersys/node` | Node.js LTS via `nvm`, corepack-managed `yarn` + `pnpm` | `base` |
-| `ghcr.io/gophersys/python` | Python 3.12 via `uv` | `base` |
-| `ghcr.io/gophersys/go` | Go toolchain from the official `go.dev` tarball | `base` |
-| `ghcr.io/gophersys/rust` | Rust `stable` via `rustup`, `rustfmt`, `clippy`, build-essential | `base` |
-| `ghcr.io/gophersys/flutter` | Flutter stable SDK, JDK 17, Android build deps | `node` |
-| `ghcr.io/gophersys/zephyr` | west, Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf), Zephyr host deps | `python` |
+| `ghcr.io/gophersys/base` | "Pick up and work" image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/terraform/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
+| `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. Linux desktop + Android targets. iOS is out of scope. | `flutter` |
+| `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
 
 ## Dependency graph
 
 ```
-            base
-      ┌──────┼──────┬──────┐
-      │      │      │      │
-    node  python   go    rust
-      │      │
-      │      │
-   flutter zephyr
+     base
+   ┌──┴──┐
+flutter  zephyr
 ```
 
-This is also the order the top-level `build-all` walks.
+This is also the build order.
 
-## Using an image
+## How to use
 
-Pull directly:
+Pull an image directly:
 
 ```sh
-docker pull ghcr.io/gophersys/python:latest
+docker pull ghcr.io/gophersys/base:latest
+docker pull ghcr.io/gophersys/flutter:latest
+docker pull ghcr.io/gophersys/zephyr:latest
 ```
 
 As a VS Code devcontainer (inside a consuming project):
@@ -54,8 +54,9 @@ As a VS Code devcontainer (inside a consuming project):
 ```jsonc
 // .devcontainer/devcontainer.json
 {
-  "image": "ghcr.io/gophersys/python:latest",
-  "remoteUser": "dev"
+  "image": "ghcr.io/gophersys/base:latest",
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace"
 }
 ```
 
@@ -66,116 +67,130 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/gophersys/node:latest
+      image: ghcr.io/gophersys/base:latest
     steps:
       - uses: actions/checkout@v4
       - run: npx nx affected -t build
 ```
+
+Detect the image at runtime (use in scripts / CI):
+
+```sh
+case "${GOPHERSYS_DEVCONTAINER}" in
+  base)    echo "running in the base image" ;;
+  flutter) echo "running in the flutter layer" ;;
+  zephyr)  echo "running in the zephyr layer" ;;
+  *)       echo "not inside a gophersys devcontainer" ;;
+esac
+```
+
+## Multi-arch-on-push policy
+
+Every image is published **multi-arch** (linux/amd64 + linux/arm64). The
+rule is non-negotiable:
+
+| Verb | Behavior |
+|---|---|
+| `build` | Native single-arch build for a fast local dev loop. |
+| `build-multi-arch` | `docker buildx build --platform linux/amd64,linux/arm64 --load=false`. Verifies multi-arch without pushing. |
+| `push` | **ENFORCED** multi-arch via buildx + `--push`. A `require_buildx_and_multi_arch` guard runs at the start of the push verb; there is no flag to downgrade to single-arch. |
+
+CI (`.github/workflows/build-and-push.yml`) enforces the same policy on
+every push to `main` and on every semver tag (`v*`).
+
+## How to add a tool
+
+1. **Pick the latest LTS/stable**. Research via apt-cache, upstream GitHub
+   releases, or pypi. Never invent a version.
+2. **Add an `ARG` at the top of the Dockerfile** with a comment:
+   ```dockerfile
+   ARG MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
+   ```
+3. **Reference the ARG from the RUN line**. Hardcoded semver in `RUN` is
+   forbidden and `bash ./ctl.sh validate` greps for and fails on it.
+4. **Every binary install is `TARGETPLATFORM`-aware**:
+   ```sh
+   case "$TARGETPLATFORM" in
+     linux/amd64) ARCH=amd64 ;;
+     linux/arm64) ARCH=arm64 ;;
+     *) echo "unsupported platform: $TARGETPLATFORM"; exit 1 ;;
+   esac
+   ```
+5. **Clean up in the same layer** (`rm -rf /var/lib/apt/lists/*` for apt).
+6. **Approval required.** Tool additions and version bumps go through the
+   brain-level approval gate — they affect every consuming project.
+7. Run `bash ./ctl.sh validate` until clean, then
+   `bash ./ctl.sh build base` to verify the chain still builds.
 
 ## Repo layout
 
 ```
 .devcontainer/
 ├── README.md
-├── project.json                 # repo-level Nx wiring (build-all, push-all, list, validate, propagate)
+├── project.json                 # repo-level Nx wiring (list, validate, propagate, release)
 ├── ctl.sh                       # repo-wide control script
-├── .claude/rules/               # identity + conventions for this repo
+├── .claude/rules/               # identity + conventions
 ├── images/
-│   ├── base/    { Dockerfile, project.json, ctl.sh }
-│   ├── node/    { Dockerfile, project.json, ctl.sh }
-│   ├── python/  { Dockerfile, project.json, ctl.sh }
-│   ├── go/      { Dockerfile, project.json, ctl.sh }
-│   ├── rust/    { Dockerfile, project.json, ctl.sh }
-│   ├── flutter/ { Dockerfile, project.json, ctl.sh }
-│   └── zephyr/  { Dockerfile, project.json, ctl.sh }
+│   ├── base/     { Dockerfile, project.json, ctl.sh }
+│   ├── flutter/  { Dockerfile, project.json, ctl.sh }
+│   └── zephyr/   { Dockerfile, project.json, ctl.sh }
 └── .github/workflows/build-and-push.yml
 ```
-
-Every image is a self-contained Nx project: `project.json` wires the Nx
-targets (`build`, `push`, `pull`, `inspect`); `ctl.sh` is the bash source
-of truth. Nx is a wrapper; `bash ./ctl.sh <cmd>` works directly with or
-without the Nx runtime.
 
 ## Day-to-day operations
 
 From the repo root:
 
 ```sh
-# Build every image in dependency order.
-bash ./ctl.sh build-all
+# Native single-arch build (fast dev loop).
+bash ./ctl.sh build base
+bash ./ctl.sh build flutter
+bash ./ctl.sh build zephyr
 
-# Push every image to ghcr.io/gophersys/<name>.
-bash ./ctl.sh push-all
+# Verify multi-arch locally without pushing.
+bash ./ctl.sh build-multi-arch base
+
+# Push (ENFORCED multi-arch).
+bash ./ctl.sh push base
 
 # List canonical image refs.
 bash ./ctl.sh list
 
-# Lint shell scripts, validate JSON, lint Dockerfiles (if hadolint present).
+# Lint shell scripts, validate JSON, lint Dockerfiles, enforce ARG discipline.
 bash ./ctl.sh validate
 ```
 
-From a parent monorepo with Nx available:
+Per-image, from inside the image directory:
 
 ```sh
-nx run images-base:build
-nx run images-node:build     # builds base first via dependsOn
-nx run devcontainer:build-all
-```
-
-Per-image:
-
-```sh
-cd images/python
+cd images/base
 bash ./ctl.sh build
 bash ./ctl.sh push
 bash ./ctl.sh inspect
 ```
 
-## Adding a new image
+## CI
 
-1. Create the directory: `images/<name>/`.
-2. Write three files:
-   - `Dockerfile` — `FROM` an existing image in this repo (or `ubuntu:24.04`
-     for a new root); add the tool; clean apt lists; set `LABEL
-     org.opencontainers.image.source`.
-   - `project.json` — copy an existing image's project.json, rename, and
-     add a `dependsOn` entry pointing at the image's parent.
-   - `ctl.sh` — copy an existing image's ctl.sh and change the
-     `IMAGE_NAME` constant. `chmod +x` it.
-3. Add the name to `BUILD_ORDER` in the repo-root `ctl.sh`, placed so
-     parents come first.
-4. Add the image to the matrix in `.github/workflows/build-and-push.yml`
-     and ensure its `depends_on` in the `needs:` field matches.
-5. Run `bash ./ctl.sh validate` until clean, then `bash ./ctl.sh build-all`
-     to prove the chain still builds end to end.
-6. Commit. Open a PR. After merge, the workflow publishes `:latest` and
-     `:<short-sha>` tags.
+`.github/workflows/build-and-push.yml` builds and publishes all three
+images on every push to `main`, tagged with both `:latest` and the short
+commit SHA. On semver tag pushes (`v*`), it additionally publishes
+`:v<semver>`. The workflow always sets up QEMU + buildx and runs
+`--platform linux/amd64,linux/arm64`. Requires the `packages: write`
+permission (configured in the workflow).
 
 ## Shared-change propagation
 
-This repo is consumed by every project monorepo via submodule. After a
-change lands on `main`, consuming projects still pin the previous commit
-until someone explicitly bumps their submodule pointer.
-
-The propagation flow is owned by the parent brain repo:
+After a change lands on `main`, consuming projects still pin the previous
+commit until someone explicitly bumps their submodule pointer. The
+propagation flow is owned by the parent brain repo:
 
 ```sh
 # From within brain:
 bash brain/.claude/scripts/propagate.sh .devcontainer
-```
 
-or, equivalently from this repo when invoked through brain's submodule:
-
-```sh
+# Or, equivalently, from this repo invoked through brain's submodule:
 bash ./ctl.sh propagate
 ```
 
-Propagation is an approval-gated operation — it fans out the pointer bump
-to every consuming project, runs each project's smoke test, and rolls
-back on failure. See `brain/.claude/rules/operations/shared-change-propagation.md`.
-
-## CI
-
-`.github/workflows/build-and-push.yml` builds and publishes every image
-on every push to `main`, tagged with both `latest` and the short commit
-SHA. Requires the `packages: write` permission (configured in the workflow).
+Propagation is approval-gated — see
+`brain/.claude/rules/operations/shared-change-propagation.md`.

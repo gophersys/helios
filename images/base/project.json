@@ -14,14 +14,21 @@
       },
       "cache": false
     },
+    "build-multi-arch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh build-multi-arch",
+        "cwd": "images/base"
+      },
+      "cache": false
+    },
     "push": {
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh push",
         "cwd": "images/base"
       },
-      "cache": false,
-      "dependsOn": ["build"]
+      "cache": false
     },
     "pull": {
       "executor": "nx:run-commands",

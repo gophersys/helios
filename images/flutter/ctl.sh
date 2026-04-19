@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 #
-# ctl.sh — control script for the flutter devcontainer image
+# ctl.sh — control script for images-flutter
 #
-# Builds, pushes, pulls, and inspects the flutter image (ghcr.io/gophersys/flutter).
+# Builds, pushes, pulls, and inspects the flutter image:
+#   ghcr.io/gophersys/flutter
+#
+# Multi-arch policy:
+#   - build             native single-arch (fast dev loop)
+#   - build-multi-arch  explicit buildx multi-arch build, --load=false (no push)
+#   - push              ENFORCED multi-arch via buildx --push
 #
 # Usage: ./ctl.sh <command> [args...]
 #
@@ -10,11 +16,12 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC2034  # REPO_ROOT exposed for future cmd_* helpers
 REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
+export REPO_ROOT
 
 IMAGE_NAME="flutter"
 IMAGE_REF="ghcr.io/gophersys/${IMAGE_NAME}:latest"
+MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"
 
 # -------- logging --------
 function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
@@ -34,6 +41,33 @@ function require_cmd() {
   fi
 }
 
+function require_buildx_and_multi_arch() {
+  require_cmd docker
+  if ! docker buildx version >/dev/null 2>&1; then
+    log_error "docker buildx is not installed — multi-arch push is mandatory"
+    exit 127
+  fi
+  if ! docker buildx inspect >/dev/null 2>&1; then
+    log_error "no active buildx builder — run: docker buildx create --use --name gophersys"
+    exit 1
+  fi
+  local platforms
+  platforms="$(docker buildx inspect --bootstrap 2>/dev/null | awk -F': ' '/^Platforms/ {print $2}' | head -1)"
+  if [[ -z "$platforms" ]]; then
+    log_error "buildx builder reports no platforms; cannot enforce multi-arch"
+    exit 1
+  fi
+  local p
+  for p in ${MULTI_ARCH_PLATFORMS//,/ }; do
+    if ! printf '%s' "$platforms" | grep -q -- "$p"; then
+      log_error "buildx builder missing required platform: $p"
+      log_error "current builder platforms: $platforms"
+      log_error "enable via QEMU: docker run --privileged --rm tonistiigi/binfmt --install all"
+      exit 1
+    fi
+  done
+}
+
 # -------- cleanup --------
 BG_PIDS=()
 
@@ -50,14 +84,28 @@ trap on_exit EXIT
 # -------- commands --------
 function cmd_build() {
   require_cmd docker
-  log_info "building ${IMAGE_REF}"
+  log_info "building ${IMAGE_REF} (native single-arch)"
   docker build -t "${IMAGE_REF}" "$PROJECT_ROOT"
 }
 
+function cmd_build_multi_arch() {
+  require_buildx_and_multi_arch
+  log_info "buildx multi-arch (${MULTI_ARCH_PLATFORMS}) — no push"
+  docker buildx build \
+    --platform "${MULTI_ARCH_PLATFORMS}" \
+    --tag "${IMAGE_REF}" \
+    --load=false \
+    "$PROJECT_ROOT"
+}
+
 function cmd_push() {
-  require_cmd docker
-  log_info "pushing ${IMAGE_REF}"
-  docker push "${IMAGE_REF}"
+  require_buildx_and_multi_arch
+  log_info "buildx multi-arch (${MULTI_ARCH_PLATFORMS}) + push to ${IMAGE_REF}"
+  docker buildx build \
+    --platform "${MULTI_ARCH_PLATFORMS}" \
+    --tag "${IMAGE_REF}" \
+    --push \
+    "$PROJECT_ROOT"
 }
 
 function cmd_pull() {
@@ -79,11 +127,12 @@ Usage: ./ctl.sh <command> [args...]
 Image: ${IMAGE_REF}
 
 Commands:
-  build     Build the image from ./Dockerfile
-  push      Push the image to the registry
-  pull      Pull the image from the registry
-  inspect   Run docker image inspect on the local image
-  help      Show this message
+  build              Build the image natively (single-arch, fast)
+  build-multi-arch   buildx --platform ${MULTI_ARCH_PLATFORMS}, no push
+  push               ENFORCED multi-arch buildx build + push
+  pull               docker pull ${IMAGE_REF}
+  inspect            docker image inspect ${IMAGE_REF}
+  help               Show this message
 EOF
 }
 
@@ -92,12 +141,13 @@ function main() {
   local cmd="${1:-help}"
   shift || true
   case "$cmd" in
-    build)    cmd_build    "$@" ;;
-    push)     cmd_push     "$@" ;;
-    pull)     cmd_pull     "$@" ;;
-    inspect)  cmd_inspect  "$@" ;;
-    help|"")  usage ;;
-    *)        log_error "unknown command: '$cmd'"; usage; exit 1 ;;
+    build)             cmd_build             "$@" ;;
+    build-multi-arch)  cmd_build_multi_arch  "$@" ;;
+    push)              cmd_push              "$@" ;;
+    pull)              cmd_pull              "$@" ;;
+    inspect)           cmd_inspect           "$@" ;;
+    help|"")           usage ;;
+    *)                 log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac
 }
 

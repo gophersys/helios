@@ -14,8 +14,16 @@
       },
       "cache": false,
       "dependsOn": [
-        { "projects": ["images-node"], "target": "build" }
+        { "projects": ["images-base"], "target": "build" }
       ]
+    },
+    "build-multi-arch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh build-multi-arch",
+        "cwd": "images/flutter"
+      },
+      "cache": false
     },
     "push": {
       "executor": "nx:run-commands",
@@ -23,8 +31,7 @@
         "command": "bash ./ctl.sh push",
         "cwd": "images/flutter"
       },
-      "cache": false,
-      "dependsOn": ["build"]
+      "cache": false
     },
     "pull": {
       "executor": "nx:run-commands",

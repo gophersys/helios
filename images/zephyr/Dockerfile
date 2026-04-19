@@ -1,63 +1,56 @@
 # syntax=docker/dockerfile:1.7
 #
-# images/zephyr — Zephyr RTOS build host on top of images/python.
+# images/zephyr — Zephyr RTOS build host on top of gophersys/base.
 #
-# Installs the upstream Zephyr system dependencies, the `west` meta-tool
-# (via pip/uv into a venv), and the Zephyr SDK for cross-compilation.
-#
-# The SDK archive is large (~1GB). We install a minimal subset of toolchains
-# to keep the image reasonable — expand the ZSDK_TOOLCHAINS arg if a
-# downstream project needs an arch that isn't included.
+# Adds the Zephyr-specific system deps, the `west` meta-tool (installed via
+# uv into an isolated venv), and the Zephyr SDK for cross-compilation.
+# Default toolchain set is arm-zephyr-eabi + riscv64-zephyr-elf; override via
+# ZSDK_TOOLCHAINS to include more arches at the cost of image size.
+
 ARG BASE_TAG=latest
-FROM ghcr.io/gophersys/python:${BASE_TAG}
+FROM ghcr.io/gophersys/base:${BASE_TAG}
 
-LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
-LABEL org.opencontainers.image.description="Zephyr RTOS build host: west + Zephyr SDK"
+# Buildx-injected platform vars.
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
-USER root
+# -------------------------------------------------------------------------
+# Tool versions — latest LTS / stable as of 2026-04-19.
+# -------------------------------------------------------------------------
+ARG WEST_VERSION=1.5.0                                                 # latest LTS as of 2026-04-19
+ARG ZEPHYR_SDK_VERSION=1.0.1                                           # latest LTS as of 2026-04-19
+ARG ZSDK_TOOLCHAINS=arm-zephyr-eabi,riscv64-zephyr-elf                 # latest LTS as of 2026-04-19
 
+ARG USERNAME=dev
+
+# -------------------------------------------------------------------------
 # Zephyr's documented Ubuntu host dependencies.
 # https://docs.zephyrproject.org/latest/develop/getting_started/index.html
+# -------------------------------------------------------------------------
+USER root
+# hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ccache \
       device-tree-compiler \
       dfu-util \
-      file \
       gperf \
       libmagic1 \
       libsdl2-dev \
-      libusb-1.0-0 \
       ninja-build \
-      python3-dev \
-      python3-venv \
-      wget \
-      xz-utils \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-ARG ZSDK_VERSION=0.17.0
-ARG ZSDK_TOOLCHAINS="arm-zephyr-eabi riscv64-zephyr-elf"
-
-ENV ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk \
-    ZEPHYR_BASE=/workspace/zephyr \
-    WEST_VENV=/opt/west-venv \
+# -------------------------------------------------------------------------
+# west — installed into an isolated uv-managed venv so its deps don't
+# collide with project-level tooling.
+# -------------------------------------------------------------------------
+ENV WEST_VENV=/opt/west-venv \
     PATH=/opt/west-venv/bin:${PATH}
 
-# Zephyr SDK — minimal bundle + selected toolchains only.
-RUN mkdir -p "${ZEPHYR_SDK_INSTALL_DIR}" \
- && cd /tmp \
- && wget -q "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZSDK_VERSION}/zephyr-sdk-${ZSDK_VERSION}_linux-x86_64_minimal.tar.xz" \
- && tar -C "${ZEPHYR_SDK_INSTALL_DIR}" --strip-components=1 -xJf "zephyr-sdk-${ZSDK_VERSION}_linux-x86_64_minimal.tar.xz" \
- && rm "zephyr-sdk-${ZSDK_VERSION}_linux-x86_64_minimal.tar.xz" \
- && cd "${ZEPHYR_SDK_INSTALL_DIR}" \
- && ./setup.sh -t "${ZSDK_TOOLCHAINS}" -h -c
-
-# west + Zephyr's python requirements in an isolated venv so they don't
-# collide with project-level tooling. uv runs the install for speed.
-RUN uv venv "${WEST_VENV}" \
+RUN su "${USERNAME}" -c "/home/${USERNAME}/.local/bin/uv venv ${WEST_VENV}" \
  && "${WEST_VENV}/bin/pip" install --no-cache-dir \
-      west \
+      "west==${WEST_VERSION}" \
       pyelftools \
       pyyaml \
       cryptography \
@@ -70,5 +63,63 @@ RUN uv venv "${WEST_VENV}" \
  && "${WEST_VENV}/bin/west" --version \
  && chmod -R a+rx "${WEST_VENV}"
 
-USER dev
-WORKDIR /home/dev
+# -------------------------------------------------------------------------
+# Zephyr SDK — TARGETPLATFORM-aware archive. Host arch is encoded in the
+# asset name; setup.sh installs only the toolchains in ZSDK_TOOLCHAINS.
+# -------------------------------------------------------------------------
+ENV ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk \
+    ZEPHYR_BASE=/workspace/zephyr
+
+# hadolint ignore=DL4006,DL3003,SC2086
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=x86_64 ;; \
+      linux/arm64) ARCH=aarch64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && mkdir -p "${ZEPHYR_SDK_INSTALL_DIR}" \
+ && wget -q -O /tmp/zsdk.tar.xz \
+      "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-${ARCH}_minimal.tar.xz" \
+ && tar -C "${ZEPHYR_SDK_INSTALL_DIR}" --strip-components=1 -xJf /tmp/zsdk.tar.xz \
+ && rm /tmp/zsdk.tar.xz \
+ && ( cd "${ZEPHYR_SDK_INSTALL_DIR}" \
+      && IFS=','; set -- ${ZSDK_TOOLCHAINS}; TOOL_ARGS=""; \
+         for t in "$@"; do TOOL_ARGS="${TOOL_ARGS} -t ${t}"; done; \
+         ./setup.sh ${TOOL_ARGS} -h -c )
+
+# -------------------------------------------------------------------------
+# udev rules for common development boards (ST-Link, J-Link, Black Magic
+# Probe, DAPLink, Nordic nRF, Espressif). Shipped from the SDK when present;
+# otherwise a minimal fallback rule allowing `plugdev` members raw access to
+# typical USB CMSIS-DAP descriptors.
+# -------------------------------------------------------------------------
+RUN mkdir -p /etc/udev/rules.d \
+ && if [ -d "${ZEPHYR_SDK_INSTALL_DIR}/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib" ]; then \
+      cp -v "${ZEPHYR_SDK_INSTALL_DIR}"/sysroots/*-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules \
+        /etc/udev/rules.d/ || true; \
+    fi \
+ && { \
+      echo '# gophersys/zephyr — common dev board udev rules.'; \
+      echo '# ST-Link (STM32)'; \
+      echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", MODE="0666", GROUP="plugdev"'; \
+      echo '# SEGGER J-Link'; \
+      echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="1366", MODE="0666", GROUP="plugdev"'; \
+      echo '# Nordic nRF'; \
+      echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="1915", MODE="0666", GROUP="plugdev"'; \
+      echo '# Black Magic Probe'; \
+      echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6018", MODE="0666", GROUP="plugdev"'; \
+      echo '# DAPLink / CMSIS-DAP'; \
+      echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0d28", ATTRS{idProduct}=="0204", MODE="0666", GROUP="plugdev"'; \
+      echo '# Espressif'; \
+      echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", MODE="0666", GROUP="plugdev"'; \
+    } > /etc/udev/rules.d/99-gophersys-zephyr.rules \
+ && (getent group plugdev >/dev/null || groupadd plugdev) \
+ && usermod -aG plugdev,dialout "${USERNAME}"
+
+ENV GOPHERSYS_DEVCONTAINER=zephyr
+
+LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
+LABEL org.opencontainers.image.description="gophersys zephyr layer: west ${WEST_VERSION} + Zephyr SDK ${ZEPHYR_SDK_VERSION}"
+
+USER ${USERNAME}
+WORKDIR /workspace
+CMD ["/usr/bin/zsh"]

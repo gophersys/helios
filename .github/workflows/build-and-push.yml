@@ -1,19 +1,22 @@
 name: build-and-push
 
-# Builds and publishes every base image in images/*/ to the GitHub
-# Container Registry on every push to main. Each image is tagged with
-# both `latest` and the short commit SHA. Jobs are sequenced by the
-# dependency graph so a child image can always FROM its parent's freshly
-# built :latest tag.
+# Publishes the 3-image IDP set (base + flutter + zephyr) to the GitHub
+# Container Registry. Every image is built multi-arch (linux/amd64 +
+# linux/arm64) on every push to main. On semver tag pushes (v*) we also
+# publish a :v<semver> tag. Flutter and zephyr consume base via BASE_TAG
+# build-arg set to the commit short SHA so the child layer FROMs the
+# freshly pushed parent.
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
+  PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   base:
@@ -21,8 +24,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      short: ${{ steps.sha.outputs.short }}
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -32,193 +38,99 @@ jobs:
       - name: short-sha
         id: sha
         run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/build-push-action@v6
         with:
           context: images/base
           file: images/base/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ steps.sha.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=base
           cache-to: type=gha,mode=max,scope=base
 
-  node:
-    needs: [base]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: short-sha
-        id: sha
-        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
-        with:
-          context: images/node
-          file: images/node/Dockerfile
-          push: true
-          build-args: |
-            BASE_TAG=${{ steps.sha.outputs.short }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/node:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/node:${{ steps.sha.outputs.short }}
-          cache-from: type=gha,scope=node
-          cache-to: type=gha,mode=max,scope=node
-
-  python:
-    needs: [base]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: short-sha
-        id: sha
-        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
-        with:
-          context: images/python
-          file: images/python/Dockerfile
-          push: true
-          build-args: |
-            BASE_TAG=${{ steps.sha.outputs.short }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/python:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/python:${{ steps.sha.outputs.short }}
-          cache-from: type=gha,scope=python
-          cache-to: type=gha,mode=max,scope=python
-
-  go:
-    needs: [base]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: short-sha
-        id: sha
-        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
-        with:
-          context: images/go
-          file: images/go/Dockerfile
-          push: true
-          build-args: |
-            BASE_TAG=${{ steps.sha.outputs.short }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/go:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/go:${{ steps.sha.outputs.short }}
-          cache-from: type=gha,scope=go
-          cache-to: type=gha,mode=max,scope=go
-
-  rust:
-    needs: [base]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: short-sha
-        id: sha
-        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
-        with:
-          context: images/rust
-          file: images/rust/Dockerfile
-          push: true
-          build-args: |
-            BASE_TAG=${{ steps.sha.outputs.short }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/rust:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/rust:${{ steps.sha.outputs.short }}
-          cache-from: type=gha,scope=rust
-          cache-to: type=gha,mode=max,scope=rust
-
   flutter:
-    needs: [node]
+    needs: [base]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: short-sha
-        id: sha
-        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/build-push-action@v6
         with:
           context: images/flutter
           file: images/flutter/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
-            BASE_TAG=${{ steps.sha.outputs.short }}
+            BASE_TAG=${{ needs.base.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ steps.sha.outputs.short }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ needs.base.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=flutter
           cache-to: type=gha,mode=max,scope=flutter
 
   zephyr:
-    needs: [python]
+    needs: [base]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: short-sha
-        id: sha
-        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/build-push-action@v6
         with:
           context: images/zephyr
           file: images/zephyr/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
-            BASE_TAG=${{ steps.sha.outputs.short }}
+            BASE_TAG=${{ needs.base.outputs.short }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ steps.sha.outputs.short }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ needs.base.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr
           cache-to: type=gha,mode=max,scope=zephyr
