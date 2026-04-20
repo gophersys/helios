@@ -60,11 +60,13 @@ Given a minimal valid `values.yaml` the chart renders:
 
 ## Example values
 
+Install as release `codectl-api` in namespace `codectl-prod`:
+
 ```yaml
+project: codectl                    # determines namespace prefix: codectl-prod
+env: prod                           # determines namespace suffix: codectl-prod
 app:
-  name: codectl-api
-  partOf: codectl
-env: prod
+  name: api                         # full identifier: codectl-api
 tenant: gophersys
 nodeRole: apps
 dataClassification: internal
@@ -95,8 +97,8 @@ observability:
   traces:  { enabled: true, samplingRatio: 0.1 }
 
 secrets:
-  - { key: DATABASE_URL, bwItem: app-codectl-db, bwProperty: uri, mode: env }
-  - { key: OPENAI_API_KEY, bwItem: fintel-openai-key, bwProperty: apikey, mode: env }
+  - { key: DATABASE_URL,   bwItem: codectl-db,        bwProperty: uri,    mode: env }
+  - { key: OPENAI_API_KEY, bwItem: codectl-openai,    bwProperty: apikey, mode: env }
 
 networkPolicy:
   allowIngressFrom:

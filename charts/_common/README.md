@@ -15,7 +15,8 @@ copy-paste drift.
 
 ### `common.labels`
 Canonical labels applied to every rendered object. See
-`charts/CONVENTIONS.md` §2 for the full list. Consume like:
+`charts/CONVENTIONS.md` §2 for the full list. The composite identifier
+`<project>-<app.name>` is `app.kubernetes.io/name`. Consume like:
 
 ```yaml
 metadata:
@@ -26,6 +27,17 @@ metadata:
 ### `common.selectorLabels`
 Subset of `common.labels` suitable for Deployment/StatefulSet/Service
 selectors (immutable, no version).
+
+### `common.fullname`
+Returns `<project>-<app.name>` — the canonical identifier for the app
+(e.g. `codectl-api`). Use as the default Helm release name and as the
+base for all rendered resource names (Deployment, Service, PDB, etc.).
+
+### `common.namespace`
+Returns `<project>-<env>` — the expected namespace for this app
+(e.g. `codectl-prod`). Templates may optionally render a hard-fail
+check that `.Release.Namespace` matches this; the platform's
+`namespace-naming-enforced` policy enforces it cluster-wide anyway.
 
 ### `common.podSecurityContext` / `common.containerSecurityContext`
 Emit the restricted PSS security contexts from

@@ -21,15 +21,16 @@ Apps declare a `Database` CR (CNPG):
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
-  name: <app>-db
+  name: <project>-<app>-db             # e.g., codectl-api-db
+  namespace: <project>-<env>           # e.g., codectl-prod
 spec:
   cluster:
-    name: shared-postgres        # cluster-level CNPG control plane
-  name: <app>
-  owner: <app>
+    name: shared-postgres              # cluster-level CNPG control plane
+  name: <project>_<app>                # DB name (underscored — Postgres identifier)
+  owner: <project>_<app>
 ```
 
-The platform emits Secret `<app>-db-credentials` with keys:
+The platform emits Secret `<project>-<app>-db-credentials` with keys:
 `host`, `port`, `user`, `password`, `dbname`, `uri`.
 
 ### Redis
@@ -39,13 +40,15 @@ Apps declare a `Cache` CR (TBD — maps to Dragonfly operator or similar):
 apiVersion: platform.gophersys/v1
 kind: Cache
 metadata:
-  name: <app>-cache
+  name: <project>-<app>-cache          # e.g., codectl-api-cache
+  namespace: <project>-<env>
 spec:
-  size: small                    # small | medium | large
+  size: small                          # small | medium | large
   persistence: false
 ```
 
-Emits Secret `<app>-cache-credentials` with `host`, `port`, `password`.
+Emits Secret `<project>-<app>-cache-credentials` with `host`, `port`,
+`password`.
 
 ## Guarantees (TBD)
 

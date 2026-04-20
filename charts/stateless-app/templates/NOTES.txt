@@ -1,16 +1,18 @@
 {{- /*
 NOTES.txt — post-install/upgrade message shown to the operator.
 */ -}}
-stateless-app {{ .Values.app.name | default "<unnamed>" }} installed.
+stateless-app {{ .Values.project }}-{{ .Values.app.name }} installed.
 
-Namespace: {{ .Release.Namespace }}
+Project:   {{ .Values.project }}
+Env:       {{ .Values.env }}
+Namespace: {{ .Release.Namespace }}     (expected: {{ .Values.project }}-{{ .Values.env }})
 Release:   {{ .Release.Name }}
 Chart:     {{ .Chart.Name }}-{{ .Chart.Version }}
-App:       {{ .Values.app.name }}  ({{ .Values.env | default "?" }})
+App:       {{ .Values.project }}-{{ .Values.app.name }}
 Image:     {{ .Values.image.repository }}:{{ .Values.image.tag }}
 
 Observability:
-  Dashboards:  https://grafana.<cluster-domain>/d/app-{{ .Values.app.name }}
+  Dashboards:  https://grafana.<cluster-domain>/d/{{ .Values.project }}-{{ .Values.app.name }}
   Logs:        https://grafana.<cluster-domain>/explore?left=%7B%22datasource%22:%22loki%22%7D
 {{- if .Values.ingress.enabled }}
 
@@ -19,4 +21,4 @@ Ingress:
   TLS:         via cert-manager / {{ .Values.ingress.tls.clusterIssuer }}
 {{- end }}
 
-Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)
+Runbook: https://brain/docs/runbooks/{{ .Values.project }}/{{ .Values.app.name }}.md  (create if missing)

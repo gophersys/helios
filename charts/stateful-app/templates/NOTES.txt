@@ -1,7 +1,9 @@
 {{- /* NOTES.txt — stateful-app */ -}}
-stateful-app {{ .Values.app.name | default "<unnamed>" }} installed.
+stateful-app {{ .Values.project }}-{{ .Values.app.name }} installed.
 
-Namespace: {{ .Release.Namespace }}
+Project:   {{ .Values.project }}
+Env:       {{ .Values.env }}
+Namespace: {{ .Release.Namespace }}     (expected: {{ .Values.project }}-{{ .Values.env }})
 Release:   {{ .Release.Name }}
 Replicas:  {{ .Values.replicas }}
 Storage:   {{ .Values.storage.size }} per replica ({{ .Values.storage.class }}, {{ .Values.storage.accessMode }})
@@ -13,4 +15,4 @@ Stable pod DNS:
   {{ .Release.Name }}-1.{{ .Release.Name }}.{{ .Release.Namespace }}.svc
   ...
 
-Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)
+Runbook: https://brain/docs/runbooks/{{ .Values.project }}/{{ .Values.app.name }}.md  (create if missing)

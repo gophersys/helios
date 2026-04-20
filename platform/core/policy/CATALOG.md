@@ -103,9 +103,9 @@ Bitwarden tokens (regex for BW session tokens, access tokens).
 
 ### `network-policy-required`
 **Mode:** validate (generate on namespace create).
-**Checks:** every `app-*` and `platform-*` namespace has at least one
-NetworkPolicy (typically emitted by the app's chart; baseline emitted by
-`platform/core/network-policies/`).
+**Checks:** every `<project>-<env>` and `platform-*` namespace has at
+least one NetworkPolicy (typically emitted by the app's chart; baseline
+emitted by `platform/core/network-policies/`).
 **Rationale:** a namespace without a NetworkPolicy accepts all traffic
 — the opposite of default-deny.
 
@@ -140,12 +140,36 @@ pods in kube-system).
 
 ### `namespace-delete-protection`
 **Mode:** validate (on DELETE).
-**Checks:** a DELETE request for a namespace matching `app-*` or
-`platform-*` is rejected unless the namespace carries annotation
-`platform.gophersys/allow-delete: "<reason>"`.
+**Checks:** a DELETE request for a namespace matching
+`<project>-<env>` or `platform-*` is rejected unless the namespace
+carries annotation `platform.gophersys/allow-delete: "<reason>"`.
 **Rationale:** namespaces carry PVCs, Secrets, and ExternalSecrets.
 `kubectl delete namespace` cascades; a wrong one is catastrophic.
 **Override:** patch the namespace with the annotation before delete.
+
+### `namespace-naming-enforced`
+**Mode:** validate (on CREATE).
+**Checks:** every namespace created outside `kube-*` MUST match either
+`<project>-<env>` where `<project>` is listed in the cluster's
+`projects_hosted:` registry (loaded via ConfigMap `platform-registry`)
+and `<env>` is one of `prod | staging | dev | lab`, OR
+`platform-<component>` where `<component>` is a known platform piece.
+**Rationale:** typo protection + project-registry enforcement. An app
+that tries to create `marketting-prod` on a cluster that doesn't host
+`marketting` is caught at admission.
+**Override:** none for the naming pattern; adding a project requires
+updating the cluster's `projects_hosted:` list and refreshing the
+ConfigMap.
+
+### `project-label-required`
+**Mode:** validate.
+**Checks:** every Pod-controller and its Pods carry
+`platform.gophersys/project` + `platform.gophersys/app` +
+`platform.gophersys/env` labels, and `platform.gophersys/project`
+matches the project prefix of the namespace it lives in.
+**Rationale:** prevents apps from lying about their project and cross-
+polluting dashboards / cost allocation / policy routing.
+**Override:** none; labels are mandatory.
 
 ## Images
 

@@ -46,10 +46,23 @@ node_role_assignments:                    # hostname → cluster_role
 
 policy_profile: baseline | strict | audit-only
 
+# Projects hosted on this cluster — source of truth for namespace naming.
+# Every <project>-<env> namespace created must have <project> listed here;
+# namespace-provisioner rejects otherwise. One cluster can serve many
+# projects (multi-project cluster) or a single project (dedicated cluster).
+projects_hosted:
+  - <project-name>                        # e.g., codectl, fintel, finances
+
 namespace_provisioning:
-  default_quota_tier: small | medium | large
+  default_quota_tier_by_env:              # quota tier per env
+    prod:     medium                      # medium | small | large
+    staging:  small
+    dev:      small
+    lab:      small
   auto_netpol: true | false
   auto_pss_label: true | false
+  quota_overrides: {}                     # map <project>-<env>: <tier> — explicit escalations
+    # codectl-prod: large
 
 platform_services:                        # opt-in per service; core is always on
   <category>:
@@ -73,6 +86,29 @@ protection:
   prod_volume_delete_requires_override: true | false
   namespace_delete_requires_override: true | false
 ```
+
+## Namespace taxonomy
+
+Namespaces in a cluster fall into three kinds:
+
+| Pattern                | Example                                   | Scope                                          |
+|------------------------|-------------------------------------------|------------------------------------------------|
+| `<project>-<env>`      | `codectl-prod`, `fintel-staging`          | All apps of that project in that env           |
+| `platform-<component>` | `platform-ingress`, `platform-monitoring` | One platform component installation            |
+| `kube-*`               | `kube-system`                             | Kubernetes-reserved (never touched by platform) |
+
+- `<project>` MUST be listed in the cluster's `projects_hosted:` list.
+- `<env>` MUST be `prod | staging | dev | lab`.
+- Inside `<project>-<env>`, apps talk to each other freely (same-ns
+  NetworkPolicy). Cross-project traffic requires explicit allow rules.
+- Quota applies at the `<project>-<env>` namespace level (shared by
+  all apps of that project in that env).
+
+**Single-project clusters** work the same way — their `projects_hosted:`
+has one entry, their namespaces look like `onlyproject-prod`,
+`onlyproject-staging`, etc. **Multi-project clusters** serve many
+projects side by side, each in its own `<project>-<env>` namespaces.
+No code change moves between the two topologies.
 
 ## Node role taxonomy
 

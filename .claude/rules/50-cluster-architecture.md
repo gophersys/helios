@@ -48,21 +48,65 @@ ServiceAccount, and testing).
 
 ## 3. Namespace strategy (authoritative)
 
-Flat, one-app-per-namespace:
+**One namespace per project-env pair.** A project's apps for a given
+environment all share one namespace. This supports both the one-cluster-
+per-project and one-cluster-for-many-projects topologies transparently.
 
-- `app-<name>` per app (e.g., `app-codectl`, `app-fintel`).
-- `platform-<component>` per platform installation (e.g., `platform-ingress`,
-  `platform-monitoring`, `platform-secrets`).
-- Kubernetes reserved: `kube-system`, `kube-public`, `kube-node-lease`.
+| Pattern                | Example                       | Scope                                    |
+|------------------------|-------------------------------|------------------------------------------|
+| `<project>-<env>`      | `codectl-prod`, `fintel-staging`, `finances-production` | All apps of that project in that env     |
+| `platform-<component>` | `platform-ingress`, `platform-monitoring`               | One platform component installation      |
+| `kube-*`               | `kube-system`                 | Kubernetes reserved                      |
 
-Every new `app-*` / `platform-*` namespace gets automatic provisioning
-(`platform/core/namespace-provisioner/`):
+**`<project>`:** kebab-case, 1–20 chars, `^[a-z][a-z0-9-]{1,20}$`. MUST
+match a project declared in the cluster's `projects_hosted:` list.
+Canonical project names today: `codectl`, `fintel`, `finances`,
+`intelligence`, `music`.
+
+**`<env>`:** enum `prod | staging | dev | lab`. Apps outside the enum
+are rejected by schema.
+
+**`<project>-<env>` namespaces auto-provision** via
+`platform/core/namespace-provisioner/`:
 - Default-deny NetworkPolicy baseline.
-- `ResourceQuota` (tier: small | medium | large).
+- `ResourceQuota` (tier: small | medium | large — applies to the whole
+  project-env, shared by all apps within).
 - `LimitRange` with sane defaults.
-- `pod-security.kubernetes.io/enforce=restricted` label.
+- `pod-security.kubernetes.io/enforce=restricted`.
+- Generated only if `<project>` is declared in the cluster's
+  `projects_hosted:`. Typo-protection by construction.
+
+**Cross-project traffic** is explicit. Apps in `codectl-prod` can talk
+freely to each other (same namespace) but not to `fintel-prod` without a
+declared `networkPolicy.allowEgressTo` entry on the source pod.
 
 Tier escalation (`small` → `medium` → `large`) requires a platform PR.
+Quota applies at the project-env level, so the whole project shares.
+
+## 3b. Release & label conventions
+
+Every Helm release in a `<project>-<env>` namespace uses the name
+`<project>-<app>` (e.g., `codectl-api`), deployed to `-n <project>-<env>`.
+
+Canonical labels on every object rendered by a chart archetype:
+
+```yaml
+app.kubernetes.io/name:        <project>-<app>       # e.g. codectl-api — unique per app per cluster
+app.kubernetes.io/instance:    <release>              # usually == app.kubernetes.io/name
+app.kubernetes.io/version:     <image.tag>
+app.kubernetes.io/component:   <archetype>            # stateless-app | worker | etc.
+app.kubernetes.io/part-of:     <project>              # codectl — matches the project
+app.kubernetes.io/managed-by:  Helm
+
+platform.gophersys/project:    <project>              # codectl
+platform.gophersys/app:        <app.name>             # api — sub-app within the project
+platform.gophersys/env:        <env>                  # prod | staging | dev | lab
+platform.gophersys/tenant:     <tenant>               # gophersys (org-level)
+platform.gophersys/archetype:  <archetype>
+platform.gophersys/node-role:  <apps | data | devops | build | batch>
+platform.gophersys/data-class: <public | internal | confidential | pii>
+platform.gophersys/slo-tier:   <critical | high | standard | best-effort>
+```
 
 ## 4. Policy model (authoritative)
 
@@ -74,7 +118,7 @@ every cluster. Policies:
 - Require resources.requests/limits on every container.
 - Block deletion of PVs/PVCs labeled `platform.gophersys/retain=true`
   without explicit override annotation.
-- Block deletion of `app-*`/`platform-*` namespaces without override.
+- Block deletion of `<project>-<env>`/`platform-*` namespaces without override.
 - Restrict image pulls to an allowlisted set of registries.
 - Require every pod to use a dedicated ServiceAccount.
 - Require NetworkPolicy presence in every app namespace.

@@ -10,11 +10,18 @@
 
 {{/*
   common.labels: canonical label set applied to every rendered object.
-  See charts/CONVENTIONS.md §2 for the full list.
+  See charts/CONVENTIONS.md §2 for the full list. The composite
+  identifier <project>-<app.name> is the app.kubernetes.io/name.
 */}}
 {{- define "common.labels" -}}
 # TODO: implement. Emit the full canonical label set from values.
-app.kubernetes.io/name: {{ .Values.app.name | quote }}
+# Expected (abridged):
+#   app.kubernetes.io/name:       {{ .Values.project }}-{{ .Values.app.name }}
+#   app.kubernetes.io/part-of:    {{ .Values.project }}
+#   platform.gophersys/project:   {{ .Values.project }}
+#   platform.gophersys/app:       {{ .Values.app.name }}
+#   platform.gophersys/env:       {{ .Values.env }}
+app.kubernetes.io/name: {{ printf "%s-%s" .Values.project .Values.app.name | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end }}
 
@@ -24,8 +31,26 @@ app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 */}}
 {{- define "common.selectorLabels" -}}
 # TODO: implement.
-app.kubernetes.io/name: {{ .Values.app.name | quote }}
+app.kubernetes.io/name: {{ printf "%s-%s" .Values.project .Values.app.name | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
+{{- end }}
+
+{{/*
+  common.fullname: canonical identifier for the app. Equal to
+  <project>-<app.name>. Use as the default release name and as the
+  base for all resource names (Deployment, Service, etc.).
+*/}}
+{{- define "common.fullname" -}}
+{{ printf "%s-%s" .Values.project .Values.app.name }}
+{{- end }}
+
+{{/*
+  common.namespace: expected namespace name for this app, derived
+  from project + env. Templates MAY render a check that fails if
+  .Release.Namespace does not equal this value.
+*/}}
+{{- define "common.namespace" -}}
+{{ printf "%s-%s" .Values.project .Values.env }}
 {{- end }}
 
 {{/*

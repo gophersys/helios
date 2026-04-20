@@ -4,10 +4,11 @@
   "description": "Enforced contract for the stateful-app archetype. Differs from stateless-app in required storage block + volume protection labels.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["app", "image", "env", "resources", "storage"],
+  "required": ["project", "env", "app", "image", "resources", "storage"],
   "properties": {
+    "project":             { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,20}$", "description": "Project this app belongs to. Namespace is <project>-<env>." },
     "app":                 { "type": "object", "required": ["name"], "additionalProperties": false,
-                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" }, "partOf": { "type": "string" } } },
+                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Sub-app within the project." } } },
     "image":               { "type": "object", "required": ["repository", "tag"], "additionalProperties": false,
                               "properties": { "repository": { "type": "string" }, "tag": { "type": "string" }, "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }, "pullSecrets": { "type": "array", "items": { "type": "string" } } } },
     "tenant":              { "type": "string", "default": "gophersys" },

@@ -11,9 +11,11 @@ Every archetype MUST ship `values.schema.json` validated at `helm install`
 
 - Declares `additionalProperties: false` at every object level. No hidden
   values.
-- Marks `resources.requests`, `resources.limits`, `image.repository`,
-  `image.tag`, and `app.name` as **required**. Values without them are
-  rejected at install time.
+- Marks `project`, `env`, `app.name`, `image.repository`, `image.tag`,
+  `resources.requests`, `resources.limits` as **required**. Values without
+  them are rejected at install time.
+- `project` validated as `^[a-z][a-z0-9-]{1,20}$`, `env` as enum
+  `prod | staging | dev | lab`.
 - Caps string lengths (`maxLength`) and array sizes (`maxItems`) to
   defensive limits.
 - Includes `description` on every property. The schema IS the reference
@@ -31,23 +33,32 @@ Every rendered object MUST carry the label set emitted by
 Canonical labels (applied to every object):
 
 ```yaml
-app.kubernetes.io/name:        <values.app.name>
-app.kubernetes.io/instance:    <release>
+app.kubernetes.io/name:        <values.project>-<values.app.name>   # e.g., codectl-api
+app.kubernetes.io/instance:    <release>                             # usually == app.kubernetes.io/name
 app.kubernetes.io/version:     <values.image.tag>
-app.kubernetes.io/component:   <archetype>
-app.kubernetes.io/part-of:     <values.app.partOf | default values.app.name>
+app.kubernetes.io/component:   <archetype>                           # stateless-app | worker | etc.
+app.kubernetes.io/part-of:     <values.project>                      # codectl
 app.kubernetes.io/managed-by:  Helm
 
-platform.gophersys/archetype:  <archetype>
+platform.gophersys/project:    <values.project>                      # codectl | fintel | finances | ...
+platform.gophersys/app:        <values.app.name>                     # api | dashboard | grader
+platform.gophersys/env:        <values.env>                          # prod | staging | dev | lab
 platform.gophersys/tenant:     <values.tenant | default "gophersys">
-platform.gophersys/env:        <values.env>                    # prod|staging|dev|lab
-platform.gophersys/node-role:  <values.nodeRole>               # apps|data|devops|build|batch
-platform.gophersys/data-class: <values.dataClassification>     # public|internal|confidential|pii
-platform.gophersys/slo-tier:   <values.slo.tier>               # critical|high|standard|best-effort
+platform.gophersys/archetype:  <archetype>
+platform.gophersys/node-role:  <values.nodeRole>                     # apps | data | devops | build | batch
+platform.gophersys/data-class: <values.dataClassification>           # public | internal | confidential | pii
+platform.gophersys/slo-tier:   <values.slo.tier>                     # critical | high | standard | best-effort
 ```
 
+The namespace the app lands in is **`<project>-<env>`** — all apps of a
+project for a given env share one namespace (e.g., `codectl-prod` holds
+both `codectl-api` and `codectl-dashboard`). Release name convention:
+`<project>-<app.name>` (e.g., `helm install codectl-api ./stateless-app
+-n codectl-prod`).
+
 Labels are enforced by `platform/core/policy/` — objects missing canonical
-labels are rejected at admission.
+labels are rejected at admission. `app.kubernetes.io/name` uniqueness
+across the cluster is guaranteed by the `<project>-<app>` composite.
 
 ## 3. Security context is non-negotiable
 
@@ -118,11 +129,17 @@ Schema:
 ```yaml
 secrets:
   - key: DATABASE_PASSWORD        # env var name / file name
-    bwItem: app-codectl-db        # Bitwarden item
+    bwItem: codectl-db            # Bitwarden item (<project>-<purpose>)
     bwProperty: password          # defaults to "password"
     mode: env                      # env | file (file mounts under /var/run/secrets/<key>)
     optional: false                # if true, missing BW item is not fatal
 ```
+
+Bitwarden item naming convention:
+- `<project>-<purpose>` — project-wide items shared across the project's
+  apps (e.g., `codectl-db`, `fintel-openai`).
+- `<project>-<app>-<purpose>` — app-specific items
+  (e.g., `codectl-api-internal-token`, `fintel-grader-nats-creds`).
 
 ## 8. Observability emitted, not opt-in
 

@@ -78,11 +78,13 @@ ttlSecondsAfterFinished: 86400    # cleanup completed pods after 24h
 
 ## Example values
 
+Install as release `codectl-nightly-rollup` in namespace `codectl-prod`:
+
 ```yaml
-app:
-  name: codectl-nightly-rollup
-  partOf: codectl
+project: codectl                    # namespace: codectl-prod
 env: prod
+app:
+  name: nightly-rollup              # full identifier: codectl-nightly-rollup
 
 image:
   repository: ghcr.io/mateosegura/codectl
@@ -102,7 +104,7 @@ resources:
   limits:   { cpu: 1000m, memory: 256Mi }
 
 secrets:
-  - { key: DATABASE_URL, bwItem: app-codectl-db, bwProperty: uri, mode: env }
+  - { key: DATABASE_URL, bwItem: codectl-db, bwProperty: uri, mode: env }
 
 networkPolicy:
   allowEgressTo:

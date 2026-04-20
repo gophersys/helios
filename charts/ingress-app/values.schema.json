@@ -4,10 +4,11 @@
   "description": "Public-facing stateless-app. Ingress block is mandatory (enabled must be true) + ingress.host required.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["app", "image", "env", "resources", "ingress"],
+  "required": ["project", "env", "app", "image", "resources", "ingress"],
   "properties": {
+    "project":             { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,20}$", "description": "Project this app belongs to. Namespace is <project>-<env>." },
     "app":                 { "type": "object", "required": ["name"], "additionalProperties": false,
-                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" }, "partOf": { "type": "string" } } },
+                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Sub-app within the project." } } },
     "image":               { "type": "object", "required": ["repository", "tag"], "additionalProperties": false,
                               "properties": { "repository": { "type": "string" }, "tag": { "type": "string" }, "pullPolicy": { "type": "string" }, "pullSecrets": { "type": "array" } } },
     "tenant":              { "type": "string" },

@@ -100,11 +100,13 @@ ingress:
 
 ## Example values
 
+Install as release `codectl-dashboard` in namespace `codectl-prod`:
+
 ```yaml
-app:
-  name: codectl-dashboard
-  partOf: codectl
+project: codectl                    # namespace: codectl-prod
 env: prod
+app:
+  name: dashboard                   # full identifier: codectl-dashboard
 nodeRole: apps
 
 image:

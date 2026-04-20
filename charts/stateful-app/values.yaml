@@ -1,8 +1,10 @@
 # values.yaml — stateful-app
 
+project: ""                         # required; kebab-case (codectl, fintel, ...)
+env: ""                             # required; prod | staging | dev | lab
+
 app:
-  name: ""
-  partOf: ""
+  name: ""                          # required; sub-app within the project
 
 image:
   repository: ""
@@ -11,7 +13,6 @@ image:
   pullSecrets: []
 
 tenant: gophersys
-env: ""
 nodeRole: data                     # default to data — stateful workloads prefer data nodes
 dataClassification: internal
 

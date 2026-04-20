@@ -4,10 +4,11 @@
   "description": "Queue/stream consumer archetype. Exactly one of worker.autoscale.{hpa,keda} may be enabled.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["app", "image", "env", "resources", "worker"],
+  "required": ["project", "env", "app", "image", "resources", "worker"],
   "properties": {
+    "project":             { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,20}$", "description": "Project this worker belongs to. Namespace is <project>-<env>." },
     "app":                 { "type": "object", "required": ["name"], "additionalProperties": false,
-                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" }, "partOf": { "type": "string" } } },
+                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Sub-app within the project." } } },
     "image":               { "type": "object", "required": ["repository", "tag"], "additionalProperties": false,
                               "properties": { "repository": { "type": "string" }, "tag": { "type": "string" }, "pullPolicy": { "type": "string" }, "pullSecrets": { "type": "array" } } },
     "tenant":              { "type": "string" },

@@ -4,15 +4,19 @@
   "description": "Enforced contract for the stateless-app archetype. Helm 3 validates on install/upgrade.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["app", "image", "env", "resources"],
+  "required": ["project", "env", "app", "image", "resources"],
   "properties": {
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,20}$",
+      "description": "Project this app belongs to. Determines namespace prefix <project>-<env>. MUST be listed in the target cluster's projects_hosted."
+    },
     "app": {
       "type": "object",
       "additionalProperties": false,
       "required": ["name"],
       "properties": {
-        "name":   { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Kebab-case app name. Becomes app.kubernetes.io/name." },
-        "partOf": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Grouping label. Defaults to app.name when empty." }
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Sub-app within the project (e.g., 'api', 'dashboard'). Full identifier becomes <project>-<app.name>; that's app.kubernetes.io/name." }
       }
     },
     "image": {

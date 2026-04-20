@@ -87,11 +87,13 @@ chart's default rollout is conservative:
 
 ## Example values
 
+Install as release `fintel-signal-grader` in namespace `fintel-prod`:
+
 ```yaml
-app:
-  name: fintel-signal-grader
-  partOf: fintel
+project: fintel                     # namespace: fintel-prod
 env: prod
+app:
+  name: signal-grader               # full identifier: fintel-signal-grader
 tenant: gophersys
 nodeRole: apps
 dataClassification: internal
@@ -124,7 +126,7 @@ resources:
 
 secrets:
   - { key: NATS_CREDS_FILE, bwItem: fintel-nats-grader-creds, mode: file }
-  - { key: DATABASE_URL, bwItem: app-fintel-db, bwProperty: uri, mode: env }
+  - { key: DATABASE_URL, bwItem: fintel-db, bwProperty: uri, mode: env }
 
 networkPolicy:
   allowEgressTo:

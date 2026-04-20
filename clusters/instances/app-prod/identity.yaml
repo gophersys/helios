@@ -41,13 +41,33 @@ node_role_assignments:
 # looser profile per cluster. Lab clusters might use "audit-only".
 policy_profile: baseline
 
-# Namespace provisioning defaults. When a new namespace is created
-# matching app-*, the namespace-provisioner applies the "small" quota
-# tier unless the namespace requests another via annotation.
+# Projects hosted on this cluster. Namespace-provisioner enforces that
+# every <project>-<env> namespace created on this cluster has <project>
+# listed here; attempts for other project names are rejected at
+# admission. Adding a project requires updating this list + re-applying
+# namespace-provisioner.
+projects_hosted:
+  - codectl
+  - fintel
+  - finances
+  - intelligence
+  - music
+
+# Namespace provisioning defaults. When a new namespace matching
+# <project>-<env> is created for a project in projects_hosted above,
+# the namespace-provisioner applies the env-default quota tier unless
+# the namespace requests another via annotation, or a quota_override
+# is set below.
 namespace_provisioning:
-  default_quota_tier: small      # small | medium | large
+  default_quota_tier_by_env:
+    prod:     medium
+    staging:  small
+    dev:      small
+    lab:      small
   auto_netpol: true              # generate baseline NetworkPolicies
   auto_pss_label: true           # label pod-security.kubernetes.io/enforce=restricted
+  quota_overrides: {}            # map <project>-<env>: <tier>
+    # codectl-prod: large        # example
 
 # platform/core/* is NOT opted in/out — every cluster gets all of core.
 # platform/services/* below is per-cluster opt-in.

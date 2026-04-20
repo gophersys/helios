@@ -12,9 +12,9 @@ them. Contracts are the **stable interface** that lets us swap the
 implementation underneath without touching the apps.
 
 Example: today `contracts/databases.md` says "declare a `Database` CR; receive
-a Secret named `<app>-db-credentials`." Tomorrow we swap CloudNativePG for
-Neon — the CR stays identical, the Secret shape stays identical, apps notice
-nothing.
+a Secret named `<project>-<app>-db-credentials`." Tomorrow we swap
+CloudNativePG for Neon — the CR stays identical, the Secret shape stays
+identical, apps notice nothing.
 
 ## One file per contract
 

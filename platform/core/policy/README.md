@@ -56,7 +56,7 @@ See `CATALOG.md` for the full list. Summary:
 | Secrets           | 2          | external-secret-only, no-hardcoded-bw-tokens            |
 | Networking        | 2          | network-policy-required, no-hostnetwork                 |
 | Volume protection | 2          | pvc-retain-protection, no-hostpath                      |
-| Namespace         | 1          | namespace-delete-protection                             |
+| Namespace         | 3          | namespace-delete-protection, namespace-naming-enforced, project-label-required |
 | Images            | 2          | registry-allowlist, image-signature-verify (future)     |
 | Scheduling        | 2          | noderole-toleration-required, topology-spread-recommend |
 

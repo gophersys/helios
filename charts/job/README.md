@@ -78,11 +78,13 @@ pods"), use `Indexed` mode with `parallelism: 10, completions: 100`.
 
 ## Example values
 
+Install as release `codectl-db-migrate` in namespace `codectl-prod`:
+
 ```yaml
-app:
-  name: codectl-db-migrate
-  partOf: codectl
+project: codectl                    # namespace: codectl-prod
 env: prod
+app:
+  name: db-migrate                  # full identifier: codectl-db-migrate
 
 image:
   repository: ghcr.io/mateosegura/codectl-migrator
@@ -102,7 +104,7 @@ resources:
   limits:   { cpu: 500m, memory: 128Mi }
 
 secrets:
-  - { key: DATABASE_URL, bwItem: app-codectl-db, bwProperty: uri, mode: env }
+  - { key: DATABASE_URL, bwItem: codectl-db, bwProperty: uri, mode: env }
 
 networkPolicy:
   allowEgressTo:
@@ -113,9 +115,10 @@ networkPolicy:
 ## Fan-out example
 
 ```yaml
-app:
-  name: fintel-signal-reprocess
+project: fintel                     # namespace: fintel-prod
 env: prod
+app:
+  name: signal-reprocess            # full identifier: fintel-signal-reprocess
 
 job:
   command: ["/bin/fintel", "reprocess", "--index=$JOB_COMPLETION_INDEX"]

@@ -2,9 +2,11 @@
 #
 # Inherits stateless-app semantics; ingress block is MANDATORY here.
 
+project: ""                         # required; kebab-case project name
+env: ""                             # required; prod | staging | dev | lab
+
 app:
-  name: ""
-  partOf: ""
+  name: ""                          # required; sub-app within the project
 
 image:
   repository: ""
@@ -13,7 +15,6 @@ image:
   pullSecrets: []
 
 tenant: gophersys
-env: ""
 nodeRole: apps
 dataClassification: public         # most ingress-apps serve public content
 

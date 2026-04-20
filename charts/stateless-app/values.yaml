@@ -5,19 +5,24 @@
 
 # --------------------------- required ------------------------------------
 # Every consumer MUST override these.
+project: ""                         # required; kebab-case (e.g., codectl, fintel, finances)
+                                    # — determines namespace prefix <project>-<env>
+env: ""                             # required; prod | staging | dev | lab
+                                    # — determines namespace suffix <project>-<env>
+
 app:
-  name: ""                         # required; kebab-case; matches regex ^[a-z][a-z0-9-]{0,62}$
-  partOf: ""                        # optional; grouping label — defaults to app.name when empty
+  name: ""                          # required; sub-app within the project (e.g., api, dashboard)
+                                    # Full app identifier:        <project>-<app.name>
+                                    # Helm release name (recommended): <project>-<app.name>
 
 image:
   repository: ""                    # required
-  tag: ""                           # required
+  tag: ""                           # required; immutable tag/digest — avoid 'latest'
   pullPolicy: IfNotPresent
   pullSecrets: []                   # opt-in per-release
 
 # Organizational metadata — stamped into platform.gophersys/* labels.
 tenant: gophersys
-env: ""                             # prod | staging | dev | lab — required by policy
 nodeRole: apps                      # apps | data | devops | build | batch
 dataClassification: internal        # public | internal | confidential | pii
 
@@ -115,9 +120,11 @@ observability:
 
 # --------------------------- secrets -------------------------------------
 # Each entry produces one ExternalSecret wired via envFrom/volumeMount.
+# Bitwarden item naming: <project>-<purpose> for project-wide items,
+# <project>-<app>-<purpose> for app-specific items.
 secrets: []
-  # - { key: DATABASE_URL, bwItem: app-<name>-db, bwProperty: uri, mode: env }
-  # - { key: OPENAI_API_KEY, bwItem: app-<name>-openai, bwProperty: apikey, mode: env }
+  # - { key: DATABASE_URL,   bwItem: <project>-db,      bwProperty: uri,    mode: env }
+  # - { key: OPENAI_API_KEY, bwItem: <project>-openai,  bwProperty: apikey, mode: env }
 
 # --------------------------- network policy ------------------------------
 networkPolicy:

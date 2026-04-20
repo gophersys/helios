@@ -33,10 +33,21 @@ node_role_assignments: {}
 # baseline | strict | audit-only
 policy_profile: baseline
 
+# Projects hosted on this cluster. Every <project>-<env> namespace
+# created on this cluster must have <project> listed here.
+projects_hosted: []
+  # - codectl
+  # - fintel
+
 namespace_provisioning:
-  default_quota_tier: small
+  default_quota_tier_by_env:
+    prod:     medium
+    staging:  small
+    dev:      small
+    lab:      small
   auto_netpol: true
   auto_pss_label: true
+  quota_overrides: {}            # map <project>-<env>: <tier>
 
 # platform/services/* opt-ins — platform/core/* is always on.
 platform_services:

@@ -1,8 +1,10 @@
 # values.yaml — worker
 
+project: ""                         # required; kebab-case project name
+env: ""                             # required; prod | staging | dev | lab
+
 app:
-  name: ""
-  partOf: ""
+  name: ""                          # required; sub-app within the project
 
 image:
   repository: ""
@@ -11,7 +13,6 @@ image:
   pullSecrets: []
 
 tenant: gophersys
-env: ""
 nodeRole: apps                     # batch when a preemptible pool exists
 dataClassification: internal
 

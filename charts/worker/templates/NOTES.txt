@@ -1,7 +1,10 @@
 {{- /* NOTES.txt — worker */ -}}
-worker {{ .Values.app.name | default "<unnamed>" }} installed.
+worker {{ .Values.project }}-{{ .Values.app.name }} installed.
 
-Namespace: {{ .Release.Namespace }}
+Project:   {{ .Values.project }}
+Env:       {{ .Values.env }}
+Namespace: {{ .Release.Namespace }}     (expected: {{ .Values.project }}-{{ .Values.env }})
+Release:   {{ .Release.Name }}
 Command:   {{ join " " .Values.worker.command }}
 {{- if .Values.worker.autoscale.keda.enabled }}
 Autoscale: KEDA — scaler={{ .Values.worker.autoscale.keda.scaler }}, min={{ .Values.worker.autoscale.keda.minReplicas }}, max={{ .Values.worker.autoscale.keda.maxReplicas }}
@@ -15,4 +18,4 @@ Graceful shutdown:
   preStop:  {{ join " " .Values.worker.preStop.command }}
   timeout:  {{ .Values.terminationGracePeriodSeconds }}s
 
-Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)
+Runbook: https://brain/docs/runbooks/{{ .Values.project }}/{{ .Values.app.name }}.md  (create if missing)

@@ -75,10 +75,14 @@ replicates snapshots to the cluster's configured object store.
 
 ## Example values
 
+Install as release `intelligence-feature-store` in namespace
+`intelligence-prod`:
+
 ```yaml
-app:
-  name: my-feature-store
+project: intelligence               # namespace: intelligence-prod
 env: prod
+app:
+  name: feature-store               # full identifier: intelligence-feature-store
 tenant: gophersys
 nodeRole: data
 dataClassification: internal

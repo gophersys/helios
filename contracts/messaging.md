@@ -21,22 +21,26 @@ Apps declare a `NatsAccount` CR (TBD CRD, likely custom):
 apiVersion: platform.gophersys/v1
 kind: NatsAccount
 metadata:
-  name: <app>
+  name: <project>-<app>                  # e.g., fintel-grader
+  namespace: <project>-<env>             # e.g., fintel-prod
 spec:
-  streams:                       # optional JetStream streams to create
-    - name: <app>.events
-      subjects: ["<app>.>"]
+  account: <project>_<app>               # underscore form for NATS account name
+  streams:                               # optional JetStream streams to create
+    - name: <project>.<app>.events       # fintel.grader.events
+      subjects: ["<project>.<app>.>"]
       retention: limits
       max_age: 7d
   key_value_stores: []
   object_stores: []
 ```
 
-The platform emits Secret `<app>-nats-creds` containing:
+The platform emits Secret `<project>-<app>-nats-creds` containing:
 - `nats.creds` — NATS JWT + nkey bundle
 - `NATS_URL` — cluster ingress URL (e.g., `nats://nats.<cluster-domain>:4222`)
 
-Apps mount `nats.creds` and use any NATS client library.
+Apps mount `nats.creds` and use any NATS client library. Subject naming
+convention: all of a project-app's subjects are prefixed
+`<project>.<app>.` so cross-project/cross-app routing is explicit.
 
 ### Cross-account traffic
 Declared via `NatsExport` / `NatsImport` CRs (TBD). No implicit access —

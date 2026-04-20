@@ -1,7 +1,10 @@
 {{- /* NOTES.txt — cronjob */ -}}
-cronjob {{ .Values.app.name | default "<unnamed>" }} installed.
+cronjob {{ .Values.project }}-{{ .Values.app.name }} installed.
 
-Namespace:        {{ .Release.Namespace }}
+Project:          {{ .Values.project }}
+Env:              {{ .Values.env }}
+Namespace:        {{ .Release.Namespace }}     (expected: {{ .Values.project }}-{{ .Values.env }})
+Release:          {{ .Release.Name }}
 Schedule:         {{ .Values.schedule }} ({{ .Values.timeZone }})
 Concurrency:      {{ .Values.concurrencyPolicy }}
 Active deadline:  {{ .Values.activeDeadlineSeconds }}s
@@ -13,4 +16,4 @@ Suspend:
 Trigger manually:
   kubectl create job -n {{ .Release.Namespace }} --from=cronjob/{{ .Release.Name }} {{ .Release.Name }}-manual-$(date +%s)
 
-Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)
+Runbook: https://brain/docs/runbooks/{{ .Values.project }}/{{ .Values.app.name }}.md  (create if missing)

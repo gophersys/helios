@@ -1,7 +1,10 @@
 {{- /* NOTES.txt — job */ -}}
-job {{ .Values.app.name | default "<unnamed>" }} installed.
+job {{ .Values.project }}-{{ .Values.app.name }} installed.
 
-Namespace: {{ .Release.Namespace }}
+Project:   {{ .Values.project }}
+Env:       {{ .Values.env }}
+Namespace: {{ .Release.Namespace }}     (expected: {{ .Values.project }}-{{ .Values.env }})
+Release:   {{ .Release.Name }}
 Command:   {{ join " " .Values.job.command }}
 
 {{- if .Values.job.helmHook.enabled }}
@@ -15,4 +18,4 @@ Standalone Job. Kubernetes retains it for {{ .Values.ttlSecondsAfterFinished }}s
 Watch:
   kubectl logs -n {{ .Release.Namespace }} -f job/{{ .Release.Name }} --follow
 
-Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)
+Runbook: https://brain/docs/runbooks/{{ .Values.project }}/{{ .Values.app.name }}.md  (create if missing)
