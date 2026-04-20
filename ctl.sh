@@ -64,7 +64,9 @@ function require_buildx_and_multi_arch() {
     exit 1
   fi
   local p
-  for p in ${MULTI_ARCH_PLATFORMS//,/ }; do
+  local -a _platforms
+  IFS=',' read -r -a _platforms <<< "$MULTI_ARCH_PLATFORMS"
+  for p in "${_platforms[@]}"; do
     if ! printf '%s' "$platforms" | grep -q -- "$p"; then
       log_error "buildx builder missing required platform: $p"
       log_error "current builder platforms: $platforms"
