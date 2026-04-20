@@ -213,7 +213,7 @@ def test_09_ext_flash(report):
 
 @pytest.mark.post
 @pytest.mark.sequential
-@pytest.mark.timeout(25)  # observed p95=15s, max=18s; budget = max + 7s (CoreOps assign + keygen + upload)
+@pytest.mark.timeout(45)  # CoreOps assign + keygen + upload; 45s gives plenty of margin for slow CoreOps responses without racing the soft timer
 def test_10_personalize(booted_device, device_identity, config, report):
     """Personalize device via CoreOps (direct client, same as backend)."""
     client = _get_coreops_client()

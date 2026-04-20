@@ -1400,13 +1400,31 @@ class MtibV1Client:
                     break
             ```
         """
-        try:
-            # Make the streaming call with the provided request iterator
-            response_iterator = self.client.UartStream(request_iterator)
+        # Try to open the stream. If the channel is closed, reopen it
+        # once before surfacing an error — mirrors the recovery logic
+        # on FlashFwFile / UploadFwFile. Without this, a channel
+        # that closed between tests leaves every subsequent shell
+        # command dead-on-arrival until the runner pod restarts.
+        response_iterator = None
+        for attempt in (1, 2):
+            try:
+                response_iterator = self.client.UartStream(request_iterator)
+                break
+            except (grpc.RpcError, ValueError) as e:
+                if attempt == 1 and self._is_channel_closed_error(e):
+                    self._reopen_channel()
+                    continue
+                if isinstance(e, grpc.RpcError):
+                    self.logger.error(f"gRPC error for UartStream at {self.config.net.addr}. Error: {str(e.details())}")
+                    yield UartStreamResponse(success=False, message=f"gRPC error: {str(e.details())}", target=target)
+                    return
+                self.logger.error(f"Unexpected error in UartStream at {self.config.net.addr}: {str(e)}")
+                yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
+                return
 
+        try:
             for response in response_iterator:
                 yield response
-
         except grpc.RpcError as e:
             self.logger.error(f"gRPC error for UartStream at {self.config.net.addr}. Error: {str(e.details())}")
             yield UartStreamResponse(success=False, message=f"gRPC error: {str(e.details())}", target=target)
