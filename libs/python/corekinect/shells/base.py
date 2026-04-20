@@ -104,12 +104,18 @@ class BufferedUartStream:
 
         Sets ``_stop`` so the request-generator stops yielding; the
         server sees the request stream end and closes its side; the
-        response iterator exits cleanly; ``_run`` returns. No manual
-        gRPC-level cancel — an earlier attempt to hard-cancel the call
-        corrupted the channel state under multi-panel sessions and
-        downstream RPCs (FlashFwFile) started failing with "Cannot
-        invoke RPC on closed channel!" across panels. Idempotent.
+        response iterator exits cleanly; ``_run`` returns. Idempotent.
         """
+        # Investigation: log the caller whenever this fires so we can
+        # trace who is prematurely closing shells between tests.
+        # Pytest swallows normal log.warning output, so write directly
+        # to stderr with a prefix the user can grep on.
+        import sys, traceback
+        caller_stack = "".join(traceback.format_stack(limit=12)[:-1])
+        sys.stderr.write(
+            f"[CLOSE_TRACE {self._label}] BufferedUartStream.close() invoked\n{caller_stack}\n"
+        )
+        sys.stderr.flush()
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=5.0)
@@ -133,15 +139,7 @@ class BufferedUartStream:
         self.start()
 
     def check_alive(self) -> Optional[str]:
-        """Return an error string if the stream is dead, None if alive.
-
-        With the MtibV1Client now giving each streaming RPC its own
-        dedicated gRPC channel, the shell's stream is fully isolated
-        from flash, power, and unrelated RPCs. A dead rx thread
-        therefore means an actual stream problem — no more "something
-        else cancelled my channel" false positives. Surface the real
-        reason and let the caller decide whether to reopen.
-        """
+        """Return an error string if the stream is dead, None if alive."""
         if self.is_alive:
             return None
         if self._stop.is_set():
