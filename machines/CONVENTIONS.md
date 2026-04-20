@@ -1,19 +1,38 @@
 # machines — conventions
 
+## Host taxonomy
+
+Machines split into two categories at the directory level:
+
+| Category        | Path prefix                 | Contains                                                       |
+|-----------------|-----------------------------|----------------------------------------------------------------|
+| `development`   | `machines/development/`     | Developer workstations: laptops, desktops, WSL, macOS builders |
+| `services`      | `machines/services/`        | Service hosts: cluster nodes, bastions, ARM builders, etc.     |
+
+Templates mirror the split at `machines/templates/<category>/<template>/`.
+
 ## The self-documenting principle
 
-Every machine is its own source of truth. `machines/hosts/<name>/` is a
-small bundle of data files that together describe the machine completely:
+Every machine is its own source of truth. `machines/<category>/<name>/` is
+a small bundle of data files that together describe the machine completely:
 
 ```
-machines/hosts/<name>/
+machines/<category>/<name>/
 ├── identity.yaml          # required — who/what/where/why
 ├── ansible/
 │   ├── host_vars.yaml     # machine-specific Ansible variables
 │   └── playbook.yaml      # (optional) machine-specific playbook
+├── scripts/               # (optional) host-local scripts (e.g. arm-builder CLI)
 ├── peripherals.yaml       # (optional) attached devices: phones, MCUs
 └── notes.md               # (optional) human notes
 ```
+
+Host-local `scripts/` are for logic that's only meaningful for this
+specific machine (example: `services/arm-builder/scripts/arm-builder.sh`
+which manages that exact EC2 instance). Fleet-wide scripts — anything
+that operates across many machines — live in `machines/scripts/` instead.
+Rule of thumb: if the script name includes the machine's name or only
+makes sense for one host, it goes local; otherwise fleet-wide.
 
 `identity.yaml` MUST contain at least:
 
@@ -23,7 +42,7 @@ os: <linux-debian|linux-fedora|windows-server|windows-client|wsl-debian|macos>
 purpose: <short free-text>           # e.g. "k3s server for brain dev cluster"
 tailscale_hostname: <string>         # the name used by tailscale up --hostname
 status: <active|planned|retired>
-location: <free-text>                # e.g. "home-office", "oracle-frankfurt"
+location: <free-text>                # e.g. "home-office", "oracle-phoenix"
 owner: <email>
 roles:                               # Ansible roles to apply, in order
   - common
@@ -41,7 +60,7 @@ own subtree. Adding a new machine never requires touching any other path.
 Never edit them by hand — every edit is overwritten by
 `machines/scripts/generate-machine-index.sh`.
 
-The ledger splits machines by lifecycle state:
+The ledger splits machines by lifecycle state AND by category:
 
 - `planned` — file exists, machine doesn't yet.
 - `active` — reachable on the tailnet and under Ansible management.
@@ -52,23 +71,24 @@ directory stays for audit. Hard-delete is a brain-approved operation.
 
 ## Creating a new machine
 
-1. Pick a template:
+1. Pick a category (`development` or `services`) and a template:
    ```
-   ls machines/templates/
+   ls machines/templates/development/
+   ls machines/templates/services/
    ```
 2. Scaffold:
    ```
-   bash machines/ctl.sh new-host linux-server-kubernetes my-new-host
+   bash machines/ctl.sh new-host services linux-server-kubernetes agent-03
    ```
-3. Edit `machines/hosts/my-new-host/identity.yaml`. Fill in every field.
+3. Edit `machines/services/agent-03/identity.yaml`. Fill in every field.
 4. Regenerate index:
    ```
-   bash ctl.sh generate-index
+   bash machines/ctl.sh generate-index
    ```
 5. Commit:
    ```
-   git add machines/hosts/my-new-host machines/README.md machines/ledger.md
-   git commit -m 'feat(machines): enroll my-new-host'
+   git add machines/services/agent-03 machines/README.md machines/ledger.md
+   git commit -m 'feat(machines): enroll services/agent-03'
    ```
 
 ## Ansible roles
