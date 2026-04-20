@@ -3,7 +3,8 @@
   import { onMount } from 'svelte';
 
   // External libraries
-  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock } from 'lucide-svelte';
+  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock, Laptop, ShieldCheck, CheckCircle2 } from 'lucide-svelte';
+  import { api } from '$lib/api';
 
   // Internal imports
   import { getAuth } from '$lib/stores/auth.svelte';
@@ -18,7 +19,17 @@
   import type { ApiResponse } from '$lib/types';
   import type { TreeNode } from '$lib/types/models';
 
-  let { onClose }: { onClose: () => void } = $props();
+  let {
+    onClose,
+    initialSection,
+    initialCode,
+  }: {
+    onClose: () => void;
+    /** Open the modal on a specific section — used by the /?code=… deep link. */
+    initialSection?: string;
+    /** Pre-fill the Sessions approve flow. Present when corectl sent the user here. */
+    initialCode?: string;
+  } = $props();
 
   const auth = getAuth();
   const theme = getTheme();
@@ -88,11 +99,12 @@
   const sections: SettingsSection[] = [
     { id: 'system', label: 'System', icon: Monitor },
     { id: 'permissions', label: 'My Permissions', icon: Shield },
+    { id: 'sessions', label: 'Sessions', icon: Laptop },
     { id: 'api-keys', label: 'API Keys', icon: KeyRound },
     { id: 'secrets', label: 'Secrets', icon: Lock },
   ];
 
-  let activeId = $state('system');
+  let activeId = $state(initialSection || 'system');
 
   // Lock body scroll while open
   onMount(() => {
@@ -275,6 +287,103 @@
     copied = true;
     setTimeout(() => (copied = false), 2000);
   }
+
+  // ── Sessions state (CLI device-code approvals) ──────────────────
+  //
+  // The modal opens to Sessions in two scenarios:
+  //   1. The user clicked Sessions manually — we show the empty-state
+  //      input for manual code entry.
+  //   2. The URL carries ?code=XXXX-XXXX (corectl sent them here) —
+  //      we skip the input and resolve the pending session directly.
+  interface PendingSession {
+    userCode: string;
+    status: string;
+    userAgent: string | null;
+    createdAt: string;
+    expiresAt: string;
+  }
+
+  // Seed `sessionCode` from the prop reactively so svelte's initial-capture
+  // warning stays quiet AND so the (rare) case of the parent swapping the
+  // code while the modal is already open still resolves the right session.
+  let sessionCode = $state<string>('');
+  $effect(() => {
+    if (initialCode) sessionCode = initialCode.toUpperCase();
+  });
+  let sessionManualCode = $state('');
+  let sessionPending = $state<PendingSession | null>(null);
+  let sessionLookupLoading = $state(false);
+  let sessionError = $state<string | null>(null);
+  let sessionApproving = $state(false);
+  let sessionApproved = $state(false);
+
+  async function lookupSessionCode(code: string): Promise<void> {
+    if (!code) return;
+    sessionLookupLoading = true;
+    sessionError = null;
+    sessionPending = null;
+    sessionApproved = false;
+    try {
+      const res = await api.get<ApiResponse<PendingSession>>(
+        `/v2/auth/session/verify?user_code=${encodeURIComponent(code)}`,
+      );
+      const data = res.data;
+      if (data.status === 'PENDING') {
+        sessionPending = data;
+      } else {
+        // Code resolved but can't be approved — surface why, don't leave
+        // the user staring at a spinner.
+        sessionError = `Code is ${data.status.toLowerCase()}. Run corectl auth login again.`;
+      }
+    } catch (e: unknown) {
+      sessionError = e instanceof Error ? e.message : 'Could not look up that code.';
+    } finally {
+      sessionLookupLoading = false;
+    }
+  }
+
+  async function approveSession(): Promise<void> {
+    if (!sessionPending) return;
+    sessionApproving = true;
+    sessionError = null;
+    try {
+      await api.post('/v2/auth/session/approve', { user_code: sessionPending.userCode });
+      sessionApproved = true;
+    } catch (e: unknown) {
+      sessionError = e instanceof Error ? e.message : 'Approval failed.';
+    } finally {
+      sessionApproving = false;
+    }
+  }
+
+  function denySession(): void {
+    // No explicit deny endpoint — the session expires in <10 min. Reset
+    // local state and surface a clear "walk away" message.
+    sessionPending = null;
+    sessionError = 'Approval cancelled. The CLI will time out shortly.';
+  }
+
+  function submitManualSessionCode(e: Event): void {
+    e.preventDefault();
+    const code = sessionManualCode.trim().toUpperCase();
+    if (!code) return;
+    sessionCode = code;
+  }
+
+  function sessionExpiryLabel(iso: string): string {
+    try {
+      const d = new Date(iso);
+      const mins = Math.max(0, Math.round((d.getTime() - Date.now()) / 60000));
+      return mins > 0 ? `expires in ${mins} min` : 'expired';
+    } catch { return iso; }
+  }
+
+  // Resolve the code whenever it changes (URL push, manual submit, etc.).
+  $effect(() => {
+    if (activeId === 'sessions' && sessionCode && !sessionApproved) {
+      lookupSessionCode(sessionCode);
+    }
+  });
 
   // Load data when switching to sections
   $effect(() => {
@@ -539,6 +648,99 @@
             <div class="rounded-lg border border-border-subtle px-4 py-6 text-center text-sm text-text-tertiary">
               No permissions assigned. Contact an administrator.
             </div>
+          {/if}
+        {:else if activeId === 'sessions'}
+          <!-- Sessions Section — CLI device-code approvals -->
+          <p class="mb-4 text-sm text-text-secondary">
+            Approve a <code class="font-mono text-2xs">corectl</code> session on this account.
+            After <code class="font-mono text-2xs">corectl auth login</code>,
+            paste the 8-character code it printed to authorize the CLI.
+          </p>
+
+          <ErrorAlert message={sessionError} />
+
+          {#if sessionApproved}
+            <div class="mb-4 rounded-lg border border-success bg-success-muted p-4">
+              <div class="flex items-center gap-2 text-success">
+                <CheckCircle2 size={16} />
+                <span class="text-sm font-semibold">Session approved</span>
+              </div>
+              <p class="mt-1 text-2xs text-success">
+                Your CLI is authenticated. You can close this dialog.
+              </p>
+            </div>
+          {:else if sessionLookupLoading}
+            <div class="py-8 text-center text-sm text-text-tertiary">
+              Looking up code…
+            </div>
+          {:else if sessionPending}
+            <!-- Approve card -->
+            <div class="rounded-lg border border-border bg-surface-1 p-4">
+              <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <ShieldCheck size={14} class="text-accent" />
+                <span>Authorize new session</span>
+              </div>
+
+              <div class="mb-3 rounded-lg border border-border-subtle bg-surface-0 px-3 py-3">
+                <div class="flex items-center gap-2 text-2xs font-medium uppercase tracking-wider text-text-tertiary">
+                  <Laptop size={12} />
+                  <span>Code</span>
+                </div>
+                <div class="mt-1 font-mono text-base font-semibold text-text-primary">
+                  {sessionPending.userCode}
+                </div>
+                <div class="mt-2 text-xs text-text-secondary">
+                  {sessionPending.userAgent || 'Unknown client'}
+                </div>
+                <div class="mt-0.5 text-2xs text-text-tertiary">
+                  {sessionExpiryLabel(sessionPending.expiresAt)}
+                </div>
+              </div>
+
+              <p class="mb-3 text-2xs text-text-tertiary">
+                Approving lets this CLI act as <code class="font-mono">{auth.user?.email}</code>
+                until the session is revoked or the refresh token expires (30 days).
+              </p>
+
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  disabled={sessionApproving}
+                  onclick={approveSession}
+                >
+                  {sessionApproving ? 'Approving…' : 'Approve'}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-ghost"
+                  disabled={sessionApproving}
+                  onclick={denySession}
+                >
+                  Deny
+                </button>
+              </div>
+            </div>
+          {:else}
+            <!-- Empty / manual-entry state -->
+            <form class="flex gap-2" onsubmit={submitManualSessionCode}>
+              <input
+                type="text"
+                bind:value={sessionManualCode}
+                placeholder="ABCD-EFGH"
+                maxlength="9"
+                autocomplete="off"
+                spellcheck="false"
+                class="input input-sm font-mono uppercase flex-1"
+              />
+              <button
+                type="submit"
+                class="btn btn-sm btn-primary"
+                disabled={!sessionManualCode.trim()}
+              >
+                Continue
+              </button>
+            </form>
           {/if}
         {:else if activeId === 'api-keys'}
           <!-- API Keys Section -->

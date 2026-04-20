@@ -72,15 +72,20 @@ def _now() -> datetime:
 def _verification_uri(user_code: str) -> str:
     """Build the URL we tell the CLI to open in a browser.
 
+    The frontend's root layout watches for ``?code=…`` on any route and
+    auto-opens the Settings → Sessions dialog — so we send the CLI user
+    to ``/`` with the code appended. Landing on the dashboard means they
+    never see a 404 on a not-yet-loaded SPA route, and the query-param
+    contract is decoupled from any specific page URL.
+
     Traefik terminates TLS and proxies plain HTTP to the pod, so
-    ``request.url_root`` / ``request.host_url`` both return ``http://…``
-    — which would leave the CLI printing an ``http://`` URL users paste
-    into a browser that then gets a 301 anyway.  Honour the standard
-    ``X-Forwarded-Proto`` header set by traefik (+ any other L7 proxy).
+    ``request.url_root`` / ``request.host_url`` both return ``http://…``.
+    Honour the standard ``X-Forwarded-Proto`` / ``X-Forwarded-Host``
+    headers so the URL we print is the public one, not the in-cluster one.
     """
     proto = (request.headers.get("X-Forwarded-Proto") or request.scheme or "https").split(",")[0].strip()
     host = request.headers.get("X-Forwarded-Host") or request.host
-    return f"{proto}://{host}/settings/sessions?code={user_code}"
+    return f"{proto}://{host}/?code={user_code}"
 
 
 def _is_expired(session) -> bool:
