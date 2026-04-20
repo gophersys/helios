@@ -52,7 +52,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 __all__ = [
     "ContractViolation",
@@ -187,6 +187,107 @@ def _step_block_has_record(with_node: ast.With) -> bool:
     return False
 
 
+# ── Helpers for the Phase 5 checks ──────────────────────────────────────
+
+
+def _function_has_verification(node: ast.AST) -> bool:
+    """True iff a function body asserts, records, or raises something.
+
+    A test that verifies nothing — no ``assert``, no ``step.record``,
+    no ``raise``, no ``pytest.fail/.exit/.skip`` — is dead weight at
+    best and a false-positive at worst. We deliberately accept any of
+    these as evidence of intent so the check never flags a
+    legitimately-shaped test.
+    """
+    for child in ast.walk(node):
+        if child is node:
+            continue
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            # Don't descend into nested helpers — their assertions
+            # don't count toward the parent test's verification.
+            continue
+        if isinstance(child, ast.Assert):
+            return True
+        if isinstance(child, ast.Raise):
+            return True
+        if isinstance(child, ast.Call):
+            if _is_step_record_call(child):
+                return True
+            # ``pytest.fail(...)``, ``pytest.skip(...)``, ``pytest.exit(...)``
+            func = child.func
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                if func.value.id == "pytest" and func.attr in ("fail", "skip", "exit"):
+                    return True
+    return False
+
+
+def _arg_names(node: ast.AST) -> List[str]:
+    """Names of every argument (positional + keyword-only) on a function."""
+    args = getattr(node, "args", None)
+    if args is None:
+        return []
+    out: List[str] = []
+    out.extend(a.arg for a in args.args)
+    out.extend(a.arg for a in args.kwonlyargs)
+    return out
+
+
+def _function_uses_name(node: ast.AST, name: str) -> bool:
+    """True iff anywhere inside ``node``'s body references ``name``."""
+    body = getattr(node, "body", [])
+    for stmt in body:
+        for child in ast.walk(stmt):
+            if isinstance(child, ast.Name) and child.id == name:
+                return True
+            # ``slot.mtib`` — the receiver is a Name node we'll catch above,
+            # so attributes don't need their own case.
+    return False
+
+
+def _is_environ_subscript_without_default(node: ast.AST) -> Optional[str]:
+    """Return the env-var name if ``node`` is ``os.environ["X"]``-shaped.
+
+    Returns ``None`` for ``os.environ.get("X", default)`` and other
+    safe forms. We only flag the bare-subscript form because that's
+    the one that crashes at import time.
+    """
+    if not isinstance(node, ast.Subscript):
+        return None
+    value = node.value
+    # Match ``os.environ`` and the bare ``environ`` (after ``from os
+    # import environ``).
+    is_environ = False
+    if isinstance(value, ast.Attribute) and value.attr == "environ":
+        if isinstance(value.value, ast.Name) and value.value.id == "os":
+            is_environ = True
+    elif isinstance(value, ast.Name) and value.id == "environ":
+        is_environ = True
+    if not is_environ:
+        return None
+    slice_node = node.slice
+    if isinstance(slice_node, ast.Constant) and isinstance(slice_node.value, str):
+        return slice_node.value
+    return "<dynamic>"
+
+
+def _shared_data_keys(node: ast.AST) -> Tuple[Optional[str], Optional[str]]:
+    """Return ``(written_key, read_key)`` if ``node`` touches ``slot.shared_data["X"]``.
+
+    Only one of the pair is non-None per call (a node is either a
+    write target or a read site, not both). Returns ``(None, None)``
+    for nodes that aren't shared_data accesses.
+    """
+    if not isinstance(node, ast.Subscript):
+        return None, None
+    value = node.value
+    if not (isinstance(value, ast.Attribute) and value.attr == "shared_data"):
+        return None, None
+    slice_node = node.slice
+    if not (isinstance(slice_node, ast.Constant) and isinstance(slice_node.value, str)):
+        return None, None
+    return slice_node.value, None  # caller distinguishes write vs read by ast.Store/Load
+
+
 # ────────────────────────────────────────────────────────────────────────
 # Visitor
 # ────────────────────────────────────────────────────────────────────────
@@ -203,6 +304,13 @@ class _Visitor(ast.NodeVisitor):
     def __init__(self, file: Path) -> None:
         self.file = file
         self.violations: List[ContractViolation] = []
+        # ``shared_data["X"]`` keys collected file-wide so we can flag
+        # write-only and read-only orphans after the visit completes.
+        self._shared_data_writes: dict = {}  # key -> first lineno
+        self._shared_data_reads: dict = {}   # key -> first lineno
+        # Whether we're currently inside a function body (controls
+        # severity of env-var-no-default).
+        self._function_depth = 0
 
     # ── Tests must declare a pytest.mark.timeout(N) ──
 
@@ -216,9 +324,16 @@ class _Visitor(ast.NodeVisitor):
         name: str = getattr(node, "name", "")
         if name.startswith("test_"):
             self._check_timeout_marker(node)
-        # descend — nested functions + step blocks
-        for child in ast.iter_child_nodes(node):
-            self.visit(child)
+            self._check_has_verification(node)
+            self._check_unused_fixture_params(node)
+        # descend — nested functions + step blocks. Track depth so
+        # ``visit_Subscript`` can vary env-var severity by scope.
+        self._function_depth += 1
+        try:
+            for child in ast.iter_child_nodes(node):
+                self.visit(child)
+        finally:
+            self._function_depth -= 1
 
     def _check_timeout_marker(self, node: ast.AST) -> None:
         """Emit missing-timeout / suspect-timeout violations for a test function."""
@@ -305,6 +420,133 @@ class _Visitor(ast.NodeVisitor):
         for child in ast.iter_child_nodes(node):
             self.visit(child)
 
+    # ── Phase 5 checks ───────────────────────────────────────────────
+
+    def _check_has_verification(self, node: ast.AST) -> None:
+        """Flag tests that don't ``assert``, ``record``, or ``raise`` anything."""
+        if _function_has_verification(node):
+            return
+        self.violations.append(
+            ContractViolation(
+                file=self.file,
+                line=node.lineno,
+                code="missing-assertion",
+                severity="error",
+                message=(
+                    f"test {getattr(node, 'name', '?')!r} contains no "
+                    f"assert / step.record / raise / pytest.fail — the test "
+                    f"verifies nothing and will pass even when the device "
+                    f"is broken"
+                ),
+            )
+        )
+
+    def _check_unused_fixture_params(self, node: ast.AST) -> None:
+        """Flag fixture args declared on a test but never referenced in its body.
+
+        Skips ``self`` / ``cls`` (class-based tests) and any param
+        prefixed with ``_`` (the standard "intentionally unused"
+        Python convention).
+        """
+        unused: List[str] = []
+        for name in _arg_names(node):
+            if name in ("self", "cls") or name.startswith("_"):
+                continue
+            if not _function_uses_name(node, name):
+                unused.append(name)
+        if not unused:
+            return
+        self.violations.append(
+            ContractViolation(
+                file=self.file,
+                line=node.lineno,
+                code="unused-fixture-param",
+                severity="warning",
+                message=(
+                    f"test {getattr(node, 'name', '?')!r} declares fixture "
+                    f"param(s) {', '.join(repr(n) for n in unused)} but "
+                    f"never references them — unused fixtures still pay "
+                    f"setup cost and usually mean the test was renamed or "
+                    f"the fixture is the wrong one"
+                ),
+            )
+        )
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:  # noqa: N802
+        # env-var-no-default
+        env_name = _is_environ_subscript_without_default(node)
+        if env_name is not None:
+            severity = "warning" if self._function_depth > 0 else "error"
+            scope = "function" if self._function_depth > 0 else "module"
+            self.violations.append(
+                ContractViolation(
+                    file=self.file,
+                    line=node.lineno,
+                    code="env-var-no-default",
+                    severity=severity,
+                    message=(
+                        f"environ[{env_name!r}] read at {scope} scope without "
+                        f"a default — use os.environ.get({env_name!r}, ...) "
+                        f"so a missing var doesn't crash "
+                        f"{'at import time' if severity == 'error' else 'mid-test'}"
+                    ),
+                )
+            )
+
+        # shared-data-orphan: collect read/write sites for cross-test analysis
+        key, _ = _shared_data_keys(node)
+        if key is not None:
+            ctx = getattr(node, "ctx", None)
+            if isinstance(ctx, ast.Store):
+                self._shared_data_writes.setdefault(key, node.lineno)
+            elif isinstance(ctx, ast.Load):
+                self._shared_data_reads.setdefault(key, node.lineno)
+
+        # Descend into children — index expressions like
+        # ``a[b[c]]`` need recursion to flag the inner ``b[c]`` too.
+        for child in ast.iter_child_nodes(node):
+            self.visit(child)
+
+    def finalize(self) -> None:
+        """Cross-test analysis that runs after the AST walk completes.
+
+        Today: emit ``shared-data-orphan`` for any key written-only or
+        read-only across the file. Visitor-time analysis can't do this
+        because writes and reads can live in different functions.
+        """
+        for key, lineno in self._shared_data_writes.items():
+            if key not in self._shared_data_reads:
+                self.violations.append(
+                    ContractViolation(
+                        file=self.file,
+                        line=lineno,
+                        code="shared-data-orphan",
+                        severity="warning",
+                        message=(
+                            f"slot.shared_data[{key!r}] is written but never "
+                            f"read in this file — either the consumer was "
+                            f"removed (delete the write) or the consumer "
+                            f"reads under a different key"
+                        ),
+                    )
+                )
+        for key, lineno in self._shared_data_reads.items():
+            if key not in self._shared_data_writes:
+                self.violations.append(
+                    ContractViolation(
+                        file=self.file,
+                        line=lineno,
+                        code="shared-data-orphan",
+                        severity="warning",
+                        message=(
+                            f"slot.shared_data[{key!r}] is read but never "
+                            f"written in this file — the producer is "
+                            f"missing or the read uses the wrong key, "
+                            f"raising KeyError at runtime"
+                        ),
+                    )
+                )
+
 
 # ────────────────────────────────────────────────────────────────────────
 # Public surface
@@ -334,6 +576,7 @@ def validate_test_file(path: Path) -> List[ContractViolation]:
 
     visitor = _Visitor(path)
     visitor.visit(tree)
+    visitor.finalize()  # cross-test checks (shared-data-orphan, ...)
     return visitor.violations
 
 
