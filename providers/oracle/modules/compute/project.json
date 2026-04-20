@@ -1,0 +1,39 @@
+{
+  "name": "providers-oracle-modules-compute",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "tags": ["scope:infrastructure", "type:provider", "layer:providers", "provider:oracle", "module:compute"],
+  "targets": {
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/*.tf",
+        "{projectRoot}/*.tmpl",
+        "{projectRoot}/ctl.sh",
+        "{projectRoot}/README.md",
+        "{workspaceRoot}/providers/compute-unit/contract.yaml"
+      ]
+    },
+    "fmt": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh fmt",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "docs-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh docs-generate",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    }
+  }
+}
