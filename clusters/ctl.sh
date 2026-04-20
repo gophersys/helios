@@ -5,13 +5,17 @@
 # Usage: ./ctl.sh <command> [args...]
 #
 # Non-catalog verbs (not part of the generic verb catalog — justified here):
-#   new-cluster      Infrastructure-specific authoring helper. Scaffolds
-#                    clusters/instances/<name>/ from
-#                    clusters/templates/<template>/ and stamps the name
-#                    into cluster.yaml. There is no generic catalog verb
-#                    for "create a new declarative cluster instance from
-#                    a template" — this is a shape unique to the clusters
-#                    subtree (mirrors machines/new-host).
+#   new-cluster       Infrastructure-specific authoring helper. Scaffolds
+#                     clusters/instances/<name>/ from
+#                     clusters/templates/<template>/ and stamps the name
+#                     into identity.yaml. There is no generic catalog verb
+#                     for "create a new declarative cluster instance from
+#                     a template" — this is a shape unique to the clusters
+#                     subtree (mirrors machines/new-host).
+#   new-cluster-node  Scaffold a node (cluster member) from the cluster
+#                     template's nodes/<node-template>/ into
+#                     clusters/instances/<cluster>/nodes/<host>/.
+#                     Applies only to self-managed clusters (manual-k3s).
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -43,17 +47,23 @@ SENSITIVE_VARS=()
 function on_exit() {
   local rc=$?
   local pid mnt var
-  for pid in "${BG_PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true  # already exited
-  done
-  for mnt in "${TMPFS_MOUNTS[@]}"; do
-    if mountpoint -q "$mnt" 2>/dev/null; then
-      umount "$mnt" 2>/dev/null || log_warn "failed to unmount $mnt"
-    fi
-  done
-  for var in "${SENSITIVE_VARS[@]}"; do
-    unset "$var"
-  done
+  if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
+    for pid in "${BG_PIDS[@]}"; do
+      kill "$pid" 2>/dev/null || true
+    done
+  fi
+  if [[ ${#TMPFS_MOUNTS[@]} -gt 0 ]]; then
+    for mnt in "${TMPFS_MOUNTS[@]}"; do
+      if mountpoint -q "$mnt" 2>/dev/null; then
+        umount "$mnt" 2>/dev/null || log_warn "failed to unmount $mnt"
+      fi
+    done
+  fi
+  if [[ ${#SENSITIVE_VARS[@]} -gt 0 ]]; then
+    for var in "${SENSITIVE_VARS[@]}"; do
+      unset "$var"
+    done
+  fi
   return "$rc"
 }
 trap on_exit EXIT
@@ -63,15 +73,19 @@ trap on_exit EXIT
 function cmd_status() {
   log_info "clusters status"
 
-  local instances=0 templates=0
+  local instances=0 templates=0 total_nodes=0
   if [[ -d "$PROJECT_ROOT/instances" ]]; then
-    instances=$(find "$PROJECT_ROOT/instances" -mindepth 1 -maxdepth 1 -type d | wc -l)
+    instances=$(find "$PROJECT_ROOT/instances" -mindepth 1 -maxdepth 1 -type d | wc -l | awk '{print $1}')
+    if [[ "$instances" -gt 0 ]]; then
+      total_nodes=$(find "$PROJECT_ROOT/instances" -mindepth 3 -maxdepth 3 -name identity.yaml \
+                          -path '*/nodes/*' 2>/dev/null | wc -l | awk '{print $1}')
+    fi
   fi
   if [[ -d "$PROJECT_ROOT/templates" ]]; then
-    templates=$(find "$PROJECT_ROOT/templates" -mindepth 1 -maxdepth 1 -type d | wc -l)
+    templates=$(find "$PROJECT_ROOT/templates" -mindepth 1 -maxdepth 1 -type d | wc -l | awk '{print $1}')
   fi
 
-  printf '  instances: %s\n' "$instances"
+  printf '  instances: %s (with %s node(s) total)\n' "$instances" "$total_nodes"
   printf '  templates: %s\n' "$templates"
 }
 
@@ -81,15 +95,38 @@ function cmd_validate() {
 
   require_cmd jq find
 
-  # Cluster instances must have at least a cluster.yaml.
+  # Cluster instances must have identity.yaml.
   if [[ -d "$PROJECT_ROOT/instances" ]]; then
     local d
+    local name
     while IFS= read -r -d '' d; do
-      if [[ ! -f "$d/cluster.yaml" ]]; then
-        log_error "cluster instance '$(basename "$d")' missing cluster.yaml"
+      name="$(basename "$d")"
+      if [[ ! -f "$d/identity.yaml" ]]; then
+        log_error "cluster instance '$name' missing identity.yaml"
         rc=1
       fi
+      # Each node under instances/<c>/nodes/<host>/ must have identity.yaml.
+      if [[ -d "$d/nodes" ]]; then
+        local n
+        while IFS= read -r -d '' n; do
+          if [[ ! -f "$n/identity.yaml" ]]; then
+            log_error "cluster node '$name/nodes/$(basename "$n")' missing identity.yaml"
+            rc=1
+          fi
+        done < <(find "$d/nodes" -mindepth 1 -maxdepth 1 -type d -print0)
+      fi
     done < <(find "$PROJECT_ROOT/instances" -mindepth 1 -maxdepth 1 -type d -print0)
+  fi
+
+  # Cluster templates must have identity.yaml.
+  if [[ -d "$PROJECT_ROOT/templates" ]]; then
+    local t
+    while IFS= read -r -d '' t; do
+      if [[ ! -f "$t/identity.yaml" ]]; then
+        log_error "cluster template '$(basename "$t")' missing identity.yaml"
+        rc=1
+      fi
+    done < <(find "$PROJECT_ROOT/templates" -mindepth 1 -maxdepth 1 -type d -print0)
   fi
 
   # Bash scripts: syntax + shellcheck.
@@ -164,22 +201,101 @@ function cmd_new_cluster() {
   fi
 
   log_info "scaffolding cluster '$name' from template '$template'"
-  mkdir -p "$PROJECT_ROOT/instances"
-  cp -r "$tpl_dir" "$inst_dir"
+  mkdir -p "$inst_dir/nodes" "$inst_dir/overlays"
 
-  # If the template has a cluster.yaml with __CLUSTER_NAME__, substitute it.
-  local cy="$inst_dir/cluster.yaml"
-  if [[ -f "$cy" ]] && grep -q '__CLUSTER_NAME__' "$cy"; then
+  # Copy only the cluster-level identity; NOT nodes/ (those are scaffolded
+  # per-node via new-cluster-node).
+  if [[ -f "$tpl_dir/identity.yaml" ]]; then
+    cp "$tpl_dir/identity.yaml" "$inst_dir/identity.yaml"
+  else
+    log_error "template missing identity.yaml: $tpl_dir/identity.yaml"
+    exit 2
+  fi
+
+  # Substitute __CLUSTER_NAME__ in identity.yaml.
+  local id="$inst_dir/identity.yaml"
+  if grep -q '__CLUSTER_NAME__' "$id"; then
     python3 -c "
 import sys
 p=sys.argv[1]; n=sys.argv[2]
 with open(p) as f: t=f.read()
 with open(p,'w') as f: f.write(t.replace('__CLUSTER_NAME__', n))
-" "$cy" "$name"
+" "$id" "$name"
   fi
 
+  # Keep nodes/ and overlays/ trackable in git.
+  touch "$inst_dir/nodes/.gitkeep" "$inst_dir/overlays/.gitkeep"
+
   log_info "created instances/$name/"
-  log_info "next: edit instances/$name/cluster.yaml and run: bash ctl.sh validate"
+  log_info "next: edit instances/$name/identity.yaml then (for self-managed"
+  log_info "      clusters) scaffold members with:"
+  log_info "  bash clusters/ctl.sh new-cluster-node $name <node-template> <host-name>"
+}
+
+function cmd_new_cluster_node() {
+  local cluster="${1:-}"
+  local node_template="${2:-}"
+  local host="${3:-}"
+  if [[ -z "$cluster" || -z "$node_template" || -z "$host" ]]; then
+    log_error "usage: new-cluster-node <cluster> <node-template> <host-name>"
+    exit 2
+  fi
+
+  if ! [[ "$host" =~ ^[a-z][a-z0-9-]*$ ]]; then
+    log_error "invalid host name '$host' — must be lowercase kebab-case"
+    exit 2
+  fi
+
+  local inst_dir="$PROJECT_ROOT/instances/$cluster"
+  if [[ ! -d "$inst_dir" ]]; then
+    log_error "cluster '$cluster' does not exist"
+    exit 2
+  fi
+
+  # Resolve which template the cluster was scaffolded from to find its
+  # node-template dir. Parse "template: <value>" from identity.yaml.
+  local cluster_template=""
+  if [[ -f "$inst_dir/identity.yaml" ]]; then
+    cluster_template="$(grep -E '^template:' "$inst_dir/identity.yaml" | awk '{print $2}')"
+  fi
+  if [[ -z "$cluster_template" ]]; then
+    log_error "cannot resolve cluster template from $inst_dir/identity.yaml"
+    exit 2
+  fi
+
+  local node_tpl_dir="$PROJECT_ROOT/templates/$cluster_template/nodes/$node_template"
+  if [[ ! -d "$node_tpl_dir" ]]; then
+    log_error "node template not found: templates/$cluster_template/nodes/$node_template"
+    log_info "available node templates for '$cluster_template':"
+    if [[ -d "$PROJECT_ROOT/templates/$cluster_template/nodes" ]]; then
+      find "$PROJECT_ROOT/templates/$cluster_template/nodes" -mindepth 1 -maxdepth 1 -type d \
+        -exec basename {} \; | sort | sed 's/^/    /'
+    fi
+    exit 2
+  fi
+
+  local node_dir="$inst_dir/nodes/$host"
+  if [[ -e "$node_dir" ]]; then
+    log_error "node already exists: instances/$cluster/nodes/$host"
+    exit 2
+  fi
+
+  log_info "scaffolding node '$host' from template '$cluster_template/nodes/$node_template'"
+  cp -r "$node_tpl_dir" "$node_dir"
+
+  # Substitute __HOST_NAME__ in identity.yaml.
+  local id="$node_dir/identity.yaml"
+  if [[ -f "$id" ]] && grep -q '__HOST_NAME__' "$id"; then
+    python3 -c "
+import sys
+p=sys.argv[1]; n=sys.argv[2]
+with open(p) as f: t=f.read()
+with open(p,'w') as f: f.write(t.replace('__HOST_NAME__', n))
+" "$id" "$host"
+  fi
+
+  log_info "created instances/$cluster/nodes/$host/"
+  log_info "next: edit instances/$cluster/nodes/$host/identity.yaml"
 }
 
 # -------- usage --------
@@ -190,11 +306,14 @@ Usage: ./ctl.sh <command> [args...]
 clusters/ — Kubernetes clusters (cloud + manual).
 
 Commands:
-  status            Counts of instances + templates
-  validate          cluster.yaml existence + JSON/bash checks
-  new-cluster <template> <name>
-                    Scaffold clusters/instances/<name>/ from clusters/templates/<template>/
-  help              Show this message
+  status                                  Counts of instances, nodes, templates
+  validate                                identity.yaml + JSON/bash checks
+  new-cluster <template> <name>           Scaffold clusters/instances/<name>/
+                                          from clusters/templates/<template>/
+  new-cluster-node <cluster> <node-template> <host>
+                                          Scaffold clusters/instances/<cluster>/nodes/<host>/
+                                          from the cluster's node template.
+  help                                    Show this message
 EOF
 }
 
@@ -203,11 +322,12 @@ function main() {
   local cmd="${1:-help}"
   shift || true
   case "$cmd" in
-    status)       cmd_status       "$@" ;;
-    validate)     cmd_validate     "$@" ;;
-    new-cluster)  cmd_new_cluster  "$@" ;;
-    help|"")      usage ;;
-    *)            log_error "unknown command: '$cmd'"; usage; exit 1 ;;
+    status)             cmd_status            "$@" ;;
+    validate)           cmd_validate          "$@" ;;
+    new-cluster)        cmd_new_cluster       "$@" ;;
+    new-cluster-node)   cmd_new_cluster_node  "$@" ;;
+    help|"")            usage ;;
+    *)                  log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac
 }
 

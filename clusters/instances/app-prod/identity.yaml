@@ -1,0 +1,60 @@
+# identity.yaml — app-prod
+#
+# Production Kubernetes cluster running customer-facing apps (codectl,
+# fintel, future). Currently spans OCI Phoenix (Always Free A1.Flex ARM +
+# E4.Flex x86 + E2.Micro bastions) and AWS Oregon (t4g.small ARM agent).
+# All nodes joined via Tailscale mesh.
+#
+# This is the ONE cluster today. Lab/staging clusters will be scaffolded
+# later using the same cluster-kubernetes-manual-k3s template.
+
+name: app-prod
+template: cluster-kubernetes-manual-k3s
+distribution: k3s
+distribution_version: "TODO: pin (e.g., v1.31.3+k3s1)"
+
+purpose: "Production — runs customer-facing apps (codectl, fintel)."
+status: active
+owner: mateo.segura413@gmail.com
+domain: "TODO: public DNS zone for ingress (e.g. brain.mateosegura.com)"
+
+# Network topology — every node is on the Tailscale mesh; K3s pod/service
+# CIDRs are the defaults.
+network:
+  cni: cilium                   # core component — chosen at the repo level
+  tailnet_joined: true
+  pod_cidr: 10.42.0.0/16
+  service_cidr: 10.43.0.0/16
+
+# Platform component opt-ins.
+# platform/core/* is NOT listed here — every cluster gets all of core.
+# platform/services/* below is per-cluster opt-in.
+platform_services:
+  observability: { enabled: true,  version: "TODO" }
+  databases:
+    postgresql:     { enabled: true,  version: "TODO" }
+    redis:          { enabled: false }
+  messaging:
+    nats:           { enabled: true,  version: "TODO" }
+  registry:         { enabled: false }
+  admin-dashboard:  { enabled: false }
+  identity-sso:     { enabled: false }      # future
+  backup:           { enabled: false, note: "enable once first stateful workload lands" }
+  cost:             { enabled: false, note: "< $20/mo total cluster spend — low priority" }
+
+# Charts archetypes this cluster is expected to serve. Not enforced; just a
+# hint for ops.
+chart_archetypes:
+  - stateless-app
+  - stateful-app
+  - cronjob
+
+# Cost envelope — informational; updated by the cost service once enabled.
+cost_envelope:
+  monthly_usd_target: 30
+  monthly_usd_ceiling: 100
+  note: "Always-free OCI core + ~$14/mo E4.Flex + ~$4/mo AWS EBS"
+
+# Members — see nodes/<name>/identity.yaml for each member host. The
+# cluster instance does not enumerate members here; generate-cluster-index
+# (future) walks nodes/ to emit the membership table in README.md.

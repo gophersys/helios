@@ -1,22 +1,29 @@
 # providers/aws
 
-Reusable Terraform modules for AWS. Intended contents once populated:
+AWS Terraform modules. Fulfill the `compute-unit` interface for AWS.
+
+## Planned modules
 
 - `modules/vpc/` — VPC with public + private subnets, NAT, endpoints.
-- `modules/eks/` — EKS control plane + managed node groups. IRSA + OIDC
-  provider enabled by default.
-- `modules/ecr/` — container registries per app, lifecycle policies.
+- `modules/compute/` — EC2 instances, security groups, launch templates.
+  Honors the `compute_unit` interface (picks t4g.* for ARM, t3a.* for x86).
+- `modules/eks/` — EKS control plane + managed node groups (when using
+  `cluster-cloud-aws-eks` template). IRSA + OIDC provider enabled.
+- `modules/ecr/` — container registries per app with lifecycle policies.
 - `modules/iam/` — assume-role and service-account role factories.
-- `modules/dns/` — Route53 hosted zones + ACM certs (DNS-validated).
+- `modules/route53/` — hosted zones + records.
+- `modules/acm/` — certificates (when not using cert-manager).
+- `modules/s3/` — buckets for backups / state.
 
-Consumers (cluster instances) reference these via relative path:
+## Free-tier leverage
 
-```hcl
-module "vpc" {
-  source = "../../../providers/aws/modules/vpc"
-  ...
-}
-```
+- `t4g.small` — free-tier eligible through 2026-12 (used by `agent-02` and
+  `arm-builder` today).
+- Recompute free-tier usage via `platform/services/cost/` (OpenCost) once
+  populated; move beyond free-tier only with an explicit envelope bump in
+  the consuming cluster's identity.yaml.
 
-TODO: modules not yet written. First module arrives when the first AWS
-cluster is created.
+## Status
+
+STUB. Populate with modules ported from the pre-rebuild `cloud/aws/` tree,
+refactored to the `compute_unit` interface.

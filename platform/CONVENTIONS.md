@@ -1,25 +1,61 @@
 # platform — conventions
 
-Each platform service is a Nx project (two-file pattern) when implemented:
+## Two tiers
+
+- **`platform/core/<component>/`** — non-negotiable. Every cluster installs
+  every core component during bring-up. Versions are pinned repo-wide.
+- **`platform/services/<category>/<impl>/`** — opt-in. A cluster's
+  `identity.yaml` declares which services it wants, at which versions.
+
+Both follow the same project layout.
+
+## Per-component layout (when populated)
 
 ```
-platform/<service>/
-├── project.json
-├── ctl.sh
-├── values/                # per-cluster values overrides
-│   └── <cluster-name>.yaml
-└── README.md              # service-local — status + knobs
+platform/<tier>/<path>/
+├── project.json              # Nx wiring — verbs: apply, destroy, status, values, logs, rollback
+├── ctl.sh                    # thin wrapper around helm/kustomize
+├── helm/                     # (if Helm-based)
+│   ├── values.yaml           # baseline values — applied to every cluster
+│   └── Chart.lock            # pinned chart version
+├── manifests/                # (if raw kustomize/yaml)
+│   └── base/
+├── contracts/                # (optional) which contracts this component fulfills
+│   └── <contract>.md         # a brief mapping explaining how the contract maps to this impl
+└── README.md                 # purpose, default impl, deps, contract linkage, status
 ```
 
-Verbs follow `infrastructure/platform-services/*` in the verb catalog:
-`status`, `describe`, `apply`, `destroy`, `logs`, `values`, `rollback`.
+Per-cluster value overrides live at
+`clusters/instances/<c>/overlays/<tier>/<path>/values.yaml`.
 
-Currently every `platform/<service>/` is just a README, not a full Nx
-project — implement the two-file pattern when the first cluster is ready
-to receive the service.
+## Generic verb catalog
 
-## Install order
+| Verb        | Scope                                                              |
+|-------------|--------------------------------------------------------------------|
+| `status`    | print what's installed in each consuming cluster                   |
+| `describe`  | full describe of the component (chart ver, values, CRDs)           |
+| `apply`     | install or upgrade, honoring cluster overlay                       |
+| `destroy`   | uninstall from a cluster (gated — never from prod without approval)|
+| `values`    | print the merged values a specific cluster would receive           |
+| `logs`      | tail logs for the component's pods                                 |
+| `rollback`  | helm rollback to prior revision                                    |
 
-Ingress + cert-manager always first (everything else depends on TLS).
-secrets-external-operator next (applications need it before they start).
-observability, databases, messaging after — in any order.
+## Install order (on a fresh cluster)
+
+Core install order is fixed (top to bottom of `core/` as listed in README).
+Services install in any order after core is healthy.
+
+1. `core/cni` — pod networking (required for anything else to run)
+2. `core/ingress` — ingress controller
+3. `core/cert-manager` — TLS issuance
+4. `core/storage` — persistent volume provisioner
+5. `core/secrets-operator` — ESO + Bitwarden (needed for app secrets)
+6. `core/metrics-server` — baseline metrics
+7. `core/network-policies` — default-deny templates
+8. any `services/*` the cluster's identity.yaml opts into
+
+## Status today
+
+Every leaf has a stub `README.md` only. Implementations land when the first
+cluster bringing up that component is ready — progressive disclosure per
+`infrastructure/README.md`.

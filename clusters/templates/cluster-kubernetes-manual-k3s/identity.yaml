@@ -1,0 +1,44 @@
+# cluster-identity.yaml.template — manual K3s cluster
+#
+# Scaffolded into clusters/instances/<name>/identity.yaml when you run:
+#   bash clusters/ctl.sh new-cluster cluster-kubernetes-manual-k3s <name>
+#
+# Fill every TODO before committing. The cluster is manually bootstrapped
+# on hosts declared in machines/ (usually services/<name>/ for bastions and
+# nodes/<name>/ under this cluster for members).
+
+name: __CLUSTER_NAME__
+template: cluster-kubernetes-manual-k3s
+distribution: k3s
+distribution_version: "TODO: pin (e.g., v1.31.3+k3s1)"
+
+purpose: "TODO: short free-text (e.g. 'production — runs customer apps')"
+status: planned
+owner: mateo.segura413@gmail.com
+domain: "TODO: public DNS zone for ingress"
+
+network:
+  cni: cilium
+  tailnet_joined: true
+  pod_cidr: 10.42.0.0/16
+  service_cidr: 10.43.0.0/16
+
+# platform/services/* opt-ins — platform/core/* is always on.
+platform_services:
+  observability: { enabled: true,  version: "TODO" }
+  databases:
+    postgresql:     { enabled: false, version: "TODO" }
+    redis:          { enabled: false }
+  messaging:
+    nats:           { enabled: false }
+  registry:         { enabled: false }
+  admin-dashboard:  { enabled: false }
+  identity-sso:     { enabled: false }
+  backup:           { enabled: false }
+  cost:             { enabled: false }
+
+chart_archetypes: []
+
+cost_envelope:
+  monthly_usd_target: 0
+  monthly_usd_ceiling: 0

@@ -1,19 +1,26 @@
 # providers/kubernetes-manual
 
-Modules for manually-provisioned Kubernetes clusters on hosts enrolled in
-`machines/hosts/`. Primary target: k3s on mixed-architecture tailnet nodes.
+"Provisioner" for manual K3s installs on hosts that have already been
+created by another provider (oracle / aws / bare-metal). Not Terraform per
+se — an Ansible playbook set that:
+1. Installs k3s on target hosts.
+2. Joins agents to the server using a shared token.
+3. Emits a kubeconfig pointing at the cluster's ingress (or tailnet IP).
 
-Intended contents once populated:
+Consumers: `cluster-kubernetes-manual-k3s` cluster template.
 
-- `modules/k3s-server/` — bootstrap a k3s server on a machine, emit
-  kubeconfig into an output that cluster instances can consume.
-- `modules/k3s-agent/` — register a machine as an agent, joining a
-  running server via node token.
-- `modules/kubeconfig/` — helper that writes kubeconfig to tmpfs and
-  returns a handle for consuming modules.
+## Planned contents
+
+- `ansible/` — `k3s-install`, `k3s-join`, `k3s-upgrade`, `k3s-drain` playbooks.
+- `scripts/` — bootstrap helpers (token rotation, kubeconfig emit to tmpfs).
+- `modules/kubeconfig/` — Terraform module that reads kubeconfig from tmpfs
+  and returns a handle consumers can pass to the Helm provider.
 
 These modules coordinate with Ansible roles in
 `machines/roles/developer-kubernetes-operator/` (kubectl/helm install on
-the local operator host) and the manual `k3s` install on each machine.
+the local operator host).
 
-TODO: modules not yet written.
+## Status
+
+STUB. Populate when `app-prod` node bring-up is ready to be automated
+(today it was manual ssh-in).
