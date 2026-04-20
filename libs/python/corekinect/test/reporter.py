@@ -53,11 +53,51 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import os
 import sys
 import threading
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Per-step log capture
+# ──────────────────────────────────────────────────────────────────────
+
+class _StepLogCapture(logging.Handler):
+    """Python ``logging`` handler that buffers formatted records.
+
+    Attached to the root logger during a ``with report.step(...)``
+    block and detached at exit. The captured text lands in the step's
+    ``logOutput`` field, which the frontend renders under each step —
+    the piece that had been entirely missing from the UI because
+    ``StepReporter.__exit__`` used to emit no log output at all.
+
+    Only a single lock-free list is touched on ``emit`` so we don't
+    slow down tight test loops; dump is only ever called once at step
+    close.
+    """
+
+    _FMT = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.DEBUG)
+        self.setFormatter(self._FMT)
+        self._records: List[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:  # noqa: D401
+        try:
+            self._records.append(self.format(record))
+        except Exception:
+            # Never let a log-capture failure bubble into test code.
+            pass
+
+    def dump(self) -> str:
+        return "\n".join(self._records)
 
 import pytest
 
@@ -168,6 +208,15 @@ class StepReporter:
         _, self.test_name = _parse_nodeid(getattr(item, "nodeid", ""))
 
     def __enter__(self):
+        # Attach a log capture handler so every log record emitted
+        # during the step body is buffered and shipped with the
+        # step-result payload. Without this, ``TestStep.logOutput``
+        # stayed NULL and the frontend's per-step log panel was
+        # permanently empty — breaking the main debugging surface
+        # operators rely on mid-run.
+        self._log_capture = _StepLogCapture()
+        logging.getLogger().addHandler(self._log_capture)
+
         self.reporter._emit(
             self.item,
             "step-start",
@@ -180,6 +229,13 @@ class StepReporter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         passed = exc_type is None
+        log_output: Optional[str] = None
+        try:
+            logging.getLogger().removeHandler(self._log_capture)
+            log_output = self._log_capture.dump() or None
+        except Exception:
+            # Never fail the step because log-capture teardown raised.
+            log_output = None
         self.reporter._emit(
             self.item,
             "step-result",
@@ -188,6 +244,7 @@ class StepReporter:
             passed=passed,
             errorMessage=str(exc_val) if exc_val else None,
             measurements=self.measurements or None,
+            logOutput=log_output,
         )
         self.reporter._tls.current_step_index = None
         return False  # Don't suppress exceptions

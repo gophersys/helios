@@ -234,9 +234,17 @@ class BufferedUartStream:
                     # and RX throughput drops from ~1500 B/s to ~3 B/s.
                     yield UartStreamRequest(target=self._target, data=b"")
 
+        # Track the loop's exit reason so callers never see "Stream dead
+        # (None)". The gRPC iterator can exit cleanly (server closed the
+        # stream, keepalive missed, or the client cancelled) without
+        # raising — the old code treated that identical to "we stopped
+        # intentionally", which left ``_stream_error`` as None and any
+        # downstream reconnect diagnosis completely blind.
+        exit_reason: Optional[str] = None
         try:
             for resp in self._mtib.UartStream(self._target, request_iter()):
                 if self._stop.is_set():
+                    exit_reason = "stopped by caller"
                     break
                 if resp.data:
                     with self._lock:
@@ -247,14 +255,35 @@ class BufferedUartStream:
                 # Check for gRPC-level error responses
                 if hasattr(resp, 'success') and not resp.success:
                     self._stream_error = getattr(resp, 'message', 'unknown')
+                    exit_reason = f"server error: {self._stream_error}"
                     break
+            else:
+                # Iterator exhausted without ``break`` — gRPC closed the
+                # stream cleanly. No exception, but the stream is dead.
+                if self._rx_bytes == 0:
+                    exit_reason = "stream closed by server before any data arrived"
+                else:
+                    secs_since_data = (
+                        time.time() - self._last_data_time
+                        if self._last_data_time else float("inf")
+                    )
+                    exit_reason = (
+                        f"stream closed by server ({self._rx_bytes} B received, "
+                        f"{secs_since_data:.1f}s since last data)"
+                    )
         except Exception as e:
-            self._stream_error = str(e) or type(e).__name__
+            exit_reason = str(e) or type(e).__name__
             if not self._stop.is_set():
                 log.warning(
                     "[%s] UART stream error: %s",
-                    self._label, self._stream_error,
+                    self._label, exit_reason,
                 )
+
+        # Record the reason so ``ensure_alive`` and ``send`` surface a
+        # real cause rather than ``(None)``. We deliberately don't
+        # overwrite a reason already set above (server-error branch).
+        if self._stream_error is None and exit_reason is not None:
+            self._stream_error = exit_reason
 
 
 class ShellCommander:
@@ -323,8 +352,21 @@ class ShellCommander:
         Returns:
             (lines, error) — clean response lines. error is None on success.
         """
+        # The stream may have died between our last command and this
+        # one — server-side cancel, keepalive miss, or just a lull. The
+        # reconnect attempt inside ensure_alive() has a 3s budget, and
+        # if it doesn't come back we give up with the real reason
+        # rather than the old ``Stream dead (None)`` mystery.
         if not self._stream.ensure_alive():
             return [], f"Stream dead ({self._stream.last_error})"
+
+        # Reconnect might have wiped the shell's prompt state. Write a
+        # bare newline before the command echo-probe so the device has
+        # a chance to print its prompt into our freshly-reconnected
+        # buffer; the double-clear below then strips it cleanly.
+        if self._stream.rx_bytes == 0:
+            self._stream.write(b"\r")
+            time.sleep(0.1)
 
         # Double-clear: flush any in-flight data, brief settle, flush again
         self._stream.clear()

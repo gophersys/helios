@@ -662,6 +662,17 @@ def report_step_result(run_id: str):
         where={"executionId": execution.id, "stepIndex": step_index},
     )
 
+    # Per-step log output. The reporter ships captured log records so
+    # operators can see WHY a step failed in the frontend. Cap at 64 KiB
+    # per step — multiplied across every step in a run, anything larger
+    # balloons the DB write latency and the UI's initial load. Long
+    # logs should go to the UART/artifact stream, not the step buffer.
+    log_output = body.get("logOutput")
+    if isinstance(log_output, str) and log_output:
+        log_output = log_output[-64 * 1024:]
+    else:
+        log_output = None
+
     if step:
         update_data: dict = {
             "status": new_status,
@@ -672,6 +683,8 @@ def report_step_result(run_id: str):
             update_data["errorMessage"] = body["errorMessage"]
         if body.get("measurements"):
             update_data["measurements"] = Json(body["measurements"])
+        if log_output is not None:
+            update_data["logOutput"] = log_output
         if body.get("durationMs") is not None:
             update_data["durationMs"] = body["durationMs"]
         elif step.startedAt:
@@ -692,6 +705,8 @@ def report_step_result(run_id: str):
             step_data["errorMessage"] = body["errorMessage"]
         if body.get("measurements"):
             step_data["measurements"] = Json(body["measurements"])
+        if log_output is not None:
+            step_data["logOutput"] = log_output
         if body.get("durationMs") is not None:
             step_data["durationMs"] = body["durationMs"]
 
