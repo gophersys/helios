@@ -68,12 +68,39 @@ Required env before running terraform (typically loaded from the
 - `AWS_REQUEST_CHECKSUM_CALCULATION=when_required`
 - `AWS_RESPONSE_CHECKSUM_VALIDATION=when_required`
 
-The two checksum env vars are **required**. AWS SDK v2 (used by
-Terraform 1.10+'s s3 backend) defaults to `when_supported`, which
-appends chunked-transfer SHA-256 trailers on every PutObject. OCI's
-S3-compat API responds with HTTP 501 "AWS chunked encoding not
-supported" and the state upload fails. Setting both to
-`when_required` disables the trailers entirely.
+### Why the two `AWS_*_CHECKSUM_*` env vars are required
+
+AWS SDK v2 (used by Terraform 1.10+'s s3 backend) defaults to
+`when_supported` for both checksum env vars, which causes every
+`PutObject` to use HTTP `Transfer-Encoding: chunked` with a trailing
+`x-amz-checksum-sha256` header. That's an integrity feature AWS
+itself parses. OCI Object Storage's S3-compat layer returns HTTP
+501 `NotImplemented: AWS chunked encoding not supported` — the
+chunked-trailer format isn't implemented on Oracle's side.
+
+Setting both env vars to `when_required` tells the SDK to only append
+the trailer when the TARGET service explicitly demands it (e.g., S3
+Express). For vanilla bucket PUT/GETs, SDK v2 falls back to a plain
+`Content-Length`-framed body, which OCI does support.
+
+These env vars are the AWS-documented configuration knob for
+non-AWS S3-compatible endpoints; not a workaround, not a hack. They
+become unnecessary the day OCI implements chunked-encoding support.
+Until then, every terraform invocation against `gophersys-tfstate`
+must export them.
+
+### Why `use_lockfile` is off
+
+Terraform 1.10+'s native `use_lockfile = true` path acquires the
+lock via a conditional S3 PUT that *also* goes through chunked
+encoding (controlled by the s3 backend module, not the SDK — the env
+vars above don't help). OCI returns 501 on that path too. Options
+for real locking are therefore: a DynamoDB-compat service (costs
+money, adds infra), or waiting for OCI to finish its chunked support.
+
+Single-operator context makes concurrent-apply risk negligible, so
+locking is disabled and the env-var workaround above only needs to
+cover the normal PUT/GET state-file I/O.
 
 ## Verbs
 
