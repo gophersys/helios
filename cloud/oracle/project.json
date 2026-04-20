@@ -1,33 +1,32 @@
 {
   "name": "oracle",
-  "root": "cloud/oracle",
   "targets": {
     "plan": {
       "executor": "nx:run-commands",
       "options": {
         "command": "terraform plan",
-        "cwd": "cloud/oracle/terraform"
+        "cwd": "{projectRoot}/terraform"
       }
     },
     "apply": {
       "executor": "nx:run-commands",
       "options": {
         "command": "terraform apply",
-        "cwd": "cloud/oracle/terraform"
+        "cwd": "{projectRoot}/terraform"
       }
     },
     "configure": {
       "executor": "nx:run-commands",
       "options": {
         "command": "ansible-playbook -i inventory site.yml",
-        "cwd": "cloud/oracle/ansible"
+        "cwd": "{projectRoot}/ansible"
       }
     },
     "bootstrap": {
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "bash cloud/oracle/scripts/bootstrap.sh"
+          "bash {projectRoot}/scripts/bootstrap.sh"
         ]
       }
     }
