@@ -1,0 +1,54 @@
+---
+# roles/platform-wsl/tasks/main.yml
+#
+# Tasks specific to a WSL2 distro. Layered on top of platform-linux-debian
+# (or -fedora) — never applied alone. WSL-ness affects:
+#   - wsl.conf (interop, systemd, mount options)
+#   - DNS handling
+#   - .bashrc/.zshrc for Windows-host PATH interop
+#
+# The role writes /etc/wsl.conf and is idempotent. A reboot of the distro
+# (wsl --shutdown from Windows) is required for wsl.conf changes.
+
+- name: Confirm host is actually WSL
+  ansible.builtin.assert:
+    that:
+      - ansible_kernel is search("microsoft", ignorecase=True)
+    fail_msg: "platform-wsl applied to a non-WSL host"
+  tags: [platform, wsl]
+
+- name: Render /etc/wsl.conf with interop + systemd settings
+  ansible.builtin.copy:
+    dest: /etc/wsl.conf
+    mode: "0644"
+    content: |
+      # Managed by platform-wsl role. Do not edit by hand.
+      [boot]
+      systemd={{ wsl.systemd_enabled | default(true) | ternary('true', 'false') }}
+
+      [interop]
+      enabled={{ wsl.interop_enabled | default(true) | ternary('true', 'false') }}
+      appendWindowsPath={{ wsl.append_windows_path | default(false) | ternary('true', 'false') }}
+
+      [network]
+      generateResolvConf={{ wsl.generate_resolvconf | default(true) | ternary('true', 'false') }}
+      hostname={{ tailscale_hostname | default(inventory_hostname) }}
+
+      [automount]
+      enabled=true
+      options=metadata,uid=1000,gid=1000,umask=0022
+  tags: [platform, wsl]
+
+- name: Ensure /mnt/c is reachable (interop smoke test)
+  ansible.builtin.stat:
+    path: /mnt/c
+  register: mnt_c
+  failed_when: false
+  changed_when: false
+  tags: [platform, wsl]
+
+- name: Warn if /mnt/c is missing
+  ansible.builtin.debug:
+    msg: "WARNING: /mnt/c is not mounted — interop broken. Check wsl.conf and restart the distro."
+  when: not mnt_c.stat.exists
+  tags: [platform, wsl]

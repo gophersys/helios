@@ -1,6 +1,0 @@
-apiVersion: v2
-name: cluster-autoscaler
-description: General-purpose node autoscaler for multi-cloud K3s clusters. Scales OCI and AWS nodes based on pod demand.
-version: 0.1.0
-appVersion: "1.0.0"
-type: application

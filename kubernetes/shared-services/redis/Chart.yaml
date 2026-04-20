@@ -1,6 +1,0 @@
-apiVersion: v2
-name: shared-redis
-description: Shared Redis 7 for caching and pub/sub
-type: application
-version: 0.1.0
-appVersion: "7"

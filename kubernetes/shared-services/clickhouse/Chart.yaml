@@ -1,6 +1,0 @@
-apiVersion: v2
-name: shared-clickhouse
-description: Shared ClickHouse for codectl telemetry and fintel OTEL data
-type: application
-version: 0.1.0
-appVersion: "24.8"

@@ -1,0 +1,30 @@
+# identity.yaml — wsl-developer-workstation
+#
+# A WSL2 distribution running inside a Windows host. Represented as its own
+# machine because it has its own filesystem, package manager, users, and
+# tailscale identity.
+
+name: __HOST_NAME__
+os: wsl-debian
+purpose: "TODO: short free-text (e.g. wsl distro for brain dev)"
+tailscale_hostname: __HOST_NAME__
+status: planned
+location: "TODO: <windows-host-name>/<distro>"
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-wsl
+  - platform-linux-debian
+  - networking-tailscale
+  - secrets-bitwarden-client
+
+# Reference back to the Windows host the distro lives inside. Must match a
+# windows-* machine entry.
+wsl_parent: "TODO: <windows-host-name>"
+
+# WSL-specific knobs consumed by the platform-wsl role.
+wsl:
+  distribution: "TODO: Debian|Ubuntu-24.04|..."
+  interop_enabled: true
+  systemd_enabled: true

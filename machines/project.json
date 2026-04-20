@@ -1,0 +1,48 @@
+{
+  "name": "machines",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "root": "machines",
+  "sourceRoot": "machines",
+  "projectType": "application",
+  "tags": ["scope:infrastructure", "type:meta", "layer:machines"],
+  "targets": {
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh status",
+        "cwd": "machines"
+      },
+      "cache": false
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "machines"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/project.json",
+        "{projectRoot}/**/*.sh",
+        "{projectRoot}/**/*.yml",
+        "{projectRoot}/**/*.yaml"
+      ]
+    },
+    "new-host": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh new-host",
+        "cwd": "machines"
+      },
+      "cache": false
+    },
+    "generate-index": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh generate-index",
+        "cwd": "machines"
+      },
+      "cache": false
+    }
+  }
+}

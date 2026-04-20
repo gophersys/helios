@@ -1,0 +1,36 @@
+# identity.yaml — linux-server-kubernetes
+#
+# Bare-metal or cloud Linux server running a Kubernetes node (k3s by default).
+# Applies the Debian platform role plus networking + secrets.
+#
+# Replace every "TODO:" with a real value before committing.
+
+name: __HOST_NAME__
+os: linux-debian
+purpose: "TODO: short free-text description (e.g. k3s server for brain dev cluster)"
+tailscale_hostname: __HOST_NAME__
+status: planned
+location: "TODO: physical/cloud location (e.g. oracle-frankfurt, home-office)"
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-debian
+  - networking-tailscale
+  - secrets-bitwarden-client
+# Optional capability roles:
+#   - developer-kubernetes-operator
+
+# Hardware / cloud shape. Free-form; consumed by ansible host_vars.
+hardware:
+  cpu_arch: "TODO: amd64|arm64"
+  cpu_cores: 0
+  memory_gb: 0
+  disk_gb: 0
+
+# Kubernetes-specific knobs. Consumed by the k3s-related roles when added.
+kubernetes:
+  role: "TODO: server|agent"
+  distribution: k3s
+  taints: []
+  labels: {}

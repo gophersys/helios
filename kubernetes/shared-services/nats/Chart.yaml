@@ -1,6 +1,0 @@
-apiVersion: v2
-name: shared-nats
-description: Shared NATS with JetStream for event streaming
-type: application
-version: 0.1.0
-appVersion: "2.10"

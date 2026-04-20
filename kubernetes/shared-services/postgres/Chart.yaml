@@ -1,6 +1,0 @@
-apiVersion: v2
-name: shared-postgres
-description: Shared PostgreSQL 16 for codectl and fintel
-type: application
-version: 0.1.0
-appVersion: "16"

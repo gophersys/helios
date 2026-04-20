@@ -2,53 +2,47 @@
 .DS_Store
 Thumbs.db
 
-# Editor
-.vscode/
+# Editors
 .idea/
+.vscode/
+*.swp
+*~
 
-# Node / Nx
-node_modules/
+# Nx (parent provides it)
 .nx/
-
-# Local overrides
-*.local
+node_modules/
+dist/
+tmp/
 
 # Terraform
-**/.terraform/
+.terraform/
 *.tfstate
-*.tfstate.backup
-.terraform.lock.hcl
-terraform.tfvars
-backend.tf
-backends/*.tf
-!backends/*.tf.example
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # Ansible
-**/inventory/terraform_inventory.json
-
-# SSH keys
-*.pem
-*.pub
-!*.pub.example
-
-# Kubeconfig
-**/kubeconfig*
-
-# OCI
-.oci/
+*.retry
+.ansible/
+fetched/
 
 # Secrets
+*.pem
+*.key
+!*.pub
 .env
-.devcontainer/.env
-.devcontainer/git-crypt.key
-.devcontainer/*.pem
-**/secrets.yaml
-!**/secrets.yaml.example
+.env.*
+!.env.example
 
-# Python
-__pycache__/
-*.egg-info/
-.venv/
+# Local scratch
+scratch/
+.cache/
 
-# Docker build
-tmp/
+# Logs
+*.log

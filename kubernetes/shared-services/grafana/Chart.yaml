@@ -1,6 +1,0 @@
-apiVersion: v2
-name: shared-grafana
-description: Grafana observability dashboard with ClickHouse backend — portable to any cluster
-version: 0.1.0
-appVersion: "11.4.0"
-type: application

@@ -1,0 +1,40 @@
+{
+  "name": "clusters",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "root": "clusters",
+  "sourceRoot": "clusters",
+  "projectType": "application",
+  "tags": ["scope:infrastructure", "type:meta", "layer:clusters"],
+  "targets": {
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh status",
+        "cwd": "clusters"
+      },
+      "cache": false
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "clusters"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/project.json",
+        "{projectRoot}/**/*.sh",
+        "{projectRoot}/**/*.yml",
+        "{projectRoot}/**/*.yaml"
+      ]
+    },
+    "new-cluster": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh new-cluster",
+        "cwd": "clusters"
+      },
+      "cache": false
+    }
+  }
+}
