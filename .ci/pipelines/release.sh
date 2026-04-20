@@ -19,6 +19,11 @@ bash "$DIR/stages/push.sh" production
 # Deploy to production
 bash "$DIR/stages/deploy.sh" production
 
+# Publish the corectl wheel to production's internal PyPI. Mirrors the
+# staging pipeline — keeps the two environments in sync so upgrade
+# behaviour is identical.
+bash "$DIR/stages/publish-corectl.sh" production
+
 # Verify production
 bash "$DIR/stages/smoke.sh" production
 

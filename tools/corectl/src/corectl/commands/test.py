@@ -21,8 +21,23 @@ from typing import List, Optional, Tuple
 import click
 import yaml
 
-from ..config import get_api_url, get_tls_verify, require_auth
-from ..api import ConcordAPI
+from ..config import get_service_account_key, save_config
+from ..api import AuthError, ConcordAPI
+
+
+def _client(ctx) -> ConcordAPI:
+    """Build an authenticated Concord API client for this command context."""
+    config = ctx.obj["config"]
+    try:
+        return ConcordAPI.from_config(
+            config,
+            save_callback=save_config,
+            service_account_key=get_service_account_key(config),
+        )
+    except AuthError as e:
+        import click as _click
+        _click.echo(str(e), err=True)
+        raise SystemExit(1)
 
 
 MANIFEST_NAME = "concord.yaml"
@@ -576,186 +591,441 @@ def test():
 
 
 @test.command()
-@click.option("--product", prompt="Product name", help="Product name (e.g., sigma5)")
-@click.option("--board", prompt="Board name", help="Board revision (e.g., sigma5_a0)")
+@click.option("--product", default=None, help="Product slug (skips the interactive picker)")
+@click.option("--board", default=None, help="Board revision (e.g., alpha_b0; skips the picker)")
 @click.option("--type", "pkg_type", type=click.Choice(["validation", "manufacturing"]),
               default="validation", help="Package type (default: validation)")
 @click.argument("path", default=".", required=False)
-def init(product: str, board: str, pkg_type: str, path: str):
-    """Scaffold a new test project (validation or manufacturing)."""
-    project_dir = Path(path)
+@click.pass_context
+def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path: str):
+    """Scaffold a new test project, gated by what the backend actually has.
+
+    The backend is the source of truth for products, board revisions, and
+    fixture controllers. ``init`` talks to it up front so the scaffolded
+    ``concord.yaml`` can never reference a product that doesn't exist or
+    a revision that has no attached fixtures to run against.
+    """
+    project_dir = Path(path).resolve()
     project_dir.mkdir(parents=True, exist_ok=True)
 
-    # Board class name: alpha_b0 -> AlphaB0
-    board_class = "".join(part.capitalize() for part in board.split("_"))
+    api = _client(ctx)
+    product_record = _select_product(api, product)
+    revision = _select_board_revision(api, product_record, board)
 
-    if pkg_type == "manufacturing":
-        _init_manufacturing(project_dir, product, board, board_class)
-    else:
-        _init_validation(project_dir, product, board, board_class)
+    board_slug = _revision_slug(product_record, revision)
+    board_class = "".join(p.capitalize() for p in board_slug.split("_"))
+
+    ctx_vars = {
+        "product": product_record["slug"],
+        "board": board_slug,
+        "board_class": board_class,
+        "fixture_controller": f"fixtures.{board_slug}.controller.{board_class}Fixture"
+                              if pkg_type == "validation"
+                              else f"fixtures.{board_slug}.controller.{board_class}MfgFixture",
+        "fixture_profile": f"fixtures/{board_slug}/fixture.yaml",
+        "device_type_id": revision.get("deviceType") if revision.get("deviceType") is not None else 0,
+        "device_variant_id": revision.get("deviceVariant") if revision.get("deviceVariant") is not None else 0,
+        "pkg_type": pkg_type,
+    }
+
+    _render_template_tree(pkg_type, project_dir, ctx_vars)
+    (project_dir / "fixtures" / board_slug).mkdir(parents=True, exist_ok=True)
+    (project_dir / "tests" / "__init__.py").touch()
+
+    click.echo("")
+    click.echo(f"  Created {pkg_type} project at {project_dir}")
+    click.echo(f"    product:  {product_record['slug']}")
+    click.echo(f"    board:    {board_slug}  (revision {revision['version']})")
+    click.echo("")
+    click.echo("  Next:")
+    click.echo(f"    cd {project_dir}")
+    click.echo(f"    # Create fixtures/{board_slug}/controller.py + fixture.yaml")
+    click.echo(f"    corectl validate")
+    click.echo(f"    corectl run")
+    click.echo("")
 
 
-def _init_validation(project_dir: Path, product: str, board: str, board_class: str):
-    """Scaffold a validation test project with v2 manifest."""
+# ─────────────────────────────────────────────────────────────────────────
+# Backend-aware product / board-revision selection
+# ─────────────────────────────────────────────────────────────────────────
 
-    # Create directory structure
-    (project_dir / "fixtures" / board).mkdir(parents=True, exist_ok=True)
-    (project_dir / "scripts").mkdir(exist_ok=True)
-    (project_dir / "deploy").mkdir(exist_ok=True)
-    (project_dir / "tests" / "common").mkdir(parents=True, exist_ok=True)
 
-    enabled_stages = ["smoke", "regression", "fuota"]
-    for stage in enabled_stages:
-        stage_dir = project_dir / "tests" / stage
-        stage_dir.mkdir(parents=True, exist_ok=True)
-        (stage_dir / "__init__.py").touch()
-        (stage_dir / "conftest.py").write_text(
-            f'"""Stage: {stage.title()} tests."""\n'
+def _select_product(api: ConcordAPI, slug: Optional[str]) -> dict:
+    """Fetch products from the backend and return the chosen one.
+
+    If ``slug`` is provided, fail fast when it doesn't exist — never
+    silently scaffold against a product the platform doesn't know about.
+    Otherwise present an interactive picker.
+    """
+    resp = api.get("/v2/products?limit=100")
+    if not resp.ok:
+        click.echo(f"Could not list products: HTTP {resp.status_code}", err=True)
+        raise SystemExit(1)
+    products = (resp.json().get("data") or {}).get("data") or []
+    if not products:
+        click.echo("No products registered in the backend. Create one in the web UI first.", err=True)
+        raise SystemExit(1)
+
+    if slug:
+        for p in products:
+            if p.get("slug") == slug:
+                return p
+        click.echo(f"Unknown product slug: {slug!r}", err=True)
+        click.echo("Available: " + ", ".join(sorted(p["slug"] for p in products if p.get("slug"))), err=True)
+        raise SystemExit(1)
+
+    click.echo("")
+    click.echo("  Products:")
+    for i, p in enumerate(products, 1):
+        extra = f"  ({p.get('revisions', []) and len(p['revisions'])} revisions)" if p.get("revisions") else ""
+        click.echo(f"    [{i}] {p['slug']:<16} {p.get('name', '')}{extra}")
+    click.echo("")
+    idx = click.prompt("Select product", type=click.IntRange(1, len(products)))
+    return products[idx - 1]
+
+
+def _select_board_revision(api: ConcordAPI, product: dict, board_arg: Optional[str]) -> dict:
+    """Pick a board revision. Revisions without configured targets are refused.
+
+    ``targets`` on a BoardRevision are what make it runnable — a
+    revision with zero targets has no fixtures wired up, so any test
+    project scaffolded against it would fail to run. Better to fail the
+    init up front.
+    """
+    resp = api.get(f"/v2/products/{product['id']}?include=boards.revisions")
+    if not resp.ok:
+        click.echo(f"Could not fetch product detail: HTTP {resp.status_code}", err=True)
+        raise SystemExit(1)
+    detail = resp.json().get("data") or {}
+
+    revisions: List[dict] = []
+    for board in detail.get("boards") or []:
+        board_name = board.get("name", "")
+        for rev in board.get("revisions") or []:
+            rev_copy = dict(rev)
+            rev_copy["_board_name"] = board_name
+            revisions.append(rev_copy)
+
+    usable = [r for r in revisions if (r.get("targetCount") or (r.get("targets") and len(r["targets"]))) and r.get("status") != "ARCHIVED"]
+    if not usable:
+        click.echo(
+            f"{product['slug']!r} has no active board revision with at least one "
+            "configured target/fixture. Ask an admin to wire one up first.",
+            err=True,
         )
+        raise SystemExit(1)
 
-    # Create v2 manifest as a formatted YAML string for readable output
-    manifest_text = (
-        f'schema: "2.0"\n'
-        f'\n'
-        f'package:\n'
-        f'  type: validation\n'
-        f'  version: "0.1.0"\n'
-        f'  framework: ">=0.3.0"\n'
-        f'\n'
-        f'product:\n'
-        f'  slug: {product}\n'
-        f'  board: {board}\n'
-        f'  device:\n'
-        f'    type_id: 0\n'
-        f'    variant_id: 0\n'
-        f'\n'
-        f'fixture:\n'
-        f'  controller: fixtures.{board}.controller.{board_class}Fixture\n'
-        f'  profile: fixtures/{board}/fixture.yaml\n'
-        f'\n'
-        f'stages:\n'
-        f'  smoke:\n'
-        f'    directory: tests/smoke\n'
-        f'    timeout_s: 120\n'
-        f'    hardware: [power]\n'
-        f'  regression:\n'
-        f'    directory: tests/regression\n'
-        f'    timeout_s: 600\n'
-        f'    hardware: [power]\n'
-        f'  fuota:\n'
-        f'    directory: tests/fuota\n'
-        f'    timeout_s: 1800\n'
-        f'    hardware: [power]\n'
+    if board_arg:
+        for r in usable:
+            if _revision_slug(product, r) == board_arg or r["version"] == board_arg:
+                return r
+        click.echo(f"No usable revision matches {board_arg!r}", err=True)
+        click.echo(
+            "Available: " + ", ".join(_revision_slug(product, r) for r in usable),
+            err=True,
+        )
+        raise SystemExit(1)
+
+    if len(usable) == 1:
+        return usable[0]
+
+    click.echo("")
+    click.echo(f"  Board revisions for {product['slug']}:")
+    for i, r in enumerate(usable, 1):
+        slug_ = _revision_slug(product, r)
+        click.echo(f"    [{i}] {slug_:<16} (status: {r.get('status', '?')}, targets: {r.get('targetCount', '?')})")
+    click.echo("")
+    idx = click.prompt("Select board revision", type=click.IntRange(1, len(usable)))
+    return usable[idx - 1]
+
+
+def _revision_slug(product: dict, revision: dict) -> str:
+    """The slug the tests use: ``<product>_<version>`` (e.g. ``alpha_b0``).
+
+    Prefer ``ckBoardsName`` when set (it's the authoritative name from
+    the ck_boards repo); fall back to ``<product>_<version>`` so a
+    newly-created product without ckBoards wiring still gets a sensible
+    directory name.
+    """
+    ck = (revision.get("ckBoardsName") or "").strip()
+    if ck:
+        return ck
+    return f"{product['slug']}_{revision['version']}"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Template tree rendering
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _render_template_tree(pkg_type: str, dest: Path, ctx_vars: dict) -> None:
+    """Copy a template tree into ``dest``, substituting ``{{var}}`` tokens.
+
+    Reads templates out of the installed wheel via importlib.resources,
+    so this works whether corectl is installed via pipx (normal path) or
+    run from a source checkout (editable install).
+    """
+    from importlib import resources
+
+    # _shared goes down first so pkg-type templates can override if needed.
+    _render_pkg(resources.files("corectl") / "templates" / "_shared", dest, ctx_vars)
+    _render_pkg(resources.files("corectl") / "templates" / pkg_type, dest, ctx_vars)
+
+
+def _render_pkg(src_root, dest: Path, ctx_vars: dict) -> None:
+    """Recursively copy ``src_root`` (a Traversable) into ``dest``.
+
+    Rename/skip rules:
+      * Directories starting with ``_`` are assumed to be private and
+        skipped (``_shared`` is consumed at the top level).
+      * ``__init__.py`` files are copied as-is (Python needs them).
+      * Other files pass through ``_substitute``.
+    """
+    if not src_root.is_dir():
+        return
+    for entry in src_root.iterdir():
+        rel = entry.name
+        target = dest / rel
+        if entry.is_dir():
+            # _foo dirs under the top level are internal scaffolding.
+            if rel.startswith("_") and src_root.name in ("validation", "manufacturing"):
+                continue
+            target.mkdir(parents=True, exist_ok=True)
+            _render_pkg(entry, target, ctx_vars)
+            continue
+        raw = entry.read_text(encoding="utf-8")
+        target.write_text(_substitute(raw, ctx_vars), encoding="utf-8")
+
+
+def _substitute(raw: str, ctx_vars: dict) -> str:
+    """Replace ``{{var}}`` tokens. Unknown tokens are left untouched so
+    a typo is visible in the generated file instead of silently dropped.
+    """
+    out = raw
+    for key, value in ctx_vars.items():
+        out = out.replace("{{" + key + "}}", str(value))
+    return out
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# corectl test sync — remote → local manifest reconciliation
+# ═════════════════════════════════════════════════════════════════════════
+
+
+@test.command()
+@click.argument("path", default=".", required=False)
+@click.option("--apply", "auto_apply", is_flag=True, help="Apply changes without confirmation.")
+@click.pass_context
+def sync(ctx, path: str, auto_apply: bool):
+    """Pull the authoritative product / board / fixture info from the
+    backend and reconcile the local ``concord.yaml`` with it.
+
+    Sync is **one-way**: backend → local. Test logic in ``tests/`` and
+    your fixture YAML are never touched. Only the manifest fields the
+    platform owns (product slug, board, fixture controller class path)
+    get rewritten.
+    """
+    project_dir = Path(path).resolve()
+    manifest_path = project_dir / MANIFEST_NAME
+    if not manifest_path.exists():
+        click.echo(f"No {MANIFEST_NAME} in {project_dir}", err=True)
+        raise SystemExit(1)
+
+    local = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    slug = (local.get("product") or {}).get("slug")
+    if not slug:
+        click.echo("Manifest has no product.slug — nothing to sync against.", err=True)
+        raise SystemExit(1)
+
+    api = _client(ctx)
+    remote_product, remote_revision = _fetch_product_and_revision(api, slug, local)
+
+    diff = _diff_manifest(local, remote_product, remote_revision)
+    if not diff:
+        click.echo(f"{manifest_path.name} is already in sync with the backend.")
+        return
+
+    click.echo("")
+    click.echo("  Drift detected — these fields will be updated:")
+    for path_, before, after in diff:
+        click.echo(f"    {path_}: {before!r}  →  {after!r}")
+    click.echo("")
+
+    if not auto_apply:
+        if not click.confirm("  Apply changes?", default=True):
+            click.echo("  Aborted.", err=True)
+            raise SystemExit(1)
+
+    _apply_manifest_diff(local, diff)
+    manifest_path.write_text(yaml.safe_dump(local, sort_keys=False), encoding="utf-8")
+    click.echo(f"  Wrote {manifest_path}")
+
+
+def _fetch_product_and_revision(api: ConcordAPI, slug: str, local: dict) -> Tuple[dict, dict]:
+    """Pull the product + the revision whose slug matches ``board`` locally.
+
+    Returns (product_dict, revision_dict). Exits if either isn't found —
+    the user should run ``corectl test init`` to scaffold against a new
+    board instead of silently mutating a manifest.
+    """
+    resp = api.get(f"/v2/products/by-slug/{slug}")
+    if not resp.ok:
+        click.echo(f"Backend does not know product {slug!r} (HTTP {resp.status_code}).", err=True)
+        raise SystemExit(1)
+    product = resp.json().get("data") or {}
+
+    local_board = (local.get("product") or {}).get("board", "")
+    resp = api.get(f"/v2/products/{product['id']}?include=boards.revisions")
+    if not resp.ok:
+        click.echo(f"Could not fetch product detail: HTTP {resp.status_code}", err=True)
+        raise SystemExit(1)
+    detail = resp.json().get("data") or {}
+
+    for board in detail.get("boards") or []:
+        for rev in board.get("revisions") or []:
+            if _revision_slug(product, rev) == local_board or rev.get("version") == local_board:
+                return detail, rev
+
+    click.echo(
+        f"No board revision on {slug!r} matches local board {local_board!r}. "
+        "Run `corectl test init` to scaffold against a new revision, or fix "
+        "product.board in concord.yaml.",
+        err=True,
     )
-    (project_dir / MANIFEST_NAME).write_text(manifest_text)
+    raise SystemExit(1)
 
-    # Create basic files
-    (project_dir / "tests" / "__init__.py").touch()
-    (project_dir / "tests" / "common" / "__init__.py").touch()
 
-    (project_dir / "pytest.ini").write_text(
-        f"[pytest]\ntestpaths = tests\npython_files = test_*.py\n\n"
-        f"markers =\n"
-        f"    health_check: fast post-FUOTA verification tests\n"
-        f"    fuota_fast: fast FUOTA gate test\n"
-        f"    fuota_full: comprehensive FUOTA tests\n"
-        f"    corecloud: requires CoreCloud connectivity\n"
-        f"    gnss: requires GPS signal\n"
+def _diff_manifest(local: dict, product: dict, revision: dict) -> List[Tuple[str, object, object]]:
+    """Build a list of ``(dotted_path, before, after)`` tuples.
+
+    We only compare fields the backend authoritatively owns — anything
+    else (stage directories, timeouts, hardware arrays, test packages)
+    is the test author's call and sync must leave it alone.
+    """
+    authoritative = _authoritative_fields(local, product, revision)
+    drift: List[Tuple[str, object, object]] = []
+    for dotted, desired in authoritative:
+        current = _deep_get(local, dotted.split("."))
+        if current != desired:
+            drift.append((dotted, current, desired))
+    return drift
+
+
+def _authoritative_fields(local: dict, product: dict, revision: dict) -> List[Tuple[str, object]]:
+    """The manifest paths + desired values that belong to the backend.
+
+    Kept as an explicit allowlist so new fields don't silently sneak
+    into the sync scope — every entry here is a deliberate policy call.
+    """
+    board_slug = _revision_slug(product, revision)
+
+    # The fixture controller class path we KNOW is correct for this
+    # board — but only rewrite it if the author hasn't custom-named it
+    # (same root prefix). Never clobber a bespoke controller path.
+    fx = (local.get("fixture") or {})
+    controller = fx.get("controller", "")
+    expected_controller_prefix = f"fixtures.{board_slug}.controller."
+    desired_controller = controller
+    if not controller or not controller.startswith(f"fixtures."):
+        # Fresh manifest — fill in a reasonable default.
+        pkg_type = (local.get("package") or {}).get("type", "validation")
+        suffix = "MfgFixture" if pkg_type == "manufacturing" else "Fixture"
+        board_class = "".join(p.capitalize() for p in board_slug.split("_"))
+        desired_controller = expected_controller_prefix + f"{board_class}{suffix}"
+    elif not controller.startswith(expected_controller_prefix):
+        # Board changed under us; move the class name across but keep
+        # the last segment (the author's class name) intact.
+        last = controller.rsplit(".", 1)[-1]
+        desired_controller = expected_controller_prefix + last
+
+    desired_profile = f"fixtures/{board_slug}/fixture.yaml"
+
+    return [
+        ("product.slug", product["slug"]),
+        ("product.board", board_slug),
+        ("product.device.type_id", revision.get("deviceType") if revision.get("deviceType") is not None else (local.get("product", {}).get("device", {}) or {}).get("type_id", 0)),
+        ("product.device.variant_id", revision.get("deviceVariant") if revision.get("deviceVariant") is not None else (local.get("product", {}).get("device", {}) or {}).get("variant_id", 0)),
+        ("fixture.controller", desired_controller),
+        ("fixture.profile", desired_profile),
+    ]
+
+
+def _deep_get(d: dict, parts: List[str]):
+    cur = d
+    for p in parts:
+        if not isinstance(cur, dict) or p not in cur:
+            return None
+        cur = cur[p]
+    return cur
+
+
+def _deep_set(d: dict, parts: List[str], value) -> None:
+    cur = d
+    for p in parts[:-1]:
+        nxt = cur.get(p)
+        if not isinstance(nxt, dict):
+            nxt = {}
+            cur[p] = nxt
+        cur = nxt
+    cur[parts[-1]] = value
+
+
+def _apply_manifest_diff(local: dict, diff: List[Tuple[str, object, object]]) -> None:
+    for dotted, _before, after in diff:
+        _deep_set(local, dotted.split("."), after)
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Drift warning — non-fatal, surfaced by validate / run / upload
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def _warn_if_drifted(ctx, project_dir: Path) -> None:
+    """Surface a one-liner if the local manifest has drifted from the backend.
+
+    Never fails the command — the operator may be intentionally running
+    against a stale manifest (e.g. reproducing a bug). We just make the
+    drift impossible to miss.
+    """
+    manifest_path = project_dir / MANIFEST_NAME
+    if not manifest_path.exists():
+        return
+    local = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    slug = (local.get("product") or {}).get("slug")
+    if not slug:
+        return
+
+    try:
+        api = _client(ctx)
+    except SystemExit:
+        # Not authed — skip silently. ``corectl auth login`` will surface it elsewhere.
+        return
+
+    try:
+        product, revision = _fetch_product_and_revision(api, slug, local)
+    except SystemExit:
+        return  # Backend disagreement is louder surfaced via explicit `sync`.
+
+    diff = _diff_manifest(local, product, revision)
+    if not diff:
+        return
+    summary = "; ".join(f"{p}: {b!r}→{a!r}" for p, b, a in diff[:3])
+    extra = f" (+{len(diff) - 3} more)" if len(diff) > 3 else ""
+    click.echo(
+        click.style(
+            f"  ⚠ manifest drifted from backend ({summary}{extra}). "
+            f"Run 'corectl test sync' to update.",
+            fg="yellow",
+        ),
+        err=True,
     )
-
-    (project_dir / "pyproject.toml").write_text(
-        f'[project]\nname = "concord-validation-{product}"\n'
-        f'version = "0.1.0"\n'
-        f'dependencies = ["corekinect>=0.3.0"]\n'
-    )
-
-    (project_dir / "conftest.py").write_text(
-        'pytest_plugins = ["corekinect.test.autoconf"]\n'
-    )
-
-    click.echo(f"Created {product} validation project:")
-    click.echo(f"  {MANIFEST_NAME}")
-    click.echo(f"  tests/ with {len(enabled_stages)} stages: {', '.join(enabled_stages)}")
-    click.echo()
-    click.echo("Next steps:")
-    click.echo(f"  1. Set device type_id and variant_id in {MANIFEST_NAME}")
-    click.echo(f"  2. Create fixtures/{board}/fixture.yaml")
-    click.echo(f"  3. Write tests in tests/smoke/")
-    click.echo(f"  4. corectl test validate")
-
-
-def _init_manufacturing(project_dir: Path, product: str, board: str, board_class: str):
-    """Scaffold a manufacturing test project with v2 manifest."""
-
-    # Create directory structure
-    (project_dir / "fixtures" / board).mkdir(parents=True, exist_ok=True)
-    (project_dir / "scripts").mkdir(exist_ok=True)
-    (project_dir / "deploy").mkdir(exist_ok=True)
-    (project_dir / "tests" / "manufacturing").mkdir(parents=True, exist_ok=True)
-    (project_dir / "tests" / "manufacturing" / "__init__.py").touch()
-
-    # Create v2 manufacturing manifest
-    manifest_text = (
-        f'schema: "2.0"\n'
-        f'\n'
-        f'package:\n'
-        f'  type: manufacturing\n'
-        f'  version: "0.1.0"\n'
-        f'  framework: ">=0.3.0"\n'
-        f'\n'
-        f'product:\n'
-        f'  slug: {product}\n'
-        f'  board: {board}\n'
-        f'\n'
-        f'fixture:\n'
-        f'  controller: fixtures.{board}.controller.{board_class}MfgFixture\n'
-        f'  profile: fixtures/{board}/fixture.yaml\n'
-        f'  multi_slot: true\n'
-        f'\n'
-        f'steps:\n'
-        f'  - name: Electrical\n'
-        f'    module: tests.manufacturing.test_electrical\n'
-        f'    timeout_s: 30\n'
-        f'  - name: Flash Firmware\n'
-        f'    module: tests.manufacturing.test_flash\n'
-        f'    timeout_s: 120\n'
-        f'  - name: POST\n'
-        f'    module: tests.manufacturing.test_post\n'
-        f'    timeout_s: 300\n'
-    )
-    (project_dir / MANIFEST_NAME).write_text(manifest_text)
-
-    # Create basic files
-    (project_dir / "tests" / "__init__.py").touch()
-
-    (project_dir / "pytest.ini").write_text(
-        f"[pytest]\ntestpaths = tests\npython_files = test_*.py\n"
-    )
-
-    (project_dir / "pyproject.toml").write_text(
-        f'[project]\nname = "concord-manufacturing-{product}"\n'
-        f'version = "0.1.0"\n'
-        f'dependencies = ["corekinect>=0.3.0"]\n'
-    )
-
-    (project_dir / "conftest.py").write_text(
-        'pytest_plugins = ["corekinect.test.autoconf"]\n'
-    )
-
-    click.echo(f"Created {product} manufacturing project:")
-    click.echo(f"  {MANIFEST_NAME}")
-    click.echo(f"  3 steps: Electrical, Flash Firmware, POST")
-    click.echo()
-    click.echo("Next steps:")
-    click.echo(f"  1. Create fixtures/{board}/fixture.yaml")
-    click.echo(f"  2. Write tests in tests/manufacturing/")
-    click.echo(f"  3. corectl test validate")
 
 
 @test.command()
 @click.argument("path", default=".", required=False)
 @click.option("--strict", is_flag=True, help="Treat warnings as errors")
-def validate(path: str, strict: bool):
+@click.pass_context
+def validate(ctx, path: str, strict: bool):
     """Validate a test project — structure, semantics, and compatibility.
 
     Three validation levels:
@@ -798,6 +1068,11 @@ def validate(path: str, strict: bool):
         click.echo("Compatibility:")
         _validate_compatibility(project_dir, manifest, is_v2, result)
 
+    # Non-fatal drift check against the backend. Only runs for v2
+    # manifests — v1 has no product.slug contract to sync against.
+    if is_v2:
+        _warn_if_drifted(ctx, project_dir)
+
     # Report
     click.echo()
     for msg in result.info:
@@ -827,7 +1102,8 @@ def validate(path: str, strict: bool):
 @click.option("--timeout", "-t", default=30, type=int, help="Per-test timeout")
 @click.argument("path", default=".", required=False)
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
-def run(stage: str, marker: Optional[str], timeout: int, path: str, verbose: bool):
+@click.pass_context
+def run(ctx, stage: str, marker: Optional[str], timeout: int, path: str, verbose: bool):
     """Run tests for a specific stage.
 
     Examples:
@@ -841,6 +1117,10 @@ def run(stage: str, marker: Optional[str], timeout: int, path: str, verbose: boo
     if not stage_dir.is_dir():
         click.echo(f"Stage not found: tests/{stage}/", err=True)
         raise SystemExit(1)
+
+    # Surface drift before we burn time spinning up fixtures against a
+    # stale manifest. Non-fatal — the operator can still proceed.
+    _warn_if_drifted(ctx, project_dir)
 
     cmd = [sys.executable, "-m", "pytest", f"tests/{stage}/", f"--timeout={timeout}"]
     if verbose:
@@ -924,9 +1204,7 @@ def upload(ctx, path: str, auto_release: bool):
     import tarfile
     import hashlib
 
-    config = ctx.obj["config"]
-    token = require_auth(config)
-    api_url = get_api_url(config)
+    api = _client(ctx)
 
     project_dir = Path(path).resolve()
     manifest_path, is_v2 = _find_manifest_path(project_dir)
@@ -937,6 +1215,12 @@ def upload(ctx, path: str, auto_release: bool):
     manifest = _load_manifest_yaml(manifest_path)
 
     slug = _get_slug(manifest, is_v2)
+
+    # Surface backend drift BEFORE packaging + uploading — an upload is
+    # the costliest pre-run action (network, tarball, server parse), so
+    # it's the spot where a drift warning is most useful.
+    if is_v2:
+        _warn_if_drifted(ctx, project_dir)
 
     # ── Pre-upload validation ──
     click.echo("Pre-upload validation...")
@@ -1029,10 +1313,6 @@ def upload(ctx, path: str, auto_release: bool):
     manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
 
     # Upload to Concord API
-    import requests
-
-    api = ConcordAPI(api_url, token, tls_verify=get_tls_verify(ctx.obj["config"]))
-
     import json as json_mod
 
     # Build stages info for the upload payload
@@ -1059,12 +1339,10 @@ def upload(ctx, path: str, auto_release: bool):
     if is_v2:
         upload_manifest["schemaVersion"] = manifest.get("schema", "2.0")
 
-    resp = requests.post(
-        f"{api_url}/v2/products/{slug}/test-packages",
-        headers={"Authorization": f"ApiKey {token}"},
+    resp = api.post(
+        f"/v2/products/{slug}/test-packages",
         files={"package": (f"{slug}-{version}.tar.gz", package_bytes, "application/gzip")},
         data={"manifest": json_mod.dumps(upload_manifest)},
-        verify=False,  # Self-signed certs in staging
     )
 
     if resp.status_code in (200, 201):
@@ -1078,10 +1356,8 @@ def upload(ctx, path: str, auto_release: bool):
 
         # Auto-release if --release flag was passed
         if auto_release and package_id != "unknown":
-            release_resp = requests.post(
-                f"{api_url}/v2/products/{slug}/test-packages/{package_id}/release",
-                headers={"Authorization": f"ApiKey {token}"},
-                verify=False,
+            release_resp = api.post(
+                f"/v2/products/{slug}/test-packages/{package_id}/release",
             )
             if release_resp.status_code in (200, 201):
                 rel_data = release_resp.json().get("data", {})
@@ -1121,12 +1397,7 @@ def release(ctx, package_id, dev_version, pkg_type, project_path):
       corectl test release <package-id>
       corectl test release --version dev-abc12345
     """
-    import requests
-
-    config = ctx.obj["config"]
-    token = require_auth(config)
-    api_url = get_api_url(config)
-    api = ConcordAPI(api_url, token, tls_verify=get_tls_verify(config))
+    api = _client(ctx)
 
     # Resolve product slug from manifest
     manifest_dir = Path(project_path) if project_path else Path(".")
@@ -1183,10 +1454,8 @@ def release(ctx, package_id, dev_version, pkg_type, project_path):
         package_id = dev_packages[choice - 1]["id"]
 
     # Promote the package
-    resp = requests.post(
-        f"{api_url}/v2/products/{slug}/test-packages/{package_id}/release",
-        headers={"Authorization": f"ApiKey {token}"},
-        verify=False,
+    resp = api.post(
+        f"/v2/products/{slug}/test-packages/{package_id}/release",
     )
 
     if resp.status_code in (200, 201):
@@ -1216,9 +1485,7 @@ def release(ctx, package_id, dev_version, pkg_type, project_path):
 @click.pass_context
 def versions(ctx, path: str):
     """List published test package versions for this product."""
-    config = ctx.obj["config"]
-    token = require_auth(config)
-    api_url = get_api_url(config)
+    api = _client(ctx)
 
     project_dir = Path(path).resolve()
     manifest_path, is_v2 = _find_manifest_path(project_dir)
@@ -1229,7 +1496,6 @@ def versions(ctx, path: str):
     manifest = _load_manifest_yaml(manifest_path)
     slug = _get_slug(manifest, is_v2)
 
-    api = ConcordAPI(api_url, token, tls_verify=get_tls_verify(ctx.obj["config"]))
     resp = api.get(f"/v2/products/{slug}/test-packages")
 
     if not resp.ok:

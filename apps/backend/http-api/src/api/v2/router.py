@@ -10,6 +10,14 @@ from .auth.api_keys import create_api_key, delete_api_key, list_api_keys
 from .auth.dev_login import dev_login, dev_users
 from .auth.login import login
 from .auth.me import me
+from .auth.session import (
+    approve_session,
+    poll_session,
+    refresh_session,
+    request_session_code,
+    revoke_session,
+    verify_session_code,
+)
 from .auth.permission_sets import (
     create_permission_set,
     delete_permission_set,
@@ -341,6 +349,14 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Dev-only auth (no-password login, only works when AUTH_ENABLED=false)
     v2.add_url_rule("/auth/dev-users",       view_func=dev_users,      methods=["GET"])
     v2.add_url_rule("/auth/dev-login",       view_func=dev_login,      methods=["POST"])
+
+    # CLI sessions — RFC 8628 device-code flow for corectl
+    v2.add_url_rule("/auth/session/code",     view_func=request_session_code, methods=["POST"])
+    v2.add_url_rule("/auth/session/poll",     view_func=poll_session,         methods=["POST"])
+    v2.add_url_rule("/auth/session/verify",   view_func=verify_session_code,  methods=["GET"])
+    v2.add_url_rule("/auth/session/approve",  view_func=approve_session,      methods=["POST"])
+    v2.add_url_rule("/auth/session/refresh",  view_func=refresh_session,      methods=["POST"])
+    v2.add_url_rule("/auth/session/revoke",   view_func=revoke_session,       methods=["POST"])
 
     # Users (was /auth/users)
     v2.add_url_rule("/users",           view_func=users_list,     methods=["GET"])

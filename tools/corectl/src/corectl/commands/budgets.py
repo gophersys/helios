@@ -41,8 +41,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import click
 
-from ..api import ConcordAPI
-from ..config import get_api_url, require_auth
+from ..api import AuthError, ConcordAPI
+from ..config import get_service_account_key, save_config
 from .runs import _unwrap  # same envelope peeler used by `corectl runs`
 
 
@@ -97,8 +97,15 @@ def _strip_slot_suffix(test_name: str) -> str:
 
 def _client(ctx: click.Context) -> ConcordAPI:
     config = ctx.obj["config"]
-    token = require_auth(config)
-    return ConcordAPI(get_api_url(config), token)
+    try:
+        return ConcordAPI.from_config(
+            config,
+            save_callback=save_config,
+            service_account_key=get_service_account_key(config),
+        )
+    except AuthError as e:
+        click.echo(str(e), err=True)
+        raise SystemExit(1)
 
 
 def _fetch_product_runs(

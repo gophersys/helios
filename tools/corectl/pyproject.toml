@@ -22,3 +22,10 @@ corectl = "corectl.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/corectl"]
+
+# Template files (concord.yaml, test stubs, pyproject.toml, .gitignore)
+# must ship inside the wheel — `corectl test init` reads them via
+# ``importlib.resources``. Hatch excludes anything not matching
+# ``*.py`` by default; override to include the whole templates tree.
+[tool.hatch.build.targets.wheel.force-include]
+"src/corectl/templates" = "corectl/templates"

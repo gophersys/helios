@@ -50,6 +50,7 @@ main.add_command(test.versions, "versions")
 main.add_command(test.package, "package")
 main.add_command(test.init, "init")
 main.add_command(test.release, "release")
+main.add_command(test.sync, "sync")
 
 
 if __name__ == "__main__":

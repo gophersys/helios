@@ -1,0 +1,1 @@
+../../../../tools/corectl/install.sh

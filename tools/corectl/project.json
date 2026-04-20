@@ -60,6 +60,28 @@
         "cwd": "tools/corectl",
         "command": "pip install -e ."
       }
+    },
+    "publish-wheel": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "staging",
+      "options": { "cwd": "tools/corectl" },
+      "configurations": {
+        "staging": {
+          "commands": [
+            "pip install --quiet --upgrade twine",
+            "kubectl port-forward -n staging svc/concord-pypi 18080:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar --skip-existing dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
+          ],
+          "parallel": false
+        },
+        "production": {
+          "commands": [
+            "pip install --quiet --upgrade twine",
+            "kubectl port-forward -n production svc/concord-pypi 18081:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar --skip-existing dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
+          ],
+          "parallel": false
+        }
+      }
     }
   }
 }

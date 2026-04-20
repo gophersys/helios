@@ -43,6 +43,15 @@ ARG BUILD_HOST=unknown
 # Copy built static files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Serve the corectl installer at /install.sh so users can bootstrap with
+#   curl -sSL https://concord.ad.corekinect.com/install.sh | bash
+# The canonical source is tools/corectl/install.sh. A symlink in
+# apps/frontend/app/static/install.sh makes `nx serve` serve the same
+# file in dev; the symlink target sits outside the SvelteKit build root,
+# which is why we copy the file explicitly here instead of relying on
+# SvelteKit to include it in the static build output.
+COPY tools/corectl/install.sh /usr/share/nginx/html/install.sh
+
 # Write build metadata as a static JSON file served at /build-info.json
 RUN printf '{"service":"concord-frontend","version":"%s","environment":"%s","git_commit":"%s","git_branch":"%s","git_dirty":"%s","build_time":"%s","build_host":"%s"}' \
   "${PUBLIC_APP_VERSION}" "${PUBLIC_APP_ENVIRONMENT}" "${GIT_COMMIT}" "${GIT_BRANCH}" "${GIT_DIRTY}" "${BUILD_TIME}" "${BUILD_HOST}" \

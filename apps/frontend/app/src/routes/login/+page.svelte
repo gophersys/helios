@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { getToken } from '$lib/api';
   import ConcordLogo from '$lib/components/concord-logo.svelte';
@@ -8,6 +9,25 @@
   import { PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
 
   const auth = getAuth();
+
+  /**
+   * Post-login destination. We honour ``?next=<path>`` so flows like the
+   * CLI session approval can deep-link through login. The path is decoded,
+   * and only same-origin paths are accepted — never absolute URLs (open
+   * redirect protection).
+   */
+  function nextDestination(): string {
+    const raw = $page.url.searchParams.get('next');
+    if (!raw) return '/';
+    try {
+      const decoded = decodeURIComponent(raw);
+      // Reject anything that doesn't look like a same-origin path.
+      if (!decoded.startsWith('/') || decoded.startsWith('//')) return '/';
+      return decoded;
+    } catch {
+      return '/';
+    }
+  }
 
   // Environment display — staging gets a badge, production gets nothing
   const appEnv = PUBLIC_APP_ENVIRONMENT || 'development';
@@ -44,7 +64,7 @@
   // Redirect if already authenticated (check token directly to avoid timing issues)
   $effect(() => {
     if (auth.isAuthenticated && getToken()) {
-      goto('/');
+      goto(nextDestination());
     }
   });
 
@@ -317,7 +337,7 @@
 
     try {
       await auth.devLogin(userEmail);
-      goto('/');
+      goto(nextDestination());
     } catch (err) {
       error = err instanceof Error ? err.message : 'Dev login failed';
     } finally {
@@ -334,7 +354,7 @@
 
     try {
       await auth.login(email.trim(), password);
-      goto('/');
+      goto(nextDestination());
     } catch (err) {
       error = err instanceof Error ? err.message : 'Login failed';
     } finally {

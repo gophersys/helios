@@ -31,8 +31,8 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-from ..api import ConcordAPI
-from ..config import get_api_url, require_auth
+from ..api import AuthError, ConcordAPI
+from ..config import get_service_account_key, save_config
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -42,8 +42,15 @@ from ..config import get_api_url, require_auth
 
 def _client(ctx: click.Context) -> ConcordAPI:
     config = ctx.obj["config"]
-    token = require_auth(config)
-    return ConcordAPI(get_api_url(config), token)
+    try:
+        return ConcordAPI.from_config(
+            config,
+            save_callback=save_config,
+            service_account_key=get_service_account_key(config),
+        )
+    except AuthError as e:
+        click.echo(str(e), err=True)
+        raise SystemExit(1)
 
 
 _ENVELOPE_KEYS = {"data", "errors", "pagination", "meta"}

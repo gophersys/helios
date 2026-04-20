@@ -1,0 +1,23 @@
+schema: "2.0"
+
+package:
+  type: manufacturing
+  version: "0.1.0"
+  framework: ">=0.3.0"
+
+product:
+  slug: {{product}}
+  board: {{board}}
+
+fixture:
+  controller: {{fixture_controller}}
+  profile: {{fixture_profile}}
+  multi_slot: true
+
+# Manufacturing stages run in order. Rename ``stage_01`` to the operation
+# it represents (``electrical``, ``fw_flash``, ``post``, …) and add more
+# entries as your line grows.
+steps:
+  - name: stage_01
+    module: tests.stage_01
+    timeout_s: 120

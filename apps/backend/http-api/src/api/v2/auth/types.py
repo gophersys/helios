@@ -361,6 +361,70 @@ class ApiKeyCreateRequest:
         return cls(name=name, expiresAt=expires_at), None
 
 
+@dataclass
+class SessionPollRequest:
+    """Body for POST /v2/auth/session/poll — CLI polling for approval."""
+
+    device_code: str
+
+    @classmethod
+    def from_json(cls, data: dict) -> Tuple[Optional["SessionPollRequest"], Optional[str]]:
+        if not data:
+            return None, "Request body must contain JSON data"
+        device_code = (data.get("device_code") or "").strip()
+        if not device_code:
+            return None, "device_code is required"
+        return cls(device_code=device_code), None
+
+
+@dataclass
+class SessionApproveRequest:
+    """Body for POST /v2/auth/session/approve — frontend approves a pending session."""
+
+    user_code: str
+
+    @classmethod
+    def from_json(cls, data: dict) -> Tuple[Optional["SessionApproveRequest"], Optional[str]]:
+        if not data:
+            return None, "Request body must contain JSON data"
+        user_code = (data.get("user_code") or "").strip().upper()
+        if not user_code:
+            return None, "user_code is required"
+        return cls(user_code=user_code), None
+
+
+@dataclass
+class SessionRefreshRequest:
+    """Body for POST /v2/auth/session/refresh — CLI rotates an access token."""
+
+    refresh_token: str
+
+    @classmethod
+    def from_json(cls, data: dict) -> Tuple[Optional["SessionRefreshRequest"], Optional[str]]:
+        if not data:
+            return None, "Request body must contain JSON data"
+        refresh_token = (data.get("refresh_token") or "").strip()
+        if not refresh_token:
+            return None, "refresh_token is required"
+        return cls(refresh_token=refresh_token), None
+
+
+@dataclass
+class SessionRevokeRequest:
+    """Body for POST /v2/auth/session/revoke — kill a refresh-token chain."""
+
+    refresh_token: str
+
+    @classmethod
+    def from_json(cls, data: dict) -> Tuple[Optional["SessionRevokeRequest"], Optional[str]]:
+        if not data:
+            return None, "Request body must contain JSON data"
+        refresh_token = (data.get("refresh_token") or "").strip()
+        if not refresh_token:
+            return None, "refresh_token is required"
+        return cls(refresh_token=refresh_token), None
+
+
 VALID_ACCESS_LEVELS = {"admin", "develop", "operate", "view"}
 
 
