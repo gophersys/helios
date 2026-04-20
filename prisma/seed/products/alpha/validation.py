@@ -8,6 +8,8 @@ import os
 
 from database import Json
 
+from seed.helpers import upsert_by_non_unique
+
 
 # ── Fixture profile template ─────────────────────────────────
 # This JSON is passed to the test runner and interpreted by
@@ -68,21 +70,21 @@ def seed_validation(db, product, b0_rev):
     print("\n=== Alpha: Validation ===")
 
     # ── Fixture design ──
-    design = db.fixturedesign.upsert(
+    # FixtureDesign.name isn't @unique — see helpers.upsert_by_non_unique.
+    design = upsert_by_non_unique(
+        db.fixturedesign,
         where={"name": "alpha-val-fixture-v1.2"},
-        data={
-            "create": {
-                "name": "alpha-val-fixture-v1.2",
-                "boardRevisionId": b0_rev.id,
-                "revision": "1.2",
-                "capabilities": ["power", "button", "peltier", "charger_relay"],
-                "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
-                "notes": "REV 1.2 MTIB carrier for Alpha B0 validation. Single-DUT bench.",
-            },
-            "update": {
-                "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
-                "capabilities": ["power", "button", "peltier", "charger_relay"],
-            },
+        create={
+            "name": "alpha-val-fixture-v1.2",
+            "boardRevisionId": b0_rev.id,
+            "revision": "1.2",
+            "capabilities": ["power", "button", "peltier", "charger_relay"],
+            "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
+            "notes": "REV 1.2 MTIB carrier for Alpha B0 validation. Single-DUT bench.",
+        },
+        update={
+            "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
+            "capabilities": ["power", "button", "peltier", "charger_relay"],
         },
     )
     print(f"  ✓ Design: {design.name}")

@@ -143,7 +143,11 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: minio/mc:RELEASE.2024-11-07T00-31-49Z
+              # Pinned — Docker Hub pruned 2024-11-07T00-31-49Z, the
+              # previous pin, leaving this CronJob in ImagePullBackOff.
+              # Bump forward when a newer release is needed; never use
+              # :latest (CronJobs silently mutate on reschedule).
+              image: minio/mc:RELEASE.2025-04-16T18-13-26Z
               command:
                 - /bin/sh
                 - -c
@@ -338,16 +342,30 @@ spec:
                   # Download
                   mc cp "concord/backups/postgres/${ENV}/${LATEST}" /tmp/verify.sql.gz > /dev/null
 
-                  # Create temp database
+                  # Create temp database.  Keep stderr (only silence
+                  # stdout) so a DROP/CREATE failure is visible instead
+                  # of silently landing us on a non-existent db.
                   PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+                    -v ON_ERROR_STOP=1 \
                     -h concord-postgres -U "${POSTGRES_USER}" -d postgres \
                     -c "DROP DATABASE IF EXISTS concord_verify;" \
-                    -c "CREATE DATABASE concord_verify;" > /dev/null 2>&1
+                    -c "CREATE DATABASE concord_verify;" > /dev/null
 
-                  # Restore
-                  gunzip -c /tmp/verify.sql.gz | PGPASSWORD="${POSTGRES_PASSWORD}" psql \
-                    -h concord-postgres -U "${POSTGRES_USER}" -d concord_verify \
-                    > /dev/null 2>&1
+                  # Restore. Surface restore errors (the original script
+                  # swallowed these, which is why the "0 tables" failure
+                  # was un-diagnosable). ON_ERROR_STOP makes psql exit
+                  # non-zero on the first SQL error.
+                  if ! gunzip -c /tmp/verify.sql.gz | PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+                      -v ON_ERROR_STOP=1 \
+                      -h concord-postgres -U "${POSTGRES_USER}" -d concord_verify \
+                      > /tmp/restore.log 2>&1; then
+                    echo "[verify] FAIL — restore errored. Last 20 lines:"
+                    tail -20 /tmp/restore.log
+                    PGPASSWORD="${POSTGRES_PASSWORD}" psql -h concord-postgres \
+                      -U "${POSTGRES_USER}" -d postgres \
+                      -c "DROP DATABASE IF EXISTS concord_verify;" > /dev/null 2>&1 || true
+                    exit 1
+                  fi
 
                   # Validate — check key tables exist
                   TABLES=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql \
@@ -358,12 +376,14 @@ spec:
                   # Cleanup temp database
                   PGPASSWORD="${POSTGRES_PASSWORD}" psql \
                     -h concord-postgres -U "${POSTGRES_USER}" -d postgres \
-                    -c "DROP DATABASE IF EXISTS concord_verify;" > /dev/null 2>&1
+                    -c "DROP DATABASE IF EXISTS concord_verify;" > /dev/null 2>&1 || true
 
                   if [ "${TABLES}" -gt 20 ]; then
                     echo "[verify] PASS — restored ${LATEST}, found ${TABLES} tables"
                   else
                     echo "[verify] FAIL — only ${TABLES} tables restored (expected 20+)"
+                    echo "[verify] restore log tail:"
+                    tail -20 /tmp/restore.log 2>&1 || echo "(no restore log)"
                     exit 1
                   fi
               env:

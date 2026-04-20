@@ -6,6 +6,8 @@ Single manufacturing stage with type=MANUFACTURING.
 
 from database import Json
 
+from seed.helpers import upsert_by_non_unique
+
 
 # ── Fixture profile template ─────────────────────────────────
 
@@ -50,21 +52,23 @@ def seed_manufacturing(db, product, b0_rev):
     print("\n=== Alpha B0: Manufacturing ===")
 
     # ── Fixture design ──
-    design = db.fixturedesign.upsert(
+    # FixtureDesign.name isn't @unique (only id is), so Prisma's real
+    # upsert refuses to key on name. Use the find_first helper instead;
+    # it's idempotent and doesn't require a schema migration.
+    design = upsert_by_non_unique(
+        db.fixturedesign,
         where={"name": "alpha-mfg-fixture-v1.0"},
-        data={
-            "create": {
-                "name": "alpha-mfg-fixture-v1.0",
-                "boardRevisionId": b0_rev.id,
-                "revision": "1.0",
-                "capabilities": ["power", "button", "jlink"],
-                "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
-                "notes": "Alpha B0 manufacturing fixture. 4-slot parallel testing panel.",
-            },
-            "update": {
-                "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
-                "capabilities": ["power", "button", "jlink"],
-            },
+        create={
+            "name": "alpha-mfg-fixture-v1.0",
+            "boardRevisionId": b0_rev.id,
+            "revision": "1.0",
+            "capabilities": ["power", "button", "jlink"],
+            "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
+            "notes": "Alpha B0 manufacturing fixture. 4-slot parallel testing panel.",
+        },
+        update={
+            "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
+            "capabilities": ["power", "button", "jlink"],
         },
     )
     print(f"  ✓ Design: {design.name}")
