@@ -60,12 +60,15 @@ ARG TERRAFORM_VERSION=1.14.8                                           # latest 
 ARG KUBECTL_VERSION=1.35.4                                             # latest LTS as of 2026-04-19
 ARG HELM_VERSION=4.1.4                                                 # latest LTS as of 2026-04-19
 ARG ANSIBLE_VERSION=13.5.0                                             # latest LTS as of 2026-04-19
+ARG ANSIBLE_CORE_VERSION=2.20.4                                        # latest LTS as of 2026-04-20
 ARG TAILSCALE_VERSION=1.96.4                                           # latest LTS as of 2026-04-19
 ARG BW_VERSION=2026.3.0                                                # latest LTS as of 2026-04-19
 ARG GH_VERSION=2.90.0                                                  # latest LTS as of 2026-04-19
 ARG K9S_VERSION=0.50.18                                                # latest LTS as of 2026-04-19
 ARG DOCKER_COMPOSE_VERSION=5.1.3                                       # latest LTS as of 2026-04-19
 ARG NATS_VERSION=0.3.2                                                 # latest LTS as of 2026-04-19
+ARG OCI_CLI_VERSION=3.79.0                                             # latest LTS as of 2026-04-20
+ARG AWS_CLI_VERSION=2.34.32                                            # latest LTS as of 2026-04-20
 
 # Dev QA.
 ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
@@ -384,12 +387,32 @@ RUN case "${TARGETPLATFORM}" in \
  && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 # NOTE: no docker compose version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
-# Ansible — install via pipx into the dev user's home so we never collide
-# with the system python. Same pattern for ansible-core itself.
+# AWS CLI v2 — official zip bundle, TARGETPLATFORM-aware.
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=x86_64 ;; \
+      linux/arm64) ARCH=aarch64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-${AWS_CLI_VERSION}.zip" -o /tmp/awscliv2.zip \
+ && unzip -q /tmp/awscliv2.zip -d /tmp \
+ && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update \
+ && rm -rf /tmp/awscliv2.zip /tmp/aws
+# NOTE: no aws --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# Python-tool installs via uv tool into the dev user's home: ansible-core
+# (engine — provides ansible/ansible-playbook/ansible-galaxy shims) bundled
+# with the `ansible` metapackage (community collections) in the same venv,
+# plus oci-cli (OCI control plane) as its own tool. All arch-neutral (pure
+# Python). The ansible-core-as-primary pattern is required because the
+# `ansible` metapackage only ships an `ansible-community` info script; the
+# real engine entry points come from ansible-core.
 USER ${USERNAME}
 # hadolint ignore=DL3013
-RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "ansible==${ANSIBLE_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" tool run ansible --version
+RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
+      --with "ansible==${ANSIBLE_VERSION}" \
+      "ansible-core==${ANSIBLE_CORE_VERSION}" \
+ && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}"
+# NOTE: no ansible/oci --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # Convenience: path shims for zsh so interactive logins see all of the
 # installed toolchains without per-user config. Written to /etc/zsh/zshenv
