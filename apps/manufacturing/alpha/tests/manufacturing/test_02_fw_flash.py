@@ -27,7 +27,7 @@ from .conftest import power_on_for_flashing
 log = logging.getLogger("manufacturing.fw_flash")
 
 
-def _upload_and_flash(mtib, hex_path: str, host_type, recover: bool = True, max_attempts: int = 2):
+def _upload_and_flash(mtib, hex_path: str, host_type, recover: bool = True, max_attempts: int = 1):
     """Upload firmware to MTIB server and flash via J-Link.
 
     Sequence: upload → (recover → erase → program+verify+chiperase+reset) × attempts
@@ -101,7 +101,7 @@ def test_01_power_on(slot, config, report):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
-@pytest.mark.timeout(40)  # observed p95=31s, max=31s (corectl budgets suggest); tightened from 60 based on real data
+@pytest.mark.timeout(90)  # flash upload + erase + program; generous buffer so timer never races the RPC
 def test_02_flash_app(slot, config, report, mfg_assets):
     """Flash nRF52840 (app processor) via J-Link."""
     with report.step("Flash nRF52840 app firmware") as step:
@@ -128,7 +128,7 @@ def test_02_flash_app(slot, config, report, mfg_assets):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
-@pytest.mark.timeout(40)  # observed p95=26s, max=33s (corectl budgets suggest); tightened from 60 based on real data
+@pytest.mark.timeout(90)  # flash upload + erase + program; generous buffer so timer never races the RPC
 def test_03_flash_comms(slot, config, report, mfg_assets):
     """Flash nRF9151 (comms processor) via J-Link."""
     step2_recover = config.get("fw_flash_step2_recover", True)
@@ -157,7 +157,7 @@ def test_03_flash_comms(slot, config, report, mfg_assets):
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
-@pytest.mark.timeout(65)  # observed p95=52s, max=56s (corectl budgets suggest); tightened from 90 based on real data
+@pytest.mark.timeout(150)  # modem flash is the long pole (~55s) + upload + erase; keep the timer well clear of the RPC deadline
 def test_04_flash_modem(slot, config, report, mfg_assets):
     """Flash modem firmware via DFU (if available in asset set)."""
     with report.step("Flash nRF9151 modem firmware") as step:
