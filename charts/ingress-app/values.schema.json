@@ -36,9 +36,10 @@
       "required": ["enabled", "host"],
       "properties": {
         "enabled":          { "type": "boolean", "const": true, "description": "Must be true — use stateless-app for internal-only apps." },
+        "scope":            { "type": "string", "enum": ["public", "tailnet"], "default": "public", "description": "Selects which edge stack serves this ingress. Default public (whole point of ingress-app)." },
         "ingressClassName": { "type": "string" },
         "host":             { "type": "string", "minLength": 1,
-                              "description": "Fully-qualified hostname. Must resolve to the cluster's public ingress LB or a CNAME to it." },
+                              "description": "Fully-qualified hostname. Must resolve per the cluster's edge.<scope>.dns provider." },
         "canonicalHost":    { "type": "boolean" },
         "paths":            { "type": "array", "items": { "type": "object" }, "maxItems": 16 },
         "tls": {

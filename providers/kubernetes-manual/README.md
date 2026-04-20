@@ -22,5 +22,5 @@ the local operator host).
 
 ## Status
 
-STUB. Populate when `app-prod` node bring-up is ready to be automated
+STUB. Populate when `prod` node bring-up is ready to be automated
 (today it was manual ssh-in).

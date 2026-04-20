@@ -113,7 +113,7 @@ Today's shape is the **foundation** — every layer has its skeleton + docs,
 but only three leaves have real content:
 
 - `machines/services/arm-builder/` — ported working scripts.
-- `clusters/instances/app-prod/identity.yaml` — real cluster declared.
+- `clusters/instances/prod/identity.yaml` — real cluster declared.
 - `contracts/*.md` — drafted interfaces (v0).
 
 Everything else is a stub awaiting its first real consumer.

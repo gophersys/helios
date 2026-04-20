@@ -80,15 +80,20 @@ service:
     - { name: metrics, containerPort: 9090, protocol: TCP }
 
 # --------------------------- ingress -------------------------------------
+# Scope decides WHICH edge stack serves this ingress (see cluster identity:
+# edge.public vs edge.tailnet). The chart emits the same Ingress resource;
+# the cluster's edge stack decides entry path (CF tunnel, tailnet IP, ELB),
+# DNS, and TLS.
 ingress:
   enabled: false                   # opt-in; use charts/ingress-app for always-on
+  scope: public                    # public | tailnet
   ingressClassName: platform
   host: ""                         # required when enabled
   paths:
     - { path: /, pathType: Prefix, port: http }
   tls:
     enabled: true
-    clusterIssuer: letsencrypt-prod
+    clusterIssuer: letsencrypt-prod  # hint; cluster's edge.<scope>.tls may override
 
 # --------------------------- autoscaling ---------------------------------
 autoscale:

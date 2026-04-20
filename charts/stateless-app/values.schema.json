@@ -116,6 +116,7 @@
       "additionalProperties": false,
       "properties": {
         "enabled":          { "type": "boolean", "default": false },
+        "scope":            { "type": "string", "enum": ["public", "tailnet"], "default": "public", "description": "Selects which edge stack on the cluster serves this ingress (edge.public vs edge.tailnet)." },
         "ingressClassName": { "type": "string", "default": "platform" },
         "host":             { "type": "string" },
         "paths":            { "type": "array", "items": { "$ref": "#/definitions/ingressPath" }, "maxItems": 16 },

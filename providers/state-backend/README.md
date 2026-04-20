@@ -16,7 +16,7 @@ because:
 
 When populated, this directory will hold:
 - `backend.tf` snippets to be included by consumer modules.
-- Per-environment backend configs (`app-prod.hcl`, `lab.hcl`, etc.)
+- Per-environment backend configs (`prod.hcl`, `lab.hcl`, etc.)
   declaring the state key path.
 - Bootstrap scripts to (re-)create the bucket if ever lost.
 

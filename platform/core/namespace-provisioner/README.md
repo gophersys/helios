@@ -64,7 +64,7 @@ policy `namespace-naming-enforced` (see
 Each cluster's `identity.yaml` declares which projects it hosts:
 
 ```yaml
-# clusters/instances/app-prod/identity.yaml
+# clusters/instances/prod/identity.yaml
 projects_hosted:
   - codectl
   - fintel

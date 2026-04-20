@@ -49,6 +49,27 @@ namespace_provisioning:
   auto_pss_label: true
   quota_overrides: {}            # map <project>-<env>: <tier>
 
+# Edge stack — see platform/core/edge/ + edge/CATALOG.md.
+# Default (free-tier): Cloudflare Tunnel + CF DNS + CF Origin Cert for
+# public; Tailscale for tailnet-scoped services.
+edge:
+  public:
+    tunnel:
+      provider: cloudflare-tunnel           # cloudflare-tunnel | tailscale-funnel | cloud-loadbalancer
+    dns:
+      provider: cloudflare                   # cloudflare | route53 | external-dns
+      zones: []                              # e.g. - brain.example.com
+    tls:
+      provider: cloudflare-origin            # cloudflare-origin | letsencrypt-dns01 | letsencrypt-http01 | acm
+  tailnet:
+    tunnel:
+      provider: tailscale
+      tailnet: "TODO.ts.net"
+    dns:
+      provider: tailscale-magicdns
+    tls:
+      provider: tailscale-cert
+
 # platform/services/* opt-ins — platform/core/* is always on.
 platform_services:
   observability: { enabled: true,  version: "TODO" }

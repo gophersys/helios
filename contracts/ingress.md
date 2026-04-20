@@ -8,9 +8,17 @@ fulfilled_by: platform/core/ingress/ + platform/core/cert-manager/
 
 ## Abstract
 
-Apps expose HTTP routes by declaring an `Ingress` (or Traefik `IngressRoute`).
-The platform handles TLS (automatic via cert-manager), DNS (via cluster-wide
-wildcard records), and routing to the app's Service.
+Apps expose HTTP routes by declaring an `Ingress` (or Traefik `IngressRoute`)
+with a `scope` (`public` | `tailnet`). The cluster's edge stack — see
+`platform/core/edge/` — decides how traffic actually enters:
+
+- `public` → cluster's `edge.public` provider (Cloudflare Tunnel /
+  ELB / etc.), DNS via `edge.public.dns`, TLS via `edge.public.tls`.
+- `tailnet` → Tailscale-only ingress at a `*.ts.net` hostname with
+  TS-issued cert.
+
+Apps are unaware of provider-level choices; swapping a cluster from
+Cloudflare Tunnel to AWS ELB requires no app changes.
 
 ## Interface (TBD)
 

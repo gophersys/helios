@@ -11,7 +11,7 @@ Template for Oracle-managed Kubernetes (OKE). OCI runs the control plane
 
 ## Note vs manual K3s
 
-Our current `app-prod` runs self-managed K3s on OCI — **not** OKE. That
+Our current `prod` runs self-managed K3s on OCI — **not** OKE. That
 decision was deliberate: the A1.Flex nodes are joined to a Tailscale mesh
 with AWS nodes, which is awkward under OKE's managed networking.
 

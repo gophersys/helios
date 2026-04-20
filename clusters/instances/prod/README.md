@@ -1,4 +1,4 @@
-# app-prod
+# prod
 
 Production Kubernetes cluster. Identity at `./identity.yaml`.
 
@@ -26,7 +26,7 @@ merges these over the baseline values in `platform/<tier>/<path>/helm/values.yam
 
 ## Lifecycle
 
-- Bring-up: `clusters/ctl.sh new-cluster-node app-prod linux-k3s-node <name>`
+- Bring-up: `clusters/ctl.sh new-cluster-node prod linux-k3s-node <name>`
   for each node + apply `platform/core/*` in order.
 - Upgrades: pin a new K3s `distribution_version` in `identity.yaml`, then
   Ansible `k3s-upgrade` playbook drains each node.

@@ -108,7 +108,7 @@ platform/core/policy/
 ## Evolution path
 
 Today: skeleton + README + CATALOG.
-Next passes (when app-prod actually installs policies):
+Next passes (when prod actually installs policies):
 1. Commit the Helm wrapper + `kyverno-install.yaml`.
 2. Commit each policy one by one in `Audit` mode.
 3. Watch `PolicyReport`s for 7 days.
@@ -120,4 +120,4 @@ Next passes (when app-prod actually installs policies):
 ## Status
 
 STUB. README + CATALOG only. Kyverno install + policy manifests land as
-`app-prod` moves from "declared" to "bootstrapped."
+`prod` moves from "declared" to "bootstrapped."

@@ -26,4 +26,4 @@ Schedules:
 
 ## Status
 
-STUB. Populate as the first stateful workload hits `app-prod`.
+STUB. Populate as the first stateful workload hits `prod`.

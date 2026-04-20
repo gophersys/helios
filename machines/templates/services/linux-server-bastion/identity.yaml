@@ -7,7 +7,7 @@
 
 name: __HOST_NAME__
 os: linux-debian
-purpose: "TODO: e.g. bastion / SSH jumpbox for the app-prod cluster"
+purpose: "TODO: e.g. bastion / SSH jumpbox for the prod cluster"
 tailscale_hostname: __HOST_NAME__
 status: planned
 location: "TODO: e.g. oracle-phoenix"

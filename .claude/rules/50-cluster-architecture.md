@@ -198,13 +198,13 @@ PR.
 ## 10. Evolution path
 
 Today: foundation. Every layer has skeletons + docs + schemas; three
-leaves have real content (arm-builder, app-prod cluster declaration,
+leaves have real content (arm-builder, prod cluster declaration,
 contracts drafts).
 
 Tomorrow (per cluster bring-up):
 1. Populate `providers/oracle/modules/compute` + `providers/aws/` with
    real Terraform.
-2. Populate `clusters/instances/app-prod/nodes/*/` with the real fleet.
+2. Populate `clusters/instances/prod/nodes/*/` with the real fleet.
 3. Implement `platform/core/*` — Cilium, Traefik, cert-manager, ESO,
    Kyverno, namespace-provisioner.
 4. Implement `platform/services/observability` — the first platform

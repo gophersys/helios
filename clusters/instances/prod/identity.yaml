@@ -1,4 +1,4 @@
-# identity.yaml — app-prod
+# identity.yaml — prod
 #
 # Production Kubernetes cluster running customer-facing apps (codectl,
 # fintel, future). Currently spans OCI Phoenix (Always Free A1.Flex ARM +
@@ -8,7 +8,7 @@
 # This is the ONE cluster today. Lab/staging clusters will be scaffolded
 # later using the same cluster-kubernetes-manual-k3s template.
 
-name: app-prod
+name: prod
 template: cluster-kubernetes-manual-k3s
 distribution: k3s
 distribution_version: "TODO: pin (e.g., v1.31.3+k3s1)"
@@ -68,6 +68,38 @@ namespace_provisioning:
   auto_pss_label: true           # label pod-security.kubernetes.io/enforce=restricted
   quota_overrides: {}            # map <project>-<env>: <tier>
     # codectl-prod: large        # example
+
+# Edge stack — how traffic enters this cluster. See platform/core/edge/
+# and its CATALOG.md for supported providers + combinations. Apps declare
+# ingress.scope (public|tailnet); the edge stack below decides HOW that
+# scope is actually served.
+edge:
+  # Public scope — traffic from the internet (HTTPS). Free-tier stack.
+  public:
+    tunnel:
+      provider: cloudflare-tunnel          # no public IP on the cluster; CF is the edge
+      # account ID + tunnel ID supplied via Bitwarden → platform-cloudflare-tunnel
+    dns:
+      provider: cloudflare                  # CF DNS authoritative for the zones below
+      zones:
+        - brain.mateosegura.com             # default public zone for this cluster
+        - codectl.brain.mateosegura.com     # per-project subdomain
+        - fintel.brain.mateosegura.com
+        - finances.brain.mateosegura.com
+        - intelligence.brain.mateosegura.com
+        - music.brain.mateosegura.com
+    tls:
+      provider: cloudflare-origin           # cluster→CF cert; CF edge handles public TLS
+
+  # Tailnet scope — traffic from the Tailscale mesh (admin UIs, internal APIs).
+  tailnet:
+    tunnel:
+      provider: tailscale                   # cluster nodes are already on the mesh
+      tailnet: mateosegura.ts.net
+    dns:
+      provider: tailscale-magicdns          # <device>.<tailnet>.ts.net
+    tls:
+      provider: tailscale-cert              # TS-issued, auto-rotated for *.ts.net
 
 # platform/core/* is NOT opted in/out — every cluster gets all of core.
 # platform/services/* below is per-cluster opt-in.

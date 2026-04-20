@@ -7,7 +7,7 @@ schedule.
 
 Pick per cluster based on topology:
 
-- **k3s clusters** (like `app-prod`): `local-path-provisioner` (default in
+- **k3s clusters** (like `prod`): `local-path-provisioner` (default in
   k3s) for single-node-pinned volumes; **Longhorn** when HA is needed across
   multiple agent nodes.
 - **managed clusters** (EKS, OKE, AKS): the cloud's native CSI driver
@@ -30,7 +30,7 @@ STUB.
 
 ## TODO (when populating)
 - Write per-cluster StorageClass overlays.
-- Pick Longhorn vs local-path for `app-prod` (likely start local-path, move
+- Pick Longhorn vs local-path for `prod` (likely start local-path, move
   to Longhorn when adding stateful workloads beyond development).
 - Document backup integration (platform/services/backup via Velero with
   CSI snapshot support).

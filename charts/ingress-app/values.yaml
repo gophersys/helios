@@ -61,8 +61,12 @@ service:
     - { name: metrics, containerPort: 9090, protocol: TCP }
 
 # --------------------------- ingress (MANDATORY) -------------------------
+# Scope decides WHICH edge stack serves this ingress (see cluster identity:
+# edge.public vs edge.tailnet). ingress-app defaults to public (the whole
+# point of this archetype); override to tailnet if the app is admin-only.
 ingress:
   enabled: true
+  scope: public                    # public | tailnet
   ingressClassName: platform
   host: ""                         # required — e.g., app.brain.mateosegura.com
   canonicalHost: true              # redirect www → apex, strip trailing slashes
