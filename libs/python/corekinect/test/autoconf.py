@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import importlib
 import os
-import time
 import warnings
 from pathlib import Path
 from typing import Any, List, Optional, TYPE_CHECKING
@@ -136,52 +135,33 @@ def _import_controller(dotted_path: str) -> Any:
     return cls
 
 
-def _patch_sleep_for_mock() -> None:
-    """Replace time.sleep with a near-instant version for mock mode.
-
-    Stage tests contain hardware settle delays (30-60s) that are
-    meaningless without real hardware.
-    """
-    real_sleep = time.sleep
-    time.sleep = lambda s: real_sleep(min(s, 0.01))
-
-
 def _maybe_register_slot_parallel(config: pytest.Config) -> None:
     """Register the slot_parallel plugin when the run targets >1 slot.
 
-    The plugin fans every top-level test out to a thread pool so slot
-    parametrizations run concurrently with a barrier between tests. It
-    is only activated when:
-      * the caller targets more than one slot (SLOT_FILTER or MTIB_HOSTS
-        implies ≥2 slots), AND
-      * PYTEST_PARALLEL is not set to ``0/false/no``.
+    Single-slot and standalone runs always use the default pytest loop:
+    slot_parallel installs a pytest-timeout neutralizer that disables
+    ``@pytest.mark.timeout`` for the standard loop, so loading it for
+    single-slot would silently break per-test timeout enforcement on
+    validation runs.
 
-    Single-slot and standalone runs always use the default pytest loop.
+    Slot count comes from :func:`slot_env.resolve_slot_bindings` — the
+    canonical parser used everywhere else (FixtureContext.from_env,
+    autoconf._attach_slot_bindings, slot.get_slot_ids_from_env). One
+    source of truth means the registration decision can never disagree
+    with the bindings the rest of the framework will see at fixture
+    time.
     """
-    # Respect explicit opt-out
     if os.environ.get("PYTEST_PARALLEL", "1") in ("0", "false", "no", "False"):
         return
 
-    # Count slots — cheap, no network
-    slot_filter = os.environ.get("SLOT_FILTER", "").strip()
-    if slot_filter:
-        slot_count = len([x for x in slot_filter.split(",") if x.strip()])
-    else:
-        mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
-        slot_count = (
-            len([h for h in mtib_hosts.split(",") if h.strip()])
-            if mtib_hosts else 1
-        )
+    from corekinect.test.slot_env import resolve_slot_bindings
 
-    if slot_count <= 1:
+    if len(resolve_slot_bindings()) <= 1:
         return
 
     if not config.pluginmanager.has_plugin("corekinect.test.slot_parallel"):
         config.pluginmanager.import_plugin("corekinect.test.slot_parallel")
-        log.info(
-            "autoconf: slot_parallel registered (targeting %d slots)",
-            slot_count,
-        )
+        log.info("autoconf: slot_parallel registered")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -286,10 +266,11 @@ def pytest_configure(config: pytest.Config) -> None:
     config._concord_manifest = manifest  # type: ignore[attr-defined]
 
     # ── 2. Mock mode ──
-    mock_mode = _is_mock_mode(config)
-    config.stash[_MOCK_MODE_KEY] = mock_mode
-    if mock_mode:
-        _patch_sleep_for_mock()
+    # Mock fixtures (mock_hardware, mock_cloud_client) own their own
+    # ``time.sleep`` shortcuts via ``monkeypatch`` — there is no global
+    # patch here. Real-hardware tests get the real ``time.sleep`` even
+    # when one mock-mode test ran before them in the same session.
+    config.stash[_MOCK_MODE_KEY] = _is_mock_mode(config)
 
     # ── 3. Register the Concord reporter plugin ──
     # The reporter self-activates based on CONCORD_RUN_ID; we just ensure

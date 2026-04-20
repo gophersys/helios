@@ -101,12 +101,26 @@ def attach_binding(item: pytest.Item, binding: SlotBinding) -> None:
     item.stash[SLOT_BINDING_KEY] = binding
 
 
-def get_binding(item: pytest.Item) -> Optional[SlotBinding]:
+def get_binding(item: Optional[object]) -> Optional[SlotBinding]:
     """Return the :class:`SlotBinding` on ``item``, or ``None`` if absent.
 
-    Absent bindings are the norm for single-slot validation runs
-    whose items aren't parametrized by slot. Callers must handle the
-    ``None`` path explicitly (typically: skip slotIndex, let the
-    backend's single-target fallback resolve).
+    Tolerates three legitimate "no binding" inputs so every caller
+    (reporter hooks, telemetry streamer, slot fixture) can use one
+    accessor instead of duplicating None-guards:
+
+    * ``item is None`` — session-level pytest hooks fire with no item.
+    * ``item.stash`` missing or ``None`` — unit-test stubs that don't
+      mock the full :class:`pytest.Item` surface.
+    * ``item.stash`` present but no binding stashed — single-slot
+      validation runs whose items aren't parametrized by slot.
+
+    Callers must handle the ``None`` return explicitly (typically:
+    skip slotIndex, let the backend's single-target fallback resolve).
     """
-    return item.stash.get(SLOT_BINDING_KEY, None)
+    if item is None:
+        return None
+    stash = getattr(item, "stash", None)
+    if stash is None:
+        return None
+    # ``pytest.Stash.get`` returns None on miss — no exception path.
+    return stash.get(SLOT_BINDING_KEY, None)

@@ -294,8 +294,10 @@ class FixtureContext:
                 "One of FIXTURE_CONFIG_PATH, MTIB_HOSTS, MTIB_ADDRESS, or MTIB_HOST must be set"
             )
 
+        from corekinect.test.slot_env import _parse_address as _parse_addr
+
         default_port = int(os.environ.get("MTIB_PORT", "50053"))
-        host, port = _parse_address(mtib_addr, default_port)
+        host, port = _parse_addr(mtib_addr, default_port)
 
         slot = SlotContext(
             slot_id="slot-0",
@@ -389,22 +391,25 @@ class FixtureContext:
 def get_slot_ids_from_env() -> List[str]:
     """Determine which slot IDs should be used for test parametrization.
 
-    Called at pytest collection time by product conftest files.
-    Respects SLOT_FILTER (set per-run by the manufacturing runner),
-    MTIB_HOSTS (multi-slot), MTIB_HOST (single-slot), and
-    FIXTURE_CONFIG_PATH. Centralizes the logic so product conftest
-    files don't need to re-implement it.
-    """
-    # SLOT_FILTER takes priority — set by the manufacturing runner per run
-    slot_filter = os.environ.get("SLOT_FILTER", "").strip()
-    if slot_filter:
-        indices = sorted(int(x.strip()) for x in slot_filter.split(",") if x.strip())
-        return [f"slot-{i}" for i in indices]
+    Derived from :func:`corekinect.test.slot_env.resolve_slot_bindings`
+    so the slot fixture's parametrization is always in lockstep with
+    the binding stash (set at collection time by autoconf) and the
+    :class:`FixtureContext` MTIB connections (set at fixture-setup
+    time). One source of truth means MTIB ↔ slot ↔ SNR alignment is
+    a property of the resolver, not a coincidence between three
+    parsers.
 
-    mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
-    if mtib_hosts:
-        count = len([a for a in mtib_hosts.split(",") if a.strip()])
-        return [f"slot-{i}" for i in range(count)]
+    Falls back to ``["slot-0"]`` for the FIXTURE_CONFIG_PATH (JSON
+    fixture config) path and the single-slot validation case where
+    ``MTIB_HOSTS`` is empty but ``MTIB_HOST`` / ``MTIB_ADDRESS`` is
+    set — those configurations don't go through the resolver but
+    still need a slot id for parametrization.
+    """
+    from corekinect.test.slot_env import resolve_slot_bindings
+
+    bindings = resolve_slot_bindings()
+    if bindings:
+        return [f"slot-{b.slot_index}" for b in bindings]
 
     config_path = os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
     if config_path and os.path.isfile(config_path):
@@ -415,18 +420,4 @@ def get_slot_ids_from_env() -> List[str]:
         if slot_count:
             return [f"slot-{i}" for i in range(slot_count)]
 
-    if os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST"):
-        return ["slot-0"]
-
     return ["slot-0"]
-
-
-# ── Helpers ──────────────────────────────────────────────────────────────
-
-
-def _parse_address(addr: str, default_port: int) -> tuple:
-    """Parse 'host' or 'host:port' into (host, port)."""
-    if ":" in addr:
-        host, port_str = addr.rsplit(":", 1)
-        return host, int(port_str)
-    return addr, default_port

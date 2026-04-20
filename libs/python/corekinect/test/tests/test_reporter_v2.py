@@ -825,34 +825,43 @@ def test_post_returns_parsed_json_on_2xx() -> None:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# _binding_for: None-safe without a broad except
+# get_binding: single None-safe accessor used by every payload site
 # ═════════════════════════════════════════════════════════════════════════════
+#
+# After Phase 2 the reporter calls ``slot_binding.get_binding(item)``
+# directly — the old private ``_binding_for`` wrapper is gone. Pin
+# the contract that drove the consolidation so a future refactor
+# can't quietly re-add a wrapper.
 
 
-def test_binding_for_returns_none_when_item_is_none() -> None:
-    assert ConcordReporter._binding_for(None) is None
+def test_get_binding_returns_none_when_item_is_none() -> None:
+    from corekinect.test.slot_binding import get_binding
+    assert get_binding(None) is None
 
 
-def test_binding_for_returns_none_when_item_has_no_stash() -> None:
+def test_get_binding_returns_none_when_item_has_no_stash() -> None:
+    from corekinect.test.slot_binding import get_binding
     fake_item = types.SimpleNamespace(nodeid="x.py::test_y")
-    # No ``stash`` attribute at all.
-    assert ConcordReporter._binding_for(fake_item) is None
+    assert get_binding(fake_item) is None
 
 
-def test_binding_for_returns_none_when_stash_attribute_is_none() -> None:
+def test_get_binding_returns_none_when_stash_attribute_is_none() -> None:
+    from corekinect.test.slot_binding import get_binding
     fake_item = types.SimpleNamespace(nodeid="x.py::test_y", stash=None)
-    assert ConcordReporter._binding_for(fake_item) is None
+    assert get_binding(fake_item) is None
 
 
-def test_binding_for_returns_none_when_stash_has_no_binding_key() -> None:
+def test_get_binding_returns_none_when_stash_has_no_binding_key() -> None:
     """An item with a real pytest Stash but no binding stashed returns None."""
+    from corekinect.test.slot_binding import get_binding
     fake_item = types.SimpleNamespace(nodeid="x.py::test_y", stash=pytest.Stash())
-    assert ConcordReporter._binding_for(fake_item) is None
+    assert get_binding(fake_item) is None
 
 
-def test_binding_for_returns_stashed_binding_when_present() -> None:
+def test_get_binding_returns_stashed_binding_when_present() -> None:
+    from corekinect.test.slot_binding import get_binding
     item = _make_item("x.py::test_y", binding=_binding(3, serial="S3"))
-    result = ConcordReporter._binding_for(item)
+    result = get_binding(item)
     assert result is not None
     assert result.slot_index == 3
     assert result.serial_number == "S3"

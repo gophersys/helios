@@ -389,28 +389,12 @@ class ConcordReporter:
         if not self.enabled:
             return
         payload: Dict[str, Any] = {k: v for k, v in fields.items() if v is not None}
-        binding = self._binding_for(item)
+        binding = get_binding(item)
         if binding is not None:
             payload["slotIndex"] = binding.slot_index
             if binding.serial_number is not None:
                 payload["deviceSerial"] = binding.serial_number
         self._post(f"report/{endpoint}", payload)
-
-    @staticmethod
-    def _binding_for(item: Any) -> Optional[SlotBinding]:
-        """Return the :class:`SlotBinding` stashed on ``item``, or ``None``.
-
-        ``get_binding`` is already None-safe on a real pytest Item; the
-        only way this returns ``None`` is if the caller passes ``None``
-        or a stub without a ``stash`` attribute (e.g. the reporter
-        fakes used in unit tests). Everything else — including stashes
-        that have never had a binding set — returns ``None`` cleanly.
-        """
-        if item is None:
-            return None
-        if getattr(item, "stash", None) is None:
-            return None
-        return get_binding(item)
 
     # ─────────────────────────────────────────────────────────────────
     # Step counter (thread-local)
@@ -630,7 +614,7 @@ class ConcordReporter:
         # call (which takes no item arg) can find it.
         self._tls.current_item = item
 
-        binding = self._binding_for(item)
+        binding = get_binding(item)
 
         # Update the log router's per-thread device hint so log chunks
         # file under the right serial (independent of _emit attribution).
