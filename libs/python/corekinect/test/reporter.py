@@ -400,19 +400,17 @@ class ConcordReporter:
     def _binding_for(item: Any) -> Optional[SlotBinding]:
         """Return the :class:`SlotBinding` stashed on ``item``, or ``None``.
 
-        Tolerant of stub items whose ``stash`` is a plain dict or whose
-        ``get_binding`` dispatch would otherwise fail.
+        ``get_binding`` is already None-safe on a real pytest Item; the
+        only way this returns ``None`` is if the caller passes ``None``
+        or a stub without a ``stash`` attribute (e.g. the reporter
+        fakes used in unit tests). Everything else — including stashes
+        that have never had a binding set — returns ``None`` cleanly.
         """
         if item is None:
             return None
-        stash = getattr(item, "stash", None)
-        if stash is None:
+        if getattr(item, "stash", None) is None:
             return None
-        # Prefer the typed helper when the stash object supports it.
-        try:
-            return get_binding(item)
-        except Exception:  # pragma: no cover — defensive for exotic stubs
-            return None
+        return get_binding(item)
 
     # ─────────────────────────────────────────────────────────────────
     # Step counter (thread-local)
@@ -445,7 +443,15 @@ class ConcordReporter:
         """POST to Concord API. Returns JSON or ``None`` on failure.
 
         Reporter must never fail a test — every network error is
-        swallowed and logged.
+        swallowed and logged. Log level distinguishes between causes so
+        operators can triage at a glance:
+
+        * ``log.error`` — server-side fault (5xx) or unreachable host
+          (connection error). Indicates the backend or network, not
+          the test; needs platform attention.
+        * ``log.warning`` — client-side error (4xx). Usually a bug in
+          the reporter payload or a transient auth hiccup; diagnosable
+          from the response body we log.
         """
         url = f"{self.api_url}/v2/runs/{self.run_id}/{path}"
         try:
@@ -456,18 +462,29 @@ class ConcordReporter:
                 timeout=10,
                 verify=_TLS_VERIFY,
             )
-            if resp.status_code >= 400:
-                log.warning(
-                    "ConcordReporter: %s returned %d: %s",
-                    path,
-                    resp.status_code,
-                    resp.text[:200],
-                )
-                return None
-            return resp.json()
         except Exception as exc:
-            log.warning("ConcordReporter: %s failed: %s", path, exc)
+            # Network / TLS / DNS faults — the backend didn't even see
+            # the request. Always error: a panel run with this logline
+            # is one where something visible-to-ops is broken.
+            log.error("ConcordReporter: %s unreachable: %s", path, exc)
             return None
+        if resp.status_code >= 500:
+            log.error(
+                "ConcordReporter: %s returned %d (server fault): %s",
+                path,
+                resp.status_code,
+                resp.text[:200],
+            )
+            return None
+        if resp.status_code >= 400:
+            log.warning(
+                "ConcordReporter: %s returned %d (client fault): %s",
+                path,
+                resp.status_code,
+                resp.text[:200],
+            )
+            return None
+        return resp.json()
 
     # ─────────────────────────────────────────────────────────────────
     # Live log streaming

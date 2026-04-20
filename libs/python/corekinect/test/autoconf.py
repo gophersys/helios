@@ -45,16 +45,45 @@ if TYPE_CHECKING:
     from corekinect.manifest.types import Manifest
 
 from corekinect.utils import Logger
+from corekinect.test.errors import bad_fixture_controller, missing_env_var
 
 log = Logger(log_name="autoconf")
 
 # ---------------------------------------------------------------------------
-# Internal state — populated during pytest_configure, read by fixtures
+# Per-session state lives on ``pytest.Config.stash`` (not module globals).
+#
+# Stash keys are the idiomatic way to attach typed, plugin-scoped state to a
+# pytest config object. Using ``config.stash`` instead of module globals means:
+#
+#   * Two concurrent ``pytest.main()`` invocations in the same process (e.g.
+#     pytester meta-tests) can't clobber each other's manifest.
+#   * Fixtures read from ``request.config`` directly, so there's no
+#     "whoever called pytest_configure first wins" race.
+#   * The state is garbage-collected with the config, avoiding a cross-run
+#     leak in tools that embed pytest.
+#
+# The reporter already uses this pattern (see ``config._concord_reporter``
+# in reporter.py::pytest_configure); we mirror it here for manifest state.
 # ---------------------------------------------------------------------------
 
-_manifest: Optional["Manifest"] = None
-_manifest_path: Optional[Path] = None
-_mock_mode: bool = False
+_MANIFEST_KEY: pytest.StashKey["Manifest"] = pytest.StashKey()
+_MANIFEST_PATH_KEY: pytest.StashKey[Path] = pytest.StashKey()
+_MOCK_MODE_KEY: pytest.StashKey[bool] = pytest.StashKey()
+
+
+def _get_manifest(config: pytest.Config) -> Optional["Manifest"]:
+    """Return the loaded manifest from config stash, or ``None``."""
+    return config.stash.get(_MANIFEST_KEY, None)
+
+
+def _get_manifest_path(config: pytest.Config) -> Optional[Path]:
+    """Return the manifest file path from config stash, or ``None``."""
+    return config.stash.get(_MANIFEST_PATH_KEY, None)
+
+
+def _get_mock_mode(config: pytest.Config) -> bool:
+    """Return whether mock mode is active for this session."""
+    return config.stash.get(_MOCK_MODE_KEY, False)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -220,8 +249,6 @@ def pytest_configure(config: pytest.Config) -> None:
     becomes a silent no-op — no fixtures are registered and tests
     that don't depend on them run normally.
     """
-    global _manifest, _manifest_path, _mock_mode
-
     # ── 1. Find and load the manifest ──
     from corekinect.manifest.loader import find_manifest, load_manifest
 
@@ -251,13 +278,17 @@ def pytest_configure(config: pytest.Config) -> None:
         )
         return
 
-    _manifest = manifest
-    _manifest_path = manifest_path
+    config.stash[_MANIFEST_KEY] = manifest
+    config.stash[_MANIFEST_PATH_KEY] = manifest_path
+    # Back-compat: historical code reads ``config._concord_manifest``;
+    # keep the attribute mirrored until internal callers migrate to the
+    # stash key.
     config._concord_manifest = manifest  # type: ignore[attr-defined]
 
     # ── 2. Mock mode ──
-    _mock_mode = _is_mock_mode(config)
-    if _mock_mode:
+    mock_mode = _is_mock_mode(config)
+    config.stash[_MOCK_MODE_KEY] = mock_mode
+    if mock_mode:
         _patch_sleep_for_mock()
 
     # ── 3. Register the Concord reporter plugin ──
@@ -384,12 +415,12 @@ def pytest_collection_modifyitems(
     # when the env is unconfigured, so it doesn't need the manifest gate.
     _attach_slot_bindings(items)
 
-    if _manifest is None:
+    if _get_manifest(config) is None:
         return
 
     # ── Skip cloud-dependent tests ──
     skip_reason = None
-    if _mock_mode:
+    if _get_mock_mode(config):
         skip_reason = "Requires CoreCloud DB/API — skipped in mock mode"
     elif not _has_cloud_db():
         skip_reason = "CoreCloud DB not configured"
@@ -471,15 +502,16 @@ def _get_slot_ids() -> List[str]:
 
 
 @pytest.fixture(scope="session")
-def manifest() -> "Manifest":
+def manifest(request: pytest.FixtureRequest) -> "Manifest":
     """The loaded Manifest object from concord.yaml.
 
     Session-scoped and read-only. Access product config, stage
     definitions, fixture controller path, etc.
     """
-    if _manifest is None:
+    loaded = _get_manifest(request.config)
+    if loaded is None:
         pytest.skip("No concord.yaml manifest found — cannot provide manifest fixture")
-    return _manifest
+    return loaded
 
 
 @pytest.fixture(scope="session")
@@ -497,7 +529,7 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     Skips the entire session if required env vars are missing rather
     than raising an opaque connection error.
     """
-    if _manifest is None:
+    if _get_manifest(request.config) is None:
         pytest.skip("No concord.yaml manifest — ctx fixture unavailable")
 
     # Manufacturing packages use fixture_ctx, not ctx
@@ -518,22 +550,24 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     mtib_addr = os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST")
     if not mtib_addr:
         pytest.skip(
-            "MTIB_ADDRESS or MTIB_HOST not set — cannot connect to hardware. "
-            "Set MOCK_MODE=1 to run without hardware."
+            missing_env_var(
+                "MTIB_ADDRESS",
+                "connect to hardware",
+                alternatives=("MTIB_HOST",),
+                hint="set MOCK_MODE=1 to run without hardware",
+            )
         )
 
     device_id = os.environ.get("DEVICE_ID")
     if not device_id:
-        pytest.skip("DEVICE_ID not set — cannot create test context")
+        pytest.skip(missing_env_var("DEVICE_ID", "create test context"))
 
     # Import and instantiate the fixture controller from the manifest
     controller_path = manifest.fixture.controller
     try:
         controller_class = _import_controller(controller_path)
     except ImportError as exc:
-        pytest.skip(
-            f"Cannot import fixture controller {controller_path!r}: {exc}"
-        )
+        pytest.skip(bad_fixture_controller(controller_path, exc))
 
     from corekinect.test.context import TestContext
 
@@ -560,7 +594,7 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     Mock mode (MOCK_MODE=1 or --mock-cloud):
         Returns a context with mock MTIB clients. No hardware or network.
     """
-    if _manifest is None:
+    if _get_manifest(request.config) is None:
         pytest.skip("No concord.yaml manifest — fixture_ctx unavailable")
 
     _apply_cli_overrides(request.config)
@@ -574,7 +608,11 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     fixture_config = _os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
     if not mtib_hosts and not mtib_host and not fixture_config:
         pytest.skip(
-            "No MTIB hardware configured (MTIB_HOSTS, MTIB_HOST, or FIXTURE_CONFIG_PATH required)"
+            missing_env_var(
+                "MTIB_HOSTS",
+                "enumerate slots",
+                alternatives=("MTIB_HOST", "FIXTURE_CONFIG_PATH"),
+            )
         )
 
     fctx = FixtureContext.from_env()

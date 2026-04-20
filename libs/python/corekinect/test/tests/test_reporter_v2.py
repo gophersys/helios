@@ -705,3 +705,156 @@ def test_noop_reporter_step_returns_noop_step() -> None:
         step.record_dict({"y": {"value": 2}})
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# _post log-level classification: 5xx/connection → error, 4xx → warning
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _FakeResponse:
+    """Minimal ``requests.Response`` stand-in for ``_post`` branch tests."""
+
+    def __init__(self, status: int, body: str = "", json_payload: Any = None):
+        self.status_code = status
+        self.text = body
+        self._json = json_payload if json_payload is not None else {}
+
+    def json(self) -> Any:  # pragma: no cover — only called on 2xx
+        return self._json
+
+
+class _LogRecorder:
+    """Attach a stdlib handler to the framework Logger's underlying logger.
+
+    The framework's :class:`corekinect.utils.Logger` sets
+    ``propagate = False`` and routes through its own handlers, which
+    breaks pytest's ``caplog`` fixture. Adding a plain
+    :class:`logging.Handler` directly to the same underlying logger
+    captures the real records the framework emits — no mocks, no
+    behavior change.
+    """
+
+    def __init__(self, framework_logger):
+        self._stdlib_logger = framework_logger.logger
+        self._records: list = []
+        self._handler: "logging.Handler | None" = None
+
+    def __enter__(self) -> "_LogRecorder":
+        import logging as _logging
+
+        recorder = self
+
+        class _Capture(_logging.Handler):
+            def emit(self, record):
+                recorder._records.append(record)
+
+        self._handler = _Capture(level=_logging.DEBUG)
+        self._stdlib_logger.addHandler(self._handler)
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._handler is not None:
+            self._stdlib_logger.removeHandler(self._handler)
+
+    def records_at(self, level: str) -> list:
+        return [r for r in self._records if r.levelname == level]
+
+    def messages_at(self, level: str) -> list:
+        return [r.getMessage() for r in self.records_at(level)]
+
+
+def test_post_logs_5xx_at_error_level() -> None:
+    """A 5xx response is an ops-visible fault; must land at ``log.error``."""
+    from corekinect.test import reporter as _reporter_mod
+
+    r = _new_reporter()
+    with _LogRecorder(_reporter_mod.log) as rec, \
+         patch("corekinect.test.reporter.requests.post",
+               return_value=_FakeResponse(500, body="boom")):
+        result = r._post("execution-start", {"slotIndex": 0})
+    assert result is None
+    error_msgs = rec.messages_at("ERROR")
+    assert any("500" in m and "server fault" in m for m in error_msgs), (
+        f"expected '500 server fault' in ERROR logs, got: {error_msgs}"
+    )
+    # 5xx must not also surface as a warning.
+    warn_msgs = [m for m in rec.messages_at("WARNING") if "500" in m]
+    assert not warn_msgs, f"5xx duplicated at WARNING level: {warn_msgs}"
+
+
+def test_post_logs_4xx_at_warning_level() -> None:
+    """A 4xx is a client-side bug (bad payload/auth) — warning, not error."""
+    from corekinect.test import reporter as _reporter_mod
+
+    r = _new_reporter()
+    with _LogRecorder(_reporter_mod.log) as rec, \
+         patch("corekinect.test.reporter.requests.post",
+               return_value=_FakeResponse(400, body="bad payload")):
+        result = r._post("execution-start", {"slotIndex": 0})
+    assert result is None
+    warn_msgs = rec.messages_at("WARNING")
+    assert any("400" in m and "client fault" in m for m in warn_msgs), (
+        f"expected '400 client fault' in WARNING logs, got: {warn_msgs}"
+    )
+    error_msgs = [m for m in rec.messages_at("ERROR") if "400" in m]
+    assert not error_msgs, f"4xx must not log at ERROR: {error_msgs}"
+
+
+def test_post_logs_connection_error_at_error_level() -> None:
+    """Network / DNS / TLS faults never reach the backend — always error."""
+    from corekinect.test import reporter as _reporter_mod
+
+    r = _new_reporter()
+    with _LogRecorder(_reporter_mod.log) as rec, \
+         patch("corekinect.test.reporter.requests.post",
+               side_effect=ConnectionError("dns lookup failed")):
+        result = r._post("execution-start", {})
+    assert result is None
+    error_msgs = rec.messages_at("ERROR")
+    assert any("unreachable" in m for m in error_msgs), (
+        f"expected 'unreachable' in ERROR logs, got: {error_msgs}"
+    )
+
+
+def test_post_returns_parsed_json_on_2xx() -> None:
+    """Happy path: decoded response body is returned untouched."""
+    r = _new_reporter()
+    with patch("corekinect.test.reporter.requests.post",
+               return_value=_FakeResponse(200, json_payload={"id": "abc"})):
+        result = r._post("execution-start", {"slotIndex": 0})
+    assert result == {"id": "abc"}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# _binding_for: None-safe without a broad except
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def test_binding_for_returns_none_when_item_is_none() -> None:
+    assert ConcordReporter._binding_for(None) is None
+
+
+def test_binding_for_returns_none_when_item_has_no_stash() -> None:
+    fake_item = types.SimpleNamespace(nodeid="x.py::test_y")
+    # No ``stash`` attribute at all.
+    assert ConcordReporter._binding_for(fake_item) is None
+
+
+def test_binding_for_returns_none_when_stash_attribute_is_none() -> None:
+    fake_item = types.SimpleNamespace(nodeid="x.py::test_y", stash=None)
+    assert ConcordReporter._binding_for(fake_item) is None
+
+
+def test_binding_for_returns_none_when_stash_has_no_binding_key() -> None:
+    """An item with a real pytest Stash but no binding stashed returns None."""
+    fake_item = types.SimpleNamespace(nodeid="x.py::test_y", stash=pytest.Stash())
+    assert ConcordReporter._binding_for(fake_item) is None
+
+
+def test_binding_for_returns_stashed_binding_when_present() -> None:
+    item = _make_item("x.py::test_y", binding=_binding(3, serial="S3"))
+    result = ConcordReporter._binding_for(item)
+    assert result is not None
+    assert result.slot_index == 3
+    assert result.serial_number == "S3"
+
+
