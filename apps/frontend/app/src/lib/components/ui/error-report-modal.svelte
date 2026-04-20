@@ -117,7 +117,7 @@
       <div class="flex items-center justify-between border-b {severityConfig.headerBg} px-5 py-4">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-lg {report.severity === 'critical' || report.severity === 'error' ? 'bg-error/15' : report.severity === 'warning' ? 'bg-warning/15' : 'bg-accent/15'}">
-            <severityConfig.icon size={20} class="{report.severity === 'critical' || report.severity === 'error' ? 'text-error' : report.severity === 'warning' ? 'text-warning' : 'text-accent'}" strokeWidth={1.75} />
+            <severityConfig.icon size={20} class={report.severity === 'critical' || report.severity === 'error' ? 'text-error' : report.severity === 'warning' ? 'text-warning' : 'text-accent'} strokeWidth={1.75} />
           </div>
           <div>
             <h2 id="error-report-title" class="text-sm font-semibold text-text-primary">

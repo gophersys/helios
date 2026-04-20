@@ -56,6 +56,7 @@
     <div class="ml-auto flex items-center gap-2">
       {#each actions as action}
         {@const variant = action.variant ?? 'ghost'}
+        {@const ActionIcon = action.icon}
         <button
           onclick={action.onclick}
           disabled={action.disabled || action.loading}
@@ -63,8 +64,8 @@
         >
           {#if action.loading}
             <Loader2 size={14} class="animate-spin" />
-          {:else if action.icon}
-            <svelte:component this={action.icon} size={14} />
+          {:else if ActionIcon}
+            <ActionIcon size={14} />
           {/if}
           {action.label}
         </button>

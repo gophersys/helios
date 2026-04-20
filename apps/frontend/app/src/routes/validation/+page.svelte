@@ -167,7 +167,7 @@
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(r =>
-        r.name.toLowerCase().includes(q) ||
+        (r.name?.toLowerCase().includes(q) ?? false) ||
         r.product?.name?.toLowerCase().includes(q) ||
         (r.config as any)?.serialNumber?.toLowerCase().includes(q) ||
         (r.config as any)?.firmwareVersion?.toLowerCase().includes(q) ||
@@ -206,7 +206,7 @@
     if (run.stage) return run.stage;
     const config = run.config as Record<string, unknown> | null;
     if (config?.stage) return config.stage as string;
-    const name = run.name.toLowerCase();
+    const name = (run.name ?? '').toLowerCase();
     if (name.includes('fuota')) return 'fuota';
     if (name.includes('regression')) return 'regression';
     if (name.includes('integration')) return 'integration';

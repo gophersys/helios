@@ -28,8 +28,11 @@
     showHeader?: boolean;
   } = $props();
 
-  // Provide SlotContext to all children via Svelte context
-  setSlotContext(slot);
+  // Provide SlotContext to all children via Svelte context.
+  // setContext runs once at init; the parent uses {#key activeSlot.targetId}
+  // to force recreation when the active slot changes, so capturing the current
+  // prop value here is intentional.
+  (() => setSlotContext(slot))();
 
   // Escape key: clear time range selection
   function handleKeydown(e: KeyboardEvent) {

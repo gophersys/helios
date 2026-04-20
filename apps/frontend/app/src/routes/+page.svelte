@@ -190,12 +190,13 @@
     {#if sections.length > 0}
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         {#each sections as section}
+          {@const SectionIcon = section.icon}
           <a
             href={section.href}
             class="card card-sm flex items-center gap-3 transition-colors hover:border-accent/40"
           >
             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-muted">
-              <svelte:component this={section.icon} size={20} class="text-accent" />
+              <SectionIcon size={20} class="text-accent" />
             </div>
             <div class="min-w-0">
               <p class="text-2xl font-semibold text-text-primary">{section.stat}</p>

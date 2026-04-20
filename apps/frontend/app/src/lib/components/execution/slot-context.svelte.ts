@@ -28,6 +28,7 @@ export interface SlotLiveTest {
   logOutput: string | null;
   expanded: boolean;
   steps: SlotTestStep[];
+  [key: string]: unknown;
 }
 
 export interface SlotTestStep {

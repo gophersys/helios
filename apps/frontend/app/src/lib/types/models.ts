@@ -944,6 +944,7 @@ export interface Fixture {
 export interface ManufacturingStageConfig {
   name: string;
   enabled: boolean;
+  config: Record<string, any>;
 }
 
 export interface ManufacturingPersonalizationConfig {
@@ -1082,6 +1083,8 @@ export interface DashboardFixture {
   nodesOffline: number;
   nodesError: number;
   health: 'HEALTHY' | 'DEGRADED' | 'ERROR' | 'UNASSIGNED' | 'EMPTY' | 'UNKNOWN';
+  hasActiveDeployment?: boolean;
+  activeDeploymentStatus?: string | null;
   updatedAt: string;
 }
 

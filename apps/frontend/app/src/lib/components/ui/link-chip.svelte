@@ -10,7 +10,7 @@
     children: Snippet;
   }
 
-  let { icon, href, external = false, variant = 'default', children }: Props = $props();
+  let { icon: IconComponent, href, external = false, variant = 'default', children }: Props = $props();
 
   const variantClasses: Record<string, string> = {
     default: 'bg-surface-2 text-text-secondary hover:bg-surface-3',
@@ -31,13 +31,13 @@
     class="{base} {variantClasses[variant]} cursor-pointer"
     onclick={(e) => e.stopPropagation()}
   >
-    <svelte:component this={icon} size={10} />
+    <IconComponent size={10} />
     {@render children()}
     {#if external}<ExternalLink size={8} class="opacity-50" />{/if}
   </a>
 {:else}
   <span class="{base} {variantClasses[variant]}">
-    <svelte:component this={icon} size={10} />
+    <IconComponent size={10} />
     {@render children()}
   </span>
 {/if}

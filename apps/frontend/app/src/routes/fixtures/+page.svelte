@@ -345,6 +345,7 @@
         <tbody>
           {#each filtered as fixture}
             {@const health = healthIcon(fixture)}
+            {@const HealthIcon = health.icon}
             <tr
               class="table-row cursor-pointer"
               onclick={() => goto(`/fixtures/${fixture.id}`)}
@@ -393,7 +394,7 @@
                 {/if}
               </td>
               <td class="table-cell">
-                <svelte:component this={health.icon} size={14} class={health.color} />
+                <HealthIcon size={14} class={health.color} />
               </td>
             </tr>
           {/each}

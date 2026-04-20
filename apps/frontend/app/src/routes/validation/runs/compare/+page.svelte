@@ -34,17 +34,26 @@
     differs: boolean;
   }
 
+  function flattenExecutions(run: ValidationRun | null): ValidationExecution[] {
+    if (!run?.targets) return [];
+    const out: ValidationExecution[] = [];
+    for (const t of run.targets) {
+      if (t.executions) out.push(...t.executions);
+    }
+    return out;
+  }
+
   const comparisons = $derived.by((): TestComparison[] => {
     if (!runA || !runB) return [];
 
-    const execsA = runA.executions ?? [];
-    const execsB = runB.executions ?? [];
+    const execsA = flattenExecutions(runA);
+    const execsB = flattenExecutions(runB);
 
     const mapA = new Map<string, ValidationExecution>();
     const mapB = new Map<string, ValidationExecution>();
 
-    for (const ex of execsA) mapA.set(ex.test?.name ?? ex.testId, ex);
-    for (const ex of execsB) mapB.set(ex.test?.name ?? ex.testId, ex);
+    for (const ex of execsA) mapA.set(ex.name, ex);
+    for (const ex of execsB) mapB.set(ex.name, ex);
 
     const allNames = new Set([...mapA.keys(), ...mapB.keys()]);
     const rows: TestComparison[] = [];
@@ -64,7 +73,7 @@
 
       rows.push({
         testName: name,
-        category: a?.test?.category ?? b?.test?.category ?? '—',
+        category: a?.module ?? b?.module ?? '—',
         statusA,
         statusB,
         durationA,
@@ -90,23 +99,15 @@
   const hasPowerData = $derived(comparisons.some(c => c.powerA !== null || c.powerB !== null));
 
   function getDuration(ex: ValidationExecution | undefined): number | null {
-    if (!ex?.results?.length) return null;
-    for (const r of ex.results) {
-      if (r.result && typeof r.result === 'object' && 'durationS' in r.result) {
-        return (r.result as Record<string, unknown>).durationS as number;
-      }
-    }
+    if (!ex) return null;
+    if (typeof ex.durationMs === 'number') return ex.durationMs / 1000;
     return null;
   }
 
   function getPower(ex: ValidationExecution | undefined): number | null {
-    if (!ex?.results?.length) return null;
-    for (const r of ex.results) {
-      if (r.result && typeof r.result === 'object' && 'measurements' in r.result) {
-        const m = (r.result as Record<string, unknown>).measurements as Record<string, unknown> | undefined;
-        if (m && 'currentMa' in m) return m.currentMa as number;
-      }
-    }
+    if (!ex?.measurements) return null;
+    const m = ex.measurements as Record<string, unknown>;
+    if ('currentMa' in m && typeof m.currentMa === 'number') return m.currentMa;
     return null;
   }
 

@@ -8,12 +8,15 @@
   import type { TestRun } from '$lib/types/models';
 
   const auth = getAuth();
-  const sessionId = $derived($page.params.id);
-  const runId = $derived($page.params.runId);
+
+  // Capture initial route params at mount — this page is re-created by
+  // SvelteKit when the ids change, so capturing once is correct.
+  const initialSessionId = $page.params.id ?? '';
+  const initialRunId = $page.params.runId ?? '';
 
   const ctx = createRunExecutionContext({
-    runId: runId!,
-    backPath: `/manufacturing/session/${sessionId}`,
+    runId: initialRunId,
+    backPath: `/manufacturing/session/${initialSessionId}`,
     backLabel: 'Back to session',
     permission: 'manufacturing:view',
     getHardwareInfo: (run: TestRun) => ({

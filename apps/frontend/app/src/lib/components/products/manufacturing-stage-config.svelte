@@ -10,7 +10,10 @@
 
   let { stage, onupdate }: Props = $props();
 
-  let expanded = $state(stage.enabled);
+  let expanded = $state(false);
+  $effect(() => {
+    expanded = stage.enabled;
+  });
 
   function toggle() {
     onupdate({ ...stage, enabled: !stage.enabled });

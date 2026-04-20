@@ -26,7 +26,7 @@
 
   const auth = getAuth();
   const canRun = $derived(auth.hasPermission('manufacturing:run'));
-  const sessionId = $derived($page.params.id);
+  const sessionId = $derived($page.params.id ?? '');
 
   let session = $state<ManufacturingSession | null>(null);
   let loading = $state(true);

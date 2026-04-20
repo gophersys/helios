@@ -92,7 +92,7 @@
         {ctx.totalPassed}
       </span>
       <span class="flex items-center gap-1">
-        <XCircle size={12} class="{ctx.totalFailed > 0 ? 'text-error' : 'text-text-tertiary'}" />
+        <XCircle size={12} class={ctx.totalFailed > 0 ? 'text-error' : 'text-text-tertiary'} />
         {ctx.totalFailed}
       </span>
       <span class="flex items-center gap-1">

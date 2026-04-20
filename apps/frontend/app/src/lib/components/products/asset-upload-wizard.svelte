@@ -50,9 +50,7 @@
   let analyzing = $state(false);
 
   // ── Zip mode state ──────────────────────────────────────────
-  let selectedZipFile = $state<File | null>(null);
-  let validating = $state(false);
-  let validationResult = $state<{
+  type ZipValidationResult = {
     valid: boolean;
     errors: string[];
     warnings: string[];
@@ -62,7 +60,11 @@
     versionSource: string | null;
     modemLabelsRequired: string[];
     availableModemFirmwares: { id: string; version: string; filename: string; sizeBytes: number }[];
-  } | null>(null);
+  };
+
+  let selectedZipFile = $state<File | null>(null);
+  let validating = $state(false);
+  let validationResult = $state<ZipValidationResult | null>(null);
 
   // ── Shared state ────────────────────────────────────────────
   let uploading = $state(false);
@@ -327,7 +329,7 @@
       formData.append('file', selectedZipFile);
       formData.append('stageConfigId', selectedConfigId);
 
-      const result = await apiUpload<{ data: typeof validationResult }>(
+      const result = await apiUpload<{ data: ZipValidationResult | null }>(
         `/v2/products/${productId}/asset-sets/validate-zip`,
         formData
       );
@@ -606,11 +608,12 @@
           {#if false}
 
             <!-- Expected labels (before analysis) -->
-            {#if selectedConfig?.buildMatrix?.length && analyzedFiles.length === 0}
+            {@const buildMatrixSafe = (selectedConfig?.buildMatrix ?? []) as any[]}
+            {#if buildMatrixSafe.length > 0 && analyzedFiles.length === 0}
               <div>
                 <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
                 <div class="grid grid-cols-2 gap-1">
-                  {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
+                  {#each buildMatrixSafe.filter((e: any) => e.fwType !== 'modem') as entry}
                     <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
                       <span class="font-mono font-medium">{entry.label}</span>
                       <span class="text-text-tertiary">
