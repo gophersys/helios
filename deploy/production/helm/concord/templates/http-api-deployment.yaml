@@ -112,17 +112,28 @@ spec:
                       sys.exit(r.returncode)
               print('Migrations complete.', flush=True)
 
-              # Step 2: Seed (idempotent — upserts, safe to run repeatedly)
-              print('Seeding database...', flush=True)
-              r = subprocess.run(
-                  [sys.executable, '-m', 'seed.main'],
-                  capture_output=False, text=True, cwd='/prisma',
-                  env={**os.environ, 'PYTHONPATH': '/libs/python:/libs:/libs/protocols:/prisma'}
-              )
-              if r.returncode != 0:
-                  print(f'Seed failed (exit {r.returncode})', flush=True)
-                  sys.exit(r.returncode)
-              print('Seed complete.', flush=True)
+              # Step 2: Seed — DEVELOPMENT ONLY.
+              # The seed creates dev users, a known CI admin API key,
+              # demo fixture designs, and per-stage config records. All
+              # of those are onboarding conveniences for a fresh dev
+              # database; in staging/production they represent real
+              # operator-managed state that must not be clobbered by a
+              # redeploy. Operators add users + configure fixtures
+              # through the UI.
+              env_name = os.environ.get('ENVIRONMENT', 'development')
+              if env_name == 'development':
+                  print('Seeding database (development)...', flush=True)
+                  r = subprocess.run(
+                      [sys.executable, '-m', 'seed.main'],
+                      capture_output=False, text=True, cwd='/prisma',
+                      env={**os.environ, 'PYTHONPATH': '/libs/python:/libs:/libs/protocols:/prisma'}
+                  )
+                  if r.returncode != 0:
+                      print(f'Seed failed (exit {r.returncode})', flush=True)
+                      sys.exit(r.returncode)
+                  print('Seed complete.', flush=True)
+              else:
+                  print(f'Skipping seed — environment={env_name} (seed runs in development only).', flush=True)
           envFrom:
             - configMapRef:
                 name: concord-config
