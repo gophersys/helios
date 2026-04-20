@@ -65,7 +65,7 @@ class BufferedUartStream:
         self._rx_bytes = 0
         self._last_data_time: Optional[float] = None
         self._stream_error: Optional[str] = None
-        # Handle to the raw gRPC call so ``close()`` / ``ensure_alive``
+        # Handle to the raw gRPC call so ``close()``
         # can hard-cancel the bidi stream. Without this, setting
         # ``_stop`` only tells our request-generator to stop yielding;
         # the server-side handler keeps the stream registered until its
@@ -154,73 +154,23 @@ class BufferedUartStream:
         time.sleep(0.3)
         self.start()
 
-    # Total wall-clock budget for a reconnect attempt. A fresh gRPC
-    # bidirectional-streaming call against an MTIB regularly takes
-    # 1-2 s to establish (TCP handshake + TLS on slow edges + initial
-    # metadata frame). The previous 300 ms budget guaranteed a
-    # "Stream dead (None)" return every time the rx thread actually
-    # went down between commands — which is what blew up the
-    # test_11_rekey_ipc panel run.
-    _RECONNECT_BUDGET_S = 3.0
-    _RECONNECT_POLL_S = 0.05
+    def check_alive(self) -> Optional[str]:
+        """Return an error string if the stream is dead, None if alive.
 
-    def ensure_alive(self) -> bool:
-        """Check stream health, restart if dead. Returns True if alive.
-
-        Wait up to ``_RECONNECT_BUDGET_S`` for the restarted worker
-        thread to finish its initial gRPC establish. We poll at 50 ms
-        to return as soon as the thread is up — typical local-cluster
-        reconnects finish in 200-600 ms, office-LAN MTIB ~1-2 s.
-
-        Also records a diagnostic ``_stream_error`` when the old
-        thread died silently (no error set), so callers aren't
-        surfaced ``Stream dead (None)`` and left without a cause.
+        Does NOT attempt to reconnect. The in-process reconnect path
+        ended up creating races between the rx thread's natural exit,
+        the caller's cancel, and the freshly-started replacement —
+        failing tests on ``Locally cancelled by application!`` even
+        when the server was healthy. A shell is either live (used for
+        the duration of the caller's fixture) or dead (the test fails
+        with a clear reason and the caller reopens at the next test).
+        Simpler, and repeatable.
         """
         if self.is_alive:
-            return True
+            return None
         if self._stop.is_set():
-            return False  # Intentionally stopped
-
-        # Old thread vanished without logging an error — make the
-        # symptom visible so logs never show ``Stream dead (None)``.
-        if self._stream_error is None:
-            self._stream_error = "rx thread exited without raising"
-
-        log.warning(
-            "[%s] UART stream died (%s); restarting",
-            self._label, self._stream_error,
-        )
-        # Hard-cancel any lingering gRPC call from the previous run —
-        # the old thread exited but its handle may still hold the
-        # stream open until the server-side for-loop unwinds. Without
-        # this, rapid reconnects stack up 4-5 "ghost" clients per
-        # target on the MTIB server and broadcast throughput collapses.
-        self._cancel_grpc_call()
-        self._stop.clear()
-        # Drain stale TX queue so a stuck write from before the death
-        # doesn't get replayed against the new stream.
-        while not self._tx_queue.empty():
-            try:
-                self._tx_queue.get_nowait()
-            except queue.Empty:
-                break
-        self._thread = threading.Thread(
-            target=self._run, daemon=True, name=f"uart-rx-{self._label}"
-        )
-        self._thread.start()
-
-        # Poll until the thread actually comes up (it might still be in
-        # gRPC-connect) or the budget runs out.
-        deadline = time.time() + self._RECONNECT_BUDGET_S
-        while time.time() < deadline:
-            if self.is_alive:
-                return True
-            time.sleep(self._RECONNECT_POLL_S)
-        log.warning(
-            "[%s] UART stream restart gave up after %.1fs (%s)",
-            self._label, self._RECONNECT_BUDGET_S, self._stream_error,
-        )
-        return False
+            return "stream closed by caller"
+        return self._stream_error or "rx thread exited without raising"
 
     def write(self, data: bytes):
         """Queue bytes for TX to device."""
@@ -277,7 +227,7 @@ class BufferedUartStream:
         # Call the raw stub so we get back a cancellable call handle.
         # ``self._mtib.UartStream`` is a generator wrapper that hides
         # the handle; going directly to ``self._mtib.client`` lets
-        # ``close()`` / ``ensure_alive`` hard-cancel the bidi stream
+        # ``close()`` hard-cancel the bidi stream
         # and stop accumulating stale clients on the MTIB server.
         call = self._mtib.client.UartStream(request_iter())
         self._grpc_call = call
@@ -319,12 +269,12 @@ class BufferedUartStream:
                     self._label, exit_reason,
                 )
         finally:
-            # Drop our reference so ensure_alive's cancel call is a no-op
-            # once the thread has already torn the call down on its own.
+            # Drop our reference so ``close()``'s cancel is a no-op once
+            # the thread has already torn the call down on its own.
             if self._grpc_call is call:
                 self._grpc_call = None
 
-        # Record the reason so ``ensure_alive`` and ``send`` surface a
+        # Record the reason so ``check_alive`` and ``send`` surface a
         # real cause rather than ``(None)``. We deliberately don't
         # overwrite a reason already set above (server-error branch).
         if self._stream_error is None and exit_reason is not None:
@@ -397,21 +347,13 @@ class ShellCommander:
         Returns:
             (lines, error) — clean response lines. error is None on success.
         """
-        # The stream may have died between our last command and this
-        # one — server-side cancel, keepalive miss, or just a lull. The
-        # reconnect attempt inside ensure_alive() has a 3s budget, and
-        # if it doesn't come back we give up with the real reason
-        # rather than the old ``Stream dead (None)`` mystery.
-        if not self._stream.ensure_alive():
-            return [], f"Stream dead ({self._stream.last_error})"
-
-        # Reconnect might have wiped the shell's prompt state. Write a
-        # bare newline before the command echo-probe so the device has
-        # a chance to print its prompt into our freshly-reconnected
-        # buffer; the double-clear below then strips it cleanly.
-        if self._stream.rx_bytes == 0:
-            self._stream.write(b"\r")
-            time.sleep(0.1)
+        # The stream either works or it doesn't. If the rx thread
+        # exited for any reason (server closed, network hiccup,
+        # anything), fail the command with the real cause — don't try
+        # to reconnect and race with pytest/fixture teardown.
+        err = self._stream.check_alive()
+        if err is not None:
+            return [], f"Stream dead ({err})"
 
         # Double-clear: flush any in-flight data, brief settle, flush again
         self._stream.clear()
@@ -531,7 +473,7 @@ class ShellCommander:
         queued early is sufficient. A second attempt fires only if the
         first produced no response after 8s.
         """
-        if not self._stream.ensure_alive():
+        if self._stream.check_alive() is not None:
             return False
 
         self._stream.clear()
