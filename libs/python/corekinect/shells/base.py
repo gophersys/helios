@@ -65,18 +65,6 @@ class BufferedUartStream:
         self._rx_bytes = 0
         self._last_data_time: Optional[float] = None
         self._stream_error: Optional[str] = None
-        # Handle to the raw gRPC call so ``close()``
-        # can hard-cancel the bidi stream. Without this, setting
-        # ``_stop`` only tells our request-generator to stop yielding;
-        # the server-side handler keeps the stream registered until its
-        # ``for request in request_iterator`` loop finally sees
-        # StopIteration — which on a LAN to an edge MTIB can take
-        # multiple seconds. Rapid boot-retry + reconnect cycles then
-        # accumulate 4-5 stale streams per target, which collapses
-        # broadcast throughput and causes fresh reconnects to die
-        # within a few hundred ms. ``call.cancel()`` delivers
-        # CANCELLED to the server immediately.
-        self._grpc_call: Optional[object] = None
 
     @property
     def is_alive(self) -> bool:
@@ -114,28 +102,18 @@ class BufferedUartStream:
     def close(self):
         """Close the stream and stop the background reader.
 
-        Hard-cancels the underlying gRPC call so the server releases
-        the client slot immediately (see ``_grpc_call`` docstring for
-        why setting ``_stop`` alone leaks stale streams). Idempotent —
-        safe to call from teardown paths that may have partially-
-        initialised state.
+        Sets ``_stop`` so the request-generator stops yielding; the
+        server sees the request stream end and closes its side; the
+        response iterator exits cleanly; ``_run`` returns. No manual
+        gRPC-level cancel — an earlier attempt to hard-cancel the call
+        corrupted the channel state under multi-panel sessions and
+        downstream RPCs (FlashFwFile) started failing with "Cannot
+        invoke RPC on closed channel!" across panels. Idempotent.
         """
         self._stop.set()
-        self._cancel_grpc_call()
         if self._thread:
-            self._thread.join(timeout=2.0)
+            self._thread.join(timeout=5.0)
             self._thread = None
-
-    def _cancel_grpc_call(self) -> None:
-        """Cancel the current gRPC UartStream if one is active."""
-        call = self._grpc_call
-        if call is None:
-            return
-        try:
-            call.cancel()
-        except Exception:
-            pass
-        self._grpc_call = None
 
     # Back-compat alias — ``stop()`` predates the convention shift to
     # ``close()`` (which matches stdlib io / sqlite3 / sshtunnel and the
@@ -217,22 +195,13 @@ class BufferedUartStream:
                     # and RX throughput drops from ~1500 B/s to ~3 B/s.
                     yield UartStreamRequest(target=self._target, data=b"")
 
-        # Track the loop's exit reason so callers never see "Stream dead
-        # (None)". The gRPC iterator can exit cleanly (server closed the
-        # stream, keepalive missed, or the client cancelled) without
-        # raising — the old code treated that identical to "we stopped
-        # intentionally", which left ``_stream_error`` as None and any
-        # downstream reconnect diagnosis completely blind.
+        # Track the loop's exit reason so callers see a real cause
+        # instead of an empty ``last_error``. The gRPC iterator can
+        # exit cleanly (server closed the stream) without raising;
+        # we record that too.
         exit_reason: Optional[str] = None
-        # Call the raw stub so we get back a cancellable call handle.
-        # ``self._mtib.UartStream`` is a generator wrapper that hides
-        # the handle; going directly to ``self._mtib.client`` lets
-        # ``close()`` hard-cancel the bidi stream
-        # and stop accumulating stale clients on the MTIB server.
-        call = self._mtib.client.UartStream(request_iter())
-        self._grpc_call = call
         try:
-            for resp in call:
+            for resp in self._mtib.UartStream(self._target, request_iter()):
                 if self._stop.is_set():
                     exit_reason = "stopped by caller"
                     break
@@ -242,14 +211,11 @@ class BufferedUartStream:
                     self._rx_bytes += len(resp.data)
                     self._last_data_time = time.time()
                     self._data_event.set()
-                # Check for gRPC-level error responses
                 if hasattr(resp, 'success') and not resp.success:
                     self._stream_error = getattr(resp, 'message', 'unknown')
                     exit_reason = f"server error: {self._stream_error}"
                     break
             else:
-                # Iterator exhausted without ``break`` — gRPC closed the
-                # stream cleanly. No exception, but the stream is dead.
                 if self._rx_bytes == 0:
                     exit_reason = "stream closed by server before any data arrived"
                 else:
@@ -268,15 +234,7 @@ class BufferedUartStream:
                     "[%s] UART stream error: %s",
                     self._label, exit_reason,
                 )
-        finally:
-            # Drop our reference so ``close()``'s cancel is a no-op once
-            # the thread has already torn the call down on its own.
-            if self._grpc_call is call:
-                self._grpc_call = None
 
-        # Record the reason so ``check_alive`` and ``send`` surface a
-        # real cause rather than ``(None)``. We deliberately don't
-        # overwrite a reason already set above (server-error branch).
         if self._stream_error is None and exit_reason is not None:
             self._stream_error = exit_reason
 
