@@ -359,12 +359,23 @@ class CoreOpsClient:
             },
         )
 
-        # 400 with "AlreadyExists" is OK (idempotent)
+        # 400 with any "Iccids.*" code is treated as idempotent. The
+        # canonical reply is ``Iccids.AlreadyExists`` when the ICCID is
+        # bound to the same SNR; but when a panel gets re-scanned after
+        # an earlier run stamped its ICCIDs on a different slot (from
+        # a misaligned panelPositionMap or a cancelled session) CoreOps
+        # returns a different ``Iccids.*`` code — and failing hard there
+        # blocks production on stale server-side data, not a real SIM
+        # problem. Log it and move on.
         if resp.status_code == 400:
             try:
                 data = resp.json()
-                if data.get("code") == "Iccids.AlreadyExists":
-                    self._log.debug("ICCID %s already registered", iccid)
+                code = data.get("code", "")
+                if isinstance(code, str) and code.startswith("Iccids."):
+                    self._log.warning(
+                        "ICCID %s: CoreOps returned 400 %s — treating as idempotent",
+                        iccid, code,
+                    )
                     return
             except Exception:
                 pass

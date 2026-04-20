@@ -164,7 +164,7 @@ def _lock_failure_message(shell_name: str, slot_id: str) -> str:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def booted_device(slot, config):
     """Boot the DUT on ``slot`` once per module and yield a :class:`BootedDevice`.
 
@@ -236,7 +236,7 @@ def booted_device(slot, config):
                 log.warning("%s shell stop raised on teardown: %s", slot.slot_id, e)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def device_identity(booted_device) -> DeviceIdentity:
     """Read IMEI + ICCIDs from the modem and yield a :class:`DeviceIdentity`.
 
