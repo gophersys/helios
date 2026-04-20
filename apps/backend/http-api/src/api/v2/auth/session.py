@@ -70,9 +70,17 @@ def _now() -> datetime:
 
 
 def _verification_uri(user_code: str) -> str:
-    """Build the URL we tell the CLI to open in a browser."""
-    base = (request.host_url or "").rstrip("/")
-    return f"{base}/settings/sessions?code={user_code}"
+    """Build the URL we tell the CLI to open in a browser.
+
+    Traefik terminates TLS and proxies plain HTTP to the pod, so
+    ``request.url_root`` / ``request.host_url`` both return ``http://…``
+    — which would leave the CLI printing an ``http://`` URL users paste
+    into a browser that then gets a 301 anyway.  Honour the standard
+    ``X-Forwarded-Proto`` header set by traefik (+ any other L7 proxy).
+    """
+    proto = (request.headers.get("X-Forwarded-Proto") or request.scheme or "https").split(",")[0].strip()
+    host = request.headers.get("X-Forwarded-Host") or request.host
+    return f"{proto}://{host}/settings/sessions?code={user_code}"
 
 
 def _is_expired(session) -> bool:
