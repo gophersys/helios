@@ -8,12 +8,16 @@ from typing import Dict, List, Optional
 
 @dataclass(frozen=True)
 class DeviceConfig:
+    """CoreOps device-type identifiers used to claim and route a DUT."""
+
     type_id: int = 0
     variant_id: int = 0
 
 
 @dataclass(frozen=True)
 class PackageConfig:
+    """Test-package metadata: kind, version, and framework version constraint."""
+
     type: str  # "validation" or "manufacturing"
     version: str  # semver e.g. "1.0.0"
     framework: str  # version constraint e.g. ">=0.3.0"
@@ -21,6 +25,8 @@ class PackageConfig:
 
 @dataclass(frozen=True)
 class ProductConfig:
+    """Product identity: slug + board revision + CoreOps device IDs."""
+
     slug: str
     board: str
     device: DeviceConfig = field(default_factory=DeviceConfig)
@@ -28,6 +34,8 @@ class ProductConfig:
 
 @dataclass(frozen=True)
 class FixtureConfig:
+    """Hardware-fixture wiring: controller class + profile YAML + slot mode."""
+
     controller: str  # dotted import path
     profile: str  # relative file path
     design: str = ""  # fixture design name (matches fixture.yaml 'name')

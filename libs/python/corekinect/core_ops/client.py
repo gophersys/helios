@@ -106,6 +106,19 @@ class CoreOpsClient:
             atexit.register(self._teardown)
             self._atexit_reg = True
 
+    @classmethod
+    def from_env(cls, logger: Optional[Logger] = None) -> "CoreOpsClient":
+        """Build a :class:`CoreOpsClient` from ``COREOPS_*`` env vars.
+
+        Convenience factory for parity with the other corekinect
+        service clients (:class:`ConcordReporter.from_env`,
+        :class:`MtibV1Client` config). Identical to ``CoreOpsClient()``
+        — :class:`CoreOpsConfig` already auto-reads the env on
+        construction — but the explicit ``from_env`` name makes the
+        intent obvious at call sites and matches the convention.
+        """
+        return cls(config=CoreOpsConfig(), logger=logger)
+
     def __enter__(self) -> "CoreOpsClient":
         """  enter  ."""
         if self._depth > 0:

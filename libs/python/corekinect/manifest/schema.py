@@ -52,6 +52,13 @@ class SchemaVersion:
 
 @dataclass
 class ValidationError:
+    """A single manifest-validation finding (path + human-readable message).
+
+    ``path`` is the dotted YAML path (e.g. ``"product.device.type_id"``);
+    blank when the error is at the top level. ``__str__`` formats the
+    pair so the validator can join them into one log line.
+    """
+
     path: str
     message: str
 
@@ -63,6 +70,13 @@ class ValidationError:
 
 @dataclass
 class ValidationResult:
+    """Aggregate result of manifest validation.
+
+    ``errors`` block the manifest from loading; ``warnings`` are
+    surfaced to the operator but allow the manifest through. Use
+    :attr:`valid` for a boolean gate before relying on the manifest.
+    """
+
     errors: List[ValidationError]
     warnings: List[ValidationError]
 

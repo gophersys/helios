@@ -138,9 +138,23 @@ class SecretsClient:
                     return
                     
             except Exception as e:
-                logger.warning(f"Authentication attempt {attempt} failed: {e}")
-                if attempt == max_retries:
-                    raise ValueError(f"Could not log in to Vault after {max_retries} attempts: {e}")
+                if attempt < max_retries:
+                    logger.warning(
+                        "Vault auth attempt %d/%d failed: %s: %s",
+                        attempt, max_retries, type(e).__name__, str(e),
+                    )
+                else:
+                    # Final attempt — escalate to error so the caller's
+                    # log shows the auth failure as a real fault, not a
+                    # transient warning.
+                    logger.error(
+                        "Vault auth failed after %d attempts: %s: %s",
+                        max_retries, type(e).__name__, str(e),
+                    )
+                    raise ValueError(
+                        f"Could not log in to Vault after {max_retries} attempts: "
+                        f"{type(e).__name__}"
+                    ) from e
 
     def _refresh_token_from_file(self):
         """Refresh token from file if token file path is provided"""

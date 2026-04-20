@@ -10,6 +10,7 @@ for drain hacks — like being directly wired to the serial port.
 
 from __future__ import annotations
 
+import logging
 import queue
 import re
 import threading
@@ -17,6 +18,8 @@ import time
 from typing import List, Optional, Tuple
 
 from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
+
+log = logging.getLogger(__name__)
 
 # Standard ANSI escape: ESC [ <params> <letter>
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -131,7 +134,10 @@ class BufferedUartStream:
         if self._stop.is_set():
             return False  # Intentionally stopped
         # Stream died unexpectedly — restart
-        print(f"  [{self._label}] Stream died ({self._stream_error}), restarting...")
+        log.warning(
+            "[%s] UART stream died (%s); restarting",
+            self._label, self._stream_error,
+        )
         self._stop.clear()
         # Drain stale TX queue
         while not self._tx_queue.empty():
@@ -208,7 +214,10 @@ class BufferedUartStream:
         except Exception as e:
             self._stream_error = str(e) or type(e).__name__
             if not self._stop.is_set():
-                print(f"  [{self._label}] Stream error: {self._stream_error}")
+                log.warning(
+                    "[%s] UART stream error: %s",
+                    self._label, self._stream_error,
+                )
 
 
 class ShellCommander:
