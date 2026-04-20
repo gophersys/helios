@@ -45,11 +45,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Serve the corectl installer at /install.sh so users can bootstrap with
 #   curl -sSL https://concord.ad.corekinect.com/install.sh | bash
-# The canonical source is tools/corectl/install.sh. A symlink in
-# apps/frontend/app/static/install.sh makes `nx serve` serve the same
-# file in dev; the symlink target sits outside the SvelteKit build root,
-# which is why we copy the file explicitly here instead of relying on
-# SvelteKit to include it in the static build output.
+# Canonical source lives at tools/corectl/install.sh and is copied here
+# straight into nginx's web root — intentionally outside the SvelteKit
+# build, because the SvelteKit static/ tree cannot reach outside its
+# own project directory during vite build.
 COPY tools/corectl/install.sh /usr/share/nginx/html/install.sh
 
 # Write build metadata as a static JSON file served at /build-info.json
