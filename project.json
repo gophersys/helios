@@ -1,8 +1,6 @@
 {
   "name": "infrastructure",
   "$schema": "node_modules/nx/schemas/project-schema.json",
-  "root": ".",
-  "sourceRoot": ".",
   "projectType": "application",
   "tags": ["scope:infrastructure", "type:meta"],
   "targets": {
@@ -10,7 +8,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh status",
-        "cwd": "."
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
@@ -18,7 +16,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh validate",
-        "cwd": "."
+        "cwd": "{projectRoot}"
       },
       "cache": true,
       "inputs": [
@@ -32,7 +30,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh generate-index",
-        "cwd": "."
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
@@ -40,7 +38,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh propagate",
-        "cwd": "."
+        "cwd": "{projectRoot}"
       },
       "cache": false
     }
