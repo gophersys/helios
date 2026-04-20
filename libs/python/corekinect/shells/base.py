@@ -127,19 +127,45 @@ class BufferedUartStream:
         time.sleep(0.3)
         self.start()
 
+    # Total wall-clock budget for a reconnect attempt. A fresh gRPC
+    # bidirectional-streaming call against an MTIB regularly takes
+    # 1-2 s to establish (TCP handshake + TLS on slow edges + initial
+    # metadata frame). The previous 300 ms budget guaranteed a
+    # "Stream dead (None)" return every time the rx thread actually
+    # went down between commands — which is what blew up the
+    # test_11_rekey_ipc panel run.
+    _RECONNECT_BUDGET_S = 3.0
+    _RECONNECT_POLL_S = 0.05
+
     def ensure_alive(self) -> bool:
-        """Check stream health, restart if dead. Returns True if alive."""
+        """Check stream health, restart if dead. Returns True if alive.
+
+        Wait up to ``_RECONNECT_BUDGET_S`` for the restarted worker
+        thread to finish its initial gRPC establish. We poll at 50 ms
+        to return as soon as the thread is up — typical local-cluster
+        reconnects finish in 200-600 ms, office-LAN MTIB ~1-2 s.
+
+        Also records a diagnostic ``_stream_error`` when the old
+        thread died silently (no error set), so callers aren't
+        surfaced ``Stream dead (None)`` and left without a cause.
+        """
         if self.is_alive:
             return True
         if self._stop.is_set():
             return False  # Intentionally stopped
-        # Stream died unexpectedly — restart
+
+        # Old thread vanished without logging an error — make the
+        # symptom visible so logs never show ``Stream dead (None)``.
+        if self._stream_error is None:
+            self._stream_error = "rx thread exited without raising"
+
         log.warning(
             "[%s] UART stream died (%s); restarting",
             self._label, self._stream_error,
         )
         self._stop.clear()
-        # Drain stale TX queue
+        # Drain stale TX queue so a stuck write from before the death
+        # doesn't get replayed against the new stream.
         while not self._tx_queue.empty():
             try:
                 self._tx_queue.get_nowait()
@@ -149,8 +175,19 @@ class BufferedUartStream:
             target=self._run, daemon=True, name=f"uart-rx-{self._label}"
         )
         self._thread.start()
-        time.sleep(0.3)  # Give reconnect a moment
-        return self.is_alive
+
+        # Poll until the thread actually comes up (it might still be in
+        # gRPC-connect) or the budget runs out.
+        deadline = time.time() + self._RECONNECT_BUDGET_S
+        while time.time() < deadline:
+            if self.is_alive:
+                return True
+            time.sleep(self._RECONNECT_POLL_S)
+        log.warning(
+            "[%s] UART stream restart gave up after %.1fs (%s)",
+            self._label, self._RECONNECT_BUDGET_S, self._stream_error,
+        )
+        return False
 
     def write(self, data: bytes):
         """Queue bytes for TX to device."""

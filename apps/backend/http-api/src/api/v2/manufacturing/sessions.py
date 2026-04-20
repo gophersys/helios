@@ -33,6 +33,26 @@ _coreops_client = None
 _coreops_init_attempted = False
 
 
+def _find_latest_complete_asset_set_id(db, product_id: str, board_revision_id: str | None) -> str | None:
+    """Return the id of the latest COMPLETE AssetSet for ``(product, board)``.
+
+    Used by the create-session auto-resolve as a last-resort when neither
+    an explicit ``assetSetId`` nor a ``ManufacturingConfig`` row resolves
+    firmware. Covers every product that hasn't been wired via
+    ManufacturingConfig (which is all of them today).
+
+    Matching on ``boardRevisionId`` prevents picking an asset set built
+    for a different board revision — a flashing-wrong-firmware footgun.
+    If the fixture has no board revision assigned, falls back to any
+    COMPLETE asset set on the product.
+    """
+    where: dict = {"productId": product_id, "status": "COMPLETE"}
+    if board_revision_id:
+        where["boardRevisionId"] = board_revision_id
+    latest = db.assetset.find_first(where=where, order={"createdAt": "desc"})
+    return latest.id if latest else None
+
+
 def _get_coreops_client():
     """Get or initialize the CoreOps client. Returns None if credentials not configured."""
     global _coreops_client, _coreops_init_attempted
@@ -392,36 +412,77 @@ def create_manufacturing_session():
     operator_id = g.current_user["sub"]
 
     # ── Resolve firmware AssetSet ──
+    #
+    # A manufacturing session MUST have a firmware asset set — the fw_flash
+    # stage is going to try to upload a .hex file to the MTIB, and "None"
+    # is not a valid path. Historically this endpoint silently accepted
+    # sessions with assetSetId=None when no ManufacturingConfig row
+    # existed for the product: the session got created, the operator
+    # scanned a panel, the runner booted, and the FIRST flash test
+    # failed with "File not found" — a waste of ~3 min per panel plus
+    # operator confusion. Gate it at the API instead.
     asset_set_id = (body.get("assetSetId") or "").strip() or None
     if asset_set_id:
-        # Explicit selection — validate it
+        # Explicit selection — validate it end-to-end.
         asset_set = db.assetset.find_unique(where={"id": asset_set_id})
         if not asset_set:
             return not_found("AssetSet not found")
         if asset_set.productId != product_id:
             return bad_request("AssetSet does not belong to this product")
-        if asset_set.status == "PENDING":
+        if asset_set.status != "COMPLETE":
             return bad_request(
-                f"AssetSet is not ready (current status: {asset_set.status})"
+                f"AssetSet is not ready (current status: {asset_set.status}). "
+                "Pick a COMPLETE asset set or build a new one."
+            )
+        # Warn if the board revision doesn't match the fixture — common
+        # mistake that would flash wrong firmware onto the DUTs.
+        if (
+            asset_set.boardRevisionId
+            and fixture.boardRevisionId
+            and asset_set.boardRevisionId != fixture.boardRevisionId
+        ):
+            return bad_request(
+                "AssetSet board revision does not match the fixture's "
+                "board revision. Select an asset set built for the same "
+                "board revision as the fixture."
             )
     else:
-        # Auto-resolve from ManufacturingConfig (match fixture's board revision)
+        # ── Auto-resolve. Order of precedence: ──
+        #   1. ManufacturingConfig.firmwareSetId — explicit pin by ops
+        #   2. ManufacturingConfig.firmwareSource == "latest_build"
+        #   3. Last-resort: latest COMPLETE AssetSet for (product, board)
+        #
+        # The last-resort case covers products that haven't been wired up
+        # through ManufacturingConfig yet. Better than silently failing
+        # at flash time; still explicit enough that an ops config matters.
         config_where: dict = {"productId": product_id}
         if fixture.boardRevisionId:
             config_where["boardRevisionId"] = fixture.boardRevisionId
-        mfg_config = db.manufacturingconfig.find_first(
-            where=config_where
-        )
+        mfg_config = db.manufacturingconfig.find_first(where=config_where)
         if mfg_config:
             if mfg_config.firmwareSetId:
                 asset_set_id = mfg_config.firmwareSetId
             elif mfg_config.firmwareSource == "latest_build":
-                latest = db.assetset.find_first(
-                    where={"productId": product_id, "status": "COMPLETE"},
-                    order={"createdAt": "desc"},
+                asset_set_id = _find_latest_complete_asset_set_id(
+                    db, product_id, fixture.boardRevisionId,
                 )
-                if latest:
-                    asset_set_id = latest.id
+        if not asset_set_id:
+            # Last-resort: no config (or config didn't resolve). Look for
+            # any COMPLETE asset set that matches the product + board —
+            # covers products where ops hasn't wired a ManufacturingConfig
+            # row yet (which is every product today, until that feature is
+            # retired or repurposed).
+            asset_set_id = _find_latest_complete_asset_set_id(
+                db, product_id, fixture.boardRevisionId,
+            )
+
+    # Hard gate — never let a session start with no firmware.
+    if not asset_set_id:
+        return bad_request(
+            "No firmware asset set available for this product and board "
+            "revision. Upload or build a COMPLETE AssetSet first, or pass "
+            "assetSetId explicitly in the request."
+        )
 
     create_data: dict = {
         "productId": product_id,

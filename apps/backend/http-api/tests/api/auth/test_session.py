@@ -49,7 +49,12 @@ def test_request_session_code_returns_pair(client, mock_db):
     # RFC 8628 contract.
     assert body["expires_in"] == 600
     assert body["interval"] == 5
-    assert body["verification_uri"].endswith(f"/settings/sessions?code={body['user_code']}")
+    # corectl's device-code URL points at ``/`` — the frontend's root
+    # layout watches for ``?code=…`` on any route and auto-opens the
+    # settings → sessions modal. Old tests asserted a dedicated
+    # ``/settings/sessions`` path; that route was removed when the
+    # approval UX moved into the shared settings modal.
+    assert body["verification_uri"].endswith(f"/?code={body['user_code']}")
 
     # The persisted record must mirror what we returned.
     assert captured["userCode"] == body["user_code"]
