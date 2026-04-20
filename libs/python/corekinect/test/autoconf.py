@@ -289,6 +289,21 @@ def pytest_configure(config: pytest.Config) -> None:
     # opt-in and debuggable from env flags.
     _maybe_register_slot_parallel(config)
 
+    # ── 3c. Register sequential (per-slot fail-fast) plugin ──
+    # If any test on slot-N fails, every remaining test on slot-N is
+    # skipped from the setup phase — panel rejected early, no wasted
+    # time booting known-bad DUTs.  Inline tests and other slots are
+    # unaffected.  Registered unconditionally because the plugin itself
+    # no-ops when a run has no ``[slot-N]`` parametrization (the pure
+    # validation case already behaves this way), so there's nothing to
+    # gate on.  Historically this sat in ``corekinect.test.sequential``
+    # and each product had to opt in; promoting it to autoconf means
+    # every framework user gets the correct manufacturing semantics
+    # without touching their conftest.
+    if not config.pluginmanager.has_plugin("sequential_tests"):
+        config.pluginmanager.import_plugin("corekinect.test.sequential")
+        log.info("autoconf: sequential registered (slot-scoped fail-fast)")
+
     # ── 4. Register custom markers from manifest stages ──
     if manifest.is_validation:
         for stage in manifest.stages.values():
