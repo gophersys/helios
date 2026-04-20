@@ -25,6 +25,25 @@ def _product(**overrides):
     return make_obj(**defaults)
 
 
+def _asset_set(**overrides):
+    """AssetSet mock for manufacturing tests.
+
+    Sessions now require a resolvable firmware AssetSet; the helper
+    lets individual tests customize ``status`` / ``boardRevisionId`` /
+    ``productId`` when they need to exercise the validation branches.
+    """
+    defaults = dict(
+        id="s10-as-1",
+        productId="s10-prod-1",
+        boardRevisionId="s10-rev-1",
+        status="COMPLETE",
+        version="0.1.0",
+        variant="debug",
+    )
+    defaults.update(overrides)
+    return make_obj(**defaults)
+
+
 def _fixture(**overrides):
     defaults = dict(
         id="s10-fix-1",
@@ -40,6 +59,10 @@ def _fixture(**overrides):
         panelCols=2,
         metadata=None,
         product=_product(),
+        # ``slots`` is re-fetched during session create (with node relations
+        # for MTIB resolution). Default to empty so tests don't have to mock
+        # slot/node trees unless they're exercising the snapshot path.
+        slots=[],
     )
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -162,6 +185,12 @@ class TestCreateSession:
     def test_creates_session_and_locks_fixture(self, authed_client, mock_db):
         mock_db.fixture.find_unique.return_value = _fixture()
         mock_db.product.find_unique.return_value = _product()
+        # Manufacturing sessions require a firmware asset set. The auto-
+        # resolve now falls back to the latest COMPLETE AssetSet for the
+        # (product, board) pair — mock that so the happy-path test
+        # doesn't hit the hard 400 gate we added to prevent sessions
+        # from spawning with assetSetId=None.
+        mock_db.assetset.find_first.return_value = _asset_set(id="s10-as-1", status="COMPLETE")
         created = _session()
         mock_db.manufacturingsession.create.return_value = created
         mock_db.fixture.update.return_value = _fixture(status="LOCKED", lockedBy="s10-sess-1")

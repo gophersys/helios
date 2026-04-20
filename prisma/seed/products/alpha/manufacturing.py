@@ -110,7 +110,7 @@ def seed_manufacturing(db, product, b0_rev):
 
     # ── Manufacturing stage config (single stage, type=MANUFACTURING) ──
     # Use the new StageType-aware unique constraint
-    db.productstageconfig.upsert(
+    mfg_config = db.productstageconfig.upsert(
         where={"productId_type_stage_boardRevisionId": {
             "productId": product.id,
             "type": "MANUFACTURING",
@@ -135,3 +135,37 @@ def seed_manufacturing(db, product, b0_rev):
         },
     )
     print("  ✓ Manufacturing stage config")
+
+    # ── Manufacturing build matrix ──
+    # The validation seed populates stage_build_matrix from
+    # ``get_stage_build_defs`` but the manufacturing seed used to skip
+    # this step. Result: every fresh dev DB had a Manufacturing stage
+    # with zero matrix entries, which made the firmware-zip upload
+    # validator reject every attempt with ``Stage has no build matrix
+    # entries``. Mirror the validation pattern here so seeding a new
+    # product yields a usable upload flow out of the box.
+    try:
+        from corekinect.stages import Stage, get_stage_build_defs
+    except ImportError:
+        print("  ⚠ corekinect.stages unavailable — skipped matrix seed")
+        return
+
+    # Idempotent replace: clear any existing entries before re-creating.
+    db.stagebuildmatrix.delete_many(where={"stageConfigId": mfg_config.id})
+    for i, bd in enumerate(get_stage_build_defs(Stage.MANUFACTURING)):
+        db.stagebuildmatrix.create(data={
+            "stageConfigId": mfg_config.id,
+            "sortOrder": i,
+            "label": bd.label,
+            "fwType": bd.fw_type,
+            "variant": bd.variant,
+            "processor": bd.processor,
+            "configLog": bd.config_log,
+            "producesHex": bd.produces_hex,
+            "producesCfw": bd.produces_cfw,
+            "gitRef": bd.git_ref,
+            "isVersionBump": bd.is_version_bump,
+            "baseLabel": bd.base_label,
+            "description": bd.description,
+        })
+    print(f"  ✓ Manufacturing build matrix: {len(get_stage_build_defs(Stage.MANUFACTURING))} entries")
