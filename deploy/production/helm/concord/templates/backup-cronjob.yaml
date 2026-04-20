@@ -34,7 +34,11 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  set -e
+                  # ``pipefail`` is load-bearing: without it, ``pg_dump |
+                  # gzip > file`` returned 0 even when pg_dump failed,
+                  # silently producing 20-byte empty dumps that nightly
+                  # verify then flagged as "0 tables restored".
+                  set -eo pipefail
 
                   ENV="{{ .Values.global.environment }}"
                   TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
@@ -43,6 +47,26 @@ spec:
                   RETAIN={{ .Values.backups.postgres.retain | default 14 }}
 
                   mkdir -p "${BACKUP_DIR}"
+
+                  # Wait for NetworkPolicy rules to propagate into
+                  # kube-router. On k3s the policy allow-rule for this
+                  # pod's label can lag ~3-5s after pod start; pg_dump
+                  # fires its TCP SYN immediately and gets a REJECT
+                  # unless we pause. Retries up to 30s total.
+                  echo "[backup] Waiting for postgres to accept connections..."
+                  for i in $(seq 1 15); do
+                    if PGPASSWORD="${POSTGRES_PASSWORD}" pg_isready \
+                        -h concord-postgres -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+                        -q -t 2 2>/dev/null; then
+                      echo "[backup] Postgres reachable after ${i} probes."
+                      break
+                    fi
+                    if [ "$i" = "15" ]; then
+                      echo "[backup] FAIL — postgres unreachable after 30s."
+                      exit 1
+                    fi
+                    sleep 2
+                  done
 
                   echo "[backup] Starting PostgreSQL backup: ${FILENAME}"
                   echo "[backup] Environment: ${ENV}"
@@ -152,19 +176,31 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  set -e
+                  set -eo pipefail
 
                   ENV="{{ .Values.global.environment }}"
                   TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 
                   echo "[backup] Starting MinIO mirror: ${ENV}"
 
-                  # Configure source
-                  mc alias set concord \
-                    "http://concord-minio:9000" \
-                    "${MINIO_ROOT_USER}" \
-                    "${MINIO_ROOT_PASSWORD}" \
-                    --api S3v4
+                  # Wait for NetworkPolicy propagation (see backup-postgres
+                  # comment above). ``mc alias set`` below issues a probe
+                  # against :9000 and would REJECT otherwise.
+                  for i in $(seq 1 15); do
+                    if mc alias set concord \
+                        "http://concord-minio:9000" \
+                        "${MINIO_ROOT_USER}" \
+                        "${MINIO_ROOT_PASSWORD}" \
+                        --api S3v4 >/dev/null 2>&1; then
+                      echo "[backup] MinIO reachable after ${i} probes."
+                      break
+                    fi
+                    if [ "$i" = "15" ]; then
+                      echo "[backup] FAIL — MinIO unreachable after 30s."
+                      exit 1
+                    fi
+                    sleep 2
+                  done
 
                   # Mirror all buckets to backup volume
                   # Uses --overwrite to only copy changed files (incremental)
@@ -228,7 +264,9 @@ spec:
             - /bin/sh
             - -c
             - |
-              set -e
+              # pipefail keeps pg_dump failures from being hidden by
+              # the gzip|mc pipe. See scheduled backup comment above.
+              set -eo pipefail
 
               ENV="{{ .Values.global.environment }}"
               TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
@@ -239,6 +277,20 @@ spec:
               apk add --no-cache curl > /dev/null 2>&1
               curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
               chmod +x /usr/local/bin/mc
+
+              # Wait for NetworkPolicy + upstream services to be reachable.
+              for i in $(seq 1 15); do
+                if PGPASSWORD="${POSTGRES_PASSWORD}" pg_isready \
+                    -h concord-postgres -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+                    -q -t 2 2>/dev/null; then
+                  break
+                fi
+                if [ "$i" = "15" ]; then
+                  echo "[pre-upgrade] FAIL — postgres unreachable after 30s."
+                  exit 1
+                fi
+                sleep 2
+              done
 
               mc alias set concord \
                 "http://concord-minio:9000" \
@@ -310,7 +362,7 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  set -e
+                  set -eo pipefail
 
                   ENV="{{ .Values.global.environment }}"
 
@@ -320,6 +372,21 @@ spec:
                   apk add --no-cache curl > /dev/null 2>&1
                   curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
                   chmod +x /usr/local/bin/mc
+
+                  # Wait for NetworkPolicy propagation before hitting
+                  # postgres or minio (same race as the other backup jobs).
+                  for i in $(seq 1 15); do
+                    if PGPASSWORD="${POSTGRES_PASSWORD}" pg_isready \
+                        -h concord-postgres -U "${POSTGRES_USER}" -d postgres \
+                        -q -t 2 2>/dev/null; then
+                      break
+                    fi
+                    if [ "$i" = "15" ]; then
+                      echo "[verify] FAIL — postgres unreachable after 30s."
+                      exit 1
+                    fi
+                    sleep 2
+                  done
 
                   mc alias set concord \
                     "http://concord-minio:9000" \
