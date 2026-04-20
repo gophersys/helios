@@ -55,6 +55,27 @@ _SLOT_SUFFIX_RE = re.compile(r"\[slot-\d+\]$")
 _SLOT_PARAM_RE = re.compile(r"\[(slot-\d+)\]$")
 
 
+# ``PyThreadState_SetAsyncExc`` only accepts a type (not an instance),
+# so we can't hand the interpreter a pre-constructed exception with
+# a message. Pass the message out-of-band through a per-thread dict;
+# ``_TestTimeoutError.__init__`` reads it back when the interpreter
+# instantiates the exception on the target worker thread. Clean up
+# after the test finishes so a late-firing timer doesn't reuse a
+# stale message for the next test on the same persistent worker.
+_TIMEOUT_MESSAGES: Dict[int, str] = {}
+_TIMEOUT_MESSAGES_LOCK = threading.Lock()
+
+
+def _set_timeout_message(thread_ident: int, message: str) -> None:
+    with _TIMEOUT_MESSAGES_LOCK:
+        _TIMEOUT_MESSAGES[thread_ident] = message
+
+
+def _pop_timeout_message(thread_ident: int) -> Optional[str]:
+    with _TIMEOUT_MESSAGES_LOCK:
+        return _TIMEOUT_MESSAGES.pop(thread_ident, None)
+
+
 class _TestTimeoutError(BaseException):
     """Raised in a worker thread when its per-test budget elapses.
 
@@ -62,7 +83,24 @@ class _TestTimeoutError(BaseException):
     ``except Exception:`` blocks cannot accidentally swallow the
     timeout signal — pytest's runner protocol still catches it and
     reports the test as failed.
+
+    Pulls a descriptive message from ``_TIMEOUT_MESSAGES`` keyed by
+    current thread ident so ``str(exc)`` yields something like
+    ``"test_04_bms[slot-1] exceeded 18s budget"`` instead of an empty
+    string. The UI reads ``str(exc)`` straight into the per-step error
+    panel; without this, timeout failures render as a blank row with
+    no clue why the test failed.
     """
+
+    def __init__(self) -> None:
+        ident = threading.get_ident()
+        with _TIMEOUT_MESSAGES_LOCK:
+            msg = _TIMEOUT_MESSAGES.get(ident, "test exceeded timeout budget")
+        super().__init__(msg)
+        self.message = msg
+
+    def __str__(self) -> str:  # noqa: D401 — stdlib pattern
+        return self.message
 
 
 def _get_test_timeout_s(item) -> Optional[float]:
@@ -249,6 +287,8 @@ def _run_one_item(item, nextitem) -> None:
 
     worker_ident = threading.get_ident()
     timed_out = threading.Event()
+    timeout_msg = f"{item.nodeid} exceeded {timeout_s:g}s budget"
+    _set_timeout_message(worker_ident, timeout_msg)
 
     def _on_timeout() -> None:
         timed_out.set()
@@ -267,6 +307,9 @@ def _run_one_item(item, nextitem) -> None:
         # worker doesn't inherit it.
         if timed_out.is_set():
             _clear_pending_async_exc(worker_ident)
+        # Always drop the out-of-band message so a late-firing timer
+        # on the NEXT test never picks up this test's nodeid.
+        _pop_timeout_message(worker_ident)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -236,13 +236,22 @@ class StepReporter:
         except Exception:
             # Never fail the step because log-capture teardown raised.
             log_output = None
+        # Fall back to the exception class name when ``str(exc_val)`` is
+        # empty. Several pytest-internal exceptions (pytest's skip,
+        # slot_parallel's async-injected timeout, some BaseExceptions)
+        # produce an empty string — which then landed in ``errorMessage``
+        # as ``""`` and rendered as a blank row in the UI's per-step
+        # error panel. The UI showed nothing for every timeout failure.
+        error_message: Optional[str] = None
+        if exc_val is not None:
+            error_message = str(exc_val).strip() or exc_type.__name__
         self.reporter._emit(
             self.item,
             "step-result",
             testName=self.test_name,
             stepIndex=self.step_index,
             passed=passed,
-            errorMessage=str(exc_val) if exc_val else None,
+            errorMessage=error_message,
             measurements=self.measurements or None,
             logOutput=log_output,
         )
