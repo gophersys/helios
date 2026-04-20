@@ -73,6 +73,11 @@ class UartDemuxer:
         }
         self._threads: Dict[HostType, threading.Thread] = {}
         self._log_files: Dict[HostType, object] = {}
+        # Raw gRPC call handles per target so ``stop()`` can hard-cancel
+        # the bidi streams and release the MTIB server's client slots
+        # immediately. Without this the server accumulates stale clients
+        # across test-framework restarts and UART throughput collapses.
+        self._grpc_calls: Dict[HostType, object] = {}
 
         # Shared state
         self._lock = threading.Lock()
@@ -125,6 +130,19 @@ class UartDemuxer:
         """Stop all capture threads and close log files."""
         self._running = False
         self._stop_event.set()
+
+        # Hard-cancel the gRPC bidi streams before waiting on threads.
+        # Setting ``_stop_event`` only makes our request-generator stop
+        # yielding; the server-side handler keeps the stream registered
+        # until its ``for request in request_iterator`` loop unwinds.
+        # ``call.cancel()`` delivers CANCELLED immediately so the MTIB
+        # server releases our client slot without a multi-second lag.
+        for call in list(self._grpc_calls.values()):
+            try:
+                call.cancel()
+            except Exception:
+                pass
+        self._grpc_calls.clear()
 
         for thread in self._threads.values():
             thread.join(timeout=5)
@@ -304,11 +322,19 @@ class UartDemuxer:
                     yield UartStreamRequest(target=target, data=data)
                     self._stop_event.wait(timeout=self._pump_interval)
 
-            for resp in self._mtib.UartStream(target, request_gen()):
-                if not self._running:
-                    break
-                if resp.data and len(resp.data) > 0:
-                    self._process_data(target, resp.data)
+            # Go through the raw stub so we retain the call handle and
+            # ``stop()`` can hard-cancel it. ``self._mtib.UartStream``
+            # is a generator wrapper that hides the handle.
+            call = self._mtib.client.UartStream(request_gen())
+            self._grpc_calls[target] = call
+            try:
+                for resp in call:
+                    if not self._running:
+                        break
+                    if resp.data and len(resp.data) > 0:
+                        self._process_data(target, resp.data)
+            finally:
+                self._grpc_calls.pop(target, None)
         except Exception as e:
             if self._running:
                 log.error("UART capture error [%s]: %s", target_name, e)
