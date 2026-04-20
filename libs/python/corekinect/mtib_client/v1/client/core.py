@@ -300,47 +300,6 @@ class MtibV1Client:
         except Exception as e:
             return f"Unexpected error when connecting to MTIB at {self.config.net.addr}:{self.config.net.port}. Error: {str(e)}"
 
-    def _is_channel_closed_error(self, err: BaseException) -> bool:
-        """Return True if the exception indicates the channel was closed.
-
-        Tries every form gRPC Python can surface a closed-channel error:
-        ``ValueError`` at invoke time, ``grpc.RpcError`` with a
-        "Channel closed" ``details()`` string, or an UNAVAILABLE status
-        with the same text. Used by ``_reopen_channel()`` to decide
-        whether to transparently reconnect and retry the RPC.
-        """
-        text = ""
-        try:
-            if isinstance(err, grpc.RpcError) and hasattr(err, "details"):
-                text = str(err.details() or "")
-        except Exception:
-            text = ""
-        text = text or str(err)
-        return "Channel closed" in text or "closed channel" in text.lower()
-
-    def _reopen_channel(self) -> None:
-        """Close any existing channel and open a fresh one + stub.
-
-        The underlying gRPC channel sometimes transitions to SHUTDOWN
-        outside our control (observed on multi-panel runner sessions
-        after a long-running streaming RPC unwinds). Any subsequent
-        RPC throws ``Channel closed!``. Rather than hunt the root
-        cause in gRPC Python's internals, we reopen eagerly so the
-        next attempt lands on a healthy channel.
-        """
-        try:
-            if self.channel is not None:
-                self.channel.close()
-        except Exception:
-            pass
-        self.channel = insecure_channel(
-            f"{self.config.net.addr}:{self.config.net.port}"
-        )
-        self.client = MtibClientV1(self.channel)
-        self.logger.warning(
-            "Reopened MTIB channel at %s:%d after closed-channel error",
-            self.config.net.addr, self.config.net.port,
-        )
 
     def disconnect(self) -> Optional[str]:
         """Close the connection to the MTIB device.
@@ -715,14 +674,21 @@ class MtibV1Client:
         Yields:
             PowerStreamResponse containing samples with timestamp_ms, voltage_mv, current_ma.
         """
+        # Dedicated channel — see ``UartStream`` for the rationale.
+        stream_channel = insecure_channel(f"{self.config.net.addr}:{self.config.net.port}")
         try:
-            response_iterator = self.client.PowerStream(PowerStreamRequest(channel=channel))
-            for response in response_iterator:
+            stream_stub = MtibClientV1(stream_channel)
+            for response in stream_stub.PowerStream(PowerStreamRequest(channel=channel)):
                 yield response
         except grpc.RpcError as e:
             self.logger.error(f"gRPC error for PowerStream at {self.config.net.addr}. Error: {str(e.details())}")
         except Exception as e:
             self.logger.error(f"Unexpected error in PowerStream at {self.config.net.addr}: {str(e)}")
+        finally:
+            try:
+                stream_channel.close()
+            except Exception:
+                pass
 
     # -----------------------------------------------
     #                            V2 GPIO Watch
@@ -737,14 +703,21 @@ class MtibV1Client:
         Yields:
             GpioWatchEvent containing gpio, state, timestamp_ms.
         """
+        # Dedicated channel — see ``UartStream`` for the rationale.
+        stream_channel = insecure_channel(f"{self.config.net.addr}:{self.config.net.port}")
         try:
-            response_iterator = self.client.GpioWatch(GpioWatchRequest(gpio=gpio, edge=edge))
-            for event in response_iterator:
+            stream_stub = MtibClientV1(stream_channel)
+            for event in stream_stub.GpioWatch(GpioWatchRequest(gpio=gpio, edge=edge)):
                 yield event
         except grpc.RpcError as e:
             self.logger.error(f"gRPC error for GpioWatch at {self.config.net.addr}. Error: {str(e.details())}")
         except Exception as e:
             self.logger.error(f"Unexpected error in GpioWatch at {self.config.net.addr}: {str(e)}")
+        finally:
+            try:
+                stream_channel.close()
+            except Exception:
+                pass
 
     # -----------------------------------------------
     #                            V2 ADC Stream
@@ -759,18 +732,25 @@ class MtibV1Client:
         Yields:
             AdcStreamResponse containing samples with timestamp_ms, channel, voltage_v.
         """
+        # Dedicated channel — see ``UartStream`` for the rationale.
+        stream_channel = insecure_channel(f"{self.config.net.addr}:{self.config.net.port}")
         try:
             request = AdcStreamRequest(
                 channels=channels if channels else [],
                 interval_ms=interval_ms,
             )
-            response_iterator = self.client.AdcStream(request)
-            for response in response_iterator:
+            stream_stub = MtibClientV1(stream_channel)
+            for response in stream_stub.AdcStream(request):
                 yield response
         except grpc.RpcError as e:
             self.logger.error(f"gRPC error for AdcStream at {self.config.net.addr}. Error: {str(e.details())}")
         except Exception as e:
             self.logger.error(f"Unexpected error in AdcStream at {self.config.net.addr}: {str(e)}")
+        finally:
+            try:
+                stream_channel.close()
+            except Exception:
+                pass
 
     # -----------------------------------------------
     #                        V2 Observability
@@ -1009,8 +989,9 @@ class MtibV1Client:
                 print(f"Motion progress: {response.message}")
             ```
         """
+        # Dedicated channel — see ``UartStream`` for the rationale.
+        stream_channel = insecure_channel(f"{self.config.net.addr}:{self.config.net.port}")
         try:
-            # Make the streaming call
             # Handle oneof: if distance_mm > 0, use distance-based, otherwise use duration-based
             if distance_mm > 0:
                 request = MotionStartRequest(
@@ -1027,9 +1008,8 @@ class MtibV1Client:
                     accel_mm_s2=accel_mm_s2,
                 )
 
-            response_iterator = self.client.MotionStart(request)
-
-            for response in response_iterator:
+            stream_stub = MtibClientV1(stream_channel)
+            for response in stream_stub.MotionStart(request):
                 yield response
 
         except grpc.RpcError as e:
@@ -1038,6 +1018,11 @@ class MtibV1Client:
         except Exception as e:
             self.logger.error(f"Unexpected error in MotionStart at {self.config.net.addr}: {str(e)}")
             yield MotionStartResponse(success=False, message=f"Unexpected error: {str(e)}")
+        finally:
+            try:
+                stream_channel.close()
+            except Exception:
+                pass
 
     def MotionHome(self) -> Optional[str]:
         """Home the motion system to its reference position.
@@ -1210,20 +1195,14 @@ class MtibV1Client:
                             request.content = chunk
                             yield request
 
-            # Make the streaming call. Auto-recover once on closed channel.
-            for attempt in (1, 2):
-                try:
-                    response = self.client.UploadFwFile(request_iterator())
-                    if not response.success:
-                        return f"UploadFwFile error: {response.message}"
-                    return None
-                except (grpc.RpcError, ValueError) as e:
-                    if attempt == 1 and self._is_channel_closed_error(e):
-                        self._reopen_channel()
-                        continue
-                    if isinstance(e, grpc.RpcError):
-                        return f"gRPC error for UploadFwFile at {self.config.net.addr}. Error: {str(e.details())}"
-                    return f"Unexpected error in UploadFwFile at {self.config.net.addr}: {str(e)}"
+            # Make the streaming call
+            try:
+                response = self.client.UploadFwFile(request_iterator())
+                if not response.success:
+                    return f"UploadFwFile error: {response.message}"
+                return None
+            except grpc.RpcError as e:
+                return f"gRPC error for UploadFwFile at {self.config.net.addr}. Error: {str(e.details())}"
 
         except FileNotFoundError:
             return f"UploadFwFile error: File not found at {file_path}"
@@ -1288,23 +1267,17 @@ class MtibV1Client:
                     print(f"Flash completed in {time_ms}ms")
             ```
         """
-        for attempt in (1, 2):
-            try:
-                response = self.client.FlashFwFile(
-                    FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover),
-                )
-                if not response.success:
-                    return None, f"FlashFwFile error: {response.message}"
-                return response.time_ms, None
-            except (grpc.RpcError, ValueError) as e:
-                if attempt == 1 and self._is_channel_closed_error(e):
-                    self._reopen_channel()
-                    continue
-                if isinstance(e, grpc.RpcError):
-                    return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
-                return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
-            except Exception as e:
-                return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
+        try:
+            response = self.client.FlashFwFile(
+                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover),
+            )
+            if not response.success:
+                return None, f"FlashFwFile error: {response.message}"
+            return response.time_ms, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
     def EraseFlash(self, target: HostType, recover: bool = False) -> Optional[str]:
         """Erase the flash memory on a target device.
@@ -1400,16 +1373,18 @@ class MtibV1Client:
                     break
             ```
         """
-        # Do NOT auto-reopen the channel from this path — UART streams
-        # run concurrently with Flash / GPIO / Power RPCs on the same
-        # channel, and closing the channel to recover a dead UART
-        # stream cancels whatever else happens to be in flight with
-        # "Cancelling all calls". The surfaced error is enough for the
-        # shell to decide it's dead and bail; the caller reopens the
-        # shell at the next fixture boot.
+        # Each UartStream gets its OWN gRPC channel, isolated from the
+        # main unary channel and from other stream invocations. This
+        # stops lifecycle events on one stream (close, cancel, server
+        # reset) from cascading into unrelated Flash / GPIO / Power
+        # RPCs on the same client. Slots have only a handful of
+        # concurrent streams (shell × 2 + demuxer × 2), so the extra
+        # TCP sockets are cheap compared to the debugging cost of a
+        # shared channel.
+        stream_channel = insecure_channel(f"{self.config.net.addr}:{self.config.net.port}")
         try:
-            response_iterator = self.client.UartStream(request_iterator)
-            for response in response_iterator:
+            stream_stub = MtibClientV1(stream_channel)
+            for response in stream_stub.UartStream(request_iterator):
                 yield response
         except grpc.RpcError as e:
             self.logger.error(f"gRPC error for UartStream at {self.config.net.addr}. Error: {str(e.details())}")
@@ -1417,3 +1392,8 @@ class MtibV1Client:
         except Exception as e:
             self.logger.error(f"Unexpected error in UartStream at {self.config.net.addr}: {str(e)}")
             yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
+        finally:
+            try:
+                stream_channel.close()
+            except Exception:
+                pass

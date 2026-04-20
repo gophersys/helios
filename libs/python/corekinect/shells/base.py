@@ -135,28 +135,18 @@ class BufferedUartStream:
     def check_alive(self) -> Optional[str]:
         """Return an error string if the stream is dead, None if alive.
 
-        If ``_stop`` was set and the thread died, auto-restart the
-        stream in-place instead of failing. Something in the pytest
-        fixture/teardown plumbing occasionally sets ``_stop`` between
-        tests (observed on test_11 after test_10 passed on the same
-        slot), and failing the next ``send()`` with "stream closed by
-        caller" makes the test look broken when the hardware is fine.
-        A no-op ``start()`` rebuilds the rx thread + Event in one shot.
+        With the MtibV1Client now giving each streaming RPC its own
+        dedicated gRPC channel, the shell's stream is fully isolated
+        from flash, power, and unrelated RPCs. A dead rx thread
+        therefore means an actual stream problem — no more "something
+        else cancelled my channel" false positives. Surface the real
+        reason and let the caller decide whether to reopen.
         """
         if self.is_alive:
             return None
-        # Dead thread — try to resurrect unless the rx reported a real
-        # failure we shouldn't paper over.
-        if self._stream_error and "closed by server" in str(self._stream_error).lower():
-            return self._stream_error
-        # Force a fresh start: clear ``_stop`` so start()'s is_alive
-        # guard doesn't trip, and let ``start()`` rebuild the thread.
-        self._stop = threading.Event()
-        self._thread = None
-        self.start()
-        if self.is_alive:
-            return None
-        return self._stream_error or "rx thread failed to restart"
+        if self._stop.is_set():
+            return "stream closed by caller"
+        return self._stream_error or "rx thread exited without raising"
 
     def write(self, data: bytes):
         """Queue bytes for TX to device."""
