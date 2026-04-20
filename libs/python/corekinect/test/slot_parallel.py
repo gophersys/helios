@@ -152,30 +152,58 @@ def _clear_pending_async_exc(thread_ident: int) -> None:
     )
 
 
-class _ThreadLocalSetupState:
-    """Proxy that gives each thread its own ``SetupState`` instance.
+class _SessionPreservingSetupState:
+    """Per-thread SetupState that refuses to pop the Session node.
 
-    Pytest's ``Session._setupstate`` tracks fixture setup/teardown via a
-    single stack. When multiple items execute on threads in parallel,
-    they race on that stack and trigger ``AssertionError: previous item
-    was not torn down properly``. By proxying attribute access to a
-    per-thread ``SetupState`` instance we restore the invariant pytest
-    expects — each thread sets up its item, runs it, and tears down in
-    isolation.
+    The original thread-local SetupState let each worker thread do its
+    own teardown at end-of-queue (``teardown_exact(None)``), which
+    popped *everything* off that thread's stack — including the shared
+    session-scoped fixtures.
+
+    In practice this meant: the fastest slot finishes test_11, its
+    worker's teardown fires the ``fixture_ctx`` finalizer, which calls
+    ``FixtureContext.disconnect_all()`` — closing MTIB channels and
+    SlotTestContext UART demuxers that OTHER worker threads were
+    actively using to run their remaining tests. The victims saw
+    "Stream dead (stream closed by caller)" on whichever test was mid-
+    flight when the disconnect happened. That's why failures landed
+    randomly on test_07 / test_10 / test_11 depending on who finished
+    first.
+
+    Fix: keep ``SetupState`` semantics intact for function / class /
+    module scope (the worker must still tear those down), but PIN
+    the Session node in place. Session-scope fixtures live until the
+    main thread runs them explicitly after the runtestloop finishes —
+    at which point all workers are guaranteed done.
     """
 
-    __slots__ = ("_tls",)
+    __slots__ = ("_tls", "_tracked_states", "_tracked_lock")
 
     def __init__(self) -> None:
         object.__setattr__(self, "_tls", threading.local())
+        object.__setattr__(self, "_tracked_states", [])
+        object.__setattr__(self, "_tracked_lock", threading.Lock())
 
     def _get(self):
         state = getattr(self._tls, "state", None)
         if state is None:
             from _pytest.runner import SetupState
             state = SetupState()
+            _patch_setupstate_preserve_session(state)
             self._tls.state = state
+            with self._tracked_lock:
+                self._tracked_states.append(state)
         return state
+
+    def all_states(self):
+        """Return every SetupState instance created across threads.
+
+        Used by the parallel runtestloop's ``finally`` clause so the
+        main thread can tear down session-scope fixtures safely after
+        all workers have joined.
+        """
+        with self._tracked_lock:
+            return list(self._tracked_states)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._get(), name)
@@ -185,6 +213,45 @@ class _ThreadLocalSetupState:
 
     def __delattr__(self, name: str) -> None:
         delattr(self._get(), name)
+
+
+def _patch_setupstate_preserve_session(state) -> None:
+    """Override ``teardown_exact`` on *state* so it never pops Session.
+
+    The override falls back to the original method for non-terminal
+    teardowns (nextitem != None) so function/class/module scopes still
+    work exactly as pytest expects. When nextitem is None we only pop
+    entries BELOW the root Session entry, preserving session-scope
+    fixtures and their finalizers for a single coordinated teardown
+    on the main thread after all workers finish.
+    """
+    from _pytest.nodes import Node  # noqa: F401
+    original_teardown = state.teardown_exact
+
+    def teardown_exact(nextitem):
+        if nextitem is not None:
+            return original_teardown(nextitem)
+        # End of this thread's item queue — tear down everything
+        # ABOVE the Session node, keep the Session (and its
+        # finalizers) for later.
+        exceptions: list[BaseException] = []
+        while len(state.stack) > 1:
+            node, (finalizers, _) = state.stack.popitem()
+            these_exceptions = []
+            while finalizers:
+                fin = finalizers.pop()
+                try:
+                    fin()
+                except BaseException as e:  # noqa: BLE001
+                    these_exceptions.append(e)
+            if these_exceptions:
+                exceptions.extend(these_exceptions)
+        if len(exceptions) == 1:
+            raise exceptions[0]
+        if exceptions:
+            raise BaseExceptionGroup("errors during test teardown", exceptions[::-1])
+
+    state.teardown_exact = teardown_exact
 
 
 def _strip_slot_suffix(nodeid: str) -> str:
@@ -400,11 +467,13 @@ def pytest_runtestloop(session: pytest.Session):
                 return
             _run_one_item(item, nextitem_map.get(item.nodeid))
 
-    # Swap in a thread-local SetupState for the duration of the parallel
-    # run so concurrent fixture setup/teardown doesn't corrupt each
-    # other's stack. Restore the original on exit.
+    # Swap in a session-preserving, thread-local SetupState for the
+    # duration of the parallel run. Each worker's terminal teardown
+    # keeps Session-scope fixtures alive so the first slot to finish
+    # can't disconnect shared MTIB channels out from under the others.
     original_setupstate = session._setupstate
-    session._setupstate = _ThreadLocalSetupState()
+    tls_setupstate = _SessionPreservingSetupState()
+    session._setupstate = tls_setupstate
     try:
         futures = [
             slot_pools[slot_id].submit(_run_slot_sequence, slot_id)
@@ -424,6 +493,27 @@ def pytest_runtestloop(session: pytest.Session):
     finally:
         for pool in slot_pools.values():
             pool.shutdown(wait=True)
+        # All workers are done — run the session-scope teardowns we
+        # deferred. Finalizers live on the FixtureDef itself (shared
+        # across all per-thread SetupStates), so firing any one
+        # thread's Session entry is enough to run each finalizer once.
+        # Guard against double-fire: the first state to run pops the
+        # FixtureDef's ``_finalizers`` list; others become no-ops.
+        for state in tls_setupstate.all_states():
+            stack = getattr(state, "stack", None)
+            if not stack:
+                continue
+            # Run any remaining finalizers (typically the Session
+            # entry) via pytest's normal teardown path.
+            try:
+                # Nextitem=None + empty needed_collectors tears
+                # everything that's left; since we preserved only
+                # Session nodes, this is the coordinated session
+                # teardown on the main thread.
+                from _pytest.runner import SetupState as _OriginalSetupState
+                _OriginalSetupState.teardown_exact(state, None)
+            except Exception as e:
+                log.warning("session teardown raised: %s", e)
         session._setupstate = original_setupstate
 
     return True

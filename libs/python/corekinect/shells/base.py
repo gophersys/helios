@@ -106,16 +106,6 @@ class BufferedUartStream:
         server sees the request stream end and closes its side; the
         response iterator exits cleanly; ``_run`` returns. Idempotent.
         """
-        # Investigation: log the caller whenever this fires so we can
-        # trace who is prematurely closing shells between tests.
-        # Pytest swallows normal log.warning output, so write directly
-        # to stderr with a prefix the user can grep on.
-        import sys, traceback
-        caller_stack = "".join(traceback.format_stack(limit=12)[:-1])
-        sys.stderr.write(
-            f"[CLOSE_TRACE {self._label}] BufferedUartStream.close() invoked\n{caller_stack}\n"
-        )
-        sys.stderr.flush()
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=5.0)
