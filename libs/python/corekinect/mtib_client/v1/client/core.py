@@ -300,6 +300,48 @@ class MtibV1Client:
         except Exception as e:
             return f"Unexpected error when connecting to MTIB at {self.config.net.addr}:{self.config.net.port}. Error: {str(e)}"
 
+    def _is_channel_closed_error(self, err: BaseException) -> bool:
+        """Return True if the exception indicates the channel was closed.
+
+        Tries every form gRPC Python can surface a closed-channel error:
+        ``ValueError`` at invoke time, ``grpc.RpcError`` with a
+        "Channel closed" ``details()`` string, or an UNAVAILABLE status
+        with the same text. Used by ``_reopen_channel()`` to decide
+        whether to transparently reconnect and retry the RPC.
+        """
+        text = ""
+        try:
+            if isinstance(err, grpc.RpcError) and hasattr(err, "details"):
+                text = str(err.details() or "")
+        except Exception:
+            text = ""
+        text = text or str(err)
+        return "Channel closed" in text or "closed channel" in text.lower()
+
+    def _reopen_channel(self) -> None:
+        """Close any existing channel and open a fresh one + stub.
+
+        The underlying gRPC channel sometimes transitions to SHUTDOWN
+        outside our control (observed on multi-panel runner sessions
+        after a long-running streaming RPC unwinds). Any subsequent
+        RPC throws ``Channel closed!``. Rather than hunt the root
+        cause in gRPC Python's internals, we reopen eagerly so the
+        next attempt lands on a healthy channel.
+        """
+        try:
+            if self.channel is not None:
+                self.channel.close()
+        except Exception:
+            pass
+        self.channel = insecure_channel(
+            f"{self.config.net.addr}:{self.config.net.port}"
+        )
+        self.client = MtibClientV1(self.channel)
+        self.logger.warning(
+            "Reopened MTIB channel at %s:%d after closed-channel error",
+            self.config.net.addr, self.config.net.port,
+        )
+
     def disconnect(self) -> Optional[str]:
         """Close the connection to the MTIB device.
 
@@ -1168,14 +1210,20 @@ class MtibV1Client:
                             request.content = chunk
                             yield request
 
-            # Make the streaming call
-            try:
-                response = self.client.UploadFwFile(request_iterator())
-                if not response.success:
-                    return f"UploadFwFile error: {response.message}"
-                return None
-            except grpc.RpcError as e:
-                return f"gRPC error for UploadFwFile at {self.config.net.addr}. Error: {str(e.details())}"
+            # Make the streaming call. Auto-recover once on closed channel.
+            for attempt in (1, 2):
+                try:
+                    response = self.client.UploadFwFile(request_iterator())
+                    if not response.success:
+                        return f"UploadFwFile error: {response.message}"
+                    return None
+                except (grpc.RpcError, ValueError) as e:
+                    if attempt == 1 and self._is_channel_closed_error(e):
+                        self._reopen_channel()
+                        continue
+                    if isinstance(e, grpc.RpcError):
+                        return f"gRPC error for UploadFwFile at {self.config.net.addr}. Error: {str(e.details())}"
+                    return f"Unexpected error in UploadFwFile at {self.config.net.addr}: {str(e)}"
 
         except FileNotFoundError:
             return f"UploadFwFile error: File not found at {file_path}"
@@ -1240,17 +1288,23 @@ class MtibV1Client:
                     print(f"Flash completed in {time_ms}ms")
             ```
         """
-        try:
-            response = self.client.FlashFwFile(
-                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover),
-            )
-            if not response.success:
-                return None, f"FlashFwFile error: {response.message}"
-            return response.time_ms, None
-        except grpc.RpcError as e:
-            return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
+        for attempt in (1, 2):
+            try:
+                response = self.client.FlashFwFile(
+                    FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover),
+                )
+                if not response.success:
+                    return None, f"FlashFwFile error: {response.message}"
+                return response.time_ms, None
+            except (grpc.RpcError, ValueError) as e:
+                if attempt == 1 and self._is_channel_closed_error(e):
+                    self._reopen_channel()
+                    continue
+                if isinstance(e, grpc.RpcError):
+                    return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
+                return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
+            except Exception as e:
+                return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
     def EraseFlash(self, target: HostType, recover: bool = False) -> Optional[str]:
         """Erase the flash memory on a target device.
