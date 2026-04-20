@@ -215,32 +215,41 @@ class MtibV1Client:
         except grpc.RpcError as e:
             error_msg = f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
             if return_value:
-                # For connection errors, we need to determine the expected return structure
-                # by calling the function with a mock request to get the response type
+                # Inspect the expected response type so we can return the
+                # right-shaped tuple of Nones + error_msg. Introspection
+                # failure (server unreachable, malformed proto) is itself
+                # an error path — log it at debug so verbose runs surface
+                # it, then fall back to a single-None error tuple.
                 try:
-                    # Try to get the response type by calling the function
                     mock_response = func(request)
                     response_data = {
                         k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")
                     }
                     return tuple([None] * len(response_data)) + (error_msg,)
-                except:
-                    # If we can't determine the structure, return a single None + error
+                except Exception as introspect_exc:
+                    self.logger.debug(
+                        "%s: failed to introspect response shape for error fallback: %s: %s",
+                        self._get_func_name(), type(introspect_exc).__name__, introspect_exc,
+                    )
                     return None, error_msg
             return error_msg
         except Exception as e:
             error_msg = f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
             if return_value:
-                # For unexpected errors, we need to determine the expected return structure
+                # Same introspection fallback as the gRPC branch above —
+                # see the comment there for the rationale on the inner
+                # exception logging.
                 try:
-                    # Try to get the response type by calling the function
                     mock_response = func(request)
                     response_data = {
                         k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")
                     }
                     return tuple([None] * len(response_data)) + (error_msg,)
-                except:
-                    # If we can't determine the structure, return a single None + error
+                except Exception as introspect_exc:
+                    self.logger.debug(
+                        "%s: failed to introspect response shape for error fallback: %s: %s",
+                        self._get_func_name(), type(introspect_exc).__name__, introspect_exc,
+                    )
                     return None, error_msg
             return error_msg
 
@@ -316,6 +325,11 @@ class MtibV1Client:
                 return None
         except Exception as e:
             return f"Unexpected error when disconnecting from MTIB at {self.config.net.addr}:{self.config.net.port}. Error: {str(e)}"
+
+    # Canonical alias — see ``BufferedUartStream.close`` in
+    # libs/python/corekinect/shells/base.py for the rationale on
+    # standardising teardown methods on ``close()``.
+    close = disconnect
 
     # -----------------------------------------------
     #                                          Health

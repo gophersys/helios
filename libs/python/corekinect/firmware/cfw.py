@@ -133,7 +133,13 @@ def generate_cfw(
         len(image_bin),
     )
 
-    assert len(header) == HEADER_SIZE_V2
+    if len(header) != HEADER_SIZE_V2:
+        # Survives ``python -O`` (``assert`` is stripped) — this is an
+        # internal-invariant check that should fail loudly in production
+        # if the header pack ever drifts from the documented layout.
+        raise ValueError(
+            f"CFW header pack produced {len(header)} bytes, expected {HEADER_SIZE_V2}"
+        )
     return header + image_bin
 
 

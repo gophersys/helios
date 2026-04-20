@@ -96,12 +96,22 @@ class BufferedUartStream:
         # Give the stream a moment to establish
         time.sleep(0.1)
 
-    def stop(self):
-        """Close the stream and stop background reader."""
+    def close(self):
+        """Close the stream and stop the background reader.
+
+        Idempotent — safe to call from teardown paths that may have
+        partially-initialised state.
+        """
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=5.0)
             self._thread = None
+
+    # Back-compat alias — ``stop()`` predates the convention shift to
+    # ``close()`` (which matches stdlib io / sqlite3 / sshtunnel and the
+    # ``CoreCloudDBInterface.close`` already in this codebase). Existing
+    # callers keep working; new code should call ``close()``.
+    stop = close
 
     def reset(self):
         """Close and reopen the gRPC stream.
@@ -227,9 +237,12 @@ class ShellCommander:
         """Open persistent UART stream. Call before any commands."""
         self._stream.start()
 
-    def stop(self) -> None:
+    def close(self) -> None:
         """Close persistent UART stream."""
-        self._stream.stop()
+        self._stream.close()
+
+    # Back-compat alias — see BufferedUartStream.stop above.
+    stop = close
 
     def reset_stream(self) -> None:
         """Reset the persistent stream to clear server-side buffers.

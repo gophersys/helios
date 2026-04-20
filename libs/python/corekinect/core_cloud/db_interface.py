@@ -1,4 +1,5 @@
 import atexit
+import logging
 import os
 from pathlib import Path
 from typing import Optional, Literal
@@ -14,6 +15,8 @@ from sshtunnel import SSHTunnelForwarder
 
 from corekinect.utils import EnvConfig
 from corekinect.utils import SingletonThreadSafeMeta
+
+log = logging.getLogger(__name__)
 
 
 class SSHConfig(EnvConfig):
@@ -220,7 +223,15 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
             return self.session
 
-        except Exception:
+        except Exception as exc:
+            # Surface the underlying cause before tearing down — without this
+            # the operator sees a generic "context manager exit" traceback in
+            # the caller's log and has to instrument the DB layer to find out
+            # what actually failed (auth, network, schema mismatch, etc.).
+            log.error(
+                "DB session setup failed at depth=%d: %s: %s",
+                self._depth, type(exc).__name__, exc,
+            )
             self._depth = 0
             self._teardown()
             raise
@@ -284,15 +295,33 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         return cols[0] if len(cols) == 1 else func.coalesce(*cols)
 
 
-def _run_codegen(conn_str, out_file):
-    """ run codegen."""
-    import sys, subprocess
+def _run_codegen(db: "DBConfig", out_file: str) -> None:
+    """Run sqlacodegen against ``db`` without exposing the password in argv.
 
+    Building the URI inline as ``driver://user:password@host:port/db`` and
+    passing it as a CLI argument leaks the password into ``ps``, audit
+    logs, and any tool that captures process command lines. We write a
+    DSN-style connection string with the password sourced from the
+    ``PGPASSWORD`` environment variable (libpq honours it transparently)
+    and only pass non-secret components on the command line.
+    """
+    import os as _os
+    import subprocess
+    import sys
+
+    if not db.password:
+        raise ValueError("DBConfig.password must be set for codegen")
+
+    safe_uri = (
+        f"{db.driver}://{db.username}@{db.host}:{db.port}/{db.database_name}"
+    )
+    env = {**_os.environ, "PGPASSWORD": db.password}
     with open(out_file, "w", encoding="utf-8") as f:
         subprocess.run(
-            [sys.executable, "-m", "sqlacodegen", conn_str],
+            [sys.executable, "-m", "sqlacodegen", safe_uri],
             check=True,
             stdout=f,
+            env=env,
         )
 
 
@@ -301,7 +330,7 @@ def _update_cc_test_data_v1p0_orm():
     load_dotenv(override=False)
     _apply_namespace_env("VAL_1_0")
     db = DBConfig(namespace="VAL_1_0")
-    _run_codegen(f"{db.driver}://{db.username}:{db.password}@{db.host}:{db.port}/{db.database_name}", "db_orm_v1_0.py")
+    _run_codegen(db, "db_orm_v1_0.py")
 
 
 if __name__ == "__main__":

@@ -186,7 +186,16 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
                 # Also verify REST API access - wrong API key causes 401 even with valid token
                 self._verify_api_access()
             return self
-        except Exception:
+        except Exception as exc:
+            # Surface the underlying cause before tearing down — without
+            # this the operator sees a generic "context manager exit" in
+            # the caller's log and has to instrument the API layer to
+            # find out what actually failed (auth token, network, 401
+            # from REST API, etc.).
+            self.log.error(
+                "API context entry failed: %s: %s",
+                type(exc).__name__, exc,
+            )
             self._depth = 0
             self._teardown()
             raise
@@ -319,7 +328,15 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
         expires_in = data.get("expires_in") or data.get("expiresIn") or 600  # seconds, default 10min
         try:
             self._token_expiry_ts = now + float(expires_in)
-        except Exception:
+        except (TypeError, ValueError) as exc:
+            # Provider returned a non-numeric expires_in (e.g. ISO timestamp);
+            # fall back to the documented 10-minute default and log so
+            # we know to add the format to the parser if it recurs.
+            self.log.warning(
+                "Auth response expires_in=%r could not be parsed (%s); "
+                "falling back to 600s",
+                expires_in, exc,
+            )
             self._token_expiry_ts = now + 600.0
         self._token = token
         return token

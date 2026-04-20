@@ -139,16 +139,29 @@ def _boot_and_lock_once(slot, mtib):
     time.sleep(0.5)
 
     if not comms.lock(timeout_s=LOCK_TIMEOUT_S):
-        raise AssertionError(
-            f"Failed to lock comms manufacturing shell on {slot.slot_id} "
-            f"within {LOCK_TIMEOUT_S}s"
-        )
+        raise AssertionError(_lock_failure_message("comms", slot.slot_id))
     if not app.lock(timeout_s=LOCK_TIMEOUT_S):
-        raise AssertionError(
-            f"Failed to lock app manufacturing shell on {slot.slot_id} "
-            f"within {LOCK_TIMEOUT_S}s"
-        )
+        raise AssertionError(_lock_failure_message("app", slot.slot_id))
     return app, comms
+
+
+def _lock_failure_message(shell_name: str, slot_id: str) -> str:
+    """Build an actionable error for a missed manufacturing-shell window.
+
+    Covers the three causes that account for ~all real failures so the
+    operator doesn't have to grep the framework source to know what to
+    check next.
+    """
+    return (
+        f"Failed to lock {shell_name} manufacturing shell on {slot_id} "
+        f"within {LOCK_TIMEOUT_S}s. Likely causes: "
+        "(1) DUT did not boot — verify power rails and UVLO state; "
+        "(2) manufacturing shell disabled in firmware — check that "
+        "    the {shell_name} image was built with mfg shell enabled; "
+        "(3) UART latency — bump LOCK_TIMEOUT_S or check the MTIB "
+        "    server's UART buffering. "
+        "See .claude/rules/mtib-hardware.md for the full diagnostic flow."
+    )
 
 
 @pytest.fixture(scope="module")
