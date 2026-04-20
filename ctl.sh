@@ -40,17 +40,23 @@ SENSITIVE_VARS=()
 
 function on_exit() {
   local rc=$?
-  for pid in "${BG_PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true  # already exited — expected
-  done
-  for mnt in "${TMPFS_MOUNTS[@]}"; do
-    if mountpoint -q "$mnt" 2>/dev/null; then
-      umount "$mnt" 2>/dev/null || log_warn "failed to unmount $mnt"
-    fi
-  done
-  for var in "${SENSITIVE_VARS[@]}"; do
-    unset "$var"
-  done
+  if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
+    for pid in "${BG_PIDS[@]}"; do
+      kill "$pid" 2>/dev/null || true  # already exited — expected
+    done
+  fi
+  if [[ ${#TMPFS_MOUNTS[@]} -gt 0 ]]; then
+    for mnt in "${TMPFS_MOUNTS[@]}"; do
+      if mountpoint -q "$mnt" 2>/dev/null; then
+        umount "$mnt" 2>/dev/null || log_warn "failed to unmount $mnt"
+      fi
+    done
+  fi
+  if [[ ${#SENSITIVE_VARS[@]} -gt 0 ]]; then
+    for var in "${SENSITIVE_VARS[@]}"; do
+      unset "$var"
+    done
+  fi
   return "$rc"
 }
 trap on_exit EXIT
