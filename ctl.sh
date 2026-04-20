@@ -80,9 +80,11 @@ BG_PIDS=()
 function on_exit() {
   local rc=$?
   local pid
-  for pid in "${BG_PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true  # already exited — expected
-  done
+  if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
+    for pid in "${BG_PIDS[@]}"; do
+      kill "$pid" 2>/dev/null || true  # already exited — expected
+    done
+  fi
   return "$rc"
 }
 trap on_exit EXIT

@@ -1,8 +1,6 @@
 {
   "name": "images-base",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "root": "images/base",
-  "sourceRoot": "images/base",
   "projectType": "application",
   "tags": ["scope:shared", "type:container-image"],
   "targets": {
@@ -10,7 +8,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh build",
-        "cwd": "images/base"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
@@ -18,7 +16,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh build-multi-arch",
-        "cwd": "images/base"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
@@ -26,7 +24,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh push",
-        "cwd": "images/base"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
@@ -34,7 +32,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh pull",
-        "cwd": "images/base"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
@@ -42,7 +40,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh inspect",
-        "cwd": "images/base"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     }
