@@ -693,20 +693,25 @@ class ThetaAppShell:
                             elif "BMS chip ID:" in line:
                                 result["chip_id"] = line.split(":", 1)[1].strip()
                             elif "Charge:" in line:
+                                # Field-parse failures (firmware sent a non-int,
+                                # truncated UART line, etc.) are tolerated —
+                                # the caller gets an absent key rather than a
+                                # crashed call. Logged at debug so verbose runs
+                                # surface the offending line.
                                 try:
                                     result["charge_percent"] = int(line.split(":")[1].strip().replace("%", ""))
-                                except:
-                                    pass
+                                except (ValueError, IndexError) as exc:
+                                    self.logger.debug("BMS charge parse failed for line %r: %s", line, exc)
                             elif "Capacity:" in line:
                                 try:
                                     result["capacity_mah"] = int(line.split(":")[1].strip().split()[0])
-                                except:
-                                    pass
+                                except (ValueError, IndexError) as exc:
+                                    self.logger.debug("BMS capacity parse failed for line %r: %s", line, exc)
                             elif "Temperature:" in line:
                                 try:
                                     result["temp_c"] = int(line.split(":")[1].strip().split()[0])
-                                except:
-                                    pass
+                                except (ValueError, IndexError) as exc:
+                                    self.logger.debug("BMS temperature parse failed for line %r: %s", line, exc)
                         return result, None
 
                 if time.time() - start_time > timeout:
@@ -769,8 +774,8 @@ class ThetaAppShell:
                             elif "Battery voltage:" in line:
                                 try:
                                     result["voltage_mv"] = int(line.split(":")[1].strip().split()[0])
-                                except:
-                                    pass
+                                except (ValueError, IndexError) as exc:
+                                    self.logger.debug("Charger battery_voltage parse failed for line %r: %s", line, exc)
                         return result, None
 
                 if time.time() - start_time > timeout:
