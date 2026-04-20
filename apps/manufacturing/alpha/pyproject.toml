@@ -1,6 +1,6 @@
 [project]
 name = "manufacturing-alpha"
-version = "1.9.1"
+version = "1.11.0"
 requires-python = ">=3.10"
 description = "Manufacturing test suite for Alpha product (electrical, flash, POST)"
 
