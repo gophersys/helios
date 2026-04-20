@@ -1,11 +1,10 @@
-# cluster-identity.yaml.template — manual K3s cluster
+# identity.yaml.template — manual K3s cluster
 #
 # Scaffolded into clusters/instances/<name>/identity.yaml when you run:
 #   bash clusters/ctl.sh new-cluster cluster-kubernetes-manual-k3s <name>
 #
-# Fill every TODO before committing. The cluster is manually bootstrapped
-# on hosts declared in machines/ (usually services/<name>/ for bastions and
-# nodes/<name>/ under this cluster for members).
+# Fill every TODO before committing. See clusters/CONVENTIONS.md for
+# field semantics.
 
 name: __CLUSTER_NAME__
 template: cluster-kubernetes-manual-k3s
@@ -23,6 +22,22 @@ network:
   pod_cidr: 10.42.0.0/16
   service_cidr: 10.43.0.0/16
 
+# Map of hostname → cluster_role. Every hostname must have a matching
+# nodes/<hostname>/identity.yaml. Valid roles: apps | data | devops |
+# build | batch.
+node_role_assignments: {}
+  # server-00: data
+  # agent-00:  apps
+
+# Admission policy profile installed on this cluster.
+# baseline | strict | audit-only
+policy_profile: baseline
+
+namespace_provisioning:
+  default_quota_tier: small
+  auto_netpol: true
+  auto_pss_label: true
+
 # platform/services/* opt-ins — platform/core/* is always on.
 platform_services:
   observability: { enabled: true,  version: "TODO" }
@@ -39,6 +54,14 @@ platform_services:
 
 chart_archetypes: []
 
+cluster_slo:
+  control_plane_availability: { target: 99.5, window: 30d }
+
 cost_envelope:
   monthly_usd_target: 0
   monthly_usd_ceiling: 0
+
+protection:
+  irreplaceable_nodes: []
+  prod_volume_delete_requires_override: false
+  namespace_delete_requires_override: false

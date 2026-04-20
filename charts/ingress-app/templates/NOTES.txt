@@ -1,0 +1,14 @@
+{{- /* NOTES.txt — ingress-app */ -}}
+ingress-app {{ .Values.app.name | default "<unnamed>" }} installed.
+
+Namespace: {{ .Release.Namespace }}
+URL:       https://{{ .Values.ingress.host }}/
+TLS:       {{ .Values.ingress.tls.clusterIssuer }} (auto-renewed by cert-manager)
+
+Security headers: HSTS, frame-deny, no-sniff, referrer-policy, permissions-policy
+Rate limit:       {{ .Values.ingress.rateLimit.average }} req/s (burst {{ .Values.ingress.rateLimit.burst }})
+{{- if .Values.ingress.sso.enabled }}
+SSO:              enabled; required groups = {{ join "," .Values.ingress.sso.requiredGroups }}
+{{- end }}
+
+Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)

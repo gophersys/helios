@@ -1,0 +1,34 @@
+apiVersion: v2
+name: worker
+description: |
+  Archetype for long-running consumers of queues/streams. No inbound HTTP;
+  scales on backlog via KEDA (preferred) or CPU/memory via HPA. Emits
+  Deployment + PDB + PodMonitor + ExternalSecret + NetworkPolicy +
+  optional ScaledObject + PrometheusRule.
+
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+kubeVersion: ">=1.28.0-0"
+
+maintainers:
+  - name: Mateo Segura
+    email: mateo.segura413@gmail.com
+
+keywords:
+  - worker
+  - queue
+  - stream
+  - nats
+  - keda
+  - platform
+  - gophersys
+
+dependencies:
+  - name: _common
+    version: 0.1.0
+    repository: file://../_common
+
+annotations:
+  platform.gophersys/archetype: worker
+  platform.gophersys/status: skeleton

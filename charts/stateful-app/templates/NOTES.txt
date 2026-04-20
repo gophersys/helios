@@ -1,0 +1,16 @@
+{{- /* NOTES.txt — stateful-app */ -}}
+stateful-app {{ .Values.app.name | default "<unnamed>" }} installed.
+
+Namespace: {{ .Release.Namespace }}
+Release:   {{ .Release.Name }}
+Replicas:  {{ .Values.replicas }}
+Storage:   {{ .Values.storage.size }} per replica ({{ .Values.storage.class }}, {{ .Values.storage.accessMode }})
+Retained:  PVCs carry platform.gophersys/retain=true (deletion gated by platform/core/policy)
+Backup:    {{- if .Values.backup.enabled }} {{ .Values.backup.schedule }}, retained {{ .Values.backup.retention }} {{- else }} disabled {{- end }}
+
+Stable pod DNS:
+  {{ .Release.Name }}-0.{{ .Release.Name }}.{{ .Release.Namespace }}.svc
+  {{ .Release.Name }}-1.{{ .Release.Name }}.{{ .Release.Namespace }}.svc
+  ...
+
+Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)

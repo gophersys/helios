@@ -1,0 +1,18 @@
+{{- /* NOTES.txt — job */ -}}
+job {{ .Values.app.name | default "<unnamed>" }} installed.
+
+Namespace: {{ .Release.Namespace }}
+Command:   {{ join " " .Values.job.command }}
+
+{{- if .Values.job.helmHook.enabled }}
+Helm hook: {{ join "," .Values.job.helmHook.events }} (weight={{ .Values.job.helmHook.weight }})
+This Job is part of the release lifecycle; Helm manages its lifecycle
+and deletes it per deletePolicy: {{ .Values.job.helmHook.deletePolicy }}
+{{- else }}
+Standalone Job. Kubernetes retains it for {{ .Values.ttlSecondsAfterFinished }}s after completion.
+{{- end }}
+
+Watch:
+  kubectl logs -n {{ .Release.Namespace }} -f job/{{ .Release.Name }} --follow
+
+Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)

@@ -1,0 +1,179 @@
+# values.yaml — stateless-app
+#
+# Opinionated defaults for 12-factor HTTP services. See README.md for
+# rationale on each knob and values.schema.json for the enforced contract.
+
+# --------------------------- required ------------------------------------
+# Every consumer MUST override these.
+app:
+  name: ""                         # required; kebab-case; matches regex ^[a-z][a-z0-9-]{0,62}$
+  partOf: ""                        # optional; grouping label — defaults to app.name when empty
+
+image:
+  repository: ""                    # required
+  tag: ""                           # required
+  pullPolicy: IfNotPresent
+  pullSecrets: []                   # opt-in per-release
+
+# Organizational metadata — stamped into platform.gophersys/* labels.
+tenant: gophersys
+env: ""                             # prod | staging | dev | lab — required by policy
+nodeRole: apps                      # apps | data | devops | build | batch
+dataClassification: internal        # public | internal | confidential | pii
+
+replicas: 2
+
+# --------------------------- pod shape -----------------------------------
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 128Mi }     # MUST equal requests.memory
+
+podAnnotations: {}
+podLabels: {}
+
+securityContext:
+  pod:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: { type: RuntimeDefault }
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: ["ALL"] }
+
+# Ephemeral writable dirs — emptyDir medium=Memory for speed + auto-cleanup.
+tmpfs:
+  - { name: tmp, mountPath: /tmp, sizeLimit: 32Mi }
+  - { name: var-tmp, mountPath: /var/tmp, sizeLimit: 32Mi }
+
+# --------------------------- probes --------------------------------------
+probes:
+  startup:
+    http: { path: /healthz, port: http }
+    initialDelaySeconds: 0
+    periodSeconds: 2
+    failureThreshold: 30          # 60s startup budget
+  readiness:
+    http: { path: /readyz, port: http }
+    periodSeconds: 5
+    failureThreshold: 3
+  liveness:
+    http: { path: /healthz, port: http }
+    periodSeconds: 10
+    failureThreshold: 3
+
+# --------------------------- service -------------------------------------
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: http
+  ports:                           # additional named ports
+    - { name: http, containerPort: 8080, protocol: TCP }
+    - { name: metrics, containerPort: 9090, protocol: TCP }
+
+# --------------------------- ingress -------------------------------------
+ingress:
+  enabled: false                   # opt-in; use charts/ingress-app for always-on
+  ingressClassName: platform
+  host: ""                         # required when enabled
+  paths:
+    - { path: /, pathType: Prefix, port: http }
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+
+# --------------------------- autoscaling ---------------------------------
+autoscale:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuTarget: 60
+  memTarget: 70
+
+# --------------------------- disruption budget ---------------------------
+pdb:
+  enabled: true
+  maxUnavailable: 25%              # 1 replica → auto-switch to minAvailable: 1
+
+# --------------------------- observability -------------------------------
+observability:
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  logs:
+    format: json
+    level: info
+  traces:
+    enabled: true
+    samplingRatio: 0.1
+
+# --------------------------- secrets -------------------------------------
+# Each entry produces one ExternalSecret wired via envFrom/volumeMount.
+secrets: []
+  # - { key: DATABASE_URL, bwItem: app-<name>-db, bwProperty: uri, mode: env }
+  # - { key: OPENAI_API_KEY, bwItem: app-<name>-openai, bwProperty: apikey, mode: env }
+
+# --------------------------- network policy ------------------------------
+networkPolicy:
+  enabled: true
+  allowIngressFrom: []
+    # - { namespace: platform-ingress, pods: { app.kubernetes.io/name: traefik } }
+  allowEgressTo: []
+    # - { namespace: platform-secrets }
+    # - { namespace: platform-databases }
+    # - { external: true }
+
+# --------------------------- SLO -----------------------------------------
+slo:
+  tier: standard                   # critical | high | standard | best-effort
+  availability: { target: 99.0, window: 30d }
+  latency:      { target_ms: 500, window: 7d, percentile: 95 }
+  errorBudget:
+    burnRateFast: 14.4
+    burnRateSlow: 6
+
+# --------------------------- rollout strategy ----------------------------
+rollout:
+  strategy: RollingUpdate          # RollingUpdate | canary (future)
+  maxSurge: 1
+  maxUnavailable: 0
+  minReadySeconds: 10
+
+# --------------------------- service account + rbac ----------------------
+serviceAccount:
+  create: true
+  name: ""                         # defaults to <release>
+  annotations: {}
+
+rbac:
+  create: false                    # opt-in
+  rules: []
+
+# --------------------------- scheduling ----------------------------------
+# Populated from nodeRole above; overridable for edge cases.
+scheduling:
+  nodeSelector:
+    role: apps                     # templated from .Values.nodeRole
+  tolerations: []                  # templated from nodeRole-taint mapping
+  affinity: {}
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: ""   # templated
+
+# --------------------------- extras --------------------------------------
+env: []                            # extra environment variables (non-secret)
+envFrom: []                        # extra ConfigMap/Secret sources
+volumes: []                        # extra named volumes (beyond tmpfs)
+volumeMounts: []                   # extra mounts
+initContainers: []
+sidecars: []

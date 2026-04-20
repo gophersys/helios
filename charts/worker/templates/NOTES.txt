@@ -1,0 +1,18 @@
+{{- /* NOTES.txt — worker */ -}}
+worker {{ .Values.app.name | default "<unnamed>" }} installed.
+
+Namespace: {{ .Release.Namespace }}
+Command:   {{ join " " .Values.worker.command }}
+{{- if .Values.worker.autoscale.keda.enabled }}
+Autoscale: KEDA — scaler={{ .Values.worker.autoscale.keda.scaler }}, min={{ .Values.worker.autoscale.keda.minReplicas }}, max={{ .Values.worker.autoscale.keda.maxReplicas }}
+{{- else if .Values.worker.autoscale.hpa.enabled }}
+Autoscale: HPA on CPU={{ .Values.worker.autoscale.hpa.cpuTarget }}%, min={{ .Values.worker.autoscale.hpa.minReplicas }}, max={{ .Values.worker.autoscale.hpa.maxReplicas }}
+{{- else }}
+Autoscale: fixed at {{ .Values.replicas }} replica(s)
+{{- end }}
+
+Graceful shutdown:
+  preStop:  {{ join " " .Values.worker.preStop.command }}
+  timeout:  {{ .Values.terminationGracePeriodSeconds }}s
+
+Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)

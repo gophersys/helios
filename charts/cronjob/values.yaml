@@ -1,0 +1,100 @@
+# values.yaml — cronjob
+
+app:
+  name: ""
+  partOf: ""
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+tenant: gophersys
+env: ""
+nodeRole: apps                     # or "batch" when a preemptible pool exists
+dataClassification: internal
+
+# --------------------------- schedule ------------------------------------
+schedule: ""                       # required; cron expression (UTC)
+timeZone: "UTC"
+concurrencyPolicy: Forbid          # Forbid | Allow | Replace
+startingDeadlineSeconds: 600
+successfulJobsHistoryLimit: 3
+failedJobsHistoryLimit: 3
+suspend: false                     # pause the cronjob without deleting
+
+# --------------------------- per-run knobs -------------------------------
+jobSpec:
+  command: []                      # required
+  args: []
+
+activeDeadlineSeconds: 3600        # kill after 1h
+backoffLimit: 3
+ttlSecondsAfterFinished: 86400     # 24h log retention on Job object
+completions: 1
+parallelism: 1
+completionMode: NonIndexed
+
+# --------------------------- pod shape -----------------------------------
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 128Mi }
+
+securityContext:
+  pod:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: { type: RuntimeDefault }
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: ["ALL"] }
+
+tmpfs:
+  - { name: tmp, mountPath: /tmp, sizeLimit: 32Mi }
+
+# --------------------------- observability -------------------------------
+observability:
+  metrics:
+    enabled: true
+    pushgateway:                   # short runs push instead of being scraped
+      enabled: true
+      endpoint: "http://pushgateway.platform-monitoring.svc:9091"
+  logs:
+    format: json
+    level: info
+
+secrets: []
+
+networkPolicy:
+  enabled: true
+  allowIngressFrom: []
+  allowEgressTo: []
+
+slo:
+  tier: standard
+  successRate: { target: 99.0, window: 30d }
+  staleAfter: "48h"                # alert if no success in this window
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: false
+  rules: []
+
+scheduling:
+  nodeSelector: { role: apps }
+  tolerations: []
+  affinity: {}
+
+env: []
+envFrom: []
+volumes: []
+volumeMounts: []
+initContainers: []

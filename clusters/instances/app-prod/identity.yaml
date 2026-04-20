@@ -26,8 +26,30 @@ network:
   pod_cidr: 10.42.0.0/16
   service_cidr: 10.43.0.0/16
 
-# Platform component opt-ins.
-# platform/core/* is NOT listed here — every cluster gets all of core.
+# Cluster-level node role assignments. Each node's identity.yaml carries
+# the authoritative cluster_role + labels/taints; this block is the
+# cluster-level expectation so misconfiguration is visible in one place.
+# Ansible applies the declared labels + taints on k3s-join.
+node_role_assignments:
+  server-00:  data         # OCI A1.Flex ARM 2/12 — hosts Postgres + NATS
+  agent-00:   apps         # OCI A1.Flex ARM 2/12 — stateless workloads
+  agent-01:   devops       # OCI E4.Flex x86 1/16 — observability stack
+  agent-02:   apps         # AWS t4g.small ARM 2/2 — edge capacity
+
+# Admission policies installed on this cluster. "baseline" enforces
+# everything in platform/core/policy/CATALOG.md; swap to a stricter or
+# looser profile per cluster. Lab clusters might use "audit-only".
+policy_profile: baseline
+
+# Namespace provisioning defaults. When a new namespace is created
+# matching app-*, the namespace-provisioner applies the "small" quota
+# tier unless the namespace requests another via annotation.
+namespace_provisioning:
+  default_quota_tier: small      # small | medium | large
+  auto_netpol: true              # generate baseline NetworkPolicies
+  auto_pss_label: true           # label pod-security.kubernetes.io/enforce=restricted
+
+# platform/core/* is NOT opted in/out — every cluster gets all of core.
 # platform/services/* below is per-cluster opt-in.
 platform_services:
   observability: { enabled: true,  version: "TODO" }
@@ -42,12 +64,19 @@ platform_services:
   backup:           { enabled: false, note: "enable once first stateful workload lands" }
   cost:             { enabled: false, note: "< $20/mo total cluster spend — low priority" }
 
-# Charts archetypes this cluster is expected to serve. Not enforced; just a
-# hint for ops.
+# Charts archetypes this cluster is expected to serve. Not enforced; just
+# a hint for ops and capacity planning.
 chart_archetypes:
   - stateless-app
-  - stateful-app
+  - ingress-app
+  - worker
   - cronjob
+  - job
+
+# SLO targets that apply to the cluster itself (independent of app SLOs).
+cluster_slo:
+  control_plane_availability: { target: 99.9, window: 30d }
+  api_latency:                { target_ms: 250, window: 7d, percentile: 99 }
 
 # Cost envelope — informational; updated by the cost service once enabled.
 cost_envelope:
@@ -55,6 +84,15 @@ cost_envelope:
   monthly_usd_ceiling: 100
   note: "Always-free OCI core + ~$14/mo E4.Flex + ~$4/mo AWS EBS"
 
+# Protection rules for this cluster. Enforced by providers/oracle/ +
+# platform/core/policy/.
+protection:
+  irreplaceable_nodes:
+    - server-00
+    - agent-00
+  prod_volume_delete_requires_override: true
+  namespace_delete_requires_override: true
+
 # Members — see nodes/<name>/identity.yaml for each member host. The
-# cluster instance does not enumerate members here; generate-cluster-index
-# (future) walks nodes/ to emit the membership table in README.md.
+# cluster instance does not enumerate members here; clusters/ctl.sh
+# validate walks nodes/ to verify the set matches node_role_assignments.

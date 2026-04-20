@@ -1,0 +1,149 @@
+# values.yaml — ingress-app
+#
+# Inherits stateless-app semantics; ingress block is MANDATORY here.
+
+app:
+  name: ""
+  partOf: ""
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+tenant: gophersys
+env: ""
+nodeRole: apps
+dataClassification: public         # most ingress-apps serve public content
+
+replicas: 2
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 128Mi }
+
+securityContext:
+  pod:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: { type: RuntimeDefault }
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: ["ALL"] }
+
+tmpfs:
+  - { name: tmp, mountPath: /tmp, sizeLimit: 32Mi }
+
+probes:
+  startup:
+    http: { path: /healthz, port: http }
+    periodSeconds: 2
+    failureThreshold: 30
+  readiness:
+    http: { path: /readyz, port: http }
+    periodSeconds: 5
+  liveness:
+    http: { path: /healthz, port: http }
+    periodSeconds: 10
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: http
+  ports:
+    - { name: http, containerPort: 8080, protocol: TCP }
+    - { name: metrics, containerPort: 9090, protocol: TCP }
+
+# --------------------------- ingress (MANDATORY) -------------------------
+ingress:
+  enabled: true
+  ingressClassName: platform
+  host: ""                         # required — e.g., app.brain.mateosegura.com
+  canonicalHost: true              # redirect www → apex, strip trailing slashes
+  paths:
+    - { path: /, pathType: Prefix, port: http }
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+    secretSuffix: "-tls"
+  redirectToHttps: true
+  headers:
+    stsSeconds: 63072000
+    stsIncludeSubdomains: true
+    stsPreload: true
+    contentTypeNosniff: true
+    browserXssFilter: true
+    frameDeny: true
+    referrerPolicy: "strict-origin-when-cross-origin"
+    permissionsPolicy: "geolocation=(), microphone=(), camera=()"
+    customResponseHeaders: {}
+  rateLimit:
+    enabled: true
+    average: 100
+    burst: 200
+    period: 1s
+  sso:
+    enabled: false
+    requiredGroups: []
+
+autoscale:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuTarget: 70
+  memTarget: 80
+
+pdb:
+  enabled: true
+  maxUnavailable: 25%
+
+observability:
+  metrics: { enabled: true, port: 9090, path: /metrics }
+  logs:    { format: json, level: info }
+  traces:  { enabled: true, samplingRatio: 0.1 }
+
+secrets: []
+
+networkPolicy:
+  enabled: true
+  allowIngressFrom:
+    - { namespace: platform-ingress, pods: { app.kubernetes.io/name: traefik } }
+  allowEgressTo: []
+
+slo:
+  tier: high
+  availability: { target: 99.9, window: 30d }
+  latency:      { target_ms: 400, window: 7d, percentile: 95 }
+
+rollout:
+  strategy: RollingUpdate
+  maxSurge: 1
+  maxUnavailable: 0
+  minReadySeconds: 10
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: false
+  rules: []
+
+scheduling:
+  nodeSelector: { role: apps }
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+env: []
+envFrom: []
+volumes: []
+volumeMounts: []
+initContainers: []
+sidecars: []

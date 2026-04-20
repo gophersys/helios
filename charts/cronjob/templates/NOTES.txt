@@ -1,0 +1,16 @@
+{{- /* NOTES.txt — cronjob */ -}}
+cronjob {{ .Values.app.name | default "<unnamed>" }} installed.
+
+Namespace:        {{ .Release.Namespace }}
+Schedule:         {{ .Values.schedule }} ({{ .Values.timeZone }})
+Concurrency:      {{ .Values.concurrencyPolicy }}
+Active deadline:  {{ .Values.activeDeadlineSeconds }}s
+Backoff limit:    {{ .Values.backoffLimit }}
+
+Suspend:
+  kubectl patch cronjob -n {{ .Release.Namespace }} {{ .Release.Name }} -p '{"spec":{"suspend":true}}'
+
+Trigger manually:
+  kubectl create job -n {{ .Release.Namespace }} --from=cronjob/{{ .Release.Name }} {{ .Release.Name }}-manual-$(date +%s)
+
+Runbook: https://brain/docs/runbooks/{{ .Values.app.name }}.md  (create if missing)
