@@ -224,16 +224,10 @@ def booted_device(slot, config):
     app.reset_stream()
     log.info("Shells ready on %s — debug disabled, streams reset", slot.slot_id)
 
-    try:
-        yield BootedDevice(slot=slot, app_shell=app, comms_shell=comms)
-    finally:
-        # Module teardown: close both UART streams so the next module's
-        # booted_device fixture reopens them on a clean state.
-        for shell in (app, comms):
-            try:
-                shell.stop()
-            except Exception as e:
-                log.warning("%s shell stop raised on teardown: %s", slot.slot_id, e)
+    yield BootedDevice(slot=slot, app_shell=app, comms_shell=comms)
+    # Shell cleanup is handled by session-scoped fixture_ctx teardown
+    # which runs after ALL slots finish. Do NOT stop shells here —
+    # other slots may still be using their streams.
 
 
 @pytest.fixture(scope="module")
