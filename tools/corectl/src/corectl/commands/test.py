@@ -630,7 +630,6 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
 
     _render_template_tree(pkg_type, project_dir, ctx_vars)
     (project_dir / "fixtures" / board_slug).mkdir(parents=True, exist_ok=True)
-    (project_dir / "tests" / "__init__.py").touch()
 
     click.echo("")
     click.echo(f"  Created {pkg_type} project at {project_dir}")

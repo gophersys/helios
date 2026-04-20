@@ -55,14 +55,16 @@ def test_render_validation_tree_produces_all_five_stages(tmp_path: Path):
     assert (tmp_path / "pytest.ini").is_file()
     assert (tmp_path / "pyproject.toml").is_file()
 
+    # Stage dirs land under tests/ to match stages.<name>.directory in concord.yaml.
+    assert (tmp_path / "tests" / "__init__.py").is_file()
     for stage in ("smoke", "driver", "integration", "regression", "fuota"):
-        stage_dir = tmp_path / stage
-        assert stage_dir.is_dir(), f"missing stage dir: {stage}"
+        stage_dir = tmp_path / "tests" / stage
+        assert stage_dir.is_dir(), f"missing stage dir: tests/{stage}"
         assert (stage_dir / "__init__.py").is_file()
         # Every stage ships at least one test_*.py so validate sees a
         # collectable suite immediately.
         assert any(f.name.startswith("test_") for f in stage_dir.iterdir()), \
-            f"{stage} has no test_*.py file"
+            f"tests/{stage} has no test_*.py file"
 
     # Spot-check substitution — the manifest must carry the real slug.
     manifest = (tmp_path / "concord.yaml").read_text()
@@ -84,9 +86,10 @@ def test_render_manufacturing_tree_has_single_stage(tmp_path: Path):
         },
     )
 
-    assert (tmp_path / "stage_01").is_dir()
+    stage = tmp_path / "tests" / "stage_01"
+    assert stage.is_dir()
     # Three demo tests per the template plan: ADC, flash, POST.
-    demo_files = sorted(f.name for f in (tmp_path / "stage_01").iterdir() if f.name.startswith("test_"))
+    demo_files = sorted(f.name for f in stage.iterdir() if f.name.startswith("test_"))
     assert len(demo_files) == 3, f"expected 3 demo tests, got {demo_files}"
 
 
