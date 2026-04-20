@@ -292,10 +292,32 @@
             if (slot) slot.handleTestResult(data);
           },
           onLogChunk: (data) => {
-            if (activeSlot) activeSlot.handleLogChunk(data);
+            const slot = _findSlotByTargetId(data.targetId);
+            if (slot) slot.handleLogChunk(data);
           },
           onTelemetry: (data) => {
-            if (activeSlot) activeSlot.handleTelemetry(data);
+            if (data.samples && detailSlots.length > 1) {
+              const byTarget = new Map<string, Array<Record<string, unknown>>>();
+              const unrouted: Array<Record<string, unknown>> = [];
+              for (const sample of data.samples) {
+                const tid = (sample as Record<string, unknown>).targetId as string | undefined;
+                if (tid) {
+                  if (!byTarget.has(tid)) byTarget.set(tid, []);
+                  byTarget.get(tid)!.push(sample as Record<string, unknown>);
+                } else {
+                  unrouted.push(sample as Record<string, unknown>);
+                }
+              }
+              for (const [tid, samples] of byTarget) {
+                const slot = detailSlots.find(s => s.targetId === tid);
+                if (slot) slot.handleTelemetry({ ...data, samples: samples as typeof data.samples });
+              }
+              if (unrouted.length > 0 && activeSlot) {
+                activeSlot.handleTelemetry({ ...data, samples: unrouted as typeof data.samples });
+              }
+            } else if (activeSlot) {
+              activeSlot.handleTelemetry(data);
+            }
           },
           onRunFinish: () => {
             for (const slot of detailSlots) {

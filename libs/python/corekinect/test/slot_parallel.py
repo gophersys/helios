@@ -567,18 +567,121 @@ class _ThreadLocalCachedResult:
         self._bucket().pop(id(obj), None)
 
 
-def _patch_fixturedef_cached_result_per_thread() -> None:
-    """Replace ``FixtureDef.cached_result`` with a per-thread descriptor.
+class _ThreadLocalFinalizers:
+    """Per-thread descriptor for ``FixtureDef._finalizers``.
 
-    Idempotent: the descriptor is only installed once per process.
-    Existing ``self.cached_result = ...`` assignments in pytest's
-    fixture machinery transparently route through the descriptor.
+    ``FixtureDef._finalizers`` is a plain list that accumulates
+    teardown callbacks from every thread that executes the fixture.
+    ``FixtureDef.finish()`` pops ALL entries — so the first thread to
+    trigger teardown runs every thread's finalizers, closing UART
+    streams and shell objects that other threads are still using.
+
+    This descriptor returns a per-thread list so each worker only
+    tears down its own fixture instances. The list supports the same
+    interface pytest uses: ``while self._finalizers: fin = self._finalizers.pop()``
+    and ``self._finalizers.clear()``.
+
+    A global registry tracks all per-thread lists so the coordinated
+    session teardown (running on the main thread after all workers
+    finish) can drain finalizers that workers left behind.
+    """
+
+    __slots__ = ("_tls", "_all_lists_lock", "_all_lists")
+
+    def __init__(self) -> None:
+        self._tls = threading.local()
+        self._all_lists_lock = threading.Lock()
+        # (obj_id, thread_ident) → list. Kept so the main-thread
+        # coordinated teardown can find and drain worker lists.
+        self._all_lists: Dict[tuple, list] = {}
+
+    def _bucket(self) -> Dict[int, list]:
+        bucket = getattr(self._tls, "finalizers", None)
+        if bucket is None:
+            bucket = {}
+            self._tls.finalizers = bucket
+        return bucket
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        bucket = self._bucket()
+        obj_id = id(obj)
+        if obj_id not in bucket:
+            new_list: list = []
+            bucket[obj_id] = new_list
+            with self._all_lists_lock:
+                self._all_lists[(obj_id, threading.get_ident())] = new_list
+        return bucket[obj_id]
+
+    def __set__(self, obj, value) -> None:
+        obj_id = id(obj)
+        self._bucket()[obj_id] = value
+        with self._all_lists_lock:
+            self._all_lists[(obj_id, threading.get_ident())] = value
+
+    def __delete__(self, obj) -> None:
+        obj_id = id(obj)
+        self._bucket().pop(obj_id, None)
+        with self._all_lists_lock:
+            keys_to_remove = [k for k in self._all_lists if k[0] == obj_id]
+            for k in keys_to_remove:
+                del self._all_lists[k]
+
+    def drain_all_for(self, obj) -> list:
+        """Collect and remove ALL finalizers for ``obj`` across all threads.
+
+        Used by the coordinated session teardown on the main thread
+        after all workers have joined. Returns the combined list so
+        the caller can execute them.
+        """
+        obj_id = id(obj)
+        result = []
+        with self._all_lists_lock:
+            keys = [k for k in self._all_lists if k[0] == obj_id]
+            for k in keys:
+                lst = self._all_lists[k]
+                result.extend(lst)
+                lst.clear()
+        return result
+
+
+def _patch_fixturedef_cached_result_per_thread() -> None:
+    """Replace ``FixtureDef.cached_result`` and ``_finalizers`` with per-thread descriptors.
+
+    Idempotent: the descriptors are only installed once per process.
+    Existing ``self.cached_result = ...`` and ``self._finalizers``
+    access in pytest's fixture machinery transparently route through
+    the descriptors.
+
+    Also patches ``FixtureDef.finish()`` so the coordinated session
+    teardown (running on the main thread after workers join) can still
+    drain finalizers that were registered on worker threads.
     """
     from _pytest.fixtures import FixtureDef
 
     if getattr(FixtureDef, "_slot_parallel_tls_cached_result", False):
         return
+
+    tls_finalizers = _ThreadLocalFinalizers()
     FixtureDef.cached_result = _ThreadLocalCachedResult()
+    FixtureDef._finalizers = tls_finalizers
+
+    # Patch finish() to drain cross-thread finalizers when the current
+    # thread's list is empty (happens during coordinated session teardown).
+    _original_finish = FixtureDef.finish
+
+    def _finish_with_drain(self, request):
+        # If the current thread has no finalizers for this FixtureDef,
+        # drain from all threads (coordinated teardown on main thread).
+        my_list = tls_finalizers.__get__(self, type(self))
+        if not my_list:
+            drained = tls_finalizers.drain_all_for(self)
+            if drained:
+                my_list.extend(drained)
+        return _original_finish(self, request)
+
+    FixtureDef.finish = _finish_with_drain
     FixtureDef._slot_parallel_tls_cached_result = True
 
 

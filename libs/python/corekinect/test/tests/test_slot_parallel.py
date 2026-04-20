@@ -486,3 +486,191 @@ def test_per_test_timeout_does_not_kill_session(pytester: pytest.Pytester) -> No
     )
     # First test: 2 pass, 1 fail. Second test: 3 pass.
     result.assert_outcomes(passed=5, failed=1)
+
+
+def test_fast_slot_finish_does_not_teardown_slow_slot_fixture(
+    pytester: pytest.Pytester,
+) -> None:
+    """A slot that finishes early must NOT trigger teardown of other slots' fixtures.
+
+    Reproduces the "Stream dead (stream closed by caller)" bug: when
+    slot-0 finishes all its tests first, pytest calls FixtureDef.finish()
+    which pops _finalizers. Without per-thread isolation, that pops ALL
+    threads' finalizers — executing the generator fixture's finally block
+    for slots still running tests. The still-running slots then fail
+    because their fixture resource (e.g. UART stream) was torn down.
+
+    The fake suite uses a module-scoped yielding fixture that writes
+    "teardown" to the trace log from its finally block. Slot-0 finishes
+    instantly while slot-1 sleeps. If the teardown fires for slot-1 WHILE
+    slot-1 is still sleeping, the bug is present.
+    """
+    trace_file = str(_trace_path(pytester))
+    pytester.makeconftest(textwrap.dedent(f'''
+        import json, threading, time
+        import pytest
+
+        pytest_plugins = ["corekinect.test.slot_parallel"]
+
+        _LOCK = threading.Lock()
+
+        def _log(event, slot, **extra):
+            with _LOCK:
+                with open({trace_file!r}, "a") as fh:
+                    fh.write(json.dumps({{
+                        "event": event,
+                        "slot": slot,
+                        "ts": time.monotonic(),
+                        **extra,
+                    }}) + "\\n")
+
+
+        @pytest.fixture(scope="module", params=["slot-0", "slot-1"])
+        def stream_fixture(request):
+            """Simulates a UART stream: setup opens it, finally closes it."""
+            slot = request.param
+            _log("setup", slot)
+            yield {{"slot": slot, "alive": True}}
+            _log("teardown", slot)
+    ''').lstrip())
+
+    pytester.makepyfile(test_cross_thread=textwrap.dedent(f'''
+        import json, threading, time
+
+        _LOCK = threading.Lock()
+
+        def _log(event, slot, **extra):
+            with _LOCK:
+                with open({trace_file!r}, "a") as fh:
+                    fh.write(json.dumps({{
+                        "event": event,
+                        "slot": slot,
+                        "ts": time.monotonic(),
+                        **extra,
+                    }}) + "\\n")
+
+
+        def test_use_stream(stream_fixture):
+            slot = stream_fixture["slot"]
+            _log("test_start", slot)
+            if slot == "slot-1":
+                # Slot-1 is slow — gives slot-0 time to finish and
+                # potentially trigger cross-thread teardown.
+                time.sleep(0.3)
+            _log("test_end", slot)
+            # The fixture must still be alive at this point.
+            assert stream_fixture["alive"], (
+                f"{{slot}}: fixture was torn down while test was running"
+            )
+    '''))
+
+    result = pytester.runpytest("-v", "-p", "no:cacheprovider", "-p", "no:randomly")
+    result.assert_outcomes(passed=2)
+
+    events = _read_trace(pytester)
+    teardowns = [e for e in events if e["event"] == "teardown"]
+    test_ends = [e for e in events if e["event"] == "test_end"]
+
+    # Slot-1's teardown must happen AFTER slot-1's test_end.
+    slot1_teardown = next((e for e in teardowns if e["slot"] == "slot-1"), None)
+    slot1_test_end = next((e for e in test_ends if e["slot"] == "slot-1"), None)
+    assert slot1_teardown is not None, "slot-1 fixture was never torn down"
+    assert slot1_test_end is not None, "slot-1 test never completed"
+    assert slot1_teardown["ts"] > slot1_test_end["ts"], (
+        f"slot-1 fixture torn down at {slot1_teardown['ts']:.4f} "
+        f"but test_end was at {slot1_test_end['ts']:.4f} — "
+        "cross-thread teardown poisoned the slow slot"
+    )
+
+
+def test_session_scoped_fixture_survives_all_slots(
+    pytester: pytest.Pytester,
+) -> None:
+    """Session-scoped fixtures must survive until ALL slots finish.
+
+    The manufacturing fixture_ctx is session-scoped and holds MTIB
+    connections shared across all slots. If it tears down when the first
+    slot finishes, remaining slots lose their connections.
+    """
+    trace_file = str(_trace_path(pytester))
+    pytester.makeconftest(textwrap.dedent(f'''
+        import json, threading, time
+        import pytest
+
+        pytest_plugins = ["corekinect.test.slot_parallel"]
+
+        _LOCK = threading.Lock()
+
+        def _log(event, **extra):
+            with _LOCK:
+                with open({trace_file!r}, "a") as fh:
+                    fh.write(json.dumps({{
+                        "event": event,
+                        "ts": time.monotonic(),
+                        **extra,
+                    }}) + "\\n")
+
+
+        @pytest.fixture(scope="session")
+        def shared_connection():
+            """Simulates a session-scoped MTIB connection."""
+            _log("session_setup")
+            conn = {{"alive": True}}
+            yield conn
+            conn["alive"] = False
+            _log("session_teardown")
+    ''').lstrip())
+
+    pytester.makepyfile(test_session_scope=textwrap.dedent(f'''
+        import json, threading, time
+        import pytest
+
+        _LOCK = threading.Lock()
+
+        def _log(event, **extra):
+            with _LOCK:
+                with open({trace_file!r}, "a") as fh:
+                    fh.write(json.dumps({{
+                        "event": event,
+                        "ts": time.monotonic(),
+                        **extra,
+                    }}) + "\\n")
+
+
+        @pytest.mark.parametrize("slot", ["slot-0", "slot-1", "slot-2"])
+        def test_first(slot, shared_connection):
+            if slot == "slot-0":
+                time.sleep(0.01)
+            else:
+                time.sleep(0.3)
+            assert shared_connection["alive"], (
+                f"{{slot}}: session fixture torn down prematurely"
+            )
+            _log("test_done", slot=slot)
+
+
+        @pytest.mark.parametrize("slot", ["slot-0", "slot-1", "slot-2"])
+        def test_second(slot, shared_connection):
+            assert shared_connection["alive"], (
+                f"{{slot}}: session fixture torn down before test_second"
+            )
+            _log("test_done", slot=slot, test="second")
+    '''))
+
+    result = pytester.runpytest("-v", "-p", "no:cacheprovider", "-p", "no:randomly")
+    result.assert_outcomes(passed=6)
+
+    events = _read_trace(pytester)
+    session_teardowns = [e for e in events if e["event"] == "session_teardown"]
+    test_dones = [e for e in events if e["event"] == "test_done"]
+
+    assert len(session_teardowns) >= 1, (
+        f"expected at least 1 session teardown, got {len(session_teardowns)}"
+    )
+    latest_test_done = max(e["ts"] for e in test_dones)
+    earliest_teardown = min(e["ts"] for e in session_teardowns)
+    assert earliest_teardown > latest_test_done, (
+        f"session fixture torn down at {earliest_teardown:.4f} "
+        f"but last test finished at {latest_test_done:.4f} — "
+        "session fixture torn down before all tests completed"
+    )
