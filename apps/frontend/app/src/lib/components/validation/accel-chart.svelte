@@ -228,12 +228,24 @@
   }
 
   onMount(() => {
-    const ro = new ResizeObserver(() => updateSize());
+    // Defer to rAF — see power-chart for the full explanation of the
+    // "ResizeObserver loop completed with undelivered notifications"
+    // pattern: the callback mutates the observed container's child
+    // layout, which would re-enter the observer in the same tick.
+    let pendingResize: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (pendingResize !== null) return;
+      pendingResize = requestAnimationFrame(() => {
+        pendingResize = null;
+        updateSize();
+      });
+    });
     ro.observe(containerEl);
     updateSize();
     rafId = requestAnimationFrame(tick);
     return () => {
       ro.disconnect();
+      if (pendingResize !== null) cancelAnimationFrame(pendingResize);
       if (rafId) cancelAnimationFrame(rafId);
     };
   });

@@ -188,10 +188,24 @@
   }
 
   onMount(() => {
-    const ro = new ResizeObserver(() => updateSize());
+    // Defer the size-update layout write to the next animation frame —
+    // same reason as power-chart (avoid "ResizeObserver loop completed
+    // with undelivered notifications" when the canvas style.width/height
+    // mutation inside the observed container re-triggers the observer).
+    let pendingRaf: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (pendingRaf !== null) return;
+      pendingRaf = requestAnimationFrame(() => {
+        pendingRaf = null;
+        updateSize();
+      });
+    });
     ro.observe(containerEl);
     updateSize();
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (pendingRaf !== null) cancelAnimationFrame(pendingRaf);
+    };
   });
 </script>
 

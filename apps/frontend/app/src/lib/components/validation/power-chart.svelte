@@ -354,7 +354,22 @@
   onMount(() => {
     dpr = window.devicePixelRatio || 1;
 
-    const ro = new ResizeObserver(() => updateCanvasSize());
+    // updateCanvasSize() writes ``canvas.style.width/height`` inside the
+    // observed container — if we call it synchronously from the observer
+    // callback the resulting relayout can emit another resize event in
+    // the same delivery tick and we burn through Chrome's undelivered-
+    // notifications budget with "ResizeObserver loop completed" in the
+    // console. Deferring the write to the next animation frame breaks
+    // the cycle — Chrome's recommended pattern for any observer that
+    // mutates layout of the observed element.
+    let pendingRaf: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (pendingRaf !== null) return;
+      pendingRaf = requestAnimationFrame(() => {
+        pendingRaf = null;
+        updateCanvasSize();
+      });
+    });
     ro.observe(containerEl);
 
     updateCanvasSize();
@@ -362,6 +377,7 @@
 
     return () => {
       ro.disconnect();
+      if (pendingRaf !== null) cancelAnimationFrame(pendingRaf);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   });
