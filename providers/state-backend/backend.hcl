@@ -26,7 +26,11 @@ skip_requesting_account_id  = true
 skip_s3_checksum            = true
 use_path_style              = true
 
-# Terraform-1.10+ native locking via a sibling lockfile object in the
-# bucket — no DynamoDB / no extra infra needed. Stops concurrent
-# apply/plan from corrupting state.
-use_lockfile = true
+# State locking is DISABLED — OCI's S3-compat API returns HTTP 501
+# "AWS chunked encoding not supported" on the PUT that terraform
+# issues to take a lock. Single-operator context makes the risk of
+# concurrent mutation minimal. If we ever want locking back, options
+# are: (1) a DynamoDB-compat offering, (2) a wrapper script that
+# oci-cli's conditional-put works around the chunked-encoding
+# mismatch. Tracked as a follow-up.
+# use_lockfile = true

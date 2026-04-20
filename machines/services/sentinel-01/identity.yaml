@@ -1,0 +1,35 @@
+# identity.yaml — sentinel-01 (prod tailnet bastion — HA pair)
+#
+# OCI VM.Standard.E2.1.Micro (x86) — always-free tier. Not a K8s node.
+# Tailnet exit-node / SSH bastion. Paired with sentinel-00 for HA.
+
+name: sentinel-01
+os: linux-debian
+purpose: "prod tailnet bastion / SSH jumpbox (paired with sentinel-00)"
+tailscale_hostname: sentinel-01
+status: active
+location: oracle-phoenix
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-debian
+  - networking-tailscale
+  - secrets-bitwarden-client
+
+hardware:
+  provider: oracle
+  cpu_arch: amd64
+  cpu_cores: 1
+  memory_gb: 1
+  disk_gb: 47
+  oracle:
+    shape: VM.Standard.E2.1.Micro
+    availability_domain: "FEQI:PHX-AD-2"
+    instance_ocid: "ocid1.instance.oc1.phx.anyhqljtslzce6ac3qgdneikdgj2mmntzptywfixkma2fi7ddxk3eshaw7hq"
+
+bastion:
+  ssh_port: 22
+  fail2ban: true
+  allowed_tailnet_tags:
+    - "tag:admin"

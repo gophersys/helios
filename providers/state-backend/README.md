@@ -65,6 +65,15 @@ Required env before running terraform (typically loaded from the
 
 - `AWS_ACCESS_KEY_ID`     — OCI Customer Secret Key access key id
 - `AWS_SECRET_ACCESS_KEY` — OCI Customer Secret Key secret
+- `AWS_REQUEST_CHECKSUM_CALCULATION=when_required`
+- `AWS_RESPONSE_CHECKSUM_VALIDATION=when_required`
+
+The two checksum env vars are **required**. AWS SDK v2 (used by
+Terraform 1.10+'s s3 backend) defaults to `when_supported`, which
+appends chunked-transfer SHA-256 trailers on every PutObject. OCI's
+S3-compat API responds with HTTP 501 "AWS chunked encoding not
+supported" and the state upload fails. Setting both to
+`when_required` disables the trailers entirely.
 
 ## Verbs
 

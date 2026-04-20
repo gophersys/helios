@@ -1,0 +1,56 @@
+# identity.yaml — agent-01 (prod cluster agent — x86 devops)
+#
+# OCI VM.Standard.E4.Flex (x86) — paid compartment (~$14/mo when running).
+# Devops-role workloads: observability stack (Prometheus, Grafana, Loki,
+# Tempo), metrics-server, cert-manager, etc.
+#
+# CURRENT RUNTIME STATE: STOPPED. This is an operational concern — the
+# devops-role services expect this node online. Either start the node,
+# migrate the devops role to a different node, or decommission.
+
+name: agent-01
+os: linux-debian
+purpose: "prod k3s agent — devops-role x86 workloads (observability)"
+tailscale_hostname: agent-01
+status: active
+location: oracle-phoenix
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-debian
+  - networking-tailscale
+  - secrets-bitwarden-client
+  - cluster-node-labels
+
+hardware:
+  provider: oracle
+  compute_unit:
+    arch: amd64
+    cores: 1
+    memory_gb: 16
+    storage_gb: 47
+    storage_class: ssd
+    network: tailnet
+  oracle:
+    shape: VM.Standard.E4.Flex
+    availability_domain: "FEQI:PHX-AD-2"
+    instance_ocid: "ocid1.instance.oc1.phx.anyhqljtslzce6actpj53hffsoo5o5vciq4h2eo3gnyqgs5ek5zomhd2wttq"
+
+kubernetes:
+  role: agent
+  cluster_role: devops
+  labels:
+    role: devops
+  taints:
+    - key: devops
+      value: "true"
+      effect: PreferNoSchedule
+  extra_flags: []
+
+irreplaceable: false
+
+ssh:
+  port: 22
+  allowed_tailnet_tags:
+    - "tag:admin"

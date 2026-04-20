@@ -5,11 +5,8 @@
 #
 
 locals {
-  instance = one(concat(oci_core_instance.protected, oci_core_instance.destroyable))
-  primary_vnic = try(
-    data.oci_core_vnic.primary[0],
-    null,
-  )
+  instance     = one(concat(oci_core_instance.protected, oci_core_instance.destroyable))
+  primary_vnic = data.oci_core_vnic.primary
   # Whether the caller enabled Tailscale — derived from a sensitive
   # input, but the boolean "did we configure tailnet" is itself not
   # sensitive. nonsensitive() strips the taint so outputs that only
@@ -19,19 +16,25 @@ locals {
   tailnet_fqdn    = "${var.name}.mateosegura.ts.net"
 }
 
+# nonsensitive() wrappers on instance-derived outputs: the instance's
+# metadata.user_data is tainted by var.tailnet_auth_key (sensitive), so
+# terraform pessimistically flags every attribute reached via the
+# resource as sensitive — including its .id. The id / IP outputs
+# are genuinely not secret, so we strip the taint.
+
 output "id" {
   description = "OCID of the compute instance."
-  value       = local.instance.id
+  value       = nonsensitive(local.instance.id)
 }
 
 output "private_ip" {
   description = "Primary VNIC private IP."
-  value       = try(local.primary_vnic.private_ip_address, "")
+  value       = nonsensitive(local.primary_vnic.private_ip_address)
 }
 
 output "public_ip" {
   description = "Primary VNIC public IP; empty string if none attached."
-  value       = try(local.primary_vnic.public_ip_address, "")
+  value       = nonsensitive(coalesce(local.primary_vnic.public_ip_address, ""))
 }
 
 output "tailnet_name" {

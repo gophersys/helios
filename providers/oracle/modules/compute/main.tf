@@ -113,7 +113,9 @@ resource "oci_core_instance" "protected" {
       source_details,
       metadata,
       create_vnic_details[0].hostname_label,
+      create_vnic_details[0].display_name,
       defined_tags,
+      freeform_tags,
     ]
   }
 }
@@ -164,7 +166,9 @@ resource "oci_core_instance" "destroyable" {
       source_details,
       metadata,
       create_vnic_details[0].hostname_label,
+      create_vnic_details[0].display_name,
       defined_tags,
+      freeform_tags,
     ]
   }
 }
@@ -180,7 +184,8 @@ data "oci_core_vnic_attachments" "primary" {
   instance_id    = local.instance.id
 }
 
+# Every OCI instance has at least one VNIC; no count guard — errors if
+# missing, which means something catastrophic upstream.
 data "oci_core_vnic" "primary" {
-  count   = length(data.oci_core_vnic_attachments.primary.vnic_attachments) > 0 ? 1 : 0
   vnic_id = data.oci_core_vnic_attachments.primary.vnic_attachments[0].vnic_id
 }
