@@ -152,9 +152,6 @@ COPY ./apps/backend/http-api/assets assets
 COPY ./apps/backend/http-api/config config
 COPY ./apps/backend/http-api/src src
 
-# Copy firmware build scripts (served via /v2/builds/scripts/<product> endpoint)
-COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
-
 EXPOSE 9001
 
 # Security: run as non-root user

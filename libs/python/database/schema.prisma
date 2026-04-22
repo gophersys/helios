@@ -975,6 +975,8 @@ model User {
   permissionSet         PermissionSet?         @relation(fields: [permissionSetId], references: [id], onDelete: SetNull)
   productAccess         ProductAccess[]
   apiKeys               ApiKey[]
+  authSessions          AuthSession[]
+  refreshTokens         RefreshToken[]
   testPackages          TestPackage[]
   auditLogs             AuditLog[]
   secrets               Secret[]
@@ -1044,6 +1046,68 @@ model ApiKey {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("api_keys")
+}
+
+/// Status of a CLI session-code authorisation request.
+enum AuthSessionStatus {
+  PENDING /// awaiting human approval in the browser
+  APPROVED /// human approved; access + refresh tokens issued
+  EXPIRED /// 10-minute window elapsed without approval
+  DENIED /// human explicitly rejected the request
+}
+
+/// One pending or approved CLI authorisation request (RFC 8628 device-code
+/// flow). The CLI gets a deviceCode and a human-friendly userCode; the
+/// human enters the userCode in the browser at /settings/sessions/ to
+/// approve. Approval flips status APPROVED and seeds the issued
+/// RefreshToken row that the CLI then rotates against.
+///
+/// Rows expire 10 minutes after creation if never approved. A daily
+/// CronJob sweeps EXPIRED + DENIED rows older than 7 days.
+model AuthSession {
+  id         String            @id @default(cuid())
+  userCode   String            @unique /// 8 chars, formatted "XXXX-XXXX" for display, no ambiguous I/O/0/1
+  deviceCode String            @unique /// uuid the CLI polls with — never shown to the human
+  status     AuthSessionStatus @default(PENDING)
+  userId     String? /// set on approval
+  userAgent  String? /// CLI version + platform string, captured at /code time for the approval UI
+  createdAt  DateTime          @default(now())
+  expiresAt  DateTime /// 10 min from createdAt for PENDING; not consulted after APPROVED
+  approvedAt DateTime?
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  refreshTokens RefreshToken[]
+
+  @@index([deviceCode])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+/// Refresh token for a CLI session. Rotated on every /refresh — the
+/// presented token is revoked and a new one issued, with parentId
+/// recording the rotation chain so a replayed (already-revoked) token
+/// can be detected and the entire chain killed.
+///
+/// 30-day expiry. Daily CronJob sweeps revoked + expired rows older
+/// than 7 days.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  sessionId String
+  tokenHash String    @unique /// SHA-256 of the raw refresh token (never store plaintext)
+  parentId  String? /// previous token in the rotation chain — null for the first token issued at /approve
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime /// 30 days from createdAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 /// Append-only log of every significant mutation in the system.
@@ -1452,6 +1516,11 @@ model TestExecution {
   steps  TestStep[]
 
   @@unique([targetId, executionIndex])
+  // Name is unique per target — a given test function name runs at most
+  // once per RunTarget. Enforced at the DB level so a reporter regression
+  // (e.g. dropping slotIndex and falling through to the wrong target) can
+  // never create duplicate rows silently; instead it surfaces as a 409.
+  @@unique([targetId, name])
   @@index([targetId])
   @@map("test_executions")
 }
