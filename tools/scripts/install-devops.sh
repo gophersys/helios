@@ -1,1 +1,0 @@
-#TODO: This file should install Nx monorepo, Node Version Manager, and other required things
