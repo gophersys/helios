@@ -130,16 +130,6 @@
         }
       }
     },
-    "serve": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/backend/git-poller",
-        "command": "python3 -u -m main",
-        "env": {
-          "PYTHONPATH": "src:../../../libs/python:../../../libs/protocols:../../../libs"
-        }
-      }
-    },
     "test": {
       "executor": "nx:run-commands",
       "options": {

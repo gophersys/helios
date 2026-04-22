@@ -126,19 +126,6 @@
         }
       }
     },
-    "serve": {
-      "executor": "nx:run-commands",
-      "dependsOn": [
-        "typecheck"
-      ],
-      "options": {
-        "command": "python3 -u -m src.main",
-        "cwd": "apps/backend/build-service",
-        "env": {
-          "PYTHONPATH": "src:../../../libs/python:../../../libs/protocols:../../../libs"
-        }
-      }
-    },
     "test": {
       "executor": "nx:run-commands",
       "options": {

@@ -13,7 +13,7 @@ paths:
 After completing a new feature, bug fix, or significant refactor, run the test suites:
 
 - **Backend**: `cd apps/backend/http-api && PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v`
-- **Frontend**: `cd apps/frontend/app && npx nx test app`
+- **Frontend**: `nx test app`
 
 ## Requirements
 

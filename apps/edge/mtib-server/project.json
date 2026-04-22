@@ -109,18 +109,6 @@
         }
       }
     },
-    "serve": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "python3 src/main.py"
-          }
-        ],
-        "parallel": false
-      }
-    },
     "test": {
       "executor": "nx:run-commands",
       "options": {

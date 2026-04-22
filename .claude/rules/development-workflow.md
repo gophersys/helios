@@ -7,7 +7,7 @@ Three environments, strict promotion gates, quality checks at each stage.
 | Environment | Purpose | Infrastructure | Deploy Method |
 |------------|---------|---------------|---------------|
 | **Development** | Local testing, fast iteration | Docker Compose | `nx start platform` |
-| **Staging** | Integration testing, pre-prod validation | Kubernetes | `nx start platform -c staging` |
+| **Staging** | Integration testing, pre-prod validation | Kubernetes | `nx update platform -c staging` |
 | **Production** | Live system | Kubernetes | `nx update platform -c production` |
 
 ## Development Stage
@@ -21,7 +21,7 @@ Three environments, strict promotion gates, quality checks at each stage.
 nx start platform
 
 # Start the frontend (only UI uses nx serve for HMR)
-npx nx serve app              # Frontend on :4200
+nx serve app              # Frontend on :4200
 ```
 
 Backend services always run in containers — never use `nx serve` for backends. After making code changes, run `nx update platform` to rebuild and hot-swap containers.
@@ -29,10 +29,10 @@ Backend services always run in containers — never use `nx serve` for backends.
 ### Before Committing
 
 ```bash
-npx nx typecheck http-api
-npx nx typecheck app
-npx nx test http-api
-npx nx test app
+nx typecheck http-api
+nx typecheck app
+nx test http-api
+nx test app
 ```
 
 ### Commit Conventions
@@ -51,14 +51,13 @@ git commit -m "refactor(protocols): consolidate device message types"
 
 ```bash
 # Preview changes
-./deploy/ctl.sh staging diff
+nx diff platform -c staging
 
 # Full deploy (builds + pushes + helm upgrade, zero downtime)
 nx update platform -c staging
 
 # Verify
-nx run platform:status -c staging
-./deploy/ctl.sh staging logs http-api
+nx status platform -c staging
 ```
 
 ## Production Promotion
@@ -74,16 +73,15 @@ nx run platform:status -c staging
 ### Deploy to Production
 
 ```bash
-./deploy/ctl.sh production diff
+nx diff platform -c production
 nx update platform -c production
-nx run platform:status -c production
+nx status platform -c production
 ```
 
 ### Rollback (if needed)
 
 ```bash
-helm rollback concord -n production
-helm history concord -n production  # List revisions
+nx rollback platform -c production
 ```
 
 ## Quick Reference
@@ -93,18 +91,24 @@ helm history concord -n production  # List revisions
 | Start dev platform | `nx start platform` |
 | Update after code change | `nx update platform` |
 | Stop dev platform | `nx stop platform` |
-| Start frontend (HMR) | `npx nx serve app` |
-| Run tests | `npx nx test http-api` |
-| Type check | `npx nx typecheck http-api` |
+| Dev status | `nx status platform` |
+| Start frontend (HMR) | `nx serve app` |
+| Run tests | `nx test http-api` |
+| Type check | `nx typecheck http-api` |
+| Pre-deploy gate | `nx run platform:check` |
 | Deploy staging | `nx update platform -c staging` |
 | Deploy production | `nx update platform -c production` |
-| Check status | `nx run platform:status -c staging` |
-| View diff | `./deploy/ctl.sh staging diff` |
-| Start CI platform | `bash deploy/ci/ctl.sh start` |
-| CI status | `bash deploy/ci/ctl.sh status` |
-| CI dashboard (local) | `cd apps/ci/admin && npm run dev` (port 4300) |
-| Trigger nightly CI | `kubectl create job --from=cronjob/concord-ci-nightly ci-manual -n devops` |
-| Run PR pipeline locally | `.ci/run pr` |
+| Full release (staging) | `nx run platform:release -c staging` |
+| Full release (production) | `nx run platform:release -c production` |
+| Check status | `nx status platform -c staging` |
+| Preview diff | `nx diff platform -c staging` |
+| Rollback | `nx rollback platform -c staging` |
+| Restart pods | `nx restart platform -c staging` |
+| Sync secrets | `nx run platform:sync-secrets -c staging` |
+| Start CI platform | `nx run deploy-ci:start` |
+| CI status | `nx run deploy-ci:status` |
+| CI dashboard (local) | `nx serve ci-admin` |
+| Trigger nightly CI | `nx run deploy-ci:trigger-nightly` |
 
 ## Environment Configuration
 

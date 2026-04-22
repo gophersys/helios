@@ -112,4 +112,4 @@ import { PUBLIC_APP_ENVIRONMENT, PUBLIC_APP_VERSION } from '$env/static/public';
 
 ## Testing
 
-Run with: `npx nx test app`
+Run with: `nx test app`

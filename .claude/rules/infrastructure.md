@@ -33,7 +33,7 @@ infrastructure/
 ## Commands
 
 ```bash
-npx nx test infrastructure                        # Run all tests
+nx test infrastructure                             # Run all tests
 ./infrastructure/ctl.sh office bootstrap           # Set up office cluster
 ./infrastructure/ctl.sh office status              # Check cluster readiness
 ./infrastructure/ctl.sh office validate            # Dry-run manifests
@@ -87,7 +87,7 @@ All stateful services (postgres, minio, pypi) have:
 - **PV reclaim policy**: `Retain` — data stays on disk even if PVC is deleted
 - **Automated backups**: PostgreSQL daily to MinIO, MinIO weekly mirror to hostPath
 - **Pre-upgrade backups**: Automatic `pg_dump` before every Helm upgrade
-- **Production stop guard**: `./deploy/ctl.sh production stop` requires `--confirm-delete`
+- **Production stop guard**: `nx stop platform -c production` requires `--confirm-delete`
 
 See `data-protection.md` for full backup/restore procedures.
 
@@ -97,7 +97,7 @@ See `data-protection.md` for full backup/restore procedures.
 2. Define all 5 workload types in `cluster.yaml` with node assignments
 3. Copy RBAC manifests from an existing cluster as baseline
 4. Add cluster-specific storage classes and networking config
-5. Run `npx nx test infrastructure` to verify
+5. Run `nx test infrastructure` to verify
 
 ## CI Platform (devops namespace)
 
@@ -117,10 +117,10 @@ The CI system is a standalone Helm release (`concord-ci`) in the devops namespac
 
 **Lifecycle:**
 ```bash
-bash deploy/ci/ctl.sh start    # helm install
-bash deploy/ci/ctl.sh stop     # helm uninstall (preserves PVCs)
-bash deploy/ci/ctl.sh status   # show all CI resources
-bash deploy/ci/ctl.sh update   # rebuild dashboard + redeploy
+nx run deploy-ci:start    # helm install
+nx run deploy-ci:stop     # helm uninstall (preserves PVCs)
+nx run deploy-ci:status   # show all CI resources
+nx run deploy-ci:update   # rebuild dashboard + redeploy
 ```
 
 **External secrets** (must exist before deploying):

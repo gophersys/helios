@@ -29,17 +29,18 @@
       "defaultConfiguration": "development",
       "options": {
         "cwd": "{workspaceRoot}",
-        "parallel": false
+        "parallel": false,
+        "forwardAllArgs": true
       },
       "configurations": {
         "development": {
-          "commands": ["bash deploy/ctl.sh development update"]
+          "command": "bash deploy/ctl.sh development update"
         },
         "staging": {
-          "commands": ["bash deploy/ctl.sh staging update"]
+          "command": "bash deploy/ctl.sh staging update"
         },
         "production": {
-          "commands": ["bash deploy/ctl.sh production update"]
+          "command": "bash deploy/ctl.sh production update"
         }
       }
     },
@@ -89,19 +90,18 @@
       }
     },
 
-    "logs": {
+    "restart": {
       "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "forwardAllArgs": true
+      },
       "configurations": {
-        "development": {
-          "commands": ["bash deploy/ctl.sh development logs"]
-        },
         "staging": {
-          "commands": ["bash deploy/ctl.sh staging logs"]
+          "command": "bash deploy/ctl.sh staging restart"
         },
         "production": {
-          "commands": ["bash deploy/ctl.sh production logs"]
+          "command": "bash deploy/ctl.sh production restart"
         }
       }
     },

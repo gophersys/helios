@@ -10,11 +10,12 @@ paths:
 ## Architecture
 
 ```
-deploy/ctl.sh <environment> <action>     # Single CLI for all environments
+nx <verb> platform [-c <env>]            # All platform operations
+nx run deploy-ci:<verb>                  # CI platform operations
 infrastructure/ctl.sh <cluster> <action> # Cluster provisioning (separate layer)
 
 Environments:
-  development   Docker Compose (local containers)
+  development   Docker Compose (local containers) — default
   staging       Kubernetes staging namespace
   production    Kubernetes production namespace
 ```
@@ -22,19 +23,20 @@ Environments:
 ## Lifecycle Commands
 
 ```bash
-# Development
+# Development (default)
 nx start platform              # Full startup: protobuf → build → compose up → DB setup
 nx update platform             # Fast: rebuild images → restart changed containers
 nx stop platform               # Compose down
+nx status platform             # Show container status
 
 # Staging
 nx start platform -c staging   # Preflight → infra bootstrap → secrets → build → deploy
 nx update platform -c staging  # Secrets → rebuild → deploy (zero downtime)
 nx stop platform -c staging    # Helm uninstall (keeps infrastructure)
-
-# Status / Logs
-nx run platform:status -c staging
-./deploy/ctl.sh staging logs http-api
+nx status platform -c staging  # Show pods + services
+nx diff platform -c staging    # Preview Helm changes
+nx restart platform -c staging # Rolling restart
+nx rollback platform -c staging # Helm rollback
 ```
 
 ## How Deployment Works
@@ -52,8 +54,8 @@ nx run platform:status -c staging
 
 | File | Purpose |
 |------|---------|
-| `deploy/ctl.sh` | Platform CLI (all environments) |
-| `deploy/project.json` | Nx project: start, update, stop, status |
+| `deploy/ctl.sh` | Platform CLI (called by nx targets) |
+| `deploy/project.json` | Nx project: all platform targets |
 | `deploy/production/helm/concord/` | Helm chart (templates, values) |
 | `deploy/production/helm/values-staging.yaml` | Staging config |
 | `deploy/production/helm/values-production.yaml` | Production config |
@@ -72,8 +74,8 @@ cd prisma && npx prisma migrate dev --name <description>
 ## Rollback
 
 ```bash
-helm rollback concord <revision> -n staging
-helm history concord -n staging  # List revisions
+nx rollback platform -c staging
+nx rollback platform -c production
 ```
 
 ## Troubleshooting

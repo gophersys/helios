@@ -6,70 +6,115 @@
 
 Nx provides caching, dependency tracking, and parallel execution. Running raw commands bypasses these benefits and can cause inconsistent builds.
 
-## Commands Reference
+## Platform Lifecycle (7 core verbs)
 
-### Platform Lifecycle
+All platform operations go through `nx <verb> platform` with an optional `-c <env>` configuration flag. Development is the default when no `-c` is specified.
 
 ```bash
-# Development
+# Development (default — Docker Compose)
 nx start platform              # Start all services in Docker containers
-nx update platform             # Rebuild + hot-swap changed containers
 nx stop platform               # Compose down
+nx status platform             # Show container status
+nx update platform             # Rebuild + hot-swap changed containers
 
-# Staging / Production
+# Staging / Production (Kubernetes)
 nx start platform -c staging   # Full 0→running (infra + secrets + build + deploy)
-nx update platform -c staging  # Rebuild + deploy (zero downtime)
 nx stop platform -c staging    # Helm uninstall
-nx run platform:status -c staging
-
-# Frontend only (HMR dev server — only UI uses nx serve)
-npx nx serve app               # SvelteKit on :4200
+nx status platform -c staging  # Show pods + services
+nx update platform -c staging  # Rebuild + deploy (zero downtime)
+nx diff platform -c staging    # Preview Helm changes before deploy
+nx restart platform -c staging # Rolling restart of pods
+nx rollback platform -c staging # Helm rollback to previous revision
 ```
 
-### Testing
+### Arg forwarding
+
+`update` and `restart` forward extra args to `ctl.sh`:
 
 ```bash
-npx nx test http-api
-npx nx test app
-npx nx typecheck http-api
-npx nx typecheck app
-npx nx run-many -t test typecheck  # All in parallel
+nx update platform -c staging -- --sync-secrets    # Force secret sync during deploy
+nx restart platform -c staging -- frontend         # Restart specific service
 ```
 
-### Building (handled automatically by update/start)
+### Environment support matrix
+
+| Verb | dev | staging | production |
+|------|-----|---------|------------|
+| start | yes | yes | yes |
+| stop | yes | yes | yes |
+| status | yes | yes | yes |
+| update | yes | yes | yes |
+| diff | — | yes | yes |
+| restart | — | yes | yes |
+| rollback | — | yes | yes |
+
+## Frontend Dev Servers
+
+Only frontend apps have `serve` targets for HMR:
 
 ```bash
-npx nx run http-api:containerize -c staging
-npx nx run app:containerize -c staging
+nx serve app                   # SvelteKit on :4200
+nx serve docs                  # MkDocs on :4000
+nx serve ci-admin              # CI dashboard on :4300
 ```
 
-### Infrastructure
+Backends NEVER use `nx serve` — they always run in containers via `nx start platform`.
+
+## Testing
 
 ```bash
-npx nx test infrastructure                    # Run all infra tests
-npx nx run infrastructure:bootstrap -c office # Set up cluster
-npx nx run infrastructure:secrets -c office   # Create K8s secrets
-npx nx run infrastructure:status -c office    # Check readiness
+nx test http-api
+nx test app
+nx typecheck http-api
+nx typecheck app
+nx run-many -t test typecheck  # All in parallel
+
+# Platform-level test targets
+nx run platform:check          # Tests + typecheck (pre-deploy gate)
+nx run platform:test           # All unit tests
+nx run platform:test:smoke -c staging  # Smoke test live environment
 ```
 
-### CI Platform
+## Secrets
 
 ```bash
-npx nx run deploy-ci:start          # Install CI Helm chart (MinIO + CronJobs + dashboard)
-npx nx run deploy-ci:stop           # Uninstall (preserves PVCs)
-npx nx run deploy-ci:update         # Rebuild dashboard image + redeploy
-npx nx run deploy-ci:status         # Show CI resources in K8s
-npx nx run deploy-ci:trigger-nightly  # Manual nightly run
-npx nx run deploy-ci:trigger-weekly   # Manual weekly run
-npx nx run ci:validate              # Run PR pipeline locally (.ci/run pr)
-npx nx serve ci-admin               # Dashboard dev server on :4300
+nx run platform:sync-secrets -c staging     # Push env files → K8s secrets
+nx run platform:sync-secrets -c production
+nx update platform -c staging -- --sync-secrets  # Sync + deploy in one step
+```
+
+## Release (check + deploy + smoke in one step)
+
+```bash
+nx run platform:release -c staging
+nx run platform:release -c production
+```
+
+## CI Platform
+
+```bash
+nx run deploy-ci:start           # Install CI Helm chart
+nx run deploy-ci:stop            # Uninstall (preserves PVCs)
+nx run deploy-ci:update          # Rebuild dashboard + redeploy
+nx run deploy-ci:status          # Show CI resources
+nx run deploy-ci:trigger-nightly # Manual nightly run
+nx run deploy-ci:trigger-weekly  # Manual weekly run
+nx serve ci-admin                # Dashboard dev server on :4300
+```
+
+## Infrastructure
+
+```bash
+nx test infrastructure                     # Run all infra tests
+nx run infrastructure:bootstrap -c office  # Set up cluster
+nx run infrastructure:status -c office     # Check readiness
 ```
 
 ## NEVER Do These
 
 ```bash
-# WRONG — backends always run in containers, never via nx serve
-npx nx serve http-api
+# WRONG — backends always run in containers
+nx serve http-api           # target doesn't exist
 
 # WRONG — bypasses Nx
 cd apps/backend/http-api && python3 -m src.main
@@ -77,10 +122,8 @@ cd apps/backend/http-api && python3 -m src.main
 # WRONG — use nx update platform instead
 docker build -t concord/http-api .
 
-# RIGHT
-nx start platform           # Start everything
-nx update platform          # After code changes
-npx nx test http-api        # Run tests
+# WRONG — use nx commands, not ctl.sh directly
+bash deploy/ctl.sh staging update
 ```
 
 ## Nx Project Dependencies
@@ -101,7 +144,7 @@ After changing a library, Nx will rebuild all dependents.
 
 Nx caches build/test outputs in `.nx/cache`. Docker layer caching handles container builds — unchanged services rebuild in sub-second.
 
-If you need to bypass cache (rare): `npx nx reset && npx nx <command>`
+If you need to bypass cache (rare): `nx reset && nx <command>`
 
 ## Adding New Projects
 

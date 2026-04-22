@@ -62,15 +62,15 @@ See [Build Artifacts](../builds/artifacts.md) for download details.
 Config lives at the repo root: `mkdocs.yml`. Theme: Material with slate palette, navigation tabs.
 
 ```bash
-npx nx serve docs      # http://localhost:4000 (dev, live reload)
-npx nx run docs:build  # static site in apps/frontend/docs/site/
+nx serve docs      # http://localhost:4000 (dev, live reload)
+nx run docs:build  # static site in apps/frontend/docs/site/
 ```
 
 ## Deployment
 
 | Environment | URL | How |
 |-------------|-----|-----|
-| Development | `localhost:4000` | `npx nx serve docs` |
+| Development | `localhost:4000` | `nx serve docs` |
 | Staging | `docs.staging.concord.local` | `nx update platform -c staging` |
 | Production | `docs.concord.local` | `nx update platform -c production` |
 

@@ -981,7 +981,7 @@ case "${ENV}" in
     ACTION="${1:-start}"; shift || true
     case "${ACTION}" in
       start)   cmd_start "${ENV}" ;;
-      update)  cmd_update "${ENV}" ;;
+      update)  cmd_update "${ENV}" "$@" ;;
       stop)    cmd_stop "${ENV}" "$@" ;;
       deploy)  cmd_deploy "${ENV}" "$@" ;;
       quick)   cmd_quick "${ENV}" "$@" ;;

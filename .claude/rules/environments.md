@@ -28,7 +28,7 @@ nx start platform
 nx update platform
 
 # Frontend (only UI uses nx serve for HMR)
-npx nx serve app              # Frontend on :4200
+nx serve app              # Frontend on :4200
 ```
 
 ## Wiring Config Fields End-to-End
@@ -75,7 +75,7 @@ nx update platform -c production
 nx run platform:status -c staging
 
 # Preview Helm changes
-./deploy/ctl.sh staging diff
+nx diff platform -c staging
 ```
 
 ## DB Migrations

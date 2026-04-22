@@ -30,7 +30,7 @@ kubectl patch pv <pv-name> -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"
 
 ### 3. Production Stop Safety
 
-`./deploy/ctl.sh production stop` requires `--confirm-delete` flag. Without it, the command refuses to execute.
+`nx stop platform -c production` requires `--confirm-delete` flag. Without it, the command refuses to execute.
 
 ### 4. Automated Backups
 

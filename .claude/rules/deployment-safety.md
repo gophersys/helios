@@ -73,7 +73,7 @@ annotations:
 
 Before any deploy:
 
-1. **Diff first**: `./deploy/ctl.sh staging diff`
+1. **Diff first**: `nx diff platform -c staging`
 2. **Check current state**: `nx run platform:status -c staging`
 3. **Verify image exists**: `docker images | grep concord`
 
@@ -82,48 +82,17 @@ Before any deploy:
 After deploy:
 
 ```bash
-# Check rollout status
-kubectl rollout status deployment/concord-http-api -n staging
-
-# Verify pods are ready
-kubectl get pods -n staging -l app.kubernetes.io/name=concord-http-api
-
-# Check logs for errors
-kubectl logs -n staging -l app.kubernetes.io/name=concord-http-api --tail=50
-
-# Test endpoint
-curl -s https://staging.concord.local/v2/docs | head
+nx status platform -c staging
 ```
 
 ## Rollback Procedures
 
-### Quick Rollback (Helm)
-
 ```bash
-# See history
-helm history concord -n staging
+# Rollback to previous revision
+nx rollback platform -c staging
 
-# Rollback to previous
-helm rollback concord -n staging
-
-# Rollback to specific revision
-helm rollback concord 5 -n staging
-```
-
-### Image Rollback
-
-```bash
-# Set specific image tag
-helm upgrade concord ./deploy/production/helm/concord -n staging \
-  -f ./deploy/production/helm/values-staging.yaml \
-  --set httpApi.image.tag=staging-v1.2.3
-```
-
-### Restart Without Rollback
-
-```bash
-# If pods are stuck, restart deployment
-kubectl rollout restart deployment/concord-http-api -n staging
+# Restart without rollback
+nx restart platform -c staging
 ```
 
 ## Breaking Changes
@@ -139,8 +108,8 @@ When deploying breaking changes:
 NEVER do these:
 
 ```bash
-# NEVER force push to production without staging validation
-./deploy/ctl.sh production deploy  # without staging first
+# NEVER deploy to production without staging validation
+nx update platform -c production  # without staging first
 
 # NEVER delete pods manually during deploy
 kubectl delete pod concord-http-api-xxx
@@ -155,7 +124,7 @@ kubectl scale deployment concord-http-api --replicas=0
 kubectl delete pvc concord-postgres-pvc -n production  # DATA LOSS
 
 # NEVER stop production without --confirm-delete
-./deploy/ctl.sh production stop  # blocked by safety gate
+nx stop platform -c production  # blocked by safety gate
 ```
 
 ## CI Platform (devops namespace)
@@ -163,10 +132,10 @@ kubectl delete pvc concord-postgres-pvc -n production  # DATA LOSS
 The CI platform (`concord-ci` Helm release) is separate from the application platform. It has its own lifecycle commands:
 
 ```bash
-bash deploy/ci/ctl.sh start    # Install/upgrade CI chart
-bash deploy/ci/ctl.sh stop     # Uninstall (PVCs preserved)
-bash deploy/ci/ctl.sh status   # Check CI resources
-bash deploy/ci/ctl.sh update   # Rebuild dashboard + redeploy
+nx run deploy-ci:start    # Install/upgrade CI chart
+nx run deploy-ci:stop     # Uninstall (PVCs preserved)
+nx run deploy-ci:status   # Check CI resources
+nx run deploy-ci:update   # Rebuild dashboard + redeploy
 ```
 
 CI PVCs (`concord-ci-minio-pvc`, `concord-ci-data`) have `helm.sh/resource-policy: keep` — they survive `helm uninstall`.
@@ -175,7 +144,7 @@ CI PVCs (`concord-ci-minio-pvc`, `concord-ci-data`) have `helm.sh/resource-polic
 
 If deploy causes issues:
 
-1. **Immediate**: `helm rollback concord -n staging`
-2. **Verify**: `nx run platform:status -c staging`
+1. **Immediate**: `nx rollback platform -c staging`
+2. **Verify**: `nx status platform -c staging`
 3. **Investigate**: `kubectl logs -n staging -l app.kubernetes.io/name=concord-http-api --previous`
 4. **Fix**: Address root cause before re-deploying
