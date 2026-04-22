@@ -40,13 +40,6 @@
         ] }
       }
     },
-    "serve": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "tools/corectl",
-        "command": "pip install -e . && corectl --help"
-      }
-    },
     "test": {
       "executor": "nx:run-commands",
       "options": {
