@@ -52,7 +52,6 @@ vitest.config.*.timestamp*
 # Prisma (generated client)
 # ---------------------------------------------------------------------------
 libs/python/database/
-!libs/python/database/schema.prisma
 libs/python/libs/
 
 # ---------------------------------------------------------------------------
