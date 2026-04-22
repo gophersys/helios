@@ -242,8 +242,9 @@ start_container() {
     # Install Python app + test dependencies
     if [ -f apps/backend/http-api/setup.py ]; then
         info "Installing http-api Python dependencies..."
-        pip3 install --no-cache-dir -e "apps/backend/http-api[test]" 2>/dev/null || \
-            pip3 install --no-cache-dir --break-system-packages -e "apps/backend/http-api[test]" 2>/dev/null || true
+        pip3 install --no-cache-dir -e "apps/backend/http-api[test]" || \
+            pip3 install --no-cache-dir --break-system-packages -e "apps/backend/http-api[test]" || \
+            warn "Failed to install http-api Python dependencies"
     fi
 }
 
