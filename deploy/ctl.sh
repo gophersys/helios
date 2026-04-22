@@ -66,15 +66,44 @@ timer_end() {
 # Shared helpers
 # ═════════════════════════════════════════════════════════════════
 
+# Git metadata — works in standalone clones and inside containers where .git
+# may be an unresolvable submodule pointer.  Falls back to .git-build-info
+# written by the devcontainer initializeCommand (runs on the host).
+_git_info_file="${SCRIPT_DIR}/../.git-build-info"
+
+_git_commit() {
+  git rev-parse --short HEAD 2>/dev/null \
+    || sed -n '1p' "${_git_info_file}" 2>/dev/null \
+    || echo "unknown"
+}
+
+_git_branch() {
+  git rev-parse --abbrev-ref HEAD 2>/dev/null \
+    || sed -n '2p' "${_git_info_file}" 2>/dev/null \
+    || echo "unknown"
+}
+
+_git_dirty() {
+  if git rev-parse --git-dir &>/dev/null; then
+    [ -n "$(git status --porcelain 2>/dev/null)" ] && echo true || echo false
+  else
+    sed -n '3p' "${_git_info_file}" 2>/dev/null || echo "false"
+  fi
+}
+
+_git_describe() {
+  git describe --tags --exact-match 2>/dev/null || true
+}
+
 get_version() {
   local tag
-  tag=$(git describe --tags --exact-match 2>/dev/null || true)
+  tag=$(_git_describe)
   if [[ -n "${tag}" ]]; then
     echo "${tag}"
   else
     local pkg_version sha
     pkg_version=$(node -p "require('./apps/frontend/app/package.json').version" 2>/dev/null || echo "0.0.1")
-    sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    sha=$(_git_commit)
     echo "${pkg_version}-${sha}"
   fi
 }
@@ -146,9 +175,9 @@ cmd_build() {
   export PUBLIC_APP_VERSION="${version}"
   export ENVIRONMENT="${env}"
   export PUBLIC_APP_ENVIRONMENT="${env}"
-  export GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-  export GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
-  export GIT_DIRTY="$([ -n "$(git status --porcelain 2>/dev/null)" ] && echo true || echo false)"
+  export GIT_COMMIT="$(_git_commit)"
+  export GIT_BRANCH="$(_git_branch)"
+  export GIT_DIRTY="$(_git_dirty)"
   export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   export BUILD_HOST="$(hostname)"
 

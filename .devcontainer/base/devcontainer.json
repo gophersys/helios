@@ -1,7 +1,7 @@
 {
   "name": "Base Dev Environment",
   "image": "containers.ad.corekinect.com/concord-devcontainer-base:latest",
-  "initializeCommand": "mkdir -p ${localEnv:HOME}/.kube ${localEnv:HOME}/.ssh-devcontainer ${localEnv:HOME}/.claude",
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.kube ${localEnv:HOME}/.ssh-devcontainer ${localEnv:HOME}/.claude && { git rev-parse --short HEAD; git rev-parse --abbrev-ref HEAD; [ -n \"$(git status --porcelain 2>/dev/null)\" ] && echo true || echo false; } > .git-build-info 2>/dev/null || true",
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
