@@ -207,35 +207,24 @@ cmd_setup_staging() {
   echo ""
 
   # Secrets status
-  info "Infrastructure secrets:"
+  info "Shared secrets:"
   echo ""
-  check_var "infrastructure/clusters/office/secrets/.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path" "true"
-  check_var "infrastructure/clusters/office/secrets/.env" "BUILD_SERVICE_API_KEY" "Build service API key" "true"
-  check_var "infrastructure/clusters/office/secrets/.env" "CORECLOUD_VALIDATION_API_KEY" "CoreCloud validation key"
+  check_file_exists "infrastructure/clusters/office/secrets/shared.env" "shared.env"
+  check_var "infrastructure/clusters/office/secrets/shared.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path" "true"
+  check_var "infrastructure/clusters/office/secrets/shared.env" "BUILD_SERVICE_API_KEY" "Build service API key" "true"
+  check_var "infrastructure/clusters/office/secrets/shared.env" "COREOPS_API_KEY" "CoreOps API key"
 
   echo ""
-  info "Helm secrets overlay:"
+  info "Per-environment secrets:"
   echo ""
-  check_file_exists "deploy/production/helm/values-staging-secrets.yaml" "values-staging-secrets.yaml"
-
-  # Check for OVERRIDE placeholders without overlay
-  local values_file="${REPO_ROOT}/deploy/production/helm/values-staging.yaml"
-  local secrets_file="${REPO_ROOT}/deploy/production/helm/values-staging-secrets.yaml"
-  local placeholders
-  placeholders=$(grep -c "OVERRIDE-IN-SECRETS-OVERLAY" "${values_file}" 2>/dev/null || true)
-
-  if [[ "${placeholders}" -gt 0 ]] && [[ -f "${secrets_file}" ]]; then
-    echo -e "  ${GREEN}✓${NC} ${placeholders} secrets overridden by overlay"
-  elif [[ "${placeholders}" -gt 0 ]]; then
-    echo -e "  ${RED}✗${NC} ${placeholders} placeholder values — create values-staging-secrets.yaml"
-  fi
+  check_file_exists "infrastructure/clusters/office/secrets/staging.env" "staging.env"
+  check_var "infrastructure/clusters/office/secrets/staging.env" "JWT_SECRET_KEY" "JWT secret key" "true"
+  check_var "infrastructure/clusters/office/secrets/staging.env" "DATABASE_URL" "Database URL" "true"
 
   echo ""
   info "How to populate:"
-  echo -e "  ${CYAN}SSH key path${NC}           File path to Bitbucket private key on this machine"
-  echo -e "  ${CYAN}Build service API key${NC}  Use seed key: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG"
-  echo -e "  ${CYAN}CoreCloud key${NC}          Get from CoreCloud admin panel (optional, for FUOTA)"
-  echo -e "  ${CYAN}Helm secrets${NC}           Copy values-staging.yaml, fill real values, save as values-staging-secrets.yaml"
+  echo -e "  ${CYAN}See${NC} infrastructure/clusters/office/secrets/.env.example for full template"
+  echo -e "  ${CYAN}Sync${NC} nx run platform:sync-secrets -c staging"
   echo ""
 
   log "Run: ${BOLD}nx start platform -c staging${NC}"
@@ -259,36 +248,25 @@ cmd_setup_production() {
   echo ""
 
   # Secrets status
-  info "Infrastructure secrets:"
+  info "Shared secrets:"
   echo ""
-  check_var "infrastructure/clusters/office/secrets/.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path" "true"
-  check_var "infrastructure/clusters/office/secrets/.env" "BUILD_SERVICE_API_KEY" "Build service API key" "true"
-  check_var "infrastructure/clusters/office/secrets/.env" "CORECLOUD_VALIDATION_API_KEY" "CoreCloud validation key"
+  check_file_exists "infrastructure/clusters/office/secrets/shared.env" "shared.env"
+  check_var "infrastructure/clusters/office/secrets/shared.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path" "true"
+  check_var "infrastructure/clusters/office/secrets/shared.env" "BUILD_SERVICE_API_KEY" "Build service API key" "true"
+  check_var "infrastructure/clusters/office/secrets/shared.env" "COREOPS_API_KEY" "CoreOps API key"
 
   echo ""
-  info "Helm secrets overlays:"
+  info "Per-environment secrets:"
   echo ""
-  check_file_exists "deploy/production/helm/values-staging-secrets.yaml" "values-staging-secrets.yaml"
-  check_file_exists "deploy/production/helm/values-production-secrets.yaml" "values-production-secrets.yaml"
-
-  local values_file="${REPO_ROOT}/deploy/production/helm/values-production.yaml"
-  local secrets_file="${REPO_ROOT}/deploy/production/helm/values-production-secrets.yaml"
-  local placeholders
-  placeholders=$(grep -c "OVERRIDE-IN-SECRETS-OVERLAY" "${values_file}" 2>/dev/null || true)
-
-  if [[ "${placeholders}" -gt 0 ]] && [[ -f "${secrets_file}" ]]; then
-    echo -e "  ${GREEN}✓${NC} ${placeholders} secrets overridden by overlay"
-  elif [[ "${placeholders}" -gt 0 ]]; then
-    echo -e "  ${RED}✗${NC} ${placeholders} placeholder values — create values-production-secrets.yaml"
-  fi
+  check_file_exists "infrastructure/clusters/office/secrets/staging.env" "staging.env"
+  check_file_exists "infrastructure/clusters/office/secrets/production.env" "production.env"
+  check_var "infrastructure/clusters/office/secrets/production.env" "JWT_SECRET_KEY" "Production JWT secret" "true"
+  check_var "infrastructure/clusters/office/secrets/production.env" "DATABASE_URL" "Production DB URL" "true"
 
   echo ""
-  info "Production secrets must be unique (not shared with staging):"
-  echo -e "  ${CYAN}JWT_SECRET_KEY${NC}         openssl rand -hex 32  ${DIM}(must differ from staging)${NC}"
-  echo -e "  ${CYAN}DB password${NC}            Must match infrastructure.postgres.password in overlay"
-  echo -e "  ${CYAN}MinIO credentials${NC}      Must match infrastructure.minio.rootUser/rootPassword"
-  echo -e "  ${CYAN}DELETE_ALL_KEY${NC}         openssl rand -hex 16"
-  echo -e "  ${CYAN}WEBHOOK_SECRET${NC}         openssl rand -hex 20  ${DIM}(must match Bitbucket config)${NC}"
+  info "How to populate:"
+  echo -e "  ${CYAN}See${NC} infrastructure/clusters/office/secrets/.env.example for full template"
+  echo -e "  ${CYAN}Sync${NC} nx run platform:sync-secrets -c production"
   echo ""
 
   log "Run: ${BOLD}nx start platform -c production${NC}"
@@ -325,23 +303,16 @@ cmd_status() {
       done
 
       echo ""
-      info "Infrastructure secrets:"
-      check_var "infrastructure/clusters/office/secrets/.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path" "true"
-      check_var "infrastructure/clusters/office/secrets/.env" "BUILD_SERVICE_API_KEY" "Build service API key" "true"
-      check_var "infrastructure/clusters/office/secrets/.env" "CORECLOUD_VALIDATION_API_KEY" "CoreCloud validation key"
+      info "Shared secrets:"
+      check_file_exists "infrastructure/clusters/office/secrets/shared.env" "shared.env"
+      check_var "infrastructure/clusters/office/secrets/shared.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path" "true"
+      check_var "infrastructure/clusters/office/secrets/shared.env" "BUILD_SERVICE_API_KEY" "Build service API key" "true"
 
       echo ""
-      info "Helm secrets overlays:"
-      check_file_exists "deploy/production/helm/values-${env}-secrets.yaml" "values-${env}-secrets.yaml"
-
-      local placeholders
-      placeholders=$(grep -c "OVERRIDE-IN-SECRETS-OVERLAY" "${REPO_ROOT}/deploy/production/helm/values-${env}.yaml" 2>/dev/null || true)
-      local secrets_file="${REPO_ROOT}/deploy/production/helm/values-${env}-secrets.yaml"
-      if [[ "${placeholders}" -gt 0 ]] && [[ -f "${secrets_file}" ]]; then
-        echo -e "  ${GREEN}✓${NC} ${placeholders} secrets overridden by overlay"
-      elif [[ "${placeholders}" -gt 0 ]]; then
-        echo -e "  ${RED}✗${NC} ${placeholders} placeholder values need secrets overlay"
-      fi
+      info "Per-environment secrets:"
+      check_file_exists "infrastructure/clusters/office/secrets/${env}.env" "${env}.env"
+      check_var "infrastructure/clusters/office/secrets/${env}.env" "JWT_SECRET_KEY" "JWT secret" "true"
+      check_var "infrastructure/clusters/office/secrets/${env}.env" "DATABASE_URL" "Database URL" "true"
       ;;
   esac
   echo ""

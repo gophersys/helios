@@ -23,7 +23,6 @@ spec:
         {{- include "concord.buildService.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
         rollme: {{ randAlphaNum 10 | quote }}
     spec:
       terminationGracePeriodSeconds: 2400  # 40 min — builds take up to 30 min

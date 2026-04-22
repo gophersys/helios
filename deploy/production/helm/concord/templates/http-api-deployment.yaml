@@ -23,7 +23,6 @@ spec:
         {{- include "concord.httpApi.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
         rollme: {{ randAlphaNum 10 | quote }}
     spec:
       {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.httpApi.nodeSelector) | nindent 6 }}

@@ -10,13 +10,10 @@ infrastructure:
   postgres:
     enabled: true
     user: concord
-    password: OVERRIDE-IN-SECRETS-OVERLAY
     database: concord
     storage: 20Gi
   minio:
     enabled: true
-    rootUser: OVERRIDE-IN-SECRETS-OVERLAY
-    rootPassword: OVERRIDE-IN-SECRETS-OVERLAY
     storage: 25Gi
   pypi:
     enabled: true
@@ -137,17 +134,3 @@ backups:
     schedule: "0 3 * * 0"
     hostPath: "/var/lib/concord/backups/minio"
 
-# Secrets — real values in values-production-secrets.yaml (gitignored)
-secrets:
-  DATABASE_URL: "OVERRIDE-IN-SECRETS-OVERLAY"
-  DIRECT_DATABASE_URL: "OVERRIDE-IN-SECRETS-OVERLAY"
-  STORAGE_ACCESS_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
-  STORAGE_SECRET_ACCESS_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
-  JWT_SECRET_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
-  BITBUCKET_API_TOKEN: "OVERRIDE-IN-SECRETS-OVERLAY"
-  AUTH_SERVER_API_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
-  DELETE_ALL_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
-  BITBUCKET_WEBHOOK_SECRET: "OVERRIDE-IN-SECRETS-OVERLAY"
-  COREOPS_API_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
-  COREOPS_AUTH_USER: "OVERRIDE-IN-SECRETS-OVERLAY"
-  COREOPS_AUTH_PASS: "OVERRIDE-IN-SECRETS-OVERLAY"

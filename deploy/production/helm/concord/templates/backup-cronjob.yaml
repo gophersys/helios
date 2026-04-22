@@ -121,13 +121,22 @@ spec:
                 - name: POSTGRES_USER
                   value: {{ .Values.infrastructure.postgres.user | default "concord" }}
                 - name: POSTGRES_PASSWORD
-                  value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: POSTGRES_PASSWORD
                 - name: POSTGRES_DB
                   value: {{ .Values.infrastructure.postgres.database | default "concord" }}
                 - name: MINIO_ROOT_USER
-                  value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: MINIO_ROOT_USER
                 - name: MINIO_ROOT_PASSWORD
-                  value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: MINIO_ROOT_PASSWORD
               resources:
                 requests:
                   cpu: 100m
@@ -212,9 +221,15 @@ spec:
                   echo "[backup] MinIO mirror complete: ${ENV}"
               env:
                 - name: MINIO_ROOT_USER
-                  value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: MINIO_ROOT_USER
                 - name: MINIO_ROOT_PASSWORD
-                  value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: MINIO_ROOT_PASSWORD
               volumeMounts:
                 - name: backup-volume
                   mountPath: /backup
@@ -312,13 +327,22 @@ spec:
             - name: POSTGRES_USER
               value: {{ .Values.infrastructure.postgres.user | default "concord" }}
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+              valueFrom:
+                secretKeyRef:
+                  name: concord-infra-credentials
+                  key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               value: {{ .Values.infrastructure.postgres.database | default "concord" }}
             - name: MINIO_ROOT_USER
-              value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+              valueFrom:
+                secretKeyRef:
+                  name: concord-infra-credentials
+                  key: MINIO_ROOT_USER
             - name: MINIO_ROOT_PASSWORD
-              value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+              valueFrom:
+                secretKeyRef:
+                  name: concord-infra-credentials
+                  key: MINIO_ROOT_PASSWORD
           resources:
             requests:
               cpu: 100m
@@ -457,11 +481,20 @@ spec:
                 - name: POSTGRES_USER
                   value: {{ .Values.infrastructure.postgres.user | default "concord" }}
                 - name: POSTGRES_PASSWORD
-                  value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: POSTGRES_PASSWORD
                 - name: MINIO_ROOT_USER
-                  value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: MINIO_ROOT_USER
                 - name: MINIO_ROOT_PASSWORD
-                  value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: concord-infra-credentials
+                      key: MINIO_ROOT_PASSWORD
               resources:
                 requests:
                   cpu: 100m

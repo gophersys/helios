@@ -145,20 +145,6 @@ gitPoller:
       cpu: 200m
       memory: 128Mi
 
-# ── Secrets ─────────────────────────────────────────────────
-# IMPORTANT: Real secret values should go in values-<env>-secrets.yaml (gitignored).
-# These defaults are safe placeholders. The secrets overlay file is auto-detected
-# by ctl.sh if it exists: deploy/helm/values-{env}-secrets.yaml
-secrets:
-  DATABASE_URL: "postgresql://concord:concord@concord-postgres:5432/concord"
-  DIRECT_DATABASE_URL: "postgresql://concord:concord@concord-postgres:5432/concord"
-  STORAGE_ACCESS_KEY: "minioadmin"
-  STORAGE_SECRET_ACCESS_KEY: "minioadmin"
-  JWT_SECRET_KEY: "concord-staging-jwt-secret"
-  AUTH_SERVER_API_KEY: ""
-  DELETE_ALL_KEY: "staging-delete-key"
-  BITBUCKET_WEBHOOK_SECRET: ""
-
 # ── Backups ────────────────────────────────────────────────
 backups:
   postgres:

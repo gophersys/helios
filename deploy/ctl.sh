@@ -322,10 +322,6 @@ _helm_deploy() {
     --set "gitPoller.image.tag=${env}"
   )
 
-  if [[ -f "${HELM_DIR}/values-${env}-secrets.yaml" ]]; then
-    helm_args+=(-f "${HELM_DIR}/values-${env}-secrets.yaml")
-  fi
-
   timer_start
   # Don't use --wait (it blocks on CronJobs/Ingress which don't have Ready state).
   # Rollout verification is handled by _verify_rollout() after this step.
@@ -582,7 +578,6 @@ cmd_diff() {
   local values_file="${HELM_DIR}/values-${env}.yaml"
   [[ ! -f "${values_file}" ]] && { err "No values file for: ${env}"; exit 1; }
   local helm_args=(diff upgrade concord "${HELM_DIR}/concord" -n "${env}" -f "${values_file}")
-  [[ -f "${HELM_DIR}/values-${env}-secrets.yaml" ]] && helm_args+=(-f "${HELM_DIR}/values-${env}-secrets.yaml")
   helm "${helm_args[@]}" 2>/dev/null || warn "Install helm-diff: helm plugin install https://github.com/databus23/helm-diff"
 }
 
@@ -813,6 +808,13 @@ cmd_start() {
 
 cmd_update() {
   local env="$1"
+  shift || true
+  local SYNC_SECRETS=false
+  for arg in "$@"; do
+    case "${arg}" in
+      --sync-secrets) SYNC_SECRETS=true ;;
+    esac
+  done
   local total_start
   total_start=$(date +%s)
 
@@ -824,9 +826,15 @@ cmd_update() {
   _preflight
   info "  ✓ cluster reachable, helm available"
 
-  # Sync secrets (catches newly added .env values)
-  step "Syncing secrets (${env})"
-  bash infrastructure/clusters/office/secrets/create-all.sh "${env}"
+  # Sync secrets — skip if already present (run `nx run platform:sync-secrets -c <env>` to force)
+  step "Checking secrets (${env})"
+  if kubectl get secret concord-secrets -n "${env}" &>/dev/null && \
+     kubectl get secret concord-infra-credentials -n "${env}" &>/dev/null && \
+     [[ "${SYNC_SECRETS:-false}" != "true" ]]; then
+    info "  ✓ secrets present, skipping sync (use --sync-secrets to force)"
+  else
+    bash infrastructure/clusters/office/secrets/create-all.sh "${env}"
+  fi
   echo ""
 
   # Build + push + helm deploy

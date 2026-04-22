@@ -72,13 +72,15 @@ CMakeCache.tmp
 # Secrets & credentials (NEVER commit)
 # ---------------------------------------------------------------------------
 .env
-deploy/production/helm/values-*-secrets.yaml
 *.key
 **/credentials.json
 
 # ---------------------------------------------------------------------------
 # Infrastructure secrets (private keys, env files with passwords)
 # ---------------------------------------------------------------------------
+infrastructure/clusters/*/secrets/shared.env
+infrastructure/clusters/*/secrets/staging.env
+infrastructure/clusters/*/secrets/production.env
 infrastructure/clusters/*/secrets/.env
 
 # ---------------------------------------------------------------------------
