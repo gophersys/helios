@@ -277,7 +277,7 @@ create_action() {
     # Install dependencies
     yarn
     log_info "Installing frontend app dependencies..."
-    cd apps/frontend/app && npm install --no-audit --no-fund && cd -
+    cd apps/frontend/app && npm install --no-audit --no-fund --legacy-peer-deps && cd -
 
     # Populate .env files from .env.example templates (skip existing)
     log_info "Setting up environment files..."
