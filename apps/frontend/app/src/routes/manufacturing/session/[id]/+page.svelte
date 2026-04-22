@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft, Search, Loader2, ServerCrash, RefreshCw } from 'lucide-svelte';
+  import { ArrowLeft, Search, Loader2, ServerCrash, RefreshCw, Radio } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { ErrorAlert, EmptyState, LoadingState, Modal, ConfirmDeleteDialog, StatusBadge } from '$lib/components/ui';
@@ -106,6 +106,9 @@
   );
   const runnerFailed = $derived(
     session?.status === 'ACTIVE' && runnerStatus === 'ERROR'
+  );
+  const runnerWaiting = $derived(
+    session?.status === 'ACTIVE' && runnerStatus === 'WAITING'
   );
   const runnerReady = $derived(
     runnerStatus === 'READY' || runnerStatus === 'RUNNING'
@@ -721,6 +724,16 @@
                 End Session
               </button>
             </div>
+          </div>
+        </div>
+      {:else if runnerWaiting}
+        <div class="card card-lg mb-6">
+          <div class="flex flex-col items-center justify-center py-8 text-center">
+            <Radio size={28} class="text-warning mb-4 animate-pulse" />
+            <h3 class="text-sm font-semibold text-text-primary mb-1">Waiting for Hardware</h3>
+            <p class="text-sm text-text-secondary max-w-md mb-4">
+              The test runner is deployed but one or more MTIB fixtures are unreachable. Power on all fixtures to continue. The runner will automatically connect when hardware is available.
+            </p>
           </div>
         </div>
       {:else}

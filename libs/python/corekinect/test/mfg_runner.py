@@ -101,17 +101,33 @@ class ManufacturingRunnerLoop:
         self._max_lifetime_s = max_lifetime_h * 3600
         log.info("  max_lifetime = %dh", max_lifetime_h)
 
-        # 1. Connect MTIB hardware — connect what's available, skip the rest.
-        # Per-run SLOT_FILTER will validate only the needed slots before test execution.
+        # 1. Connect MTIB hardware — wait until ALL slots are reachable.
+        # Fixtures may be powered off overnight; the runner stays alive and
+        # retries until the operator powers them back on.
         mock_mode = os.environ.get("MOCK_MODE", "0") in ("1", "true", "yes")
         log.info("Connecting to MTIB hardware...%s", " (MOCK_MODE)" if mock_mode else "")
+        retry_interval = int(os.environ.get("MTIB_RETRY_INTERVAL_S", "60"))
         try:
             self.fixture_ctx = FixtureContext.from_env()
-            connected = self.fixture_ctx.connect_available()
-            if connected == 0 and not mock_mode:
-                log.error("No MTIB connections available. Hardware unreachable.")
-                self._send_heartbeat("ERROR")
-                sys.exit(1)
+            total = self.fixture_ctx.slot_count
+            while not self._shutting_down:
+                connected = self.fixture_ctx.connect_available()
+                if connected == total:
+                    break
+                if mock_mode:
+                    log.warning("Only %d/%d slots connected (mock mode — continuing)", connected, total)
+                    break
+                log.warning(
+                    "Waiting for hardware: %d/%d slots connected. Retrying in %ds...",
+                    connected, total, retry_interval,
+                )
+                self._send_heartbeat("WAITING")
+                import time as _wait
+                _wait.sleep(retry_interval)
+                if _wait.monotonic() - self._start_time > self._max_lifetime_s:
+                    log.error("Max lifetime exceeded while waiting for hardware.")
+                    self._send_heartbeat("ERROR")
+                    sys.exit(1)
         except Exception as e:
             if mock_mode:
                 log.warning("MTIB init failed (mock mode — continuing): %s", e)

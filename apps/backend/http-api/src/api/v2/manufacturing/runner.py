@@ -477,7 +477,7 @@ def runner_heartbeat(session_id: str):
         return jsonify(ApiResponse.error("Request body required").to_dict()), 400
 
     status = body.get("status", "READY")
-    if status not in ("DEPLOYING", "READY", "RUNNING", "ERROR"):
+    if status not in ("DEPLOYING", "READY", "RUNNING", "ERROR", "WAITING"):
         return jsonify(ApiResponse.error("Invalid status").to_dict()), 400
 
     now = datetime.now(timezone.utc)

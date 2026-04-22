@@ -1368,7 +1368,7 @@ model ManufacturingSession {
   updatedAt  DateTime                   @updatedAt
 
   // Runner lifecycle
-  runnerStatus         String? /// DEPLOYING | READY | RUNNING | ERROR
+  runnerStatus         String? /// DEPLOYING | READY | RUNNING | ERROR | WAITING
   runnerDeploymentName String? /// K8s deployment name for cleanup
   runnerLastHeartbeat  DateTime?
 
