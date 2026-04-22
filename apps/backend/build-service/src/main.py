@@ -98,10 +98,11 @@ def main():
     try:
         from src.app import create_app
         from src.api.jobs import set_job_queue
+        from waitress import serve as waitress_serve
         app = create_app(config)
         set_job_queue(job_queue)
         api_thread = threading.Thread(
-            target=lambda: app.run(host="0.0.0.0", port=config.service_port, use_reloader=False),
+            target=lambda: waitress_serve(app, host="0.0.0.0", port=config.service_port, _quiet=True),
             daemon=True,
             name="api-server",
         )

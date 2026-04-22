@@ -46,9 +46,8 @@ spec:
             privileged: true
           lifecycle:
             preStop:
-              httpGet:
-                path: /drain
-                port: 9002
+              exec:
+                command: ["sh", "-c", "curl -sf -X POST http://localhost:9002/drain || true"]
           env:
             - name: CONCORD_API_URL
               value: "http://concord-http-api:9001"
