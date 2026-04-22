@@ -21,7 +21,10 @@ COPY libs/ /app/libs/
 # Copy docs source + config + hooks
 COPY mkdocs.yml /app/
 COPY docs/ /app/docs/
-COPY hooks/ /app/hooks/
+COPY apps/frontend/docs/hooks/ /app/hooks/
+
+# Rewrite hook paths for container context (repo uses apps/frontend/docs/hooks/, container uses hooks/)
+RUN sed -i 's|apps/frontend/docs/hooks/|hooks/|g' /app/mkdocs.yml
 
 # Build with PYTHONPATH so mkdocstrings finds the library
 ENV PYTHONPATH=/app/libs/python:/app/libs/protocols:/app/libs
