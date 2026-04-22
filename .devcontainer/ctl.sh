@@ -274,10 +274,8 @@ create_action() {
     # Run preflight checks (non-blocking — warns but continues)
     run_preflight
 
-    # Install dependencies
+    # Install all dependencies (root + workspaces)
     yarn
-    log_info "Installing frontend app dependencies..."
-    cd apps/frontend/app && npm install --no-audit --no-fund --legacy-peer-deps && cd -
 
     # Populate .env files from .env.example templates (skip existing)
     log_info "Setting up environment files..."

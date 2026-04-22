@@ -57,7 +57,7 @@ def generate(docs_dir: str, site_dir: str) -> int:
 
 
 if __name__ == "__main__":
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
     docs_dir = os.path.join(repo_root, "docs")
     site_dir = os.path.join(repo_root, "apps", "frontend", "docs", "site")
     generate(docs_dir, site_dir)

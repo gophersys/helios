@@ -58,6 +58,7 @@
     "@codemirror/view": "^6.41.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource/poppins": "^5.2.7",
+    "@internationalized/date": "^3.8.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",

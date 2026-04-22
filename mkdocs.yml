@@ -53,7 +53,7 @@ markdown_extensions:
       permalink: true
 
 hooks:
-  - hooks/role_filter.py
+  - apps/frontend/docs/hooks/role_filter.py
 
 plugins:
   - search
