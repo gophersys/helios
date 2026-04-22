@@ -628,7 +628,36 @@ cmd_dev_start() {
   # Start all services
   step "Starting backend services"
   $COMPOSE up -d 2>&1 | grep -v "^$"
-  info "  ✓ all services up"
+
+  # Wait for http-api to be healthy (has a healthcheck in compose)
+  step "Waiting for services to be healthy"
+  local retries=0
+  while [[ $retries -lt 30 ]]; do
+    local health
+    health=$($COMPOSE ps http-api --format '{{.Health}}' 2>/dev/null || echo "unknown")
+    if [[ "$health" == "healthy" ]]; then
+      break
+    fi
+    retries=$((retries + 1))
+    sleep 2
+  done
+
+  if [[ $retries -ge 30 ]]; then
+    warn "  http-api did not become healthy within 60s"
+    warn "  Check logs: deploy/ctl.sh development logs http-api"
+  else
+    info "  ✓ http-api healthy"
+  fi
+
+  # Verify no containers exited
+  local exited
+  exited=$($COMPOSE ps --filter "status=exited" --format '{{.Name}}' 2>/dev/null || true)
+  if [[ -n "$exited" ]]; then
+    warn "  Exited containers: $exited"
+    warn "  Check logs: deploy/ctl.sh development logs <service>"
+  else
+    info "  ✓ all services running"
+  fi
 
   # Summary
   local total_elapsed=$(( $(date +%s) - total_start ))
@@ -662,7 +691,21 @@ cmd_dev_update() {
 
   step "Restarting containers"
   $COMPOSE up -d --force-recreate --no-build 2>&1 | grep -v "^$"
-  info "  ✓ containers updated"
+
+  # Wait for http-api to be healthy
+  local retries=0
+  while [[ $retries -lt 30 ]]; do
+    local health
+    health=$($COMPOSE ps http-api --format '{{.Health}}' 2>/dev/null || echo "unknown")
+    if [[ "$health" == "healthy" ]]; then break; fi
+    retries=$((retries + 1))
+    sleep 2
+  done
+  if [[ $retries -ge 30 ]]; then
+    warn "  http-api did not become healthy within 60s"
+  else
+    info "  ✓ http-api healthy"
+  fi
 
   # Check if schema changed — if so, push + seed
   local local_hash
