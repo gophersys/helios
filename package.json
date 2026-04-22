@@ -4,7 +4,7 @@
   "private": true,
   "workspaces": [
     "apps/frontend/app",
-    "apps/ci/admin"
+    "apps/frontend/ci-admin"
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",

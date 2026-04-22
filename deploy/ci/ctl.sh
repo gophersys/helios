@@ -49,10 +49,10 @@ case "$ACTION" in
   update)
     log "Rebuilding admin image + deploying..."
     # Build admin dashboard image if the app exists
-    if [[ -d "$REPO_ROOT/apps/ci/admin" ]]; then
+    if [[ -d "$REPO_ROOT/apps/frontend/ci-admin" ]]; then
       info "Building admin dashboard image..."
       docker buildx build \
-        --file "$REPO_ROOT/apps/ci/admin/deploy/Dockerfile" \
+        --file "$REPO_ROOT/apps/frontend/ci-admin/deploy/Dockerfile" \
         --tag "containers.ad.corekinect.com/concord-ci-admin:latest" \
         --load "$REPO_ROOT" 2>&1 | tail -3
     fi

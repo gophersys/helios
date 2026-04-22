@@ -124,7 +124,7 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "PYTHONPATH=apps/backend/http-api/src:apps/backend/http-api:libs/python:libs:libs/protocols python3 -m pytest tests/integration/ -v --timeout=60"
+          "PYTHONPATH=apps/backend/http-api/src:apps/backend/http-api:libs/python:libs:libs/protocols python3 -m pytest tests/development/integration/ -v --timeout=60"
         ]
       }
     },
@@ -134,7 +134,7 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "PYTHONPATH=apps/backend/http-api/src:libs/python:libs:libs/protocols python3 -m pytest tests/e2e/ -v --timeout=300 -x"
+          "PYTHONPATH=apps/backend/http-api/src:libs/python:libs:libs/protocols python3 -m pytest tests/development/e2e/ -v --timeout=300 -x"
         ]
       }
     },

@@ -70,7 +70,7 @@ done
 # Run integration tests — MUST PASS
 log_info "Running integration tests..."
 if ! PYTHONPATH="apps/backend/http-api/src:apps/backend/http-api:libs/python:libs:libs/protocols" \
-  python3 -m pytest tests/integration/ -v --timeout=60 2>&1; then
+  python3 -m pytest tests/development/integration/ -v --timeout=60 2>&1; then
   log_error "Integration tests FAILED"
   FAILED=true
 fi
@@ -78,7 +78,7 @@ fi
 # Run e2e tests — MUST PASS
 log_info "Running e2e tests..."
 if ! PYTHONPATH="apps/backend/http-api/src:libs/python:libs:libs/protocols" \
-  python3 -m pytest tests/e2e/ -v --timeout=300 -x 2>&1; then
+  python3 -m pytest tests/development/e2e/ -v --timeout=300 -x 2>&1; then
   log_error "E2E tests FAILED"
   FAILED=true
 fi
