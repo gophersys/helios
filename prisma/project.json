@@ -79,6 +79,18 @@
                 "parallel": false
             }
         },
+        "push": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma db push --skip-generate"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
         "studio": {
             "executor": "nx:run-commands",
             "options": {

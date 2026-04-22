@@ -164,13 +164,6 @@
         "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
       }
     },
-    "db:push": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "command": "npx prisma db push --schema=prisma/schema.prisma --skip-generate"
-      }
-    },
     "coverage": {
       "executor": "nx:run-commands",
       "options": {
