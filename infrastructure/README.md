@@ -71,7 +71,7 @@ Role-scoped kubeconfigs enforce least-privilege access:
 
 | Item | Status | Details |
 |------|--------|---------|
-| Secrets overlay | **DONE** | `values-*-secrets.yaml` (gitignored), committed files have placeholders only |
+| Secrets management | **DONE** | External K8s secrets via `create-all.sh` with `shared.env` + `{namespace}.env` (gitignored). Helm never manages secrets. |
 | Network policies | **DONE** | Postgres, MinIO, http-api isolated. Helm-managed, toggle via `networkPolicies.enabled` |
 | Backup verification | **DONE** | Weekly CronJob `concord-backup-verify` — restores latest dump, validates table count |
 | Resource quotas | **DONE** | Staging: 6 CPU / 8Gi. Production: 8 CPU / 10Gi. Helm-managed |
@@ -85,4 +85,4 @@ Role-scoped kubeconfigs enforce least-privilege access:
 | Rotate admin kubeconfig | **MANUAL** | Distribute per-user kubeconfigs, then rotate K3s server token on a server node: `k3s token rotate --server https://10.4.45.11:6443` |
 | DNS + TLS migration | **BLOCKED** | Waiting on sysadmin for AD CA wildcard cert. CSR ready at `infrastructure/clusters/office/networking/certs/` |
 | Backup failure alerts | **TODO** | Add webhook notification (Slack/email) on CronJob failure. Consider Prometheus alerting |
-| SealedSecrets | **OPTIONAL** | Current overlay files work but require manual distribution. SealedSecrets would allow encrypted secrets in git |
+| SealedSecrets | **OPTIONAL** | Current env files require manual distribution. SealedSecrets would allow encrypted secrets in git |

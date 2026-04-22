@@ -236,16 +236,16 @@ echo ""
 log "Step 7/7: Secrets"
 secrets_script="${SCRIPT_DIR}/secrets/create-all.sh"
 if [[ -f "${secrets_script}" ]]; then
-  secrets_env="${SCRIPT_DIR}/secrets/.env"
-  if [[ -f "${secrets_env}" ]]; then
+  shared_env="${SCRIPT_DIR}/secrets/shared.env"
+  if [[ -f "${shared_env}" ]]; then
     if $DRY_RUN; then
       bash "${secrets_script}" --dry-run
     else
       bash "${secrets_script}"
     fi
   else
-    warn "  No secrets/.env found — skipping secret creation"
-    warn "  Copy secrets/.env.example to secrets/.env and fill in values"
+    warn "  No secrets/shared.env found — skipping secret creation"
+    warn "  Copy secrets/.env.example and create shared.env + {namespace}.env files"
   fi
 else
   info "  No secrets/create-all.sh found — skipping"

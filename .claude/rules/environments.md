@@ -37,7 +37,7 @@ When adding a new environment-dependent feature (e.g., a config toggle):
 
 1. **Python code**: Add the field to `config/env.py` (ProxyConfig) with a sensible default
 2. **Backend logic**: Read via `env_config.FIELD_NAME` — never hardcode the value
-3. **Helm values**: Add to `config:` or `secrets:` in BOTH `values-staging.yaml` AND `values-production.yaml`
+3. **Helm values**: Add to `config:` in BOTH `values-staging.yaml` AND `values-production.yaml`. For secrets, add to `create-all.sh` + `shared.env`/`{namespace}.env`
 4. **Docker Compose**: Add to `deploy/development/docker-compose.yaml` environment block
 5. **Tests**: Add to `tests/conftest.py:pytest_configure()` AND `tests/unit/test_env_config.py`
 
@@ -95,4 +95,4 @@ cd prisma && npx prisma migrate dev --name <description>
 - `JWT_SECRET_KEY` MUST be different between staging and production
 - `JWT_SECRET_KEY` MUST NOT use the default value in production (enforced at startup)
 - `DATABASE_URL` MUST be different between staging and production
-- Never commit secrets to values files — use `values-*-secrets.yaml` (gitignored) for sensitive overrides
+- Never commit secrets to values files — secrets are managed externally via `create-all.sh` with `shared.env` + `{namespace}.env`

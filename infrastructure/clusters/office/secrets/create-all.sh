@@ -168,7 +168,20 @@ process_namespace() {
     fi
   fi
 
-  # ── 6. concord-infra-credentials (staging/production only) ───
+  # ── 6. coreops-credentials (staging/production only) ──────────
+  if [[ "${ns}" == "staging" || "${ns}" == "production" ]]; then
+    log "  coreops-credentials"
+    if [[ -n "${COREOPS_API_KEY:-}" ]]; then
+      apply_secret "${ns}" generic coreops-credentials \
+        --from-literal=api-key="${COREOPS_API_KEY}" \
+        --from-literal=auth-user="${COREOPS_AUTH_USER:-}" \
+        --from-literal=auth-pass="${COREOPS_AUTH_PASS:-}"
+    else
+      warn "    COREOPS_API_KEY not set — skipping"
+    fi
+  fi
+
+  # ── 7. concord-infra-credentials (staging/production only) ───
   if [[ "${ns}" == "staging" || "${ns}" == "production" ]]; then
     log "  concord-infra-credentials"
     local infra_args=(
@@ -179,7 +192,7 @@ process_namespace() {
     apply_secret "${ns}" generic concord-infra-credentials "${infra_args[@]}"
   fi
 
-  # ── 7. concord-secrets (staging/production only) ─────────────
+  # ── 8. concord-secrets (staging/production only) ─────────────
   if [[ "${ns}" == "staging" || "${ns}" == "production" ]]; then
     log "  concord-secrets"
     local cs_args=(
@@ -199,7 +212,7 @@ process_namespace() {
     apply_secret "${ns}" generic concord-secrets "${cs_args[@]}"
   fi
 
-  # ── 8. ci-minio-upload (devops only) ─────────────────────────
+  # ── 9. ci-minio-upload (devops only) ─────────────────────────
   if [[ "${ns}" == "devops" ]]; then
     log "  ci-minio-upload"
     if [[ -z "${CI_MINIO_USER:-}" ]] || [[ -z "${CI_MINIO_PASSWORD:-}" ]]; then

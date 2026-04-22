@@ -45,7 +45,7 @@ These areas held up under repeated scrutiny:
 | File | Secret |
 |------|--------|
 | `deploy/development/.env` | Base64-encoded SSH private key, Bitbucket API token |
-| `infrastructure/clusters/office/secrets/.env` | Hardcoded CI admin API key |
+| `infrastructure/clusters/office/secrets/shared.env` | Hardcoded CI admin API key |
 | `prisma/.env` | Database credentials in plaintext |
 
 **Impact:** Anyone with repo access can clone firmware repos, impersonate CI, and access the database.

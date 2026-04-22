@@ -56,7 +56,7 @@
 | CoreCloud API key | `VAL_1_0_API_KEY` | .env (root) |
 | CoreCloud auth user | `VAL_1_0_API_AUTH_USERNAME` | deploy/development/.env |
 | CoreCloud auth pass | `VAL_1_0_API_AUTH_PASSWORD` | deploy/development/.env |
-| CoreOps API key | `COREOPS_API_KEY` | infrastructure/clusters/office/secrets/.env |
+| CoreOps API key | `COREOPS_API_KEY` | infrastructure/clusters/office/secrets/shared.env |
 | JWT secret | `JWT_SECRET_KEY` | deploy/development/.env |
 | CI API key | hardcoded | ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG |
 | MinIO access key | `STORAGE_ACCESS_KEY` | deploy/development/.env |

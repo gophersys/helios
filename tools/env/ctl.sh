@@ -101,7 +101,7 @@ check_var() {
   local val
   val=$(grep "^${var}=" "${full}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)
 
-  if [[ -n "${val}" && "${val}" != "you@corekinect.com" && "${val}" != "OVERRIDE-IN-SECRETS-OVERLAY" ]]; then
+  if [[ -n "${val}" && "${val}" != "you@corekinect.com" ]]; then
     echo -e "  ${GREEN}✓${NC} ${label}"
   elif [[ "${required}" == "true" ]]; then
     echo -e "  ${RED}✗${NC} ${label} ${DIM}(empty — required)${NC}"
