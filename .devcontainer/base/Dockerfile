@@ -240,7 +240,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Symlink to /usr/local/bin/google-chrome so chrome-devtools-mcp finds it.
 RUN npx playwright install chromium && \
     npx playwright install-deps chromium && \
-    CHROME_BIN=$(find /root/.cache/ms-playwright -name chrome -path '*/chrome-linux64/*' | head -1) && \
+    CHROME_BIN=$(find /root/.cache/ms-playwright -name chrome -path '*/chrome-linux*/*' -type f | head -1) && \
     ln -sf "$CHROME_BIN" /usr/local/bin/google-chrome
 
 # ----------------------------------------------------

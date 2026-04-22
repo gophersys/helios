@@ -7,14 +7,17 @@
 # Git metadata
 .git
 .gitignore
+.gitmodules
 
 # Python caches
 **/__pycache__
 **/*.pyc
 **/*.pyo
 
-# Node
+# Node / Yarn
 **/node_modules
+.yarn/cache
+.yarn/install-state.gz
 
 # IDE / editor
 .vscode
@@ -22,8 +25,8 @@
 **/*.swp
 **/*.swo
 
-# Nx cache
-.nx/cache
+# Nx
+.nx
 
 # Build artifacts
 **/dist
@@ -40,3 +43,23 @@ docs/_archive
 # Test artifacts
 **/.pytest_cache
 **/htmlcov
+**/playwright-report
+**/test-results
+
+# Infrastructure (not needed in app images)
+infrastructure
+
+# CI config
+.ci
+
+# Claude config
+.claude
+
+# Firmware submodules (large, not needed in platform images)
+apps/firmware
+
+# Misc
+*.zip
+*.dump
+DESIGN.md
+SECURITY.md

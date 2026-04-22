@@ -1,5 +1,28 @@
-# Add files here to ignore them from prettier formatting
 /dist
 /coverage
-/.nx/cache
-/.nx/workspace-data
+/.nx
+/.yarn
+/node_modules
+*.lock
+
+# Python (not formatted by prettier)
+**/*.py
+
+# Protobuf
+**/*.proto
+
+# Prisma
+prisma/
+
+# Docs build output
+apps/frontend/docs/site/
+
+# Firmware submodules
+apps/firmware/
+
+# Zephyr libraries (submodules)
+libs/zephyr/
+
+# Generated files
+**/.svelte-kit
+**/build
