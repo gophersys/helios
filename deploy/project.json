@@ -6,6 +6,7 @@
   "targets": {
     "start": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "defaultConfiguration": "development",
       "options": {
         "cwd": "{workspaceRoot}",
@@ -26,6 +27,7 @@
 
     "update": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "defaultConfiguration": "development",
       "options": {
         "cwd": "{workspaceRoot}",
@@ -92,6 +94,7 @@
 
     "restart": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "options": {
         "cwd": "{workspaceRoot}",
         "forwardAllArgs": true
@@ -158,6 +161,7 @@
 
     "sync-secrets": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "staging": {
@@ -174,6 +178,7 @@
 
     "rollback": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "staging": {
@@ -193,6 +198,7 @@
 
     "diff": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "staging": {
@@ -230,6 +236,7 @@
 
     "release": {
       "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["env"], "target": "preflight", "params": "forward" }],
       "options": {
         "cwd": "{workspaceRoot}",
         "parallel": false

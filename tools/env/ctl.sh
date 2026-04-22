@@ -15,12 +15,13 @@
 # Actions:
 #   setup         Create .env files + show secrets guide (idempotent)
 #   status        Show what's populated vs missing
+#   preflight     Check required files + secrets exist (exits non-zero on failure)
 #   validate      Registry check (all .env.example files accounted for)
 #
 # Nx shortcuts:
-#   npx nx run env:setup                 → development setup
-#   npx nx run env:setup -c staging      → staging setup
-#   npx nx run env:status -c production  → production status
+#   nx run env:setup                 → development setup
+#   nx run env:setup -c staging      → staging setup
+#   nx run env:preflight -c staging  → staging preflight check
 # ───────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -272,6 +273,114 @@ cmd_setup_production() {
   log "Run: ${BOLD}nx start platform -c production${NC}"
 }
 
+# ── Preflight: exit non-zero if environment isn't ready ────────────────────
+
+PREFLIGHT_FAIL=0
+
+preflight_file() {
+  local file="$1" label="$2"
+  if [[ -f "${REPO_ROOT}/${file}" ]]; then
+    echo -e "  ${GREEN}✓${NC} ${label}"
+  else
+    echo -e "  ${RED}✗${NC} ${label} ${DIM}(missing: ${file})${NC}"
+    PREFLIGHT_FAIL=1
+  fi
+}
+
+preflight_var() {
+  local file="$1" var="$2" label="$3"
+  local full="${REPO_ROOT}/${file}"
+  if [[ ! -f "${full}" ]]; then
+    echo -e "  ${RED}✗${NC} ${label} ${DIM}(file missing)${NC}"
+    PREFLIGHT_FAIL=1
+    return
+  fi
+  local val
+  val=$(grep "^${var}=" "${full}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)
+  if [[ -n "${val}" && "${val}" != "you@corekinect.com" ]]; then
+    echo -e "  ${GREEN}✓${NC} ${label}"
+  else
+    echo -e "  ${RED}✗${NC} ${label} ${DIM}(not set in ${file})${NC}"
+    PREFLIGHT_FAIL=1
+  fi
+}
+
+preflight_kubeconfig() {
+  if kubectl cluster-info &>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} K8s cluster reachable"
+  else
+    echo -e "  ${RED}✗${NC} K8s cluster unreachable ${DIM}(check ~/.kube/config or KUBECONFIG)${NC}"
+    PREFLIGHT_FAIL=1
+  fi
+}
+
+cmd_preflight() {
+  local env="$1"
+  PREFLIGHT_FAIL=0
+
+  log "${BOLD}Preflight: ${env}${NC}"
+  echo ""
+
+  case "${env}" in
+    development)
+      info "Required files:"
+      preflight_file "deploy/development/.env" "deploy/development/.env"
+      preflight_file ".env" ".env (repo root)"
+      ;;
+
+    staging)
+      info "Required files:"
+      preflight_file "infrastructure/clusters/office/secrets/shared.env" "shared.env"
+      preflight_file "infrastructure/clusters/office/secrets/staging.env" "staging.env"
+
+      echo ""
+      info "Required secrets (shared.env):"
+      preflight_var "infrastructure/clusters/office/secrets/shared.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path"
+      preflight_var "infrastructure/clusters/office/secrets/shared.env" "BUILD_SERVICE_API_KEY" "Build service API key"
+
+      echo ""
+      info "Required secrets (staging.env):"
+      preflight_var "infrastructure/clusters/office/secrets/staging.env" "POSTGRES_PASSWORD" "Postgres password"
+      preflight_var "infrastructure/clusters/office/secrets/staging.env" "DATABASE_URL" "Database URL"
+      preflight_var "infrastructure/clusters/office/secrets/staging.env" "JWT_SECRET_KEY" "JWT secret key"
+
+      echo ""
+      info "Cluster access:"
+      preflight_kubeconfig
+      ;;
+
+    production)
+      info "Required files:"
+      preflight_file "infrastructure/clusters/office/secrets/shared.env" "shared.env"
+      preflight_file "infrastructure/clusters/office/secrets/production.env" "production.env"
+
+      echo ""
+      info "Required secrets (shared.env):"
+      preflight_var "infrastructure/clusters/office/secrets/shared.env" "BITBUCKET_SSH_KEY_PATH" "SSH key path"
+      preflight_var "infrastructure/clusters/office/secrets/shared.env" "BUILD_SERVICE_API_KEY" "Build service API key"
+
+      echo ""
+      info "Required secrets (production.env):"
+      preflight_var "infrastructure/clusters/office/secrets/production.env" "POSTGRES_PASSWORD" "Postgres password"
+      preflight_var "infrastructure/clusters/office/secrets/production.env" "DATABASE_URL" "Database URL"
+      preflight_var "infrastructure/clusters/office/secrets/production.env" "JWT_SECRET_KEY" "JWT secret key"
+
+      echo ""
+      info "Cluster access:"
+      preflight_kubeconfig
+      ;;
+  esac
+
+  echo ""
+  if [[ ${PREFLIGHT_FAIL} -ne 0 ]]; then
+    err "Preflight failed — fix the issues above before proceeding."
+    echo ""
+    info "Run ${CYAN}nx run env:setup -c ${env}${NC} to create missing files."
+    exit 1
+  fi
+  log "Preflight passed."
+}
+
 # ── Status ──────────────────────────────────────────────────────────────────
 
 cmd_status() {
@@ -336,14 +445,14 @@ ${BOLD}Environments:${NC}
 ${BOLD}Actions:${NC}
   ${GREEN}setup${NC}         Create .env files + show secrets guide (idempotent)
   ${GREEN}status${NC}        Show what's populated vs missing
+  ${GREEN}preflight${NC}     Check required files + secrets (exits non-zero on failure)
   ${GREEN}validate${NC}      Check all .env.example files are registered
 
 ${BOLD}Nx shortcuts:${NC}
-  npx nx run env:setup                  → development setup
-  npx nx run env:setup -c staging       → staging setup
-  npx nx run env:setup -c production    → production setup
-  npx nx run env:status                 → development status
-  npx nx run env:status -c staging      → staging status
+  nx run env:setup                  → development setup
+  nx run env:setup -c staging       → staging setup
+  nx run env:preflight -c staging   → staging preflight check
+  nx run env:status -c production   → production status
 
 EOF
 }
@@ -382,6 +491,14 @@ case "${ACTION}" in
       development|dev) cmd_status "development" ;;
       staging)         cmd_status "staging" ;;
       production)      cmd_status "production" ;;
+      *) err "Unknown environment: ${ENV}"; usage; exit 1 ;;
+    esac
+    ;;
+  preflight)
+    case "${ENV}" in
+      development|dev) cmd_preflight "development" ;;
+      staging)         cmd_preflight "staging" ;;
+      production)      cmd_preflight "production" ;;
       *) err "Unknown environment: ${ENV}"; usage; exit 1 ;;
     esac
     ;;

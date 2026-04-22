@@ -23,6 +23,24 @@
         }
       }
     },
+    "preflight": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "bash tools/env/ctl.sh development preflight"
+        },
+        "staging": {
+          "command": "bash tools/env/ctl.sh staging preflight"
+        },
+        "production": {
+          "command": "bash tools/env/ctl.sh production preflight"
+        }
+      }
+    },
     "validate": {
       "executor": "nx:run-commands",
       "options": {
