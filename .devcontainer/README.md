@@ -118,4 +118,3 @@ No manual certificate setup is needed. If the registry is unreachable, preflight
 The repo-root `.env` file (from `.env.example`) provides:
 
 - `CONCORD_MONOREPO_ROOT` — host path to repo (required for Docker-in-Docker volume mounts)
-- `IS_SANDBOX` — sandbox mode flag

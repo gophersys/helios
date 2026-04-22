@@ -1,62 +1,93 @@
-# Concord Monorepo
+# Concord
 
-Hello World!
+Internal hardware testing platform — firmware builds, validation, manufacturing, and fleet management for CoreKinect devices.
 
-This repository contains the Concord monorepo. It is a collection of applications, libraries, deployments,and tools that are used to build the Concord System.
+## Prerequisites
 
-***If you need to make changes to the backend, the frontend, or the shared libraries, you are in the right place.***
+- VS Code with the Dev Containers extension
+- Docker Desktop (or Docker Engine on Linux)
+- WSL2 (Windows) or native Linux
+- Clone with submodules: `git clone --recursive <repo-url>`
 
-# Getting Started
-The following requirements must be satisfied by your development machine in order to get started:
+## Getting Started
 
-- Have VS Code installed
-- Have Windows Subsystem for Linux (WSL2) installed
-- Have Docker installed in same environment as WSL2
-- Have the monorepo (this repository) `--recursive` cloned to your development machine
+Open the repo in VS Code and select a devcontainer when prompted. All development happens inside containers — never install dependencies on the host.
 
-# Setup your workstation for development
-Use the `devcontainer` feature of VS Code to develop in a containerized environment. This will allow you to develop in a consistent environment with all the necessary dependencies installed.
+| Container | Use case |
+|-----------|----------|
+| `base` | Backend services, frontend, platform tooling, K8s operations |
+| `mtib` | MTIB edge server (runs on arm64 hardware) |
+| `ncs-v2.7.0` | Nordic nRF Connect SDK v2.7.0 firmware |
+| `ncs-v3.2.1` | Nordic nRF Connect SDK v3.2.1 firmware |
+| `zephyr-v4.0` | Zephyr RTOS v4.0 firmware (vanilla, no Nordic HAL) |
 
-- `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers. Use if working on the backend. Python, K8s, etc.
-- `mtib`: This is the devcontainer for the MTIB application. Use if working on the MTIB server application. ***This environment runs on the MTIB hardware. (arm64)***
-- `ncs`: This is the devcontainer for the NCS firmware. Use if working on zephyr firmware. `nordic`, `espressif`, `nxp`, `stm32` support is included.
-- `ui`: This is the devcontainer for the Manufacturing UI. Use if working on the Frontend UI.
+On first launch the container runs `ctl.sh create` which installs dependencies, sets up env files, and bootstraps the Docker buildx builder. Subsequent starts run `ctl.sh start` (installs deps only).
 
-To find out more about the devcontainers, please refer to the [devcontainer README](.devcontainer/README.md) file.
+See [.devcontainer/README.md](.devcontainer/README.md) for container details, mounts, and cert management.
 
-# Understanding the monorepo
-The monorepo is a collection of applications, libraries, deployments, and tools that are used to build the Concord System. Read more about the monorepo in the [monorepo README](docs/monorepo.md) file.
+## Repo Structure
 
-The monorepo is organized into the following folders:
+```
+apps/
+  backend/        HTTP API, build service, git poller, PyPI server
+  frontend/       SvelteKit app, MkDocs site, CI dashboard
+  edge/           MTIB server (gRPC, runs on Verdin iMX8MM)
+  firmware/       Product firmware (submodules)
+  manufacturing/  Manufacturing test suites
+  validation/     Validation test suites
+libs/
+  python/         Shared Python libraries
+  protocols/      Protobuf definitions
+  zephyr/         Zephyr drivers and board definitions (submodules)
+  schemas/        JSON schemas
+deploy/
+  development/    Docker Compose stack
+  production/     Helm charts, values files
+  ci/             CI platform (Helm chart, CronJobs, dashboard)
+infrastructure/   Cluster provisioning (namespaces, RBAC, storage, networking)
+prisma/           Database schema and migrations
+tools/            corectl CLI, env setup, scripts
+docs/             Product documentation (MkDocs)
+tests/            Platform-level E2E, integration, and smoke tests
+```
 
-## Important folders
-- `.devcontainer`: Development containers for all use cases. Refer to the [devcontainer README](.devcontainer/README.md) for more information.
-- `apps`: Anything that is considered a software application, from firmware to ui/ux, as well as tests and backend services. Refer to the [apps README](apps/README.md) for more information.
-- `deploy`: Infrastructure as code, k8s deployments, helm charts, etc. Refer to the [deploy README](deploy/README.md) for more information.
-- `docs`: Useful diagrams, in depth documentation, etc. Refer to the [docs README](docs/README.md) for more information.
-- `libs`: Libraries that are used to build the Concord System. Zephyr, Python, Network protocols, etc. Refer to the [libs README](libs/README.md) for more information.
-- `prisma`: Prisma schema for the database. Refer to the [prisma README](prisma/README.md) for more information.
-- `tools`: Tools that are used with the Concord System. Scripts, etc. Refer to the [tools README](tools/README.md) for more information.
+## Development
 
-## Important files
-- `README.md`: This file. High level overview of the monorepo.
+```bash
+# Start the full platform (backend services in containers)
+nx start platform
 
-## Not so important folders
-- `.nx, .yarn`: Contains [nx](https://nx.dev/) and [yarn](https://yarnpkg.com/) workspaces that are used to build the Concord System. Don't touch this folder.
-- `node_modules`: node.js dependencies. Don't touch this folder.
+# Frontend dev server with HMR
+npx nx serve app
 
-## Not so important files
-- `.editorconfig`: Used for formatting TypeScript code. Set and forget.
-- `.gitattributes`: Used for git to ignore certain files. Set and forget.
-- `.gitmodules`: Used for git to pull in submodules. Set and forget.
-- `.gitignore`: Used for git to ignore certain files. Set and forget.
-- `.yarnrc.yml`: Used for yarn to ignore certain files. Set and forget.
-- `nx.json`: Contains the configuration for the nx workspaces.
-- `package.json`: Contains the node.js dependencies. Don't touch this file.
-- `yarn.lock`: Contains the dependencies for the yarn workspaces.
+# After code changes, rebuild and hot-swap containers
+nx update platform
 
-# Contributing
+# Run tests
+npx nx test http-api
+npx nx test app
 
-If using one of the `devcontainers` (highly recommended), auto-formatting and auto-highlighting should work out of the box for Python and Zephyr projects.
+# Type check
+npx nx typecheck http-api
+npx nx typecheck app
+```
 
-If you have any questions, please reach out.
+All build, test, and deploy operations go through [Nx](https://nx.dev/). See `.claude/rules/nx-workflow.md` for the full command reference.
+
+## Deployment
+
+```bash
+# Staging
+nx update platform -c staging
+
+# Production
+nx update platform -c production
+```
+
+## Documentation
+
+```bash
+npx nx serve docs    # http://localhost:4000
+```
+
+Docs use MkDocs Material with role-based page filtering. See `docs/` for content and `mkdocs.yml` for nav config.
