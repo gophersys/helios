@@ -38,7 +38,7 @@ MINIO_SECRET_KEY = "concordstorage!"
 
 WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRISMA_DIR = os.path.join(WORKSPACE_ROOT, "prisma")
-SEED_SCRIPT = os.path.join(PRISMA_DIR, "seed.py")
+
 
 CI_API_KEY = "ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG"
 
@@ -146,11 +146,11 @@ def _seed_test_db():
     env["PYTHONPATH"] = ":".join(python_path_parts)
 
     result = subprocess.run(
-        [sys.executable, SEED_SCRIPT],
-        capture_output=True, text=True, env=env, cwd=WORKSPACE_ROOT,
+        [sys.executable, "-m", "seed.main"],
+        capture_output=True, text=True, env=env, cwd=PRISMA_DIR,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"seed.py failed:\n{result.stderr}\n{result.stdout}")
+        raise RuntimeError(f"seed.main failed:\n{result.stderr}\n{result.stdout}")
 
     logger.info("Test database seeded")
 
