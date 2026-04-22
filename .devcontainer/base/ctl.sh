@@ -35,22 +35,10 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Get git information
+# Get git information for tagging
 get_git_info() {
-    GIT_BRANCH=$(git branch --show-current)
-    GIT_COMMIT=$(git rev-parse HEAD)
     GIT_SHORT_COMMIT=$(git rev-parse --short HEAD)
-    
-    # Check if working directory is dirty
-    if [ $(git status --porcelain | wc -l) -gt 0 ]; then
-        GIT_DIRTY="true"
-    else
-        GIT_DIRTY="false"
-    fi
-    
-    GIT_CREATOR=$(git config user.email)
-    
-    log_info "Git info: branch=$GIT_BRANCH, commit=$GIT_SHORT_COMMIT, dirty=$GIT_DIRTY, creator=$GIT_CREATOR"
+    log_info "Git commit: $GIT_SHORT_COMMIT"
 }
 
 # Create buildx builder if it doesn't exist
@@ -95,15 +83,11 @@ build_native() {
     create_builder
     
     docker buildx build \
-        --build-arg GIT_BRANCH="$GIT_BRANCH" \
-        --build-arg GIT_COMMIT="$GIT_COMMIT" \
-        --build-arg GIT_DIRTY="$GIT_DIRTY" \
-        --build-arg GIT_CREATOR="$GIT_CREATOR" \
         --tag "$IMAGE_NAME:latest" \
         --tag "$IMAGE_NAME:$GIT_SHORT_COMMIT" \
         --load \
         -f "$DOCKERFILE_PATH" .
-    
+
     log_success "Build completed successfully"
     log_info "Images tagged as: $IMAGE_NAME:latest and $IMAGE_NAME:$GIT_SHORT_COMMIT"
 }
@@ -117,15 +101,11 @@ build_and_push() {
     
     docker buildx build \
         --platform linux/amd64,linux/arm64 \
-        --build-arg GIT_BRANCH="$GIT_BRANCH" \
-        --build-arg GIT_COMMIT="$GIT_COMMIT" \
-        --build-arg GIT_DIRTY="$GIT_DIRTY" \
-        --build-arg GIT_CREATOR="$GIT_CREATOR" \
         --tag "$IMAGE_NAME:latest" \
         --tag "$IMAGE_NAME:$GIT_SHORT_COMMIT" \
         --push \
         -f "$DOCKERFILE_PATH" .
-    
+
     log_success "Build and push completed successfully"
     log_info "Images pushed as: $IMAGE_NAME:latest and $IMAGE_NAME:$GIT_SHORT_COMMIT"
 }

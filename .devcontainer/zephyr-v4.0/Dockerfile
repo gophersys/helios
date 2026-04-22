@@ -110,7 +110,7 @@ RUN west blobs fetch hal_espressif
 ENV ZEPHYR_BASE=/zephyrproject/zephyr
 
 # Add SDK to PATH
-ENV PATH="/usr/local/zephyr-sdk-0.17.0/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
+ENV PATH="/usr/local/zephyr-sdk-${ZEPHYR_SDK_VERSION}/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
 
 # Auto-source Zephyr environment
 RUN echo 'export ZEPHYR_BASE=/zephyrproject/zephyr' >> ~/.zshrc && \

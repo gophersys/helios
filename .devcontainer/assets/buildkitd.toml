@@ -1,14 +1,5 @@
 debug = true
 
-# Global registry settings
-[registry."kubecop.ad.corekinect.com:5000"]
-  http = true
-  insecure = true
-
-[registry."10.4.45.2"]
-  http = true
-  insecure = true
-
 # CoreKinect container registry — HTTPS with internal CA
 # CA certs are injected into the buildkit container by ctl.sh
 [registry."containers.ad.corekinect.com"]

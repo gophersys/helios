@@ -1,7 +1,7 @@
 {
   "name": "MTIB Dev Environment",
   "image": "containers.ad.corekinect.com/concord-devcontainer-mtib:latest",
-  "initializeCommand": "mkdir -p ${localEnv:HOME}/.ssh-devcontainer ${localEnv:HOME}/.claude",
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.kube ${localEnv:HOME}/.ssh-devcontainer ${localEnv:HOME}/.claude",
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
@@ -15,8 +15,10 @@
     "source=/dev,target=/dev,type=bind",
     "source=/sys,target=/sys,type=bind",
     "source=/mnt,target=/mnt,type=bind",
+    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind,readonly",
     "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
-    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude,target=${localEnv:HOME}/.claude,type=bind"
   ],
   "customizations": {
     "vscode": {

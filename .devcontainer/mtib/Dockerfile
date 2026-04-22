@@ -82,3 +82,5 @@ RUN ARCH="$(uname -m)" && \
 # ----------------------------------------------------
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install esptool==4.7.0
+
+WORKDIR /workspaces/concord

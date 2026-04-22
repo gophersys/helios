@@ -136,6 +136,81 @@ install_buildkit_certs() {
     fi
 }
 
+# ── Infrastructure Verification ───────────────────────────────
+# Pre-flight checks that report pass/fail for each subsystem.
+
+verify_docker() {
+    log_info "Checking Docker socket..."
+    if docker info >/dev/null 2>&1; then
+        log_success "Docker daemon is accessible"
+        return 0
+    else
+        log_error "Docker socket not available — container builds will fail"
+        return 1
+    fi
+}
+
+verify_registry() {
+    log_info "Checking container registry (${REGISTRY_HOST})..."
+
+    if ! curl -sf --connect-timeout 5 "https://${REGISTRY_HOST}/v2/" >/dev/null 2>&1; then
+        if curl -sfk --connect-timeout 5 "https://${REGISTRY_HOST}/v2/" >/dev/null 2>&1; then
+            log_warning "Registry reachable but CA not trusted — installing certs"
+            install_registry_certs
+            if curl -sf --connect-timeout 5 "https://${REGISTRY_HOST}/v2/" >/dev/null 2>&1; then
+                log_success "Registry verified after CA install"
+                return 0
+            fi
+        fi
+        log_warning "Registry ${REGISTRY_HOST} not reachable — image pulls/pushes will fail"
+        return 1
+    fi
+
+    log_success "Registry ${REGISTRY_HOST} is reachable and trusted"
+    return 0
+}
+
+verify_kubernetes() {
+    log_info "Checking Kubernetes access..."
+
+    if [ ! -f /root/.kube/config ]; then
+        log_warning "No kubeconfig found at /root/.kube/config — K8s commands will fail"
+        return 1
+    fi
+
+    if kubectl cluster-info >/dev/null 2>&1; then
+        local node_count
+        node_count=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
+        log_success "Kubernetes cluster reachable (${node_count} node(s))"
+        return 0
+    else
+        log_warning "Kubeconfig exists but cluster is not reachable"
+        return 1
+    fi
+}
+
+run_preflight() {
+    local failures=0
+
+    echo ""
+    log_info "──── Preflight Checks ────"
+    echo ""
+
+    verify_docker   || failures=$((failures + 1))
+    verify_registry || failures=$((failures + 1))
+    verify_kubernetes || failures=$((failures + 1))
+
+    echo ""
+    if [ "$failures" -eq 0 ]; then
+        log_success "All preflight checks passed"
+    else
+        log_warning "${failures} preflight check(s) failed — some features may not work"
+    fi
+    echo ""
+
+    return 0
+}
+
 # Fix USB device permissions for J-Link and Nordic devices
 fix_usb_permissions() {
     # SEGGER J-Link vendor ID: 1366
@@ -164,8 +239,8 @@ fix_usb_permissions() {
 start_container() {
     log_info "Starting the container"
 
-    # Install CoreKinect registry CA certs
-    install_registry_certs
+    # Run preflight checks (non-blocking — warns but continues)
+    run_preflight
 
     # Fix USB permissions for J-Link and Nordic devices
     fix_usb_permissions
@@ -196,8 +271,8 @@ create_action() {
         exit 1
     fi
 
-    # Install CoreKinect registry CA certs before any Docker operations
-    install_registry_certs
+    # Run preflight checks (non-blocking — warns but continues)
+    run_preflight
 
     # Install dependencies
     yarn
@@ -222,9 +297,10 @@ show_help() {
     echo "Usage: $0 [COMMAND]"
     echo ""
     echo "Commands:"
-    echo "  create    Create action for the devcontainers"
-    echo "  start     Start action for the devcontainers"
-    echo "  help      Show this help message"
+    echo "  create      Create action for the devcontainers"
+    echo "  start       Start action for the devcontainers"
+    echo "  preflight   Run infrastructure checks (Docker, registry, K8s)"
+    echo "  help        Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0 create     # Create action for devcontainers"
@@ -244,6 +320,9 @@ main() {
             ;;
         "start")
             start_container
+            ;;
+        "preflight")
+            run_preflight
             ;;
         "help"|"-h"|"--help")
             show_help

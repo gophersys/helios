@@ -1,53 +1,121 @@
-# Concord Monorepo DevContainers
+# Concord DevContainers
 
-This folder contains the `devcontainer`s for the Concord Monorepo. There are a few containers, designed to be used in different scenarios (UI/UX, backend, firmware, etc.). 
+Development containers for the Concord monorepo. All images are stored at `containers.ad.corekinect.com`.
 
-This document explains how to build and push the containers to the registry.
+## Container Hierarchy
 
-## Building base container from scratch
+```
+ubuntu:22.04
+└── concord-devcontainer-base:latest        Base — Node, Python, Docker, K8s, Helm, Protobuf, Playwright, Claude Code
+    ├── concord-devcontainer-mtib:latest     MTIB — nrfjprog, J-Link, esptool, i2c-tools (ARM64)
+    ├── concord-devcontainer-ncs:v2.7.0      NCS v2.7.0 — Zephyr SDK 0.17.4, west, nRF Connect SDK
+    ├── concord-devcontainer-ncs:v3.2.1      NCS v3.2.1 — Zephyr SDK 0.17.4, west, nRF Connect SDK
+    └── concord-devcontainer-zephyr:v4.0     Zephyr v4.0 LTS — Zephyr SDK 0.17.0, vanilla Zephyr
+```
 
-This folder is setup as an `nx` project, making actions like building, pushing, and containerizing the containers easy. 
+All child images inherit everything from base. The NCS variants share a single Dockerfile (`ncs/Dockerfile`) parameterized by `NCS_VERSION`.
 
-However, if you don't have access to the registry, you can build the base container manually.
+## Quick Start
 
-To build the base container, ***from the root of the monorepo*** run the following command in your machine's terminal:
+### Build from scratch (no registry access)
+
+From the **repo root**:
 
 ```bash
 chmod +x .devcontainer/base/ctl.sh && ./.devcontainer/base/ctl.sh build
 ```
 
-This will build the base container and save it to your local Docker registry. You can then `Reopen in Container` to use the base container.
+Then reopen in the base container via VS Code.
 
-
-## Create Multi-Platform Builder
-
-From a devcontainer, you can create a multi-platform builder. This enables linux/amd64 and linux/arm64 builds, which are required for some of the containers.
+### Build all images (from inside a devcontainer)
 
 ```bash
-nx run devcontainer:create-platform-builder
+nx run devcontainer:create-platform-builder   # One-time: create multi-arch builder
+nx run devcontainer:build-all                 # Build base → all variants (local)
+nx run devcontainer:push-all                  # Build + push to registry
 ```
 
-This will create the multi-platform builder if it doesn't exist, and setup the builder for use.
-
-## Build
-
-To build all the `devcontainers`, you can use the following command:
+Individual images:
 
 ```bash
-nx run devcontainer:build-all
+nx run devcontainer-base:build
+nx run devcontainer-mtib:build
+nx run devcontainer-ncs-v2.7.0:build
+nx run devcontainer-ncs-v3.2.1:build
+nx run devcontainer-zephyr-v4.0:build
 ```
 
-This will build and save to your local Docker registry.
+### Preflight Checks
 
-## Push
-
-If you need to force push to the registry, you can push to the registry using the following command:
+After the container starts, `ctl.sh` runs preflight checks automatically. Run manually:
 
 ```bash
-nx run devcontainer:push-all
+.devcontainer/ctl.sh preflight
 ```
 
-This will push all the containers to the registry at `containers.ad.corekinect.com`.
+Checks: Docker socket, registry reachability + CA trust, Kubernetes cluster access.
 
-It's ideal that the build server pushes to the registry, and it's not recommended to push from your local machine.
+## File Layout
 
+```
+.devcontainer/
+├── ctl.sh                      Shared lifecycle script (create, start, preflight)
+├── README.md
+├── project.json                Nx orchestrator (build-all, push-all)
+├── assets/
+│   └── buildkitd.toml          Buildkit config (registry TLS, multi-arch)
+├── base/
+│   ├── Dockerfile              Base image (ubuntu:22.04 + all tooling)
+│   ├── devcontainer.json       VS Code devcontainer config
+│   ├── ctl.sh                  Build/push script for base image
+│   └── project.json            Nx project (build, push)
+├── mtib/
+│   ├── Dockerfile              Extends base — J-Link, nrfjprog, esptool
+│   ├── devcontainer.json
+│   └── project.json            Builds ARM64 only
+├── ncs/
+│   └── Dockerfile              Shared NCS template (parameterized by NCS_VERSION)
+├── ncs-v2.7.0/
+│   ├── devcontainer.json
+│   └── project.json            Passes NCS_VERSION=v2.7.0 to ncs/Dockerfile
+├── ncs-v3.2.1/
+│   ├── devcontainer.json
+│   └── project.json            Passes NCS_VERSION=v3.2.1 to ncs/Dockerfile
+└── zephyr-v4.0/
+    ├── Dockerfile              Vanilla Zephyr v4.0 LTS (not NCS)
+    ├── devcontainer.json
+    └── project.json
+```
+
+## Mounts
+
+All variants mount these from the host:
+
+| Mount | Target | Mode | Purpose |
+|-------|--------|------|---------|
+| `~/.kube` | `/root/.kube` | readonly | Kubernetes access |
+| `~/.ssh-devcontainer` | `/root/.ssh` | readonly | SSH keys |
+| `~/.claude` | `/root/.claude` | read-write | Claude Code config |
+| `~/.claude` | `$HOME/.claude` | read-write | Claude Code (WSL home path) |
+| `/var/run/docker.sock` | `/var/run/docker.sock` | bind | Docker-in-Docker |
+| `/dev` | `/dev` | bind | USB device access |
+| `/mnt` | `/mnt` | bind | Host filesystem |
+
+The MTIB variant additionally mounts `/sys` for USB device enumeration.
+
+## Certificates
+
+The internal registry (`containers.ad.corekinect.com`) uses HTTPS with a private CA. Certificate handling:
+
+1. **On container start** — `ctl.sh` extracts the CA chain via TLS handshake and installs it into the system trust store
+2. **For buildkit** — `ctl.sh` injects the CA certs into the buildx builder container's trust bundle
+3. **buildkitd.toml** — configures the registry as HTTPS/secure so buildkit validates the CA
+
+No manual certificate setup is needed. If the registry is unreachable, preflight warns but doesn't block.
+
+## Environment
+
+The repo-root `.env` file (from `.env.example`) provides:
+
+- `CONCORD_MONOREPO_ROOT` — host path to repo (required for Docker-in-Docker volume mounts)
+- `IS_SANDBOX` — sandbox mode flag

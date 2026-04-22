@@ -97,7 +97,6 @@ ENV TZ=UTC
 RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && \
   apt-get install -y --no-install-recommends \
   git \
-  groovy \
   cmake \
   ninja-build \
   gperf \
@@ -117,14 +116,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && \
   gcc \
   libsdl2-dev \
   libmagic1 \
-  libxcb-render0 \
-  libxcb-render-util0 \
-  libxcb-shape0 \
-  libxcb-icccm4 \
-  libxcb-keysyms1 \
-  libxcb-image0 \
-  libxkbcommon-x11-0 \
-  udev \
   expect \
   screen \
   minicom && \
@@ -206,8 +197,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     -r bootloader/mcuboot/scripts/requirements.txt
 
 # Add OpenOCD binaries to the PATH
-# Note: OpenOCD binary path - update if ZEPHYR_SDK_VERSION ARG changes
-ENV PATH="/usr/local/zephyr-sdk-0.17.4/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
+ENV PATH="/usr/local/zephyr-sdk-${ZEPHYR_SDK_VERSION}/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
 
 # USB device permissions are fixed at runtime by ctl.sh (fix_usb_permissions function)
 # which sets 666 permissions on J-Link (1366) and Nordic (1915) USB devices

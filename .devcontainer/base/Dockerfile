@@ -7,14 +7,23 @@ FROM ubuntu:22.04
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-# Environment versions
+# Node.js
 ARG NVM_VERSION=0.40.3
 ARG NODE_VERSION=22.19.0
 ARG NPM_VERSION=11.6.0
 ARG NX_VERSION=22
+ARG YARN_VERSION=4.9.4
+
+# Containers & Orchestration
 ARG DOCKER_COMPOSE_VERSION=2.39.3
 ARG K9S_VERSION=0.50.9
 ARG HELM_VERSION=3.19.0
+
+# Protobuf
+ARG PROTOC_VERSION=32.1
+
+# Security
+ARG TRIVY_VERSION=0.69.3
 
 # ----------------------------------------------------
 #                                      System Packages
@@ -46,6 +55,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt update && apt upgrade -y && \
     python3-pip \
     python3-venv \
     lsb-release \
+    tree \
     vim \
     btop \
     sudo && \
@@ -73,7 +83,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/instal
     npm install -g npm@${NPM_VERSION} && \
     npm install -g nx@${NX_VERSION} && \
     corepack enable && \
-    corepack prepare yarn@4.9.4 --activate
+    corepack prepare yarn@${YARN_VERSION} --activate
 
 # Set up Node.js and yarn environment for non-interactive shells
 ENV NVM_DIR=/root/.nvm
@@ -122,22 +132,28 @@ ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
 
 # Install Python packages
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install grpcio-tools==1.75.0 prisma==0.15.0 zensical minio \
-    pytest pytest-timeout pytest-cov psycopg2-binary requests
+    pip3 install \
+    grpcio-tools==1.75.0 prisma==0.15.0 \
+    pytest pytest-timeout pytest-cov \
+    psycopg2-binary requests minio zensical boto3 \
+    black isort mypy \
+    click rich jsonschema \
+    pyyaml python-dotenv termcolor \
+    sqlalchemy sshtunnel paramiko
 
 # ----------------------------------------------------
 #                                             Protobuf
 # ----------------------------------------------------
 RUN case "${TARGETPLATFORM}" in \
     "linux/amd64") \
-    PROTOC_ZIP="protoc-32.1-linux-x86_64.zip" && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v32.1/${PROTOC_ZIP}" && \
+    PROTOC_ZIP="protoc-${PROTOC_VERSION}-linux-x86_64.zip" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
     rm ${PROTOC_ZIP} \
     ;; \
     "linux/arm64") \
-    PROTOC_ZIP="protoc-32.1-linux-aarch_64.zip" && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v32.1/${PROTOC_ZIP}" && \
+    PROTOC_ZIP="protoc-${PROTOC_VERSION}-linux-aarch_64.zip" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
     rm ${PROTOC_ZIP} \
     ;; \
@@ -204,7 +220,6 @@ RUN apt-get update -y && apt-get install -y vault && \
 #                                    Security Tooling
 # ----------------------------------------------------
 # Trivy — container image vulnerability scanner (used by .ci/stages/image-scan.sh)
-ARG TRIVY_VERSION=0.69.3
 RUN case "${TARGETPLATFORM}" in \
     "linux/amd64") \
     curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \
@@ -227,4 +242,9 @@ RUN npx playwright install chromium && \
     npx playwright install-deps chromium && \
     CHROME_BIN=$(find /root/.cache/ms-playwright -name chrome -path '*/chrome-linux64/*' | head -1) && \
     ln -sf "$CHROME_BIN" /usr/local/bin/google-chrome
+
+# ----------------------------------------------------
+#                                         Claude Code
+# ----------------------------------------------------
+RUN npm install -g @anthropic-ai/claude-code
 
