@@ -66,7 +66,7 @@ tests/            Platform-level E2E, integration, and smoke tests
 nx start platform
 
 # Frontend dev server with HMR
-npx nx serve app
+nx serve app
 
 # After code changes, rebuild and hot-swap containers
 nx update platform
@@ -75,12 +75,12 @@ nx update platform
 nx stop platform
 
 # Run tests
-npx nx test http-api
-npx nx test app
+nx test http-api
+nx test app
 
 # Type check
-npx nx typecheck http-api
-npx nx typecheck app
+nx typecheck http-api
+nx typecheck app
 ```
 
 All build, test, and deploy operations go through [Nx](https://nx.dev/). See `.claude/rules/nx-workflow.md` for the full command reference.
@@ -108,7 +108,7 @@ nx update platform -c production
 ## Documentation
 
 ```bash
-npx nx serve docs    # http://localhost:4000
+nx serve docs    # http://localhost:4000
 ```
 
 Docs use MkDocs Material with role-based page filtering. See `docs/` for content and `mkdocs.yml` for nav config.

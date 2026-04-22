@@ -665,7 +665,7 @@ cmd_dev_start() {
   echo -e "  ${DIM}minio          ${NC} localhost:8675 ${DIM}(console: 8676)${NC}"
   echo -e "  ${DIM}pypi           ${NC} localhost:8091"
   echo ""
-  echo -e "Start the UI:  ${CYAN}npx nx serve app${NC}  → localhost:4200"
+  echo -e "Start the UI:  ${CYAN}nx serve app${NC}  → localhost:4200"
 }
 
 cmd_dev_update() {
