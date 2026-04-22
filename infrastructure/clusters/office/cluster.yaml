@@ -195,7 +195,7 @@ nodes:
       ip: 10.4.45.30
       cpu: 8
       memory: 16Gi
-      workloads: [devops]
+      workloads: [devops, build]
 
     - name: wanda
       ip: 10.4.45.32
@@ -224,13 +224,15 @@ nodes:
       arch: arm64
       workloads: [edge]
 
-    - name: verdin-imx8mm-15005665
-      ip: 10.4.45.38
+    - name: verdin-imx8mm-15005668
+      ip: 10.4.45.39
       arch: arm64
       workloads: [edge]
+
 
 namespaces:
   - staging
   - production
   - validation
   - devops
+  - development

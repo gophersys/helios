@@ -213,6 +213,7 @@ spec:
 
                   # Mirror all buckets to backup volume
                   # Uses --overwrite to only copy changed files (incremental)
+                  mkdir -p "/backup/${ENV}"
                   mc mirror --overwrite concord/ "/backup/${ENV}/"
 
                   # Write manifest

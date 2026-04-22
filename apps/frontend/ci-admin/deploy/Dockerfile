@@ -1,9 +1,9 @@
 FROM node:22-alpine AS builder
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
-COPY apps/ci/admin/package.json apps/ci/admin/package-lock.json ./
-RUN npm ci
-COPY apps/ci/admin/ ./
+COPY apps/frontend/ci-admin/package.json ./
+RUN npm install
+COPY apps/frontend/ci-admin/ ./
 RUN npx svelte-kit sync && npm run build
 
 FROM node:22-alpine

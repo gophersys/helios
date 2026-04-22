@@ -58,6 +58,7 @@ ingress:
     secretName: concord-tls
 
 config:
+  AUTH_ENABLED: "true"
   SERVER_PORT: "9001"
   LOG_LEVEL: "4"
   LOG_PATH: "logs"
