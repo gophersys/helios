@@ -59,8 +59,6 @@ CORE_FILES=(
 
 # Test harnesses: needed for hardware testing
 TEST_FILES=(
-  "apps/validation/alpha/.env.example"
-  "apps/manufacturing/alpha/.env.example"
   "apps/edge/mtib-server/.env.example"
 )
 

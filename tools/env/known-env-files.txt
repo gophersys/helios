@@ -11,8 +11,6 @@ apps/backend/build-service/.env.example
 apps/backend/git-poller/.env.example
 apps/edge/mtib-server/.env.example
 apps/frontend/app/.env.example
-apps/validation/alpha/.env.example
-apps/manufacturing/alpha/.env.example
 deploy/development/.env.example
 infrastructure/clusters/office/secrets/.env.example
 infrastructure/clusters/eks/secrets/.env.example
