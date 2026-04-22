@@ -11,6 +11,11 @@ Internal hardware testing platform — firmware builds, validation, manufacturin
 
 ## Getting Started
 
+```bash
+cp .env.example .env
+# Edit .env — set CONCORD_MONOREPO_ROOT to your clone path
+```
+
 Open the repo in VS Code and select a devcontainer when prompted. All development happens inside containers — never install dependencies on the host.
 
 | Container | Use case |
