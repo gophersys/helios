@@ -28,7 +28,7 @@ def test_create_token_returns_string():
 
 def test_create_token_can_be_decoded():
     from src.services.auth.jwt import create_token
-    from config import env_config
+    from config.env import env_config
 
     token = create_token(
         user_id="user-456",
@@ -70,7 +70,7 @@ def test_verify_token_valid():
 
 def test_verify_token_expired():
     from src.services.auth.jwt import verify_token, ALGORITHM
-    from config import env_config
+    from config.env import env_config
 
     # Create an expired token (expired 1 hour ago)
     payload = {

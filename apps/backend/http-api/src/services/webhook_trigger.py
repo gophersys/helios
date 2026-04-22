@@ -163,7 +163,7 @@ def poll_for_changes() -> List[Dict[str, Any]]:
     4. Detect new commits (compare with cached SHA)
     5. Fire RepoEvent with PR metadata → triggers matching stages
     """
-    from config import env_config
+    from config.env import env_config
     from src.services.bitbucket_client import BitbucketClient, parse_pr_metadata
 
     bb = BitbucketClient(

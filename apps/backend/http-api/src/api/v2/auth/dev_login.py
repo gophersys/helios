@@ -8,7 +8,7 @@ import logging
 
 from flask import jsonify, request
 
-from config import env_config
+from config.env import env_config
 from src.lib.audit import log_audit
 from src.lib.errors import bad_request, not_found, forbidden
 from src.lib.types import ApiResponse

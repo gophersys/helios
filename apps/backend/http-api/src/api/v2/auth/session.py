@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 from flask import g, jsonify, request
 
-from config import env_config
+from config.env import env_config
 from src.lib.audit import log_audit
 from src.lib.decorators import require_auth
 from src.lib.errors import bad_request, forbidden, not_found, unauthorized

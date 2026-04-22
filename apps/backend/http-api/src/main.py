@@ -12,7 +12,7 @@ eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=Fa
 from api.v2.router import register_v2_routes
 
 # App includes
-from config import env_config
+from config.env import env_config
 
 # Corekinect includes
 from corekinect.utils import EnvConfig, Logger, print_banner

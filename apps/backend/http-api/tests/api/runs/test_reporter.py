@@ -51,6 +51,7 @@ def _make_target(**overrides):
         slotIndex=0,
         status="RUNNING",
         serialNumber="0964",
+        executions=[],
     )
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -348,17 +349,28 @@ class TestReportExecutionResult:
         update_data = mock_db.testexecution.update.call_args.kwargs["data"]
         assert update_data["durationMs"] == 2500
 
-    def test_execution_not_found_returns_404(self, authed_client, mock_db):
+    def test_auto_creates_execution_when_not_found(self, authed_client, mock_db):
+        """execution-result auto-creates execution if it doesn't exist
+        (handles setup-phase skips where execution-start never fired)."""
         mock_db.testrun.find_unique.return_value = _make_run()
         mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _make_target()
         mock_db.testexecution.find_first.return_value = None
-
-        resp = authed_client.post(
-            "/v2/runs/run-1/report/execution-result",
-            data=json.dumps({"testName": "unknown_test", "passed": True}),
+        mock_db.testexecution.count.return_value = 0
+        mock_db.testexecution.create.return_value = _make_execution(
+            id="auto-exec-1", name="unknown_test",
         )
-        assert resp.status_code == 404
+
+        with patch("api.v2.runs.reporter._emit"):
+            resp = authed_client.post(
+                "/v2/runs/run-1/report/execution-result",
+                data=json.dumps({"testName": "unknown_test", "passed": True}),
+            )
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["name"] == "unknown_test"
+        assert body["data"]["passed"] is True
+        mock_db.testexecution.create.assert_called_once()
 
     def test_missing_name_returns_400(self, authed_client, mock_db):
         resp = authed_client.post(
@@ -658,9 +670,10 @@ class TestReportFinish:
         pipe_data = mock_db.buildrun.update.call_args.kwargs["data"]
         assert pipe_data["status"] == "SUCCESS"
 
-    def test_marks_leftover_targets_as_error(self, authed_client, mock_db):
+    def test_marks_leftover_targets_with_computed_status(self, authed_client, mock_db):
+        """RUNNING targets get their status computed from execution results."""
         mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
-        mock_db.runtarget.find_many.return_value = [_make_target()]
+        mock_db.runtarget.find_many.return_value = [_make_target(status="RUNNING")]
 
         with patch("api.v2.runs.reporter._emit"):
             with patch("api.v2.runs.reporter._process_queue"):
@@ -671,11 +684,11 @@ class TestReportFinish:
                     }),
                 )
 
-        mock_db.runtarget.update_many.assert_called_once()
-        where = mock_db.runtarget.update_many.call_args.kwargs["where"]
-        assert where["runId"] == "run-1"
-        assert "PENDING" in where["status"]["in"]
-        assert "RUNNING" in where["status"]["in"]
+        # Per-target update for the RUNNING target (computed status = ERROR
+        # because no executions present)
+        mock_db.runtarget.update.assert_called_once()
+        update_data = mock_db.runtarget.update.call_args.kwargs["data"]
+        assert update_data["status"] == "ERROR"
 
     def test_accepts_duration_seconds(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)

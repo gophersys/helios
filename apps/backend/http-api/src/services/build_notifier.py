@@ -9,7 +9,7 @@ import logging
 
 import requests  # type: ignore[import-untyped]
 
-from config import env_config
+from config.env import env_config
 
 log = logging.getLogger(__name__)
 

@@ -115,7 +115,7 @@ def discover_board_detail(board_name: str):
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def check_repo():
     """GET /v2/products/repos/check?slug=alpha_fw — verify Bitbucket repo exists."""
-    from config import env_config
+    from config.env import env_config
 
     slug = request.args.get("slug", "").strip()
     if not slug:
@@ -138,7 +138,7 @@ def check_repo():
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def list_repo_branches():
     """GET /v2/products/repos/branches?slug=alpha_fw — list branches for a Bitbucket repo."""
-    from config import env_config
+    from config.env import env_config
 
     slug = request.args.get("slug", "").strip()
     if not slug:

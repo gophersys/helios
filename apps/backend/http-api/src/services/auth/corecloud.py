@@ -17,7 +17,7 @@ from typing import Optional, Tuple
 
 import requests  # type: ignore[import-untyped]
 
-from config import env_config
+from config.env import env_config
 
 logger = logging.getLogger(__name__)
 

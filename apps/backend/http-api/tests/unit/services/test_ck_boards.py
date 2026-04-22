@@ -1,12 +1,11 @@
-"""Tests for the ck_boards git service — bare clone, worktree, board parsing."""
+"""Tests for the ck_boards REST API service — board parsing, discovery, refs."""
 
-import os
-import subprocess
 import textwrap
-from pathlib import Path
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from src.services.ck_boards.service import CkBoardsService, _split_board_name, _parse_board_yml
 
@@ -15,41 +14,69 @@ from src.services.ck_boards.service import CkBoardsService, _split_board_name, _
 # Fixtures
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def tmp_repo(tmp_path):
-    """Create a real bare git repo with board.yml files for integration tests.
+def _make_service(environment="development"):
+    """Create a CkBoardsService bypassing __init__ / _verify_access."""
+    with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
+        svc = CkBoardsService.__new__(CkBoardsService)
+        svc._workspace = "test-workspace"
+        svc._repo_slug = "ck-boards"
+        svc._auth = ("test@test.com", "token")
+        svc._environment = environment
+        svc._fetch_interval = 0
+        svc._cache = {}
+        svc._cache_time = {}
+        svc._cache_ttl = 60
+        svc._lock = threading.Lock()
+        svc._ready = True
+        return svc
 
-    Directory layout mirrors the real ck_boards repo:
+
+def _mock_boards_api(mock_get):
+    """Set up mock responses for the Bitbucket REST API to simulate a board repo.
+
+    Simulates this layout:
         current/boards/corekinect/alpha_a0/board.yml
         current/boards/corekinect/alpha_b0/board.yml
         current/boards/corekinect/sigma5_c0/board.yml
     """
-    src = tmp_path / "src_repo"
-    src.mkdir()
-    subprocess.run(["git", "init", str(src)], check=True, capture_output=True)
-    subprocess.run(
-        ["git", "-C", str(src), "config", "user.email", "test@test.com"],
-        check=True, capture_output=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(src), "config", "user.name", "Test"],
-        check=True, capture_output=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(src), "config", "commit.gpgsign", "false"],
-        check=True, capture_output=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(src), "config", "tag.gpgsign", "false"],
-        check=True, capture_output=True,
-    )
+    # list_refs: branches
+    branches_resp = MagicMock()
+    branches_resp.status_code = 200
+    branches_resp.json.return_value = {
+        "values": [
+            {"name": "main"},
+            {"name": "release/v2.1"},
+        ],
+    }
 
-    vendor_dir = src / "current" / "boards" / "corekinect"
-    vendor_dir.mkdir(parents=True)
+    # list_refs: tags
+    tags_resp = MagicMock()
+    tags_resp.status_code = 200
+    tags_resp.json.return_value = {
+        "values": [{"name": "v1.0.0"}],
+    }
 
-    # alpha_a0
-    (vendor_dir / "alpha_a0").mkdir()
-    (vendor_dir / "alpha_a0" / "board.yml").write_text(textwrap.dedent("""\
+    # _find_boards_path: current/boards → vendor dirs
+    boards_list_resp = MagicMock()
+    boards_list_resp.status_code = 200
+    boards_list_resp.json.return_value = {
+        "values": [{"type": "commit_directory", "path": "current/boards/corekinect"}],
+    }
+
+    # _scan_boards: entries in vendor dir
+    entries_resp = MagicMock()
+    entries_resp.status_code = 200
+    entries_resp.json.return_value = {
+        "values": [
+            {"type": "commit_directory", "path": "current/boards/corekinect/alpha_a0"},
+            {"type": "commit_directory", "path": "current/boards/corekinect/alpha_b0"},
+            {"type": "commit_directory", "path": "current/boards/corekinect/sigma5_c0"},
+        ],
+    }
+
+    # board.yml file contents
+    alpha_a0_resp = MagicMock()
+    alpha_a0_resp.text = textwrap.dedent("""\
         board:
           name: alpha_a0
           vendor: corekinect
@@ -58,11 +85,10 @@ def tmp_repo(tmp_path):
             - name: nrf52840
           revision:
             revisions: []
-    """))
+    """)
 
-    # alpha_b0
-    (vendor_dir / "alpha_b0").mkdir()
-    (vendor_dir / "alpha_b0" / "board.yml").write_text(textwrap.dedent("""\
+    alpha_b0_resp = MagicMock()
+    alpha_b0_resp.text = textwrap.dedent("""\
         board:
           name: alpha_b0
           vendor: corekinect
@@ -71,11 +97,10 @@ def tmp_repo(tmp_path):
             - name: nrf52840
           revision:
             revisions: []
-    """))
+    """)
 
-    # sigma5_c0
-    (vendor_dir / "sigma5_c0").mkdir()
-    (vendor_dir / "sigma5_c0" / "board.yml").write_text(textwrap.dedent("""\
+    sigma5_c0_resp = MagicMock()
+    sigma5_c0_resp.text = textwrap.dedent("""\
         board:
           name: sigma5_c0
           vendor: corekinect
@@ -83,53 +108,17 @@ def tmp_repo(tmp_path):
             - name: nrf52840
           revision:
             revisions: []
-    """))
+    """)
 
-    # Commit everything
-    subprocess.run(["git", "-C", str(src), "add", "."], check=True, capture_output=True)
-    subprocess.run(
-        ["git", "-C", str(src), "commit", "-m", "initial"],
-        check=True, capture_output=True,
-    )
-
-    # Create a second branch
-    subprocess.run(
-        ["git", "-C", str(src), "branch", "release/v2.1"],
-        check=True, capture_output=True,
-    )
-
-    # Create a tag
-    subprocess.run(
-        ["git", "-C", str(src), "tag", "v1.0.0"],
-        check=True, capture_output=True,
-    )
-
-    # Clone as bare
-    bare = tmp_path / "ck_boards.git"
-    subprocess.run(
-        ["git", "clone", "--bare", str(src), str(bare)],
-        check=True, capture_output=True,
-    )
-
-    return bare
-
-
-@pytest.fixture
-def service(tmp_repo, tmp_path):
-    """Create a CkBoardsService pointed at the test bare repo."""
-    base_path = tmp_path / "service_base"
-    base_path.mkdir()
-
-    # Symlink the bare repo to where the service expects it
-    ck_boards_git = base_path / "ck_boards.git"
-    ck_boards_git.symlink_to(tmp_repo)
-
-    return CkBoardsService(
-        repo_url=str(tmp_repo),
-        base_path=str(base_path),
-        ssh_key_b64="",
-        fetch_interval=0,  # Don't start background fetch
-    )
+    return {
+        "branches": branches_resp,
+        "tags": tags_resp,
+        "boards_list": boards_list_resp,
+        "entries": entries_resp,
+        "alpha_a0": alpha_a0_resp,
+        "alpha_b0": alpha_b0_resp,
+        "sigma5_c0": sigma5_c0_resp,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -213,10 +202,15 @@ def test_parse_board_yml_with_variants():
 # Branch / tag listing
 # ---------------------------------------------------------------------------
 
-def test_list_branches(service):
-    """list_refs returns branches and tags from the bare repo."""
-    refs = service.list_refs()
-    assert "main" in refs["branches"] or "master" in refs["branches"]
+@patch("src.services.ck_boards.service.requests.get")
+def test_list_branches(mock_get):
+    """list_refs returns branches and tags from the REST API."""
+    svc = _make_service()
+    resps = _mock_boards_api(mock_get)
+    mock_get.side_effect = [resps["branches"], resps["tags"]]
+
+    refs = svc.list_refs()
+    assert "main" in refs["branches"]
     assert "release/v2.1" in refs["branches"]
     assert "v1.0.0" in refs["tags"]
 
@@ -225,12 +219,20 @@ def test_list_branches(service):
 # Board scanning — returns grouped families
 # ---------------------------------------------------------------------------
 
-def test_discover_boards(service):
+@patch("src.services.ck_boards.service.requests.get")
+def test_discover_boards(mock_get):
     """discover_boards returns family-grouped list of boards."""
-    refs = service.list_refs()
-    branch = "main" if "main" in refs["branches"] else "master"
+    svc = _make_service()
+    resps = _mock_boards_api(mock_get)
+    mock_get.side_effect = [
+        resps["boards_list"],
+        resps["entries"],
+        resps["alpha_a0"],
+        resps["alpha_b0"],
+        resps["sigma5_c0"],
+    ]
 
-    families = service.discover_boards(branch)
+    families = svc.discover_boards("main")
     family_names = [f["family"] for f in families]
     assert "alpha" in family_names
     assert "sigma5" in family_names
@@ -252,46 +254,81 @@ def test_discover_boards(service):
     assert sigma["revisions"][0]["socs"] == ["nrf52840"]
 
 
-def test_discover_boards_invalid_branch(service):
-    """discover_boards raises ValueError for a nonexistent branch."""
-    with pytest.raises(ValueError, match="not found"):
-        service.discover_boards("nonexistent-branch")
+@patch("src.services.ck_boards.service.requests.get")
+def test_discover_boards_empty_branch(mock_get):
+    """discover_boards returns empty list when no boards directory found."""
+    svc = _make_service()
+
+    empty_resp = MagicMock()
+    empty_resp.status_code = 404
+    empty_resp.json.return_value = {"values": []}
+    mock_get.return_value = empty_resp
+
+    families = svc.discover_boards("nonexistent-branch")
+    assert families == []
 
 
 # ---------------------------------------------------------------------------
 # Single board detail
 # ---------------------------------------------------------------------------
 
-def test_discover_board_detail(service):
+@patch("src.services.ck_boards.service.requests.get")
+def test_discover_board_detail(mock_get):
     """discover_board_detail returns detail for a single product family."""
-    refs = service.list_refs()
-    branch = "main" if "main" in refs["branches"] else "master"
+    svc = _make_service()
+    resps = _mock_boards_api(mock_get)
+    mock_get.side_effect = [
+        resps["boards_list"],
+        resps["entries"],
+        resps["alpha_a0"],
+        resps["alpha_b0"],
+        resps["sigma5_c0"],
+    ]
 
-    detail = service.discover_board_detail("alpha", branch)
+    detail = svc.discover_board_detail("alpha", "main")
     assert detail["family"] == "alpha"
     assert detail["vendor"] == "corekinect"
     assert len(detail["revisions"]) == 2
 
 
-def test_discover_board_detail_not_found(service):
+@patch("src.services.ck_boards.service.requests.get")
+def test_discover_board_detail_not_found(mock_get):
     """discover_board_detail raises ValueError for unknown family."""
-    refs = service.list_refs()
-    branch = "main" if "main" in refs["branches"] else "master"
+    svc = _make_service()
+    resps = _mock_boards_api(mock_get)
+    mock_get.side_effect = [
+        resps["boards_list"],
+        resps["entries"],
+        resps["alpha_a0"],
+        resps["alpha_b0"],
+        resps["sigma5_c0"],
+    ]
 
     with pytest.raises(ValueError, match="not found"):
-        service.discover_board_detail("nonexistent-board", branch)
+        svc.discover_board_detail("nonexistent-board", "main")
 
 
 # ---------------------------------------------------------------------------
-# Worktree cleanup
+# Cache behavior
 # ---------------------------------------------------------------------------
 
-def test_worktree_cleanup(service):
-    """Worktrees are cleaned up after use."""
-    refs = service.list_refs()
-    branch = "main" if "main" in refs["branches"] else "master"
+@patch("src.services.ck_boards.service.requests.get")
+def test_fetch_clears_cache(mock_get):
+    """fetch() clears the internal cache so next discover_boards hits the API."""
+    svc = _make_service()
+    resps = _mock_boards_api(mock_get)
 
-    service.discover_boards(branch)
-    # After the call, worktree directory should be cleaned up
-    worktree_entries = list(Path(service._worktree_base).iterdir()) if Path(service._worktree_base).exists() else []
-    assert len(worktree_entries) == 0
+    # First call populates cache
+    mock_get.side_effect = [
+        resps["boards_list"],
+        resps["entries"],
+        resps["alpha_a0"],
+        resps["alpha_b0"],
+        resps["sigma5_c0"],
+    ]
+    svc.discover_boards("main")
+    assert "main" in svc._cache
+
+    # Clear cache
+    svc.fetch()
+    assert "main" not in svc._cache

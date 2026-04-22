@@ -166,11 +166,17 @@ class TestExecutionResult:
         )
         assert resp.status_code == 200
 
-    def test_returns_404_if_execution_missing(self, authed_client, mock_db):
+    def test_auto_creates_execution_when_missing(self, authed_client, mock_db):
+        """execution-result auto-creates execution if it doesn't exist
+        (handles setup-phase skips where execution-start never fired)."""
         mock_db.testrun.find_unique.return_value = _run()
         mock_db.runtarget.count.return_value = 1
         mock_db.runtarget.find_first.return_value = _target()
         mock_db.testexecution.find_first.return_value = None
+        mock_db.testexecution.count.return_value = 0
+        mock_db.testexecution.create.return_value = _execution(
+            id="auto-exec-1", name="test_missing",
+        )
 
         resp = authed_client.post(
             "/v2/runs/s10-run-1/report/execution-result",
@@ -179,7 +185,11 @@ class TestExecutionResult:
                 "passed": True,
             }),
         )
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["name"] == "test_missing"
+        assert body["data"]["passed"] is True
+        mock_db.testexecution.create.assert_called_once()
 
     def test_returns_400_missing_name(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = _run()

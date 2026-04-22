@@ -5,7 +5,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
-from config import env_config
+from config.env import env_config
 
 ALGORITHM = "HS256"
 

@@ -101,6 +101,7 @@ def _slot(**overrides):
         fixtureId="s10-fix-1",
         slotIndex=0,
         name="Slot 1",
+        label=None,
         active=True,
         dutSnr=None,
         dutDeviceId=None,
@@ -150,6 +151,21 @@ def _mock_audit():
 @pytest.fixture(autouse=True)
 def _mock_socketio():
     with patch("api.v2.manufacturing.sessions._socketio", new=MagicMock()):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_runner_deploy():
+    """Mock runner deployment and MTIB health check — not under test here."""
+    with patch("src.services.kubernetes.mtib_deployments.wait_for_mtibs_healthy", return_value={"healthy": [], "unhealthy": []}):
+        with patch("src.api.v2.manufacturing.runner.deploy_manufacturing_runner", return_value="runner-1"):
+            yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_runner_teardown():
+    """Mock runner teardown — not under test here."""
+    with patch("src.api.v2.manufacturing.runner.teardown_manufacturing_runner", return_value=None):
         yield
 
 
@@ -287,7 +303,8 @@ class TestGetSession:
 
 class TestAddRun:
     def test_adds_run_to_session(self, authed_client, mock_db):
-        fixture_with_slots = _fixture(slots=[])
+        slots = [_slot(id=f"s10-slot-{i}", slotIndex=i, name=f"Slot {i + 1}") for i in range(4)]
+        fixture_with_slots = _fixture(slots=slots)
         mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
         created = _run()
         mock_db.testrun.create.return_value = created
@@ -425,45 +442,62 @@ class TestGetResults:
 
 
 # ---------------------------------------------------------------------------
-# _derive_panel_snrs — unit tests for SNR derivation logic
+# _resolve_panel_snrs — unit tests for CoreOps-based SNR resolution
 # ---------------------------------------------------------------------------
 
-class TestDerivePanelSnrs:
-    def test_numeric_snr(self):
-        from api.v2.manufacturing.sessions import _derive_panel_snrs
-        result = _derive_panel_snrs("0964", 4)
-        assert len(result) == 4
-        assert result[0] == {"slotIndex": 0, "snr": "0964"}
-        assert result[1] == {"slotIndex": 1, "snr": "0965"}
-        assert result[2] == {"slotIndex": 2, "snr": "0966"}
-        assert result[3] == {"slotIndex": 3, "snr": "0967"}
-
-    def test_prefixed_snr(self):
-        from api.v2.manufacturing.sessions import _derive_panel_snrs
-        result = _derive_panel_snrs("DUT-0964", 3)
-        assert result[0] == {"slotIndex": 0, "snr": "DUT-0964"}
-        assert result[1] == {"slotIndex": 1, "snr": "DUT-0965"}
-        assert result[2] == {"slotIndex": 2, "snr": "DUT-0966"}
-
-    def test_zero_padding_preserved(self):
-        from api.v2.manufacturing.sessions import _derive_panel_snrs
-        result = _derive_panel_snrs("0001", 3)
-        assert result[0]["snr"] == "0001"
-        assert result[1]["snr"] == "0002"
-        assert result[2]["snr"] == "0003"
-
-    def test_single_slot(self):
-        from api.v2.manufacturing.sessions import _derive_panel_snrs
-        result = _derive_panel_snrs("100", 1)
+class TestResolvePanelSnrs:
+    def test_singleton_returns_scanned_snr(self):
+        from api.v2.manufacturing.sessions import _resolve_panel_snrs
+        result = _resolve_panel_snrs("0964", 1)
         assert len(result) == 1
-        assert result[0] == {"slotIndex": 0, "snr": "100"}
+        assert result[0] == {"slotIndex": 0, "snr": "0964", "deviceId": None}
 
-    def test_non_numeric_snr(self):
-        from api.v2.manufacturing.sessions import _derive_panel_snrs
-        result = _derive_panel_snrs("ABCDEF", 3)
-        assert result[0]["snr"] == "ABCDEF"
+    @patch("api.v2.manufacturing.sessions._get_coreops_client", return_value=None)
+    def test_no_coreops_falls_back_to_slot0(self, _mock_coreops):
+        from api.v2.manufacturing.sessions import _resolve_panel_snrs
+        result = _resolve_panel_snrs("0964", 4)
+        assert len(result) == 4
+        assert result[0]["snr"] == "0964"
         assert result[1]["snr"] is None
         assert result[2]["snr"] is None
+        assert result[3]["snr"] is None
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_coreops_assembly_maps_boards(self, mock_coreops):
+        mock_client = MagicMock()
+        mock_client.search_board_assembly.return_value = {
+            "boards": [
+                {"panelPosition": 0, "boardSerialNumber": "SN-A"},
+                {"panelPosition": 1, "boardSerialNumber": "SN-B"},
+                {"panelPosition": 2, "boardSerialNumber": "SN-C"},
+                {"panelPosition": 3, "boardSerialNumber": "SN-D"},
+            ],
+        }
+        mock_coreops.return_value = mock_client
+
+        from api.v2.manufacturing.sessions import _resolve_panel_snrs
+        result = _resolve_panel_snrs("SN-A", 4)
+        assert result[0]["snr"] == "SN-A"
+        assert result[1]["snr"] == "SN-B"
+        assert result[2]["snr"] == "SN-C"
+        assert result[3]["snr"] == "SN-D"
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_coreops_with_position_map(self, mock_coreops):
+        mock_client = MagicMock()
+        mock_client.search_board_assembly.return_value = {
+            "boards": [
+                {"panelPosition": 0, "boardSerialNumber": "SN-A"},
+                {"panelPosition": 1, "boardSerialNumber": "SN-B"},
+            ],
+        }
+        mock_coreops.return_value = mock_client
+
+        from api.v2.manufacturing.sessions import _resolve_panel_snrs
+        # Swap positions 0↔1
+        result = _resolve_panel_snrs("SN-A", 2, position_map={0: 1, 1: 0})
+        assert result[0]["snr"] == "SN-B"
+        assert result[1]["snr"] == "SN-A"
 
 
 # ---------------------------------------------------------------------------
@@ -477,7 +511,20 @@ class TestResolvePanel:
             for i in range(4)
         ]
 
-    def test_resolves_panel_snrs(self, authed_client, mock_db):
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_resolves_panel_snrs(self, mock_coreops, authed_client, mock_db):
+        mock_client = MagicMock()
+        mock_client.search_board_assembly.return_value = {
+            "boards": [
+                {"panelPosition": 0, "boardSerialNumber": "0964"},
+                {"panelPosition": 1, "boardSerialNumber": "0965"},
+                {"panelPosition": 2, "boardSerialNumber": "0966"},
+                {"panelPosition": 3, "boardSerialNumber": "0967"},
+            ],
+        }
+        mock_client.assign_device_id.return_value = None
+        mock_coreops.return_value = mock_client
+
         slots = self._four_slots()
         fixture = _fixture(slots=slots)
         mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
@@ -495,14 +542,25 @@ class TestResolvePanel:
         assert data["slots"][2]["snr"] == "0966"
         assert data["slots"][3]["snr"] == "0967"
 
-    def test_returns_slot_labels(self, authed_client, mock_db):
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_returns_slot_labels(self, mock_coreops, authed_client, mock_db):
+        mock_client = MagicMock()
+        mock_client.search_board_assembly.return_value = {
+            "boards": [
+                {"panelPosition": i, "boardSerialNumber": f"SN-{i}"}
+                for i in range(4)
+            ],
+        }
+        mock_client.assign_device_id.return_value = None
+        mock_coreops.return_value = mock_client
+
         slots = self._four_slots()
         fixture = _fixture(slots=slots)
         mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
 
         resp = authed_client.post(
             "/v2/manufacturing/sessions/s10-sess-1/resolve-panel",
-            data=json.dumps({"snr": "0964"}),
+            data=json.dumps({"snr": "SN-0"}),
         )
         data = resp.get_json()["data"]
         assert data["slots"][0]["label"] == "Slot 1"

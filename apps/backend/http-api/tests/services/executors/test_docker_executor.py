@@ -29,11 +29,12 @@ class TestDockerExecutorSubmit:
             assert result.error is None
 
             # Verify docker run was called with detached mode
+            # (no --rm: detached containers need to survive for post-mortem
+            # inspection; cleanup is handled by the cancel/docker rm path)
             call_args = mock_run.call_args[0][0]
             assert "docker" in call_args
             assert "run" in call_args
             assert "-d" in call_args
-            assert "--rm" in call_args
 
     def test_submit_includes_env_vars(self, executor):
         with patch("services.executors.docker_executor.subprocess.run") as mock_run:

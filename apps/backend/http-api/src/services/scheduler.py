@@ -71,7 +71,7 @@ def start_scheduler():
     logger.info("Build recovery scheduler started (interval=%ds)", _BUILD_RECOVERY_INTERVAL_SECONDS)
 
     # Bitbucket poller — polls repos for new commits to trigger stage builds
-    from config import env_config
+    from config.env import env_config
     if env_config.BITBUCKET_POLLER_ENABLED:
         def _poller_loop():
             """Background loop that polls Bitbucket for new commits."""

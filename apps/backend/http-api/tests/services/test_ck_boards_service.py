@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 
 # ---------------------------------------------------------------------------
@@ -159,220 +159,240 @@ board:
 
 
 # ---------------------------------------------------------------------------
+# Helper to create a CkBoardsService with mocked Bitbucket API
+# ---------------------------------------------------------------------------
+
+def _make_service(environment="development"):
+    """Create a CkBoardsService bypassing the real __init__ / _verify_access."""
+    from src.services.ck_boards.service import CkBoardsService
+
+    with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
+        svc = CkBoardsService.__new__(CkBoardsService)
+        svc._workspace = "test-workspace"
+        svc._repo_slug = "ck-boards"
+        svc._auth = ("test@test.com", "token")
+        svc._environment = environment
+        svc._fetch_interval = 60
+        svc._cache = {}
+        svc._cache_time = {}
+        svc._cache_ttl = 60
+        svc._lock = threading.Lock()
+        svc._ready = True
+        return svc
+
+
+# ---------------------------------------------------------------------------
 # CkBoardsService — list_refs
 # ---------------------------------------------------------------------------
 
 class TestCkBoardsServiceListRefs:
-    """Tests for CkBoardsService.list_refs() with mocked git."""
+    """Tests for CkBoardsService.list_refs() with mocked REST API."""
 
-    @patch("src.services.ck_boards.service.subprocess.run")
-    def test_list_refs_production_filters_branches(self, mock_run):
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_list_refs_production_filters_branches(self, mock_get):
         """Production mode filters branches to only main/master."""
-        from src.services.ck_boards.service import CkBoardsService
+        svc = _make_service(environment="production")
 
-        # Mock subprocess for clone and git operations
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        branches_resp = MagicMock()
+        branches_resp.status_code = 200
+        branches_resp.json.return_value = {
+            "values": [{"name": "main"}, {"name": "develop"}, {"name": "feature/x"}],
+        }
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            bare_repo = os.path.join(tmpdir, "ck_boards.git")
-            os.makedirs(bare_repo)
+        tags_resp = MagicMock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {
+            "values": [{"name": "v1.0"}],
+        }
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                svc._bare_repo = bare_repo
-                svc._git_env = {}
-                svc._environment = "production"
-                svc._ready = True
+        mock_get.side_effect = [branches_resp, tags_resp]
 
-                with patch.object(svc, "_git_list_branches", return_value=["main", "develop", "feature/x"]):
-                    with patch.object(svc, "_git_list_tags", return_value=["v1.0"]):
-                        refs = svc.list_refs()
+        refs = svc.list_refs()
+        assert refs["branches"] == ["main"]
+        assert refs["tags"] == ["v1.0"]
 
-                assert refs["branches"] == ["main"]
-                assert refs["tags"] == ["v1.0"]
-
-    @patch("src.services.ck_boards.service.subprocess.run")
-    def test_list_refs_development_shows_all(self, mock_run):
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_list_refs_development_shows_all(self, mock_get):
         """Development mode shows all branches."""
-        from src.services.ck_boards.service import CkBoardsService
+        svc = _make_service(environment="development")
 
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        branches_resp = MagicMock()
+        branches_resp.status_code = 200
+        branches_resp.json.return_value = {
+            "values": [{"name": "main"}, {"name": "develop"}, {"name": "feature/x"}],
+        }
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            bare_repo = os.path.join(tmpdir, "ck_boards.git")
-            os.makedirs(bare_repo)
+        tags_resp = MagicMock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {"values": []}
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                svc._bare_repo = bare_repo
-                svc._git_env = {}
-                svc._environment = "development"
-                svc._ready = True
+        mock_get.side_effect = [branches_resp, tags_resp]
 
-                with patch.object(svc, "_git_list_branches", return_value=["main", "develop", "feature/x"]):
-                    with patch.object(svc, "_git_list_tags", return_value=[]):
-                        refs = svc.list_refs()
-
-                assert refs["branches"] == ["main", "develop", "feature/x"]
+        refs = svc.list_refs()
+        assert refs["branches"] == ["main", "develop", "feature/x"]
 
 
 # ---------------------------------------------------------------------------
-# CkBoardsService — _scan_boards_in_dir
+# CkBoardsService — _scan_boards (REST API version)
 # ---------------------------------------------------------------------------
 
-class TestScanBoardsInDir:
-    """Tests for CkBoardsService._scan_boards_in_dir() with real filesystem."""
+class TestScanBoards:
+    """Tests for CkBoardsService._scan_boards() with mocked REST API."""
 
-    def test_scan_discovers_families(self):
-        """Scans board directories and groups them by family."""
-        from src.services.ck_boards.service import CkBoardsService
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_scan_discovers_families(self, mock_get):
+        """Scans board directories via REST API and groups by family."""
+        svc = _make_service()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create board directories with board.yml
-            for name, yml in [
-                ("alpha_a0", "board:\n  name: alpha_a0\n  vendor: ck\n  socs:\n    - name: nrf52840\n"),
-                ("alpha_b0", "board:\n  name: alpha_b0\n  vendor: ck\n  socs:\n    - name: nrf52840\n    - name: nrf9151\n"),
-                ("sigma5_c0", "board:\n  name: sigma5_c0\n  vendor: ck\n  socs:\n    - name: nrf54l15\n"),
-            ]:
-                board_dir = os.path.join(tmpdir, name)
-                os.makedirs(board_dir)
-                with open(os.path.join(board_dir, "board.yml"), "w") as f:
-                    f.write(yml)
+        # _find_boards_path: list current/boards → returns vendor dir
+        boards_list_resp = MagicMock()
+        boards_list_resp.status_code = 200
+        boards_list_resp.json.return_value = {
+            "values": [{"type": "commit_directory", "path": "current/boards/corekinect"}],
+        }
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                families = svc._scan_boards_in_dir(tmpdir)
+        # _scan_boards: list entries in boards path
+        entries_resp = MagicMock()
+        entries_resp.status_code = 200
+        entries_resp.json.return_value = {
+            "values": [
+                {"type": "commit_directory", "path": "current/boards/corekinect/alpha_a0"},
+                {"type": "commit_directory", "path": "current/boards/corekinect/alpha_b0"},
+                {"type": "commit_directory", "path": "current/boards/corekinect/sigma5_c0"},
+            ],
+        }
 
-            assert "alpha" in families
-            assert "sigma5" in families
-            assert len(families["alpha"]["revisions"]) == 2
-            assert families["alpha"]["vendor"] == "ck"
+        # board.yml file contents (3 calls to _api_get/_get_file)
+        alpha_a0_resp = MagicMock()
+        alpha_a0_resp.text = "board:\n  name: alpha_a0\n  vendor: ck\n  socs:\n    - name: nrf52840\n"
+        alpha_b0_resp = MagicMock()
+        alpha_b0_resp.text = "board:\n  name: alpha_b0\n  vendor: ck\n  socs:\n    - name: nrf52840\n    - name: nrf9151\n"
+        sigma5_c0_resp = MagicMock()
+        sigma5_c0_resp.text = "board:\n  name: sigma5_c0\n  vendor: ck\n  socs:\n    - name: nrf54l15\n"
 
-    def test_scan_skips_non_board_dirs(self):
-        """Skips directories without board.yml."""
-        from src.services.ck_boards.service import CkBoardsService
+        mock_get.side_effect = [boards_list_resp, entries_resp, alpha_a0_resp, alpha_b0_resp, sigma5_c0_resp]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Directory without board.yml
-            os.makedirs(os.path.join(tmpdir, "not_a_board"))
-            # File (not a directory)
-            with open(os.path.join(tmpdir, "readme.txt"), "w") as f:
-                f.write("not a board")
+        families = svc._scan_boards("main")
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                families = svc._scan_boards_in_dir(tmpdir)
+        family_names = [f["family"] for f in families]
+        assert "alpha" in family_names
+        assert "sigma5" in family_names
 
-            assert len(families) == 0
+        alpha = next(f for f in families if f["family"] == "alpha")
+        assert len(alpha["revisions"]) == 2
+        assert alpha["vendor"] == "ck"
 
-    def test_scan_handles_malformed_yml(self):
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_scan_skips_non_board_dirs(self, mock_get):
+        """Skips entries without board.yml (404 from REST API)."""
+        svc = _make_service()
+
+        boards_list_resp = MagicMock()
+        boards_list_resp.status_code = 200
+        boards_list_resp.json.return_value = {
+            "values": [{"type": "commit_directory", "path": "current/boards/corekinect"}],
+        }
+
+        entries_resp = MagicMock()
+        entries_resp.status_code = 200
+        entries_resp.json.return_value = {
+            "values": [
+                {"type": "commit_directory", "path": "current/boards/corekinect/not_a_board"},
+                {"type": "commit_file", "path": "current/boards/corekinect/readme.txt"},
+            ],
+        }
+
+        # board.yml fetch returns HTTPError (404)
+        board_yml_resp = MagicMock()
+        board_yml_resp.status_code = 404
+        board_yml_resp.raise_for_status.side_effect = requests.HTTPError(response=board_yml_resp)
+
+        mock_get.side_effect = [boards_list_resp, entries_resp, board_yml_resp]
+
+        families = svc._scan_boards("main")
+        assert len(families) == 0
+
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_scan_handles_malformed_yml(self, mock_get):
         """Malformed board.yml files are skipped with warning."""
-        from src.services.ck_boards.service import CkBoardsService
+        svc = _make_service()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            board_dir = os.path.join(tmpdir, "bad_board_a0")
-            os.makedirs(board_dir)
-            with open(os.path.join(board_dir, "board.yml"), "w") as f:
-                f.write("this is not valid yaml: [")
+        boards_list_resp = MagicMock()
+        boards_list_resp.status_code = 200
+        boards_list_resp.json.return_value = {
+            "values": [{"type": "commit_directory", "path": "current/boards/corekinect"}],
+        }
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                families = svc._scan_boards_in_dir(tmpdir)
+        entries_resp = MagicMock()
+        entries_resp.status_code = 200
+        entries_resp.json.return_value = {
+            "values": [
+                {"type": "commit_directory", "path": "current/boards/corekinect/bad_board_a0"},
+            ],
+        }
 
-            # Should be empty due to parse error
-            assert len(families) == 0
+        # board.yml with malformed YAML
+        bad_yml_resp = MagicMock()
+        bad_yml_resp.text = "this is not valid yaml: ["
+
+        mock_get.side_effect = [boards_list_resp, entries_resp, bad_yml_resp]
+
+        families = svc._scan_boards("main")
+        assert len(families) == 0
 
 
 # ---------------------------------------------------------------------------
-# CkBoardsService — _find_boards_dir
+# CkBoardsService — _find_boards_path (REST API version)
 # ---------------------------------------------------------------------------
 
-class TestFindBoardsDir:
-    """Tests for CkBoardsService._find_boards_dir()."""
+class TestFindBoardsPath:
+    """Tests for CkBoardsService._find_boards_path()."""
 
-    def test_finds_current_boards_vendor(self):
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_finds_current_boards_vendor(self, mock_get):
         """Finds boards at current/boards/<vendor>/ layout."""
-        from src.services.ck_boards.service import CkBoardsService
+        svc = _make_service()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            vendor_dir = os.path.join(tmpdir, "current", "boards", "corekinect")
-            os.makedirs(vendor_dir)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "values": [{"type": "commit_directory", "path": "current/boards/corekinect"}],
+        }
+        mock_get.return_value = resp
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                result = svc._find_boards_dir(tmpdir)
+        result = svc._find_boards_path("main")
+        assert result == "current/boards/corekinect"
 
-            assert result == vendor_dir
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_falls_back_to_boards_dir(self, mock_get):
+        """Falls back to boards/ directory when current/boards/ is empty."""
+        svc = _make_service()
 
-    def test_falls_back_to_boards_dir(self):
-        """Falls back to boards/ directory."""
-        from src.services.ck_boards.service import CkBoardsService
+        empty_resp = MagicMock()
+        empty_resp.status_code = 404
+        empty_resp.json.return_value = {"values": []}
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            boards_dir = os.path.join(tmpdir, "boards")
-            os.makedirs(boards_dir)
+        boards_resp = MagicMock()
+        boards_resp.status_code = 200
+        boards_resp.json.return_value = {
+            "values": [{"type": "commit_directory", "path": "boards/alpha_b0"}],
+        }
 
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                result = svc._find_boards_dir(tmpdir)
+        mock_get.side_effect = [empty_resp, boards_resp]
 
-            assert result == boards_dir
+        result = svc._find_boards_path("main")
+        assert result == "boards"
 
-    def test_falls_back_to_worktree_root(self):
-        """Falls back to worktree root when no boards directory found."""
-        from src.services.ck_boards.service import CkBoardsService
+    @patch("src.services.ck_boards.service.requests.get")
+    def test_returns_empty_when_no_boards_found(self, mock_get):
+        """Returns empty string when no boards directory found."""
+        svc = _make_service()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-                svc = CkBoardsService.__new__(CkBoardsService)
-                result = svc._find_boards_dir(tmpdir)
+        empty_resp = MagicMock()
+        empty_resp.status_code = 404
+        empty_resp.json.return_value = {"values": []}
 
-            assert result == tmpdir
+        mock_get.return_value = empty_resp
 
-
-# ---------------------------------------------------------------------------
-# CkBoardsService — _validate_ref
-# ---------------------------------------------------------------------------
-
-class TestValidateRef:
-    """Tests for CkBoardsService._validate_ref()."""
-
-    def test_valid_branch(self):
-        """Known branch passes validation."""
-        from src.services.ck_boards.service import CkBoardsService
-
-        with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-            svc = CkBoardsService.__new__(CkBoardsService)
-            svc._bare_repo = "/fake/repo.git"
-            svc._git_env = {}
-
-            with patch.object(svc, "_git_list_branches", return_value=["main", "develop"]):
-                with patch.object(svc, "_git_list_tags", return_value=[]):
-                    svc._validate_ref("main")  # Should not raise
-
-    def test_valid_tag(self):
-        """Known tag passes validation."""
-        from src.services.ck_boards.service import CkBoardsService
-
-        with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-            svc = CkBoardsService.__new__(CkBoardsService)
-            svc._bare_repo = "/fake/repo.git"
-            svc._git_env = {}
-
-            with patch.object(svc, "_git_list_branches", return_value=[]):
-                with patch.object(svc, "_git_list_tags", return_value=["v1.0"]):
-                    svc._validate_ref("v1.0")  # Should not raise
-
-    def test_unknown_ref_raises(self):
-        """Unknown ref raises ValueError."""
-        from src.services.ck_boards.service import CkBoardsService
-
-        with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
-            svc = CkBoardsService.__new__(CkBoardsService)
-            svc._bare_repo = "/fake/repo.git"
-            svc._git_env = {}
-
-            with patch.object(svc, "_git_list_branches", return_value=["main"]):
-                with patch.object(svc, "_git_list_tags", return_value=[]):
-                    with pytest.raises(ValueError, match="not found"):
-                        svc._validate_ref("nonexistent")
+        result = svc._find_boards_path("main")
+        assert result == ""
