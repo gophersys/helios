@@ -8,7 +8,7 @@
     "create-platform-builder": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/assets/buildkitd.toml ~/.docker/buildx/ && (docker buildx rm concord-builder 2>/dev/null || true) && docker buildx create --name concord-builder --driver docker-container --config .devcontainer/assets/buildkitd.toml --driver-opt network=host && docker buildx use concord-builder && docker buildx inspect --bootstrap"
+        "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/assets/buildkitd.toml ~/.docker/buildx/ && (docker buildx rm concord-builder 2>/dev/null || true) && docker buildx create --name concord-builder --driver docker-container --config .devcontainer/assets/buildkitd.toml --driver-opt network=host && docker buildx use concord-builder && docker buildx inspect --bootstrap && CERT_DIR=/usr/local/share/ca-certificates/corekinect && BUILDER=buildx_buildkit_concord-builder0 && if [ -d \"$CERT_DIR\" ] && docker inspect \"$BUILDER\" >/dev/null 2>&1; then for cert in \"$CERT_DIR\"/*.crt; do [ -f \"$cert\" ] && docker cp \"$cert\" \"$BUILDER:/tmp/$(basename $cert)\" && docker exec \"$BUILDER\" sh -c \"cat /tmp/$(basename $cert) >> /etc/ssl/certs/ca-certificates.crt && rm /tmp/$(basename $cert)\"; done; echo 'CA certs injected into buildkit'; fi"
       }
     },
     "build-all": {

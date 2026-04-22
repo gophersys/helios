@@ -1,55 +1,38 @@
 #!/bin/bash
 
-# Concord DevContainer Control Script
-# Usage: ./ctl.sh [build|push|help]
-
 set -euo pipefail
 
-# Configuration
 BUILDER_NAME="concord-builder"
 BUILDKIT_CONFIG=".devcontainer/buildkitd.toml"
 IMAGE_NAME="containers.ad.corekinect.com/concord-devcontainer-base"
 DOCKERFILE_PATH=".devcontainer/base/Dockerfile"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+log()  { echo -e "${GREEN}[devcontainer-base]${NC} $*"; }
+warn() { echo -e "${YELLOW}[devcontainer-base]${NC} $*"; }
+err()  { echo -e "${RED}[devcontainer-base]${NC} $*" >&2; }
+info() { echo -e "${CYAN}[devcontainer-base]${NC} $*"; }
 
 # Get git information for tagging
 get_git_info() {
     GIT_SHORT_COMMIT=$(git rev-parse --short HEAD)
-    log_info "Git commit: $GIT_SHORT_COMMIT"
+    info "Git commit: $GIT_SHORT_COMMIT"
 }
 
 # Create buildx builder if it doesn't exist
 create_builder() {
-    log_info "Checking for buildx builder: $BUILDER_NAME"
+    info "Checking for buildx builder: $BUILDER_NAME"
     
     if docker buildx ls | grep -q "$BUILDER_NAME"; then
-        log_success "Builder '$BUILDER_NAME' already exists"
+        log "Builder '$BUILDER_NAME' already exists"
         docker buildx use "$BUILDER_NAME"
     else
-        log_info "Creating new buildx builder: $BUILDER_NAME"
+        info "Creating new buildx builder: $BUILDER_NAME"
         
         # Ensure buildx directory exists
         mkdir -p ~/.docker/buildx
@@ -57,7 +40,7 @@ create_builder() {
         # Copy buildkit config if it exists
         if [ -f "$BUILDKIT_CONFIG" ]; then
             cp "$BUILDKIT_CONFIG" ~/.docker/buildx/
-            log_info "Copied buildkit config from $BUILDKIT_CONFIG"
+            info "Copied buildkit config from $BUILDKIT_CONFIG"
         fi
         
         # Create the builder
@@ -71,13 +54,13 @@ create_builder() {
         # Bootstrap the builder
         docker buildx inspect --bootstrap
         
-        log_success "Builder '$BUILDER_NAME' created and ready"
+        log "Builder '$BUILDER_NAME' created and ready"
     fi
 }
 
 # Build for native platform only
 build_native() {
-    log_info "Building for native platform only"
+    info "Building for native platform only"
     
     get_git_info
     create_builder
@@ -88,13 +71,13 @@ build_native() {
         --load \
         -f "$DOCKERFILE_PATH" .
 
-    log_success "Build completed successfully"
-    log_info "Images tagged as: $IMAGE_NAME:latest and $IMAGE_NAME:$GIT_SHORT_COMMIT"
+    log "Build completed successfully"
+    info "Images tagged as: $IMAGE_NAME:latest and $IMAGE_NAME:$GIT_SHORT_COMMIT"
 }
 
 # Build and push for multiple platforms
 build_and_push() {
-    log_info "Building and pushing for multiple platforms (linux/amd64,linux/arm64)"
+    info "Building and pushing for multiple platforms (linux/amd64,linux/arm64)"
     
     get_git_info
     create_builder
@@ -106,8 +89,8 @@ build_and_push() {
         --push \
         -f "$DOCKERFILE_PATH" .
 
-    log_success "Build and push completed successfully"
-    log_info "Images pushed as: $IMAGE_NAME:latest and $IMAGE_NAME:$GIT_SHORT_COMMIT"
+    log "Build and push completed successfully"
+    info "Images pushed as: $IMAGE_NAME:latest and $IMAGE_NAME:$GIT_SHORT_COMMIT"
 }
 
 # Show help
@@ -144,7 +127,7 @@ main() {
             show_help
             ;;
         *)
-            log_error "Unknown command: $1"
+            err "Unknown command: $1"
             echo ""
             show_help
             exit 1

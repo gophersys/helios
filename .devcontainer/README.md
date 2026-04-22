@@ -30,7 +30,7 @@ Then reopen in the base container via VS Code.
 ### Build all images (from inside a devcontainer)
 
 ```bash
-nx run devcontainer:create-platform-builder   # One-time: create multi-arch builder
+nx run devcontainer:create-platform-builder   # One-time: create multi-arch builder + inject CA certs
 nx run devcontainer:build-all                 # Build base → all variants (local)
 nx run devcontainer:push-all                  # Build + push to registry
 ```
@@ -38,7 +38,8 @@ nx run devcontainer:push-all                  # Build + push to registry
 Individual images:
 
 ```bash
-nx run devcontainer-base:build
+nx run devcontainer-base:build                # Build base (local, native platform)
+nx run devcontainer-base:push                 # Build + push base (amd64 + arm64)
 nx run devcontainer-mtib:build
 nx run devcontainer-ncs-v2.7.0:build
 nx run devcontainer-ncs-v3.2.1:build
@@ -55,13 +56,22 @@ After the container starts, `ctl.sh` runs preflight checks automatically. Run ma
 
 Checks: Docker socket, registry reachability + CA trust, Kubernetes cluster access.
 
+## Lifecycle
+
+| Event | Script | What it does |
+|-------|--------|-------------|
+| First open | `ctl.sh create` | Preflight, `yarn`, populate `.env` files, create buildx builder, inject CA certs |
+| Subsequent opens | `ctl.sh start` | Preflight, `yarn`, install Python deps, fix USB permissions |
+
+Both are triggered automatically by `devcontainer.json` (`postCreateCommand` / `postStartCommand`).
+
 ## File Layout
 
 ```
 .devcontainer/
 ├── ctl.sh                      Shared lifecycle script (create, start, preflight)
 ├── README.md
-├── project.json                Nx orchestrator (build-all, push-all)
+├── project.json                Nx orchestrator (build-all, push-all, create-platform-builder)
 ├── assets/
 │   └── buildkitd.toml          Buildkit config (registry TLS, multi-arch)
 ├── base/
@@ -94,7 +104,7 @@ All variants mount these from the host:
 | Mount | Target | Mode | Purpose |
 |-------|--------|------|---------|
 | `~/.kube` | `/root/.kube` | readonly | Kubernetes access |
-| `~/.ssh-devcontainer` | `/root/.ssh` | readonly | SSH keys |
+| `~/.ssh-devcontainer` | `/root/.ssh` | readonly | SSH keys (Bitbucket, Git) |
 | `~/.claude` | `/root/.claude` | read-write | Claude Code config |
 | `~/.claude` | `$HOME/.claude` | read-write | Claude Code (WSL home path) |
 | `/var/run/docker.sock` | `/var/run/docker.sock` | bind | Docker-in-Docker |
@@ -105,10 +115,10 @@ The MTIB variant additionally mounts `/sys` for USB device enumeration.
 
 ## Certificates
 
-The internal registry (`containers.ad.corekinect.com`) uses HTTPS with a private CA. Certificate handling:
+The internal registry (`containers.ad.corekinect.com`) uses HTTPS with a private CA. Certificate handling is fully automated:
 
-1. **On container start** — `ctl.sh` extracts the CA chain via TLS handshake and installs it into the system trust store
-2. **For buildkit** — `ctl.sh` injects the CA certs into the buildx builder container's trust bundle
+1. **On container create/start** — `ctl.sh` extracts the CA chain via TLS handshake and installs it into the system trust store
+2. **On builder creation** — `nx run devcontainer:create-platform-builder` creates the buildx builder and injects CA certs into the buildkit container's trust bundle
 3. **buildkitd.toml** — configures the registry as HTTPS/secure so buildkit validates the CA
 
 No manual certificate setup is needed. If the registry is unreachable, preflight warns but doesn't block.
@@ -118,3 +128,5 @@ No manual certificate setup is needed. If the registry is unreachable, preflight
 The repo-root `.env` file (from `.env.example`) provides:
 
 - `CONCORD_MONOREPO_ROOT` — host path to repo (required for Docker-in-Docker volume mounts)
+
+Service-level `.env` files are managed by the env tool (`tools/env/ctl.sh`). Run `nx setup env -c development` to populate all `.env` files from their `.env.example` templates.

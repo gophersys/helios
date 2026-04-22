@@ -19,7 +19,7 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: minio/minio:latest
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-concord}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-concordstorage!}
@@ -36,7 +36,7 @@ services:
       - "8091:8080"
     volumes:
       - pypi_packages:/data/packages
-    command: run -P /data/.htpasswd -a update /data/packages
+    command: run -a . -P . /data/packages
 
   # ══════════════════════════════════════════════════════
   # Backend services — all run in compose
@@ -154,6 +154,7 @@ services:
       DEFAULT_BUILDER_IMAGE: containers.ad.corekinect.com/ncs-fw-dev:2.7.0
       BUILDER_NETWORK: host
       BUILDER_TIMEOUT: "1800"
+      SSH_KEY_PATH: /tmp/.ssh/id_rsa
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_WORKSPACE: corekinect
       BENCH_SIGNING_KEY: ${BENCH_SIGNING_KEY:-}

@@ -26,7 +26,7 @@ Open the repo in VS Code and select a devcontainer when prompted. All developmen
 | `ncs-v3.2.1` | Nordic nRF Connect SDK v3.2.1 firmware |
 | `zephyr-v4.0` | Zephyr RTOS v4.0 firmware (vanilla, no Nordic HAL) |
 
-On first launch the container runs `ctl.sh create` which installs dependencies, sets up env files, and bootstraps the Docker buildx builder. Subsequent starts run `ctl.sh start` (installs deps only).
+On first launch the container runs `ctl.sh create` which installs dependencies, sets up env files, creates the Docker buildx builder, and injects internal CA certificates. Subsequent starts run `ctl.sh start` (installs deps, runs preflight checks).
 
 See [.devcontainer/README.md](.devcontainer/README.md) for container details, mounts, and cert management.
 
@@ -34,12 +34,13 @@ See [.devcontainer/README.md](.devcontainer/README.md) for container details, mo
 
 ```
 apps/
-  backend/        HTTP API, build service, git poller, PyPI server
-  frontend/       SvelteKit app, MkDocs site, CI dashboard
+  backend/        HTTP API, build service, git poller
+  frontend/       SvelteKit app, MkDocs docs site
+  ci/             CI dashboard (standalone SvelteKit app)
   edge/           MTIB server (gRPC, runs on Verdin iMX8MM)
-  firmware/       Product firmware (submodules)
-  manufacturing/  Manufacturing test suites
-  validation/     Validation test suites
+  firmware/       Embedded firmware (ICLE power monitor)
+  manufacturing/  Manufacturing test suites (submodules)
+  validation/     Validation test suites (submodules)
 libs/
   python/         Shared Python libraries
   protocols/      Protobuf definitions
@@ -51,7 +52,9 @@ deploy/
   ci/             CI platform (Helm chart, CronJobs, dashboard)
 infrastructure/   Cluster provisioning (namespaces, RBAC, storage, networking)
 prisma/           Database schema and migrations
-tools/            corectl CLI, env setup, scripts
+tools/
+  corectl/        corectl CLI
+  env/            Environment file manager (.env setup, validation, secrets status)
 docs/             Product documentation (MkDocs)
 tests/            Platform-level E2E, integration, and smoke tests
 ```
@@ -68,6 +71,9 @@ npx nx serve app
 # After code changes, rebuild and hot-swap containers
 nx update platform
 
+# Stop the platform
+nx stop platform
+
 # Run tests
 npx nx test http-api
 npx nx test app
@@ -78,6 +84,16 @@ npx nx typecheck app
 ```
 
 All build, test, and deploy operations go through [Nx](https://nx.dev/). See `.claude/rules/nx-workflow.md` for the full command reference.
+
+## DevContainer Images
+
+Build and push devcontainer images from inside a running devcontainer:
+
+```bash
+nx run devcontainer:create-platform-builder   # One-time: create multi-arch builder + inject CA certs
+nx run devcontainer:build-all                 # Build base → all variants (local)
+nx run devcontainer:push-all                  # Build + push all to registry
+```
 
 ## Deployment
 
