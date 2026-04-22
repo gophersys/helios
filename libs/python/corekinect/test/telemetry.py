@@ -190,7 +190,8 @@ class TelemetryStreamer:
     # ── Data ingestion ────────────────────────────────────────
 
     def push_uart(self, target_name: str, posix_us: int, line: str,
-                  target_id: Optional[str] = None) -> None:
+                  target_id: Optional[str] = None,
+                  slot_index: Optional[int] = None) -> None:
         """Push a UART line (called by UartDemuxer.on_line callback).
 
         Args:
@@ -198,6 +199,7 @@ class TelemetryStreamer:
             posix_us: Timestamp in microseconds
             line: UART line content
             target_id: RunTarget ID for per-slot routing in multi-slot runs
+            slot_index: Slot index for fallback routing when targetId is unavailable
         """
         t = posix_us / 1_000_000
         channel = self._channel_name("uart", target_name)
@@ -215,6 +217,8 @@ class TelemetryStreamer:
         }
         if target_id:
             ws_sample["targetId"] = target_id
+        if slot_index is not None:
+            ws_sample["slotIndex"] = slot_index
 
         self._push_to_channel(channel, channel_sample, "text")
         self._push_to_ws(ws_sample)
@@ -222,11 +226,13 @@ class TelemetryStreamer:
         self._total_samples += 1
 
     def push_power(self, timestamp_s: float, current_ma: float, voltage_mv: float,
-                   target_id: Optional[str] = None) -> None:
+                   target_id: Optional[str] = None,
+                   slot_index: Optional[int] = None) -> None:
         """Push a power measurement sample.
 
         Args:
             target_id: RunTarget ID for per-slot routing in multi-slot runs
+            slot_index: Slot index for fallback routing when targetId is unavailable
         """
         mA = round(current_ma, 2)
         mV = round(voltage_mv, 1)
@@ -241,6 +247,8 @@ class TelemetryStreamer:
         }
         if target_id:
             ws_sample["targetId"] = target_id
+        if slot_index is not None:
+            ws_sample["slotIndex"] = slot_index
 
         self._push_to_channel("power", channel_sample, "timeseries", unit="mA")
         self._push_to_ws(ws_sample)
@@ -249,7 +257,8 @@ class TelemetryStreamer:
 
     def push(self, sample_type: str, data: Dict[str, Any],
              target: Optional[str] = None,
-             target_id: Optional[str] = None) -> None:
+             target_id: Optional[str] = None,
+             slot_index: Optional[int] = None) -> None:
         """Push a generic telemetry sample. Channel is auto-created on first push.
 
         Args:
@@ -257,6 +266,7 @@ class TelemetryStreamer:
             data: Payload dict (don't include "t" -- added automatically).
             target: Optional sub-target (e.g., "ch0" for ADC channels).
             target_id: RunTarget ID for per-slot routing in multi-slot runs.
+            slot_index: Slot index for fallback routing when targetId is unavailable.
         """
         t = time.time()
         channel = self._channel_name(sample_type, target)
@@ -272,6 +282,8 @@ class TelemetryStreamer:
             ws_sample["target"] = target
         if target_id:
             ws_sample["targetId"] = target_id
+        if slot_index is not None:
+            ws_sample["slotIndex"] = slot_index
 
         # Infer channel type from data shape
         ch_type = "timeseries"

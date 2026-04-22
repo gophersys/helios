@@ -108,9 +108,10 @@ class SlotTestContext:
         # Wire UART to telemetry for live streaming, including target_id for routing
         if self.uart and self.telemetry:
             tid = self.target_id
+            sidx = self.slot.slot_index
 
             def _push_uart_with_target(target_name: str, posix_us: int, line: str) -> None:
-                self.telemetry.push_uart(target_name, posix_us, line, target_id=tid)
+                self.telemetry.push_uart(target_name, posix_us, line, target_id=tid, slot_index=sidx)
 
             self.uart.on_line = _push_uart_with_target
 
@@ -178,6 +179,7 @@ class SlotTestContext:
         from corekinect.mtib_client.v1.client.types import PowerChannel
 
         tid = self.target_id
+        sidx = self.slot.slot_index
 
         while not self._power_poll_stop.wait(0.5):
             try:
@@ -187,7 +189,7 @@ class SlotTestContext:
                     if self.telemetry:
                         self.telemetry.push_power(
                             ts, ch0.current_ma, ch0.voltage_v * 1000,
-                            target_id=tid,
+                            target_id=tid, slot_index=sidx,
                         )
 
                 ch1, err1 = self.slot.mtib.PowerRead(channel=PowerChannel.CHARGER)
@@ -195,7 +197,7 @@ class SlotTestContext:
                     self.telemetry.push(
                         "power_chg",
                         {"mA": round(ch1.current_ma, 2), "mV": round(ch1.voltage_v * 1000, 1)},
-                        target_id=tid,
+                        target_id=tid, slot_index=sidx,
                     )
             except Exception as exc:
                 log.debug("Slot %s power poll error: %s", self.slot.slot_id, exc)

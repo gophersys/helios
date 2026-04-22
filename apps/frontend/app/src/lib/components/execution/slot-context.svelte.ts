@@ -433,26 +433,39 @@ export class SlotContext {
   }
 
   handleLogChunk(data: { file?: string; data?: string; lines?: string[] }): void {
-    // Determine target: app vs comms based on file path
+    // In multi-slot runs, UART data arrives via the telemetry path (handleTelemetry
+    // with type=uart), properly routed by targetId/slotIndex. Log chunks are pytest
+    // stdout capture and would duplicate UART content already delivered via telemetry.
+    // Skip UART panel injection when telemetry is active (indicated by having received
+    // any UART lines from telemetry).
+    if (this.uartAppLines.length > 0 || this.uartCommsLines.length > 0 ||
+        this._uartAppPending.length > 0 || this._uartCommsPending.length > 0) {
+      return;
+    }
+
     const file = data.file || '';
     const isComms = file.includes('comms') || file.includes('uart1') || file.includes('9151');
 
+    let lines: string[] = [];
     if (data.lines) {
-      if (isComms) {
-        this._uartCommsPending.push(...data.lines);
-      } else {
-        this._uartAppPending.push(...data.lines);
-      }
+      lines = data.lines;
     } else if (data.data) {
-      const lines = data.data.split('\n').filter(l => l.length > 0);
+      try {
+        const decoded = atob(data.data);
+        lines = decoded.split('\n').filter(l => l.length > 0);
+      } catch {
+        lines = data.data.split('\n').filter(l => l.length > 0);
+      }
+    }
+
+    if (lines.length > 0) {
       if (isComms) {
         this._uartCommsPending.push(...lines);
       } else {
         this._uartAppPending.push(...lines);
       }
+      this._scheduleFlush();
     }
-
-    this._scheduleFlush();
   }
 
   handleTelemetry(data: { samples?: Array<Record<string, unknown>> }): void {

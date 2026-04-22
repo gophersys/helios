@@ -333,35 +333,41 @@ export class RunExecutionContext {
           }
         },
         onTelemetry: (data: TelemetryEvent) => {
-          // Route telemetry samples by targetId for per-slot power/UART
+          // Route telemetry samples by targetId (or slotIndex fallback) for per-slot power/UART
           if (data.samples && this.slots.length > 1) {
-            // Group samples by targetId for multi-slot routing
             const byTarget = new Map<string, Array<Record<string, unknown>>>();
+            const bySlotIdx = new Map<number, Array<Record<string, unknown>>>();
             const unrouted: Array<Record<string, unknown>> = [];
 
             for (const sample of data.samples) {
-              const tid = (sample as Record<string, unknown>).targetId as string | undefined;
+              const s = sample as Record<string, unknown>;
+              const tid = s.targetId as string | undefined;
+              const sidx = s.slotIndex as number | undefined;
               if (tid) {
                 if (!byTarget.has(tid)) byTarget.set(tid, []);
-                byTarget.get(tid)!.push(sample as Record<string, unknown>);
+                byTarget.get(tid)!.push(s);
+              } else if (sidx !== undefined) {
+                if (!bySlotIdx.has(sidx)) bySlotIdx.set(sidx, []);
+                bySlotIdx.get(sidx)!.push(s);
               } else {
-                unrouted.push(sample as Record<string, unknown>);
+                unrouted.push(s);
               }
             }
 
-            // Deliver per-target batches to correct slots
             for (const [tid, samples] of byTarget) {
               const slot = this.slots.find(s => s.targetId === tid);
               if (slot) slot.handleTelemetry({ ...data, samples: samples as TelemetryEvent['samples'] });
             }
+            for (const [idx, samples] of bySlotIdx) {
+              const slot = this.slots.find(s => s.slotIndex === idx);
+              if (slot) slot.handleTelemetry({ ...data, samples: samples as TelemetryEvent['samples'] });
+            }
 
-            // Unrouted samples go to active slot (backward compat / single-slot)
             if (unrouted.length > 0) {
               const slot = this.activeSlot;
               if (slot) slot.handleTelemetry({ ...data, samples: unrouted as TelemetryEvent['samples'] });
             }
           } else {
-            // Single-slot: all samples to the only slot
             const slot = this._findSlotByTelemetry(data) || this.activeSlot;
             if (slot) slot.handleTelemetry(data);
           }

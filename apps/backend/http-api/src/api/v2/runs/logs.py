@@ -201,16 +201,33 @@ def report_log_chunk(run_id: str):
     # Schedule periodic flush to MinIO
     _schedule_flush()
 
+    # Resolve targetId and slotIndex from deviceSerial for per-slot WebSocket routing
+    target_id = None
+    slot_index = None
+    if data.device_serial:
+        db = get_db_client()
+        target = db.runtarget.find_first(
+            where={"runId": run_id, "serialNumber": data.device_serial},
+        )
+        if target:
+            target_id = target.id
+            slot_index = target.slotIndex
+
     # Broadcast to WebSocket subscribers immediately
     from .ws import emit_to_run
-    emit_to_run("run_log_chunk", {
+    ws_payload = {
         "runId": run_id,
         "file": data.file,
         "offset": data.offset,
-        "data": data.data,  # Keep as base64 for transport
+        "data": data.data,
         "testName": data.test_name,
         "timestamp": data.timestamp,
-    }, run_id)
+    }
+    if target_id:
+        ws_payload["targetId"] = target_id
+    if slot_index is not None:
+        ws_payload["slotIndex"] = slot_index
+    emit_to_run("run_log_chunk", ws_payload, run_id)
 
     logger.debug(f"Log chunk received for run {run_id}: {data.file} +{len(chunk_bytes)} bytes at offset {data.offset}")
     return jsonify(ApiResponse.ok({"received": True}).to_dict()), 200

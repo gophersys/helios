@@ -54,6 +54,7 @@ def _save_device_info(client, device_id, base64_key, imei, iccids, snr) -> Optio
     """Upload device keys and SIM info via CoreOps client."""
     try:
         client.upload_public_key(device_id, base64_key)
+        log.info("Public key uploaded for device %s", device_id)
 
         for iccid in iccids:
             carrier = ""
@@ -64,8 +65,10 @@ def _save_device_info(client, device_id, base64_key, imei, iccids, snr) -> Optio
             if not carrier:
                 return f"Unknown carrier for ICCID {iccid}"
             client.save_iccid(iccid=iccid, carrier=carrier, snr=snr, imei=imei)
+            log.info("ICCID %s saved (carrier=%s, snr=%s)", iccid, carrier, snr)
         return None
     except Exception as e:
+        log.error("CoreOps upload failed: %s", e)
         return str(e)
 
 
@@ -194,6 +197,8 @@ def test_08_imei_iccid(device_identity, report):
             assert not iccid_err, f"ICCID validation failed for {iccid}: {iccid_err}"
 
         step.record("imei", device_identity.imei)
+        for i, iccid in enumerate(device_identity.iccids):
+            step.record(f"iccid_{i}", iccid)
         step.record("iccid_count", len(device_identity.iccids))
         log.info("IMEI=%s, ICCIDs=%s", device_identity.imei, device_identity.iccids)
 
@@ -232,8 +237,8 @@ def test_10_personalize(booted_device, device_identity, config, report):
         keys, err = booted_device.comms_shell.personalize(device_id)
         assert err is None, f"Personalization failed: {err}"
         assert keys.base64_key, "Personalization returned empty public key"
-        step.record("has_public_key", True)
-        log.info("Device personalized, public key: %s...", keys.base64_key[:20])
+        step.record("public_key", keys.base64_key)
+        log.info("Device personalized, public key: %s", keys.base64_key)
 
         err = _save_device_info(
             client, device_id, keys.base64_key,

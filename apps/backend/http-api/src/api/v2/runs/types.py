@@ -267,6 +267,7 @@ class ReportLogChunkRequest:
     data: str  # base64 encoded
     test_name: Optional[str] = None
     timestamp: Optional[int] = None
+    device_serial: Optional[str] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportLogChunkRequest"], Optional[str]]:
@@ -303,12 +304,17 @@ class ReportLogChunkRequest:
                 return None, "timestamp must be a number"
             timestamp = int(timestamp)
 
+        device_serial = data.get("deviceSerial")
+        if device_serial is not None:
+            device_serial = str(device_serial).strip() or None
+
         return cls(
             file=file,
             offset=offset,
             data=chunk_data,
             test_name=test_name,
             timestamp=timestamp,
+            device_serial=device_serial,
         ), None
 
 

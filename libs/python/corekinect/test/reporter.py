@@ -369,8 +369,9 @@ class ConcordReporter:
         # data that gets merged into the execution-result payload.
         self.execution_measurements: Dict[str, Any] = {}
 
-        # Live log streaming state.
-        self._log_buffer: str = ""
+        # Live log streaming state — per-device buffers so multi-slot
+        # runs send correctly attributed log chunks.
+        self._log_buffers: Dict[Optional[str], str] = {}
         self._log_buffer_lock = threading.Lock()
         self._log_offsets: Dict[str, int] = {}
         self._flush_thread: Optional[threading.Thread] = None
@@ -542,59 +543,56 @@ class ConcordReporter:
 
     def _on_output(self, data: str) -> None:
         """Callback for captured stdout/stderr writes."""
+        device_serial = getattr(self._tls, "current_device_for_logs", None)
         with self._log_buffer_lock:
-            self._log_buffer += data
+            prev = self._log_buffers.get(device_serial, "")
+            self._log_buffers[device_serial] = prev + data
             nodeid = getattr(self._tls, "current_test_nodeid", None)
             if nodeid:
                 prev = self._test_output.get(nodeid, "")
                 self._test_output[nodeid] = prev + data
 
     def _flush_log_buffer(self) -> None:
-        """Drain the log buffer and POST a base64 chunk.
+        """Drain per-device log buffers and POST a base64 chunk for each.
 
-        Log chunks are session/file-level: the backend demuxes by
-        ``file`` path (per-slot if a device serial is known), not by
-        ``slotIndex``. No :meth:`_emit` here.
+        Each device serial gets its own chunk so the backend can
+        attribute log output to the correct RunTarget and the frontend
+        routes it to the right slot panel.
         """
         with self._log_buffer_lock:
-            if not self._log_buffer:
+            if not self._log_buffers:
                 return
-            data = self._log_buffer
-            self._log_buffer = ""
-            test_name = getattr(self._tls, "current_test_name", None)
-            step_index = getattr(self._tls, "current_step_index", None)
-            device_serial = getattr(self._tls, "current_device_for_logs", None)
+            snapshot = dict(self._log_buffers)
+            self._log_buffers.clear()
 
-        try:
-            encoded = base64.b64encode(
-                data.encode("utf-8", errors="replace")
-            ).decode("ascii")
-            # Per-slot log routing: if a serial is known, file under it;
-            # single-slot runs keep the legacy ``output.log`` name.
-            log_file = f"{device_serial}/output.log" if device_serial else "output.log"
-            offset_key = device_serial or "__default__"
-            current_offset = self._log_offsets.get(offset_key, 0)
+        now_ms = int(time.time() * 1000)
+        for device_serial, data in snapshot.items():
+            if not data:
+                continue
+            try:
+                encoded = base64.b64encode(
+                    data.encode("utf-8", errors="replace")
+                ).decode("ascii")
+                log_file = f"{device_serial}/output.log" if device_serial else "output.log"
+                offset_key = device_serial or "__default__"
+                current_offset = self._log_offsets.get(offset_key, 0)
 
-            payload: Dict[str, Any] = {
-                "file": log_file,
-                "offset": current_offset,
-                "data": encoded,
-                "testName": test_name,
-                "timestamp": int(time.time() * 1000),
-            }
-            if step_index is not None:
-                payload["stepIndex"] = step_index
-            if device_serial is not None:
-                payload["deviceSerial"] = device_serial
-            self._log_offsets[offset_key] = current_offset + len(
-                data.encode("utf-8", errors="replace")
-            )
-            # Strip None values for the same reason _emit does.
-            payload = {k: v for k, v in payload.items() if v is not None}
-            if self.enabled:
-                self._post("report/log-chunk", payload)
-        except Exception as exc:
-            log.warning("ConcordReporter: log flush failed: %s", exc)
+                payload: Dict[str, Any] = {
+                    "file": log_file,
+                    "offset": current_offset,
+                    "data": encoded,
+                    "timestamp": now_ms,
+                }
+                if device_serial is not None:
+                    payload["deviceSerial"] = device_serial
+                self._log_offsets[offset_key] = current_offset + len(
+                    data.encode("utf-8", errors="replace")
+                )
+                payload = {k: v for k, v in payload.items() if v is not None}
+                if self.enabled:
+                    self._post("report/log-chunk", payload)
+            except Exception as exc:
+                log.warning("ConcordReporter: log flush failed: %s", exc)
 
     def _flush_loop(self) -> None:
         """Background flush thread."""

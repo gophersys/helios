@@ -292,24 +292,34 @@
             if (slot) slot.handleTestResult(data);
           },
           onLogChunk: (data) => {
-            const slot = _findSlotByTargetId(data.targetId);
+            const slot = _findSlotByTargetId(data.targetId, data.slotIndex);
             if (slot) slot.handleLogChunk(data);
           },
           onTelemetry: (data) => {
             if (data.samples && detailSlots.length > 1) {
               const byTarget = new Map<string, Array<Record<string, unknown>>>();
+              const bySlotIdx = new Map<number, Array<Record<string, unknown>>>();
               const unrouted: Array<Record<string, unknown>> = [];
               for (const sample of data.samples) {
-                const tid = (sample as Record<string, unknown>).targetId as string | undefined;
+                const s = sample as Record<string, unknown>;
+                const tid = s.targetId as string | undefined;
+                const sidx = s.slotIndex as number | undefined;
                 if (tid) {
                   if (!byTarget.has(tid)) byTarget.set(tid, []);
-                  byTarget.get(tid)!.push(sample as Record<string, unknown>);
+                  byTarget.get(tid)!.push(s);
+                } else if (sidx !== undefined) {
+                  if (!bySlotIdx.has(sidx)) bySlotIdx.set(sidx, []);
+                  bySlotIdx.get(sidx)!.push(s);
                 } else {
-                  unrouted.push(sample as Record<string, unknown>);
+                  unrouted.push(s);
                 }
               }
               for (const [tid, samples] of byTarget) {
                 const slot = detailSlots.find(s => s.targetId === tid);
+                if (slot) slot.handleTelemetry({ ...data, samples: samples as typeof data.samples });
+              }
+              for (const [idx, samples] of bySlotIdx) {
+                const slot = detailSlots.find(s => s.slotIndex === idx);
                 if (slot) slot.handleTelemetry({ ...data, samples: samples as typeof data.samples });
               }
               if (unrouted.length > 0 && activeSlot) {
@@ -346,9 +356,16 @@
     detailActiveSlot = 0;
   }
 
-  function _findSlotByTargetId(targetId?: string): SlotContext | undefined {
-    if (!targetId) return detailSlots[detailActiveSlot];
-    return detailSlots.find(s => s.targetId === targetId) || detailSlots[detailActiveSlot];
+  function _findSlotByTargetId(targetId?: string, slotIndex?: number): SlotContext | undefined {
+    if (targetId) {
+      const slot = detailSlots.find(s => s.targetId === targetId);
+      if (slot) return slot;
+    }
+    if (slotIndex !== undefined) {
+      const slot = detailSlots.find(s => s.slotIndex === slotIndex);
+      if (slot) return slot;
+    }
+    return detailSlots[detailActiveSlot];
   }
 
   // ── Panel/standalone click handlers ────────────────────────
@@ -616,15 +633,17 @@
         onSelect={(idx) => { detailActiveSlot = idx; }}
       />
 
-      <SlotExecutionView
-        slot={activeSlot}
-        productName={detailProductName}
-        boardRevision={detailBoardRevision}
-        firmwareVersion={detailFirmwareVersion}
-        slotLabel={`Slot ${activeSlot.slotIndex + 1}`}
-        socLabels={detailSocLabels}
-        isLive={!activeSlot.liveFinished}
-      />
+      {#key activeSlot.targetId}
+        <SlotExecutionView
+          slot={activeSlot}
+          productName={detailProductName}
+          boardRevision={detailBoardRevision}
+          firmwareVersion={detailFirmwareVersion}
+          slotLabel={`Slot ${activeSlot.slotIndex + 1}`}
+          socLabels={detailSocLabels}
+          isLive={!activeSlot.liveFinished}
+        />
+      {/key}
 
     <!-- ── Session View ──────────────────────────────────── -->
     {:else}

@@ -622,7 +622,9 @@ def test_log_buffer_no_lost_writes_under_concurrency() -> None:
         futs = [pool.submit(write, f"t{i}") for i in range(n_threads)]
         for f in as_completed(futs):
             f.result()
-    lines = [ln for ln in r._log_buffer.split("\n") if ln]
+    # _log_buffers is keyed by device_serial (None when TLS hint unset)
+    all_data = "".join(r._log_buffers.values())
+    lines = [ln for ln in all_data.split("\n") if ln]
     assert len(lines) == n_threads * per
 
 

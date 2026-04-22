@@ -405,6 +405,7 @@ export interface RunLogChunkEvent {
   chunk?: string; // raw text (alternative to base64)
   timestamp: number;
   targetId?: string;
+  slotIndex?: number;
 }
 
 export interface TelemetrySample {
