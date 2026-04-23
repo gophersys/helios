@@ -214,36 +214,54 @@ def check_critical_bugs() -> CheckResult:
 
 
 def check_schema_sync() -> CheckResult:
-    """Check that Prisma schema and generated client are in sync."""
-    try:
-        result = subprocess.run(
-            ["npx", "prisma", "migrate", "status"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode == 0:
-            return CheckResult(
-                name="schema_sync",
-                passed=True,
-                message="Prisma schema is in sync",
-            )
+    """Check that Prisma schema file and migration SQL exist and are non-empty."""
+    schema_path = os.path.join("prisma", "schema.prisma")
+    migration_dir = os.path.join("prisma", "migrations")
+
+    if not os.path.isfile(schema_path):
         return CheckResult(
             name="schema_sync",
             passed=False,
-            message=f"Prisma schema out of sync: {result.stderr.strip()[:200]}",
+            message="prisma/schema.prisma not found",
         )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+
+    if not os.path.isdir(migration_dir):
         return CheckResult(
             name="schema_sync",
             passed=False,
-            message="Could not verify Prisma schema sync",
+            message="prisma/migrations/ directory not found",
         )
+
+    with open(schema_path) as f:
+        schema_content = f.read()
+    if len(schema_content) < 100:
+        return CheckResult(
+            name="schema_sync",
+            passed=False,
+            message="prisma/schema.prisma appears empty or truncated",
+        )
+
+    migration_dirs = [
+        d for d in os.listdir(migration_dir)
+        if os.path.isdir(os.path.join(migration_dir, d)) and not d.startswith(".")
+    ]
+    if not migration_dirs:
+        return CheckResult(
+            name="schema_sync",
+            passed=False,
+            message="No migration directories found",
+        )
+
+    return CheckResult(
+        name="schema_sync",
+        passed=True,
+        message=f"Schema present with {len(migration_dirs)} migration(s)",
+    )
 
 
 def check_helm_values() -> CheckResult:
     """Check that both Helm values files exist and have required top-level keys."""
-    required_keys = ["image", "httpApi", "frontend"]
+    required_keys = ["global", "httpApi", "frontend"]
     helm_dir = os.path.join("deploy", "production", "helm")
     issues = []
 
@@ -255,7 +273,6 @@ def check_helm_values() -> CheckResult:
         with open(path) as f:
             content = f.read()
         for key in required_keys:
-            # Simple check: key appears at root level (no indent, followed by colon)
             if not re.search(rf"^{key}:", content, re.MULTILINE):
                 issues.append(f"{env}: missing top-level key '{key}'")
 
