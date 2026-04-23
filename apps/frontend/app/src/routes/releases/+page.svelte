@@ -17,6 +17,7 @@
     User,
     Bot,
   } from 'lucide-svelte';
+  import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch } from '$lib/api';
   import type { PlatformRelease, Pagination, ErrorReportSummary, ReleaseTestSuite } from '$lib/types/models';
@@ -50,10 +51,6 @@
     { value: 'RELEASED', label: 'Released' },
     { value: 'ROLLED_BACK', label: 'Rolled Back' },
   ];
-
-  const currentRelease = $derived(
-    releases.find(r => r.status === 'RELEASED')
-  );
 
   function gateIcon(gateStatus: string | null): typeof CheckCircle2 {
     if (gateStatus === 'passed') return CheckCircle2;
@@ -203,12 +200,12 @@
         <h1 class="text-xl font-semibold text-text-primary">Releases</h1>
         <p class="mt-1 text-sm text-text-secondary">Platform release history and version tracking</p>
       </div>
-      {#if currentRelease}
+      {#if PUBLIC_APP_VERSION}
         <div class="flex items-center gap-2">
-          <span class="text-2xs text-text-tertiary">Current</span>
+          <span class="text-2xs text-text-tertiary">Running</span>
           <span class="inline-flex items-center gap-1.5 rounded-full bg-success-muted px-3 py-1 text-sm font-semibold text-success">
             <Tag size={14} />
-            v{currentRelease.version}
+            v{PUBLIC_APP_VERSION}
           </span>
         </div>
       {/if}

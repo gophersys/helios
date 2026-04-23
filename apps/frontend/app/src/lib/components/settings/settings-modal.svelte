@@ -7,6 +7,7 @@
   import { api } from '$lib/api';
 
   // Internal imports
+  import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { getTheme } from '$lib/stores/theme.svelte';
   import { apiFetch } from '$lib/api';
@@ -609,14 +610,14 @@
           <!-- System Section -->
 
           <!-- Version header -->
-          {#if backendInfo || frontendInfo}
+          {#if PUBLIC_APP_VERSION || backendInfo || frontendInfo}
             {@const info = backendInfo || frontendInfo}
             <div class="mb-4 rounded-lg border border-border-subtle bg-surface-1 px-4 py-4">
               <div class="flex items-center justify-between">
                 <div>
                   <div class="text-lg font-semibold text-text-primary tracking-tight">
                     Concord
-                    <span class="text-accent">v{info?.version || 'dev'}</span>
+                    <span class="text-accent">v{PUBLIC_APP_VERSION || 'dev'}</span>
                   </div>
                   <div class="mt-0.5 text-2xs text-text-tertiary">
                     {info?.environment || 'unknown'} environment
