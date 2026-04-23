@@ -31,7 +31,7 @@ from src.services.scheduling.scheduler import start_scheduler
 from src.services.storage.client import init_storage_client, close_storage_client
 from src.services.devices.mtib_observability import init_observability_service, get_observability_service
 
-from services.notifications.notifier import init_socketio
+from src.services.notifications.notifier import init_socketio
 
 # -------------------------------------------------
 #                                            Server

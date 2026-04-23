@@ -18,7 +18,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
-from services.builds.notifier import notify_build_service
+from src.services.builds.notifier import notify_build_service
 from src.services.builds.run_service import check_build_run_completion
 from src.services.database.prisma import get_db_client
 from src.services.scheduling.queue_scheduler import wake_scheduler

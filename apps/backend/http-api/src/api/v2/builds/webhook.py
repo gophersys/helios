@@ -13,7 +13,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error, unauthorized
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
-from services.builds.notifier import notify_build_service
+from src.services.builds.notifier import notify_build_service
 from src.services.integrations.webhook_trigger import RepoEvent, handle_repo_event
 from src.services.database.prisma import get_db_client
 
