@@ -66,9 +66,11 @@ timer_end() {
 # Shared helpers
 # ═════════════════════════════════════════════════════════════════
 
-# Git metadata — works in standalone clones and inside containers where .git
-# may be an unresolvable submodule pointer.  Falls back to .git-build-info
-# written by the devcontainer initializeCommand (runs on the host).
+# Git metadata — works in standalone clones and inside containers.
+# In standalone clones, git works directly. In submodule workspaces where the
+# parent .git/modules isn't mounted, falls back to .git-build-info (a 3-line
+# file: commit, branch, dirty). The caller is responsible for refreshing that
+# file before invoking ctl.sh if git isn't available inside the container.
 _git_info_file="${SCRIPT_DIR}/../.git-build-info"
 
 _git_commit() {
@@ -192,21 +194,23 @@ cmd_build() {
 
   info "  commit=${GIT_COMMIT} branch=${GIT_BRANCH} dirty=${GIT_DIRTY}"
 
+  local pids=()
+  local names=()
+  local failed=0
+
   for target in "${targets[@]}"; do
     case "${target}" in
       api|http-api|backend)
-        timer_start
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
           --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/http-api/deploy/Dockerfile \
           --tag "${REGISTRY_API}:${env}" \
-          --load . > "${build_redirect}" 2>&1
-        timer_end "API build"
+          --load . > "${build_redirect}" 2>&1 &
+        pids+=($!); names+=("API")
         ;;
       frontend|fe|app|ui)
-        timer_start
         docker buildx build \
           --build-arg PUBLIC_APP_ENVIRONMENT="${env}" \
           --build-arg PUBLIC_APP_VERSION="${version}" \
@@ -214,22 +218,20 @@ cmd_build() {
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/frontend/app/deploy/Dockerfile \
           --tag "${REGISTRY_FRONTEND}:${env}" \
-          --load . > "${build_redirect}" 2>&1
-        timer_end "Frontend build"
+          --load . > "${build_redirect}" 2>&1 &
+        pids+=($!); names+=("Frontend")
         ;;
       git-poller|poller)
-        timer_start
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
           --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/git-poller/deploy/Dockerfile \
           --tag "${REGISTRY_GIT_POLLER}:${env}" \
-          --load . > "${build_redirect}" 2>&1
-        timer_end "Git-poller build"
+          --load . > "${build_redirect}" 2>&1 &
+        pids+=($!); names+=("Git-poller")
         ;;
       runner|test-runner)
-        timer_start
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
           --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
@@ -237,27 +239,25 @@ cmd_build() {
           --file deploy/runner/Dockerfile \
           --tag "${REGISTRY_TEST_RUNNER}:${env}" \
           --tag "${REGISTRY_TEST_RUNNER}:${env}-${GIT_COMMIT}" \
-          --load . > "${build_redirect}" 2>&1
-        timer_end "Test runner build"
+          --load . > "${build_redirect}" 2>&1 &
+        pids+=($!); names+=("Test runner")
         ;;
       build-service)
-        timer_start
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
           --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/build-service/deploy/Dockerfile \
           --tag "${REGISTRY_BUILD_SERVICE}:${env}" \
-          --load . > "${build_redirect}" 2>&1
-        timer_end "Build-service build"
+          --load . > "${build_redirect}" 2>&1 &
+        pids+=($!); names+=("Build-service")
         ;;
       docs)
-        timer_start
         docker buildx build \
           --file apps/frontend/docs/deploy/Dockerfile \
           --tag "${REGISTRY_DOCS}:${env}" \
-          --load . > "${build_redirect}" 2>&1
-        timer_end "Docs build"
+          --load . > "${build_redirect}" 2>&1 &
+        pids+=($!); names+=("Docs")
         ;;
       *)
         err "Unknown build target: ${target}"
@@ -266,6 +266,22 @@ cmd_build() {
         ;;
     esac
   done
+
+  timer_start
+  for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then
+      info "  ✓ ${names[$i]}"
+    else
+      err "  ✗ ${names[$i]} failed"
+      failed=1
+    fi
+  done
+  timer_end "Parallel build (${#pids[@]} images)"
+
+  if [[ $failed -ne 0 ]]; then
+    err "One or more builds failed"
+    exit 1
+  fi
   log "Build complete."
 }
 
@@ -278,32 +294,38 @@ _push_images() {
   shift
   local targets=("$@")
 
+  local pids=()
+
   if command -v k3s &>/dev/null; then
     log "Importing images into K3s..."
+    timer_start
     for target in "${targets[@]}"; do
       case "${target}" in
-        api|http-api|backend)     docker save "${REGISTRY_API}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
-        frontend|fe|app|ui)       docker save "${REGISTRY_FRONTEND}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
-        git-poller|poller)        docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
-        runner|test-runner)       docker save "${REGISTRY_TEST_RUNNER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
-        build-service)            docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
-        docs)                     docker save "${REGISTRY_DOCS}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
+        api|http-api|backend)     (docker save "${REGISTRY_API}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
+        frontend|fe|app|ui)       (docker save "${REGISTRY_FRONTEND}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
+        git-poller|poller)        (docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
+        runner|test-runner)       (docker save "${REGISTRY_TEST_RUNNER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
+        build-service)            (docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
+        docs)                     (docker save "${REGISTRY_DOCS}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
       esac
     done
+    wait "${pids[@]}" 2>/dev/null
+    timer_end "K3s import (${#pids[@]} images)"
   else
     log "Pushing images to registry..."
     timer_start
     for target in "${targets[@]}"; do
       case "${target}" in
-        api|http-api|backend)     docker push "${REGISTRY_API}:${env}" > /dev/null 2>&1 || true ;;
-        frontend|fe|app|ui)       docker push "${REGISTRY_FRONTEND}:${env}" > /dev/null 2>&1 || true ;;
-        git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null 2>&1 || true ;;
-        runner|test-runner)       docker push "${REGISTRY_TEST_RUNNER}:${env}" > /dev/null 2>&1 || true ;;
-        build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null 2>&1 || true ;;
-        docs)                     docker push "${REGISTRY_DOCS}:${env}" > /dev/null 2>&1 || true ;;
+        api|http-api|backend)     docker push "${REGISTRY_API}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
+        frontend|fe|app|ui)       docker push "${REGISTRY_FRONTEND}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
+        git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
+        runner|test-runner)       docker push "${REGISTRY_TEST_RUNNER}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
+        build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
+        docs)                     docker push "${REGISTRY_DOCS}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
       esac
     done
-    timer_end "Push"
+    wait "${pids[@]}" 2>/dev/null
+    timer_end "Push (${#pids[@]} images)"
   fi
 }
 
