@@ -222,8 +222,7 @@
       <ErrorAlert message={error} />
     {:else if releases.length === 0}
       <EmptyState
-        title="No releases"
-        description={hasActiveFilters ? 'No releases match the current filters.' : 'No releases have been created yet.'}
+        message={hasActiveFilters ? 'No releases match the current filters.' : 'No releases have been created yet.'}
       />
     {:else}
       <div class="space-y-3">
@@ -423,10 +422,10 @@
                         </div>
                       {/if}
                       {#if release.gateStatus}
+                        {@const GateIcon = gateIcon(release.gateStatus)}
                         <div>
                           <div class="text-2xs text-text-tertiary">Gate</div>
                           <div class="mt-0.5 flex items-center gap-1 {gateColor(release.gateStatus)}">
-                            {@const GateIcon = gateIcon(release.gateStatus)}
                             <GateIcon size={14} />
                             <span class="font-medium">{gateLabel(release.gateStatus)}</span>
                           </div>

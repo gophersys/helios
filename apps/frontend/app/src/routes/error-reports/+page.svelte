@@ -216,8 +216,7 @@
       <ErrorAlert message={error} />
     {:else if reports.length === 0}
       <EmptyState
-        title="No error reports"
-        description={hasActiveFilters ? 'No reports match the current filters.' : 'No error reports have been submitted yet.'}
+        message={hasActiveFilters ? 'No reports match the current filters.' : 'No error reports have been submitted yet.'}
       />
     {:else}
       <div class="space-y-2">
