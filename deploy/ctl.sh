@@ -96,16 +96,16 @@ _git_describe() {
 }
 
 get_version() {
-  local tag
-  tag=$(_git_describe)
-  if [[ -n "${tag}" ]]; then
-    echo "${tag}"
-  else
-    local pkg_version sha
-    pkg_version=$(node -p "require('./apps/frontend/app/package.json').version" 2>/dev/null || echo "0.0.1")
-    sha=$(_git_commit)
-    echo "${pkg_version}-${sha}"
-  fi
+    local version_file="${REPO_ROOT}/VERSION"
+    local sha
+    sha=$(git rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
+    if [[ -f "$version_file" ]]; then
+        local ver
+        ver=$(cat "$version_file" | tr -d '[:space:]')
+        echo "${ver}-${sha}"
+    else
+        echo "0.0.1-${sha}"
+    fi
 }
 
 _preflight() {

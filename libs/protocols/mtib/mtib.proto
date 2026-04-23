@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "bitbucket.org/corekinect/concord/libs/protocols/mtib";
 
-package mtib;
+package mtib.v1;
 
 // This is the main interface used to access all the functionality built
 // into the MTIB hardware.
