@@ -19,6 +19,7 @@
     BookOpen,
     Bug,
     AlertTriangle,
+    Tag,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION, PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -28,6 +29,7 @@
 
   import ConcordLogo from '$lib/components/concord-logo.svelte';
   import KubernetesIcon from '$lib/components/icons/kubernetes-icon.svelte';
+  import NotificationBell from '$lib/components/ui/notification-bell.svelte';
 
   // Environment display
   const appEnv = PUBLIC_APP_ENVIRONMENT || 'development';
@@ -80,6 +82,7 @@
     { to: '/validation', icon: FlaskConical, label: 'Validation', permission: 'validation:view' },
     { to: '/manufacturing', icon: Factory, label: 'Manufacturing', permission: 'manufacturing:view' },
     { to: '/fixtures', icon: Cpu, label: 'Fixtures', permission: 'fixtures:view' },
+    { to: '/releases', icon: Tag, label: 'Releases' },
   ];
 
   const visiblePrimaryItems = $derived(
@@ -302,6 +305,16 @@
     {#if hasAdmin}
       {@render sectionToggle('Admin', Shield, adminExpanded, () => (adminExpanded = !adminExpanded))}
     {/if}
+
+    <!-- Notifications -->
+    <div
+      class="flex items-center"
+      class:justify-center={collapsed}
+      class:px-3={!collapsed}
+    >
+      <NotificationBell {collapsed} />
+      {#if !collapsed}<span class="ml-3 text-sm font-medium text-text-secondary">Notifications</span>{/if}
+    </div>
 
     <!-- Settings -->
     <button
