@@ -830,6 +830,61 @@ export interface AssetFile {
   checksum: string;
 }
 
+// ── Platform Release types ───────────────────────────────────
+
+export interface PlatformRelease {
+  id: string;
+  version: string;
+  status: string;
+  commitSha: string;
+  branch: string;
+  previousVersion: string | null;
+  corekinectVersion: string | null;
+  corectlMinVersion: string | null;
+  protoVersion: string | null;
+  migrationHash: string | null;
+  changelog: string | null;
+  summary: string | null;
+  breakingChanges: string | null;
+  testsPassed: number | null;
+  testsFailed: number | null;
+  testCoverage: number | null;
+  gateStatus: string | null;
+  gateOverrideBy: string | null;
+  gateOverrideReason: string | null;
+  stagedAt: string | null;
+  releasedAt: string | null;
+  rolledBackAt: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedBugs?: ErrorReportSummary[];
+}
+
+export interface ErrorReportSummary {
+  id: string;
+  status: string;
+  type: string;
+  severity: string;
+  message: string;
+}
+
+export interface UserReport {
+  id: string;
+  status: string;
+  type: string;
+  severity: string;
+  message: string;
+  currentPath: string | null;
+  appVersion: string | null;
+  adminNotes: string | null;
+  resolvedAt: string | null;
+  resolvedInReleaseId: string | null;
+  resolvedInVersion: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── UI utility types ─────────────────────────────────────────
 
 export interface TreeNode {

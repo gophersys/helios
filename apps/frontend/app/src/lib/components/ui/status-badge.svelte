@@ -63,6 +63,9 @@
     ACKNOWLEDGED: 'bg-warning-muted text-warning',
     RESOLVED: 'bg-success-muted text-success',
     DISMISSED: 'bg-surface-2 text-text-tertiary',
+    // Release statuses
+    STAGED: 'bg-warning-muted text-warning',
+    ROLLED_BACK: 'bg-error-muted text-error',
   };
 
   // Human-readable labels for ugly enum values
@@ -72,6 +75,7 @@
     EXTERNAL_CI: 'External',
     BUILD_FAILED: 'Build Failed',
     EOL: 'End of Life',
+    ROLLED_BACK: 'Rolled Back',
   };
 
   let { status }: { status: string } = $props();

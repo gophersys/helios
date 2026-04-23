@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
 
   // External libraries
-  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock, Laptop, ShieldCheck, CheckCircle2 } from 'lucide-svelte';
+  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock, Laptop, ShieldCheck, CheckCircle2, Bug } from 'lucide-svelte';
   import { api } from '$lib/api';
 
   // Internal imports
@@ -17,7 +17,9 @@
 
   // Type imports
   import type { ApiResponse } from '$lib/types';
-  import type { TreeNode } from '$lib/types/models';
+  import type { TreeNode, UserReport } from '$lib/types/models';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import { formatTimeAgo } from '$lib/utils/formatting';
 
   let {
     onClose,
@@ -102,6 +104,7 @@
     { id: 'sessions', label: 'Sessions', icon: Laptop },
     { id: 'api-keys', label: 'API Keys', icon: KeyRound },
     { id: 'secrets', label: 'Secrets', icon: Lock },
+    { id: 'bugs', label: 'My Bug Reports', icon: Bug },
   ];
 
   let activeId = $state(initialSection || 'system');
@@ -385,6 +388,47 @@
     }
   });
 
+  // ── My Bug Reports state ────────────────────────────────────────
+  let myBugs = $state<UserReport[]>([]);
+  let myBugsLoading = $state(false);
+  let myBugsLoaded = $state(false);
+  let myBugsError = $state<string | null>(null);
+
+  function severityDotColor(severity: string): string {
+    switch (severity) {
+      case 'critical': return 'bg-error';
+      case 'error': return 'bg-error';
+      case 'warning': return 'bg-warning';
+      case 'info': return 'bg-accent';
+      default: return 'bg-text-tertiary';
+    }
+  }
+
+  function bugStatusLabel(status: string, resolvedInVersion: string | null): string {
+    if (status === 'RESOLVED' && resolvedInVersion) return `Fixed in v${resolvedInVersion}`;
+    if (status === 'RESOLVED') return 'Resolved';
+    if (status === 'ACKNOWLEDGED') return 'In Progress';
+    if (status === 'DISMISSED') return "Won't Fix";
+    return '';
+  }
+
+  async function loadMyBugs(): Promise<void> {
+    if (myBugsLoading) return;
+    myBugsLoading = true;
+    myBugsError = null;
+    try {
+      const res = await apiFetch<ApiResponse<{ data: UserReport[]; pagination: any }>>(
+        '/v2/my/error-reports'
+      );
+      myBugs = res.data.data;
+      myBugsLoaded = true;
+    } catch (err: unknown) {
+      myBugsError = err instanceof Error ? err.message : 'Failed to load bug reports';
+    } finally {
+      myBugsLoading = false;
+    }
+  }
+
   // Load data when switching to sections
   $effect(() => {
     if (activeId === 'api-keys' && apiKeysLoading) {
@@ -395,6 +439,9 @@
     }
     if (activeId === 'system' && !buildInfoLoaded) {
       loadBuildInfo();
+    }
+    if (activeId === 'bugs' && !myBugsLoaded) {
+      loadMyBugs();
     }
   });
 
@@ -964,6 +1011,77 @@
                     class="rounded p-1 text-text-tertiary hover:bg-error-muted hover:text-error" title="Delete secret">
                     <Trash2 size={14} />
                   </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else if activeId === 'bugs'}
+          <!-- My Bug Reports Section -->
+          <h2 class="text-lg font-semibold text-text-primary">My Bug Reports</h2>
+          <p class="mt-1 mb-4 text-sm text-text-secondary">
+            Track the status of issues you've reported.
+          </p>
+
+          {#if myBugsError}
+            <ErrorAlert message={myBugsError} />
+          {/if}
+
+          {#if myBugsLoading}
+            <div class="py-8 text-center text-sm text-text-tertiary">
+              Loading bug reports...
+            </div>
+          {:else if myBugs.length === 0}
+            <div class="py-8 text-center">
+              <Bug size={24} class="mx-auto mb-2 text-text-tertiary" />
+              <p class="text-sm text-text-tertiary">No bug reports submitted yet.</p>
+              <p class="mt-1 text-2xs text-text-tertiary">
+                Use the "Report Bug" button in the sidebar to submit issues.
+              </p>
+            </div>
+          {:else}
+            <div class="space-y-2">
+              {#each myBugs as bug (bug.id)}
+                <div class="rounded-lg border border-border-subtle bg-surface-0 px-4 py-3">
+                  <!-- Bug row -->
+                  <div class="flex items-start gap-3">
+                    <!-- Severity dot -->
+                    <div class="shrink-0 mt-1.5 w-2 h-2 rounded-full {severityDotColor(bug.severity)}"></div>
+
+                    <!-- Content -->
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm text-text-primary line-clamp-2">{bug.message}</span>
+                      </div>
+                      <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                        <StatusBadge status={bug.status} />
+                        {#if bug.status === 'RESOLVED' && bug.resolvedInVersion}
+                          <span class="inline-flex items-center rounded-full bg-success-muted px-2 py-0.5 text-2xs font-medium text-success">
+                            Fixed in v{bug.resolvedInVersion}
+                          </span>
+                        {:else if bug.status === 'ACKNOWLEDGED'}
+                          <span class="inline-flex items-center rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
+                            In Progress
+                          </span>
+                        {:else if bug.status === 'DISMISSED'}
+                          <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-tertiary">
+                            Won't Fix
+                          </span>
+                        {/if}
+                        <span class="text-2xs text-text-tertiary">{formatTimeAgo(bug.createdAt)}</span>
+                        {#if bug.appVersion}
+                          <span class="text-2xs text-text-tertiary font-mono">v{bug.appVersion}</span>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Admin notes callout -->
+                  {#if bug.adminNotes}
+                    <div class="mt-2 ml-5 rounded-lg bg-surface-1 px-3 py-2 text-2xs text-text-secondary">
+                      <span class="font-medium text-text-tertiary">Admin response:</span>
+                      <span class="ml-1">{bug.adminNotes}</span>
+                    </div>
+                  {/if}
                 </div>
               {/each}
             </div>
