@@ -82,7 +82,6 @@
     { to: '/validation', icon: FlaskConical, label: 'Validation', permission: 'validation:view' },
     { to: '/manufacturing', icon: Factory, label: 'Manufacturing', permission: 'manufacturing:view' },
     { to: '/fixtures', icon: Cpu, label: 'Fixtures', permission: 'fixtures:view' },
-    { to: '/releases', icon: Tag, label: 'Releases' },
   ];
 
   const visiblePrimaryItems = $derived(
@@ -105,6 +104,7 @@
     { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'system:view' },
     { to: '/history', icon: History, label: 'History', permission: 'system:view' },
     { to: '/error-reports', icon: AlertTriangle, label: 'Error Reports', permission: 'system:view' },
+    { to: '/releases', icon: Tag, label: 'Releases', permission: 'system:view' },
   ];
 
   const visibleSystemItems = $derived(
@@ -250,61 +250,62 @@
   </nav>
 
   <!-- Spacer -->
-  <div class="flex-1"></div>
+  <div class="flex-1 min-h-0"></div>
 
-  <!-- System Section (expands upward) -->
-  {#if hasSystem && systemExpanded}
+  <!-- Bottom sections: scrollable when both expanded -->
+  <div class="flex flex-col min-h-0 overflow-y-auto overflow-x-hidden border-t border-border">
+    <!-- System Section -->
     <div
-      class="border-t border-border space-y-1 overflow-hidden transition-all duration-200"
+      class="space-y-1"
+      class:p-2={collapsed}
+      class:p-3={!collapsed}
+    >
+      {#if hasSystem}
+        {@render sectionToggle('System', KubernetesIcon, systemExpanded, () => (systemExpanded = !systemExpanded))}
+      {/if}
+
+      {#if hasSystem && systemExpanded}
+        {#if !collapsed}
+          <span class="px-3 pb-1 block text-2xs font-medium uppercase tracking-widest text-text-tertiary">
+            System
+          </span>
+        {/if}
+        {#each visibleSystemItems as item}
+          {@render navLink(item)}
+        {/each}
+      {/if}
+    </div>
+
+    <!-- Admin Section -->
+    <div
+      class="space-y-1"
       class:px-2={collapsed}
       class:px-3={!collapsed}
-      class:py-3={true}
+      class:pb-2={!collapsed}
+      class:pb-1={collapsed}
     >
-      {#if !collapsed}
-        <span class="px-3 pb-1 block text-2xs font-medium uppercase tracking-widest text-text-tertiary">
-          System
-        </span>
+      {#if hasAdmin}
+        {@render sectionToggle('Admin', Shield, adminExpanded, () => (adminExpanded = !adminExpanded))}
       {/if}
-      {#each visibleSystemItems as item}
-        {@render navLink(item)}
-      {/each}
-    </div>
-  {/if}
 
-  <!-- Admin Section (expands upward) -->
-  {#if hasAdmin && adminExpanded}
+      {#if hasAdmin && adminExpanded}
+        {#if !collapsed}
+          <span class="px-3 pb-1 block text-2xs font-medium uppercase tracking-widest text-text-tertiary">
+            Admin
+          </span>
+        {/if}
+        {#each visibleAdminItems as item}
+          {@render navLink(item)}
+        {/each}
+      {/if}
+    </div>
+
+    <!-- Footer: Settings, User -->
     <div
-      class="border-t border-border space-y-1 overflow-hidden transition-all duration-200"
-      class:px-2={collapsed}
-      class:px-3={!collapsed}
-      class:py-3={true}
+      class="border-t border-border space-y-1"
+      class:p-2={collapsed}
+      class:p-3={!collapsed}
     >
-      {#if !collapsed}
-        <span class="px-3 pb-1 block text-2xs font-medium uppercase tracking-widest text-text-tertiary">
-          Admin
-        </span>
-      {/if}
-      {#each visibleAdminItems as item}
-        {@render navLink(item)}
-      {/each}
-    </div>
-  {/if}
-
-  <!-- Footer: Section toggles, Settings, User -->
-  <div
-    class="border-t border-border space-y-1"
-    class:p-2={collapsed}
-    class:p-3={!collapsed}
-  >
-    <!-- System Toggle Button -->
-    {#if hasSystem}
-      {@render sectionToggle('System', KubernetesIcon, systemExpanded, () => (systemExpanded = !systemExpanded))}
-    {/if}
-
-    <!-- Admin Toggle Button -->
-    {#if hasAdmin}
-      {@render sectionToggle('Admin', Shield, adminExpanded, () => (adminExpanded = !adminExpanded))}
-    {/if}
 
     <!-- Notifications -->
     <div
@@ -460,5 +461,6 @@
         <span class="h-2 w-2 rounded-full {envConfig.dot}" title="{envConfig.label}"></span>
       </div>
     {/if}
+    </div>
   </div>
 </aside>
