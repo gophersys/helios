@@ -86,23 +86,22 @@ export async function apiFetch<T = unknown>(
   }
 
   let data: unknown;
+  let jsonParseFailed = false;
   try {
     data = await res.json();
   } catch {
-    if (!res.ok) {
-      throw new Error(`Request failed (${res.status})`);
-    }
-    throw new Error('Invalid JSON response from server');
+    jsonParseFailed = true;
   }
 
   if (!res.ok) {
-    const errorData = data as { errors?: { message?: string }[]; error?: string };
-    const errorMessage =
-      errorData.errors?.[0]?.message || errorData.error || `Request failed (${res.status})`;
+    let errorMessage = `Request failed (${res.status})`;
+    if (!jsonParseFailed) {
+      const errorData = data as { errors?: { message?: string }[]; error?: string };
+      errorMessage = errorData.errors?.[0]?.message || errorData.error || errorMessage;
+    }
 
     trackAction(`api ${method} ${path} → ${res.status} (${durationMs}ms)`);
 
-    // Report 500+ always, 4xx on mutations (POST/PUT/PATCH/DELETE) as they indicate code bugs
     const isMutation = method !== 'GET';
     if (res.status >= 500 || (isMutation && res.status >= 400)) {
       const { reportApiError } = await import('$lib/stores/error-reporter.svelte');
@@ -112,12 +111,16 @@ export async function apiFetch<T = unknown>(
         method,
         message: errorMessage,
         requestBody: typeof options.body === 'string' ? options.body?.slice(0, 500) : undefined,
-        responseBody: JSON.stringify(data).slice(0, 500),
+        responseBody: jsonParseFailed ? undefined : JSON.stringify(data).slice(0, 500),
         requestDurationMs: durationMs,
       });
     }
 
     throw new Error(errorMessage);
+  }
+
+  if (jsonParseFailed) {
+    throw new Error('Invalid JSON response from server');
   }
 
   return data as T;
@@ -153,9 +156,15 @@ export async function apiUploadRaw(
   }
 
   if (!res.ok) {
-    const data = await res.json();
-    const errorMessage =
-      data.error || data.errors?.[0]?.message || `Upload failed (${res.status})`;
+    let errorMessage = `Upload failed (${res.status})`;
+    let responseBody: string | undefined;
+    try {
+      const data = await res.json();
+      errorMessage = data.error || data.errors?.[0]?.message || errorMessage;
+      responseBody = JSON.stringify(data).slice(0, 500);
+    } catch {
+      // Non-JSON error response — use generic message
+    }
 
     trackAction(`upload POST ${path} → ${res.status} (${durationMs}ms)`);
 
@@ -166,7 +175,7 @@ export async function apiUploadRaw(
         url: path,
         method: 'POST',
         message: errorMessage,
-        responseBody: JSON.stringify(data).slice(0, 500),
+        responseBody,
         requestDurationMs: durationMs,
       });
     }
@@ -308,11 +317,20 @@ export async function apiUpload<T = unknown>(
     throw new Error('Session expired');
   }
 
-  const data = await res.json();
+  let data: unknown;
+  let jsonParseFailed = false;
+  try {
+    data = await res.json();
+  } catch {
+    jsonParseFailed = true;
+  }
 
   if (!res.ok) {
-    const errorMessage =
-      data.error || data.errors?.[0]?.message || `Request failed (${res.status})`;
+    let errorMessage = `Request failed (${res.status})`;
+    if (!jsonParseFailed) {
+      const errorData = data as { error?: string; errors?: { message?: string }[] };
+      errorMessage = errorData.error || errorData.errors?.[0]?.message || errorMessage;
+    }
 
     trackAction(`upload POST ${path} → ${res.status} (${durationMs}ms)`);
 
@@ -323,12 +341,16 @@ export async function apiUpload<T = unknown>(
         url: path,
         method: 'POST',
         message: errorMessage,
-        responseBody: JSON.stringify(data).slice(0, 500),
+        responseBody: jsonParseFailed ? undefined : JSON.stringify(data).slice(0, 500),
         requestDurationMs: durationMs,
       });
     }
 
     throw new Error(errorMessage);
+  }
+
+  if (jsonParseFailed) {
+    throw new Error('Invalid JSON response from server');
   }
 
   return data as T;
