@@ -204,7 +204,7 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/v${HEL
     chmod 700 get_helm.sh && \
     ./get_helm.sh && \
     rm ./get_helm.sh && \
-    helm plugin install https://github.com/databus23/helm-diff
+    helm plugin install --verify=false https://github.com/databus23/helm-diff
 
 # ----------------------------------------------------
 #                                                 Vault
