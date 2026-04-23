@@ -46,6 +46,10 @@ class Permissions:
     API_KEYS_MANAGE = "api-keys:manage"
     SYSTEM_VIEW = "system:view"
     SYSTEM_MANAGE = "system:manage"
+    RELEASES_VIEW = "releases:view"
+    RELEASES_MANAGE = "releases:manage"
+    NOTIFICATIONS_VIEW = "notifications:view"
+    NOTIFICATIONS_MANAGE = "notifications:manage"
 
     @classmethod
     def all(cls) -> set:
@@ -92,6 +96,12 @@ PERMISSION_REGISTRY = {
     "api-keys:manage": {"module": "Platform", "label": "Manage API Keys", "description": "Create and revoke API keys"},
     "system:view": {"module": "Platform", "label": "View System", "description": "View system info, audit history, storage usage"},
     "system:manage": {"module": "Platform", "label": "Manage System", "description": "Manage system settings, retention policies, deployments"},
+
+    # Releases & Notifications
+    "releases:view": {"module": "Releases", "label": "View Releases", "description": "View platform releases, changelogs, and version history"},
+    "releases:manage": {"module": "Releases", "label": "Manage Releases", "description": "Create, update, stage, and publish platform releases"},
+    "notifications:view": {"module": "Notifications", "label": "View Notifications", "description": "View user notifications"},
+    "notifications:manage": {"module": "Notifications", "label": "Manage Notifications", "description": "Create and manage broadcast notifications"},
 }
 
 
@@ -109,8 +119,10 @@ DEFAULT_ROLES = {
         "manufacturing:view",
         "fixtures:view", "devices:view",
         "api-keys:view", "api-keys:manage",
+        "releases:view", "notifications:view",
     ],
     "Operator": [
         "manufacturing:view", "manufacturing:run", "manufacturing:manage",
+        "releases:view", "notifications:view",
     ],
 }

@@ -24,6 +24,22 @@ from .error_reports import (
     update_error_report,
     delete_error_report,
 )
+from .releases import (
+    create_release,
+    list_releases,
+    get_release,
+    update_release,
+    delete_release,
+    link_bugs_to_release,
+)
+from .notifications import (
+    list_notifications,
+    unread_count,
+    mark_read,
+    mark_all_read,
+    broadcast_notification,
+)
+from .user_reports import list_my_error_reports
 from ..assets.storage_download import download_storage_file
 
 
@@ -57,6 +73,24 @@ def register_system_routes(api: Blueprint, socketio: SocketIO):
     api.add_url_rule("/system/error-reports/<report_id>",  endpoint="get_error_report",     view_func=get_error_report,     methods=["GET"])
     api.add_url_rule("/system/error-reports/<report_id>",  endpoint="update_error_report",  view_func=update_error_report,  methods=["PATCH"])
     api.add_url_rule("/system/error-reports/<report_id>",  endpoint="delete_error_report",  view_func=delete_error_report,  methods=["DELETE"])
+
+    # Releases
+    api.add_url_rule("/releases",                          endpoint="create_release",       view_func=create_release,       methods=["POST"])
+    api.add_url_rule("/releases",                          endpoint="list_releases",        view_func=list_releases,        methods=["GET"])
+    api.add_url_rule("/releases/<release_id>",             endpoint="get_release",          view_func=get_release,          methods=["GET"])
+    api.add_url_rule("/releases/<release_id>",             endpoint="update_release",       view_func=update_release,       methods=["PATCH"])
+    api.add_url_rule("/releases/<release_id>",             endpoint="delete_release",       view_func=delete_release,       methods=["DELETE"])
+    api.add_url_rule("/releases/<release_id>/link-bugs",   endpoint="link_bugs_to_release", view_func=link_bugs_to_release, methods=["POST"])
+
+    # Notifications (user-facing)
+    api.add_url_rule("/notifications",                     endpoint="list_notifications",      view_func=list_notifications,      methods=["GET"])
+    api.add_url_rule("/notifications/unread-count",        endpoint="unread_count",             view_func=unread_count,            methods=["GET"])
+    api.add_url_rule("/notifications/<notification_id>/read", endpoint="mark_read",             view_func=mark_read,               methods=["PATCH"])
+    api.add_url_rule("/notifications/read-all",            endpoint="mark_all_read",            view_func=mark_all_read,           methods=["POST"])
+    api.add_url_rule("/notifications/broadcast",           endpoint="broadcast_notification",   view_func=broadcast_notification,  methods=["POST"])
+
+    # User's own bug reports
+    api.add_url_rule("/my/error-reports",                  endpoint="list_my_error_reports",    view_func=list_my_error_reports,   methods=["GET"])
 
     register_log_handlers(socketio)
     register_exec_handlers(socketio)

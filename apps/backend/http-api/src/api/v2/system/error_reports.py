@@ -16,6 +16,7 @@ from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.notifications.notifier import notify_bug_status_change
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +169,12 @@ def update_error_report(report_id: str):
     log_audit("error_report.update", "ErrorReport", report_id, {
         "fields": list(update_data.keys()),
     })
+
+    # Notify the bug reporter when status changes
+    if "status" in update_data:
+        admin_notes = update_data.get("adminNotes")
+        notify_bug_status_change(report_id, update_data["status"], admin_notes)
+
     return jsonify(ApiResponse.ok(_serialize(updated)).to_dict()), 200
 
 
