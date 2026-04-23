@@ -10,7 +10,6 @@ import eventlet
 
 eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
 
-from api.v2.products.board_discovery import init_ck_boards_service
 from api.v2.router import register_v2_routes
 
 # App includes
@@ -186,6 +185,7 @@ if __name__ == "__main__":
         init_observability_service(poll_interval_s=5)
 
         # Initialize CkBoards service (board definition discovery via Bitbucket REST API)
+        from api.v2.products.board_discovery import init_ck_boards_service
         init_ck_boards_service(env_config)
         logger.info("CkBoards service ready")
 
