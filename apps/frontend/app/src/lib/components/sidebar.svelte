@@ -29,7 +29,6 @@
 
   import ConcordLogo from '$lib/components/concord-logo.svelte';
   import KubernetesIcon from '$lib/components/icons/kubernetes-icon.svelte';
-  import NotificationBell from '$lib/components/ui/notification-bell.svelte';
 
   // Environment display
   const appEnv = PUBLIC_APP_ENVIRONMENT || 'development';
@@ -306,16 +305,6 @@
       class:p-2={collapsed}
       class:p-3={!collapsed}
     >
-
-    <!-- Notifications -->
-    <div
-      class="flex items-center"
-      class:justify-center={collapsed}
-      class:px-3={!collapsed}
-    >
-      <NotificationBell {collapsed} />
-      {#if !collapsed}<span class="ml-3 text-sm font-medium text-text-secondary">Notifications</span>{/if}
-    </div>
 
     <!-- Settings -->
     <button

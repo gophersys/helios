@@ -10,7 +10,7 @@
   import { toasts, type ToastKind } from '$lib/stores/toast.svelte';
   import { getSystemSocket } from '$lib/services/websocket';
 
-  let { collapsed = false }: { collapsed?: boolean } = $props();
+  let { collapsed = false, position = 'sidebar' }: { collapsed?: boolean; position?: 'sidebar' | 'topbar' } = $props();
 
   const notifs = getNotifications();
 
@@ -100,7 +100,7 @@
     onclick={() => notifs.togglePanel()}
     title={collapsed ? 'Notifications' : undefined}
     aria-label="Notifications"
-    class="group relative flex items-center justify-center rounded-lg p-2 text-text-secondary transition-colors hover:bg-sidebar-hover hover:text-text-primary"
+    class="group relative flex items-center justify-center rounded-lg p-2 transition-colors {position === 'topbar' ? 'h-9 w-9 bg-surface-1 border border-border text-text-secondary shadow-sm hover:bg-surface-2 hover:text-text-primary' : 'text-text-secondary hover:bg-sidebar-hover hover:text-text-primary'}"
   >
     <Bell size={20} strokeWidth={1.75} />
 
@@ -118,7 +118,7 @@
   {#if notifs.panelOpen}
     <div
       transition:fly={{ y: -4, duration: 150 }}
-      class="absolute left-0 bottom-full mb-2 z-50 w-80 rounded-lg border border-border bg-surface-1 shadow-lg overflow-hidden"
+      class="absolute z-50 w-80 rounded-lg border border-border bg-surface-1 shadow-lg overflow-hidden {position === 'topbar' ? 'right-0 top-full mt-2' : 'left-0 bottom-full mb-2'}"
     >
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-border px-4 py-3">
