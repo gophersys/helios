@@ -225,9 +225,9 @@ def update_release(release_id: str):
             update_data[field] = (data[field] or "").strip() or None
 
     # String fields
-    for field in ("gateStatus", "previousVersion", "corekinectVersion",
-                  "corectlMinVersion", "protoVersion", "migrationHash",
-                  "prUrl", "releaseOrigin"):
+    for field in ("commitSha", "branch", "gateStatus", "previousVersion",
+                  "corekinectVersion", "corectlMinVersion", "protoVersion",
+                  "migrationHash", "prUrl", "releaseOrigin"):
         if field in data:
             update_data[field] = (data[field] or "").strip() or None
 
