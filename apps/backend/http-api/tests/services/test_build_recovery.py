@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.services.build_recovery import (
+from src.services.builds.recovery import (
     recover_stale_builds,
     CLONING_TIMEOUT_MINUTES,
     HEARTBEAT_STALE_MINUTES,
@@ -59,7 +59,7 @@ class TestGetRecoveryCount:
 class TestHeartbeatRecovery:
     """Test that BUILDING builds use heartbeat-based staleness detection."""
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_stale_heartbeat_triggers_recovery(self, mock_get_db):
         """A BUILDING build with a stale heartbeat (>5 min) should be recovered."""
         db = MagicMock()
@@ -83,7 +83,7 @@ class TestHeartbeatRecovery:
         assert update_data["startedAt"] is None
         assert update_data["lastHeartbeat"] is None
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_fresh_heartbeat_not_recovered(self, mock_get_db):
         """A BUILDING build with a recent heartbeat should NOT be recovered."""
         db = MagicMock()
@@ -97,7 +97,7 @@ class TestHeartbeatRecovery:
         assert count == 0
         db.buildjob.update.assert_not_called()
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_no_heartbeat_fallback_to_started_at(self, mock_get_db):
         """Legacy build with no heartbeat and old startedAt should be recovered."""
         db = MagicMock()
@@ -118,7 +118,7 @@ class TestHeartbeatRecovery:
         update_data = db.buildjob.update.call_args[1]["data"]
         assert update_data["status"] == "QUEUED"
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_no_heartbeat_recent_start_not_recovered(self, mock_get_db):
         """Legacy build with no heartbeat but recent startedAt should NOT be recovered."""
         db = MagicMock()
@@ -135,7 +135,7 @@ class TestHeartbeatRecovery:
 class TestCloningRecovery:
     """CLONING timeout remains startedAt-based (no heartbeat during clone)."""
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_stale_cloning_recovered(self, mock_get_db):
         db = MagicMock()
         mock_get_db.return_value = db
@@ -153,7 +153,7 @@ class TestCloningRecovery:
 class TestMaxRecoveryAttempts:
     """Builds that exceed MAX_RECOVERY_ATTEMPTS are marked FAILED."""
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_exceeds_max_attempts_marked_failed(self, mock_get_db):
         db = MagicMock()
         mock_get_db.return_value = db
@@ -174,7 +174,7 @@ class TestMaxRecoveryAttempts:
         assert update_data["lastHeartbeat"] is None
         assert "Permanently failed" in update_data["errorMessage"]
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_under_max_attempts_recovered_to_queued(self, mock_get_db):
         db = MagicMock()
         mock_get_db.return_value = db
@@ -197,7 +197,7 @@ class TestMaxRecoveryAttempts:
 class TestMixedRecovery:
     """Multiple stale builds across different categories."""
 
-    @patch("src.services.build_recovery.get_db_client")
+    @patch("src.services.builds.recovery.get_db_client")
     def test_mixed_cloning_and_building(self, mock_get_db):
         db = MagicMock()
         mock_get_db.return_value = db

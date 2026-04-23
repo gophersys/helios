@@ -13,7 +13,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error, unauthorized
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
-from src.services.webhook_trigger import RepoEvent, handle_repo_event
+from src.services.integrations.webhook_trigger import RepoEvent, handle_repo_event
 from src.services.database.prisma import get_db_client
 
 from .builds import _serialize_build_job
@@ -183,7 +183,7 @@ def _create_webhook_builds(db, product_config: dict, payload) -> list:
 def _notify_queued_builds(builds: list):
     """Fire-and-forget notification to the build service for queued builds."""
     try:
-        from services.build_notifier import notify_build_service
+        from services.builds.notifier import notify_build_service
         for b in builds:
             if b.status == "QUEUED":
                 notify_build_service(b.id, priority=50)
@@ -358,7 +358,7 @@ def trigger_build_run():
 
         # Notify build service (fire-and-forget, manual trigger = high priority)
         try:
-            from services.build_notifier import notify_build_service
+            from services.builds.notifier import notify_build_service
             notify_build_service(build.id, priority=100)
         except Exception:
             pass

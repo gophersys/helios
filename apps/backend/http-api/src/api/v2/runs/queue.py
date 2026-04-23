@@ -167,7 +167,7 @@ def process_queue(db=None) -> dict:
         )
 
         # Attempt to trigger — this will find an available fixture (or return None/queued)
-        from src.services.build_run_service import trigger_build_run_validation
+        from src.services.builds.run_service import trigger_build_run_validation
 
         result = trigger_build_run_validation(build_run.id, build_run, builds)
     else:

@@ -15,8 +15,8 @@ from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.artifact_validator import validate_build_run_artifacts as _validate_artifacts
-from src.services.build_run_service import (
+from src.services.builds.artifact_validator import validate_build_run_artifacts as _validate_artifacts
+from src.services.builds.run_service import (
     check_build_run_completion,
     create_build_run_record,
     resolve_build_run_context,
@@ -290,7 +290,7 @@ def retrigger_build_run(run_id: str):
         "pr_url": build_run.prUrl,
     }
 
-    from src.services.build_trigger import trigger_stage_build
+    from src.services.builds.trigger import trigger_stage_build
     try:
         result = trigger_stage_build(
             product_id=build_run.productId,

@@ -47,7 +47,7 @@ class TestCancelStaleRuns:
     """Test _cancel_stale_runs() in build_trigger.py."""
 
     def test_cancels_old_runs_for_same_pr_stage(self, svc_mock_db):
-        from src.services.build_trigger import _cancel_stale_runs
+        from src.services.builds.trigger import _cancel_stale_runs
 
         old_run = _make_build_run(id="old-run", commitSha="old1234", status="BUILDING")
         svc_mock_db.buildrun.find_many.return_value = [old_run]
@@ -67,7 +67,7 @@ class TestCancelStaleRuns:
         assert update_args.kwargs["data"]["status"] == "CANCELLED"
 
     def test_skips_if_no_stale_runs(self, svc_mock_db):
-        from src.services.build_trigger import _cancel_stale_runs
+        from src.services.builds.trigger import _cancel_stale_runs
 
         svc_mock_db.buildrun.find_many.return_value = []
 
@@ -77,7 +77,7 @@ class TestCancelStaleRuns:
         svc_mock_db.buildrun.update.assert_not_called()
 
     def test_cancels_multiple_stale_runs(self, svc_mock_db):
-        from src.services.build_trigger import _cancel_stale_runs
+        from src.services.builds.trigger import _cancel_stale_runs
 
         old1 = _make_build_run(id="old-1", commitSha="aaa", status="BUILDING")
         old2 = _make_build_run(id="old-2", commitSha="bbb", status="PENDING")
@@ -92,10 +92,10 @@ class TestCancelStaleRuns:
 class TestDedup:
     """Test dedup logic in trigger_stage_build()."""
 
-    @patch("src.services.build_trigger.get_db_client")
-    @patch("src.services.build_trigger.log_audit")
+    @patch("src.services.builds.trigger.get_db_client")
+    @patch("src.services.builds.trigger.log_audit")
     def test_dedup_skips_duplicate_commit(self, mock_audit, mock_get_db, svc_mock_db):
-        from src.services.build_trigger import trigger_stage_build
+        from src.services.builds.trigger import trigger_stage_build
 
         mock_get_db.return_value = svc_mock_db
 
@@ -130,11 +130,11 @@ class TestDedup:
 class TestTriggerTypeNormalization:
     """Test that trigger types are normalized to the correct vocabulary."""
 
-    @patch("src.services.build_trigger.get_db_client")
-    @patch("src.services.build_trigger.log_audit")
-    @patch("src.services.build_trigger.get_stage_build_defs")
+    @patch("src.services.builds.trigger.get_db_client")
+    @patch("src.services.builds.trigger.log_audit")
+    @patch("src.services.builds.trigger.get_stage_build_defs")
     def test_pr_push_trigger_type(self, mock_defs, mock_audit, mock_get_db, svc_mock_db):
-        from src.services.build_trigger import trigger_stage_build
+        from src.services.builds.trigger import trigger_stage_build
 
         mock_get_db.return_value = svc_mock_db
 
@@ -166,7 +166,7 @@ class TestTriggerTypeNormalization:
         svc_mock_db.buildjob.create.return_value = created_job
         svc_mock_db.buildjob.find_unique.return_value = created_job
 
-        with patch("src.services.build_job_runner.create_build_k8s_job", return_value=None):
+        with patch("src.services.builds.job_runner.create_build_k8s_job", return_value=None):
             result = trigger_stage_build(
                 "prod-1", "sc-1",
                 event_metadata={"pr_id": 42, "source_commit": "abc", "source_branch": "feat/x"},

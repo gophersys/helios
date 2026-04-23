@@ -395,7 +395,7 @@ def create_build():
         # Notify build service (fire-and-forget)
         if build.status == "QUEUED":
             try:
-                from services.build_notifier import notify_build_service
+                from services.builds.notifier import notify_build_service
                 priority = 100 if data.trigger_type == "manual" else 50
                 notify_build_service(build.id, priority=priority)
             except Exception:
@@ -515,7 +515,7 @@ def update_build(build_id: str):
                     }
                 )
                 if dependent_builds:
-                    from src.services.queue_scheduler import wake_scheduler
+                    from src.services.scheduling.queue_scheduler import wake_scheduler
                     for dep in dependent_builds:
                         db.buildjob.update(
                             where={"id": dep.id},
@@ -528,7 +528,7 @@ def update_build(build_id: str):
 
             # When a build finishes, check if build run is complete
             if new_status in ("SUCCESS", "FAILED", "CANCELLED"):
-                from src.services.build_run_service import check_build_run_completion
+                from src.services.builds.run_service import check_build_run_completion
                 new_build_run_status = check_build_run_completion(updated.buildRunId)
                 if new_build_run_status:
                     logger.info("Build %s finished, build run %s now %s",

@@ -283,7 +283,7 @@ def _check_revision_enabled(db, enabling: bool, rev_id: str | None):
 
 def _try_trigger_build(product_id: str, config_id: str, stage: str, result: dict) -> None:
     """Attempt to trigger a build and annotate the result dict."""
-    from src.services.build_trigger import trigger_stage_build
+    from src.services.builds.trigger import trigger_stage_build
     try:
         trigger_result = trigger_stage_build(product_id, config_id)
         if trigger_result:

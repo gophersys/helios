@@ -7,7 +7,7 @@ from src.lib.errors import not_found, internal_error
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.mtib_observability import get_observability_service
+from src.services.devices.mtib_observability import get_observability_service
 
 logger = logging.getLogger(__name__)
 

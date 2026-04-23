@@ -4,7 +4,7 @@ from flask import request
 from flask_socketio import SocketIO, emit
 
 from src.services.database.prisma import get_db_client
-from src.services.mtib_observability import get_observability_service
+from src.services.devices.mtib_observability import get_observability_service
 
 logger = logging.getLogger(__name__)
 

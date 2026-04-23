@@ -80,7 +80,7 @@ class TestPromoteBuildRunToFirmware:
         """promote_build_run_to_firmware returns None for unknown run ID."""
         mock_db.buildrun.find_unique.return_value = None
 
-        from src.services.build_promotion import promote_build_run_to_firmware
+        from src.services.builds.promotion import promote_build_run_to_firmware
         result = promote_build_run_to_firmware("bad-id")
 
         assert result is None
@@ -90,7 +90,7 @@ class TestPromoteBuildRunToFirmware:
         run = _make_build_run(builds=[])
         mock_db.buildrun.find_unique.return_value = run
 
-        from src.services.build_promotion import promote_build_run_to_firmware
+        from src.services.builds.promotion import promote_build_run_to_firmware
         result = promote_build_run_to_firmware("run-1")
 
         assert result is None
@@ -108,7 +108,7 @@ class TestPromoteBuildRunToFirmware:
         mock_db.firmwarebuild.create.return_value = make_obj(id="fwbuild-1")
         mock_db.producttarget.find_first.return_value = None
 
-        from src.services.build_promotion import promote_build_run_to_firmware
+        from src.services.builds.promotion import promote_build_run_to_firmware
         result = promote_build_run_to_firmware("run-1")
 
         assert result is not None
@@ -128,7 +128,7 @@ class TestPromoteBuildRunToFirmware:
         mock_db.firmwarebuild.create.return_value = make_obj(id="fwbuild-1")
         mock_db.producttarget.find_first.return_value = None
 
-        from src.services.build_promotion import promote_build_run_to_firmware
+        from src.services.builds.promotion import promote_build_run_to_firmware
         promote_build_run_to_firmware("run-1")
 
         create_call = mock_db.firmwareset.create.call_args[1]["data"]
@@ -146,7 +146,7 @@ class TestPromoteBuildRunToFirmware:
         mock_db.firmwarebuild.create.return_value = make_obj(id="fwbuild-1")
         mock_db.producttarget.find_first.return_value = None
 
-        from src.services.build_promotion import promote_build_run_to_firmware
+        from src.services.builds.promotion import promote_build_run_to_firmware
         promote_build_run_to_firmware("run-1")
 
         create_call = mock_db.firmwareset.create.call_args[1]["data"]
@@ -160,7 +160,7 @@ class TestCreateAssetSetFromBuildRun:
         """create_asset_set_from_build_run returns None for unknown run."""
         mock_db.buildrun.find_unique.return_value = None
 
-        from src.services.build_promotion import create_asset_set_from_build_run
+        from src.services.builds.promotion import create_asset_set_from_build_run
         result = create_asset_set_from_build_run("bad-id")
 
         assert result is None
@@ -170,7 +170,7 @@ class TestCreateAssetSetFromBuildRun:
         run = _make_build_run(builds=[])
         mock_db.buildrun.find_unique.return_value = run
 
-        from src.services.build_promotion import create_asset_set_from_build_run
+        from src.services.builds.promotion import create_asset_set_from_build_run
         result = create_asset_set_from_build_run("run-1")
 
         assert result is None
@@ -182,7 +182,7 @@ class TestCreateAssetSetFromBuildRun:
         existing = make_obj(id="aset-existing")
         mock_db.assetset.find_first.return_value = existing
 
-        from src.services.build_promotion import create_asset_set_from_build_run
+        from src.services.builds.promotion import create_asset_set_from_build_run
         result = create_asset_set_from_build_run("run-1")
 
         assert result["assetSetId"] == "aset-existing"
@@ -200,7 +200,7 @@ class TestCreateAssetSetFromBuildRun:
         mock_db.assetset.create.return_value = asset_set
         mock_db.boardrevision.find_unique.return_value = None
 
-        from src.services.build_promotion import create_asset_set_from_build_run
+        from src.services.builds.promotion import create_asset_set_from_build_run
         result = create_asset_set_from_build_run("run-1")
 
         assert result is not None
@@ -220,7 +220,7 @@ class TestCreateAssetSetFromBuildRun:
         mock_db.assetset.create.return_value = make_obj(id="aset-1")
         mock_db.boardrevision.find_unique.return_value = None
 
-        from src.services.build_promotion import create_asset_set_from_build_run
+        from src.services.builds.promotion import create_asset_set_from_build_run
         create_asset_set_from_build_run("run-1")
 
         asset_create_call = mock_db.asset.create.call_args[1]["data"]
@@ -238,7 +238,7 @@ class TestCreateAssetSetFromBuildRun:
         mock_db.assetset.create.return_value = make_obj(id="aset-1")
         mock_db.boardrevision.find_unique.return_value = None
 
-        from src.services.build_promotion import create_asset_set_from_build_run
+        from src.services.builds.promotion import create_asset_set_from_build_run
         create_asset_set_from_build_run("run-1")
 
         asset_set_data = mock_db.assetset.create.call_args[1]["data"]

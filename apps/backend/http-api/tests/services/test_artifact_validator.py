@@ -1,4 +1,4 @@
-"""Tests for services/artifact_validator.py — build run artifact validation."""
+"""Tests for services/builds/artifact_validator.py — build run artifact validation."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from tests.conftest import make_obj
-from src.services.artifact_validator import (
+from src.services.builds.artifact_validator import (
     validate_build_run_artifacts,
     format_missing_artifacts_message,
     _parse_build_matrix,

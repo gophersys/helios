@@ -24,9 +24,9 @@ from flask_socketio import SocketIO
 from src.services.database.prisma import init_postgres_client, get_db_client
 from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
-from src.services.scheduler import start_scheduler
+from src.services.scheduling.scheduler import start_scheduler
 from src.services.storage.client import init_storage_client, close_storage_client
-from src.services.mtib_observability import init_observability_service, get_observability_service
+from src.services.devices.mtib_observability import init_observability_service, get_observability_service
 
 # -------------------------------------------------
 #                                            Server
@@ -97,7 +97,7 @@ def graceful_shutdown(signum=None, frame=None):
     # 0. Signal background scheduler threads to stop BEFORE closing DB.
     # Daemon threads poll the DB — if we close DB first, they log errors.
     try:
-        from src.services.queue_scheduler import stop_scheduler
+        from src.services.scheduling.queue_scheduler import stop_scheduler
         stop_scheduler()
     except Exception:
         pass

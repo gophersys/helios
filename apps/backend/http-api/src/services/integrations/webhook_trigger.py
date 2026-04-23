@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from src.services.database.prisma import get_db_client
-from src.services.build_trigger import trigger_stage_build
+from src.services.builds.trigger import trigger_stage_build
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ def poll_for_changes() -> List[Dict[str, Any]]:
     5. Fire RepoEvent with PR metadata → triggers matching stages
     """
     from config.env import env_config
-    from src.services.bitbucket_client import BitbucketClient, parse_pr_metadata
+    from src.services.integrations.bitbucket_client import BitbucketClient, parse_pr_metadata
 
     bb = BitbucketClient(
         api_token=env_config.BITBUCKET_API_TOKEN,

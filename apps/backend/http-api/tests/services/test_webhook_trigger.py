@@ -1,4 +1,4 @@
-"""Tests for services/webhook_trigger.py — repo event handling, webhook parsing, auto-progress."""
+"""Tests for services/integrations/webhook_trigger.py — repo event handling, webhook parsing, auto-progress."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ class TestHandleRepoEvent:
     """Tests for handle_repo_event()."""
 
     def _make_event(self, **overrides):
-        from src.services.webhook_trigger import RepoEvent
+        from src.services.integrations.webhook_trigger import RepoEvent
         defaults = dict(
             repo_slug="alpha_fw",
             branch="main",
@@ -30,11 +30,11 @@ class TestHandleRepoEvent:
         defaults.update(overrides)
         return RepoEvent(**defaults)
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_push_triggers_pr_push_stages(self, mock_get_db, mock_trigger):
         """Push events match stages with pr_push trigger type."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -54,10 +54,10 @@ class TestHandleRepoEvent:
         assert results[0]["stage"] == 1
         mock_trigger.assert_called_once_with("prod-1", "sc-1", event_metadata=None)
 
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_unknown_event_type_returns_empty(self, mock_get_db):
         """Unknown event types are ignored."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         event = self._make_event(event_type="unknown")
         results = handle_repo_event(event)
@@ -65,10 +65,10 @@ class TestHandleRepoEvent:
         assert results == []
         mock_get_db.assert_not_called()
 
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_no_product_returns_empty(self, mock_get_db):
         """Returns empty when no product matches the repo slug."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -79,10 +79,10 @@ class TestHandleRepoEvent:
 
         assert results == []
 
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_no_matching_stages_returns_empty(self, mock_get_db):
         """Returns empty when no enabled stages match the trigger type."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -94,11 +94,11 @@ class TestHandleRepoEvent:
 
         assert results == []
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_branch_wildcard_matches_all(self, mock_get_db, mock_trigger):
         """Stages with watchBranch='*' match any branch."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -113,11 +113,11 @@ class TestHandleRepoEvent:
 
         assert len(results) == 1
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_branch_exact_match(self, mock_get_db, mock_trigger):
         """Stages with exact watchBranch match the correct branch."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -132,11 +132,11 @@ class TestHandleRepoEvent:
 
         assert len(results) == 1
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_branch_no_match_skips_stage(self, mock_get_db, mock_trigger):
         """Stages with non-matching watchBranch are skipped."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -151,11 +151,11 @@ class TestHandleRepoEvent:
         assert results == []
         mock_trigger.assert_not_called()
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_branch_prefix_match(self, mock_get_db, mock_trigger):
         """Stages with watchBranch ending in * match branch prefixes."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -170,11 +170,11 @@ class TestHandleRepoEvent:
 
         assert len(results) == 1
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_merge_event_maps_to_pr_merge(self, mock_get_db, mock_trigger):
         """Merge events match stages with pr_merge trigger type."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -192,11 +192,11 @@ class TestHandleRepoEvent:
         call_args = db.productstageconfig.find_many.call_args
         assert "pr_merge" in call_args[1]["where"]["triggerTypes"]["hasSome"]
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_target_branch_used_for_pr_matching(self, mock_get_db, mock_trigger):
         """PR events use target_branch from metadata for branch matching."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -214,11 +214,11 @@ class TestHandleRepoEvent:
 
         assert len(results) == 1
 
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.trigger_stage_build")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_trigger_returns_none_excluded(self, mock_get_db, mock_trigger):
         """Stages where trigger_stage_build returns None are excluded from results."""
-        from src.services.webhook_trigger import handle_repo_event
+        from src.services.integrations.webhook_trigger import handle_repo_event
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -243,7 +243,7 @@ class TestParseBitbucketWebhook:
 
     def test_pr_created_event(self):
         """PR created events parse as push type."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         payload = {
             "repository": {"slug": "alpha_fw"},
@@ -265,7 +265,7 @@ class TestParseBitbucketWebhook:
 
     def test_pr_fulfilled_event(self):
         """PR fulfilled events parse as merge type."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         payload = {
             "repository": {"slug": "alpha_fw"},
@@ -283,7 +283,7 @@ class TestParseBitbucketWebhook:
 
     def test_repo_push_event(self):
         """Repo push events extract branch and commit from changes."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         payload = {
             "repository": {"slug": "alpha_fw"},
@@ -305,21 +305,21 @@ class TestParseBitbucketWebhook:
 
     def test_unknown_event_key_returns_none(self):
         """Unknown event keys return None."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         result = parse_bitbucket_webhook("repo:fork", {})
         assert result is None
 
     def test_missing_repository_returns_none(self):
         """Missing repository in payload returns None."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         result = parse_bitbucket_webhook("repo:push", {})
         assert result is None
 
     def test_empty_push_changes(self):
         """Push event with empty changes list still produces event."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         payload = {
             "repository": {"slug": "alpha_fw"},
@@ -333,7 +333,7 @@ class TestParseBitbucketWebhook:
 
     def test_pr_updated_event(self):
         """PR updated events parse as push type."""
-        from src.services.webhook_trigger import parse_bitbucket_webhook
+        from src.services.integrations.webhook_trigger import parse_bitbucket_webhook
 
         payload = {
             "repository": {"slug": "alpha_fw"},
@@ -359,16 +359,16 @@ class TestHandleAutoProgress:
 
     def test_disabled_returns_none(self):
         """handle_auto_progress is disabled and always returns None."""
-        from src.services.webhook_trigger import handle_auto_progress
+        from src.services.integrations.webhook_trigger import handle_auto_progress
 
         result = handle_auto_progress("prod-1", completed_stage=1)
 
         assert result is None
 
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_no_next_stage_returns_none(self, mock_get_db):
         """Returns None when no auto-triggered next stage exists."""
-        from src.services.webhook_trigger import handle_auto_progress
+        from src.services.integrations.webhook_trigger import handle_auto_progress
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -378,10 +378,10 @@ class TestHandleAutoProgress:
 
         assert result is None
 
-    @patch("src.services.webhook_trigger.get_db_client")
+    @patch("src.services.integrations.webhook_trigger.get_db_client")
     def test_stage_5_returns_none(self, mock_get_db):
         """Returns None when completed stage is 5 (max)."""
-        from src.services.webhook_trigger import handle_auto_progress
+        from src.services.integrations.webhook_trigger import handle_auto_progress
 
         mock_get_db.return_value = MagicMock()
 

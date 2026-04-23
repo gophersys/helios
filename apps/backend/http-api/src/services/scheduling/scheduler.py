@@ -34,7 +34,7 @@ def _cleanup_old_audit_logs():
 def _recover_stale_builds():
     """Find and reset builds stuck in BUILDING/CLONING (worker died)."""
     try:
-        from src.services.build_recovery import recover_stale_builds
+        from src.services.builds.recovery import recover_stale_builds
         recover_stale_builds()
     except Exception as e:
         logger.error("Build recovery failed: %s", e)
@@ -80,7 +80,7 @@ def start_scheduler():
             time.sleep(30)  # Initial delay to let services start
             while True:
                 try:
-                    from src.services.webhook_trigger import poll_for_changes
+                    from src.services.integrations.webhook_trigger import poll_for_changes
                     results = poll_for_changes()
                     if results:
                         logger.info("Bitbucket poller triggered %d stage build(s)", len(results))
@@ -95,5 +95,5 @@ def start_scheduler():
         logger.info("Bitbucket poller disabled (BITBUCKET_POLLER_ENABLED=false)")
 
     # Queue scheduler (build + validation dispatch, stuck job reconciliation)
-    from src.services.queue_scheduler import start_queue_scheduler
+    from src.services.scheduling.queue_scheduler import start_queue_scheduler
     start_queue_scheduler()

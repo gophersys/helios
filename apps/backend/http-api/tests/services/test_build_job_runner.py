@@ -1,4 +1,4 @@
-"""Tests for services/build_job_runner.py — K8s job creation and entrypoint script."""
+"""Tests for services/builds/job_runner.py — K8s job creation and entrypoint script."""
 
 from __future__ import annotations
 
@@ -40,10 +40,10 @@ class TestCreateBuildK8sJob:
         defaults.update(overrides)
         return make_obj(**defaults)
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_returns_none_when_job_not_found(self, mock_get_db):
         """Returns None when BuildJob not found in DB."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -52,10 +52,10 @@ class TestCreateBuildK8sJob:
         result = create_build_k8s_job("missing-id")
         assert result is None
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_returns_none_when_no_repo_url(self, mock_get_db):
         """Returns None when job has no repoUrl."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -66,10 +66,10 @@ class TestCreateBuildK8sJob:
         result = create_build_k8s_job("job-1")
         assert result is None
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_returns_none_when_no_builder_image(self, mock_get_db):
         """Returns None when no builder image can be determined."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -82,10 +82,10 @@ class TestCreateBuildK8sJob:
         result = create_build_k8s_job("job-1")
         assert result is None
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_fallback_builder_image_from_product(self, mock_get_db):
         """Falls back to product.builderImage when webhookData has none."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -118,10 +118,10 @@ class TestCreateBuildK8sJob:
 
         assert result is not None
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_k8s_client_not_available(self, mock_get_db):
         """Returns None when K8s client is not available."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -141,10 +141,10 @@ class TestCreateBuildK8sJob:
 
         assert result is None
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_k8s_exception_returns_none(self, mock_get_db):
         """Returns None when K8s job creation throws an exception."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -174,10 +174,10 @@ class TestCreateBuildK8sJob:
 
         assert result is None
 
-    @patch("src.services.build_job_runner.get_db_client")
+    @patch("src.services.builds.job_runner.get_db_client")
     def test_signing_key_lookup(self, mock_get_db):
         """Signing key is looked up when signingKeyId is provided."""
-        from src.services.build_job_runner import create_build_k8s_job
+        from src.services.builds.job_runner import create_build_k8s_job
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -218,7 +218,7 @@ class TestBuildEntrypointScript:
 
     def test_script_contains_key_sections(self):
         """Entrypoint script contains all required sections."""
-        from src.services.build_job_runner import _build_entrypoint_script
+        from src.services.builds.job_runner import _build_entrypoint_script
 
         script = _build_entrypoint_script()
 
@@ -230,7 +230,7 @@ class TestBuildEntrypointScript:
 
     def test_script_handles_artifact_upload(self):
         """Entrypoint script includes artifact upload loop."""
-        from src.services.build_job_runner import _build_entrypoint_script
+        from src.services.builds.job_runner import _build_entrypoint_script
 
         script = _build_entrypoint_script()
 

@@ -682,7 +682,7 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
         # All builds succeeded — validate artifacts before proceeding
         try:
-            from src.services.artifact_validator import (
+            from src.services.builds.artifact_validator import (
                 validate_build_run_artifacts,
                 format_missing_artifacts_message,
             )
@@ -704,7 +704,7 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
         # Promote artifacts to FirmwareSets
         try:
-            from src.services.build_promotion import promote_build_run_to_firmware
+            from src.services.builds.promotion import promote_build_run_to_firmware
             promoted = promote_build_run_to_firmware(run_id)
             if promoted:
                 logger.info("BuildRun %s promoted to %d FirmwareSet(s)", run_id, len(promoted))
@@ -715,7 +715,7 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
         # Create unified AssetSet from build artifacts
         try:
-            from src.services.build_promotion import create_asset_set_from_build_run
+            from src.services.builds.promotion import create_asset_set_from_build_run
             asset_result = create_asset_set_from_build_run(run_id)
             if asset_result:
                 logger.info("BuildRun %s → AssetSet %s (%d assets)",

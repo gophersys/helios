@@ -1,4 +1,4 @@
-"""Tests for services/build_trigger.py — trigger_stage_build and helpers."""
+"""Tests for services/builds/trigger.py — trigger_stage_build and helpers."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tests.conftest import make_obj
-from src.services.build_trigger import (
+from src.services.builds.trigger import (
     _extract_trigger_context,
     _resolve_recipe_version,
     trigger_stage_build,
@@ -153,7 +153,7 @@ class TestResolveRecipeVersion:
 class TestTriggerStageBuild:
     """Tests for trigger_stage_build() — integration of DB + build run creation."""
 
-    @patch("src.services.build_trigger.get_db_client")
+    @patch("src.services.builds.trigger.get_db_client")
     def test_returns_none_when_product_not_found(self, mock_get_db):
         """Returns None when product_id references no product."""
         db = MagicMock()
@@ -164,7 +164,7 @@ class TestTriggerStageBuild:
 
         assert result is None
 
-    @patch("src.services.build_trigger.get_db_client")
+    @patch("src.services.builds.trigger.get_db_client")
     def test_returns_none_when_stage_config_not_found(self, mock_get_db):
         """Returns None when stage_config_id references no stage config."""
         db = MagicMock()
@@ -176,7 +176,7 @@ class TestTriggerStageBuild:
 
         assert result is None
 
-    @patch("src.services.build_trigger.get_db_client")
+    @patch("src.services.builds.trigger.get_db_client")
     def test_returns_none_when_stage_config_has_no_revision(self, mock_get_db):
         """Returns None when stage config lacks a board revision."""
         db = MagicMock()
@@ -195,7 +195,7 @@ class TestTriggerStageBuild:
 
         assert result is None
 
-    @patch("src.services.build_trigger.get_db_client")
+    @patch("src.services.builds.trigger.get_db_client")
     def test_returns_none_when_product_has_no_fw_repo(self, mock_get_db):
         """Returns None when product has no fwRepoSlug."""
         db = MagicMock()
@@ -205,14 +205,14 @@ class TestTriggerStageBuild:
         db.stagebuildmatrix.find_many.return_value = []
 
         from corekinect.stages import StageBuildDef, Stage
-        with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
+        with patch("src.services.builds.trigger.get_stage_build_defs", return_value=[
             StageBuildDef(label="mfg_app_debug", fw_type="app", variant="debug")
         ]):
             result = trigger_stage_build("prod-1", "sc-1")
 
         assert result is None
 
-    @patch("src.services.build_trigger.get_db_client")
+    @patch("src.services.builds.trigger.get_db_client")
     def test_deduplicates_active_run_for_same_commit(self, mock_get_db):
         """Returns existing BuildRun ID when same commit already in progress."""
         db = MagicMock()
@@ -226,7 +226,7 @@ class TestTriggerStageBuild:
         db.buildrun.find_first.return_value = existing_run
 
         from corekinect.stages import StageBuildDef
-        with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
+        with patch("src.services.builds.trigger.get_stage_build_defs", return_value=[
             StageBuildDef(label="prod_verbose", fw_type="app", variant="release")
         ]):
             result = trigger_stage_build(
@@ -238,7 +238,7 @@ class TestTriggerStageBuild:
         assert result.get("buildRunId") == "run-existing"
         assert result.get("deduplicated") is True
 
-    @patch("src.services.build_trigger.get_db_client")
+    @patch("src.services.builds.trigger.get_db_client")
     def test_creates_build_run_on_success(self, mock_get_db):
         """Creates BuildRun and jobs when all inputs valid."""
         db = MagicMock()
@@ -265,12 +265,12 @@ class TestTriggerStageBuild:
 
         from corekinect.stages import StageBuildDef
 
-        with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
+        with patch("src.services.builds.trigger.get_stage_build_defs", return_value=[
             StageBuildDef(label="prod_verbose", fw_type="app", variant="release"),
         ]):
             with patch("src.api.v2.builds.build_cache.compute_build_fingerprint", return_value="fp-1"):
                 with patch("src.api.v2.builds.build_cache.find_cached_build", return_value=None):
-                    with patch("src.services.build_trigger.log_audit"):
+                    with patch("src.services.builds.trigger.log_audit"):
                         result = trigger_stage_build("prod-1", "sc-1")
 
         assert result is not None

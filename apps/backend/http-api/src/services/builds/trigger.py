@@ -427,7 +427,7 @@ def trigger_stage_build(
     # Wake the queue scheduler to dispatch QUEUED jobs by priority.
     # The scheduler enforces concurrency limits and build-service picks up
     # jobs in priority order via its poll loop.
-    from src.services.queue_scheduler import wake_scheduler
+    from src.services.scheduling.queue_scheduler import wake_scheduler
     wake_scheduler()
 
     return {

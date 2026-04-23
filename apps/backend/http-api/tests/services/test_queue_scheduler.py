@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from services.queue_scheduler import (
+from services.scheduling.queue_scheduler import (
     _schedule_builds,
     _schedule_validation,
     _reconcile_stuck_jobs,
@@ -27,8 +27,8 @@ def _clear_wake():
 
 
 class TestScheduleBuilds:
-    @patch("services.queue_scheduler.get_db_client")
-    @patch("services.queue_scheduler._notify_build_service")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._notify_build_service")
     def test_respects_concurrency_limit(self, mock_notify, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -37,8 +37,8 @@ class TestScheduleBuilds:
         result = _schedule_builds(max_concurrent=4)
         assert result == 1  # min(5 queued, 1 available)
 
-    @patch("services.queue_scheduler.get_db_client")
-    @patch("services.queue_scheduler._notify_build_service")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._notify_build_service")
     def test_blocks_when_at_limit(self, mock_notify, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -47,8 +47,8 @@ class TestScheduleBuilds:
         assert result == 0
         mock_notify.assert_not_called()
 
-    @patch("services.queue_scheduler.get_db_client")
-    @patch("services.queue_scheduler._notify_build_service")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._notify_build_service")
     def test_no_queued_jobs(self, mock_notify, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -56,8 +56,8 @@ class TestScheduleBuilds:
         result = _schedule_builds(max_concurrent=4)
         assert result == 0
 
-    @patch("services.queue_scheduler.get_db_client")
-    @patch("services.queue_scheduler._notify_build_service")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._notify_build_service")
     def test_notifies_build_service(self, mock_notify, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -67,7 +67,7 @@ class TestScheduleBuilds:
 
 
 class TestScheduleValidation:
-    @patch("services.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
     def test_blocks_when_at_limit(self, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -75,8 +75,8 @@ class TestScheduleValidation:
         result = _schedule_validation(max_concurrent=8)
         assert result == []
 
-    @patch("services.queue_scheduler.get_db_client")
-    @patch("services.queue_scheduler._run_validation_scheduler")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._run_validation_scheduler")
     def test_delegates_to_schedule_queue(self, mock_sq, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -86,8 +86,8 @@ class TestScheduleValidation:
         mock_sq.assert_called_once_with(6)
         assert len(result) == 1
 
-    @patch("services.queue_scheduler.get_db_client")
-    @patch("services.queue_scheduler._run_validation_scheduler")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._run_validation_scheduler")
     def test_passes_available_slots(self, mock_sq, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -98,8 +98,8 @@ class TestScheduleValidation:
 
 
 class TestReconcileStuckJobs:
-    @patch("services.queue_scheduler._try_cancel_job")
-    @patch("services.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._try_cancel_job")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
     def test_fails_stuck_validation_entries(self, mock_db, mock_cancel):
         db = MagicMock()
         mock_db.return_value = db
@@ -132,8 +132,8 @@ class TestReconcileStuckJobs:
         assert fixture_data["status"] == "AVAILABLE"
         assert fixture_data["lockedBy"] is None
 
-    @patch("services.queue_scheduler._try_cancel_job")
-    @patch("services.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler._try_cancel_job")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
     def test_cancels_job_for_stuck_entry(self, mock_db, mock_cancel):
         db = MagicMock()
         mock_db.return_value = db
@@ -152,7 +152,7 @@ class TestReconcileStuckJobs:
         _reconcile_stuck_jobs(validation_timeout_min=60, manufacturing_timeout_min=120)
         mock_cancel.assert_called_once_with("k8s-job-name")
 
-    @patch("services.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
     def test_warns_on_stuck_manufacturing(self, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -173,7 +173,7 @@ class TestReconcileStuckJobs:
         )
         assert reconciled == 0  # Mfg sessions are warn-only, not auto-failed
 
-    @patch("services.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
     def test_no_stuck_jobs(self, mock_db):
         db = MagicMock()
         mock_db.return_value = db
@@ -187,7 +187,7 @@ class TestReconcileStuckJobs:
 
 
 class TestManufacturingGate:
-    @patch("services.queue_scheduler.get_db_client")
+    @patch("services.scheduling.queue_scheduler.get_db_client")
     def test_counts_active_sessions(self, mock_db):
         db = MagicMock()
         mock_db.return_value = db

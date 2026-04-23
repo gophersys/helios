@@ -1,4 +1,4 @@
-"""Extended tests for services/build_run_service.py — coverage for uncovered paths.
+"""Extended tests for services/builds/run_service.py — coverage for uncovered paths.
 
 Targets: generate_matrix_build_specs, create_build_jobs, check_build_run_completion,
 _find_available_fixture, _analyze_unavailability, _queue_validation.
@@ -27,7 +27,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_head_app_generates_four_sub_builds(self):
         """Head source app builds produce 4 sub-builds with sequential versions."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         db.buildjob.find_first.return_value = make_obj(versionString="0.8.10")
@@ -58,7 +58,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_head_app_no_prefix_falls_through(self):
         """Head app build with no prior builds falls through to normal path."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         db.buildjob.find_first.return_value = None  # No prior builds
@@ -82,7 +82,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_head_mfg_build(self):
         """Head source mfg builds use role as label."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         db.buildjob.find_first.return_value = make_obj(versionString="0.5.3")
@@ -106,7 +106,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_latest_source_builds(self):
         """Latest source entries produce specs with source=latest."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         product = make_obj(id="prod-1")
@@ -128,7 +128,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_latest_prev_source(self):
         """latest_prev source entries produce specs with source=latest_prev."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         product = make_obj(id="prod-1")
@@ -149,7 +149,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_multiple_matrix_entries(self):
         """Multiple matrix entries produce indexed specs."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         db.buildjob.find_first.return_value = None
@@ -176,7 +176,7 @@ class TestGenerateMatrixBuildSpecs:
 
     def test_no_product_record(self):
         """Works with product_record=None (no auto-versioning)."""
-        from src.services.build_run_service import generate_matrix_build_specs
+        from src.services.builds.run_service import generate_matrix_build_specs
 
         db = MagicMock()
         matrix = [{"role": "app", "firmware": "alpha_fw", "source": "head"}]
@@ -204,7 +204,7 @@ class TestCreateBuildJobs:
 
     def test_creates_queued_builds(self):
         """Creates BuildJob records for head source specs."""
-        from src.services.build_run_service import create_build_jobs
+        from src.services.builds.run_service import create_build_jobs
 
         db = MagicMock()
         build_obj = make_obj(id="build-1")
@@ -235,7 +235,7 @@ class TestCreateBuildJobs:
 
     def test_cached_latest_build(self):
         """Latest source specs that find a cache hit create CACHED status builds."""
-        from src.services.build_run_service import create_build_jobs
+        from src.services.builds.run_service import create_build_jobs
 
         db = MagicMock()
         cached = make_obj(id="cached-1", commitSha="old123", versionString="0.8.5", artifacts=[])
@@ -269,7 +269,7 @@ class TestCreateBuildJobs:
 
     def test_version_override_sets_config_flags(self):
         """Specs with versionOverride set configFlags and webhookData."""
-        from src.services.build_run_service import create_build_jobs
+        from src.services.builds.run_service import create_build_jobs
 
         db = MagicMock()
         db.buildjob.create.return_value = make_obj(id="build-1")
@@ -302,7 +302,7 @@ class TestCreateBuildJobs:
 
     def test_base_label_linking(self):
         """Specs with baseLabel are linked to their base build in second pass."""
-        from src.services.build_run_service import create_build_jobs
+        from src.services.builds.run_service import create_build_jobs
 
         db = MagicMock()
         build_a = make_obj(id="build-a")
@@ -345,10 +345,10 @@ class TestCreateBuildJobs:
 class TestCheckBuildRunCompletion:
     """Tests for check_build_run_completion()."""
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_returns_none_for_missing_build_run(self, mock_get_db):
         """Returns None when build run not found."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -357,10 +357,10 @@ class TestCheckBuildRunCompletion:
         result = check_build_run_completion("run-missing")
         assert result is None
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_returns_none_for_already_finished(self, mock_get_db):
         """Returns None when build run is already in a terminal state."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -371,10 +371,10 @@ class TestCheckBuildRunCompletion:
         result = check_build_run_completion("run-1")
         assert result is None
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_returns_none_for_empty_builds(self, mock_get_db):
         """Returns None when build run has no builds."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -385,10 +385,10 @@ class TestCheckBuildRunCompletion:
         result = check_build_run_completion("run-1")
         assert result is None
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_returns_none_when_incomplete(self, mock_get_db):
         """Returns None when not all builds are done yet."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -403,10 +403,10 @@ class TestCheckBuildRunCompletion:
         result = check_build_run_completion("run-1")
         assert result is None
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_all_success_sets_success(self, mock_get_db):
         """Sets build run to SUCCESS when all builds succeed and autoRunStage=False."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -418,20 +418,20 @@ class TestCheckBuildRunCompletion:
         )
         db.buildrun.find_unique.return_value = build_run
 
-        with patch("src.services.artifact_validator.validate_build_run_artifacts",
+        with patch("src.services.builds.artifact_validator.validate_build_run_artifacts",
                    return_value={"valid": True, "missing": []}), \
-             patch("src.services.build_promotion.promote_build_run_to_firmware",
+             patch("src.services.builds.promotion.promote_build_run_to_firmware",
                    return_value=[{"id": "fs-1"}]), \
-             patch("src.services.build_promotion.create_asset_set_from_build_run",
+             patch("src.services.builds.promotion.create_asset_set_from_build_run",
                    return_value={"assetSetId": "as-1", "assetCount": 1}):
             result = check_build_run_completion("run-1")
 
         assert result == "SUCCESS"
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_failed_build_cancels_siblings(self, mock_get_db):
         """Failed builds trigger cancellation of pending siblings."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -453,10 +453,10 @@ class TestCheckBuildRunCompletion:
         # Pending build should be cancelled
         db.buildjob.update.assert_called()
 
-    @patch("src.services.build_run_service.get_db_client")
+    @patch("src.services.builds.run_service.get_db_client")
     def test_exception_returns_none(self, mock_get_db):
         """Returns None on unexpected exceptions."""
-        from src.services.build_run_service import check_build_run_completion
+        from src.services.builds.run_service import check_build_run_completion
 
         db = MagicMock()
         mock_get_db.return_value = db
@@ -475,7 +475,7 @@ class TestFindAvailableFixture:
 
     def test_finds_available_fixture(self):
         """Returns fixture with online node and configured slot."""
-        from src.services.build_run_service import _find_available_fixture
+        from src.services.builds.run_service import _find_available_fixture
 
         db = MagicMock()
         node = make_obj(status="ONLINE", ipAddress="192.168.1.100")
@@ -494,7 +494,7 @@ class TestFindAvailableFixture:
 
     def test_skips_locked_fixtures(self):
         """Skips fixtures that are not AVAILABLE."""
-        from src.services.build_run_service import _find_available_fixture
+        from src.services.builds.run_service import _find_available_fixture
 
         db = MagicMock()
         fixture = make_obj(
@@ -510,7 +510,7 @@ class TestFindAvailableFixture:
 
     def test_skips_offline_nodes(self):
         """Skips slots with offline nodes."""
-        from src.services.build_run_service import _find_available_fixture
+        from src.services.builds.run_service import _find_available_fixture
 
         db = MagicMock()
         node = make_obj(status="OFFLINE", ipAddress="192.168.1.100")
@@ -527,7 +527,7 @@ class TestFindAvailableFixture:
 
     def test_skips_unconfigured_slots(self):
         """Skips slots without dutSnr or dutDeviceId."""
-        from src.services.build_run_service import _find_available_fixture
+        from src.services.builds.run_service import _find_available_fixture
 
         db = MagicMock()
         slot = make_obj(active=True, dutSnr=None, dutDeviceId=None, node=None)
@@ -551,7 +551,7 @@ class TestAnalyzeUnavailability:
 
     def test_categorizes_locked_fixtures(self):
         """Locked fixtures appear in the locked list."""
-        from src.services.build_run_service import _analyze_unavailability
+        from src.services.builds.run_service import _analyze_unavailability
 
         db = MagicMock()
         fixtures = [
@@ -564,7 +564,7 @@ class TestAnalyzeUnavailability:
 
     def test_categorizes_offline_nodes(self):
         """Available fixtures with offline nodes appear in offline list."""
-        from src.services.build_run_service import _analyze_unavailability
+        from src.services.builds.run_service import _analyze_unavailability
 
         db = MagicMock()
         node = make_obj(status="OFFLINE")
@@ -579,7 +579,7 @@ class TestAnalyzeUnavailability:
 
     def test_categorizes_unconfigured(self):
         """Available fixtures with no configured slots appear in unconfigured."""
-        from src.services.build_run_service import _analyze_unavailability
+        from src.services.builds.run_service import _analyze_unavailability
 
         db = MagicMock()
         slot = make_obj(active=False, dutSnr=None)
@@ -601,7 +601,7 @@ class TestQueueValidation:
 
     def test_creates_queue_entry(self):
         """Creates a new queue entry when none exists."""
-        from src.services.build_run_service import _queue_validation
+        from src.services.builds.run_service import _queue_validation
 
         db = MagicMock()
         db.validationqueueentry.find_first.return_value = None
@@ -616,7 +616,7 @@ class TestQueueValidation:
 
     def test_returns_existing_entry(self):
         """Returns existing queue entry without creating new one."""
-        from src.services.build_run_service import _queue_validation
+        from src.services.builds.run_service import _queue_validation
 
         db = MagicMock()
         db.validationqueueentry.find_first.return_value = make_obj(id="q-existing")
@@ -630,7 +630,7 @@ class TestQueueValidation:
 
     def test_reason_includes_all_categories(self):
         """Reason string includes all unavailability categories."""
-        from src.services.build_run_service import _queue_validation
+        from src.services.builds.run_service import _queue_validation
 
         db = MagicMock()
         db.validationqueueentry.find_first.return_value = None
@@ -656,11 +656,11 @@ class TestQueueValidation:
 class TestCreateBuildRunRecord:
     """Tests for create_build_run_record()."""
 
-    @patch("src.services.build_run_service.log_audit")
-    @patch("src.services.build_run_service.create_build_jobs")
+    @patch("src.services.builds.run_service.log_audit")
+    @patch("src.services.builds.run_service.create_build_jobs")
     def test_creates_record_and_jobs(self, mock_create_jobs, mock_audit):
         """Creates a BuildRun record and its build jobs."""
-        from src.services.build_run_service import create_build_run_record
+        from src.services.builds.run_service import create_build_run_record
 
         db = MagicMock()
         build_run = make_obj(id="run-1")

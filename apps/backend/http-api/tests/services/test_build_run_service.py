@@ -1,4 +1,4 @@
-"""Tests for services/build_run_service.py — serializers, helpers, resolve_build_run_context."""
+"""Tests for services/builds/run_service.py — serializers, helpers, resolve_build_run_context."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tests.conftest import make_obj
-from src.services.build_run_service import (
+from src.services.builds.run_service import (
     safe_product_str,
     derive_build_product_slug,
     get_system_user_id,
