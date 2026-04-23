@@ -13,10 +13,12 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error, unauthorized
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from services.builds.notifier import notify_build_service
 from src.services.integrations.webhook_trigger import RepoEvent, handle_repo_event
 from src.services.database.prisma import get_db_client
 
 from .builds import _serialize_build_job
+from .shared import _emit_ci_event
 from .types import (
     BitbucketWebhookPayload,
     CiTriggerRequest,
@@ -97,20 +99,6 @@ def _product_to_build_config(product, repo_slug: str) -> dict:
 
 logger = logging.getLogger(__name__)
 
-_socketio = None
-
-
-def set_ci_socketio(sio):
-    """Store the SocketIO instance for CI event emission."""
-    global _socketio
-    _socketio = sio
-
-
-def _emit_ci_event(event: str, data: dict):
-    """Emit a CI event via WebSocket if SocketIO is available."""
-    if _socketio:
-        _socketio.emit(event, data, namespace="/kubernetes")
-
 
 def _validate_webhook_signature(payload_bytes: bytes, signature: str) -> bool:
     """Validate Bitbucket webhook HMAC-SHA256 signature.
@@ -183,7 +171,6 @@ def _create_webhook_builds(db, product_config: dict, payload) -> list:
 def _notify_queued_builds(builds: list):
     """Fire-and-forget notification to the build service for queued builds."""
     try:
-        from services.builds.notifier import notify_build_service
         for b in builds:
             if b.status == "QUEUED":
                 notify_build_service(b.id, priority=50)
@@ -358,7 +345,6 @@ def trigger_build_run():
 
         # Notify build service (fire-and-forget, manual trigger = high priority)
         try:
-            from services.builds.notifier import notify_build_service
             notify_build_service(build.id, priority=100)
         except Exception:
             pass

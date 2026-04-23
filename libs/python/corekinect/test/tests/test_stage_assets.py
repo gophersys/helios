@@ -13,6 +13,7 @@ import pytest
 
 from corekinect.errors import ConfigError
 from corekinect.stages import Stage, get_required_labels
+from corekinect.test.artifact_resolver import BuildManifest
 from corekinect.test.stage_assets import (
     BuildAsset,
     StageAssets,
@@ -155,8 +156,6 @@ class TestBuildAssetManifest:
 
     def test_manifest_returns_build_manifest(self, populated_resolver):
         """Test manifest returns build manifest."""
-        from corekinect.test.artifact_resolver import BuildManifest
-
         asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
         m = asset.manifest()
         assert isinstance(m, BuildManifest)

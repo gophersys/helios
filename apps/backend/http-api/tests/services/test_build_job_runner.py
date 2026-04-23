@@ -82,8 +82,9 @@ class TestCreateBuildK8sJob:
         result = create_build_k8s_job("job-1")
         assert result is None
 
+    @patch("src.services.builds.job_runner.get_k8s_client")
     @patch("src.services.builds.job_runner.get_db_client")
-    def test_fallback_builder_image_from_product(self, mock_get_db):
+    def test_fallback_builder_image_from_product(self, mock_get_db, mock_get_k8s):
         """Falls back to product.builderImage when webhookData has none."""
         from src.services.builds.job_runner import create_build_k8s_job
 
@@ -100,17 +101,13 @@ class TestCreateBuildK8sJob:
         db.user.find_first.return_value = make_obj(id="sys-1")
         db.secret.find_unique.return_value = None
 
-        # Mock the local K8s imports
         mock_k8s_client = MagicMock()
+        mock_get_k8s.return_value = mock_k8s_client
         mock_batch_v1 = MagicMock()
-        mock_k8s_module = MagicMock()
-        mock_k8s_module.get_k8s_client.return_value = mock_k8s_client
-
         mock_k8s_api = MagicMock()
         mock_k8s_api.BatchV1Api.return_value = mock_batch_v1
 
         with patch.dict(sys.modules, {
-            "src.services.kubernetes.client": mock_k8s_module,
             "kubernetes": MagicMock(),
             "kubernetes.client": mock_k8s_api,
         }):
@@ -118,8 +115,9 @@ class TestCreateBuildK8sJob:
 
         assert result is not None
 
+    @patch("src.services.builds.job_runner.get_k8s_client")
     @patch("src.services.builds.job_runner.get_db_client")
-    def test_k8s_client_not_available(self, mock_get_db):
+    def test_k8s_client_not_available(self, mock_get_db, mock_get_k8s):
         """Returns None when K8s client is not available."""
         from src.services.builds.job_runner import create_build_k8s_job
 
@@ -129,11 +127,9 @@ class TestCreateBuildK8sJob:
         db.user.find_first.return_value = make_obj(id="sys-1")
         db.secret.find_unique.return_value = None
 
-        mock_k8s_module = MagicMock()
-        mock_k8s_module.get_k8s_client.return_value = None
+        mock_get_k8s.return_value = None
 
         with patch.dict(sys.modules, {
-            "src.services.kubernetes.client": mock_k8s_module,
             "kubernetes": MagicMock(),
             "kubernetes.client": MagicMock(),
         }):
@@ -141,8 +137,9 @@ class TestCreateBuildK8sJob:
 
         assert result is None
 
+    @patch("src.services.builds.job_runner.get_k8s_client")
     @patch("src.services.builds.job_runner.get_db_client")
-    def test_k8s_exception_returns_none(self, mock_get_db):
+    def test_k8s_exception_returns_none(self, mock_get_db, mock_get_k8s):
         """Returns None when K8s job creation throws an exception."""
         from src.services.builds.job_runner import create_build_k8s_job
 
@@ -152,8 +149,7 @@ class TestCreateBuildK8sJob:
         db.user.find_first.return_value = make_obj(id="sys-1")
         db.secret.find_unique.return_value = None
 
-        mock_k8s_module = MagicMock()
-        mock_k8s_module.get_k8s_client.return_value = MagicMock()
+        mock_get_k8s.return_value = MagicMock()
 
         # Build a mock kubernetes module that raises on create_namespaced_job
         mock_k8s_client_mod = MagicMock()
@@ -161,12 +157,10 @@ class TestCreateBuildK8sJob:
         batch_mock.create_namespaced_job.side_effect = Exception("K8s error")
         mock_k8s_client_mod.BatchV1Api.return_value = batch_mock
 
-        # Ensure the local imports pick up our mocks
         mock_kubernetes = MagicMock()
         mock_kubernetes.client = mock_k8s_client_mod
 
         with patch.dict(sys.modules, {
-            "src.services.kubernetes.client": mock_k8s_module,
             "kubernetes": mock_kubernetes,
             "kubernetes.client": mock_k8s_client_mod,
         }):
@@ -174,8 +168,9 @@ class TestCreateBuildK8sJob:
 
         assert result is None
 
+    @patch("src.services.builds.job_runner.get_k8s_client")
     @patch("src.services.builds.job_runner.get_db_client")
-    def test_signing_key_lookup(self, mock_get_db):
+    def test_signing_key_lookup(self, mock_get_db, mock_get_k8s):
         """Signing key is looked up when signingKeyId is provided."""
         from src.services.builds.job_runner import create_build_k8s_job
 
@@ -191,15 +186,12 @@ class TestCreateBuildK8sJob:
         db.user.find_first.return_value = make_obj(id="sys-1")
         db.secret.find_unique.return_value = make_obj(value="base64encodedkey==")
 
-        mock_k8s_module = MagicMock()
-        mock_k8s_module.get_k8s_client.return_value = MagicMock()
-
+        mock_get_k8s.return_value = MagicMock()
         mock_k8s_api = MagicMock()
         mock_batch_v1 = MagicMock()
         mock_k8s_api.BatchV1Api.return_value = mock_batch_v1
 
         with patch.dict(sys.modules, {
-            "src.services.kubernetes.client": mock_k8s_module,
             "kubernetes": MagicMock(),
             "kubernetes.client": mock_k8s_api,
         }):

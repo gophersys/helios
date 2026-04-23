@@ -10,10 +10,12 @@ import requests
 from flask import jsonify, request
 from requests.auth import HTTPBasicAuth
 
+from config.env import env_config
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from src.services.ck_boards.service import CkBoardsService
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,6 @@ _API_BASE = "https://api.bitbucket.org/2.0"
 def init_ck_boards_service(config) -> None:
     """Initialize the ck_boards service from AppConfig (called at app startup)."""
     global _ck_boards_service
-    from src.services.ck_boards.service import CkBoardsService
 
     # Extract workspace from the repo URL: git@bitbucket.org:corekinect/ck_boards.git → corekinect
     repo_url = config.CK_BOARDS_REPO_URL
@@ -45,7 +46,6 @@ def init_ck_boards_service(config) -> None:
             environment=config.ENVIRONMENT,
         )
     except RuntimeError as e:
-        import logging
         logging.getLogger(__name__).warning("CkBoards disabled: %s", e)
 
 
@@ -115,8 +115,6 @@ def discover_board_detail(board_name: str):
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def check_repo():
     """GET /v2/products/repos/check?slug=alpha_fw — verify Bitbucket repo exists."""
-    from config.env import env_config
-
     slug = request.args.get("slug", "").strip()
     if not slug:
         return bad_request("slug query parameter is required")
@@ -138,8 +136,6 @@ def check_repo():
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def list_repo_branches():
     """GET /v2/products/repos/branches?slug=alpha_fw — list branches for a Bitbucket repo."""
-    from config.env import env_config
-
     slug = request.args.get("slug", "").strip()
     if not slug:
         return bad_request("slug query parameter is required")

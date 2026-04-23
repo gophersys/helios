@@ -30,6 +30,7 @@ from src.services.storage.client import (
 )
 
 from src.api.v2.runs.types import ReportLogChunkRequest
+from .ws import emit_to_run
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +215,6 @@ def report_log_chunk(run_id: str):
             slot_index = target.slotIndex
 
     # Broadcast to WebSocket subscribers immediately
-    from .ws import emit_to_run
     ws_payload = {
         "runId": run_id,
         "file": data.file,

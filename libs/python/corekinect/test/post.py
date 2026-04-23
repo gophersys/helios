@@ -8,10 +8,16 @@ flash on both processors.
     print(f"IMEI: {result.imei}")
 """
 
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from corekinect.mtib_client.v1.client.types import (
+    GpioDirection,
+    GpioResistorConfig,
+    PowerChannel,
+)
 from corekinect.shells.alpha_app import AlphaAppShell
 from corekinect.shells.comms_coproc import CommsCoprocShell
 from corekinect.utils import Logger
@@ -85,10 +91,6 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
         # The mfg shell activates ~0.4s after boot and auto-deactivates at ~8s.
         # Fast fail-and-retry: 10s lock timeout per attempt, power cycle on
         # failure. Same pattern as DevicePersonalizer._power_cycle_and_lock_shells.
-        from corekinect.mtib_client.v1.client.types import (
-            PowerChannel, GpioDirection, GpioResistorConfig,
-        )
-
         max_attempts = 3
         comms_locked = False
         app_locked = False
@@ -118,7 +120,6 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
 
             log.info("Locking manufacturing shells...")
             # Lock both concurrently with 10s timeout (shell window is ~7s)
-            import threading
             lock_results = {}
 
             def _lock_shell(name, shell):

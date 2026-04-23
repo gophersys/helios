@@ -38,7 +38,11 @@ from .notifications import (
     mark_read,
     mark_all_read,
     broadcast_notification,
+    list_notification_types,
+    get_notification_preferences,
+    update_notification_preferences,
 )
+from .notifications_ws import register_notification_ws
 from .user_reports import list_my_error_reports
 from ..assets.storage_download import download_storage_file
 
@@ -88,6 +92,9 @@ def register_system_routes(api: Blueprint, socketio: SocketIO):
     api.add_url_rule("/notifications/<notification_id>/read", endpoint="mark_read",             view_func=mark_read,               methods=["PATCH"])
     api.add_url_rule("/notifications/read-all",            endpoint="mark_all_read",            view_func=mark_all_read,           methods=["POST"])
     api.add_url_rule("/notifications/broadcast",           endpoint="broadcast_notification",   view_func=broadcast_notification,  methods=["POST"])
+    api.add_url_rule("/notifications/types",               endpoint="list_notification_types",  view_func=list_notification_types,  methods=["GET"])
+    api.add_url_rule("/notifications/preferences",         endpoint="get_notification_prefs",   view_func=get_notification_preferences,    methods=["GET"])
+    api.add_url_rule("/notifications/preferences",         endpoint="update_notification_prefs", view_func=update_notification_preferences, methods=["PUT"])
 
     # User's own bug reports
     api.add_url_rule("/my/error-reports",                  endpoint="list_my_error_reports",    view_func=list_my_error_reports,   methods=["GET"])
@@ -95,3 +102,4 @@ def register_system_routes(api: Blueprint, socketio: SocketIO):
     register_log_handlers(socketio)
     register_exec_handlers(socketio)
     register_observability_handlers(socketio)
+    register_notification_ws(socketio)

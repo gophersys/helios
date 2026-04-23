@@ -17,20 +17,20 @@ class TestPollForChanges:
     """Tests for poll_for_changes()."""
 
     def _patch_poll(self):
-        """Return context managers for the three local imports inside poll_for_changes."""
+        """Return context managers for poll_for_changes dependencies."""
         return (
-            patch("config.env_config"),
-            patch("src.services.integrations.bitbucket_client.BitbucketClient"),
-            patch("src.services.integrations.bitbucket_client.parse_pr_metadata"),
-            patch("src.services.integrations.webhook_trigger.get_db_client"),
-            patch("src.services.integrations.webhook_trigger.handle_repo_event"),
+            patch("src.services.integrations.webhook_trigger.env_config"),
+            patch("src.services.integrations.webhook_trigger.BitbucketClient"),
+            patch("src.services.integrations.webhook_trigger.parse_pr_metadata"),
+            patch("services.integrations.webhook_trigger.get_db_client"),
+            patch("services.integrations.webhook_trigger.handle_repo_event"),
         )
 
     def test_not_configured_returns_empty(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
              patch("src.services.integrations.webhook_trigger.get_db_client"):
             mock_config.BITBUCKET_API_TOKEN = ""
             mock_config.BITBUCKET_EMAIL = ""
@@ -44,8 +44,8 @@ class TestPollForChanges:
     def test_no_stages_returns_empty(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db:
             mock_config.BITBUCKET_API_TOKEN = "token"
             mock_config.BITBUCKET_EMAIL = "t@t.com"
@@ -62,9 +62,9 @@ class TestPollForChanges:
     def test_skips_draft_prs(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
-             patch("src.services.integrations.bitbucket_client.parse_pr_metadata") as mock_parse, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
+             patch("src.services.integrations.webhook_trigger.parse_pr_metadata") as mock_parse, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db, \
              patch("src.services.integrations.webhook_trigger.handle_repo_event") as mock_handle:
             mock_config.BITBUCKET_API_TOKEN = "token"
@@ -87,9 +87,9 @@ class TestPollForChanges:
     def test_skips_cached_commits(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
-             patch("src.services.integrations.bitbucket_client.parse_pr_metadata") as mock_parse, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
+             patch("src.services.integrations.webhook_trigger.parse_pr_metadata") as mock_parse, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db, \
              patch("src.services.integrations.webhook_trigger.handle_repo_event") as mock_handle:
             mock_config.BITBUCKET_API_TOKEN = "token"
@@ -118,9 +118,9 @@ class TestPollForChanges:
     def test_fires_event_on_new_commit(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
-             patch("src.services.integrations.bitbucket_client.parse_pr_metadata") as mock_parse, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
+             patch("src.services.integrations.webhook_trigger.parse_pr_metadata") as mock_parse, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db, \
              patch("src.services.integrations.webhook_trigger.handle_repo_event") as mock_handle:
             mock_config.BITBUCKET_API_TOKEN = "token"
@@ -151,9 +151,9 @@ class TestPollForChanges:
     def test_unmatched_branch_skipped(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
-             patch("src.services.integrations.bitbucket_client.parse_pr_metadata") as mock_parse, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
+             patch("src.services.integrations.webhook_trigger.parse_pr_metadata") as mock_parse, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db, \
              patch("src.services.integrations.webhook_trigger.handle_repo_event") as mock_handle:
             mock_config.BITBUCKET_API_TOKEN = "token"
@@ -181,8 +181,8 @@ class TestPollForChanges:
     def test_pr_list_failure_continues(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db:
             mock_config.BITBUCKET_API_TOKEN = "token"
             mock_config.BITBUCKET_EMAIL = "t@t.com"
@@ -203,8 +203,8 @@ class TestPollForChanges:
     def test_product_without_fw_repo_slug_skipped(self):
         from src.services.integrations.webhook_trigger import poll_for_changes
 
-        with patch("config.env_config") as mock_config, \
-             patch("src.services.integrations.bitbucket_client.BitbucketClient") as mock_bb_cls, \
+        with patch("src.services.integrations.webhook_trigger.env_config") as mock_config, \
+             patch("src.services.integrations.webhook_trigger.BitbucketClient") as mock_bb_cls, \
              patch("src.services.integrations.webhook_trigger.get_db_client") as mock_get_db:
             mock_config.BITBUCKET_API_TOKEN = "token"
             mock_config.BITBUCKET_EMAIL = "t@t.com"

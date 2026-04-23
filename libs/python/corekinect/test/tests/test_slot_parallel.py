@@ -19,10 +19,13 @@ from __future__ import annotations
 import json
 import os
 import textwrap
+import time
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
 import pytest
+
+from corekinect.test.slot_parallel import items_to_groups
 
 pytest_plugins = ["pytester"]
 
@@ -168,7 +171,6 @@ class _FakeItem:
 
 
 def test_groups_items_by_top_level_test_preserving_order() -> None:
-    from corekinect.test.slot_parallel import items_to_groups
 
     items = [
         _FakeItem("pkg/test_a.py::test_one[slot-0]"),
@@ -185,7 +187,6 @@ def test_groups_items_by_top_level_test_preserving_order() -> None:
 
 
 def test_items_without_slot_param_form_singleton_groups() -> None:
-    from corekinect.test.slot_parallel import items_to_groups
 
     items = [
         _FakeItem("pkg/test_a.py::test_alpha"),
@@ -397,7 +398,6 @@ def test_parallel_is_actually_faster_than_serial(pytester: pytest.Pytester) -> N
     the run completes in well under 2× the per-test sleep to leave
     generous headroom for thread-pool startup and pytest overhead.
     """
-    import time
     _write_fake_suite(pytester, num_tests=1, num_slots=4, sleep_s=0.2)
     pytester.makepyfile(conftest=_conftest_registering_plugin())
 

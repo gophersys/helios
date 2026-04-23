@@ -98,13 +98,22 @@ _git_describe() {
 get_version() {
     local version_file="${REPO_ROOT}/VERSION"
     local sha
-    sha=$(git rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
+    sha=$(git rev-parse --short=8 HEAD 2>/dev/null || echo "")
     if [[ -f "$version_file" ]]; then
         local ver
         ver=$(cat "$version_file" | tr -d '[:space:]')
-        echo "${ver}-${sha}"
+        # If HEAD is an exact tag match, use clean version; otherwise append sha
+        local tag
+        tag=$(_git_describe)
+        if [[ -n "$tag" && "$tag" == "v${ver}" ]]; then
+            echo "${ver}"
+        elif [[ -n "$sha" ]]; then
+            echo "${ver}-${sha}"
+        else
+            echo "${ver}"
+        fi
     else
-        echo "0.0.1-${sha}"
+        echo "0.0.1-${sha:-dev}"
     fi
 }
 

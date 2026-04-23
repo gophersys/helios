@@ -4,6 +4,7 @@ Renders the validation_job.yaml template and submits to K8s.
 Supports multi-slot fixtures via extra_env injection.
 """
 
+import hashlib
 import os
 import re
 import shutil
@@ -11,6 +12,7 @@ import tempfile
 import uuid
 import zipfile
 from typing import Dict, Optional, Tuple
+from urllib.parse import urlparse, urlunparse
 
 import yaml  # type: ignore[import-untyped]
 from config.env import env_config
@@ -36,8 +38,6 @@ from src.api.v2.runs.types import ValidationTestsRunRequest
 
 def create_k8s_job_name(product: str, job_id: str, firmware_version: Optional[str] = None) -> str:
     """Create a Kubernetes-compliant job name (max 63 chars, RFC 1123 compliant)"""
-    import hashlib
-
     # Ensure product name is lowercase and valid for K8s
     product_clean = re.sub(r"[^a-z0-9-]", "-", product.lower()).strip("-")
     product_clean = re.sub(r"-+", "-", product_clean)
@@ -279,7 +279,6 @@ def create_kubernetes_job(
         namespace = env_config.ENVIRONMENT  # staging or production
         if "://" in storage_url and ".svc" not in storage_url:
             # e.g. http://concord-minio:9000 -> http://concord-minio.staging.svc.cluster.local:9000
-            from urllib.parse import urlparse, urlunparse
             parsed = urlparse(storage_url)
             host_parts = parsed.hostname.split(".")
             if len(host_parts) == 1:  # short name like "concord-minio"

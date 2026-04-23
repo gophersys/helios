@@ -15,11 +15,13 @@ from corekinect.mtib_client.v1.client.types import (
     GpioDirection,
     GpioResistorConfig,
     MotionStatus,
+    PowerChannel,
     PowerReadResult,
     PowerMeasureResult,
     HealthCheckExtendedResponse,
     SnapshotResult,
 )
+from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
 
 
 def _make_client():
@@ -499,7 +501,6 @@ class TestPowerTypes(unittest.TestCase):
 
     def test_power_read_result_defaults(self):
         """Test power read result defaults."""
-        from corekinect.mtib_client.v1.client.types import PowerReadResult
         r = PowerReadResult()
         assert r.enabled is False
         assert r.voltage_v == 0.0
@@ -509,7 +510,6 @@ class TestPowerTypes(unittest.TestCase):
 
     def test_power_measure_result_defaults(self):
         """Test power measure result defaults."""
-        from corekinect.mtib_client.v1.client.types import PowerMeasureResult
         r = PowerMeasureResult()
         assert r.average_na == 0.0
         assert r.min_na == 0.0
@@ -517,7 +517,6 @@ class TestPowerTypes(unittest.TestCase):
 
     def test_power_channel_enum_values(self):
         """Test power channel enum values."""
-        from corekinect.mtib_client.v1.client.types import PowerChannel
         assert PowerChannel.DUT == 0
         assert PowerChannel.CHARGER == 1
         assert PowerChannel.JOULESCOPE == 2
@@ -639,8 +638,6 @@ class TestFirmware(unittest.TestCase):
 
     def test_delete_fw_file_success(self):
         """Test delete fw file success."""
-        from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
-
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -652,8 +649,6 @@ class TestFirmware(unittest.TestCase):
 
     def test_flash_fw_file_success(self):
         """Test flash fw file success."""
-        from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
-
         resp = MagicMock()
         resp.success = True
         resp.message = ""

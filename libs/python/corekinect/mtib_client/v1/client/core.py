@@ -15,6 +15,8 @@ from grpc import RpcError, insecure_channel
 from protocols.mtib.mtib_pb2 import (
     MotionStartRequest,
     MotionStartResponse,
+    NfcPollRequest,
+    NfcReadNdefRequest,
     UartStreamRequest,
     UartStreamResponse,
     # V2 streaming types
@@ -880,7 +882,6 @@ class MtibV1Client:
             Tuple of (tag_present, uid_bytes, error).
         """
         try:
-            from protocols.mtib.mtib_pb2 import NfcPollRequest
             response = self.client.NfcPoll(
                 NfcPollRequest(timeout_ms=timeout_ms),
                 timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
@@ -903,7 +904,6 @@ class MtibV1Client:
             Tuple of (records, error). records is a list of NdefRecord proto objects.
         """
         try:
-            from protocols.mtib.mtib_pb2 import NfcReadNdefRequest
             response = self.client.NfcReadNdef(
                 NfcReadNdefRequest(timeout_ms=timeout_ms),
                 timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,

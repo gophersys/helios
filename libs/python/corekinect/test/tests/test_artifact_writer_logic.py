@@ -30,6 +30,7 @@ from corekinect.test.artifact_writer import (
     POWER_MAGIC,
     _StorageConfig,
 )
+from corekinect.test.env import get_run_id
 
 
 # =============================================================================
@@ -571,7 +572,6 @@ class TestStorageConfigWriter:
 
     def test_reads_run_id_via_helper(self):
         """Test run ID is read via get_run_id() helper, not _StorageConfig."""
-        from corekinect.test.env import get_run_id
         with patch.dict(os.environ, {"CONCORD_SESSION_ID": "session-abc"}, clear=True):
             assert get_run_id() == "session-abc"
         with patch.dict(os.environ, {"CONCORD_RUN_ID": "run-xyz"}, clear=True):

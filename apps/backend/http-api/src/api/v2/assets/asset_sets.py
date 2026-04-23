@@ -5,10 +5,12 @@ manual uploads, or external CI. Validation sessions link to an asset
 set to track which firmware they consumed.
 """
 
+import io
 import logging
+import zipfile
 from typing import Optional
 
-from flask import g, jsonify, request
+from flask import g, jsonify, request, send_file
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -16,6 +18,7 @@ from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.storage.client import get_storage_client, sanitize_filename, asset_set_zip_filename
 
 from .types import AssetSetCreateRequest, ExternalAssetSetCreateRequest
 
@@ -400,11 +403,6 @@ def get_latest_asset_set():
 @require_permissions(Permissions.BUILDS_VIEW)
 def download_asset_set_zip(asset_set_id: str):
     """GET /asset-sets/<id>/download — download all files in an asset set as a .zip archive."""
-    import io
-    import zipfile
-
-    from src.services.storage.client import get_storage_client, sanitize_filename, asset_set_zip_filename
-
     db = get_db_client()
     asset_set = db.assetset.find_unique(
         where={"id": asset_set_id},
@@ -446,7 +444,6 @@ def download_asset_set_zip(asset_set_id: str):
         variant=asset_set.variant,
     )
 
-    from flask import send_file
     return send_file(
         zip_buffer,
         mimetype="application/zip",

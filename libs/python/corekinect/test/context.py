@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional, Tuple
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
+from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils import Logger
 
 from .artifact_uploader import ArtifactUploader
@@ -29,6 +30,7 @@ from .acceleration_profiler import AccelerationProfiler
 from .power_profiler import PowerProfiler
 from .env import get_run_id
 from .telemetry import TelemetryStreamer
+from .runner import ProductContext
 from .uart_demuxer import UartDemuxer
 
 log = Logger(log_name="test_context")
@@ -125,8 +127,6 @@ class TestContext:
         api_key: Optional[str],
     ):
         """Load product metadata from Concord catalog, falling back to defaults."""
-        from .runner import ProductContext
-
         if api_url and api_key:
             try:
                 product_ctx = ProductContext.from_api(product_slug, api_url, api_key)
@@ -282,8 +282,6 @@ class TestContext:
         Errors are logged at debug level to avoid flooding during
         power cycling between tests.
         """
-        from corekinect.mtib_client.v1.client.types import PowerChannel
-
         while not self._power_poll_stop.wait(0.5):
             try:
                 ts = time.time()

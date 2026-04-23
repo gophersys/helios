@@ -7,6 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+try:
+    import jsonschema
+    _HAS_JSONSCHEMA = True
+except ImportError:
+    _HAS_JSONSCHEMA = False
+
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "concord-manifest"
 
 CURRENT_SCHEMA = "2.0"
@@ -163,16 +169,17 @@ def validate_manifest(data: dict, schema_version: Optional[str] = None) -> Valid
         return ValidationResult(errors=errors, warnings=warnings)
 
     # Load and validate against JSON Schema
-    try:
-        import jsonschema
+    if _HAS_JSONSCHEMA:
+        try:
+            json_schema = _load_json_schema(version)
+            validator = jsonschema.Draft202012Validator(json_schema)
 
-        json_schema = _load_json_schema(version)
-        validator = jsonschema.Draft202012Validator(json_schema)
-
-        for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
-            path = ".".join(str(p) for p in error.absolute_path) or "(root)"
-            errors.append(ValidationError(path, error.message))
-    except ImportError:
+            for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
+                path = ".".join(str(p) for p in error.absolute_path) or "(root)"
+                errors.append(ValidationError(path, error.message))
+        except FileNotFoundError as e:
+            errors.append(ValidationError("schema", str(e)))
+    else:
         # jsonschema not installed — do basic field checks
         warnings.append(
             ValidationError(
@@ -181,8 +188,6 @@ def validate_manifest(data: dict, schema_version: Optional[str] = None) -> Valid
             )
         )
         errors.extend(_basic_validate(data))
-    except FileNotFoundError as e:
-        errors.append(ValidationError("schema", str(e)))
 
     # Semantic checks (beyond JSON Schema)
     if not errors:

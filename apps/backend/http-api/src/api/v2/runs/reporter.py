@@ -11,6 +11,7 @@ Data model: TestRun -> RunTarget -> TestExecution -> TestStep
 
 import io
 import logging
+import re as _re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -22,6 +23,7 @@ from prisma.errors import UniqueViolationError
 from src.lib.decorators import require_auth
 from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.types import ApiResponse
+from src.api.v2.runs.queue import process_queue
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import (
     StoragePrefixes,
@@ -227,7 +229,6 @@ def _complete_queue_entry(db, run_id: str, now: datetime) -> None:
 def _process_queue() -> None:
     """Attempt to start the next queued validation run."""
     try:
-        from src.api.v2.runs.queue import process_queue
         process_queue()
     except Exception as e:
         logger.warning("Queue processing after run finish failed: %s", e)
@@ -317,7 +318,6 @@ def report_test_list(run_id: str):
 
     if len(targets) > 1:
         # Multi-slot: parse [slot-N] from test names and emit per-target
-        import re as _re
         tests_by_slot: dict = {}
         for test in tests:
             m = _re.search(r"\[slot-(\d+)\]", test.get("name", ""))

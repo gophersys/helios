@@ -39,6 +39,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.test.slot_context import SlotTestContext
+from corekinect.test.slot_env import _parse_address, resolve_slot_bindings
 from corekinect.utils import Logger
 
 log = Logger(log_name="test_slot")
@@ -229,10 +231,6 @@ class FixtureContext:
         exactly as the autoconf item-stash attribution does. One env
         parser, two consumers, zero drift.
         """
-        # Local import to avoid a circular import chain through
-        # ``slot_binding`` (uses ``pytest.StashKey`` at module scope).
-        from corekinect.test.slot_env import resolve_slot_bindings
-
         bindings = resolve_slot_bindings()
         slots: Dict[str, SlotContext] = {}
         for b in bindings:
@@ -294,10 +292,8 @@ class FixtureContext:
                 "One of FIXTURE_CONFIG_PATH, MTIB_HOSTS, MTIB_ADDRESS, or MTIB_HOST must be set"
             )
 
-        from corekinect.test.slot_env import _parse_address as _parse_addr
-
         default_port = int(os.environ.get("MTIB_PORT", "50053"))
-        host, port = _parse_addr(mtib_addr, default_port)
+        host, port = _parse_address(mtib_addr, default_port)
 
         slot = SlotContext(
             slot_id="slot-0",
@@ -372,8 +368,6 @@ class FixtureContext:
         Returns a dict keyed by slot_id. Only wraps slots that have a connected MTIB.
         Call connect() on each returned SlotTestContext to start per-slot services.
         """
-        from .slot_context import SlotTestContext
-
         target_ids = target_ids or {}
         result = {}
         for slot_id, slot in self.slots.items():
@@ -405,15 +399,12 @@ def get_slot_ids_from_env() -> List[str]:
     set — those configurations don't go through the resolver but
     still need a slot id for parametrization.
     """
-    from corekinect.test.slot_env import resolve_slot_bindings
-
     bindings = resolve_slot_bindings()
     if bindings:
         return [f"slot-{b.slot_index}" for b in bindings]
 
     config_path = os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
     if config_path and os.path.isfile(config_path):
-        import json
         with open(config_path) as f:
             data = json.load(f)
         slot_count = len(data.get("slots", []))

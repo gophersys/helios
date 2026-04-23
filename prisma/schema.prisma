@@ -996,6 +996,7 @@ model User {
   resolvedErrorReports  ErrorReport[]
   releasesCreated       Release[]      @relation("releasesCreated")
   notifications         Notification[]
+  notificationPrefs     NotificationPreference[]
 
   @@map("users")
 }
@@ -1666,10 +1667,21 @@ model Release {
   summary           String?       @db.Text /// human-written release summary
   breakingChanges   String?       @db.Text /// breaking change notes
 
-  // Test results at release time
+  // Test results at release time (overall totals)
   testsPassed       Int?
   testsFailed       Int?
   testCoverage      Float?
+  testDurationMs    Int? /// total test suite duration in milliseconds
+  testDetails       Json? /// per-suite breakdown: { backend: { passed, failed, coverage, durationMs }, frontend: { ... } }
+
+  // Code diff stats
+  linesAdded        Int?
+  linesRemoved      Int?
+
+  // PR and process tracking
+  prUrl             String? /// pull request URL for this release
+  releaseOrigin     String? /// "human" | "ci"
+  releaseDurationMs Int? /// total release process duration in milliseconds
 
   // Gate
   gateStatus        String? /// "passed" | "failed" | "overridden"
@@ -1701,11 +1713,34 @@ model Release {
 }
 
 enum NotificationType {
-  RELEASE_PUBLISHED
+  // Platform — releases, deployments, system health
+  PLATFORM_RELEASE_PUBLISHED
+  PLATFORM_DEPLOYMENT_COMPLETE
+  PLATFORM_DEPLOYMENT_FAILED
+
+  // Validation — test runs, PR checks
+  VALIDATION_RUN_COMPLETE
+  VALIDATION_RUN_FAILED
+
+  // Manufacturing — panel sessions, POST results
+  MANUFACTURING_SESSION_COMPLETE
+  MANUFACTURING_SESSION_FAILED
+
+  // Build — firmware builds
+  BUILD_COMPLETE
+  BUILD_FAILED
+
+  // Bug — error report lifecycle
   BUG_ACKNOWLEDGED
   BUG_RESOLVED
   BUG_DISMISSED
+
+  // System — admin announcements, maintenance
   SYSTEM_ANNOUNCEMENT
+  SYSTEM_MAINTENANCE
+
+  // ── Legacy aliases (kept for migration compat, do not use in new code) ──
+  RELEASE_PUBLISHED
 }
 
 /// A notification delivered to a specific user or broadcast to all users.
@@ -1734,4 +1769,22 @@ model Notification {
   @@index([createdAt])
   @@index([type])
   @@map("notifications")
+}
+
+/// Per-user, per-notification-type opt-out preferences.
+/// By default all types are enabled. A row here means the user
+/// has explicitly disabled that type.
+model NotificationPreference {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  enabled   Boolean          @default(true)
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("notification_preferences")
 }

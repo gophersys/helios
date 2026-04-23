@@ -1,4 +1,4 @@
-"""User-facing notifications — list, mark read, unread count, broadcast.
+"""User-facing notifications — list, mark read, unread count, broadcast, preferences.
 
 User endpoints filter by g.current_user['sub'].
 Broadcast restricted to notifications:manage.
@@ -15,6 +15,8 @@ from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.notifications.notifier import notify_all
+from src.services.notifications.types import get_types_by_group, NOTIFICATION_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -129,25 +131,12 @@ def broadcast_notification():
 
     release_id = data.get("releaseId")
 
-    db = get_db_client()
-    users = db.user.find_many(where={"active": True})
-    if not users:
-        return jsonify(ApiResponse.ok({"sent": 0}).to_dict()), 201
-
-    records = []
-    for user in users:
-        entry: dict = {
-            "type": "SYSTEM_ANNOUNCEMENT",
-            "title": title,
-            "message": message,
-            "userId": user.id,
-        }
-        if release_id:
-            entry["releaseId"] = release_id
-        records.append(entry)
-
-    result = db.notification.create_many(data=records)
-    count = getattr(result, "count", len(records))
+    count = notify_all(
+        notification_type="SYSTEM_ANNOUNCEMENT",
+        title=title,
+        message=message,
+        release_id=release_id,
+    )
 
     log_audit("notification.broadcast", "Notification", None, {
         "title": title,
@@ -155,3 +144,70 @@ def broadcast_notification():
     })
 
     return jsonify(ApiResponse.ok({"sent": count}).to_dict()), 201
+
+
+# ── Notification types registry ─────────────────────────────────
+
+@require_auth
+def list_notification_types():
+    """GET /v2/notifications/types — return all notification types grouped."""
+    return jsonify(ApiResponse.ok(get_types_by_group()).to_dict()), 200
+
+
+# ── User notification preferences ───────────────────────────────
+
+@require_auth
+def get_notification_preferences():
+    """GET /v2/notifications/preferences — get current user's notification preferences."""
+    user_id = getattr(g, "current_user", {}).get("sub")
+    if not user_id:
+        return bad_request("User identity not available")
+
+    db = get_db_client()
+    prefs = db.notificationpreference.find_many(where={"userId": user_id})
+
+    disabled_types = {p.type for p in prefs if not p.enabled}
+
+    result = {}
+    for type_key in NOTIFICATION_TYPES:
+        result[type_key] = type_key not in disabled_types
+
+    return jsonify(ApiResponse.ok(result).to_dict()), 200
+
+
+@require_auth
+def update_notification_preferences():
+    """PUT /v2/notifications/preferences — bulk update notification preferences.
+
+    Body: { "PLATFORM_RELEASE_PUBLISHED": true, "BUILD_FAILED": false, ... }
+    Only keys present in the body are updated.
+    """
+    user_id = getattr(g, "current_user", {}).get("sub")
+    if not user_id:
+        return bad_request("User identity not available")
+
+    data = request.get_json()
+    if not data or not isinstance(data, dict):
+        return bad_request("Request body must be a JSON object of type → enabled pairs")
+
+    db = get_db_client()
+    updated = 0
+
+    for type_key, enabled in data.items():
+        if type_key not in NOTIFICATION_TYPES:
+            continue
+        if not isinstance(enabled, bool):
+            continue
+
+        db.notificationpreference.upsert(
+            where={"userId_type": {"userId": user_id, "type": type_key}},
+            create={
+                "userId": user_id,
+                "type": type_key,
+                "enabled": enabled,
+            },
+            update={"enabled": enabled},
+        )
+        updated += 1
+
+    return jsonify(ApiResponse.ok({"updated": updated}).to_dict()), 200

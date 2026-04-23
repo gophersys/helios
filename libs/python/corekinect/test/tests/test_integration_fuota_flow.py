@@ -9,6 +9,8 @@ This catches interface mismatches between modules that unit tests miss.
 No hardware, no network — everything in-memory via stubs.
 """
 
+from pathlib import Path
+
 import pytest
 
 from corekinect.errors import (
@@ -149,7 +151,6 @@ class TestStageAssetsToOrchestrator:
         app_hex = assets.hex("app", "debug", "A")
         comms_hex = assets.hex("comms", "debug", "A")
 
-        from pathlib import Path
         assert Path(app_hex).exists()
         assert Path(comms_hex).exists()
         assert app_hex != comms_hex

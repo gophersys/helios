@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -512,7 +513,6 @@ def serialize_secret(secret, include_data: bool = False) -> dict:
     }
 
     if include_data:
-        import base64
         masked = {}
         for key, val in data.items():
             try:

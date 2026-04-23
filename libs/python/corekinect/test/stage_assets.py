@@ -12,13 +12,11 @@ label + role instead of ad-hoc string lookups.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from corekinect.test.artifact_resolver import ArtifactResolver
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from corekinect.errors import ConfigError
 from corekinect.stages import Stage, get_required_labels as _get_required_labels
+from corekinect.test.artifact_resolver import ArtifactResolver
 from corekinect.utils import Logger
 
 log = Logger(log_name="stage_assets")
@@ -36,7 +34,7 @@ class BuildAsset:
     Don't instantiate directly; use StageAssets.by_label().
     """
 
-    def __init__(self, label: str, resolver: "ArtifactResolver"):
+    def __init__(self, label: str, resolver: ArtifactResolver):
         self._label = label
         self._resolver = resolver
         self._manifest_cache = None
@@ -388,8 +386,6 @@ class StageAssets:
         required_labels: Optional[List[str]] = None,
     ) -> "StageAssets":
         """Create from a build run ID. Fetches builds and validates labels."""
-        from corekinect.test.artifact_resolver import ArtifactResolver
-
         resolver = ArtifactResolver(
             build_run_id=build_run_id,
             api_url=api_url,

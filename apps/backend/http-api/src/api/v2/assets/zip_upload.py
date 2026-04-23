@@ -273,7 +273,6 @@ def upload_asset_set_zip(product_id: str):
         for name in zf_peek.namelist():
             if name.endswith("build.json"):
                 try:
-                    import json
                     manifest = json.loads(zf_peek.read(name))
                     version = manifest.get("version", "unknown")
                     variant = manifest.get("variant", variant)

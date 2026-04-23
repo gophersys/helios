@@ -9,6 +9,9 @@ from src.services.auth.jwt import verify_token
 from src.services.database.prisma import get_db_client
 from src.services.kubernetes.client import get_core_v1_api
 
+from .exec import cleanup_exec_session
+from .observability_ws import cleanup_observability_sessions
+
 logger = logging.getLogger(__name__)
 
 _active_streams: dict[str, threading.Event] = {}
@@ -150,8 +153,6 @@ def register_log_handlers(socketio: SocketIO):
                 if stop_event:
                     stop_event.set()
         # Clean up exec sessions
-        from .exec import cleanup_exec_session
         cleanup_exec_session(sid)
         # Clean up observability subscriptions
-        from .observability_ws import cleanup_observability_sessions
         cleanup_observability_sessions(sid)

@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass, fields, is_dataclass, MISSING
+from dataclasses import asdict, dataclass, fields, is_dataclass, MISSING
 from datetime import datetime
 from typing import (
     Any,
@@ -57,8 +57,6 @@ class DataStorageObject:
             # but dataclasses.asdict would also work in simple cases.
             if isinstance(value, DataStorageObject):
                 return value.to_dict()
-            from dataclasses import asdict
-
             return asdict(value)
 
         # Lists and dicts – recurse

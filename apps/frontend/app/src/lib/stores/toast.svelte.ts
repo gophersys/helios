@@ -13,7 +13,7 @@ export interface Toast {
   message: string;
 }
 
-const DEFAULT_DURATION_MS = 2500;
+const DEFAULT_DURATION_MS = 5000;
 
 class ToastState {
   toasts = $state<Toast[]>([]);

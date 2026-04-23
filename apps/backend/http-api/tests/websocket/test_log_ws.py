@@ -178,8 +178,8 @@ class TestKubernetesDisconnect:
         with mock_ws_context(logs_mod, sid="sid-1"):
             # The disconnect handler uses lazy imports: `from .exec import cleanup_exec_session`
             # Patch the functions at their source modules so the lazy imports find mocks.
-            with patch("src.api.v2.system.exec.cleanup_exec_session") as m_exec, \
-                 patch("src.api.v2.system.observability_ws.cleanup_observability_sessions") as m_obs:
+            with patch("src.api.v2.system.logs.cleanup_exec_session") as m_exec, \
+                 patch("src.api.v2.system.logs.cleanup_observability_sessions") as m_obs:
                 _k8s_disconnect(sio)
 
                 assert stop1.is_set()

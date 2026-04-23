@@ -4,7 +4,9 @@ from typing import Any
 
 from flask import g, jsonify, request
 
+from api.v2.products.board_discovery import get_ck_boards_service
 from config.env import env_config
+from database import Json
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
@@ -285,8 +287,6 @@ def create_product():
         existing_slug = db.product.find_unique(where={"slug": data.slug})
         if existing_slug:
             return conflict("Product with this slug already exists")
-
-    from database import Json
 
     create_data = {
         "name": data.name,
@@ -589,7 +589,6 @@ def sync_product_revisions(product_id: str):
     if not board:
         return bad_request("Product has no board configured")
 
-    from api.v2.products.board_discovery import get_ck_boards_service
     svc = get_ck_boards_service()
     if svc is None or not svc.is_ready:
         return internal_error("Board discovery service not configured")

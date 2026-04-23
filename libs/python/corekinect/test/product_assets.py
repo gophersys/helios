@@ -21,14 +21,15 @@ The test author never deals with build run IDs, labels, or storage keys.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
+
+import requests
 
 from corekinect.errors import ConfigError
 from corekinect.stages import Stage, StageType
+from corekinect.test.asset_set_resolver import AssetSetResolver
+from corekinect.test.stage_assets import StageAssets
 from corekinect.utils import Logger
-
-if TYPE_CHECKING:
-    from corekinect.test.stage_assets import StageAssets
 
 log = Logger(log_name="product_assets")
 
@@ -43,7 +44,7 @@ class StageAccessor:
     to access a specific one.
     """
 
-    def __init__(self, stage_assets: "StageAssets"):
+    def __init__(self, stage_assets: StageAssets):
         self._assets = stage_assets
 
     def hex(self, role: str) -> str:
@@ -196,11 +197,8 @@ class ProductAssets:
             assets.validation.fuota.hex("app")
             assets.manufacturing.hex("app")
         """
-        import requests as _requests
-        from corekinect.test.asset_set_resolver import AssetSetResolver
-
         # Fetch all stage configs for this product
-        resp = _requests.get(
+        resp = requests.get(
             f"{api_url.rstrip('/')}/v2/products/{product_id}/stages",
             headers={"Authorization": f"ApiKey {api_key}"},
             timeout=30,
@@ -227,9 +225,7 @@ class ProductAssets:
             Stage.MANUFACTURING: "MANUFACTURING:1",
         }
 
-        def loader(stage: Stage) -> "StageAssets":
-            from corekinect.test.stage_assets import StageAssets
-
+        def loader(stage: Stage) -> StageAssets:
             key = stage_to_key.get(stage)
             cfg = config_map.get(key) if key else None
             if not cfg:

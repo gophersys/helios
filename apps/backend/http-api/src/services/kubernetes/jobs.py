@@ -1,5 +1,6 @@
 import logging
 
+from kubernetes.client import V1DeleteOptions
 from kubernetes.client.exceptions import ApiException
 
 from .client import get_batch_v1_api, get_core_v1_api
@@ -89,7 +90,6 @@ def delete_job(namespace: str, name: str) -> bool:
     Returns:
         True on success, False if the Kubernetes API call fails.
     """
-    from kubernetes.client import V1DeleteOptions
     batch = get_batch_v1_api()
     try:
         batch.delete_namespaced_job(

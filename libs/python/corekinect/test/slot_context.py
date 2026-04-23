@@ -14,18 +14,23 @@ Delegates SlotContext attributes (mtib, shared_data, serial_number, etc.)
 so existing tests that access slot.mtib or slot.shared_data keep working.
 """
 
+from __future__ import annotations
+
 import os
 import threading
 import time
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils import Logger
 
 from .artifact_writer import ArtifactWriter
 from .power_profiler import PowerProfiler
-from .slot import SlotContext
 from .telemetry import TelemetryStreamer
 from .uart_demuxer import UartDemuxer
+
+if TYPE_CHECKING:
+    from .slot import SlotContext
 
 log = Logger(log_name="slot_context")
 
@@ -176,8 +181,6 @@ class SlotTestContext:
 
     def _power_poll_loop(self) -> None:
         """Poll power at ~2 Hz and push to telemetry with target_id for per-slot routing."""
-        from corekinect.mtib_client.v1.client.types import PowerChannel
-
         tid = self.target_id
         sidx = self.slot.slot_index
 

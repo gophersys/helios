@@ -7,8 +7,14 @@ from typing import Optional, Tuple
 
 import yaml
 
-from corekinect.manifest.schema import ValidationResult, validate_manifest
-from corekinect.manifest.types import Manifest
+from corekinect.manifest.schema import ValidationError, ValidationResult, validate_manifest
+from corekinect.manifest.types import (
+    DeviceConfig,
+    FixtureConfig,
+    Manifest,
+    PackageConfig,
+    ProductConfig,
+)
 
 MANIFEST_FILENAME = "concord.yaml"
 LEGACY_MANIFEST_FILENAME = "concord.test.yaml"
@@ -73,8 +79,6 @@ def load_manifest(
         raw = yaml.safe_load(f)
 
     if not isinstance(raw, dict):
-        from corekinect.manifest.schema import ValidationError
-
         result = ValidationResult(
             errors=[ValidationError("(root)", "Manifest must be a YAML mapping")],
             warnings=[],
@@ -109,13 +113,6 @@ def load_manifest_raw(path: Path) -> dict:
 
 def _empty_manifest() -> Manifest:
     """Return an empty manifest for error cases."""
-    from corekinect.manifest.types import (
-        DeviceConfig,
-        FixtureConfig,
-        PackageConfig,
-        ProductConfig,
-    )
-
     return Manifest(
         schema_version="0.0",
         package=PackageConfig(type="validation", version="0.0.0", framework=">=0.0.0"),

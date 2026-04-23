@@ -3,7 +3,10 @@
 import logging
 from typing import Optional
 
+from config.env import env_config
 from src.services.executors.base import JobExecutor
+from src.services.executors.docker_executor import DockerExecutor
+from src.services.executors.kubernetes_executor import KubernetesExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +24,6 @@ def get_executor(
     - validation:    DockerExecutor in development, KubernetesExecutor in staging/prod
     - manufacturing: Same as validation
     """
-    from config.env import env_config
-    from src.services.executors.docker_executor import DockerExecutor
-    from src.services.executors.kubernetes_executor import KubernetesExecutor
-
     is_dev = env_config.ENVIRONMENT == "development"
 
     if domain == "build":

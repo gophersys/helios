@@ -26,6 +26,7 @@ Two parsers must agree on every input env:
 
 from __future__ import annotations
 
+import json
 from typing import Tuple
 
 import pytest
@@ -312,13 +313,12 @@ def test_slot_fixture_returns_slot_for_correct_mtib(
     result = pytester.runpytest("-p", "no:cacheprovider", "-p", "no:randomly", "-q")
     result.assert_outcomes(passed=3)
 
-    import json as _json
     rows = []
     with open(obs_path) as f:
         for line in f:
             line = line.strip()
             if line:
-                rows.append(_json.loads(line))
+                rows.append(json.loads(line))
     rows.sort(key=lambda r: r["binding_index"])
 
     assert [r["slot_id"] for r in rows] == ["slot-0", "slot-1", "slot-2"]

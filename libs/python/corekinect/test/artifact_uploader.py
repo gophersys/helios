@@ -4,6 +4,8 @@ from typing import Optional
 
 from corekinect.utils import EnvConfig, Logger
 
+from .env import get_run_id
+
 log = Logger(log_name="artifact_uploader")
 
 try:
@@ -28,8 +30,6 @@ class ArtifactUploader:
 
     def __init__(self):
         """  init  ."""
-        from .env import get_run_id
-
         cfg = _StorageConfig()
         self.storage_url = cfg.STORAGE_URL or ""
         self.access_key = cfg.STORAGE_ACCESS_KEY or ""

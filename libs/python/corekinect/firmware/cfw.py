@@ -17,6 +17,7 @@ Format v2 (23-byte header, big-endian):
 Release tracks: 0=Bench, 1=Engineering, 2=Production
 """
 
+import argparse
 import struct
 import time
 from dataclasses import dataclass
@@ -237,8 +238,6 @@ def generate_cfw_from_build(
 
 def main():
     """CLI for generating .cfw files from build artifacts."""
-    import argparse
-
     parser = argparse.ArgumentParser(description="Generate .cfw files from firmware builds")
     parser.add_argument("bin_path", help="Path to zephyr.signed.encrypted.bin")
     parser.add_argument("--app-id", type=int, required=True, help="App ID (108=comms, 109=app)")

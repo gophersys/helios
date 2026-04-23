@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils import Logger
 
 log = Logger(log_name="power_profiler")
@@ -178,7 +179,6 @@ class PowerProfiler:
         Raises:
             RuntimeError: If Joulescope is not connected or measurement fails.
         """
-        from corekinect.mtib_client.v1.client.types import PowerChannel
         return self.measure(channel=PowerChannel.JOULESCOPE, duration_s=duration_s)
 
     def quick_read(self, channel: int = 0) -> Tuple[float, float, float]:

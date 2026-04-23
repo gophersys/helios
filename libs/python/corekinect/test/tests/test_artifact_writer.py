@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from corekinect.test import artifact_writer as aw
 from corekinect.test.artifact_writer import (
     ArtifactWriter,
     PowerSample,
@@ -16,6 +17,7 @@ from corekinect.test.artifact_writer import (
     POWER_FLAG_HAS_JOULESCOPE,
     POWER_HEADER_SIZE,
     POWER_MAGIC,
+    _build_minio_http_client,
 )
 
 
@@ -361,8 +363,6 @@ class TestMinioClientTimeouts:
 
     def test_pool_manager_is_bounded(self):
         """The shared builder returns a PoolManager with a finite timeout."""
-        from corekinect.test.artifact_writer import _build_minio_http_client
-
         pool = _build_minio_http_client()
         assert pool is not None, "urllib3 must be available at runtime"
 
@@ -379,8 +379,6 @@ class TestMinioClientTimeouts:
 
     def test_writer_wires_bounded_client_into_minio(self):
         """ArtifactWriter._get_client() passes the bounded PoolManager to Minio()."""
-        from corekinect.test import artifact_writer as aw
-
         captured = {}
 
         class _FakeMinio:

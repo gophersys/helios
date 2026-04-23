@@ -6,11 +6,13 @@ Stage 0 = manufacturing. Stages 1-5 = validation.
 import logging
 from flask import g, jsonify, request
 
+from corekinect.stages import Stage, StageType, get_stage_build_defs
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions, _get_permissions_for_set
 from src.lib.errors import bad_request, conflict, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from src.services.builds.trigger import trigger_stage_build
 from src.services.database.prisma import get_db_client
 
 from .stage_config_types import StageConfigCreateRequest, StageConfigUpdateRequest
@@ -198,7 +200,6 @@ def create_stage_config(product_id: str):
 def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: int):
     """Populate build matrix from corekinect.stages defaults. Non-critical — silently fails."""
     try:
-        from corekinect.stages import Stage, StageType, get_stage_build_defs
         stage_map = {
             ("VALIDATION", 1): Stage.SMOKE,
             ("VALIDATION", 2): Stage.DRIVER,
@@ -283,7 +284,6 @@ def _check_revision_enabled(db, enabling: bool, rev_id: str | None):
 
 def _try_trigger_build(product_id: str, config_id: str, stage: str, result: dict) -> None:
     """Attempt to trigger a build and annotate the result dict."""
-    from src.services.builds.trigger import trigger_stage_build
     try:
         trigger_result = trigger_stage_build(product_id, config_id)
         if trigger_result:
@@ -575,8 +575,6 @@ def update_stage_build_matrix(product_id: str, stage: str):
 @require_permissions(Permissions.BUILDS_MANAGE)
 def reset_stage_build_matrix(product_id: str, stage: str):
     """POST /products/<id>/stages/<stage>/build-matrix/reset — reset to Python defaults."""
-    from corekinect.stages import Stage, get_stage_build_defs
-
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:

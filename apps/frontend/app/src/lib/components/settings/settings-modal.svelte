@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
 
   // External libraries
-  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock, Laptop, ShieldCheck, CheckCircle2, Bug } from 'lucide-svelte';
+  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock, Laptop, ShieldCheck, CheckCircle2, Bug, BellRing } from 'lucide-svelte';
   import { api } from '$lib/api';
 
   // Internal imports
@@ -100,6 +100,7 @@
 
   const sections: SettingsSection[] = [
     { id: 'system', label: 'System', icon: Monitor },
+    { id: 'notifications', label: 'Notifications', icon: BellRing },
     { id: 'permissions', label: 'My Permissions', icon: Shield },
     { id: 'sessions', label: 'Sessions', icon: Laptop },
     { id: 'api-keys', label: 'API Keys', icon: KeyRound },
@@ -389,6 +390,48 @@
     }
   });
 
+  // ── Notification preferences state ──────────────────────────────
+  interface NotifTypeInfo { key: string; label: string; description: string; }
+  interface NotifGroupInfo { label: string; types: NotifTypeInfo[]; }
+
+  let notifGroups = $state<Record<string, NotifGroupInfo>>({});
+  let notifPrefs = $state<Record<string, boolean>>({});
+  let notifPrefsLoading = $state(true);
+  let notifPrefsLoaded = $state(false);
+  let notifPrefsSaving = $state(false);
+
+  async function loadNotifPrefs(): Promise<void> {
+    if (notifPrefsLoaded) return;
+    notifPrefsLoading = true;
+    try {
+      const [typesRes, prefsRes] = await Promise.all([
+        apiFetch<ApiResponse<Record<string, NotifGroupInfo>>>('/v2/notifications/types'),
+        apiFetch<ApiResponse<Record<string, boolean>>>('/v2/notifications/preferences'),
+      ]);
+      notifGroups = typesRes.data ?? {};
+      notifPrefs = prefsRes.data ?? {};
+      notifPrefsLoaded = true;
+    } catch { /* silently fail */ }
+    finally { notifPrefsLoading = false; }
+  }
+
+  async function toggleNotifPref(typeKey: string): Promise<void> {
+    const current = notifPrefs[typeKey] ?? true;
+    const newVal = !current;
+    notifPrefs[typeKey] = newVal;
+    notifPrefsSaving = true;
+    try {
+      await apiFetch('/v2/notifications/preferences', {
+        method: 'PUT',
+        body: JSON.stringify({ [typeKey]: newVal }),
+      });
+    } catch {
+      notifPrefs[typeKey] = current;
+    } finally {
+      notifPrefsSaving = false;
+    }
+  }
+
   // ── My Bug Reports state ────────────────────────────────────────
   let myBugs = $state<UserReport[]>([]);
   let myBugsLoading = $state(false);
@@ -440,6 +483,9 @@
     }
     if (activeId === 'system' && !buildInfoLoaded) {
       loadBuildInfo();
+    }
+    if (activeId === 'notifications' && !notifPrefsLoaded) {
+      loadNotifPrefs();
     }
     if (activeId === 'bugs' && !myBugsLoaded) {
       loadMyBugs();
@@ -666,6 +712,45 @@
               {/if}
             </button>
           </div>
+        {:else if activeId === 'notifications'}
+          <!-- Notifications Section -->
+          <p class="mb-4 text-sm text-text-secondary">
+            Choose which notifications you receive. Disabled types won't create notifications or show toasts.
+          </p>
+
+          {#if notifPrefsLoading}
+            <div class="py-8 text-center text-sm text-text-tertiary">Loading preferences...</div>
+          {:else}
+            <div class="space-y-5">
+              {#each Object.entries(notifGroups) as [groupKey, group]}
+                <div>
+                  <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-text-tertiary">{group.label}</h4>
+                  <div class="space-y-1">
+                    {#each group.types as t}
+                      {@const enabled = notifPrefs[t.key] ?? true}
+                      <button
+                        onclick={() => toggleNotifPref(t.key)}
+                        class="flex w-full items-center justify-between rounded-lg border border-border-subtle px-4 py-3 text-left transition-colors hover:bg-surface-1"
+                      >
+                        <div class="min-w-0 flex-1">
+                          <div class="text-sm font-medium text-text-primary">{t.label}</div>
+                          <div class="mt-0.5 text-2xs text-text-tertiary">{t.description}</div>
+                        </div>
+                        <div
+                          class="ml-3 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors {enabled ? 'bg-accent' : 'bg-surface-3'}"
+                        >
+                          <div
+                            class="h-4 w-4 rounded-full bg-white shadow-sm transition-transform {enabled ? 'translate-x-4' : 'translate-x-0.5'}"
+                          ></div>
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
         {:else if activeId === 'permissions'}
           <!-- Permissions Section -->
           <p class="mb-4 text-sm text-text-secondary">

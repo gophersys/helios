@@ -21,6 +21,7 @@ keeps the test functions free of decorator stack dressing.
 
 from __future__ import annotations
 
+import json
 import textwrap
 
 import pytest
@@ -67,7 +68,6 @@ def test_mfg_stage_expands_into_three_markers(pytester: pytest.Pytester) -> None
     # body returns immediately.
     result.assert_outcomes(passed=2)
 
-    import json
     with open("/tmp/_marker_observation.json") as fh:
         observed = set(json.load(fh))
     assert "electrical" in observed, f"expected 'electrical' in {observed}"
@@ -106,7 +106,6 @@ def test_mfg_stage_carries_correct_timeout_value(pytester: pytest.Pytester) -> N
     result = pytester.runpytest("-q", "-p", "no:cacheprovider", "-p", "no:randomly")
     result.assert_outcomes(passed=2)
 
-    import json
     with open("/tmp/_timeout_observation.json") as fh:
         observed = json.load(fh)
     # pytest-timeout accepts ``timeout`` either positional or by kwarg;
@@ -146,7 +145,6 @@ def test_mfg_stage_stage_arg_becomes_stage_marker(pytester: pytest.Pytester) -> 
     result = pytester.runpytest("-q", "-p", "no:cacheprovider", "-p", "no:randomly")
     result.assert_outcomes(passed=2)
 
-    import json
     with open("/tmp/_stage_observation.json") as fh:
         observed = set(json.load(fh))
     assert "fw_flash" in observed
@@ -184,7 +182,6 @@ def test_mfg_stage_is_idempotent_under_repeated_collection(
     result = pytester.runpytest("-q", "-p", "no:cacheprovider", "-p", "no:randomly")
     result.assert_outcomes(passed=2)
 
-    import json
     with open("/tmp/_idempotent_observation.json") as fh:
         counts = json.load(fh)
     assert counts.get("post", 0) == 1, f"'post' marker added more than once: {counts}"

@@ -9,17 +9,22 @@
     AlertTriangle,
     GitCommit,
     GitBranch,
+    GitPullRequest,
     Tag,
+    Clock,
+    Plus,
+    Minus,
+    User,
+    Bot,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch } from '$lib/api';
-  import type { PlatformRelease, Pagination, ErrorReportSummary } from '$lib/types/models';
+  import type { PlatformRelease, Pagination, ErrorReportSummary, ReleaseTestSuite } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
-  import { formatTimeAgo, formatDateTime, formatDate } from '$lib/utils/formatting';
+  import { formatDateTime, formatDate } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
-  import PageHeader from '$lib/components/ui/page-header.svelte';
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
   import PaginationControls from '$lib/components/ui/pagination.svelte';
@@ -35,7 +40,6 @@
   let expandedRelease = $state<(PlatformRelease & { resolvedBugs?: ErrorReportSummary[] }) | null>(null);
   let expandedLoading = $state(false);
 
-  // Filters
   let statusFilter = $state('');
   let page = $state(1);
 
@@ -47,7 +51,6 @@
     { value: 'ROLLED_BACK', label: 'Rolled Back' },
   ];
 
-  // Find the current (latest released) version
   const currentRelease = $derived(
     releases.find(r => r.status === 'RELEASED')
   );
@@ -84,6 +87,16 @@
     };
   }
 
+  function formatDuration(ms: number | null): string {
+    if (ms == null) return 'N/A';
+    if (ms < 1000) return `${ms}ms`;
+    const s = ms / 1000;
+    if (s < 60) return `${s.toFixed(1)}s`;
+    const m = Math.floor(s / 60);
+    const rem = Math.round(s % 60);
+    return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
+  }
+
   function releaseDate(release: PlatformRelease): string | null {
     if (release.releasedAt) return formatDate(release.releasedAt);
     if (release.stagedAt) return formatDate(release.stagedAt);
@@ -91,7 +104,6 @@
   }
 
   function simpleMarkdown(md: string): string {
-    // Minimal markdown: escape HTML, handle headers, bold, code, lists
     let html = md
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -231,6 +243,7 @@
           {@const bars = testBarWidth(release.testsPassed, release.testsFailed)}
           {@const hasTests = (release.testsPassed ?? 0) + (release.testsFailed ?? 0) > 0}
           {@const dateFmt = releaseDate(release)}
+          {@const hasDiffStats = release.linesAdded != null || release.linesRemoved != null}
 
           <div class="rounded-lg border border-border bg-surface-1 transition-colors">
             <!-- Card header -->
@@ -238,7 +251,6 @@
               class="flex w-full items-start gap-4 px-4 py-4 text-left hover:bg-surface-2 transition-colors"
               onclick={() => toggleExpand(release.id)}
             >
-              <!-- Expand icon -->
               <div class="shrink-0 mt-0.5 text-text-tertiary">
                 {#if isExpanded}
                   <ChevronDown size={16} />
@@ -247,18 +259,13 @@
                 {/if}
               </div>
 
-              <!-- Main content -->
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-3">
-                  <!-- Version -->
                   <span class="text-base font-bold text-text-primary">v{release.version}</span>
-                  <!-- Status -->
                   <StatusBadge status={release.status} />
-                  <!-- Date -->
                   {#if dateFmt}
                     <span class="text-2xs text-text-tertiary">{dateFmt}</span>
                   {/if}
-                  <!-- Gate status -->
                   {#if release.gateStatus}
                     {@const GateIcon = gateIcon(release.gateStatus)}
                     <span class="inline-flex items-center gap-1 text-2xs {gateColor(release.gateStatus)}">
@@ -266,18 +273,26 @@
                       {gateLabel(release.gateStatus)}
                     </span>
                   {/if}
+                  {#if release.releaseOrigin}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-2xs text-text-tertiary">
+                      {#if release.releaseOrigin === 'ci'}
+                        <Bot size={10} />
+                        CI
+                      {:else}
+                        <User size={10} />
+                        Manual
+                      {/if}
+                    </span>
+                  {/if}
                 </div>
 
-                <!-- Summary line -->
                 {#if release.summary}
                   <p class="mt-1.5 text-sm text-text-secondary line-clamp-1">{release.summary}</p>
                 {:else if release.changelog}
                   <p class="mt-1.5 text-sm text-text-secondary line-clamp-1">{release.changelog.split('\n')[0]}</p>
                 {/if}
 
-                <!-- Info pills row -->
                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                  <!-- Component versions -->
                   {#if release.corekinectVersion}
                     <span class="rounded-full bg-surface-2 px-2 py-0.5 text-2xs text-text-secondary">
                       corekinect {release.corekinectVersion}
@@ -294,7 +309,6 @@
                     </span>
                   {/if}
 
-                  <!-- Test results -->
                   {#if hasTests}
                     <div class="flex items-center gap-2">
                       <div class="flex h-1.5 w-20 overflow-hidden rounded-full bg-surface-2">
@@ -314,7 +328,30 @@
                     </div>
                   {/if}
 
-                  <!-- Breaking changes indicator -->
+                  {#if hasDiffStats}
+                    <span class="inline-flex items-center gap-1.5 text-2xs text-text-tertiary">
+                      {#if release.linesAdded != null}
+                        <span class="text-success">+{release.linesAdded.toLocaleString()}</span>
+                      {/if}
+                      {#if release.linesRemoved != null}
+                        <span class="text-error">-{release.linesRemoved.toLocaleString()}</span>
+                      {/if}
+                    </span>
+                  {/if}
+
+                  {#if release.prUrl}
+                    <a
+                      href={release.prUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-2xs text-accent hover:text-accent-hover transition-colors"
+                      onclick={(e) => e.stopPropagation()}
+                    >
+                      <GitPullRequest size={10} />
+                      PR
+                    </a>
+                  {/if}
+
                   {#if release.breakingChanges}
                     <span class="inline-flex items-center gap-1 rounded-full bg-error-muted px-2 py-0.5 text-2xs font-medium text-error">
                       <AlertTriangle size={10} />
@@ -331,6 +368,104 @@
                 {#if expandedLoading}
                   <div class="py-4 text-center text-sm text-text-tertiary">Loading release details...</div>
                 {:else}
+                  <!-- Test Results — Backend vs Frontend breakdown -->
+                  {#if hasTests || release.testDetails}
+                    {@const details = release.testDetails}
+                    {@const be = details?.backend as ReleaseTestSuite | undefined}
+                    {@const fe = details?.frontend as ReleaseTestSuite | undefined}
+                    <div>
+                      <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Test Results</div>
+
+                      {#if be || fe}
+                        <!-- Per-suite breakdown -->
+                        <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {#each [{ label: 'Backend', suite: be }, { label: 'Frontend', suite: fe }] as { label, suite }}
+                            {#if suite}
+                              {@const sb = testBarWidth(suite.passed, suite.failed)}
+                              {@const total = suite.passed + suite.failed}
+                              <div class="rounded-lg bg-surface-0 p-3 space-y-2">
+                                <div class="flex items-center justify-between">
+                                  <span class="text-sm font-medium text-text-primary">{label}</span>
+                                  <span class="text-2xs text-text-tertiary">{total} tests</span>
+                                </div>
+                                <div class="flex h-2 overflow-hidden rounded-full bg-surface-2">
+                                  {#if sb.passPct > 0}
+                                    <div class="bg-success transition-all" style:width="{sb.passPct}%"></div>
+                                  {/if}
+                                  {#if sb.failPct > 0}
+                                    <div class="bg-error transition-all" style:width="{sb.failPct}%"></div>
+                                  {/if}
+                                </div>
+                                <div class="flex items-center justify-between text-2xs">
+                                  <span>
+                                    <span class="text-success font-medium">{suite.passed}</span> passed,
+                                    <span class="{suite.failed > 0 ? 'text-error font-medium' : 'text-text-tertiary'}">{suite.failed}</span> failed
+                                  </span>
+                                  <div class="flex items-center gap-3">
+                                    {#if suite.coverage != null}
+                                      <span class="text-text-secondary"><span class="font-medium">{suite.coverage}%</span> cov</span>
+                                    {/if}
+                                    {#if suite.durationMs != null}
+                                      <span class="inline-flex items-center gap-1 text-text-tertiary">
+                                        <Clock size={10} />
+                                        {formatDuration(suite.durationMs)}
+                                      </span>
+                                    {/if}
+                                  </div>
+                                </div>
+                              </div>
+                            {/if}
+                          {/each}
+                        </div>
+
+                        <!-- Overall summary row -->
+                        <div class="mt-2 flex items-center gap-4 rounded-lg bg-surface-0 px-3 py-2">
+                          <span class="text-2xs font-medium text-text-tertiary uppercase">Overall</span>
+                          <div class="flex h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                            {#if bars.passPct > 0}
+                              <div class="bg-success" style:width="{bars.passPct}%"></div>
+                            {/if}
+                            {#if bars.failPct > 0}
+                              <div class="bg-error" style:width="{bars.failPct}%"></div>
+                            {/if}
+                          </div>
+                          <span class="shrink-0 text-2xs text-text-secondary">
+                            <span class="text-success font-medium">{release.testsPassed}</span> /
+                            <span class="{(release.testsFailed ?? 0) > 0 ? 'text-error font-medium' : 'text-text-tertiary'}">{release.testsFailed ?? 0}</span>
+                            {#if release.testCoverage != null}
+                              &middot; <span class="font-medium">{release.testCoverage}%</span>
+                            {/if}
+                            {#if release.testDurationMs != null}
+                              &middot; {formatDuration(release.testDurationMs)}
+                            {/if}
+                          </span>
+                        </div>
+                      {:else if hasTests}
+                        <!-- No per-suite breakdown, show overall only -->
+                        <div class="mt-2 flex items-center gap-4">
+                          <div class="flex h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                            {#if bars.passPct > 0}
+                              <div class="bg-success transition-all" style:width="{bars.passPct}%"></div>
+                            {/if}
+                            {#if bars.failPct > 0}
+                              <div class="bg-error transition-all" style:width="{bars.failPct}%"></div>
+                            {/if}
+                          </div>
+                          <span class="shrink-0 text-sm text-text-secondary">
+                            <span class="text-success font-medium">{release.testsPassed}</span> passed,
+                            <span class="{(release.testsFailed ?? 0) > 0 ? 'text-error font-medium' : 'text-text-tertiary'}">{release.testsFailed ?? 0}</span> failed
+                            {#if release.testCoverage != null}
+                              &middot; <span class="font-medium">{release.testCoverage}%</span> coverage
+                            {/if}
+                            {#if release.testDurationMs != null}
+                              &middot; {formatDuration(release.testDurationMs)}
+                            {/if}
+                          </span>
+                        </div>
+                      {/if}
+                    </div>
+                  {/if}
+
                   <!-- Changelog -->
                   {#if release.changelog}
                     <div>
@@ -373,10 +508,10 @@
                     </div>
                   {/if}
 
-                  <!-- Meta grid -->
+                  <!-- Details grid -->
                   <div>
                     <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Details</div>
-                    <div class="mt-2 grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
+                    <div class="mt-2 grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3 lg:grid-cols-4">
                       <div>
                         <div class="text-2xs text-text-tertiary">Commit</div>
                         <div class="mt-0.5 flex items-center gap-1.5">
@@ -395,6 +530,62 @@
                         <div>
                           <div class="text-2xs text-text-tertiary">Previous</div>
                           <div class="mt-0.5 text-text-primary">v{release.previousVersion}</div>
+                        </div>
+                      {/if}
+                      {#if release.prUrl}
+                        <div>
+                          <div class="text-2xs text-text-tertiary">Pull Request</div>
+                          <a
+                            href={release.prUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mt-0.5 inline-flex items-center gap-1.5 text-accent hover:text-accent-hover transition-colors"
+                          >
+                            <GitPullRequest size={12} />
+                            <span class="truncate max-w-[180px]">{release.prUrl.split('/').slice(-1)[0] ? `#${release.prUrl.split('/').pop()}` : 'View PR'}</span>
+                          </a>
+                        </div>
+                      {/if}
+                      {#if hasDiffStats}
+                        <div>
+                          <div class="text-2xs text-text-tertiary">Lines Changed</div>
+                          <div class="mt-0.5 flex items-center gap-2">
+                            {#if release.linesAdded != null}
+                              <span class="inline-flex items-center gap-0.5 text-success font-medium">
+                                <Plus size={12} />
+                                {release.linesAdded.toLocaleString()}
+                              </span>
+                            {/if}
+                            {#if release.linesRemoved != null}
+                              <span class="inline-flex items-center gap-0.5 text-error font-medium">
+                                <Minus size={12} />
+                                {release.linesRemoved.toLocaleString()}
+                              </span>
+                            {/if}
+                          </div>
+                        </div>
+                      {/if}
+                      {#if release.releaseOrigin}
+                        <div>
+                          <div class="text-2xs text-text-tertiary">Origin</div>
+                          <div class="mt-0.5 flex items-center gap-1.5 text-text-primary">
+                            {#if release.releaseOrigin === 'ci'}
+                              <Bot size={12} class="text-text-tertiary" />
+                              CI Pipeline
+                            {:else}
+                              <User size={12} class="text-text-tertiary" />
+                              Manual Release
+                            {/if}
+                          </div>
+                        </div>
+                      {/if}
+                      {#if release.releaseDurationMs != null}
+                        <div>
+                          <div class="text-2xs text-text-tertiary">Release Duration</div>
+                          <div class="mt-0.5 flex items-center gap-1.5 text-text-primary">
+                            <Clock size={12} class="text-text-tertiary" />
+                            {formatDuration(release.releaseDurationMs)}
+                          </div>
                         </div>
                       {/if}
                       {#if release.migrationHash}
@@ -442,30 +633,6 @@
                     </div>
                   </div>
 
-                  <!-- Test results detail -->
-                  {#if (release.testsPassed ?? 0) + (release.testsFailed ?? 0) > 0}
-                    <div>
-                      <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Test Results</div>
-                      <div class="mt-2 flex items-center gap-4">
-                        <div class="flex h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                          {#if bars.passPct > 0}
-                            <div class="bg-success transition-all" style:width="{bars.passPct}%"></div>
-                          {/if}
-                          {#if bars.failPct > 0}
-                            <div class="bg-error transition-all" style:width="{bars.failPct}%"></div>
-                          {/if}
-                        </div>
-                        <span class="shrink-0 text-sm text-text-secondary">
-                          <span class="text-success font-medium">{release.testsPassed}</span> passed,
-                          <span class="{(release.testsFailed ?? 0) > 0 ? 'text-error font-medium' : 'text-text-tertiary'}">{release.testsFailed ?? 0}</span> failed
-                          {#if release.testCoverage != null}
-                            &middot; <span class="font-medium">{release.testCoverage}%</span> coverage
-                          {/if}
-                        </span>
-                      </div>
-                    </div>
-                  {/if}
-
                   <!-- Timestamps -->
                   <div class="flex items-center gap-4 border-t border-border pt-3 text-2xs text-text-tertiary">
                     <span>Created {formatDateTime(release.createdAt)}</span>
@@ -486,7 +653,6 @@
         {/each}
       </div>
 
-      <!-- Pagination -->
       {#if pagination.pages > 1}
         <div class="mt-4 flex justify-center">
           <PaginationControls
@@ -497,7 +663,6 @@
         </div>
       {/if}
 
-      <!-- Summary -->
       <div class="mt-2 text-center text-2xs text-text-tertiary">
         {pagination.total} release{pagination.total === 1 ? '' : 's'}
       </div>

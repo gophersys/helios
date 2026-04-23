@@ -9,13 +9,18 @@ Background thread in http-api that:
 Also event-triggered for low latency via wake_scheduler().
 """
 
+import json
 import logging
 import threading
 import time
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from config.env import env_config
+from src.api.v2.runs.scheduler import schedule_queue
 from src.services.database.prisma import get_db_client
+from src.services.executors import get_executor
 
 logger = logging.getLogger(__name__)
 
@@ -80,13 +85,10 @@ def _schedule_builds(max_concurrent: int) -> int:
 def _notify_build_service(db, count: int):
     """Push-notify build-service about available jobs (best-effort)."""
     try:
-        from config.env import env_config
         build_service_url = getattr(env_config, "BUILD_SERVICE_URL", "")
         if not build_service_url:
             return  # No push endpoint — build-service will poll
 
-        import urllib.request
-        import json
         req = urllib.request.Request(
             f"{build_service_url}/jobs/notify",
             data=json.dumps({"count": count}).encode(),
@@ -130,7 +132,6 @@ def _schedule_validation(max_concurrent: int) -> List[Dict[str, Any]]:
 
 def _run_validation_scheduler(max_assignments: int) -> list:
     """Wrapper to call schedule_queue — exists for testability."""
-    from src.api.v2.runs.scheduler import schedule_queue
     return schedule_queue(max_assignments=max_assignments)
 
 
@@ -229,8 +230,6 @@ def _reconcile_stuck_jobs(
 def _try_cancel_job(job_name: str):
     """Best-effort cancellation of a running job."""
     try:
-        from config.env import env_config
-        from src.services.executors import get_executor
         executor = get_executor("validation")
         namespace = getattr(env_config, "VALIDATION_NAMESPACE", "validation")
         executor.cancel(job_name, namespace=namespace)
@@ -244,7 +243,6 @@ def _try_cancel_job(job_name: str):
 
 def _get_config():
     """Load scheduler config from env. Called each tick for dynamic updates."""
-    from config.env import env_config
     return {
         "interval": getattr(env_config, "SCHEDULER_INTERVAL_S", 15),
         "max_builds": getattr(env_config, "MAX_CONCURRENT_BUILDS", 4),

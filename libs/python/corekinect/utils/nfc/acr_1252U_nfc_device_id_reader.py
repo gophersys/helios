@@ -6,6 +6,26 @@ from smartcard.CardRequest import CardRequest
 from smartcard.System import readers
 from corekinect.utils import Logger
 
+# Optional dependency: clipboard support
+try:
+    import pyperclip
+    _HAS_PYPERCLIP = True
+except ImportError:
+    _HAS_PYPERCLIP = False
+
+# Optional dependency: keyboard simulation
+try:
+    import keyboard as _keyboard_module
+    _HAS_KEYBOARD = True
+except ImportError:
+    _HAS_KEYBOARD = False
+
+try:
+    from pynput.keyboard import Controller as _PynputController, Key as _PynputKey
+    _HAS_PYNPUT = True
+except ImportError:
+    _HAS_PYNPUT = False
+
 
 class NfcReader:
     """Read NDEF Text ('T') records from NFC tags via a PC/SC reader.
@@ -98,29 +118,22 @@ class NfcReader:
 
         # Clipboard output via pyperclip; if configured and if package installed.
         if self.clipboard:
-            try:
-                import pyperclip  # noqa: F401
-
+            if _HAS_PYPERCLIP:
                 self._clipboard_available = True
-            except Exception:
+            else:
                 self.logger.warning("Clipboard output requested but 'pyperclip' is not available.")
 
         # Keyboard output using 'keyboard' or 'pynput'; if configured and if package(s) installed.
         if self.keyboard:
-            try:
-                import keyboard as keyboard_driver  # noqa: F401
-
+            if _HAS_KEYBOARD:
                 self._keyboard_backend = "keyboard"
-                self._keyboard_driver = keyboard_driver
-            except Exception:
-                try:
-                    from pynput.keyboard import Controller  # type: ignore
-
-                    self._keyboard_backend = "pynput"
-                    self._keyboard_driver = Controller()
-                except Exception:
-                    self.logger.warning("Keyboard output requested but neither 'keyboard' nor 'pynput' is available.")
-                    self._keyboard_backend = None
+                self._keyboard_driver = _keyboard_module
+            elif _HAS_PYNPUT:
+                self._keyboard_backend = "pynput"
+                self._keyboard_driver = _PynputController()
+            else:
+                self.logger.warning("Keyboard output requested but neither 'keyboard' nor 'pynput' is available.")
+                self._keyboard_backend = None
 
         # Assignment in __enter__
         self._selected_reader = None
@@ -263,8 +276,6 @@ class NfcReader:
         # Clipboard output via pyperclip.
         if self.clipboard and self._clipboard_available:
             try:
-                import pyperclip
-
                 pyperclip.copy(text)
             except Exception as exc:
                 self.logger.warning(f"Clipboard copy failed: {exc}")
@@ -276,12 +287,10 @@ class NfcReader:
                     # Directly "type" the string (and optional newline).
                     self._keyboard_driver.write(text + ("\n" if self.keyboard_newline else ""))
                 elif self._keyboard_backend == "pynput":
-                    from pynput.keyboard import Key
-
                     self._type_with_pynput(text)
                     if self.keyboard_newline:
-                        self._keyboard_driver.press(Key.enter)
-                        self._keyboard_driver.release(Key.enter)
+                        self._keyboard_driver.press(_PynputKey.enter)
+                        self._keyboard_driver.release(_PynputKey.enter)
             except Exception as exc:
                 self.logger.warning(f"Keyboard typing failed: {exc}")
 

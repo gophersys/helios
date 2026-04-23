@@ -12,9 +12,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from database import Json
+from flask import g
 
 from src.lib.audit import log_audit
+from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
 from src.services.database.prisma import get_db_client
+from src.services.scheduling.queue_scheduler import wake_scheduler
 from corekinect.stages import Stage, StageBuildDef, get_stage_build_defs
 
 logger = logging.getLogger(__name__)
@@ -261,7 +264,6 @@ def trigger_stage_build(
 
     # Traceability: record who created this build run
     try:
-        from flask import g
         user = getattr(g, "current_user", None)
         if user and isinstance(user, dict) and user.get("sub"):
             db.buildrun.update(where={"id": build_run.id}, data={"createdById": user["sub"]})
@@ -272,8 +274,6 @@ def trigger_stage_build(
                 build_run.id, product.name, stage_config.name, len(build_defs))
 
     # Create BuildJobs — with build cache check
-    from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
-
     jobs_created: list = []
     cached_count = 0
 
@@ -427,7 +427,6 @@ def trigger_stage_build(
     # Wake the queue scheduler to dispatch QUEUED jobs by priority.
     # The scheduler enforces concurrency limits and build-service picks up
     # jobs in priority order via its poll loop.
-    from src.services.scheduling.queue_scheduler import wake_scheduler
     wake_scheduler()
 
     return {

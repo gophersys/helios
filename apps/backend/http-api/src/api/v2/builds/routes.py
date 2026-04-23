@@ -3,7 +3,8 @@
 from flask import Blueprint
 from flask_socketio import SocketIO
 
-from .webhook import webhook_bitbucket, trigger_build_run, receive_repo_event, set_ci_socketio, list_ci_repos
+from .shared import set_ci_socketio
+from .webhook import webhook_bitbucket, trigger_build_run, receive_repo_event, list_ci_repos
 from .builds import (
     list_builds as list_ci_builds,
     get_build as get_ci_build,

@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from corekinect.core_cloud.api_interface import CoreCloudRestInterface
 from corekinect.errors import CloudError
 from corekinect.utils import Logger
 
@@ -51,7 +52,6 @@ class FuotaClient:
     def _get_api(self):
         """Lazily initialize CoreCloudRestInterface."""
         if self._api is None:
-            from corekinect.core_cloud.api_interface import CoreCloudRestInterface
             self._api = CoreCloudRestInterface(env_namespace=self._api_env)
             self._api.__enter__()
             # /singleton/ endpoints use the base URL without /api suffix

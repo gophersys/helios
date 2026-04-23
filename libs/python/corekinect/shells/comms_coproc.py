@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -181,7 +182,6 @@ class CommsCoprocShell:
         Returns:
             (SimInfo, error) — error is None on success.
         """
-        import logging
         _log = logging.getLogger("comms_coproc")
 
         deadline = time.time() + timeout_s
@@ -394,7 +394,6 @@ class CommsCoprocShell:
         )
         # If send() timed out but there's data in the buffer, try parsing it
         if err and not lines:
-            import time
             time.sleep(1)
             text = self._cmd._stream.get_text()
             if text:

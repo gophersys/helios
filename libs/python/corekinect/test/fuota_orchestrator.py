@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
+from corekinect.test.device_personalizer import DevicePersonalizer
 from corekinect.utils import Logger
 from corekinect.errors import CloudError, ConfigError, HardwareError, TimeoutError as ValidationTimeoutError
 
@@ -524,8 +525,6 @@ def personalize_with_retry(
     Raises:
         RuntimeError: On personalization failure after all retries.
     """
-    from corekinect.test.device_personalizer import DevicePersonalizer
-
     last_err = None
     for attempt in range(1, max_retries + 1):
         if attempt > 1:

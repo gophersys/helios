@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from corekinect.errors import CloudError
 from corekinect.test.cloud_client import CloudClient, validate_device_id
 from corekinect.utils import Logger
 
@@ -485,7 +486,6 @@ class TestConfigMethods:
 
     def test_get_config_raises_on_non_200(self):
         """Raises CloudError when API returns a non-200 status code."""
-        from corekinect.errors import CloudError
 
         client = self._make_client()
         api, patcher = self._mock_api(client)
@@ -599,7 +599,6 @@ class TestConfigMethods:
 
     def test_set_config_raises_on_non_200_204(self):
         """Raises CloudError when API returns a non-200/204 status code."""
-        from corekinect.errors import CloudError
 
         client = self._make_client()
         api, patcher = self._mock_api(client)
@@ -617,7 +616,6 @@ class TestConfigMethods:
 
     def test_set_config_raises_when_api_unavailable(self):
         """Raises CloudError when _get_api returns None."""
-        from corekinect.errors import CloudError
 
         client = self._make_client()
         with patch.object(client, "_get_api", return_value=None):

@@ -10,6 +10,7 @@ import re
 from typing import Dict, List, Optional
 
 from src.services.executors.base import ExecutorResult, JobExecutor, VolumeMount
+from src.services.kubernetes.client import get_batch_v1_api
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,7 @@ _batch_v1_api = None
 
 
 def _get_batch_v1():
-    """Get the K8s BatchV1Api. Deferred so import only happens in K8s envs."""
-    from src.services.kubernetes.client import get_batch_v1_api
+    """Get the K8s BatchV1Api."""
     return get_batch_v1_api()
 
 

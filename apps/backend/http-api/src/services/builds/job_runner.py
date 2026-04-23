@@ -18,6 +18,7 @@ import yaml  # type: ignore[import-untyped]
 
 from config.env import env_config
 from src.services.database.prisma import get_db_client
+from src.services.kubernetes.client import get_k8s_client
 
 logger = logging.getLogger(__name__)
 
@@ -168,13 +169,12 @@ def create_build_k8s_job(build_job_id: str) -> Optional[str]:
     }
 
     try:
-        from src.services.kubernetes.client import get_k8s_client
+        from kubernetes import client as k8s_api
         k8s_client = get_k8s_client()
         if not k8s_client:
             logger.warning("K8s client not available — build job %s created in DB but not scheduled", build_job_id)
             return None
 
-        from kubernetes import client as k8s_api
         batch_v1 = k8s_api.BatchV1Api(k8s_client)
         batch_v1.create_namespaced_job(namespace=namespace, body=k8s_job)
 

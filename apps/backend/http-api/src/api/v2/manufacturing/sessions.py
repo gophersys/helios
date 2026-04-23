@@ -15,13 +15,18 @@ from datetime import datetime, timezone
 
 from flask import g, jsonify, request
 
+from config.env import env_config
+from corekinect.core_ops.client import CoreOpsClient
 from database import Json
+from src.api.v2.manufacturing.runner import deploy_manufacturing_runner, teardown_manufacturing_runner
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from src.api.v2.manufacturing.shared import resolve_test_package as _resolve_test_package
 from src.services.database.prisma import get_db_client
+from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +65,6 @@ def _get_coreops_client():
         return _coreops_client
     _coreops_init_attempted = True
     try:
-        from corekinect.core_ops.client import CoreOpsClient
         _coreops_client = CoreOpsClient()
         logger.info("CoreOps client initialized: %s", _coreops_client._config.server_url)
     except Exception as e:
@@ -270,52 +274,6 @@ def _serialize_session(s, include_runs=False) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Test package resolution
-# ---------------------------------------------------------------------------
-
-
-def _resolve_test_package(db, product_id: str, explicit_version: str | None = None):
-    """Resolve the manufacturing test package.
-
-    Priority:
-    1. Explicit version (if provided)
-    2. Latest RELEASED MANUFACTURING package
-    3. Latest MANUFACTURING package (dev fallback)
-
-    Returns (test_package, error_response) — error_response is a Flask tuple
-    when the explicit version is not found.
-    """
-    if explicit_version:
-        tp = db.testpackage.find_first(
-            where={
-                "productId": product_id,
-                "type": "MANUFACTURING",
-                "version": explicit_version,
-            },
-        )
-        if not tp:
-            return None, not_found(
-                f"Manufacturing test package version '{explicit_version}' not found"
-            )
-        return tp, None
-
-    # Latest released
-    tp = db.testpackage.find_first(
-        where={"productId": product_id, "type": "MANUFACTURING", "status": "RELEASED"},
-        order={"createdAt": "desc"},
-    )
-    if tp:
-        return tp, None
-
-    # Fallback to latest dev
-    tp = db.testpackage.find_first(
-        where={"productId": product_id, "type": "MANUFACTURING"},
-        order={"createdAt": "desc"},
-    )
-    return tp, None
-
-
-# ---------------------------------------------------------------------------
 # GET /v2/manufacturing/fixtures — list manufacturing fixtures
 # ---------------------------------------------------------------------------
 
@@ -383,7 +341,6 @@ def create_manufacturing_session():
         return bad_request("fixtureId is required")
 
     # Concurrency gate — prevent all fixtures from being consumed by manufacturing
-    from config.env import env_config
     max_sessions = getattr(env_config, "MAX_CONCURRENT_MANUFACTURING_SESSIONS", 4)
     active_sessions = db.manufacturingsession.count(where={"status": "ACTIVE"})
     if active_sessions >= max_sessions:
@@ -574,7 +531,6 @@ def create_manufacturing_session():
             data={"runnerStatus": "CHECKING_MTIBS", "config": Json(existing_config)},
         )
 
-        from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
         mtib_check = wait_for_mtibs_healthy(snapshot_slots, timeout_s=30)
         if mtib_check["unhealthy"]:
             unhealthy_names = [
@@ -596,7 +552,6 @@ def create_manufacturing_session():
             )
 
         # ── Deploy persistent manufacturing runner ──
-        from src.api.v2.manufacturing.runner import deploy_manufacturing_runner
         runner_name = deploy_manufacturing_runner(db, session, fixture_with_slots, product)
         if not runner_name:
             logger.warning("Failed to deploy runner for session %s", session.id)
@@ -1109,10 +1064,6 @@ def redeploy_manufacturing_runner(session_id: str):
         return bad_request("Session is not active")
 
     # Tear down existing runner if any
-    from src.api.v2.manufacturing.runner import (
-        teardown_manufacturing_runner,
-        deploy_manufacturing_runner,
-    )
     teardown_manufacturing_runner(db, session)
 
     # Redeploy
@@ -1151,7 +1102,6 @@ def end_manufacturing_session(session_id: str):
         return bad_request("Session is not active")
 
     # Teardown the persistent manufacturing runner
-    from src.api.v2.manufacturing.runner import teardown_manufacturing_runner
     teardown_manufacturing_runner(db, session)
 
     now = datetime.now(timezone.utc)

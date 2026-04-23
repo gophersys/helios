@@ -27,13 +27,15 @@ import math
 
 from dataclasses import asdict
 
-from flask import jsonify, request, Response
+from flask import Response, g, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, not_found, internal_error
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from corekinect.stages import Stage, get_stage_build_defs
+from database import Json
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_storage_client, get_bucket_name, storage_key, StoragePrefixes
 
@@ -461,8 +463,6 @@ def save_recipe_version(product_id: str):
     Body: {"content": "...", "changeNote": "optional note"}
     Auto-increments version number.
     """
-    from flask import g
-
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -656,8 +656,6 @@ def get_stage_defs():
 
     Optional query param: ?stage=smoke|driver|integration|regression|fuota
     """
-    from corekinect.stages import Stage, get_stage_build_defs
-
     stage_filter = request.args.get("stage")
 
     if stage_filter:
@@ -744,9 +742,6 @@ def test_recipe_build(product_id: str):
     }
     Returns: { "buildJobId": "...", "recipeVersion": N }
     """
-    from flask import g
-    from database import Json
-
     db = get_db_client()
     product = db.product.find_unique(
         where={"id": product_id},

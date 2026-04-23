@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fly, fade } from 'svelte/transition';
-  import { Bell, Package, Bug, Megaphone, CheckCheck, Loader2 } from 'lucide-svelte';
+  import { Bell, Package, Bug, Megaphone, Wrench, FlaskConical, Factory, Hammer, CheckCheck, Loader2 } from 'lucide-svelte';
   import {
     getNotifications,
     type UserNotification,
     type NotificationType,
   } from '$lib/stores/notifications.svelte';
   import { toasts, type ToastKind } from '$lib/stores/toast.svelte';
-  import { getSystemSocket } from '$lib/services/websocket';
+  import { getNotificationSocket } from '$lib/services/websocket';
 
   let { collapsed = false, position = 'sidebar' }: { collapsed?: boolean; position?: 'sidebar' | 'topbar' } = $props();
 
@@ -24,12 +24,12 @@
     // Poll unread count every 60 seconds as fallback
     const interval = setInterval(() => notifs.fetchUnreadCount(), 60_000);
 
-    // Wire up WebSocket listener for real-time notifications
-    const socket = getSystemSocket();
+    // Wire up dedicated /notifications WebSocket for real-time push
+    const socket = getNotificationSocket();
     const handleNotification = (data: UserNotification) => {
       notifs.addRealtime(data);
       const kind = toastKindForType(data.type as NotificationType);
-      toasts.show(data.title, kind, 5000);
+      toasts.show(data.title, kind);
     };
 
     if (socket) {
@@ -54,26 +54,19 @@
   // ── Helpers ──────────────────────────────────────────────────
 
   function toastKindForType(type: NotificationType): ToastKind {
-    switch (type) {
-      case 'RELEASE_PUBLISHED':
-      case 'BUG_RESOLVED':
-        return 'success';
-      default:
-        return 'info';
-    }
+    if (type.endsWith('_FAILED')) return 'error';
+    if (type.endsWith('_COMPLETE') || type === 'BUG_RESOLVED' || type === 'PLATFORM_RELEASE_PUBLISHED' || type === 'RELEASE_PUBLISHED') return 'success';
+    return 'info';
   }
 
   function getIcon(type: string) {
-    switch (type) {
-      case 'RELEASE_PUBLISHED':
-        return Package;
-      case 'BUG_ACKNOWLEDGED':
-      case 'BUG_RESOLVED':
-      case 'BUG_DISMISSED':
-        return Bug;
-      default:
-        return Megaphone;
-    }
+    if (type.startsWith('PLATFORM_') || type === 'RELEASE_PUBLISHED') return Package;
+    if (type.startsWith('VALIDATION_')) return FlaskConical;
+    if (type.startsWith('MANUFACTURING_')) return Factory;
+    if (type.startsWith('BUILD_')) return Hammer;
+    if (type.startsWith('BUG_')) return Bug;
+    if (type.startsWith('SYSTEM_')) return Megaphone;
+    return Megaphone;
   }
 
   function timeAgo(iso: string): string {
@@ -117,8 +110,8 @@
   <!-- Dropdown panel -->
   {#if notifs.panelOpen}
     <div
-      transition:fly={{ y: -4, duration: 150 }}
-      class="absolute z-50 w-80 rounded-lg border border-border bg-surface-1 shadow-lg overflow-hidden {position === 'topbar' ? 'right-0 top-full mt-2' : 'left-0 bottom-full mb-2'}"
+      transition:fly={{ y: 4, duration: 150 }}
+      class="absolute z-50 w-80 rounded-lg border border-border bg-surface-1 shadow-lg overflow-hidden right-0 bottom-full mb-2"
     >
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-border px-4 py-3">

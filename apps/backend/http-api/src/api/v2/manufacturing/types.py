@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
+from database import Json
+
 
 @dataclass
 class ManufacturingConfigCreateRequest:
@@ -66,7 +68,6 @@ class ManufacturingConfigUpdateRequest:
         return req, None
 
     def to_update_data(self) -> dict:
-        from database import Json
         d = {}
         if self._has_enabled:
             d["enabled"] = self.enabled

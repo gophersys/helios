@@ -14,8 +14,12 @@ from typing import Any, Dict, List, Optional
 
 from database import Json
 from config.env import env_config
+from src.api.v2.runs.manual import create_kubernetes_job
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
+from src.services.executors import get_executor
+from src.services.executors.kubernetes_executor import KubernetesExecutor
+from src.services.kubernetes.client import resolve_node_ips
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +77,6 @@ def _resolve_all_slot_info(fixture):
     ip_map: dict[str, str] = {}
     if hostnames:
         try:
-            from src.services.kubernetes.client import resolve_node_ips
             ip_map = resolve_node_ips(hostnames)
         except Exception:
             logger.warning("K8s IP resolution failed — falling back to stored IPs")
@@ -208,8 +211,6 @@ def _trigger_validation_job(
 
     Returns the job name if successful, None otherwise.
     """
-    from src.api.v2.runs.manual import create_kubernetes_job
-
     # Get full entry with relations
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
@@ -336,9 +337,6 @@ def _trigger_validation_job(
         fixture_profile_path = f"/app/fixtures/{fixture.design.product}_{fixture.design.revision}.json"
 
     # Dispatch via executor interface — DockerExecutor in dev, K8s Job in staging/prod
-    from src.services.executors import get_executor
-    from src.services.executors.kubernetes_executor import KubernetesExecutor
-
     executor = get_executor("validation")
 
     if isinstance(executor, KubernetesExecutor):

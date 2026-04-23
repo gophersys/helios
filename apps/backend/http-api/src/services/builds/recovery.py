@@ -22,6 +22,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 
 from database import Json
+from src.services.builds.run_service import check_build_run_completion
 from src.services.database.prisma import get_db_client
 
 logger = logging.getLogger(__name__)
@@ -122,7 +123,6 @@ def recover_stale_builds() -> int:
             # If this build is part of a build run, check completion
             if build.buildRunId:
                 try:
-                    from src.services.builds.run_service import check_build_run_completion
                     check_build_run_completion(build.buildRunId)
                 except Exception:
                     pass

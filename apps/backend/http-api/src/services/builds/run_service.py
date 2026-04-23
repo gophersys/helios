@@ -11,11 +11,18 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from database import Json
+from flask import g
 
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
 
 from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
+from src.api.v2.runs.manual import create_kubernetes_job
+from src.services.builds.artifact_validator import (
+    validate_build_run_artifacts,
+    format_missing_artifacts_message,
+)
+from src.services.builds.promotion import promote_build_run_to_firmware, create_asset_set_from_build_run
 from corekinect.stages import Stage
 
 logger = logging.getLogger(__name__)
@@ -364,7 +371,6 @@ def create_build_run_record(db, data, ctx: Dict[str, Any]):
 
     # Traceability: record who created this build run
     try:
-        from flask import g
         user = getattr(g, "current_user", None)
         if user and isinstance(user, dict):
             create_data["createdById"] = user.get("sub")
@@ -682,10 +688,6 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
         # All builds succeeded — validate artifacts before proceeding
         try:
-            from src.services.builds.artifact_validator import (
-                validate_build_run_artifacts,
-                format_missing_artifacts_message,
-            )
             validation_result = validate_build_run_artifacts(db, run_id)
             if not validation_result["valid"]:
                 new_status = "BUILD_FAILED"
@@ -704,7 +706,6 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
         # Promote artifacts to FirmwareSets
         try:
-            from src.services.builds.promotion import promote_build_run_to_firmware
             promoted = promote_build_run_to_firmware(run_id)
             if promoted:
                 logger.info("BuildRun %s promoted to %d FirmwareSet(s)", run_id, len(promoted))
@@ -715,7 +716,6 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
         # Create unified AssetSet from build artifacts
         try:
-            from src.services.builds.promotion import create_asset_set_from_build_run
             asset_result = create_asset_set_from_build_run(run_id)
             if asset_result:
                 logger.info("BuildRun %s → AssetSet %s (%d assets)",
@@ -977,8 +977,6 @@ def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Option
         ``{"queued": True, "entryId": "..."}`` — queued for later execution
         ``None`` — unrecoverable failure
     """
-    from src.api.v2.runs.manual import create_kubernetes_job
-
     db = get_db_client()
 
     try:

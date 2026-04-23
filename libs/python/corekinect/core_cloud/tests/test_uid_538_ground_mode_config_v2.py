@@ -7,13 +7,13 @@ by mistake. It has been converted to a skipped test to prevent collection errors
 
 import pytest
 
+from corekinect.core_cloud.messages import GroundModeConfigV2
+
 pytestmark = pytest.mark.skip(reason="Manual script, not an automated test — requires live API connection")
 
 
 def test_ground_mode_config_v2_send():
     """Placeholder — original script sent config via send_via_api()."""
-    from corekinect.core_cloud.messages import GroundModeConfigV2
-
     gnd_conf = GroundModeConfigV2(
         gps_heartbeat_period_minutes=60,
         continuous_motion_period_seconds=0,

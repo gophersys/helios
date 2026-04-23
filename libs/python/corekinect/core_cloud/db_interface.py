@@ -1,6 +1,8 @@
 import atexit
 import logging
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional, Literal
 
@@ -305,17 +307,13 @@ def _run_codegen(db: "DBConfig", out_file: str) -> None:
     ``PGPASSWORD`` environment variable (libpq honours it transparently)
     and only pass non-secret components on the command line.
     """
-    import os as _os
-    import subprocess
-    import sys
-
     if not db.password:
         raise ValueError("DBConfig.password must be set for codegen")
 
     safe_uri = (
         f"{db.driver}://{db.username}@{db.host}:{db.port}/{db.database_name}"
     )
-    env = {**_os.environ, "PGPASSWORD": db.password}
+    env = {**os.environ, "PGPASSWORD": db.password}
     with open(out_file, "w", encoding="utf-8") as f:
         subprocess.run(
             [sys.executable, "-m", "sqlacodegen", safe_uri],

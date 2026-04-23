@@ -109,16 +109,16 @@
     class="flex-1 transition-[margin] duration-200 ease-out"
     style:margin-left={sidebarWidth}
   >
-    <!-- Global notification bell — fixed top-right -->
-    <div class="fixed top-3 right-3 z-fixed">
-      <NotificationBell position="topbar" />
-    </div>
-
     <!-- Content wrapper with responsive padding -->
     <div class="mx-auto max-w-7xl px-3 sm:px-6 py-6">
       {@render children()}
     </div>
   </main>
+
+  <!-- Global notification bell — fixed bottom-right -->
+  <div class="fixed bottom-4 right-4 z-fixed">
+    <NotificationBell position="topbar" />
+  </div>
 </div>
 
 {#if settingsOpen}

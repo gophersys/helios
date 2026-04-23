@@ -12,6 +12,12 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
+from src.services.kubernetes.mtib_deployments import (
+    create_mtib_deployment,
+    delete_mtib_deployment,
+    get_mtib_deployment_status,
+)
+
 from .types import NodeCreateRequest, NodeUpdateRequest
 
 logger = logging.getLogger(__name__)
@@ -22,6 +28,12 @@ try:
     K8S_AVAILABLE = True
 except ImportError:
     K8S_AVAILABLE = False
+
+try:
+    import grpc
+    _HAS_GRPC = True
+except ImportError:
+    _HAS_GRPC = False
 
 
 def _serialize_node(n: Any, include_slot: bool = False) -> dict:
@@ -43,7 +55,6 @@ def _serialize_node(n: Any, include_slot: bool = False) -> dict:
     deployment_status = None
     if n.metadata and isinstance(n.metadata, dict) and n.metadata.get("deployment_name"):
         try:
-            from src.services.kubernetes.mtib_deployments import get_mtib_deployment_status
             deployment_status = get_mtib_deployment_status(n.metadata["deployment_name"])
         except Exception:
             pass
@@ -286,7 +297,6 @@ def delete_node(node_id: str):
     deploy_name = meta.get("deployment_name")
     if deploy_name:
         try:
-            from src.services.kubernetes.mtib_deployments import delete_mtib_deployment
             delete_mtib_deployment(deploy_name)
             logger.info("Undeployed MTIB server %s for node %s", deploy_name, existing.hostname)
         except Exception as e:
@@ -310,21 +320,23 @@ def check_node_health(node_id: str):
     details = {}
 
     if node.ipAddress:
-        try:
-            import grpc
-            channel = grpc.insecure_channel(f"{node.ipAddress}:50051")
+        if not _HAS_GRPC:
+            details["grpc"] = "grpc package not installed"
+        else:
             try:
-                grpc.channel_ready_future(channel).result(timeout=5)
-                healthy = True
-                status = "ONLINE"
-                details["grpc"] = "connected"
-            except grpc.FutureTimeoutError:
-                details["grpc"] = "timeout"
-            finally:
-                channel.close()
-        except Exception as e:
-            logger.warning("gRPC health check failed for node %s: %s", node_id, e)
-            details["grpc"] = "connection failed"
+                channel = grpc.insecure_channel(f"{node.ipAddress}:50051")
+                try:
+                    grpc.channel_ready_future(channel).result(timeout=5)
+                    healthy = True
+                    status = "ONLINE"
+                    details["grpc"] = "connected"
+                except grpc.FutureTimeoutError:
+                    details["grpc"] = "timeout"
+                finally:
+                    channel.close()
+            except Exception as e:
+                logger.warning("gRPC health check failed for node %s: %s", node_id, e)
+                details["grpc"] = "connection failed"
     else:
         details["grpc"] = "no IP address configured"
 
@@ -363,12 +375,6 @@ def _deploy_mtib_for_node(hostname: str, node_type: str) -> str | None:
 
     Returns the deployment name on success, None on failure.
     """
-    try:
-        from src.services.kubernetes.mtib_deployments import create_mtib_deployment
-    except ImportError:
-        logger.warning("K8s client not available — skipping MTIB deploy for %s", hostname)
-        return None
-
     config: dict = {"env": {}}
     return create_mtib_deployment(
         node_hostname=hostname,

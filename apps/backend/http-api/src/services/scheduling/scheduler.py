@@ -2,10 +2,15 @@
 
 import logging
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 
+from config.env import env_config
+from src.services.builds.recovery import recover_stale_builds
 from src.services.database.prisma import get_db_client
+from src.services.integrations.webhook_trigger import poll_for_changes
 from src.services.log.logger import get_logger
+from src.services.scheduling.queue_scheduler import start_queue_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +39,6 @@ def _cleanup_old_audit_logs():
 def _recover_stale_builds():
     """Find and reset builds stuck in BUILDING/CLONING (worker died)."""
     try:
-        from src.services.builds.recovery import recover_stale_builds
         recover_stale_builds()
     except Exception as e:
         logger.error("Build recovery failed: %s", e)
@@ -42,7 +46,6 @@ def _recover_stale_builds():
 
 def _audit_cleanup_loop():
     """Run audit cleanup periodically."""
-    import time
     while True:
         time.sleep(_CLEANUP_INTERVAL_HOURS * 3600)
         _cleanup_old_audit_logs()
@@ -50,7 +53,6 @@ def _audit_cleanup_loop():
 
 def _build_recovery_loop():
     """Check for stale builds every 60 seconds."""
-    import time
     # Wait 30s after startup before first check (let builds claim)
     time.sleep(30)
     while True:
@@ -71,16 +73,13 @@ def start_scheduler():
     logger.info("Build recovery scheduler started (interval=%ds)", _BUILD_RECOVERY_INTERVAL_SECONDS)
 
     # Bitbucket poller — polls repos for new commits to trigger stage builds
-    from config.env import env_config
     if env_config.BITBUCKET_POLLER_ENABLED:
         def _poller_loop():
             """Background loop that polls Bitbucket for new commits."""
-            import time
             interval = env_config.BITBUCKET_POLLER_INTERVAL_S
             time.sleep(30)  # Initial delay to let services start
             while True:
                 try:
-                    from src.services.integrations.webhook_trigger import poll_for_changes
                     results = poll_for_changes()
                     if results:
                         logger.info("Bitbucket poller triggered %d stage build(s)", len(results))
@@ -95,5 +94,4 @@ def start_scheduler():
         logger.info("Bitbucket poller disabled (BITBUCKET_POLLER_ENABLED=false)")
 
     # Queue scheduler (build + validation dispatch, stuck job reconciliation)
-    from src.services.scheduling.queue_scheduler import start_queue_scheduler
     start_queue_scheduler()

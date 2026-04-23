@@ -11,6 +11,7 @@ from corekinect.utils.timeutil.tzutils import dt_to_utc
 
 import pytest
 
+from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
 from corekinect.test.mock_cloud import (
     MockCloudClient,
     MessageFactory,
@@ -235,7 +236,7 @@ class TestMockCloudClientInterface:
         """Test has wait for message."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         client.inject(MessageFactory.boot(device_id=0x1234))
         msg = client.wait_for_message(BootMsgV2, timeout_s=1)
         assert msg is not None
@@ -244,7 +245,7 @@ class TestMockCloudClientInterface:
         """Test has query messages."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         result = client.query_messages(BootMsgV2)
         assert isinstance(result, list)
 
@@ -332,7 +333,7 @@ class TestMockCloudClientInjection:
 
     def test_query_messages_returns_all(self, client):
         """Test query messages returns all."""
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         client.inject(MessageFactory.boot(device_id=0x1234))
         client.inject(MessageFactory.boot(device_id=0x1234))
         client.inject(MessageFactory.boot(device_id=0x1234))
@@ -341,7 +342,7 @@ class TestMockCloudClientInjection:
 
     def test_query_messages_with_predicate(self, client):
         """Test query messages with predicate."""
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=2))
         result = client.query_messages(BootMsgV2, predicate=lambda m: m.boot_reason == 2)
@@ -360,7 +361,7 @@ class TestMockCloudClientInjection:
 
     def test_messages_only_after_mark_test_start(self, client):
         """Messages injected before mark_test_start are not visible."""
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         old_time = dt_to_utc(datetime.utcnow()) - timedelta(hours=1)
         client.inject(MessageFactory.boot(device_id=0x1234, time_of_record=old_time))
         # Re-mark test start (simulates new test)
@@ -376,7 +377,7 @@ class TestMockCloudClientInjection:
 
     def test_clear_removes_all_messages(self, client):
         """Test clear removes all messages."""
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         client.inject(MessageFactory.boot(device_id=0x1234))
         client.clear()
         result = client.query_messages(BootMsgV2)
@@ -453,7 +454,7 @@ class TestScenarioEngine:
 
     def test_load_replaces_previous(self):
         """Test load replaces previous."""
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         client = MockCloudClient(device_id=0x1234)
         engine = ScenarioEngine(client)
         client.mark_test_start()
@@ -594,7 +595,7 @@ class TestMockCloudClientIntegration:
 
     def test_sequential_test_isolation(self):
         """Each mark_test_start creates a clean window — previous messages hidden."""
-        from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
+
         client = MockCloudClient(device_id=0x1234)
 
         # First test

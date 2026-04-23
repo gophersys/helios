@@ -14,6 +14,7 @@ build fake pytest items via :class:`types.SimpleNamespace` plus a real
 
 from __future__ import annotations
 
+import logging
 import threading
 import types
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -22,13 +23,15 @@ from unittest.mock import patch
 
 import pytest
 
+from corekinect.test import reporter as _reporter_mod
 from corekinect.test.reporter import (
     ConcordReporter,
     NoOpReporter,
     NoOpStepReporter,
     StepReporter,
+    _parse_nodeid,
 )
-from corekinect.test.slot_binding import SLOT_BINDING_KEY, SlotBinding
+from corekinect.test.slot_binding import SLOT_BINDING_KEY, SlotBinding, get_binding
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -212,7 +215,6 @@ def test_from_env_prefers_session_id_over_run_id(monkeypatch) -> None:
 
 
 def test_parse_nodeid_extracts_module_and_testname() -> None:
-    from corekinect.test.reporter import _parse_nodeid
 
     module, name = _parse_nodeid(
         "tests/manufacturing/test_01_electrical.py::test_uvlo_off_state"
@@ -222,7 +224,6 @@ def test_parse_nodeid_extracts_module_and_testname() -> None:
 
 
 def test_parse_nodeid_handles_parametrized_name() -> None:
-    from corekinect.test.reporter import _parse_nodeid
 
     module, name = _parse_nodeid("tests/x.py::test_boot[slot-2]")
     assert module == "x"
@@ -230,7 +231,6 @@ def test_parse_nodeid_handles_parametrized_name() -> None:
 
 
 def test_parse_nodeid_handles_no_module_part() -> None:
-    from corekinect.test.reporter import _parse_nodeid
 
     module, name = _parse_nodeid("test_plain")
     assert module is None
@@ -741,15 +741,13 @@ class _LogRecorder:
         self._handler: "logging.Handler | None" = None
 
     def __enter__(self) -> "_LogRecorder":
-        import logging as _logging
-
         recorder = self
 
-        class _Capture(_logging.Handler):
+        class _Capture(logging.Handler):
             def emit(self, record):
                 recorder._records.append(record)
 
-        self._handler = _Capture(level=_logging.DEBUG)
+        self._handler = _Capture(level=logging.DEBUG)
         self._stdlib_logger.addHandler(self._handler)
         return self
 
@@ -766,7 +764,6 @@ class _LogRecorder:
 
 def test_post_logs_5xx_at_error_level() -> None:
     """A 5xx response is an ops-visible fault; must land at ``log.error``."""
-    from corekinect.test import reporter as _reporter_mod
 
     r = _new_reporter()
     with _LogRecorder(_reporter_mod.log) as rec, \
@@ -785,7 +782,6 @@ def test_post_logs_5xx_at_error_level() -> None:
 
 def test_post_logs_4xx_at_warning_level() -> None:
     """A 4xx is a client-side bug (bad payload/auth) — warning, not error."""
-    from corekinect.test import reporter as _reporter_mod
 
     r = _new_reporter()
     with _LogRecorder(_reporter_mod.log) as rec, \
@@ -803,7 +799,6 @@ def test_post_logs_4xx_at_warning_level() -> None:
 
 def test_post_logs_connection_error_at_error_level() -> None:
     """Network / DNS / TLS faults never reach the backend — always error."""
-    from corekinect.test import reporter as _reporter_mod
 
     r = _new_reporter()
     with _LogRecorder(_reporter_mod.log) as rec, \
@@ -837,31 +832,31 @@ def test_post_returns_parsed_json_on_2xx() -> None:
 
 
 def test_get_binding_returns_none_when_item_is_none() -> None:
-    from corekinect.test.slot_binding import get_binding
+
     assert get_binding(None) is None
 
 
 def test_get_binding_returns_none_when_item_has_no_stash() -> None:
-    from corekinect.test.slot_binding import get_binding
+
     fake_item = types.SimpleNamespace(nodeid="x.py::test_y")
     assert get_binding(fake_item) is None
 
 
 def test_get_binding_returns_none_when_stash_attribute_is_none() -> None:
-    from corekinect.test.slot_binding import get_binding
+
     fake_item = types.SimpleNamespace(nodeid="x.py::test_y", stash=None)
     assert get_binding(fake_item) is None
 
 
 def test_get_binding_returns_none_when_stash_has_no_binding_key() -> None:
     """An item with a real pytest Stash but no binding stashed returns None."""
-    from corekinect.test.slot_binding import get_binding
+
     fake_item = types.SimpleNamespace(nodeid="x.py::test_y", stash=pytest.Stash())
     assert get_binding(fake_item) is None
 
 
 def test_get_binding_returns_stashed_binding_when_present() -> None:
-    from corekinect.test.slot_binding import get_binding
+
     item = _make_item("x.py::test_y", binding=_binding(3, serial="S3"))
     result = get_binding(item)
     assert result is not None

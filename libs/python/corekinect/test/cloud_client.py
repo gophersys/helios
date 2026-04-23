@@ -14,6 +14,7 @@ import re
 import time
 from typing import Any, Callable, Dict, List, Optional
 
+from corekinect.core_cloud.api_interface import CoreCloudRestInterface
 from corekinect.errors import CloudError
 from corekinect.utils import Logger
 from corekinect.utils.timeutil.formaters import auto_format_time_elapsed
@@ -72,7 +73,6 @@ class CloudClient:
         """Lazily initialize CoreCloudRestInterface."""
         if self._api is None:
             try:
-                from corekinect.core_cloud.api_interface import CoreCloudRestInterface
                 self._api = CoreCloudRestInterface(env_namespace=self._api_env)
                 self._api.__enter__()
                 self._log.info("REST API connected (env=%s)", self._api_env)

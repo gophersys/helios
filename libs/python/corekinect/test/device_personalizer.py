@@ -14,7 +14,9 @@ work without it.
 Requires COREOPS_* env vars for CoreOps API access.
 """
 
+import base64
 import datetime
+import json
 import os
 import threading
 import time
@@ -23,6 +25,8 @@ from typing import List, Optional, Tuple
 
 import requests
 
+from corekinect.core_cloud.api_interface import CoreCloudRestInterface
+from corekinect.core_ops import CoreOpsClient
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig, PowerChannel
 from corekinect.shells.alpha_app import AlphaAppShell
@@ -121,7 +125,6 @@ class DevicePersonalizer:
     def _get_coreops(self):
         """Lazy-initialize CoreOpsClient."""
         if self._coreops is None:
-            from corekinect.core_ops import CoreOpsClient
             self._coreops = CoreOpsClient(logger=self._log)
             self._coreops.__enter__()
         return self._coreops
@@ -444,16 +447,10 @@ class DevicePersonalizer:
         Returns error if the stored key doesn't match what we uploaded.
         """
         try:
-            import json as json_mod
-            import time as time_mod
-            import base64 as b64_mod
-
-            from corekinect.core_cloud.api_interface import CoreCloudRestInterface
-
             # Log full key for debugging — helps diagnose Invalid Signature issues
             self._log.info("Key to upload (full): %s", b64_key)
             self._log.info("Key length: %d chars, decoded: %d bytes",
-                           len(b64_key), len(b64_mod.b64decode(b64_key)))
+                           len(b64_key), len(base64.b64decode(b64_key)))
 
             with CoreCloudRestInterface(env_namespace=self._db_env) as api:
                 token = api._ensure_token()
@@ -472,7 +469,7 @@ class DevicePersonalizer:
             body = {"Profiles": [{"DeviceId": device_id, "PublicKey": b64_key}]}
 
             self._log.info("Uploading key to %s ...", url)
-            resp = sess.post(url, data=json_mod.dumps(body), headers=headers, verify=_TLS_VERIFY, timeout=10)
+            resp = sess.post(url, data=json.dumps(body), headers=headers, verify=_TLS_VERIFY, timeout=10)
 
             if resp.status_code not in (200, 204):
                 return f"Key upload failed: {resp.status_code} {resp.text[:300]}"
@@ -480,7 +477,7 @@ class DevicePersonalizer:
             self._log.info("Key upload returned %d", resp.status_code)
 
             # VERIFY: Read back stored key and compare byte-for-byte
-            time_mod.sleep(2)
+            time.sleep(2)
 
             verify_url = f"{base_url}/System/Devices/Sessions/Profiles"
             verify_body = {"deviceIds": [device_id]}
@@ -490,7 +487,7 @@ class DevicePersonalizer:
                 return f"Key verification failed: could not query profiles ({verify_resp.status_code})"
 
             profiles = verify_resp.json()
-            self._log.info("Profiles response: %s", json_mod.dumps(profiles)[:500])
+            self._log.info("Profiles response: %s", json.dumps(profiles)[:500])
 
             if isinstance(profiles, list):
                 for p in profiles:
@@ -503,10 +500,10 @@ class DevicePersonalizer:
                                 f"KEY MISMATCH: uploaded key != stored key. "
                                 f"Uploaded: {b64_key} Stored: {stored_key}"
                             )
-                        self._log.info("Key VERIFIED: stored key matches uploaded key (%d bytes)", len(b64_mod.b64decode(stored_key)))
+                        self._log.info("Key VERIFIED: stored key matches uploaded key (%d bytes)", len(base64.b64decode(stored_key)))
                         return None
 
-            return f"Profile not found for device {device_id} — key upload may have failed. Response: {json_mod.dumps(profiles)[:300]}"
+            return f"Profile not found for device {device_id} — key upload may have failed. Response: {json.dumps(profiles)[:300]}"
 
         except Exception as e:
             return str(e)

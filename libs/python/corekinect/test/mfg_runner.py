@@ -20,6 +20,7 @@ import os
 import signal
 import sys
 import threading
+import time
 import traceback
 from typing import Optional
 
@@ -96,8 +97,7 @@ class ManufacturingRunnerLoop:
 
         # Max lifetime safety net — self-terminate if session was never ended
         max_lifetime_h = int(os.environ.get("RUNNER_MAX_LIFETIME_HOURS", "8"))
-        import time as _time
-        self._start_time = _time.monotonic()
+        self._start_time = time.monotonic()
         self._max_lifetime_s = max_lifetime_h * 3600
         log.info("  max_lifetime = %dh", max_lifetime_h)
 
@@ -122,9 +122,8 @@ class ManufacturingRunnerLoop:
                     connected, total, retry_interval,
                 )
                 self._send_heartbeat("WAITING")
-                import time as _wait
-                _wait.sleep(retry_interval)
-                if _wait.monotonic() - self._start_time > self._max_lifetime_s:
+                time.sleep(retry_interval)
+                if time.monotonic() - self._start_time > self._max_lifetime_s:
                     log.error("Max lifetime exceeded while waiting for hardware.")
                     self._send_heartbeat("ERROR")
                     sys.exit(1)
@@ -151,7 +150,6 @@ class ManufacturingRunnerLoop:
         ws_auth = {"apiKey": self.api_key}
 
         log.info("Connecting to WebSocket: %s (namespace=/runs)", ws_url)
-        import time
         for attempt in range(10):
             try:
                 self.sio.connect(
@@ -374,14 +372,13 @@ class ManufacturingRunnerLoop:
 
     def _heartbeat_loop(self) -> None:
         """Periodic heartbeat every 30s + lifetime watchdog."""
-        import time as _time
         while not self._shutting_down:
-            _time.sleep(30)
+            time.sleep(30)
             if self._shutting_down:
                 break
 
             # Check max lifetime
-            elapsed = _time.monotonic() - self._start_time
+            elapsed = time.monotonic() - self._start_time
             if elapsed > self._max_lifetime_s:
                 hours = self._max_lifetime_s / 3600
                 log.error("Runner exceeded max lifetime (%dh) -- shutting down", hours)

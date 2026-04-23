@@ -5,6 +5,7 @@ import { reportWsError, trackAction } from '$lib/stores/error-reporter.svelte';
 
 let systemSocket: Socket | null = null;
 let runSocket: Socket | null = null;
+let notificationSocket: Socket | null = null;
 
 export interface LogSubscription {
   namespace: string;
@@ -83,6 +84,53 @@ export function disconnectSystemSocket(): void {
   if (systemSocket) {
     systemSocket.disconnect();
     systemSocket = null;
+  }
+}
+
+// ── Notification Namespace ───────────────────────────────────────────────────
+
+/**
+ * Get or create the Socket.IO connection to /notifications namespace.
+ * Used for real-time notification delivery to the authenticated user.
+ */
+export function getNotificationSocket(): Socket | null {
+  if (!browser) return null;
+
+  if (notificationSocket?.connected) {
+    return notificationSocket;
+  }
+
+  const token = getToken();
+  if (!token) return null;
+
+  if (notificationSocket) {
+    notificationSocket.disconnect();
+  }
+
+  notificationSocket = io('/notifications', {
+    auth: { token },
+    transports: ['polling', 'websocket'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 15000,
+  });
+
+  notificationSocket.on('connect', () => {
+    trackAction('ws /notifications connected');
+  });
+
+  notificationSocket.on('connect_error', (err) => {
+    reportWsError({ message: `Notification WS error: ${err.message}`, namespace: '/notifications' });
+  });
+
+  return notificationSocket;
+}
+
+export function disconnectNotificationSocket(): void {
+  if (notificationSocket) {
+    notificationSocket.disconnect();
+    notificationSocket = null;
   }
 }
 

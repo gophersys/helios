@@ -6,6 +6,7 @@ from flask import jsonify, request
 from config.env import env_config
 from src.lib.audit import log_audit
 from src.lib.errors import bad_request, forbidden, unauthorized
+from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.auth.corecloud import authenticate_corecloud
 from src.services.auth.jwt import create_token
@@ -53,7 +54,6 @@ def login():
 
     if not user and is_dev_admin:
         # Auto-create dev admin with all permissions on first login
-        from src.lib.permissions import Permissions
         all_perms = [v for k, v in vars(Permissions).items() if not k.startswith("_") and isinstance(v, str)]
         perm_set = db.permissionset.upsert(
             where={"name": "Super Admin"},

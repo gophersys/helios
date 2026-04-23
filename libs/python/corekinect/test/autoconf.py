@@ -35,6 +35,7 @@ from __future__ import annotations
 import importlib
 import os
 import warnings
+from collections import namedtuple
 from pathlib import Path
 from typing import Any, List, Optional, TYPE_CHECKING
 
@@ -43,8 +44,30 @@ import pytest
 if TYPE_CHECKING:
     from corekinect.manifest.types import Manifest
 
+from corekinect.manifest.loader import find_manifest, load_manifest
+from corekinect.test.artifact_writer import ArtifactWriter
+from corekinect.test.context import TestContext
+from corekinect.test.reporter import NoOpReporter
+from corekinect.test.reporter import pytest_configure as reporter_configure
+from corekinect.test.runner import ProductContext
+from corekinect.test.slot import FixtureContext, SlotContext, get_slot_ids_from_env
+from corekinect.test.slot_binding import attach_binding
+from corekinect.test.slot_env import resolve_slot_bindings, slot_bindings_by_index
+from corekinect.test.stage_assets import StageAssets
+from corekinect.test.telemetry import TelemetryStreamer
 from corekinect.utils import Logger
 from corekinect.test.errors import bad_fixture_controller, missing_env_var
+
+try:
+    from corekinect.test.mock_cloud import MockCloudClient
+    from corekinect.test.mock_hardware import (
+        MockFixtureController,
+        MockPowerProfiler,
+        MockUartDemuxer,
+    )
+    _HAS_MOCKS = True
+except ImportError:
+    _HAS_MOCKS = False
 
 log = Logger(log_name="autoconf")
 
@@ -154,8 +177,6 @@ def _maybe_register_slot_parallel(config: pytest.Config) -> None:
     if os.environ.get("PYTEST_PARALLEL", "1") in ("0", "false", "no", "False"):
         return
 
-    from corekinect.test.slot_env import resolve_slot_bindings
-
     if len(resolve_slot_bindings()) <= 1:
         return
 
@@ -230,8 +251,6 @@ def pytest_configure(config: pytest.Config) -> None:
     that don't depend on them run normally.
     """
     # ── 1. Find and load the manifest ──
-    from corekinect.manifest.loader import find_manifest, load_manifest
-
     rootdir = Path(str(config.rootdir))
     manifest_path = find_manifest(start_dir=rootdir)
     if manifest_path is None:
@@ -276,8 +295,6 @@ def pytest_configure(config: pytest.Config) -> None:
     # The reporter self-activates based on CONCORD_RUN_ID; we just ensure
     # it is imported. Registering via pluginmanager avoids duplicate
     # registration if the test app's conftest.py also lists it.
-    from corekinect.test.reporter import pytest_configure as reporter_configure
-
     if not config.pluginmanager.has_plugin("concord_reporter"):
         reporter_configure(config)
 
@@ -365,12 +382,6 @@ def _attach_slot_bindings(items: List[pytest.Item]) -> None:
     limits collection via ``_get_slot_ids()`` so this is rare, but we
     handle it gracefully rather than raise.
     """
-    from corekinect.test.slot_env import (
-        resolve_slot_bindings,
-        slot_bindings_by_index,
-    )
-    from corekinect.test.slot_binding import attach_binding
-
     bindings = resolve_slot_bindings()
     if not bindings:
         return
@@ -488,7 +499,6 @@ def _get_slot_ids() -> List[str]:
     (set per-panel by the manufacturing runner), MTIB_HOSTS, and
     FIXTURE_CONFIG_PATH. No mock fallbacks — real hardware or fail.
     """
-    from corekinect.test.slot import get_slot_ids_from_env
     return get_slot_ids_from_env()
 
 
@@ -565,8 +575,6 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     except ImportError as exc:
         pytest.skip(bad_fixture_controller(controller_path, exc))
 
-    from corekinect.test.context import TestContext
-
     try:
         context = TestContext.from_env(
             fixture_factory=lambda mtib: controller_class(mtib)
@@ -595,13 +603,10 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
 
     _apply_cli_overrides(request.config)
 
-    from corekinect.test.slot import FixtureContext
-
     # Validate required env vars before attempting connection
-    import os as _os
-    mtib_hosts = _os.environ.get("MTIB_HOSTS", "").strip()
-    mtib_host = _os.environ.get("MTIB_HOST", "") or _os.environ.get("MTIB_ADDRESS", "")
-    fixture_config = _os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
+    mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
+    mtib_host = os.environ.get("MTIB_HOST", "") or os.environ.get("MTIB_ADDRESS", "")
+    fixture_config = os.environ.get("FIXTURE_CONFIG_PATH", "").strip()
     if not mtib_hosts and not mtib_host and not fixture_config:
         pytest.skip(
             missing_env_var(
@@ -616,13 +621,10 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
 
     # Create telemetry streamer for live power/UART streaming to frontend
     telemetry = None
-    run_id = _os.environ.get("CONCORD_RUN_ID", "").strip()
-    api_url = _os.environ.get("CONCORD_API_URL", "").strip()
-    api_key = _os.environ.get("CONCORD_API_KEY", "").strip()
+    run_id = os.environ.get("CONCORD_RUN_ID", "").strip()
+    api_url = os.environ.get("CONCORD_API_URL", "").strip()
+    api_key = os.environ.get("CONCORD_API_KEY", "").strip()
     if run_id and api_url and api_key:
-        from .telemetry import TelemetryStreamer
-        from .artifact_writer import ArtifactWriter
-
         artifact_writer = ArtifactWriter()
 
         def _telemetry_storage(object_path: str, content_bytes: bytes) -> None:
@@ -639,7 +641,7 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     # Build slot_id → RunTarget ID mapping from SLOT_TARGET_IDS env var.
     # The mfg_runner sets this from the run assignment targets so each
     # slot's telemetry (power, UART) includes the targetId for frontend routing.
-    slot_target_id_env = _os.environ.get("SLOT_TARGET_IDS", "").strip()
+    slot_target_id_env = os.environ.get("SLOT_TARGET_IDS", "").strip()
     slot_target_ids: dict = {}  # slot_id (e.g., "slot-0") → RunTarget ID
     if slot_target_id_env:
         parts = [p.strip() for p in slot_target_id_env.split(",")]
@@ -729,8 +731,6 @@ def stage_assets():
     stage = os.environ.get("STAGE", "fuota")
 
     try:
-        from corekinect.test.stage_assets import StageAssets
-
         assets = StageAssets.from_build_run(
             build_run_id=build_run_id,
             stage=stage,
@@ -762,8 +762,6 @@ def report(request: pytest.FixtureRequest):
             with report.step("Verify current"):
                 assert dut.read_current() > 5.0
     """
-    from corekinect.test.reporter import NoOpReporter
-
     reporter = getattr(request.config, "_concord_reporter", None)
     if reporter is None:
         return NoOpReporter()
@@ -841,18 +839,8 @@ def _build_mock_validation_context(manifest: "Manifest"):
     Mirrors the mock setup from the Alpha validation conftest but
     driven by the manifest's product config.
     """
-    from corekinect.test.context import TestContext
-
-    # Late imports — these may not be installed in all environments
-    try:
-        from corekinect.test.mock_cloud import MockCloudClient
-        from corekinect.test.mock_hardware import (
-            MockFixtureController,
-            MockPowerProfiler,
-            MockUartDemuxer,
-        )
-    except ImportError as exc:
-        pytest.skip(f"Mock mode dependencies not available: {exc}")
+    if not _HAS_MOCKS:
+        pytest.skip("Mock mode dependencies not available")
 
     device_id_hex = os.environ.get("DEVICE_ID", "0000")
     device_id = int(device_id_hex, 16)
@@ -869,14 +857,12 @@ def _build_mock_validation_context(manifest: "Manifest"):
     product_slug = manifest.product.slug
     if api_url and api_key and product_slug:
         try:
-            from corekinect.test.runner import ProductContext
             product_ctx = ProductContext.from_api(product_slug, api_url, api_key)
         except Exception:
             pass
 
     if not product_ctx:
         try:
-            from corekinect.test.runner import ProductContext
             parts = product_slug.rsplit("_", 1)
             name = parts[0] if len(parts) == 2 else product_slug
             board = parts[1] if len(parts) == 2 else manifest.product.board
@@ -898,9 +884,6 @@ def _build_mock_validation_context(manifest: "Manifest"):
 
 def _build_mock_fixture_context():
     """Build a FixtureContext with mock MTIB clients for manufacturing."""
-    from collections import namedtuple
-    from corekinect.test.slot import FixtureContext, SlotContext
-
     class MockMtibClient:
         """Minimal MTIB stub for mock-mode manufacturing tests."""
 

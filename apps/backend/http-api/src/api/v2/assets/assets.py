@@ -5,6 +5,7 @@ Files are stored in MinIO under asset-sets/{asset_set_id}/{filename}.
 """
 
 import hashlib
+import io
 import logging
 from flask import jsonify, request
 
@@ -84,7 +85,6 @@ def upload_asset(asset_set_id: str):
     storage = get_storage_client()
     bucket = get_bucket_name()
 
-    import io
     storage.put_object(
         bucket,
         s3_key,

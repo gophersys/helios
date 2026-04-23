@@ -80,7 +80,7 @@ class TestCheckBuildRunCompletion:
             stage=None, product=None,
         )
 
-        with patch("src.services.builds.artifact_validator.validate_build_run_artifacts", return_value={"valid": True, "builds": [], "missing": []}), \
+        with patch("src.services.builds.run_service.validate_build_run_artifacts", return_value={"valid": True, "builds": [], "missing": []}), \
              patch("src.services.builds.promotion.promote_build_run_to_firmware", return_value=[]), \
              patch("src.services.builds.promotion.create_asset_set_from_build_run", return_value=None):
             result = check_build_run_completion("run-1")
@@ -122,7 +122,7 @@ class TestCheckBuildRunCompletion:
             stage=None, product=None,
         )
 
-        with patch("src.services.builds.artifact_validator.validate_build_run_artifacts", return_value={
+        with patch("src.services.builds.run_service.validate_build_run_artifacts", return_value={
             "valid": False,
             "builds": [],
             "missing": [{"label": "APP", "role": "app", "artifactType": "plaintextHex"}],

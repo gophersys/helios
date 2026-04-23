@@ -8,6 +8,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.devices.mtib_observability import get_observability_service
+from src.services.kubernetes.mtib_deployments import get_mtib_deployment_status
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,6 @@ def _get_deployment_status(db_node) -> dict | None:
     if not deploy_name:
         return None
     try:
-        from src.services.kubernetes.mtib_deployments import get_mtib_deployment_status
         status = get_mtib_deployment_status(deploy_name)
         if not status:
             return {"status": "not_deployed", "replicas": 0, "ready": 0, "pod_name": "", "restart_count": 0}

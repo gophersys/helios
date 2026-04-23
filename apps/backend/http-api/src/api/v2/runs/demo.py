@@ -7,6 +7,7 @@ import logging
 import time
 import random
 
+import eventlet
 from flask import jsonify, request
 
 from src.lib.decorators import require_permissions
@@ -192,7 +193,6 @@ def simulate_run(run_id: str):
         }, run_id)
 
     # Run in background thread via eventlet
-    import eventlet
     eventlet.spawn(_run_simulation)
 
     return jsonify(ApiResponse.ok({

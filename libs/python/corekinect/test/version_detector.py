@@ -19,7 +19,14 @@ import threading
 import time
 from typing import Dict, List, Optional, Pattern
 
+from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
+
 from corekinect.errors import FirmwareError
+from corekinect.mtib_client.v1.client.types import (
+    GpioDirection,
+    GpioResistorConfig,
+    PowerChannel,
+)
 from corekinect.utils import Logger
 
 log = Logger(log_name="version_detector")
@@ -66,9 +73,6 @@ class BootVersionDetector:
         Returns:
             {"comms": "0.5.1" or None, "app": "0.8.3" or None}
         """
-        from corekinect.mtib_client.v1.client.types import PowerChannel
-        from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
-
         # Power off first
         self._client.PowerDisable(channel=PowerChannel.DUT)
         self._client.PowerDisable(channel=PowerChannel.CHARGER)
@@ -120,10 +124,6 @@ class BootVersionDetector:
         time.sleep(1)  # Let UART threads initialize
 
         # Power on
-        from corekinect.mtib_client.v1.client.types import (
-            GpioDirection, GpioResistorConfig,
-        )
-
         for gpio in (0, 1):
             self._client.GpioConfig(
                 gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE,

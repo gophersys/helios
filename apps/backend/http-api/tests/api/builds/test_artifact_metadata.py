@@ -86,7 +86,7 @@ def _artifact_obj(**overrides):
 class TestUploadArtifactMetadata:
     """Tests for artifact upload with role/processor/artifactType fields."""
 
-    @patch("src.services.storage.client.get_storage_client")
+    @patch("api.v2.builds.builds.get_storage_client")
     @patch("api.v2.builds.builds.log_audit")
     def test_upload_artifact_with_all_metadata(self, mock_audit, mock_storage, authed_client, mock_db):
         """Upload artifact with role, processor, and artifactType in form fields."""
@@ -126,7 +126,7 @@ class TestUploadArtifactMetadata:
         assert create_data["processor"] == "nrf52840"
         assert create_data["artifactType"] == "plaintextHex"
 
-    @patch("src.services.storage.client.get_storage_client")
+    @patch("api.v2.builds.builds.get_storage_client")
     @patch("api.v2.builds.builds.log_audit")
     def test_upload_artifact_with_partial_metadata(self, mock_audit, mock_storage, authed_client, mock_db):
         """Upload artifact with only role specified — other metadata fields are null."""
@@ -153,7 +153,7 @@ class TestUploadArtifactMetadata:
         assert create_data.get("processor") is None
         assert create_data.get("artifactType") is None
 
-    @patch("src.services.storage.client.get_storage_client")
+    @patch("api.v2.builds.builds.get_storage_client")
     @patch("api.v2.builds.builds.log_audit")
     def test_upload_artifact_without_metadata(self, mock_audit, mock_storage, authed_client, mock_db):
         """Upload artifact without metadata fields — backwards compatible."""

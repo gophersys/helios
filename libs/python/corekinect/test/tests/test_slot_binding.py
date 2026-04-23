@@ -36,6 +36,9 @@ from unittest.mock import patch
 
 import pytest
 
+from corekinect.test.slot_binding import SLOT_BINDING_KEY, SlotBinding
+from corekinect.test.slot_env import resolve_slot_bindings, slot_bindings_by_index
+
 
 # ────────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -60,7 +63,6 @@ def clean_env(monkeypatch):
 
 
 def test_slot_binding_is_frozen():
-    from corekinect.test.slot_binding import SlotBinding
     binding = SlotBinding(
         slot_index=0, serial_number="095F", device_id="abc",
         mtib_host="10.4.45.36", mtib_port=50053,
@@ -70,7 +72,6 @@ def test_slot_binding_is_frozen():
 
 
 def test_slot_binding_is_hashable():
-    from corekinect.test.slot_binding import SlotBinding
     b = SlotBinding(
         slot_index=0, serial_number="095F", device_id="abc",
         mtib_host="10.4.45.36", mtib_port=50053,
@@ -80,7 +81,6 @@ def test_slot_binding_is_hashable():
 
 
 def test_slot_binding_allows_missing_optional_fields():
-    from corekinect.test.slot_binding import SlotBinding
     # serial_number / device_id may be empty if SLOT_SNRS not set.
     b = SlotBinding(
         slot_index=0, serial_number=None, device_id=None,
@@ -91,9 +91,7 @@ def test_slot_binding_allows_missing_optional_fields():
 
 
 def test_slot_binding_key_is_a_pytest_stash_key():
-    import pytest as _pytest
-    from corekinect.test.slot_binding import SLOT_BINDING_KEY
-    assert isinstance(SLOT_BINDING_KEY, _pytest.StashKey)
+    assert isinstance(SLOT_BINDING_KEY, pytest.StashKey)
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -102,13 +100,11 @@ def test_slot_binding_key_is_a_pytest_stash_key():
 
 
 def test_resolve_no_env_returns_empty_list(clean_env):
-    from corekinect.test.slot_env import resolve_slot_bindings
     assert resolve_slot_bindings() == []
 
 
 def test_resolve_single_host_no_port(clean_env):
     clean_env.setenv("MTIB_HOSTS", "10.4.45.36")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert len(bindings) == 1
     assert bindings[0].slot_index == 0
@@ -120,7 +116,6 @@ def test_resolve_single_host_no_port(clean_env):
 
 def test_resolve_host_with_port(clean_env):
     clean_env.setenv("MTIB_HOSTS", "10.4.45.36:12345")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert bindings[0].mtib_port == 12345
 
@@ -128,7 +123,6 @@ def test_resolve_host_with_port(clean_env):
 def test_resolve_mtib_port_env_overrides_default(clean_env):
     clean_env.setenv("MTIB_HOSTS", "10.4.45.36")
     clean_env.setenv("MTIB_PORT", "50054")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert bindings[0].mtib_port == 50054
 
@@ -138,7 +132,6 @@ def test_resolve_multi_host_preserves_order_and_indexes(clean_env):
         "MTIB_HOSTS",
         "10.4.45.36,10.4.45.39,10.4.45.37,10.4.45.34,10.4.45.33",
     )
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert [b.slot_index for b in bindings] == [0, 1, 2, 3, 4]
     assert [b.mtib_host for b in bindings] == [
@@ -149,7 +142,6 @@ def test_resolve_multi_host_preserves_order_and_indexes(clean_env):
 def test_resolve_snrs_align_with_hosts(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h1,h2,h3,h4")
     clean_env.setenv("SLOT_SNRS", "095F,095G,095H,095J")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert [b.serial_number for b in bindings] == ["095F", "095G", "095H", "095J"]
 
@@ -157,7 +149,6 @@ def test_resolve_snrs_align_with_hosts(clean_env):
 def test_resolve_device_ids_align_with_hosts(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h1,h2,h3,h4")
     clean_env.setenv("SLOT_DEVICE_IDS", "id1,id2,id3,id4")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert [b.device_id for b in bindings] == ["id1", "id2", "id3", "id4"]
 
@@ -170,7 +161,6 @@ def test_resolve_device_ids_align_with_hosts(clean_env):
 def test_resolve_slot_filter_selects_subset(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h0,h1,h2,h3,h4")
     clean_env.setenv("SLOT_FILTER", "0,1,2,3")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     # Filtered out slot 4 (the standalone).
     assert [b.slot_index for b in bindings] == [0, 1, 2, 3]
@@ -180,7 +170,6 @@ def test_resolve_slot_filter_selects_subset(clean_env):
 def test_resolve_slot_filter_preserves_global_slot_index(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h0,h1,h2,h3,h4")
     clean_env.setenv("SLOT_FILTER", "4")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     # Standalone-only run — the remaining binding is still slot_index=4,
     # matching the address position in MTIB_HOSTS. This is critical for
@@ -199,7 +188,6 @@ def test_resolve_snrs_align_with_filtered_slots_not_all_hosts(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h0,h1,h2,h3,h4")
     clean_env.setenv("SLOT_FILTER", "0,1,2,3")
     clean_env.setenv("SLOT_SNRS", "095F,095G,095H,095J")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert len(bindings) == 4
     # Filtered slot indices 0..3 get the 4 provided SNRs in order.
@@ -215,7 +203,6 @@ def test_resolve_ignores_snr_count_mismatch(clean_env):
     """
     clean_env.setenv("MTIB_HOSTS", "h0,h1,h2,h3")
     clean_env.setenv("SLOT_SNRS", "only,two,values")  # 3 values for 4 slots
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert len(bindings) == 4
     assert all(b.serial_number is None for b in bindings)
@@ -229,7 +216,6 @@ def test_resolve_ignores_snr_count_mismatch(clean_env):
 def test_resolve_strips_whitespace(clean_env):
     clean_env.setenv("MTIB_HOSTS", "  h0 , h1  , h2  ")
     clean_env.setenv("SLOT_SNRS", "  s0, s1, s2 ")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert [b.mtib_host for b in bindings] == ["h0", "h1", "h2"]
     assert [b.serial_number for b in bindings] == ["s0", "s1", "s2"]
@@ -237,7 +223,6 @@ def test_resolve_strips_whitespace(clean_env):
 
 def test_resolve_drops_empty_fields(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h0,,h1,")
-    from corekinect.test.slot_env import resolve_slot_bindings
     bindings = resolve_slot_bindings()
     assert len(bindings) == 2
     assert [b.mtib_host for b in bindings] == ["h0", "h1"]
@@ -256,7 +241,6 @@ def test_slot_bindings_by_index_is_a_dict(clean_env):
     """Convenience helper: bindings keyed by slot_index for O(1) lookup by autoconf."""
     clean_env.setenv("MTIB_HOSTS", "h0,h1,h2,h3")
     clean_env.setenv("SLOT_FILTER", "1,3")
-    from corekinect.test.slot_env import resolve_slot_bindings, slot_bindings_by_index
     m = slot_bindings_by_index(resolve_slot_bindings())
     assert set(m.keys()) == {1, 3}
     assert m[1].mtib_host == "h1"
@@ -264,8 +248,6 @@ def test_slot_bindings_by_index_is_a_dict(clean_env):
 
 
 def test_slot_bindings_by_index_rejects_duplicates():
-    from corekinect.test.slot_binding import SlotBinding
-    from corekinect.test.slot_env import slot_bindings_by_index
     with pytest.raises(ValueError, match="duplicate slot_index"):
         slot_bindings_by_index([
             SlotBinding(slot_index=0, serial_number=None, device_id=None,
@@ -283,7 +265,6 @@ def test_slot_bindings_by_index_rejects_duplicates():
 def test_resolve_does_not_mutate_env(clean_env):
     clean_env.setenv("MTIB_HOSTS", "h0,h1")
     clean_env.setenv("SLOT_SNRS", "s0,s1")
-    from corekinect.test.slot_env import resolve_slot_bindings
     before = {k: os.environ.get(k) for k in ("MTIB_HOSTS", "SLOT_SNRS")}
     resolve_slot_bindings()
     after = {k: os.environ.get(k) for k in ("MTIB_HOSTS", "SLOT_SNRS")}
@@ -293,7 +274,6 @@ def test_resolve_does_not_mutate_env(clean_env):
 def test_resolve_returns_independent_copies(clean_env):
     """Two calls must return independent lists — mutating one shouldn't affect the other."""
     clean_env.setenv("MTIB_HOSTS", "h0,h1")
-    from corekinect.test.slot_env import resolve_slot_bindings
     a = resolve_slot_bindings()
     b = resolve_slot_bindings()
     assert a == b

@@ -24,6 +24,8 @@ from src.services.builds.run_service import (
     serialize_build_run_summary,
     trigger_build_run_validation,
 )
+from src.services.builds.trigger import trigger_stage_build
+from src.services.storage.client import get_storage_client
 
 from .builds import _sanitize_filename
 from .types import BuildRunCreateRequest
@@ -174,8 +176,6 @@ def get_build_run(run_id: str):
 @require_permissions(Permissions.BUILDS_VIEW)
 def download_build_run_artifacts(run_id: str):
     """GET /v2/builds/runs/<id>/artifacts/download — Download all artifacts as ZIP."""
-    from src.services.storage.client import get_storage_client
-
     db = get_db_client()
 
     build_run = db.buildrun.find_unique(
@@ -290,7 +290,6 @@ def retrigger_build_run(run_id: str):
         "pr_url": build_run.prUrl,
     }
 
-    from src.services.builds.trigger import trigger_stage_build
     try:
         result = trigger_stage_build(
             product_id=build_run.productId,

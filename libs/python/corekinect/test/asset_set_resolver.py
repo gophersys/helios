@@ -16,8 +16,10 @@ Compatible with StageAssets/BuildAsset — same interface as ArtifactResolver.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import shutil
 import tempfile
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -182,7 +184,6 @@ class AssetSetResolver:
         )
         if not manifest_asset:
             raise ConfigError(f"No manifest for label={label}")
-        import json
         path = self._download(manifest_asset)
         with open(path) as f:
             return json.load(f)
@@ -221,7 +222,6 @@ class AssetSetResolver:
 
     def cleanup(self):
         """Remove downloaded files."""
-        import shutil
         if os.path.exists(self._download_dir):
             shutil.rmtree(self._download_dir, ignore_errors=True)
         self._download_cache.clear()

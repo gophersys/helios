@@ -39,6 +39,13 @@ def _serialize(r) -> dict:
         "testsPassed": getattr(r, "testsPassed", None),
         "testsFailed": getattr(r, "testsFailed", None),
         "testCoverage": getattr(r, "testCoverage", None),
+        "testDurationMs": getattr(r, "testDurationMs", None),
+        "testDetails": getattr(r, "testDetails", None),
+        "linesAdded": getattr(r, "linesAdded", None),
+        "linesRemoved": getattr(r, "linesRemoved", None),
+        "prUrl": getattr(r, "prUrl", None),
+        "releaseOrigin": getattr(r, "releaseOrigin", None),
+        "releaseDurationMs": getattr(r, "releaseDurationMs", None),
         "gateStatus": getattr(r, "gateStatus", None),
         "gateOverrideBy": getattr(r, "gateOverrideBy", None),
         "gateOverrideReason": getattr(r, "gateOverrideReason", None),
@@ -86,19 +93,34 @@ def create_release():
     for field in (
         "previousVersion", "corekinectVersion", "corectlMinVersion",
         "protoVersion", "migrationHash", "changelog", "summary",
-        "breakingChanges",
+        "breakingChanges", "gateStatus", "gateOverrideReason",
+        "prUrl", "releaseOrigin",
     ):
         val = data.get(field)
         if val is not None:
             create_data[field] = str(val).strip() if isinstance(val, str) else val
 
-    for int_field in ("testsPassed", "testsFailed"):
+    for int_field in ("testsPassed", "testsFailed", "testDurationMs",
+                      "linesAdded", "linesRemoved", "releaseDurationMs"):
         val = data.get(int_field)
         if val is not None:
             create_data[int_field] = int(val)
 
     if data.get("testCoverage") is not None:
         create_data["testCoverage"] = float(data["testCoverage"])
+
+    if data.get("testDetails") is not None and isinstance(data["testDetails"], dict):
+        create_data["testDetails"] = data["testDetails"]
+
+    if "status" in data:
+        status = (data["status"] or "").strip()
+        if status in _VALID_STATUSES:
+            create_data["status"] = status
+            now = datetime.now(timezone.utc)
+            if status == "STAGED":
+                create_data["stagedAt"] = now
+            elif status == "RELEASED":
+                create_data["releasedAt"] = now
 
     release = db.release.create(data=create_data)
 
@@ -204,7 +226,8 @@ def update_release(release_id: str):
 
     # String fields
     for field in ("gateStatus", "previousVersion", "corekinectVersion",
-                  "corectlMinVersion", "protoVersion", "migrationHash"):
+                  "corectlMinVersion", "protoVersion", "migrationHash",
+                  "prUrl", "releaseOrigin"):
         if field in data:
             update_data[field] = (data[field] or "").strip() or None
 
@@ -214,12 +237,16 @@ def update_release(release_id: str):
         update_data["gateOverrideBy"] = user_id
 
     # Numeric fields
-    for int_field in ("testsPassed", "testsFailed"):
+    for int_field in ("testsPassed", "testsFailed", "testDurationMs",
+                      "linesAdded", "linesRemoved", "releaseDurationMs"):
         if int_field in data:
             update_data[int_field] = int(data[int_field]) if data[int_field] is not None else None
 
     if "testCoverage" in data:
         update_data["testCoverage"] = float(data["testCoverage"]) if data["testCoverage"] is not None else None
+
+    if "testDetails" in data:
+        update_data["testDetails"] = data["testDetails"] if isinstance(data["testDetails"], dict) else None
 
     if not update_data:
         return bad_request("No fields to update")

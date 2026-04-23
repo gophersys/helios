@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 
 from flask import g, jsonify, request
 
+from database import Json
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
@@ -174,8 +175,6 @@ def _extract_fixture_designs(
                 return None
 
             node_type = package_type if package_type in ("MANUFACTURING", "VALIDATION") else "VALIDATION"
-
-            from database import Json
 
             # Upsert by (name, revision) — different revisions coexist
             existing = db.fixturedesign.find_first(
@@ -488,8 +487,6 @@ def _upload_test_package_impl(product_id: str):
             }
         )
         if existing_dev:
-            from database import Json
-
             update_data = {
                     "storageKey": object_key,
                     "frameworkVersion": framework_version,
@@ -543,8 +540,6 @@ def _upload_test_package_impl(product_id: str):
             return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200
 
     # Create new record
-    from database import Json
-
     create_data = {
         "productId": product.id,
         "version": version,

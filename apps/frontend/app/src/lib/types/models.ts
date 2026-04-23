@@ -846,6 +846,18 @@ export interface AssetFile {
 
 // ── Platform Release types ───────────────────────────────────
 
+export interface ReleaseTestSuite {
+  passed: number;
+  failed: number;
+  coverage: number | null;
+  durationMs: number | null;
+}
+
+export interface ReleaseTestDetails {
+  backend?: ReleaseTestSuite;
+  frontend?: ReleaseTestSuite;
+}
+
 export interface PlatformRelease {
   id: string;
   version: string;
@@ -863,6 +875,13 @@ export interface PlatformRelease {
   testsPassed: number | null;
   testsFailed: number | null;
   testCoverage: number | null;
+  testDurationMs: number | null;
+  testDetails: ReleaseTestDetails | null;
+  linesAdded: number | null;
+  linesRemoved: number | null;
+  prUrl: string | null;
+  releaseOrigin: string | null;
+  releaseDurationMs: number | null;
   gateStatus: string | null;
   gateOverrideBy: string | null;
   gateOverrideReason: string | null;

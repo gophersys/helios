@@ -2,7 +2,7 @@ import logging
 
 from flask import g, jsonify, request
 
-from src.lib.decorators import require_permissions
+from src.lib.decorators import require_permissions, ROLE_HIERARCHY
 from src.lib.errors import not_found
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -51,7 +51,6 @@ def me():
     effective_permission_set_name = user.permissionSet.name if user.permissionSet else None
 
     if view_as_role and user_role in ("ADMIN", "MAINTAINER"):
-        from src.lib.decorators import ROLE_HIERARCHY
         if view_as_role in ROLE_HIERARCHY:
             effective_view_as = view_as_role
             # Look up the target role's permission set

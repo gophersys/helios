@@ -15,12 +15,15 @@ Usage:
 """
 
 import os
+import shutil
 import struct
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from unittest.mock import MagicMock
+
+from corekinect.test.artifact_resolver import BuildManifest, ManifestTarget
 
 
 # =============================================================================
@@ -147,8 +150,6 @@ class StubArtifactResolver:
         self._events.append({"action": "get_manifest", "label": label})
         build = self._require_build(label)
 
-        from corekinect.test.artifact_resolver import BuildManifest, ManifestTarget
-
         targets = [ManifestTarget.from_dict(t) for t in build.app_targets]
 
         return BuildManifest(
@@ -247,7 +248,6 @@ class StubArtifactResolver:
 
     def cleanup(self) -> None:
         """Remove temp files."""
-        import shutil
         if os.path.exists(self._tmp_dir):
             shutil.rmtree(self._tmp_dir, ignore_errors=True)
 

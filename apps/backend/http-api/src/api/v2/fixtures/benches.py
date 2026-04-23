@@ -20,6 +20,12 @@ from src.services.database.prisma import get_db_client
 
 from .types import BenchCreateRequest, BenchLockRequest, BenchUpdateRequest
 
+try:
+    from kubernetes import client as k8s_client, config as k8s_config
+    _HAS_KUBERNETES = True
+except ImportError:
+    _HAS_KUBERNETES = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -491,21 +497,21 @@ def discover_mtibs():
     db = get_db_client()
 
     try:
-        try:
-            from kubernetes import client, config
-            try:
-                config.load_incluster_config()
-            except config.ConfigException:
-                config.load_kube_config()
-
-            v1 = client.CoreV1Api()
-            nodes = v1.list_node(label_selector="node.corekinect.com/type=mtib")
-        except ImportError:
+        if not _HAS_KUBERNETES:
             logger.warning("kubernetes package not installed, returning mock data")
             nodes = type("MockNodeList", (), {"items": []})()
-        except Exception as e:
-            logger.warning("Failed to connect to K8s API: %s", e)
-            nodes = type("MockNodeList", (), {"items": []})()
+        else:
+            try:
+                try:
+                    k8s_config.load_incluster_config()
+                except k8s_config.ConfigException:
+                    k8s_config.load_kube_config()
+
+                v1 = k8s_client.CoreV1Api()
+                nodes = v1.list_node(label_selector="node.corekinect.com/type=mtib")
+            except Exception as e:
+                logger.warning("Failed to connect to K8s API: %s", e)
+                nodes = type("MockNodeList", (), {"items": []})()
 
         # Get all registered fixture slot node IPs (via slot -> node)
         registered_addresses = set()

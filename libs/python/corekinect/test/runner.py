@@ -22,11 +22,13 @@ Environment variables:
     PRODUCT_SLUG: Product slug for catalog API lookup (e.g., "alpha_b0")
 """
 
+import argparse
 import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -35,7 +37,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+from corekinect.mtib_client.v1.client.config import NetConfig
+from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.test.env import get_run_id
+from corekinect.test.fuota_client import FuotaClient
 from corekinect.utils import Logger
 
 log = Logger(log_name="validation.runner")
@@ -378,10 +383,6 @@ class PreflightChecker:
         MTIBs can be momentarily unavailable after restarts or under load.
         Retry a few times with backoff before failing the preflight check.
         """
-        import time as _time
-        from corekinect.mtib_client.v1.client.config import NetConfig
-        from corekinect.mtib_client.v1.client.core import MtibV1Client
-
         max_attempts = int(os.environ.get("MTIB_PREFLIGHT_MAX_ATTEMPTS", "5"))
         retry_delay = float(os.environ.get("MTIB_PREFLIGHT_RETRY_DELAY_S", "2"))
 
@@ -421,7 +422,7 @@ class PreflightChecker:
                         pass
 
             if attempt < max_attempts:
-                _time.sleep(retry_delay)
+                time.sleep(retry_delay)
 
         return False, last_msg
 
@@ -494,8 +495,6 @@ class PreflightChecker:
             return False, "VAL_1_0_API_KEY not set"
 
         try:
-            from corekinect.test.fuota_client import FuotaClient
-
             client = FuotaClient(api_env="VAL_1_0")
             client._ensure_token()
             return True, "Authenticated"
@@ -745,8 +744,6 @@ class TestRunner:
 
 def main():
     """CLI entry point."""
-    import argparse
-
     parser = argparse.ArgumentParser(description="Run validation or manufacturing tests")
     parser.add_argument(
         "--stage",

@@ -15,6 +15,7 @@ in product fixture YAML.
 """
 
 import functools
+import inspect
 from typing import Callable, List, Optional
 
 import pytest
@@ -44,7 +45,6 @@ def _find_fixture(func: Callable, args: tuple, kwargs: dict):
 
     # Positional args by parameter name (fallback)
     try:
-        import inspect
         sig = inspect.signature(func)
         params = list(sig.parameters.keys())
         for i, param in enumerate(params):

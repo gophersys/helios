@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 from urllib.parse import urlparse
 
+from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
+
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.utils import EnvConfig, Logger
 
@@ -222,8 +224,6 @@ class FirmwareAssetManager:
 
         Safe to call multiple times. Logs warnings but doesn't raise on errors.
         """
-        from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
-
         # Delete from MTIB
         for name in list(self._uploaded_names):
             try:
@@ -299,8 +299,6 @@ class FirmwareAssetManager:
         """Upload local file to MTIB server."""
         if not os.path.exists(local_path):
             raise FileNotFoundError(f"Firmware file not found: {local_path}")
-
-        from protocols.mtib.mtib_pb2 import HostType
 
         # Map target string to HostType
         target_map = {

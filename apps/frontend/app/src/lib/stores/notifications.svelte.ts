@@ -2,7 +2,9 @@
  * Notification state management.
  *
  * Singleton class backed by Svelte 5 runes. Fetches notifications
- * from the API and supports real-time additions via WebSocket.
+ * from the API and receives real-time pushes via a dedicated
+ * Socket.IO /notifications namespace.
+ *
  * Mounted via `getNotifications()` — no context required.
  */
 
@@ -23,11 +25,33 @@ export interface UserNotification {
 }
 
 export type NotificationType =
-  | 'RELEASE_PUBLISHED'
+  // Platform
+  | 'PLATFORM_RELEASE_PUBLISHED'
+  | 'PLATFORM_DEPLOYMENT_COMPLETE'
+  | 'PLATFORM_DEPLOYMENT_FAILED'
+  // Validation
+  | 'VALIDATION_RUN_COMPLETE'
+  | 'VALIDATION_RUN_FAILED'
+  // Manufacturing
+  | 'MANUFACTURING_SESSION_COMPLETE'
+  | 'MANUFACTURING_SESSION_FAILED'
+  // Build
+  | 'BUILD_COMPLETE'
+  | 'BUILD_FAILED'
+  // Bug
   | 'BUG_ACKNOWLEDGED'
   | 'BUG_RESOLVED'
   | 'BUG_DISMISSED'
-  | 'SYSTEM_ANNOUNCEMENT';
+  // System
+  | 'SYSTEM_ANNOUNCEMENT'
+  | 'SYSTEM_MAINTENANCE'
+  // Legacy
+  | 'RELEASE_PUBLISHED';
+
+export interface NotificationTypeGroup {
+  label: string;
+  types: { key: string; label: string; description: string }[];
+}
 
 class NotificationState {
   notifications = $state<UserNotification[]>([]);
@@ -94,7 +118,6 @@ class NotificationState {
     this.panelOpen = false;
   }
 
-  /** Add a notification received in real-time (WebSocket). */
   addRealtime(notification: UserNotification): void {
     this.notifications = [notification, ...this.notifications].slice(0, 20);
     if (!notification.readAt) this.unreadCount++;

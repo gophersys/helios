@@ -8,6 +8,7 @@ import grpc
 
 from protocols.mtib.mtib_pb2 import Empty
 from protocols.mtib.mtib_pb2_grpc import MtibV1Stub
+from src.services.database.prisma import get_db_client
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,6 @@ class MtibObservabilityService:
     def _poll_all_nodes(self):
         """Fetch observability from all nodes in parallel."""
         try:
-            from src.services.database.prisma import get_db_client
             db = get_db_client()
         except Exception:
             return

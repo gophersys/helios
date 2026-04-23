@@ -17,6 +17,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from src.services.builds.run_service import trigger_build_run_validation
 from src.services.database.prisma import get_db_client
 
 logger = logging.getLogger(__name__)
@@ -167,8 +168,6 @@ def process_queue(db=None) -> dict:
         )
 
         # Attempt to trigger — this will find an available fixture (or return None/queued)
-        from src.services.builds.run_service import trigger_build_run_validation
-
         result = trigger_build_run_validation(build_run.id, build_run, builds)
     else:
         # External CI / manual upload — no build run attached

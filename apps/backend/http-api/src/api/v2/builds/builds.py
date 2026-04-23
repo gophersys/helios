@@ -1,26 +1,39 @@
 """CI Build endpoints — CRUD for build jobs and artifacts."""
 
+import hashlib
+import io
 import logging
 import math
+import re
+import zipfile
+from datetime import datetime, timezone
+from io import BytesIO
 from typing import Any
 
 from database import Json
-from flask import jsonify, request
+from flask import Response, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from services.builds.notifier import notify_build_service
+from src.services.builds.run_service import check_build_run_completion
 from src.services.database.prisma import get_db_client
+from src.services.scheduling.queue_scheduler import wake_scheduler
+from src.services.storage.client import (
+    StoragePrefixes,
+    get_storage_client,
+    sanitize_filename as _sanitize_filename,
+    storage_key,
+)
 
 from .build_cache import compute_build_fingerprint, find_cached_build
+from .shared import _emit_ci_event
 from .types import BuildCreateRequest
 
 logger = logging.getLogger(__name__)
-
-
-from src.services.storage.client import sanitize_filename as _sanitize_filename
 
 
 # -------------------------------------------------
@@ -352,7 +365,6 @@ def create_build():
 
     # Determine initial status
     if is_manual and data.initial_status == "SUCCESS":
-        from datetime import datetime, timezone
         initial_status = "SUCCESS"
         now = datetime.now(timezone.utc)
         extra_fields = {"startedAt": now, "finishedAt": now}
@@ -395,7 +407,6 @@ def create_build():
         # Notify build service (fire-and-forget)
         if build.status == "QUEUED":
             try:
-                from services.builds.notifier import notify_build_service
                 priority = 100 if data.trigger_type == "manual" else 50
                 notify_build_service(build.id, priority=priority)
             except Exception:
@@ -451,14 +462,12 @@ def update_build(build_id: str):
         update_data["durationSeconds"] = int(data["durationSeconds"])
 
     if "startedAt" in data:
-        from datetime import datetime
         try:
             update_data["startedAt"] = datetime.fromisoformat(data["startedAt"].replace("Z", "+00:00"))
         except:
             pass
 
     if "finishedAt" in data:
-        from datetime import datetime
         try:
             update_data["finishedAt"] = datetime.fromisoformat(data["finishedAt"].replace("Z", "+00:00"))
         except:
@@ -515,7 +524,6 @@ def update_build(build_id: str):
                     }
                 )
                 if dependent_builds:
-                    from src.services.scheduling.queue_scheduler import wake_scheduler
                     for dep in dependent_builds:
                         db.buildjob.update(
                             where={"id": dep.id},
@@ -528,7 +536,6 @@ def update_build(build_id: str):
 
             # When a build finishes, check if build run is complete
             if new_status in ("SUCCESS", "FAILED", "CANCELLED"):
-                from src.services.builds.run_service import check_build_run_completion
                 new_build_run_status = check_build_run_completion(updated.buildRunId)
                 if new_build_run_status:
                     logger.info("Build %s finished, build run %s now %s",
@@ -596,9 +603,6 @@ def reset_build(build_id: str):
 @require_permissions(Permissions.BUILDS_MANAGE)
 def upload_build_artifact(build_id: str):
     """POST /v2/builds/<id>/artifacts — Upload a build artifact."""
-    import hashlib
-    from src.services.storage.client import get_storage_client, storage_key, StoragePrefixes
-
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id}, include={"product": True})
@@ -627,7 +631,6 @@ def upload_build_artifact(build_id: str):
 
         # Upload to MinIO
         storage = get_storage_client()
-        from io import BytesIO
         storage.put_object(
             bucket_name="concord",
             object_name=key,
@@ -665,7 +668,6 @@ def upload_build_artifact(build_id: str):
 
 def _get_clean_artifact_name(artifact_name: str) -> str:
     """Strip version/variant prefix from artifact name (e.g. '0.0.0_debug_app_nrf52840.hex' -> 'app_nrf52840.hex')."""
-    import re
     # Match pattern: version_variant_ prefix (e.g. "0.0.0_debug_" or "1.2.3_no_debug_")
     match = re.match(r'^\d+\.\d+\.\d+_(debug|no_debug|release)_(.+)$', artifact_name)
     if match:
@@ -696,11 +698,6 @@ def download_build_artifacts(build_id: str):
           109.x.x.x.cfw
         build.json
     """
-    import io
-    import zipfile
-    from flask import Response
-    from src.services.storage.client import get_storage_client
-
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id})
@@ -776,9 +773,6 @@ def download_single_artifact(build_id: str, artifact_name: str):
 
     Streams the artifact file directly from MinIO storage.
     """
-    from flask import Response
-    from src.services.storage.client import get_storage_client
-
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id})
@@ -832,8 +826,6 @@ def stream_build_log(build_id: str):
     Used by build workers to stream real-time build output.
     Appends to buildLog in DB and broadcasts via WebSocket.
     """
-    from .webhook import _emit_ci_event
-
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id})
@@ -884,8 +876,6 @@ def report_build_progress(build_id: str):
     Used by build workers to report which stage they're in.
     Broadcasts via WebSocket for real-time UI updates.
     """
-    from .webhook import _emit_ci_event
-
     data = request.get_json() or {}
     step = data.get("step", "")
     progress = data.get("progress", 0)

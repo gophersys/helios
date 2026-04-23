@@ -17,6 +17,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
+from corekinect.stages import Stage, get_stage_capabilities
 from src.api.v2.runs.types import RunTriggerRequest
 
 # Reuse K8s job helpers from the new run endpoint
@@ -88,9 +89,8 @@ def trigger_run(run_id: str):
         default_caps = []
         if data.stage:
             try:
-                from corekinect.stages import get_stage_capabilities, Stage
                 default_caps = get_stage_capabilities(Stage(data.stage))
-            except (ValueError, KeyError, ImportError):
+            except (ValueError, KeyError):
                 default_caps = []
         required_capabilities = run_config.get("requiredCapabilities", default_caps)
 

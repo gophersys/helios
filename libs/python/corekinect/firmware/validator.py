@@ -10,6 +10,7 @@ Validation checks:
 4. Boot log version verification (runtime check)
 """
 
+import argparse
 import json
 import re
 from dataclasses import dataclass, field
@@ -353,8 +354,6 @@ def validate_package(package_path: str) -> ValidationResult:
 
 def main():
     """CLI for validating firmware packages."""
-    import argparse
-
     parser = argparse.ArgumentParser(description="Validate firmware build packages")
     parser.add_argument("package_path", help="Path to firmware package directory")
     parser.add_argument("--json", action="store_true", help="Output JSON instead of text")
@@ -364,7 +363,6 @@ def main():
     result = validate_package(args.package_path)
 
     if args.json:
-        import json as json_mod
         output = {
             "valid": result.valid,
             "errors": [{"severity": e.severity, "message": e.message, "source": e.source} for e in result.errors],
@@ -373,7 +371,7 @@ def main():
             "files_found": result.files_found,
             "files_missing": result.files_missing,
         }
-        print(json_mod.dumps(output, indent=2))
+        print(json.dumps(output, indent=2))
     else:
         print(result.summary())
 

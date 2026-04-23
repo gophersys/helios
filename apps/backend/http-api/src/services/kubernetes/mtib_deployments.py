@@ -1,9 +1,15 @@
 """Service for managing MTIB server K8s deployments."""
 import logging
 import os
+import socket
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import yaml  # type: ignore[import-untyped]
+
+from config.env import env_config
+from kubernetes.client.exceptions import ApiException
+from src.services.kubernetes.client import get_apps_v1_api, get_core_v1_api
 
 logger = logging.getLogger(__name__)
 
@@ -41,16 +47,8 @@ def create_mtib_deployment(
 
     Returns the K8s deployment name on success, None on failure.
     """
-    try:
-        from src.services.kubernetes.client import get_apps_v1_api
-        from kubernetes.client.exceptions import ApiException
-    except ImportError:
-        logger.error("Kubernetes client not available")
-        return None
-
-    from config.env import env_config as _env
     template_path = os.path.join(
-        _env.ASSETS_FOLDER, "templates", "mtib_server_deployment.yaml"
+        env_config.ASSETS_FOLDER, "templates", "mtib_server_deployment.yaml"
     )
 
     try:
@@ -68,10 +66,10 @@ def create_mtib_deployment(
     image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server:latest")
 
     # Build env vars
-    env_config = config.get("env", {})
-    motion_enabled = env_config.get("MOTION_ENABLED", "false")
-    metrics_enabled = env_config.get("METRICS_ENABLED", "false")
-    log_level = env_config.get("LOG_LEVEL", "4")
+    env_vars = config.get("env", {})
+    motion_enabled = env_vars.get("MOTION_ENABLED", "false")
+    metrics_enabled = env_vars.get("METRICS_ENABLED", "false")
+    log_level = env_vars.get("LOG_LEVEL", "4")
 
     # Resource limits
     resources = config.get("resources", {})
@@ -116,12 +114,6 @@ def create_mtib_deployment(
 def delete_mtib_deployment(deploy_name: str) -> bool:
     """Delete a K8s deployment."""
     try:
-        from src.services.kubernetes.client import get_apps_v1_api
-        from kubernetes.client.exceptions import ApiException
-    except ImportError:
-        return False
-
-    try:
         namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
         apps_v1.delete_namespaced_deployment(name=deploy_name, namespace=namespace)
@@ -137,12 +129,6 @@ def delete_mtib_deployment(deploy_name: str) -> bool:
 
 def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
     """Get status of a K8s deployment."""
-    try:
-        from src.services.kubernetes.client import get_apps_v1_api, get_core_v1_api
-        from kubernetes.client.exceptions import ApiException
-    except ImportError:
-        return None
-
     try:
         namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
@@ -185,12 +171,6 @@ def get_mtib_pod_image_sha(deploy_name: str) -> str | None:
     Returns the digest string (e.g., 'sha256:abc123...') or None.
     """
     try:
-        from src.services.kubernetes.client import get_apps_v1_api, get_core_v1_api
-        from kubernetes.client.exceptions import ApiException
-    except ImportError:
-        return None
-
-    try:
         namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
         dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace=namespace)
@@ -220,9 +200,6 @@ def wait_for_mtibs_healthy(
     Each slot dict must have 'nodeIp'. Returns:
         {"healthy": [...], "unhealthy": [...]}
     """
-    import socket
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
     def check_one(slot: dict) -> tuple[dict, bool]:
         ip = slot.get("nodeIp")
         if not ip:
@@ -235,6 +212,8 @@ def wait_for_mtibs_healthy(
             return slot, False
 
     healthy, unhealthy = [], []
+    if not slots:
+        return {"healthy": healthy, "unhealthy": unhealthy}
     with ThreadPoolExecutor(max_workers=min(len(slots), 8)) as pool:
         futures = {pool.submit(check_one, s): s for s in slots if s.get("nodeIp")}
         for future in as_completed(futures, timeout=timeout_s + 5):
@@ -254,11 +233,6 @@ def wait_for_mtibs_healthy(
 
 def list_mtib_deployments() -> list:
     """List all MTIB deployments managed by concord-api."""
-    try:
-        from src.services.kubernetes.client import get_apps_v1_api
-    except ImportError:
-        return []
-
     try:
         namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()

@@ -4,7 +4,7 @@ Secret values are never returned in API responses — only id, name, type, descr
 """
 
 import logging
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -81,7 +81,6 @@ def create_secret():
     if existing:
         return conflict(f"Secret '{name}' already exists")
 
-    from flask import g
     user_id = getattr(g, "current_user", {}).get("sub")
 
     create_data: dict = {

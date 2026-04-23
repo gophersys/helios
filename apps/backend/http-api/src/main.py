@@ -3,12 +3,14 @@ import atexit
 import logging
 import os
 import signal
+import time
 import traceback
 from typing import Optional
 import eventlet
 
 eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
 
+from api.v2.products.board_discovery import init_ck_boards_service
 from api.v2.router import register_v2_routes
 
 # App includes
@@ -22,11 +24,14 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from src.services.database.prisma import init_postgres_client, get_db_client
-from src.services.kubernetes.client import init_kubernetes_client
+from src.services.kubernetes.client import init_kubernetes_client, close_kubernetes_client
 from src.services.log.logger import init_logger
+from src.services.scheduling.queue_scheduler import stop_scheduler
 from src.services.scheduling.scheduler import start_scheduler
 from src.services.storage.client import init_storage_client, close_storage_client
 from src.services.devices.mtib_observability import init_observability_service, get_observability_service
+
+from services.notifications.notifier import init_socketio
 
 # -------------------------------------------------
 #                                            Server
@@ -97,13 +102,11 @@ def graceful_shutdown(signum=None, frame=None):
     # 0. Signal background scheduler threads to stop BEFORE closing DB.
     # Daemon threads poll the DB — if we close DB first, they log errors.
     try:
-        from src.services.scheduling.queue_scheduler import stop_scheduler
         stop_scheduler()
     except Exception:
         pass
 
     # Give in-flight scheduler ticks 2s to finish their current DB query
-    import time
     time.sleep(2)
 
     # 1. Stop MTIB observability polling and gRPC channels
@@ -117,8 +120,6 @@ def graceful_shutdown(signum=None, frame=None):
 
     # 2. Close Prisma database connection
     try:
-        from src.services.database.prisma import get_db_client
-
         client = get_db_client()
         if client is not None:
             client.disconnect()
@@ -135,8 +136,6 @@ def graceful_shutdown(signum=None, frame=None):
 
     # 5. Close Kubernetes API client
     try:
-        from src.services.kubernetes.client import close_kubernetes_client
-
         close_kubernetes_client()
         logging.getLogger("server").info("Kubernetes client closed")
     except Exception as e:
@@ -187,9 +186,11 @@ if __name__ == "__main__":
         init_observability_service(poll_interval_s=5)
 
         # Initialize CkBoards service (board definition discovery via Bitbucket REST API)
-        from api.v2.products.board_discovery import init_ck_boards_service
         init_ck_boards_service(env_config)
         logger.info("CkBoards service ready")
+
+        # Give the notifier access to SocketIO for real-time push
+        init_socketio(socketio)
 
         # Routes
         register_v2_routes(logger, server, socketio)

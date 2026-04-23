@@ -25,10 +25,12 @@ import struct
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from corekinect.utils import EnvConfig, Logger
+
+from .env import get_run_id
 
 log = Logger(log_name="artifact_writer")
 
@@ -164,8 +166,6 @@ class ArtifactWriter:
     """
 
     def __init__(self):
-        from .env import get_run_id
-
         cfg = _StorageConfig()
         self.storage_url = cfg.STORAGE_URL or ""
         self.access_key = cfg.STORAGE_ACCESS_KEY or ""
@@ -735,7 +735,6 @@ class ArtifactWriter:
             return None
 
         try:
-            from datetime import timedelta
             client = self._get_client()
             object_name = self._object_path(filename, test_name)
             return client.presigned_get_object(

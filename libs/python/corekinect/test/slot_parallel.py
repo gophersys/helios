@@ -46,6 +46,10 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Any, Dict, Iterable, List, Optional
 
 import pytest
+from _pytest import runner as _pytest_runner
+from _pytest.fixtures import FixtureDef
+from _pytest.nodes import Node  # noqa: F401 — used by _patch_setupstate_preserve_session
+from _pytest.runner import SetupState
 
 from corekinect.utils import Logger
 
@@ -187,7 +191,6 @@ class _SessionPreservingSetupState:
     def _get(self):
         state = getattr(self._tls, "state", None)
         if state is None:
-            from _pytest.runner import SetupState
             state = SetupState()
             _patch_setupstate_preserve_session(state)
             self._tls.state = state
@@ -225,7 +228,6 @@ def _patch_setupstate_preserve_session(state) -> None:
     fixtures and their finalizers for a single coordinated teardown
     on the main thread after all workers finish.
     """
-    from _pytest.nodes import Node  # noqa: F401
     original_teardown = state.teardown_exact
 
     def teardown_exact(nextitem):
@@ -510,8 +512,7 @@ def pytest_runtestloop(session: pytest.Session):
                 # everything that's left; since we preserved only
                 # Session nodes, this is the coordinated session
                 # teardown on the main thread.
-                from _pytest.runner import SetupState as _OriginalSetupState
-                _OriginalSetupState.teardown_exact(state, None)
+                SetupState.teardown_exact(state, None)
             except Exception as e:
                 log.warning("session teardown raised: %s", e)
         session._setupstate = original_setupstate
@@ -658,8 +659,6 @@ def _patch_fixturedef_cached_result_per_thread() -> None:
     teardown (running on the main thread after workers join) can still
     drain finalizers that were registered on worker threads.
     """
-    from _pytest.fixtures import FixtureDef
-
     if getattr(FixtureDef, "_slot_parallel_tls_cached_result", False):
         return
 
@@ -755,8 +754,6 @@ def _patch_update_current_test_var_for_threads() -> None:
     This is safe to apply once per process: the patched function has
     the same external behaviour, just concurrency-tolerant.
     """
-    from _pytest import runner as _pytest_runner
-
     original = _pytest_runner._update_current_test_var
     if getattr(original, "_slot_parallel_patched", False):
         return

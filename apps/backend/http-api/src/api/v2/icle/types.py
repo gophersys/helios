@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from database import Json
+
 
 @dataclass
 class PowerReading:
@@ -194,7 +196,6 @@ class DeviceUpdateRequest:
         if self._has_registered:
             data["registered"] = self.registered
         if self._has_pending_config:
-            from database import Json
             data["pendingConfig"] = Json(self.pending_config) if self.pending_config else None
         return data
 

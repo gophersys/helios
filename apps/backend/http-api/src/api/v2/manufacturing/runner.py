@@ -23,10 +23,19 @@ from database import Json
 from flask import g, jsonify, request
 
 from config.env import env_config
+from src.api.v2.manufacturing.shared import resolve_test_package as _resolve_test_package
 from src.lib.audit import log_audit
 from src.lib.decorators import require_auth
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.executors.factory import get_executor
+from src.services.kubernetes.client import get_apps_v1_api, resolve_node_ips
+
+try:
+    from kubernetes.client.exceptions import ApiException
+    _HAS_K8S_CLIENT = True
+except ImportError:
+    _HAS_K8S_CLIENT = False
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +85,6 @@ def _resolve_slot_info(fixture) -> list[dict]:
     ip_map: dict[str, str] = {}
     if hostnames:
         try:
-            from src.services.kubernetes.client import resolve_node_ips
             ip_map = resolve_node_ips(hostnames)
         except Exception:
             logger.warning("K8s IP resolution failed — falling back to stored IPs")
@@ -185,7 +193,6 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
     slot_device_ids = ",".join(device_id_values) if any(device_id_values) else ""
 
     # 2. Resolve test package
-    from src.api.v2.manufacturing.sessions import _resolve_test_package
     tp, _ = _resolve_test_package(db, product.id)
     test_package_version = tp.version if tp else "latest"
 
@@ -292,8 +299,6 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
 
 def _deploy_docker(session_id: str, product_k8s: str, env: dict) -> Optional[str]:
     """Spawn a persistent runner via DockerExecutor (development)."""
-    from src.services.executors.factory import get_executor
-
     executor = get_executor("manufacturing")
     mfg_timeout = getattr(env_config, "MANUFACTURING_TIMEOUT_MINUTES", 120) * 60
 
@@ -316,10 +321,7 @@ def _deploy_docker(session_id: str, product_k8s: str, env: dict) -> Optional[str
 
 def _deploy_k8s(session_id: str, product_k8s: str, env: dict) -> Optional[str]:
     """Create a K8s Deployment for the persistent runner (staging/prod)."""
-    try:
-        from kubernetes.client.exceptions import ApiException
-        from src.services.kubernetes.client import get_apps_v1_api
-    except ImportError:
+    if not _HAS_K8S_CLIENT:
         logger.error("Kubernetes client not available")
         return None
 
@@ -429,17 +431,13 @@ def teardown_manufacturing_runner(db, session) -> bool:
 
 def _teardown_docker(container_name: str) -> bool:
     """Kill a Docker manufacturing runner container."""
-    from src.services.executors.factory import get_executor
     executor = get_executor("manufacturing")
     return executor.cancel(container_name)
 
 
 def _teardown_k8s(deploy_name: str) -> bool:
     """Delete a K8s manufacturing runner Deployment."""
-    try:
-        from kubernetes.client.exceptions import ApiException
-        from src.services.kubernetes.client import get_apps_v1_api
-    except ImportError:
+    if not _HAS_K8S_CLIENT:
         return False
 
     try:

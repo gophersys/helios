@@ -14,6 +14,7 @@ Expected zip structure:
         *.cfw
 """
 
+import re
 import zipfile
 from dataclasses import dataclass, field
 from typing import IO, Optional
@@ -109,7 +110,6 @@ def validate_zip(
                 # Strip the wrapper from all entries
                 all_entries = [e[1:] for e in all_entries if len(e) > 1]
                 # Try to extract version from wrapper name
-                import re
                 ver_match = re.search(r"(\d+\.\d+\.\d+)", candidate)
                 if ver_match and not result.parsed_version:
                     result.parsed_version = ver_match.group(1)

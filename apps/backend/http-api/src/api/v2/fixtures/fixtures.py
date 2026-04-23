@@ -1,16 +1,24 @@
 import logging
 import math
+import socket
+import time
 from typing import Any
 
 from flask import g, jsonify, request
 from database import Json
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_auth, require_permissions
+from src.lib.decorators import require_auth, require_permissions, _get_permissions_for_set
 from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.kubernetes.mtib_deployments import (
+    create_mtib_deployment,
+    delete_mtib_deployment,
+    get_mtib_deployment_status,
+    get_mtib_pod_image_sha,
+)
 
 from .types import FixtureCreateRequest, FixtureUpdateRequest, SlotCreateRequest, SlotUpdateRequest, SlotAssignRequest
 
@@ -28,8 +36,6 @@ def dashboard_overview():
     fixtures) plus the fixture health grid, scoped to the caller's permissions
     and product access.
     """
-    from src.lib.decorators import _get_permissions_for_set
-
     db = get_db_client()
     user = g.current_user or {}
     user_id = user.get("sub")
@@ -666,8 +672,6 @@ def _unassign_slot_node(db, fixture_id: str, slot_id: str, slot):
 
 def _assign_slot_node_to(db, fixture_id: str, slot_id: str, slot, fixture, node_id: str):
     """Assign a node to a slot — validate, deploy MTIB, link the node."""
-    from src.lib.errors import bad_request, conflict, not_found
-
     node = db.node.find_unique(where={"id": node_id})
     if not node:
         return not_found("Node not found")
@@ -708,12 +712,6 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
     Stores the deployment name in Node.metadata["deployment_name"].
     After deployment, polls gRPC port 50053 on the node IP for up to 60s.
     """
-    try:
-        from src.services.kubernetes.mtib_deployments import create_mtib_deployment
-    except ImportError:
-        logger.warning("K8s client not available — skipping MTIB deploy for %s", node.hostname)
-        return None
-
     config: dict = {"env": {}}
     deploy_name = create_mtib_deployment(
         node_hostname=node.hostname,
@@ -734,7 +732,6 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
             if healthy:
                 # Record the running image SHA for traceability
                 try:
-                    from src.services.kubernetes.mtib_deployments import get_mtib_pod_image_sha
                     image_sha = get_mtib_pod_image_sha(deploy_name)
                     if image_sha:
                         meta["mtibImageSha"] = image_sha
@@ -751,9 +748,6 @@ def _poll_grpc_health(host: str, port: int, timeout_s: int = 60) -> bool:
     This is a best-effort health check — failure is logged but does not
     block the deployment from being recorded.
     """
-    import socket
-    import time
-
     deadline = time.monotonic() + timeout_s
     interval = 2.0
     while time.monotonic() < deadline:
@@ -779,11 +773,7 @@ def _undeploy_mtib_for_slot(db, node_id: str) -> bool:
     if not deploy_name:
         return True  # Nothing to undeploy
 
-    try:
-        from src.services.kubernetes.mtib_deployments import delete_mtib_deployment
-        delete_mtib_deployment(deploy_name)
-    except ImportError:
-        logger.warning("K8s client not available — skipping MTIB undeploy for %s", node.hostname)
+    delete_mtib_deployment(deploy_name)
 
     meta.pop("deployment_name", None)
     db.node.update(where={"id": node_id}, data={"metadata": Json(meta)})
@@ -860,8 +850,6 @@ def get_fixture_deploy_status(fixture_id: str):
     )
     if not fixture:
         return not_found("Fixture not found")
-
-    from src.services.kubernetes.mtib_deployments import get_mtib_deployment_status
 
     slot_statuses = []
     for slot in (fixture.slots or []):
