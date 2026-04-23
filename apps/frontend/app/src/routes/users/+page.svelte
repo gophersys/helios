@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { UserPlus, X, Check } from 'lucide-svelte';
+  import { UserPlus, X, Check, Shield } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { FullUser, PermissionSet } from '$lib/types/models';
@@ -12,6 +12,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import { formatDate } from '$lib/utils/formatting';
   import PermissionSetsTab from '$lib/components/users/permission-sets-tab.svelte';
+  import UserProductAccess from '$lib/components/users/user-product-access.svelte';
   import { actionable } from '$lib/actions/actionable';
 
   const auth = getAuth();
@@ -31,6 +32,13 @@
   let submitting = $state(false);
 
   const canManage = $derived(auth.hasPermission('users:manage'));
+  const isAdmin = $derived(auth.user?.role === 'ADMIN' || auth.user?.role === 'MAINTAINER');
+
+  let expandedUserId = $state<string | null>(null);
+
+  function toggleProductAccess(userId: string) {
+    expandedUserId = expandedUserId === userId ? null : userId;
+  }
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'users', label: 'Users' },
@@ -279,16 +287,36 @@
                   {formatDate(u.lastSeenAt)}
                 </td>
                 <td class="table-cell text-right">
-                  {#if !isSelf && canManage}
-                    <button
-                      onclick={() => handleToggleActive(u.id, u.active)}
-                      class="btn btn-sm btn-ghost {u.active ? 'text-error' : 'text-success'}"
-                    >
-                      {u.active ? 'Deactivate' : 'Activate'}
-                    </button>
-                  {/if}
+                  <div class="flex items-center justify-end gap-1">
+                    {#if isAdmin}
+                      <button
+                        onclick={() => toggleProductAccess(u.id)}
+                        class="btn btn-sm btn-ghost {expandedUserId === u.id ? 'text-accent' : 'text-text-tertiary'}"
+                        title="Product access"
+                      >
+                        <Shield size={14} />
+                      </button>
+                    {/if}
+                    {#if !isSelf && canManage}
+                      <button
+                        onclick={() => handleToggleActive(u.id, u.active)}
+                        class="btn btn-sm btn-ghost {u.active ? 'text-error' : 'text-success'}"
+                      >
+                        {u.active ? 'Deactivate' : 'Activate'}
+                      </button>
+                    {/if}
+                  </div>
                 </td>
               </tr>
+              {#if expandedUserId === u.id}
+                <UserProductAccess
+                  userId={u.id}
+                  userName={u.name}
+                  userRole={u.role ?? 'DEVELOPER'}
+                  {canManage}
+                  onClose={() => (expandedUserId = null)}
+                />
+              {/if}
             {/each}
           </tbody>
         </table>

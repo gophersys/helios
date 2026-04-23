@@ -33,6 +33,7 @@ export const ACTIONABLE_IDS = [
   'tab-assets',
   'tab-manufacturing',
   'tab-stages',
+  'tab-access',
   'tab-fixtures',
 
   // ── Product · Hardware tab ─────────────────────────────────

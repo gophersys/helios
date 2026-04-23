@@ -41,6 +41,20 @@ export interface AvailablePermission {
   name: string;
 }
 
+export interface ProductAccessEntry {
+  id: string;
+  userId: string;
+  productId: string;
+  level: 'view' | 'operate' | 'develop' | 'admin';
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  productName?: string;
+  productSlug?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Catalog types ────────────────────────────────────────────
 
 export interface ModemFirmware {

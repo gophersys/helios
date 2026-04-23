@@ -7,16 +7,18 @@
   import ProductStagesTab from './tabs/stages-tab.svelte';
   import ProductAssetsTab from './tabs/assets-tab.svelte';
   import ProductManufacturingTab from './tabs/manufacturing-tab.svelte';
+  import ProductAccessTab from './tabs/access-tab.svelte';
   import {
     Pencil, Check, X, ChevronDown,
-    LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory,
+    LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory, Shield,
   } from 'lucide-svelte';
   import type { Product, BoardRevision } from '$lib/types/models';
   import { api } from '$lib/api';
+  import { getAuth } from '$lib/stores/auth.svelte';
   import { actionable } from '$lib/actions/actionable';
   import type { ActionableId } from '$lib/actions/registry';
 
-  type Tab = 'overview' | 'hardware' | 'assets' | 'manufacturing' | 'stages';
+  type Tab = 'overview' | 'hardware' | 'assets' | 'manufacturing' | 'stages' | 'access';
 
   const tabActionIds: Record<Tab, ActionableId> = {
     overview: 'tab-overview',
@@ -24,6 +26,7 @@
     assets: 'tab-assets',
     manufacturing: 'tab-manufacturing',
     stages: 'tab-stages',
+    access: 'tab-access',
   };
 
   interface Props {
@@ -34,6 +37,9 @@
   }
 
   let { product, canManage, onBack, onRefresh }: Props = $props();
+
+  const auth = getAuth();
+  const isAdmin = $derived(auth.user?.role === 'ADMIN' || auth.user?.role === 'MAINTAINER');
 
   let activeTab = $state<Tab>('overview');
   let error = $state<string | null>(null);
@@ -104,13 +110,14 @@
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: typeof Package }[] = [
+  const tabs = $derived<{ key: Tab; label: string; icon: typeof Package }[]>([
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
     { key: 'hardware', label: 'Hardware', icon: CircuitBoard },
     { key: 'assets', label: 'Assets', icon: Package },
     { key: 'manufacturing', label: 'Manufacturing', icon: Factory },
     { key: 'stages', label: 'Validation', icon: FlaskConical },
-  ];
+    ...(isAdmin ? [{ key: 'access' as Tab, label: 'Access', icon: Shield }] : []),
+  ]);
 </script>
 
 <div class="animate-fade-in">
@@ -233,6 +240,8 @@
         <ProductAssetsTab {product} {canManage} {onRefresh} selectedRevisionId={selectedRevisionId} />
       {:else if activeTab === 'manufacturing'}
         <ProductManufacturingTab {product} {canManage} {onRefresh} selectedRevisionId={selectedRevisionId} />
+      {:else if activeTab === 'access'}
+        <ProductAccessTab {product} {canManage} {onRefresh} />
       {/if}
     </div>
   </div>

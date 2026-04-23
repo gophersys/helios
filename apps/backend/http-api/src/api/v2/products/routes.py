@@ -2,6 +2,10 @@
 
 from flask import Blueprint
 
+from .access import (
+    grant_product_access, list_product_access,
+    revoke_product_access, update_product_access,
+)
 from .board_discovery import (
     check_repo, discover_board_detail, discover_boards,
     list_board_branches, list_repo_branches,
@@ -157,3 +161,9 @@ def register_product_routes(api: Blueprint):
     api.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="create_mfg_config",        view_func=create_manufacturing_config, methods=["POST"])
     api.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="update_mfg_config",        view_func=update_manufacturing_config, methods=["PUT"])
     api.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="delete_mfg_config",        view_func=delete_manufacturing_config, methods=["DELETE"])
+
+    # Product Access
+    api.add_url_rule("/products/<product_id>/access",                                             endpoint="list_product_access",      view_func=list_product_access,         methods=["GET"])
+    api.add_url_rule("/products/<product_id>/access",                                             endpoint="grant_product_access",     view_func=grant_product_access,        methods=["POST"])
+    api.add_url_rule("/products/<product_id>/access/<access_id>",                                 endpoint="update_product_access",    view_func=update_product_access,       methods=["PUT"])
+    api.add_url_rule("/products/<product_id>/access/<access_id>",                                 endpoint="revoke_product_access",    view_func=revoke_product_access,       methods=["DELETE"])
