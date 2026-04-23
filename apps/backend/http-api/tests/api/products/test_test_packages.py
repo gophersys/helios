@@ -500,3 +500,278 @@ class TestSerialization:
         data = body["data"]
         assert data["createdAt"] == "2026-03-31T12:00:00+00:00"
         assert data["updatedAt"] == "2026-03-31T12:00:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+#  GET /v2/products/<product_id>/test-packages/<package_id> — Get Single
+# ---------------------------------------------------------------------------
+
+class TestGetTestPackage:
+    """Tests for GET /v2/products/<product_id>/test-packages/<package_id>."""
+
+    def test_get_success(self, authed_client, mock_db):
+        """Get a single test package by ID returns 200 with package data."""
+        product = _product_obj()
+        tp = _test_package_obj(id="tp-001", version="1.0.0")
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = tp
+
+        resp = authed_client.get("/v2/products/alpha-b0/test-packages/tp-001")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["id"] == "tp-001"
+        assert body["data"]["version"] == "1.0.0"
+
+    def test_get_not_found(self, authed_client, mock_db):
+        """Get a non-existent package returns 404."""
+        product = _product_obj()
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = None
+
+        resp = authed_client.get("/v2/products/alpha-b0/test-packages/tp-nonexistent")
+        assert resp.status_code == 404
+
+    def test_get_product_not_found(self, authed_client, mock_db):
+        """Get package for non-existent product returns 404."""
+        mock_db.product.find_unique.return_value = None
+        mock_db.product.find_first.return_value = None
+
+        resp = authed_client.get("/v2/products/nonexistent/test-packages/tp-001")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+#  DELETE /v2/products/<product_id>/test-packages/<package_id> — Delete
+# ---------------------------------------------------------------------------
+
+class TestDeleteTestPackage:
+    """Tests for DELETE /v2/products/<product_id>/test-packages/<package_id>."""
+
+    def test_delete_success(self, authed_client, mock_db):
+        """Delete a development package succeeds with 200."""
+        product = _product_obj()
+        tp = _test_package_obj(status="DEVELOPMENT", version="dev-abc123")
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = tp
+        mock_db.testrun.count.return_value = 0
+
+        with patch("api.v2.products.test_packages.log_audit"):
+            resp = authed_client.delete("/v2/products/alpha-b0/test-packages/tp-001")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["deleted"] is True
+        mock_db.testpackagestage.delete_many.assert_called_once()
+        mock_db.testpackage.delete.assert_called_once()
+
+    def test_delete_released_rejected(self, authed_client, mock_db):
+        """Delete a released package returns 409 conflict."""
+        product = _product_obj()
+        tp = _test_package_obj(status="RELEASED")
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = tp
+
+        resp = authed_client.delete("/v2/products/alpha-b0/test-packages/tp-001")
+        assert resp.status_code == 409
+        body = resp.get_json()
+        assert "immutable" in body["errors"][0]["message"].lower()
+
+    def test_delete_referenced_by_test_runs(self, authed_client, mock_db):
+        """Delete a package referenced by test runs returns 409."""
+        product = _product_obj()
+        tp = _test_package_obj(status="DEVELOPMENT")
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = tp
+        mock_db.testrun.count.return_value = 3
+
+        resp = authed_client.delete("/v2/products/alpha-b0/test-packages/tp-001")
+        assert resp.status_code == 409
+        body = resp.get_json()
+        assert "3 test run(s)" in body["errors"][0]["message"]
+
+    def test_delete_product_not_found(self, authed_client, mock_db):
+        """Delete package for non-existent product returns 404."""
+        mock_db.product.find_unique.return_value = None
+        mock_db.product.find_first.return_value = None
+
+        resp = authed_client.delete("/v2/products/nonexistent/test-packages/tp-001")
+        assert resp.status_code == 404
+
+    def test_delete_package_not_found(self, authed_client, mock_db):
+        """Delete non-existent package returns 404."""
+        product = _product_obj()
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = None
+
+        resp = authed_client.delete("/v2/products/alpha-b0/test-packages/tp-nonexistent")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+#  POST /v2/products/<product_id>/test-packages/<package_id>/release — Release
+# ---------------------------------------------------------------------------
+
+class TestReleaseTestPackage:
+    """Tests for POST /v2/products/<product_id>/test-packages/<package_id>/release."""
+
+    def _setup_release_mocks(self, mock_db, product, tp, latest_released=None):
+        """Set up common mocks for release tests."""
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        # find_first is called multiple times: once for the package, once for latest released
+        mock_db.testpackage.find_first.side_effect = [tp, latest_released]
+
+    def test_release_success_first_release(self, authed_client, mock_db, _mock_storage):
+        """Release first dev package assigns version 1.0.0."""
+        product = _product_obj()
+        tp = _test_package_obj(
+            status="DEVELOPMENT",
+            version="dev-abc123",
+            storageKey="test-packages/alpha-b0/validation/dev-abc123/package.tar.gz",
+            packageStages=[],
+        )
+        released_tp = _test_package_obj(
+            status="RELEASED",
+            version="dev-abc123",
+            releasedVersion="1.0.0",
+            releasedAt=_now(),
+            releasedById="test-user-id",
+            packageStages=[],
+        )
+
+        self._setup_release_mocks(mock_db, product, tp, latest_released=None)
+        mock_db.testpackage.update.return_value = released_tp
+
+        # Mock the storage get_object for fixture extraction
+        mock_response = MagicMock()
+        mock_response.read.return_value = _tar_gz_data()
+        mock_response.close.return_value = None
+        mock_response.release_conn.return_value = None
+        _mock_storage.get_object.return_value = mock_response
+
+        with patch("api.v2.products.test_packages.log_audit"):
+            resp = authed_client.post("/v2/products/alpha-b0/test-packages/tp-001/release")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["status"] == "RELEASED"
+        assert body["data"]["releasedVersion"] == "1.0.0"
+
+        # Verify update was called with correct version
+        update_call = mock_db.testpackage.update.call_args_list[0]
+        assert update_call[1]["data"]["releasedVersion"] == "1.0.0"
+        assert update_call[1]["data"]["status"] == "RELEASED"
+
+    def test_release_success_version_bump(self, authed_client, mock_db, _mock_storage):
+        """Release with existing 1.0.0 assigns version 1.1.0."""
+        product = _product_obj()
+        tp = _test_package_obj(
+            status="DEVELOPMENT",
+            version="dev-xyz789",
+            storageKey="test-packages/alpha-b0/validation/dev-xyz789/package.tar.gz",
+            packageStages=[],
+        )
+        latest_released = _test_package_obj(
+            id="tp-prev",
+            status="RELEASED",
+            releasedVersion="1.0.0",
+            releasedAt=_now(),
+        )
+        released_tp = _test_package_obj(
+            status="RELEASED",
+            version="dev-xyz789",
+            releasedVersion="1.1.0",
+            releasedAt=_now(),
+            releasedById="test-user-id",
+            packageStages=[],
+        )
+
+        self._setup_release_mocks(mock_db, product, tp, latest_released=latest_released)
+        mock_db.testpackage.update.return_value = released_tp
+
+        mock_response = MagicMock()
+        mock_response.read.return_value = _tar_gz_data()
+        mock_response.close.return_value = None
+        mock_response.release_conn.return_value = None
+        _mock_storage.get_object.return_value = mock_response
+
+        with patch("api.v2.products.test_packages.log_audit"):
+            resp = authed_client.post("/v2/products/alpha-b0/test-packages/tp-001/release")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["releasedVersion"] == "1.1.0"
+
+        update_call = mock_db.testpackage.update.call_args_list[0]
+        assert update_call[1]["data"]["releasedVersion"] == "1.1.0"
+
+    def test_release_already_released(self, authed_client, mock_db):
+        """Release an already-released package returns 409."""
+        product = _product_obj()
+        tp = _test_package_obj(
+            status="RELEASED",
+            releasedVersion="1.0.0",
+            packageStages=[],
+        )
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = tp
+
+        resp = authed_client.post("/v2/products/alpha-b0/test-packages/tp-001/release")
+        assert resp.status_code == 409
+        body = resp.get_json()
+        assert "already been released" in body["errors"][0]["message"].lower()
+
+    def test_release_package_not_found(self, authed_client, mock_db):
+        """Release non-existent package returns 404."""
+        product = _product_obj()
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = None
+
+        resp = authed_client.post("/v2/products/alpha-b0/test-packages/tp-nonexistent/release")
+        assert resp.status_code == 404
+
+    def test_release_product_not_found(self, authed_client, mock_db):
+        """Release package for non-existent product returns 404."""
+        mock_db.product.find_unique.return_value = None
+        mock_db.product.find_first.return_value = None
+
+        resp = authed_client.post("/v2/products/nonexistent/test-packages/tp-001/release")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+#  _bump_minor — Unit Tests
+# ---------------------------------------------------------------------------
+
+class TestBumpMinor:
+    """Unit tests for the _bump_minor helper function."""
+
+    def test_bump_minor_standard(self):
+        """1.0.0 bumps to 1.1.0."""
+        from api.v2.products.test_packages import _bump_minor
+        assert _bump_minor("1.0.0") == "1.1.0"
+
+    def test_bump_minor_nonzero_patch(self):
+        """2.5.3 bumps to 2.6.0 (patch resets to 0)."""
+        from api.v2.products.test_packages import _bump_minor
+        assert _bump_minor("2.5.3") == "2.6.0"
+
+    def test_bump_minor_invalid_raises(self):
+        """Invalid semver string raises ValueError."""
+        from api.v2.products.test_packages import _bump_minor
+        with pytest.raises(ValueError, match="Invalid semver"):
+            _bump_minor("1.0")
+
+    def test_bump_minor_too_many_parts_raises(self):
+        """Four-part version string raises ValueError."""
+        from api.v2.products.test_packages import _bump_minor
+        with pytest.raises(ValueError, match="Invalid semver"):
+            _bump_minor("1.0.0.0")
