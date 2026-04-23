@@ -7,15 +7,23 @@ FROM ubuntu:22.04
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-# Environment versions
+# Node.js
 ARG NVM_VERSION=0.40.3
 ARG NODE_VERSION=22.19.0
 ARG NPM_VERSION=11.6.0
-ARG NX_VERSION=21.5
+ARG NX_VERSION=22
+ARG YARN_VERSION=4.9.4
+
+# Containers & Orchestration
 ARG DOCKER_COMPOSE_VERSION=2.39.3
-ARG GO_VERSION=1.24.2       
 ARG K9S_VERSION=0.50.9
 ARG HELM_VERSION=3.19.0
+
+# Protobuf
+ARG PROTOC_VERSION=32.1
+
+# Security
+ARG TRIVY_VERSION=0.69.3
 
 # ----------------------------------------------------
 #                                      System Packages
@@ -47,6 +55,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt update && apt upgrade -y && \
     python3-pip \
     python3-venv \
     lsb-release \
+    tree \
     vim \
     btop \
     sudo && \
@@ -74,7 +83,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/instal
     npm install -g npm@${NPM_VERSION} && \
     npm install -g nx@${NX_VERSION} && \
     corepack enable && \
-    corepack prepare yarn@4.9.4 --activate
+    corepack prepare yarn@${YARN_VERSION} --activate
 
 # Set up Node.js and yarn environment for non-interactive shells
 ENV NVM_DIR=/root/.nvm
@@ -115,30 +124,6 @@ RUN case "${TARGETPLATFORM}" in \
     esac
 
 # ----------------------------------------------------
-#                                                   Go
-# ----------------------------------------------------
-RUN case "${TARGETPLATFORM}" in \
-    "linux/amd64") \
-    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" && \
-    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
-    rm go${GO_VERSION}.linux-amd64.tar.gz \
-    ;; \
-    "linux/arm64") \
-    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-arm64.tar.gz" && \
-    tar -C /usr/local -xzf go${GO_VERSION}.linux-arm64.tar.gz && \
-    rm go${GO_VERSION}.linux-arm64.tar.gz \
-    ;; \
-    esac
-
-# Set up Go environment
-ENV GOPATH=/go \
-    PATH=/usr/local/go/bin:/go/bin:$PATH
-
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-
-# Go tools will be installed via go.mod dependencies
-
-# ----------------------------------------------------
 #                                               Python
 # ----------------------------------------------------
 
@@ -147,21 +132,28 @@ ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
 
 # Install Python packages
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install grpcio-tools==1.75.0 prisma==0.15.0
+    pip3 install \
+    grpcio-tools==1.75.0 prisma==0.15.0 \
+    pytest pytest-timeout pytest-cov \
+    psycopg2-binary requests minio zensical boto3 \
+    black isort mypy \
+    click rich jsonschema \
+    pyyaml python-dotenv termcolor \
+    sqlalchemy sshtunnel paramiko
 
 # ----------------------------------------------------
 #                                             Protobuf
 # ----------------------------------------------------
 RUN case "${TARGETPLATFORM}" in \
     "linux/amd64") \
-    PROTOC_ZIP="protoc-32.1-linux-x86_64.zip" && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v32.1/${PROTOC_ZIP}" && \
+    PROTOC_ZIP="protoc-${PROTOC_VERSION}-linux-x86_64.zip" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
     rm ${PROTOC_ZIP} \
     ;; \
     "linux/arm64") \
-    PROTOC_ZIP="protoc-32.1-linux-aarch_64.zip" && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v32.1/${PROTOC_ZIP}" && \
+    PROTOC_ZIP="protoc-${PROTOC_VERSION}-linux-aarch_64.zip" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
     rm ${PROTOC_ZIP} \
     ;; \
@@ -225,51 +217,34 @@ RUN apt-get update -y && apt-get install -y vault && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ----------------------------------------------------
-#                                              DevUser
+#                                    Security Tooling
 # ----------------------------------------------------
-# Create non-root user for development (e.g., for claude --dangerously-skip-permissions)
-RUN groupadd --gid 10001 devuser \
-    && useradd --uid 10001 --gid 10001 -m devuser -s /usr/bin/zsh \
-    && echo "devuser ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/devuser \
-    && chmod 0440 /etc/sudoers.d/devuser
+# Trivy — container image vulnerability scanner (used by .ci/stages/image-scan.sh)
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \
+      | tar xzf - -C /usr/local/bin trivy ;; \
+    "linux/arm64") \
+    curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-ARM64.tar.gz \
+      | tar xzf - -C /usr/local/bin trivy ;; \
+    esac
 
-# Script to fix docker socket permissions at runtime (called from postStartCommand)
-# This handles varying docker GIDs across different host systems
-RUN echo '#!/bin/bash\n\
-if [ -S /var/run/docker.sock ]; then\n\
-    DOCKER_GID=$(stat -c "%g" /var/run/docker.sock)\n\
-    # Add devuser to the appropriate group\n\
-    EXISTING_GROUP=$(getent group $DOCKER_GID | cut -d: -f1)\n\
-    if [ -n "$EXISTING_GROUP" ]; then\n\
-        sudo usermod -aG "$EXISTING_GROUP" devuser 2>/dev/null || true\n\
-    else\n\
-        sudo groupadd -g $DOCKER_GID docker 2>/dev/null || true\n\
-        sudo usermod -aG docker devuser 2>/dev/null || true\n\
-        EXISTING_GROUP="docker"\n\
-    fi\n\
-    # Also set ACL for immediate access without requiring new shell\n\
-    if command -v setfacl &> /dev/null; then\n\
-        sudo setfacl -m u:devuser:rw /var/run/docker.sock 2>/dev/null || true\n\
-    fi\n\
-    # Fallback: make socket group-writable if we have permission\n\
-    sudo chmod 666 /var/run/docker.sock 2>/dev/null || true\n\
-    echo "Docker socket permissions configured (GID: $DOCKER_GID)"\n\
-fi' > /usr/local/bin/fix-docker-permissions \
-    && chmod +x /usr/local/bin/fix-docker-permissions
+# CI security tools (used by .ci/stages/)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install pip-audit detect-secrets bandit mutmut
 
-# Install ACL tools for docker socket permissions
-RUN apt-get update && apt-get install -y acl && apt-get clean && rm -rf /var/lib/apt/lists/*
+# ----------------------------------------------------
+#                                    Playwright (E2E)
+# ----------------------------------------------------
+# Install Chromium + system deps for E2E tests and Chrome DevTools MCP.
+# Symlink to /usr/local/bin/google-chrome so chrome-devtools-mcp finds it.
+RUN npx playwright install chromium && \
+    npx playwright install-deps chromium && \
+    CHROME_BIN=$(find /root/.cache/ms-playwright -name chrome -path '*/chrome-linux*/*' -type f | head -1) && \
+    ln -sf "$CHROME_BIN" /usr/local/bin/google-chrome
 
-# Copy root's shell config to devuser
-RUN cp -r /root/.oh-my-zsh /home/devuser/.oh-my-zsh \
-    && cp /root/.zshrc /home/devuser/.zshrc \
-    && chown -R devuser:devuser /home/devuser/.oh-my-zsh \
-    && chown devuser:devuser /home/devuser/.zshrc \
-    && sed -i "s|/root|/home/devuser|g" /home/devuser/.zshrc
+# ----------------------------------------------------
+#                                         Claude Code
+# ----------------------------------------------------
+RUN npm install -g @anthropic-ai/claude-code
 
-# Set up node/npm for devuser
-RUN mkdir -p /home/devuser/.nvm \
-    && cp -r /root/.nvm/* /home/devuser/.nvm/ \
-    && chown -R devuser:devuser /home/devuser/.nvm \
-    && echo 'export NVM_DIR="$HOME/.nvm"' >> /home/devuser/.zshrc \
-    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /home/devuser/.zshrc

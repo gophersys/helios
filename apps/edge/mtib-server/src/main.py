@@ -9,40 +9,15 @@ from concurrent import futures
 import grpc
 
 # Corekinect imports
-from corekinect.utils import EnvConfig, Logger
+from corekinect.utils import Logger
+from corekinect.utils.banner import print_banner
 
 # Protocol imports
 from protocols.mtib import mtib_pb2_grpc
 
 # Application imports
-from src.providers.mtib import MtibV1Provider, MtibV1ProviderConfig
-
-# -------------------------------------------------
-#                                        Env Config
-# -------------------------------------------------
-
-
-# These get loaded from environment variables
-class MtibEnvConfig(EnvConfig):
-    # Hardware configuration
-    HARDWARE_VERSION: str
-
-    # Logging configuration
-    LOG_LEVEL: int
-    LOG_PATH: str
-
-    # Where this app will listen for incoming requests
-    SERVER_PORT: int
-
-    # Where this app will look for assets for all of its components
-    # that need configurations or firmware files (e.g. FluidNC)
-    ASSETS_PATH: str
-
-    # Metrics configuration
-    METRICS_ENABLED: bool
-    METRICS_BROKER_URL: str
-
-    MOTION_ENABLED: bool
+from src.server import MtibV1Provider
+from src.config import MtibEnvConfig, MtibV1ProviderConfig
 
 
 # -------------------------------------------------
@@ -74,8 +49,6 @@ if __name__ == "__main__":
         # Load any environment variables
         env_config = MtibEnvConfig()
 
-        print(f"\n{env_config}\n")
-
         # Setup logging
         log_config = Logger.Config(
             logger_name="mtib",
@@ -86,6 +59,9 @@ if __name__ == "__main__":
             enable_log_color=True,
         )
         logger: Logger = Logger(log_config)
+
+        # Print startup banner with build info
+        print_banner("mtib-server", logger=logger, hw_rev=env_config.HARDWARE_VERSION)
 
         # Instantiate the provider that will be used to implement the gRPC methods, and add it to the server
         provider = MtibV1Provider(

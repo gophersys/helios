@@ -1,4 +1,5 @@
 import atexit
+import logging
 import os
 from pathlib import Path
 from typing import Optional, Literal
@@ -15,8 +16,11 @@ from sshtunnel import SSHTunnelForwarder
 from corekinect.utils import EnvConfig
 from corekinect.utils import SingletonThreadSafeMeta
 
+log = logging.getLogger(__name__)
+
 
 class SSHConfig(EnvConfig):
+    """S S H Config."""
     ENV_PREFIX = "SSH_"
 
     host: Optional[str] = None
@@ -33,6 +37,7 @@ class SSHConfig(EnvConfig):
 
 
 class DBConfig(EnvConfig):
+    """D B Config."""
     ENV_PREFIX = "DB_"
 
     # Either provide URI or components:
@@ -86,6 +91,7 @@ def _apply_namespace_env(ns: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]])
     }
 
     def copy_first_present(target_key: str, candidates: list[str]) -> None:
+        """Copy first present."""
         for c in candidates:
             v = os.getenv(c)
             if v is not None and v != "":
@@ -106,7 +112,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
     Attributes:
         db (optional[DBConfig]): Database configuration.
         ssh (optional[SSHConfig]): SSH tunnel configuration.
-        db_env (optional[str]): Environment namespace for DB and SSH settings.
+        env (optional[str]): Environment namespace for DB and SSH settings.
         test_query (optional[str]): Query to test the database connection.
 
     Example:
@@ -118,17 +124,22 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         self,
         db: Optional[DBConfig] = None,
         ssh: Optional[SSHConfig] = None,
-        db_env: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]] = "VAL_1_0",
+        env: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]] = "VAL_1_0",
         *,
         test_query: Optional[str] = "SELECT 1",
+        sql_echo: bool = False,
     ):
+        """  init  ."""
         self._depth = 0
 
         load_dotenv(override=False)
-        _apply_namespace_env(db_env)
+        _apply_namespace_env(env)
 
-        self.db = db or DBConfig(namespace=db_env)
-        self.ssh = ssh or SSHConfig(namespace=db_env)
+        self.db = db or DBConfig(namespace=env)
+        if sql_echo:
+            self.db.echo = sql_echo
+
+        self.ssh = ssh or SSHConfig(namespace=env)
         self.test_query = test_query
 
         self.tunnel: Optional[SSHTunnelForwarder] = None
@@ -145,6 +156,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
     def __enter__(self):
         # Reentry guard
+        """  enter  ."""
         if self._depth > 0:
             self._depth += 1
             return self.session
@@ -211,12 +223,21 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
             return self.session
 
-        except Exception:
+        except Exception as exc:
+            # Surface the underlying cause before tearing down — without this
+            # the operator sees a generic "context manager exit" traceback in
+            # the caller's log and has to instrument the DB layer to find out
+            # what actually failed (auth, network, schema mismatch, etc.).
+            log.error(
+                "DB session setup failed at depth=%d: %s: %s",
+                self._depth, type(exc).__name__, exc,
+            )
             self._depth = 0
             self._teardown()
             raise
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """  exit  ."""
         if self._depth <= 1:
             self._teardown()
             self._depth = 0
@@ -225,6 +246,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         return False
 
     def _teardown(self):
+        """ teardown."""
         if self.session:
             try:
                 self.session.close()
@@ -250,6 +272,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
     @classmethod
     def reset_singleton(cls, env: str | None = None) -> None:
+        """Reset singleton."""
         store = getattr(type(cls), "_instances", {})
         key = (cls, env) if env is not None else cls
         inst = store.pop(key, None)
@@ -270,3 +293,46 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
         cols = [getattr(model, name) for name in field_names]
         return cols[0] if len(cols) == 1 else func.coalesce(*cols)
+
+
+def _run_codegen(db: "DBConfig", out_file: str) -> None:
+    """Run sqlacodegen against ``db`` without exposing the password in argv.
+
+    Building the URI inline as ``driver://user:password@host:port/db`` and
+    passing it as a CLI argument leaks the password into ``ps``, audit
+    logs, and any tool that captures process command lines. We write a
+    DSN-style connection string with the password sourced from the
+    ``PGPASSWORD`` environment variable (libpq honours it transparently)
+    and only pass non-secret components on the command line.
+    """
+    import os as _os
+    import subprocess
+    import sys
+
+    if not db.password:
+        raise ValueError("DBConfig.password must be set for codegen")
+
+    safe_uri = (
+        f"{db.driver}://{db.username}@{db.host}:{db.port}/{db.database_name}"
+    )
+    env = {**_os.environ, "PGPASSWORD": db.password}
+    with open(out_file, "w", encoding="utf-8") as f:
+        subprocess.run(
+            [sys.executable, "-m", "sqlacodegen", safe_uri],
+            check=True,
+            stdout=f,
+            env=env,
+        )
+
+
+def _update_cc_test_data_v1p0_orm():
+    """ update cc test data v1p0 orm."""
+    load_dotenv(override=False)
+    _apply_namespace_env("VAL_1_0")
+    db = DBConfig(namespace="VAL_1_0")
+    _run_codegen(db, "db_orm_v1_0.py")
+
+
+if __name__ == "__main__":
+    _update_cc_test_data_v0p9_orm()
+    _update_cc_test_data_v1p0_orm()

@@ -14,7 +14,7 @@ class SingletonThreadSafeMeta(type):
         """Returns a single instance of the class."""
 
         # Handle namespaces for database environments
-        db_env = kwargs.get("db_env", "VAL_1_0")
+        db_env = kwargs.get("env", "VAL_1_0")
         key = (cls, db_env)
 
         with cls._lock:

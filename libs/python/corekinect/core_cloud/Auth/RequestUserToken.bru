@@ -1,0 +1,35 @@
+meta {
+  name: Request User Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{authServerHostname}}/authentication/tokens/request
+  body: formUrlEncoded
+  auth: basic
+}
+
+headers {
+  X-API-KEY: {{authApiKey}}
+}
+
+auth:basic {
+  username: {{username}}
+  password: {{password}}
+}
+
+body:form-urlencoded {
+  grant_type: password
+}
+
+script:post-response {
+  let status = res.getStatus();
+  let body = res.getBody();
+  if (status == 200)
+  {
+      bru.setEnvVar(
+          "accessToken",
+          body.accessToken);
+  }
+}

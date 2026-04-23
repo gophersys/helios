@@ -1,89 +1,1737 @@
-// generator go {
-//     provider        = "go run github.com/steebchen/prisma-client-go"
-//     previewFeatures = ["fullTextSearch", "multiSchema"]
-// }
-
 generator python {
-    provider             = "prisma-client-py"
-    output               = "../libs/python/corekinect/database"
-    interface            = "sync"
-    previewFeatures      = ["fullTextSearch", "multiSchema"]
-    recursive_type_depth = 5
-    binaryTargets        = ["debian-openssl-3.0.x"]
+  provider             = "prisma-client-py"
+  output               = "../libs/python/database"
+  interface            = "sync"
+  recursive_type_depth = 5
+  binaryTargets        = ["debian-openssl-3.0.x"]
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
-    schemas   = ["app"]
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
-// -------------------------------------------------
-//                                          Firmware
-// -------------------------------------------------
-model AppId {
-    appId     Int      @id // The numeric application ID (100, 101, 102, etc.) - used as primary key
-    name      String // Application name (Comms, Sigma5 V2, etc.)
-    chipset   String // Chipset (Sigma5 Cx, Alpha Ax, etc.)
-    target    String // Target microcontroller (nRF9160, nRF52840, etc.)
-    notes     String? // Optional notes field
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+// =============================================================================
+// ENUMS
+// =============================================================================
 
-    // Relations
-    mtibMappings MtibAppIdMapping[]
-
-    @@map("app_ids")
-    @@schema("app")
+enum NodeStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+  ERROR
 }
 
-// -------------------------------------------------
-//                                              MTIB
-// -------------------------------------------------
-
-enum MtibType {
-    VALIDATION
-    MANUFACTURING
-
-    @@schema("app")
+enum NodeType {
+  MANUFACTURING
+  VALIDATION
 }
 
-enum MtibFeature {
-    JOULESCOPE
-    MOTION
+// DeploymentStatus enum removed — Deployment model deleted.
+// MTIB deployment state tracked via Node.metadata["deployment_name"].
 
-    @@schema("app")
+enum TestRunType {
+  VALIDATION
+  MANUFACTURING
 }
 
-model Mtib {
-    id        String        @id // The hostname of the MTIB (verdin-imx8mm-150006879) - used as primary key
-    name      String // The display name of the MTIB
-    type      MtibType // The type of MTIB (validation, manufacturing)
-    features  MtibFeature[] // The features supported by the MTIB (Joulescope, Motion, etc.)
-    createdAt DateTime      @default(now())
-    updatedAt DateTime      @updatedAt
-
-    // Relations
-    appIdMappings MtibAppIdMapping[]
-
-    @@map("mtib")
-    @@schema("app")
+enum TestRunStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
-model MtibAppIdMapping {
-    id        String   @id @default(cuid())
-    mtibId    String // Reference to the MTIB
-    jlink     Int // JLINK number (0, 1, etc.)
-    appId     Int // Reference to the AppId
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+enum TargetStatus {
+  PENDING
+  RUNNING
+  PASSED
+  FAILED
+  ERROR
+}
 
-    // Relations
-    mtib Mtib  @relation(fields: [mtibId], references: [id], onDelete: Cascade)
-    app  AppId @relation(fields: [appId], references: [appId], onDelete: Cascade)
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  PASSED
+  FAILED
+  SKIPPED
+  ERROR
+}
 
-    @@unique([mtibId, jlink]) // Each MTIB can only have one mapping per JLINK
-    @@map("mtib_app_id_mappings")
-    @@schema("app")
+enum LifecycleStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+  EOL
+}
+
+enum FixtureStatus {
+  AVAILABLE
+  LOCKED
+  OFFLINE
+  MAINTENANCE
+}
+
+enum IcleDeviceStatus {
+  ONLINE
+  OFFLINE
+  LOGGING
+  CONFIG
+  BOOT
+  OTA
+}
+
+enum BuildJobStatus {
+  QUEUED
+  BLOCKED // Waiting for base build to complete (version bump builds)
+  CLONING // Cloning firmware repos from git
+  BUILDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  CACHED // Reused from a previous build with same fingerprint
+}
+
+enum AssetSetSource {
+  BUILD_SERVICE
+  MANUAL_UPLOAD
+  EXTERNAL_CI
+}
+
+enum AssetSetStatus {
+  PENDING
+  COMPLETE
+  VALIDATED
+  FAILED
+}
+
+enum QueueEntryStatus {
+  QUEUED
+  ASSIGNED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TestPackageStatus {
+  DEVELOPMENT // Mutable — overwrites previous dev version on same branch
+  RELEASED // Immutable — permanent version for production validation
+}
+
+enum TestPackageType {
+  VALIDATION
+  MANUFACTURING
+}
+
+enum StageType {
+  VALIDATION
+  MANUFACTURING
+}
+
+enum BuildRunStatus {
+  PENDING // Waiting for builds to start
+  BUILDING // Builds in progress
+  BUILD_FAILED // One or more builds failed
+  VALIDATING // Validation job running
+  SUCCESS // All builds + validation passed
+  FAILED // Validation failed
+  CANCELLED // Build run cancelled
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum Role {
+  ADMIN
+  MAINTAINER
+  DEVELOPER
+  OPERATOR
+}
+
+enum FirmwareVariant {
+  smoke
+  debug
+  release
+  mfg
+}
+
+enum ReleaseTrack {
+  bench
+  engineering
+  production
+}
+
+enum FirmwareSetStatus {
+  active
+  deprecated
+  recalled
+}
+
+enum RecipeStatus {
+  draft
+  published
+}
+
+enum AccessLevel {
+  view
+  operate
+  develop
+  admin
+}
+
+// =============================================================================
+//
+//  PRODUCTS
+//  Hardware products, boards, and firmware builds.
+//
+// =============================================================================
+
+/// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
+/// Everything flows from here -- fixtures, tests, sessions, builds.
+model Product {
+  id            String        @id @default(cuid())
+  name          String        @unique /// "Alpha B0", "Sigma5 C0"
+  slug          String?       @unique /// "alpha_b0", "sigma5_c0" -- URL-safe identifier
+  description   String?
+  status        ProductStatus @default(ACTIVE)
+  fwRepoSlug    String? /// Bitbucket slug for production firmware repo, e.g. "alpha_fw"
+  mfgFwRepoSlug String? /// Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"
+  builderImage  String? /// Docker image for builds, e.g. "registry.corekinect.com/alpha-fw-builder:latest"
+
+  buildConfig Json? /// structured build configuration (overlays, post-build steps)
+  metadata    Json? /// additional product-specific config
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy             User?                  @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  boards                Board[]
+  firmwareSets          FirmwareSet[]
+  fixtures              Fixture[]
+  buildJobs             BuildJob[]
+  buildRuns             BuildRun[]
+  stageConfigs          ProductStageConfig[]
+  testPackages          TestPackage[]
+  recipeVersions        RecipeVersion[]
+  productAccess         ProductAccess[]
+  assetSets             AssetSet[]
+  manufacturingConfigs  ManufacturingConfig[]
+  manufacturingSessions ManufacturingSession[]
+  testRuns              TestRun[]
+
+  @@map("products")
+}
+
+/// A versioned test package uploaded for a product.
+/// Contains the validation test suite (Python source) that runs against firmware builds.
+///
+/// Development versions (dev-{sha}) are mutable and overwritten on each upload.
+/// Released versions (semver like 1.2.0) are immutable and permanent.
+///
+/// The runner downloads the package from MinIO at job startup instead of
+/// baking tests into the Docker image. This decouples test iteration speed
+/// from Docker build time.
+model TestPackage {
+  id               String            @id @default(cuid())
+  productId        String
+  version          String /// "1.2.0" (release) or "dev-abc12345" (development)
+  type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
+  status           TestPackageStatus @default(DEVELOPMENT)
+  storageKey       String /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
+  frameworkVersion String /// corekinect version tests were validated against
+  manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
+  testCount        Int               @default(0) /// Number of tests collected
+  schemaVersion    String? /// Manifest schema version (e.g. "2.0") — enforced on upload
+  stagesEnabled    Json? /// Which stages are enabled (v1 legacy — replaced by packageStages in v2)
+  message          String? /// Developer-provided description at upload time
+  gitSha           String? /// Git HEAD SHA at upload time (short, e.g., "abc12345")
+  gitDirty         Boolean? /// True if working tree had uncommitted changes
+  notes            String?
+  releasedVersion  String? /// Auto-assigned semver on promotion (e.g. "1.0.0")
+  releasedAt       DateTime? /// When promoted to RELEASED
+  releasedById     String? /// User who promoted
+  createdById      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  boardRevisionId String? /// Board revision this package targets (from manifest product.board)
+  fixtureDesignId String? /// FK — fixture design extracted/linked during upload
+
+  product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision BoardRevision?     @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  fixtureDesign FixtureDesign?     @relation(fields: [fixtureDesignId], references: [id], onDelete: SetNull)
+  createdBy     User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  releasedBy    User?              @relation("TestPackageReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  testRuns      TestRun[]
+  packageStages TestPackageStage[]
+
+  @@unique([productId, version, type])
+  @@unique([productId, releasedVersion, type])
+  @@index([productId, status])
+  @@index([productId, type, status])
+  @@index([createdById])
+  @@index([releasedById])
+  @@index([boardRevisionId])
+  @@index([fixtureDesignId])
+  @@map("test_packages")
+}
+
+/// A firmware target within a board revision (e.g. "comms" on nRF9151, "app" on nRF52840).
+/// Each target has a role, SoC, and unique appId used for OTA/FUOTA addressing.
+/// Lives on BoardRevision because different HW revisions can have different SoCs/AppIDs.
+model ProductTarget {
+  id              String @id @default(cuid())
+  boardRevisionId String
+  role            String /// "comms", "app" -- functional role
+  soc             String /// "nRF9151", "nRF52840" -- SoC identifier
+  appId           Int /// CoreCloud application ID (108, 109)
+
+  boardRevision  BoardRevision   @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
+  firmwareBuilds FirmwareBuild[]
+
+  @@unique([boardRevisionId, role])
+  @@unique([boardRevisionId, appId])
+  @@index([appId])
+  @@map("product_targets")
+}
+
+/// A distinct PCB design within a product (e.g. "Main Board", "Sensor Board").
+/// Each product has exactly one board, linked to a ck_boards family definition.
+model Board {
+  id             String   @id @default(cuid())
+  productId      String   @unique
+  name           String /// "Main Board", "Sensor Board"
+  ckBoardsFamily String /// product family prefix from ck_boards repo, e.g. "alpha", "sigma5"
+  vendor         String   @default("corekinect")
+  description    String?
+  active         Boolean  @default(true)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdBy User?           @relation("BoardCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  revisions BoardRevision[]
+
+  @@unique([ckBoardsFamily])
+  @@map("boards")
+}
+
+/// A board revision (e.g. A0, B0, B1) -- a specific version of a Board PCB.
+/// Each revision maps to a specific ck_boards directory and has its own SoC list.
+model BoardRevision {
+  id              String          @id @default(cuid())
+  boardId         String
+  version         String /// e.g. "A0", "B0", "B1"
+  ckBoardsName    String /// full west build target name, e.g. "alpha_b0"
+  socs            String[] /// parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
+  deviceType      Int? /// CoreCloud device type ID (e.g. 2 for Alpha)
+  deviceVariant   Int? /// CoreCloud device variant ID (e.g. 3 for B0)
+  modemVersion    String? /// Nordic modem firmware version, e.g. "2.0.2"
+  modemStorageKey String? /// MinIO key for modem firmware zip
+  status          LifecycleStatus @default(ACTIVE)
+  notes           String?
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  createdBy            User?                 @relation("BoardRevisionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  board                Board                 @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  targets              ProductTarget[]
+  firmwareSets         FirmwareSet[]
+  stageConfigs         ProductStageConfig[]
+  assetSets            AssetSet[]
+  fixtureDesigns       FixtureDesign[]
+  fixtures             Fixture[]
+  manufacturingConfigs ManufacturingConfig[]
+  testPackages         TestPackage[]
+  testRuns             TestRun[]             @relation("TestRunBoardRevision")
+  modemFirmwares       ModemFirmware[]
+
+  @@unique([boardId, version])
+  @@unique([ckBoardsName])
+  @@map("board_revisions")
+}
+
+/// A modem firmware version uploaded for a specific board revision.
+/// Multiple versions can coexist — AssetSets reference a specific version.
+model ModemFirmware {
+  id              String   @id @default(cuid())
+  boardRevisionId String
+  version         String /// Auto-extracted from filename: "2.0.2", "1.3.6"
+  filename        String /// Original filename: "mfw_nrf91x1_2.0.2.zip" (unique per revision)
+  storageKey      String /// MinIO key
+  sizeBytes       Int      @default(0)
+  checksum        String? /// SHA-256
+  notes           String?
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
+  createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id], onDelete: SetNull)
+  assetSets     AssetSet[]    @relation("AssetSetModemFirmware")
+
+  @@unique([boardRevisionId, filename])
+  @@index([boardRevisionId])
+  @@map("modem_firmwares")
+}
+
+/// An uploaded firmware build file with version metadata.
+/// A complete firmware release for a specific board revision.
+/// Groups all per-target builds produced in one build run.
+/// Example: Alpha B0 v0.5.2-BM contains builds for both target 108 + 109.
+model FirmwareSet {
+  id              String  @id @default(cuid())
+  productId       String
+  boardRevisionId String? /// Which HW revision this targets
+
+  // Version identity (per CK firmware versioning spec)
+  version         String /// "0.5.2" (major.minor.build)
+  variant         FirmwareVariant @default(debug)
+  releaseTrack    ReleaseTrack    @default(bench)
+  isManufacturing Boolean         @default(false)
+  isDebug         Boolean         @default(false)
+
+  // Source — how this firmware entered Concord
+  source          String  @default("upload") /// "upload", "build-service", "teamcity"
+  buildJobId      String? /// FK to BuildJob if built by Concord CI
+  externalBuildId String? /// External build system ID
+
+  // Build fingerprint for caching
+  buildFingerprint String? /// SHA-256 of source + config — enables build reuse
+
+  status FirmwareSetStatus @default(active)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision BoardRevision?  @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  builds        FirmwareBuild[]
+
+  @@index([productId])
+  @@index([boardRevisionId])
+  @@index([productId, version])
+  @@map("firmware_sets")
+}
+
+/// A single firmware artifact for one target (one AppID) within a FirmwareSet.
+/// Per CK spec: version string = {AppId}.{Major}.{Minor}.{Build}-{Flags}
+model FirmwareBuild {
+  id            String  @id @default(cuid())
+  firmwareSetId String
+  targetId      String? /// FK to ProductTarget (appId + soc + role)
+
+  // Version identity
+  versionString String? /// Full CK version: "109.0.5.2-BM"
+
+  // Artifacts (MinIO storage keys)
+  hexStorageKey    String? /// Plaintext hex (bootloader + app merged) — for J-Link
+  hexEncStorageKey String? /// Encrypted hex (bootloader + encrypted app)
+  cfwStorageKey    String? /// Encrypted CFW binary — for FUOTA/OTA
+  manifestKey      String? /// Build manifest JSON
+
+  // File metadata (primary artifact)
+  filename    String
+  sizeBytes   BigInt
+  checksum    String /// SHA-256
+  contentType String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firmwareSet FirmwareSet    @relation(fields: [firmwareSetId], references: [id], onDelete: Cascade)
+  target      ProductTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([firmwareSetId])
+  @@map("firmware_builds")
+}
+
+// =============================================================================
+//
+//  PRODUCT STAGE CONFIGURATION
+//  Per-product, per-stage build + validation settings.
+//
+// =============================================================================
+
+/// Configuration for a single validation stage within a product.
+/// Thin config: which revision, which branch, which signing key.
+/// Test config (directories, markers, timeouts) lives in the test repo itself.
+/// Build recipes are convention-driven via StageBuildDef (stage_builds.py).
+model ProductStageConfig {
+  id        String    @id @default(cuid())
+  productId String
+  type      StageType @default(VALIDATION) /// VALIDATION or MANUFACTURING
+  stage     Int /// 1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
+  name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
+  enabled   Boolean   @default(false) /// Disabled by default
+
+  // Target — which hardware revision to build and test against (required)
+  boardRevisionId String /// FK to BoardRevision — every stage config is revision-scoped
+
+  // Source — which branch to watch for changes
+  watchBranch String? /// Git branch to poll for this stage (e.g., "main", "develop")
+
+  // Triggers — what events start this stage (multiple allowed)
+  triggerTypes String[] /// ["pr_push", "pr_merge", "auto", "schedule", "manual"]
+
+  // Asset sources — where firmware assets come from (multiple allowed)
+  assetSources String[] @default(["BUILD_SERVICE"]) /// Which asset sources this stage accepts
+
+  // Signing — which key set to use for builds
+  signingKeyId String? /// FK to Secret (signing key for this stage's builds)
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Per-stage recipe override (optional — falls back to product-level recipe)
+  recipeVersionId String?
+
+  createdBy          User?                  @relation("StageConfigCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product            Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision      BoardRevision          @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+  signingKey         Secret?                @relation(fields: [signingKeyId], references: [id], onDelete: SetNull)
+  recipeVersion      RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  buildRuns          BuildRun[]
+  queueEntries       ValidationQueueEntry[]
+  buildMatrixEntries StageBuildMatrix[]
+
+  @@unique([productId, type, stage, boardRevisionId])
+  @@index([productId, type])
+  @@map("product_stage_configs")
+}
+
+/// A queued validation run waiting for a fixture.
+/// Priority queue: higher priority entries are assigned first.
+model ValidationQueueEntry {
+  id String @id @default(cuid())
+
+  // What triggered this
+  assetSetId    String
+  stageConfigId String?
+  stage         Int /// Validation stage (1-5)
+  priority      Int     @default(50) /// From stage config, but overridable
+
+  // Status
+  status QueueEntryStatus @default(QUEUED)
+
+  // Fixture assignment
+  fixtureId String? /// Assigned fixture (null until ASSIGNED)
+
+  // TestRun (created when tests actually start)
+  testRunId String? @unique
+
+  // Context
+  reason       String? /// "PR #42", "manual trigger", "external CI upload"
+  errorMessage String?
+  jobName      String? /// K8s job name when triggered
+
+  // Timing
+  requestedAt DateTime  @default(now())
+  assignedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assetSet    AssetSet            @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
+
+  @@index([status, priority])
+  @@index([assetSetId])
+  @@index([fixtureId])
+  @@map("validation_queue_entries")
+}
+
+// =============================================================================
+//
+//  BUILDS
+//  CI build runs, build jobs, and artifacts.
+//
+// =============================================================================
+
+/// Groups multiple builds (e.g., alpha_fw + alpha_mfg_fw) triggered by same commit.
+/// Tracks the overall build+validate workflow for a product.
+model BuildRun {
+  id          String         @id @default(cuid())
+  name        String? /// e.g., "alpha-main-abc1234"
+  productId   String /// FK to Product
+  board       String /// Board variant (alpha_b0)
+  branch      String
+  commitSha   String?
+  status      BuildRunStatus @default(PENDING)
+  triggerType String         @default("manual") /// manual, webhook, scheduled
+  triggerData Json? /// Webhook payload or trigger config
+
+  // Stage-aware build run
+  stage         Int? /// Validation stage (1-5) this build run targets
+  stageConfigId String? /// FK to ProductStageConfig
+
+  // Build tracking
+  expectedBuilds  Int @default(2) /// How many builds to wait for
+  completedBuilds Int @default(0)
+
+  // Stage 4 build matrix configuration
+  buildMatrix Json? /// Matrix config: {mode: "stage4", labels: [...], mainRef: "main", prRef: "feature/x"}
+  matrixMode  String? /// "legacy" (4 builds) or "stage4" (8 builds)
+
+  // PR context (promoted from triggerData for indexing/filtering)
+  prNumber     Int? /// Bitbucket PR number
+  prTitle      String? /// PR title at time of trigger
+  prAuthor     String? /// PR author display name
+  sourceBranch String? /// PR source branch (feature/xyz)
+  targetBranch String? /// PR target branch (main, concord-main)
+  prUrl        String? /// Link to Bitbucket PR page
+
+  // Validation tracking
+  autoRunStage    Boolean @default(false) /// Auto-trigger stage run when all builds pass
+  validationRunId String? /// Links to Session when validation starts
+
+  // Timing
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Recipe pinning — which recipe version was used for this build run
+  recipeVersionId String?
+
+  createdBy     User?               @relation("BuildRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stageConfig   ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  recipeVersion RecipeVersion?      @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  builds        BuildJob[]
+  assetSet      AssetSet?
+  testRuns      TestRun[]
+
+  @@index([productId, branch])
+  @@index([productId, prNumber])
+  @@index([productId, stage, status])
+  @@index([productId, prNumber, stage])
+  @@index([status])
+  @@index([commitSha])
+  @@index([stage])
+  @@map("build_runs")
+}
+
+/// A single firmware build job within a build run.
+model BuildJob {
+  id            String         @id @default(cuid())
+  productId     String /// FK to Product (required)
+  board         String
+  target        String
+  variant       String         @default("release")
+  mtibRev       String         @default("1.2")
+  branch        String
+  commitSha     String?
+  status        BuildJobStatus @default(QUEUED)
+  versionMajor  Int?
+  versionMinor  Int?
+  buildNum      Int            @default(autoincrement())
+  versionString String?
+  errorMessage  String?
+  buildLog      String?
+  webhookData   Json?
+
+  // Stage 4 matrix identification
+  matrixLabel String? /// e.g., "mfg_base", "fut_debug_a", "fut_release_b"
+  matrixIndex Int? /// Position in build sequence (0-7 for Stage 4)
+  versionBump Boolean @default(false) /// True if version-bumped build (same code, N+1)
+  baseJobId   String? /// If version-bumped, points to the base build job
+
+  // Build cache / fingerprinting
+  buildFingerprint String? /// SHA-256 of (repo+commit+board+variant+configFlags)
+  configFlags      Json? /// {"harness": false, "debug": true, "mfg": false}
+  reusedFromId     String? /// If CACHED, points to the original successful build
+
+  // Build run relation
+  buildRunId String?
+  buildRun   BuildRun? @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
+
+  // Priority queue — higher number = processed first (manual=100, webhook=50, scheduled=25)
+  priority Int @default(50)
+
+  // Worker info
+  workerId      String? /// Node/host that built this (e.g. "wanda")
+  lastHeartbeat DateTime? /// Updated by worker during active builds (stale detection)
+
+  // Timing
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  durationSeconds Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Recipe pinning
+  recipeVersionId String?
+
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  recipeVersion RecipeVersion?  @relation("BuildJobRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  artifacts     BuildArtifact[]
+  reusedFrom    BuildJob?       @relation("BuildReuse", fields: [reusedFromId], references: [id], onDelete: SetNull)
+  reusedBy      BuildJob[]      @relation("BuildReuse")
+
+  @@index([productId, branch])
+  @@index([matrixLabel])
+  @@index([productId])
+  @@index([status])
+  @@index([status, priority])
+  @@index([buildRunId])
+  @@index([buildFingerprint])
+  @@map("build_jobs")
+}
+
+/// A build artifact (hex, bin, elf) stored in MinIO.
+model BuildArtifact {
+  id           String   @id @default(cuid())
+  buildJobId   String
+  name         String
+  storageKey   String
+  sizeBytes    BigInt
+  checksum     String
+  role         String? /// Artifact role: app, comms, modem, manifest, log
+  processor    String? /// Target processor: nrf52840, nrf9151, etc.
+  artifactType String? /// Artifact type: plaintextHex, encryptedCfw, manifest, log, metadata
+  createdAt    DateTime @default(now())
+
+  buildJob BuildJob @relation(fields: [buildJobId], references: [id], onDelete: Cascade)
+
+  @@index([buildJobId])
+  @@map("build_job_artifacts")
+}
+
+// =============================================================================
+//
+//  FIXTURES
+//  Unified test fixtures: physical test rigs with multi-DUT slots.
+//  Absorbs former TestBench model.
+//
+// =============================================================================
+
+/// A versioned fixture hardware design — the PCB/wiring spec for testing a product.
+/// Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
+///
+/// Concord stores the profileTemplate JSON but never interprets it.
+/// Product-specific test code (apps/validation/alpha/fixtures/) reads the profile
+/// to know GPIO pins, UART paths, power config, etc.
+///
+/// Individual Fixture records can override specific fields via profileOverrides.
+model FixtureDesign {
+  id              String    @id @default(cuid())
+  name            String /// Human-readable name from fixture.yaml (e.g. "Alpha B0 Manufacturing Fixture")
+  boardRevisionId String /// FK — which board revision this design targets
+  revision        String /// Fixture hardware revision from fixture.yaml (e.g. "1.0", "1.2")
+  type            NodeType? /// MANUFACTURING or VALIDATION — set from uploading test package type
+  capabilities    String[] /// ["power", "jlink", "button"] — from fixture.yaml capabilities list
+  profileTemplate Json /// Full fixture.yaml content (power config, thresholds, slot defaults)
+  schematicUrl    String? /// Link to schematic PDF/CAD files
+  bomUrl          String? /// Link to BOM spreadsheet
+  assemblyGuide   String? /// Link to assembly instructions
+  notes           String? /// Build notes, known issues, changelog
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdBy     User?         @relation("FixtureDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+  fixtures      Fixture[]
+  testPackages  TestPackage[]
+
+  @@unique([name, revision]) /// Same design name can have multiple revisions (v1.0, v1.2)
+  @@index([boardRevisionId])
+  @@index([type])
+  @@map("fixture_designs")
+}
+
+/// A physical test fixture instance. Unified model for both
+/// manufacturing fixtures (multi-slot with 4-6 MTIBs) and validation
+/// benches (single-slot with 1 MTIB).
+///
+/// Lifecycle:
+///   1. Created with N slots (based on fixture type/design)
+///   2. MTIBs registered and assigned to slots (auto-deploys MTIB server)
+///   3. All slots assigned → status becomes AVAILABLE
+///   4. Scheduler assigns queue entries → status becomes LOCKED
+///   5. Session runs (N parallel K8s Jobs, one per slot) → results collected
+///   6. Session finishes → status returns to AVAILABLE
+model Fixture {
+  id              String   @id @default(cuid())
+  name            String /// "Alpha MFG Fixture 1", "Alpha B0 Bench 1"
+  stationId       String?  @unique /// "station-33", matches fixture profile
+  productId       String
+  boardRevisionId String? /// FK — which board revision this fixture tests (denormalized from design)
+  type            NodeType /// MANUFACTURING or VALIDATION
+  designId        String? /// FK to FixtureDesign (optional — design can be assigned later)
+
+  // Panel layout — defines the physical grid of DUT positions
+  panelRows Int @default(1) /// Number of rows in the panel grid
+  panelCols Int @default(1) /// Number of columns in the panel grid
+
+  status   FixtureStatus @default(AVAILABLE)
+  lockedBy String? /// Build run/job ID holding the lock
+  lockedAt DateTime?
+
+  profileOverrides Json? /// Fixture-specific profile overrides (merged with design template)
+  description      String?
+  active           Boolean   @default(true)
+  metadata         Json? /// physical location, rack position, etc.
+  lastHealthCheck  DateTime?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  createdBy             User?                  @relation("FixtureCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision         BoardRevision?         @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  design                FixtureDesign?         @relation(fields: [designId], references: [id], onDelete: Restrict)
+  slots                 FixtureSlot[]
+  queueEntries          ValidationQueueEntry[]
+  manufacturingSessions ManufacturingSession[]
+  testRuns              TestRun[]
+
+  @@index([productId, status])
+  @@index([boardRevisionId])
+  @@index([status])
+  @@map("fixtures")
+}
+
+/// A physical slot/position in a fixture. Each slot maps to one
+/// MTIB node. The @unique on nodeId ensures a node can only be
+/// assigned to one slot at a time (NULL is exempt from uniqueness,
+/// so empty slots are fine).
+model FixtureSlot {
+  id        String  @id @default(cuid())
+  fixtureId String
+  slotIndex Int /// 0-based position in the fixture
+  label     String? /// human-readable: "Slot 1", "Stand Alone"
+  nodeId    String? @unique
+  active    Boolean @default(true)
+
+  // Hardware paths
+  jlinkAppSerial   String? /// J-Link SNR for nRF52840 app processor
+  jlinkCommsSerial String? /// J-Link SNR for nRF9151 comms (if separate)
+  uartAppPath      String? /// "/dev/verdin-uart2"
+  uartCommsPath    String? /// "/dev/verdin-uart1"
+
+  // DUT identity
+  dutDeviceId String? /// "70B3D584C01E1FCC"
+  dutSnr      String? /// "0964" -- J-Link probe serial
+  dutImei     String? /// "355025931735979"
+  dutIccids   String[] /// ["89148000009808558441", "89457300000037582833"]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fixture    Fixture     @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  node       Node?       @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  runTargets RunTarget[]
+
+  @@unique([fixtureId, slotIndex])
+  @@map("fixture_slots")
+}
+
+// =============================================================================
+//
+//  DEVICES
+//  Edge infrastructure: MTIB nodes, ICLE power monitors.
+//
+// =============================================================================
+
+/// A compute node managed by Concord -- typically an MTIB
+/// (Verdin iMX8MM + Mallow + MTIB carrier board) running
+/// as an edge node in the K3s cluster.
+///
+/// Nodes with TestExecution history cannot be deleted
+/// (default Restrict behavior). Decommission by setting
+/// status = MAINTENANCE and unassigning from fixture slot.
+model Node {
+  id               String     @id @default(cuid())
+  name             String
+  hostname         String     @unique /// K8s node name / OS hostname
+  type             NodeType
+  status           NodeStatus @default(OFFLINE)
+  ipAddress        String?
+  hardwareRevision String? /// "REV1.2"
+  metadata         Json? /// K8s labels, capabilities, gRPC port, etc.
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  fixtureSlot FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
+
+  @@map("nodes")
+}
+
+/// An ICLE (In-Circuit Loop-back Equipment) device -- ESP32-based
+/// power monitoring tool for DUT validation. Devices register
+/// themselves via heartbeat and receive commands in the response.
+model IcleDevice {
+  id              String           @id @default(cuid())
+  deviceId        String           @unique /// Hardware ID from ZMS
+  name            String?
+  ipAddress       String?
+  macAddress      String?
+  firmwareVersion String?
+  status          IcleDeviceStatus @default(OFFLINE)
+  registered      Boolean          @default(false) /// false = discovered, true = registered via UI
+  lastHeartbeat   DateTime?
+  lastStatusData  Json? /// Latest telemetry snapshot (uptime, heap, rssi, etc.)
+  pendingConfig   Json? /// Config to push on next heartbeat
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  commands IclePendingCommand[]
+  logs     IcleLog[]
+
+  @@index([status])
+  @@map("icle_devices")
+}
+
+/// A pending command to be delivered to an ICLE device on its
+/// next heartbeat. Commands are acknowledged by the device and
+/// then marked as such.
+model IclePendingCommand {
+  id           String    @id @default(cuid())
+  deviceId     String
+  commandType  String /// config_update, ota_trigger, log_upload, reboot
+  payload      Json
+  priority     Int       @default(0) /// Higher priority = delivered first
+  expiresAt    DateTime?
+  acknowledged Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, acknowledged])
+  @@map("icle_pending_commands")
+}
+
+/// A log file uploaded from an ICLE device, stored in MinIO.
+model IcleLog {
+  id         String   @id @default(cuid())
+  deviceId   String
+  filename   String
+  storageKey String /// MinIO object key
+  sizeBytes  BigInt
+  format     String /// "binary" or "csv"
+  uploadedAt DateTime @default(now())
+
+  device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, filename])
+  @@map("icle_logs")
+}
+
+// NOTE: The former Deployment model was removed. MTIB server K8s deployments
+// are tracked per-node via Node.metadata["deployment_name"]. Fixture-level
+// deploy/undeploy actions live on the Fixture API endpoints.
+
+// =============================================================================
+//
+//  TESTING
+//  Test definitions, executions, and step-level results.
+//
+// =============================================================================
+
+// =============================================================================
+//
+//  PLATFORM
+//  Users, permissions, API keys, audit logs, system settings, and logs.
+//
+// =============================================================================
+
+/// A platform user, authenticated via Google OAuth.
+///
+/// RBAC: `role` is the user's organizational role (ADMIN/MAINTAINER/DEVELOPER/OPERATOR).
+/// `permissionSet` maps that role to specific permission strings checked at runtime by
+/// @require_permissions. Both fields should stay in sync — seed.py assigns the matching
+/// permission set for each role.
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  externalId      String?   @unique /// Google sub ID, set on first login
+  role            Role      @default(DEVELOPER)
+  permissionSetId String?
+  active          Boolean   @default(true)
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  permissionSet         PermissionSet?         @relation(fields: [permissionSetId], references: [id], onDelete: SetNull)
+  productAccess         ProductAccess[]
+  apiKeys               ApiKey[]
+  authSessions          AuthSession[]
+  refreshTokens         RefreshToken[]
+  testPackages          TestPackage[]
+  auditLogs             AuditLog[]
+  secrets               Secret[]
+  recipeVersions        RecipeVersion[]
+  assetSets             AssetSet[]
+  manufacturingSessions ManufacturingSession[] @relation("ManufacturingOperator")
+  testRuns              TestRun[]              @relation("TestRunOperator")
+  releasedTestPackages  TestPackage[]          @relation("TestPackageReleasedBy")
+  modemFirmwareUploads  ModemFirmware[]        @relation("ModemFirmwareUploader")
+  createdProducts       Product[]              @relation("ProductCreatedBy")
+  createdBoards         Board[]                @relation("BoardCreatedBy")
+  createdBoardRevisions BoardRevision[]        @relation("BoardRevisionCreatedBy")
+  createdStageConfigs   ProductStageConfig[]   @relation("StageConfigCreatedBy")
+  createdFixtureDesigns FixtureDesign[]        @relation("FixtureDesignCreatedBy")
+  createdFixtures       Fixture[]              @relation("FixtureCreatedBy")
+  createdBuildRuns      BuildRun[]             @relation("BuildRunCreatedBy")
+  resolvedErrorReports  ErrorReport[]
+  releasesCreated       Release[]      @relation("releasesCreated")
+  notifications         Notification[]
+
+  @@map("users")
+}
+
+/// Product-level access control. Each entry grants a user a specific access level
+/// (view, operate, develop, admin) to a specific product. Admin/Maintainer roles
+/// bypass product access checks entirely.
+model ProductAccess {
+  id        String      @id @default(cuid())
+  userId    String
+  productId String
+  level     AccessLevel @default(view)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("product_access")
+}
+
+/// A named set of permissions assignable to users.
+model PermissionSet {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[] /// e.g. ["Concord.Firmware.AppID.Create", "Concord.Cluster.Read"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@map("permission_sets")
+}
+
+/// A programmatic API key linked to a user. Keys are stored as
+/// SHA-256 hashes; the plaintext is only shown once at creation.
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String    @unique /// SHA-256 hash of the actual key (never store plaintext)
+  keyPrefix  String /// First 8 chars of key for display ("ck_live_a1b2...")
+  userId     String
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+/// Status of a CLI session-code authorisation request.
+enum AuthSessionStatus {
+  PENDING /// awaiting human approval in the browser
+  APPROVED /// human approved; access + refresh tokens issued
+  EXPIRED /// 10-minute window elapsed without approval
+  DENIED /// human explicitly rejected the request
+}
+
+/// One pending or approved CLI authorisation request (RFC 8628 device-code
+/// flow). The CLI gets a deviceCode and a human-friendly userCode; the
+/// human enters the userCode in the browser at /settings/sessions/ to
+/// approve. Approval flips status APPROVED and seeds the issued
+/// RefreshToken row that the CLI then rotates against.
+///
+/// Rows expire 10 minutes after creation if never approved. A daily
+/// CronJob sweeps EXPIRED + DENIED rows older than 7 days.
+model AuthSession {
+  id          String            @id @default(cuid())
+  userCode    String            @unique /// 8 chars, formatted "XXXX-XXXX" for display, no ambiguous I/O/0/1
+  deviceCode  String            @unique /// uuid the CLI polls with — never shown to the human
+  status      AuthSessionStatus @default(PENDING)
+  userId      String? /// set on approval
+  userAgent   String? /// CLI version + platform string, captured at /code time for the approval UI
+  createdAt   DateTime          @default(now())
+  expiresAt   DateTime /// 10 min from createdAt for PENDING; not consulted after APPROVED
+  approvedAt  DateTime?
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  refreshTokens RefreshToken[]
+
+  @@index([deviceCode])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+/// Refresh token for a CLI session. Rotated on every /refresh — the
+/// presented token is revoked and a new one issued, with parentId
+/// recording the rotation chain so a replayed (already-revoked) token
+/// can be detected and the entire chain killed.
+///
+/// 30-day expiry. Daily CronJob sweeps revoked + expired rows older
+/// than 7 days.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  sessionId String
+  tokenHash String    @unique /// SHA-256 of the raw refresh token (never store plaintext)
+  parentId  String? /// previous token in the rotation chain — null for the first token issued at /approve
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime /// 30 days from createdAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// Append-only log of every significant mutation in the system.
+/// userId is nullable for system-initiated actions.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String /// dot-notation verb: "session.create", "node.update", etc.
+  entityType String /// model name: "Session", "Node", "Test", etc.
+  entityId   String?
+  details    Json? /// freeform context -- before/after snapshots, params, etc.
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+/// Platform secrets — signing keys, credentials, tokens.
+/// Managed via Settings > Secrets. Referenced by stage configs.
+/// Values are encrypted/base64 — never exposed in API responses.
+model Secret {
+  id          String   @id @default(cuid())
+  name        String   @unique /// Human-readable: "Bench Signing Key", "Production Signing Key"
+  type        String /// "signing_key", "ssh_key", "api_token"
+  value       String   @db.Text /// Base64-encoded secret value (never returned in API)
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy    User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  stageConfigs ProductStageConfig[]
+
+  @@map("secrets")
+}
+
+/// Caches the last-seen commit SHA per branch or PR for the Bitbucket poller.
+/// Replaces fragile /tmp file-based caching — survives pod restarts and horizontal scaling.
+model PollCache {
+  id        String   @id @default(cuid())
+  repoSlug  String
+  type      String /// "branch" or "pr"
+  refId     String /// branch name (e.g. "concord-main") or PR number as string (e.g. "42")
+  commitSha String
+  metadata  Json? /// For PRs: {"source_branch": "...", "title": "...", "author": "..."}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([repoSlug, type, refId])
+  @@map("poll_cache")
+}
+
+/// A versioned snapshot of a product's build recipe (shell script).
+/// Tracks drafts and published versions for the build script editor.
+model RecipeVersion {
+  id          String       @id @default(cuid())
+  productId   String
+  version     Int
+  content     String       @db.Text
+  status      RecipeStatus @default(draft)
+  changeNote  String?
+  createdById String?
+  createdAt   DateTime     @default(now())
+
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy    User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  stageConfigs ProductStageConfig[] @relation("StageConfigRecipe")
+  buildRuns    BuildRun[]           @relation("BuildRunRecipe")
+  buildJobs    BuildJob[]           @relation("BuildJobRecipe")
+  assetSets    AssetSet[]
+
+  @@index([productId, version])
+  @@index([productId, status])
+  @@map("recipe_versions")
+}
+
+/// A reusable recipe template for bootstrapping new product build scripts.
+model RecipeTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  content     String   @db.Text
+  category    String   @default("general")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("recipe_templates")
+}
+
+// =============================================================================
+//
+//  STAGE BUILD MATRIX
+//  Per-stage build definitions — what firmware to build for each validation stage.
+//  Replaces hardcoded _STAGE_BUILDS in stages.py with DB-driven config.
+//
+// =============================================================================
+
+/// A single build definition within a stage's build matrix.
+/// Maps 1:1 to StageBuildDef from corekinect.stages — same fields,
+/// but stored per-product in the database instead of hardcoded.
+model StageBuildMatrix {
+  id              String  @id @default(cuid())
+  stageConfigId   String
+  sortOrder       Int     @default(0)
+  label           String /// "mfg_base", "fut_verbose_a", etc.
+  fwType          String /// "mfg", "app"
+  variant         String /// "mfg", "debug", "release"
+  configLog       Boolean @default(true)
+  producesHex     Boolean @default(true)
+  producesCfw     Boolean @default(false)
+  gitRef          String  @default("pr") /// "pr", "main", "merge"
+  isVersionBump   Boolean @default(false)
+  baseLabel       String? /// Required when isVersionBump=true
+  description     String?
+  processor       String? /// Target processor SoC: "nrf52840", "nrf9151"
+  filenamePattern String? /// Expected filename pattern: "*_debug_nrf52840.hex"
+
+  stageConfig ProductStageConfig @relation(fields: [stageConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([stageConfigId, label])
+  @@index([stageConfigId])
+  @@map("stage_build_matrix")
+}
+
+// =============================================================================
+//
+//  ASSET SETS
+//  Unified firmware asset containers — one model for build service output,
+//  manual uploads, and external CI imports.
+//
+// =============================================================================
+
+/// A versioned set of firmware assets for a product.
+/// Created by the build service on success, by manual upload, or by external CI webhook.
+/// Validation sessions and manufacturing link to an AssetSet to track which firmware they used.
+model AssetSet {
+  id              String     @id @default(cuid())
+  productId       String
+  boardRevisionId String?
+  version         String /// Firmware version, e.g. "0.5.2"
+  variant         String     @default("debug") /// "debug", "release", "mfg"
+  stage           Int? /// Stage number (1-5 for validation, 1 for manufacturing)
+  stageType       StageType? /// VALIDATION or MANUFACTURING — disambiguates stage number
+
+  source          AssetSetSource /// How the assets entered the system
+  buildRunId      String?        @unique /// 1:1 with BuildRun (if from build service)
+  externalBuildId String? /// External CI build ID (TeamCity, Jenkins)
+  commitSha       String?
+  branch          String?
+  recipeVersionId String?
+
+  status          AssetSetStatus @default(PENDING)
+  modemFirmwareId String? /// Selected modem firmware for this asset set
+  notes           String?
+  createdById     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision         BoardRevision?         @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  buildRun              BuildRun?              @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
+  recipeVersion         RecipeVersion?         @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  modemFirmware         ModemFirmware?         @relation("AssetSetModemFirmware", fields: [modemFirmwareId], references: [id], onDelete: SetNull)
+  createdBy             User?                  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  assets                Asset[]
+  testRuns              TestRun[]
+  manufacturingSessions ManufacturingSession[]
+  queueEntries          ValidationQueueEntry[]
+
+  @@index([productId, stage, stageType, status])
+  @@index([productId, version])
+  @@map("asset_sets")
+}
+
+/// An individual firmware artifact within an AssetSet.
+/// Stored in MinIO, referenced by storageKey.
+model Asset {
+  id            String   @id @default(cuid())
+  assetSetId    String
+  label         String /// Build matrix label, e.g. "mfg_base", "fut_verbose_a"
+  role          String /// "app", "comms", "modem"
+  processor     String? /// "nrf52840", "nrf9151"
+  artifactType  String /// "plaintextHex", "encryptedCfw", "manifest"
+  storageKey    String /// MinIO path
+  filename      String
+  sizeBytes     BigInt
+  checksum      String /// SHA-256
+  contentType   String?
+  appId         Int? /// App ID (e.g. 109 for nrf52840, 108 for nrf9151)
+  versionString String? /// Full CK version string (e.g. "109.0.8.3-BM")
+  createdAt     DateTime @default(now())
+
+  assetSet AssetSet @relation(fields: [assetSetId], references: [id], onDelete: Cascade)
+
+  @@index([assetSetId])
+  @@index([assetSetId, label, artifactType])
+  @@index([appId, artifactType])
+  @@map("assets")
+}
+
+// =============================================================================
+//
+//  MANUFACTURING
+//  Manufacturing sessions, panels, units, and configuration.
+//
+// =============================================================================
+
+enum ManufacturingSessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+/// Manufacturing configuration for a product + board revision combination.
+/// Defines which stages to run, firmware source, and pass criteria.
+model ManufacturingConfig {
+  id                    String   @id @default(cuid())
+  productId             String
+  boardRevisionId       String
+  enabled               Boolean  @default(false)
+  stages                Json /// [{name: "Electrical", enabled: true, config: {...}}, ...]
+  firmwareSource        String   @default("latest_build")
+  firmwareSetId         String?
+  personalizationConfig Json?
+  passCriteria          Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, boardRevisionId])
+  @@map("manufacturing_configs")
+}
+
+/// An operator-managed manufacturing session on a fixture.
+/// Groups multiple TestRuns (one per panel scan).
+/// Lifecycle: operator starts session → scans panels (creating runs) → ends session.
+model ManufacturingSession {
+  id         String                     @id @default(cuid())
+  productId  String
+  fixtureId  String
+  status     ManufacturingSessionStatus @default(ACTIVE)
+  operatorId String
+  config     Json?
+  notes      String?
+  startedAt  DateTime                   @default(now())
+  endedAt    DateTime?
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+
+  // Runner lifecycle
+  runnerStatus         String? /// DEPLOYING | READY | RUNNING | ERROR | WAITING
+  runnerDeploymentName String? /// K8s deployment name for cleanup
+  runnerLastHeartbeat  DateTime?
+
+  // Firmware
+  assetSetId String? /// Selected firmware AssetSet for this session
+
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture  Fixture   @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
+  operator User      @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+  assetSet AssetSet? @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
+  runs     TestRun[]
+
+  @@index([productId, status])
+  @@index([fixtureId])
+  @@index([operatorId])
+  @@index([assetSetId])
+  @@map("manufacturing_sessions")
+}
+
+// =============================================================================
+//
+//  TEST EXECUTION MODEL
+//  Shared hierarchy: TestRun → RunTarget → TestExecution → TestStep
+//  Validation: standalone runs. Manufacturing: runs within sessions.
+//
+// =============================================================================
+
+/// The atomic unit of test execution — shared between validation and manufacturing.
+/// Validation: one run per CI trigger or manual invocation. Standalone.
+/// Manufacturing: one run per panel scan, nested within a ManufacturingSession.
+model TestRun {
+  id   String      @id @default(cuid())
+  type TestRunType /// VALIDATION or MANUFACTURING
+  name String? /// Display name
+
+  productId              String
+  fixtureId              String
+  testPackageId          String?
+  buildRunId             String? /// Validation only — CI build run link
+  manufacturingSessionId String? /// Manufacturing only — parent session
+  panelIdentifier        String? /// QR code (manufacturing) or auto-generated (validation)
+  assetSetId             String? /// Firmware asset set used for this run
+
+  status     TestRunStatus @default(PENDING)
+  operatorId String /// Who triggered this run
+
+  // Aggregate counts
+  targetCount    Int @default(0)
+  completedCount Int @default(0)
+  passedCount    Int @default(0)
+  failedCount    Int @default(0)
+
+  config       Json?
+  notes        String?
+  errorMessage String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  boardRevisionId String? /// Board revision (populated from fixture at creation time)
+
+  product       Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture       Fixture               @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
+  boardRevision BoardRevision?        @relation("TestRunBoardRevision", fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  testPackage   TestPackage?          @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
+  buildRun      BuildRun?             @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
+  session       ManufacturingSession? @relation(fields: [manufacturingSessionId], references: [id], onDelete: Cascade)
+  assetSet      AssetSet?             @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
+  operator      User                  @relation("TestRunOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+
+  targets    RunTarget[]
+  queueEntry ValidationQueueEntry?
+
+  @@index([productId, type, status])
+  @@index([fixtureId])
+  @@index([testPackageId])
+  @@index([buildRunId])
+  @@index([manufacturingSessionId])
+  @@index([operatorId])
+  @@index([assetSetId])
+  @@index([boardRevisionId])
+  @@map("test_runs")
+}
+
+/// A single DUT (device under test) within a run.
+/// Linked to a physical fixture slot for traceability.
+model RunTarget {
+  id        String  @id @default(cuid())
+  runId     String
+  slotIndex Int /// Physical fixture slot position (0-based)
+  slotId    String? /// FK to FixtureSlot
+
+  serialNumber String? /// DUT serial number (may be discovered during manufacturing)
+  deviceId     String? /// CoreCloud device ID
+
+  status TargetStatus @default(PENDING)
+
+  metadata     Json? /// IMEI, ICCID, hardware info, calibration data
+  errorMessage String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+
+  createdAt DateTime @default(now())
+
+  run        TestRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  slot       FixtureSlot?    @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  executions TestExecution[]
+
+  @@unique([runId, slotIndex])
+  @@index([runId])
+  @@map("run_targets")
+}
+
+/// A single test function (validation) or manufacturing step execution.
+/// Validation: one per pytest test function per target.
+/// Manufacturing: one per sequential step (Electrical, Flash, POST) per target.
+model TestExecution {
+  id             String @id @default(cuid())
+  targetId       String
+  executionIndex Int /// Order within target (0-based)
+
+  name   String /// Test function name or step name
+  module String? /// Pytest module path (e.g., "tests.smoke.test_hardware")
+
+  status ExecutionStatus @default(PENDING)
+
+  durationMs    Int?
+  errorMessage  String?
+  measurements  Json? /// Power measurements, ADC readings, etc.
+  logOutput     String? @db.Text /// Captured stdout/stderr
+  logStorageKey String? /// MinIO key for log overflow
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  target RunTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  steps  TestStep[]
+
+  @@unique([targetId, executionIndex])
+  // Name is unique per target — a given test function name runs at most
+  // once per RunTarget. Enforced at the DB level so a reporter regression
+  // (e.g. dropping slotIndex and falling through to the wrong target) can
+  // never create duplicate rows silently; instead it surfaces as a 409.
+  @@unique([targetId, name])
+  @@index([targetId])
+  @@map("test_executions")
+}
+
+/// A sub-step within a test execution.
+/// Created by `with report.step("name"):` in test code.
+model TestStep {
+  id          String @id @default(cuid())
+  executionId String
+  stepIndex   Int
+
+  name String
+
+  status ExecutionStatus @default(PENDING)
+  passed Boolean?
+
+  durationMs    Int?
+  errorMessage  String?
+  measurements  Json?
+  logOutput     String? @db.Text
+  logStorageKey String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  execution TestExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, stepIndex])
+  @@index([executionId])
+  @@map("test_steps")
+}
+
+/// Structured stage/step metadata extracted from a test package manifest on upload.
+/// Replaces the untyped `stagesEnabled` JSON blob.
+model TestPackageStage {
+  id            String @id @default(cuid())
+  testPackageId String
+
+  name       String /// "smoke", "regression", "Electrical", "POST"
+  stageIndex Int /// Order within package (matters for manufacturing steps)
+  directory  String? /// "tests/smoke" (validation stages)
+  module     String? /// "tests.manufacturing.test_electrical" (manufacturing steps)
+  timeoutS   Int? /// Maximum execution time in seconds
+  hardware   String[] /// Required fixture capabilities
+  markers    String[] /// Pytest markers
+
+  createdAt DateTime @default(now())
+
+  testPackage TestPackage @relation(fields: [testPackageId], references: [id], onDelete: Cascade)
+
+  @@unique([testPackageId, name])
+  @@index([testPackageId])
+  @@map("test_package_stages")
+}
+
+enum ErrorReportStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+/// Frontend error/bug reports — captures JS errors, API errors, WebSocket errors,
+/// and user-submitted bug reports with full diagnostic context.
+model ErrorReport {
+  id        String            @id @default(cuid())
+  status    ErrorReportStatus @default(OPEN)
+
+  // Classification
+  type     String /// "js", "api", "websocket", "validation", "unhandled", "user_report"
+  severity String /// "critical", "error", "warning", "info"
+  message  String @db.Text
+
+  // Rich diagnostic context (stack traces, breadcrumbs, environment, request/response)
+  context Json? /// Full ErrorReport payload from frontend
+
+  // Denormalized fields for filtering/querying
+  currentPath String?
+  userEmail   String?
+  userId      String?
+  appVersion  String?
+
+  // Admin triage
+  resolvedById String?
+  resolvedAt   DateTime?
+  adminNotes   String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resolvedBy          User?    @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedInReleaseId String?
+  resolvedInRelease   Release? @relation("releaseResolvedBugs", fields: [resolvedInReleaseId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([type])
+  @@index([severity])
+  @@index([userId])
+  @@index([resolvedInReleaseId])
+  @@map("error_reports")
+}
+
+// =============================================================================
+//
+//  RELEASES & NOTIFICATIONS
+//  Release management, user notifications, and bug-to-release linkage.
+//
+// =============================================================================
+
+enum ReleaseStatus {
+  DRAFT
+  STAGED
+  RELEASED
+  ROLLED_BACK
+}
+
+/// A platform release bundling component versions, changelogs, and test results.
+/// Tracks lifecycle from DRAFT through STAGED to RELEASED (or ROLLED_BACK).
+model Release {
+  id                String        @id @default(cuid())
+  version           String        @unique /// semver: "0.3.0"
+  status            ReleaseStatus @default(DRAFT)
+
+  // Git context
+  commitSha         String
+  branch            String        @default("main")
+  previousVersion   String? /// version it replaces
+
+  // Component versions bundled in this release
+  corekinectVersion String? /// e.g., "0.2.6"
+  corectlMinVersion String? /// minimum compatible corectl version
+  protoVersion      String? /// MTIB proto version
+  migrationHash     String? /// Prisma schema fingerprint
+
+  // Content
+  changelog         String?       @db.Text /// markdown changelog
+  summary           String?       @db.Text /// human-written release summary
+  breakingChanges   String?       @db.Text /// breaking change notes
+
+  // Test results at release time
+  testsPassed       Int?
+  testsFailed       Int?
+  testCoverage      Float?
+
+  // Gate
+  gateStatus        String? /// "passed" | "failed" | "overridden"
+  gateOverrideBy    String? /// userId who overrode
+  gateOverrideReason String?     @db.Text
+
+  // Deploy tracking
+  stagedAt          DateTime?
+  releasedAt        DateTime?
+  rolledBackAt      DateTime?
+
+  // Relations
+  createdById       String?
+  createdBy         User?         @relation("releasesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Bug linkage
+  resolvedErrorReports ErrorReport[] @relation("releaseResolvedBugs")
+
+  // Notifications generated by this release
+  notifications     Notification[]
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([version])
+  @@map("releases")
+}
+
+enum NotificationType {
+  RELEASE_PUBLISHED
+  BUG_ACKNOWLEDGED
+  BUG_RESOLVED
+  BUG_DISMISSED
+  SYSTEM_ANNOUNCEMENT
+}
+
+/// A notification delivered to a specific user or broadcast to all users.
+/// Tracks read state for per-user notification feeds.
+model Notification {
+  id            String           @id @default(cuid())
+  type          NotificationType
+  title         String
+  message       String           @db.Text
+
+  // Who gets it (null = broadcast to all)
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional links
+  releaseId     String?
+  release       Release?         @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  errorReportId String?
+
+  // Read tracking
+  readAt        DateTime?
+
+  createdAt     DateTime         @default(now())
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+  @@index([type])
+  @@map("notifications")
 }

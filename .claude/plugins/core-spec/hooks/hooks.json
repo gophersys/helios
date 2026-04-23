@@ -1,0 +1,82 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/spec-session-start.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/spec-pre-compact.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "prompt",
+            "prompt": "⚠️ COMPACTION IMMINENT — You MUST update spec files NOW:\n\n1. **STATUS.md** — Record EXACT position: current stage, current test, progress percentage\n2. **MEMORY.md** — Add learnings, decisions, current context, any errors\n3. **ORCHESTRATOR.md** — If this exists, verify the State field in STATUS.md is correct\n\nThis is your ONLY chance to preserve knowledge. Write to these files IMMEDIATELY.\nDo NOT proceed with any other work until these files are updated."
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/spec-post-compact.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "prompt",
+            "prompt": "🔄 CONTEXT RECOVERED — You MUST re-read your spec files:\n\n1. Read STATUS.md for current stage, wave, and progress\n2. Read MEMORY.md for context, decisions, and errors\n3. Read ORCHESTRATOR.md (if exists) for state machine and execution protocol\n4. Read PLAN.md for stage dependencies\n\nSpec location: .claude/specs/<session-id>/<spec-name>/\n\nDo NOT proceed until you have read these files. If an ORCHESTRATOR.md exists, follow its state machine based on the State field in STATUS.md."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/spec-stop.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "prompt",
+            "prompt": "Before stopping: Update MEMORY.md and STATUS.md in .claude/specs/<session-id>/<spec>/ with current progress. If autonomous execution is active, the cron will resume from STATUS.md."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/verify-spec.sh",
+            "timeout": 3000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "This sub-agent should read .claude/specs/<session-id>/<spec>/MEMORY.md for context and update it with learnings before completing. If using isolation: worktree, commit your work before exiting."
+          }
+        ]
+      }
+    ]
+  }
+}

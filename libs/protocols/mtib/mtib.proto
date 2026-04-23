@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "bitbucket.org/corekinect/concord/libs/protocols/mtib";
 
-package mtib;
+package mtib.v1;
 
 // This is the main interface used to access all the functionality built
 // into the MTIB hardware.
@@ -21,16 +21,6 @@ service MtibV1 {
   // Adc
   rpc AdcRead(AdcReadRequest) returns (AdcReadResponse) {}
   rpc AdcReadAll(Empty) returns (AdcReadAllResponse) {}
-
-  // DUT Power
-  rpc DutPowerEnable(DutPowerRequest) returns (DutPowerResponse) {}
-  rpc DutPowerDisable(Empty) returns (DutPowerResponse) {}
-  rpc DutPowerRead(Empty) returns (DutPowerReadResponse) {}
-
-  // DUT Charge Power
-  rpc DutChargePowerEnable(Empty) returns (DutPowerResponse) {}
-  rpc DutChargePowerDisable(Empty) returns (DutPowerResponse) {}
-  rpc DutChargePowerRead(Empty) returns (DutPowerReadResponse) {}
 
   // Sensors
   rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}
@@ -55,6 +45,26 @@ service MtibV1 {
   // Uart streams
   rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {
   }
+
+  // Power
+  rpc PowerEnable(PowerEnableRequest) returns (PowerResponse) {}
+  rpc PowerDisable(PowerDisableRequest) returns (PowerResponse) {}
+  rpc PowerRead(PowerReadRequest) returns (PowerReadResponse) {}
+  rpc PowerMeasure(PowerMeasureRequest) returns (PowerMeasureResponse) {}
+  rpc PowerStream(PowerStreamRequest) returns (stream PowerStreamResponse) {}
+
+  // GPIO watch
+  rpc GpioWatch(GpioWatchRequest) returns (stream GpioWatchEvent) {}
+
+  // ADC stream
+  rpc AdcStream(AdcStreamRequest) returns (stream AdcStreamResponse) {}
+
+  // NFC
+  rpc NfcPoll(NfcPollRequest) returns (NfcPollResponse) {}
+  rpc NfcReadNdef(NfcReadNdefRequest) returns (NfcReadNdefResponse) {}
+
+  // Observability
+  rpc GetSnapshot(Empty) returns (GetSnapshotResponse) {}
 }
 
 // Shared
@@ -64,6 +74,8 @@ message Empty {}
 message HealthCheckResponse {
   bool ready = 1;
   repeated string errors = 2;
+  string hw_revision = 3;           // "REV1.2"
+  repeated string capabilities = 4;  // ["power", "gpio", "adc", "uart", "flash", "motion", "observability"]
 }
 
 // Gpio
@@ -78,6 +90,12 @@ enum GpioResistorConfig {
   GPIO_RESISTOR_PULL_UP = 1;
   GPIO_RESISTOR_PULL_DOWN = 2;
   GPIO_RESISTOR_NONE = 3;
+}
+
+enum GpioEdge {
+  GPIO_EDGE_RISING = 0;
+  GPIO_EDGE_FALLING = 1;
+  GPIO_EDGE_BOTH = 2;
 }
 
 message GpioConfigRequest {
@@ -109,6 +127,18 @@ message GpioReadResponse {
   bool state = 3;
 }
 
+// GPIO Watch
+message GpioWatchRequest {
+  int32 gpio = 1;
+  GpioEdge edge = 2;
+}
+
+message GpioWatchEvent {
+  int32 gpio = 1;
+  bool state = 2;
+  uint64 timestamp_ms = 3;
+}
+
 // Adc
 message AdcReadRequest { int32 channel = 1; }
 
@@ -124,22 +154,89 @@ message AdcReadAllResponse {
   repeated double voltages_v = 3;
 }
 
-// Power
-message DutPowerRequest { double voltage_v = 1; }
+// ADC Stream
+message AdcStreamRequest {
+  repeated int32 channels = 1;
+  uint32 interval_ms = 2;   // Default: 100 (10 Hz)
+}
 
-message DutPowerResponse {
+message AdcStreamSample {
+  uint64 timestamp_ms = 1;
+  int32 channel = 2;
+  double voltage_v = 3;
+}
+
+message AdcStreamResponse {
+  repeated AdcStreamSample samples = 1;
+}
+
+// Power
+message PowerResponse {
   bool success = 1;
   string message = 2;
 }
 
-// Power Monitor
-message DutPowerReadResponse {
+enum PowerChannel {
+  POWER_CHANNEL_DUT = 0;          // Main DUT power (INA219 @ 0x40, MCP4017)
+  POWER_CHANNEL_CHARGER = 1;      // Charge rail (INA219 @ 0x41)
+  POWER_CHANNEL_JOULESCOPE = 2;   // USB-attached Joulescope JS220 (optional, always-on when connected)
+}
+
+message PowerEnableRequest {
+  PowerChannel channel = 1;
+  double voltage_v = 2;     // Only meaningful for DUT channel
+}
+
+message PowerDisableRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerReadRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerReadResponse {
   bool success = 1;
   string message = 2;
-
-  double current_a = 3;
+  bool enabled = 3;
   double voltage_v = 4;
-  double power_w = 5;
+  double current_ma = 5;
+  double power_mw = 6;
+  double current_na = 7;    // Nanoamp-resolution reading (Joulescope only, 0 for INA219)
+}
+
+message PowerMeasureRequest {
+  PowerChannel channel = 1;
+  float duration_s = 2;
+}
+
+message PowerMeasureResponse {
+  bool success = 1;
+  string message = 2;
+  float duration_s = 3;
+  float average_ma = 4;
+  float min_ma = 5;
+  float max_ma = 6;
+  float average_mv = 7;
+  uint32 sample_count = 8;
+  float average_na = 9;     // Nanoamp-resolution average (Joulescope only)
+  float min_na = 10;        // Nanoamp-resolution min (Joulescope only)
+  float max_na = 11;        // Nanoamp-resolution max (Joulescope only)
+}
+
+message PowerSample {
+  uint64 timestamp_ms = 1;
+  float voltage_mv = 2;
+  float current_ma = 3;
+  float current_na = 4;    // Nanoamp-resolution sample (Joulescope only)
+}
+
+message PowerStreamRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerStreamResponse {
+  repeated PowerSample samples = 1;
 }
 
 // Sensors
@@ -244,11 +341,14 @@ enum HostType {
   HOST_TYPE_NRF52840 = 3;
   HOST_TYPE_NRF5340 = 4;
   HOST_TYPE_NRF9151 = 5;
+  HOST_TYPE_NRF9151_MODEM = 6;
 }
 
 message Programmer {
   ProgrammerType type = 1;
   HostType host = 2;
+  string serial = 3;        // J-Link serial number (e.g., "821009546")
+  bool connected = 4;       // True if device is connected and detected
 }
 
 message ListProgrammersResponse {
@@ -323,6 +423,34 @@ message EraseFlashResponse {
   string message = 2;
 }
 
+// Observability
+message SnapshotPower {
+  PowerChannel channel = 1;
+  bool enabled = 2;
+  double voltage_v = 3;
+  double current_ma = 4;
+}
+
+message SnapshotGpio {
+  int32 gpio = 1;
+  bool state = 2;
+}
+
+message SnapshotAdc {
+  int32 channel = 1;
+  double voltage_v = 2;
+}
+
+message GetSnapshotResponse {
+  bool success = 1;
+  string message = 2;
+  uint64 timestamp_ms = 3;
+  string hw_revision = 4;
+  repeated SnapshotPower power = 5;
+  repeated SnapshotGpio gpio = 6;
+  repeated SnapshotAdc adc = 7;
+}
+
 // Uart streams
 message UartStreamRequest {
   HostType target = 1;
@@ -335,4 +463,32 @@ message UartStreamResponse {
 
   HostType target = 3;
   bytes data = 4;
+}
+
+// NFC
+message NfcPollRequest {
+  uint32 timeout_ms = 1;   // How long to poll for a tag (default: 1000ms)
+}
+
+message NfcPollResponse {
+  bool success = 1;
+  string message = 2;
+  bool tag_present = 3;
+  bytes uid = 4;            // Tag UID (4 or 7 bytes)
+}
+
+message NfcReadNdefRequest {
+  uint32 timeout_ms = 1;   // How long to wait for tag (default: 1000ms)
+}
+
+message NdefRecord {
+  uint32 tnf = 1;          // Type Name Format (0x01 = Well-Known)
+  bytes type = 2;           // Record type (e.g., "T" for Text)
+  bytes payload = 3;        // Record payload
+}
+
+message NfcReadNdefResponse {
+  bool success = 1;
+  string message = 2;
+  repeated NdefRecord records = 3;
 }

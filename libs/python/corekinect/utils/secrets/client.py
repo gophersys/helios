@@ -38,47 +38,72 @@ class SecretsClient:
     This is a Python port of the Go secrets client library.
     """
 
-    def __init__(self, address: str, username: str = "", password: str = "", 
+    def __init__(self, address: str, username: str = "", password: str = "",
                  token_file_path: str = ""):
         """
         Initialize the secrets client.
-        
+
         Args:
             address: Vault server address
             username: Username for userpass authentication (optional if using token)
             password: Password for userpass authentication (optional if using token)
             token_file_path: Path to token file for Kubernetes auth (optional)
+
+        The password is consumed during ``_initialize_client`` and then
+        zeroed; it is NOT retained as an instance attribute past the
+        constructor. This avoids leaking the secret via ``repr(client)``,
+        ``__dict__`` introspection, debuggers, or stack-frame logging
+        when an unrelated exception fires later in the client's life.
         """
         self.address = address
         self.username = username
-        self.password = password
+        # NOTE: ``password`` is intentionally NOT stored on ``self``.
+        # The Vault session token replaces it after authentication; if
+        # auth fails, ``_initialize_client`` raises and the stack frame
+        # for this constructor is the only place the password ever
+        # lives.
         self.token_file_path = token_file_path
         self.vault_client = None
-        
-        # Initialize the Vault client
-        self._initialize_client()
 
-    def _initialize_client(self):
-        """Initialize the Vault client with authentication"""
+        # Initialize the Vault client (consumes ``password`` directly).
+        self._initialize_client(password)
+        # Best-effort scrub: rebind the local name so the password
+        # bytes can be GC'd. Python strings are immutable so we can't
+        # zero the actual bytes; this is a defense-in-depth measure
+        # only — never rely on it to scrub credentials from memory.
+        del password
+
+    def _initialize_client(self, password: str = ""):
+        """Initialize the Vault client with authentication.
+
+        ``password`` is consumed locally and never stored on ``self``;
+        see the constructor docstring for the rationale.
+        """
         try:
             # Create Vault client
             self.vault_client = hvac.Client(url=self.address)
-            
+
             # If a token file path is provided, use the token from the file
             if self.token_file_path and os.path.exists(self.token_file_path):
                 token = self._read_token_from_file(self.token_file_path)
                 self.vault_client.token = token
                 logger.info("Authenticated using token from file")
                 return
-            
+
             # Otherwise, authenticate using userpass
-            if self.username and self.password:
-                self._authenticate_userpass()
+            if self.username and password:
+                self._authenticate_userpass(password)
             else:
                 raise ValueError("Either token_file_path or username/password must be provided")
-                
+
         except Exception as e:
-            logger.error(f"Failed to initialize Vault client: {e}")
+            # Log only the exception type and message — never the
+            # exception's repr, which can include kwargs (and thus the
+            # password) for some hvac error subclasses.
+            logger.error(
+                "Failed to initialize Vault client: %s: %s",
+                type(e).__name__, str(e),
+            )
             raise
 
     def _read_token_from_file(self, token_file_path: str) -> str:
@@ -90,16 +115,21 @@ class SecretsClient:
         except Exception as e:
             raise ValueError(f"Failed to read token from file: {e}")
 
-    def _authenticate_userpass(self):
-        """Authenticate using userpass method"""
+    def _authenticate_userpass(self, password: str):
+        """Authenticate using userpass method.
+
+        ``password`` is passed in directly rather than read from
+        ``self.password`` (which doesn't exist) — keeping the secret
+        confined to this stack frame.
+        """
         max_retries = 3
-        
+
         for attempt in range(1, max_retries + 1):
             try:
                 # Authenticate using userpass
                 auth_response = self.vault_client.auth.userpass.login(
                     username=self.username,
-                    password=self.password
+                    password=password,
                 )
                 
                 if auth_response and 'auth' in auth_response:
@@ -108,9 +138,23 @@ class SecretsClient:
                     return
                     
             except Exception as e:
-                logger.warning(f"Authentication attempt {attempt} failed: {e}")
-                if attempt == max_retries:
-                    raise ValueError(f"Could not log in to Vault after {max_retries} attempts: {e}")
+                if attempt < max_retries:
+                    logger.warning(
+                        "Vault auth attempt %d/%d failed: %s: %s",
+                        attempt, max_retries, type(e).__name__, str(e),
+                    )
+                else:
+                    # Final attempt — escalate to error so the caller's
+                    # log shows the auth failure as a real fault, not a
+                    # transient warning.
+                    logger.error(
+                        "Vault auth failed after %d attempts: %s: %s",
+                        max_retries, type(e).__name__, str(e),
+                    )
+                    raise ValueError(
+                        f"Could not log in to Vault after {max_retries} attempts: "
+                        f"{type(e).__name__}"
+                    ) from e
 
     def _refresh_token_from_file(self):
         """Refresh token from file if token file path is provided"""
@@ -148,8 +192,12 @@ class SecretsClient:
             return response['data']['data']
             
         except Exception as e:
-            logger.error(f"Could not retrieve secret: {e}")
-            raise VaultError(f"Could not retrieve secret: {e}")
+            # Log only the exception type + message; some hvac error
+            # subclasses include the request kwargs in their repr,
+            # which can leak the secret payload back into the log.
+            logger.error("Could not retrieve secret at %r: %s: %s",
+                         path, type(e).__name__, str(e))
+            raise VaultError(f"Could not retrieve secret at {path!r}") from e
 
     def write_key_value(self, path: str, data: Dict[str, Any]) -> None:
         """
@@ -173,8 +221,10 @@ class SecretsClient:
             )
             
         except Exception as e:
-            logger.error(f"Could not create secret: {e}")
-            raise VaultError(f"Could not create secret: {e}")
+            # See ``read_key_value`` for the rationale on log/raise format.
+            logger.error("Could not create secret at %r: %s: %s",
+                         path, type(e).__name__, str(e))
+            raise VaultError(f"Could not create secret at {path!r}") from e
 
     def delete_key_value(self, path: str) -> None:
         """
@@ -194,7 +244,8 @@ class SecretsClient:
             self.vault_client.secrets.kv.v2.delete_metadata_and_all_versions(path=path)
             
         except Exception as e:
-            logger.error(f"Could not delete secret: {e}")
+            logger.error("Could not delete secret at %r: %s: %s",
+                         path, type(e).__name__, str(e))
             raise VaultError(f"Could not delete secret: {e}")
 
     def get_bool_from_map(self, secrets: Dict[str, Any], key: str) -> bool:

@@ -1,16 +1,18 @@
 import pytest
 
-from ..src.temperature import celsius_to_fahrenheit, fahrenheit_to_celsius
+from ..units.temp import celsius_to_fahrenheit, fahrenheit_to_celsius
 
 
 def test_celsius_to_fahrenheit():
+    """Test celsius to fahrenheit."""
     assert celsius_to_fahrenheit(0) == 32
     assert celsius_to_fahrenheit(100) == 212
     assert celsius_to_fahrenheit(-40) == -40
-    assert celsius_to_fahrenheit(37) == 98.6
+    assert celsius_to_fahrenheit(37) == pytest.approx(98.6)
 
 
 def test_fahrenheit_to_celsius():
+    """Test fahrenheit to celsius."""
     assert fahrenheit_to_celsius(32) == 0
     assert fahrenheit_to_celsius(212) == 100
     assert fahrenheit_to_celsius(-40) == -40
@@ -18,6 +20,7 @@ def test_fahrenheit_to_celsius():
 
 
 def test_temperature_round_trip():
+    """Test temperature round trip."""
     temps_c = [0, 100, -40, 37.0, 25.5]
     for temp in temps_c:
         temp_f = celsius_to_fahrenheit(temp)
@@ -26,6 +29,7 @@ def test_temperature_round_trip():
 
 
 def test_temperature_invalid_inputs():
+    """Test temperature invalid inputs."""
     with pytest.raises(TypeError):
         celsius_to_fahrenheit("100")  # Invalid type
     with pytest.raises(TypeError):

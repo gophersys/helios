@@ -28,12 +28,6 @@
 [submodule "libs/zephyr/dut_gpio_config_drv"]
 	path = libs/zephyr/dut_gpio_config_drv
 	url = git@bitbucket.org:corekinect/dut_gpio_config_drv.git
-[submodule "libs/python/corekinect/iface"]
-	path = libs/python/corekinect/iface
-	url = git@bitbucket.org:corekinect/iface-posix.git
-[submodule "libs/python/corekinect/cipher"]
-	path = libs/python/corekinect/cipher
-	url = git@bitbucket.org:corekinect/cipher-posix.git
 [submodule "libs/zephyr/mlx90632_drv"]
 	path = libs/zephyr/mlx90632_drv
 	url = git@bitbucket.org:corekinect/mlx90632_drv.git
@@ -55,12 +49,29 @@
 [submodule "libs/zephyr/vsm_drv"]
 	path = libs/zephyr/vsm_drv
 	url = git@bitbucket.org:corekinect/vsm_drv.git
-[submodule "ui"]
-	path = apps/cloud/concord-app
-	url = git@bitbucket.org:corekinect/concord-app.git
 [submodule "libs/zephyr/mlx90614_drv"]
 	path = libs/zephyr/mlx90614_drv
 	url = git@bitbucket.org:corekinect/mlx90614_drv.git
 [submodule "libs/zephyr/lsm6dso_drv"]
 	path = libs/zephyr/lsm6dso_drv
 	url = git@bitbucket.org:corekinect/lsm6dso_drv.git
+[submodule "apps/firmware/products/alpha/alpha_fw"]
+	path = apps/firmware/products/alpha/alpha_fw
+	url = git@bitbucket.org:corekinect/alpha_fw.git
+	branch = main
+[submodule "apps/firmware/products/alpha/alpha_mfg_fw"]
+	path = apps/firmware/products/alpha/alpha_mfg_fw
+	url = git@bitbucket.org:corekinect/alpha_mfg_fw.git
+	branch = main
+[submodule "apps/firmware/products/sigma5/sigma5_fw"]
+	path = apps/firmware/products/sigma5/sigma5_fw
+	url = git@bitbucket.org:corekinect/sigma5_fw.git
+	branch = master
+[submodule "apps/firmware/products/sigma5/sigma5_mfg_fw"]
+	path = apps/firmware/products/sigma5/sigma5_mfg_fw
+	url = git@bitbucket.org:corekinect/sigma5_mfg_fw.git
+	branch = main
+[submodule "apps/validation/alpha"]
+	path = apps/validation/alpha
+	url = git@bitbucket.org:corekinect/alpha_validation.git
+	branch = init/seed

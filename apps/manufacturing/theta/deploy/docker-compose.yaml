@@ -1,9 +1,0 @@
-services:
-  theta-manufacturing:
-    image: containers.ad.corekinect.com/manufacturing-theta:latest
-    pull_policy: always
-    env_file:
-      - ../.env
-    volumes:
-      - ../assets:/app/assets
-      - ../logs:/app/logs

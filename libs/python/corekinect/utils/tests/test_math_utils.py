@@ -1,15 +1,17 @@
 import pytest
 
-from ..src.math_utils import haversine
+from ..geo.distance import haversine
 
 
 def test_haversine_zero_distance():
+    """Test haversine zero distance."""
     lat, lon = 0, 0
     distance = haversine(lat, lon, lat, lon)
     assert distance == 0.0
 
 
 def test_haversine_known_distance():
+    """Test haversine known distance."""
     # Distance between New York (40.7128° N, 74.0060° W)
     # and London (51.5074° N, 0.1278° W) ~ 3458 miles
     ny_lat, ny_lon = 40.7128, -74.0060
@@ -22,6 +24,7 @@ def test_haversine_known_distance():
 
 
 def test_haversine_antipodal_points():
+    """Test haversine antipodal points."""
     # Antipodal points should be approximately 3959 miles (half Earth's circumference)
     lat1, lon1 = 33.448, -112.074  # Phoenix
     lat2, lon2 = -33.448, 67.926  # Antipodal to Phoenix
@@ -34,6 +37,7 @@ def test_haversine_antipodal_points():
 
 
 def test_haversine_invalid_inputs():
+    """Test haversine invalid inputs."""
     with pytest.raises(TypeError):
         haversine("34.05", -118.25, 40.7128, -74.0060)  # Invalid type for lat1
     with pytest.raises(TypeError):

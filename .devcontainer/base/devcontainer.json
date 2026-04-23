@@ -1,34 +1,25 @@
 {
   "name": "Base Dev Environment",
   "image": "containers.ad.corekinect.com/concord-devcontainer-base:latest",
-  "remoteUser": "devuser",
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.kube ${localEnv:HOME}/.ssh-devcontainer ${localEnv:HOME}/.claude && { git rev-parse --short HEAD; git rev-parse --abbrev-ref HEAD; [ -n \"$(git status --porcelain 2>/dev/null)\" ] && echo true || echo false; } > .git-build-info 2>/dev/null || true",
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
-    // Docker in Docker requires the dev container to have elevated persmissions
     "--privileged",
-    // Network mode must also be privileged
     "--net=host",
-    // Useful for accessing services running on the host machine from within the container.
     "--add-host=host.docker.internal:host-gateway",
-    // We pass credentials and global environment variables
-    "--env-file=.devcontainer/.env"
+    "--env-file=.env"
   ],
   "mounts": [
-    // Docker in Docker requires the dev container to have access to the host's Docker socket
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-    // Docker in Docker requires the dev container to have access to the host's Docker socket
-    "source=${localEnv:HOME}/.kube,target=/home/devuser/.kube,type=bind,readonly",
-    // Access to host's devices
     "source=/dev,target=/dev,type=bind",
-    // Access to host's mount points (Windows drive access)
     "source=/mnt,target=/mnt,type=bind",
-    // Access to host's ssh credentials for bitbucket access
-    "source=${localEnv:HOME}/.ssh-devcontainer,target=/home/devuser/.ssh,type=bind"
+    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind,readonly",
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude,target=${localEnv:HOME}/.claude,type=bind"
   ],
-  // Vs Code Customizations
   "customizations": {
-    // Configure properties specific to VS Code.
     "vscode": {
       "settings": {
         "terminal.integrated.shell.linux": "/usr/bin/zsh",
@@ -36,20 +27,12 @@
           "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit"
           },
-          "editor.rulers": [
-            119
-          ],
+          "editor.rulers": [119],
           "editor.defaultFormatter": "ms-python.black-formatter",
           "editor.formatOnSave": true
         },
-        "black-formatter.args": [
-          "--line-length",
-          "119"
-        ],
-        "isort.args": [
-          "--profile",
-          "black"
-        ]
+        "black-formatter.args": ["--line-length", "119"],
+        "isort.args": ["--profile", "black"]
       },
       "extensions": [
         "Prisma.prisma",
@@ -61,8 +44,7 @@
         "zxh404.vscode-proto3",
         "nrwl.angular-console",
         "hediet.vscode-drawio",
-        "IronGeek.vscode-env",
-        "golang.go"
+        "IronGeek.vscode-env"
       ]
     }
   }

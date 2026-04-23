@@ -1,0 +1,286 @@
+{{- if .Values.networkPolicies.enabled }}
+---
+# ── PostgreSQL: only http-api and backup jobs can connect ───
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: concord-postgres-restrict
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concord-postgres
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # http-api (migrations + queries)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-http-api
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Backup CronJobs
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Pre-upgrade backup hook
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-pre-upgrade
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Backup verification
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-verify
+      ports:
+        - port: 5432
+          protocol: TCP
+  # PostgreSQL is a server — no outbound connections needed
+  egress: []
+---
+# ── MinIO: only http-api, build-service, and backup jobs ───
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: concord-minio-restrict
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concord-minio
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # http-api (presigned URLs, artifact storage)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-http-api
+      ports:
+        - port: 9000
+          protocol: TCP
+    # build-service (artifact upload)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-build-service
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Postgres backup job (stores dumps in MinIO)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-postgres
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Pre-upgrade backup
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-pre-upgrade
+      ports:
+        - port: 9000
+          protocol: TCP
+    # MinIO mirror backup
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-minio
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Backup verification
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-verify
+      ports:
+        - port: 9000
+          protocol: TCP
+    # CI jobs (result upload from devops namespace)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: devops
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: ci
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Manufacturing + validation runners (deployed to the `validation`
+    # namespace by http-api/runner.py; they stream telemetry artifacts
+    # straight to MinIO during test teardown). Opened at namespace scope
+    # because runner pod names are per-session (mfg-alpha-<session-id>,
+    # validation-<run-id>-…) and change over time.
+    #
+    # Both selectors must be present under the same `from` entry: k3s's
+    # embedded kube-router enforces namespaceSelector-only rules
+    # inconsistently (pods silently fall through to default-deny unless
+    # paired with an explicit empty podSelector).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: validation
+          podSelector: {}
+      ports:
+        - port: 9000
+          protocol: TCP
+  # MinIO is a server — no outbound connections needed
+  egress: []
+# NOTE: concord-postgres-restrict intentionally has no validation-ns rule.
+# Manufacturing runners reach Postgres only via http-api (already allowed
+# above in concord-http-api-restrict), never directly.
+---
+# ── http-api: ingress + internal services only ─────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: concord-http-api-restrict
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concord-http-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Traefik ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Frontend (nginx reverse proxy)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-frontend
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Build service (API calls)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-build-service
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Git poller (API calls)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-git-poller
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Validation jobs (reporter callbacks)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: validation
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Health probes from kubelet
+    - from: []
+      ports:
+        - port: 9001
+          protocol: TCP
+  egress:
+    # PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    # MinIO
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-minio
+      ports:
+        - port: 9000
+          protocol: TCP
+    # PyPI
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-pypi
+      ports:
+        - port: 8080
+          protocol: TCP
+    # DNS (kube-dns for service discovery)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # K8s API server (job/deployment creation for validation/build/manufacturing)
+    # Control plane nodes: 10.4.45.11-13 on port 6443
+    - to:
+        - ipBlock:
+            cidr: 10.4.45.11/32
+        - ipBlock:
+            cidr: 10.4.45.12/32
+        - ipBlock:
+            cidr: 10.4.45.13/32
+      ports:
+        - port: 6443
+          protocol: TCP
+    # External HTTPS — Bitbucket API (CkBoards, repo checks), CoreOps, Auth server
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 2013
+          protocol: TCP
+    # Build service (push notifications)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-build-service
+      ports:
+        - port: 9002
+          protocol: TCP
+    # Edge nodes — MTIB gRPC (validation/manufacturing hardware access)
+    - to:
+        - ipBlock:
+            cidr: 10.4.45.0/24
+      ports:
+        - port: 50053
+          protocol: TCP
+{{- end }}

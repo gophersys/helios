@@ -12,6 +12,8 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 # Environment versions
+# NCS_VERSION is required and passed by each ncs-v*/project.json build-arg.
+ARG NCS_VERSION
 ARG NRF_CLI_VERSION=10.24.2
 ARG JLINK_VERSION=V872a
 ARG ZEPHYR_SDK_VERSION=0.17.4
@@ -95,7 +97,6 @@ ENV TZ=UTC
 RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && \
   apt-get install -y --no-install-recommends \
   git \
-  groovy \
   cmake \
   ninja-build \
   gperf \
@@ -115,14 +116,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && \
   gcc \
   libsdl2-dev \
   libmagic1 \
-  libxcb-render0 \
-  libxcb-render-util0 \
-  libxcb-shape0 \
-  libxcb-icccm4 \
-  libxcb-keysyms1 \
-  libxcb-image0 \
-  libxkbcommon-x11-0 \
-  udev \
   expect \
   screen \
   minicom && \
@@ -169,7 +162,7 @@ RUN mkdir /ncs
 WORKDIR /ncs
 
 # Perform the west init, this will be cached as a separate layer
-RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.7.0 && \ 
+RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr ${NCS_VERSION} && \
   west update
 
 # Modify the west.yml using the awk command to add espressif, nxp & stm32 support
@@ -195,15 +188,16 @@ RUN west update && \
 # Modify the anytree version in requirements-extras.txt
 RUN sed -i 's/anytree*/anytree==2.8.0/' /ncs/zephyr/scripts/requirements-extras.txt
 
-# Install additional Python dependencies
+# Install additional Python dependencies (uv is 10-100x faster than pip at resolution)
 RUN --mount=type=cache,target=/root/.cache/pip \
-  pip3 install --user -r zephyr/scripts/requirements.txt \
-                      -r nrf/scripts/requirements.txt \
-                      -r bootloader/mcuboot/scripts/requirements.txt
+  pip install uv && \
+  uv pip install --system \
+    -r zephyr/scripts/requirements.txt \
+    -r nrf/scripts/requirements.txt \
+    -r bootloader/mcuboot/scripts/requirements.txt
 
 # Add OpenOCD binaries to the PATH
-# Note: OpenOCD binary path - update if ZEPHYR_SDK_VERSION ARG changes
-ENV PATH="/usr/local/zephyr-sdk-0.17.4/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
+ENV PATH="/usr/local/zephyr-sdk-${ZEPHYR_SDK_VERSION}/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
 
 # USB device permissions are fixed at runtime by ctl.sh (fix_usb_permissions function)
 # which sets 666 permissions on J-Link (1366) and Nordic (1915) USB devices
@@ -232,26 +226,6 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
-# ----------------------------------------------------
-#                                   DevUser NCS Setup
-# ----------------------------------------------------
-# Make /ncs accessible to devuser
-RUN chown -R devuser:devuser /ncs
-
 # Set ZEPHYR_BASE as a persistent environment variable
 # This ensures west build commands work in all contexts
 ENV ZEPHYR_BASE=/ncs/zephyr
-
-# Set up Zephyr environment for devuser
-RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> /home/devuser/.profile && \
-  echo 'source /ncs/zephyr/zephyr-env.sh' >> /home/devuser/.zshrc
-
-# Install Python requirements for devuser
-RUN --mount=type=cache,target=/home/devuser/.cache/pip \
-  chown -R devuser:devuser /home/devuser/.cache 2>/dev/null || true && \
-  su devuser -c "pip3 install --user -r /ncs/zephyr/scripts/requirements.txt \
-                                      -r /ncs/nrf/scripts/requirements.txt \
-                                      -r /ncs/bootloader/mcuboot/scripts/requirements.txt"
-
-# Add devuser's local bin to PATH
-ENV PATH="/home/devuser/.local/bin:${PATH}"

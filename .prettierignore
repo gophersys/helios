@@ -1,0 +1,28 @@
+/dist
+/coverage
+/.nx
+/.yarn
+/node_modules
+*.lock
+
+# Python (not formatted by prettier)
+**/*.py
+
+# Protobuf
+**/*.proto
+
+# Prisma
+prisma/
+
+# Docs build output
+apps/frontend/docs/site/
+
+# Firmware submodules
+apps/firmware/
+
+# Zephyr libraries (submodules)
+libs/zephyr/
+
+# Generated files
+**/.svelte-kit
+**/build

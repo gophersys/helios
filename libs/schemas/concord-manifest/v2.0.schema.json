@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://concord.corekinect.com/schemas/concord-manifest/v2.0.schema.json",
+  "title": "Concord Test Package Manifest v2.0",
+  "description": "Defines the structure of concord.yaml for validation and manufacturing test packages.",
+  "type": "object",
+  "required": ["schema", "package", "product", "fixture", "stages"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "2.0",
+      "description": "Manifest schema version. Must match exactly."
+    },
+
+    "package": {
+      "type": "object",
+      "required": ["type", "version", "framework"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["validation", "manufacturing"],
+          "description": "Package type. Determines whether 'stages' or 'steps' is expected."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9.]+)?$",
+          "description": "Semantic version for released packages (e.g., '1.0.0', '1.2.3-rc.1')."
+        },
+        "framework": {
+          "type": "string",
+          "pattern": "^>=[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Minimum corekinect framework version constraint (e.g., '>=0.3.0')."
+        }
+      }
+    },
+
+    "product": {
+      "type": "object",
+      "required": ["slug", "board"],
+      "additionalProperties": false,
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "description": "Product slug matching the Concord product record."
+        },
+        "board": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "description": "Board revision name (ckBoardsName, e.g., 'alpha_b0')."
+        },
+        "device": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type_id": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "CoreCloud device type ID."
+            },
+            "variant_id": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "CoreCloud device variant ID."
+            }
+          }
+        }
+      }
+    },
+
+    "fixture": {
+      "type": "object",
+      "required": ["design", "revision", "controller", "profile"],
+      "additionalProperties": false,
+      "properties": {
+        "design": {
+          "type": "string",
+          "description": "Fixture design name matching the 'name' field in fixture.yaml (e.g., 'Alpha B0 Manufacturing Fixture')."
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "Fixture hardware revision matching the 'revision' field in fixture.yaml (e.g., '1.0', '1.2')."
+        },
+        "controller": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*$",
+          "description": "Dotted Python import path to the fixture controller class (e.g., 'fixtures.alpha_b0.controller.AlphaB0Fixture')."
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_/.-]*\\.ya?ml$",
+          "description": "Relative path to the fixture YAML profile (e.g., 'fixtures/alpha_b0/fixture.yaml')."
+        },
+        "multi_slot": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the fixture supports multiple DUT slots. Enables panel/batch workflow."
+        }
+      }
+    },
+
+    "stages": {
+      "type": "object",
+      "description": "Test stages. Each key is a stage name. Used by both validation and manufacturing packages.",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "$ref": "#/$defs/stage"
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "required": ["directory"],
+      "additionalProperties": false,
+      "properties": {
+        "directory": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_/.-]*$",
+          "description": "Relative path to the test directory for this stage (e.g., 'tests/smoke')."
+        },
+        "module": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*$",
+          "description": "Python module name within the directory (e.g., 'test_01_electrical'). For manufacturing stages."
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum execution time in seconds for this stage."
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this stage is enabled. Disabled stages are skipped."
+        },
+        "hardware": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Fixture capabilities required to run this stage (e.g., ['power', 'button'])."
+        },
+        "markers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Pytest markers registered for this stage (e.g., ['health_check', 'fuota_fast'])."
+        }
+      }
+    }
+  }
+}

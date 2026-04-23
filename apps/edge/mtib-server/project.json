@@ -1,27 +1,16 @@
 {
   "name": "mtib-server",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/shared/mtib-server",
+  "sourceRoot": "apps/edge/mtib-server",
   "projectType": "application",
+  "tags": [
+    "scope:edge",
+    "type:app"
+  ],
+  "implicitDependencies": [
+    "protocols"
+  ],
   "targets": {
-    "push": {
-      "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
-      "options": {
-        "cwd": "{workspaceRoot}"
-      },
-      "defaultConfiguration": "staging",
-      "configurations": {
-        "staging": {
-          "command": "docker push containers.ad.corekinect.com/concord-mtib-server:latest"
-        },
-        "production": {
-          "command": "docker push containers.ad.corekinect.com/concord-mtib-server:latest"
-        }
-      }
-    },
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
@@ -38,7 +27,8 @@
         "production": {
           "command": "nx run mtib-server:containerize -c production"
         }
-      }
+      },
+      "cache": false
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -48,38 +38,86 @@
         "cwd": "{workspaceRoot}",
         "file": "apps/edge/mtib-server/deploy/Dockerfile",
         "push": false,
-        "load": true
+        "builder": "concord-builder",
+        "platforms": [
+          "linux/arm64"
+        ]
       },
       "configurations": {
         "development": {
           "tags": [
-            "concord-mtib-server:development"
+            "concord/mtib-server:development"
           ],
-          "platforms": [
-            "linux/arm64"
-          ]
+          "load": true
         },
         "staging": {
           "tags": [
+            "concord/mtib-server:staging",
             "containers.ad.corekinect.com/concord-mtib-server:staging"
           ],
-          "platforms": [
-            "linux/arm64"
-          ]
+          "push": true
         },
         "production": {
           "tags": [
-            "containers.ad.corekinect.com/concord-mtib-server:latest"
+            "concord/mtib-server:production",
+            "containers.ad.corekinect.com/concord-mtib-server:production"
           ],
-          "platforms": [
-            "linux/arm64"
-          ]
+          "push": true
         }
+      },
+      "cache": false
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-mtib-server:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-mtib-server:production"
+        }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "push"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping deploy for development'"
+        },
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "python3 -m pytest"
       }
     },
     "setup": {
       "executor": "nx:run-commands",
-      "cwd": "{projectRoot}",
       "options": {
         "cwd": "{projectRoot}",
         "commands": [
@@ -100,19 +138,6 @@
           },
           {
             "command": "nx run protocols:create"
-          }
-        ],
-        "parallel": false
-      }
-    },
-    "serve": {
-      "executor": "nx:run-commands",
-      "cwd": "{projectRoot}",
-      "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "python3 src/main.py"
           }
         ],
         "parallel": false

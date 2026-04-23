@@ -1,0 +1,6 @@
+apiVersion: v2
+name: concord-ci
+description: Standalone CI platform for Concord — AI-powered code review, trend tracking, and pipeline observability.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

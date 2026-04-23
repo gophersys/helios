@@ -4,6 +4,42 @@
     "sourceRoot": "prisma",
     "projectType": "application",
     "targets": {
+        "generate-client": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma generate"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
+        "migrate": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma migrate dev"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
+        "migrate-deploy": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma migrate deploy"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
         "setup": {
             "executor": "nx:run-commands",
             "options": {
@@ -12,22 +48,31 @@
                         "command": "nx run database:generate-client"
                     },
                     {
-                        "command": "nx run database:push"
-                    },
-                    // {
-                    //     "command": "nx run database:seed"
-                    // }
+                        "command": "nx run database:migrate"
+                    }
                 ],
                 "cwd": "{workspaceRoot}",
                 "parallel": false
             }
         },
-        "generate-client": {
+        "reset": {
             "executor": "nx:run-commands",
             "options": {
                 "commands": [
                     {
-                        "command": "yarn prisma generate"
+                        "command": "yarn prisma migrate reset --force"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
+        "seed": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "python3 -m seed.main"
                     }
                 ],
                 "cwd": "{projectRoot}",
@@ -46,17 +91,16 @@
                 "parallel": false
             }
         },
-        "seed": {
+        "studio": {
             "executor": "nx:run-commands",
-            "defaultConfiguration": "docker",
             "options": {
-                "cwd": "{projectRoot}/seed",
-                "parallel": false,
                 "commands": [
                     {
-                        "command": "/bin/zsh -c 'echo \"Seeding database...\"'"
+                        "command": "yarn prisma studio"
                     }
-                ]
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
             }
         }
     },

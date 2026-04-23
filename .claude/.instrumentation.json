@@ -1,0 +1,150 @@
+{
+  "version": "1",
+  "description": "Tracks which source files generated or informed .claude/ rules and when they were last updated.",
+  "files": {
+    ".claude/rules/docs-system.md": {
+      "created": "2026-03-13",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "docs/",
+        "apps/docs/mkdocs.yml"
+      ],
+      "summary": "Documentation layer map and conventions. Defines function-first organization: vision, architecture, reference, guides, research."
+    },
+    ".claude/rules/docs-governance.md": {
+      "created": "2026-03-13",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "docs/",
+        ".claude/rules/docs-system.md"
+      ],
+      "summary": "Editor protocol, freshness tracking, cohesion checks, ADR immutability rules."
+    },
+    ".claude/rules/mtib-hardware.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-11",
+      "action": "enriched",
+      "sources": [
+        "libs/python/corekinect/mtib_client/",
+        "apps/validation/alpha/"
+      ],
+      "summary": "MTIB hardware rules: power, UART, GPIO, J-Link, fixture profiles. Updated with battery mode, shell lock fixes."
+    },
+    ".claude/rules/development-workflow.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "enriched",
+      "sources": [
+        "deploy/",
+        "nx.json",
+        "package.json"
+      ],
+      "summary": "Three-environment workflow: development, staging, production. Nx commands, deploy gates."
+    },
+    ".claude/rules/deployment-safety.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "enriched",
+      "sources": [
+        "deploy/helm/"
+      ],
+      "summary": "Helm rolling updates, health probes, rollback procedures, forbidden actions."
+    },
+    ".claude/rules/nx-workflow.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "enriched",
+      "sources": [
+        "nx.json",
+        "apps/*/project.json"
+      ],
+      "summary": "Nx-first commands for build, test, deploy. Never bypass Nx."
+    },
+    ".claude/rules/git-commits.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [],
+      "summary": "No AI references in commit messages."
+    },
+    ".claude/rules/repersonalization-workflow.md": {
+      "created": "2026-03-10",
+      "updated": "2026-03-11",
+      "action": "enriched",
+      "sources": [
+        "apps/manufacturing/alpha/",
+        "libs/python/corekinect/test/device_personalizer.py"
+      ],
+      "summary": "Re-personalization required after every J-Link flash. CoreOps API calls, key upload, IPC rekey."
+    },
+    ".claude/rules/icle-monitoring.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "apps/firmware/products/"
+      ],
+      "summary": "ICLE ESP32 power monitor: UART setup, SD card ops, log formats, device states."
+    },
+    ".claude/rules/testing.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/backend/http-api/src/",
+        "apps/frontend/app/src/"
+      ],
+      "summary": "Cross-environment test requirements, patterns, and commands for backend and frontend."
+    },
+    ".claude/rules/environments.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "deploy/",
+        "apps/backend/http-api/src/lib/decorators.py"
+      ],
+      "summary": "Dev/staging/prod config wiring. Every new config field must exist in all three environments."
+    },
+    ".claude/rules/deployment.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "deploy/",
+        "deploy/helm/"
+      ],
+      "summary": "Deployment architecture: Dockerfiles, project.json targets, Helm charts, ctl.sh commands."
+    },
+    ".claude/rules/concord-security.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/backend/http-api/src/",
+        "apps/frontend/app/src/"
+      ],
+      "summary": "Security enforcement: @require_permissions on every endpoint, RBAC permission format, audit logging."
+    },
+    ".claude/rules/apps-backend-http-api.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/backend/http-api/src/"
+      ],
+      "summary": "Backend API patterns: Blueprints, Prisma ORM, request validation via dataclasses, response envelope."
+    },
+    ".claude/rules/apps-frontend-concord-app.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/frontend/app/src/"
+      ],
+      "summary": "Frontend patterns: SvelteKit, TypeScript, Tailwind CSS, design tokens, component conventions."
+    }
+  }
+}

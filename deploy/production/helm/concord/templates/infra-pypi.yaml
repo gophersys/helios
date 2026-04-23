@@ -1,0 +1,99 @@
+{{- if .Values.infrastructure.pypi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-pypi
+  labels:
+    app.kubernetes.io/name: concord-pypi
+    app.kubernetes.io/component: infrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: concord-pypi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: concord-pypi
+    spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" .Values.infrastructure.pypi.nodeSelector) | nindent 6 }}
+      {{- if .Values.infrastructure.pypi.auth.enabled }}
+      initContainers:
+      - name: install-htpasswd
+        image: busybox:1.36
+        command:
+          - /bin/sh
+          - -c
+          - |
+            cp /secret/.htpasswd /data/.htpasswd
+            chmod 644 /data/.htpasswd
+            mkdir -p /data/packages
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 32Mi
+        volumeMounts:
+        - name: pypi-data
+          mountPath: /data
+        - name: htpasswd-secret
+          mountPath: /secret
+          readOnly: true
+      {{- end }}
+      containers:
+      - name: pypi
+        image: pypiserver/pypiserver:v2.3.2
+        {{- if .Values.infrastructure.pypi.auth.enabled }}
+        args: ["run", "-P", "/data/.htpasswd", "-a", "update", "/data/packages"]
+        {{- else }}
+        args: ["run", "-P", ".", "-a", ".", "/data/packages"]
+        {{- end }}
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: pypi-data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+      volumes:
+      - name: pypi-data
+        persistentVolumeClaim:
+          claimName: concord-pypi-pvc
+      {{- if .Values.infrastructure.pypi.auth.enabled }}
+      - name: htpasswd-secret
+        secret:
+          secretName: concord-pypi-htpasswd
+      {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: concord-pypi-pvc
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.infrastructure.pypi.storage | default "2Gi" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: concord-pypi
+spec:
+  selector:
+    app.kubernetes.io/name: concord-pypi
+  ports:
+  - port: 8080
+    targetPort: 8080
+{{- end }}

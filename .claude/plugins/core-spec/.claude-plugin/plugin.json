@@ -1,0 +1,5 @@
+{
+  "name": "core-spec",
+  "description": "Spec-driven development system — creates, manages, and executes project specifications with worktree agent swarms, cron-driven autonomous execution, bounded retries, post-stage reconciliation, staging promotion, and compaction-resilient orchestration",
+  "version": "0.3.0"
+}
