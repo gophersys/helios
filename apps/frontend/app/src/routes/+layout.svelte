@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto, afterNavigate } from '$app/navigation';
-  import { PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
+  import { PUBLIC_APP_ENVIRONMENT, PUBLIC_APP_VERSION } from '$env/static/public';
   import { createAuthContext } from '$lib/stores/auth.svelte';
   import { createThemeContext } from '$lib/stores/theme.svelte';
   import { reportJsError, trackNavigation } from '$lib/stores/error-reporter.svelte';
@@ -30,28 +30,43 @@
 
   let routeAnnouncement = $state('');
   let boundaryError = $state<{ message: string; stack?: string } | null>(null);
+  let updateAvailable = $state(false);
+  let newVersion = $state('');
   const isDev = PUBLIC_APP_ENVIRONMENT === 'development' || PUBLIC_APP_ENVIRONMENT === 'local' || !PUBLIC_APP_ENVIRONMENT;
+
+  async function checkForUpdate(): Promise<void> {
+    if (!PUBLIC_APP_VERSION || PUBLIC_APP_VERSION === 'dev') return;
+    try {
+      const res = await fetch(`/build-info.json?_=${Date.now()}`);
+      if (!res.ok) return;
+      const info = await res.json();
+      if (info.version && info.version !== PUBLIC_APP_VERSION) {
+        updateAvailable = true;
+        newVersion = info.version;
+      }
+    } catch { /* network error — skip */ }
+  }
 
   afterNavigate(({ to }) => {
     const title = document.title || $page.url.pathname;
     routeAnnouncement = 'Navigated to ' + title;
     if (to?.url) trackNavigation(to.url.pathname);
 
-    // Deep-link handler: if the URL has ?a=<actionId> and a matching
-    // element exists on the loaded page, scroll to it and pulse it.
-    // Wait two animation frames so the page's onMount/effects have
-    // stamped their data-action attributes into the DOM.
     const actionId = readActionFromUrl($page.url);
     if (actionId) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => highlightAction(actionId));
       });
     }
+
+    checkForUpdate();
   });
 
   // Initialize auth on mount
   onMount(async () => {
     await auth.init();
+
+    const versionPoll = setInterval(checkForUpdate, 60_000);
 
     // Catch unhandled JS errors globally
     window.addEventListener('error', (e) => {
@@ -84,6 +99,8 @@
         stack: e.reason?.stack,
       });
     });
+
+    return () => clearInterval(versionPoll);
   });
 
   // Redirect logic
@@ -135,6 +152,26 @@
 {/if}
 
 <div aria-live="polite" aria-atomic="true" class="sr-only">{routeAnnouncement}</div>
+
+{#if updateAvailable}
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] flex items-center gap-3 rounded-lg border border-accent/30 bg-accent-muted px-4 py-3 shadow-elevated">
+    <div class="text-sm text-text-primary">
+      <span class="font-semibold">Concord v{newVersion}</span> is available
+      <span class="text-text-secondary">(you're on v{PUBLIC_APP_VERSION})</span>
+    </div>
+    <button
+      onclick={() => location.reload()}
+      class="btn btn-sm btn-primary"
+    >
+      Reload
+    </button>
+    <button
+      onclick={() => (updateAvailable = false)}
+      class="text-text-tertiary hover:text-text-primary text-xs"
+      aria-label="Dismiss"
+    >&times;</button>
+  </div>
+{/if}
 
 <ErrorReportModal />
 <ActionContextMenu />

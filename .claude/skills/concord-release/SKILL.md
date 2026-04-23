@@ -8,143 +8,234 @@ argument-hint: "[version] or leave blank for auto-detect"
 # Concord Platform Release
 
 Orchestrate a full Concord platform release. A release is an atomic semver-tagged
-commit on `main` that covers all 5 platform services (http-api, frontend, docs,
-git-poller, mtib-server) plus the independently-versioned components (corekinect
-SDK, MTIB proto).
+commit on `main` that covers all platform services (http-api, frontend, docs,
+git-poller, build-service, runner) plus independently-versioned components.
 
 Arguments: $ARGUMENTS
 
+## Version: Single Source of Truth
+
+The `VERSION` file at the repo root is the **sole authority** for the platform
+version. Three UI locations display it — all read the same build-time constant
+`PUBLIC_APP_VERSION`, which is set from `VERSION` by `ctl.sh` during Docker builds:
+
+| Location | File | Source |
+|----------|------|--------|
+| Sidebar (bottom-left) | `sidebar.svelte` | `PUBLIC_APP_VERSION` |
+| Settings → System tab | `settings-modal.svelte` | `PUBLIC_APP_VERSION` |
+| Releases page badge | `releases/+page.svelte` | `PUBLIC_APP_VERSION` |
+
+Changing the `VERSION` file and deploying updates all three atomically.
+**Never set version anywhere else.** The release record in the database is
+historical metadata — it does not drive what the UI displays.
+
+## Update notification
+
+After deploying a new version, users with open tabs see a persistent banner:
+"Concord vX.Y.Z is available (you're on vA.B.C) — Reload". This is powered by
+`/build-info.json` polling in `+layout.svelte`. No manual action needed — it
+fires automatically when the deployed version differs from the baked-in bundle.
+
 ## What a release covers
 
-A release bundles:
-- **Platform version** (`VERSION` file at repo root) — one semver for all 5 services
+- **Platform version** (`VERSION`) — one semver for all services
 - **corekinect SDK** (`libs/python/corekinect/__init__.py` → `__version__`) — independently versioned
 - **MTIB proto** (`libs/protocols/mtib/VERSION`) — independently versioned
 - **Prisma migration hash** — current schema fingerprint
 - **Changelog** — auto-generated from conventional commits since last tag
-- **Compatibility matrix** — which versions of each component ship together
+
+## Git workflow: NEVER push directly to main
+
+All release work happens on a branch. **Never commit or push directly to main.**
+
+```
+main ─────────────────────●── (merge) ──● tag vX.Y.Z ── deploy
+                         ╱
+release/vX.Y.Z ────●────●
+                  bump  fixes
+```
+
+1. Create a release branch from main
+2. Do all version bump / changelog / fixes on the branch
+3. Push the branch
+4. Create a PR to main
+5. Merge the PR (squash or merge commit — user's preference)
+6. Tag the merge commit on main
+7. Deploy from main
+
+## DevContainer & Submodule Rules
+
+All `nx` commands MUST run through the devcontainer:
+
+```bash
+npx -y @devcontainers/cli exec \
+  --workspace-folder /home/mateo/work/concord/concord \
+  --config /home/mateo/work/concord/concord/.devcontainer/base/devcontainer.json \
+  <command>
+```
+
+When operating from the umbrella repo (`/home/mateo/work/`), concord is a git
+submodule. Git does not work inside the devcontainer because `.git` is a pointer
+file to an unmounted parent directory. The deploy script falls back to
+`.git-build-info` for commit metadata.
+
+**Before EVERY deploy command**, refresh `.git-build-info` on the host:
+
+```bash
+{ git -C /home/mateo/work/concord/concord rev-parse --short HEAD; \
+  git -C /home/mateo/work/concord/concord rev-parse --abbrev-ref HEAD; \
+  [ -n "$(git -C /home/mateo/work/concord/concord status --porcelain 2>/dev/null)" ] \
+    && echo true || echo false; \
+} > /home/mateo/work/concord/concord/.git-build-info
+```
+
+Chain it before the devcontainer exec with `&&`.
 
 ## Phase 1 — Pre-flight
 
-1. Confirm we are on `main` branch (or the user has a reason not to be)
-2. Confirm the working tree is clean (`git status --porcelain`)
-3. Read current `VERSION` file
-4. Find the latest git tag (`git describe --tags --abbrev=0`)
-5. Run the changelog script to determine the suggested bump type:
-   ```bash
-   python3 scripts/changelog.py
-   ```
-   The exit code tells you the bump: 0=patch, 1=minor, 2=major.
-6. If the user supplied an explicit version in `$ARGUMENTS`, use that. Otherwise
-   propose the auto-detected bump (e.g. "Commits suggest a minor bump: 0.4.0 → 0.5.0").
-   Wait for confirmation before proceeding.
+1. Confirm we are on `main` branch and it is clean
+2. Read current `VERSION` file
+3. Find the latest git tag (`git describe --tags --abbrev=0`)
+4. If the user supplied an explicit version in `$ARGUMENTS`, use that.
+   Otherwise determine bump type from commit history:
+   - Any `feat:` → minor bump
+   - Only `fix:/chore:/refactor:` → patch bump
+   Propose the bump and wait for confirmation.
 
-## Phase 2 — Gate checks
+## Phase 2 — Create release branch
 
-Run the release gate (fast mode first for quick feedback):
+```bash
+git checkout -b release/vX.Y.Z
+```
+
+All subsequent changes happen on this branch.
+
+## Phase 3 — Gate checks
+
+Run the release gate:
 
 ```bash
 python3 scripts/release_gate.py --skip-slow
 ```
 
-Review the JSON output. If any check fails:
-- Explain which check failed and why
-- Ask if the user wants to `--override` with a reason, or fix the issue first
+If any check fails, explain which and ask the user whether to override or fix.
 
-If the user wants the full gate (with tests + typecheck):
+For the full gate (with tests + typecheck), run inside the devcontainer:
 
 ```bash
-docker exec concord-dev bash -c "cd /workspaces/concord && python3 scripts/release_gate.py"
+npx -y @devcontainers/cli exec ... python3 scripts/release_gate.py
 ```
 
-This runs inside the devcontainer where nx/npx are available.
+## Phase 4 — Version bump
 
-## Phase 3 — Version bump
+Write the new version to `VERSION`:
 
-1. Write the new version to `VERSION`:
-   ```bash
-   echo "X.Y.Z" > VERSION
-   ```
+```bash
+echo "X.Y.Z" > VERSION
+```
 
-2. Gather compatibility info:
-   ```bash
-   python3 scripts/compatibility.py
-   ```
-   Save this output — it goes into the release record.
+## Phase 5 — Changelog
 
-## Phase 4 — Changelog
-
-Generate the full changelog from the last tag to HEAD:
+Generate the changelog from the last tag:
 
 ```bash
 python3 scripts/changelog.py <last-tag> HEAD
 ```
 
-Capture the markdown output. Present it to the user for review. Ask if they
-want to add a human-written summary or edit the changelog before committing.
+Present to the user for review. Ask if they want a human-written summary.
 
-## Phase 5 — Commit and tag
+## Phase 6 — Commit and push the release branch
 
-1. Stage the VERSION file:
+1. Set git identity:
    ```bash
-   git add VERSION
+   git config user.name "Mateo Segura" && git config user.email "mateo@corekinect.com"
    ```
 
-2. Commit with conventional commit format:
+2. Stage and commit:
    ```bash
+   git add VERSION
    git commit -m "chore(release): vX.Y.Z"
    ```
 
-3. Create an annotated tag:
+3. Push the branch:
    ```bash
-   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push -u origin release/vX.Y.Z
    ```
 
-4. Push the commit and tag:
-   ```bash
-   git push origin main --follow-tags
-   ```
-   **Wait for user confirmation before pushing.**
+**Never include AI/Claude/LLM references in commit messages.**
 
-## Phase 6 — Deploy staging
+## Phase 7 — Create PR and merge
 
-Deploy to staging and verify:
+Create a pull request to main:
 
 ```bash
-nx diff platform -c staging
+gh pr create --base main --head release/vX.Y.Z \
+  --title "release: vX.Y.Z" \
+  --body "$(cat <<'EOF'
+## Release vX.Y.Z
+
+### Changes
+<changelog summary>
+
+### Checklist
+- [ ] Gate checks passed
+- [ ] Version bumped in VERSION file
+- [ ] Changelog reviewed
+EOF
+)"
 ```
 
-Show the diff to the user. If it looks correct:
+Wait for user confirmation, then merge:
 
 ```bash
-nx update platform -c staging
+gh pr merge release/vX.Y.Z --merge --delete-branch
 ```
 
-Then verify:
+## Phase 8 — Tag on main
+
+After the merge, switch to main, pull, and tag:
 
 ```bash
-nx status platform -c staging
+git checkout main
+git pull origin main
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin --tags
 ```
 
-Wait for all pods to be Running/Ready before proceeding.
+## Phase 9 — Deploy staging and production (parallel)
 
-## Phase 7 — Create release record (staging)
+Deploy both environments in parallel. Each deploy command must be preceded by
+the `.git-build-info` refresh.
 
-The API requires authentication even for internal calls. Generate a JWT inside
-the pod (PyJWT is available) using the environment's secret and a real user ID.
-
-### Step 1: Get the JWT secret and a user ID
-
+**Staging:**
 ```bash
-JWT_SECRET=$(kubectl get secret -n staging concord-secrets -o jsonpath='{.data.JWT_SECRET_KEY}' | base64 -d)
+{ git -C /home/mateo/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
+npx -y @devcontainers/cli exec ... nx update platform -c staging
 ```
 
-List users to find Mateo's ID (or whichever admin is doing the release):
+**Production:**
 ```bash
-kubectl exec -n staging deploy/concord-http-api -- python3 -c "
+{ git -C /home/mateo/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
+npx -y @devcontainers/cli exec ... nx update platform -c production
+```
+
+Run both as background tasks. Verify the output shows:
+- Correct `version=X.Y.Z` and `commit=<expected>`
+- All pods verified (checkmark for each deployment)
+- Smoke tests passed
+
+## Phase 10 — Create release records (both environments)
+
+Create release records in both staging and production databases. The API requires
+a valid JWT.
+
+### Generate a JWT inside the pod
+
+```bash
+JWT_SECRET=$(kubectl get secret -n <namespace> concord-secrets -o jsonpath='{.data.JWT_SECRET_KEY}' | base64 -d)
+
+TOKEN=$(kubectl exec -n <namespace> deploy/concord-http-api -- python3 -c "
 import jwt; from datetime import datetime, timezone, timedelta
-secret = '<JWT_SECRET>'
-# Use a known admin user ID from the DB
 token = jwt.encode({
     'sub': '<USER_ID>',
     'email': 'mateo@corekinect.com',
@@ -152,85 +243,47 @@ token = jwt.encode({
     'role': 'ADMIN',
     'iat': datetime.now(timezone.utc),
     'exp': datetime.now(timezone.utc) + timedelta(hours=1),
-}, secret, algorithm='HS256')
+}, '$JWT_SECRET', algorithm='HS256')
 print(token)
-"
+")
 ```
 
-### Step 2: Create the release record
+The `sub` claim MUST be a real user ID from the database — synthetic IDs
+cause a foreign key violation on `createdById`.
+
+### POST the release record
 
 ```bash
-kubectl exec -n staging deploy/concord-http-api -- \
+kubectl exec -n <namespace> deploy/concord-http-api -- \
   curl -s -X POST http://localhost:9001/v2/releases \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "version": "X.Y.Z",
     "commitSha": "<sha>",
     "branch": "main",
     "status": "RELEASED",
     "previousVersion": "<prev>",
-    "corekinectVersion": "<ck_ver>",
-    "protoVersion": "<proto_ver>",
     "changelog": "<changelog_markdown>",
     "summary": "<user_summary>",
     "gateStatus": "passed"
   }'
 ```
 
-**Critical:** The JWT `sub` claim MUST be a real user ID from the database —
-a synthetic ID like `"system-release"` causes a foreign key violation on
-`createdById`.
-
-Verify: list releases to confirm the record exists.
-
-## Phase 8 — Staging validation
-
-Ask the user to validate staging:
-- Check the Releases page shows the new version
-- Smoke test critical paths
-- Verify the changelog renders correctly
-
-If the user reports issues, help debug. Do not proceed to production until
-staging is validated.
-
-## Phase 9 — Deploy production
-
-Same flow as staging:
+If the version already exists (409 Conflict), use PATCH instead:
 
 ```bash
-nx diff platform -c production
-nx update platform -c production
-nx status platform -c production
-```
-
-Wait for pods. Then create the production release record using the same JWT
-generation pattern as Phase 7 but with the **production** namespace and its
-own JWT secret:
-
-```bash
-JWT_SECRET=$(kubectl get secret -n production concord-secrets -o jsonpath='{.data.JWT_SECRET_KEY}' | base64 -d)
-```
-
-Generate a token and POST to `/v2/releases` in the production namespace.
-Use `status: "RELEASED"` if deploying directly to production.
-
-## Phase 10 — Update release status
-
-If you created the release record as DRAFT initially (e.g., during staging),
-update it to RELEASED after production deploy is verified:
-
-```bash
-kubectl exec -n <namespace> deploy/concord-http-api -- \
-  curl -s -X PATCH http://localhost:9001/v2/releases/<id> \
+curl -s -X PATCH http://localhost:9001/v2/releases/<id> \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
-  -d '{"status": "RELEASED"}'
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"status": "RELEASED", "commitSha": "<sha>"}'
 ```
+
+Create records in **both** staging and production — they have separate databases.
 
 ## Phase 11 — Link resolved bugs
 
-If there are error reports that were fixed in this release:
+If there are error reports fixed in this release:
 
 1. List acknowledged/open error reports
 2. Ask the user which ones were resolved
@@ -243,25 +296,35 @@ If there are error reports that were fixed in this release:
 
 ## Abort / Rollback
 
-If something goes wrong at any phase:
-
-- **Before push (Phase 5):** `git tag -d vX.Y.Z && git reset --soft HEAD~1` to undo
-- **After staging deploy:** `nx rollback platform -c staging`
-- **After production deploy:** `nx rollback platform -c production`
+| Phase | Recovery |
+|-------|----------|
+| Before PR merge | Delete the branch: `git push origin --delete release/vX.Y.Z` |
+| After merge, before deploy | `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` |
+| After staging deploy | `nx rollback platform -c staging` (via devcontainer) |
+| After production deploy | `nx rollback platform -c production` (via devcontainer) |
 
 Always ask before performing destructive rollback actions.
 
+## Common pitfalls
+
+- **Pushing directly to main**: Never. Always use a release branch + PR.
+- **Stale commit hash in builds**: Forgetting to refresh `.git-build-info` before
+  the devcontainer exec. The build output will show the wrong commit.
+- **OOMKill after changes**: http-api has memory limits (staging: 1Gi, production: 1Gi).
+  If a change increases memory usage, check pod status after deploy.
+- **Release record already exists**: The POST returns 409 if the version string
+  already exists. Use PATCH to update the existing record.
+- **Import crashes in http-api**: Module-level imports that trigger config
+  initialization will crash the pod. Board discovery and similar heavy inits
+  must be lazy-imported inside `if __name__ == "__main__":`.
+- **Version mismatch across UI**: All three version displays (sidebar, settings,
+  releases badge) read `PUBLIC_APP_VERSION`. If they ever show different values,
+  something bypassed the `VERSION` file. Fix the source, don't patch the UI.
+
 ## Quick reference
 
-| Script | Purpose | Run from |
-|--------|---------|----------|
-| `scripts/release_gate.py` | Pre-flight checks | repo root |
-| `scripts/release_gate.py --skip-slow` | Fast gate (no tests) | repo root |
-| `scripts/changelog.py [from] [to]` | Generate changelog | repo root |
-| `scripts/compatibility.py` | Version matrix | repo root |
-
-| Nx command | Purpose |
-|-----------|---------|
+| Nx command (via devcontainer) | Purpose |
+|-------------------------------|---------|
 | `nx diff platform -c staging` | Preview Helm changes |
 | `nx update platform -c staging` | Build + deploy staging |
 | `nx status platform -c staging` | Check pod status |
@@ -271,5 +334,5 @@ Always ask before performing destructive rollback actions.
 |-------------|--------|---------|
 | `/v2/releases` | POST | Create release record |
 | `/v2/releases` | GET | List releases |
-| `/v2/releases/<id>` | PATCH | Update status |
+| `/v2/releases/<id>` | PATCH | Update status / fields |
 | `/v2/releases/<id>/link-bugs` | POST | Link resolved bugs |
