@@ -7,6 +7,7 @@
  */
 
 import { browser } from '$app/environment';
+import { PUBLIC_APP_ENVIRONMENT, PUBLIC_APP_VERSION } from '$env/static/public';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,13 +92,11 @@ export function trackAction(action: string): void {
 // ---------------------------------------------------------------------------
 
 function getAppVersion(): string {
-  if (!browser) return 'unknown';
-  return (globalThis as any).__CONCORD_VERSION__ ?? 'development';
+  return PUBLIC_APP_VERSION || 'unknown';
 }
 
 function getEnvironment(): string {
-  if (!browser) return 'unknown';
-  return (globalThis as any).__CONCORD_ENV__ ?? 'development';
+  return PUBLIC_APP_ENVIRONMENT || 'unknown';
 }
 
 function getScreenSize(): string {
