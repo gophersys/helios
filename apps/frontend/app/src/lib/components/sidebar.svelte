@@ -18,6 +18,7 @@
     History,
     BookOpen,
     Bug,
+    AlertTriangle,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION, PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -100,6 +101,7 @@
   const systemItems: NavItem[] = [
     { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'system:view' },
     { to: '/history', icon: History, label: 'History', permission: 'system:view' },
+    { to: '/error-reports', icon: AlertTriangle, label: 'Error Reports', permission: 'system:view' },
   ];
 
   const visibleSystemItems = $derived(

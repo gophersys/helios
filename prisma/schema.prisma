@@ -993,6 +993,7 @@ model User {
   createdFixtureDesigns FixtureDesign[]        @relation("FixtureDesignCreatedBy")
   createdFixtures       Fixture[]              @relation("FixtureCreatedBy")
   createdBuildRuns      BuildRun[]             @relation("BuildRunCreatedBy")
+  resolvedErrorReports  ErrorReport[]
 
   @@map("users")
 }
@@ -1576,4 +1577,49 @@ model TestPackageStage {
   @@unique([testPackageId, name])
   @@index([testPackageId])
   @@map("test_package_stages")
+}
+
+enum ErrorReportStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+/// Frontend error/bug reports — captures JS errors, API errors, WebSocket errors,
+/// and user-submitted bug reports with full diagnostic context.
+model ErrorReport {
+  id        String            @id @default(cuid())
+  status    ErrorReportStatus @default(OPEN)
+
+  // Classification
+  type     String /// "js", "api", "websocket", "validation", "unhandled", "user_report"
+  severity String /// "critical", "error", "warning", "info"
+  message  String @db.Text
+
+  // Rich diagnostic context (stack traces, breadcrumbs, environment, request/response)
+  context Json? /// Full ErrorReport payload from frontend
+
+  // Denormalized fields for filtering/querying
+  currentPath String?
+  userEmail   String?
+  userId      String?
+  appVersion  String?
+
+  // Admin triage
+  resolvedById String?
+  resolvedAt   DateTime?
+  adminNotes   String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resolvedBy User? @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([type])
+  @@index([severity])
+  @@index([userId])
+  @@map("error_reports")
 }

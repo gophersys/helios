@@ -187,11 +187,31 @@ class ErrorReporterState {
     this.reportSent = false;
   }
 
+  private _sending = false;
+
   async sendReport(): Promise<void> {
-    if (!this.current) return;
-    // TODO: POST to /v2/system/error-reports when backend is ready
-    console.info('[error-reporter] Report ready to send:', JSON.stringify(this.current, null, 2));
-    this.reportSent = true;
+    if (!this.current || this._sending) return;
+    this._sending = true;
+    try {
+      const token = localStorage.getItem('concord-token');
+      const res = await fetch('/v2/system/error-reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(this.current),
+      });
+      if (!res.ok) {
+        console.error('[error-reporter] Server returned', res.status);
+      }
+      this.reportSent = true;
+    } catch (err) {
+      console.error('[error-reporter] Failed to send report:', err);
+      this.reportSent = true;
+    } finally {
+      this._sending = false;
+    }
   }
 
   getReportJson(): string {

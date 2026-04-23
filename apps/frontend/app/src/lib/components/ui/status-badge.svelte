@@ -58,6 +58,11 @@
     // Product lifecycle
     ARCHIVED: 'bg-surface-2 text-text-tertiary',
     INACTIVE: 'bg-surface-2 text-text-tertiary',
+    // Error report statuses
+    OPEN: 'bg-error-muted text-error',
+    ACKNOWLEDGED: 'bg-warning-muted text-warning',
+    RESOLVED: 'bg-success-muted text-success',
+    DISMISSED: 'bg-surface-2 text-text-tertiary',
   };
 
   // Human-readable labels for ugly enum values
