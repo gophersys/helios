@@ -65,7 +65,9 @@ Return format: `{"data": [...], "pagination": {"page", "limit", "total", "pages"
 
 ## Router Registration
 
-Routes go in `src/api/v2/router.py` using `v2.add_url_rule()`. URL pattern: `/domain/resources[/<id>][/sub-resources[/<sub_id>]]`.
+Each domain has a `routes.py` with a `register_<domain>_routes(api)` function. The main `router.py` calls these functions to compose all routes. See `src/api/v2/runs/routes.py` as reference.
+
+New domains: create `src/api/v2/<domain>/routes.py`, then import and call it in `router.py`. URL pattern: `/domain/resources[/<id>][/sub-resources[/<sub_id>]]`.
 
 ## Error Responses
 

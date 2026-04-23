@@ -26,24 +26,81 @@ This skill combines the backend and frontend patterns to create a complete featu
 
 Follow the pattern in `apps/backend/http-api/src/api/v2/products/`:
 
-1. **types.py** — Create/Update request dataclasses with `from_json()` validation
-2. **shared.py** — Constants and helpers (if needed)
-3. **<entity>.py** — CRUD handlers: list (paginated), create, get, update, delete
-4. **router.py** — Register all routes
-5. **permissions.py** — Add VIEW/MANAGE permissions
-6. **seed.py** — Add permissions to seed arrays
-7. **docs.py** — Add OpenAPI schemas and path operations
+### Module files
 
-Key requirements:
+1. **`__init__.py`** — Empty or with a module docstring
+2. **`types.py`** — Create/Update request dataclasses with `from_json()` validation
+3. **`shared.py`** — Constants and helpers (if needed)
+4. **`<entity>.py`** — CRUD handlers: list (paginated), create, get, update, delete
+5. **`routes.py`** — `register_<domain>_routes(api)` function that registers all routes
+
+### Route registration
+
+Each domain has its own `routes.py` with a registration function. Follow the pattern in `src/api/v2/runs/routes.py`:
+
+```python
+"""Route registration for /v2/<domain> endpoints."""
+
+from flask import Blueprint
+
+from .<entity> import list_items, create_item, get_item, update_item, delete_item
+
+
+def register_<domain>_routes(api: Blueprint):
+    api.add_url_rule("/<domain>", endpoint="list_items", view_func=list_items, methods=["GET"])
+    api.add_url_rule("/<domain>", endpoint="create_item", view_func=create_item, methods=["POST"])
+    api.add_url_rule("/<domain>/<item_id>", endpoint="get_item", view_func=get_item, methods=["GET"])
+    api.add_url_rule("/<domain>/<item_id>", endpoint="update_item", view_func=update_item, methods=["PUT"])
+    api.add_url_rule("/<domain>/<item_id>", endpoint="delete_item", view_func=delete_item, methods=["DELETE"])
+```
+
+Then wire it into `src/api/v2/router.py`:
+```python
+from .<domain>.routes import register_<domain>_routes
+# Inside register_v2_routes():
+register_<domain>_routes(v2)
+```
+
+### Other backend files
+
+6. **`src/lib/permissions.py`** — Add `ADMIN_<MODULE>_VIEW` / `ADMIN_<MODULE>_MANAGE` permissions
+7. **`prisma/seed.py`** — Add permissions to seed arrays
+8. **`src/api/v2/docs.py`** — Add OpenAPI schemas and path operations
+
+### Key requirements
+
 - `@require_permissions()` on every endpoint
 - `log_audit()` after every mutation
 - `ApiResponse.ok()` envelope on all responses
 - `_serialize_<entity>()` helpers for consistent output
 - Pagination on list endpoints (page/limit/total/pages)
+- Config imports: `from config.env import env_config`
 
 Verify: `python3 -c "import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]"`
 
-## Phase 3 — Frontend (SvelteKit)
+## Phase 3 — Service Layer (if needed)
+
+If the feature requires business logic beyond simple CRUD (e.g., external API calls, background jobs, complex state machines), add service files under `src/services/`.
+
+**Service directory structure:**
+```
+src/services/
+  auth/           — Authentication (JWT, CoreCloud)
+  builds/         — CI build lifecycle (run_service, trigger, promotion, etc.)
+  ck_boards/      — Board definition repository
+  database/       — Prisma ORM singleton
+  devices/        — MTIB device observability
+  executors/      — Job execution (Docker/K8s)
+  integrations/   — External API clients (Bitbucket, webhooks)
+  kubernetes/     — K8s API abstractions
+  log/            — Structured logging
+  scheduling/     — Background job scheduling
+  storage/        — MinIO/S3 client
+```
+
+Place new services in the appropriate subdirectory or create a new one if no existing group fits.
+
+## Phase 4 — Frontend (SvelteKit)
 
 Follow the pattern in `apps/frontend/app/src/routes/products/`:
 
@@ -65,14 +122,14 @@ Key requirements:
 
 Verify: `npx nx typecheck app && npx nx build app`
 
-## Phase 4 — Verification
+## Phase 5 — Verification
 
 1. Python compiles clean
 2. TypeScript compiles clean
 3. Vite builds clean
 4. API responds (if server is running): `curl -s localhost:9001/v2/<domain> | head`
 
-## Phase 5 — Tests
+## Phase 6 — Tests
 
 1. **Backend types tests** — Add `tests/unit/types/test_<domain>_types.py`:
    - Test `from_json()` for valid input, missing required fields, invalid values
