@@ -30,7 +30,8 @@ export default defineConfig({
       $lib: resolve('./src/lib'),
       '$app/environment': resolve('./src/tests/mocks/app-environment.ts'),
       '$app/navigation': resolve('./src/tests/mocks/app-navigation.ts'),
-      '$app/stores': resolve('./src/tests/mocks/app-stores.ts')
+      '$app/stores': resolve('./src/tests/mocks/app-stores.ts'),
+      '$env/static/public': resolve('./src/tests/mocks/env-static-public.ts')
     }
   }
 });

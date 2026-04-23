@@ -64,8 +64,20 @@
     });
 
     // Catch unhandled promise rejections globally
+    const STALE_CHUNK_RE = /Failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed/i;
     window.addEventListener('unhandledrejection', (e) => {
       const msg = e.reason?.message || String(e.reason);
+
+      if (STALE_CHUNK_RE.test(msg)) {
+        const key = 'concord:chunk-reload';
+        const last = sessionStorage.getItem(key);
+        if (!last || Date.now() - Number(last) > 10_000) {
+          sessionStorage.setItem(key, String(Date.now()));
+          location.reload();
+          return;
+        }
+      }
+
       boundaryError = { message: msg, stack: e.reason?.stack };
       reportJsError({
         message: msg,

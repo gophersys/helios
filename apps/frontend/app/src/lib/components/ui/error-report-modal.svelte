@@ -14,9 +14,27 @@
   let breadcrumbsOpen = $state(false);
   let copied = $state(false);
   let userNotes = $state('');
+  let dismissLocked = $state(false);
+  let lockCountdown = $state(0);
+  let lockTimer: ReturnType<typeof setInterval> | undefined;
 
   const report = $derived(reporter.current);
   const open = $derived(!!report);
+
+  $effect(() => {
+    if (open && report?.type !== 'user_report') {
+      dismissLocked = true;
+      lockCountdown = 5;
+      lockTimer = setInterval(() => {
+        lockCountdown--;
+        if (lockCountdown <= 0) {
+          dismissLocked = false;
+          clearInterval(lockTimer);
+        }
+      }, 1000);
+    }
+    return () => { if (lockTimer) clearInterval(lockTimer); };
+  });
 
   const severityConfig = $derived.by(() => {
     if (!report) return { icon: AlertCircle, label: '', classes: '', headerBg: '' };
@@ -43,10 +61,13 @@
   });
 
   function dismiss(): void {
+    if (dismissLocked) return;
     detailsOpen = false;
     breadcrumbsOpen = false;
     copied = false;
     userNotes = '';
+    dismissLocked = false;
+    if (lockTimer) clearInterval(lockTimer);
     reporter.dismiss();
   }
 
@@ -69,7 +90,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') dismiss();
+    if (e.key === 'Escape' && !dismissLocked) dismiss();
   }
 
   function formatTimestamp(iso: string): string {
@@ -133,10 +154,15 @@
         </div>
         <button
           onclick={dismiss}
-          class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary transition-colors"
+          disabled={dismissLocked}
+          class="flex h-8 w-8 items-center justify-center rounded-lg transition-colors {dismissLocked ? 'text-text-tertiary/40 cursor-not-allowed' : 'text-text-tertiary hover:bg-surface-2 hover:text-text-primary'}"
           aria-label="Dismiss"
         >
-          <X size={20} strokeWidth={1.75} />
+          {#if dismissLocked}
+            <span class="text-2xs font-bold tabular-nums">{lockCountdown}</span>
+          {:else}
+            <X size={20} strokeWidth={1.75} />
+          {/if}
         </button>
       </div>
 
@@ -367,7 +393,9 @@
         </button>
 
         <div class="flex items-center gap-2">
-          <button onclick={dismiss} class="btn btn-sm btn-ghost">Dismiss</button>
+          <button onclick={dismiss} disabled={dismissLocked} class="btn btn-sm btn-ghost {dismissLocked ? 'opacity-40 cursor-not-allowed' : ''}">
+            {dismissLocked ? `Dismiss (${lockCountdown})` : 'Dismiss'}
+          </button>
           {#if reporter.reportSent}
             <span class="flex items-center gap-1.5 text-xs font-medium text-success">
               <Check size={14} />
