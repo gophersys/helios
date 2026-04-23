@@ -627,6 +627,8 @@
 
             <!-- Drop zone for loose files -->
             <div
+              role="region"
+              aria-label="File drop zone"
               ondrop={handleFilesDrop}
               ondragover={handleDragOver}
               class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-6 transition-colors
@@ -854,6 +856,8 @@
 
             <!-- Drop zone (zip) -->
             <div
+              role="region"
+              aria-label="Zip file drop zone"
               ondrop={handleZipDrop}
               ondragover={handleDragOver}
               class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors

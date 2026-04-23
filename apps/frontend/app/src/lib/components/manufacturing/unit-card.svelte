@@ -24,9 +24,10 @@
   });
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-  role={onclick ? 'button' : undefined}
-  tabindex={onclick ? 0 : undefined}
+  role={onclick ? 'button' : 'region'}
+  tabindex={onclick ? 0 : -1}
   onclick={onclick}
   onkeydown={(e) => { if (onclick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onclick(); } }}
   class="rounded-lg border border-border bg-surface-0 p-3 transition-colors

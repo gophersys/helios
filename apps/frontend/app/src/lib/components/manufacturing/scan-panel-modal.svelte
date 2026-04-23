@@ -206,11 +206,12 @@
   <div class="space-y-4">
     <!-- SNR input -->
     <div class="space-y-1.5">
-      <label class="form-label">Serial Number</label>
+      <label for="scan-snr-input" class="form-label">Serial Number</label>
       <div class="relative">
         <QrCode size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
         <!-- svelte-ignore a11y_autofocus -->
         <input
+          id="scan-snr-input"
           type="text"
           bind:this={inputEl}
           bind:value={snrInput}

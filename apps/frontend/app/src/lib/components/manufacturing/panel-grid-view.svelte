@@ -71,13 +71,14 @@
 </script>
 
 <div class="space-y-4">
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <!-- Panel grid widget -->
   <div
     use:actionable={{ id: 'scan-panel', label: 'Scan panel' }}
     class="rounded-lg border border-border bg-surface-0 p-4 relative transition-all
       {scannable ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
-    role={scannable ? 'button' : undefined}
-    tabindex={scannable ? 0 : undefined}
+    role={scannable ? 'button' : 'region'}
+    tabindex={scannable ? 0 : -1}
     onclick={() => { if (scannable) onScanPanel?.(); }}
     onkeydown={(e) => { if (e.key === 'Enter' && scannable) onScanPanel?.(); }}
     onmouseenter={() => { panelHovered = true; }}
@@ -135,12 +136,13 @@
 
   <!-- Standalone slot widget -->
   {#if hasStandaloneSlot}
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div
       use:actionable={{ id: 'scan-standalone', label: 'Scan standalone slot' }}
       class="rounded-lg border border-border bg-surface-0 p-4 relative transition-all
         {scannable ? 'cursor-pointer hover:border-accent hover:shadow-card-hover group' : ''}"
-      role={scannable ? 'button' : undefined}
-      tabindex={scannable ? 0 : undefined}
+      role={scannable ? 'button' : 'region'}
+      tabindex={scannable ? 0 : -1}
       onclick={() => { if (scannable) onScanStandalone?.(); }}
       onkeydown={(e) => { if (e.key === 'Enter' && scannable) onScanStandalone?.(); }}
       onmouseenter={() => { standaloneHovered = true; }}

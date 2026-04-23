@@ -107,6 +107,7 @@
     { id: 'bugs', label: 'My Bug Reports', icon: Bug },
   ];
 
+  // svelte-ignore state_referenced_locally
   let activeId = $state(initialSection || 'system');
 
   // Lock body scroll while open

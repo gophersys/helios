@@ -106,11 +106,13 @@
     aria-modal="true"
     aria-labelledby="error-report-title"
   >
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
       class="pointer-events-auto w-full max-w-lg rounded-xl border bg-surface-1 shadow-2xl overflow-hidden {severityConfig.headerBg.includes('error') ? 'border-error/30' : severityConfig.headerBg.includes('warning') ? 'border-warning/30' : 'border-accent/30'}"
       in:fly={modalIn}
       out:fly={modalOut}
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') e.stopPropagation(); }}
       role="document"
     >
       <!-- Header -->
