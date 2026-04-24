@@ -9,6 +9,7 @@
   import PageHeader from '$lib/components/ui/page-header.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
+  import Pagination from '$lib/components/ui/pagination.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import { formatDate } from '$lib/utils/formatting';
   import PermissionSetsTab from '$lib/components/users/permission-sets-tab.svelte';
@@ -20,11 +21,15 @@
   type Tab = 'users' | 'permission-sets';
   let activeTab = $state<Tab>('users');
 
+  type PaginationData = { page: number; limit: number; total: number; pages: number };
+
   let users = $state<FullUser[]>([]);
   let permissionSets = $state<PermissionSet[]>([]);
   let loading = $state(true);
   let showCreate = $state(false);
   let error = $state<string | null>(null);
+  let currentPage = $state(1);
+  let pagination = $state<PaginationData>({ page: 1, limit: 50, total: 0, pages: 0 });
 
   let formEmail = $state('');
   let formName = $state('');
@@ -45,12 +50,22 @@
     { key: 'permission-sets', label: 'Permission Sets' },
   ];
 
+  $effect(() => {
+    const _page = currentPage;
+    fetchUsers();
+  });
+
   async function fetchUsers(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<{ data: FullUser[]; pagination: unknown }>>('/v2/users');
-      // Users endpoint returns paginated response: { data: [...], pagination: {...} }
-      const payload = data.data;
-      users = Array.isArray(payload) ? payload : (payload as any).data ?? [];
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', '50');
+
+      const res = await apiFetch<{ data: FullUser[]; pagination: PaginationData }>(
+        '/v2/users?' + params.toString()
+      );
+      users = res.data;
+      pagination = res.pagination;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load users';
     } finally {
@@ -80,7 +95,6 @@
       goto('/');
       return;
     }
-    fetchUsers();
     fetchPermissionSets();
   });
 
@@ -321,6 +335,19 @@
           </tbody>
         </table>
       </div>
+
+      {#if pagination.pages > 1}
+        <div class="mt-4 flex items-center justify-between">
+          <span class="text-2xs text-text-tertiary">
+            Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+          </span>
+          <Pagination
+            page={currentPage}
+            totalPages={pagination.pages}
+            onPageChange={(p) => { currentPage = p; }}
+          />
+        </div>
+      {/if}
     {/if}
   {/if}
 

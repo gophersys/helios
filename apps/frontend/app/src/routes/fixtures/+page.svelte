@@ -14,6 +14,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import Pagination from '$lib/components/ui/pagination.svelte';
   import SelectionBar from '$lib/components/ui/selection-bar.svelte';
   import type { Fixture, Product, Board, FixtureDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
@@ -22,17 +23,24 @@
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('fixtures:manage'));
 
+  type PaginationData = { page: number; limit: number; total: number; pages: number };
+
   // Data
   let fixtures = $state<Fixture[]>([]);
   let products = $state<Product[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
+  // Pagination
+  let currentPage = $state(1);
+  let pagination = $state<PaginationData>({ page: 1, limit: 25, total: 0, pages: 0 });
+
   // Filters
   let filterProduct = $state('');
   let filterType = $state('');
-  let filterStatus = $state('');
   let searchQuery = $state('');
+  let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+  let debouncedSearch = $state('');
 
   // View mode
   let viewMode = $state<'table' | 'grid'>('table');
@@ -53,7 +61,7 @@
     if (next.has(id)) next.delete(id); else next.add(id);
     selectedIds = next;
   }
-  function selectAll() { selectedIds = new Set(filtered.map(f => f.id)); }
+  function selectAll() { selectedIds = new Set(fixtures.map(f => f.id)); }
   function clearSelection() { selectedIds = new Set(); confirmBatchDelete = false; }
 
   async function batchAction(action: 'delete') {
@@ -103,29 +111,41 @@
     availableDesigns.map(d => ({ value: d.id, label: `${d.name} (${d.revision})` }))
   );
 
-  const filtered = $derived(
-    fixtures.filter(f => {
-      if (filterProduct && f.productId !== filterProduct) return false;
-      if (filterType && f.type !== filterType) return false;
-      if (filterStatus) {
-        const slots = f.slots || [];
-        const assigned = slots.filter(s => s.nodeId).length;
-        if (filterStatus === 'AVAILABLE' && (assigned === 0 || slots.length === 0)) return false;
-        if (filterStatus === 'UNASSIGNED' && assigned > 0) return false;
-      }
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!f.name.toLowerCase().includes(q) && !(f.productName || '').toLowerCase().includes(q)) return false;
-      }
-      return true;
-    })
-  );
+  $effect(() => {
+    clearTimeout(searchTimeout);
+    const q = searchQuery;
+    searchTimeout = setTimeout(() => { debouncedSearch = q; }, 300);
+  });
+
+  $effect(() => {
+    filterProduct;
+    filterType;
+    debouncedSearch;
+    currentPage = 1;
+  });
+
+  $effect(() => {
+    const _page = currentPage;
+    const _product = filterProduct;
+    const _type = filterType;
+    const _search = debouncedSearch;
+    fetchFixtures();
+  });
 
   async function fetchFixtures() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: Fixture[] }>>('/v2/fixtures?limit=200');
-      const payload = res.data;
-      fixtures = Array.isArray(payload) ? payload : (payload as any)?.data || [];
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', '25');
+      if (filterProduct) params.set('productId', filterProduct);
+      if (filterType) params.set('type', filterType);
+      if (debouncedSearch) params.set('search', debouncedSearch);
+
+      const res = await apiFetch<{ data: Fixture[]; pagination: PaginationData }>(
+        '/v2/fixtures?' + params.toString()
+      );
+      fixtures = res.data;
+      pagination = res.pagination;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load fixtures';
     } finally {
@@ -219,7 +239,6 @@
       if (stored === 'grid') viewMode = 'grid';
     }
 
-    fetchFixtures();
     fetchProducts();
 
     // Redirect to detail page if ?selected=<id> is in the URL (e.g. from dashboard)
@@ -259,11 +278,10 @@
     {#snippet filters()}
       <FilterSelect label="Product" value={filterProduct} onchange={(v) => { filterProduct = v; }} options={products.map(p => ({ value: p.id, label: p.name }))} />
       <FilterSelect label="Type" value={filterType} onchange={(v) => { filterType = v; }} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
-      <FilterSelect label="Status" value={filterStatus} onchange={(v) => { filterStatus = v; }} options={[{ value: 'AVAILABLE', label: 'Available' }, { value: 'UNASSIGNED', label: 'Unassigned' }]} />
       <FilterSearch bind:value={searchQuery} placeholder="Search fixtures..." class="w-56" />
     {/snippet}
     <span class="ml-auto text-2xs text-text-tertiary shrink-0">
-      {filtered.length} fixtures
+      {pagination.total} fixture{pagination.total !== 1 ? 's' : ''}
     </span>
     <div class="flex items-center rounded-md bg-surface-2 p-0.5">
       <button
@@ -287,7 +305,7 @@
   {#if canManage}
     <SelectionBar
       selectedCount={selectedIds.size}
-      totalCount={filtered.length}
+      totalCount={fixtures.length}
       onSelectAll={selectAll}
       onClearSelection={clearSelection}
       actions={[
@@ -312,9 +330,9 @@
   <!-- Fixture list -->
   {#if loading}
     <LoadingState message="Loading fixtures..." />
-  {:else if filtered.length === 0}
+  {:else if fixtures.length === 0}
     <EmptyState
-      message={fixtures.length === 0 ? 'No fixtures registered' : 'No fixtures match your filters'}
+      message={filterProduct || filterType || debouncedSearch ? 'No fixtures match your filters' : 'No fixtures registered'}
       icon={Wrench}
     />
   {:else if viewMode === 'table'}
@@ -326,9 +344,9 @@
               <th class="table-header w-10">
                 <input
                   type="checkbox"
-                  checked={selectedIds.size > 0 && selectedIds.size === filtered.length}
-                  indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
-                  onchange={() => selectedIds.size === filtered.length ? clearSelection() : selectAll()}
+                  checked={selectedIds.size > 0 && selectedIds.size === fixtures.length}
+                  indeterminate={selectedIds.size > 0 && selectedIds.size < fixtures.length}
+                  onchange={() => selectedIds.size === fixtures.length ? clearSelection() : selectAll()}
                   class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
                 />
               </th>
@@ -343,7 +361,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each filtered as fixture}
+          {#each fixtures as fixture}
             {@const health = healthIcon(fixture)}
             {@const HealthIcon = health.icon}
             <tr
@@ -403,9 +421,22 @@
     </div>
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {#each filtered as fixture (fixture.id)}
+      {#each fixtures as fixture (fixture.id)}
         <FixtureGridCard {fixture} onclick={() => goto(`/fixtures/${fixture.id}`)} />
       {/each}
+    </div>
+  {/if}
+
+  {#if pagination.pages > 1}
+    <div class="mt-4 flex items-center justify-between">
+      <span class="text-2xs text-text-tertiary">
+        Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+      </span>
+      <Pagination
+        page={currentPage}
+        totalPages={pagination.pages}
+        onPageChange={(p) => { currentPage = p; }}
+      />
     </div>
   {/if}
 
