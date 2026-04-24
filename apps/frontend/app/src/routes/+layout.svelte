@@ -13,6 +13,7 @@
   import ActionContextMenu from '$lib/components/ui/action-context-menu.svelte';
   import ToastContainer from '$lib/components/ui/toast-container.svelte';
   import { highlightAction, readActionFromUrl } from '$lib/actions/deep-link';
+  import { toasts } from '$lib/stores/toast.svelte';
 
   let { children } = $props();
 
@@ -32,7 +33,22 @@
   let boundaryError = $state<{ message: string; stack?: string } | null>(null);
   let updateAvailable = $state(false);
   let newVersion = $state('');
+  let justUpdated = $state(false);
+  let updatedFrom = $state('');
   const isDev = PUBLIC_APP_ENVIRONMENT === 'development' || PUBLIC_APP_ENVIRONMENT === 'local' || !PUBLIC_APP_ENVIRONMENT;
+
+  const VERSION_KEY = 'concord:last-version';
+
+  function checkJustUpdated(): void {
+    if (!PUBLIC_APP_VERSION || PUBLIC_APP_VERSION === 'dev') return;
+    const last = localStorage.getItem(VERSION_KEY);
+    if (last && last !== PUBLIC_APP_VERSION) {
+      justUpdated = true;
+      updatedFrom = last;
+      toasts.show(`Updated to v${PUBLIC_APP_VERSION}`, 'success', 8000);
+    }
+    localStorage.setItem(VERSION_KEY, PUBLIC_APP_VERSION);
+  }
 
   async function checkForUpdate(): Promise<void> {
     if (!PUBLIC_APP_VERSION || PUBLIC_APP_VERSION === 'dev') return;
@@ -65,6 +81,7 @@
   // Initialize auth on mount
   onMount(async () => {
     await auth.init();
+    checkJustUpdated();
 
     const versionPoll = setInterval(checkForUpdate, 60_000);
 

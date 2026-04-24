@@ -42,6 +42,13 @@ server {
         proxy_read_timeout 86400s;
     }
 
+    # Build metadata — never cache (polled for update notifications)
+    location = /build-info.json {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        try_files $uri =404;
+    }
+
     # Static assets — long cache
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;

@@ -93,6 +93,7 @@ Chain it before the devcontainer exec with `&&`.
 
 ## Phase 1 — Pre-flight
 
+0. **Record start time:** `RELEASE_START=$(date +%s%3N)` — used for `releaseDurationMs`
 1. Confirm we are on `main` branch and it is clean
 2. Read current `VERSION` file
 3. Find the latest git tag (`git describe --tags --abbrev=0`)
@@ -134,15 +135,104 @@ Write the new version to `VERSION`:
 echo "X.Y.Z" > VERSION
 ```
 
-## Phase 5 — Changelog
+## Phase 5 — Changelog and release metadata collection
 
-Generate the changelog from the last tag:
+This phase collects ALL data that will be included in the release record.
+Store every value as a shell variable for use in Phase 10.
+
+### 5a. Generate changelog
 
 ```bash
-python3 scripts/changelog.py <last-tag> HEAD
+CHANGELOG=$(python3 scripts/changelog.py <last-tag> HEAD)
 ```
 
-Present to the user for review. Ask if they want a human-written summary.
+The script outputs markdown grouped by category (Features, Bug Fixes, Refactors,
+etc.) and prints the suggested bump type to stderr. Present the changelog to the
+user for review. Ask if they want a human-written summary for the `summary`
+field — if not, generate a one-liner from the changelog.
+
+### 5b. Detect breaking changes
+
+```bash
+BREAKING=$(git log <last-tag>..HEAD --pretty=format:'%h %s%n%b' | grep -E 'BREAKING CHANGE:|^[a-f0-9]+ \w+(\(\w+\))?!:' || true)
+```
+
+If non-empty, format as markdown bullet list for the `breakingChanges` field.
+
+### 5c. Collect diff stats
+
+```bash
+DIFF_STAT=$(git diff --shortstat <last-tag>..HEAD)
+LINES_ADDED=$(echo "$DIFF_STAT" | grep -oP '\d+(?= insertion)' || echo 0)
+LINES_REMOVED=$(echo "$DIFF_STAT" | grep -oP '\d+(?= deletion)' || echo 0)
+```
+
+### 5d. Read component versions
+
+```bash
+COREKINECT_VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' libs/python/corekinect/__init__.py)
+PROTO_VERSION=$(cat libs/protocols/mtib/VERSION 2>/dev/null || echo "unknown")
+```
+
+### 5e. Compute migration hash
+
+```bash
+MIGRATION_HASH=$(sha256sum prisma/schema.prisma | cut -d' ' -f1 | head -c 12)
+```
+
+### 5f. Run tests (inside devcontainer)
+
+Run backend and frontend tests and capture results:
+
+```bash
+# Backend tests
+BACKEND_TEST_OUTPUT=$(npx -y @devcontainers/cli exec \
+  --workspace-folder /home/mateo/work/concord/concord \
+  --config /home/mateo/work/concord/concord/.devcontainer/base/devcontainer.json \
+  bash -c 'cd apps/backend/http-api && PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v --tb=short 2>&1' || true)
+
+# Frontend tests
+FRONTEND_TEST_OUTPUT=$(npx -y @devcontainers/cli exec \
+  --workspace-folder /home/mateo/work/concord/concord \
+  --config /home/mateo/work/concord/concord/.devcontainer/base/devcontainer.json \
+  nx test app 2>&1 || true)
+```
+
+Parse the pytest/vitest output to extract:
+- `testsPassed` — total passed across both suites
+- `testsFailed` — total failed across both suites
+- `testDurationMs` — combined duration
+- `testDetails` — JSON with per-suite breakdown:
+
+```json
+{
+  "backend": { "passed": N, "failed": N, "durationMs": N },
+  "frontend": { "passed": N, "failed": N, "durationMs": N }
+}
+```
+
+Pytest summary line format: `X passed, Y failed in Zs`
+Vitest summary line format: `Tests  X passed | Y failed` and `Duration  Xs`
+
+If tests fail, warn the user but don't block the release — they can override.
+
+### 5g. Summarize for the user
+
+Present a table of everything collected:
+
+| Field | Value |
+|-------|-------|
+| Version | X.Y.Z |
+| Previous | A.B.C |
+| Changelog | (X features, Y fixes, Z other) |
+| Breaking changes | yes/no |
+| Lines | +N / -M |
+| Tests | P passed, F failed |
+| corekinect | version |
+| proto | version |
+| Migration hash | abc123... |
+
+Wait for user confirmation before proceeding.
 
 ## Phase 6 — Commit and push the release branch
 
@@ -184,6 +274,11 @@ gh pr create --base main --head release/vX.Y.Z \
 EOF
 )"
 ```
+
+**Capture the PR URL** from the output for the release record's `prUrl` field.
+If using Bitbucket (no `gh` CLI), capture the URL from the Bitbucket PR
+creation response or construct it manually. If merging locally with
+`git merge --no-ff`, set `prUrl` to `null`.
 
 Wait for user confirmation, then merge:
 
@@ -254,7 +349,16 @@ print(token)
 - Staging: `cmnz59zya000ylno28xrj4gu1` (mateo@corekinect.com)
 - Production: `cmny0hvd0000yq1k0vmv2mwto` (mateo@corekinect.com)
 
-### Step 2: POST the release record
+### Step 2: Compute release duration
+
+```bash
+RELEASE_END=$(date +%s%3N)
+RELEASE_DURATION_MS=$(( RELEASE_END - RELEASE_START ))
+```
+
+### Step 3: POST the release record with ALL collected data
+
+Include **every field** collected in Phase 5. The API accepts all of these:
 
 ```bash
 kubectl exec -n <namespace> deploy/concord-http-api -- \
@@ -267,20 +371,37 @@ kubectl exec -n <namespace> deploy/concord-http-api -- \
     "branch": "main",
     "status": "RELEASED",
     "previousVersion": "<prev>",
-    "summary": "<one-line summary of changes>",
-    "gateStatus": "passed",
-    "releaseOrigin": "manual"
+    "summary": "<one-line summary>",
+    "changelog": "<full markdown changelog from 5a>",
+    "breakingChanges": "<breaking changes text from 5b, or null>",
+    "linesAdded": <N from 5c>,
+    "linesRemoved": <M from 5c>,
+    "corekinectVersion": "<from 5d>",
+    "protoVersion": "<from 5d>",
+    "migrationHash": "<from 5e>",
+    "testsPassed": <total from 5f>,
+    "testsFailed": <total from 5f>,
+    "testDurationMs": <total from 5f>,
+    "testDetails": { "backend": { ... }, "frontend": { ... } },
+    "prUrl": "<PR URL from Phase 7, or null if local merge>",
+    "releaseOrigin": "manual",
+    "releaseDurationMs": <RELEASE_DURATION_MS>,
+    "gateStatus": "passed"
   }'
 ```
 
-If the version already exists (409 Conflict), use PATCH instead.
+**Required fields:** version, commitSha, branch, status.
+**All other fields are optional** but MUST be populated when available.
 
-### Step 3: Repeat for the other environment
+If the version already exists (409 Conflict), use PATCH instead to update
+the existing record with the full data.
+
+### Step 4: Repeat for the other environment
 
 Run the same steps for **both** staging and production — they have separate
 databases and separate JWT secrets. Use the correct user ID for each.
 
-### Step 4: Verify
+### Step 5: Verify
 
 List releases in both environments and confirm the new version appears:
 
@@ -290,18 +411,47 @@ kubectl exec -n <namespace> deploy/concord-http-api -- \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Phase 11 — Link resolved bugs
+## Phase 11 — Link resolved bugs (MANDATORY)
 
-If there are error reports fixed in this release:
+**Always run this step.** Query error reports and ask the user which were fixed.
 
-1. List acknowledged/open error reports
-2. Ask the user which ones were resolved
-3. Link them:
-   ```bash
-   curl -s -X POST http://localhost:9001/v2/releases/<id>/link-bugs \
-   -H "Content-Type: application/json" \
-   -d '{"errorReportIds": ["id1", "id2"]}'
-   ```
+### Step 1: Fetch acknowledged/open error reports
+
+```bash
+kubectl exec -n <namespace> deploy/concord-http-api -- \
+  curl -s http://localhost:9001/v2/system/error-reports?status=acknowledged\&limit=50 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Also check for `status=open`:
+
+```bash
+kubectl exec -n <namespace> deploy/concord-http-api -- \
+  curl -s http://localhost:9001/v2/system/error-reports?status=open\&limit=50 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Step 2: Present to user
+
+Show the user a numbered list of open/acknowledged error reports with:
+- ID, type, severity, message, first/last seen
+
+Ask which ones were resolved by this release (by number or "none").
+
+### Step 3: Link selected reports
+
+For each confirmed resolution, get the release ID from the Step 3 POST response,
+then link:
+
+```bash
+kubectl exec -n <namespace> deploy/concord-http-api -- \
+  curl -s -X POST http://localhost:9001/v2/releases/<release-id>/link-bugs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"errorReportIds": ["id1", "id2"]}'
+```
+
+Do this for **both** staging and production environments.
 
 ## Abort / Rollback
 

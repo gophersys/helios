@@ -304,6 +304,10 @@ def list_fixtures():
     if product_id:
         where["productId"] = product_id.strip()
 
+    search = request.args.get("search", type=str)
+    if search:
+        where["name"] = {"contains": search.strip(), "mode": "insensitive"}
+
     total = db.fixture.count(where=where)
     fixtures = db.fixture.find_many(
         where=where,

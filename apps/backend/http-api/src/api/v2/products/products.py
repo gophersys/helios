@@ -232,18 +232,25 @@ def list_products():
     # Filter by product access for Developer/Operator roles
     # Uses effective_role (set by require_permissions → _resolve_effective_role)
     # so the X-View-As-Role header works for product filtering too.
-    where = {}
+    where: dict = {}
     if env_config.AUTH_ENABLED:
         user = getattr(g, "current_user", None)
         if user:
             effective_role = getattr(g, "effective_role", user.get("role", "DEVELOPER"))
             if effective_role not in ("ADMIN", "MAINTAINER"):
-                # Only show products the user has explicit access to
                 access_entries = db.productaccess.find_many(
                     where={"userId": user["sub"]},
                 )
                 accessible_ids = [a.productId for a in access_entries]
-                where = {"id": {"in": accessible_ids}}
+                where["id"] = {"in": accessible_ids}
+
+    status = request.args.get("status", type=str)
+    if status and status in ("ACTIVE", "ARCHIVED"):
+        where["status"] = status
+
+    search = request.args.get("search", type=str)
+    if search:
+        where["name"] = {"contains": search.strip(), "mode": "insensitive"}
 
     total = db.product.count(where=where)
     products = db.product.find_many(

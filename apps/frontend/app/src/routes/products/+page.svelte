@@ -21,6 +21,8 @@
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
 
+  type PaginationData = { page: number; limit: number; total: number; pages: number };
+
   let products = $state<Product[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -31,7 +33,7 @@
 
   // Pagination
   let currentPage = $state(1);
-  const pageSize = 20;
+  let pagination = $state<PaginationData>({ page: 1, limit: 25, total: 0, pages: 0 });
 
   // Selection + batch
   let selectedIds = $state<Set<string>>(new Set());
@@ -41,36 +43,41 @@
   // Wizard state
   let showWizard = $state(false);
 
-  // Filtered products
-  const filteredProducts = $derived.by(() => {
-    let result = products;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q));
-    }
-    if (statusFilter !== 'all') {
-      result = result.filter((p) => p.status === statusFilter);
-    }
-    return result;
+  let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+  let debouncedSearch = $state('');
+
+  $effect(() => {
+    clearTimeout(searchTimeout);
+    const q = searchQuery;
+    searchTimeout = setTimeout(() => { debouncedSearch = q; }, 300);
   });
 
-  const totalPages = $derived(Math.max(1, Math.ceil(filteredProducts.length / pageSize)));
-  const paginatedProducts = $derived(
-    filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  );
-
-  // Reset page when filters change
   $effect(() => {
-    searchQuery;
     statusFilter;
+    debouncedSearch;
     currentPage = 1;
+  });
+
+  $effect(() => {
+    const _page = currentPage;
+    const _status = statusFilter;
+    const _search = debouncedSearch;
+    fetchProducts();
   });
 
   async function fetchProducts() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/products');
-      const payload = res.data;
-      products = Array.isArray(payload) ? payload : (payload as { data: Product[] }).data || [];
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', '25');
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (debouncedSearch) params.set('search', debouncedSearch);
+
+      const res = await apiFetch<{ data: Product[]; pagination: PaginationData }>(
+        '/v2/products?' + params.toString()
+      );
+      products = res.data;
+      pagination = res.pagination;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load products';
     } finally {
@@ -84,7 +91,7 @@
     if (next.has(id)) next.delete(id); else next.add(id);
     selectedIds = next;
   }
-  function selectAll() { selectedIds = new Set(paginatedProducts.map(p => p.id)); }
+  function selectAll() { selectedIds = new Set(products.map(p => p.id)); }
   function clearSelection() { selectedIds = new Set(); confirmBatchDelete = false; }
 
   async function batchAction(action: 'archive' | 'delete') {
@@ -117,7 +124,6 @@
       goto('/');
       return;
     }
-    fetchProducts();
   });
 </script>
 
@@ -173,7 +179,7 @@
         />
       {/snippet}
       <span class="ml-auto text-2xs text-text-tertiary shrink-0">
-        {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+        {pagination.total} product{pagination.total !== 1 ? 's' : ''}
       </span>
     </FilterBar>
 
@@ -181,7 +187,7 @@
     {#if canManage}
       <SelectionBar
         selectedCount={selectedIds.size}
-        totalCount={paginatedProducts.length}
+        totalCount={products.length}
         onSelectAll={selectAll}
         onClearSelection={clearSelection}
         actions={[
@@ -205,7 +211,7 @@
     {/if}
 
     <!-- Product table -->
-    {#if filteredProducts.length === 0}
+    {#if products.length === 0}
       <EmptyState message={searchQuery || statusFilter !== 'all' ? 'No products match your filters.' : 'No products yet.'} />
     {:else}
       <div class="table-wrapper">
@@ -216,9 +222,9 @@
                 <th class="table-header w-10">
                   <input
                     type="checkbox"
-                    checked={selectedIds.size > 0 && selectedIds.size === paginatedProducts.length}
-                    indeterminate={selectedIds.size > 0 && selectedIds.size < paginatedProducts.length}
-                    onchange={() => selectedIds.size === paginatedProducts.length ? clearSelection() : selectAll()}
+                    checked={selectedIds.size > 0 && selectedIds.size === products.length}
+                    indeterminate={selectedIds.size > 0 && selectedIds.size < products.length}
+                    onchange={() => selectedIds.size === products.length ? clearSelection() : selectAll()}
                     class="h-4 w-4 rounded border-border text-accent focus:ring-accent"
                   />
                 </th>
@@ -230,7 +236,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each paginatedProducts as p (p.id)}
+            {#each products as p (p.id)}
               {@const revisions = getRevisions(p)}
               <tr
                 class="table-row cursor-pointer"
@@ -284,12 +290,15 @@
         </table>
       </div>
 
-      {#if totalPages > 1}
-        <div class="mt-4">
+      {#if pagination.pages > 1}
+        <div class="mt-4 flex items-center justify-between">
+          <span class="text-2xs text-text-tertiary">
+            Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+          </span>
           <Pagination
             page={currentPage}
-            {totalPages}
-            onPageChange={(page) => { currentPage = page; }}
+            totalPages={pagination.pages}
+            onPageChange={(p) => { currentPage = p; }}
           />
         </div>
       {/if}
