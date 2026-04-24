@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { ArrowLeft, Factory, Clock, Cpu, Archive, Trash2, StopCircle } from 'lucide-svelte';
+  import { ArrowLeft, Factory, Clock, Cpu, Archive, Trash2, StopCircle, Download } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import { formatDuration } from '$lib/utils/formatting';
+  import { getToken } from '$lib/api';
   import type { ManufacturingSession } from '$lib/types/models';
 
   let {
@@ -21,6 +22,50 @@
     onDelete?: () => void;
     activeRunExists?: boolean;
   } = $props();
+
+  let downloadingReport = $state(false);
+  let downloadError = $state<string | null>(null);
+
+  const reportAvailable = $derived(
+    session.status === 'COMPLETED' || session.status === 'ARCHIVED'
+  );
+
+  async function downloadReport(): Promise<void> {
+    if (downloadingReport) return;
+    downloadingReport = true;
+    downloadError = null;
+    try {
+      const token = getToken();
+      const res = await fetch(`/v2/manufacturing/sessions/${session.id}/report`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        let msg = `Report failed (${res.status})`;
+        try {
+          const body = await res.json();
+          msg = body.errors?.[0]?.message || msg;
+        } catch { /* non-json body */ }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      const dispo = res.headers.get('content-disposition') || '';
+      const match = dispo.match(/filename="?([^";]+)"?/);
+      const filename = match ? match[1] : `session-${session.id}-report.zip`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      downloadError = err instanceof Error ? err.message : 'Failed to download report';
+      setTimeout(() => { downloadError = null; }, 4000);
+    } finally {
+      downloadingReport = false;
+    }
+  }
 
   let elapsed = $state('');
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -164,6 +209,17 @@
     >
       <StopCircle size={12} />
       End
+    </button>
+  {/if}
+  {#if reportAvailable}
+    <button
+      onclick={downloadReport}
+      disabled={downloadingReport}
+      class="shrink-0 flex items-center gap-1.5 rounded-lg border border-border bg-surface-0 px-3 py-1 text-xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors disabled:opacity-60"
+      title={downloadError || 'Download session report (.zip)'}
+    >
+      <Download size={12} />
+      {downloadingReport ? 'Preparing…' : 'Download report'}
     </button>
   {/if}
   {#if canManage && (session.status === 'COMPLETED' || session.status === 'CANCELLED')}

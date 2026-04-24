@@ -95,6 +95,7 @@ from ..manufacturing.sessions import (
     delete_session,
     batch_sessions_action,
     get_manufacturing_results,
+    get_session_report,
     coreops_assign_device_id,
     coreops_upload_key,
     coreops_save_iccid,
@@ -475,6 +476,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         "/manufacturing/sessions/<session_id>/results",
         endpoint="get_mfg_results",
         view_func=get_manufacturing_results,
+        methods=["GET"],
+    )
+    api.add_url_rule(
+        "/manufacturing/sessions/<session_id>/report",
+        endpoint="get_mfg_session_report",
+        view_func=get_session_report,
         methods=["GET"],
     )
     api.add_url_rule(
