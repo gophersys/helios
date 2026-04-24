@@ -73,6 +73,16 @@ def create_error_report():
     if not message:
         return bad_request("message is required")
 
+    # Authoritative identity: prefer the JWT claims over anything the client sent.
+    # The previous behavior trusted a client-set userId field, but nothing in the
+    # frontend wrote that value — so /my/error-reports always came back empty.
+    current = getattr(g, "current_user", None) or {}
+    auth_user_id = current.get("sub")
+    auth_user_email = current.get("email")
+
+    user_id = auth_user_id or ((data.get("userId") or "")[:255] or None)
+    user_email = auth_user_email or ((data.get("userEmail") or "")[:255] or None)
+
     db = get_db_client()
     report = db.errorreport.create(data={
         "type": report_type,
@@ -80,8 +90,8 @@ def create_error_report():
         "message": message[:2000],
         "context": Json(data),
         "currentPath": (data.get("currentPath") or "")[:500] or None,
-        "userEmail": (data.get("userEmail") or "")[:255] or None,
-        "userId": (data.get("userId") or "")[:255] or None,
+        "userEmail": user_email,
+        "userId": user_id,
         "appVersion": (data.get("appVersion") or "")[:100] or None,
     })
 
