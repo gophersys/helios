@@ -26,7 +26,7 @@ _VALID_STATUSES = {"OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"}
 
 
 def _serialize(r) -> dict:
-    return {
+    result = {
         "id": r.id,
         "status": r.status,
         "type": r.type,
@@ -39,10 +39,19 @@ def _serialize(r) -> dict:
         "appVersion": getattr(r, "appVersion", None),
         "resolvedById": getattr(r, "resolvedById", None),
         "resolvedAt": r.resolvedAt.isoformat() if hasattr(r, "resolvedAt") and r.resolvedAt else None,
+        "resolvedInReleaseId": getattr(r, "resolvedInReleaseId", None),
+        "resolvedInRelease": None,
         "adminNotes": getattr(r, "adminNotes", None),
         "createdAt": r.createdAt.isoformat() if hasattr(r, "createdAt") else None,
         "updatedAt": r.updatedAt.isoformat() if hasattr(r, "updatedAt") else None,
     }
+    if hasattr(r, "resolvedInRelease") and r.resolvedInRelease:
+        result["resolvedInRelease"] = {
+            "id": r.resolvedInRelease.id,
+            "version": r.resolvedInRelease.version,
+            "releasedAt": r.resolvedInRelease.releasedAt.isoformat() if r.resolvedInRelease.releasedAt else None,
+        }
+    return result
 
 
 @require_auth
@@ -89,9 +98,14 @@ def list_error_reports():
 
     where: dict = {}
 
-    status = request.args.get("status")
-    if status and status in _VALID_STATUSES:
-        where["status"] = status
+    status_param = request.args.get("status")
+    if status_param:
+        values = [s.strip() for s in status_param.split(",") if s.strip()]
+        valid = [s for s in values if s in _VALID_STATUSES]
+        if len(valid) == 1:
+            where["status"] = valid[0]
+        elif len(valid) > 1:
+            where["status"] = {"in": valid}
 
     report_type = request.args.get("type")
     if report_type and report_type in _VALID_TYPES:
@@ -112,6 +126,7 @@ def list_error_reports():
         order={"createdAt": "desc"},
         skip=skip,
         take=limit,
+        include={"resolvedInRelease": True},
     )
 
     pages = (total + limit - 1) // limit if total > 0 else 0
@@ -125,7 +140,10 @@ def list_error_reports():
 def get_error_report(report_id: str):
     """GET /v2/system/error-reports/<id> — full report with context."""
     db = get_db_client()
-    report = db.errorreport.find_unique(where={"id": report_id})
+    report = db.errorreport.find_unique(
+        where={"id": report_id},
+        include={"resolvedInRelease": True},
+    )
     if not report:
         return not_found("Error report not found")
     return jsonify(ApiResponse.ok(_serialize(report)).to_dict()), 200

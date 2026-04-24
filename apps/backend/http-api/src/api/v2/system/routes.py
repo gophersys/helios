@@ -31,6 +31,7 @@ from .releases import (
     update_release,
     delete_release,
     link_bugs_to_release,
+    unlink_bug_from_release,
 )
 from .notifications import (
     list_notifications,
@@ -84,7 +85,8 @@ def register_system_routes(api: Blueprint, socketio: SocketIO):
     api.add_url_rule("/releases/<release_id>",             endpoint="get_release",          view_func=get_release,          methods=["GET"])
     api.add_url_rule("/releases/<release_id>",             endpoint="update_release",       view_func=update_release,       methods=["PATCH"])
     api.add_url_rule("/releases/<release_id>",             endpoint="delete_release",       view_func=delete_release,       methods=["DELETE"])
-    api.add_url_rule("/releases/<release_id>/link-bugs",   endpoint="link_bugs_to_release", view_func=link_bugs_to_release, methods=["POST"])
+    api.add_url_rule("/releases/<release_id>/link-bugs",                       endpoint="link_bugs_to_release",     view_func=link_bugs_to_release,     methods=["POST"])
+    api.add_url_rule("/releases/<release_id>/resolved-bugs/<report_id>",       endpoint="unlink_bug_from_release",  view_func=unlink_bug_from_release,  methods=["DELETE"])
 
     # Notifications (user-facing)
     api.add_url_rule("/notifications",                     endpoint="list_notifications",      view_func=list_notifications,      methods=["GET"])

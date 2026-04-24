@@ -37,10 +37,21 @@
     appVersion: string | null;
     resolvedById: string | null;
     resolvedAt: string | null;
+    resolvedInReleaseId: string | null;
+    resolvedInRelease: { id: string; version: string; releasedAt: string | null } | null;
     adminNotes: string | null;
     createdAt: string;
     updatedAt: string;
   }
+
+  interface ReleaseOption {
+    id: string;
+    version: string;
+    releasedAt: string | null;
+    summary: string | null;
+  }
+
+  type Tab = 'open' | 'fixed' | 'dismissed' | 'all';
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('system:manage'));
@@ -52,19 +63,29 @@
   let expandedId = $state<string | null>(null);
 
   // Filters
-  let statusFilter = $state('');
+  let activeTab = $state<Tab>('open');
   let typeFilter = $state('');
   let severityFilter = $state('');
   let searchQuery = $state('');
   let page = $state(1);
 
-  const statusOptions = [
-    { value: '', label: 'All statuses' },
-    { value: 'OPEN', label: 'Open' },
-    { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-    { value: 'RESOLVED', label: 'Resolved' },
-    { value: 'DISMISSED', label: 'Dismissed' },
-  ];
+  // Counts for tab badges
+  let counts = $state<{ open: number; fixed: number; dismissed: number; all: number }>({
+    open: 0, fixed: 0, dismissed: 0, all: 0,
+  });
+
+  const TAB_STATUS_MAP: Record<Tab, string> = {
+    open: 'OPEN,ACKNOWLEDGED',
+    fixed: 'RESOLVED',
+    dismissed: 'DISMISSED',
+    all: '',
+  };
+
+  // Link-to-release modal state
+  let linkingReportId = $state<string | null>(null);
+  let linkReleaseOptions = $state<ReleaseOption[]>([]);
+  let linkSelectedReleaseId = $state<string>('');
+  let linkSubmitting = $state(false);
 
   const typeOptions = [
     { value: '', label: 'All types' },
@@ -113,7 +134,8 @@
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('limit', '50');
-      if (statusFilter) params.set('status', statusFilter);
+      const statusParam = TAB_STATUS_MAP[activeTab];
+      if (statusParam) params.set('status', statusParam);
       if (typeFilter) params.set('type', typeFilter);
       if (severityFilter) params.set('severity', severityFilter);
       if (searchQuery) params.set('search', searchQuery);
@@ -131,13 +153,81 @@
     }
   }
 
+  async function fetchCounts(): Promise<void> {
+    // Small parallel pings to keep the tab badges honest
+    try {
+      const [open, fixed, dismissed, all] = await Promise.all([
+        apiFetch<ApiResponse<{ data: ErrorReportEntry[]; pagination: Pagination }>>(
+          '/v2/system/error-reports?status=OPEN,ACKNOWLEDGED&limit=1',
+        ),
+        apiFetch<ApiResponse<{ data: ErrorReportEntry[]; pagination: Pagination }>>(
+          '/v2/system/error-reports?status=RESOLVED&limit=1',
+        ),
+        apiFetch<ApiResponse<{ data: ErrorReportEntry[]; pagination: Pagination }>>(
+          '/v2/system/error-reports?status=DISMISSED&limit=1',
+        ),
+        apiFetch<ApiResponse<{ data: ErrorReportEntry[]; pagination: Pagination }>>(
+          '/v2/system/error-reports?limit=1',
+        ),
+      ]);
+      counts = {
+        open: open.data.pagination.total,
+        fixed: fixed.data.pagination.total,
+        dismissed: dismissed.data.pagination.total,
+        all: all.data.pagination.total,
+      };
+    } catch {
+      // Non-fatal — leave counts at last known values
+    }
+  }
+
+  async function openLinkDialog(reportId: string): Promise<void> {
+    linkingReportId = reportId;
+    linkSelectedReleaseId = '';
+    try {
+      const res = await apiFetch<ApiResponse<{ data: ReleaseOption[]; pagination: Pagination }>>(
+        '/v2/releases?status=RELEASED&limit=20',
+      );
+      linkReleaseOptions = res.data.data;
+      if (linkReleaseOptions.length > 0) {
+        linkSelectedReleaseId = linkReleaseOptions[0].id;
+      }
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to load releases';
+      linkingReportId = null;
+    }
+  }
+
+  function closeLinkDialog(): void {
+    linkingReportId = null;
+    linkSelectedReleaseId = '';
+    linkReleaseOptions = [];
+  }
+
+  async function submitLink(): Promise<void> {
+    if (!linkingReportId || !linkSelectedReleaseId) return;
+    linkSubmitting = true;
+    try {
+      await apiFetch(`/v2/releases/${linkSelectedReleaseId}/link-bugs`, {
+        method: 'POST',
+        body: JSON.stringify({ errorReportIds: [linkingReportId] }),
+      });
+      closeLinkDialog();
+      await Promise.all([fetchReports(), fetchCounts()]);
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to link report to release';
+    } finally {
+      linkSubmitting = false;
+    }
+  }
+
   async function updateReport(id: string, data: { status?: string; adminNotes?: string }): Promise<void> {
     try {
       await apiFetch(`/v2/system/error-reports/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       });
-      await fetchReports();
+      await Promise.all([fetchReports(), fetchCounts()]);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to update report';
     }
@@ -148,7 +238,7 @@
     try {
       await apiFetch(`/v2/system/error-reports/${id}`, { method: 'DELETE' });
       if (expandedId === id) expandedId = null;
-      await fetchReports();
+      await Promise.all([fetchReports(), fetchCounts()]);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to delete report';
     }
@@ -160,6 +250,7 @@
       return;
     }
     fetchReports();
+    fetchCounts();
   });
 
   $effect(() => {
@@ -168,7 +259,7 @@
   });
 
   $effect(() => {
-    const _s = statusFilter;
+    const _tab = activeTab;
     const _t = typeFilter;
     const _sv = severityFilter;
     const _q = searchQuery;
@@ -180,14 +271,14 @@
   }
 
   function clearFilters(): void {
-    statusFilter = '';
+    activeTab = 'open';
     typeFilter = '';
     severityFilter = '';
     searchQuery = '';
     page = 1;
   }
 
-  const hasActiveFilters = $derived(!!statusFilter || !!typeFilter || !!severityFilter || !!searchQuery);
+  const hasActiveFilters = $derived(activeTab !== 'open' || !!typeFilter || !!severityFilter || !!searchQuery);
 </script>
 
 <svelte:head>
@@ -197,14 +288,38 @@
 <div class="flex h-full flex-col">
   <PageHeader title="Error Reports" description="Frontend error reports and bug submissions" />
 
+  <!-- Tabs -->
+  <div class="mx-6 mb-3 flex gap-1 border-b border-border">
+    {#each [
+      { key: 'open', label: 'Open', count: counts.open },
+      { key: 'fixed', label: 'Fixed', count: counts.fixed },
+      { key: 'dismissed', label: 'Dismissed', count: counts.dismissed },
+      { key: 'all', label: 'All', count: counts.all },
+    ] as tab}
+      <button
+        onclick={() => (activeTab = tab.key as Tab)}
+        class={[
+          'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
+          activeTab === tab.key
+            ? 'border-b-2 border-accent text-accent'
+            : 'text-text-tertiary hover:text-text-secondary'
+        ].join(' ')}
+      >
+        {tab.label}
+        <span class="inline-flex min-w-[1.5rem] justify-center rounded-full bg-surface-2 px-1.5 text-2xs text-text-tertiary">
+          {tab.count}
+        </span>
+      </button>
+    {/each}
+  </div>
+
   <FilterBar class="mx-6 mb-4">
     {#snippet filters()}
       <FilterSearch bind:value={searchQuery} placeholder="Search messages..." class="w-48" />
-      <FilterSelect label="Status" value={statusFilter} onchange={(v) => { statusFilter = v; }} options={statusOptions} />
       <FilterSelect label="Type" value={typeFilter} onchange={(v) => { typeFilter = v; }} options={typeOptions} />
       <FilterSelect label="Severity" value={severityFilter} onchange={(v) => { severityFilter = v; }} options={severityOptions} />
       {#if hasActiveFilters}
-        <button class="text-2xs text-text-tertiary hover:text-text-secondary" onclick={clearFilters}>Clear</button>
+        <button class="text-2xs text-text-tertiary hover:text-text-secondary" onclick={clearFilters}>Reset</button>
       {/if}
     {/snippet}
   </FilterBar>
@@ -267,6 +382,16 @@
                 </span>
               {/if}
 
+              <!-- Fixed-in pill (only when linked to a release) -->
+              {#if report.resolvedInRelease}
+                <span
+                  class="shrink-0 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-2xs font-medium text-success"
+                  title="Fixed in release v{report.resolvedInRelease.version}"
+                >
+                  <Check size={10} /> v{report.resolvedInRelease.version}
+                </span>
+              {/if}
+
               <!-- Status -->
               <StatusBadge status={report.status} />
 
@@ -319,6 +444,14 @@
                     <div>
                       <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Resolved</div>
                       <div class="mt-0.5 text-text-primary">{formatDateTime(report.resolvedAt)}</div>
+                    </div>
+                  {/if}
+                  {#if report.resolvedInRelease}
+                    <div>
+                      <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Fixed In</div>
+                      <div class="mt-0.5 text-text-primary">
+                        <a href="/releases" class="text-accent hover:underline font-mono">v{report.resolvedInRelease.version}</a>
+                      </div>
                     </div>
                   {/if}
                 </div>
@@ -393,7 +526,7 @@
 
                 <!-- Actions -->
                 {#if canManage}
-                  <div class="flex items-center gap-2 pt-2 border-t border-border">
+                  <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
                     {#if report.status === 'OPEN'}
                       <button
                         class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
@@ -405,9 +538,18 @@
                     {#if report.status !== 'RESOLVED'}
                       <button
                         class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium bg-success/10 text-success hover:bg-success/20 transition-colors"
-                        onclick={() => updateReport(report.id, { status: 'RESOLVED' })}
+                        onclick={() => openLinkDialog(report.id)}
                       >
-                        <Check size={14} /> Resolve
+                        <Check size={14} /> Link to release
+                      </button>
+                    {/if}
+                    {#if report.status === 'RESOLVED'}
+                      <button
+                        class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium bg-surface-2 text-text-secondary hover:bg-surface-3 transition-colors"
+                        onclick={() => openLinkDialog(report.id)}
+                        title="Link this resolved report to a different release"
+                      >
+                        <Check size={14} /> Change release
                       </button>
                     {/if}
                     {#if report.status !== 'DISMISSED'}
@@ -459,3 +601,66 @@
     {/if}
   </div>
 </div>
+
+<!-- Link-to-release dialog -->
+{#if linkingReportId}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    role="dialog"
+    aria-modal="true"
+    onclick={closeLinkDialog}
+    onkeydown={(e) => { if (e.key === 'Escape') closeLinkDialog(); }}
+    tabindex="-1"
+  >
+    <div
+      class="w-full max-w-md rounded-lg border border-border bg-surface-1 p-5 shadow-elevated"
+      role="document"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <h2 class="text-base font-semibold text-text-primary">Link to release</h2>
+      <p class="mt-1 text-xs text-text-tertiary">
+        Choose the release that fixed this bug. The report will be marked <span class="font-medium text-success">RESOLVED</span> and linked to the release.
+      </p>
+
+      {#if linkReleaseOptions.length === 0}
+        <p class="mt-4 text-sm text-text-secondary">No released versions available.</p>
+      {:else}
+        <label class="mt-4 block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Release</span>
+          <select
+            bind:value={linkSelectedReleaseId}
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
+          >
+            {#each linkReleaseOptions as rel (rel.id)}
+              <option value={rel.id}>
+                v{rel.version}{rel.releasedAt ? ' — ' + formatDateTime(rel.releasedAt) : ''}
+              </option>
+            {/each}
+          </select>
+        </label>
+      {/if}
+
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          class="inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium bg-surface-2 text-text-secondary hover:bg-surface-3 transition-colors"
+          onclick={closeLinkDialog}
+          disabled={linkSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-60"
+          onclick={submitLink}
+          disabled={linkSubmitting || !linkSelectedReleaseId}
+        >
+          {#if linkSubmitting}
+            Linking…
+          {:else}
+            <Check size={14} /> Link and resolve
+          {/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

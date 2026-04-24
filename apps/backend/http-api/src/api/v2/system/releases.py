@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _VALID_STATUSES = {"DRAFT", "STAGED", "RELEASED", "ROLLED_BACK"}
 
 
-def _serialize(r) -> dict:
+def _serialize(r, resolved_bug_count: int | None = None) -> dict:
     return {
         "id": r.id,
         "version": r.version,
@@ -55,6 +55,7 @@ def _serialize(r) -> dict:
         "createdById": getattr(r, "createdById", None),
         "createdAt": r.createdAt.isoformat() if hasattr(r, "createdAt") else None,
         "updatedAt": r.updatedAt.isoformat() if hasattr(r, "updatedAt") else None,
+        "resolvedBugCount": resolved_bug_count,
     }
 
 
@@ -153,9 +154,16 @@ def list_releases():
         take=limit,
     )
 
+    # Batch-count resolved bugs per release
+    release_ids = [r.id for r in releases]
+    bug_counts: dict[str, int] = {}
+    if release_ids:
+        for rid in release_ids:
+            bug_counts[rid] = db.errorreport.count(where={"resolvedInReleaseId": rid})
+
     pages = (total + limit - 1) // limit if total > 0 else 0
     return jsonify(ApiResponse.ok({
-        "data": [_serialize(r) for r in releases],
+        "data": [_serialize(r, resolved_bug_count=bug_counts.get(r.id, 0)) for r in releases],
         "pagination": {"page": page, "limit": limit, "total": total, "pages": pages},
     }).to_dict()), 200
 
@@ -171,22 +179,23 @@ def get_release(release_id: str):
     if not release:
         return not_found("Release not found")
 
-    result = _serialize(release)
+    bugs = list(release.resolvedErrorReports) if hasattr(release, "resolvedErrorReports") and release.resolvedErrorReports else []
+    result = _serialize(release, resolved_bug_count=len(bugs))
 
-    # Include resolved bugs if present
-    if hasattr(release, "resolvedErrorReports") and release.resolvedErrorReports:
-        result["resolvedErrorReports"] = [
-            {
-                "id": r.id,
-                "status": r.status,
-                "type": r.type,
-                "severity": r.severity,
-                "message": r.message,
-            }
-            for r in release.resolvedErrorReports
-        ]
-    else:
-        result["resolvedErrorReports"] = []
+    result["resolvedErrorReports"] = [
+        {
+            "id": r.id,
+            "status": r.status,
+            "type": r.type,
+            "severity": r.severity,
+            "message": r.message,
+            "currentPath": getattr(r, "currentPath", None),
+            "appVersion": getattr(r, "appVersion", None),
+            "createdAt": r.createdAt.isoformat() if hasattr(r, "createdAt") and r.createdAt else None,
+            "resolvedAt": r.resolvedAt.isoformat() if hasattr(r, "resolvedAt") and r.resolvedAt else None,
+        }
+        for r in bugs
+    ]
 
     return jsonify(ApiResponse.ok(result).to_dict()), 200
 
@@ -278,7 +287,11 @@ def delete_release(release_id: str):
 
 @require_permissions(Permissions.RELEASES_MANAGE)
 def link_bugs_to_release(release_id: str):
-    """POST /v2/releases/<id>/link-bugs — link resolved error reports."""
+    """POST /v2/releases/<id>/link-bugs — link resolved error reports.
+
+    Atomically marks the reports as RESOLVED and stamps resolvedAt/resolvedById
+    alongside the FK. Linking == fixing — this is the single source of truth.
+    """
     db = get_db_client()
     release = db.release.find_unique(where={"id": release_id})
     if not release:
@@ -292,12 +305,46 @@ def link_bugs_to_release(release_id: str):
     if not error_report_ids or not isinstance(error_report_ids, list):
         return bad_request("errorReportIds is required and must be a list")
 
+    resolver_id = g.current_user.get("sub") if getattr(g, "current_user", None) else None
+
     db.errorreport.update_many(
         where={"id": {"in": error_report_ids}},
-        data={"resolvedInReleaseId": release_id},
+        data={
+            "resolvedInReleaseId": release_id,
+            "status": "RESOLVED",
+            "resolvedAt": datetime.now(timezone.utc),
+            "resolvedById": resolver_id,
+        },
     )
 
     log_audit("release.link_bugs", "Release", release_id, {
         "errorReportIds": error_report_ids,
     })
     return jsonify(ApiResponse.ok({"linked": len(error_report_ids)}).to_dict()), 200
+
+
+@require_permissions(Permissions.RELEASES_MANAGE)
+def unlink_bug_from_release(release_id: str, report_id: str):
+    """DELETE /v2/releases/<id>/resolved-bugs/<report_id> — reopen a linked bug.
+
+    Clears the release FK and flips the report back to OPEN. Used when a user
+    realizes a bug they linked wasn't actually fixed in this release.
+    """
+    db = get_db_client()
+    report = db.errorreport.find_unique(where={"id": report_id})
+    if not report:
+        return not_found("Error report not found")
+    if report.resolvedInReleaseId != release_id:
+        return bad_request("Error report is not linked to this release")
+
+    db.errorreport.update(
+        where={"id": report_id},
+        data={
+            "resolvedInReleaseId": None,
+            "status": "OPEN",
+            "resolvedAt": None,
+            "resolvedById": None,
+        },
+    )
+    log_audit("release.unlink_bug", "Release", release_id, {"errorReportId": report_id})
+    return jsonify(ApiResponse.ok({"unlinked": report_id}).to_dict()), 200

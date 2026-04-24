@@ -468,45 +468,66 @@ record creation immediately.
 
 ## Phase 11 — Link resolved bugs (MANDATORY)
 
-**Always run this step.** Query error reports and ask the user which were fixed.
+**Always run this step.** Query open/acknowledged error reports and ask the
+user which ones this release fixes. Linking is the canonical close-loop:
+the `/link-bugs` endpoint atomically stamps `resolvedInReleaseId`, flips
+`status` to `RESOLVED`, and sets `resolvedAt`/`resolvedById`. There is no
+separate "mark resolved" step anymore — linking == fixing.
 
-### Step 1: Fetch acknowledged/open error reports
+### Step 1: Fetch open and acknowledged reports
 
-```bash
-kubectl exec -n <namespace> deploy/concord-http-api -- \
-  curl -s http://localhost:9001/v2/system/error-reports?status=acknowledged\&limit=50 \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-Also check for `status=open`:
+The status param now accepts a comma-separated list:
 
 ```bash
 kubectl exec -n <namespace> deploy/concord-http-api -- \
-  curl -s http://localhost:9001/v2/system/error-reports?status=open\&limit=50 \
+  curl -s "http://localhost:9001/v2/system/error-reports?status=OPEN,ACKNOWLEDGED&limit=50" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Step 2: Present to user
 
-Show the user a numbered list of open/acknowledged error reports with:
-- ID, type, severity, message, first/last seen
+Show the user a numbered list of open/acknowledged reports with:
+- ID, type, severity, message, first/last seen, currentPath, appVersion
 
-Ask which ones were resolved by this release (by number or "none").
+Ask which ones this release resolves (by number or "none").
 
 ### Step 3: Link selected reports
 
-For each confirmed resolution, get the release ID from the Step 3 POST response,
-then link:
+For each confirmed resolution, POST to `/link-bugs` using the release ID from
+Phase 9.2 / 10.2:
 
 ```bash
 kubectl exec -n <namespace> deploy/concord-http-api -- \
-  curl -s -X POST http://localhost:9001/v2/releases/<release-id>/link-bugs \
+  curl -s -X POST "http://localhost:9001/v2/releases/<release-id>/link-bugs" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"errorReportIds": ["id1", "id2"]}'
 ```
 
-Do this for **both** staging and production environments.
+One call per environment. The IDs and the release ID are environment-specific.
+
+### Step 4: Verify the close-loop
+
+Confirm the reports now appear under `resolvedErrorReports` on the release
+detail:
+
+```bash
+kubectl exec -n <namespace> deploy/concord-http-api -- \
+  curl -s "http://localhost:9001/v2/releases/<release-id>" \
+  -H "Authorization: Bearer $TOKEN" | \
+  python3 -c "import json, sys; d = json.load(sys.stdin); print(len(d['data']['resolvedErrorReports']), 'bugs linked')"
+```
+
+### Unlinking (rare)
+
+If you realize a report was linked to the wrong release, use:
+
+```bash
+curl -s -X DELETE "http://localhost:9001/v2/releases/<release-id>/resolved-bugs/<report-id>" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+This unlinks the report and flips it back to `OPEN`.
 
 ## Abort / Rollback
 
