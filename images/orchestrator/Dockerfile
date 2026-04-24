@@ -78,6 +78,7 @@ ARG HADOLINT_VERSION=2.14.0                                            # latest 
 ARG CLAUDE_CODE_VERSION=2.0.1                                          # latest as of 2026-04-24
 
 # Python application stack (docs + schema validation + API LLM clients).
+ARG MKDOCS_VERSION=1.6.1                                               # latest as of 2026-04-24
 ARG MKDOCS_MATERIAL_VERSION=9.5.45                                     # latest as of 2026-04-24
 ARG MKDOCS_MACROS_VERSION=1.3.7                                        # latest as of 2026-04-24
 ARG PYMDOWN_EXTENSIONS_VERSION=10.14                                   # latest as of 2026-04-24
@@ -233,20 +234,22 @@ RUN curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh \
 # with arbitrary project deps. Every dep is arch-neutral (pure Python);
 # no compilation under QEMU.
 # -------------------------------------------------------------------------
-# `uv tool install` creates an isolated venv per tool. Library imports
-# (pyyaml, jsonschema) go into a shared workspace venv at /home/dev/.venv
-# so scripts can activate one env for general library use.
+# `mkdocs` is installed as the primary tool via `uv tool install`, with
+# mkdocs-material (theme) and plugins pulled into the same tool venv via
+# `--with`. Running `mkdocs` from the tool venv picks them up. Library
+# imports (voyageai, openai, pyyaml, jsonschema) go into a shared
+# workspace venv at /home/dev/.venv so scripts can activate one env for
+# general library use.
 # hadolint ignore=DL3013
 RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
+      --with "mkdocs-material==${MKDOCS_MATERIAL_VERSION}" \
       --with "mkdocs-macros-plugin==${MKDOCS_MACROS_VERSION}" \
       --with "pymdown-extensions==${PYMDOWN_EXTENSIONS_VERSION}" \
-      "mkdocs-material==${MKDOCS_MATERIAL_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
-      "voyageai==${VOYAGEAI_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
-      "openai==${OPENAI_VERSION}" \
+      "mkdocs==${MKDOCS_VERSION}" \
  && "/home/${USERNAME}/.local/bin/uv" venv --python "${PYTHON_PACKAGE}" "/home/${USERNAME}/.venv" \
  && "/home/${USERNAME}/.local/bin/uv" pip install --python "/home/${USERNAME}/.venv/bin/python" \
+      "voyageai==${VOYAGEAI_VERSION}" \
+      "openai==${OPENAI_VERSION}" \
       "pyyaml==${PYYAML_VERSION}" \
       "jsonschema==${JSONSCHEMA_VERSION}"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
