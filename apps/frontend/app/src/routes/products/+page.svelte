@@ -73,11 +73,11 @@
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (debouncedSearch) params.set('search', debouncedSearch);
 
-      const res = await apiFetch<{ data: Product[]; pagination: PaginationData }>(
+      const res = await apiFetch<ApiResponse<{ data: Product[]; pagination: PaginationData }>>(
         '/v2/products?' + params.toString()
       );
-      products = res.data;
-      pagination = res.pagination;
+      products = res.data.data;
+      pagination = res.data.pagination;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load products';
     } finally {
