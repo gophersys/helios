@@ -8,12 +8,16 @@ records (one per fixture slot) and each target has TestExecution records
 (manufacturing steps).
 """
 
+import base64
+import csv as _csv
+import io
 import logging
 import math
 import re
+import zipfile
 from datetime import datetime, timezone
 
-from flask import g, jsonify, request
+from flask import Response, g, jsonify, request
 
 from config.env import env_config
 from corekinect.core_ops.client import CoreOpsClient
@@ -1452,3 +1456,232 @@ def coreops_save_iccid():
     except Exception as e:
         logger.error("CoreOps save_iccid failed: %s", e)
         return jsonify(ApiResponse.ok({"error": str(e)}).to_dict()), 502
+
+
+# ---------------------------------------------------------------------------
+# GET /v2/manufacturing/sessions/<id>/report — downloadable batch zip
+# ---------------------------------------------------------------------------
+
+_REPORT_STEP_NAMES = ("Personalize device with CoreOps", "Verify IMEI and ICCIDs")
+
+
+def _pub_key_hex(b64: str) -> str:
+    """Convert a base64 public key to its hex representation, or empty."""
+    if not b64:
+        return ""
+    try:
+        return base64.b64decode(b64).hex()
+    except Exception:
+        return ""
+
+
+def _csv_bytes(header: list[str], rows: list[list]) -> bytes:
+    """Serialize a list of rows to CSV bytes with the given header."""
+    buf = io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(header)
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue().encode("utf-8")
+
+
+@require_permissions(Permissions.MANUFACTURING_VIEW)
+def get_session_report(session_id: str):
+    """GET /v2/manufacturing/sessions/<id>/report — batch CSV bundle.
+
+    Streams a zip with six standard files:
+        1_failed_snrs.csv, 2_successful_snrs.csv, 3_successful_full_info.csv,
+        4_device_imei_iccid.csv, 5_activation_verizon.csv, 6_activation_onomondo.csv
+
+    Rules (hardcoded):
+    - Valid serial numbers are exactly 4 characters. Anything else (fixture
+      self-test QR codes, standalone dev boards, typos) is dropped.
+    - A serial is **successful** only if it has, across all its attempts in
+      this session: device_id, public_key, imei, iccid_0, iccid_1 — AND at
+      least one Personalize-with-CoreOps step PASSED with info_uploaded=true.
+    - Otherwise it lands in 1_failed_snrs.csv with the first-failed-step
+      name (+ message) from its latest attempt as the reason.
+    """
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={"product": True},
+    )
+    if not session:
+        return not_found("Session not found")
+
+    if session.status in ("PENDING", "ACTIVE"):
+        return bad_request("Session must be completed before a report can be generated")
+
+    # 1) Runs in this session → target IDs.
+    runs = db.testrun.find_many(
+        where={"manufacturingSessionId": session_id},
+        order={"createdAt": "asc"},
+    )
+    run_ids = [r.id for r in runs]
+    if not run_ids:
+        # No runs — return an empty but well-formed zip so the UX is consistent.
+        return _build_zip_response(session, [], [])
+
+    targets = db.runtarget.find_many(where={"runId": {"in": run_ids}})
+    # Filter valid SNRs (exactly 4 chars) up front. Keep a lookup for run startedAt.
+    run_started_at: dict[str, datetime] = {r.id: (r.createdAt or r.createdAt) for r in runs}
+    valid_targets = [t for t in targets if t.serialNumber and len(t.serialNumber) == 4]
+    target_ids = [t.id for t in valid_targets]
+    if not target_ids:
+        return _build_zip_response(session, [], [])
+
+    executions = db.testexecution.find_many(where={"targetId": {"in": target_ids}})
+    exec_to_target = {e.id: e.targetId for e in executions}
+    exec_ids = list(exec_to_target.keys())
+
+    # Only the steps we actually need for the report fields + failure reasons.
+    steps = db.teststep.find_many(where={"executionId": {"in": exec_ids}}) if exec_ids else []
+
+    # Index steps by target + name for the Personalize / IMEI lookups, and
+    # keep the first failed step per target for the failure reason column.
+    personalize_by_target: dict[str, list] = {}
+    imei_by_target: dict[str, list] = {}
+    first_failed_by_target: dict[str, tuple[str, str]] = {}
+    for s in steps:
+        target_id = exec_to_target.get(s.executionId)
+        if not target_id:
+            continue
+        if s.name == "Personalize device with CoreOps":
+            personalize_by_target.setdefault(target_id, []).append(s)
+        elif s.name == "Verify IMEI and ICCIDs":
+            imei_by_target.setdefault(target_id, []).append(s)
+        if s.status == "FAILED" and target_id not in first_failed_by_target:
+            msg = (getattr(s, "errorMessage", None) or "").splitlines()[0][:200]
+            first_failed_by_target[target_id] = (s.name, msg)
+
+    # Collapse targets → per-SNR attempts with merged fields.
+    per_snr: dict[str, dict] = {}
+    for t in valid_targets:
+        snr = t.serialNumber
+        started_at = run_started_at.get(t.runId) or datetime.min.replace(tzinfo=timezone.utc)
+
+        personalized_ok = False
+        device_id = pub_key_b64 = imei = iccid_0 = iccid_1 = ""
+
+        for s in personalize_by_target.get(t.id, []):
+            m = s.measurements or {}
+            if isinstance(m, dict):
+                di = (m.get("device_id") or {}).get("value")
+                pk = (m.get("public_key") or {}).get("value")
+                uploaded = (m.get("info_uploaded") or {}).get("value")
+                if di and not device_id:
+                    device_id = di
+                if pk and not pub_key_b64:
+                    pub_key_b64 = pk
+                if s.status == "PASSED" and uploaded is True:
+                    personalized_ok = True
+
+        for s in imei_by_target.get(t.id, []):
+            m = s.measurements or {}
+            if isinstance(m, dict):
+                if not imei:
+                    imei = (m.get("imei") or {}).get("value") or ""
+                if not iccid_0:
+                    iccid_0 = (m.get("iccid_0") or {}).get("value") or ""
+                if not iccid_1:
+                    iccid_1 = (m.get("iccid_1") or {}).get("value") or ""
+
+        entry = per_snr.setdefault(snr, {
+            "snr": snr,
+            "personalized_ok": False,
+            "device_id": "",
+            "pub_key_b64": "",
+            "imei": "",
+            "iccid_0": "",
+            "iccid_1": "",
+            "last_target_id": t.id,
+            "last_target_error": getattr(t, "errorMessage", None) or "",
+            "last_started_at": started_at,
+        })
+        # Merge: keep "ever personalized" and the best-available field values.
+        entry["personalized_ok"] = entry["personalized_ok"] or personalized_ok
+        for field, val in (("device_id", device_id), ("pub_key_b64", pub_key_b64),
+                           ("imei", imei), ("iccid_0", iccid_0), ("iccid_1", iccid_1)):
+            if val and not entry[field]:
+                entry[field] = val
+        # Track the latest attempt for the fallback failure reason.
+        if started_at >= entry["last_started_at"]:
+            entry["last_started_at"] = started_at
+            entry["last_target_id"] = t.id
+            entry["last_target_error"] = getattr(t, "errorMessage", None) or ""
+
+    REQUIRED = ("device_id", "pub_key_b64", "imei", "iccid_0", "iccid_1")
+    successful: list[dict] = []
+    failed: list[dict] = []
+    for snr, entry in sorted(per_snr.items()):
+        if entry["personalized_ok"] and all(entry[f] for f in REQUIRED):
+            successful.append(entry)
+        else:
+            # Reason: first failed step of the latest attempt, else target error, else generic.
+            step_info = first_failed_by_target.get(entry["last_target_id"])
+            if step_info and step_info[1]:
+                reason = f"{step_info[0]}: {step_info[1]}"
+            elif step_info:
+                reason = step_info[0]
+            elif entry["last_target_error"]:
+                reason = entry["last_target_error"].splitlines()[0][:200]
+            else:
+                missing = [f for f in REQUIRED if not entry[f]]
+                reason = (
+                    f"Incomplete info: missing {', '.join(missing)}"
+                    if missing else "Personalization never completed"
+                )
+            failed.append({"snr": snr, "reason": reason})
+
+    return _build_zip_response(session, successful, failed)
+
+
+def _build_zip_response(session, successful: list[dict], failed: list[dict]):
+    """Bundle the 6 CSVs into an in-memory zip and return as a Flask Response."""
+    # 1_failed_snrs.csv
+    csv1 = _csv_bytes(["snr", "reason"], [[f["snr"], f["reason"]] for f in failed])
+    # 2_successful_snrs.csv
+    csv2 = _csv_bytes(["snr"], [[s["snr"]] for s in successful])
+    # 3_successful_full_info.csv
+    csv3 = _csv_bytes(
+        ["snr", "device_id", "pub_key_hex", "pub_key_base64", "imei", "iccid1", "iccid2"],
+        [[s["snr"], s["device_id"], _pub_key_hex(s["pub_key_b64"]), s["pub_key_b64"],
+          s["imei"], s["iccid_0"], s["iccid_1"]] for s in successful],
+    )
+    # 4_device_imei_iccid.csv — only successful rows have all fields
+    csv4 = _csv_bytes(
+        ["device_id", "imei", "iccid1", "iccid2"],
+        [[s["device_id"], s["imei"], s["iccid_0"], s["iccid_1"]] for s in successful],
+    )
+    # 5_activation_verizon.csv
+    csv5 = _csv_bytes(
+        ["imei", "iccid"],
+        [[s["imei"], s["iccid_0"]] for s in successful],
+    )
+    # 6_activation_onomondo.csv
+    csv6 = _csv_bytes(
+        ["imei", "iccid"],
+        [[s["imei"], s["iccid_1"]] for s in successful],
+    )
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("1_failed_snrs.csv", csv1)
+        z.writestr("2_successful_snrs.csv", csv2)
+        z.writestr("3_successful_full_info.csv", csv3)
+        z.writestr("4_device_imei_iccid.csv", csv4)
+        z.writestr("5_activation_verizon.csv", csv5)
+        z.writestr("6_activation_onomondo.csv", csv6)
+    buf.seek(0)
+
+    # Filename: <product>-<session-id-short>-<YYYYMMDD>.zip
+    product = re.sub(r"[^A-Za-z0-9_-]", "_", (session.product.name if session.product else "session"))
+    date = session.startedAt.strftime("%Y%m%d") if session.startedAt else "session"
+    filename = f"manufacturing-{product.lower()}-{date}-{session.id[-6:]}.zip"
+
+    resp = Response(buf.getvalue(), mimetype="application/zip")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["X-Report-Successful"] = str(len(successful))
+    resp.headers["X-Report-Failed"] = str(len(failed))
+    return resp
