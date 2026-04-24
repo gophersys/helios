@@ -5925,9 +5925,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"concord-ci-admin@workspace:apps/ci/admin":
+"concord-ci-admin@workspace:apps/frontend/ci-admin":
   version: 0.0.0-use.local
-  resolution: "concord-ci-admin@workspace:apps/ci/admin"
+  resolution: "concord-ci-admin@workspace:apps/frontend/ci-admin"
   dependencies:
     "@fontsource-variable/inter": "npm:^5.2.8"
     "@sveltejs/adapter-node": "npm:^5.0.0"

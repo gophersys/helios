@@ -136,27 +136,51 @@ _prisma_schema_hash() {
   sha256sum prisma/schema.prisma 2>/dev/null | awk '{print $1}'
 }
 
+# Run a command; on failure, dump full output and exit. On success, optionally
+# grep a filter pattern out of the log for human-readable summary output.
+# Using a temp log avoids the `cmd | grep || true` trap that silently swallows
+# failures when the command's error output doesn't match the filter pattern.
+_run_logged() {
+  local filter="$1"
+  local label="$2"
+  shift 2
+  local log
+  log=$(mktemp)
+  if ! "$@" > "${log}" 2>&1; then
+    err "${label} failed:"
+    sed 's/^/  /' "${log}" >&2
+    rm -f "${log}"
+    return 1
+  fi
+  if [[ -n "${filter}" ]]; then
+    grep -E "${filter}" "${log}" 2>/dev/null || true
+  fi
+  rm -f "${log}"
+}
+
 _db_setup() {
   # Prisma generate + push + seed (shared by dev start and dev update)
   local db_url="postgresql://concord:concord@localhost:5433/concord"
   cd prisma
   if [[ "${CI:-false}" == "true" ]]; then
-    yarn prisma generate 2>&1
+    # CI: stream output, let set -e catch failures
+    yarn prisma generate
     DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
-      yarn prisma db push --accept-data-loss --skip-generate 2>&1
-  else
-    yarn prisma generate 2>&1 | grep -E "^✔|Generated" || true
-    DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
-      yarn prisma db push --accept-data-loss --skip-generate 2>&1 | grep -E "^🚀|Your database" || true
-  fi
-  if [[ "${CI:-false}" == "true" ]]; then
+      yarn prisma db push --accept-data-loss --skip-generate
     DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
       PYTHONPATH=../libs/python:../libs:../libs/protocols \
-      python3 -m seed.main 2>&1
+      python3 -m seed.main
   else
+    # Interactive: filter output on success, show full output on failure
+    _run_logged "^✔|Generated" "Prisma generate" \
+      yarn prisma generate
+    DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
+      _run_logged "^🚀|Your database" "Prisma db push" \
+      yarn prisma db push --accept-data-loss --skip-generate
     DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
       PYTHONPATH=../libs/python:../libs:../libs/protocols \
-      python3 -m seed.main 2>&1 | grep -E "^===|Product access:" | head -5 || true
+      _run_logged "^===|Product access:" "Seed" \
+      python3 -m seed.main
   fi
   cd ..
 }
@@ -198,6 +222,7 @@ cmd_build() {
   local names=()
   local failed=0
 
+  timer_start
   for target in "${targets[@]}"; do
     case "${target}" in
       api|http-api|backend)
@@ -267,7 +292,6 @@ cmd_build() {
     esac
   done
 
-  timer_start
   for i in "${!pids[@]}"; do
     if wait "${pids[$i]}"; then
       info "  ✓ ${names[$i]}"
@@ -295,37 +319,58 @@ _push_images() {
   local targets=("$@")
 
   local pids=()
+  local names=()
+  local failed=0
 
   if command -v k3s &>/dev/null; then
     log "Importing images into K3s..."
     timer_start
     for target in "${targets[@]}"; do
       case "${target}" in
-        api|http-api|backend)     (docker save "${REGISTRY_API}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
-        frontend|fe|app|ui)       (docker save "${REGISTRY_FRONTEND}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
-        git-poller|poller)        (docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
-        runner|test-runner)       (docker save "${REGISTRY_TEST_RUNNER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
-        build-service)            (docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
-        docs)                     (docker save "${REGISTRY_DOCS}:${env}" | sudo k3s ctr images import - 2>/dev/null || true) & pids+=($!) ;;
+        api|http-api|backend)     (docker save "${REGISTRY_API}:${env}" | sudo k3s ctr images import -) &>/dev/null & pids+=($!); names+=("API") ;;
+        frontend|fe|app|ui)       (docker save "${REGISTRY_FRONTEND}:${env}" | sudo k3s ctr images import -) &>/dev/null & pids+=($!); names+=("Frontend") ;;
+        git-poller|poller)        (docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import -) &>/dev/null & pids+=($!); names+=("Git-poller") ;;
+        runner|test-runner)       (docker save "${REGISTRY_TEST_RUNNER}:${env}" | sudo k3s ctr images import -) &>/dev/null & pids+=($!); names+=("Test runner") ;;
+        build-service)            (docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import -) &>/dev/null & pids+=($!); names+=("Build-service") ;;
+        docs)                     (docker save "${REGISTRY_DOCS}:${env}" | sudo k3s ctr images import -) &>/dev/null & pids+=($!); names+=("Docs") ;;
       esac
     done
-    wait "${pids[@]}" 2>/dev/null
+    for i in "${!pids[@]}"; do
+      if wait "${pids[$i]}"; then
+        info "  ✓ ${names[$i]}"
+      else
+        err "  ✗ ${names[$i]} import failed"
+        failed=1
+      fi
+    done
     timer_end "K3s import (${#pids[@]} images)"
   else
     log "Pushing images to registry..."
     timer_start
     for target in "${targets[@]}"; do
       case "${target}" in
-        api|http-api|backend)     docker push "${REGISTRY_API}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
-        frontend|fe|app|ui)       docker push "${REGISTRY_FRONTEND}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
-        git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
-        runner|test-runner)       docker push "${REGISTRY_TEST_RUNNER}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
-        build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
-        docs)                     docker push "${REGISTRY_DOCS}:${env}" > /dev/null 2>&1 & pids+=($!) ;;
+        api|http-api|backend)     docker push "${REGISTRY_API}:${env}" > /dev/null & pids+=($!); names+=("API") ;;
+        frontend|fe|app|ui)       docker push "${REGISTRY_FRONTEND}:${env}" > /dev/null & pids+=($!); names+=("Frontend") ;;
+        git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null & pids+=($!); names+=("Git-poller") ;;
+        runner|test-runner)       docker push "${REGISTRY_TEST_RUNNER}:${env}" > /dev/null & pids+=($!); names+=("Test runner") ;;
+        build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null & pids+=($!); names+=("Build-service") ;;
+        docs)                     docker push "${REGISTRY_DOCS}:${env}" > /dev/null & pids+=($!); names+=("Docs") ;;
       esac
     done
-    wait "${pids[@]}" 2>/dev/null
+    for i in "${!pids[@]}"; do
+      if wait "${pids[$i]}"; then
+        info "  ✓ ${names[$i]}"
+      else
+        err "  ✗ ${names[$i]} push failed"
+        failed=1
+      fi
+    done
     timer_end "Push (${#pids[@]} images)"
+  fi
+
+  if [[ $failed -ne 0 ]]; then
+    err "One or more image pushes failed"
+    exit 1
   fi
 }
 
@@ -394,16 +439,36 @@ _verify_rollout() {
   info "Verifying rollout..."
   local deployments
   deployments=$(kubectl get deployments -n "${env}" --no-headers -o custom-columns=":metadata.name" 2>/dev/null || true)
-  local all_ok=true
+
+  if [[ -z "${deployments}" ]]; then
+    warn "No deployments found in namespace ${env}"
+    return 1
+  fi
+
+  local pids=()
+  local names=()
+  local failed=0
+
+  timer_start
   for dep in ${deployments}; do
-    if kubectl rollout status "deployment/${dep}" -n "${env}" --timeout=180s &>/dev/null; then
-      info "  ✓ ${dep}"
+    kubectl rollout status "deployment/${dep}" -n "${env}" --timeout=180s &>/dev/null &
+    pids+=($!)
+    names+=("${dep}")
+  done
+  for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then
+      info "  ✓ ${names[$i]}"
     else
-      warn "  ✗ ${dep} not ready"
-      all_ok=false
+      err "  ✗ ${names[$i]} not ready"
+      failed=1
     fi
   done
-  $all_ok || warn "Some deployments did not reach Ready state"
+  timer_end "Rollout verification (${#pids[@]} deployments)"
+
+  if [[ $failed -ne 0 ]]; then
+    err "One or more deployments failed to reach Ready state"
+    return 1
+  fi
 }
 
 _smoke_test() {
@@ -514,10 +579,12 @@ print(deployed[-1]['revision'] if deployed else '')
   info "Rolling back to revision ${prev_rev}..."
   helm rollback concord "${prev_rev}" -n "${env}" --wait --timeout 300s
 
-  # Verify rollback
-  _verify_rollout "${env}"
-
-  info "Rollback complete. Investigate and fix before re-deploying."
+  # Verify rollback — don't fail hard here, rollback itself already succeeded
+  if _verify_rollout "${env}"; then
+    info "Rollback complete. Investigate and fix before re-deploying."
+  else
+    warn "Rollback deployed but verification failed. Manual investigation required."
+  fi
   return 0
 }
 
@@ -567,20 +634,63 @@ _restart_targets() {
       api|http-api|backend)     restart_args="${restart_args} deployment/concord-http-api" ;;
       frontend|fe|app|ui)       restart_args="${restart_args} deployment/concord-frontend" ;;
       git-poller|poller)        restart_args="${restart_args} deployment/concord-git-poller" ;;
+      docs)                     restart_args="${restart_args} deployment/concord-docs" ;;
+      build-service)            restart_args="${restart_args} deployment/concord-build-service" ;;
     esac
   done
-  if [[ -n "${restart_args}" ]]; then
-    timer_start
-    kubectl rollout restart ${restart_args} -n "${env}" > /dev/null 2>&1
-    for target in "${targets[@]}"; do
-      case "${target}" in
-        api|http-api|backend) kubectl rollout status deployment/concord-http-api -n "${env}" --timeout=90s > /dev/null 2>&1 ;;
-        frontend|fe|app|ui)   kubectl rollout status deployment/concord-frontend -n "${env}" --timeout=30s > /dev/null 2>&1 ;;
-        git-poller|poller)    kubectl rollout status deployment/concord-git-poller -n "${env}" --timeout=30s > /dev/null 2>&1 ;;
-        docs)                 kubectl rollout status deployment/concord-docs -n "${env}" --timeout=30s > /dev/null 2>&1 ;;
-      esac
-    done
-    timer_end "Rollout"
+
+  if [[ -z "${restart_args}" ]]; then
+    return 0
+  fi
+
+  timer_start
+  if ! kubectl rollout restart ${restart_args} -n "${env}"; then
+    err "Rollout restart command failed"
+    return 1
+  fi
+
+  local pids=()
+  local names=()
+  local failed=0
+
+  for target in "${targets[@]}"; do
+    case "${target}" in
+      api|http-api|backend)
+        kubectl rollout status deployment/concord-http-api -n "${env}" --timeout=90s &>/dev/null &
+        pids+=($!); names+=("http-api")
+        ;;
+      frontend|fe|app|ui)
+        kubectl rollout status deployment/concord-frontend -n "${env}" --timeout=30s &>/dev/null &
+        pids+=($!); names+=("frontend")
+        ;;
+      git-poller|poller)
+        kubectl rollout status deployment/concord-git-poller -n "${env}" --timeout=30s &>/dev/null &
+        pids+=($!); names+=("git-poller")
+        ;;
+      docs)
+        kubectl rollout status deployment/concord-docs -n "${env}" --timeout=30s &>/dev/null &
+        pids+=($!); names+=("docs")
+        ;;
+      build-service)
+        kubectl rollout status deployment/concord-build-service -n "${env}" --timeout=90s &>/dev/null &
+        pids+=($!); names+=("build-service")
+        ;;
+    esac
+  done
+
+  for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then
+      info "  ✓ ${names[$i]}"
+    else
+      err "  ✗ ${names[$i]} rollout failed"
+      failed=1
+    fi
+  done
+  timer_end "Rollout (${#pids[@]} deployments)"
+
+  if [[ $failed -ne 0 ]]; then
+    err "One or more rollouts failed"
+    return 1
   fi
 }
 
@@ -637,8 +747,16 @@ cmd_diff() {
   local env="${1:-staging}"
   local values_file="${HELM_DIR}/values-${env}.yaml"
   [[ ! -f "${values_file}" ]] && { err "No values file for: ${env}"; exit 1; }
-  local helm_args=(diff upgrade concord "${HELM_DIR}/concord" -n "${env}" -f "${values_file}")
-  helm "${helm_args[@]}" 2>/dev/null || warn "Install helm-diff: helm plugin install https://github.com/databus23/helm-diff"
+
+  # Check plugin first so we can give a clean message if it's missing,
+  # instead of swallowing every helm error behind the generic install hint.
+  if ! helm plugin list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "diff"; then
+    err "helm-diff plugin not installed"
+    err "Install: helm plugin install https://github.com/databus23/helm-diff"
+    exit 1
+  fi
+
+  helm diff upgrade concord "${HELM_DIR}/concord" -n "${env}" -f "${values_file}"
 }
 
 # ═════════════════════════════════════════════════════════════════
@@ -652,7 +770,8 @@ cmd_dev_start() {
 
   # Protobuf
   step "Generating protobuf code"
-  bash libs/protocols/ctl.sh generate 2>&1 | grep -E "^(Generating|Processing)" || true
+  _run_logged "^(Generating|Processing)" "Protobuf generation" \
+    bash libs/protocols/ctl.sh generate
   info "  ✓ protobuf"
 
   # Build service images (parallel via Nx)
@@ -850,9 +969,12 @@ cmd_start() {
   cmd_deploy "${env}"
   echo ""
 
-  # Verify
+  # Verify — rollback if any deployment fails to reach Ready
   step "Verifying rollout"
-  _verify_rollout "${env}"
+  if ! _verify_rollout "${env}"; then
+    _rollback_on_failure "${env}"
+    exit 1
+  fi
 
   # Smoke test — rollback on failure
   step "Smoke testing"
@@ -902,9 +1024,12 @@ cmd_update() {
   cmd_deploy "${env}"
   echo ""
 
-  # Verify
+  # Verify — rollback if any deployment fails to reach Ready
   step "Verifying rollout"
-  _verify_rollout "${env}"
+  if ! _verify_rollout "${env}"; then
+    _rollback_on_failure "${env}"
+    exit 1
+  fi
 
   # Smoke test — rollback on failure
   step "Smoke testing"
