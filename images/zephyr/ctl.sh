@@ -104,10 +104,19 @@ function cmd_build_multi_arch() {
 
 function cmd_push() {
   require_buildx_and_multi_arch
-  log_info "buildx multi-arch (${MULTI_ARCH_PLATFORMS}) + push to ${IMAGE_REF}"
+  require_cmd git
+  local short_sha image_ref_sha
+  short_sha="$(git -C "$PROJECT_ROOT" rev-parse --short=7 HEAD 2>/dev/null || true)"
+  if [[ -z "$short_sha" ]]; then
+    log_error "cannot determine short SHA for tag; is $PROJECT_ROOT a git repo?"
+    exit 1
+  fi
+  image_ref_sha="ghcr.io/gophersys/${IMAGE_NAME}:${short_sha}"
+  log_info "buildx multi-arch (${MULTI_ARCH_PLATFORMS}) + push to ${IMAGE_REF} and ${image_ref_sha}"
   docker buildx build \
     --platform "${MULTI_ARCH_PLATFORMS}" \
     --tag "${IMAGE_REF}" \
+    --tag "${image_ref_sha}" \
     --push \
     "$PROJECT_ROOT"
 }
