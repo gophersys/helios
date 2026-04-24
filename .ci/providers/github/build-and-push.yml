@@ -1,11 +1,13 @@
 name: build-and-push
 
-# Publishes the 3-image IDP set (base + flutter + zephyr) to the GitHub
-# Container Registry. Every image is built multi-arch (linux/amd64 +
-# linux/arm64) on every push to main. On semver tag pushes (v*) we also
-# publish a :v<semver> tag. Flutter and zephyr consume base via BASE_TAG
-# build-arg set to the commit short SHA so the child layer FROMs the
-# freshly pushed parent.
+# Publishes the 4-image IDP set (base + flutter + zephyr + orchestrator)
+# to the GitHub Container Registry. Every image is built multi-arch
+# (linux/amd64 + linux/arm64) on every push to main. On semver tag
+# pushes (v*) we also publish a :v<semver> tag. Flutter and zephyr
+# consume base via BASE_TAG build-arg set to the commit short SHA so the
+# child layer FROMs the freshly pushed parent. Orchestrator is a peer of
+# base (FROM ubuntu:24.04 directly) and has no parent dependency, so it
+# runs in parallel with base.
 
 on:
   push:
@@ -134,3 +136,43 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr
           cache-to: type=gha,mode=max,scope=zephyr
+
+  # orchestrator is a peer of base (FROM ubuntu:24.04 directly), so it
+  # runs in parallel with base instead of depending on it.
+  orchestrator:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: short-sha
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/build-push-action@v6
+        with:
+          context: images/orchestrator
+          file: images/orchestrator/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/orchestrator:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/orchestrator:${{ steps.sha.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/orchestrator:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
+          cache-from: type=gha,scope=orchestrator
+          cache-to: type=gha,mode=max,scope=orchestrator

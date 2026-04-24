@@ -1,9 +1,10 @@
 # .devcontainer
 
 Shared IDP (internal developer platform) images for every project in the
-brain ecosystem. The repo produces **three** container images: one rich
-base that most projects can run directly, and two domain-specific layers
-on top (flutter, zephyr).
+brain ecosystem. The repo produces **four** container images: one rich
+base that most projects can run directly, two domain-specific layers on
+top (flutter, zephyr), and a thin peer orchestrator for brain-level
+work (Claude orchestration, docs site, agents).
 
 Each image serves two roles:
 
@@ -28,16 +29,18 @@ the ecosystem, and `bash ./ctl.sh <cmd>` works directly with or without Nx.
 | `ghcr.io/gophersys/base` | "Pick up and work" image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/terraform/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
 | `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. Linux desktop + Android targets. iOS is out of scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
+| `ghcr.io/gophersys/orchestrator` | Peer of `base` — thin Ubuntu 24.04 for brain-level orchestration (Claude Code CLI, mkdocs Material + plugins, openai/voyageai API clients, Docker CLI client only, gh, bw, Python 3.12 + uv, Node 24 LTS + npm, zsh/oh-my-zsh, jq/yq/rg/fd/bat). No Go/Rust/Flutter/Android/Zephyr SDKs; no terraform/kubectl/helm; no desktop/USB/BLE libs. Intended for the orchestrator Claude session, the docs site, MCP servers, and short-lived autonomous cron agents. | `orchestrator` |
 
 ## Dependency graph
 
 ```
-     base
-   ┌──┴──┐
+     base                 orchestrator
+   ┌──┴──┐                (peer — FROM ubuntu:24.04)
 flutter  zephyr
 ```
 
-This is also the build order.
+Build order: `base`, `flutter`, `zephyr`, `orchestrator`. `orchestrator`
+is a peer (not a derivative) of `base` and builds in parallel with it.
 
 ## How to use
 
@@ -47,6 +50,7 @@ Pull an image directly:
 docker pull ghcr.io/gophersys/base:latest
 docker pull ghcr.io/gophersys/flutter:latest
 docker pull ghcr.io/gophersys/zephyr:latest
+docker pull ghcr.io/gophersys/orchestrator:latest
 ```
 
 As a VS Code devcontainer (inside a consuming project):
@@ -77,10 +81,11 @@ Detect the image at runtime (use in scripts / CI):
 
 ```sh
 case "${GOPHERSYS_DEVCONTAINER}" in
-  base)    echo "running in the base image" ;;
-  flutter) echo "running in the flutter layer" ;;
-  zephyr)  echo "running in the zephyr layer" ;;
-  *)       echo "not inside a gophersys devcontainer" ;;
+  base)         echo "running in the base image" ;;
+  flutter)      echo "running in the flutter layer" ;;
+  zephyr)       echo "running in the zephyr layer" ;;
+  orchestrator) echo "running in the orchestrator image" ;;
+  *)            echo "not inside a gophersys devcontainer" ;;
 esac
 ```
 
@@ -131,9 +136,10 @@ every push to `main` and on every semver tag (`v*`).
 ├── ctl.sh                       # repo-wide control script
 ├── .claude/rules/               # identity + conventions
 ├── images/
-│   ├── base/     { Dockerfile, project.json, ctl.sh }
-│   ├── flutter/  { Dockerfile, project.json, ctl.sh }
-│   └── zephyr/   { Dockerfile, project.json, ctl.sh }
+│   ├── base/          { Dockerfile, project.json, ctl.sh }
+│   ├── flutter/       { Dockerfile, project.json, ctl.sh }
+│   ├── zephyr/        { Dockerfile, project.json, ctl.sh }
+│   └── orchestrator/  { Dockerfile, project.json, ctl.sh }
 └── .github/workflows/build-and-push.yml
 ```
 

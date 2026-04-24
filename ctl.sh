@@ -19,9 +19,10 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
 export REPO_ROOT
 
-# Dependency order — parents first. `base` is the only root; `flutter` and
-# `zephyr` both layer on top of `base`.
-BUILD_ORDER=(base flutter zephyr)
+# Dependency order — parents first. `base` is the root of the dev-image
+# family; `flutter` and `zephyr` both layer on top of `base`. `orchestrator`
+# is a peer of `base` (not a derivative) — different role, different size.
+BUILD_ORDER=(base flutter zephyr orchestrator)
 
 # Multi-arch platforms enforced on push.
 MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"

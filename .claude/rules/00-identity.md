@@ -7,23 +7,30 @@ and as the CI runtime that GitHub Actions invokes `nx affected` inside.
 
 ## Purpose
 
-- Single source of truth for the three base images every brain-ecosystem
-  project depends on.
+- Single source of truth for the four canonical container images the
+  brain ecosystem depends on.
 - Keeps local dev and CI execution environments byte-for-byte identical.
 - Provides a place to bump a toolchain version exactly once and have the
   change flow to every project via shared-change propagation.
 
-## 3-image model
+## 4-image model
 
-The repo exposes exactly three images. All three have the
+The repo exposes exactly four images. All four have the
 `GOPHERSYS_DEVCONTAINER` env marker set so scripts can detect which image
 they are running inside.
 
 | Image | `GOPHERSYS_DEVCONTAINER` | Intent |
 |---|---|---|
-| `ghcr.io/gophersys/base`    | `base`    | Everything most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (terraform/kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
-| `ghcr.io/gophersys/flutter` | `flutter` | Base + OpenJDK 17 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
-| `ghcr.io/gophersys/zephyr`  | `zephyr`  | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
+| `ghcr.io/gophersys/base`         | `base`         | Everything most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (terraform/kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
+| `ghcr.io/gophersys/flutter`      | `flutter`      | Base + OpenJDK 17 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
+| `ghcr.io/gophersys/zephyr`       | `zephyr`       | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
+| `ghcr.io/gophersys/orchestrator` | `orchestrator` | Peer of `base` (not a derivative): thin Ubuntu 24.04 image for brain-level orchestration — Python 3.12 + uv, Node 24 LTS, Claude Code CLI, mkdocs Material + plugins, pyyaml/jsonschema, openai/voyageai API clients, Docker CLI client (no daemon), gh, bw, parsing tools, shellcheck/hadolint. No Go/Rust/Flutter/Android/Zephyr SDKs; no terraform/kubectl/helm; no desktop/USB/BLE libs. |
+
+Why `orchestrator` is a peer (not a derivative) of `base`: `base` is the
+~5 GB dev-work image with every language toolchain consuming projects
+reach for. `orchestrator` is the ~500 MB orchestration image autonomous
+cron nodes and nightly jobs run. Bundling them would force every cron
+node to pull 5 GB to run a 200 MB job. Different role, different image.
 
 ## Structure
 
@@ -34,9 +41,10 @@ they are running inside.
 ├── ctl.sh                       # repo-wide control
 ├── .claude/rules/00-identity.md # (this file)
 ├── images/
-│   ├── base/     { Dockerfile, project.json, ctl.sh }
-│   ├── flutter/  { Dockerfile, project.json, ctl.sh }
-│   └── zephyr/   { Dockerfile, project.json, ctl.sh }
+│   ├── base/          { Dockerfile, project.json, ctl.sh }
+│   ├── flutter/       { Dockerfile, project.json, ctl.sh }
+│   ├── zephyr/        { Dockerfile, project.json, ctl.sh }
+│   └── orchestrator/  { Dockerfile, project.json, ctl.sh }
 └── .github/workflows/build-and-push.yml
 ```
 
@@ -124,8 +132,8 @@ and project CI can detect which image they are running inside.
 ## Dependency graph
 
 ```
-     base
-   ┌──┴──┐
+     base                 orchestrator
+   ┌──┴──┐                (peer — no parent)
 flutter  zephyr
 ```
 
@@ -134,6 +142,9 @@ Declared in three places that MUST stay in sync:
 - `BUILD_ORDER` in `./ctl.sh`.
 - `dependsOn` in each image's `project.json`.
 - `needs:` in `.github/workflows/build-and-push.yml`.
+
+`orchestrator` has no parent (FROM ubuntu:24.04 directly) and so has no
+`dependsOn` / `needs:` entry — it builds in parallel with `base`.
 
 ## Shared-change propagation
 
