@@ -309,7 +309,7 @@ def list_manufacturing_fixtures():
             "product": {"id": f.product.id, "name": f.product.name} if hasattr(f, "product") and f.product else None,
         }
 
-    return jsonify({
+    return jsonify(ApiResponse.ok({
         "data": [_serialize_fixture(f) for f in fixtures],
         "pagination": {
             "page": page,
@@ -317,7 +317,7 @@ def list_manufacturing_fixtures():
             "total": total,
             "pages": math.ceil(total / limit) if total > 0 else 0,
         },
-    }), 200
+    }).to_dict()), 200
 
 
 # ---------------------------------------------------------------------------
@@ -613,7 +613,7 @@ def list_manufacturing_sessions():
     )
     total = db.manufacturingsession.count(where=where)
 
-    return jsonify({
+    return jsonify(ApiResponse.ok({
         "data": [_serialize_session(s) for s in sessions],
         "pagination": {
             "page": page,
@@ -621,7 +621,7 @@ def list_manufacturing_sessions():
             "total": total,
             "pages": math.ceil(total / limit) if total > 0 else 0,
         },
-    }), 200
+    }).to_dict()), 200
 
 
 # ---------------------------------------------------------------------------
