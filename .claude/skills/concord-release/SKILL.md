@@ -13,6 +13,31 @@ git-poller, build-service, runner) plus independently-versioned components.
 
 Arguments: $ARGUMENTS
 
+## Definition of Done (READ FIRST, CHECK LAST)
+
+A release is **not done** until **every** box below is checked. The AI must
+walk this list before claiming the release is complete. If any box is unchecked,
+the release is incomplete — continue work until all boxes pass.
+
+```
+[ ] VERSION bumped on a release branch (never on main directly)
+[ ] Release branch merged into main
+[ ] Annotated tag vX.Y.Z pushed to origin
+[ ] Staging deployed and rollout verified
+[ ] Staging release record exists in DB (POST /v2/releases returned 2xx)
+[ ] Production deployed and rollout verified
+[ ] Production release record exists in DB (POST /v2/releases returned 2xx)
+[ ] Resolved bugs linked (or user confirmed "none") in both environments
+```
+
+**Why this exists:** the release records drive the `/releases` page, the
+update-notification toast history, and bug-resolution traceability. A deploy
+without a DB record is a silent data-loss bug. The pairing `deploy → record`
+is enforced by structure (Phases 9 and 10 each bundle both steps).
+
+Never treat the deploy as "the last step." The deploy is step 1 of 2 in each
+Phase 9/10 pair.
+
 ## Version: Single Source of Truth
 
 The `VERSION` file at the repo root is the **sole authority** for the platform
@@ -297,33 +322,59 @@ git tag -a vX.Y.Z -m "vX.Y.Z"
 git push origin --tags
 ```
 
-## Phase 9 — Deploy staging and production (parallel)
+## Phase 9 — Deploy STAGING + create staging release record (one atomic pair)
 
-Deploy both environments in parallel. Each deploy command must be preceded by
-the `.git-build-info` refresh.
+**This phase has TWO mandatory steps. Do not move to Phase 10 until BOTH are
+complete.** If you deploy without creating the record, the release is broken.
+Think of these as a single logical operation, not two.
 
-**Staging:**
+### 9.1 — Refresh .git-build-info and deploy staging
+
 ```bash
 { git -C /home/mateo/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
 npx -y @devcontainers/cli exec ... nx update platform -c staging
 ```
 
-**Production:**
+Verify the output shows:
+- Correct `version=X.Y.Z` and `commit=<expected>`
+- All pods verified (checkmark for each deployment)
+- Smoke tests passed
+
+### 9.2 — Create the staging release record (IMMEDIATELY, before Phase 10)
+
+Do this now, not later. See the "Create release record" section below for the
+mechanics. Use the staging user ID and staging pod.
+
+- Find the http-api pod: `kubectl get pods -n staging -o name | grep concord-http-api | head -1`
+- Generate JWT inside the pod using `JWT_SECRET_KEY` env var
+- POST `/v2/releases` with all collected metadata
+- Verify the record by GET `/v2/releases?limit=5`
+
+**Exit criteria for Phase 9:** the POST returned 2xx and the version appears in
+the list. Do not proceed to Phase 10 otherwise.
+
+## Phase 10 — Deploy PRODUCTION + create production release record (one atomic pair)
+
+Same structure as Phase 9. Deploy and record are a single logical unit.
+
+### 10.1 — Refresh .git-build-info and deploy production
+
 ```bash
 { git -C /home/mateo/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
 npx -y @devcontainers/cli exec ... nx update platform -c production
 ```
 
-Run both as background tasks. Verify the output shows:
-- Correct `version=X.Y.Z` and `commit=<expected>`
-- All pods verified (checkmark for each deployment)
-- Smoke tests passed
+### 10.2 — Create the production release record (IMMEDIATELY)
 
-## Phase 10 — Create release records (MANDATORY, both environments)
+Same mechanics as 9.2 but with the production pod and the production user ID.
 
-**This step is NOT optional.** Every release MUST have a record in both staging
-and production databases. The releases page, error report linking, and version
-history all depend on these records existing. Do not skip this phase.
+**Exit criteria for Phase 10:** the POST returned 2xx and the version appears
+in production `/v2/releases`.
+
+## Create release record — shared mechanics
+
+Used by both Phase 9.2 and Phase 10.2. The steps are identical except for the
+namespace, pod, and user ID.
 
 ### Step 1: Generate a JWT inside the pod
 
@@ -396,20 +447,24 @@ kubectl exec -n <namespace> deploy/concord-http-api -- \
 If the version already exists (409 Conflict), use PATCH instead to update
 the existing record with the full data.
 
-### Step 4: Repeat for the other environment
+### Step 4: Verify
 
-Run the same steps for **both** staging and production — they have separate
-databases and separate JWT secrets. Use the correct user ID for each.
-
-### Step 5: Verify
-
-List releases in both environments and confirm the new version appears:
+List releases and confirm the new version appears at the top:
 
 ```bash
 kubectl exec -n <namespace> deploy/concord-http-api -- \
   curl -s http://localhost:9001/v2/releases?limit=3 \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+Only after this confirms the record exists may you claim the phase is done.
+
+### Note on running both environments
+
+Staging (Phase 9) and production (Phase 10) each follow this same recipe.
+They have separate databases, separate JWT secrets, and separate user IDs.
+Do not batch the POSTs together at the end — each deploy pairs with its own
+record creation immediately.
 
 ## Phase 11 — Link resolved bugs (MANDATORY)
 
@@ -466,6 +521,11 @@ Always ask before performing destructive rollback actions.
 
 ## Common pitfalls
 
+- **Skipping the release record**: The single most common failure mode. After
+  a successful deploy, it feels like the release is "done" — but the `/releases`
+  page is empty until the DB record is POSTed. Phases 9 and 10 pair deploy +
+  record specifically to prevent this. If you have deployed but not POSTed,
+  the release is not complete; go back and post the record before anything else.
 - **Pushing directly to main**: Never. Always use a release branch + PR.
 - **Stale commit hash in builds**: Forgetting to refresh `.git-build-info` before
   the devcontainer exec. The build output will show the wrong commit.
