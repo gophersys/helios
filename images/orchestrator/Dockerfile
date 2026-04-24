@@ -324,15 +324,23 @@ RUN case "${TARGETPLATFORM}" in \
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # -------------------------------------------------------------------------
-# PATH shims in /etc/zsh/zshenv so every zsh sees the installed toolchains
-# without per-user config.
+# Bake PATH into the image so every shell invocation — interactive zsh,
+# login bash, and the very common non-login non-interactive `docker exec -T`
+# bash — sees claude/mkdocs/uv without sourcing any profile. NODE_VERSION
+# is expanded at build time; a bump to NODE_VERSION flows to PATH via the
+# ARG rather than any ad-hoc rewrite.
+# -------------------------------------------------------------------------
+ENV PATH=/home/${USERNAME}/.local/bin:/home/${USERNAME}/.venv/bin:${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:/usr/local/lib/docker/cli-plugins:${PATH} \
+    UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venv
+
+# -------------------------------------------------------------------------
+# zsh-specific shim — sources nvm so `nvm use`, `nvm ls`, etc. work in
+# interactive sessions. Not needed for the binary path (ENV PATH above).
 # -------------------------------------------------------------------------
 RUN { \
       echo '# Set by gophersys/orchestrator Dockerfile.'; \
-      echo 'export PATH=/home/dev/.local/bin:/home/dev/.venv/bin:/usr/local/lib/docker/cli-plugins:${PATH}'; \
       echo 'export NVM_DIR=/home/dev/.nvm'; \
       echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'; \
-      echo 'export UV_PROJECT_ENVIRONMENT=/home/dev/.venv'; \
     } >> /etc/zsh/zshenv
 
 # -------------------------------------------------------------------------
