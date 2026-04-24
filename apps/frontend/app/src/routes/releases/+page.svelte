@@ -38,7 +38,7 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
-  let expandedRelease = $state<(PlatformRelease & { resolvedBugs?: ErrorReportSummary[] }) | null>(null);
+  let expandedRelease = $state<(PlatformRelease & { resolvedErrorReports?: ErrorReportSummary[] }) | null>(null);
   let expandedLoading = $state(false);
 
   let statusFilter = $state('');
@@ -141,7 +141,7 @@
   async function fetchReleaseDetail(id: string): Promise<void> {
     expandedLoading = true;
     try {
-      const res = await apiFetch<ApiResponse<PlatformRelease & { resolvedBugs?: ErrorReportSummary[] }>>(
+      const res = await apiFetch<ApiResponse<PlatformRelease & { resolvedErrorReports?: ErrorReportSummary[] }>>(
         `/v2/releases/${id}`
       );
       expandedRelease = res.data;
@@ -290,6 +290,15 @@
                 {/if}
 
                 <div class="mt-2 flex flex-wrap items-center gap-2">
+                  {#if release.resolvedBugCount != null && release.resolvedBugCount > 0}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-2xs font-medium text-success"
+                      title="{release.resolvedBugCount} bug report{release.resolvedBugCount === 1 ? '' : 's'} fixed in this release"
+                    >
+                      <CheckCircle2 size={10} />
+                      {release.resolvedBugCount} bug{release.resolvedBugCount === 1 ? '' : 's'} fixed
+                    </span>
+                  {/if}
                   {#if release.corekinectVersion}
                     <span class="rounded-full bg-surface-2 px-2 py-0.5 text-2xs text-text-secondary">
                       corekinect {release.corekinectVersion}
@@ -484,24 +493,40 @@
                   {/if}
 
                   <!-- Resolved bugs -->
-                  {#if expandedRelease?.resolvedBugs && expandedRelease.resolvedBugs.length > 0}
+                  {#if expandedRelease?.resolvedErrorReports && expandedRelease.resolvedErrorReports.length > 0}
                     <div>
                       <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">
-                        Resolved Bug Reports ({expandedRelease.resolvedBugs.length})
+                        Bugs fixed in this release ({expandedRelease.resolvedErrorReports.length})
                       </div>
                       <div class="mt-2 space-y-1">
-                        {#each expandedRelease.resolvedBugs as bug}
-                          <div class="flex items-center gap-2 rounded-lg bg-surface-0 px-3 py-2">
+                        {#each expandedRelease.resolvedErrorReports as bug}
+                          <a
+                            href={`/error-reports?focus=${bug.id}`}
+                            class="group flex items-center gap-2 rounded-lg bg-surface-0 px-3 py-2 hover:bg-surface-2 transition-colors"
+                          >
                             <div class="shrink-0 w-2 h-2 rounded-full {
                               bug.severity === 'critical' ? 'bg-error' :
                               bug.severity === 'error' ? 'bg-error' :
                               bug.severity === 'warning' ? 'bg-warning' : 'bg-accent'
                             }"></div>
-                            <span class="min-w-0 flex-1 truncate text-sm text-text-secondary">{bug.message}</span>
+                            <span class="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-2xs font-mono font-medium bg-surface-1 text-text-secondary border border-border">
+                              {bug.type.toUpperCase()}
+                            </span>
+                            <span class="min-w-0 flex-1 truncate text-sm text-text-secondary group-hover:text-text-primary">{bug.message}</span>
+                            {#if bug.appVersion}
+                              <span class="hidden shrink-0 font-mono text-2xs text-text-tertiary md:inline">v{bug.appVersion}</span>
+                            {/if}
                             <StatusBadge status={bug.status} />
-                          </div>
+                          </a>
                         {/each}
                       </div>
+                    </div>
+                  {:else if expandedRelease && !expandedLoading}
+                    <div>
+                      <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">
+                        Bugs fixed in this release
+                      </div>
+                      <div class="mt-2 text-2xs text-text-tertiary italic">No error reports were linked to this release.</div>
                     </div>
                   {/if}
 

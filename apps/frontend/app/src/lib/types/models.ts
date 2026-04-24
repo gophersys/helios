@@ -891,7 +891,8 @@ export interface PlatformRelease {
   createdById: string | null;
   createdAt: string;
   updatedAt: string;
-  resolvedBugs?: ErrorReportSummary[];
+  resolvedBugCount?: number | null;
+  resolvedErrorReports?: ErrorReportSummary[];
 }
 
 export interface ErrorReportSummary {
@@ -900,6 +901,10 @@ export interface ErrorReportSummary {
   type: string;
   severity: string;
   message: string;
+  currentPath?: string | null;
+  appVersion?: string | null;
+  createdAt?: string | null;
+  resolvedAt?: string | null;
 }
 
 export interface UserReport {
