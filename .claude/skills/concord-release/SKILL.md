@@ -224,18 +224,20 @@ Run both as background tasks. Verify the output shows:
 - All pods verified (checkmark for each deployment)
 - Smoke tests passed
 
-## Phase 10 — Create release records (both environments)
+## Phase 10 — Create release records (MANDATORY, both environments)
 
-Create release records in both staging and production databases. The API requires
-a valid JWT.
+**This step is NOT optional.** Every release MUST have a record in both staging
+and production databases. The releases page, error report linking, and version
+history all depend on these records existing. Do not skip this phase.
 
-### Generate a JWT inside the pod
+### Step 1: Generate a JWT inside the pod
+
+Use the pod's own `JWT_SECRET_KEY` env var (never pass secrets through shell):
 
 ```bash
-JWT_SECRET=$(kubectl get secret -n <namespace> concord-secrets -o jsonpath='{.data.JWT_SECRET_KEY}' | base64 -d)
-
 TOKEN=$(kubectl exec -n <namespace> deploy/concord-http-api -- python3 -c "
-import jwt; from datetime import datetime, timezone, timedelta
+import jwt, os
+from datetime import datetime, timezone, timedelta
 token = jwt.encode({
     'sub': '<USER_ID>',
     'email': 'mateo@corekinect.com',
@@ -243,15 +245,16 @@ token = jwt.encode({
     'role': 'ADMIN',
     'iat': datetime.now(timezone.utc),
     'exp': datetime.now(timezone.utc) + timedelta(hours=1),
-}, '$JWT_SECRET', algorithm='HS256')
+}, os.environ['JWT_SECRET_KEY'], algorithm='HS256')
 print(token)
-")
+" 2>/dev/null)
 ```
 
-The `sub` claim MUST be a real user ID from the database — synthetic IDs
-cause a foreign key violation on `createdById`.
+**Known user IDs** (look up if stale — query `/v2/users` with any valid token):
+- Staging: `cmnz59zya000ylno28xrj4gu1` (mateo@corekinect.com)
+- Production: `cmny0hvd0000yq1k0vmv2mwto` (mateo@corekinect.com)
 
-### POST the release record
+### Step 2: POST the release record
 
 ```bash
 kubectl exec -n <namespace> deploy/concord-http-api -- \
@@ -264,22 +267,28 @@ kubectl exec -n <namespace> deploy/concord-http-api -- \
     "branch": "main",
     "status": "RELEASED",
     "previousVersion": "<prev>",
-    "changelog": "<changelog_markdown>",
-    "summary": "<user_summary>",
-    "gateStatus": "passed"
+    "summary": "<one-line summary of changes>",
+    "gateStatus": "passed",
+    "releaseOrigin": "manual"
   }'
 ```
 
-If the version already exists (409 Conflict), use PATCH instead:
+If the version already exists (409 Conflict), use PATCH instead.
+
+### Step 3: Repeat for the other environment
+
+Run the same steps for **both** staging and production — they have separate
+databases and separate JWT secrets. Use the correct user ID for each.
+
+### Step 4: Verify
+
+List releases in both environments and confirm the new version appears:
 
 ```bash
-curl -s -X PATCH http://localhost:9001/v2/releases/<id> \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"status": "RELEASED", "commitSha": "<sha>"}'
+kubectl exec -n <namespace> deploy/concord-http-api -- \
+  curl -s http://localhost:9001/v2/releases?limit=3 \
+  -H "Authorization: Bearer $TOKEN"
 ```
-
-Create records in **both** staging and production — they have separate databases.
 
 ## Phase 11 — Link resolved bugs
 
