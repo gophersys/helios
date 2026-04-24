@@ -61,11 +61,11 @@
       params.set('page', String(currentPage));
       params.set('limit', '50');
 
-      const res = await apiFetch<{ data: FullUser[]; pagination: PaginationData }>(
+      const res = await apiFetch<ApiResponse<{ data: FullUser[]; pagination: PaginationData }>>(
         '/v2/users?' + params.toString()
       );
-      users = res.data;
-      pagination = res.pagination;
+      users = res.data.data;
+      pagination = res.data.pagination;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load users';
     } finally {

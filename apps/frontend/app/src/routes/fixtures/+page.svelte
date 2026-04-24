@@ -141,11 +141,11 @@
       if (filterType) params.set('type', filterType);
       if (debouncedSearch) params.set('search', debouncedSearch);
 
-      const res = await apiFetch<{ data: Fixture[]; pagination: PaginationData }>(
+      const res = await apiFetch<ApiResponse<{ data: Fixture[]; pagination: PaginationData }>>(
         '/v2/fixtures?' + params.toString()
       );
-      fixtures = res.data;
-      pagination = res.pagination;
+      fixtures = res.data.data;
+      pagination = res.data.pagination;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load fixtures';
     } finally {

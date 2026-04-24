@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page as pageStore } from '$app/stores';
   import {
     ChevronDown,
     ChevronRight,
@@ -244,13 +245,46 @@
     }
   }
 
+  async function focusReport(id: string): Promise<void> {
+    // Fetch the target report to figure out which tab it lives under, then
+    // expand + scroll to it after the list has rendered.
+    try {
+      const res = await apiFetch<ApiResponse<ErrorReportEntry>>(
+        `/v2/system/error-reports/${id}`,
+      );
+      const report = res.data;
+      const targetTab: Tab =
+        report.status === 'RESOLVED' ? 'fixed'
+        : report.status === 'DISMISSED' ? 'dismissed'
+        : 'open';
+      if (activeTab !== targetTab) activeTab = targetTab;
+      page = 1;
+      await fetchReports();
+      expandedId = id;
+      await tick();
+      const el = document.getElementById(`report-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-accent');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-accent'), 2000);
+      }
+    } catch {
+      // Target bug not found or fetch failed — just land on the default view
+    }
+  }
+
   onMount(() => {
     if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }
-    fetchReports();
     fetchCounts();
+    const focusId = $pageStore.url.searchParams.get('focus');
+    if (focusId) {
+      focusReport(focusId);
+    } else {
+      fetchReports();
+    }
   });
 
   $effect(() => {
@@ -337,7 +371,7 @@
       <div class="space-y-2">
         {#each reports as report (report.id)}
           {@const isExpanded = expandedId === report.id}
-          <div class="rounded-lg border border-border bg-surface-1">
+          <div id="report-{report.id}" class="rounded-lg border border-border bg-surface-1 transition-shadow">
             <!-- Row header -->
             <button
               class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2 transition-colors"
