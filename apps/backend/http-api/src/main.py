@@ -73,13 +73,34 @@ def health():
 
 @server.route("/ready")
 def ready():
-    """Readiness probe endpoint that verifies database connectivity."""
+    """Readiness probe — DB reachable AND Prisma client matches schema.
+
+    The schema-drift guard is the load-bearing addition: a transitional
+    deploy where this pod's bundled Prisma client was built against a
+    newer schema than the DB had received caused silent 500s on the
+    ``releases`` write path. Failing readiness yanks the mismatched pod
+    from rotation immediately instead of letting it serve broken writes.
+    """
     try:
         db = get_db_client()
         db.user.count()
-        return jsonify({"status": "ready", "service": "http-api"}), 200
     except Exception:
         return jsonify({"status": "not_ready", "service": "http-api"}), 503
+
+    try:
+        from src.services.database.schema_drift import check_schema_drift
+        report = check_schema_drift(db)
+    except Exception:  # never let the probe itself crash the pod
+        return jsonify({"status": "ready", "service": "http-api"}), 200
+
+    if not report.get("healthy"):
+        return jsonify({
+            "status": "not_ready",
+            "service": "http-api",
+            "reason": "schema_drift",
+            "drift": report.get("drift", []),
+        }), 503
+    return jsonify({"status": "ready", "service": "http-api"}), 200
 
 
 # -------------------------------------------------

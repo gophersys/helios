@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, call, patch
 
@@ -10,6 +12,7 @@ import pytest
 from tests.conftest import make_obj
 from src.services.retention import (
     cleanup_old_validation_runs,
+    cleanup_stuck_uploading_test_packages,
     get_storage_usage,
     DEFAULT_RETENTION_DAYS,
 )
@@ -281,3 +284,80 @@ class TestGetStorageUsage:
 
     # TODO: test_storage_usage_handles_none_size_objects
     # TODO: test_cleanup_does_not_delete_runs_newer_than_cutoff
+
+
+# ---------------------------------------------------------------------------
+# TestCleanupStuckUploadingTestPackages
+# ---------------------------------------------------------------------------
+
+class TestCleanupStuckUploadingTestPackages:
+    """Tests for ``cleanup_stuck_uploading_test_packages``."""
+
+    def test_deletes_old_uploading_placeholder(self, mock_db_and_storage):
+        db, _ = mock_db_and_storage
+        old = make_obj(
+            id="tp-stuck-1", version="dev-x-1",
+            createdAt=datetime.now(timezone.utc) - timedelta(hours=2),
+        )
+        db.testpackage.find_many.return_value = [old]
+
+        result = cleanup_stuck_uploading_test_packages(age_minutes=60)
+
+        assert result["deleted"] == 1
+        db.testpackage.delete.assert_called_once_with(where={"id": "tp-stuck-1"})
+
+    def test_dry_run_does_not_delete(self, mock_db_and_storage):
+        db, _ = mock_db_and_storage
+        old = make_obj(
+            id="tp-stuck-2", version="dev-y-1",
+            createdAt=datetime.now(timezone.utc) - timedelta(hours=2),
+        )
+        db.testpackage.find_many.return_value = [old]
+
+        result = cleanup_stuck_uploading_test_packages(age_minutes=60, dry_run=True)
+
+        assert result["deleted"] == 1
+        assert result["dry_run"] is True
+        db.testpackage.delete.assert_not_called()
+
+    def test_query_only_targets_uploading_status(self, mock_db_and_storage):
+        db, _ = mock_db_and_storage
+        db.testpackage.find_many.return_value = []
+
+        cleanup_stuck_uploading_test_packages(age_minutes=60)
+
+        where = db.testpackage.find_many.call_args.kwargs.get("where") or {}
+        assert where.get("status") == "UPLOADING"
+
+
+# ---------------------------------------------------------------------------
+# Retention summary log line — format is load-bearing for Loki dashboards
+# ---------------------------------------------------------------------------
+
+
+class TestRetentionSummaryEmit:
+    """Asserts the ``concord_retention_summary`` log line shape stays stable."""
+
+    def test_validation_runs_emits_summary(self, mock_db_and_storage, caplog):
+        db, _ = mock_db_and_storage
+        db.testrun.find_many.return_value = []
+
+        with caplog.at_level(logging.INFO, logger="src.services.retention"):
+            cleanup_old_validation_runs()
+
+        msgs = [r.getMessage() for r in caplog.records]
+        summary = [m for m in msgs if "concord_retention_summary" in m]
+        assert summary, f"missing summary line. records: {msgs!r}"
+        assert any("scope=validation_runs" in m for m in summary)
+
+    def test_stuck_uploads_emits_summary(self, mock_db_and_storage, caplog):
+        db, _ = mock_db_and_storage
+        db.testpackage.find_many.return_value = []
+
+        with caplog.at_level(logging.INFO, logger="src.services.retention"):
+            cleanup_stuck_uploading_test_packages(age_minutes=60)
+
+        msgs = [r.getMessage() for r in caplog.records]
+        summary = [m for m in msgs if "concord_retention_summary" in m]
+        assert summary
+        assert any("scope=stuck_uploads" in m for m in summary)

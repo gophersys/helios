@@ -23,6 +23,10 @@ from src.services.builds.artifact_validator import (
     format_missing_artifacts_message,
 )
 from src.services.builds.promotion import promote_build_run_to_firmware, create_asset_set_from_build_run
+from src.api.v2.products.test_package_resolver import (
+    assert_purpose_match,
+    resolve_test_package,
+)
 from corekinect.stages import Stage
 
 logger = logging.getLogger(__name__)
@@ -1014,6 +1018,28 @@ def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Option
             "Selected: fixture=%s slot=%s (SNR=%s device=%s) MTIB=%s",
             fixture.name, slot.id[:8], slot.dutSnr, slot.dutDeviceId, mtib_address,
         )
+
+        # Asymmetric purpose gate: dev pkg on release fixture is forbidden.
+        # Resolve before locking so a mismatch leaves the rig untouched.
+        test_package, _ = resolve_test_package(
+            db, product.id, "VALIDATION", mode="RELEASED",
+        )
+        if test_package is None:
+            test_package, _ = resolve_test_package(
+                db, product.id, "VALIDATION", mode="ANY",
+            )
+        if test_package is not None:
+            purpose_err = assert_purpose_match(test_package, fixture)
+            if purpose_err is not None:
+                logger.warning(
+                    "Validation trigger blocked by purpose gate: "
+                    "build_run=%s fixture=%s (purpose=%s) package=%s (status=%s)",
+                    run_id[:8], fixture.name,
+                    getattr(fixture, "purpose", None),
+                    getattr(test_package, "version", None),
+                    getattr(test_package, "status", None),
+                )
+                return None
 
         ctx = _create_validation_session(db, fixture, slot, mtib_address, run_id, build_run, product, builds)
         session = ctx["session"]

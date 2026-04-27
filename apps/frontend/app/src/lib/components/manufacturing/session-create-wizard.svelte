@@ -62,14 +62,27 @@
     }
   });
 
-  // Load released test packages when fixture selected
+  // Load test packages when fixture selected. DEV fixtures (sandbox rigs)
+  // see both DEV and RELEASED candidates so an iteration loop doesn't need
+  // a release first; RELEASE fixtures only see RELEASED packages.
   $effect(() => {
     if (selectedProductId && selectedFixtureId) {
-      apiFetch<ApiResponse<any>>(
+      const isDevFixture = (selectedFixture as any)?.purpose === 'DEV';
+      const released = apiFetch<ApiResponse<any>>(
         `/v2/products/${selectedProductId}/test-packages?type=MANUFACTURING&status=RELEASED&limit=50`
-      ).then(res => {
-        const payload = res.data;
-        testPackages = Array.isArray(payload) ? payload : (payload as any)?.data ?? [];
+      );
+      const dev = isDevFixture
+        ? apiFetch<ApiResponse<any>>(
+            `/v2/products/${selectedProductId}/test-packages?type=MANUFACTURING&status=DEVELOPMENT&limit=50`
+          )
+        : Promise.resolve({ data: { data: [] } } as any);
+
+      Promise.all([released, dev]).then(([rRes, dRes]) => {
+        const rPayload = (rRes as any).data;
+        const dPayload = (dRes as any).data;
+        const rList = Array.isArray(rPayload) ? rPayload : (rPayload as any)?.data ?? [];
+        const dList = Array.isArray(dPayload) ? dPayload : (dPayload as any)?.data ?? [];
+        testPackages = [...rList, ...dList];
       }).catch(() => { testPackages = []; });
     } else {
       testPackages = [];
@@ -299,8 +312,13 @@
           {#if testPackages.length === 0}
             <div class="text-center py-8 rounded-xl border-2 border-dashed border-border">
               <FlaskConical size={32} class="mx-auto mb-3 text-text-tertiary" />
-              <p class="text-sm text-text-secondary">No released test apps found.</p>
-              <p class="text-2xs text-text-tertiary mt-1">Release a manufacturing test app first.</p>
+              {#if (selectedFixture as any)?.purpose === 'DEV'}
+                <p class="text-sm text-text-secondary">No test apps uploaded for this product yet.</p>
+                <p class="text-2xs text-text-tertiary mt-1">Upload one with <code>corectl upload</code> — both dev and released candidates show here for dev rigs.</p>
+              {:else}
+                <p class="text-sm text-text-secondary">No released test apps found.</p>
+                <p class="text-2xs text-text-tertiary mt-1">Release a manufacturing test app first, or use a dev fixture to run unreleased builds.</p>
+              {/if}
             </div>
           {:else}
             <div class="grid gap-3">
@@ -317,10 +335,16 @@
                     <div class="flex-1 min-w-0">
                       <span class="text-sm font-semibold text-text-primary">v{tp.releasedVersion || tp.version}</span>
                       <div class="flex items-center gap-2 mt-0.5">
-                        <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">RELEASED</span>
+                        {#if tp.status === 'DEVELOPMENT'}
+                          <span class="rounded bg-warning-muted px-1.5 py-0.5 text-2xs font-medium text-warning">DEV</span>
+                        {:else}
+                          <span class="rounded bg-success-muted px-1.5 py-0.5 text-2xs font-medium text-success">RELEASED</span>
+                        {/if}
                         <span class="text-2xs text-text-tertiary">{tp.testCount} tests</span>
                         {#if tp.releasedAt}
                           <span class="text-2xs text-text-tertiary">· {new Date(tp.releasedAt).toLocaleDateString()}</span>
+                        {:else if tp.createdAt}
+                          <span class="text-2xs text-text-tertiary">· {new Date(tp.createdAt).toLocaleDateString()}</span>
                         {/if}
                       </div>
                     </div>

@@ -140,4 +140,8 @@ retention:
     schedule: "30 2 * * *"
     retentionDays: 30
     keepLatest: 5
+  mfgSessionReaper:
+    enabled: true
+    schedule: "*/15 * * * *"
+    stalenessMinutes: 30
 

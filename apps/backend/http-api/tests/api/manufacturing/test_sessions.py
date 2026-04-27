@@ -275,6 +275,65 @@ class TestCreateSession:
         )
         assert resp.status_code == 400
 
+    def test_dev_fixture_falls_back_to_dev_package_when_no_release(self, authed_client, mock_db):
+        """DEV fixture with no released package picks the latest dev package.
+
+        Today the resolver only falls back to ``RELEASED`` regardless of
+        fixture purpose, which 409s the operator on a dev rig that has
+        never been through a release. DEV rigs are sandboxes — when no
+        explicit testPackageId is passed and no released package exists,
+        pick the latest DEVELOPMENT package instead so the iteration
+        loop just works.
+        """
+        dev_fixture = _fixture(purpose="DEV")
+        mock_db.fixture.find_unique.return_value = dev_fixture
+        mock_db.product.find_unique.return_value = _product()
+        mock_db.assetset.find_first.return_value = _asset_set(id="s10-as-1", status="COMPLETE")
+
+        # The resolver is called twice in the session-create path
+        # (RELEASED-mode, then DEV-mode fallback for a dev fixture).
+        # Return the dev package on any call where the where-clause asks
+        # for DEVELOPMENT status, None on a RELEASED query. Subsequent
+        # calls (e.g., from the runner deploy path) match anything and
+        # safely return the dev package too.
+        dev_pkg = _test_package(
+            id="s10-tp-dev-1", status="DEVELOPMENT", version="dev-foo-1", releasedVersion=None,
+        )
+        def _testpkg_find_first(*args, **kwargs):
+            where = kwargs.get("where") or (args[0] if args else {})
+            status = (where or {}).get("status") if isinstance(where, dict) else None
+            if status == "RELEASED":
+                return None
+            return dev_pkg
+        mock_db.testpackage.find_first.side_effect = _testpkg_find_first
+        mock_db.manufacturingsession.create.return_value = _session()
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions",
+            data=json.dumps({
+                "productId": "s10-prod-1",
+                "fixtureId": "s10-fix-1",
+            }),
+        )
+        assert resp.status_code == 201, resp.get_json()
+
+    def test_release_fixture_still_blocks_when_no_release_exists(self, authed_client, mock_db):
+        """RELEASE fixture (production) still requires an explicit release."""
+        rel_fixture = _fixture(purpose="RELEASE")
+        mock_db.fixture.find_unique.return_value = rel_fixture
+        mock_db.product.find_unique.return_value = _product()
+        mock_db.assetset.find_first.return_value = _asset_set(id="s10-as-1", status="COMPLETE")
+        mock_db.testpackage.find_first.return_value = None  # No package at all
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions",
+            data=json.dumps({
+                "productId": "s10-prod-1",
+                "fixtureId": "s10-fix-1",
+            }),
+        )
+        assert resp.status_code == 409
+
 
 # ---------------------------------------------------------------------------
 # GET /v2/manufacturing/sessions — list sessions (paginated)

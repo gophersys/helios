@@ -174,6 +174,123 @@ class TestUploadTestPackage:
         mock_db.testpackage.create.assert_not_called()
         mock_db.testpackage.update.assert_not_called()
 
+    def test_upload_two_phase_creates_uploading_placeholder_first(
+        self, authed_client, mock_db, _mock_storage,
+    ):
+        """Two-phase commit: placeholder row created BEFORE the MinIO put.
+
+        Order matters — if the row landed after the upload, a crash
+        between put and create would leave an orphan blob nobody owns.
+        Asserts the create call (status=UPLOADING) precedes the storage
+        put_object call in the call timeline.
+        """
+        product = _product_obj()
+        placeholder = _test_package_obj(
+            id="tp-new", status="UPLOADING", version="dev-foo-100", storageKey=None,
+        )
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = None
+        mock_db.testpackage.create.return_value = placeholder
+        mock_db.testpackage.find_unique.return_value = _test_package_obj(
+            id="tp-new", status="DEVELOPMENT", version="dev-foo-100",
+        )
+
+        data = {
+            "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
+            "manifest": json.dumps(_manifest(status="DEVELOPMENT", version="dev-foo-100")),
+        }
+        resp = authed_client.post(
+            "/v2/products/alpha-b0/test-packages",
+            data=data,
+            content_type="multipart/form-data",
+        )
+        assert resp.status_code == 201, resp.get_json()
+
+        # Placeholder was created with status=UPLOADING and no storageKey.
+        create_data = mock_db.testpackage.create.call_args.kwargs["data"]
+        assert create_data["status"] == "UPLOADING"
+        assert create_data["storageKey"] is None
+
+        # MinIO put happened.
+        assert _mock_storage.put_object.called
+
+        # Status was flipped to DEVELOPMENT after the put.
+        update_calls = mock_db.testpackage.update.call_args_list
+        flip_calls = [
+            c for c in update_calls
+            if c.kwargs.get("data", {}).get("status") == "DEVELOPMENT"
+        ]
+        assert flip_calls, "expected an update flipping status=DEVELOPMENT"
+        assert flip_calls[0].kwargs["data"]["storageKey"] is not None
+
+    def test_upload_storage_failure_leaves_uploading_placeholder(
+        self, authed_client, mock_db, _mock_storage,
+    ):
+        """MinIO failure → placeholder stays in UPLOADING for retention to reap."""
+        product = _product_obj()
+        placeholder = _test_package_obj(
+            id="tp-stuck", status="UPLOADING", version="dev-broken-1", storageKey=None,
+        )
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = None
+        mock_db.testpackage.create.return_value = placeholder
+
+        # MinIO put raises.
+        _mock_storage.put_object.side_effect = RuntimeError("minio-down")
+
+        data = {
+            "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
+            "manifest": json.dumps(_manifest(status="DEVELOPMENT", version="dev-broken-1")),
+        }
+        resp = authed_client.post(
+            "/v2/products/alpha-b0/test-packages",
+            data=data,
+            content_type="multipart/form-data",
+        )
+        assert resp.status_code == 500
+        # Placeholder was NOT flipped — no update with status=DEVELOPMENT.
+        flips = [
+            c for c in mock_db.testpackage.update.call_args_list
+            if c.kwargs.get("data", {}).get("status") == "DEVELOPMENT"
+        ]
+        assert not flips, "placeholder should remain UPLOADING after upload failure"
+
+    def test_upload_reuses_stuck_uploading_placeholder(
+        self, authed_client, mock_db, _mock_storage,
+    ):
+        """Retry of a stuck UPLOADING placeholder is allowed (not 409)."""
+        product = _product_obj()
+        stuck = _test_package_obj(
+            id="tp-stuck-1", status="UPLOADING", version="dev-retry-1", storageKey=None,
+        )
+        mock_db.product.find_unique.return_value = product
+        mock_db.product.find_first.return_value = product
+        mock_db.testpackage.find_first.return_value = stuck
+        mock_db.testpackage.find_unique.return_value = _test_package_obj(
+            id="tp-stuck-1", status="DEVELOPMENT", version="dev-retry-1",
+        )
+
+        data = {
+            "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
+            "manifest": json.dumps(_manifest(status="DEVELOPMENT", version="dev-retry-1")),
+        }
+        resp = authed_client.post(
+            "/v2/products/alpha-b0/test-packages",
+            data=data,
+            content_type="multipart/form-data",
+        )
+        assert resp.status_code == 201, resp.get_json()
+        # No second create call — reused the placeholder.
+        mock_db.testpackage.create.assert_not_called()
+        # Status got flipped on the existing placeholder.
+        flips = [
+            c for c in mock_db.testpackage.update.call_args_list
+            if c.kwargs.get("data", {}).get("status") == "DEVELOPMENT"
+        ]
+        assert flips
+
     def test_upload_released_version_rejected(self, authed_client, mock_db):
         """Upload a released package is always rejected (must upload as dev, then promote)."""
         product = _product_obj()

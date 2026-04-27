@@ -458,10 +458,16 @@ def create_manufacturing_session():
     # ── Resolve test package ──
     #
     # The wizard passes testPackageId when the operator picks a specific
-    # package (released or dev). When omitted, fall back to the latest
-    # released package — if none exists, fail loudly so the operator
-    # picks one explicitly rather than silently auto-picking a dev build
-    # for production hardware.
+    # package (released or dev). When omitted, the fallback depends on
+    # the fixture's purpose:
+    #
+    # * RELEASE fixture (production floor) — only accept the latest
+    #   RELEASED package. Failing loud here keeps dev code off
+    #   customer hardware even when a release was forgotten.
+    # * DEV fixture (sandbox rig) — prefer the latest RELEASED package
+    #   when one exists, otherwise fall back to the latest DEVELOPMENT
+    #   package. The iteration loop ("upload dev pkg, run on dev rig")
+    #   shouldn't require a manual pick when there's only one candidate.
     test_package_id_input = (body.get("testPackageId") or "").strip() or None
     test_package, tp_err = resolve_test_package(
         db, product_id, "MANUFACTURING",
@@ -470,6 +476,13 @@ def create_manufacturing_session():
     )
     if tp_err:
         return tp_err
+    if test_package is None and not test_package_id_input:
+        if getattr(fixture, "purpose", None) == "DEV":
+            test_package, tp_err = resolve_test_package(
+                db, product_id, "MANUFACTURING", mode="DEV",
+            )
+            if tp_err:
+                return tp_err
     if test_package is None:
         return conflict(
             "No released manufacturing test package for this product. "
