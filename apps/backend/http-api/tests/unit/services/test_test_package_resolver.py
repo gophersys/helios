@@ -13,6 +13,15 @@ def svc_mock_db():
     return MockPrismaClient()
 
 
+@pytest.fixture(autouse=True)
+def _flask_app_ctx():
+    """The resolver returns Flask error tuples via jsonify, which needs an app context."""
+    from flask import Flask
+    app = Flask(__name__)
+    with app.app_context():
+        yield
+
+
 def _make_pkg(**kwargs):
     defaults = {
         "id": "pkg-1",

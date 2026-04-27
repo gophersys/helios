@@ -95,6 +95,23 @@ def _session(**overrides):
     return make_obj(**defaults)
 
 
+def _test_package(**overrides):
+    """Released MANUFACTURING test package — required by the session-create
+    resolver gate (an explicit ``testPackageId`` or a latest-released fallback
+    must resolve before a session can lock its fixture)."""
+    defaults = dict(
+        id="s10-tp-1",
+        productId="s10-prod-1",
+        type="MANUFACTURING",
+        status="RELEASED",
+        version="1.0.0",
+        releasedVersion="1.0.0",
+        boardRevisionId="s10-rev-1",
+    )
+    defaults.update(overrides)
+    return make_obj(**defaults)
+
+
 def _slot(**overrides):
     defaults = dict(
         id="s10-slot-0",
@@ -207,6 +224,10 @@ class TestCreateSession:
         # doesn't hit the hard 400 gate we added to prevent sessions
         # from spawning with assetSetId=None.
         mock_db.assetset.find_first.return_value = _asset_set(id="s10-as-1", status="COMPLETE")
+        # Sessions also require a resolvable test package. The wizard
+        # picks one explicitly, or the resolver falls back to the latest
+        # RELEASED — mock that fallback for the happy path.
+        mock_db.testpackage.find_first.return_value = _test_package()
         created = _session()
         mock_db.manufacturingsession.create.return_value = created
         mock_db.fixture.update.return_value = _fixture(status="LOCKED", lockedBy="s10-sess-1")
