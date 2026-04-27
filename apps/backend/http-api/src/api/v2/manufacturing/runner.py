@@ -23,7 +23,7 @@ from database import Json
 from flask import g, jsonify, request
 
 from config.env import env_config
-from src.api.v2.manufacturing.shared import resolve_test_package as _resolve_test_package
+from src.api.v2.products.test_package_resolver import resolve_test_package
 from src.lib.audit import log_audit
 from src.lib.decorators import require_auth
 from src.lib.types import ApiResponse
@@ -192,8 +192,19 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
     device_id_values = [s.get("dutDeviceId") or "" for s in slot_infos]
     slot_device_ids = ",".join(device_id_values) if any(device_id_values) else ""
 
-    # 2. Resolve test package
-    tp, _ = _resolve_test_package(db, product.id)
+    # 2. Resolve test package — prefer the session's explicit choice
+    # (set by the wizard), then the latest released, then any latest as
+    # a dev fallback. The runner needs an exact version string, so a
+    # missing package is recorded as "latest" and the runner will fail
+    # fast against the backend.
+    explicit_id = getattr(session, "testPackageId", None)
+    tp, _ = resolve_test_package(
+        db, product.id, "MANUFACTURING", explicit_id=explicit_id, mode="RELEASED",
+    )
+    if tp is None and explicit_id is None:
+        tp, _ = resolve_test_package(
+            db, product.id, "MANUFACTURING", mode="ANY",
+        )
     test_package_version = tp.version if tp else "latest"
 
     # 3. Create temporary API key

@@ -28,7 +28,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
-from src.api.v2.manufacturing.shared import resolve_test_package as _resolve_test_package
+from src.api.v2.products.test_package_resolver import resolve_test_package
 from src.services.database.prisma import get_db_client
 from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
 
@@ -911,13 +911,27 @@ def add_manufacturing_run(session_id: str):
             if not isinstance(entry, dict) or "slotIndex" not in entry or "snr" not in entry:
                 return bad_request("Each slotSnrs entry must have 'slotIndex' and 'snr'")
 
-    # Resolve test package
+    # Resolve test package. The session may carry an explicit testPackageId
+    # set at creation time (wizard pick); per-run callers can also override
+    # via testPackageVersion. Otherwise: latest released, then any as a
+    # dev fallback so an operator can scan a panel against an unreleased
+    # candidate when no released package exists yet.
     explicit_version = body.get("testPackageVersion")
-    tp, tp_error = _resolve_test_package(
-        db, session.productId, explicit_version
+    explicit_id = getattr(session, "testPackageId", None) if not explicit_version else None
+    tp, tp_error = resolve_test_package(
+        db, session.productId, "MANUFACTURING",
+        explicit_id=explicit_id,
+        explicit_version=explicit_version,
+        mode="RELEASED",
     )
     if tp_error:
         return tp_error
+    if tp is None and explicit_id is None and explicit_version is None:
+        tp, tp_error = resolve_test_package(
+            db, session.productId, "MANUFACTURING", mode="ANY",
+        )
+        if tp_error:
+            return tp_error
 
     operator_id = g.current_user["sub"]
 

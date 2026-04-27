@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from database import Json
 from config.env import env_config
+from src.api.v2.products.test_package_resolver import resolve_test_package
 from src.api.v2.runs.manual import create_kubernetes_job
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
@@ -216,6 +217,7 @@ def _trigger_validation_job(
         where={"id": entry_id},
         include={
             "assetSet": {"include": {"product": True, "buildRun": True}},
+            "stageConfig": True,
             "fixture": {
                 "include": {
                     "slots": {
@@ -245,7 +247,11 @@ def _trigger_validation_job(
     # Resolve all active slots
     slot_infos = _resolve_all_slot_info(fixture)
 
-    # Look up test package
+    # Look up test package via the shared resolver. Priority:
+    # (1) the stage's blessed releasedTestPackageId, if bound;
+    # (2) latest RELEASED validation package;
+    # (3) in non-production, fall back to the latest of any status so
+    # dev iterations work without a release.
     test_package_id = None
     test_package_version = "latest"
     product_slug = None
@@ -254,42 +260,34 @@ def _trigger_validation_job(
         product_record = db.product.find_unique(where={"id": product_id})
         if product_record:
             product_slug = product_record.slug or product_record.name.lower()
-            latest_tp = db.testpackage.find_first(
-                where={
-                    "productId": product_record.id,
-                    "type": "VALIDATION",
-                    "status": "RELEASED",
-                },
-                order={"createdAt": "desc"},
+            stage_config = getattr(entry, "stageConfig", None)
+            stage_explicit = getattr(stage_config, "releasedTestPackageId", None) if stage_config else None
+            tp, _ = resolve_test_package(
+                db, product_record.id, "VALIDATION",
+                explicit_id=stage_explicit,
+                mode="RELEASED",
             )
-            if latest_tp:
-                test_package_id = latest_tp.id
-                test_package_version = latest_tp.version
+            if tp is None and env_config.ENVIRONMENT != "production":
+                tp, _ = resolve_test_package(
+                    db, product_record.id, "VALIDATION", mode="ANY",
+                )
+                if tp:
+                    logger.info(
+                        "No RELEASED test package — using dev %s@%s",
+                        product_slug, tp.version,
+                    )
+            if tp:
+                test_package_id = tp.id
+                test_package_version = tp.version
                 logger.info(
                     "Using test package %s@%s",
                     product_slug, test_package_version,
                 )
-            else:
-                if env_config.ENVIRONMENT == "production":
-                    logger.warning(
-                        "No RELEASED validation test package for %s — refusing to use DEVELOPMENT in production",
-                        product_slug,
-                    )
-                else:
-                    dev_tp = db.testpackage.find_first(
-                        where={
-                            "productId": product_record.id,
-                            "type": "VALIDATION",
-                        },
-                        order={"createdAt": "desc"},
-                    )
-                    if dev_tp:
-                        test_package_id = dev_tp.id
-                        test_package_version = dev_tp.version
-                        logger.info(
-                            "No RELEASED test package — using dev %s@%s",
-                            product_slug, test_package_version,
-                        )
+            elif env_config.ENVIRONMENT == "production":
+                logger.warning(
+                    "No RELEASED validation test package for %s — refusing to use DEVELOPMENT in production",
+                    product_slug,
+                )
     except Exception as e:
         logger.warning("Failed to look up test package: %s", e)
 
