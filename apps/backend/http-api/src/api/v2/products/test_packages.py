@@ -47,18 +47,26 @@ TEST_PACKAGES_PREFIX = "test-packages"
 
 
 def _extract_fixture_designs(
-    file_data: bytes, product_id: str, package_type: str = "VALIDATION"
+    file_data: bytes,
+    test_package_id: str,
+    package_status: str,
+    product_id: str,
+    package_type: str = "VALIDATION",
 ) -> Optional[str]:
-    """Extract fixture profile from the tar.gz and create/update a FixtureDesign record.
+    """Extract fixture profile from the tar.gz and upsert a FixtureDesign owned by this test package.
+
+    Each TestPackage owns exactly one FixtureDesign, keyed by ``testPackageId``.
+    Re-uploading the same dev package overwrites its design; a release lands a
+    new immutable design alongside the released package.
 
     Uses the concord.yaml manifest's fixture.profile path to locate the fixture YAML
     inside the archive. Falls back to scanning for fixtures/*/fixture.yaml patterns.
 
-    The test app code is the single source of truth for fixture designs.
-
     Args:
         file_data: Raw tar.gz bytes.
-        product_id: Concord product ID.
+        test_package_id: ID of the TestPackage that owns this design.
+        package_status: TestPackage status — propagated to FixtureDesign.status.
+        product_id: Concord product ID, used to resolve the board revision.
         package_type: "VALIDATION" or "MANUFACTURING" — sets FixtureDesign.type.
 
     Returns the ID of the created/updated FixtureDesign, or None.
@@ -176,44 +184,46 @@ def _extract_fixture_designs(
 
             node_type = package_type if package_type in ("MANUFACTURING", "VALIDATION") else "VALIDATION"
 
-            # Upsert by (name, revision) — different revisions coexist
-            existing = db.fixturedesign.find_first(
-                where={
-                    "name": design_name,
-                    "revision": design_revision,
-                },
+            # Upsert by testPackageId — every package owns exactly one design.
+            existing = db.fixturedesign.find_unique(
+                where={"testPackageId": test_package_id},
             )
             if existing:
                 db.fixturedesign.update(
                     where={"id": existing.id},
                     data={
+                        "name": design_name,
+                        "revision": design_revision,
                         "capabilities": capabilities,
                         "profileTemplate": Json(profile),
                         "type": node_type,
+                        "status": package_status,
                         "boardRevisionId": board_rev.id,
                     },
                 )
                 logger.info(
-                    "Updated fixture design '%s' rev %s from test package",
-                    design_name, design_revision,
+                    "Updated fixture design '%s' rev %s for package %s",
+                    design_name, design_revision, test_package_id,
                 )
                 return existing.id
-            else:
-                design = db.fixturedesign.create(
-                    data={
-                        "name": design_name,
-                        "boardRevisionId": board_rev.id,
-                        "revision": design_revision,
-                        "type": node_type,
-                        "capabilities": capabilities,
-                        "profileTemplate": Json(profile),
-                    },
-                )
-                logger.info(
-                    "Created fixture design '%s' rev %s from test package",
-                    design_name, design_revision,
-                )
-                return design.id
+
+            design = db.fixturedesign.create(
+                data={
+                    "testPackageId": test_package_id,
+                    "name": design_name,
+                    "boardRevisionId": board_rev.id,
+                    "revision": design_revision,
+                    "type": node_type,
+                    "status": package_status,
+                    "capabilities": capabilities,
+                    "profileTemplate": Json(profile),
+                },
+            )
+            logger.info(
+                "Created fixture design '%s' rev %s for package %s",
+                design_name, design_revision, test_package_id,
+            )
+            return design.id
 
     except Exception as e:
         logger.warning("Fixture design extraction failed: %s", e)
@@ -235,7 +245,7 @@ def _extract_test_count(file_data: bytes) -> Optional[int]:
         return None
 
 
-def _extract_v2_metadata(db, test_package_id: str, file_bytes: bytes, schema_version: str):
+def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifest_version: str):
     """Extract structured stage/step metadata from the concord.yaml inside the archive.
 
     For validation packages, creates TestPackageStage records from 'stages'.
@@ -289,9 +299,9 @@ def _extract_v2_metadata(db, test_package_id: str, file_bytes: bytes, schema_ver
                 "hardware": step.get("hardware", []),
             })
 
-        logger.info("Extracted v2 metadata for package %s (schema %s)", test_package_id, schema_version)
+        logger.info("Extracted stage metadata for package %s (manifest %s)", test_package_id, manifest_version)
     except Exception as e:
-        logger.warning("Failed to extract v2 metadata for package %s: %s", test_package_id, e)
+        logger.warning("Failed to extract stage metadata for package %s: %s", test_package_id, e)
 
 
 def _serialize_package_stage(s) -> dict:
@@ -310,21 +320,20 @@ def _serialize_package_stage(s) -> dict:
 
 def _serialize_test_package(tp: Any) -> dict:
     """Serialize a TestPackage DB record to an API response dict."""
+    fixture_design = getattr(tp, "fixtureDesign", None)
     data = {
         "id": tp.id,
         "productId": tp.productId,
         "boardRevisionId": getattr(tp, "boardRevisionId", None),
-        "fixtureDesignId": getattr(tp, "fixtureDesignId", None),
+        "fixtureDesignId": fixture_design.id if fixture_design else None,
         "version": tp.version,
         "type": tp.type,
         "status": tp.status,
         "frameworkVersion": tp.frameworkVersion,
         "testCount": tp.testCount,
-        "stagesEnabled": tp.stagesEnabled,
-        "schemaVersion": tp.schemaVersion if hasattr(tp, "schemaVersion") else None,
+        "manifestVersion": getattr(tp, "manifestVersion", "1.0"),
         "message": getattr(tp, "message", None),
         "gitSha": getattr(tp, "gitSha", None),
-        "gitDirty": getattr(tp, "gitDirty", None),
         "manifestHash": tp.manifestHash,
         "notes": tp.notes,
         "releasedVersion": getattr(tp, "releasedVersion", None),
@@ -431,11 +440,10 @@ def _upload_test_package_impl(product_id: str):
         return bad_request("manifest.type must be VALIDATION or MANUFACTURING")
 
     test_count = manifest.get("testCount", 0)
-    stages_enabled = manifest.get("stagesEnabled")
     upload_message = (manifest.get("message") or "").strip() or None
     git_sha = (manifest.get("gitSha") or "").strip() or None
-    git_dirty = manifest.get("gitDirty", None)
     notes = manifest.get("notes")
+    manifest_version = (manifest.get("schemaVersion") or "1.0").strip()
 
     db = get_db_client()
 
@@ -487,24 +495,19 @@ def _upload_test_package_impl(product_id: str):
             }
         )
         if existing_dev:
-            update_data = {
+            tp = db.testpackage.update(
+                where={"id": existing_dev.id},
+                data={
                     "storageKey": object_key,
                     "frameworkVersion": framework_version,
                     "manifestHash": manifest_hash,
                     "testCount": test_count,
-                    "schemaVersion": manifest.get("schemaVersion"),
+                    "manifestVersion": manifest_version,
                     "message": upload_message,
                     "gitSha": git_sha,
-                    "gitDirty": git_dirty,
                     "notes": notes,
                     "boardRevisionId": board_revision_id,
-                }
-            if stages_enabled:
-                update_data["stagesEnabled"] = Json(stages_enabled)
-
-            tp = db.testpackage.update(
-                where={"id": existing_dev.id},
-                data=update_data,
+                },
             )
             log_audit("testPackage.update", "TestPackage", tp.id, {
                 "productSlug": product_slug,
@@ -512,27 +515,17 @@ def _upload_test_package_impl(product_id: str):
                 "status": status,
                 "sizeBytes": size_bytes,
             })
-            # Extract test count (always) and fixture designs (RELEASED only)
+            # Extract test count, fixture design, and stage metadata. Fixture
+            # designs are owned 1:1 by the TestPackage so a dev re-upload
+            # overwrites the previous design's profile in place.
             extracted_count = _extract_test_count(file_data)
-            post_update: dict = {}
             if extracted_count and extracted_count != tp.testCount:
-                post_update["testCount"] = extracted_count
-            # Fixture design extraction only on release — dev uploads don't touch designs
-            if status == "RELEASED":
-                design_id = _extract_fixture_designs(file_data, product.id, package_type)
-                if design_id:
-                    post_update["fixtureDesignId"] = design_id
-            if post_update:
                 tp = db.testpackage.update(
                     where={"id": tp.id},
-                    data=post_update,
-                    include={"packageStages": True, "fixtureDesign": True},
+                    data={"testCount": extracted_count},
                 )
-            # Extract v2 metadata if schema version is 2.0+
-            schema_version = manifest.get("schemaVersion")
-            if schema_version:
-                _extract_v2_metadata(db, tp.id, file_data, schema_version)
-            # Re-fetch with includes for serialization
+            _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
+            _extract_stage_metadata(db, tp.id, file_data, manifest_version)
             tp = db.testpackage.find_unique(
                 where={"id": tp.id},
                 include={"packageStages": True, "fixtureDesign": True},
@@ -540,26 +533,23 @@ def _upload_test_package_impl(product_id: str):
             return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200
 
     # Create new record
-    create_data = {
-        "productId": product.id,
-        "version": version,
-        "type": package_type,
-        "status": status,
-        "storageKey": object_key,
-        "frameworkVersion": framework_version,
-        "manifestHash": manifest_hash,
-        "testCount": test_count,
-        "schemaVersion": manifest.get("schemaVersion"),
-        "message": upload_message,
-        "gitSha": git_sha,
-        "gitDirty": git_dirty,
-        "notes": notes,
-        "boardRevisionId": board_revision_id,
-    }
-    if stages_enabled is not None:
-        create_data["stagesEnabled"] = Json(stages_enabled)
-
-    tp = db.testpackage.create(data=create_data)
+    tp = db.testpackage.create(
+        data={
+            "productId": product.id,
+            "version": version,
+            "type": package_type,
+            "status": status,
+            "storageKey": object_key,
+            "frameworkVersion": framework_version,
+            "manifestHash": manifest_hash,
+            "testCount": test_count,
+            "manifestVersion": manifest_version,
+            "message": upload_message,
+            "gitSha": git_sha,
+            "notes": notes,
+            "boardRevisionId": board_revision_id,
+        },
+    )
 
     log_audit("testPackage.create", "TestPackage", tp.id, {
         "productSlug": product_slug,
@@ -567,22 +557,11 @@ def _upload_test_package_impl(product_id: str):
         "status": status,
         "sizeBytes": size_bytes,
     })
-    # Extract test count (always) and fixture designs (RELEASED only)
     extracted_count = _extract_test_count(file_data)
-    post_update: dict = {}
     if extracted_count:
-        post_update["testCount"] = extracted_count
-    # Fixture design extraction only on release — dev uploads don't touch designs
-    if status == "RELEASED":
-        design_id = _extract_fixture_designs(file_data, product.id, package_type)
-        if design_id:
-            post_update["fixtureDesignId"] = design_id
-    if post_update:
-        db.testpackage.update(where={"id": tp.id}, data=post_update)
-    # Extract v2 metadata if schema version is 2.0+
-    schema_version = manifest.get("schemaVersion")
-    if schema_version:
-        _extract_v2_metadata(db, tp.id, file_data, schema_version)
+        db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
+    _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
+    _extract_stage_metadata(db, tp.id, file_data, manifest_version)
     # Re-fetch with includes for serialization
     tp = db.testpackage.find_unique(
         where={"id": tp.id},
@@ -871,32 +850,25 @@ def release_test_package(product_id: str, package_id: str):
         include={"packageStages": True, "fixtureDesign": True},
     )
 
-    # Extract and publish fixture design from the stored archive
-    if tp.storageKey:
-        try:
-            storage = get_storage_client()
-            bucket = get_bucket_name()
-            response = storage.get_object(bucket, tp.storageKey)
-            file_data = response.read()
-            response.close()
-            response.release_conn()
+    # The fixture design is extracted at upload time (per-package ownership)
+    # so on release we just propagate the status. If a dev upload didn't
+    # have a fixtures dir, no design exists — that's fine, nothing to update.
+    if tp.fixtureDesign is not None:
+        db.fixturedesign.update(
+            where={"id": tp.fixtureDesign.id},
+            data={"status": "RELEASED"},
+        )
+        tp = db.testpackage.find_unique(
+            where={"id": tp.id},
+            include={"packageStages": True, "fixtureDesign": True},
+        )
 
-            design_id = _extract_fixture_designs(file_data, product.id, tp.type)
-            if design_id:
-                tp = db.testpackage.update(
-                    where={"id": tp.id},
-                    data={"fixtureDesignId": design_id},
-                    include={"packageStages": True, "fixtureDesign": True},
-                )
-                logger.info("Fixture design %s published from release of %s", design_id[:8], tp.id[:8])
-        except Exception as e:
-            logger.warning("Failed to extract fixture design on release: %s", e)
-
+    fixture_design_id = tp.fixtureDesign.id if tp.fixtureDesign is not None else None
     log_audit("testPackage.release", "TestPackage", tp.id, {
         "productId": product.id,
         "type": tp.type,
         "releasedVersion": released_version,
-        "fixtureDesignId": getattr(tp, "fixtureDesignId", None),
+        "fixtureDesignId": fixture_design_id,
         "previousStatus": "DEVELOPMENT",
     })
 
