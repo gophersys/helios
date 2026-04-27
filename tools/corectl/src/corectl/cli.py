@@ -35,8 +35,15 @@ from .commands import auth, budgets, runs, test
     help="Skip TLS certificate verification for this run. Sets CONCORD_VERIFY_SSL=false. "
          "Use when the host doesn't trust the Concord internal CA (WSL, foreign network).",
 )
+@click.option(
+    "--no-version-check",
+    is_flag=True,
+    default=False,
+    envvar="CORECTL_SKIP_VERSION_CHECK",
+    help="Skip the daily upgrade-availability check on internal pypi.",
+)
 @click.pass_context
-def main(ctx, insecure):
+def main(ctx, insecure, no_version_check):
     """Concord platform CLI — manage validation, fixtures, and manufacturing."""
     if insecure:
         os.environ["CONCORD_VERIFY_SSL"] = "false"
@@ -48,6 +55,21 @@ def main(ctx, insecure):
             pass
     ctx.ensure_object(dict)
     ctx.obj["config"] = load_config()
+
+    # Best-effort upgrade-available notice. Cached 24h on disk; errors
+    # never block the command. Skipped via --no-version-check or
+    # CORECTL_SKIP_VERSION_CHECK=1 so CI runs stay quiet.
+    if not no_version_check:
+        try:
+            from .config import get_api_url, get_tls_verify
+            from .version_check import maybe_print_upgrade_notice
+            maybe_print_upgrade_notice(
+                api_url=get_api_url(ctx.obj["config"]),
+                verify=get_tls_verify(ctx.obj["config"]),
+            )
+        except Exception:
+            pass
+
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
