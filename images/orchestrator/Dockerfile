@@ -31,6 +31,8 @@
 #
 # Deferred (added when the RAG pipeline lands):
 #   - sqlite-vec, tantivy, sentence-transformers, torch (CPU wheel)
+#   - whisper.cpp + ffmpeg (audio transcription; deferred from Phase 7
+#     until a backend is committed to)
 #
 # Conventions (identical to base):
 #   - Every tool version is an ARG at the top with a "latest LTS as of" comment.
@@ -87,6 +89,14 @@ ARG JSONSCHEMA_VERSION=4.23.0                                          # latest 
 ARG VOYAGEAI_VERSION=0.3.2                                             # latest as of 2026-04-24
 ARG OPENAI_VERSION=1.54.0                                              # latest as of 2026-04-24
 
+# Multimodal ingestion (Phase 7). PDF text extraction, OCR fallback, and
+# URL archival readability extraction. Audio (whisper.cpp/openai-whisper +
+# ffmpeg) deferred — pulls in torch (~2 GB) which is excessive until we
+# commit to a transcription backend.
+ARG READABILITY_LXML_VERSION=0.8.1                                     # latest as of 2026-04-27
+ARG LXML_HTML_CLEAN_VERSION=0.4.2                                      # latest as of 2026-04-27 (lxml split out the cleaner module; readability-lxml requires it)
+ARG BEAUTIFULSOUP4_VERSION=4.12.3                                      # latest as of 2026-04-27
+
 # yq binary.
 ARG YQ_VERSION=4.44.3                                                  # latest LTS as of 2026-04-24
 
@@ -132,6 +142,7 @@ RUN apt-get update \
       net-tools \
       openssh-client \
       pkg-config \
+      poppler-utils \
       python3-pip \
       "${PYTHON_PACKAGE}" \
       "${PYTHON_PACKAGE}-dev" \
@@ -140,6 +151,8 @@ RUN apt-get update \
       shellcheck \
       software-properties-common \
       sudo \
+      tesseract-ocr \
+      tesseract-ocr-eng \
       tmux \
       tzdata \
       unzip \
@@ -251,7 +264,10 @@ RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" 
       "voyageai==${VOYAGEAI_VERSION}" \
       "openai==${OPENAI_VERSION}" \
       "pyyaml==${PYYAML_VERSION}" \
-      "jsonschema==${JSONSCHEMA_VERSION}"
+      "jsonschema==${JSONSCHEMA_VERSION}" \
+      "readability-lxml==${READABILITY_LXML_VERSION}" \
+      "lxml_html_clean==${LXML_HTML_CLEAN_VERSION}" \
+      "beautifulsoup4==${BEAUTIFULSOUP4_VERSION}"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # -------------------------------------------------------------------------
