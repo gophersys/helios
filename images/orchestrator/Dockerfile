@@ -29,8 +29,13 @@
 #   - postgresql-client/sqlite3-cli/redis-cli (orchestrator is not a data-plane)
 #   - desktop (GTK/webkit) and USB/BLE libraries
 #
-# Deferred (added when the RAG pipeline lands):
-#   - sqlite-vec, tantivy, sentence-transformers, torch (CPU wheel)
+# RAG pipeline (Phase 8 v1):
+#   - fastembed + onnxruntime (CPU local embeddings, BGE-small-en-v1.5)
+#   - model warm-cached at build time so first-run is instant offline
+#
+# Deferred:
+#   - sentence-transformers / torch (CPU wheel) — only needed if we ever
+#     want models fastembed doesn't ship; currently overkill (~2 GB)
 #   - whisper.cpp + ffmpeg (audio transcription; deferred from Phase 7
 #     until a backend is committed to)
 #
@@ -96,6 +101,13 @@ ARG OPENAI_VERSION=1.54.0                                              # latest 
 ARG READABILITY_LXML_VERSION=0.8.1                                     # latest as of 2026-04-27
 ARG LXML_HTML_CLEAN_VERSION=0.4.2                                      # latest as of 2026-04-27 (lxml split out the cleaner module; readability-lxml requires it)
 ARG BEAUTIFULSOUP4_VERSION=4.12.3                                      # latest as of 2026-04-27
+
+# RAG pipeline — local embeddings (Phase 8 v1).
+# fastembed wraps ONNX runtime; BGE-small-en-v1.5 is the default English model
+# (384-dim, ~33 MB quantized). No torch dependency.
+ARG FASTEMBED_VERSION=0.8.0                                            # latest as of 2026-04-27
+ARG ONNXRUNTIME_VERSION=1.25.0                                         # pulled in by fastembed; pinned for reproducibility
+ARG FASTEMBED_DEFAULT_MODEL=BAAI/bge-small-en-v1.5
 
 # yq binary.
 ARG YQ_VERSION=4.44.3                                                  # latest LTS as of 2026-04-24
@@ -267,8 +279,21 @@ RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" 
       "jsonschema==${JSONSCHEMA_VERSION}" \
       "readability-lxml==${READABILITY_LXML_VERSION}" \
       "lxml_html_clean==${LXML_HTML_CLEAN_VERSION}" \
-      "beautifulsoup4==${BEAUTIFULSOUP4_VERSION}"
+      "beautifulsoup4==${BEAUTIFULSOUP4_VERSION}" \
+      "fastembed==${FASTEMBED_VERSION}" \
+      "onnxruntime==${ONNXRUNTIME_VERSION}"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# Warm the fastembed model cache at build time so first-run is instant and
+# autonomous cron nodes work fully offline. Cache lands at
+# /home/dev/.cache/fastembed/ which is bind-friendly.
+ENV FASTEMBED_CACHE_DIR=/home/${USERNAME}/.cache/fastembed
+RUN mkdir -p "${FASTEMBED_CACHE_DIR}" \
+ && /home/${USERNAME}/.venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('${FASTEMBED_DEFAULT_MODEL}', cache_dir='${FASTEMBED_CACHE_DIR}')"
+# NOTE: warm-cache attempts a model download. Under QEMU cross-arch build this
+# may fail on network; the multi-arch CI runner has the bandwidth and it works
+# there. If this layer fails locally, build natively or skip and let the model
+# download on first use.
 
 # -------------------------------------------------------------------------
 # Infra / transport CLIs — root-installed under /usr/local/bin.
