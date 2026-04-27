@@ -127,6 +127,11 @@ enum TestPackageType {
   MANUFACTURING
 }
 
+enum FixturePurpose {
+  DEV /// Dev rig — accepts only DEVELOPMENT test packages
+  RELEASE /// Production fixture — accepts only RELEASED test packages
+}
+
 enum StageType {
   VALIDATION
   MANUFACTURING
@@ -240,20 +245,18 @@ model Product {
 model TestPackage {
   id               String            @id @default(cuid())
   productId        String
-  version          String /// "1.2.0" (release) or "dev-abc12345" (development)
+  version          String /// "1.2.0" (release) or "dev-abc12345-1713100800" (development)
   type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
   status           TestPackageStatus @default(DEVELOPMENT)
   storageKey       String /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
-  schemaVersion    String? /// Manifest schema version (e.g. "2.0") — enforced on upload
-  stagesEnabled    Json? /// Which stages are enabled (v1 legacy — replaced by packageStages in v2)
+  manifestVersion  String            @default("1.0") /// Manifest schema version — enforced on upload
   message          String? /// Developer-provided description at upload time
   gitSha           String? /// Git HEAD SHA at upload time (short, e.g., "abc12345")
-  gitDirty         Boolean? /// True if working tree had uncommitted changes
   notes            String?
-  releasedVersion  String? /// Auto-assigned semver on promotion (e.g. "1.0.0")
+  releasedVersion  String? /// Version string after release (e.g. "1.0.0" or "abc12345-1713100800")
   releasedAt       DateTime? /// When promoted to RELEASED
   releasedById     String? /// User who promoted
   createdById      String?
@@ -261,15 +264,16 @@ model TestPackage {
   updatedAt        DateTime          @updatedAt
 
   boardRevisionId String? /// Board revision this package targets (from manifest product.board)
-  fixtureDesignId String? /// FK — fixture design extracted/linked during upload
 
-  product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
-  boardRevision BoardRevision?     @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
-  fixtureDesign FixtureDesign?     @relation(fields: [fixtureDesignId], references: [id], onDelete: SetNull)
-  createdBy     User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  releasedBy    User?              @relation("TestPackageReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  product       Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  createdBy     User?                  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  releasedBy    User?                  @relation("TestPackageReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  fixtureDesign FixtureDesign? /// 1:1 reverse — set when this package's manifest extracts a fixture profile
   testRuns      TestRun[]
   packageStages TestPackageStage[]
+  stageConfigs  ProductStageConfig[]   @relation("StageReleasedPackage") /// Stages that point to this package as their blessed release
+  mfgSessions   ManufacturingSession[]
 
   @@unique([productId, version, type])
   @@unique([productId, releasedVersion, type])
@@ -278,7 +282,6 @@ model TestPackage {
   @@index([createdById])
   @@index([releasedById])
   @@index([boardRevisionId])
-  @@index([fixtureDesignId])
   @@map("test_packages")
 }
 
@@ -497,17 +500,25 @@ model ProductStageConfig {
   // Per-stage recipe override (optional — falls back to product-level recipe)
   recipeVersionId String?
 
-  createdBy          User?                  @relation("StageConfigCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  product            Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
-  boardRevision      BoardRevision          @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
-  signingKey         Secret?                @relation(fields: [signingKeyId], references: [id], onDelete: SetNull)
-  recipeVersion      RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
-  buildRuns          BuildRun[]
-  queueEntries       ValidationQueueEntry[]
-  buildMatrixEntries StageBuildMatrix[]
+  // Blessed test package for this stage. Validation auto-runs use this; null
+  // means scheduling is blocked until a package is bound. Manufacturing
+  // session creation can pick from released-or-dev packages explicitly, so
+  // it doesn't strictly require this binding.
+  releasedTestPackageId String?
+
+  createdBy           User?                  @relation("StageConfigCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product             Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision       BoardRevision          @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+  signingKey          Secret?                @relation(fields: [signingKeyId], references: [id], onDelete: SetNull)
+  recipeVersion       RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  releasedTestPackage TestPackage?           @relation("StageReleasedPackage", fields: [releasedTestPackageId], references: [id], onDelete: SetNull)
+  buildRuns           BuildRun[]
+  queueEntries        ValidationQueueEntry[]
+  buildMatrixEntries  StageBuildMatrix[]
 
   @@unique([productId, type, stage, boardRevisionId])
   @@index([productId, type])
+  @@index([releasedTestPackageId])
   @@map("product_stage_configs")
 }
 
@@ -730,7 +741,9 @@ model BuildArtifact {
 ///
 /// Individual Fixture records can override specific fields via profileOverrides.
 model FixtureDesign {
-  id              String    @id @default(cuid())
+  id              String            @id @default(cuid())
+  testPackageId   String            @unique /// 1:1 — every design is owned by exactly one TestPackage
+  status          TestPackageStatus /// Mirrors owner package status — denormalized so fixtures can join without TestPackage
   name            String /// Human-readable name from fixture.yaml (e.g. "Alpha B0 Manufacturing Fixture")
   boardRevisionId String /// FK — which board revision this design targets
   revision        String /// Fixture hardware revision from fixture.yaml (e.g. "1.0", "1.2")
@@ -742,17 +755,17 @@ model FixtureDesign {
   assemblyGuide   String? /// Link to assembly instructions
   notes           String? /// Build notes, known issues, changelog
   createdById     String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   createdBy     User?         @relation("FixtureDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+  testPackage   TestPackage   @relation(fields: [testPackageId], references: [id], onDelete: Cascade)
   fixtures      Fixture[]
-  testPackages  TestPackage[]
 
-  @@unique([name, revision]) /// Same design name can have multiple revisions (v1.0, v1.2)
   @@index([boardRevisionId])
   @@index([type])
+  @@index([status])
   @@map("fixture_designs")
 }
 
@@ -780,7 +793,8 @@ model Fixture {
   panelRows Int @default(1) /// Number of rows in the panel grid
   panelCols Int @default(1) /// Number of columns in the panel grid
 
-  status   FixtureStatus @default(AVAILABLE)
+  purpose  FixturePurpose @default(RELEASE) /// DEV rig vs RELEASE fixture — gates which package status can run here
+  status   FixtureStatus  @default(AVAILABLE)
   lockedBy String? /// Build run/job ID holding the lock
   lockedAt DateTime?
 
@@ -972,7 +986,7 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  permissionSet         PermissionSet?         @relation(fields: [permissionSetId], references: [id], onDelete: SetNull)
+  permissionSet         PermissionSet?           @relation(fields: [permissionSetId], references: [id], onDelete: SetNull)
   productAccess         ProductAccess[]
   apiKeys               ApiKey[]
   authSessions          AuthSession[]
@@ -982,19 +996,19 @@ model User {
   secrets               Secret[]
   recipeVersions        RecipeVersion[]
   assetSets             AssetSet[]
-  manufacturingSessions ManufacturingSession[] @relation("ManufacturingOperator")
-  testRuns              TestRun[]              @relation("TestRunOperator")
-  releasedTestPackages  TestPackage[]          @relation("TestPackageReleasedBy")
-  modemFirmwareUploads  ModemFirmware[]        @relation("ModemFirmwareUploader")
-  createdProducts       Product[]              @relation("ProductCreatedBy")
-  createdBoards         Board[]                @relation("BoardCreatedBy")
-  createdBoardRevisions BoardRevision[]        @relation("BoardRevisionCreatedBy")
-  createdStageConfigs   ProductStageConfig[]   @relation("StageConfigCreatedBy")
-  createdFixtureDesigns FixtureDesign[]        @relation("FixtureDesignCreatedBy")
-  createdFixtures       Fixture[]              @relation("FixtureCreatedBy")
-  createdBuildRuns      BuildRun[]             @relation("BuildRunCreatedBy")
+  manufacturingSessions ManufacturingSession[]   @relation("ManufacturingOperator")
+  testRuns              TestRun[]                @relation("TestRunOperator")
+  releasedTestPackages  TestPackage[]            @relation("TestPackageReleasedBy")
+  modemFirmwareUploads  ModemFirmware[]          @relation("ModemFirmwareUploader")
+  createdProducts       Product[]                @relation("ProductCreatedBy")
+  createdBoards         Board[]                  @relation("BoardCreatedBy")
+  createdBoardRevisions BoardRevision[]          @relation("BoardRevisionCreatedBy")
+  createdStageConfigs   ProductStageConfig[]     @relation("StageConfigCreatedBy")
+  createdFixtureDesigns FixtureDesign[]          @relation("FixtureDesignCreatedBy")
+  createdFixtures       Fixture[]                @relation("FixtureCreatedBy")
+  createdBuildRuns      BuildRun[]               @relation("BuildRunCreatedBy")
   resolvedErrorReports  ErrorReport[]
-  releasesCreated       Release[]      @relation("releasesCreated")
+  releasesCreated       Release[]                @relation("releasesCreated")
   notifications         Notification[]
   notificationPrefs     NotificationPreference[]
 
@@ -1069,15 +1083,15 @@ enum AuthSessionStatus {
 /// Rows expire 10 minutes after creation if never approved. A daily
 /// CronJob sweeps EXPIRED + DENIED rows older than 7 days.
 model AuthSession {
-  id          String            @id @default(cuid())
-  userCode    String            @unique /// 8 chars, formatted "XXXX-XXXX" for display, no ambiguous I/O/0/1
-  deviceCode  String            @unique /// uuid the CLI polls with — never shown to the human
-  status      AuthSessionStatus @default(PENDING)
-  userId      String? /// set on approval
-  userAgent   String? /// CLI version + platform string, captured at /code time for the approval UI
-  createdAt   DateTime          @default(now())
-  expiresAt   DateTime /// 10 min from createdAt for PENDING; not consulted after APPROVED
-  approvedAt  DateTime?
+  id         String            @id @default(cuid())
+  userCode   String            @unique /// 8 chars, formatted "XXXX-XXXX" for display, no ambiguous I/O/0/1
+  deviceCode String            @unique /// uuid the CLI polls with — never shown to the human
+  status     AuthSessionStatus @default(PENDING)
+  userId     String? /// set on approval
+  userAgent  String? /// CLI version + platform string, captured at /code time for the approval UI
+  createdAt  DateTime          @default(now())
+  expiresAt  DateTime /// 10 min from createdAt for PENDING; not consulted after APPROVED
+  approvedAt DateTime?
 
   user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   refreshTokens RefreshToken[]
@@ -1379,16 +1393,24 @@ model ManufacturingSession {
   // Firmware
   assetSetId String? /// Selected firmware AssetSet for this session
 
-  product  Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  fixture  Fixture   @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
-  operator User      @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
-  assetSet AssetSet? @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
-  runs     TestRun[]
+  // Test package — explicit choice from the session-creation wizard. The
+  // wizard accepts both released and development packages; null means the
+  // server should resolve to the latest released package at runner-deploy
+  // time. The fixture's `purpose` and the package's `status` must agree.
+  testPackageId String?
+
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture     Fixture      @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
+  operator    User         @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+  assetSet    AssetSet?    @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
+  testPackage TestPackage? @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
+  runs        TestRun[]
 
   @@index([productId, status])
   @@index([fixtureId])
   @@index([operatorId])
   @@index([assetSetId])
+  @@index([testPackageId])
   @@map("manufacturing_sessions")
 }
 
@@ -1592,8 +1614,8 @@ enum ErrorReportStatus {
 /// Frontend error/bug reports — captures JS errors, API errors, WebSocket errors,
 /// and user-submitted bug reports with full diagnostic context.
 model ErrorReport {
-  id        String            @id @default(cuid())
-  status    ErrorReportStatus @default(OPEN)
+  id     String            @id @default(cuid())
+  status ErrorReportStatus @default(OPEN)
 
   // Classification
   type     String /// "js", "api", "websocket", "validation", "unhandled", "user_report"
@@ -1612,7 +1634,7 @@ model ErrorReport {
   // Admin triage
   resolvedById String?
   resolvedAt   DateTime?
-  adminNotes   String?  @db.Text
+  adminNotes   String?   @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1647,14 +1669,14 @@ enum ReleaseStatus {
 /// A platform release bundling component versions, changelogs, and test results.
 /// Tracks lifecycle from DRAFT through STAGED to RELEASED (or ROLLED_BACK).
 model Release {
-  id                String        @id @default(cuid())
-  version           String        @unique /// semver: "0.3.0"
-  status            ReleaseStatus @default(DRAFT)
+  id      String        @id @default(cuid())
+  version String        @unique /// semver: "0.3.0"
+  status  ReleaseStatus @default(DRAFT)
 
   // Git context
-  commitSha         String
-  branch            String        @default("main")
-  previousVersion   String? /// version it replaces
+  commitSha       String
+  branch          String  @default("main")
+  previousVersion String? /// version it replaces
 
   // Component versions bundled in this release
   corekinectVersion String? /// e.g., "0.2.6"
@@ -1663,20 +1685,20 @@ model Release {
   migrationHash     String? /// Prisma schema fingerprint
 
   // Content
-  changelog         String?       @db.Text /// markdown changelog
-  summary           String?       @db.Text /// human-written release summary
-  breakingChanges   String?       @db.Text /// breaking change notes
+  changelog       String? @db.Text /// markdown changelog
+  summary         String? @db.Text /// human-written release summary
+  breakingChanges String? @db.Text /// breaking change notes
 
   // Test results at release time (overall totals)
-  testsPassed       Int?
-  testsFailed       Int?
-  testCoverage      Float?
-  testDurationMs    Int? /// total test suite duration in milliseconds
-  testDetails       Json? /// per-suite breakdown: { backend: { passed, failed, coverage, durationMs }, frontend: { ... } }
+  testsPassed    Int?
+  testsFailed    Int?
+  testCoverage   Float?
+  testDurationMs Int? /// total test suite duration in milliseconds
+  testDetails    Json? /// per-suite breakdown: { backend: { passed, failed, coverage, durationMs }, frontend: { ... } }
 
   // Code diff stats
-  linesAdded        Int?
-  linesRemoved      Int?
+  linesAdded   Int?
+  linesRemoved Int?
 
   // PR and process tracking
   prUrl             String? /// pull request URL for this release
@@ -1684,27 +1706,27 @@ model Release {
   releaseDurationMs Int? /// total release process duration in milliseconds
 
   // Gate
-  gateStatus        String? /// "passed" | "failed" | "overridden"
-  gateOverrideBy    String? /// userId who overrode
-  gateOverrideReason String?     @db.Text
+  gateStatus         String? /// "passed" | "failed" | "overridden"
+  gateOverrideBy     String? /// userId who overrode
+  gateOverrideReason String? @db.Text
 
   // Deploy tracking
-  stagedAt          DateTime?
-  releasedAt        DateTime?
-  rolledBackAt      DateTime?
+  stagedAt     DateTime?
+  releasedAt   DateTime?
+  rolledBackAt DateTime?
 
   // Relations
-  createdById       String?
-  createdBy         User?         @relation("releasesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?   @relation("releasesCreated", fields: [createdById], references: [id], onDelete: SetNull)
 
   // Bug linkage
   resolvedErrorReports ErrorReport[] @relation("releaseResolvedBugs")
 
   // Notifications generated by this release
-  notifications     Notification[]
+  notifications Notification[]
 
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
@@ -1746,24 +1768,24 @@ enum NotificationType {
 /// A notification delivered to a specific user or broadcast to all users.
 /// Tracks read state for per-user notification feeds.
 model Notification {
-  id            String           @id @default(cuid())
-  type          NotificationType
-  title         String
-  message       String           @db.Text
+  id      String           @id @default(cuid())
+  type    NotificationType
+  title   String
+  message String           @db.Text
 
   // Who gets it (null = broadcast to all)
-  userId        String?
-  user          User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Optional links
   releaseId     String?
-  release       Release?         @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  release       Release? @relation(fields: [releaseId], references: [id], onDelete: SetNull)
   errorReportId String?
 
   // Read tracking
-  readAt        DateTime?
+  readAt DateTime?
 
-  createdAt     DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, readAt])
   @@index([createdAt])
@@ -1775,14 +1797,14 @@ model Notification {
 /// By default all types are enabled. A row here means the user
 /// has explicitly disabled that type.
 model NotificationPreference {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  enabled   Boolean          @default(true)
+  id      String           @id @default(cuid())
+  userId  String
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type    NotificationType
+  enabled Boolean          @default(true)
 
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, type])
   @@index([userId])
