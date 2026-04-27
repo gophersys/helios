@@ -15,8 +15,8 @@ except ImportError:
 
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "concord-manifest"
 
-CURRENT_SCHEMA = "2.0"
-MINIMUM_SCHEMA = "2.0"
+CURRENT_SCHEMA = "1.0"
+MINIMUM_SCHEMA = "1.0"
 
 
 @dataclass
@@ -141,7 +141,7 @@ def validate_manifest(data: dict, schema_version: Optional[str] = None) -> Valid
                 ValidationError(
                     "schema",
                     f"Schema version {declared} is below minimum supported ({MINIMUM_SCHEMA}). "
-                    f"Run 'corectl test migrate' to upgrade.",
+                    f"Re-init the project with 'corectl test init'.",
                 )
             )
             return ValidationResult(errors=errors, warnings=warnings)
@@ -155,15 +155,6 @@ def validate_manifest(data: dict, schema_version: Optional[str] = None) -> Valid
                 )
             )
             return ValidationResult(errors=errors, warnings=warnings)
-
-        if declared_v < current_v:
-            warnings.append(
-                ValidationError(
-                    "schema",
-                    f"Schema version {declared} is outdated. Current is {CURRENT_SCHEMA}. "
-                    f"Consider running 'corectl test migrate'.",
-                )
-            )
     except ValueError as e:
         errors.append(ValidationError("schema", str(e)))
         return ValidationResult(errors=errors, warnings=warnings)
@@ -275,7 +266,7 @@ def check_schema_compatibility(declared: str) -> Optional[str]:
     if declared_v < minimum_v:
         return (
             f"Schema version {declared} is below minimum supported ({MINIMUM_SCHEMA}). "
-            f"Run 'corectl test migrate' to upgrade."
+            f"Re-init the project with 'corectl test init'."
         )
     if declared_v > current_v:
         return (

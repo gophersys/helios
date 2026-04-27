@@ -405,6 +405,7 @@ def _serialize_fixture(
         "type": f.type,
         "designId": f.designId if hasattr(f, "designId") else None,
         "boardRevisionId": f.boardRevisionId if hasattr(f, "boardRevisionId") else None,
+        "purpose": getattr(f, "purpose", "RELEASE"),
         "status": f.status if hasattr(f, "status") else "AVAILABLE",
         "lockedBy": f.lockedBy if hasattr(f, "lockedBy") else None,
         "lockedAt": f.lockedAt.isoformat() if hasattr(f, "lockedAt") and f.lockedAt else None,
@@ -688,6 +689,17 @@ def update_fixture(fixture_id: str):
         dup = db.fixture.find_first(where={"name": data.name})
         if dup:
             return conflict("Fixture with this name already exists")
+
+    # purpose flips have to wait for an idle fixture — switching DEV ↔
+    # RELEASE while a session is mid-run would orphan the run from the
+    # gate that admitted it (e.g. dev session → flip to RELEASE → next
+    # panel scan rejects mid-shift). Refuse upfront.
+    if data.purpose is not None and data.purpose != existing.purpose:
+        if existing.status == "LOCKED":
+            return conflict(
+                "Cannot change fixture purpose while it is locked by an active "
+                "session. End the session first."
+            )
 
     update_data = data.to_update_data()
     if "metadata" in update_data and update_data["metadata"] is not None:

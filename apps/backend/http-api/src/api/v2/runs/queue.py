@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from flask import jsonify, request
 
+from src.api.v2.products.test_package_resolver import assert_validation_stage_runnable
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
@@ -97,11 +98,33 @@ def process_queue(db=None) -> dict:
             {"priority": "desc"},
             {"requestedAt": "asc"},
         ],
-        include={"assetSet": {"include": {"product": True, "buildRun": {"include": {"builds": True}}}}},
+        include={
+            "assetSet": {"include": {"product": True, "buildRun": {"include": {"builds": True}}}},
+            "stageConfig": True,
+        },
     )
 
     if not entry:
         return {"processed": False, "reason": "No pending entries"}
+
+    # Gate: validation auto-runs require a blessed released package on the
+    # stage config. Without it the system would silently auto-pick the
+    # latest released candidate, which masks "I forgot to release a new
+    # package" mistakes. Only enforce when the entry has a stage config —
+    # entries without one are external/manual scheduling paths that don't
+    # have a stage to bind against yet.
+    if entry.stageConfigId:
+        gate_error = assert_validation_stage_runnable(getattr(entry, "stageConfig", None))
+        if gate_error is not None:
+            db.validationqueueentry.update(
+                where={"id": entry.id},
+                data={
+                    "status": "FAILED",
+                    "errorMessage": "Stage has no released test package bound",
+                    "completedAt": datetime.now(timezone.utc),
+                },
+            )
+            return {"processed": False, "reason": "Stage has no released package", "entryId": entry.id}
 
     # Verify the asset set still exists
     asset_set = entry.assetSet

@@ -1,4 +1,4 @@
-"""Typed dataclasses for concord.yaml manifest v2.0."""
+"""Typed dataclasses for concord.yaml manifest v1.0."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ class StepConfig:
 class Manifest:
     """Parsed and validated concord.yaml manifest."""
 
-    schema_version: str  # "2.0"
+    schema_version: str  # "1.0"
     package: PackageConfig
     product: ProductConfig
     fixture: FixtureConfig

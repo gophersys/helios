@@ -1018,6 +1018,8 @@ export interface FixtureHealthDetails {
 
 export type FixtureHealth = 'ONLINE' | 'OFFLINE' | 'ERROR' | 'UNASSIGNED';
 
+export type FixturePurpose = 'DEV' | 'RELEASE';
+
 export interface Fixture {
   id: string;
   name: string;
@@ -1025,6 +1027,8 @@ export interface Fixture {
   boardRevisionId: string | null;
   designId: string | null;
   type: string;
+  /** DEV rigs accept dev + released packages; RELEASE fixtures only accept released. */
+  purpose: FixturePurpose;
   status: string;
   panelRows: number;
   panelCols: number;

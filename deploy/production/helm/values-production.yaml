@@ -134,3 +134,10 @@ backups:
     schedule: "0 3 * * 0"
     hostPath: "/var/lib/concord/backups/minio"
 
+retention:
+  testPackages:
+    enabled: true
+    schedule: "30 2 * * *"
+    retentionDays: 30
+    keepLatest: 5
+

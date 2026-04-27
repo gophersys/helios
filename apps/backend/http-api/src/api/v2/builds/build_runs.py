@@ -403,6 +403,7 @@ def validate_build_run(run_id: str):
                         "stage": 4,
                         "priority": 0,
                         "status": "QUEUED",
+                        "stageConfigId": getattr(build_run, "stageConfigId", None),
                         "reason": f"Prior run {build_run.validationRunId[:8]} still active",
                         "requestedAt": datetime.now(timezone.utc),
                     })

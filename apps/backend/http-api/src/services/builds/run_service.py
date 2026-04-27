@@ -854,6 +854,11 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
         logger.warning("No AssetSet for build run %s, cannot queue", run_id[:8])
         return {"queued": False, "reason": "No asset set found for build run"}
 
+    # Fetch the BuildRun to propagate its stageConfigId onto the queue entry —
+    # the validation queue gate fires on entry.stageConfigId, so missing it
+    # would silently bypass the assert_validation_stage_runnable check.
+    build_run = db.buildrun.find_unique(where={"id": run_id})
+
     locked = unavailability["locked"]
     offline = unavailability["offline"]
     no_slot = unavailability["unconfigured"]
@@ -880,6 +885,7 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
         "stage": 4,
         "priority": 0,
         "status": "QUEUED",
+        "stageConfigId": getattr(build_run, "stageConfigId", None) if build_run is not None else None,
         "reason": reason,
         "requestedAt": datetime.now(timezone.utc),
     })

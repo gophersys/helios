@@ -12,8 +12,6 @@ import tempfile
 import uuid
 import zipfile
 from typing import Dict, Optional, Tuple
-from urllib.parse import urlparse, urlunparse
-
 import yaml  # type: ignore[import-untyped]
 from config.env import env_config
 from flask import jsonify, request
@@ -25,6 +23,7 @@ from src.lib.errors import bad_request, internal_error
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.kubernetes.client import get_batch_v1_api
+from src.services.kubernetes.runner_env import build_common_runner_env
 from src.services.log.logger import get_logger
 from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
 
@@ -267,28 +266,22 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{CONCORD_RUN_ID}}", run_id or "")
         job_yaml = job_yaml.replace("{{CONCORD_SESSION_ID}}", run_id or "")
         job_yaml = job_yaml.replace("{{RUN_ID}}", run_id or "")
-        job_yaml = job_yaml.replace("{{CONCORD_API_KEY}}", api_key or "")
-        job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", api_url or "https://10.4.45.11:443")
-        # Host header for ingress routing when using IP address
-        job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", env_config.CONCORD_API_HOST)
-
-        # Storage -- inject from http-api's own config (no hardcoded creds in template)
-        # Qualify short service names with namespace FQDN so pods in other
-        # namespaces (e.g., validation) can resolve the MinIO service.
-        storage_url = env_config.STORAGE_URL
-        namespace = env_config.ENVIRONMENT  # staging or production
-        if "://" in storage_url and ".svc" not in storage_url:
-            # e.g. http://concord-minio:9000 -> http://concord-minio.staging.svc.cluster.local:9000
-            parsed = urlparse(storage_url)
-            host_parts = parsed.hostname.split(".")
-            if len(host_parts) == 1:  # short name like "concord-minio"
-                fqdn = f"{parsed.hostname}.{namespace}.svc.cluster.local"
-                new_netloc = f"{fqdn}:{parsed.port}" if parsed.port else fqdn
-                storage_url = urlunparse(parsed._replace(netloc=new_netloc))
-        job_yaml = job_yaml.replace("{{STORAGE_URL}}", storage_url)
-        job_yaml = job_yaml.replace("{{STORAGE_ACCESS_KEY}}", env_config.STORAGE_ACCESS_KEY)
-        job_yaml = job_yaml.replace("{{STORAGE_SECRET_ACCESS_KEY}}", env_config.STORAGE_SECRET_ACCESS_KEY)
-        job_yaml = job_yaml.replace("{{STORAGE_BUCKET_NAME}}", env_config.STORAGE_BUCKET_NAME)
+        # Common runner env — same builder used by the manufacturing
+        # runner deployment, so storage URL FQDN resolution and the
+        # Concord API contract stay in sync between the two paths.
+        common_env = build_common_runner_env(
+            product_slug=product_slug or product_k8s,
+            test_package_version=test_package_version or "",
+            api_key=api_key or "",
+            api_url=api_url or "https://10.4.45.11:443",
+        )
+        job_yaml = job_yaml.replace("{{CONCORD_API_KEY}}", common_env["CONCORD_API_KEY"])
+        job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", common_env["CONCORD_API_URL"])
+        job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", common_env["CONCORD_API_HOST"])
+        job_yaml = job_yaml.replace("{{STORAGE_URL}}", common_env["STORAGE_URL"])
+        job_yaml = job_yaml.replace("{{STORAGE_ACCESS_KEY}}", common_env["STORAGE_ACCESS_KEY"])
+        job_yaml = job_yaml.replace("{{STORAGE_SECRET_ACCESS_KEY}}", common_env["STORAGE_SECRET_ACCESS_KEY"])
+        job_yaml = job_yaml.replace("{{STORAGE_BUCKET_NAME}}", common_env["STORAGE_BUCKET_NAME"])
 
         # Device/fixture identity env vars -- use FIXTURE_ID as the canonical name,
         # but keep BENCH_ID in the template for backward compat
@@ -316,8 +309,19 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{PYTEST_FILTER}}", pytest_filter or "")
         job_yaml = job_yaml.replace("{{FUOTA_LABEL}}", fuota_label or "")
 
-        # Test package version (for generic runner to download)
-        job_yaml = job_yaml.replace("{{TEST_PACKAGE_VERSION}}", test_package_version or "latest")
+        # Test package version — required by the runner entrypoint, no
+        # ``latest`` fallback. The backend resolves this from the stage
+        # binding before calling create_kubernetes_job, so an empty
+        # value here is a backend bug, not a runtime decision.
+        if not test_package_version:
+            logger.error(
+                "create_kubernetes_job called for %s without TEST_PACKAGE_VERSION — "
+                "the runner entrypoint will refuse to start. Caller must resolve "
+                "the package via test_package_resolver before reaching this point.",
+                product,
+            )
+            return None
+        job_yaml = job_yaml.replace("{{TEST_PACKAGE_VERSION}}", test_package_version)
 
         # Stage config: test directory and marker from ProductStageConfig
         job_yaml = job_yaml.replace("{{PYTEST_DIR}}", test_directory or "")

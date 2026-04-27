@@ -100,7 +100,6 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
                 "testCount": tp.testCount,
                 "message": getattr(tp, "message", None),
                 "gitSha": getattr(tp, "gitSha", None),
-                "gitDirty": getattr(tp, "gitDirty", None),
                 "updatedAt": tp.updatedAt.isoformat() if tp.updatedAt else None,
             }
 

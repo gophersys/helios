@@ -23,13 +23,14 @@ from database import Json
 from flask import g, jsonify, request
 
 from config.env import env_config
-from src.api.v2.manufacturing.shared import resolve_test_package as _resolve_test_package
+from src.api.v2.products.test_package_resolver import resolve_test_package
 from src.lib.audit import log_audit
 from src.lib.decorators import require_auth
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.executors.factory import get_executor
 from src.services.kubernetes.client import get_apps_v1_api, resolve_node_ips
+from src.services.kubernetes.runner_env import build_common_runner_env
 
 try:
     from kubernetes.client.exceptions import ApiException
@@ -192,8 +193,19 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
     device_id_values = [s.get("dutDeviceId") or "" for s in slot_infos]
     slot_device_ids = ",".join(device_id_values) if any(device_id_values) else ""
 
-    # 2. Resolve test package
-    tp, _ = _resolve_test_package(db, product.id)
+    # 2. Resolve test package — prefer the session's explicit choice
+    # (set by the wizard), then the latest released, then any latest as
+    # a dev fallback. The runner needs an exact version string, so a
+    # missing package is recorded as "latest" and the runner will fail
+    # fast against the backend.
+    explicit_id = getattr(session, "testPackageId", None)
+    tp, _ = resolve_test_package(
+        db, product.id, "MANUFACTURING", explicit_id=explicit_id, mode="RELEASED",
+    )
+    if tp is None and explicit_id is None:
+        tp, _ = resolve_test_package(
+            db, product.id, "MANUFACTURING", mode="ANY",
+        )
     test_package_version = tp.version if tp else "latest"
 
     # 3. Create temporary API key
@@ -205,35 +217,31 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
         env_config.CONCORD_API_URL,
     )
 
-    # 5. Build common env vars
+    # 5. Build env vars — common keys come from the shared builder so
+    # validation and manufacturing always agree on storage URL shape,
+    # MTIB port resolution, etc. Everything below the merge is
+    # manufacturing-specific.
     product_slug = product.slug if hasattr(product, "slug") else product.name.lower().replace(" ", "_")
     product_k8s = re.sub(r"[^a-z0-9-]", "-", product_slug.lower()).strip("-")
 
-    env = {
+    env: dict[str, str] = build_common_runner_env(
+        product_slug=product_slug,
+        test_package_version=test_package_version,
+        api_key=api_key,
+        api_url=api_url,
+    )
+    env.update({
         "RUNNER_MODE": "persistent",
-        "ENVIRONMENT": env_config.ENVIRONMENT,
         "STAGE": "manufacturing",
         "TEST_PACKAGE_TYPE": "MANUFACTURING",
-        "LOG_LEVEL": "4",
         "CONCORD_SESSION_ID": session_id,
-        "CONCORD_API_URL": api_url,
-        "CONCORD_API_KEY": api_key,
-        "CONCORD_API_HOST": env_config.CONCORD_API_HOST,
         "PRODUCT": product_k8s,
-        "PRODUCT_SLUG": product_slug,
-        "TEST_PACKAGE_VERSION": test_package_version,
-        "STORAGE_URL": _resolve_storage_url(),
-        "STORAGE_ACCESS_KEY": env_config.STORAGE_ACCESS_KEY,
-        "STORAGE_SECRET_ACCESS_KEY": env_config.STORAGE_SECRET_ACCESS_KEY,
-        "STORAGE_BUCKET_NAME": env_config.STORAGE_BUCKET_NAME,
         "MTIB_HOSTS": mtib_hosts,
-        "MTIB_PORT": mtib_port,
         "SLOT_SNRS": slot_snrs,
         "SLOT_DEVICE_IDS": slot_device_ids,
         "FIXTURE_ID": fixture.id,
         "FIXTURE_CONFIG_PATH": "",
         "ASSET_SET_ID": session.assetSetId or "",
-        "ARTIFACTS_DIR": "/var/log/validation",
         # CoreOps credentials — needed for device personalization during POST tests.
         # Passed from the backend's environment so the runner can call CoreOps directly.
         "COREOPS_SERVER_URL": os.environ.get("COREOPS_SERVER_URL", ""),
@@ -242,7 +250,7 @@ def deploy_manufacturing_runner(db, session, fixture, product) -> Optional[str]:
         "COREOPS_AUTH_USER": os.environ.get("COREOPS_AUTH_USER", ""),
         "COREOPS_AUTH_PASS": os.environ.get("COREOPS_AUTH_PASS", ""),
         "COREOPS_VERIFY_SSL": os.environ.get("COREOPS_VERIFY_SSL", "false"),
-    }
+    })
 
     # ASSET_SET_ID is already set above — the test framework downloads
     # firmware directly from the asset set API. No BUILD_RUN_ID needed;

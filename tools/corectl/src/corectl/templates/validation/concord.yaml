@@ -1,4 +1,4 @@
-schema: "2.0"
+schema: "1.0"
 
 package:
   type: validation

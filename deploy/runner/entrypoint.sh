@@ -12,14 +12,15 @@ echo "  Concord Test Runner v${APP_VERSION}"
 echo "════════════════════════════════════════════"
 echo ""
 
-# Required env vars
+# Required env vars — TEST_PACKAGE_VERSION is now mandatory. The backend
+# resolves the package id at runner-deploy time (via the unified resolver
+# + stage binding + session.testPackageId), so a missing version here is
+# a backend bug, not a runtime decision the runner should make on its own.
 : "${PRODUCT_SLUG:?PRODUCT_SLUG is required}"
 : "${STAGE:?STAGE is required}"
 : "${CONCORD_API_URL:?CONCORD_API_URL is required}"
 : "${CONCORD_API_KEY:?CONCORD_API_KEY is required}"
-
-# Optional — defaults to "latest"
-TEST_PACKAGE_VERSION="${TEST_PACKAGE_VERSION:-latest}"
+: "${TEST_PACKAGE_VERSION:?TEST_PACKAGE_VERSION is required (set by the backend at deploy time)}"
 
 # Infer package type from stage
 if [ "${TEST_PACKAGE_TYPE:-}" = "" ]; then
@@ -41,24 +42,6 @@ echo ""
 # ── Step 1: Download test package ─────────────────────────────────────────
 
 echo "Downloading test package..."
-
-# Step 1a: Resolve the package version if "latest"
-if [ "$TEST_PACKAGE_VERSION" = "latest" ]; then
-    LATEST_URL="${CONCORD_API_URL}/v2/products/${PRODUCT_SLUG}/test-packages/latest?type=${TEST_PACKAGE_TYPE}"
-    LATEST_JSON=$(curl -sf \
-        -H "Authorization: ApiKey ${CONCORD_API_KEY}" \
-        "${LATEST_URL}") || {
-        echo "ERROR: Failed to resolve latest test package from ${LATEST_URL}"
-        echo "Is there a ${TEST_PACKAGE_TYPE} test package uploaded for ${PRODUCT_SLUG}?"
-        exit 1
-    }
-    TEST_PACKAGE_VERSION=$(echo "$LATEST_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['version'])" 2>/dev/null) || {
-        echo "ERROR: Failed to parse latest test package response"
-        echo "Response: ${LATEST_JSON}"
-        exit 1
-    }
-    echo "Resolved latest version: ${TEST_PACKAGE_VERSION}"
-fi
 
 # Step 1b: Get presigned download URL
 DOWNLOAD_API_URL="${CONCORD_API_URL}/v2/products/${PRODUCT_SLUG}/test-packages/${TEST_PACKAGE_VERSION}/download?type=${TEST_PACKAGE_TYPE}"
