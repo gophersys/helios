@@ -197,9 +197,10 @@ class TestListFixtures:
 
         resp = authed_client.get("/v2/manufacturing/fixtures")
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
-        assert len(data) == 1
-        assert data[0]["type"] == "MANUFACTURING"
+        # ApiResponse envelope: ``{ data: { data: [...], pagination: {...} }, errors: [] }``
+        body = resp.get_json()["data"]
+        assert len(body["data"]) == 1
+        assert body["data"][0]["type"] == "MANUFACTURING"
 
     def test_returns_empty_list(self, authed_client, mock_db):
         mock_db.fixture.find_many.return_value = []
@@ -207,7 +208,9 @@ class TestListFixtures:
 
         resp = authed_client.get("/v2/manufacturing/fixtures")
         assert resp.status_code == 200
-        assert resp.get_json()["data"] == []
+        body = resp.get_json()["data"]
+        assert body["data"] == []
+        assert body["pagination"]["total"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +287,8 @@ class TestListSessions:
 
         resp = authed_client.get("/v2/manufacturing/sessions")
         assert resp.status_code == 200
-        body = resp.get_json()
+        # ApiResponse envelope: ``{ data: { data: [...], pagination: {...} }, errors: [] }``
+        body = resp.get_json()["data"]
         assert len(body["data"]) == 1
         assert body["pagination"]["total"] == 1
 
@@ -294,7 +298,7 @@ class TestListSessions:
 
         resp = authed_client.get("/v2/manufacturing/sessions?page=2&limit=10")
         assert resp.status_code == 200
-        assert resp.get_json()["pagination"]["page"] == 2
+        assert resp.get_json()["data"]["pagination"]["page"] == 2
 
 
 # ---------------------------------------------------------------------------

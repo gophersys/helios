@@ -120,7 +120,12 @@ def _create_runner_api_key(db, session_id: str) -> str:
     """Create a database-backed API key for the manufacturing runner.
 
     Returns the raw key string to inject into the container env.
-    Key expires after 24 hours.
+
+    The key has no fixed ``expiresAt`` — its lifecycle is bound to
+    the session. When the session ends, ``teardown_manufacturing_runner``
+    revokes the key by name. A wall-clock TTL on this path stranded
+    long-running mfg sessions when the runner pod respawned past the
+    expiry and crashlooped on 401.
     """
     raw_key = f"ck_mfg_{secrets.token_urlsafe(32)}"
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
@@ -132,15 +137,24 @@ def _create_runner_api_key(db, session_id: str) -> str:
 
     db.apikey.create(
         data={
-            "name": f"Manufacturing session {session_id}",
+            "name": _runner_key_name(session_id),
             "keyHash": key_hash,
             "keyPrefix": raw_key[:14],
             "userId": user_id,
-            "expiresAt": datetime.now(timezone.utc) + timedelta(hours=24),
+            "expiresAt": None,
         },
     )
 
     return raw_key
+
+
+def _runner_key_name(session_id: str) -> str:
+    """Stable name for a session's runner API key.
+
+    Used at create time and as the match key at teardown — keep them
+    in sync.
+    """
+    return f"Manufacturing session {session_id}"
 
 
 # ---------------------------------------------------------------------------
@@ -429,9 +443,22 @@ def teardown_manufacturing_runner(db, session) -> bool:
         },
     )
 
+    # Revoke the runner's API key. Keys are minted with no fixed
+    # expiresAt — this teardown is the lifecycle hook that ends them.
+    # Any failure to delete is logged and tolerated; a stale key with
+    # no usage is far less painful than a missing teardown blocking
+    # session cleanup.
+    revoked = 0
+    try:
+        result = db.apikey.delete_many(where={"name": _runner_key_name(session_id)})
+        revoked = getattr(result, "count", 0) if not isinstance(result, int) else result
+    except Exception:
+        logger.exception("Failed to revoke runner API key for session %s", session_id)
+
     log_audit("manufacturing_runner.teardown", "ManufacturingSession", session_id, {
         "deploymentName": deployment_name,
         "success": success,
+        "keysRevoked": revoked,
     })
 
     return success
