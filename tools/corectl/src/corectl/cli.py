@@ -17,6 +17,8 @@ Resource-qualified (when outside a project or managing other resources):
     corectl auth status
 """
 
+import os
+
 import click
 
 from . import __version__
@@ -26,9 +28,24 @@ from .commands import auth, budgets, runs, test
 
 @click.group(invoke_without_command=True)
 @click.version_option(version=__version__, prog_name="corectl")
+@click.option(
+    "--insecure",
+    is_flag=True,
+    default=False,
+    help="Skip TLS certificate verification for this run. Sets CONCORD_VERIFY_SSL=false. "
+         "Use when the host doesn't trust the Concord internal CA (WSL, foreign network).",
+)
 @click.pass_context
-def main(ctx):
+def main(ctx, insecure):
     """Concord platform CLI — manage validation, fixtures, and manufacturing."""
+    if insecure:
+        os.environ["CONCORD_VERIFY_SSL"] = "false"
+        # Silence the urllib3 InsecureRequestWarning so output stays clean.
+        try:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
     ctx.ensure_object(dict)
     ctx.obj["config"] = load_config()
     if ctx.invoked_subcommand is None:

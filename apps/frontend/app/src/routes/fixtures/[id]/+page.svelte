@@ -272,6 +272,10 @@
     fetchFixture().then(() => {
       if (canManage) fetchAvailableNodes();
     });
+    // Sessions populate the headline stat card. Lazy-loading them on tab
+    // switch leaves the card stuck at "—" even when the fixture has been
+    // used many times — fetch upfront so the number lands with the page.
+    fetchSessions();
   });
 
   function formatDate(iso: string): string {

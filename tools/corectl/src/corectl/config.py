@@ -62,9 +62,75 @@ def get_api_url(config: Dict[str, Any]) -> str:
     )
 
 
-def get_tls_verify(config: Dict[str, Any]) -> bool:
-    """Whether HTTPS certificates should be verified. Defaults to True."""
-    return config.get("tls_verify", True)
+_SYSTEM_CA_BUNDLE_PATHS = (
+    "/etc/ssl/certs/ca-certificates.crt",   # Debian, Ubuntu, Alpine
+    "/etc/pki/tls/certs/ca-bundle.crt",     # RHEL, Fedora, CentOS
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",  # newer RHEL
+    "/etc/ssl/cert.pem",                    # macOS Homebrew, Alpine
+)
+
+
+def _system_ca_bundle() -> Optional[str]:
+    """Return the OS-managed CA bundle path, or None if no known one exists.
+
+    Python's ``requests`` library defaults to certifi's bundled CA list,
+    which does NOT include corporate internal CAs even when those CAs
+    are properly installed in the OS trust store. This is the classic
+    "openssl s_client says OK but Python says SSLCertVerificationError"
+    Linux gotcha. Auto-detecting the system bundle makes corectl Just
+    Work on any host that has the corekinect CA in its OS trust store
+    (the common case — corp Mac, corp Linux, WSL with update-ca-certs).
+    """
+    for path in _SYSTEM_CA_BUNDLE_PATHS:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def get_tls_verify(config: Dict[str, Any]):
+    """Resolve the TLS verification setting for HTTPS calls.
+
+    Returns one of:
+
+    * ``True`` — use Python's default (certifi's bundled Mozilla CA list).
+    * ``False`` — skip verification entirely (insecure escape hatch).
+    * ``str`` — path to a CA bundle to verify against. The OS-managed
+      bundle is auto-detected, so machines with the corekinect CA in
+      their system trust store succeed without any user action.
+
+    Resolution order (most specific wins):
+
+    1. ``CONCORD_VERIFY_SSL`` env var (``"0"``, ``"false"``, ``"no"``,
+       ``"off"`` → ``False``; anything else → ``True``-ish path/bool).
+    2. ``tls_verify`` field in the saved config (persisted opt-out).
+    3. ``REQUESTS_CA_BUNDLE`` env var (standard ``requests`` knob).
+    4. Auto-detected system CA bundle path, if one exists.
+    5. Fallback to ``True`` (certifi's default).
+    """
+    env_val = os.environ.get("CONCORD_VERIFY_SSL")
+    if env_val is not None:
+        if env_val.strip().lower() in ("0", "false", "no", "off"):
+            return False
+        # Anything else means "verify" — fall through to auto-detection.
+
+    cfg_val = config.get("tls_verify")
+    if cfg_val is False:
+        return False
+    if isinstance(cfg_val, str) and cfg_val:
+        return cfg_val
+
+    # ``REQUESTS_CA_BUNDLE`` is the standard env var ``requests`` already
+    # honors automatically; we surface it here so the resolved value is
+    # explicit and visible in logs.
+    requests_bundle = os.environ.get("REQUESTS_CA_BUNDLE")
+    if requests_bundle and os.path.isfile(requests_bundle):
+        return requests_bundle
+
+    system_bundle = _system_ca_bundle()
+    if system_bundle is not None:
+        return system_bundle
+
+    return True
 
 
 def get_service_account_key(config: Dict[str, Any]) -> Optional[str]:
