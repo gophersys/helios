@@ -18,6 +18,32 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+/**
+ * Format a UTC timestamp as Phoenix-local date + time. Multiple releases
+ * land per day now, so the date alone isn't enough to disambiguate them
+ * in any list view; pinning to Phoenix (America/Phoenix, no DST) keeps
+ * the displayed time consistent regardless of which timezone the
+ * operator's browser thinks it's in.
+ *
+ * Output: ``Apr 27 · 2:25 PM PHX``.
+ */
+export function formatPhoenixTime(iso: string | null): string {
+  if (!iso) return 'Never';
+  const date = new Date(iso);
+  const datePart = date.toLocaleDateString('en-US', {
+    timeZone: 'America/Phoenix',
+    month: 'short',
+    day: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
+    timeZone: 'America/Phoenix',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${datePart} · ${timePart} PHX`;
+}
+
 export function formatTimeAgo(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
