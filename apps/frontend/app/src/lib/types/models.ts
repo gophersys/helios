@@ -151,11 +151,11 @@ export interface ProductTarget {
 
 export interface TestPackageSummary {
   version: string;
+  releasedVersion: string | null;
   status: 'DEVELOPMENT' | 'RELEASED';
   testCount: number;
   message: string | null;
   gitSha: string | null;
-  gitDirty: boolean | null;
   updatedAt: string | null;
 }
 

@@ -96,6 +96,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         def _tp_summary(tp):
             return {
                 "version": tp.version,
+                "releasedVersion": getattr(tp, "releasedVersion", None),
                 "status": tp.status,
                 "testCount": tp.testCount,
                 "message": getattr(tp, "message", None),
