@@ -46,7 +46,6 @@
   let formName = $state('');
   let formBoardRevisionId = $state('');
   let formRevision = $state('');
-  let formCapabilities = $state('');
   let formProfileTemplate = $state('{}');
   let formSchematicUrl = $state('');
   let formBomUrl = $state('');
@@ -78,7 +77,6 @@
     formName = '';
     formBoardRevisionId = '';
     formRevision = '';
-    formCapabilities = '';
     formProfileTemplate = '{}';
     formSchematicUrl = '';
     formBomUrl = '';
@@ -93,7 +91,6 @@
       formName = design.name;
       formBoardRevisionId = design.boardRevisionId;
       formRevision = design.revision;
-      formCapabilities = design.capabilities.join(', ');
       formProfileTemplate = JSON.stringify(design.profileTemplate, null, 2);
       formSchematicUrl = design.schematicUrl || '';
       formBomUrl = design.bomUrl || '';
@@ -110,12 +107,6 @@
     error = null;
     submitting = true;
 
-    // Parse capabilities
-    const capabilities = formCapabilities
-      .split(',')
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-
     // Parse profile template
     let profileTemplate: Record<string, unknown>;
     try {
@@ -130,7 +121,6 @@
       name: formName,
       boardRevisionId: formBoardRevisionId,
       revision: formRevision,
-      capabilities,
       profileTemplate,
       schematicUrl: formSchematicUrl || undefined,
       bomUrl: formBomUrl || undefined,
@@ -248,12 +238,6 @@
           />
         </div>
 
-        <TextInput
-          bind:value={formCapabilities}
-          label="Capabilities"
-          placeholder="button, peltier, charger_relay (comma-separated)"
-        />
-
         <div>
           <label for="profile" class="mb-1 block text-2xs font-medium text-text-tertiary">
             Profile Template (JSON)
@@ -328,7 +312,6 @@
             <th class="table-header">Name</th>
             <th class="table-header">Board Revision</th>
             <th class="table-header">Revision</th>
-            <th class="table-header">Capabilities</th>
             <th class="table-header text-center">Benches</th>
             <th class="table-header text-right">Created</th>
             {#if canManage}
@@ -345,20 +328,6 @@
                 <span class="rounded bg-surface-2 px-2 py-0.5 text-xs text-text-secondary">
                   {design.revision}
                 </span>
-              </td>
-              <td class="table-cell">
-                <div class="flex flex-wrap gap-1">
-                  {#each design.capabilities.slice(0, 3) as cap}
-                    <span class="rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent">
-                      {cap}
-                    </span>
-                  {/each}
-                  {#if design.capabilities.length > 3}
-                    <span class="text-2xs text-text-tertiary">
-                      +{design.capabilities.length - 3}
-                    </span>
-                  {/if}
-                </div>
               </td>
               <td class="table-cell text-center text-text-secondary">{design.benchCount ?? 0}</td>
               <td class="table-cell text-right text-text-tertiary">

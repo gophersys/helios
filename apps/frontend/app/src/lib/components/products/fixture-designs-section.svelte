@@ -83,12 +83,6 @@
               <div class="flex items-center gap-3 text-2xs py-1 px-2 rounded hover:bg-surface-1 transition-colors">
                 <code class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-text-primary">v{design.revision}</code>
 
-                <div class="flex items-center gap-1 flex-wrap">
-                  {#each design.capabilities as cap}
-                    <span class="rounded-full bg-surface-2 px-2 py-0.5 text-text-secondary">{cap}</span>
-                  {/each}
-                </div>
-
                 {#if design.boardRevision}
                   <span class="text-text-tertiary">
                     {design.boardRevision.version}

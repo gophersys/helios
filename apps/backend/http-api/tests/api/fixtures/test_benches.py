@@ -26,7 +26,6 @@ def _make_design(**overrides):
         name="Alpha B0 Fixture v1",
         boardRevisionId="rev-1",
         revision="b0",
-        capabilities=["jlink", "button"],
         profileTemplate={"uart_app_path": "/dev/ttyUSB0"},
     )
     defaults.update(overrides)
@@ -172,7 +171,6 @@ def test_get_bench_success(authed_client, mock_db):
     assert bench["dutDeviceId"] == "70B3D584C01E1FCC"
     assert bench["dutSnr"] == "0964"
     assert bench["jlinkAppSerial"] == "821009543"
-    assert bench["capabilities"] == ["jlink", "button"]
     assert bench["dutRevision"] == "b0"
 
 
@@ -190,15 +188,16 @@ def test_get_bench_requires_auth(client):
 
 
 def test_get_bench_no_design(authed_client, mock_db):
-    """Bench without design should serialize capabilities as empty list."""
+    """Bench without design has fixtureDesign=null and no design-derived fields."""
     mock_db.fixture.find_unique.return_value = _make_bench(design=None)
 
     response = authed_client.get("/v2/fixtures/benches/bench-1")
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["capabilities"] == []
     assert data["data"]["fixtureDesign"] is None
+    assert data["data"]["dutRevision"] is None
+    assert data["data"]["mtibRevision"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -623,8 +622,6 @@ def test_get_bench_profile_success(authed_client, mock_db):
     assert profile["uart_app_path"] == "/dev/ttyUSB1"
     assert profile["uart_comms_path"] == "/dev/ttyUSB0"
     assert profile["jlink_app_serial"] == "821009543"
-    # Capabilities from design
-    assert profile["capabilities"] == ["jlink", "button"]
     # Product info
     assert profile["product"]["slug"] == "alpha"
 
@@ -648,7 +645,6 @@ def test_get_bench_profile_no_design(authed_client, mock_db):
     data = json.loads(response.data)
     profile = data["data"]
     assert profile["station_id"] == "bench-33"
-    assert "capabilities" not in profile
 
 
 def test_get_bench_profile_deep_merge_overrides(authed_client, mock_db):

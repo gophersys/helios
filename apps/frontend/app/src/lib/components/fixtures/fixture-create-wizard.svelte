@@ -515,11 +515,6 @@
                       <span class="text-sm font-semibold text-text-primary">{design.name}</span>
                       <div class="flex items-center gap-2 mt-1">
                         <span class="rounded bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary">Rev {design.revision}</span>
-                        {#if design.capabilities?.length}
-                          {#each design.capabilities as cap}
-                            <span class="rounded bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">{cap}</span>
-                          {/each}
-                        {/if}
                       </div>
                     </div>
                     <ChevronRight size={16} class="text-text-tertiary shrink-0" />
@@ -748,14 +743,6 @@
               <div class="text-text-primary font-medium">{selectedRevision?.version} ({selectedRevision?.ckBoardsName})</div>
               <div class="text-text-tertiary">Design</div>
               <div class="text-text-primary font-medium">{selectedDesign?.name} <span class="text-text-tertiary font-normal">v{selectedDesign?.revision}</span></div>
-              {#if selectedDesign?.capabilities?.length}
-                <div class="text-text-tertiary">Capabilities</div>
-                <div class="flex gap-1.5 flex-wrap">
-                  {#each selectedDesign.capabilities as cap}
-                    <span class="rounded bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">{cap}</span>
-                  {/each}
-                </div>
-              {/if}
             </div>
           </div>
 

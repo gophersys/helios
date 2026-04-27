@@ -39,7 +39,6 @@ from .stages import (
     get_quiet_labels,
     get_required_labels,
     get_stage_build_defs,
-    get_stage_capabilities,
     get_verbose_labels,
 )
 
@@ -62,6 +61,5 @@ __all__ = [
     "get_quiet_labels",
     "get_required_labels",
     "get_stage_build_defs",
-    "get_stage_capabilities",
     "get_verbose_labels",
 ]

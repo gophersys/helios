@@ -68,13 +68,11 @@ def _validation_dict() -> dict:
             "smoke": {
                 "directory": "tests/smoke",
                 "timeout_s": 120,
-                "hardware": ["power", "uart"],
                 "markers": ["health_check"],
             },
             "integration": {
                 "directory": "tests/integration",
                 "timeout_s": 600,
-                "hardware": ["power", "uart", "button"],
                 "markers": ["slow"],
             },
         },
@@ -110,26 +108,23 @@ def _manufacturing_dict() -> dict:
                 "name": "Electrical",
                 "module": "tests.manufacturing.test_electrical",
                 "timeout_s": 30,
-                "hardware": ["power"],
             },
             {
                 "name": "Flash Firmware",
                 "module": "tests.manufacturing.test_flash",
                 "timeout_s": 120,
-                "hardware": ["power", "jlink"],
             },
             {
                 "name": "POST",
                 "module": "tests.manufacturing.test_post",
                 "timeout_s": 300,
-                "hardware": ["power", "uart"],
             },
         ],
     }
 
 
 def _minimal_validation_dict() -> dict:
-    """Validation manifest with no device, no hardware, no markers."""
+    """Validation manifest with no device, no markers."""
     return {
         "schema": "1.0",
         "package": {
@@ -204,7 +199,6 @@ class TestManifestFromDictValidation:
         assert smoke.name == "smoke"
         assert smoke.directory == "tests/smoke"
         assert smoke.timeout_s == 120
-        assert smoke.hardware == ["power", "uart"]
         assert smoke.markers == ["health_check"]
 
     def test_steps_empty_for_validation(self):
@@ -229,7 +223,6 @@ class TestManifestFromDictManufacturing:
         assert first.name == "Electrical"
         assert first.module == "tests.manufacturing.test_electrical"
         assert first.timeout_s == 30
-        assert first.hardware == ["power"]
 
     def test_stages_empty_for_manufacturing(self):
         m = Manifest.from_dict(_manufacturing_dict())
@@ -241,17 +234,12 @@ class TestManifestFromDictManufacturing:
 
 
 class TestManifestFromDictMinimal:
-    """Manifest.from_dict with minimal data (no device, no hardware, no markers)."""
+    """Manifest.from_dict with minimal data (no device, no markers)."""
 
     def test_device_defaults_to_zero(self):
         m = Manifest.from_dict(_minimal_validation_dict())
         assert m.product.device.type_id == 0
         assert m.product.device.variant_id == 0
-
-    def test_hardware_defaults_to_empty(self):
-        m = Manifest.from_dict(_minimal_validation_dict())
-        smoke = m.stages["smoke"]
-        assert smoke.hardware == []
 
     def test_markers_defaults_to_empty(self):
         m = Manifest.from_dict(_minimal_validation_dict())
@@ -264,7 +252,7 @@ class TestManifestFromDictMinimal:
 
 
 class TestManifestProperties:
-    """is_validation, is_manufacturing, stage_names, all_hardware."""
+    """is_validation, is_manufacturing, stage_names."""
 
     def test_is_validation_true(self):
         m = Manifest.from_dict(_validation_dict())
@@ -283,18 +271,6 @@ class TestManifestProperties:
     def test_stage_names_manufacturing(self):
         m = Manifest.from_dict(_manufacturing_dict())
         assert m.stage_names == ["Electrical", "Flash Firmware", "POST"]
-
-    def test_all_hardware_validation(self):
-        m = Manifest.from_dict(_validation_dict())
-        assert m.all_hardware == ["button", "power", "uart"]
-
-    def test_all_hardware_manufacturing(self):
-        m = Manifest.from_dict(_manufacturing_dict())
-        assert m.all_hardware == ["jlink", "power", "uart"]
-
-    def test_all_hardware_empty_when_none(self):
-        m = Manifest.from_dict(_minimal_validation_dict())
-        assert m.all_hardware == []
 
 
 class TestFrozenDataclasses:

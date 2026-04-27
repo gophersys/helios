@@ -21,7 +21,6 @@
   let formProductId = $state('');
   let formBoardRevisionId = $state('');
   let formRevision = $state('');
-  let formCapabilities = $state('');
   let formProfileTemplate = $state('{}');
   let submitting = $state(false);
 
@@ -105,7 +104,6 @@
     formProductId = '';
     formBoardRevisionId = '';
     formRevision = '';
-    formCapabilities = '';
     formProfileTemplate = '{}';
     editingId = null;
     showForm = false;
@@ -115,7 +113,6 @@
     formName = d.name;
     formBoardRevisionId = d.boardRevisionId;
     formRevision = d.revision;
-    formCapabilities = d.capabilities.join(', ');
     formProfileTemplate = JSON.stringify(d.profileTemplate, null, 2);
     editingId = d.id;
     showForm = true;
@@ -141,12 +138,6 @@
     error = null;
     submitting = true;
 
-    // Parse capabilities
-    const capabilities = formCapabilities
-      .split(',')
-      .map(c => c.trim())
-      .filter(Boolean);
-
     // Validate JSON
     let profileTemplate: Record<string, unknown>;
     try {
@@ -161,7 +152,6 @@
       name: formName,
       boardRevisionId: formBoardRevisionId || null,
       revision: formRevision,
-      capabilities,
       profileTemplate,
     };
 
@@ -250,15 +240,6 @@
             required
           />
           <label class="col-span-2">
-            <span class="mb-1 block text-2xs font-medium text-text-tertiary">Capabilities (comma-separated)</span>
-            <input
-              type="text"
-              bind:value={formCapabilities}
-              placeholder="e.g. button, peltier, charger_relay, ppg_servo"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
-            />
-          </label>
-          <label class="col-span-2">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">Profile Template (JSON)</span>
             <textarea
               bind:value={formProfileTemplate}
@@ -300,7 +281,6 @@
             <th class="table-header">Name</th>
             <th class="table-header">Revision</th>
             <th class="table-header">Board Revision</th>
-            <th class="table-header">Capabilities</th>
             {#if canManage}
               <th class="table-header w-20"></th>
             {/if}
@@ -313,15 +293,6 @@
               <td class="table-cell text-sm text-text-secondary">{d.revision}</td>
               <td class="table-cell text-sm text-text-secondary">
                 {d.boardRevision ? `${d.boardRevision.version} (${d.boardRevision.ckBoardsName})` : d.boardRevisionId}
-              </td>
-              <td class="table-cell">
-                <div class="flex flex-wrap gap-1">
-                  {#each d.capabilities as cap}
-                    <span class="inline-flex rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary">
-                      {cap}
-                    </span>
-                  {/each}
-                </div>
               </td>
               {#if canManage}
                 <td class="table-cell">

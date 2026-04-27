@@ -165,14 +165,11 @@
       .map((c) => c.trim())
       .filter((c) => c.length > 0);
 
-    const capabilities = selectedDesign?.capabilities || [];
-
     const data = {
       stationId: stationId.trim(),
       name: benchName.trim(),
       mtibAddress: selectedMtib.mtibAddress,
       mtibRevision: selectedMtib.hardwareRevision || undefined,
-      capabilities,
       fixtureDesignId: selectedDesignId || undefined,
       dutProduct: selectedProduct?.label.toLowerCase() || '',
       dutRevision: dutRevision.trim(),
@@ -384,18 +381,6 @@
                           <div class="text-sm text-text-secondary">
                             {design.boardRevision?.ckBoardsName ?? design.boardRevisionId} rev {design.revision}
                           </div>
-                        </div>
-                        <div class="flex gap-1">
-                          {#each design.capabilities.slice(0, 2) as cap}
-                            <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">
-                              {cap}
-                            </span>
-                          {/each}
-                          {#if design.capabilities.length > 2}
-                            <span class="text-2xs text-text-tertiary">
-                              +{design.capabilities.length - 2}
-                            </span>
-                          {/if}
                         </div>
                       </div>
                     </button>

@@ -58,13 +58,13 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-text-primary">{label} Test App</span>
-            <code class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-2xs text-text-primary">{status.version}</code>
+            <code class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-2xs text-text-primary">{(status.status === 'RELEASED' && status.releasedVersion) ? status.releasedVersion : status.version}</code>
             <StatusBadge status={status.status} />
           </div>
           <p class="mt-0.5 text-2xs text-text-tertiary">
             {status.testCount} test{status.testCount !== 1 ? 's' : ''}
             {#if status.gitSha}
-              &middot; <code class="font-mono">{status.gitSha}{status.gitDirty ? '*' : ''}</code>
+              &middot; <code class="font-mono">{status.gitSha}</code>
             {/if}
             {#if timeAgo}
               &middot; {timeAgo}

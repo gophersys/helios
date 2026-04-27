@@ -1350,7 +1350,6 @@ export interface FixtureDesign {
   boardRevisionId: string;
   revision: string;
   type: 'MANUFACTURING' | 'VALIDATION' | null;
-  capabilities: string[];
   profileTemplate: Record<string, unknown>;
   schematicUrl: string | null;
   bomUrl: string | null;
@@ -1368,7 +1367,6 @@ export interface FixtureDesignSummary {
   boardRevisionId: string;
   revision: string;
   type: 'MANUFACTURING' | 'VALIDATION' | null;
-  capabilities: string[];
   boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
   benchCount?: number;
   createdAt: string;
@@ -1380,7 +1378,6 @@ export interface TestBench {
   name: string;
   mtibAddress: string;
   mtibRevision: string | null;
-  capabilities: string[];
   fixtureDesignId: string | null;
   fixtureDesign?: FixtureDesignSummary;
   profileOverrides: Record<string, unknown> | null;

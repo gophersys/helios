@@ -1738,7 +1738,6 @@ def _build_spec() -> APISpec:
             "mtibRevision": {"type": "string", "nullable": True},
             "fixtureDesignId": {"type": "string", "nullable": True},
             "profileOverrides": {"type": "object", "nullable": True},
-            "capabilities": {"type": "array", "items": {"type": "string"}},
             "dutProduct": {"type": "string"},
             "dutRevision": {"type": "string"},
             "dutDeviceId": {"type": "string", "nullable": True},
@@ -1761,7 +1760,6 @@ def _build_spec() -> APISpec:
                 "name": {"type": "string"},
                 "product": {"type": "string"},
                 "revision": {"type": "string"},
-                "capabilities": {"type": "array", "items": {"type": "string"}},
             }},
             "profilePath": {"type": "string", "description": "Computed path for K8s job profile loading"},
         },
@@ -1771,7 +1769,6 @@ def _build_spec() -> APISpec:
         "description": "Merged fixture profile for validation tests, combining design template + bench overrides + DUT info",
         "properties": {
             "station_id": {"type": "string", "description": "Test bench station identifier"},
-            "capabilities": {"type": "array", "items": {"type": "string"}},
             "dut": {"type": "object", "properties": {
                 "device_id": {"type": "string"},
                 "snr": {"type": "string"},
@@ -1792,7 +1789,6 @@ def _build_spec() -> APISpec:
             "parameters": _pagination_params + [
                 {"name": "product", "in": "query", "schema": {"type": "string"}, "description": "Filter by DUT product"},
                 {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["AVAILABLE", "LOCKED", "OFFLINE", "MAINTENANCE"]}},
-                {"name": "capability", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "description": "Filter by required capabilities"},
             ],
             "responses": {"200": _paginated("TestBench"), "401": _401, "403": _403},
         },
@@ -1807,7 +1803,6 @@ def _build_spec() -> APISpec:
                     "mtibRevision": {"type": "string"},
                     "fixtureDesignId": {"type": "string"},
                     "profileOverrides": {"type": "object"},
-                    "capabilities": {"type": "array", "items": {"type": "string"}},
                     "dutProduct": {"type": "string"},
                     "dutRevision": {"type": "string"},
                     "dutDeviceId": {"type": "string"},
@@ -1854,7 +1849,6 @@ def _build_spec() -> APISpec:
                     "mtibRevision": {"type": "string"},
                     "fixtureDesignId": {"type": "string"},
                     "profileOverrides": {"type": "object"},
-                    "capabilities": {"type": "array", "items": {"type": "string"}},
                     "dutDeviceId": {"type": "string"},
                     "dutSnr": {"type": "string"},
                     "dutImei": {"type": "string"},

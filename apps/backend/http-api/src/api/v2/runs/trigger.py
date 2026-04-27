@@ -17,7 +17,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
-from corekinect.stages import Stage, get_stage_capabilities
+from corekinect.stages import Stage
 from src.api.v2.runs.types import RunTriggerRequest
 
 # Reuse K8s job helpers from the new run endpoint
@@ -85,22 +85,16 @@ def trigger_run(run_id: str):
         product_name = run.product.name if hasattr(run, "product") and run.product else "unknown"
         product_revision = run_config.get("revision", "b0")
 
-        # Required capabilities from config (optional)
-        default_caps = []
-        if data.stage:
-            try:
-                default_caps = get_stage_capabilities(Stage(data.stage))
-            except (ValueError, KeyError):
-                default_caps = []
-        required_capabilities = run_config.get("requiredCapabilities", default_caps)
-
-        # Find an available fixture for this product
-        fixture = _find_available_fixture(db, run.productId, required_capabilities)
+        # Find an available fixture for this product. Fixture <-> test
+        # app match is established by per-package design ownership: the
+        # caller is expected to have queued runs against a TestPackage
+        # whose owned design matches an available fixture's designId.
+        # Capability-based filtering went away with the v0.5.x refactor.
+        fixture = _find_available_fixture(db, run.productId)
 
         if not fixture:
             return bad_request(
-                f"No available fixture for product '{product_name}' "
-                f"with capabilities: {required_capabilities}"
+                f"No available fixture for product '{product_name}'"
             )
 
         # Lock the fixture for this run
@@ -240,7 +234,6 @@ def trigger_run(run_id: str):
 def _find_available_fixture(
     db,
     product_id: str,
-    capabilities: Optional[List[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Find an available Fixture matching the product, with slot DUT info.
 
@@ -267,31 +260,6 @@ def _find_available_fixture(
 
         if not fixture:
             return None
-
-        # Check capabilities if required (from fixture design)
-        if capabilities and hasattr(fixture, "design") and fixture.design:
-            design_caps = fixture.design.capabilities or []
-            if not all(cap in design_caps for cap in capabilities):
-                # Try to find another fixture with matching capabilities
-                all_fixtures = db.fixture.find_many(
-                    where=where,
-                    include={
-                        "slots": {
-                            "where": {"active": True},
-                            "order_by": {"slotIndex": "asc"},
-                        },
-                        "design": True,
-                    },
-                )
-                fixture = None
-                for f in all_fixtures:
-                    if hasattr(f, "design") and f.design:
-                        f_caps = f.design.capabilities or []
-                        if all(cap in f_caps for cap in capabilities):
-                            fixture = f
-                            break
-                if not fixture:
-                    return None
 
         # Compute profile path from fixture design
         profile_path = None

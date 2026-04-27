@@ -39,7 +39,6 @@ export interface CreateDesignRequest {
   name: string;
   boardRevisionId: string;
   revision: string;
-  capabilities: string[];
   profileTemplate: Record<string, unknown>;
   schematicUrl?: string;
   bomUrl?: string;
@@ -106,7 +105,6 @@ export interface CreateBenchRequest {
   name: string;
   mtibAddress: string;
   mtibRevision?: string;
-  capabilities?: string[];
   fixtureDesignId?: string;
   profileOverrides?: Record<string, unknown>;
   dutProduct: string;

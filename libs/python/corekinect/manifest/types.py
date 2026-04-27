@@ -50,7 +50,6 @@ class StageConfig:
     name: str  # stage key from YAML (e.g. "smoke")
     directory: str  # relative test directory
     timeout_s: int
-    hardware: List[str] = field(default_factory=list)
     markers: List[str] = field(default_factory=list)
 
 
@@ -61,7 +60,6 @@ class StepConfig:
     name: str  # display name (e.g. "Electrical")
     module: str  # dotted module path
     timeout_s: int
-    hardware: List[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -90,16 +88,6 @@ class Manifest:
             return list(self.stages.keys())
         return [s.name for s in self.steps]
 
-    @property
-    def all_hardware(self) -> List[str]:
-        """Union of all hardware capabilities required across all stages/steps."""
-        hw: set[str] = set()
-        for stage in self.stages.values():
-            hw.update(stage.hardware)
-        for step in self.steps:
-            hw.update(step.hardware)
-        return sorted(hw)
-
     @classmethod
     def from_dict(cls, data: dict) -> Manifest:
         """Construct a Manifest from a parsed YAML dict.
@@ -122,7 +110,6 @@ class Manifest:
                 name=name,
                 directory=cfg["directory"],
                 timeout_s=cfg["timeout_s"],
-                hardware=cfg.get("hardware", []),
                 markers=cfg.get("markers", []),
             )
 
@@ -133,7 +120,6 @@ class Manifest:
                     name=cfg["name"],
                     module=cfg["module"],
                     timeout_s=cfg["timeout_s"],
-                    hardware=cfg.get("hardware", []),
                 )
             )
 
