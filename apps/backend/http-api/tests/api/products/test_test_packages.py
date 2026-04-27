@@ -146,30 +146,33 @@ class TestUploadTestPackage:
         body = resp.get_json()
         assert body["data"]["status"] == "DEVELOPMENT"
 
-    def test_upload_development_overwrites_existing(self, authed_client, mock_db):
-        """Upload a development package overwrites an existing dev version."""
+    def test_upload_duplicate_dev_version_rejected(self, authed_client, mock_db):
+        """v0.5.0+: duplicate dev version → 409 (no more silent overwrite).
+
+        corectl always epoch-suffixes dev versions so the same SHA never
+        collides on its own; a duplicate ``(productId, version, type)``
+        reaching the upload handler is treated as a bug, not a normal
+        re-upload.
+        """
         product = _product_obj()
-        existing = _test_package_obj(status="DEVELOPMENT", version="dev-abc123")
-        updated = _test_package_obj(status="DEVELOPMENT", version="dev-abc123", id="tp-001")
+        existing = _test_package_obj(status="DEVELOPMENT", version="dev-abc123-1700000000")
 
         mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
-        # For DEVELOPMENT status, only one find_first on testpackage (existing dev check)
         mock_db.testpackage.find_first.return_value = existing
-        mock_db.testpackage.update.return_value = updated
-        mock_db.testpackage.find_unique.return_value = updated
 
         data = {
             "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
-            "manifest": json.dumps(_manifest(status="DEVELOPMENT", version="dev-abc123")),
+            "manifest": json.dumps(_manifest(status="DEVELOPMENT", version="dev-abc123-1700000000")),
         }
         resp = authed_client.post(
             "/v2/products/alpha-b0/test-packages",
             data=data,
             content_type="multipart/form-data",
         )
-        assert resp.status_code == 200
-        mock_db.testpackage.update.assert_called_once()
+        assert resp.status_code == 409
+        mock_db.testpackage.create.assert_not_called()
+        mock_db.testpackage.update.assert_not_called()
 
     def test_upload_released_version_rejected(self, authed_client, mock_db):
         """Upload a released package is always rejected (must upload as dev, then promote)."""
@@ -479,9 +482,12 @@ class TestSerialization:
         body = resp.get_json()
         data = body["data"]
 
+        # ``stagesEnabled``, ``schemaVersion``, and ``gitDirty`` were dropped
+        # in v0.5.0 (test-package refactor). ``manifestVersion`` replaced
+        # ``schemaVersion`` and is the new canonical field.
         expected_fields = [
             "id", "productId", "boardRevisionId", "version", "type", "status",
-            "frameworkVersion", "testCount", "stagesEnabled", "schemaVersion",
+            "frameworkVersion", "testCount", "manifestVersion",
             "manifestHash", "notes", "createdAt", "updatedAt",
         ]
         for field in expected_fields:
@@ -627,33 +633,34 @@ class TestReleaseTestPackage:
         # find_first is called multiple times: once for the package, once for latest released
         mock_db.testpackage.find_first.side_effect = [tp, latest_released]
 
-    def test_release_success_first_release(self, authed_client, mock_db, _mock_storage):
-        """Release first dev package assigns version 1.0.0."""
+    def test_release_success_strips_dev_prefix(self, authed_client, mock_db, _mock_storage):
+        """v0.5.0+: release strips ``dev-`` from the version string.
+
+        ``dev-abc123-1700000000`` → ``releasedVersion=abc123-1700000000``.
+        Replaces the old auto-bump-minor heuristic which produced
+        confusing results once existing rows had non-semver versions.
+        """
         product = _product_obj()
         tp = _test_package_obj(
             status="DEVELOPMENT",
-            version="dev-abc123",
-            storageKey="test-packages/alpha-b0/validation/dev-abc123/package.tar.gz",
+            version="dev-abc123-1700000000",
+            storageKey="test-packages/alpha-b0/validation/dev-abc123-1700000000/package.tar.gz",
             packageStages=[],
+            fixtureDesign=None,
         )
         released_tp = _test_package_obj(
             status="RELEASED",
-            version="dev-abc123",
-            releasedVersion="1.0.0",
+            version="dev-abc123-1700000000",
+            releasedVersion="abc123-1700000000",
             releasedAt=_now(),
             releasedById="test-user-id",
             packageStages=[],
+            fixtureDesign=None,
         )
 
         self._setup_release_mocks(mock_db, product, tp, latest_released=None)
         mock_db.testpackage.update.return_value = released_tp
-
-        # Mock the storage get_object for fixture extraction
-        mock_response = MagicMock()
-        mock_response.read.return_value = _tar_gz_data()
-        mock_response.close.return_value = None
-        mock_response.release_conn.return_value = None
-        _mock_storage.get_object.return_value = mock_response
+        mock_db.testpackage.find_unique.return_value = released_tp
 
         with patch("api.v2.products.test_packages.log_audit"):
             resp = authed_client.post("/v2/products/alpha-b0/test-packages/tp-001/release")
@@ -661,55 +668,49 @@ class TestReleaseTestPackage:
         assert resp.status_code == 200
         body = resp.get_json()
         assert body["data"]["status"] == "RELEASED"
-        assert body["data"]["releasedVersion"] == "1.0.0"
+        assert body["data"]["releasedVersion"] == "abc123-1700000000"
 
-        # Verify update was called with correct version
         update_call = mock_db.testpackage.update.call_args_list[0]
-        assert update_call[1]["data"]["releasedVersion"] == "1.0.0"
+        assert update_call[1]["data"]["releasedVersion"] == "abc123-1700000000"
         assert update_call[1]["data"]["status"] == "RELEASED"
 
-    def test_release_success_version_bump(self, authed_client, mock_db, _mock_storage):
-        """Release with existing 1.0.0 assigns version 1.1.0."""
+    def test_release_success_explicit_version(self, authed_client, mock_db, _mock_storage):
+        """Caller-supplied ``releasedVersion`` overrides the dev-prefix-strip default."""
         product = _product_obj()
         tp = _test_package_obj(
             status="DEVELOPMENT",
-            version="dev-xyz789",
-            storageKey="test-packages/alpha-b0/validation/dev-xyz789/package.tar.gz",
+            version="dev-xyz789-1700000000",
+            storageKey="test-packages/alpha-b0/validation/dev-xyz789-1700000000/package.tar.gz",
             packageStages=[],
-        )
-        latest_released = _test_package_obj(
-            id="tp-prev",
-            status="RELEASED",
-            releasedVersion="1.0.0",
-            releasedAt=_now(),
+            fixtureDesign=None,
         )
         released_tp = _test_package_obj(
             status="RELEASED",
-            version="dev-xyz789",
-            releasedVersion="1.1.0",
+            version="dev-xyz789-1700000000",
+            releasedVersion="2.4.0",
             releasedAt=_now(),
             releasedById="test-user-id",
             packageStages=[],
+            fixtureDesign=None,
         )
 
-        self._setup_release_mocks(mock_db, product, tp, latest_released=latest_released)
+        self._setup_release_mocks(mock_db, product, tp, latest_released=None)
         mock_db.testpackage.update.return_value = released_tp
-
-        mock_response = MagicMock()
-        mock_response.read.return_value = _tar_gz_data()
-        mock_response.close.return_value = None
-        mock_response.release_conn.return_value = None
-        _mock_storage.get_object.return_value = mock_response
+        mock_db.testpackage.find_unique.return_value = released_tp
 
         with patch("api.v2.products.test_packages.log_audit"):
-            resp = authed_client.post("/v2/products/alpha-b0/test-packages/tp-001/release")
+            resp = authed_client.post(
+                "/v2/products/alpha-b0/test-packages/tp-001/release",
+                data=json.dumps({"releasedVersion": "2.4.0"}),
+                content_type="application/json",
+            )
 
         assert resp.status_code == 200
         body = resp.get_json()
-        assert body["data"]["releasedVersion"] == "1.1.0"
+        assert body["data"]["releasedVersion"] == "2.4.0"
 
         update_call = mock_db.testpackage.update.call_args_list[0]
-        assert update_call[1]["data"]["releasedVersion"] == "1.1.0"
+        assert update_call[1]["data"]["releasedVersion"] == "2.4.0"
 
     def test_release_already_released(self, authed_client, mock_db):
         """Release an already-released package returns 409."""
@@ -751,27 +752,8 @@ class TestReleaseTestPackage:
 #  _bump_minor — Unit Tests
 # ---------------------------------------------------------------------------
 
-class TestBumpMinor:
-    """Unit tests for the _bump_minor helper function."""
-
-    def test_bump_minor_standard(self):
-        """1.0.0 bumps to 1.1.0."""
-        from api.v2.products.test_packages import _bump_minor
-        assert _bump_minor("1.0.0") == "1.1.0"
-
-    def test_bump_minor_nonzero_patch(self):
-        """2.5.3 bumps to 2.6.0 (patch resets to 0)."""
-        from api.v2.products.test_packages import _bump_minor
-        assert _bump_minor("2.5.3") == "2.6.0"
-
-    def test_bump_minor_invalid_raises(self):
-        """Invalid semver string raises ValueError."""
-        from api.v2.products.test_packages import _bump_minor
-        with pytest.raises(ValueError, match="Invalid semver"):
-            _bump_minor("1.0")
-
-    def test_bump_minor_too_many_parts_raises(self):
-        """Four-part version string raises ValueError."""
-        from api.v2.products.test_packages import _bump_minor
-        with pytest.raises(ValueError, match="Invalid semver"):
-            _bump_minor("1.0.0.0")
+# ``_bump_minor`` was removed in v0.5.0 — the release endpoint now strips
+# the ``dev-`` prefix from the dev version (or accepts an explicit
+# ``releasedVersion`` from the caller) instead of synthesizing a semver.
+# See ``test_release_success_first_release`` / ``_dev_prefix_strip`` for
+# the new behavior.
