@@ -28,15 +28,26 @@
   });
 
   const healthSummary = $derived.by(() => {
+    const details = fixture.healthDetails;
+    const health = fixture.health;
+    // Prefer the canonical backend-computed counts when available.
+    if (details && health) {
+      if (health === 'UNASSIGNED') {
+        return slotCount > 0
+          ? `${slotCount} slot${slotCount !== 1 ? 's' : ''} · unassigned`
+          : 'No slots';
+      }
+      const parts: string[] = [
+        `${details.nodesReady}/${details.nodesTotal} nodes ready`,
+      ];
+      if (details.mtibsTotal > 0) {
+        parts.push(`${details.mtibsReady}/${details.mtibsTotal} MTIBs ready`);
+      }
+      return parts.join(' · ');
+    }
+    // Fallback for older payloads without health info.
     if (slots.length === 0) return `${slotCount} slot${slotCount !== 1 ? 's' : ''}`;
-    const online = slots.filter(s => s.node?.status === 'ONLINE').length;
-    const empty = slots.filter(s => !s.nodeId).length;
-    const parts: string[] = [];
-    if (online > 0) parts.push(`${online} online`);
-    if (empty > 0) parts.push(`${empty} empty`);
-    const other = slots.length - online - empty;
-    if (other > 0) parts.push(`${other} offline`);
-    return parts.join(' · ') || `${slots.length} slots`;
+    return `${assignedCount}/${slots.length} assigned`;
   });
 </script>
 

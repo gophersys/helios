@@ -13,8 +13,9 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Tabs from '$lib/components/ui/tabs.svelte';
   import SelectionBar from '$lib/components/ui/selection-bar.svelte';
-  import SlotAssignment from '$lib/components/fixtures/slot-assignment.svelte';
-  import type { Fixture, ConcordNode } from '$lib/types/models';
+  import FixtureLayoutGrid from '$lib/components/fixtures/fixture-layout-grid.svelte';
+  import SlotAssignmentPopover from '$lib/components/fixtures/slot-assignment-popover.svelte';
+  import type { Fixture, FixtureSlot, ConcordNode } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
@@ -39,6 +40,24 @@
 
   // Slot assignment
   let availableNodes = $state<ConcordNode[]>([]);
+
+  // Slot popover
+  let popoverSlot = $state<FixtureSlot | null>(null);
+  let popoverOpen = $state(false);
+
+  function openSlotPopover(slotIndex: number) {
+    if (!fixture) return;
+    const slot = (fixture.slots ?? []).find((s) => s.slotIndex === slotIndex);
+    if (slot) {
+      popoverSlot = slot;
+      popoverOpen = true;
+    }
+  }
+
+  function closeSlotPopover() {
+    popoverOpen = false;
+    popoverSlot = null;
+  }
 
   // Sessions history
   let sessions = $state<any[]>([]);
@@ -206,11 +225,29 @@
   const assignedCount = $derived(slots.filter(s => s.nodeId).length);
   const onlineCount = $derived(slots.filter(s => s.node?.status === 'ONLINE').length);
 
-  const NODE_STATUS_DOT: Record<string, string> = {
-    ONLINE: 'bg-success',
-    ERROR: 'bg-error',
-    OFFLINE: 'bg-surface-2 border border-border',
-  };
+  // Map fixture slots into the layout-grid's expected shape. The backend
+  // health summary already tells us which slots' MTIBs are ready, but it
+  // doesn't break that down per-slot, so we derive the per-slot mtibReady
+  // flag from node status + the fixture-wide health (best-effort).
+  const layoutSlots = $derived(
+    slots.map((s) => ({
+      id: s.id,
+      slotIndex: s.slotIndex,
+      label: s.label,
+      node: s.node ?? null,
+      // Treat MTIB as ready when the fixture is ONLINE overall and the
+      // node reports ONLINE. This matches the dot color rules.
+      mtibReady:
+        s.node?.status === 'ONLINE' && fixture?.health === 'ONLINE',
+    }))
+  );
+
+  const hasStandaloneSlot = $derived(
+    Boolean((fixture?.metadata as Record<string, unknown> | null)?.hasStandaloneSlot)
+  );
+
+  // Map fixture.health → StatusBadge-supported status string.
+  const healthBadge = $derived(fixture?.health ?? 'UNASSIGNED');
 
   // Load data on tab switch
   $effect(() => {
@@ -336,7 +373,7 @@
     {/if}
 
     <!-- Stats row -->
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 mb-6">
       <div class="card card-sm">
         <div class="flex items-center gap-2 text-text-tertiary mb-1">
           <Cable size={14} />
@@ -375,6 +412,33 @@
         </div>
         <div class="text-2xs text-text-tertiary">{fixture.status === 'LOCKED' ? 'In use by session' : 'Ready for sessions'}</div>
       </div>
+      <div class="card card-sm">
+        <div class="flex items-center gap-2 text-text-tertiary mb-1">
+          {#if fixture.health === 'ONLINE'}
+            <Wifi size={14} class="text-success" />
+          {:else if fixture.health === 'OFFLINE'}
+            <WifiOff size={14} class="text-error" />
+          {:else if fixture.health === 'ERROR'}
+            <AlertTriangle size={14} class="text-warning" />
+          {:else}
+            <WifiOff size={14} />
+          {/if}
+          <span class="text-2xs font-medium uppercase tracking-wider">Health</span>
+        </div>
+        <div class="mt-0.5">
+          <StatusBadge status={healthBadge} />
+        </div>
+        <div class="text-2xs text-text-tertiary mt-1">
+          {#if fixture.healthDetails}
+            {fixture.healthDetails.nodesReady}/{fixture.healthDetails.nodesTotal} nodes
+            {#if fixture.healthDetails.mtibsTotal > 0}
+              · {fixture.healthDetails.mtibsReady}/{fixture.healthDetails.mtibsTotal} MTIBs
+            {/if}
+          {:else}
+            no data
+          {/if}
+        </div>
+      </div>
     </div>
 
     <!-- Tabs -->
@@ -395,91 +459,23 @@
         {#if slots.length === 0}
           <EmptyState message="No slots configured." icon={Cable} />
         {:else}
-          <div class="table-wrapper">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th class="table-header w-12"></th>
-                  <th class="table-header">Label</th>
-                  <th class="table-header">MTIB Node</th>
-                  <th class="table-header">Hostname</th>
-                  <th class="table-header w-24">Status</th>
-                  {#if canManage}
-                    <th class="table-header w-32">Action</th>
-                  {/if}
-                </tr>
-              </thead>
-              <tbody>
-                {#each slots as slot (slot.id)}
-                  <tr class="table-row">
-                    <td class="table-cell">
-                      <div class="flex items-center gap-2">
-                        {#if slot.node}
-                          <div class="h-2 w-2 rounded-full {NODE_STATUS_DOT[slot.node.status] ?? 'bg-warning'}" title={slot.node.status}></div>
-                        {/if}
-                        <span class="font-mono text-text-tertiary">{slot.slotIndex}</span>
-                      </div>
-                    </td>
-                    <td class="table-cell text-text-primary">{slot.label || `Slot ${slot.slotIndex + 1}`}</td>
-                    <td class="table-cell">
-                      {#if slot.node}
-                        <span class="text-text-primary">{slot.node.name}</span>
-                      {:else}
-                        <span class="text-text-tertiary">Unassigned</span>
-                      {/if}
-                    </td>
-                    <td class="table-cell font-mono text-2xs text-text-tertiary">
-                      {slot.node?.hostname ?? '—'}
-                    </td>
-                    <td class="table-cell">
-                      {#if slot.node}
-                        <StatusBadge status={slot.node.status} />
-                      {:else}
-                        <span class="text-2xs text-text-tertiary">—</span>
-                      {/if}
-                    </td>
-                    {#if canManage}
-                      <td class="table-cell">
-                        {#if slot.node}
-                          <div class="flex items-center gap-2">
-                            <select
-                              onchange={(e) => {
-                                const val = (e.target as HTMLSelectElement).value;
-                                if (val === '__unassign__') handleUnassign(slot.id);
-                                else if (val) handleAssign(slot.id, val);
-                              }}
-                              class="input input-sm w-full"
-                              disabled={fixture.status === 'LOCKED'}
-                            >
-                              <option value="">Change...</option>
-                              {#each availableNodes.filter(n => n.id !== slot.nodeId) as node}
-                                <option value={node.id}>{node.name} ({node.hostname})</option>
-                              {/each}
-                              <option value="__unassign__" class="text-error">Unassign</option>
-                            </select>
-                          </div>
-                        {:else}
-                          <select
-                            onchange={(e) => {
-                              const val = (e.target as HTMLSelectElement).value;
-                              if (val) handleAssign(slot.id, val);
-                            }}
-                            class="input input-sm w-full"
-                            disabled={fixture.status === 'LOCKED'}
-                          >
-                            <option value="">Assign...</option>
-                            {#each availableNodes as node}
-                              <option value={node.id}>{node.name} ({node.hostname})</option>
-                            {/each}
-                          </select>
-                        {/if}
-                      </td>
-                    {/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          <FixtureLayoutGrid
+            panelRows={fixture.panelRows}
+            panelCols={fixture.panelCols}
+            {hasStandaloneSlot}
+            slots={layoutSlots}
+            onSlotClick={openSlotPopover}
+          />
+          <SlotAssignmentPopover
+            open={popoverOpen}
+            slot={popoverSlot}
+            {availableNodes}
+            {canManage}
+            locked={fixture.status === 'LOCKED'}
+            onClose={closeSlotPopover}
+            onAssign={handleAssign}
+            onUnassign={handleUnassign}
+          />
         {/if}
 
       <!-- Sessions Tab -->

@@ -546,8 +546,12 @@ class TestDashboardOverview:
     """Tests for GET /v2/dashboard/overview — fixture health summary."""
 
     def test_dashboard_returns_fixture_summary(self, authed_client, mock_db):
-        """Dashboard overview returns health and slot counts per fixture."""
-        node = _node_obj(status="ONLINE")
+        """Dashboard overview returns health and slot counts per fixture.
+
+        Dashboard HEALTHY now requires the same checks as the canonical
+        helper: node ONLINE, MTIB deployment ready, gRPC probe OK.
+        """
+        node = _node_obj(status="ONLINE", metadata={"deployment_name": "mtib-1"})
         slot = _slot_obj(nodeId="node-1", node=node)
         fix = _fixture_obj(
             slots=[slot],
@@ -555,7 +559,22 @@ class TestDashboardOverview:
         )
         mock_db.fixture.find_many.return_value = [fix]
 
-        resp = authed_client.get("/v2/dashboard/overview")
+        ready_deploy = {
+            "name": "mtib-1",
+            "replicas": 1,
+            "readyReplicas": 1,
+            "availableReplicas": 1,
+            "pods": [{"name": "p", "ready": True, "status": "Running"}],
+        }
+        with patch(
+            "api.v2.fixtures.fixtures.list_mtib_deployments",
+            return_value=[ready_deploy],
+        ), patch(
+            "api.v2.fixtures.fixtures._probe_slots_concurrent",
+            return_value={"slot-1": True},
+        ):
+            resp = authed_client.get("/v2/dashboard/overview")
+
         assert resp.status_code == 200
         body = resp.get_json()
         fixtures = body["data"]["fixtures"]

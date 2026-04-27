@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { Plus, Trash2, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon, List, LayoutGrid, Box } from 'lucide-svelte';
+  import { Plus, Trash2, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, CircleDashed, Lock, Settings as SettingsIcon, List, LayoutGrid, Box } from 'lucide-svelte';
   import LinkChip from '$lib/components/ui/link-chip.svelte';
   import FixtureGridCard from '$lib/components/fixtures/fixture-grid-card.svelte';
   import FixtureCreateWizard from '$lib/components/fixtures/fixture-create-wizard.svelte';
@@ -217,15 +217,17 @@
   }
 
   function healthIcon(f: Fixture) {
-    const slots = f.slots || [];
-    if (slots.length === 0 && !f.slotCount) return { icon: WifiOff, color: 'text-text-tertiary' };
-    if (slots.length === 0) return { icon: WifiOff, color: 'text-text-tertiary' };
-    const assigned = slots.filter(s => s.nodeId);
-    if (assigned.length === 0) return { icon: WifiOff, color: 'text-text-tertiary' };
-    const online = assigned.filter(s => s.node?.status === 'ONLINE').length;
-    if (online === assigned.length) return { icon: Wifi, color: 'text-success' };
-    if (online > 0) return { icon: AlertTriangle, color: 'text-warning' };
-    return { icon: WifiOff, color: 'text-error' };
+    switch (f.health) {
+      case 'ONLINE':
+        return { icon: Wifi, color: 'text-success' };
+      case 'OFFLINE':
+        return { icon: WifiOff, color: 'text-error' };
+      case 'ERROR':
+        return { icon: AlertTriangle, color: 'text-warning' };
+      case 'UNASSIGNED':
+      default:
+        return { icon: CircleDashed, color: 'text-text-tertiary' };
+    }
   }
 
   onMount(() => {

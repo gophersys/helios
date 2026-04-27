@@ -1009,6 +1009,15 @@ export interface FixtureSlot {
   updatedAt: string;
 }
 
+export interface FixtureHealthDetails {
+  nodesReady: number;
+  nodesTotal: number;
+  mtibsReady: number;
+  mtibsTotal: number;
+}
+
+export type FixtureHealth = 'ONLINE' | 'OFFLINE' | 'ERROR' | 'UNASSIGNED';
+
 export interface Fixture {
   id: string;
   name: string;
@@ -1028,6 +1037,8 @@ export interface Fixture {
   boardRevision?: { id: string; version: string; ckBoardsName: string; socs: string[] } | null;
   design?: FixtureDesignSummary | null;
   slots?: FixtureSlot[];
+  health?: FixtureHealth;
+  healthDetails?: FixtureHealthDetails;
   createdAt: string;
   updatedAt: string;
 }

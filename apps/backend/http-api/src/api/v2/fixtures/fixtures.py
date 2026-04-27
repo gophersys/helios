@@ -2,6 +2,7 @@ import logging
 import math
 import socket
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from flask import g, jsonify, request
@@ -18,6 +19,7 @@ from src.services.kubernetes.mtib_deployments import (
     delete_mtib_deployment,
     get_mtib_deployment_status,
     get_mtib_pod_image_sha,
+    list_mtib_deployments,
 )
 
 from .types import FixtureCreateRequest, FixtureUpdateRequest, SlotCreateRequest, SlotUpdateRequest, SlotAssignRequest
@@ -137,6 +139,9 @@ def dashboard_overview():
             },
         )
 
+        # Single batched K8s call shared across all fixtures in this response.
+        dashboard_mtib_status = _get_mtib_status_map(None)
+
         for f in fixtures:
             slots = f.slots or []
             slot_count = len(slots)
@@ -154,18 +159,23 @@ def dashboard_overview():
                     else:
                         nodes_offline += 1
 
+            # Derive the legacy dashboard enum from the canonical health helper
+            # so list/detail/dashboard agree on the underlying judgement.
             if slot_count == 0:
                 health = "EMPTY"
-            elif assigned_count == 0:
-                health = "UNASSIGNED"
-            elif nodes_error > 0:
-                health = "ERROR"
-            elif nodes_offline > 0:
-                health = "DEGRADED"
-            elif nodes_online == assigned_count:
-                health = "HEALTHY"
             else:
-                health = "UNKNOWN"
+                computed = _compute_fixture_health(f, dashboard_mtib_status)
+                canonical = computed["health"]
+                if canonical == "UNASSIGNED":
+                    health = "UNASSIGNED"
+                elif canonical == "ONLINE":
+                    health = "HEALTHY"
+                elif canonical == "OFFLINE":
+                    health = "DEGRADED"
+                elif canonical == "ERROR":
+                    health = "ERROR"
+                else:
+                    health = "UNKNOWN"
 
             fixture_results.append({
                 "id": f.id,
@@ -196,10 +206,196 @@ def dashboard_overview():
     }).to_dict()), 200
 
 
+# ── Fixture Health Computation ────────────────────────────────
+
+
+def _grpc_probe(host: str, port: int = 50053, timeout_s: float = 0.5) -> bool:
+    """Single-shot TCP probe used as a lightweight gRPC reachability check.
+
+    Returns True if the port accepts a connection within the timeout.
+    Suitable for per-request health checks where the polling variant
+    in services.kubernetes.mtib_deployments.wait_for_mtibs_healthy is
+    too slow.
+    """
+    if not host:
+        return False
+    try:
+        sock = socket.create_connection((host, port), timeout=timeout_s)
+        sock.close()
+        return True
+    except (OSError, socket.timeout):
+        return False
+
+
+def _probe_slots_concurrent(
+    probe_targets: list[dict],
+    port: int = 50053,
+    timeout_s: float = 0.5,
+) -> dict[str, bool]:
+    """Run gRPC probes against multiple slot node IPs concurrently.
+
+    Each entry in probe_targets must have 'slot_id' and 'host' keys.
+    Returns a map of slot_id -> reachable bool.
+    """
+    if not probe_targets:
+        return {}
+
+    def _probe_one(target: dict) -> tuple[str, bool]:
+        return target["slot_id"], _grpc_probe(target.get("host", ""), port=port, timeout_s=timeout_s)
+
+    results: dict[str, bool] = {}
+    workers = min(len(probe_targets), 8)
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for slot_id, ok in pool.map(_probe_one, probe_targets):
+            results[slot_id] = ok
+    return results
+
+
+def _get_mtib_status_map(fixture: Any) -> dict[str, dict]:
+    """Build a map of MTIB deployment_name -> status using a single batched K8s call.
+
+    Used to avoid N×M K8s reads when computing health across many fixtures.
+    Returns an empty dict if K8s is unreachable.
+    """
+    try:
+        deployments = list_mtib_deployments() or []
+    except Exception as e:
+        logger.warning("Failed to list MTIB deployments: %s", e)
+        return {}
+
+    by_name: dict[str, dict] = {}
+    for dep in deployments:
+        name = dep.get("name") if isinstance(dep, dict) else None
+        if name:
+            by_name[name] = dep
+    return by_name
+
+
+def _compute_fixture_health(
+    fixture: Any,
+    mtib_status_by_deploy_name: dict[str, dict] | None = None,
+) -> dict:
+    """Compute the canonical health state for a fixture.
+
+    Returns a dict with:
+        health: ONLINE | OFFLINE | ERROR | UNASSIGNED
+        healthDetails: { nodesReady, nodesTotal, mtibsReady, mtibsTotal }
+
+    Health rules:
+        - UNASSIGNED: zero assigned slots.
+        - ONLINE: every assigned slot's node is ONLINE AND its MTIB deployment is
+          fully ready (readyReplicas == replicas, every pod ready) AND a single-shot
+          gRPC probe succeeds.
+        - OFFLINE: every assigned slot's node has status != ONLINE.
+        - ERROR: any other partial / mixed state, OR any node ONLINE but MTIB
+          pods not ready / gRPC probe failed.
+    """
+    slots = getattr(fixture, "slots", None) or []
+    assigned = [
+        s for s in slots
+        if getattr(s, "nodeId", None) and getattr(s, "node", None)
+    ]
+    nodes_total = len(assigned)
+
+    if nodes_total == 0:
+        return {
+            "health": "UNASSIGNED",
+            "healthDetails": {
+                "nodesReady": 0,
+                "nodesTotal": 0,
+                "mtibsReady": 0,
+                "mtibsTotal": 0,
+            },
+        }
+
+    status_map = mtib_status_by_deploy_name or {}
+
+    nodes_ready = 0
+    mtibs_ready = 0
+    mtibs_total = 0
+    any_node_online = False
+    all_nodes_offline = True
+
+    # Build the list of MTIB-status-ready slots so we know which to probe.
+    probe_targets: list[dict] = []
+    slot_mtib_state: dict[str, dict] = {}
+
+    for slot in assigned:
+        node = slot.node
+        node_status = getattr(node, "status", None)
+        if node_status == "ONLINE":
+            any_node_online = True
+            all_nodes_offline = False
+        else:
+            # any non-ONLINE node breaks the all-online assumption
+            pass
+
+        meta = node.metadata if isinstance(getattr(node, "metadata", None), dict) else {}
+        deploy_name = meta.get("deployment_name") if isinstance(meta, dict) else None
+
+        deploy = status_map.get(deploy_name) if deploy_name else None
+        pods_ok = False
+        replicas_ok = False
+        if deploy:
+            mtibs_total += 1
+            replicas = deploy.get("replicas") or 0
+            ready_replicas = deploy.get("readyReplicas") or 0
+            replicas_ok = replicas > 0 and ready_replicas == replicas
+            pods = deploy.get("pods") or []
+            pods_ok = bool(pods) and all(p.get("ready") for p in pods)
+            if replicas_ok and pods_ok:
+                mtibs_ready += 1
+
+        slot_mtib_state[slot.id] = {
+            "deploy_name": deploy_name,
+            "deploy": deploy,
+            "replicas_ok": replicas_ok,
+            "pods_ok": pods_ok,
+        }
+
+        # Only probe if the node says ONLINE and MTIB deployment looks ready.
+        if node_status == "ONLINE" and replicas_ok and pods_ok:
+            host = getattr(node, "ipAddress", None) or getattr(node, "hostname", None)
+            if host:
+                probe_targets.append({"slot_id": slot.id, "host": host})
+
+    probe_results = _probe_slots_concurrent(probe_targets)
+
+    for slot in assigned:
+        node = slot.node
+        node_status = getattr(node, "status", None)
+        if node_status != "ONLINE":
+            continue
+        state = slot_mtib_state.get(slot.id, {})
+        if not state.get("replicas_ok") or not state.get("pods_ok"):
+            continue
+        if probe_results.get(slot.id, False):
+            nodes_ready += 1
+
+    details = {
+        "nodesReady": nodes_ready,
+        "nodesTotal": nodes_total,
+        "mtibsReady": mtibs_ready,
+        "mtibsTotal": mtibs_total,
+    }
+
+    if all_nodes_offline:
+        return {"health": "OFFLINE", "healthDetails": details}
+
+    if any_node_online and nodes_ready == nodes_total:
+        return {"health": "ONLINE", "healthDetails": details}
+
+    return {"health": "ERROR", "healthDetails": details}
+
+
 # ── Serializers ────────────────────────────────────────────────
 
 
-def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
+def _serialize_fixture(
+    f: Any,
+    include_slots: bool = False,
+    mtib_status_by_deploy_name: dict[str, dict] | None = None,
+) -> dict:
     """Serialize a Fixture DB record to an API response dict."""
     data = {
         "id": f.id,
@@ -246,6 +442,18 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
         data["assignedCount"] = len([s for s in f.slots if s.nodeId is not None])
         if include_slots:
             data["slots"] = [_serialize_slot(s) for s in f.slots]
+        # Health needs slots + nodes loaded; if they aren't, default to UNASSIGNED.
+        health = _compute_fixture_health(f, mtib_status_by_deploy_name)
+        data["health"] = health["health"]
+        data["healthDetails"] = health["healthDetails"]
+    else:
+        data["health"] = "UNASSIGNED"
+        data["healthDetails"] = {
+            "nodesReady": 0,
+            "nodesTotal": 0,
+            "mtibsReady": 0,
+            "mtibsTotal": 0,
+        }
     return data
 
 
@@ -314,10 +522,18 @@ def list_fixtures():
         skip=skip,
         take=limit,
         order={"name": "asc"},
-        include={"product": True, "slots": True},
+        include={
+            "product": True,
+            "slots": {
+                "include": {"node": True},
+                "order_by": {"slotIndex": "asc"},
+            },
+        },
     )
+    # Single batched K8s call shared across all fixtures in this response.
+    mtib_status = _get_mtib_status_map(None)
     return jsonify(ApiResponse.ok({
-        "data": [_serialize_fixture(f) for f in fixtures],
+        "data": [_serialize_fixture(f, mtib_status_by_deploy_name=mtib_status) for f in fixtures],
         "pagination": {
             "page": page,
             "limit": limit,
@@ -443,7 +659,16 @@ def get_fixture(fixture_id: str):
     )
     if not fixture:
         return not_found("Fixture not found")
-    return jsonify(ApiResponse.ok(_serialize_fixture(fixture, include_slots=True)).to_dict()), 200
+    mtib_status = _get_mtib_status_map(fixture)
+    return jsonify(
+        ApiResponse.ok(
+            _serialize_fixture(
+                fixture,
+                include_slots=True,
+                mtib_status_by_deploy_name=mtib_status,
+            )
+        ).to_dict()
+    ), 200
 
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
