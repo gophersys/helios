@@ -345,45 +345,6 @@ _STAGE_BUILDS: Dict[Stage, List[StageBuildDef]] = {
 
 
 # =============================================================================
-# Stage → required capabilities
-#
-# Minimum capabilities a fixture MUST have to run a stage. The backend
-# uses this for scheduling — it won't assign a fixture that lacks
-# critical capabilities unless strict_mode is disabled.
-#
-# Individual tests within a stage may require additional capabilities
-# beyond the stage minimum (e.g., a GNSS test needs GNSS_SIMULATOR).
-# Those tests skip gracefully if the extra capability is missing.
-#
-# In strict_mode, the backend waits for a fixture with ALL capabilities
-# listed in the stage's full_capabilities set (stage minimum + all
-# test-level requirements). In normal mode, it assigns the best
-# available fixture and lets tests skip what they can't run.
-# =============================================================================
-
-_STAGE_CAPABILITIES: Dict[Stage, List[str]] = {
-    # Smoke: just needs MTIB connectivity (power + basic I/O)
-    Stage.SMOKE: ["power"],
-
-    # Driver: needs GPIO access for driver testing
-    Stage.DRIVER: ["power", "button", "jlink"],
-
-    # Integration: needs harness connectivity + basic peripherals
-    Stage.INTEGRATION: ["power", "button", "jlink"],
-
-    # Regression: comprehensive — needs most fixture capabilities
-    # Individual tests skip if specific capabilities are missing
-    Stage.REGRESSION: ["power", "button", "peltier"],
-
-    # FUOTA: needs J-Link for initial flash + power for boot verification
-    Stage.FUOTA: ["power", "jlink"],
-
-    # Manufacturing: needs J-Link for firmware flash + power for boot/electrical
-    Stage.MANUFACTURING: ["power", "jlink"],
-}
-
-
-# =============================================================================
 # Public API
 # =============================================================================
 
@@ -458,10 +419,3 @@ def get_quiet_labels(stage: Stage) -> List[str]:
     )
 
 
-def get_stage_capabilities(stage: Stage) -> List[str]:
-    """Return minimum fixture capabilities required for a stage.
-
-    The backend uses this for fixture scheduling. Individual tests may
-    require extra capabilities and skip gracefully if missing.
-    """
-    return list(_STAGE_CAPABILITIES.get(stage, []))

@@ -487,7 +487,6 @@ def _serialize_fixture(
             "name": f.design.name,
             "boardRevisionId": f.design.boardRevisionId,
             "revision": f.design.revision,
-            "capabilities": f.design.capabilities or [],
         }
     if hasattr(f, "slots") and f.slots is not None:
         data["slotCount"] = len(f.slots)
@@ -589,6 +588,7 @@ def list_fixtures():
         order={"name": "asc"},
         include={
             "product": True,
+            "design": True,
             "slots": {
                 "include": {"node": True},
                 "order_by": {"slotIndex": "asc"},

@@ -129,14 +129,6 @@
               {/if}
             </div>
 
-            {#if design.capabilities?.length}
-              <div class="flex flex-wrap gap-1 mb-2">
-                {#each design.capabilities as cap}
-                  <span class="rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">{cap}</span>
-                {/each}
-              </div>
-            {/if}
-
             <div class="flex items-center gap-3 text-2xs text-text-tertiary">
               {#if (design as any).fixtureCount != null}
                 <span class="flex items-center gap-1">

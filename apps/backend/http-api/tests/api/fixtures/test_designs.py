@@ -12,7 +12,6 @@ def _make_design(id="design-1", **overrides):
         "name": "Alpha B0 Fixture",
         "boardRevisionId": "rev-1",
         "revision": "1.2",
-        "capabilities": ["button", "peltier"],
         "profileTemplate": {"battery_installed": False},
         "schematicUrl": None,
         "bomUrl": None,
@@ -71,7 +70,6 @@ def test_create_design(mock_audit, authed_client, mock_db):
         "name": "Alpha B0 Fixture",
         "boardRevisionId": "rev-1",
         "revision": "1.2",
-        "capabilities": ["button", "peltier"],
         "profileTemplate": {"battery_installed": False},
     }))
     assert resp.status_code == 201

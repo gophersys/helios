@@ -99,7 +99,6 @@
   let editingBench = $state<TestBench | null>(null);
   let formName = $state('');
   let formMtibRevision = $state('');
-  let formCapabilities = $state('');
   let formStatus = $state('AVAILABLE');
   let formDutDeviceId = $state('');
   let formDutSnr = $state('');
@@ -139,7 +138,6 @@
     editingBench = null;
     formName = '';
     formMtibRevision = '';
-    formCapabilities = '';
     formStatus = 'AVAILABLE';
     formDutDeviceId = '';
     formDutSnr = '';
@@ -155,7 +153,6 @@
     editingBench = bench;
     formName = bench.name;
     formMtibRevision = bench.mtibRevision || '';
-    formCapabilities = bench.capabilities.join(', ');
     formStatus = bench.status;
     formDutDeviceId = bench.dutDeviceId || '';
     formDutSnr = bench.dutSnr || '';
@@ -174,11 +171,6 @@
     error = null;
     submitting = true;
 
-    const capabilities = formCapabilities
-      .split(',')
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-
     const iccids = formDutIccids
       .split(',')
       .map((c) => c.trim())
@@ -187,7 +179,6 @@
     const data = {
       name: formName,
       mtibRevision: formMtibRevision || undefined,
-      capabilities,
       status: formStatus,
       dutDeviceId: formDutDeviceId || undefined,
       dutSnr: formDutSnr || undefined,
@@ -323,12 +314,6 @@
             options={STATUS_OPTIONS}
           />
         </div>
-
-        <TextInput
-          bind:value={formCapabilities}
-          label="Capabilities"
-          placeholder="button, peltier, charger_relay (comma-separated)"
-        />
 
         <div class="border-t border-border pt-3">
           <span class="mb-2 block text-2xs font-medium uppercase text-text-tertiary">DUT Info</span>

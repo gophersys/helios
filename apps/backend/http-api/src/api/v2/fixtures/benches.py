@@ -67,15 +67,12 @@ def _serialize_bench(fixture, slot=None) -> Dict[str, Any]:
             "name": fixture.design.name,
             "boardRevisionId": fixture.design.boardRevisionId,
             "revision": fixture.design.revision,
-            "capabilities": fixture.design.capabilities or [],
         }
         result["dutRevision"] = fixture.design.revision
-        result["capabilities"] = fixture.design.capabilities or []
         result["mtibRevision"] = fixture.design.revision
     else:
         result["fixtureDesign"] = None
         result["dutRevision"] = None
-        result["capabilities"] = []
         result["mtibRevision"] = None
 
     # Slot-derived fields (hardware paths + DUT identity)
@@ -313,7 +310,6 @@ def update_bench(bench_id: str):
     fixture_key_map = {
         "name": "name",
         "mtibRevision": None,  # Stored in design now
-        "capabilities": None,  # Stored in design now
         "fixtureDesignId": "designId",
         "profileOverrides": "profileOverrides",
         "status": "status",
@@ -626,10 +622,6 @@ def get_bench_profile(bench_id: str):
                 profile["jlink_app_serial"] = slot.jlinkAppSerial
             if slot.jlinkCommsSerial:
                 profile["jlink_comms_serial"] = slot.jlinkCommsSerial
-
-        # Set capabilities from design
-        if hasattr(fixture, "design") and fixture.design and fixture.design.capabilities:
-            profile["capabilities"] = fixture.design.capabilities
 
         # Inject Product metadata
         if hasattr(fixture, "product") and fixture.product:

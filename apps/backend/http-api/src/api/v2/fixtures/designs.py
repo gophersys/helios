@@ -30,7 +30,6 @@ def _serialize_design(design) -> Dict[str, Any]:
         "boardRevisionId": design.boardRevisionId,
         "revision": design.revision,
         "type": getattr(design, "type", None),
-        "capabilities": design.capabilities or [],
         "profileTemplate": design.profileTemplate,
         "schematicUrl": getattr(design, "schematicUrl", None),
         "bomUrl": getattr(design, "bomUrl", None),
@@ -64,7 +63,6 @@ def _serialize_design_summary(design) -> Dict[str, Any]:
         "boardRevisionId": design.boardRevisionId,
         "revision": design.revision,
         "type": getattr(design, "type", None),
-        "capabilities": design.capabilities or [],
         "fixtureCount": len(design.fixtures) if hasattr(design, "fixtures") and design.fixtures else 0,
         "createdAt": design.createdAt.isoformat(),
     }
@@ -153,17 +151,12 @@ def create_design():
     if existing:
         return conflict(f"Design '{name}' already exists")
 
-    capabilities = data.get("capabilities") or []
-    if isinstance(capabilities, str):
-        capabilities = [c.strip() for c in capabilities.split(",") if c.strip()]
-
     profile_template = data.get("profileTemplate") or {}
 
     design_create_data = {
         "name": name,
         "boardRevisionId": board_revision_id,
         "revision": revision,
-        "capabilities": capabilities,
         "profileTemplate": Json(profile_template),
         "schematicUrl": (data.get("schematicUrl") or "").strip() or None,
         "bomUrl": (data.get("bomUrl") or "").strip() or None,
@@ -204,11 +197,6 @@ def update_design(design_id: str):
             update_data["name"] = name
     if "revision" in data:
         update_data["revision"] = (data["revision"] or "").strip()
-    if "capabilities" in data:
-        caps = data["capabilities"]
-        if isinstance(caps, str):
-            caps = [c.strip() for c in caps.split(",") if c.strip()]
-        update_data["capabilities"] = caps
     if "profileTemplate" in data:
         update_data["profileTemplate"] = Json(data["profileTemplate"] or {})
     if "notes" in data:

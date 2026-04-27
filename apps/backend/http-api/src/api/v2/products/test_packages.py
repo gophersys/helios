@@ -150,17 +150,6 @@ def _extract_fixture_designs(
                 logger.info("No board name in manifest or fixture profile — skipping")
                 return None
 
-            # Normalize capabilities
-            capabilities = profile.get("capabilities", [])
-            if isinstance(capabilities, list):
-                cap_names = []
-                for cap in capabilities:
-                    if isinstance(cap, str):
-                        cap_names.append(cap.split("(")[0].strip())
-                    elif isinstance(cap, dict) and "name" in cap:
-                        cap_names.append(cap["name"])
-                capabilities = cap_names
-
             # Design name and revision come from fixture.yaml (source of truth)
             design_name = profile.get("name", f"{board_name}-fixture")
             design_revision = str(profile.get("revision", "1.0"))
@@ -194,7 +183,6 @@ def _extract_fixture_designs(
                     data={
                         "name": design_name,
                         "revision": design_revision,
-                        "capabilities": capabilities,
                         "profileTemplate": Json(profile),
                         "type": node_type,
                         "status": package_status,
@@ -215,7 +203,6 @@ def _extract_fixture_designs(
                     "revision": design_revision,
                     "type": node_type,
                     "status": package_status,
-                    "capabilities": capabilities,
                     "profileTemplate": Json(profile),
                 },
             )
@@ -282,7 +269,6 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
                 "stageIndex": idx,
                 "directory": cfg.get("directory"),
                 "timeoutS": cfg.get("timeout_s"),
-                "hardware": cfg.get("hardware", []),
                 "markers": cfg.get("markers", []),
             })
 
@@ -296,7 +282,6 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
                 "stageIndex": idx,
                 "module": step.get("module"),
                 "timeoutS": step.get("timeout_s"),
-                "hardware": step.get("hardware", []),
             })
 
         logger.info("Extracted stage metadata for package %s (manifest %s)", test_package_id, manifest_version)
@@ -313,7 +298,6 @@ def _serialize_package_stage(s) -> dict:
         "directory": s.directory,
         "module": s.module,
         "timeoutS": s.timeoutS,
-        "hardware": s.hardware if s.hardware else [],
         "markers": s.markers if s.markers else [],
     }
 
@@ -351,7 +335,6 @@ def _serialize_test_package(tp: Any) -> dict:
             "name": fd.name,
             "revision": fd.revision,
             "type": getattr(fd, "type", None),
-            "capabilities": fd.capabilities or [],
         }
     return data
 

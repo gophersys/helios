@@ -361,7 +361,6 @@ class BenchCreateRequest:
     mtib_address: str
     dut_product: str
     dut_revision: str
-    capabilities: List[str] = field(default_factory=list)
     fixture_design_id: Optional[str] = None
     profile_overrides: Optional[Dict[str, Any]] = None
     mtib_revision: Optional[str] = None
@@ -400,10 +399,6 @@ class BenchCreateRequest:
         dut_revision = (data.get("dutRevision") or "").strip()
         if not dut_revision:
             return None, "dutRevision is required"
-
-        capabilities = data.get("capabilities", [])
-        if not isinstance(capabilities, list):
-            return None, "capabilities must be an array"
 
         fixture_design_id = data.get("fixtureDesignId")
         if fixture_design_id:
@@ -459,7 +454,6 @@ class BenchCreateRequest:
             mtib_address=mtib_address,
             dut_product=dut_product,
             dut_revision=dut_revision,
-            capabilities=capabilities,
             fixture_design_id=fixture_design_id,
             profile_overrides=profile_overrides,
             mtib_revision=mtib_revision,
@@ -482,7 +476,6 @@ class BenchUpdateRequest:
     name: Optional[str] = None
     mtib_address: Optional[str] = None
     mtib_revision: Optional[str] = None
-    capabilities: Optional[List[str]] = None
     fixture_design_id: Optional[str] = None
     profile_overrides: Optional[Dict[str, Any]] = None
     dut_device_id: Optional[str] = None
@@ -500,7 +493,6 @@ class BenchUpdateRequest:
     _has_name: bool = field(default=False, repr=False)
     _has_mtib_address: bool = field(default=False, repr=False)
     _has_mtib_revision: bool = field(default=False, repr=False)
-    _has_capabilities: bool = field(default=False, repr=False)
     _has_fixture_design_id: bool = field(default=False, repr=False)
     _has_profile_overrides: bool = field(default=False, repr=False)
     _has_dut_device_id: bool = field(default=False, repr=False)
@@ -541,12 +533,6 @@ class BenchUpdateRequest:
                 setattr(req, obj_attr, (data[json_key] or "").strip() or None)
 
         # Type-validated fields
-        if "capabilities" in data:
-            req._has_capabilities = True
-            if data["capabilities"] is not None and not isinstance(data["capabilities"], list):
-                return None, "capabilities must be an array"
-            req.capabilities = data["capabilities"]
-
         if "profileOverrides" in data:
             req._has_profile_overrides = True
             if data["profileOverrides"] is not None and not isinstance(data["profileOverrides"], dict):
@@ -589,8 +575,6 @@ class BenchUpdateRequest:
             update["mtibAddress"] = self.mtib_address
         if self._has_mtib_revision:
             update["mtibRevision"] = self.mtib_revision
-        if self._has_capabilities:
-            update["capabilities"] = self.capabilities or []
         if self._has_fixture_design_id:
             update["fixtureDesignId"] = self.fixture_design_id
         if self._has_profile_overrides:
@@ -647,7 +631,6 @@ class FixtureDesignCreateRequest:
     name: str
     product: str
     revision: str
-    capabilities: List[str]
     profile_template: Dict[str, Any]
     schematic_url: Optional[str] = None
     bom_url: Optional[str] = None
@@ -672,10 +655,6 @@ class FixtureDesignCreateRequest:
         if not revision:
             return None, "revision is required"
 
-        capabilities = data.get("capabilities", [])
-        if not isinstance(capabilities, list):
-            return None, "capabilities must be an array"
-
         profile_template = data.get("profileTemplate", {})
         if not isinstance(profile_template, dict):
             return None, "profileTemplate must be an object"
@@ -684,7 +663,6 @@ class FixtureDesignCreateRequest:
             name=name,
             product=product,
             revision=revision,
-            capabilities=[str(c).strip() for c in capabilities],
             profile_template=profile_template,
             schematic_url=data.get("schematicUrl"),
             bom_url=data.get("bomUrl"),
@@ -698,7 +676,6 @@ class FixtureDesignUpdateRequest:
     """PATCH /v2/fixtures/designs/<id> - Update a fixture design."""
 
     _has_name: bool = False
-    _has_capabilities: bool = False
     _has_profile_template: bool = False
     _has_schematic_url: bool = False
     _has_bom_url: bool = False
@@ -706,7 +683,6 @@ class FixtureDesignUpdateRequest:
     _has_notes: bool = False
 
     name: Optional[str] = None
-    capabilities: Optional[List[str]] = None
     profile_template: Optional[Dict[str, Any]] = None
     schematic_url: Optional[str] = None
     bom_url: Optional[str] = None
@@ -724,13 +700,6 @@ class FixtureDesignUpdateRequest:
         if "name" in data:
             inst._has_name = True
             inst.name = (data["name"] or "").strip() or None
-
-        if "capabilities" in data:
-            inst._has_capabilities = True
-            caps = data["capabilities"]
-            if caps is not None and not isinstance(caps, list):
-                return None, "capabilities must be an array"
-            inst.capabilities = [str(c).strip() for c in caps] if caps else []
 
         if "profileTemplate" in data:
             inst._has_profile_template = True
@@ -762,8 +731,6 @@ class FixtureDesignUpdateRequest:
         data: Dict[str, Any] = {}
         if self._has_name and self.name:
             data["name"] = self.name
-        if self._has_capabilities:
-            data["capabilities"] = self.capabilities
         if self._has_profile_template:
             data["profileTemplate"] = self.profile_template
         if self._has_schematic_url:

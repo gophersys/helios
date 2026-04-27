@@ -749,8 +749,7 @@ model FixtureDesign {
   boardRevisionId String /// FK — which board revision this design targets
   revision        String /// Fixture hardware revision from fixture.yaml (e.g. "1.0", "1.2")
   type            NodeType? /// MANUFACTURING or VALIDATION — set from uploading test package type
-  capabilities    String[] /// ["power", "jlink", "button"] — from fixture.yaml capabilities list
-  profileTemplate Json /// Full fixture.yaml content (power config, thresholds, slot defaults)
+  profileTemplate Json /// Full fixture.yaml content (power config, thresholds, slot defaults). Single source of truth for what hardware this design exposes.
   schematicUrl    String? /// Link to schematic PDF/CAD files
   bomUrl          String? /// Link to BOM spreadsheet
   assemblyGuide   String? /// Link to assembly instructions
@@ -1593,7 +1592,6 @@ model TestPackageStage {
   directory  String? /// "tests/smoke" (validation stages)
   module     String? /// "tests.manufacturing.test_electrical" (manufacturing steps)
   timeoutS   Int? /// Maximum execution time in seconds
-  hardware   String[] /// Required fixture capabilities
   markers    String[] /// Pytest markers
 
   createdAt DateTime @default(now())

@@ -155,12 +155,6 @@
           "default": true,
           "description": "Whether this stage is enabled. Disabled stages are skipped."
         },
-        "hardware": {
-          "type": "array",
-          "items": { "type": "string" },
-          "uniqueItems": true,
-          "description": "Fixture capabilities required to run this stage (e.g., ['power', 'button'])."
-        },
         "markers": {
           "type": "array",
           "items": { "type": "string" },
@@ -188,12 +182,6 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum execution time in seconds for this step."
-        },
-        "hardware": {
-          "type": "array",
-          "items": { "type": "string" },
-          "uniqueItems": true,
-          "description": "Fixture capabilities required to run this step."
         }
       }
     }
