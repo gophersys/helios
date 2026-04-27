@@ -22,7 +22,7 @@
   import { apiFetch } from '$lib/api';
   import type { PlatformRelease, Pagination, ErrorReportSummary, ReleaseTestSuite } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
-  import { formatDateTime, formatDate } from '$lib/utils/formatting';
+  import { formatDateTime, formatDate, formatPhoenixTime } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
@@ -95,8 +95,10 @@
   }
 
   function releaseDate(release: PlatformRelease): string | null {
-    if (release.releasedAt) return formatDate(release.releasedAt);
-    if (release.stagedAt) return formatDate(release.stagedAt);
+    // Phoenix-local time. Multiple releases land per day now, so the
+    // date alone doesn't disambiguate them in the list header.
+    if (release.releasedAt) return formatPhoenixTime(release.releasedAt);
+    if (release.stagedAt) return formatPhoenixTime(release.stagedAt);
     return null;
   }
 
@@ -655,17 +657,19 @@
                     </div>
                   </div>
 
-                  <!-- Timestamps -->
+                  <!-- Timestamps — pinned to Phoenix so simultaneous
+                       multi-stage release timestamps line up across
+                       browsers regardless of the operator's local TZ. -->
                   <div class="flex items-center gap-4 border-t border-border pt-3 text-2xs text-text-tertiary">
-                    <span>Created {formatDateTime(release.createdAt)}</span>
+                    <span>Created {formatPhoenixTime(release.createdAt)}</span>
                     {#if release.stagedAt}
-                      <span>Staged {formatDateTime(release.stagedAt)}</span>
+                      <span>Staged {formatPhoenixTime(release.stagedAt)}</span>
                     {/if}
                     {#if release.releasedAt}
-                      <span>Released {formatDateTime(release.releasedAt)}</span>
+                      <span>Released {formatPhoenixTime(release.releasedAt)}</span>
                     {/if}
                     {#if release.rolledBackAt}
-                      <span class="text-error">Rolled back {formatDateTime(release.rolledBackAt)}</span>
+                      <span class="text-error">Rolled back {formatPhoenixTime(release.rolledBackAt)}</span>
                     {/if}
                   </div>
                 {/if}

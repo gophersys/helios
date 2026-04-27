@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from flask import g, jsonify, request
 
+from database import Json
 from src.lib.audit import log_audit
 from src.lib.decorators import require_auth, require_permissions
 from src.lib.errors import bad_request, conflict, not_found
@@ -111,7 +112,9 @@ def create_release():
         create_data["testCoverage"] = float(data["testCoverage"])
 
     if data.get("testDetails") is not None and isinstance(data["testDetails"], dict):
-        create_data["testDetails"] = data["testDetails"]
+        # Prisma Python expects ``Json(...)`` for Json-typed columns; passing
+        # a raw dict triggers a query-engine "Invalid argument type" 500.
+        create_data["testDetails"] = Json(data["testDetails"])
 
     if "status" in data:
         status = (data["status"] or "").strip()
@@ -255,7 +258,10 @@ def update_release(release_id: str):
         update_data["testCoverage"] = float(data["testCoverage"]) if data["testCoverage"] is not None else None
 
     if "testDetails" in data:
-        update_data["testDetails"] = data["testDetails"] if isinstance(data["testDetails"], dict) else None
+        # Same Prisma Json-wrap requirement as the create path above.
+        update_data["testDetails"] = (
+            Json(data["testDetails"]) if isinstance(data["testDetails"], dict) else None
+        )
 
     if not update_data:
         return bad_request("No fields to update")
