@@ -28,7 +28,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
-from src.api.v2.products.test_package_resolver import resolve_test_package
+from src.api.v2.products.test_package_resolver import assert_purpose_match, resolve_test_package
 from src.services.database.prisma import get_db_client
 from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
 
@@ -236,6 +236,16 @@ def _serialize_session(s, include_runs=False) -> dict:
         ),
         "config": s.config,
         "notes": s.notes,
+        "testPackageId": getattr(s, "testPackageId", None),
+        "testPackage": (
+            {
+                "id": s.testPackage.id,
+                "version": s.testPackage.version,
+                "status": s.testPackage.status,
+            }
+            if hasattr(s, "testPackage") and s.testPackage
+            else None
+        ),
         "startedAt": s.startedAt.isoformat() if s.startedAt else None,
         "endedAt": s.endedAt.isoformat() if hasattr(s, "endedAt") and s.endedAt else None,
         "createdAt": s.createdAt.isoformat() if s.createdAt else None,
@@ -445,10 +455,35 @@ def create_manufacturing_session():
             "assetSetId explicitly in the request."
         )
 
+    # ── Resolve test package ──
+    #
+    # The wizard passes testPackageId when the operator picks a specific
+    # package (released or dev). When omitted, fall back to the latest
+    # released package — if none exists, fail loudly so the operator
+    # picks one explicitly rather than silently auto-picking a dev build
+    # for production hardware.
+    test_package_id_input = (body.get("testPackageId") or "").strip() or None
+    test_package, tp_err = resolve_test_package(
+        db, product_id, "MANUFACTURING",
+        explicit_id=test_package_id_input,
+        mode="RELEASED",
+    )
+    if tp_err:
+        return tp_err
+    if test_package is None:
+        return conflict(
+            "No released manufacturing test package for this product. "
+            "Release a package or pass testPackageId in the request."
+        )
+    purpose_err = assert_purpose_match(test_package, fixture)
+    if purpose_err:
+        return purpose_err
+
     create_data: dict = {
         "productId": product_id,
         "fixtureId": fixture_id,
         "operatorId": operator_id,
+        "testPackageId": test_package.id,
     }
     if asset_set_id:
         create_data["assetSetId"] = asset_set_id
@@ -464,6 +499,7 @@ def create_manufacturing_session():
             "fixture": True,
             "operator": True,
             "assetSet": True,
+            "testPackage": True,
             "runs": True,
         },
     )
