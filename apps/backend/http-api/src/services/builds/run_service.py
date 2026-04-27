@@ -880,6 +880,7 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
         "stage": 4,
         "priority": 0,
         "status": "QUEUED",
+        "stageConfigId": getattr(build_run, "stageConfigId", None) if build_run is not None else None,
         "reason": reason,
         "requestedAt": datetime.now(timezone.utc),
     })

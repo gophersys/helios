@@ -309,8 +309,19 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{PYTEST_FILTER}}", pytest_filter or "")
         job_yaml = job_yaml.replace("{{FUOTA_LABEL}}", fuota_label or "")
 
-        # Test package version (for generic runner to download)
-        job_yaml = job_yaml.replace("{{TEST_PACKAGE_VERSION}}", test_package_version or "latest")
+        # Test package version — required by the runner entrypoint, no
+        # ``latest`` fallback. The backend resolves this from the stage
+        # binding before calling create_kubernetes_job, so an empty
+        # value here is a backend bug, not a runtime decision.
+        if not test_package_version:
+            logger.error(
+                "create_kubernetes_job called for %s without TEST_PACKAGE_VERSION — "
+                "the runner entrypoint will refuse to start. Caller must resolve "
+                "the package via test_package_resolver before reaching this point.",
+                product,
+            )
+            return None
+        job_yaml = job_yaml.replace("{{TEST_PACKAGE_VERSION}}", test_package_version)
 
         # Stage config: test directory and marker from ProductStageConfig
         job_yaml = job_yaml.replace("{{PYTEST_DIR}}", test_directory or "")
