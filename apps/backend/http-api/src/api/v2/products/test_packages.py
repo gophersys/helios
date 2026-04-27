@@ -747,15 +747,6 @@ def delete_test_package(product_id: str, package_id: str):
 # ── Release (promote DEVELOPMENT → RELEASED) ─────────────────
 
 
-def _bump_minor(version_str: str) -> str:
-    """Parse a semver string and bump the minor version: '1.2.0' → '1.3.0'."""
-    parts = version_str.split(".")
-    if len(parts) != 3:
-        raise ValueError(f"Invalid semver: {version_str}")
-    major, minor, _ = int(parts[0]), int(parts[1]), int(parts[2])
-    return f"{major}.{minor + 1}.0"
-
-
 @require_permissions(Permissions.VALIDATION_MANAGE)
 def release_test_package(product_id: str, package_id: str):
     """POST /v2/products/<product_id>/test-packages/<package_id>/release
@@ -778,28 +769,20 @@ def release_test_package(product_id: str, package_id: str):
     if tp.status == "RELEASED":
         return conflict("This test package has already been released")
 
-    # Auto-version: find the latest released package for this (product, type)
-    latest_released = db.testpackage.find_first(
-        where={
-            "productId": product.id,
-            "type": tp.type,
-            "status": "RELEASED",
-            "releasedVersion": {"not": None},
-        },
-        order={"releasedAt": "desc"},
-    )
-
-    if latest_released and latest_released.releasedVersion:
-        try:
-            released_version = _bump_minor(latest_released.releasedVersion)
-        except ValueError:
-            released_version = "1.0.0"
-    else:
-        released_version = "1.0.0"
-
-    # Optional notes from request body
+    # Optional inputs from request body
     body = request.get_json(silent=True) or {}
     notes = body.get("notes")
+
+    # Released version: caller can pass an explicit semver (e.g. "1.2.0").
+    # Otherwise strip the misleading "dev-" prefix from the current version
+    # so the released label drops a notion that no longer applies. The
+    # epoch suffix is kept — it makes the release uniquely identifiable
+    # without colliding with other clean-tree releases of the same SHA.
+    explicit_version = (body.get("releasedVersion") or "").strip()
+    if explicit_version:
+        released_version = explicit_version
+    else:
+        released_version = tp.version[len("dev-"):] if tp.version.startswith("dev-") else tp.version
 
     now = datetime.now(timezone.utc)
     user_id = g.current_user["sub"]
@@ -827,10 +810,24 @@ def release_test_package(product_id: str, package_id: str):
             where={"id": tp.fixtureDesign.id},
             data={"status": "RELEASED"},
         )
-        tp = db.testpackage.find_unique(
-            where={"id": tp.id},
-            include={"packageStages": True, "fixtureDesign": True},
-        )
+
+    # Bind this package to every matching ProductStageConfig as its
+    # blessed release. Validation auto-runs gate on this binding; without
+    # it a stage stays unschedulable. Match by product + stage type +
+    # board revision (if the package targeted one), so a package built
+    # for board "alpha_b0" doesn't accidentally bind to "alpha_b1" stages.
+    stage_where: dict = {"productId": product.id, "type": tp.type}
+    if tp.boardRevisionId:
+        stage_where["boardRevisionId"] = tp.boardRevisionId
+    bound_count = db.productstageconfig.update_many(
+        where=stage_where,
+        data={"releasedTestPackageId": tp.id},
+    )
+
+    tp = db.testpackage.find_unique(
+        where={"id": tp.id},
+        include={"packageStages": True, "fixtureDesign": True},
+    )
 
     fixture_design_id = tp.fixtureDesign.id if tp.fixtureDesign is not None else None
     log_audit("testPackage.release", "TestPackage", tp.id, {
@@ -838,6 +835,7 @@ def release_test_package(product_id: str, package_id: str):
         "type": tp.type,
         "releasedVersion": released_version,
         "fixtureDesignId": fixture_design_id,
+        "stageBindings": bound_count,
         "previousStatus": "DEVELOPMENT",
     })
 
