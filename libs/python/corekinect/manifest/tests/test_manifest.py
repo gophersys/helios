@@ -41,7 +41,7 @@ from corekinect.manifest.loader import (
 # ---------------------------------------------------------------------------
 
 def _validation_dict() -> dict:
-    """Full validation manifest dict matching the v2.0 schema."""
+    """Full validation manifest dict matching the v1.0 schema."""
     return {
         "schema": "1.0",
         "package": {
@@ -82,7 +82,7 @@ def _validation_dict() -> dict:
 
 
 def _manufacturing_dict() -> dict:
-    """Full manufacturing manifest dict matching the v2.0 schema."""
+    """Full manufacturing manifest dict matching the v1.0 schema."""
     return {
         "schema": "1.0",
         "package": {
