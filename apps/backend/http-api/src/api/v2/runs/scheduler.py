@@ -14,7 +14,10 @@ from typing import Any, Dict, List, Optional
 
 from database import Json
 from config.env import env_config
-from src.api.v2.products.test_package_resolver import resolve_test_package
+from src.api.v2.products.test_package_resolver import (
+    assert_purpose_match,
+    resolve_test_package,
+)
 from src.api.v2.runs.manual import create_kubernetes_job
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
@@ -277,6 +280,29 @@ def _trigger_validation_job(
                         product_slug, tp.version,
                     )
             if tp:
+                # Strict dev/release isolation: a DEVELOPMENT package can
+                # only run on a DEV-purpose fixture, and a RELEASED
+                # package only on a RELEASE-purpose fixture. Mark the
+                # entry FAILED explicitly so the queue processor doesn't
+                # bounce it back to QUEUED for an infinite retry loop.
+                purpose_err = assert_purpose_match(tp, fixture)
+                if purpose_err is not None:
+                    logger.warning(
+                        "Test package %s (status=%s) does not match fixture %s (purpose=%s) — failing entry",
+                        tp.id[:8], tp.status, fixture.id[:8], getattr(fixture, "purpose", None),
+                    )
+                    db.validationqueueentry.update(
+                        where={"id": entry_id},
+                        data={
+                            "status": "FAILED",
+                            "errorMessage": (
+                                f"Package status {tp.status} does not match fixture "
+                                f"purpose {getattr(fixture, 'purpose', None)}"
+                            ),
+                            "completedAt": datetime.now(timezone.utc),
+                        },
+                    )
+                    return None
                 test_package_id = tp.id
                 test_package_version = tp.version
                 logger.info(
