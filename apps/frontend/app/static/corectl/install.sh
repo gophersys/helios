@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Concord CLI installer — corectl
 #
-#   curl -fsSL https://concord.ad.corekinect.com/install | bash
+#   curl -fsSL https://concord.ad.corekinect.com/corectl/install.sh | bash
 #
 # Installs (or upgrades) corectl from the Concord internal PyPI into your
 # user site-packages. Idempotent — re-run any time to upgrade.
