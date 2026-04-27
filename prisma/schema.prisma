@@ -118,6 +118,7 @@ enum QueueEntryStatus {
 }
 
 enum TestPackageStatus {
+  UPLOADING // Placeholder created before the MinIO put; flipped to DEVELOPMENT/RELEASED on success. Stale UPLOADING rows are reaped by retention.
   DEVELOPMENT // Mutable — overwrites previous dev version on same branch
   RELEASED // Immutable — permanent version for production validation
 }
@@ -248,7 +249,7 @@ model TestPackage {
   version          String /// "1.2.0" (release) or "dev-abc12345-1713100800" (development)
   type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
   status           TestPackageStatus @default(DEVELOPMENT)
-  storageKey       String /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
+  storageKey       String? /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz. NULL while status=UPLOADING (two-phase commit) and gets set when the MinIO put completes.
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected

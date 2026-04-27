@@ -24,6 +24,18 @@ from src.services.storage.client import (
 
 logger = logging.getLogger(__name__)
 
+
+def _emit_summary(scope: str, **fields) -> None:
+    """Emit a single canonical summary line per retention run.
+
+    Loki/Grafana queries pivot on the ``concord_retention_summary``
+    prefix and derive operational counters from the structured fields.
+    Format is intentionally machine-friendly (`key=value` pairs) so a
+    LogQL ``json`` parser pulls everything into labels for free.
+    """
+    parts = [f"{k}={v}" for k, v in fields.items() if v is not None]
+    logger.info("concord_retention_summary scope=%s %s", scope, " ".join(parts))
+
 # Default retention period in days
 DEFAULT_RETENTION_DAYS = 60
 
@@ -35,6 +47,12 @@ DEFAULT_RETENTION_DAYS = 60
 # weeks without surprise pruning.
 DEV_PACKAGE_RETENTION_DAYS = 30
 DEV_PACKAGE_KEEP_LATEST = 5
+
+# UPLOADING placeholders older than this are considered a failed
+# two-phase upload and reaped. The window is generous — a slow CI
+# upload can take many minutes — but anything past an hour is
+# definitively stuck.
+UPLOADING_PLACEHOLDER_AGE_MINUTES = 60
 
 
 def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) -> dict:
@@ -70,6 +88,11 @@ def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) ->
 
     if not old_runs:
         logger.info("No runs to clean up")
+        _emit_summary(
+            "validation_runs",
+            deleted=0, objects_deleted=0, errors=0,
+            retention_days=retention_days,
+        )
         return {"runs_deleted": 0, "objects_deleted": 0}
 
     runs_deleted = 0
@@ -113,6 +136,13 @@ def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) ->
         summary["errors"] = errors
 
     logger.info(f"Retention cleanup complete: {runs_deleted} runs, {objects_deleted} objects deleted")
+    _emit_summary(
+        "validation_runs",
+        deleted=runs_deleted,
+        objects_deleted=objects_deleted,
+        errors=len(errors),
+        retention_days=retention_days,
+    )
     return summary
 
 
@@ -280,6 +310,80 @@ def cleanup_old_dev_test_packages(
         summary["errors"] = errors
 
     logger.info("Test-package retention complete: %s", summary)
+    _emit_summary(
+        "test_packages",
+        deleted=packages_deleted,
+        kept_in_use=skipped_in_use,
+        objects_deleted=objects_deleted,
+        errors=len(errors),
+        retention_days=retention_days,
+        keep_latest=keep_latest,
+        dry_run=int(bool(dry_run)),
+    )
+    return summary
+
+
+def cleanup_stuck_uploading_test_packages(
+    age_minutes: int = UPLOADING_PLACEHOLDER_AGE_MINUTES,
+    dry_run: bool = False,
+) -> dict:
+    """Reap stuck ``status=UPLOADING`` test-package placeholders.
+
+    The two-phase upload path creates a placeholder row before the MinIO
+    put. On a successful upload the placeholder is flipped to
+    DEVELOPMENT/RELEASED. On a failed upload the placeholder stays in
+    UPLOADING — those rows are this sweep's target.
+
+    Anything older than ``age_minutes`` is dropped. The placeholder
+    holds the (productId, version, type) slot, so leaving them in place
+    blocks future re-uploads of the same version.
+    """
+    db = get_db_client()
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=age_minutes)
+
+    stuck = db.testpackage.find_many(
+        where={"status": "UPLOADING", "createdAt": {"lt": cutoff}},
+    )
+
+    summary = {
+        "stuck_packages": len(stuck),
+        "deleted": 0,
+        "errors": [],
+        "age_minutes": age_minutes,
+        "cutoff_date": cutoff.isoformat(),
+        "dry_run": dry_run,
+    }
+
+    for tp in stuck:
+        if dry_run:
+            logger.info(
+                "[dry-run] Would reap stuck UPLOADING placeholder %s@%s (created %s)",
+                tp.id[:8], tp.version, tp.createdAt,
+            )
+            summary["deleted"] += 1
+            continue
+        try:
+            db.testpackage.delete(where={"id": tp.id})
+            summary["deleted"] += 1
+            logger.info(
+                "Reaped stuck UPLOADING placeholder %s@%s (created %s)",
+                tp.id[:8], tp.version, tp.createdAt,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(
+                "Failed to delete stuck placeholder %s: %s", tp.id[:8], e,
+            )
+            summary["errors"].append({"packageId": tp.id, "error": str(e)})
+
+    logger.info("Stuck-upload reaper complete: %s", summary)
+    _emit_summary(
+        "stuck_uploads",
+        deleted=summary["deleted"],
+        stuck_total=summary["stuck_packages"],
+        errors=len(summary["errors"]),
+        age_minutes=age_minutes,
+        dry_run=int(bool(dry_run)),
+    )
     return summary
 
 
@@ -346,6 +450,15 @@ if __name__ == "__main__":
     tp_parser.add_argument("--keep", type=int, default=DEV_PACKAGE_KEEP_LATEST)
     tp_parser.add_argument("--dry-run", action="store_true")
 
+    stuck_parser = sub.add_parser(
+        "stuck-uploads",
+        help="GC stuck UPLOADING test-package placeholders",
+    )
+    stuck_parser.add_argument(
+        "--minutes", type=int, default=UPLOADING_PLACEHOLDER_AGE_MINUTES,
+    )
+    stuck_parser.add_argument("--dry-run", action="store_true")
+
     runs_parser = sub.add_parser("runs", help="GC old validation run artifacts")
     runs_parser.add_argument("--days", type=int, default=DEFAULT_RETENTION_DAYS)
 
@@ -357,6 +470,11 @@ if __name__ == "__main__":
         result = cleanup_old_dev_test_packages(
             retention_days=args.days,
             keep_latest=args.keep,
+            dry_run=args.dry_run,
+        )
+    elif args.cmd == "stuck-uploads":
+        result = cleanup_stuck_uploading_test_packages(
+            age_minutes=args.minutes,
             dry_run=args.dry_run,
         )
     else:

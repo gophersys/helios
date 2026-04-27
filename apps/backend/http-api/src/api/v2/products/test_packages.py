@@ -465,7 +465,61 @@ def _upload_test_package_impl(product_id: str):
     size_bytes = len(file_data)
     manifest_hash = hashlib.sha256(manifest_raw.encode()).hexdigest()
 
-    # Upload to MinIO
+    # ── Two-phase commit ──
+    #
+    # Phase 1: cheap duplicate check + create a placeholder row with
+    #   status=UPLOADING. Cheap because it doesn't read the request body
+    #   beyond the manifest, and atomic against concurrent uploaders
+    #   thanks to the ``(productId, version, type)`` unique-by-business-rule
+    #   the API enforces. The placeholder row owns the slot — a
+    #   simultaneous second upload of the same version sees the
+    #   placeholder and 409s.
+    #
+    # Phase 2: MinIO put. On success, flip status to DEVELOPMENT (or
+    #   RELEASED) and stamp the storageKey. On failure, the row stays in
+    #   UPLOADING; retention reaps it after the upload window closes.
+    #   Compared to the previous "MinIO first → DB second" order, this
+    #   never produces an orphan blob with no DB row.
+
+    existing = db.testpackage.find_first(
+        where={
+            "productId": product.id,
+            "version": version,
+            "type": package_type,
+        }
+    )
+    if existing:
+        # Stuck UPLOADING placeholder from a prior failed upload? Reuse
+        # it: same version slot, same content (the operator wouldn't be
+        # retrying the upload otherwise), and the row is the orphan
+        # marker we'd otherwise reap. Anything DEVELOPMENT/RELEASED is a
+        # genuine duplicate.
+        if getattr(existing, "status", None) == "UPLOADING":
+            tp = existing
+        else:
+            return conflict(
+                f"Test package version '{version}' already exists. "
+                f"Re-run corectl upload to generate a fresh dev version."
+            )
+    else:
+        tp = db.testpackage.create(
+            data={
+                "productId": product.id,
+                "version": version,
+                "type": package_type,
+                "status": "UPLOADING",
+                "storageKey": None,
+                "frameworkVersion": framework_version,
+                "manifestHash": manifest_hash,
+                "testCount": test_count,
+                "manifestVersion": manifest_version,
+                "message": upload_message,
+                "gitSha": git_sha,
+                "notes": notes,
+                "boardRevisionId": board_revision_id,
+            },
+        )
+
     object_key = storage_key(
         TEST_PACKAGES_PREFIX,
         f"{product_slug}/{package_type.lower()}/{version}/package.tar.gz",
@@ -483,40 +537,16 @@ def _upload_test_package_impl(product_id: str):
         )
     except Exception as e:
         logger.error("Failed to upload test package to storage: %s", e)
+        # Leave the placeholder row in UPLOADING for retention to clean
+        # up — operators can also delete it explicitly via the UI/API.
         return internal_error("Failed to upload test package")
 
-    # Every upload (dev or release) creates a new immutable row. corectl
-    # always epoch-suffixes dev versions so duplicate (productId, version,
-    # type) is now a bug, not a normal re-upload — fail loudly.
-    existing = db.testpackage.find_first(
-        where={
-            "productId": product.id,
-            "version": version,
-            "type": package_type,
-        }
-    )
-    if existing:
-        return conflict(
-            f"Test package version '{version}' already exists. "
-            f"Re-run corectl upload to generate a fresh dev version."
-        )
-
-    # Create new record
-    tp = db.testpackage.create(
+    # Phase 2 complete: flip status + record storageKey atomically.
+    db.testpackage.update(
+        where={"id": tp.id},
         data={
-            "productId": product.id,
-            "version": version,
-            "type": package_type,
             "status": status,
             "storageKey": object_key,
-            "frameworkVersion": framework_version,
-            "manifestHash": manifest_hash,
-            "testCount": test_count,
-            "manifestVersion": manifest_version,
-            "message": upload_message,
-            "gitSha": git_sha,
-            "notes": notes,
-            "boardRevisionId": board_revision_id,
         },
     )
 

@@ -101,19 +101,29 @@ spec:
                   mc cp "${BACKUP_DIR}/${FILENAME}" "concord/backups/postgres/${ENV}/${FILENAME}"
                   echo "[backup] Uploaded to backups/postgres/${ENV}/${FILENAME}"
 
-                  # Retention: list backups, sort by name (timestamp), delete oldest beyond retain count
-                  BACKUPS=$(mc ls "concord/backups/postgres/${ENV}/" --json 2>/dev/null | grep -o '"key":"[^"]*"' | sed 's/"key":"//;s/"//' | sort)
+                  # Retention: only daily backups participate. Pre-upgrade
+                  # files (``pre-upgrade-*.sql.gz``) sort AFTER ``concord-*``
+                  # in ASCII order, so the prior implementation — which
+                  # listed everything, sorted, and deleted oldest N —
+                  # always deleted the *newest* daily backup first while
+                  # the noisy pre-upgrade pile grew unbounded. Result on
+                  # 2026-04-27: 34 backups in prod, zero of them daily,
+                  # and verify started failing because nothing matched
+                  # ``^concord-`` anymore.
+                  BACKUPS=$(mc ls "concord/backups/postgres/${ENV}/" --json 2>/dev/null \
+                    | grep -o '"key":"[^"]*"' | sed 's/"key":"//;s/"//' \
+                    | grep "^concord-" | sort)
                   COUNT=$(echo "${BACKUPS}" | grep -c "\.sql\.gz$" || true)
 
                   if [ "${COUNT}" -gt "${RETAIN}" ]; then
                     DELETE_COUNT=$((COUNT - RETAIN))
-                    echo "[backup] Retention: ${COUNT} backups found, keeping ${RETAIN}, deleting ${DELETE_COUNT}"
+                    echo "[backup] Retention: ${COUNT} daily backups found, keeping ${RETAIN}, deleting ${DELETE_COUNT}"
                     echo "${BACKUPS}" | head -n "${DELETE_COUNT}" | while read -r old; do
                       mc rm "concord/backups/postgres/${ENV}/${old}" > /dev/null 2>&1 || true
                       echo "[backup] Deleted: ${old}"
                     done
                   else
-                    echo "[backup] Retention: ${COUNT} backups (within ${RETAIN} limit)"
+                    echo "[backup] Retention: ${COUNT} daily backups (within ${RETAIN} limit)"
                   fi
 
                   echo "[backup] PostgreSQL backup complete"
@@ -393,9 +403,19 @@ spec:
 
                   echo "[verify] Starting backup verification for ${ENV}"
 
-                  # Install mc
-                  apk add --no-cache curl > /dev/null 2>&1
-                  curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+                  # Install mc. Surface failures loudly: the previous
+                  # version silenced apk + curl with ``> /dev/null 2>&1``
+                  # so a network egress hiccup left the pod with the
+                  # cryptic "[verify] Starting..." line and exit 1.
+                  if ! apk add --no-cache curl > /tmp/apk.log 2>&1; then
+                    echo "[verify] FAIL — apk add curl failed:"
+                    cat /tmp/apk.log
+                    exit 1
+                  fi
+                  if ! curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc; then
+                    echo "[verify] FAIL — could not download mc"
+                    exit 1
+                  fi
                   chmod +x /usr/local/bin/mc
 
                   # Wait for NetworkPolicy propagation before hitting
@@ -419,10 +439,15 @@ spec:
                     "${MINIO_ROOT_PASSWORD}" \
                     --api S3v4 > /dev/null
 
-                  # Find latest backup
+                  # Find latest backup. Accept BOTH daily ``concord-*``
+                  # and pre-upgrade ``pre-upgrade-*`` snapshots: a
+                  # mid-week verify run shouldn't fail just because a
+                  # release happened to clear the daily slot. Any
+                  # ``*.sql.gz`` under this prefix is a valid restore
+                  # candidate.
                   LATEST=$(mc ls "concord/backups/postgres/${ENV}/" --json 2>/dev/null \
                     | grep -o '"key":"[^"]*"' | sed 's/"key":"//;s/"//' \
-                    | grep "^concord-" | sort | tail -1)
+                    | grep -E '\.sql\.gz$' | sort | tail -1)
 
                   if [ -z "${LATEST}" ]; then
                     echo "[verify] FAIL — no backups found in backups/postgres/${ENV}/"
