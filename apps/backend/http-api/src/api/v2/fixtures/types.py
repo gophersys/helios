@@ -75,6 +75,7 @@ class FixtureUpdateRequest:
     description: Optional[str] = None
     active: Optional[bool] = None
     metadata: Optional[dict] = None
+    purpose: Optional[str] = None
     _has_description: bool = False
     _has_metadata: bool = False
 
@@ -100,7 +101,21 @@ class FixtureUpdateRequest:
         metadata = data.get("metadata")
         has_metadata = "metadata" in data
 
-        if name is None and not has_description and active is None and not has_metadata:
+        purpose = data.get("purpose")
+        if purpose is not None:
+            if not isinstance(purpose, str):
+                return None, "purpose must be a string"
+            purpose = purpose.strip().upper()
+            if purpose not in ("DEV", "RELEASE"):
+                return None, "purpose must be DEV or RELEASE"
+
+        if (
+            name is None
+            and not has_description
+            and active is None
+            and not has_metadata
+            and purpose is None
+        ):
             return None, "No fields to update"
 
         return cls(
@@ -108,6 +123,7 @@ class FixtureUpdateRequest:
             description=description.strip() if description else description,
             active=active,
             metadata=metadata,
+            purpose=purpose,
             _has_description=has_description,
             _has_metadata=has_metadata,
         ), None
@@ -123,6 +139,8 @@ class FixtureUpdateRequest:
             update_data["active"] = self.active
         if self._has_metadata:
             update_data["metadata"] = self.metadata
+        if self.purpose is not None:
+            update_data["purpose"] = self.purpose
         return update_data
 
 

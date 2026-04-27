@@ -12,8 +12,21 @@ uploaded and travels with it for the package's lifetime.
 
 [Fixture instances](instances.md) are the physical rigs that
 implement a design. A fixture's `purpose` (`DEV` or `RELEASE`) gates
-which package status it accepts: dev packages run only on dev rigs;
-released packages run only on release rigs.
+which package status it accepts.
+
+The check is asymmetric:
+
+| Fixture purpose | Accepts DEV pkg? | Accepts RELEASED pkg? |
+|-----------------|------------------|-----------------------|
+| `RELEASE` (production floor) | no | yes |
+| `DEV` (desk rig) | yes | yes |
+
+Production fixtures stay locked to released code. Dev rigs accept
+both, so the common workflow — iterate dev → release → verify the
+released build on the same rig — works without any fixture flip.
+Toggle the purpose from the fixture detail page (Edit → Purpose).
+The toggle is disabled while a session is active so a mid-shift
+flip can't orphan a running run.
 
 ## Where designs come from
 

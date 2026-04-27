@@ -122,26 +122,31 @@ def assert_validation_stage_runnable(stage_config) -> Optional[tuple]:
 
 
 def assert_purpose_match(test_package, fixture) -> Optional[tuple]:
-    """Enforce strict dev/release isolation at run-creation time.
+    """Gate run creation on the package status / fixture purpose pairing.
 
-    A DEVELOPMENT package only runs on a fixture with ``purpose == DEV``;
-    a RELEASED package only runs on a fixture with ``purpose == RELEASE``.
-    This stops untested code from landing on the production floor and
-    keeps dev iterations off customer-grade hardware.
+    The check is intentionally asymmetric:
+
+    * RELEASE fixtures are the production floor — they ONLY accept
+      RELEASED packages. A DEVELOPMENT package on a RELEASE fixture is
+      a 409: that's the protection that stops dev code from touching
+      customer hardware.
+    * DEV fixtures are sandboxes — they accept BOTH dev and released
+      packages. The common workflow ("iterate on a dev rig, release,
+      verify the released package on the same rig before shipping")
+      works with no operator-side fiddling.
+
+    To make a fixture strict-only-released, it's already
+    ``purpose=RELEASE``. To run a released package on a dev rig, no
+    flip needed — the dev rig accepts it.
 
     Returns a Flask error tuple on mismatch, ``None`` on match.
     """
     pkg_status = getattr(test_package, "status", None)
     fixture_purpose = getattr(fixture, "purpose", None)
 
-    if pkg_status == "DEVELOPMENT" and fixture_purpose != "DEV":
+    if pkg_status == "DEVELOPMENT" and fixture_purpose == "RELEASE":
         return conflict(
-            f"Development packages can only run on dev fixtures "
-            f"(fixture purpose is {fixture_purpose})."
-        )
-    if pkg_status == "RELEASED" and fixture_purpose != "RELEASE":
-        return conflict(
-            f"Released packages can only run on release fixtures "
-            f"(fixture purpose is {fixture_purpose})."
+            "Development packages cannot run on release fixtures. "
+            "Pick a dev fixture, or release the package first."
         )
     return None

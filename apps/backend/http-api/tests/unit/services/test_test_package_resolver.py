@@ -241,6 +241,15 @@ class TestAssertValidationStageRunnable:
 
 
 class TestAssertPurposeMatch:
+    """Asymmetric gate: RELEASE fixtures are production-locked, DEV rigs are sandboxes.
+
+    Matrix:
+      DEV pkg     + DEV  fixture → ALLOW (dev iteration)
+      DEV pkg     + RELEASE fixture → BLOCK (production protection)
+      RELEASED pkg + DEV  fixture → ALLOW (verify a release on the same rig)
+      RELEASED pkg + RELEASE fixture → ALLOW (the floor)
+    """
+
     def test_dev_package_on_dev_fixture_passes(self):
         from src.api.v2.products.test_package_resolver import assert_purpose_match
 
@@ -257,23 +266,21 @@ class TestAssertPurposeMatch:
 
         assert assert_purpose_match(pkg, fix) is None
 
-    def test_dev_package_on_release_fixture_blocks(self):
-        from src.api.v2.products.test_package_resolver import assert_purpose_match
-
-        pkg = _make_pkg(status="DEVELOPMENT")
-        fix = _make_fixture(purpose="RELEASE")
-
-        err = assert_purpose_match(pkg, fix)
-
-        assert err is not None
-        _, status = err
-        assert status == 409
-
-    def test_released_package_on_dev_fixture_blocks(self):
+    def test_released_package_on_dev_fixture_passes(self):
+        """Dev rigs accept released code — common 'verify the release' workflow."""
         from src.api.v2.products.test_package_resolver import assert_purpose_match
 
         pkg = _make_pkg(status="RELEASED")
         fix = _make_fixture(purpose="DEV")
+
+        assert assert_purpose_match(pkg, fix) is None
+
+    def test_dev_package_on_release_fixture_blocks(self):
+        """The one direction that's still locked — keeps dev code off the floor."""
+        from src.api.v2.products.test_package_resolver import assert_purpose_match
+
+        pkg = _make_pkg(status="DEVELOPMENT")
+        fix = _make_fixture(purpose="RELEASE")
 
         err = assert_purpose_match(pkg, fix)
 

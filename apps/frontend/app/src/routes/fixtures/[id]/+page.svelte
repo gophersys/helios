@@ -31,6 +31,7 @@
   let editName = $state('');
   let editDescription = $state('');
   let editActive = $state(true);
+  let editPurpose = $state<'DEV' | 'RELEASE'>('RELEASE');
   let saving = $state(false);
 
   // Delete state
@@ -170,24 +171,35 @@
     editName = fixture.name;
     editDescription = fixture.description || '';
     editActive = fixture.active;
+    editPurpose = (fixture.purpose ?? 'RELEASE') as 'DEV' | 'RELEASE';
     editing = true;
   }
 
   async function saveEdit() {
+    if (!fixture) return;
     saving = true;
     error = null;
     try {
-      await api.put(`/v2/fixtures/${fixtureId}`, {
+      const payload: Record<string, unknown> = {
         name: editName.trim(),
         description: editDescription.trim() || null,
         active: editActive,
-      });
+      };
+      // Only include purpose when it's actually changing — backend
+      // refuses purpose flips on a locked fixture, and we want a
+      // no-op edit (e.g. just renaming) to succeed even mid-session.
+      if (editPurpose !== fixture.purpose) {
+        payload.purpose = editPurpose;
+      }
+      await api.put(`/v2/fixtures/${fixtureId}`, payload);
       editing = false;
       fetchFixture();
     } catch (err: any) {
       error = err instanceof Error ? err.message : 'Failed to update';
     } finally { saving = false; }
   }
+
+  const purposeLocked = $derived(fixture?.status === 'LOCKED');
 
   // Delete
   async function handleDelete() {
@@ -270,6 +282,39 @@
                 <input type="checkbox" bind:checked={editActive} class="h-4 w-4 rounded border-border text-accent" />
                 <span class="text-sm text-text-secondary">Active</span>
               </label>
+
+              <div>
+                <span class="text-xs uppercase tracking-wide text-text-tertiary">Purpose</span>
+                <div class="mt-1 inline-flex rounded-md border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    onclick={() => (editPurpose = 'RELEASE')}
+                    disabled={purposeLocked}
+                    class={`px-3 py-1 text-sm ${editPurpose === 'RELEASE' ? 'bg-accent text-text-inverse' : 'text-text-secondary hover:bg-surface-2'} ${purposeLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    Release
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => (editPurpose = 'DEV')}
+                    disabled={purposeLocked}
+                    class={`px-3 py-1 text-sm border-l border-border ${editPurpose === 'DEV' ? 'bg-accent text-text-inverse' : 'text-text-secondary hover:bg-surface-2'} ${purposeLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    Dev
+                  </button>
+                </div>
+                <p class="mt-1 text-2xs text-text-tertiary">
+                  {#if editPurpose === 'RELEASE'}
+                    Production rig — only released test packages run here.
+                  {:else}
+                    Sandbox — runs both released and development packages.
+                  {/if}
+                  {#if purposeLocked}
+                    <span class="text-warning">Locked while a session is active.</span>
+                  {/if}
+                </p>
+              </div>
+
               <div class="flex items-center gap-2">
                 <button onclick={saveEdit} disabled={saving || !editName.trim()} class="btn btn-sm btn-primary">
                   {#if saving}<Loader2 size={14} class="animate-spin" />{:else}<Check size={14} />{/if} Save
@@ -281,6 +326,7 @@
             <div class="flex items-center gap-3">
               <h1 class="text-xl font-semibold text-text-primary">{fixture.name}</h1>
               <StatusBadge status={fixture.type} />
+              <StatusBadge status={fixture.purpose === 'DEV' ? 'DEV' : 'RELEASE'} />
               <StatusBadge status={fixture.active ? 'ACTIVE' : 'INACTIVE'} />
               {#if fixture.status === 'LOCKED'}
                 <StatusBadge status="LOCKED" />
