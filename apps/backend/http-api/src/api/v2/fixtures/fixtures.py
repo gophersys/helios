@@ -280,6 +280,14 @@ def _compute_fixture_health(
     Returns a dict with:
         health: ONLINE | OFFLINE | ERROR | UNASSIGNED
         healthDetails: { nodesReady, nodesTotal, mtibsReady, mtibsTotal }
+        slotStates: { slot_id -> { state, label, reason, deployName,
+                                   replicasOk, podsOk, probeOk } }
+
+    The per-slot ``slotStates`` map is what the fixture detail page
+    renders on each slot tile. Without it the UI can only colour the
+    tile from the (much coarser) node status — operators couldn't tell
+    *which* MTIB needed attention when the fixture-wide health was
+    ERROR but only one node was actually unhealthy.
 
     Health rules:
         - UNASSIGNED: zero assigned slots.
@@ -306,6 +314,7 @@ def _compute_fixture_health(
                 "mtibsReady": 0,
                 "mtibsTotal": 0,
             },
+            "slotStates": {},
         }
 
     status_map = mtib_status_by_deploy_name or {}
@@ -379,13 +388,55 @@ def _compute_fixture_health(
         "mtibsTotal": mtibs_total,
     }
 
+    # Resolve a per-slot status string the UI can chip into each tile.
+    slot_states: dict[str, dict] = {}
+    for slot in assigned:
+        node = slot.node
+        node_status = getattr(node, "status", None)
+        state = slot_mtib_state.get(slot.id, {})
+        deploy_name = state.get("deploy_name")
+        replicas_ok = state.get("replicas_ok", False)
+        pods_ok = state.get("pods_ok", False)
+        probe_ok = bool(probe_results.get(slot.id, False))
+
+        if node_status != "ONLINE":
+            label = "Node offline"
+            short = "OFFLINE"
+            reason = f"node status={node_status or 'UNKNOWN'}"
+        elif not deploy_name:
+            label = "MTIB not deployed"
+            short = "NOT_DEPLOYED"
+            reason = "node has no MTIB deployment"
+        elif not (replicas_ok and pods_ok):
+            label = "MTIB deploying"
+            short = "DEPLOYING"
+            reason = "deployment replicas/pods not ready yet"
+        elif not probe_ok:
+            label = "MTIB probe failed"
+            short = "PROBE_FAILED"
+            reason = "deployment ready but gRPC probe didn't respond"
+        else:
+            label = "MTIB ready"
+            short = "READY"
+            reason = ""
+
+        slot_states[slot.id] = {
+            "state": short,
+            "label": label,
+            "reason": reason,
+            "deployName": deploy_name,
+            "replicasOk": replicas_ok,
+            "podsOk": pods_ok,
+            "probeOk": probe_ok,
+        }
+
     if all_nodes_offline:
-        return {"health": "OFFLINE", "healthDetails": details}
+        return {"health": "OFFLINE", "healthDetails": details, "slotStates": slot_states}
 
     if any_node_online and nodes_ready == nodes_total:
-        return {"health": "ONLINE", "healthDetails": details}
+        return {"health": "ONLINE", "healthDetails": details, "slotStates": slot_states}
 
-    return {"health": "ERROR", "healthDetails": details}
+    return {"health": "ERROR", "healthDetails": details, "slotStates": slot_states}
 
 
 # ── Serializers ────────────────────────────────────────────────
@@ -441,12 +492,16 @@ def _serialize_fixture(
     if hasattr(f, "slots") and f.slots is not None:
         data["slotCount"] = len(f.slots)
         data["assignedCount"] = len([s for s in f.slots if s.nodeId is not None])
-        if include_slots:
-            data["slots"] = [_serialize_slot(s) for s in f.slots]
         # Health needs slots + nodes loaded; if they aren't, default to UNASSIGNED.
         health = _compute_fixture_health(f, mtib_status_by_deploy_name)
         data["health"] = health["health"]
         data["healthDetails"] = health["healthDetails"]
+        slot_states = health.get("slotStates") or {}
+        if include_slots:
+            data["slots"] = [
+                _serialize_slot(s, mtib_state=slot_states.get(s.id))
+                for s in f.slots
+            ]
     else:
         data["health"] = "UNASSIGNED"
         data["healthDetails"] = {
@@ -458,8 +513,15 @@ def _serialize_fixture(
     return data
 
 
-def _serialize_slot(s: Any) -> dict:
-    """Serialize a FixtureSlot DB record to an API response dict."""
+def _serialize_slot(s: Any, mtib_state: dict | None = None) -> dict:
+    """Serialize a FixtureSlot DB record to an API response dict.
+
+    ``mtib_state`` is optional per-slot MTIB state from
+    :func:`_compute_fixture_health`. When present, the slot tile in the
+    UI renders its own MTIB-status chip so operators don't have to
+    cross-reference the fixture-wide ERROR badge against individual
+    nodes to find the broken one.
+    """
     data = {
         "id": s.id,
         "fixtureId": s.fixtureId,
@@ -488,6 +550,8 @@ def _serialize_slot(s: Any) -> dict:
             "type": s.node.type,
             "status": s.node.status,
         }
+    if mtib_state is not None:
+        data["mtibStatus"] = mtib_state
     return data
 
 

@@ -238,17 +238,18 @@
   const onlineCount = $derived(slots.filter(s => s.node?.status === 'ONLINE').length);
 
   // Map fixture slots into the layout-grid's expected shape. The backend
-  // health summary already tells us which slots' MTIBs are ready, but it
-  // doesn't break that down per-slot, so we derive the per-slot mtibReady
-  // flag from node status + the fixture-wide health (best-effort).
+  // returns ``mtibStatus`` per slot now (state + label + reason); we pass
+  // that straight through so the slot tile can render its own chip and
+  // operators don't have to cross-reference the fixture-wide health
+  // badge to find the broken MTIB. ``mtibReady`` is kept as a coarse
+  // fallback for callers that don't yet pass the full status object.
   const layoutSlots = $derived(
     slots.map((s) => ({
       id: s.id,
       slotIndex: s.slotIndex,
       label: s.label,
       node: s.node ?? null,
-      // Treat MTIB as ready when the fixture is ONLINE overall and the
-      // node reports ONLINE. This matches the dot color rules.
+      mtibStatus: (s as any).mtibStatus ?? null,
       mtibReady:
         s.node?.status === 'ONLINE' && fixture?.health === 'ONLINE',
     }))
