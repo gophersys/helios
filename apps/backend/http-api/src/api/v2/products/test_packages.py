@@ -485,52 +485,21 @@ def _upload_test_package_impl(product_id: str):
         logger.error("Failed to upload test package to storage: %s", e)
         return internal_error("Failed to upload test package")
 
-    # For DEVELOPMENT packages, upsert (overwrite existing dev version)
-    if status == "DEVELOPMENT":
-        existing_dev = db.testpackage.find_first(
-            where={
-                "productId": product.id,
-                "version": version,
-                "type": package_type,
-            }
+    # Every upload (dev or release) creates a new immutable row. corectl
+    # always epoch-suffixes dev versions so duplicate (productId, version,
+    # type) is now a bug, not a normal re-upload — fail loudly.
+    existing = db.testpackage.find_first(
+        where={
+            "productId": product.id,
+            "version": version,
+            "type": package_type,
+        }
+    )
+    if existing:
+        return conflict(
+            f"Test package version '{version}' already exists. "
+            f"Re-run corectl upload to generate a fresh dev version."
         )
-        if existing_dev:
-            tp = db.testpackage.update(
-                where={"id": existing_dev.id},
-                data={
-                    "storageKey": object_key,
-                    "frameworkVersion": framework_version,
-                    "manifestHash": manifest_hash,
-                    "testCount": test_count,
-                    "manifestVersion": manifest_version,
-                    "message": upload_message,
-                    "gitSha": git_sha,
-                    "notes": notes,
-                    "boardRevisionId": board_revision_id,
-                },
-            )
-            log_audit("testPackage.update", "TestPackage", tp.id, {
-                "productSlug": product_slug,
-                "version": version,
-                "status": status,
-                "sizeBytes": size_bytes,
-            })
-            # Extract test count, fixture design, and stage metadata. Fixture
-            # designs are owned 1:1 by the TestPackage so a dev re-upload
-            # overwrites the previous design's profile in place.
-            extracted_count = _extract_test_count(file_data)
-            if extracted_count and extracted_count != tp.testCount:
-                tp = db.testpackage.update(
-                    where={"id": tp.id},
-                    data={"testCount": extracted_count},
-                )
-            _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
-            _extract_stage_metadata(db, tp.id, file_data, manifest_version)
-            tp = db.testpackage.find_unique(
-                where={"id": tp.id},
-                include={"packageStages": True, "fixtureDesign": True},
-            )
-            return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200
 
     # Create new record
     tp = db.testpackage.create(

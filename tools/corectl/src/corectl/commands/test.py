@@ -1090,36 +1090,28 @@ def upload(ctx, path: str, auto_release: bool):
     click.echo(click.style("  ✓ Validation passed", fg="green"))
     click.echo()
 
-    # Collect git state for traceability + version generation
+    # Collect git state for traceability
     git_sha = ""
-    git_dirty = False
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short=8", "HEAD"],
             capture_output=True, text=True, cwd=str(project_dir),
         )
         git_sha = result.stdout.strip()
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True, text=True, cwd=str(project_dir),
-        )
-        git_dirty = bool(result.stdout.strip())
     except Exception:
         pass
 
-    # Development version: git SHA + epoch suffix for uniqueness on dirty trees
+    # Every dev upload is its own immutable row — git SHA + epoch suffix.
+    # Dropping the clean-tree shortcut means a re-upload of the same SHA
+    # always produces a distinct version, so a TestRun's package
+    # reference can never be silently overwritten by a later upload.
+    import time as _time
     sha = git_sha or "unknown"
-    if git_dirty:
-        import time as _time
-        epoch = int(_time.time())
-        version = f"dev-{sha}-{epoch}"
-    else:
-        version = f"dev-{sha}"
+    version = f"dev-{sha}-{int(_time.time())}"
 
     # Prompt for upload message
-    dirty_hint = " (dirty)" if git_dirty else ""
     upload_message = click.prompt(
-        f"Upload message [{git_sha}{dirty_hint}]",
+        f"Upload message [{git_sha}]",
         default="",
         show_default=False,
     ).strip()
@@ -1162,7 +1154,6 @@ def upload(ctx, path: str, auto_release: bool):
         "testCount": 0,  # Backend can override from collection
         "message": upload_message,
         "gitSha": git_sha,
-        "gitDirty": git_dirty,
     }
 
     resp = api.post(
