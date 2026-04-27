@@ -245,7 +245,7 @@ model TestPackage {
   status           TestPackageStatus @default(DEVELOPMENT)
   storageKey       String /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
   frameworkVersion String /// corekinect version tests were validated against
-  manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
+  manifestHash     String? /// SHA-256 of concord.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
   schemaVersion    String? /// Manifest schema version (e.g. "2.0") — enforced on upload
   stagesEnabled    Json? /// Which stages are enabled (v1 legacy — replaced by packageStages in v2)

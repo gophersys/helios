@@ -29,7 +29,6 @@ from corekinect.manifest.schema import (
     validate_manifest,
 )
 from corekinect.manifest.loader import (
-    LEGACY_MANIFEST_FILENAME,
     MANIFEST_FILENAME,
     find_manifest,
     load_manifest,
@@ -44,7 +43,7 @@ from corekinect.manifest.loader import (
 def _validation_dict() -> dict:
     """Full validation manifest dict matching the v2.0 schema."""
     return {
-        "schema": "2.0",
+        "schema": "1.0",
         "package": {
             "type": "validation",
             "version": "1.0.0",
@@ -59,6 +58,8 @@ def _validation_dict() -> dict:
             },
         },
         "fixture": {
+            "design": "Alpha B0 Validation Fixture",
+            "revision": "1.0",
             "controller": "fixtures.alpha_b0.controller.AlphaB0Fixture",
             "profile": "fixtures/alpha_b0/fixture.yaml",
             "multi_slot": False,
@@ -83,7 +84,7 @@ def _validation_dict() -> dict:
 def _manufacturing_dict() -> dict:
     """Full manufacturing manifest dict matching the v2.0 schema."""
     return {
-        "schema": "2.0",
+        "schema": "1.0",
         "package": {
             "type": "manufacturing",
             "version": "2.1.0",
@@ -98,6 +99,8 @@ def _manufacturing_dict() -> dict:
             },
         },
         "fixture": {
+            "design": "Alpha B0 Manufacturing Fixture",
+            "revision": "1.0",
             "controller": "fixtures.alpha_b0.controller.AlphaB0Fixture",
             "profile": "fixtures/alpha_b0/fixture.yaml",
             "multi_slot": True,
@@ -128,7 +131,7 @@ def _manufacturing_dict() -> dict:
 def _minimal_validation_dict() -> dict:
     """Validation manifest with no device, no hardware, no markers."""
     return {
-        "schema": "2.0",
+        "schema": "1.0",
         "package": {
             "type": "validation",
             "version": "0.1.0",
@@ -139,6 +142,8 @@ def _minimal_validation_dict() -> dict:
             "board": "beta_a0",
         },
         "fixture": {
+            "design": "Beta A0 Validation Fixture",
+            "revision": "1.0",
             "controller": "fixtures.beta.Controller",
             "profile": "fixtures/beta/profile.yaml",
         },
@@ -166,7 +171,7 @@ class TestManifestFromDictValidation:
 
     def test_schema_version(self):
         m = Manifest.from_dict(_validation_dict())
-        assert m.schema_version == "2.0"
+        assert m.schema_version == "1.0"
 
     def test_package_fields(self):
         m = Manifest.from_dict(_validation_dict())
@@ -401,23 +406,19 @@ class TestValidateManifestBadValues:
         result = validate_manifest(data)
         assert not result.valid
 
-    def test_validation_with_steps_instead_of_stages(self):
-        """Validation manifest must not have steps."""
+    def test_both_stages_and_steps_is_invalid(self):
+        """Both stages and steps in the same manifest is invalid (oneOf)."""
         data = _validation_dict()
-        del data["stages"]
         data["steps"] = [
             {"name": "x", "module": "m.x", "timeout_s": 10},
         ]
         result = validate_manifest(data)
         assert not result.valid
 
-    def test_manufacturing_with_stages_instead_of_steps(self):
-        """Manufacturing manifest must not have stages."""
-        data = _manufacturing_dict()
-        del data["steps"]
-        data["stages"] = {
-            "smoke": {"directory": "tests/smoke", "timeout_s": 60},
-        }
+    def test_neither_stages_nor_steps_is_invalid(self):
+        """A manifest with neither stages nor steps is invalid."""
+        data = _validation_dict()
+        del data["stages"]
         result = validate_manifest(data)
         assert not result.valid
 
@@ -546,7 +547,7 @@ class TestCheckSchemaCompatibility:
         assert check_schema_compatibility(CURRENT_SCHEMA) is None
 
     def test_old_version_below_minimum(self):
-        msg = check_schema_compatibility("1.0")
+        msg = check_schema_compatibility("0.9")
         assert msg is not None
         assert "below minimum" in msg
 
@@ -565,7 +566,7 @@ class TestValidateManifestSchemaVersion:
 
     def test_rejects_schema_below_minimum(self):
         data = _validation_dict()
-        data["schema"] = "1.0"
+        data["schema"] = "0.9"
         result = validate_manifest(data)
         assert not result.valid
         assert any("below minimum" in str(e) for e in result.errors)
@@ -616,7 +617,7 @@ class TestLoadManifest:
 
     def test_load_invalid_manifest_missing_fields(self, tmp_path):
         path = tmp_path / MANIFEST_FILENAME
-        _write_manifest(path, {"schema": "2.0"})
+        _write_manifest(path, {"schema": "1.0"})
         manifest, result = load_manifest(path=path)
         assert not result.valid
 
@@ -639,22 +640,7 @@ class TestFindManifest:
 
     def test_finds_concord_yaml(self, tmp_path):
         manifest_path = tmp_path / MANIFEST_FILENAME
-        manifest_path.write_text("schema: '2.0'\n")
-        found = find_manifest(tmp_path)
-        assert found is not None
-        assert found.name == MANIFEST_FILENAME
-
-    def test_finds_legacy_concord_test_yaml(self, tmp_path):
-        manifest_path = tmp_path / LEGACY_MANIFEST_FILENAME
         manifest_path.write_text("schema: '1.0'\n")
-        found = find_manifest(tmp_path)
-        assert found is not None
-        assert found.name == LEGACY_MANIFEST_FILENAME
-
-    def test_prefers_v2_over_legacy(self, tmp_path):
-        """When both files exist, v2 concord.yaml wins."""
-        (tmp_path / MANIFEST_FILENAME).write_text("schema: '2.0'\n")
-        (tmp_path / LEGACY_MANIFEST_FILENAME).write_text("schema: '1.0'\n")
         found = find_manifest(tmp_path)
         assert found is not None
         assert found.name == MANIFEST_FILENAME
@@ -668,7 +654,7 @@ class TestFindManifest:
     def test_stops_at_git_boundary(self, tmp_path):
         """Manifest in parent above .git should not be found."""
         # parent/concord.yaml exists
-        (tmp_path / MANIFEST_FILENAME).write_text("schema: '2.0'\n")
+        (tmp_path / MANIFEST_FILENAME).write_text("schema: '1.0'\n")
         # child/.git exists -- search should stop here
         child = tmp_path / "child"
         child.mkdir()
@@ -678,7 +664,7 @@ class TestFindManifest:
 
     def test_finds_manifest_in_parent(self, tmp_path):
         """Walks up to parent if child has no manifest and no .git."""
-        (tmp_path / MANIFEST_FILENAME).write_text("schema: '2.0'\n")
+        (tmp_path / MANIFEST_FILENAME).write_text("schema: '1.0'\n")
         child = tmp_path / "subdir"
         child.mkdir()
         found = find_manifest(child)
@@ -695,7 +681,7 @@ class TestLoadManifestRaw:
         _write_manifest(path, data)
         raw = load_manifest_raw(path)
         assert isinstance(raw, dict)
-        assert raw["schema"] == "2.0"
+        assert raw["schema"] == "1.0"
         assert raw["package"]["type"] == "validation"
 
     def test_raises_on_non_mapping(self, tmp_path):

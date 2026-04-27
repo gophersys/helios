@@ -17,26 +17,20 @@ from corekinect.manifest.types import (
 )
 
 MANIFEST_FILENAME = "concord.yaml"
-LEGACY_MANIFEST_FILENAME = "concord.test.yaml"
 
 
 def find_manifest(start_dir: Optional[Path] = None) -> Optional[Path]:
     """Find concord.yaml by searching upward from start_dir.
 
-    Checks for concord.yaml first (v2), then concord.test.yaml (v1 legacy).
     Returns the path if found, None otherwise.
     """
     search_dir = Path(start_dir) if start_dir else Path.cwd()
     search_dir = search_dir.resolve()
 
     for parent in [search_dir, *search_dir.parents]:
-        v2_path = parent / MANIFEST_FILENAME
-        if v2_path.is_file():
-            return v2_path
-
-        v1_path = parent / LEGACY_MANIFEST_FILENAME
-        if v1_path.is_file():
-            return v1_path
+        manifest_path = parent / MANIFEST_FILENAME
+        if manifest_path.is_file():
+            return manifest_path
 
         # Stop at repo root
         if (parent / ".git").exists():
@@ -100,10 +94,7 @@ def load_manifest(
 
 
 def load_manifest_raw(path: Path) -> dict:
-    """Load a manifest as a raw dict without validation or parsing.
-
-    Useful for migration tools that need to read v1 manifests.
-    """
+    """Load a manifest as a raw dict without validation or parsing."""
     with open(path) as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):

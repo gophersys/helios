@@ -16,8 +16,7 @@ Activation:
     setuptools entry point under ``pytest11``.
 
 No-op conditions:
-    - No concord.yaml or concord.test.yaml found (silent no-op)
-    - v1 manifest found but missing v2 fields (warning, no-op)
+    - No concord.yaml found (silent no-op)
     - MTIB/hardware env vars missing (ctx fixture skips with pytest.skip)
 
 Environment variables:

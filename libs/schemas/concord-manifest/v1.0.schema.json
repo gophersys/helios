@@ -1,16 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://concord.corekinect.com/schemas/concord-manifest/v2.0.schema.json",
-  "title": "Concord Test Package Manifest v2.0",
+  "$id": "https://concord.corekinect.com/schemas/concord-manifest/v1.0.schema.json",
+  "title": "Concord Test Package Manifest v1.0",
   "description": "Defines the structure of concord.yaml for validation and manufacturing test packages.",
   "type": "object",
-  "required": ["schema", "package", "product", "fixture", "stages"],
+  "required": ["schema", "package", "product", "fixture"],
   "additionalProperties": false,
+  "oneOf": [
+    {"required": ["stages"]},
+    {"required": ["steps"]}
+  ],
 
   "properties": {
     "schema": {
       "type": "string",
-      "const": "2.0",
+      "const": "1.0",
       "description": "Manifest schema version. Must match exactly."
     },
 
@@ -105,13 +109,22 @@
 
     "stages": {
       "type": "object",
-      "description": "Test stages. Each key is a stage name. Used by both validation and manufacturing packages.",
+      "description": "Test stages. Each key is a stage name. Validation packages and stage-style manufacturing packages.",
       "minProperties": 1,
       "additionalProperties": false,
       "patternProperties": {
         "^[a-z][a-z0-9_-]*$": {
           "$ref": "#/$defs/stage"
         }
+      }
+    },
+
+    "steps": {
+      "type": "array",
+      "description": "Manufacturing test steps in sequential order. Alternative to 'stages' for manufacturing packages.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
       }
     }
   },
@@ -153,6 +166,34 @@
           "items": { "type": "string" },
           "uniqueItems": true,
           "description": "Pytest markers registered for this stage (e.g., ['health_check', 'fuota_fast'])."
+        }
+      }
+    },
+
+    "step": {
+      "type": "object",
+      "required": ["name", "module"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name for the manufacturing step (e.g., 'Electrical', 'Flash Firmware')."
+        },
+        "module": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*$",
+          "description": "Dotted Python module path containing the step (e.g., 'tests.manufacturing.test_electrical')."
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum execution time in seconds for this step."
+        },
+        "hardware": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Fixture capabilities required to run this step."
         }
       }
     }
