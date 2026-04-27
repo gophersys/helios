@@ -9,6 +9,8 @@ A session is a production run on a single fixture. You start it, scan panels, wa
 
 Sessions begin from the **Manufacturing** page. Find the fixture card showing **AVAILABLE** status and click **New Session**. (You can also start a session via the API by POSTing to `/v2/manufacturing/sessions` with the product and fixture IDs.)
 
+The session creation wizard asks which test package to run. Pick a released package for production batches, or a development package for dry-running an unreleased build on a dev fixture. The fixture's `purpose` (`DEV` or `RELEASE`) gates the choice: dev packages run only on dev rigs, released packages run only on release rigs. Without an explicit pick the wizard auto-fills the latest released package; if none exists for this product the request is rejected with a 409 — release a package first or pass `testPackageId` explicitly.
+
 The fixture immediately locks -- its status changes from AVAILABLE to **LOCKED**. No other operator can start a second session on the same fixture until you end yours. This prevents two people from driving the same hardware simultaneously.
 
 The session runner page opens with the product name in the header and an **ACTIVE** status badge.

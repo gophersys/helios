@@ -24,7 +24,9 @@ The key classes:
 
 ```
 my-product-tests/
-  concord.test.yaml        # Package manifest
+  concord.yaml             # Package manifest (schema 1.0)
+  pyproject.toml           # Required — runner installs via pip install -e .
+  conftest.py              # corekinect.test.autoconf hook
   fixtures/
     alpha_b0/
       fixture.yaml         # Hardware pin mapping
@@ -40,25 +42,50 @@ my-product-tests/
       test_fuota.py
 ```
 
-### concord.test.yaml
+Scaffold a new project with `corectl test init` — see the
+[corectl reference](../reference/corectl.md#test-packages).
 
-The manifest declares the product, supported stages, and dependencies:
+### concord.yaml
+
+The manifest declares schema version, package metadata, product +
+board target, fixture wiring, and per-stage config:
 
 ```yaml
-product: alpha-b0
-revision: B0
-version: 1.0.0
+schema: "1.0"
+
+package:
+  type: validation
+  version: "1.0.0"
+  framework: ">=0.3.0"
+
+product:
+  slug: alpha
+  board: alpha_b0
+  device:
+    type_id: 42
+    variant_id: 7
+
+fixture:
+  design: "Alpha B0 Validation Fixture"
+  revision: "1.0"
+  controller: fixtures.alpha_b0.controller.AlphaB0Fixture
+  profile: fixtures/alpha_b0/fixture.yaml
+
 stages:
-  - smoke
-  - post
-  - functional
-  - fuota
-fixtures:
-  - alpha_b0
-dependencies:
-  - corekinect>=2.0.0
-  - pytest>=7.0
+  smoke:
+    directory: tests/smoke
+    timeout_s: 300
+    hardware: [mtib]
+  fuota:
+    directory: tests/fuota
+    timeout_s: 7200
+    hardware: [mtib]
 ```
+
+The `fixture.design` and `fixture.revision` fields name the
+FixtureDesign that gets extracted and bound to this package on
+upload — every test package owns exactly one design, and
+re-uploading a dev package overwrites its design profile in place.
 
 ## Fixture Controllers
 
