@@ -31,33 +31,38 @@ flip can't orphan a running run.
 ## Where designs come from
 
 Designs are not created by hand in the API. They are extracted from
-the test package's `concord.yaml` and `fixtures/*/fixture.yaml` at
-upload time:
+the test package's `concord.yaml` and `fixtures/<rev>/fixture.py`
+at upload time:
 
 ```yaml
 # concord.yaml
 fixture:
-  design: "Alpha B0 Validation Fixture"
-  revision: "1.0"
-  profile: fixtures/alpha_b0/fixture.yaml
+  module: fixtures.alpha_b0.fixture:AlphaB0Fixture
+  multi_slot: true
 ```
 
-```yaml
-# fixtures/alpha_b0/fixture.yaml
-name: "Alpha B0 Validation Fixture"
-revision: "1.0"
-capabilities: [power, jlink, button]
-power:
-  ch0: { voltage_v: 4.5 }
-# ...
+```python
+# fixtures/alpha_b0/fixture.py
+from corekinect.fixture import ADC, GPIO, JLink, Power, UART, Fixture
+
+
+class AlphaB0Fixture(Fixture):
+    name = "alpha_b0-manufacturing"
+    revision = "1.0"
+
+    adcs = {"battery": ADC(channel=0, signal="VBAT")}
+    gpios = {"boot": GPIO(pin=0, role="LOW = boot")}
+    uarts = {"app": UART(port=1, target="nrf52840")}
+    jlinks = {"app": JLink(family="NRF52")}
+    power = {"dut": Power(rail="DUT_PWR")}
 ```
 
 When `corectl test upload` lands a package, the backend reads
-`fixture.profile` from the manifest, parses the fixture YAML, and
-upserts a `FixtureDesign` record keyed on the package id. Re-running
-a dev upload overwrites the same design's profile in place. A
-release uploads the same way — the design is immutable from that
-point because the owning package is.
+`fixture.module` from the manifest, AST-parses the referenced Python
+class (never executes it), and upserts a `FixtureDesign` keyed on the
+package id. Re-running a dev upload overwrites the same design's
+profile template in place. A release uploads the same way — the
+design is immutable from that point because the owning package is.
 
 See the [corectl reference](../reference/corectl.md#test-packages)
 for the upload flow.

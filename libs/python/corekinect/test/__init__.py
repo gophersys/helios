@@ -31,11 +31,6 @@ from .assertions import (
 from .timing import COMMON, CommonTiming, timeout, wait_with_progress
 from .cfw import parse_cfw_header
 
-# ── Hardware / Profiles (deprecated — use product-specific fixtures) ──
-# Legacy imports kept for backward compatibility with existing code.
-# New product test apps should NOT import FixtureController or FixtureProfile
-# from corekinect.test. Instead, each product defines its own fixture module.
-
 # ── Artifacts & Storage ──
 from .artifact_resolver import ArtifactResolver, BuildManifest, ManifestTarget
 from .stage_assets import BuildAsset, StageAssets
@@ -67,9 +62,6 @@ from .pytest_integration import (
     get_required_feature,
     requires_capability,
 )
-
-# Note: CapabilityNotAvailable is imported from profiles (defined there),
-# re-exported from programmable_fixture for backward compat. Import once above.
 
 __all__ = [
     # ── Core ──

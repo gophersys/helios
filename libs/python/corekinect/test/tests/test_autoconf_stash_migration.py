@@ -27,7 +27,7 @@ pytest_plugins = ["pytester"]
 
 
 def _make_minimal_manifest(pytester: pytest.Pytester) -> None:
-    """Drop a minimal but valid concord.yaml v2 manifest into pytester.path.
+    """Drop a minimal but valid concord.yaml v1.0 manifest into pytester.path.
 
     Just enough fields to satisfy the loader. The autoconf plugin
     skips when the manifest is missing or malformed, so a real-shaped
@@ -37,7 +37,7 @@ def _make_minimal_manifest(pytester: pytest.Pytester) -> None:
         ".yaml",
         concord=textwrap.dedent(
             """
-            schema: "2.0"
+            schema: "1.0"
             package:
               type: validation
               version: "0.0.1"
@@ -49,10 +49,7 @@ def _make_minimal_manifest(pytester: pytest.Pytester) -> None:
                 type_id: 1
                 variant_id: 1
             fixture:
-              design: Stub Fixture
-              revision: "1.0"
-              controller: corekinect.test.tests.stubs.StubController
-              profile: ""
+              module: corekinect.test.tests.stubs:StubFixture
               multi_slot: false
             stages: {}
             """

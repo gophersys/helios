@@ -13,8 +13,7 @@ product:
     variant_id: {{device_variant_id}}
 
 fixture:
-  controller: {{fixture_controller}}
-  profile: {{fixture_profile}}
+  module: {{fixture_module}}
   multi_slot: false
 
 stages:

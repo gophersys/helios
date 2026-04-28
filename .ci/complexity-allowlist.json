@@ -181,55 +181,6 @@
     "from_json": 27,
     "to_update_data": 11
   },
-  "apps/backend/http-api/src/api/v2/sessions/artifacts.py": {
-    "download_artifact": 11
-  },
-  "apps/backend/http-api/src/api/v2/sessions/logs.py": {
-    "_generate_manifest": 12,
-    "download_run": 11
-  },
-  "apps/backend/http-api/src/api/v2/sessions/manual.py": {
-    "create_k8s_job_name": 11,
-    "create_kubernetes_job": 29,
-    "run_tests": 16
-  },
-  "apps/backend/http-api/src/api/v2/sessions/queue.py": {
-    "_serialize_queue_entry": 11,
-    "process_queue": 12
-  },
-  "apps/backend/http-api/src/api/v2/sessions/reporter.py": {
-    "report_finish": 12,
-    "report_step_result": 17,
-    "report_test_start": 15
-  },
-  "apps/backend/http-api/src/api/v2/sessions/runs.py": {
-    "_serialize_execution": 11,
-    "_serialize_session": 23,
-    "_serialize_step": 11,
-    "cancel_run": 26,
-    "rerun_session": 11
-  },
-  "apps/backend/http-api/src/api/v2/sessions/scheduler.py": {
-    "_resolve_fixture_slot_info": 11,
-    "_trigger_validation_job": 30,
-    "on_build_complete": 19,
-    "schedule_queue": 16
-  },
-  "apps/backend/http-api/src/api/v2/sessions/trigger.py": {
-    "_find_available_fixture": 29,
-    "trigger_run": 27
-  },
-  "apps/backend/http-api/src/api/v2/sessions/types.py": {
-    "QueueEntryUpdateRequest": 13,
-    "ReportFinishRequest": 16,
-    "ReportLogChunkRequest": 16,
-    "ReportTestResultRequest": 18,
-    "RunCreateRequest": 23,
-    "RunTriggerRequest": 13,
-    "StepResultRequest": 18,
-    "StepStartRequest": 12,
-    "from_json": 22
-  },
   "apps/backend/http-api/src/api/v2/system/history.py": {
     "list_history": 12
   },

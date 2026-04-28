@@ -75,9 +75,6 @@ from .queue import (
     trigger_scheduler,
 )
 
-# Manual test run
-from .manual import run_tests
-
 # WebSocket handlers
 from .ws import register_runs_ws_handlers
 
@@ -323,17 +320,6 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         "/runs/<run_id>/demo/simulate",
         endpoint="simulate_run",
         view_func=simulate_run,
-        methods=["POST"],
-    )
-
-    # ─────────────────────────────────────────────────────────────
-    #  Manual test run
-    # ─────────────────────────────────────────────────────────────
-
-    api.add_url_rule(
-        "/runs/manual/run",
-        endpoint="manual_test_run",
-        view_func=run_tests,
         methods=["POST"],
     )
 

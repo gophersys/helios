@@ -73,13 +73,7 @@ def trigger_run(run_id: str):
         # Determine firmware path
         firmware_path = data.firmware_path or ""
 
-        # Build test enable flags from run config or request config
         run_config = data.config or (run.config if isinstance(run.config, dict) else {}) or {}
-        test_enable = run_config.get("testEnable", {
-            "electrical": True,
-            "app_post": True,
-            "comm_post": True,
-        })
 
         # Get product name and revision
         product_name = run.product.name if hasattr(run, "product") and run.product else "unknown"
@@ -170,16 +164,14 @@ def trigger_run(run_id: str):
                 job_id=f"{run_id}-s{slot_info.get('slotIndex', 0)}",
                 firmware_path=firmware_path,
                 test_type=run.type.lower() if hasattr(run, "type") else "validation",
-                test_enable=test_enable if isinstance(test_enable, dict) else {},
                 firmware_version=data.firmware_version,
                 run_id=run_id,
                 api_key=api_key,
                 api_url=api_url,
                 mtib_address=mtib_host,
-                bench_id=fixture.get("id"),
+                fixture_id=fixture.get("id"),
                 device_id=slot_info.get("dutDeviceId"),
                 device_snr=slot_info.get("dutSnr"),
-                fixture_profile_path=slot_info.get("profilePath"),
                 build_run_id=data.build_run_id,
                 product_slug=product_slug,
                 stage=data.stage,

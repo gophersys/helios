@@ -122,11 +122,6 @@
         "required": true,
         "description": "Fixture DB ID for session tracking and fixture locking."
       },
-      "FIXTURE_PROFILE_PATH": {
-        "type": "string",
-        "required": false,
-        "description": "Path to single-slot fixture profile JSON inside the container (validation)."
-      },
       "FIXTURE_CONFIG_PATH": {
         "type": "string",
         "required": false,

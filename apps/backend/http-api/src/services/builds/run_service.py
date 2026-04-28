@@ -1057,10 +1057,6 @@ def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Option
                     firmware_version = build.versionString
                     break
 
-        fixture_profile_path = ""
-        if fixture.design and hasattr(fixture.design, "profileTemplate"):
-            fixture_profile_path = f"fixtures/{product.slug}.json"
-
         image_tag = os.environ.get("ENVIRONMENT", "staging")
         git_commit = os.environ.get("GIT_COMMIT", "unknown")[:7]
 
@@ -1073,24 +1069,21 @@ def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Option
                 where={"productId": product.id, "stage": stage_num},
             )
 
-        test_enable = {"electrical": False, "app_post": False, "comm_post": False}
         job_name = create_kubernetes_job(
             product=product.name,
             job_id=session.id,
             firmware_path="",
             test_type="validation",
-            test_enable=test_enable,
             firmware_version=firmware_version or "unknown",
             run_id=session.id,
             api_key=raw_key,
             api_url=api_url,
             mtib_address=mtib_address or "",
-            bench_id=fixture.id,
+            fixture_id=fixture.id,
             device_id=slot.dutDeviceId or "",
             device_snr=slot.dutSnr or "",
             device_imei=slot.dutImei or "",
             device_iccids=",".join(slot.dutIccids) if slot.dutIccids else "",
-            fixture_profile_path=fixture_profile_path,
             build_run_id=run_id,
             stage=stage_name,
             image_tag=image_tag,

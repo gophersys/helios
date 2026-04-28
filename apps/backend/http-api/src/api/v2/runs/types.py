@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 VALID_RUN_TYPES = ("VALIDATION", "MANUFACTURING")
 VALID_RUN_STATUSES = ("PENDING", "ACTIVE", "COMPLETED", "FAILED", "CANCELLED")
-VALID_QUEUE_STATUSES = ("QUEUED", "ASSIGNED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED")
 
 
 @dataclass
@@ -318,103 +317,3 @@ class ReportLogChunkRequest:
         ), None
 
 
-@dataclass
-class ValidationTestsRunRequest:
-    """Request structure for running a validation test."""
-
-    product: str
-    zip_file_path: str
-    additional_fields: Dict[str, str]
-
-    @classmethod
-    def from_form_data(cls, form_data: dict, zip_file_path: str) -> Tuple[Optional["ValidationTestsRunRequest"], Optional[str]]:
-        """Parse form data into request object with validation."""
-        if not form_data:
-            return None, "Request must contain form data"
-
-        product = form_data.get("product")
-        if not product:
-            return None, "Field 'product' is required"
-
-        additional_fields = {}
-        for key, value in form_data.items():
-            if key not in ["product", "file"] and value:
-                additional_fields[key] = value
-
-        return cls(product=product, zip_file_path=zip_file_path, additional_fields=additional_fields), None
-
-
-@dataclass
-class QueueEntryCreateRequest:
-    """Create a validation queue entry."""
-
-    assetSetId: str
-    stage: int
-    priority: Optional[int] = None
-    reason: Optional[str] = None
-
-    @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["QueueEntryCreateRequest"], Optional[str]]:
-        if not data:
-            return None, "Request body must contain JSON data"
-
-        asset_set_id = (data.get("assetSetId") or "").strip()
-        if not asset_set_id:
-            return None, "assetSetId is required"
-
-        stage = data.get("stage")
-        if stage is None:
-            return None, "Stage is required"
-        try:
-            stage = int(stage)
-        except (TypeError, ValueError):
-            return None, "Stage must be an integer"
-        if stage < 1 or stage > 5:
-            return None, "Stage must be between 1 and 5"
-
-        priority = data.get("priority")
-        if priority is not None:
-            try:
-                priority = int(priority)
-            except (TypeError, ValueError):
-                return None, "Priority must be an integer"
-            if priority < 0 or priority > 100:
-                return None, "Priority must be between 0 and 100"
-
-        reason = (data.get("reason") or "").strip() or None
-
-        return cls(assetSetId=asset_set_id, stage=stage, priority=priority, reason=reason), None
-
-
-@dataclass
-class QueueEntryUpdateRequest:
-    """Update a validation queue entry."""
-
-    status: Optional[str] = None
-    priority: Optional[int] = None
-    fixtureId: Optional[str] = None
-
-    @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["QueueEntryUpdateRequest"], Optional[str]]:
-        if not data:
-            return None, "Request body must contain JSON data"
-
-        status = data.get("status")
-        priority = data.get("priority")
-        fixture_id = data.get("fixtureId")
-
-        if not status and priority is None and not fixture_id:
-            return None, "At least one field (status, priority, fixtureId) is required"
-
-        if status and status not in VALID_QUEUE_STATUSES:
-            return None, f"Invalid status. Must be one of: {', '.join(VALID_QUEUE_STATUSES)}"
-
-        if priority is not None:
-            try:
-                priority = int(priority)
-            except (TypeError, ValueError):
-                return None, "Priority must be an integer"
-            if priority < 0 or priority > 100:
-                return None, "Priority must be between 0 and 100"
-
-        return cls(status=status, priority=priority, fixtureId=fixture_id), None

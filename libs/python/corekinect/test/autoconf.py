@@ -34,7 +34,6 @@ from __future__ import annotations
 import importlib
 import os
 import warnings
-from collections import namedtuple
 from pathlib import Path
 from typing import Any, List, Optional, TYPE_CHECKING
 
@@ -55,12 +54,12 @@ from corekinect.test.slot_env import resolve_slot_bindings, slot_bindings_by_ind
 from corekinect.test.stage_assets import StageAssets
 from corekinect.test.telemetry import TelemetryStreamer
 from corekinect.utils import Logger
-from corekinect.test.errors import bad_fixture_controller, missing_env_var
+from corekinect.test.errors import bad_fixture_class, missing_env_var
 
 try:
     from corekinect.test.mock_cloud import MockCloudClient
     from corekinect.test.mock_hardware import (
-        MockFixtureController,
+        MockMtibClient,
         MockPowerProfiler,
         MockUartDemuxer,
     )
@@ -129,30 +128,26 @@ def _is_mock_mode(config: Optional[pytest.Config] = None) -> bool:
     return False
 
 
-def _import_controller(dotted_path: str) -> Any:
-    """Import a fixture controller class from a dotted module path.
+def _import_fixture_class(module_ref: str) -> Any:
+    """Import a Fixture subclass from a ``module:Class`` reference.
 
-    Accepts ``package.module.ClassName`` format. The last component is
-    the class/callable name; everything before it is the module path.
-
-    Returns:
-        The imported class or callable.
+    The format matches ``concord.yaml`` ``fixture.module``:
+    ``dotted.module.path:ClassName``.
 
     Raises:
         ImportError: If the module cannot be found or the name doesn't exist.
     """
-    parts = dotted_path.rsplit(".", 1)
-    if len(parts) != 2:
+    if ":" not in module_ref:
         raise ImportError(
-            f"Invalid controller path: {dotted_path!r} "
-            f"— expected 'module.path.ClassName'"
+            f"Invalid fixture module reference: {module_ref!r} "
+            f"— expected 'module.path:ClassName'"
         )
-    module_path, class_name = parts
+    module_path, class_name = module_ref.split(":", 1)
     module = importlib.import_module(module_path)
     cls = getattr(module, class_name, None)
     if cls is None:
         raise ImportError(
-            f"Controller class {class_name!r} not found in module {module_path!r}"
+            f"Fixture class {class_name!r} not found in module {module_path!r}"
         )
     return cls
 
@@ -524,8 +519,8 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     """Session-scoped test context — connects once, shared across all tests.
 
     Validation packages:
-        Creates a TestContext with the fixture controller specified in
-        concord.yaml (``fixture.controller``). Connects to MTIB and
+        Creates a TestContext with the fixture class specified in
+        concord.yaml (``fixture.module``). Connects to MTIB and
         starts UART capture, power polling, and telemetry.
 
     Mock mode (MOCK_MODE=1 or --mock-cloud):
@@ -567,16 +562,16 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     if not device_id:
         pytest.skip(missing_env_var("DEVICE_ID", "create test context"))
 
-    # Import and instantiate the fixture controller from the manifest
-    controller_path = manifest.fixture.controller
+    # Import and instantiate the fixture class from the manifest
+    module_ref = manifest.fixture.module
     try:
-        controller_class = _import_controller(controller_path)
+        fixture_cls = _import_fixture_class(module_ref)
     except ImportError as exc:
-        pytest.skip(bad_fixture_controller(controller_path, exc))
+        pytest.skip(bad_fixture_class(module_ref, exc))
 
     try:
         context = TestContext.from_env(
-            fixture_factory=lambda mtib: controller_class(mtib)
+            fixture_factory=lambda mtib: fixture_cls(mtib)
         )
         context.connect()
     except Exception as exc:
@@ -835,8 +830,9 @@ def _test_lifecycle(request: pytest.FixtureRequest):
 def _build_mock_validation_context(manifest: "Manifest"):
     """Build a TestContext with all-mock components for offline testing.
 
-    Mirrors the mock setup from the Alpha validation conftest but
-    driven by the manifest's product config.
+    The fixture is the real ``Fixture`` subclass declared by the test
+    package; the difference from hardware mode is that it's bound to a
+    ``MockMtibClient`` instead of a live gRPC channel.
     """
     if not _HAS_MOCKS:
         pytest.skip("Mock mode dependencies not available")
@@ -845,7 +841,12 @@ def _build_mock_validation_context(manifest: "Manifest"):
     device_id = int(device_id_hex, 16)
 
     cloud = MockCloudClient(device_id=device_id)
-    fixture_ctrl = MockFixtureController()
+    mock_mtib = MockMtibClient()
+    try:
+        fixture_cls = _import_fixture_class(manifest.fixture.module)
+    except ImportError as exc:
+        pytest.skip(bad_fixture_class(manifest.fixture.module, exc))
+    fixture_ctrl = fixture_cls(mtib=mock_mtib)
     uart = MockUartDemuxer()
     power = MockPowerProfiler()
 
@@ -883,34 +884,6 @@ def _build_mock_validation_context(manifest: "Manifest"):
 
 def _build_mock_fixture_context():
     """Build a FixtureContext with mock MTIB clients for manufacturing."""
-    class MockMtibClient:
-        """Minimal MTIB stub for mock-mode manufacturing tests."""
-
-        def connect(self):
-            return None
-
-        def disconnect(self):
-            return None
-
-        def HealthCheck(self):
-            return True, [], None
-
-        def PowerEnable(self, *a, **kw):
-            return None
-
-        def PowerDisable(self, *a, **kw):
-            return None
-
-        def GpioConfig(self, *a, **kw):
-            return None
-
-        def GpioWrite(self, *a, **kw):
-            return None
-
-        def PowerRead(self, *a, **kw):
-            R = namedtuple("R", ["current_ma", "voltage_v", "power_mw"])
-            return R(current_ma=25.0, voltage_v=4.5, power_mw=112.5), None
-
     mock_snrs = ["MOCK0", "MOCK1", "MOCK2", "MOCK3"]
     slots = {}
     for i, snr in enumerate(mock_snrs):

@@ -924,36 +924,6 @@ class TestObservabilityPermissions:
 
 
 # ---------------------------------------------------------------------------
-# Module: Validation Tests (legacy manufacturing)
-# ---------------------------------------------------------------------------
-
-class TestValidationLegacyPermissions:
-    """Tests for /v2/runs/manual/run — requires validation:run."""
-
-    def test_run_tests_unauthenticated(self, client):
-        response = client.post("/v2/runs/manual/run",
-                               data=json.dumps({}),
-                               content_type="application/json")
-        _assert_401(response)
-
-    def test_run_tests_view_only(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "validation:view",
-        )
-        response = client.post("/v2/runs/manual/run",
-                               data=json.dumps({}), headers=auth_headers)
-        _assert_403(response)
-
-    def test_run_tests_correct_permission(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "validation:run",
-        )
-        response = client.post("/v2/runs/manual/run",
-                               data=json.dumps({}), headers=auth_headers)
-        _assert_not_denied(response)
-
-
-# ---------------------------------------------------------------------------
 # Cross-cutting: No permission set assigned
 # ---------------------------------------------------------------------------
 

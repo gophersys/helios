@@ -108,5 +108,5 @@ def _empty_manifest() -> Manifest:
         schema_version="0.0",
         package=PackageConfig(type="validation", version="0.0.0", framework=">=0.0.0"),
         product=ProductConfig(slug="", board="", device=DeviceConfig()),
-        fixture=FixtureConfig(controller="", profile=""),
+        fixture=FixtureConfig(module=":"),
     )

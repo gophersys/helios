@@ -105,6 +105,10 @@ def _write_fake_suite(
     pytester.makepyfile(test_fake="\n".join(body))
 
     # ── Trace-logging helper module ──
+    # Timestamp is captured INSIDE the lock so events are monotonically
+    # ordered relative to file writes. Capturing outside the lock lets
+    # a thread snapshot ts=T, get preempted, then write after a thread
+    # that captured ts=T+ε — making the trace look out-of-order.
     helper: List[str] = [
         "import json",
         "import threading",
@@ -115,14 +119,14 @@ def _write_fake_suite(
         f"BARRIER = threading.Barrier({num_slots}) if {barrier_enabled!r} else None",
         "",
         "def record(event_type, test_idx, slot):",
-        "    event = {",
-        "        'event': event_type,",
-        "        'test': test_idx,",
-        "        'slot': slot,",
-        "        'ts': time.monotonic(),",
-        "        'thread': threading.current_thread().name,",
-        "    }",
         "    with _lock:",
+        "        event = {",
+        "            'event': event_type,",
+        "            'test': test_idx,",
+        "            'slot': slot,",
+        "            'ts': time.monotonic(),",
+        "            'thread': threading.current_thread().name,",
+        "        }",
         "        with open(_TRACE_PATH, 'a') as f:",
         "            f.write(json.dumps(event) + '\\n')",
         "",
@@ -216,11 +220,14 @@ def test_group_members_run_concurrently(pytester: pytest.Pytester) -> None:
     result.assert_outcomes(passed=4)
 
 
-def test_groups_run_sequentially_not_interleaved(pytester: pytest.Pytester) -> None:
-    """Group B's earliest entry comes AFTER group A's latest exit.
+def test_each_slot_runs_its_tests_in_order(pytester: pytest.Pytester) -> None:
+    """Within a single slot, tests run sequentially in declaration order.
 
-    The trace log is written by all threads with a monotonic timestamp;
-    we assert the barrier between groups by comparing those intervals.
+    Slots run concurrently with no inter-slot barrier (intentional —
+    the per-test barrier was removed for ~80 s of wall-clock savings on
+    a typical panel run; see ``slot_parallel.py``). The remaining
+    invariant is per-slot ordering: slot-0's test_01 starts only after
+    slot-0's test_00 finishes.
     """
     _write_fake_suite(pytester, num_tests=2, num_slots=3, sleep_s=0.05)
     pytester.makepyfile(conftest=_conftest_registering_plugin())
@@ -231,13 +238,21 @@ def test_groups_run_sequentially_not_interleaved(pytester: pytest.Pytester) -> N
     assert len(_events_by_kind(events, kind="entry")) == 6
     assert len(_events_by_kind(events, kind="exit")) == 6
 
-    group0_start, group0_end = _group_interval(events, 0)
-    group1_start, group1_end = _group_interval(events, 1)
-    assert group0_end <= group1_start, (
-        f"group 1 started before group 0 finished: "
-        f"group0=[{group0_start:.4f}..{group0_end:.4f}] "
-        f"group1=[{group1_start:.4f}..{group1_end:.4f}]"
-    )
+    # For every slot, test_00 must exit before test_01 enters.
+    for slot in ("slot-0", "slot-1", "slot-2"):
+        slot_events = [e for e in events if e["slot"] == slot]
+        test0_exit = next(
+            e["ts"] for e in slot_events
+            if e["test"] == 0 and e["event"] == "exit"
+        )
+        test1_entry = next(
+            e["ts"] for e in slot_events
+            if e["test"] == 1 and e["event"] == "entry"
+        )
+        assert test0_exit <= test1_entry, (
+            f"{slot}: test_01 entered ({test1_entry:.4f}) before "
+            f"test_00 exited ({test0_exit:.4f})"
+        )
 
 
 def test_failure_in_one_slot_does_not_abort_others(pytester: pytest.Pytester) -> None:

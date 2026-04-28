@@ -58,10 +58,7 @@ def _validation_dict() -> dict:
             },
         },
         "fixture": {
-            "design": "Alpha B0 Validation Fixture",
-            "revision": "1.0",
-            "controller": "fixtures.alpha_b0.controller.AlphaB0Fixture",
-            "profile": "fixtures/alpha_b0/fixture.yaml",
+            "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
             "multi_slot": False,
         },
         "stages": {
@@ -97,10 +94,7 @@ def _manufacturing_dict() -> dict:
             },
         },
         "fixture": {
-            "design": "Alpha B0 Manufacturing Fixture",
-            "revision": "1.0",
-            "controller": "fixtures.alpha_b0.controller.AlphaB0Fixture",
-            "profile": "fixtures/alpha_b0/fixture.yaml",
+            "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
             "multi_slot": True,
         },
         "steps": [
@@ -137,10 +131,7 @@ def _minimal_validation_dict() -> dict:
             "board": "beta_a0",
         },
         "fixture": {
-            "design": "Beta A0 Validation Fixture",
-            "revision": "1.0",
-            "controller": "fixtures.beta.Controller",
-            "profile": "fixtures/beta/profile.yaml",
+            "module": "fixtures.beta_a0.fixture:BetaA0Fixture",
         },
         "stages": {
             "smoke": {
@@ -183,8 +174,10 @@ class TestManifestFromDictValidation:
 
     def test_fixture_fields(self):
         m = Manifest.from_dict(_validation_dict())
-        assert m.fixture.controller == "fixtures.alpha_b0.controller.AlphaB0Fixture"
-        assert m.fixture.profile == "fixtures/alpha_b0/fixture.yaml"
+        assert m.fixture.module == "fixtures.alpha_b0.fixture:AlphaB0Fixture"
+        assert m.fixture.module_path == "fixtures.alpha_b0.fixture"
+        assert m.fixture.class_name == "AlphaB0Fixture"
+        assert m.fixture.file_path == "fixtures/alpha_b0/fixture.py"
         assert m.fixture.multi_slot is False
 
     def test_stages_parsed(self):
@@ -299,7 +292,7 @@ class TestFrozenDataclasses:
     def test_fixture_config_frozen(self):
         m = Manifest.from_dict(_validation_dict())
         with pytest.raises(AttributeError):
-            m.fixture.profile = "other.yaml"
+            m.fixture.module = "other:Other"
 
     def test_stage_config_frozen(self):
         m = Manifest.from_dict(_validation_dict())
@@ -416,9 +409,15 @@ class TestValidateManifestBadValues:
         result = validate_manifest(data)
         assert not result.valid
 
-    def test_profile_not_ending_in_yaml(self):
+    def test_module_without_class_name_rejected(self):
         data = _validation_dict()
-        data["fixture"]["profile"] = "fixtures/profile.json"
+        data["fixture"]["module"] = "fixtures.alpha_b0.fixture"
+        result = validate_manifest(data)
+        assert not result.valid
+
+    def test_module_with_lowercase_class_rejected(self):
+        data = _validation_dict()
+        data["fixture"]["module"] = "fixtures.alpha_b0.fixture:alphaB0Fixture"
         result = validate_manifest(data)
         assert not result.valid
 

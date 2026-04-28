@@ -77,27 +77,13 @@
 
     "fixture": {
       "type": "object",
-      "required": ["design", "revision", "controller", "profile"],
+      "required": ["module"],
       "additionalProperties": false,
       "properties": {
-        "design": {
+        "module": {
           "type": "string",
-          "description": "Fixture design name matching the 'name' field in fixture.yaml (e.g., 'Alpha B0 Manufacturing Fixture')."
-        },
-        "revision": {
-          "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+$",
-          "description": "Fixture hardware revision matching the 'revision' field in fixture.yaml (e.g., '1.0', '1.2')."
-        },
-        "controller": {
-          "type": "string",
-          "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*$",
-          "description": "Dotted Python import path to the fixture controller class (e.g., 'fixtures.alpha_b0.controller.AlphaB0Fixture')."
-        },
-        "profile": {
-          "type": "string",
-          "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_/.-]*\\.ya?ml$",
-          "description": "Relative path to the fixture YAML profile (e.g., 'fixtures/alpha_b0/fixture.yaml')."
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*:[A-Z][a-zA-Z0-9_]*$",
+          "description": "Fixture class location, formatted as 'dotted.module.path:ClassName' (e.g. 'fixtures.alpha_b0.fixture:AlphaB0Fixture'). The class must subclass corekinect.fixture.Fixture and declare its DUT-side wiring via class-level resource maps. Backend AST-extracts ``name`` and ``revision`` from the class at upload time."
         },
         "multi_slot": {
           "type": "boolean",

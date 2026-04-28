@@ -10,8 +10,7 @@ product:
   board: {{board}}
 
 fixture:
-  controller: {{fixture_controller}}
-  profile: {{fixture_profile}}
+  module: {{fixture_module}}
   multi_slot: true
 
 # Manufacturing stages run in order. Rename ``stage_01`` to the operation

@@ -166,8 +166,5 @@ nav:
       - Build Service: platform/build-system/build-service.md
       - Product Builds: platform/build-system/product-builds.md
       - Artifact Contract: platform/build-system/artifact-contract.md
-    - Validation System:
-      - platform/validation-system/index.md
-      - System Design: platform/validation-system/system-design.md
-      - Test Runner: platform/validation-system/test-runner.md
+    - Validation System: platform/validation-system/index.md
     - CoreCloud: platform/corecloud.md

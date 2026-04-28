@@ -9,7 +9,7 @@ Wraps FuotaClient with orchestration logic that any product needs:
 Usage:
     from corekinect.test.fuota_orchestrator import FuotaOrchestrator
 
-    orchestrator = FuotaOrchestrator(fuota_client, fixture_controller)
+    orchestrator = FuotaOrchestrator(fuota_client, fixture)
     orchestrator.upload_cfw_files(cfw_paths)
     plan_id = orchestrator.create_and_assign_plan(device_id, targets, ...)
     orchestrator.wait_for_completion(device_id, expected_app_ids)
@@ -34,16 +34,16 @@ class FuotaOrchestrator:
     uses CoreCloud FUOTA delivery.
     """
 
-    def __init__(self, fuota_client: Any, fixture_controller: Optional[Any] = None, logger: Optional[Any] = None):
+    def __init__(self, fuota_client: Any, fixture: Optional[Any] = None, logger: Optional[Any] = None):
         """
         Args:
             fuota_client: FuotaClient instance (authenticated).
-            fixture_controller: Optional FixtureController for power cycling
-                during stalls. If None, power cycling is skipped.
+            fixture: Optional Fixture instance for power cycling during
+                stalls. If None, power cycling is skipped.
             logger: Optional logger. Defaults to module logger.
         """
         self._client = fuota_client
-        self._fixture = fixture_controller
+        self._fixture = fixture
         self._log = logger or log
 
     def upload_cfw_files(self, cfw_paths: List[str]) -> None:

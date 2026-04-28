@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from corekinect.test.errors import (
-    bad_fixture_controller,
+    bad_fixture_class,
     missing_env_var,
 )
 
@@ -66,21 +66,21 @@ class TestMissingEnvVar:
         assert isinstance(missing_env_var("X", "y"), str)
 
 
-class TestBadFixtureController:
-    """``bad_fixture_controller`` surfaces both path and root cause."""
+class TestBadFixtureClass:
+    """``bad_fixture_class`` surfaces both module reference and root cause."""
 
     def test_names_path_and_wrapped_exception_type(self) -> None:
         cause = ImportError("No module named 'missing'")
-        msg = bad_fixture_controller("app.fake.Controller", cause)
-        assert "app.fake.Controller" in msg
+        msg = bad_fixture_class("app.fake:Fixture", cause)
+        assert "app.fake:Fixture" in msg
         assert "ImportError" in msg
         assert "No module named 'missing'" in msg
 
     def test_works_for_non_import_errors_too(self) -> None:
-        # A circular import surfaces as AttributeError inside _import_controller;
+        # A circular import surfaces as AttributeError inside _import_fixture_class;
         # the helper shouldn't assume the cause type.
-        cause = AttributeError("module has no attribute 'Controller'")
-        msg = bad_fixture_controller("app.fake.Controller", cause)
+        cause = AttributeError("module has no attribute 'Fixture'")
+        msg = bad_fixture_class("app.fake:Fixture", cause)
         assert "AttributeError" in msg
         assert "module has no attribute" in msg
 
@@ -88,6 +88,6 @@ class TestBadFixtureController:
         class _Bare(Exception):
             pass
 
-        msg = bad_fixture_controller("pkg.Thing", _Bare())
-        assert "pkg.Thing" in msg
+        msg = bad_fixture_class("pkg:Thing", _Bare())
+        assert "pkg:Thing" in msg
         assert "_Bare" in msg

@@ -34,13 +34,36 @@ class ProductConfig:
 
 @dataclass(frozen=True)
 class FixtureConfig:
-    """Hardware-fixture wiring: controller class + profile YAML + slot mode."""
+    """Pointer to the test app's Python ``Fixture`` class.
 
-    controller: str  # dotted import path
-    profile: str  # relative file path
-    design: str = ""  # fixture design name (matches fixture.yaml 'name')
-    revision: str = "1.0"  # fixture hardware revision (matches fixture.yaml 'revision')
+    Format: ``dotted.module.path:ClassName`` (e.g.
+    ``fixtures.alpha_b0.fixture:AlphaB0Fixture``). The class is the
+    single source of truth for the fixture's DUT-side wiring; the
+    backend AST-extracts ``name`` and ``revision`` from the class at
+    upload time so the manifest doesn't need to repeat them.
+    """
+
+    module: str
     multi_slot: bool = False
+
+    @property
+    def module_path(self) -> str:
+        """Dotted module portion of ``module`` (before the ``:``)."""
+        return self.module.split(":", 1)[0]
+
+    @property
+    def class_name(self) -> str:
+        """Class name portion of ``module`` (after the ``:``)."""
+        parts = self.module.split(":", 1)
+        return parts[1] if len(parts) == 2 else ""
+
+    @property
+    def file_path(self) -> str:
+        """Relative file path within the tar.gz, derived from ``module_path``.
+
+        ``fixtures.alpha_b0.fixture`` → ``fixtures/alpha_b0/fixture.py``.
+        """
+        return self.module_path.replace(".", "/") + ".py"
 
 
 @dataclass(frozen=True)
@@ -136,10 +159,7 @@ class Manifest:
                 device=device,
             ),
             fixture=FixtureConfig(
-                controller=fix["controller"],
-                profile=fix["profile"],
-                design=fix.get("design", ""),
-                revision=fix.get("revision", "1.0"),
+                module=fix["module"],
                 multi_slot=fix.get("multi_slot", False),
             ),
             stages=stages,

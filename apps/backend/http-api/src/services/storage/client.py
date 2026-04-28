@@ -26,7 +26,6 @@ class StoragePrefixes:
 
     PRODUCTS = "products"                   # Product-scoped assets and modem firmware
     FIRMWARE_BUILDS = "firmware/builds"     # CI build artifacts: {product}/{build_id}/{filename}
-    FIRMWARE_UPLOADS = "firmware/uploads"   # Manual firmware uploads: {product}/{filename}
     BUILD_SCRIPTS = "builds/scripts"       # Build automation: {product}/build.sh
     SESSIONS = "sessions"                  # Test session data
     ICLE_LOGS = "icle"                     # ICLE power logs

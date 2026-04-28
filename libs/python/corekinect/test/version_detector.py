@@ -7,7 +7,7 @@ own patterns for different firmware output formats.
 Usage:
     from corekinect.test.version_detector import BootVersionDetector
 
-    detector = BootVersionDetector(fixture_controller)
+    detector = BootVersionDetector(fixture)
     versions = detector.capture_boot_versions()
     # {"comms": "0.5.1", "app": "0.8.3"}
 

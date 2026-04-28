@@ -22,13 +22,9 @@ import pytest
 
 
 def _find_fixture(func: Callable, args: tuple, kwargs: dict):
-    """Find fixture controller from test args/kwargs. Returns None if not found."""
+    """Find the Fixture instance from a test's args/kwargs. Returns None if not found."""
     # Direct fixture kwargs
-    fixture = (
-        kwargs.get("fixture")
-        or kwargs.get("validation_fixture")
-        or kwargs.get("fixture_controller")
-    )
+    fixture = kwargs.get("fixture") or kwargs.get("validation_fixture")
     if fixture is not None:
         return fixture
 
@@ -48,7 +44,7 @@ def _find_fixture(func: Callable, args: tuple, kwargs: dict):
         sig = inspect.signature(func)
         params = list(sig.parameters.keys())
         for i, param in enumerate(params):
-            if param in ("fixture", "validation_fixture", "fixture_controller"):
+            if param in ("fixture", "validation_fixture"):
                 if i < len(args):
                     return args[i]
             elif param == "ctx" and i < len(args):

@@ -26,7 +26,7 @@ Today, builds produce files with ad-hoc naming and no manifest. Validation disco
 2. Pipeline artifact upload
 3. PipelineAssets download/resolution
 4. FUOTA client (CFW target construction)
-5. FixtureController (flash target selection)
+5. `Fixture.jlinks[...]` (flash target selection)
 6. Test assertions (version string parsing)
 
 Adding a second product requires changing code in 15+ files. A self-describing manifest fixes this by making every artifact queryable by role and type rather than by filename convention.
@@ -432,7 +432,7 @@ Build the resolver class. Add it to `TestContext`. Initially, wire it up alongsi
 
 ### Phase 4: Migrate Consumers
 
-**Where:** All validation test code, FUOTA client, FixtureController
+**Where:** All validation test code, FUOTA client, fixture J-Link bindings
 
 Replace one consumer at a time:
 
@@ -440,7 +440,7 @@ Replace one consumer at a time:
 |----------|---------|-------|
 | `PipelineAssets` | Filename pattern matching | `ArtifactResolver.get_artifact(role, type)` |
 | FUOTA client | Hardcoded `APP_ID = 109` | `manifest.targets[].appId` |
-| FixtureController | Hardcoded `HostType.HOST_TYPE_NRF52840` | `manifest.targets[].hostType` |
+| `Fixture.jlinks` | Hardcoded `JLink(family="NRF52")` per binding | `manifest.targets[].hostType` lookup |
 | Flash commands | Hardcoded `-f NRF52` | `manifest.targets[].jlinkFamily` |
 | Version assertions | Regex on UART output with hardcoded patterns | `manifest.version` + `manifest.targets[].appId` |
 

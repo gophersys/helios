@@ -24,7 +24,7 @@ def stub_client():
 @pytest.fixture
 def orchestrator(stub_client):
     """Orchestrator."""
-    return FuotaOrchestrator(fuota_client=stub_client, fixture_controller=None)
+    return FuotaOrchestrator(fuota_client=stub_client, fixture=None)
 
 
 @pytest.fixture
