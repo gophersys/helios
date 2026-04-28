@@ -68,7 +68,6 @@ class CkBoardsService:
         email: str,
         api_token: str,
         fetch_interval: int = 60,
-        environment: str = "development",
     ):
         if not email or not api_token:
             raise RuntimeError("CkBoards requires BITBUCKET_EMAIL and BITBUCKET_API_TOKEN")
@@ -76,7 +75,6 @@ class CkBoardsService:
         self._workspace = workspace
         self._repo_slug = repo_slug
         self._auth = HTTPBasicAuth(email, api_token)
-        self._environment = environment
         self._fetch_interval = fetch_interval
 
         # Cache
@@ -148,7 +146,15 @@ class CkBoardsService:
     # ------------------------------------------------------------------
 
     def list_refs(self) -> Dict[str, List[str]]:
-        """List branches and tags."""
+        """List every branch and tag in the ck_boards repo.
+
+        No environment-based filtering — production sees the same set
+        as staging and dev. The product-create wizard is the right
+        place to enforce "use master in prod" policy if/when that
+        matters; gating it server-side blocks legitimate scenarios
+        like onboarding a new product whose board YAMLs haven't
+        landed on master yet.
+        """
         branches = []
         tags = []
 
@@ -169,9 +175,6 @@ class CkBoardsService:
             data = resp.json()
             tags.extend(t["name"] for t in data.get("values", []))
             url = data.get("next")
-
-        if self._environment == "production":
-            branches = [b for b in branches if b in ("main", "master")]
 
         return {"branches": branches, "tags": tags}
 

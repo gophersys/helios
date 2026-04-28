@@ -162,7 +162,7 @@ board:
 # Helper to create a CkBoardsService with mocked Bitbucket API
 # ---------------------------------------------------------------------------
 
-def _make_service(environment="development"):
+def _make_service():
     """Create a CkBoardsService bypassing the real __init__ / _verify_access."""
     from src.services.ck_boards.service import CkBoardsService
 
@@ -171,7 +171,6 @@ def _make_service(environment="development"):
         svc._workspace = "test-workspace"
         svc._repo_slug = "ck-boards"
         svc._auth = ("test@test.com", "token")
-        svc._environment = environment
         svc._fetch_interval = 60
         svc._cache = {}
         svc._cache_time = {}
@@ -189,9 +188,9 @@ class TestCkBoardsServiceListRefs:
     """Tests for CkBoardsService.list_refs() with mocked REST API."""
 
     @patch("src.services.ck_boards.service.requests.get")
-    def test_list_refs_production_filters_branches(self, mock_get):
-        """Production mode filters branches to only main/master."""
-        svc = _make_service(environment="production")
+    def test_list_refs_returns_every_branch_and_tag(self, mock_get):
+        """No environment filtering — every ref the repo exposes is returned."""
+        svc = _make_service()
 
         branches_resp = MagicMock()
         branches_resp.status_code = 200
@@ -208,28 +207,8 @@ class TestCkBoardsServiceListRefs:
         mock_get.side_effect = [branches_resp, tags_resp]
 
         refs = svc.list_refs()
-        assert refs["branches"] == ["main"]
-        assert refs["tags"] == ["v1.0"]
-
-    @patch("src.services.ck_boards.service.requests.get")
-    def test_list_refs_development_shows_all(self, mock_get):
-        """Development mode shows all branches."""
-        svc = _make_service(environment="development")
-
-        branches_resp = MagicMock()
-        branches_resp.status_code = 200
-        branches_resp.json.return_value = {
-            "values": [{"name": "main"}, {"name": "develop"}, {"name": "feature/x"}],
-        }
-
-        tags_resp = MagicMock()
-        tags_resp.status_code = 200
-        tags_resp.json.return_value = {"values": []}
-
-        mock_get.side_effect = [branches_resp, tags_resp]
-
-        refs = svc.list_refs()
         assert refs["branches"] == ["main", "develop", "feature/x"]
+        assert refs["tags"] == ["v1.0"]
 
 
 # ---------------------------------------------------------------------------

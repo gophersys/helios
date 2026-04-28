@@ -14,14 +14,13 @@ from src.services.ck_boards.service import CkBoardsService, _split_board_name, _
 # Fixtures
 # ---------------------------------------------------------------------------
 
-def _make_service(environment="development"):
+def _make_service():
     """Create a CkBoardsService bypassing __init__ / _verify_access."""
     with patch.object(CkBoardsService, "__init__", lambda self, **kw: None):
         svc = CkBoardsService.__new__(CkBoardsService)
         svc._workspace = "test-workspace"
         svc._repo_slug = "ck-boards"
         svc._auth = ("test@test.com", "token")
-        svc._environment = environment
         svc._fetch_interval = 0
         svc._cache = {}
         svc._cache_time = {}
