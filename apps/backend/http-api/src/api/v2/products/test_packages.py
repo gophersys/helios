@@ -242,7 +242,12 @@ def _check_framework_artifacts(file_data: bytes) -> Optional[str]:
     try:
         buf = BytesIO(file_data)
         with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-            names = {m.name.lstrip("./") for m in tar.getmembers() if m.isfile()}
+            # ``str.lstrip(chars)`` removes any combination of the given
+            # characters from the left, NOT the literal prefix — using it
+            # here would mangle ``.claude/.framework-version`` into
+            # ``claude/.framework-version`` and break the marker check.
+            # ``removeprefix`` is the right tool.
+            names = {m.name.removeprefix("./") for m in tar.getmembers() if m.isfile()}
     except Exception as exc:
         return f"Could not read uploaded tarball: {exc}"
 

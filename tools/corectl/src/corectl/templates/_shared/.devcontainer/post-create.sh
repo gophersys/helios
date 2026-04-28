@@ -31,7 +31,14 @@ if [ -n "${EXPECTED_VERSION}" ]; then
     fi
 fi
 
-echo "→ Pre-flight validate (warnings allowed)"
-corectl test validate || echo "(validate found issues — fix and re-run)"
+echo "→ Pre-flight validate"
+# corectl test validate exits non-zero on errors; warnings keep exit 0.
+# We deliberately fail container start on errors — a half-set-up
+# environment is worse than no environment.
+if ! corectl test validate; then
+    echo
+    echo "✗ Validation has errors. Fix the issues above before developing."
+    exit 1
+fi
 
 echo "✓ Devcontainer ready"

@@ -796,7 +796,9 @@ def _iter_framework_artifact_renders(ctx_vars: dict):
     Walks the bundled template tree for ``.claude/`` and ``.devcontainer/``,
     applies token substitution, and produces the exact bytes that should
     be on disk in a coherent project. Skips ``__pycache__`` and ``*.pyc``
-    (same as the renderer).
+    (same as the renderer). Raises ``RuntimeError`` if any required
+    top-level directory is missing from the bundle — a half-shipped wheel
+    is a framework bug we want loud, not silent.
     """
     from importlib import resources
 
@@ -804,7 +806,10 @@ def _iter_framework_artifact_renders(ctx_vars: dict):
     for top in FRAMEWORK_ARTIFACT_DIRS:
         root = shared_root / top
         if not root.is_dir():
-            continue
+            raise RuntimeError(
+                f"Framework artifact directory '{top}' missing from the corectl wheel "
+                f"— the install is incomplete. Reinstall corectl/corekinect."
+            )
         yield from _walk_artifact_tree(root, Path(top), ctx_vars)
 
 
@@ -835,13 +840,24 @@ def _validate_framework_artifacts(
     on_disk_version = ctx_vars["framework_version"]
     installed_version = _framework_version()
 
+    # Version mismatch is a hard failure, not a warning. The on-disk
+    # version drives token substitution in _iter_framework_artifact_renders;
+    # leaving it unaligned means the byte-comparison still passes but the
+    # project ships stale framework artifacts to the platform. The user
+    # explicitly chose "fail on drift, no overrides" — apply the same rule
+    # to the version marker.
     if on_disk_version != installed_version:
-        result.warn(
+        result.error(
             f"Framework artifacts at v{on_disk_version}; installed framework is "
-            f"v{installed_version}. Run 'corectl test update --apply' to refresh."
+            f"v{installed_version}. Run 'corectl update' then "
+            f"'corectl test update --apply' to refresh."
         )
 
-    expected = list(_iter_framework_artifact_renders(ctx_vars))
+    try:
+        expected = list(_iter_framework_artifact_renders(ctx_vars))
+    except RuntimeError as exc:
+        result.error(str(exc))
+        return
     if not expected:
         result.error("Bundled framework artifacts not found in installed corectl.")
         return
@@ -854,7 +870,10 @@ def _validate_framework_artifacts(
             missing.append(str(rel_path))
             continue
         actual_text = on_disk.read_text(encoding="utf-8")
-        if actual_text != expected_text:
+        # Normalize line endings — a Windows clone with autocrlf=true
+        # produces CRLF in the working tree and would otherwise fail
+        # byte comparison even though no human touched the file.
+        if actual_text.replace("\r\n", "\n") != expected_text.replace("\r\n", "\n"):
             drifted.append(str(rel_path))
 
     if missing:

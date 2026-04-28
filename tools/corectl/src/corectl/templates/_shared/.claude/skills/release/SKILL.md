@@ -51,5 +51,5 @@ Arguments: $ARGUMENTS — bump kind (`major` / `minor` / `patch`) OR an explicit
 
 - **Validate fails strict** → fix warnings, do not loosen `--strict`.
 - **Version conflict** → another release just landed; rebase, bump again.
-- **Upload rejects with "missing artifacts"** → run `/sync-with-backend` then `corectl test update`. The framework artifacts must be present.
+- **Upload rejects with "missing artifacts"** → run `/sync-with-backend` then `corectl test update --apply`. The framework artifacts must be present and current.
 - **Backend mismatch** → `corectl test sync` reconciles; re-run from step 3.
