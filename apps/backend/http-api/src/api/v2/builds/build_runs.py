@@ -424,11 +424,9 @@ def validate_build_run(run_id: str):
                     "status": "QUEUED",
                 }).to_dict()), 202
             elif prior_run and prior_run.status not in ("ACTIVE", "RUNNING"):
-                if prior_run.fixtureId:
-                    db.fixture.update(where={"id": prior_run.fixtureId}, data={
-                        "lockState": "FREE", "lockedBy": None, "lockedAt": None,
-                    })
-                logger.info("Prior run %s finished (%s), unlocked fixture", build_run.validationRunId[:8], prior_run.status)
+                # No fixture-unlock write — prior_run already has a terminal
+                # status, so the fixture's derived lockState is already FREE.
+                logger.info("Prior run %s finished (%s), fixture is free", build_run.validationRunId[:8], prior_run.status)
 
         result = trigger_build_run_validation(run_id, build_run, builds)
         if result is None:

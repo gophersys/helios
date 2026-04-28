@@ -45,7 +45,6 @@ def _make_stage_config(**overrides):
 def _make_fixture(**overrides):
     defaults = dict(
         id="fix-1",
-        lockState="FREE",
         active=True,
         stationId="station-1",
         product=make_obj(id="prod-1", slug="alpha"),

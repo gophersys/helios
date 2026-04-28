@@ -20,7 +20,7 @@ from .fixtures import (
 )
 from .benches import (
     list_benches, get_bench, create_bench, update_bench, delete_bench,
-    lock_bench, unlock_bench, discover_mtibs, get_bench_profile,
+    discover_mtibs, get_bench_profile,
 )
 from .designs import (
     list_designs, get_design, create_design, update_design,
@@ -49,8 +49,6 @@ def register_fixture_routes(api: Blueprint):
     api.add_url_rule("/fixtures/benches/<bench_id>",                     endpoint="get_bench",                    view_func=get_bench,                methods=["GET"])
     api.add_url_rule("/fixtures/benches/<bench_id>",                     endpoint="update_bench",                 view_func=update_bench,             methods=["PATCH"])
     api.add_url_rule("/fixtures/benches/<bench_id>",                     endpoint="delete_bench",                 view_func=delete_bench,             methods=["DELETE"])
-    api.add_url_rule("/fixtures/benches/<bench_id>/lock",                endpoint="lock_bench",                   view_func=lock_bench,               methods=["POST"])
-    api.add_url_rule("/fixtures/benches/<bench_id>/unlock",              endpoint="unlock_bench",                 view_func=unlock_bench,             methods=["POST"])
     api.add_url_rule("/fixtures/benches/<bench_id>/profile",             endpoint="get_bench_profile",            view_func=get_bench_profile,        methods=["GET"])
 
     api.add_url_rule("/fixtures/designs",                                endpoint="list_designs",                 view_func=list_designs,             methods=["GET"])

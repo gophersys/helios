@@ -482,9 +482,22 @@ def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]
         return assignments
 
     # Get all free fixtures (include boardRevisionId for revision matching).
+    # "Free" is derived live: not disabled AND no active session/run on it.
     # Only checks lock state — the per-pick health check happens below.
+    held_session_ids = {
+        s.fixtureId for s in db.manufacturingsession.find_many(where={"status": "ACTIVE"})
+        if getattr(s, "fixtureId", None)
+    }
+    held_run_ids = {
+        r.fixtureId for r in db.testrun.find_many(where={"status": "ACTIVE"})
+        if getattr(r, "fixtureId", None)
+    }
+    held_ids = held_session_ids | held_run_ids
+    fixture_where: dict = {"active": True, "disabled": False}
+    if held_ids:
+        fixture_where["id"] = {"notIn": list(held_ids)}
     available_fixtures = db.fixture.find_many(
-        where={"lockState": "FREE", "active": True},
+        where=fixture_where,
         include={"product": True, "boardRevision": True},
     )
 
@@ -557,15 +570,9 @@ def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]
                 },
             )
 
-            # Lock the fixture
-            db.fixture.update(
-                where={"id": fixture.id},
-                data={
-                    "lockState": "IN_USE",
-                    "lockedBy": f"queue:{entry.id}",
-                    "lockedAt": now,
-                },
-            )
+            # No lock-set write — once the corresponding TestRun row is
+            # created with status=ACTIVE the fixture's lockState derives
+            # to IN_USE automatically. See _compute_lock_state.
 
             assigned_fixture_ids.add(fixture.id)
             assignments.append({
@@ -697,10 +704,15 @@ def on_fixture_freed(fixture_id: str):
     """Called when a fixture becomes available. Tries to assign next queued entry."""
     db = get_db_client()
 
-    # Ensure fixture is actually free (health check happens inside the
-    # scheduler itself — this is just a fast lock-state pre-filter).
+    # Ensure fixture is actually free — derived check: not disabled AND no
+    # active session/run on it. The scheduler itself does the per-pick
+    # health check; this is just a fast pre-filter.
     fixture = db.fixture.find_unique(where={"id": fixture_id})
-    if not fixture or getattr(fixture, "lockState", "FREE") != "FREE":
+    if not fixture or getattr(fixture, "disabled", False):
+        return
+    if db.manufacturingsession.count(where={"fixtureId": fixture_id, "status": "ACTIVE"}) > 0:
+        return
+    if db.testrun.count(where={"fixtureId": fixture_id, "status": "ACTIVE"}) > 0:
         return
 
     # Run scheduler

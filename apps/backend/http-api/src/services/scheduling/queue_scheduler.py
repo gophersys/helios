@@ -184,16 +184,23 @@ def _reconcile_stuck_jobs(
                     "errorMessage": f"Timed out after {validation_timeout_min} minutes",
                 },
             )
-            # Free the fixture
-            if entry.fixtureId:
-                db.fixture.update(
-                    where={"id": entry.fixtureId},
-                    data={
-                        "lockState": "FREE",
-                        "lockedBy": None,
-                        "lockedAt": None,
-                    },
-                )
+            # Roll any associated active TestRun to FAILED so the fixture's
+            # derived lockState transitions back to FREE.
+            if entry.testRunId:
+                try:
+                    db.testrun.update_many(
+                        where={"id": entry.testRunId, "status": "ACTIVE"},
+                        data={
+                            "status": "FAILED",
+                            "completedAt": now,
+                            "errorMessage": (
+                                f"Timed out after {validation_timeout_min} minutes "
+                                "(reconciled by queue_scheduler)"
+                            ),
+                        },
+                    )
+                except Exception as e:
+                    logger.warning("Failed to reconcile testrun %s: %s", entry.testRunId, e)
             # Cancel the K8s job / Docker container if possible
             if entry.jobName:
                 _try_cancel_job(entry.jobName)

@@ -111,6 +111,7 @@ class TestReconcileStuckJobs:
             startedAt=old_time,
             fixtureId="fixture-001",
             jobName="val-job-001",
+            testRunId="run-stuck-001",
         )
         db.validationqueueentry.find_many.return_value = [stuck_entry]
         db.manufacturingsession.find_many.return_value = []
@@ -126,11 +127,13 @@ class TestReconcileStuckJobs:
         update_data = db.validationqueueentry.update.call_args.kwargs["data"]
         assert update_data["status"] == "FAILED"
         assert "Timed out" in update_data["errorMessage"]
-        # Fixture should be freed
-        db.fixture.update.assert_called_once()
-        fixture_data = db.fixture.update.call_args.kwargs["data"]
-        assert fixture_data["lockState"] == "FREE"
-        assert fixture_data["lockedBy"] is None
+        # Fixture lock is derived; reconciliation flips the testrun to
+        # FAILED so the fixture's derived lockState rolls back to FREE.
+        db.fixture.update.assert_not_called()
+        db.testrun.update_many.assert_called_once()
+        run_args = db.testrun.update_many.call_args.kwargs
+        assert run_args["where"]["id"] == "run-stuck-001"
+        assert run_args["data"]["status"] == "FAILED"
 
     @patch("services.scheduling.queue_scheduler._try_cancel_job")
     @patch("services.scheduling.queue_scheduler.get_db_client")
@@ -145,6 +148,7 @@ class TestReconcileStuckJobs:
             startedAt=old_time,
             fixtureId="f-002",
             jobName="k8s-job-name",
+            testRunId=None,
         )
         db.validationqueueentry.find_many.return_value = [stuck_entry]
         db.manufacturingsession.find_many.return_value = []

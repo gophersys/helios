@@ -35,8 +35,7 @@ def _release_fixture():
         dutDeviceId="dev-1", dutImei="imei-1", dutIccids=["ic-1"], node=node,
     )
     return make_obj(
-        id="fix-rel-1", name="Bench-Prod", stationId="prod-A",
-        lockState="FREE", productId="prod-1",
+        id="fix-rel-1", name="Bench-Prod", stationId="prod-A", productId="prod-1",
         purpose="RELEASE", slots=[slot], design=None,
     )
 
@@ -52,8 +51,7 @@ def _dev_fixture():
         dutDeviceId="dev-2", dutImei="imei-2", dutIccids=["ic-2"], node=node,
     )
     return make_obj(
-        id="fix-dev-1", name="Bench-Dev", stationId="dev-A",
-        lockState="FREE", productId="prod-1",
+        id="fix-dev-1", name="Bench-Dev", stationId="dev-A", productId="prod-1",
         purpose="DEV", slots=[slot], design=None,
     )
 
@@ -126,13 +124,6 @@ class TestPurposeGateDirectTrigger:
 
         # No K8s job started.
         mock_create_job.assert_not_called()
-        # Gate path must NOT lock the fixture (locking happens in
-        # _create_validation_session, which is bypassed when the gate fails).
-        for call in db.fixture.update.call_args_list:
-            data = call.kwargs.get("data") or (call.args[1] if len(call.args) > 1 else {})
-            assert data.get("status") != "LOCKED", (
-                "purpose-gate failure must not leave fixture LOCKED"
-            )
         # Trigger reports failure, not success.
         assert result is None or not result.get("started"), (
             f"expected no started session, got {result!r}"

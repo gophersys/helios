@@ -222,19 +222,9 @@ def cancel_run(run_id: str):
             data={"status": "FAILED", "completedAt": now},
         )
 
-        # Unlock the fixture
-        if run.fixtureId:
-            try:
-                db.fixture.update(
-                    where={"id": run.fixtureId},
-                    data={
-                        "lockState": "FREE",
-                        "lockedBy": None,
-                        "lockedAt": None,
-                    },
-                )
-            except Exception:
-                pass
+        # No fixture-unlocking write — when this run flips to CANCELLED
+        # below, its fixture's derived lockState transitions from IN_USE
+        # back to FREE automatically.
 
         # Update the run itself
         run = db.testrun.update(

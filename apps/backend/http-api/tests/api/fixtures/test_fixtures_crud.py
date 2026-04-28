@@ -30,9 +30,7 @@ def _fixture_obj(**overrides):
         metadata=None,
         stationId=None,
         designId=None,
-        lockState="FREE",
-        lockedBy=None,
-        lockedAt=None,
+        disabled=False,
         profileOverrides=None,
         lastHealthCheck=None,
         product=make_obj(id="prod-1", name="Alpha"),
@@ -518,8 +516,14 @@ class TestUndeployFixture:
 
     def test_undeploy_locked_fixture_returns_409(self, authed_client, mock_db):
         """Undeploy locked fixture (session running) returns 409."""
-        fix = _fixture_obj(lockState="IN_USE", slots=[])
+        fix = _fixture_obj(slots=[])
         mock_db.fixture.find_unique.return_value = fix
+        # Active session on the fixture → derived lockState=IN_USE.
+        mock_db.manufacturingsession.find_many.return_value = [
+            make_obj(id="sess-1", fixtureId="fix-1", status="ACTIVE",
+                     startedAt=_now(), createdAt=_now()),
+        ]
+        mock_db.testrun.find_many.return_value = []
 
         resp = authed_client.post("/v2/fixtures/fix-1/undeploy")
         assert resp.status_code == 409
@@ -527,8 +531,10 @@ class TestUndeployFixture:
     def test_undeploy_success(self, authed_client, mock_db):
         """Undeploy fixture with no active session returns 200."""
         slot = _slot_obj(nodeId="node-1")
-        fix = _fixture_obj(lockState="FREE", slots=[slot])
+        fix = _fixture_obj(slots=[slot])
         mock_db.fixture.find_unique.return_value = fix
+        mock_db.manufacturingsession.find_many.return_value = []
+        mock_db.testrun.find_many.return_value = []
 
         with patch("api.v2.fixtures.fixtures.log_audit"):
             with patch("api.v2.fixtures.fixtures._undeploy_mtib_for_slot", return_value=True):
