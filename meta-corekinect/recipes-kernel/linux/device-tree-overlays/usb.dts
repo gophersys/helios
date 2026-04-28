@@ -9,13 +9,13 @@
 };
 
 &usbotg1 {
-    maximum-speed = "high-speed";  /* Forces USB 1.1 */
+    maximum-speed = "full-speed";  /* Force USB 1.1 (12 Mbps) - no high-speed/USB 2.0 */
     samsung,picophy-dc-vol-level-adjust = <7>;
     samsung,picophy-pre-emp-curr-control = <3>;
 };
 
 &usbotg2 {
-    maximum-speed = "full-speed";  /* Forces USB 1.1 */
+    maximum-speed = "full-speed";  /* Force USB 1.1 (12 Mbps) - no high-speed/USB 2.0 */
     samsung,picophy-dc-vol-level-adjust = <7>;
     samsung,picophy-pre-emp-curr-control = <3>;
 };
