@@ -16,7 +16,6 @@ Environment variables:
     MTIB_ADDRESS: MTIB server address (single-slot)
     MTIB_HOSTS: Comma-separated MTIB addresses (multi-slot)
     DEVICE_SNR: J-Link probe serial number
-    FIXTURE_PROFILE_PATH: Path to fixture profile JSON
     BUILD_RUN_ID: Build run ID (for fuota stage)
     ARTIFACTS_DIR: Directory for test artifacts
     PRODUCT_SLUG: Product slug for catalog API lookup (e.g., "alpha_b0")
@@ -290,7 +289,6 @@ class PreflightChecker:
         ("mtib", "MTIB connectivity", "_check_mtib"),
         ("storage", "Disk space > 500MB", "_check_storage"),
         ("device", "Device SNR configured", "_check_device"),
-        ("fixture", "Fixture profile valid", "_check_fixture"),
         ("firmware", "Firmware artifacts available", "_check_firmware"),
         ("corecloud", "CoreCloud API auth", "_check_corecloud"),
     ]
@@ -443,35 +441,6 @@ class PreflightChecker:
         if not snr:
             return False, "DEVICE_SNR not set"
         return True, f"SNR: {snr}"
-
-    def _check_fixture(self) -> Tuple[bool, str]:
-        """Verify fixture profile exists and is valid."""
-        path = os.environ.get("FIXTURE_PROFILE_PATH")
-        if not path:
-            return False, "FIXTURE_PROFILE_PATH not set"
-
-        if not os.path.exists(path):
-            return False, f"File not found: {path}"
-
-        try:
-            with open(path) as f:
-                profile = json.load(f)
-
-            required = ["product", "board"]
-            missing = [k for k in required if k not in profile]
-            if missing:
-                return False, f"Missing fields: {missing}"
-
-            product = profile.get("product", "?")
-            board = profile.get("board", "?")
-            return True, f"{product}/{board}"
-
-        except PermissionError:
-            return False, f"Permission denied: {path}"
-        except json.JSONDecodeError as e:
-            return False, f"Invalid JSON: {e}"
-        except Exception as e:
-            return False, str(e)
 
     def _check_firmware(self) -> Tuple[bool, str]:
         """Verify firmware artifacts are available."""

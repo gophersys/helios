@@ -322,9 +322,9 @@ class TestContext:
         self.uart.clear()
         if test_name:
             self.telemetry.set_test(test_name, module=module)
-        # Reset transient fixture state (button press, etc.) between tests.
-        # Mock, stub, and programmable fixtures track _button_pressed; the
-        # real FixtureController does not (it drives GPIO directly).
+        # Reset transient fixture state (button press, etc.) between tests
+        # for fixtures that track it. Real Fixture subclasses drive GPIO
+        # directly and don't carry this attribute.
         if hasattr(self.fixture, '_button_pressed'):
             self.fixture._button_pressed = False
 

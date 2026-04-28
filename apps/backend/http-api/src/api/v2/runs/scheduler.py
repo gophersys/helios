@@ -355,11 +355,6 @@ def _trigger_validation_job(
     if not product_slug and asset_set.product:
         product_slug = asset_set.product.slug or asset_set.product.name.lower()
 
-    # Compute fixture profile path from design
-    fixture_profile_path = None
-    if hasattr(fixture, "design") and fixture.design:
-        fixture_profile_path = f"/app/fixtures/{fixture.design.product}_{fixture.design.revision}.json"
-
     # Dispatch via executor interface — DockerExecutor in dev, K8s Job in staging/prod
     executor = get_executor("validation")
 
@@ -370,16 +365,14 @@ def _trigger_validation_job(
             job_id=entry_id,
             firmware_path="",
             test_type="validation",
-            test_enable={},
             firmware_version="",
             run_id=run_id,
             api_key=api_key,
             api_url=api_url,
             mtib_address=mtib_host,
-            bench_id=fixture.id,
+            fixture_id=fixture.id,
             device_id=dut_device_id,
             device_snr=dut_snr,
-            fixture_profile_path=fixture_profile_path,
             build_run_id=build_run.id if build_run else None,
             product_slug=product_slug,
             stage=stage_name,

@@ -1,7 +1,17 @@
 ---
 min_role: DEVELOPER
+status: Superseded
+archived: 2026-04-28
 ---
-# Validation Test Runner Architecture
+# Validation Test Runner Architecture (ARCHIVED)
+
+> **ARCHIVED** — superseded. The runner ships in
+> `libs/python/corekinect/test/runner.py` and the fixture binding logic in
+> `libs/python/corekinect/test/autoconf.py`. The `FIXTURE_PROFILE_PATH`
+> env var, `FixtureController` class, and per-product `fixture.json` files
+> referenced below were never built — fixtures are now declared per test
+> package via `concord.yaml` `fixture.module` and AST-extracted at upload
+> time. See `docs/platform/validation-system/index.md`.
 
 ## The Problem
 
@@ -202,28 +212,6 @@ class PreflightChecker:
 
         # TODO: Verify pipeline has successful builds
         return True, f"Pipeline {build_run_id[:8]}..."
-
-    def _check_fixture(self) -> tuple[bool, str]:
-        """Verify fixture profile exists and is valid."""
-        path = os.environ.get("FIXTURE_PROFILE_PATH")
-        if not path:
-            return False, "FIXTURE_PROFILE_PATH not set"
-
-        if not os.path.exists(path):
-            return False, f"File not found: {path}"
-
-        try:
-            with open(path) as f:
-                profile = json.load(f)
-
-            required = ["product", "board", "dut"]
-            missing = [k for k in required if k not in profile]
-            if missing:
-                return False, f"Missing fields: {missing}"
-
-            return True, f"{profile['product']}/{profile['board']}"
-        except Exception as e:
-            return False, str(e)
 
     def _check_device(self) -> tuple[bool, str]:
         """Verify device SNR is configured."""
@@ -455,13 +443,8 @@ spec:
               value: "{{ .mtibAddress }}"
             - name: DEVICE_SNR
               value: "{{ .deviceSnr }}"
-            - name: FIXTURE_PROFILE_PATH
-              value: "/config/fixture.json"
             - name: PIPELINE_ID
               value: "{{ .pipelineId }}"
-          volumeMounts:
-            - name: fixture-config
-              mountPath: /config
           resources:
             requests:
               memory: "512Mi"
@@ -469,10 +452,6 @@ spec:
             limits:
               memory: "2Gi"
               cpu: "2"
-      volumes:
-        - name: fixture-config
-          configMap:
-            name: fixture-{{ .benchId }}
 ```
 
 ## Result Flow
@@ -1008,9 +987,11 @@ def create_test_context() -> TestContext:
     ctx.cloud = CloudClient(device_id=device_id, db_env=db_env)
     ctx.device_id = device_id
 
-    # Fixture profile (from Concord DB, injected as JSON env or mounted file)
-    fixture_json = os.environ.get("FIXTURE_PROFILE_PATH", "/etc/concord/fixture.json")
-    ctx.fixture = FixtureController(ctx.mtib, fixture_json)
+    # Fixture (declared in the test package via fixtures/<rev>/fixture.py;
+    # autoconf imports the class referenced by concord.yaml fixture.module
+    # and binds it to the live MTIB client).
+    from corekinect.fixture import Fixture  # noqa: import for example
+    ctx.fixture = autoconf.import_fixture_class(manifest)(ctx.mtib)
 
     # UART demuxer (routes prefixed lines to harness vs logs)
     ctx.uart = UartDemuxer(ctx.mtib)
@@ -1035,7 +1016,7 @@ def create_test_context() -> TestContext:
 |----------------------|----------------------|------------|
 | `MtibV2Client` in `usr_data[node].client` | `ctx.mtib` | Direct reference, no node lookup |
 | `boot_and_lock_shells()` | `ctx.uart.open_shell("nrf52840")` | UartDemuxer wraps shell creation |
-| `ThetaFixtureConfig.electrical_uvlo_voltage_v` | `ctx.fixture.profile["power"]["dut_voltage"]` | Fixture profile replaces config fields |
+| `ThetaFixtureConfig.electrical_uvlo_voltage_v` | `ctx.fixture.thresholds["uvlo_voltage_v"]` | Fixture class attribute replaces config fields |
 | `mtib_servers.enable_power(node, 4.5)` | `ctx.mtib.power_enable(channel=0, voltage_v=4.5)` | Direct MtibV2Client call |
 | `response, err = shell.send_command("post")` | `ctx.uart.shell("nrf52840").send_command("post")` | Via UartDemuxer |
 | No CoreCloud | `ctx.cloud.wait_for_position(...)` | New pillar |

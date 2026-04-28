@@ -1,10 +1,15 @@
 ---
 min_role: DEVELOPER
+status: Superseded
+archived: 2026-04-28
 ---
-# Validation System - Final Architecture
+# Validation System - Final Architecture (ARCHIVED)
 
-> This document captures all design decisions from the exploration and Q&A phase.
-> It serves as the blueprint for implementation.
+> **ARCHIVED** — this is the original aspirational blueprint. The implementation
+> diverged: the per-product `fixture_controller.py` modules described here were
+> replaced by `corekinect.fixture.Fixture` declarative subclasses, and
+> `MtibV2Client` was replaced by `MtibV1Client`. See
+> `docs/platform/validation-system/index.md` for the current component map.
 
 ---
 

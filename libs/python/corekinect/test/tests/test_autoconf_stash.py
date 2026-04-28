@@ -103,7 +103,7 @@ def _write_manifest(pytester: pytest.Pytester) -> None:
     pytester.makefile(
         ".yaml",
         **{"concord": textwrap.dedent("""
-            schema: "2.0"
+            schema: "1.0"
 
             package:
               type: manufacturing
@@ -118,10 +118,7 @@ def _write_manifest(pytester: pytest.Pytester) -> None:
                 variant_id: 1
 
             fixture:
-              design: Test Fixture
-              revision: "1.0"
-              controller: tests.common._harness.NoopFixture
-              profile: fixtures/test.yaml
+              module: tests.common._harness:NoopFixture
               multi_slot: true
 
             stages: {}

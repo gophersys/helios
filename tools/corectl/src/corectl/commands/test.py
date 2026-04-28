@@ -344,38 +344,40 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
     if pkg_type == "manufacturing" and not multi_slot:
         result.warn("Manufacturing package with multi_slot=false — most manufacturing fixtures are multi-slot")
 
-    # Validate fixture profiles (JSON legacy + YAML new)
-    fixtures_dir = project_dir / "fixtures"
-    if fixtures_dir.is_dir():
-        # JSON profiles (legacy)
-        for profile_path in fixtures_dir.glob("*.json"):
-            try:
-                import json
-                with open(profile_path) as f:
-                    profile_data = json.load(f)
-                if "capabilities" not in profile_data:
-                    result.warn(f"{profile_path.name}: missing capabilities list")
-                if "power" not in profile_data:
-                    result.warn(f"{profile_path.name}: missing power config")
-            except Exception as exc:
-                result.error(f"{profile_path.name}: invalid JSON -- {exc}")
-
-        # YAML profiles (new pattern: fixtures/<name>/fixture.yaml)
-        for yaml_path in fixtures_dir.glob("*/fixture.yaml"):
-            try:
-                with open(yaml_path) as f:
-                    profile_data = yaml.safe_load(f)
-                if not profile_data:
-                    result.error(f"{yaml_path}: empty YAML")
-                    continue
-                if "capabilities" not in profile_data:
-                    result.warn(f"{yaml_path.parent.name}/fixture.yaml: missing capabilities list")
-                if "power" not in profile_data:
-                    result.warn(f"{yaml_path.parent.name}/fixture.yaml: missing power config")
+    # Validate the Python fixture file referenced by ``fixture.module``.
+    # AST-only — never imports the user's code.
+    fixture_module = fixture.get("module", "")
+    if fixture_module:
+        try:
+            from corekinect.fixture.extractor import (
+                FixtureExtractionError,
+                extract_fixture,
+            )
+        except ImportError:
+            result.warn("corekinect.fixture not installed — skipping fixture extraction")
+        else:
+            if ":" not in fixture_module:
+                result.error(
+                    f"fixture.module={fixture_module!r} is malformed "
+                    f"(expected 'dotted.path:ClassName')"
+                )
+            else:
+                module_path, _ = fixture_module.split(":", 1)
+                fixture_file = project_dir / Path(*module_path.split(".")).with_suffix(".py")
+                if not fixture_file.is_file():
+                    result.error(
+                        f"fixture.module points to {fixture_file.relative_to(project_dir)} — file not found"
+                    )
                 else:
-                    result.ok(f"{yaml_path.parent.name}/fixture.yaml passes basic validation")
-            except Exception as exc:
-                result.error(f"{yaml_path.parent.name}/fixture.yaml: invalid YAML -- {exc}")
+                    try:
+                        extract_fixture(fixture_file.read_text(), source_path=str(fixture_file))
+                        result.ok(
+                            f"{fixture_file.relative_to(project_dir)} passes fixture validation"
+                        )
+                    except FixtureExtractionError as exc:
+                        result.error(
+                            f"{fixture_file.relative_to(project_dir)}: {exc}"
+                        )
 
     # Check pytest markers in pytest.ini or pyproject.toml
     pytest_ini = project_dir / "pytest.ini"
@@ -477,17 +479,21 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
         "product": product_record["slug"],
         "board": board_slug,
         "board_class": board_class,
-        "fixture_controller": f"fixtures.{board_slug}.controller.{board_class}Fixture"
-                              if pkg_type == "validation"
-                              else f"fixtures.{board_slug}.controller.{board_class}MfgFixture",
-        "fixture_profile": f"fixtures/{board_slug}/fixture.yaml",
+        "fixture_module": f"fixtures.{board_slug}.fixture:{board_class}Fixture",
         "device_type_id": revision.get("deviceType") if revision.get("deviceType") is not None else 0,
         "device_variant_id": revision.get("deviceVariant") if revision.get("deviceVariant") is not None else 0,
         "pkg_type": pkg_type,
     }
 
     _render_template_tree(pkg_type, project_dir, ctx_vars)
-    (project_dir / "fixtures" / board_slug).mkdir(parents=True, exist_ok=True)
+    fixture_dir = project_dir / "fixtures" / board_slug
+    fixture_dir.mkdir(parents=True, exist_ok=True)
+    (fixture_dir / "__init__.py").touch()
+    fixture_class = ctx_vars["fixture_module"].split(":", 1)[1]
+    (fixture_dir / "fixture.py").write_text(
+        _starter_fixture_source(fixture_class, pkg_type),
+        encoding="utf-8",
+    )
 
     click.echo("")
     click.echo(f"  Created {pkg_type} project at {project_dir}")
@@ -496,7 +502,7 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
     click.echo("")
     click.echo("  Next:")
     click.echo(f"    cd {project_dir}")
-    click.echo(f"    # Create fixtures/{board_slug}/controller.py + fixture.yaml")
+    click.echo(f"    # Edit fixtures/{board_slug}/fixture.py — wire the DUT pinout")
     click.echo(f"    corectl validate")
     click.echo(f"    corectl run")
     click.echo("")
@@ -664,6 +670,48 @@ def _substitute(raw: str, ctx_vars: dict) -> str:
     return out
 
 
+def _starter_fixture_source(class_name: str, pkg_type: str) -> str:
+    """Return a runnable starter fixture.py source.
+
+    The starter declares a minimal but valid set of DUT resources so
+    ``corectl validate`` passes immediately after ``init``. Edit the
+    maps to match the actual DUT pinout.
+    """
+    del pkg_type  # placeholder if mfg vs validation diverge later
+    return f'''"""DUT pinout declaration. Edit the maps to match your hardware."""
+
+from __future__ import annotations
+
+from corekinect.fixture import ADC, GPIO, JLink, Power, UART, Fixture
+
+
+class {class_name}(Fixture):
+    name = "{class_name.lower()}"
+    revision = "1.0"
+
+    # Wire-protocol channel numbering (0-indexed).
+    adcs = {{
+        "battery": ADC(channel=0, signal="VBAT"),
+    }}
+
+    gpios = {{
+        "boot": GPIO(pin=0, role="LOW = DUT boots normally"),
+    }}
+
+    uarts = {{
+        "app": UART(port=1, target="app-mcu"),
+    }}
+
+    jlinks = {{
+        "app": JLink(family="NRF52"),
+    }}
+
+    power = {{
+        "dut": Power(rail="DUT_PWR"),
+    }}
+'''
+
+
 # ═════════════════════════════════════════════════════════════════════════
 # corectl test sync — remote → local manifest reconciliation
 # ═════════════════════════════════════════════════════════════════════════
@@ -776,34 +824,31 @@ def _authoritative_fields(local: dict, product: dict, revision: dict) -> List[Tu
     """
     board_slug = _revision_slug(product, revision)
 
-    # The fixture controller class path we KNOW is correct for this
-    # board — but only rewrite it if the author hasn't custom-named it
-    # (same root prefix). Never clobber a bespoke controller path.
+    # The fixture module reference we KNOW is correct for this board —
+    # but only rewrite it if the author hasn't custom-named it (same
+    # module prefix). Never clobber a bespoke class name.
     fx = (local.get("fixture") or {})
-    controller = fx.get("controller", "")
-    expected_controller_prefix = f"fixtures.{board_slug}.controller."
-    desired_controller = controller
-    if not controller or not controller.startswith(f"fixtures."):
+    module_ref = fx.get("module", "")
+    expected_module_prefix = f"fixtures.{board_slug}.fixture:"
+    desired_module = module_ref
+    if not module_ref or ":" not in module_ref or not module_ref.startswith("fixtures."):
         # Fresh manifest — fill in a reasonable default.
         pkg_type = (local.get("package") or {}).get("type", "validation")
         suffix = "MfgFixture" if pkg_type == "manufacturing" else "Fixture"
         board_class = "".join(p.capitalize() for p in board_slug.split("_"))
-        desired_controller = expected_controller_prefix + f"{board_class}{suffix}"
-    elif not controller.startswith(expected_controller_prefix):
+        desired_module = expected_module_prefix + f"{board_class}{suffix}"
+    elif not module_ref.startswith(expected_module_prefix):
         # Board changed under us; move the class name across but keep
-        # the last segment (the author's class name) intact.
-        last = controller.rsplit(".", 1)[-1]
-        desired_controller = expected_controller_prefix + last
-
-    desired_profile = f"fixtures/{board_slug}/fixture.yaml"
+        # the part after ``:`` (the author's class name) intact.
+        last = module_ref.split(":", 1)[1]
+        desired_module = expected_module_prefix + last
 
     return [
         ("product.slug", product["slug"]),
         ("product.board", board_slug),
         ("product.device.type_id", revision.get("deviceType") if revision.get("deviceType") is not None else (local.get("product", {}).get("device", {}) or {}).get("type_id", 0)),
         ("product.device.variant_id", revision.get("deviceVariant") if revision.get("deviceVariant") is not None else (local.get("product", {}).get("device", {}) or {}).get("variant_id", 0)),
-        ("fixture.controller", desired_controller),
-        ("fixture.profile", desired_profile),
+        ("fixture.module", desired_module),
     ]
 
 
@@ -1150,7 +1195,7 @@ def upload(ctx, path: str, auto_release: bool):
         "frameworkVersion": _get_framework(manifest),
         "productSlug": slug,
         "manifestHash": manifest_hash,
-        "schemaVersion": manifest.get("schema", "1.0"),
+        "manifestVersion": manifest.get("schema", "1.0"),
         "testCount": 0,  # Backend can override from collection
         "message": upload_message,
         "gitSha": git_sha,

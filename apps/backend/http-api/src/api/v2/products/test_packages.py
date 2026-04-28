@@ -53,30 +53,35 @@ def _extract_fixture_designs(
     product_id: str,
     package_type: str = "VALIDATION",
 ) -> Optional[str]:
-    """Extract fixture profile from the tar.gz and upsert a FixtureDesign owned by this test package.
+    """Extract a fixture's metadata from the uploaded test package.
 
-    Each TestPackage owns exactly one FixtureDesign, keyed by ``testPackageId``.
-    Re-uploading the same dev package overwrites its design; a release lands a
-    new immutable design alongside the released package.
+    The test app declares its DUT-side wiring in a Python class:
 
-    Uses the concord.yaml manifest's fixture.profile path to locate the fixture YAML
-    inside the archive. Falls back to scanning for fixtures/*/fixture.yaml patterns.
+        # fixtures/<board_rev>/fixture.py
+        class AlphaB0Fixture(Fixture):
+            name = "alpha_b0-fixture"
+            revision = "1.0"
+            adcs = {"battery": ADC(channel=1, ...)}
 
-    Args:
-        file_data: Raw tar.gz bytes.
-        test_package_id: ID of the TestPackage that owns this design.
-        package_status: TestPackage status — propagated to FixtureDesign.status.
-        product_id: Concord product ID, used to resolve the board revision.
-        package_type: "VALIDATION" or "MANUFACTURING" — sets FixtureDesign.type.
+    The path comes from ``concord.yaml`` ``fixture.module``
+    (``fixtures.alpha_b0.fixture:AlphaB0Fixture`` →
+    ``fixtures/alpha_b0/fixture.py``). The class is AST-parsed
+    server-side — never executed — so an uploaded test app cannot
+    run code in the http-api process.
 
-    Returns the ID of the created/updated FixtureDesign, or None.
+    Returns the FixtureDesign row id, or ``None`` if no extractable
+    fixture is in the archive.
     """
     db = get_db_client()
 
     try:
+        from corekinect.fixture.extractor import (
+            FixtureExtractionError,
+            extract_fixture,
+        )
+
         buf = BytesIO(file_data)
         with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-            # Step 1: Read the manifest to find the declared fixture profile path
             manifest_data = None
             for member in tar.getmembers():
                 if member.isfile() and member.name.split("/")[-1] == "concord.yaml":
@@ -85,76 +90,51 @@ def _extract_fixture_designs(
                         manifest_data = yaml.safe_load(f.read())
                         break
 
-            # Step 2: Find the fixture profile YAML in the archive
-            profile = None
-            board_name = None
-            profile_path = None
+            if not manifest_data or not isinstance(manifest_data, dict):
+                logger.info("No concord.yaml in archive — skipping fixture extraction")
+                return None
 
-            if manifest_data and isinstance(manifest_data, dict):
-                # Use the manifest's declared profile path
-                fixture_cfg = manifest_data.get("fixture", {})
-                profile_path = fixture_cfg.get("profile", "")
-                product_cfg = manifest_data.get("product", {})
-                board_name = product_cfg.get("board")
+            fixture_cfg = manifest_data.get("fixture") or {}
+            module_ref = fixture_cfg.get("module") or ""
+            if not module_ref or ":" not in module_ref:
+                logger.info(
+                    "concord.yaml ``fixture.module`` missing or malformed "
+                    "(expected 'dotted.path:ClassName') — skipping"
+                )
+                return None
+            module_path, _ = module_ref.split(":", 1)
+            file_path = module_path.replace(".", "/") + ".py"
 
-                if profile_path:
-                    # Try exact match and common prefixes (./, alpha/, etc.)
-                    candidates = [
-                        profile_path,
-                        f"./{profile_path}",
-                    ]
-                    for member in tar.getmembers():
-                        normalized = member.name.lstrip("./")
-                        if normalized == profile_path.lstrip("./") and member.isfile():
-                            f = tar.extractfile(member)
-                            if f:
-                                try:
-                                    profile = yaml.safe_load(f.read())
-                                except Exception as e:
-                                    logger.warning("Failed to parse %s: %s", member.name, e)
-                            break
+            board_name = (manifest_data.get("product") or {}).get("board")
+            if not board_name:
+                logger.info("concord.yaml ``product.board`` missing — skipping")
+                return None
 
-            # Step 3: Fallback — scan for fixtures/*/fixture.yaml
-            if not profile:
-                for member in tar.getmembers():
-                    if not member.isfile():
-                        continue
-                    parts = member.name.split("/")
-                    fname = parts[-1]
-                    if fname not in ("fixture.yaml", "fixture.yml"):
-                        continue
-                    # Accept fixtures/{board}/fixture.yaml
-                    if len(parts) >= 3 and parts[-3] == "fixtures":
-                        board_name = board_name or parts[-2]
-                    elif len(parts) >= 2 and parts[-2] == "fixtures":
-                        # fixtures/fixture.yaml — not useful without board context
-                        continue
-                    else:
-                        continue
-
+            # Find the file in the archive.
+            source: Optional[str] = None
+            for member in tar.getmembers():
+                if not member.isfile():
+                    continue
+                normalized = member.name.lstrip("./")
+                if normalized == file_path:
                     f = tar.extractfile(member)
                     if f:
-                        try:
-                            profile = yaml.safe_load(f.read())
-                        except Exception as e:
-                            logger.warning("Failed to parse %s: %s", member.name, e)
-                        break
+                        source = f.read().decode("utf-8")
+                    break
 
-            if not profile or not isinstance(profile, dict):
-                logger.debug("No fixture profile found in archive for product %s", product_id)
+            if source is None:
+                logger.info(
+                    "fixture module %s not found in archive (expected at %s)",
+                    module_ref, file_path,
+                )
                 return None
 
-            # Extract board name from profile if not already known
-            board_name = board_name or profile.get("board")
-            if not board_name:
-                logger.info("No board name in manifest or fixture profile — skipping")
+            try:
+                summary = extract_fixture(source, source_path=file_path)
+            except FixtureExtractionError as e:
+                logger.warning("Fixture extraction rejected: %s", e)
                 return None
 
-            # Design name and revision come from fixture.yaml (source of truth)
-            design_name = profile.get("name", f"{board_name}-fixture")
-            design_revision = str(profile.get("revision", "1.0"))
-
-            # Find board revision by ckBoardsName or version
             board_rev = db.boardrevision.find_first(
                 where={
                     "board": {"productId": product_id},
@@ -171,9 +151,16 @@ def _extract_fixture_designs(
                 )
                 return None
 
-            node_type = package_type if package_type in ("MANUFACTURING", "VALIDATION") else "VALIDATION"
+            node_type = (
+                package_type
+                if package_type in ("MANUFACTURING", "VALIDATION")
+                else "VALIDATION"
+            )
 
-            # Upsert by testPackageId — every package owns exactly one design.
+            design_name = summary["name"]
+            design_revision = summary["revision"]
+
+            # Upsert by testPackageId — one design per test package.
             existing = db.fixturedesign.find_unique(
                 where={"testPackageId": test_package_id},
             )
@@ -183,7 +170,7 @@ def _extract_fixture_designs(
                     data={
                         "name": design_name,
                         "revision": design_revision,
-                        "profileTemplate": Json(profile),
+                        "profileTemplate": Json(summary),
                         "type": node_type,
                         "status": package_status,
                         "boardRevisionId": board_rev.id,
@@ -203,7 +190,7 @@ def _extract_fixture_designs(
                     "revision": design_revision,
                     "type": node_type,
                     "status": package_status,
-                    "profileTemplate": Json(profile),
+                    "profileTemplate": Json(summary),
                 },
             )
             logger.info(
@@ -426,7 +413,7 @@ def _upload_test_package_impl(product_id: str):
     upload_message = (manifest.get("message") or "").strip() or None
     git_sha = (manifest.get("gitSha") or "").strip() or None
     notes = manifest.get("notes")
-    manifest_version = (manifest.get("schemaVersion") or "1.0").strip()
+    manifest_version = (manifest.get("manifestVersion") or "1.0").strip()
 
     db = get_db_client()
 
