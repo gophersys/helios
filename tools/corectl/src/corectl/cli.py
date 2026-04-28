@@ -23,7 +23,7 @@ import click
 
 from . import __version__
 from .config import load_config
-from .commands import auth, budgets, runs, test
+from .commands import auth, budgets, runs, test, update as update_cmd
 
 
 @click.group(invoke_without_command=True)
@@ -90,6 +90,7 @@ main.add_command(test.package, "package")
 main.add_command(test.init, "init")
 main.add_command(test.release, "release")
 main.add_command(test.sync, "sync")
+main.add_command(update_cmd.update, "update")
 
 
 if __name__ == "__main__":
