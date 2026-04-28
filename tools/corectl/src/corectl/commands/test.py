@@ -53,6 +53,25 @@ REQUIRED_FILES = [
     "conftest.py",
 ]
 
+# Framework artifacts — generated/owned by corectl, NOT hand-editable.
+# Validation rejects any project with a missing or customized artifact.
+FRAMEWORK_ARTIFACT_DIRS = (".claude", ".devcontainer")
+FRAMEWORK_VERSION_MARKER = ".framework-version"
+
+
+def _framework_version() -> str:
+    """Return the installed corekinect version string.
+
+    Falls back to ``"0.0.0"`` when corekinect is not importable so init
+    still works in source-only checkouts. The validate gate flags any
+    on-disk marker that disagrees with this value.
+    """
+    try:
+        import corekinect
+        return getattr(corekinect, "__version__", "0.0.0")
+    except ImportError:
+        return "0.0.0"
+
 # Try to import the manifest library (optional — not always installed)
 try:
     from corekinect.manifest.loader import load_manifest, find_manifest, load_manifest_raw
@@ -483,6 +502,8 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
         "device_type_id": revision.get("deviceType") if revision.get("deviceType") is not None else 0,
         "device_variant_id": revision.get("deviceVariant") if revision.get("deviceVariant") is not None else 0,
         "pkg_type": pkg_type,
+        "kind": pkg_type,                          # alias used by .claude/.devcontainer templates
+        "framework_version": _framework_version(), # corekinect version at scaffold time
     }
 
     _render_template_tree(pkg_type, project_dir, ctx_vars)
@@ -715,6 +736,220 @@ class {class_name}(Fixture):
         "dut": Power(rail="DUT_PWR"),
     }}
 '''
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Framework artifacts — .claude/ and .devcontainer/
+#
+# These directories ship with the installed corectl/corekinect wheel
+# and are re-rendered into a project on init. The dev does not own them
+# — `corectl test validate` fails if anything is missing, drifted, or
+# customized; the platform refuses uploads that fail this gate. Use
+# `corectl test update` to refresh them when corectl/corekinect is bumped.
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def _project_ctx_vars(project_dir: Path, manifest: dict) -> dict:
+    """Re-derive the substitution context for a scaffolded project.
+
+    Used by ``validate`` and ``update`` — both need to re-render the
+    framework artifact templates against the project's current shape so
+    they can compare or write. Pulls from the local manifest (no backend
+    round-trip) and the installed framework version.
+    """
+    product_slug = (manifest.get("product") or {}).get("slug") or "unknown"
+    board_slug = (manifest.get("product") or {}).get("board") or "unknown"
+    board_class = "".join(p.capitalize() for p in board_slug.split("_"))
+    fixture_module = (manifest.get("fixture") or {}).get(
+        "module",
+        f"fixtures.{board_slug}.fixture:{board_class}Fixture",
+    )
+    device = (manifest.get("product") or {}).get("device") or {}
+    pkg_type = (manifest.get("package") or {}).get("type", "validation")
+
+    # Prefer the marker on disk over the installed version — it tells us
+    # what version the project was last refreshed against, which is the
+    # version we should diff against when checking for drift. Fall back
+    # to the installed version on first scaffold.
+    marker_path = project_dir / ".claude" / FRAMEWORK_VERSION_MARKER
+    if marker_path.is_file():
+        on_disk_version = marker_path.read_text(encoding="utf-8").strip()
+    else:
+        on_disk_version = _framework_version()
+
+    return {
+        "product": product_slug,
+        "board": board_slug,
+        "board_class": board_class,
+        "fixture_module": fixture_module,
+        "device_type_id": device.get("type_id", 0),
+        "device_variant_id": device.get("variant_id", 0),
+        "pkg_type": pkg_type,
+        "kind": pkg_type,
+        "framework_version": on_disk_version,
+    }
+
+
+def _iter_framework_artifact_renders(ctx_vars: dict):
+    """Yield ``(relative_path, expected_text)`` for every framework artifact.
+
+    Walks the bundled template tree for ``.claude/`` and ``.devcontainer/``,
+    applies token substitution, and produces the exact bytes that should
+    be on disk in a coherent project. Skips ``__pycache__`` and ``*.pyc``
+    (same as the renderer).
+    """
+    from importlib import resources
+
+    shared_root = resources.files("corectl") / "templates" / "_shared"
+    for top in FRAMEWORK_ARTIFACT_DIRS:
+        root = shared_root / top
+        if not root.is_dir():
+            continue
+        yield from _walk_artifact_tree(root, Path(top), ctx_vars)
+
+
+def _walk_artifact_tree(src_root, rel_root: Path, ctx_vars: dict):
+    """Helper: recursive walk producing (rel_path, content) pairs."""
+    for entry in src_root.iterdir():
+        rel = entry.name
+        if rel == "__pycache__" or rel.endswith(".pyc"):
+            continue
+        rel_path = rel_root / rel
+        if entry.is_dir():
+            yield from _walk_artifact_tree(entry, rel_path, ctx_vars)
+            continue
+        raw = entry.read_text(encoding="utf-8")
+        yield rel_path, _substitute(raw, ctx_vars)
+
+
+def _validate_framework_artifacts(
+    project_dir: Path, manifest: dict, result: ValidationResult
+) -> None:
+    """Check that every framework artifact is present and unmodified.
+
+    Adds errors to ``result`` for missing files, framework-version
+    mismatches, or any byte-level drift from the bundled template. The
+    user is expected to run ``corectl test update --apply`` to fix.
+    """
+    ctx_vars = _project_ctx_vars(project_dir, manifest)
+    on_disk_version = ctx_vars["framework_version"]
+    installed_version = _framework_version()
+
+    if on_disk_version != installed_version:
+        result.warn(
+            f"Framework artifacts at v{on_disk_version}; installed framework is "
+            f"v{installed_version}. Run 'corectl test update --apply' to refresh."
+        )
+
+    expected = list(_iter_framework_artifact_renders(ctx_vars))
+    if not expected:
+        result.error("Bundled framework artifacts not found in installed corectl.")
+        return
+
+    missing: List[str] = []
+    drifted: List[str] = []
+    for rel_path, expected_text in expected:
+        on_disk = project_dir / rel_path
+        if not on_disk.is_file():
+            missing.append(str(rel_path))
+            continue
+        actual_text = on_disk.read_text(encoding="utf-8")
+        if actual_text != expected_text:
+            drifted.append(str(rel_path))
+
+    if missing:
+        for m in missing:
+            result.error(f"Framework artifact missing: {m}")
+        result.error(
+            "Run 'corectl test update --apply' to install missing framework artifacts."
+        )
+    if drifted:
+        for d in drifted:
+            result.error(f"Framework artifact drifted from template: {d}")
+        result.error(
+            "Framework artifacts must not be hand-edited. Run "
+            "'corectl test update --apply' to revert, or upstream a change to the "
+            "framework if you really need it."
+        )
+    if not missing and not drifted:
+        result.ok(f"Framework artifacts: {len(expected)} files coherent with v{on_disk_version}")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# corectl test update — refresh framework artifacts in place
+# ═════════════════════════════════════════════════════════════════════════
+
+
+@test.command()
+@click.argument("path", default=".", required=False)
+@click.option("--apply", "auto_apply", is_flag=True, help="Write changes without confirmation.")
+def update(path: str, auto_apply: bool):
+    """Refresh ``.claude/`` and ``.devcontainer/`` from the installed framework.
+
+    Re-renders every framework artifact from the bundled templates,
+    using the project's current product/board/kind values for token
+    substitution. Shows the per-file diff first; pass ``--apply`` to
+    write the changes. Test code, fixtures, manifest, conftest, and
+    pyproject are never touched.
+    """
+    project_dir = Path(path).resolve()
+    manifest_path = _find_manifest_path(project_dir)
+    manifest = _load_manifest_yaml(manifest_path)
+
+    ctx_vars = _project_ctx_vars(project_dir, manifest)
+    # Always render against the installed framework — that's what update is for.
+    ctx_vars["framework_version"] = _framework_version()
+
+    expected = list(_iter_framework_artifact_renders(ctx_vars))
+    if not expected:
+        click.echo("No framework artifact templates found in the installed corectl.", err=True)
+        raise SystemExit(1)
+
+    creates: List[Tuple[Path, str]] = []
+    updates: List[Tuple[Path, str]] = []
+    for rel_path, expected_text in expected:
+        on_disk = project_dir / rel_path
+        if not on_disk.is_file():
+            creates.append((rel_path, expected_text))
+            continue
+        if on_disk.read_text(encoding="utf-8") != expected_text:
+            updates.append((rel_path, expected_text))
+
+    if not creates and not updates:
+        click.echo(
+            f"Framework artifacts already at v{ctx_vars['framework_version']} — nothing to do."
+        )
+        return
+
+    click.echo("")
+    click.echo(f"  Refreshing framework artifacts to v{ctx_vars['framework_version']}:")
+    for rel_path, _ in creates:
+        click.echo(click.style(f"    + {rel_path}", fg="green"))
+    for rel_path, _ in updates:
+        click.echo(click.style(f"    ~ {rel_path}", fg="yellow"))
+    click.echo("")
+    click.echo(f"  ({len(creates)} new, {len(updates)} updated, "
+               f"{len(expected) - len(creates) - len(updates)} unchanged)")
+    click.echo("")
+
+    if not auto_apply:
+        click.echo("  Re-run with --apply to write these changes.")
+        return
+
+    for rel_path, expected_text in creates + updates:
+        target = project_dir / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(expected_text, encoding="utf-8")
+        # Preserve executable bit for shell scripts (the bundled templates
+        # are not stored with mode bits — re-apply by extension).
+        if rel_path.suffix == ".sh":
+            target.chmod(0o755)
+
+    click.echo(click.style(
+        f"  Wrote {len(creates) + len(updates)} files. "
+        f"Run 'corectl test validate' to confirm.",
+        fg="green",
+    ))
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -965,6 +1200,13 @@ def validate(ctx, path: str, strict: bool):
         click.echo()
         click.echo("Compatibility:")
         _validate_compatibility(project_dir, manifest, result)
+
+    # Framework artifacts — must be present, version-matched, and unmodified.
+    # Runs whenever a manifest exists; failures here block uploads platform-side.
+    if manifest:
+        click.echo()
+        click.echo("Framework artifacts:")
+        _validate_framework_artifacts(project_dir, manifest, result)
 
     # Non-fatal drift check against the backend.
     _warn_if_drifted(ctx, project_dir)

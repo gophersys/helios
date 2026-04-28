@@ -1,0 +1,27 @@
+{
+  "name": "{{product}} {{board}} {{kind}} test app",
+  "image": "containers.ad.corekinect.com/concord-devcontainer-base:latest",
+  "runArgs": [
+    "--privileged",
+    "--net=host",
+    "--add-host=host.docker.internal:host-gateway"
+  ],
+  "mounts": [
+    "source=/dev,target=/dev,type=bind",
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
+  ],
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/usr/bin/zsh",
+        "[python]": {
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          },
+          "editor.rulers": [119]
+        }
+      }
+    }
+  }
+}

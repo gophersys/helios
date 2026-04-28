@@ -219,6 +219,45 @@ def _extract_test_count(file_data: bytes) -> Optional[int]:
         return None
 
 
+# Framework artifacts the platform requires in every uploaded test package.
+# These ship with the corectl/corekinect wheel and are scaffolded by
+# `corectl test init`. Hand-drift is caught locally by `corectl test
+# validate`; this gate enforces the same contract server-side so packages
+# uploaded out-of-band (CI scripts, third-party tools) cannot bypass it.
+_REQUIRED_ARTIFACT_MARKERS = (
+    ".claude/.framework-version",
+    ".devcontainer/.framework-version",
+)
+
+
+def _check_framework_artifacts(file_data: bytes) -> Optional[str]:
+    """Return None if the tarball contains every required framework artifact
+    marker, otherwise an error message naming the missing ones.
+
+    Cheap up-front check — only inspects member names, doesn't extract.
+    Tarballs may root entries either at the top (``./.claude/...``) or
+    via a single wrapper directory (``app/.claude/...``); both shapes are
+    accepted as long as the relative tail matches.
+    """
+    try:
+        buf = BytesIO(file_data)
+        with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+            names = {m.name.lstrip("./") for m in tar.getmembers() if m.isfile()}
+    except Exception as exc:
+        return f"Could not read uploaded tarball: {exc}"
+
+    missing = []
+    for marker in _REQUIRED_ARTIFACT_MARKERS:
+        if not any(n == marker or n.endswith("/" + marker) for n in names):
+            missing.append(marker)
+    if missing:
+        return (
+            "Missing required framework artifacts: " + ", ".join(missing) + ". "
+            "Run `corectl test update --apply` then re-upload."
+        )
+    return None
+
+
 def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifest_version: str):
     """Extract structured stage/step metadata from the concord.yaml inside the archive.
 
@@ -434,6 +473,13 @@ def _upload_test_package_impl(product_id: str):
     file_data = package_file.read()
     size_bytes = len(file_data)
     manifest_hash = hashlib.sha256(manifest_raw.encode()).hexdigest()
+
+    # Hard gate: every uploaded package MUST carry the framework artifact
+    # markers. Drift / customization / older-corectl uploads all fail
+    # here. See _REQUIRED_ARTIFACT_MARKERS for the list.
+    artifact_error = _check_framework_artifacts(file_data)
+    if artifact_error:
+        return bad_request(artifact_error)
 
     # ── Two-phase commit ──
     #
