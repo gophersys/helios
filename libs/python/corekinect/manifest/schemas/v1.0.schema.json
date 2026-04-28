@@ -146,6 +146,15 @@
           "items": { "type": "string" },
           "uniqueItems": true,
           "description": "Pytest markers registered for this stage (e.g., ['health_check', 'fuota_fast'])."
+        },
+        "hardware": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "uniqueItems": true,
+          "description": "Hardware resources this stage requires (e.g., ['mtib', 'fixture']). The runner's required_checks gate refuses to start when a declared resource is unavailable."
         }
       }
     },

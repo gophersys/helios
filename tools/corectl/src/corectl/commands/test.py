@@ -639,6 +639,9 @@ def _render_pkg(src_root, dest: Path, ctx_vars: dict) -> None:
     """Recursively copy ``src_root`` (a Traversable) into ``dest``.
 
     Rename/skip rules:
+      * ``__pycache__`` directories and ``*.pyc`` files are skipped — they
+        are bytecode artifacts that pytest leaves behind in the installed
+        templates directory and would crash the UTF-8 read pass.
       * Directories starting with ``_`` are assumed to be private and
         skipped (``_shared`` is consumed at the top level).
       * ``__init__.py`` files are copied as-is (Python needs them).
@@ -649,6 +652,8 @@ def _render_pkg(src_root, dest: Path, ctx_vars: dict) -> None:
     for entry in src_root.iterdir():
         rel = entry.name
         target = dest / rel
+        if rel == "__pycache__" or rel.endswith(".pyc"):
+            continue
         if entry.is_dir():
             # _foo dirs under the top level are internal scaffolding.
             if rel.startswith("_") and src_root.name in ("validation", "manufacturing"):

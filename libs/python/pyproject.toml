@@ -32,3 +32,6 @@ version = {attr = "corekinect.__version__"}
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["corekinect*", "protocols*", "mtib*"]
+
+[tool.setuptools.package-data]
+"corekinect.manifest" = ["schemas/*.json"]
