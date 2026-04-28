@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
 
 SRC_URI = "https://github.com/aristocratos/btop/archive/refs/tags/v${PV}.tar.gz;downloadfilename=btop-${PV}.tar.gz"
-SRC_URI[sha256sum] = "0ffe03d3e26a3e9bbfd5375adf34934137757994f297d6b699a46edd43c3fc02"
+SRC_URI[sha256sum] = "4beb90172c6acaac08c1b4a5112fb616772e214a7ef992bcbd461453295a58be"
 
 DEPENDS = "ncurses"
 
