@@ -27,6 +27,11 @@ from src.api.v2.products.test_package_resolver import (
     assert_purpose_match,
     resolve_test_package,
 )
+from src.api.v2.fixtures.fixtures import (
+    _compute_assignable,
+    _compute_fixture_health,
+    _get_mtib_status_map,
+)
 from corekinect.stages import Stage
 
 logger = logging.getLogger(__name__)
@@ -783,67 +788,86 @@ def check_build_run_completion(run_id: str) -> Optional[str]:
 
 
 def _find_available_fixture(db, product_id: str):
-    """Find an available fixture with a ready, online slot for the given product.
+    """Pick a free + healthy fixture with a configured slot to run on.
 
-    Returns (fixture, slot, mtib_address) if found, else (None, None, None).
+    Uses the same live readiness check as the API
+    (``Fixture.assignable``) — never reads any persisted reachability
+    column. A single batched K8s call resolves status across all
+    candidate fixtures.
+
+    Returns ``(fixture, slot, mtib_address, fixtures)`` where
+    ``fixtures`` is the unfiltered candidate list (used by
+    :func:`_analyze_unavailability` to explain why nothing was
+    pickable).
     """
     fixtures = db.fixture.find_many(
         where={"productId": product_id, "active": True},
         include={"slots": {"include": {"node": True}}, "design": True},
     )
 
-    fixture = None
-    slot = None
-    mtib_address = None
+    if not fixtures:
+        return None, None, None, []
+
+    mtib_status = _get_mtib_status_map(None)
 
     for f in fixtures:
-        if f.status != "AVAILABLE":
-            logger.debug("Fixture %s skipped: status=%s", f.name, f.status)
+        health = _compute_fixture_health(f, mtib_status)
+        assignable, reason = _compute_assignable(
+            getattr(f, "lockState", "FREE"), health["health"],
+        )
+        if not assignable:
+            logger.debug("Fixture %s skipped: %s", f.name, reason)
             continue
+
+        # Find a configured slot whose live MTIB state is READY.
+        slot_states = health.get("slotStates") or {}
         for s in (f.slots or []):
             if not (s.active and s.dutSnr and s.dutDeviceId):
                 continue
+            state = slot_states.get(s.id, {})
+            if state.get("state") != "READY":
+                continue
             node = getattr(s, "node", None)
-            if node and node.status == "ONLINE" and node.ipAddress:
-                fixture = f
-                slot = s
-                mtib_address = node.ipAddress
-                break
-        if fixture:
-            break
+            ip = getattr(node, "ipAddress", None) if node else None
+            if ip:
+                return f, s, ip, fixtures
 
-    return fixture, slot, mtib_address, fixtures
-
-
-def _is_fixture_available(f) -> bool:
-    """Check if a fixture has AVAILABLE status."""
-    return f.status == "AVAILABLE"
+    return None, None, None, fixtures
 
 
 def _has_configured_slot(f) -> bool:
-    """Check if a fixture has at least one active slot with a DUT serial."""
+    """Fixture has at least one active slot with a DUT serial."""
     return any(s.active and s.dutSnr for s in (f.slots or []))
 
 
-def _has_offline_slot(f) -> bool:
-    """Check if any configured slot has a non-ONLINE node."""
-    return any(
-        s.active and s.dutSnr
-        and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
-        for s in (f.slots or [])
-    )
+def _analyze_unavailability(db, fixtures, mtib_status: dict | None = None) -> dict:
+    """Categorize why no fixture was pickable.
 
-
-def _analyze_unavailability(db, fixtures) -> dict:
-    """Categorize why no fixture is available.
-
-    Returns dict with keys: locked, offline, unconfigured (each a list of names).
+    Returns ``{"locked": [...], "offline": [...], "unconfigured": [...]}``
+    — each a list of fixture names. Uses the same live judgment as
+    :func:`_find_available_fixture` so the queued-reason matches what
+    the UI shows.
     """
-    locked = [f.name for f in fixtures if not _is_fixture_available(f)]
-    available = [f for f in fixtures if _is_fixture_available(f)]
-    no_slot = [f.name for f in available if not _has_configured_slot(f)]
-    offline = [f.name for f in available if _has_configured_slot(f) and _has_offline_slot(f)]
-    return {"locked": locked, "offline": offline, "unconfigured": no_slot}
+    if mtib_status is None:
+        mtib_status = _get_mtib_status_map(None)
+
+    locked: list[str] = []
+    offline: list[str] = []
+    unconfigured: list[str] = []
+
+    for f in fixtures:
+        lock_state = getattr(f, "lockState", "FREE")
+        if lock_state != "FREE":
+            locked.append(f.name)
+            continue
+        if not _has_configured_slot(f):
+            unconfigured.append(f.name)
+            continue
+        health = _compute_fixture_health(f, mtib_status)
+        if health["health"] != "ONLINE":
+            offline.append(f.name)
+
+    return {"locked": locked, "offline": offline, "unconfigured": unconfigured}
 
 
 def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
@@ -909,7 +933,7 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
     db.fixture.update(
         where={"id": fixture.id},
         data={
-            "status": "LOCKED",
+            "lockState": "IN_USE",
             "lockedBy": f"buildRun:{run_id}",
             "lockedAt": datetime.now(timezone.utc),
         },
@@ -1093,7 +1117,7 @@ def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Option
 
         if not job_name:
             logger.error("Failed to create K8s job for build run %s", run_id)
-            db.fixture.update(where={"id": fixture.id}, data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None})
+            db.fixture.update(where={"id": fixture.id}, data={"lockState": "FREE", "lockedBy": None, "lockedAt": None})
             return None
 
         config = session.config if isinstance(session.config, dict) else {}

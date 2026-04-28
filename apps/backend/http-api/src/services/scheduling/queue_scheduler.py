@@ -189,7 +189,7 @@ def _reconcile_stuck_jobs(
                 db.fixture.update(
                     where={"id": entry.fixtureId},
                     data={
-                        "status": "AVAILABLE",
+                        "lockState": "FREE",
                         "lockedBy": None,
                         "lockedAt": None,
                     },

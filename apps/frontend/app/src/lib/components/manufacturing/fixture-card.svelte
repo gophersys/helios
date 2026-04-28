@@ -27,7 +27,7 @@
         <p class="text-2xs text-text-tertiary mt-1 truncate">{fixture.description}</p>
       {/if}
     </div>
-    <StatusBadge status={fixture.status} />
+    <StatusBadge status={fixture.assignable ? 'READY' : (fixture.lockState ?? 'FREE')} />
   </div>
 
   <div class="mt-3 flex items-center justify-between">
@@ -43,7 +43,7 @@
         >
           View active session
         </button>
-      {:else if canRun && fixture.status === 'AVAILABLE'}
+      {:else if canRun && fixture.assignable}
         <button
           onclick={() => showStartDialog = true}
           class="btn btn-sm btn-primary text-2xs"

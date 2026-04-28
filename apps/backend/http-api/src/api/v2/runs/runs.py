@@ -228,7 +228,7 @@ def cancel_run(run_id: str):
                 db.fixture.update(
                     where={"id": run.fixtureId},
                     data={
-                        "status": "AVAILABLE",
+                        "lockState": "FREE",
                         "lockedBy": None,
                         "lockedAt": None,
                     },

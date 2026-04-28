@@ -473,15 +473,31 @@ class TestCheckBuildRunCompletion:
 class TestFindAvailableFixture:
     """Tests for _find_available_fixture()."""
 
-    def test_finds_available_fixture(self):
-        """Returns fixture with online node and configured slot."""
+    @patch("src.api.v2.fixtures.fixtures._probe_slots_concurrent", return_value={"slot-1": True})
+    @patch("src.services.builds.run_service._get_mtib_status_map")
+    def test_finds_available_fixture(self, mock_status, _mock_probe):
+        """Returns fixture whose live MTIB state is READY."""
         from src.services.builds.run_service import _find_available_fixture
 
+        mock_status.return_value = {
+            "mtib-1": {
+                "name": "mtib-1",
+                "replicas": 1,
+                "readyReplicas": 1,
+                "pods": [{"ready": True}],
+            }
+        }
         db = MagicMock()
-        node = make_obj(status="ONLINE", ipAddress="192.168.1.100")
-        slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
+        node = make_obj(
+            id="node-1", disabled=False, ipAddress="192.168.1.100",
+            metadata={"deployment_name": "mtib-1"},
+        )
+        slot = make_obj(
+            id="slot-1", nodeId="node-1", active=True,
+            dutSnr="0964", dutDeviceId="dev-1", node=node,
+        )
         fixture = make_obj(
-            id="fix-1", name="Bench-33", status="AVAILABLE",
+            id="fix-1", name="Bench-33", lockState="FREE",
             slots=[slot], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
@@ -498,7 +514,7 @@ class TestFindAvailableFixture:
 
         db = MagicMock()
         fixture = make_obj(
-            id="fix-1", name="Bench-33", status="LOCKED",
+            id="fix-1", name="Bench-33", lockState="IN_USE",
             slots=[], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
@@ -516,7 +532,7 @@ class TestFindAvailableFixture:
         node = make_obj(status="OFFLINE", ipAddress="192.168.1.100")
         slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
         fixture = make_obj(
-            id="fix-1", name="Bench-33", status="AVAILABLE",
+            id="fix-1", name="Bench-33", lockState="FREE",
             slots=[slot], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
@@ -532,7 +548,7 @@ class TestFindAvailableFixture:
         db = MagicMock()
         slot = make_obj(active=True, dutSnr=None, dutDeviceId=None, node=None)
         fixture = make_obj(
-            id="fix-1", name="Bench-33", status="AVAILABLE",
+            id="fix-1", name="Bench-33", lockState="FREE",
             slots=[slot], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
@@ -555,7 +571,7 @@ class TestAnalyzeUnavailability:
 
         db = MagicMock()
         fixtures = [
-            make_obj(name="Bench-1", status="LOCKED", slots=[]),
+            make_obj(name="Bench-1", lockState="IN_USE", slots=[]),
         ]
 
         result = _analyze_unavailability(db, fixtures)
@@ -570,7 +586,7 @@ class TestAnalyzeUnavailability:
         node = make_obj(status="OFFLINE")
         slot = make_obj(active=True, dutSnr="0964", node=node)
         fixtures = [
-            make_obj(name="Bench-2", status="AVAILABLE", slots=[slot]),
+            make_obj(name="Bench-2", lockState="FREE", slots=[slot]),
         ]
 
         result = _analyze_unavailability(db, fixtures)
@@ -584,7 +600,7 @@ class TestAnalyzeUnavailability:
         db = MagicMock()
         slot = make_obj(active=False, dutSnr=None)
         fixtures = [
-            make_obj(name="Bench-3", status="AVAILABLE", slots=[slot]),
+            make_obj(name="Bench-3", lockState="FREE", slots=[slot]),
         ]
 
         result = _analyze_unavailability(db, fixtures)

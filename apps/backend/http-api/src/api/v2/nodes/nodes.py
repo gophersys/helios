@@ -37,27 +37,41 @@ except ImportError:
 
 
 def _serialize_node(n: Any, include_slot: bool = False) -> dict:
-    """Serialize a Node DB record to an API response dict."""
-    data = {
-        "id": n.id,
-        "name": n.name,
-        "hostname": n.hostname,
-        "type": n.type,
-        "status": n.status,
-        "ipAddress": n.ipAddress,
-        "hardwareRevision": n.hardwareRevision,
-        "metadata": n.metadata,
-        "createdAt": n.createdAt.isoformat(),
-        "updatedAt": n.updatedAt.isoformat(),
-    }
+    """Serialize a Node DB record to an API response dict.
 
-    # Add deployment status if a deployment_name is stored in metadata
+    ``status`` is computed live (never read from a DB column): the admin
+    override (``disabled``) wins, otherwise it reflects the MTIB
+    deployment readiness at this moment.
+    """
+    # Resolve live deployment status first — drives ``status`` below.
     deployment_status = None
     if n.metadata and isinstance(n.metadata, dict) and n.metadata.get("deployment_name"):
         try:
             deployment_status = get_mtib_deployment_status(n.metadata["deployment_name"])
         except Exception:
             pass
+
+    if getattr(n, "disabled", False):
+        live_status = "MAINTENANCE"
+    elif deployment_status and deployment_status.get("readyReplicas") and \
+            deployment_status.get("readyReplicas") == deployment_status.get("replicas"):
+        live_status = "ONLINE"
+    else:
+        live_status = "OFFLINE"
+
+    data = {
+        "id": n.id,
+        "name": n.name,
+        "hostname": n.hostname,
+        "type": n.type,
+        "disabled": bool(getattr(n, "disabled", False)),
+        "status": live_status,
+        "ipAddress": n.ipAddress,
+        "hardwareRevision": n.hardwareRevision,
+        "metadata": n.metadata,
+        "createdAt": n.createdAt.isoformat(),
+        "updatedAt": n.updatedAt.isoformat(),
+    }
     data["deploymentStatus"] = deployment_status
 
     if include_slot and hasattr(n, "fixtureSlot") and n.fixtureSlot:
@@ -201,12 +215,16 @@ def sync_nodes_from_k8s():
 
         if hostname in db_hostname_map:
             db_node = db_hostname_map[hostname]
+            # Live status: admin override wins, else "ONLINE" because the
+            # K8s Ready check already filtered the iteration.
+            status = "MAINTENANCE" if getattr(db_node, "disabled", False) else "ONLINE"
             registered.append({
                 "id": db_node.id,
                 "name": db_node.name,
                 "hostname": hostname,
                 "type": db_node.type,
-                "status": db_node.status,
+                "disabled": bool(getattr(db_node, "disabled", False)),
+                "status": status,
                 "ipAddress": ip or db_node.ipAddress,
             })
         else:
@@ -219,16 +237,20 @@ def sync_nodes_from_k8s():
                 "labels": labels,
             })
 
-    # Nodes in DB but not found in K8s arm64 list
+    # Nodes in DB but not found in K8s arm64 list. By definition the K8s
+    # Ready check failed for these, so live status is OFFLINE — unless
+    # the operator deliberately disabled them.
     offline = []
     for db_node in db_nodes:
         if db_node.hostname not in seen_hostnames:
+            status = "MAINTENANCE" if getattr(db_node, "disabled", False) else "OFFLINE"
             offline.append({
                 "id": db_node.id,
                 "name": db_node.name,
                 "hostname": db_node.hostname,
                 "type": db_node.type,
-                "status": db_node.status,
+                "disabled": bool(getattr(db_node, "disabled", False)),
+                "status": status,
             })
 
     return jsonify(ApiResponse.ok({

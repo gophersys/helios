@@ -991,6 +991,30 @@ export interface NodeSyncResult {
 
 // ── Fixture types ──────────────────────────────────────────
 
+/** Live MTIB readiness per slot. Computed at API serialize time —
+ *  never persisted. The state vocabulary matches the slot-tile chip in
+ *  the panel grid AND the slot detail modal so they always agree. */
+export type SlotMtibState =
+  | 'READY'
+  | 'DEPLOYING'
+  | 'PROBE_FAILED'
+  | 'NOT_DEPLOYED'
+  | 'DISABLED';
+
+export interface SlotMtibStatus {
+  state: SlotMtibState;
+  label: string;
+  reason: string;
+  deployName: string | null;
+  replicasOk: boolean;
+  podsOk: boolean;
+  probeOk: boolean;
+}
+
+/** Live three-state Node status. Always derived from the slot's
+ *  mtibStatus + the node's ``disabled`` admin flag. */
+export type NodeStatus = 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
+
 export interface FixtureSlot {
   id: string;
   fixtureId: string;
@@ -1003,8 +1027,14 @@ export interface FixtureSlot {
     name: string;
     hostname: string;
     type: string;
-    status: string;
+    /** Admin override: true = take out of rotation. */
+    disabled: boolean;
+    /** Computed live — never read from a DB column. */
+    status: NodeStatus;
   } | null;
+  /** Live per-slot MTIB readiness — drives both the panel tile and
+   *  the slot detail modal status pill. */
+  mtibStatus?: SlotMtibStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -1020,6 +1050,15 @@ export type FixtureHealth = 'ONLINE' | 'OFFLINE' | 'ERROR' | 'UNASSIGNED';
 
 export type FixturePurpose = 'DEV' | 'RELEASE';
 
+/** Reservation state — orthogonal to health. Stored in the DB.
+ *
+ *   FREE        — no session currently holds the fixture
+ *   IN_USE      — a session is running on it (lockedBy populated)
+ *   MAINTENANCE — admin has explicitly taken it out of rotation
+ *
+ * "Can a session start right now?" is the separate ``assignable`` boolean. */
+export type FixtureLockState = 'FREE' | 'IN_USE' | 'MAINTENANCE';
+
 export interface Fixture {
   id: string;
   name: string;
@@ -1029,7 +1068,9 @@ export interface Fixture {
   type: string;
   /** DEV rigs accept dev + released packages; RELEASE fixtures only accept released. */
   purpose: FixturePurpose;
-  status: string;
+  lockState: FixtureLockState;
+  lockedBy: string | null;
+  lockedAt: string | null;
   panelRows: number;
   panelCols: number;
   description: string | null;
@@ -1043,6 +1084,11 @@ export interface Fixture {
   slots?: FixtureSlot[];
   health?: FixtureHealth;
   healthDetails?: FixtureHealthDetails;
+  /** True iff ``lockState === 'FREE' && health === 'ONLINE'``. The
+   *  single canonical "can a session start?" predicate. */
+  assignable?: boolean;
+  /** Short human-readable reason when assignable is false; null otherwise. */
+  assignableReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1391,7 +1437,7 @@ export interface TestBench {
   jlinkCommsSerial: string | null;
   uartAppPath: string | null;
   uartCommsPath: string | null;
-  status: 'AVAILABLE' | 'LOCKED' | 'OFFLINE' | 'MAINTENANCE';
+  lockState: FixtureLockState;
   lockedBy: string | null;
   lockedAt: string | null;
   lastHealthCheck: string | null;

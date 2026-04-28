@@ -469,7 +469,7 @@ class TestCancelRun:
         assert resp.status_code == 200
         mock_db.fixture.update.assert_called_once()
         fix_data = mock_db.fixture.update.call_args.kwargs["data"]
-        assert fix_data["status"] == "AVAILABLE"
+        assert fix_data["lockState"] == "FREE"
         assert fix_data["lockedBy"] is None
         assert fix_data["lockedAt"] is None
 

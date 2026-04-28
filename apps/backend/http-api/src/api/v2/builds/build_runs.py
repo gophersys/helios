@@ -426,7 +426,7 @@ def validate_build_run(run_id: str):
             elif prior_run and prior_run.status not in ("ACTIVE", "RUNNING"):
                 if prior_run.fixtureId:
                     db.fixture.update(where={"id": prior_run.fixtureId}, data={
-                        "status": "AVAILABLE", "lockedBy": None, "lockedAt": None,
+                        "lockState": "FREE", "lockedBy": None, "lockedAt": None,
                     })
                 logger.info("Prior run %s finished (%s), unlocked fixture", build_run.validationRunId[:8], prior_run.status)
 

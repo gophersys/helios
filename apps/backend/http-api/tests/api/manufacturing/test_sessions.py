@@ -11,6 +11,21 @@ import pytest
 from tests.conftest import make_obj
 
 
+@pytest.fixture(autouse=True)
+def _stub_assignable():
+    """Sessions are gated on ``Fixture.assignable`` which lives behind a
+    K8s call in production. For unit tests, default to "ready" — tests
+    that need to exercise the gate override the patches inline."""
+    health = {
+        "health": "ONLINE",
+        "healthDetails": {"nodesReady": 1, "nodesTotal": 1, "mtibsReady": 1, "mtibsTotal": 1},
+        "slotStates": {},
+    }
+    with patch("src.api.v2.fixtures.fixtures._get_mtib_status_map", return_value={}), \
+         patch("src.api.v2.fixtures.fixtures._compute_fixture_health", return_value=health):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -51,7 +66,7 @@ def _fixture(**overrides):
         productId="s10-prod-1",
         boardRevisionId="s10-rev-1",
         type="MANUFACTURING",
-        status="AVAILABLE",
+        lockState="FREE",
         lockedBy=None,
         lockedAt=None,
         active=True,
@@ -233,7 +248,7 @@ class TestCreateSession:
         mock_db.testpackage.find_first.return_value = _test_package()
         created = _session()
         mock_db.manufacturingsession.create.return_value = created
-        mock_db.fixture.update.return_value = _fixture(status="LOCKED", lockedBy="s10-sess-1")
+        mock_db.fixture.update.return_value = _fixture(lockState="IN_USE", lockedBy="s10-sess-1")
 
         resp = authed_client.post(
             "/v2/manufacturing/sessions",
@@ -245,7 +260,7 @@ class TestCreateSession:
         assert resp.status_code == 201
 
     def test_returns_409_if_fixture_locked(self, authed_client, mock_db):
-        mock_db.fixture.find_unique.return_value = _fixture(status="LOCKED", lockedBy="other-sess")
+        mock_db.fixture.find_unique.return_value = _fixture(lockState="IN_USE", lockedBy="other-sess")
 
         resp = authed_client.post(
             "/v2/manufacturing/sessions",
@@ -427,7 +442,7 @@ class TestEndSession:
     def test_ends_session_and_releases_fixture(self, authed_client, mock_db):
         mock_db.manufacturingsession.find_unique.return_value = _session()
         mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
-        mock_db.fixture.update.return_value = _fixture(status="AVAILABLE", lockedBy=None)
+        mock_db.fixture.update.return_value = _fixture(lockState="FREE", lockedBy=None)
 
         resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")
         assert resp.status_code == 200
@@ -454,7 +469,7 @@ class TestEndSession:
         """
         mock_db.manufacturingsession.find_unique.return_value = _session()
         mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
-        mock_db.fixture.update.return_value = _fixture(status="AVAILABLE", lockedBy=None)
+        mock_db.fixture.update.return_value = _fixture(lockState="FREE", lockedBy=None)
 
         # Two update_many calls are expected: PENDING→FAILED, ACTIVE→CANCELLED.
         # The second return value exercises the "reconciled > 0" branch that
@@ -484,7 +499,7 @@ class TestEndSession:
         """If every run already hit /report/finish, don't touch run targets."""
         mock_db.manufacturingsession.find_unique.return_value = _session()
         mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
-        mock_db.fixture.update.return_value = _fixture(status="AVAILABLE", lockedBy=None)
+        mock_db.fixture.update.return_value = _fixture(lockState="FREE", lockedBy=None)
         mock_db.testrun.update_many.return_value = 0  # no orphans
 
         resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")

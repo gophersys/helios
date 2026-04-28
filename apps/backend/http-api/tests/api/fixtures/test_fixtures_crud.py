@@ -30,7 +30,7 @@ def _fixture_obj(**overrides):
         metadata=None,
         stationId=None,
         designId=None,
-        status="AVAILABLE",
+        lockState="FREE",
         lockedBy=None,
         lockedAt=None,
         profileOverrides=None,
@@ -77,7 +77,8 @@ def _node_obj(**overrides):
         name="MTIB-01",
         hostname="192.168.1.100",
         type="VALIDATION",
-        status="ONLINE",
+        disabled=False,
+        ipAddress="192.168.1.100",
         metadata={},
     )
     defaults.update(overrides)
@@ -517,7 +518,7 @@ class TestUndeployFixture:
 
     def test_undeploy_locked_fixture_returns_409(self, authed_client, mock_db):
         """Undeploy locked fixture (session running) returns 409."""
-        fix = _fixture_obj(status="LOCKED", slots=[])
+        fix = _fixture_obj(lockState="IN_USE", slots=[])
         mock_db.fixture.find_unique.return_value = fix
 
         resp = authed_client.post("/v2/fixtures/fix-1/undeploy")
@@ -526,7 +527,7 @@ class TestUndeployFixture:
     def test_undeploy_success(self, authed_client, mock_db):
         """Undeploy fixture with no active session returns 200."""
         slot = _slot_obj(nodeId="node-1")
-        fix = _fixture_obj(status="AVAILABLE", slots=[slot])
+        fix = _fixture_obj(lockState="FREE", slots=[slot])
         mock_db.fixture.find_unique.return_value = fix
 
         with patch("api.v2.fixtures.fixtures.log_audit"):
@@ -546,17 +547,15 @@ class TestDashboardOverview:
     """Tests for GET /v2/dashboard/overview — fixture health summary."""
 
     def test_dashboard_returns_fixture_summary(self, authed_client, mock_db):
-        """Dashboard overview returns health and slot counts per fixture.
+        """Dashboard overview returns health and ready-node counts per fixture.
 
-        Dashboard HEALTHY now requires the same checks as the canonical
-        helper: node ONLINE, MTIB deployment ready, gRPC probe OK.
+        Health is computed live from the same check the fixture detail
+        page uses — K8s pod readiness + gRPC probe — so dashboard,
+        list, and detail all agree.
         """
-        node = _node_obj(status="ONLINE", metadata={"deployment_name": "mtib-1"})
+        node = _node_obj(metadata={"deployment_name": "mtib-1"})
         slot = _slot_obj(nodeId="node-1", node=node)
-        fix = _fixture_obj(
-            slots=[slot],
-            deployments=[],
-        )
+        fix = _fixture_obj(slots=[slot], deployments=[])
         mock_db.fixture.find_many.return_value = [fix]
 
         ready_deploy = {
@@ -582,8 +581,9 @@ class TestDashboardOverview:
         item = fixtures[0]
         assert item["slotCount"] == 1
         assert item["assignedCount"] == 1
-        assert item["nodesOnline"] == 1
-        assert item["health"] == "HEALTHY"
+        assert item["nodesReady"] == 1
+        assert item["nodesTotal"] == 1
+        assert item["health"] == "ONLINE"
 
     def test_dashboard_empty_fixture_health(self, authed_client, mock_db):
         """Dashboard reports EMPTY health for fixture with no slots."""

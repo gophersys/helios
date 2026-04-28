@@ -43,7 +43,7 @@ def _serialize_bench(fixture, slot=None) -> Dict[str, Any]:
         "id": fixture.id,
         "stationId": fixture.stationId,
         "name": fixture.name,
-        "status": fixture.status,
+        "lockState": getattr(fixture, "lockState", "FREE"),
         "lockedBy": fixture.lockedBy,
         "lockedAt": fixture.lockedAt.isoformat() if fixture.lockedAt else None,
         "profileOverrides": fixture.profileOverrides if hasattr(fixture, "profileOverrides") else None,
@@ -129,9 +129,9 @@ def list_benches():
     if product:
         where["product"] = {"slug": {"contains": product.lower()}}
 
-    status = request.args.get("status")
-    if status:
-        where["status"] = status.upper()
+    lock_state = request.args.get("lockState")
+    if lock_state:
+        where["lockState"] = lock_state.upper()
 
     try:
         total = db.fixture.count(where=where)
@@ -224,7 +224,7 @@ def create_bench():
             "stationId": data.station_id,
             "productId": product.id,
             "type": "VALIDATION",
-            "status": "AVAILABLE",
+            "lockState": "FREE",
         }
         if data.fixture_design_id:
             create_data["designId"] = data.fixture_design_id
@@ -371,7 +371,7 @@ def delete_bench(bench_id: str):
     if not fixture:
         return not_found(f"Bench not found: {bench_id}")
 
-    if fixture.status == "LOCKED":
+    if fixture.lockState == "IN_USE":
         return bad_request("Cannot delete a locked bench")
 
     try:
@@ -401,17 +401,17 @@ def lock_bench(bench_id: str):
     if not fixture:
         return not_found(f"Bench not found: {bench_id}")
 
-    if fixture.status == "LOCKED":
+    if fixture.lockState == "IN_USE":
         return conflict(f"Bench already locked by: {fixture.lockedBy}")
 
-    if fixture.status in ("OFFLINE", "MAINTENANCE"):
-        return bad_request(f"Bench not available: {fixture.status}")
+    if fixture.lockState == "MAINTENANCE":
+        return bad_request("Bench is in maintenance mode")
 
     try:
         db.fixture.update(
             where={"id": bench_id},
             data={
-                "status": "LOCKED",
+                "lockState": "IN_USE",
                 "lockedBy": data.locked_by,
                 "lockedAt": datetime.now(timezone.utc),
             },
@@ -450,14 +450,14 @@ def unlock_bench(bench_id: str):
     if not fixture:
         return not_found(f"Bench not found: {bench_id}")
 
-    if fixture.status != "LOCKED":
+    if fixture.lockState != "IN_USE":
         return bad_request("Bench is not locked")
 
     try:
         db.fixture.update(
             where={"id": bench_id},
             data={
-                "status": "AVAILABLE",
+                "lockState": "FREE",
                 "lockedBy": None,
                 "lockedAt": None,
             },

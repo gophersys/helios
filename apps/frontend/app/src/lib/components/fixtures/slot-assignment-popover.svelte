@@ -86,8 +86,15 @@
             <div class="min-w-0">
               <p class="text-sm font-medium text-text-primary truncate">{slot.node.name}</p>
               <p class="text-2xs font-mono text-text-tertiary truncate">{slot.node.hostname}</p>
+              {#if slot.mtibStatus?.reason}
+                <p class="text-2xs text-text-tertiary mt-1">{slot.mtibStatus.reason}</p>
+              {/if}
             </div>
-            <StatusBadge status={slot.node.status} />
+            <!-- Use the per-slot mtibStatus label so the panel tile and
+                 the modal always show the same state (READY, DEPLOYING,
+                 NOT_DEPLOYED, …). Falls back to the 3-value summary on
+                 ``node.status`` when mtibStatus isn't loaded. -->
+            <StatusBadge status={slot.mtibStatus?.state ?? slot.node.status} />
           </div>
         {:else}
           <p class="text-sm text-text-tertiary">No node assigned.</p>

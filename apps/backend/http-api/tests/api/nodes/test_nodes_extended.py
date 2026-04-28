@@ -13,7 +13,7 @@ from tests.conftest import make_obj
 def _node(**overrides):
     defaults = dict(
         id="node-1", name="MTIB-01", hostname="verdin-imx8mm-001",
-        type="VALIDATION", status="ONLINE", ipAddress="192.168.1.1",
+        type="VALIDATION", disabled=False, ipAddress="192.168.1.1",
         hardwareRevision="REV1.2", metadata=None, fixtureSlot=None,
         createdAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
@@ -193,7 +193,7 @@ class TestCheckNodeHealth:
     def test_health_check_no_ip_returns_offline(self, authed_client, mock_db):
         """POST returns healthy=False when node has no IP configured."""
         mock_db.node.find_unique.return_value = _node(ipAddress=None)
-        mock_db.node.update.return_value = _node(ipAddress=None, status="OFFLINE")
+        mock_db.node.update.return_value = _node(ipAddress=None, disabled=False)
 
         response = authed_client.post("/v2/devices/mtibs/node-1/health")
 

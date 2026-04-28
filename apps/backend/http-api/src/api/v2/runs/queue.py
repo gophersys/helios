@@ -68,7 +68,7 @@ def _serialize_queue_entry(entry) -> dict:
             "id": f.id,
             "name": f.name,
             "stationId": getattr(f, "stationId", None),
-            "status": f.status,
+            "lockState": getattr(f, "lockState", "FREE"),
         }
     if hasattr(entry, "testRun") and entry.testRun is not None:
         r = entry.testRun

@@ -145,14 +145,41 @@ class TestCheckBuildRunCompletion:
 # Fixture helpers
 # ---------------------------------------------------------------------------
 
+def _ready_node(deploy_name: str = "mtib-deploy-1"):
+    return make_obj(
+        id="node-1",
+        disabled=False,
+        ipAddress="192.168.1.100",
+        hostname="verdin",
+        metadata={"deployment_name": deploy_name},
+    )
+
+
+def _ready_mtib_status(deploy_name: str = "mtib-deploy-1") -> dict:
+    """Build a mtib_status_map that reports the deployment as READY."""
+    return {
+        deploy_name: {
+            "name": deploy_name,
+            "replicas": 1,
+            "readyReplicas": 1,
+            "pods": [{"ready": True}],
+        },
+    }
+
+
 class TestFindAvailableFixture:
-    def test_finds_available_fixture(self):
+    @patch("src.api.v2.fixtures.fixtures._probe_slots_concurrent", return_value={"slot-1": True})
+    @patch("src.services.builds.run_service._get_mtib_status_map")
+    def test_finds_available_fixture(self, mock_status, mock_probe):
         from src.services.builds.run_service import _find_available_fixture
         db = MagicMock()
-        node = make_obj(status="ONLINE", ipAddress="192.168.1.100")
-        slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
+        mock_status.return_value = _ready_mtib_status()
+        slot = make_obj(
+            id="slot-1", nodeId="node-1", active=True,
+            dutSnr="0964", dutDeviceId="dev-1", node=_ready_node(),
+        )
         fixture = make_obj(
-            id="fix-1", name="Bench 1", status="AVAILABLE",
+            id="fix-1", name="Bench 1", lockState="FREE",
             slots=[slot], stationId="st-1", design=None,
         )
         db.fixture.find_many.return_value = [fixture]
@@ -162,11 +189,12 @@ class TestFindAvailableFixture:
         assert s == slot
         assert addr == "192.168.1.100"
 
-    def test_skips_locked_fixtures(self):
+    @patch("src.services.builds.run_service._get_mtib_status_map", return_value={})
+    def test_skips_locked_fixtures(self, _mock_status):
         from src.services.builds.run_service import _find_available_fixture
         db = MagicMock()
         fixture = make_obj(
-            id="fix-1", name="Bench 1", status="LOCKED",
+            id="fix-1", name="Bench 1", lockState="IN_USE",
             slots=[], stationId="st-1",
         )
         db.fixture.find_many.return_value = [fixture]
@@ -174,13 +202,18 @@ class TestFindAvailableFixture:
         f, s, addr, all_f = _find_available_fixture(db, "prod-1")
         assert f is None
 
-    def test_skips_offline_nodes(self):
+    @patch("src.services.builds.run_service._get_mtib_status_map", return_value={})
+    def test_skips_offline_nodes(self, _mock_status):
         from src.services.builds.run_service import _find_available_fixture
         db = MagicMock()
-        node = make_obj(status="OFFLINE", ipAddress="192.168.1.100")
-        slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
+        # No deployment in mtib_status_map → state is NOT_DEPLOYED → skipped.
+        node = make_obj(id="node-1", disabled=False, ipAddress="192.168.1.100", metadata={})
+        slot = make_obj(
+            id="slot-1", nodeId="node-1", active=True,
+            dutSnr="0964", dutDeviceId="dev-1", node=node,
+        )
         fixture = make_obj(
-            id="fix-1", name="Bench 1", status="AVAILABLE",
+            id="fix-1", name="Bench 1", lockState="FREE",
             slots=[slot], stationId="st-1",
         )
         db.fixture.find_many.return_value = [fixture]
@@ -188,13 +221,18 @@ class TestFindAvailableFixture:
         f, s, addr, all_f = _find_available_fixture(db, "prod-1")
         assert f is None
 
-    def test_skips_slots_without_dut(self):
+    @patch("src.api.v2.fixtures.fixtures._probe_slots_concurrent", return_value={"slot-1": True})
+    @patch("src.services.builds.run_service._get_mtib_status_map")
+    def test_skips_slots_without_dut(self, mock_status, _mock_probe):
         from src.services.builds.run_service import _find_available_fixture
         db = MagicMock()
-        node = make_obj(status="ONLINE", ipAddress="192.168.1.100")
-        slot = make_obj(active=True, dutSnr=None, dutDeviceId=None, node=node)
+        mock_status.return_value = _ready_mtib_status()
+        slot = make_obj(
+            id="slot-1", nodeId="node-1", active=True,
+            dutSnr=None, dutDeviceId=None, node=_ready_node(),
+        )
         fixture = make_obj(
-            id="fix-1", name="Bench 1", status="AVAILABLE",
+            id="fix-1", name="Bench 1", lockState="FREE",
             slots=[slot], stationId="st-1",
         )
         db.fixture.find_many.return_value = [fixture]
@@ -208,11 +246,11 @@ class TestAnalyzeUnavailability:
         from src.services.builds.run_service import _analyze_unavailability
         db = MagicMock()
 
-        locked = make_obj(name="Bench-1", status="LOCKED", slots=[])
+        locked = make_obj(name="Bench-1", lockState="IN_USE", slots=[])
         node_offline = make_obj(status="OFFLINE")
         slot_configured = make_obj(active=True, dutSnr="0964", node=node_offline)
-        available_offline = make_obj(name="Bench-2", status="AVAILABLE", slots=[slot_configured])
-        unconfigured = make_obj(name="Bench-3", status="AVAILABLE", slots=[])
+        available_offline = make_obj(name="Bench-2", lockState="FREE", slots=[slot_configured])
+        unconfigured = make_obj(name="Bench-3", lockState="FREE", slots=[])
 
         result = _analyze_unavailability(db, [locked, available_offline, unconfigured])
         assert "Bench-1" in result["locked"]
@@ -246,24 +284,12 @@ class TestQueueValidation:
 
 
 # ---------------------------------------------------------------------------
-# _is_fixture_available, _has_configured_slot, _has_offline_slot
+# Fixture configuration check
 # ---------------------------------------------------------------------------
 
 class TestFixtureHelpers:
-    def test_is_fixture_available(self):
-        from src.services.builds.run_service import _is_fixture_available
-        assert _is_fixture_available(make_obj(status="AVAILABLE")) is True
-        assert _is_fixture_available(make_obj(status="LOCKED")) is False
-
     def test_has_configured_slot(self):
         from src.services.builds.run_service import _has_configured_slot
         assert _has_configured_slot(make_obj(slots=[make_obj(active=True, dutSnr="0964")])) is True
         assert _has_configured_slot(make_obj(slots=[make_obj(active=True, dutSnr=None)])) is False
         assert _has_configured_slot(make_obj(slots=[])) is False
-
-    def test_has_offline_slot(self):
-        from src.services.builds.run_service import _has_offline_slot
-        node_on = make_obj(status="ONLINE")
-        node_off = make_obj(status="OFFLINE")
-        assert _has_offline_slot(make_obj(slots=[make_obj(active=True, dutSnr="x", node=node_off)])) is True
-        assert _has_offline_slot(make_obj(slots=[make_obj(active=True, dutSnr="x", node=node_on)])) is False

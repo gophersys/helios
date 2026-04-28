@@ -631,7 +631,7 @@ class TestReportFinish:
         assert resp.status_code == 400
 
     def test_unlocks_fixture(self, authed_client, mock_db):
-        fixture = make_obj(id="fix-1", status="LOCKED")
+        fixture = make_obj(id="fix-1", lockState="IN_USE")
         run = _make_run(fixtureId="fix-1")
         mock_db.testrun.find_unique.return_value = run
         mock_db.runtarget.find_many.return_value = [_make_target()]
@@ -649,7 +649,7 @@ class TestReportFinish:
         assert resp.status_code == 200
         mock_db.fixture.update.assert_called_once()
         update_data = mock_db.fixture.update.call_args.kwargs["data"]
-        assert update_data["status"] == "AVAILABLE"
+        assert update_data["lockState"] == "FREE"
 
     def test_propagates_to_build_run(self, authed_client, mock_db):
         run = _make_run(buildRunId="pipe-1", fixtureId=None, failedCount=0)

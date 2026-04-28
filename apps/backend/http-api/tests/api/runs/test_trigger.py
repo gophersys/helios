@@ -67,7 +67,7 @@ def _make_fixture(**overrides):
         stationId="bench-33",
         name="Test Bench",
         productId="prod-1",
-        status="AVAILABLE",
+        lockState="FREE",
         active=True,
         profileOverrides={},
         design=_make_design(),

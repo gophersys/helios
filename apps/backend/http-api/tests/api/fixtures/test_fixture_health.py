@@ -9,13 +9,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 
-def _make_node(status="ONLINE", deploy_name="mtib-node-s0", ip="10.0.0.10"):
+def _make_node(disabled=False, deploy_name="mtib-node-s0", ip="10.0.0.10"):
     return SimpleNamespace(
         id="node-x",
         name="MTIB",
         hostname="mtib-host",
         type="MANUFACTURING",
-        status=status,
+        disabled=disabled,
         ipAddress=ip,
         metadata={"deployment_name": deploy_name},
     )
@@ -84,13 +84,18 @@ def test_unassigned_when_slots_have_no_nodes():
     assert result["healthDetails"]["nodesTotal"] == 0
 
 
-def test_offline_when_every_node_offline():
+def test_offline_when_every_node_lacks_deployment():
+    """Every assigned slot has no MTIB deployment — fixture is OFFLINE,
+    not ERROR. Powered-down hardware shows up as missing deployments,
+    which is a clean shut state, not a partial failure."""
     from api.v2.fixtures.fixtures import _compute_fixture_health
 
-    n0 = _make_node(status="OFFLINE", deploy_name="mtib-a")
+    n0 = _make_node(deploy_name=None)
     n0.id = "node-0"
-    n1 = _make_node(status="OFFLINE", deploy_name="mtib-b")
+    n0.metadata = {}
+    n1 = _make_node(deploy_name=None)
     n1.id = "node-1"
+    n1.metadata = {}
     fixture = _make_fixture(slots=[
         _make_slot(0, node=n0, slot_id="slot-0"),
         _make_slot(1, node=n1, slot_id="slot-1"),
@@ -103,12 +108,31 @@ def test_offline_when_every_node_offline():
     assert result["healthDetails"]["nodesReady"] == 0
 
 
+def test_offline_when_every_node_disabled():
+    """Admin-disabled nodes also count as OFFLINE (clean shut)."""
+    from api.v2.fixtures.fixtures import _compute_fixture_health
+
+    n0 = _make_node(disabled=True)
+    n0.id = "node-0"
+    n1 = _make_node(disabled=True)
+    n1.id = "node-1"
+    fixture = _make_fixture(slots=[
+        _make_slot(0, node=n0, slot_id="slot-0"),
+        _make_slot(1, node=n1, slot_id="slot-1"),
+    ])
+
+    result = _compute_fixture_health(fixture, {})
+
+    assert result["health"] == "OFFLINE"
+    assert result["healthDetails"]["nodesReady"] == 0
+
+
 def test_online_when_all_nodes_online_and_grpc_ok():
     from api.v2.fixtures.fixtures import _compute_fixture_health
 
-    n0 = _make_node(status="ONLINE", deploy_name="mtib-a", ip="10.0.0.10")
+    n0 = _make_node(deploy_name="mtib-a", ip="10.0.0.10")
     n0.id = "node-0"
-    n1 = _make_node(status="ONLINE", deploy_name="mtib-b", ip="10.0.0.11")
+    n1 = _make_node(deploy_name="mtib-b", ip="10.0.0.11")
     n1.id = "node-1"
     fixture = _make_fixture(slots=[
         _make_slot(0, node=n0, slot_id="slot-0"),
@@ -135,7 +159,7 @@ def test_online_when_all_nodes_online_and_grpc_ok():
 def test_error_when_node_online_but_mtib_pods_not_ready():
     from api.v2.fixtures.fixtures import _compute_fixture_health
 
-    n0 = _make_node(status="ONLINE", deploy_name="mtib-a")
+    n0 = _make_node(deploy_name="mtib-a")
     n0.id = "node-0"
     fixture = _make_fixture(slots=[_make_slot(0, node=n0, slot_id="slot-0")])
     status_map = {
@@ -163,9 +187,10 @@ def test_error_on_partial_state_one_online_one_offline():
     """Mixed state — neither all OFFLINE nor all ONLINE-and-ready."""
     from api.v2.fixtures.fixtures import _compute_fixture_health
 
-    n_online = _make_node(status="ONLINE", deploy_name="mtib-a")
+    n_online = _make_node(deploy_name="mtib-a")
     n_online.id = "node-0"
-    n_offline = _make_node(status="OFFLINE", deploy_name="mtib-b")
+    n_offline = _make_node(deploy_name="mtib-b")
+    
     n_offline.id = "node-1"
     fixture = _make_fixture(slots=[
         _make_slot(0, node=n_online, slot_id="slot-0"),
@@ -190,7 +215,7 @@ def test_error_on_partial_state_one_online_one_offline():
 def test_error_when_grpc_probe_fails_for_otherwise_ready_slot():
     from api.v2.fixtures.fixtures import _compute_fixture_health
 
-    n0 = _make_node(status="ONLINE", deploy_name="mtib-a")
+    n0 = _make_node(deploy_name="mtib-a")
     n0.id = "node-0"
     fixture = _make_fixture(slots=[_make_slot(0, node=n0, slot_id="slot-0")])
     status_map = {"mtib-a": _ready_deploy("mtib-a")}

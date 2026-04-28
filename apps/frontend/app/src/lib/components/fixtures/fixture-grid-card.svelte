@@ -20,10 +20,15 @@
     }
     return slots.map(slot => {
       if (!slot.nodeId) return { color: 'border border-border-subtle', label: 'Empty' };
-      const status = slot.node?.status;
-      if (status === 'ONLINE') return { color: 'bg-success', label: 'Online' };
-      if (status === 'ERROR') return { color: 'bg-error', label: 'Error' };
-      return { color: 'bg-warning', label: 'Offline' };
+      // Same vocabulary as the panel grid + slot modal — single source
+      // of truth across the UI.
+      const m = slot.mtibStatus?.state;
+      if (m === 'READY') return { color: 'bg-success', label: 'Ready' };
+      if (m === 'DEPLOYING') return { color: 'bg-warning', label: 'Deploying' };
+      if (m === 'PROBE_FAILED' || m === 'NOT_DEPLOYED')
+        return { color: 'bg-error', label: 'Not ready' };
+      if (m === 'DISABLED') return { color: 'border border-border', label: 'Disabled' };
+      return { color: 'bg-warning', label: 'Unknown' };
     });
   });
 
