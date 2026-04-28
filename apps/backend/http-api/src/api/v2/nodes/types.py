@@ -69,20 +69,25 @@ def _parse_enum_str(data: dict, field: str, valid: set, label: str = "") -> Tupl
 
 @dataclass
 class NodeUpdateRequest:
-    """Request body for updating an MTIB node."""
+    """Request body for updating an MTIB node.
+
+    The only operator-settable flag is ``disabled``: ``true`` takes the
+    node out of rotation (the API surfaces it as ``status=MAINTENANCE``).
+    Reachability is computed live — never accepted from the client.
+    """
 
     name: Optional[str] = None
     type: Optional[str] = None
-    status: Optional[str] = None
+    disabled: Optional[bool] = None
     ipAddress: Optional[str] = None
     hardwareRevision: Optional[str] = None
     metadata: Optional[dict] = None
+    _has_disabled: bool = False
     _has_ip: bool = False
     _has_revision: bool = False
     _has_metadata: bool = False
 
     _VALID_TYPES = {"MANUFACTURING", "VALIDATION"}
-    _VALID_STATUSES = {"ONLINE", "OFFLINE", "MAINTENANCE", "ERROR"}
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["NodeUpdateRequest"], Optional[str]]:
@@ -98,15 +103,22 @@ class NodeUpdateRequest:
         if err:
             return None, err
 
-        status, err = _parse_enum_str(data, "status", cls._VALID_STATUSES)
-        if err:
-            return None, err
+        has_disabled = "disabled" in data
+        disabled: Optional[bool] = None
+        if has_disabled:
+            raw = data.get("disabled")
+            if not isinstance(raw, bool):
+                return None, "disabled must be a boolean"
+            disabled = raw
 
         has_ip = "ipAddress" in data
         has_revision = "hardwareRevision" in data
         has_metadata = "metadata" in data
 
-        if name is None and node_type is None and status is None and not has_ip and not has_revision and not has_metadata:
+        if (
+            name is None and node_type is None and not has_disabled
+            and not has_ip and not has_revision and not has_metadata
+        ):
             return None, "No fields to update"
 
         ip_address = data.get("ipAddress")
@@ -114,10 +126,11 @@ class NodeUpdateRequest:
         return cls(
             name=name,
             type=node_type,
-            status=status,
+            disabled=disabled,
             ipAddress=ip_address.strip() if ip_address else ip_address,
             hardwareRevision=hardware_revision.strip() if hardware_revision else hardware_revision,
             metadata=data.get("metadata"),
+            _has_disabled=has_disabled,
             _has_ip=has_ip,
             _has_revision=has_revision,
             _has_metadata=has_metadata,
@@ -130,8 +143,8 @@ class NodeUpdateRequest:
             update_data["name"] = self.name
         if self.type is not None:
             update_data["type"] = self.type
-        if self.status is not None:
-            update_data["status"] = self.status
+        if self._has_disabled:
+            update_data["disabled"] = bool(self.disabled)
         if self._has_ip:
             update_data["ipAddress"] = self.ipAddress
         if self._has_revision:

@@ -43,14 +43,14 @@ def test_node_create_null_body():
 
 def test_node_update_valid():
     from src.api.v2.nodes.types import NodeUpdateRequest
-    data = {"name": "Updated Node", "status": "MAINTENANCE"}
+    data = {"name": "Updated Node", "disabled": True}
     req, err = NodeUpdateRequest.from_json(data)
     assert err is None
     assert req.name == "Updated Node"
-    assert req.status == "MAINTENANCE"
+    assert req.disabled is True
     update = req.to_update_data()
     assert update["name"] == "Updated Node"
-    assert update["status"] == "MAINTENANCE"
+    assert update["disabled"] is True
 
 
 def test_node_update_empty_name():
@@ -60,11 +60,11 @@ def test_node_update_empty_name():
     assert err == "Name cannot be empty"
 
 
-def test_node_update_invalid_status():
+def test_node_update_invalid_disabled():
     from src.api.v2.nodes.types import NodeUpdateRequest
-    req, err = NodeUpdateRequest.from_json({"status": "INVALID"})
+    req, err = NodeUpdateRequest.from_json({"disabled": "yes"})
     assert req is None
-    assert err == "Status must be ERROR, MAINTENANCE, OFFLINE, ONLINE"
+    assert err == "disabled must be a boolean"
 
 
 def test_node_update_no_fields():
@@ -98,5 +98,5 @@ def test_node_update_to_update_data_selective():
     assert err is None
     update = req.to_update_data()
     assert update == {"name": "New Name"}
-    assert "status" not in update
+    assert "disabled" not in update
     assert "ipAddress" not in update

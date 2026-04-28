@@ -174,11 +174,11 @@ def _unlock_fixture(db, run) -> None:
 
     try:
         fixture = db.fixture.find_unique(where={"id": fixture_id})
-        if fixture and fixture.status == "LOCKED":
+        if fixture and fixture.lockState == "IN_USE":
             db.fixture.update(
                 where={"id": fixture_id},
                 data={
-                    "status": "AVAILABLE",
+                    "lockState": "FREE",
                     "lockedBy": None,
                     "lockedAt": None,
                 },

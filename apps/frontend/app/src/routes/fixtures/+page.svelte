@@ -404,13 +404,20 @@
                 <span class="text-2xs text-text-tertiary ml-1">assigned</span>
               </td>
               <td class="table-cell">
-                {#if fixture.status === 'LOCKED'}
+                {#if fixture.lockState === 'IN_USE'}
                   <div class="flex items-center gap-1">
                     <Lock size={12} class="text-warning" />
-                    <span class="text-2xs text-warning">Locked</span>
+                    <span class="text-2xs text-warning">In use</span>
                   </div>
+                {:else if fixture.lockState === 'MAINTENANCE'}
+                  <div class="flex items-center gap-1">
+                    <AlertTriangle size={12} class="text-warning" />
+                    <span class="text-2xs text-warning">Maintenance</span>
+                  </div>
+                {:else if fixture.assignable}
+                  <span class="text-2xs text-success">Ready</span>
                 {:else}
-                  <span class="text-2xs text-text-tertiary">Available</span>
+                  <span class="text-2xs text-text-tertiary">{fixture.assignableReason ?? '—'}</span>
                 {/if}
               </td>
               <td class="table-cell">

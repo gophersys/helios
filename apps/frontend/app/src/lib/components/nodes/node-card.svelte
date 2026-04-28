@@ -26,7 +26,7 @@
   const statusColor = $derived(
     isServerOnline ? 'bg-success' :
     deployState === 'deploying' ? 'bg-warning' :
-    node.status === 'ERROR' ? 'bg-error' :
+    node.status === 'OFFLINE' ? 'bg-error' :
     'bg-text-tertiary'
   );
 

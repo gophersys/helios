@@ -271,7 +271,7 @@
           {:else}
             <div class="grid gap-3">
               {#each fixtures as fixture}
-                {@const isAvailable = fixture.status === 'AVAILABLE'}
+                {@const isAvailable = fixture.assignable === true}
                 <button
                   onclick={() => { if (isAvailable) selectFixture(fixture.id); }}
                   disabled={!isAvailable}

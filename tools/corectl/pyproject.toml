@@ -22,7 +22,7 @@ dependencies = [
     # ~=major.minor.0 so a corectl install always pulls the matching
     # framework, and an upgrade pulls the matching framework upgrade.
     # The release skill updates this constraint each minor bump.
-    "corekinect~=0.6.0",
+    "corekinect~=0.7.0",
 ]
 
 [project.scripts]

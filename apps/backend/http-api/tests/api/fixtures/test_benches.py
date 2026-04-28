@@ -61,7 +61,7 @@ def _make_bench(**overrides):
         stationId="bench-33",
         name="Alpha REV 1.2",
         productId="prod-1",
-        status="AVAILABLE",
+        lockState="FREE",
         active=True,
         lockedBy=None,
         lockedAt=None,
@@ -94,7 +94,7 @@ def test_list_benches_success(authed_client, mock_db):
     assert len(benches) == 1
     assert benches[0]["id"] == "bench-1"
     assert benches[0]["stationId"] == "bench-33"
-    assert benches[0]["status"] == "AVAILABLE"
+    assert benches[0]["lockState"] == "FREE"
     assert benches[0]["mtibAddress"] == "192.168.1.100:50053"
     assert data["data"]["pagination"]["total"] == 1
 
@@ -127,13 +127,13 @@ def test_list_benches_pagination(authed_client, mock_db):
 
 def test_list_benches_status_filter(authed_client, mock_db):
     mock_db.fixture.count.return_value = 1
-    mock_db.fixture.find_many.return_value = [_make_bench(status="LOCKED")]
+    mock_db.fixture.find_many.return_value = [_make_bench(lockState="IN_USE")]
 
-    response = authed_client.get("/v2/fixtures/benches?status=locked")
+    response = authed_client.get("/v2/fixtures/benches?lockState=in_use")
 
     assert response.status_code == 200
     call_kwargs = mock_db.fixture.find_many.call_args[1]
-    assert call_kwargs["where"]["status"] == "LOCKED"
+    assert call_kwargs["where"]["lockState"] == "IN_USE"
 
 
 def test_list_benches_requires_auth(client):
@@ -415,7 +415,7 @@ def test_delete_bench_not_found(authed_client, mock_db):
 
 
 def test_delete_bench_locked(authed_client, mock_db):
-    mock_db.fixture.find_unique.return_value = _make_bench(status="LOCKED")
+    mock_db.fixture.find_unique.return_value = _make_bench(lockState="IN_USE")
 
     response = authed_client._client.delete(
         "/v2/fixtures/benches/bench-1",
@@ -437,8 +437,8 @@ def test_delete_bench_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 def test_lock_bench_success(authed_client, mock_db):
-    available_bench = _make_bench(status="AVAILABLE")
-    locked_bench = _make_bench(status="LOCKED", lockedBy="buildRun:run-1")
+    available_bench = _make_bench(lockState="FREE")
+    locked_bench = _make_bench(lockState="IN_USE", lockedBy="buildRun:run-1")
     mock_db.fixture.find_unique.side_effect = [available_bench, locked_bench]
 
     with patch("api.v2.fixtures.benches.log_audit") as mock_audit:
@@ -449,14 +449,14 @@ def test_lock_bench_success(authed_client, mock_db):
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["status"] == "LOCKED"
+    assert data["data"]["lockState"] == "IN_USE"
     assert data["data"]["lockedBy"] == "buildRun:run-1"
     mock_db.fixture.update.assert_called_once()
     mock_audit.assert_called_once()
 
 
 def test_lock_bench_already_locked(authed_client, mock_db):
-    mock_db.fixture.find_unique.return_value = _make_bench(status="LOCKED", lockedBy="other-run")
+    mock_db.fixture.find_unique.return_value = _make_bench(lockState="IN_USE", lockedBy="other-run")
 
     response = authed_client.post(
         "/v2/fixtures/benches/bench-1/lock",
@@ -468,8 +468,8 @@ def test_lock_bench_already_locked(authed_client, mock_db):
     assert "other-run" in data["errors"][0]["message"]
 
 
-def test_lock_bench_offline(authed_client, mock_db):
-    mock_db.fixture.find_unique.return_value = _make_bench(status="OFFLINE")
+def test_lock_bench_in_maintenance(authed_client, mock_db):
+    mock_db.fixture.find_unique.return_value = _make_bench(lockState="MAINTENANCE")
 
     response = authed_client.post(
         "/v2/fixtures/benches/bench-1/lock",
@@ -478,7 +478,7 @@ def test_lock_bench_offline(authed_client, mock_db):
 
     assert response.status_code == 400
     data = json.loads(response.data)
-    assert "OFFLINE" in data["errors"][0]["message"]
+    assert "maintenance" in data["errors"][0]["message"].lower()
 
 
 def test_lock_bench_not_found(authed_client, mock_db):
@@ -518,8 +518,8 @@ def test_lock_bench_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 def test_unlock_bench_success(authed_client, mock_db):
-    locked_bench = _make_bench(status="LOCKED", lockedBy="buildRun:run-1")
-    available_bench = _make_bench(status="AVAILABLE", lockedBy=None)
+    locked_bench = _make_bench(lockState="IN_USE", lockedBy="buildRun:run-1")
+    available_bench = _make_bench(lockState="FREE", lockedBy=None)
     mock_db.fixture.find_unique.side_effect = [locked_bench, available_bench]
 
     with patch("api.v2.fixtures.benches.log_audit") as mock_audit:
@@ -527,14 +527,14 @@ def test_unlock_bench_success(authed_client, mock_db):
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["status"] == "AVAILABLE"
+    assert data["data"]["lockState"] == "FREE"
     assert data["data"]["lockedBy"] is None
     mock_db.fixture.update.assert_called_once()
     mock_audit.assert_called_once()
 
 
 def test_unlock_bench_not_locked(authed_client, mock_db):
-    mock_db.fixture.find_unique.return_value = _make_bench(status="AVAILABLE")
+    mock_db.fixture.find_unique.return_value = _make_bench(lockState="FREE")
 
     response = authed_client.post("/v2/fixtures/benches/bench-1/unlock")
 

@@ -481,9 +481,10 @@ def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]
     if not queued:
         return assignments
 
-    # Get all available fixtures (include boardRevisionId for revision matching)
+    # Get all free fixtures (include boardRevisionId for revision matching).
+    # Only checks lock state — the per-pick health check happens below.
     available_fixtures = db.fixture.find_many(
-        where={"status": "AVAILABLE", "active": True},
+        where={"lockState": "FREE", "active": True},
         include={"product": True, "boardRevision": True},
     )
 
@@ -560,7 +561,7 @@ def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]
             db.fixture.update(
                 where={"id": fixture.id},
                 data={
-                    "status": "LOCKED",
+                    "lockState": "IN_USE",
                     "lockedBy": f"queue:{entry.id}",
                     "lockedAt": now,
                 },
@@ -696,9 +697,10 @@ def on_fixture_freed(fixture_id: str):
     """Called when a fixture becomes available. Tries to assign next queued entry."""
     db = get_db_client()
 
-    # Ensure fixture is actually available
+    # Ensure fixture is actually free (health check happens inside the
+    # scheduler itself — this is just a fast lock-state pre-filter).
     fixture = db.fixture.find_unique(where={"id": fixture_id})
-    if not fixture or fixture.status != "AVAILABLE":
+    if not fixture or getattr(fixture, "lockState", "FREE") != "FREE":
         return
 
     # Run scheduler

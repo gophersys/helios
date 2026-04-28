@@ -1,10 +1,14 @@
 <script lang="ts" module>
+  /** Live MTIB readiness per slot — the SAME vocabulary as
+   *  ``Fixture.slots[].mtibStatus.state`` from the API. The slot tile
+   *  colour and the slot detail modal pill must always read this; the
+   *  legacy ``node.status`` check has been removed. */
   export type MtibSlotState =
     | 'READY'
     | 'DEPLOYING'
     | 'NOT_DEPLOYED'
     | 'PROBE_FAILED'
-    | 'OFFLINE';
+    | 'DISABLED';
 
   export interface FixtureLayoutSlot {
     id?: string;
@@ -14,7 +18,10 @@
       id: string;
       name: string;
       hostname: string;
-      status: string;
+      /** Three-value summary: ONLINE / OFFLINE / MAINTENANCE. Computed
+       *  live by the backend — never read from a DB column. */
+      status: 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
+      disabled: boolean;
     } | null;
     mtibReady?: boolean | null;
     mtibStatus?: {
@@ -65,19 +72,15 @@
     return result;
   });
 
+  /** All visual state derives from ``mtibStatus.state`` — the single
+   *  live signal. No node-status-column fallback; that column is gone. */
   function statusDot(slot: FixtureLayoutSlot | undefined): string {
     if (!slot || !slot.node) return 'bg-surface-2 border border-border';
     const m = slot.mtibStatus?.state;
     if (m === 'READY') return 'bg-success';
     if (m === 'DEPLOYING') return 'bg-warning';
     if (m === 'PROBE_FAILED' || m === 'NOT_DEPLOYED') return 'bg-error';
-    if (m === 'OFFLINE') return 'bg-surface-2 border border-border';
-    // Fall back to node-status-only legacy behavior for callers that
-    // didn't pass mtibStatus.
-    const status = slot.node.status;
-    if (status === 'ONLINE' && slot.mtibReady) return 'bg-success';
-    if (status === 'ONLINE') return 'bg-warning';
-    if (status === 'ERROR') return 'bg-error';
+    if (m === 'DISABLED') return 'bg-surface-2 border border-border';
     return 'bg-surface-2 border border-border';
   }
 
@@ -89,11 +92,7 @@
     if (m === 'DEPLOYING') return 'bg-warning-muted border-warning text-warning';
     if (m === 'PROBE_FAILED' || m === 'NOT_DEPLOYED')
       return 'bg-error-muted border-error text-error';
-    if (m === 'OFFLINE') return 'bg-surface-2 border-border text-text-secondary';
-    const status = slot.node.status;
-    if (status === 'ONLINE' && slot.mtibReady) return 'bg-success-muted border-success text-success';
-    if (status === 'ONLINE') return 'bg-warning-muted border-warning text-warning';
-    if (status === 'ERROR') return 'bg-error-muted border-error text-error';
+    if (m === 'DISABLED') return 'bg-surface-2 border-border text-text-secondary';
     return 'bg-surface-2 border-border text-text-secondary';
   }
 
@@ -106,7 +105,7 @@
       case 'PROBE_FAILED':
       case 'NOT_DEPLOYED':
         return 'bg-error-muted text-error border-error/40';
-      case 'OFFLINE':
+      case 'DISABLED':
       default:
         return 'bg-surface-2 text-text-tertiary border-border';
     }
@@ -122,8 +121,8 @@
         return 'Not deployed';
       case 'PROBE_FAILED':
         return 'Probe failed';
-      case 'OFFLINE':
-        return 'Node offline';
+      case 'DISABLED':
+        return 'Disabled';
       default:
         return '—';
     }
@@ -177,7 +176,7 @@
                       <CloudOff size={10} />
                     {:else if slot.mtibStatus.state === 'PROBE_FAILED'}
                       <AlertTriangle size={10} />
-                    {:else if slot.mtibStatus.state === 'OFFLINE'}
+                    {:else if slot.mtibStatus.state === 'DISABLED'}
                       <Power size={10} />
                     {/if}
                     {chipLabel(slot.mtibStatus.state)}
@@ -231,7 +230,7 @@
                       <CloudOff size={10} />
                     {:else if standaloneSlot.mtibStatus.state === 'PROBE_FAILED'}
                       <AlertTriangle size={10} />
-                    {:else if standaloneSlot.mtibStatus.state === 'OFFLINE'}
+                    {:else if standaloneSlot.mtibStatus.state === 'DISABLED'}
                       <Power size={10} />
                     {/if}
                     {chipLabel(standaloneSlot.mtibStatus.state)}

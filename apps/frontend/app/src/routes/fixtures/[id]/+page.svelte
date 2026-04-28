@@ -218,7 +218,7 @@
     } finally { saving = false; }
   }
 
-  const purposeLocked = $derived(fixture?.status === 'LOCKED');
+  const purposeLocked = $derived(fixture?.lockState === 'IN_USE');
 
   // Delete
   async function handleDelete() {
@@ -235,23 +235,24 @@
 
   const slots = $derived(fixture?.slots ?? []);
   const assignedCount = $derived(slots.filter(s => s.nodeId).length);
-  const onlineCount = $derived(slots.filter(s => s.node?.status === 'ONLINE').length);
+  /** Slots whose live MTIB state is READY — single source of truth.
+   *  Replaces the old "online" counter that read ``node.status`` from
+   *  a now-deleted DB column. */
+  const readyCount = $derived(
+    slots.filter(s => s.mtibStatus?.state === 'READY').length
+  );
 
-  // Map fixture slots into the layout-grid's expected shape. The backend
-  // returns ``mtibStatus`` per slot now (state + label + reason); we pass
-  // that straight through so the slot tile can render its own chip and
-  // operators don't have to cross-reference the fixture-wide health
-  // badge to find the broken MTIB. ``mtibReady`` is kept as a coarse
-  // fallback for callers that don't yet pass the full status object.
+  // Map fixture slots into the layout-grid's expected shape. ``mtibStatus``
+  // (live: READY/DEPLOYING/NOT_DEPLOYED/PROBE_FAILED/DISABLED) is the
+  // single source of truth for slot tile colours and slot modal pills.
   const layoutSlots = $derived(
     slots.map((s) => ({
       id: s.id,
       slotIndex: s.slotIndex,
       label: s.label,
       node: s.node ?? null,
-      mtibStatus: (s as any).mtibStatus ?? null,
-      mtibReady:
-        s.node?.status === 'ONLINE' && fixture?.health === 'ONLINE',
+      mtibStatus: s.mtibStatus ?? null,
+      mtibReady: s.mtibStatus?.state === 'READY',
     }))
   );
 
@@ -370,8 +371,10 @@
               <StatusBadge status={fixture.type} />
               <StatusBadge status={fixture.purpose === 'DEV' ? 'DEV' : 'RELEASE'} />
               <StatusBadge status={fixture.active ? 'ACTIVE' : 'INACTIVE'} />
-              {#if fixture.status === 'LOCKED'}
-                <StatusBadge status="LOCKED" />
+              {#if fixture.lockState === 'IN_USE'}
+                <StatusBadge status="IN_USE" />
+              {:else if fixture.lockState === 'MAINTENANCE'}
+                <StatusBadge status="MAINTENANCE" />
               {/if}
             </div>
             {#if fixture.description}
@@ -398,7 +401,7 @@
               onclick={() => showDeleteConfirm = true}
               class="btn btn-sm btn-ghost text-error"
               title="Delete"
-              disabled={fixture.status === 'LOCKED'}
+              disabled={fixture.lockState === 'IN_USE'}
             >
               <Trash2 size={14} /> Delete
             </button>
@@ -423,8 +426,33 @@
       </div>
     {/if}
 
+    <!-- Assignability banner — single canonical "can a session start?"
+         signal. Backend computes ``assignable`` from
+         ``lockState === 'FREE' && health === 'ONLINE'`` and surfaces a
+         reason string for any false. -->
+    {#if fixture.assignable}
+      <div class="mb-4 flex items-center gap-2 rounded-lg border border-success/30 bg-success-muted px-3 py-2">
+        <Check size={14} class="text-success" />
+        <span class="text-sm font-medium text-success">Ready to run a session</span>
+      </div>
+    {:else if fixture.assignableReason}
+      <div class="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning-muted px-3 py-2">
+        {#if fixture.lockState === 'IN_USE'}
+          <Lock size={14} class="text-warning" />
+        {:else if fixture.lockState === 'MAINTENANCE'}
+          <AlertTriangle size={14} class="text-warning" />
+        {:else}
+          <WifiOff size={14} class="text-warning" />
+        {/if}
+        <span class="text-sm font-medium text-warning">{fixture.assignableReason}</span>
+        {#if fixture.lockedBy}
+          <span class="ml-auto text-2xs font-mono text-text-tertiary">{fixture.lockedBy}</span>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Stats row -->
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 mb-6">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
       <div class="card card-sm">
         <div class="flex items-center gap-2 text-text-tertiary mb-1">
           <Cable size={14} />
@@ -439,7 +467,7 @@
           <span class="text-2xs font-medium uppercase tracking-wider">Assigned</span>
         </div>
         <div class="text-xl font-semibold text-text-primary">{assignedCount}/{slots.length}</div>
-        <div class="text-2xs text-text-tertiary">{onlineCount} online</div>
+        <div class="text-2xs text-text-tertiary">{readyCount} ready</div>
       </div>
       <div class="card card-sm">
         <div class="flex items-center gap-2 text-text-tertiary mb-1">
@@ -448,20 +476,6 @@
         </div>
         <div class="text-xl font-semibold text-text-primary">{sessions.length || '—'}</div>
         <div class="text-2xs text-text-tertiary">manufacturing runs</div>
-      </div>
-      <div class="card card-sm">
-        <div class="flex items-center gap-2 text-text-tertiary mb-1">
-          {#if fixture.status === 'LOCKED'}
-            <Lock size={14} class="text-warning" />
-          {:else}
-            <Check size={14} />
-          {/if}
-          <span class="text-2xs font-medium uppercase tracking-wider">Status</span>
-        </div>
-        <div class="text-xl font-semibold {fixture.status === 'LOCKED' ? 'text-warning' : 'text-text-primary'}">
-          {fixture.status === 'LOCKED' ? 'Locked' : 'Available'}
-        </div>
-        <div class="text-2xs text-text-tertiary">{fixture.status === 'LOCKED' ? 'In use by session' : 'Ready for sessions'}</div>
       </div>
       <div class="card card-sm">
         <div class="flex items-center gap-2 text-text-tertiary mb-1">
@@ -522,7 +536,7 @@
             slot={popoverSlot}
             {availableNodes}
             {canManage}
-            locked={fixture.status === 'LOCKED'}
+            locked={fixture.lockState === 'IN_USE'}
             onClose={closeSlotPopover}
             onAssign={handleAssign}
             onUnassign={handleUnassign}

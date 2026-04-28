@@ -145,37 +145,19 @@ def dashboard_overview():
         for f in fixtures:
             slots = f.slots or []
             slot_count = len(slots)
-            assigned_slots = [s for s in slots if s.nodeId is not None]
-            assigned_count = len(assigned_slots)
+            assigned_count = len([s for s in slots if s.nodeId is not None])
 
-            nodes_online = nodes_offline = nodes_error = 0
-            for s in assigned_slots:
-                if hasattr(s, "node") and s.node:
-                    status = s.node.status
-                    if status == "ONLINE":
-                        nodes_online += 1
-                    elif status == "ERROR":
-                        nodes_error += 1
-                    else:
-                        nodes_offline += 1
-
-            # Derive the legacy dashboard enum from the canonical health helper
-            # so list/detail/dashboard agree on the underlying judgement.
+            # Single source of truth — derive everything from the live
+            # health helper so list / detail / dashboard agree.
             if slot_count == 0:
                 health = "EMPTY"
+                nodes_ready = 0
+                nodes_total = 0
             else:
                 computed = _compute_fixture_health(f, dashboard_mtib_status)
-                canonical = computed["health"]
-                if canonical == "UNASSIGNED":
-                    health = "UNASSIGNED"
-                elif canonical == "ONLINE":
-                    health = "HEALTHY"
-                elif canonical == "OFFLINE":
-                    health = "DEGRADED"
-                elif canonical == "ERROR":
-                    health = "ERROR"
-                else:
-                    health = "UNKNOWN"
+                health = computed["health"]
+                nodes_ready = computed["healthDetails"]["nodesReady"]
+                nodes_total = computed["healthDetails"]["nodesTotal"]
 
             fixture_results.append({
                 "id": f.id,
@@ -186,9 +168,8 @@ def dashboard_overview():
                 "productId": f.productId,
                 "slotCount": slot_count,
                 "assignedCount": assigned_count,
-                "nodesOnline": nodes_online,
-                "nodesOffline": nodes_offline,
-                "nodesError": nodes_error,
+                "nodesReady": nodes_ready,
+                "nodesTotal": nodes_total,
                 "health": health,
                 "updatedAt": f.updatedAt.isoformat(),
             })
@@ -196,8 +177,8 @@ def dashboard_overview():
     if "fixtures:view" in perms or is_admin:
         stats["fixtures"] = {
             "total": len(fixture_results),
-            "online": sum(1 for f in fixture_results if f["health"] == "HEALTHY"),
-            "degraded": sum(1 for f in fixture_results if f["health"] in ("DEGRADED", "ERROR")),
+            "online": sum(1 for f in fixture_results if f["health"] == "ONLINE"),
+            "degraded": sum(1 for f in fixture_results if f["health"] in ("OFFLINE", "ERROR")),
         }
 
     return jsonify(ApiResponse.ok({
@@ -271,32 +252,76 @@ def _get_mtib_status_map(fixture: Any) -> dict[str, dict]:
     return by_name
 
 
+def _compute_node_status(
+    node: Any,
+    mtib_state: str | None,
+) -> str:
+    """Live node status — never persisted.
+
+    Three values:
+      * ``MAINTENANCE`` — admin took the node out of rotation
+        (``Node.disabled == True``); always wins regardless of live state.
+      * ``ONLINE`` — MTIB deployment is up and the gRPC probe answered.
+      * ``OFFLINE`` — anything else (no deployment, deployment not ready,
+        probe failed).
+
+    The fine-grained ``state`` per slot (NOT_DEPLOYED, DEPLOYING,
+    PROBE_FAILED, etc) lives on ``slot.mtibStatus`` for callers that
+    need the precise reason.
+    """
+    if getattr(node, "disabled", False):
+        return "MAINTENANCE"
+    if mtib_state == "READY":
+        return "ONLINE"
+    return "OFFLINE"
+
+
+def _compute_assignable(
+    lock_state: str,
+    health: str,
+) -> tuple[bool, str | None]:
+    """Single-question predicate: can a session start on this fixture right now?
+
+    Returns ``(assignable, reason)``. ``reason`` is None when assignable; a
+    short human-readable string explaining the block otherwise. The session
+    create endpoint surfaces ``reason`` verbatim in 409 responses.
+    """
+    if lock_state == "MAINTENANCE":
+        return False, "Fixture is in maintenance mode"
+    if lock_state == "IN_USE":
+        return False, "Fixture is locked by an active session"
+    if health != "ONLINE":
+        return False, f"Hardware not ready (health={health})"
+    return True, None
+
+
 def _compute_fixture_health(
     fixture: Any,
     mtib_status_by_deploy_name: dict[str, dict] | None = None,
 ) -> dict:
-    """Compute the canonical health state for a fixture.
+    """Live health for a fixture — derived only from K8s pod readiness +
+    gRPC probe. Never reads any persisted reachability column.
 
-    Returns a dict with:
-        health: ONLINE | OFFLINE | ERROR | UNASSIGNED
-        healthDetails: { nodesReady, nodesTotal, mtibsReady, mtibsTotal }
-        slotStates: { slot_id -> { state, label, reason, deployName,
-                                   replicasOk, podsOk, probeOk } }
+    Returns:
+        ``health``: ONLINE | OFFLINE | ERROR | UNASSIGNED
+        ``healthDetails``: {nodesReady, nodesTotal, mtibsReady, mtibsTotal}
+        ``slotStates``: per-slot {state, label, reason, deployName,
+                                  replicasOk, podsOk, probeOk}
 
-    The per-slot ``slotStates`` map is what the fixture detail page
-    renders on each slot tile. Without it the UI can only colour the
-    tile from the (much coarser) node status — operators couldn't tell
-    *which* MTIB needed attention when the fixture-wide health was
-    ERROR but only one node was actually unhealthy.
+    Per-slot ``state`` vocabulary — single source of truth for both the
+    panel tile and the slot detail modal:
 
-    Health rules:
-        - UNASSIGNED: zero assigned slots.
-        - ONLINE: every assigned slot's node is ONLINE AND its MTIB deployment is
-          fully ready (readyReplicas == replicas, every pod ready) AND a single-shot
-          gRPC probe succeeds.
-        - OFFLINE: every assigned slot's node has status != ONLINE.
-        - ERROR: any other partial / mixed state, OR any node ONLINE but MTIB
-          pods not ready / gRPC probe failed.
+      * ``READY``         — deployment ready AND probe answered
+      * ``DEPLOYING``     — deployment exists but pods not ready
+      * ``PROBE_FAILED``  — pods ready but gRPC probe didn't respond
+      * ``NOT_DEPLOYED``  — node has no MTIB deployment
+      * ``DISABLED``      — node has ``disabled = true`` (admin override)
+
+    Aggregate health rules:
+      * ``UNASSIGNED`` — no assigned slots
+      * ``ONLINE``     — every assigned slot is READY
+      * ``OFFLINE``    — every assigned slot is NOT_DEPLOYED or DISABLED
+      * ``ERROR``      — any partial / mixed state
     """
     slots = getattr(fixture, "slots", None) or []
     assigned = [
@@ -319,32 +344,19 @@ def _compute_fixture_health(
 
     status_map = mtib_status_by_deploy_name or {}
 
-    nodes_ready = 0
-    mtibs_ready = 0
-    mtibs_total = 0
-    any_node_online = False
-    all_nodes_offline = True
-
-    # Build the list of MTIB-status-ready slots so we know which to probe.
-    probe_targets: list[dict] = []
+    # Phase 1 — read K8s deployment state per assigned slot.
     slot_mtib_state: dict[str, dict] = {}
+    probe_targets: list[dict] = []
+    mtibs_total = 0
+    mtibs_ready = 0
 
     for slot in assigned:
         node = slot.node
-        node_status = getattr(node, "status", None)
-        if node_status == "ONLINE":
-            any_node_online = True
-            all_nodes_offline = False
-        else:
-            # any non-ONLINE node breaks the all-online assumption
-            pass
-
         meta = node.metadata if isinstance(getattr(node, "metadata", None), dict) else {}
         deploy_name = meta.get("deployment_name") if isinstance(meta, dict) else None
 
         deploy = status_map.get(deploy_name) if deploy_name else None
-        pods_ok = False
-        replicas_ok = False
+        replicas_ok = pods_ok = False
         if deploy:
             mtibs_total += 1
             replicas = deploy.get("replicas") or 0
@@ -357,68 +369,45 @@ def _compute_fixture_health(
 
         slot_mtib_state[slot.id] = {
             "deploy_name": deploy_name,
-            "deploy": deploy,
             "replicas_ok": replicas_ok,
             "pods_ok": pods_ok,
+            "disabled": bool(getattr(node, "disabled", False)),
         }
 
-        # Only probe if the node says ONLINE and MTIB deployment looks ready.
-        if node_status == "ONLINE" and replicas_ok and pods_ok:
+        # Probe only when the deployment looks ready and the node isn't
+        # admin-disabled — anything else can't possibly be READY.
+        if replicas_ok and pods_ok and not slot_mtib_state[slot.id]["disabled"]:
             host = getattr(node, "ipAddress", None) or getattr(node, "hostname", None)
             if host:
                 probe_targets.append({"slot_id": slot.id, "host": host})
 
+    # Phase 2 — concurrent gRPC probes.
     probe_results = _probe_slots_concurrent(probe_targets)
 
-    for slot in assigned:
-        node = slot.node
-        node_status = getattr(node, "status", None)
-        if node_status != "ONLINE":
-            continue
-        state = slot_mtib_state.get(slot.id, {})
-        if not state.get("replicas_ok") or not state.get("pods_ok"):
-            continue
-        if probe_results.get(slot.id, False):
-            nodes_ready += 1
-
-    details = {
-        "nodesReady": nodes_ready,
-        "nodesTotal": nodes_total,
-        "mtibsReady": mtibs_ready,
-        "mtibsTotal": mtibs_total,
-    }
-
-    # Resolve a per-slot status string the UI can chip into each tile.
+    # Phase 3 — derive per-slot state + aggregate counters.
     slot_states: dict[str, dict] = {}
+    nodes_ready = 0
+    nodes_disabled = nodes_not_deployed = 0
     for slot in assigned:
-        node = slot.node
-        node_status = getattr(node, "status", None)
-        state = slot_mtib_state.get(slot.id, {})
-        deploy_name = state.get("deploy_name")
-        replicas_ok = state.get("replicas_ok", False)
-        pods_ok = state.get("pods_ok", False)
+        s = slot_mtib_state[slot.id]
+        deploy_name = s["deploy_name"]
+        replicas_ok = s["replicas_ok"]
+        pods_ok = s["pods_ok"]
         probe_ok = bool(probe_results.get(slot.id, False))
 
-        if node_status != "ONLINE":
-            label = "Node offline"
-            short = "OFFLINE"
-            reason = f"node status={node_status or 'UNKNOWN'}"
+        if s["disabled"]:
+            short, label, reason = "DISABLED", "Node disabled", "node has disabled=true"
+            nodes_disabled += 1
         elif not deploy_name:
-            label = "MTIB not deployed"
-            short = "NOT_DEPLOYED"
-            reason = "node has no MTIB deployment"
+            short, label, reason = "NOT_DEPLOYED", "MTIB not deployed", "node has no MTIB deployment"
+            nodes_not_deployed += 1
         elif not (replicas_ok and pods_ok):
-            label = "MTIB deploying"
-            short = "DEPLOYING"
-            reason = "deployment replicas/pods not ready yet"
+            short, label, reason = "DEPLOYING", "MTIB deploying", "deployment replicas/pods not ready yet"
         elif not probe_ok:
-            label = "MTIB probe failed"
-            short = "PROBE_FAILED"
-            reason = "deployment ready but gRPC probe didn't respond"
+            short, label, reason = "PROBE_FAILED", "MTIB probe failed", "deployment ready but gRPC probe didn't respond"
         else:
-            label = "MTIB ready"
-            short = "READY"
-            reason = ""
+            short, label, reason = "READY", "MTIB ready", ""
+            nodes_ready += 1
 
         slot_states[slot.id] = {
             "state": short,
@@ -430,13 +419,23 @@ def _compute_fixture_health(
             "probeOk": probe_ok,
         }
 
-    if all_nodes_offline:
-        return {"health": "OFFLINE", "healthDetails": details, "slotStates": slot_states}
+    details = {
+        "nodesReady": nodes_ready,
+        "nodesTotal": nodes_total,
+        "mtibsReady": mtibs_ready,
+        "mtibsTotal": mtibs_total,
+    }
 
-    if any_node_online and nodes_ready == nodes_total:
-        return {"health": "ONLINE", "healthDetails": details, "slotStates": slot_states}
+    if nodes_ready == nodes_total:
+        health = "ONLINE"
+    elif (nodes_disabled + nodes_not_deployed) == nodes_total:
+        # Every slot is either admin-disabled or has no deployment yet —
+        # nothing's broken, the fixture is just powered down / unconfigured.
+        health = "OFFLINE"
+    else:
+        health = "ERROR"
 
-    return {"health": "ERROR", "healthDetails": details, "slotStates": slot_states}
+    return {"health": health, "healthDetails": details, "slotStates": slot_states}
 
 
 # ── Serializers ────────────────────────────────────────────────
@@ -447,7 +446,21 @@ def _serialize_fixture(
     include_slots: bool = False,
     mtib_status_by_deploy_name: dict[str, dict] | None = None,
 ) -> dict:
-    """Serialize a Fixture DB record to an API response dict."""
+    """Serialize a Fixture DB record to an API response dict.
+
+    Adds three computed fields the UI uses as the canonical readiness
+    signals:
+
+      * ``health``        — live aggregate of K8s + gRPC probe state
+      * ``lockState``     — DB-stored reservation state (FREE/IN_USE/MAINTENANCE)
+      * ``assignable``    — single boolean ``health == ONLINE && lockState == FREE``
+      * ``assignableReason`` — short string explaining a False, else null
+
+    Anything reading the fixture should consult ``assignable`` for "can
+    I run a session?" and surface ``assignableReason`` verbatim. Direct
+    reads of ``lockState`` or ``health`` are reserved for UI display.
+    """
+    lock_state = getattr(f, "lockState", "FREE")
     data = {
         "id": f.id,
         "name": f.name,
@@ -457,7 +470,7 @@ def _serialize_fixture(
         "designId": f.designId if hasattr(f, "designId") else None,
         "boardRevisionId": f.boardRevisionId if hasattr(f, "boardRevisionId") else None,
         "purpose": getattr(f, "purpose", "RELEASE"),
-        "status": f.status if hasattr(f, "status") else "AVAILABLE",
+        "lockState": lock_state,
         "lockedBy": f.lockedBy if hasattr(f, "lockedBy") else None,
         "lockedAt": f.lockedAt.isoformat() if hasattr(f, "lockedAt") and f.lockedAt else None,
         "profileOverrides": f.profileOverrides if hasattr(f, "profileOverrides") else None,
@@ -491,7 +504,6 @@ def _serialize_fixture(
     if hasattr(f, "slots") and f.slots is not None:
         data["slotCount"] = len(f.slots)
         data["assignedCount"] = len([s for s in f.slots if s.nodeId is not None])
-        # Health needs slots + nodes loaded; if they aren't, default to UNASSIGNED.
         health = _compute_fixture_health(f, mtib_status_by_deploy_name)
         data["health"] = health["health"]
         data["healthDetails"] = health["healthDetails"]
@@ -509,6 +521,10 @@ def _serialize_fixture(
             "mtibsReady": 0,
             "mtibsTotal": 0,
         }
+
+    assignable, reason = _compute_assignable(lock_state, data["health"])
+    data["assignable"] = assignable
+    data["assignableReason"] = reason
     return data
 
 
@@ -542,12 +558,18 @@ def _serialize_slot(s: Any, mtib_state: dict | None = None) -> dict:
         "updatedAt": s.updatedAt.isoformat(),
     }
     if hasattr(s, "node") and s.node:
+        # Live-derive ``node.status`` from the slot's mtib state (and the
+        # admin disabled flag) — never read from the DB. The fine-grained
+        # state (NOT_DEPLOYED, DEPLOYING, PROBE_FAILED, …) is in
+        # ``mtibStatus.state``; this field is the 3-value summary.
+        mtib_short = mtib_state.get("state") if mtib_state else None
         data["node"] = {
             "id": s.node.id,
             "name": s.node.name,
             "hostname": s.node.hostname,
             "type": s.node.type,
-            "status": s.node.status,
+            "disabled": bool(getattr(s.node, "disabled", False)),
+            "status": _compute_node_status(s.node, mtib_short),
         }
     if mtib_state is not None:
         data["mtibStatus"] = mtib_state
@@ -759,7 +781,7 @@ def update_fixture(fixture_id: str):
     # gate that admitted it (e.g. dev session → flip to RELEASE → next
     # panel scan rejects mid-shift). Refuse upfront.
     if data.purpose is not None and data.purpose != existing.purpose:
-        if existing.status == "LOCKED":
+        if existing.lockState == "IN_USE":
             return conflict(
                 "Cannot change fixture purpose while it is locked by an active "
                 "session. End the session first."
@@ -1029,7 +1051,10 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
         db = get_db_client()
         meta = node.metadata if isinstance(node.metadata, dict) else {}
         meta["deployment_name"] = deploy_name
-        db.node.update(where={"id": node.id}, data={"metadata": Json(meta), "status": "ONLINE"})
+        # Stamp the deployment_name so subsequent serializations can map
+        # the node back to its K8s deployment for live status. Reachability
+        # is computed live — do not persist it.
+        db.node.update(where={"id": node.id}, data={"metadata": Json(meta)})
 
         # gRPC health check — poll TCP 50053 on the node IP
         if node.ipAddress:
@@ -1132,7 +1157,7 @@ def undeploy_fixture(fixture_id: str):
     if not fixture:
         return not_found("Fixture not found")
 
-    if fixture.status == "LOCKED":
+    if fixture.lockState == "IN_USE":
         return conflict("Cannot undeploy a locked fixture — a session is running")
 
     undeployed = []

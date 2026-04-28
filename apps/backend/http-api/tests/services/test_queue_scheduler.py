@@ -129,7 +129,7 @@ class TestReconcileStuckJobs:
         # Fixture should be freed
         db.fixture.update.assert_called_once()
         fixture_data = db.fixture.update.call_args.kwargs["data"]
-        assert fixture_data["status"] == "AVAILABLE"
+        assert fixture_data["lockState"] == "FREE"
         assert fixture_data["lockedBy"] is None
 
     @patch("services.scheduling.queue_scheduler._try_cancel_job")

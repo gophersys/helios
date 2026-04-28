@@ -95,7 +95,7 @@ def trigger_run(run_id: str):
         db.fixture.update(
             where={"id": fixture["id"]},
             data={
-                "status": "LOCKED",
+                "lockState": "IN_USE",
                 "lockedBy": f"run:{run_id}",
                 "lockedAt": datetime.now(timezone.utc),
             },
@@ -234,7 +234,7 @@ def _find_available_fixture(
     """
     where: Dict[str, Any] = {
         "productId": product_id,
-        "status": "AVAILABLE",
+        "lockState": "FREE",
         "active": True,
     }
 
@@ -266,7 +266,7 @@ def _find_available_fixture(
             "stationId": fixture.stationId,
             "name": fixture.name,
             "productId": fixture.productId,
-            "status": fixture.status,
+            "lockState": getattr(fixture, "lockState", "FREE"),
             "slots": [],
         }
 

@@ -16,12 +16,14 @@ datasource db {
 // ENUMS
 // =============================================================================
 
-enum NodeStatus {
-  ONLINE
-  OFFLINE
-  MAINTENANCE
-  ERROR
-}
+/// Admin override applied to a Node. The Node's reachability/health is
+/// derived live from K8s + gRPC probe — never persisted — so the only
+/// thing the DB needs to remember is whether an operator has explicitly
+/// taken the node out of rotation. ``true`` = take it out.
+///
+/// The API still returns a ``status`` field on Node, but it is computed
+/// at serialize time from (disabled, k8s-ready, probe-ok). See
+/// ``_compute_node_status`` in apps/backend/http-api/src/api/v2/nodes/.
 
 enum NodeType {
   MANUFACTURING
@@ -68,10 +70,19 @@ enum LifecycleStatus {
   EOL
 }
 
-enum FixtureStatus {
-  AVAILABLE
-  LOCKED
-  OFFLINE
+/// Lock-state of a fixture. Independent of hardware health (which is
+/// computed live from K8s + gRPC probe).
+///
+///   FREE        — no session currently holds the fixture
+///   IN_USE      — a session is running on it
+///   MAINTENANCE — admin has explicitly taken it out of rotation
+///
+/// "Can a session start on this fixture?" is a separate boolean
+/// (``Fixture.assignable``) computed at serialize time as
+/// ``lockState == FREE && health == READY``.
+enum FixtureLockState {
+  FREE
+  IN_USE
   MAINTENANCE
 }
 
@@ -793,10 +804,10 @@ model Fixture {
   panelRows Int @default(1) /// Number of rows in the panel grid
   panelCols Int @default(1) /// Number of columns in the panel grid
 
-  purpose  FixturePurpose @default(RELEASE) /// DEV rig vs RELEASE fixture — gates which package status can run here
-  status   FixtureStatus  @default(AVAILABLE)
-  lockedBy String? /// Build run/job ID holding the lock
-  lockedAt DateTime?
+  purpose   FixturePurpose   @default(RELEASE) /// DEV rig vs RELEASE fixture — gates which package status can run here
+  lockState FixtureLockState @default(FREE) /// Reservation state — orthogonal to health, see FixtureLockState docstring
+  lockedBy  String? /// Build run/job ID holding the lock (when lockState == IN_USE)
+  lockedAt  DateTime?
 
   profileOverrides Json? /// Fixture-specific profile overrides (merged with design template)
   description      String?
@@ -816,9 +827,9 @@ model Fixture {
   manufacturingSessions ManufacturingSession[]
   testRuns              TestRun[]
 
-  @@index([productId, status])
+  @@index([productId, lockState])
   @@index([boardRevisionId])
-  @@index([status])
+  @@index([lockState])
   @@map("fixtures")
 }
 
@@ -864,24 +875,31 @@ model FixtureSlot {
 //
 // =============================================================================
 
-/// A compute node managed by Concord -- typically an MTIB
-/// (Verdin iMX8MM + Mallow + MTIB carrier board) running
-/// as an edge node in the K3s cluster.
+/// A compute node managed by Concord — typically an MTIB
+/// (Verdin iMX8MM + Mallow + MTIB carrier board) running as an edge
+/// node in the K3s cluster.
 ///
-/// Nodes with TestExecution history cannot be deleted
-/// (default Restrict behavior). Decommission by setting
-/// status = MAINTENANCE and unassigning from fixture slot.
+/// Reachability/health is NEVER persisted — the API computes a
+/// ``status`` field at serialize time from K8s pod readiness +
+/// gRPC probe (see ``_compute_node_status``). The only DB-stamped
+/// flag is ``disabled``: when ``true`` the node reads as
+/// ``MAINTENANCE`` regardless of live health, taking it out of
+/// rotation for new sessions.
+///
+/// Nodes with TestExecution history cannot be deleted (default
+/// Restrict behavior). Decommission by setting ``disabled = true``
+/// and unassigning from fixture slot.
 model Node {
-  id               String     @id @default(cuid())
+  id               String   @id @default(cuid())
   name             String
-  hostname         String     @unique /// K8s node name / OS hostname
+  hostname         String   @unique /// K8s node name / OS hostname
   type             NodeType
-  status           NodeStatus @default(OFFLINE)
+  disabled         Boolean  @default(false) /// Admin override — true = take out of rotation (live status reads MAINTENANCE)
   ipAddress        String?
   hardwareRevision String? /// "REV1.2"
   metadata         Json? /// K8s labels, capabilities, gRPC port, etc.
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   fixtureSlot FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
 

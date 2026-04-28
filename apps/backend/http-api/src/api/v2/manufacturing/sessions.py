@@ -317,7 +317,7 @@ def list_manufacturing_fixtures():
             "name": f.name,
             "productId": f.productId,
             "type": f.type,
-            "status": f.status,
+            "lockState": getattr(f, "lockState", "FREE"),
             "lockedBy": f.lockedBy,
             "active": f.active,
             "product": {"id": f.product.id, "name": f.product.name} if hasattr(f, "product") and f.product else None,
@@ -363,17 +363,32 @@ def create_manufacturing_session():
             f"End an active session before starting a new one."
         )
 
-    # Validate fixture (include boardRevision for config resolution)
+    # Validate fixture — include slots+nodes so we can compute live health.
     fixture = db.fixture.find_unique(
         where={"id": fixture_id},
-        include={"boardRevision": True},
+        include={
+            "boardRevision": True,
+            "slots": {"include": {"node": True}},
+        },
     )
     if not fixture:
         return not_found("Fixture not found")
-    if fixture.status != "AVAILABLE":
-        return conflict(
-            "Fixture is not available (current status: {})".format(fixture.status)
-        )
+
+    # ``assignable`` collapses lock-state and health into one gate. The
+    # reason string is surfaced verbatim — see _compute_assignable in
+    # api/v2/fixtures/fixtures.py for the canonical predicate.
+    from src.api.v2.fixtures.fixtures import (
+        _compute_assignable,
+        _compute_fixture_health,
+        _get_mtib_status_map,
+    )
+
+    fixture_health = _compute_fixture_health(fixture, _get_mtib_status_map(None))
+    assignable, reason = _compute_assignable(
+        getattr(fixture, "lockState", "FREE"), fixture_health["health"],
+    )
+    if not assignable:
+        return conflict(reason or "Fixture is not assignable")
 
     # Validate product
     product = db.product.find_unique(where={"id": product_id})
@@ -521,7 +536,7 @@ def create_manufacturing_session():
     db.fixture.update(
         where={"id": fixture_id},
         data={
-            "status": "LOCKED",
+            "lockState": "IN_USE",
             "lockedBy": session.id,
             "lockedAt": datetime.now(timezone.utc),
         },
@@ -1230,7 +1245,7 @@ def end_manufacturing_session(session_id: str):
     # Unlock the fixture
     db.fixture.update(
         where={"id": session.fixtureId},
-        data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None},
+        data={"lockState": "FREE", "lockedBy": None, "lockedAt": None},
     )
 
     log_audit("manufacturing_session.end", "ManufacturingSession", session_id, {

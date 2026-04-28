@@ -486,7 +486,7 @@ class BenchUpdateRequest:
     jlink_comms_serial: Optional[str] = None
     uart_app_path: Optional[str] = None
     uart_comms_path: Optional[str] = None
-    status: Optional[str] = None
+    lock_state: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
     # Track which fields were explicitly set
@@ -503,7 +503,7 @@ class BenchUpdateRequest:
     _has_jlink_comms_serial: bool = field(default=False, repr=False)
     _has_uart_app_path: bool = field(default=False, repr=False)
     _has_uart_comms_path: bool = field(default=False, repr=False)
-    _has_status: bool = field(default=False, repr=False)
+    _has_lock_state: bool = field(default=False, repr=False)
     _has_metadata: bool = field(default=False, repr=False)
 
     @classmethod
@@ -557,12 +557,12 @@ class BenchUpdateRequest:
             val = (data["dutDeviceId"] or "").strip()
             req.dut_device_id = val.upper() if val else None
 
-        if "status" in data:
-            req._has_status = True
-            status = (data["status"] or "").strip().upper()
-            if status and status not in ("AVAILABLE", "LOCKED", "OFFLINE", "MAINTENANCE"):
-                return None, "status must be one of: AVAILABLE, LOCKED, OFFLINE, MAINTENANCE"
-            req.status = status or None
+        if "lockState" in data:
+            req._has_lock_state = True
+            lock_state = (data["lockState"] or "").strip().upper()
+            if lock_state and lock_state not in ("FREE", "IN_USE", "MAINTENANCE"):
+                return None, "lockState must be one of: FREE, IN_USE, MAINTENANCE"
+            req.lock_state = lock_state or None
 
         return req, None
 
@@ -595,8 +595,8 @@ class BenchUpdateRequest:
             update["uartAppPath"] = self.uart_app_path
         if self._has_uart_comms_path:
             update["uartCommsPath"] = self.uart_comms_path
-        if self._has_status and self.status:
-            update["status"] = self.status
+        if self._has_lock_state and self.lock_state:
+            update["lockState"] = self.lock_state
         if self._has_metadata:
             update["metadata"] = self.metadata
         return update

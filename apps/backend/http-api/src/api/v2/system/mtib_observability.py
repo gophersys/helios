@@ -31,12 +31,21 @@ def get_fleet_observability():
     for node_id, entry in snapshots.items():
         db_node = db_nodes.get(node_id)
         has_error = bool(entry.get("error"))
+        # Live status — admin override wins, else "ONLINE" iff the
+        # observability stream is currently delivering snapshots.
+        if db_node and getattr(db_node, "disabled", False):
+            status = "MAINTENANCE"
+        elif not has_error and entry.get("snapshot") is not None:
+            status = "ONLINE"
+        else:
+            status = "OFFLINE"
         nodes.append({
             "id": node_id,
             "name": entry.get("nodeName", ""),
             "hostname": entry.get("hostname", ""),
             "type": db_node.type if db_node else "",
-            "status": db_node.status if db_node else "OFFLINE",
+            "disabled": bool(getattr(db_node, "disabled", False)) if db_node else False,
+            "status": status,
             "ip_address": entry.get("ipAddress"),
             "hardware_revision": db_node.hardwareRevision if db_node else None,
             "deployment_status": _get_deployment_status(db_node) if db_node else None,

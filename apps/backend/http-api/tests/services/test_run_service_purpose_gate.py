@@ -25,31 +25,45 @@ def _now():
 
 
 def _release_fixture():
-    """A production fixture — RELEASE purpose, ready slot, online node."""
-    node = make_obj(status="ONLINE", ipAddress="10.4.45.99")
+    """A production fixture — RELEASE purpose, ready slot, ready MTIB."""
+    node = make_obj(
+        id="node-rel", disabled=False, ipAddress="10.4.45.99",
+        metadata={"deployment_name": "mtib-rel"},
+    )
     slot = make_obj(
-        id="slot-1", active=True, dutSnr="0964",
+        id="slot-1", nodeId="node-rel", active=True, dutSnr="0964",
         dutDeviceId="dev-1", dutImei="imei-1", dutIccids=["ic-1"], node=node,
     )
     return make_obj(
         id="fix-rel-1", name="Bench-Prod", stationId="prod-A",
-        status="AVAILABLE", productId="prod-1",
+        lockState="FREE", productId="prod-1",
         purpose="RELEASE", slots=[slot], design=None,
     )
 
 
 def _dev_fixture():
-    """A dev rig — DEV purpose, ready slot, online node."""
-    node = make_obj(status="ONLINE", ipAddress="10.4.45.100")
+    """A dev rig — DEV purpose, ready slot, ready MTIB."""
+    node = make_obj(
+        id="node-dev", disabled=False, ipAddress="10.4.45.100",
+        metadata={"deployment_name": "mtib-dev"},
+    )
     slot = make_obj(
-        id="slot-2", active=True, dutSnr="0099",
+        id="slot-2", nodeId="node-dev", active=True, dutSnr="0099",
         dutDeviceId="dev-2", dutImei="imei-2", dutIccids=["ic-2"], node=node,
     )
     return make_obj(
         id="fix-dev-1", name="Bench-Dev", stationId="dev-A",
-        status="AVAILABLE", productId="prod-1",
+        lockState="FREE", productId="prod-1",
         purpose="DEV", slots=[slot], design=None,
     )
+
+
+def _ready_status_map(deploy_names):
+    """Live MTIB status — one ready deployment per name."""
+    return {
+        n: {"name": n, "replicas": 1, "readyReplicas": 1, "pods": [{"ready": True}]}
+        for n in deploy_names
+    }
 
 
 def _build_run(stage_config_id=None):
@@ -124,13 +138,18 @@ class TestPurposeGateDirectTrigger:
             f"expected no started session, got {result!r}"
         )
 
+    @patch("src.api.v2.fixtures.fixtures._probe_slots_concurrent", return_value={"slot-1": True})
+    @patch("src.services.builds.run_service._get_mtib_status_map")
     @patch("src.services.builds.run_service.get_db_client")
-    def test_release_package_on_release_fixture_proceeds(self, mock_get_db):
+    def test_release_package_on_release_fixture_proceeds(
+        self, mock_get_db, mock_status, _mock_probe,
+    ):
         """Released package on a RELEASE fixture is the green path."""
         from src.services.builds.run_service import trigger_build_run_validation
 
         db = MagicMock()
         mock_get_db.return_value = db
+        mock_status.return_value = _ready_status_map(["mtib-rel"])
         db.product.find_unique.return_value = make_obj(
             id="prod-1", name="Alpha", slug="alpha",
         )
@@ -139,7 +158,6 @@ class TestPurposeGateDirectTrigger:
             id="tp-rel-1", productId="prod-1", type="VALIDATION",
             status="RELEASED", version="0.5.3",
         )
-        # Mock the side-effect chain so we get past create_validation_session.
         db.testrun.create.return_value = make_obj(id="sess-1", config={})
         db.user.find_first.return_value = make_obj(id="u-sys")
         db.productstageconfig.find_first.return_value = None
@@ -158,13 +176,18 @@ class TestPurposeGateDirectTrigger:
         assert result is not None
         assert result.get("started") is True
 
+    @patch("src.api.v2.fixtures.fixtures._probe_slots_concurrent", return_value={"slot-2": True})
+    @patch("src.services.builds.run_service._get_mtib_status_map")
     @patch("src.services.builds.run_service.get_db_client")
-    def test_dev_package_on_dev_fixture_proceeds(self, mock_get_db):
+    def test_dev_package_on_dev_fixture_proceeds(
+        self, mock_get_db, mock_status, _mock_probe,
+    ):
         """DEV package on DEV fixture is allowed — sandbox path."""
         from src.services.builds.run_service import trigger_build_run_validation
 
         db = MagicMock()
         mock_get_db.return_value = db
+        mock_status.return_value = _ready_status_map(["mtib-dev"])
         db.product.find_unique.return_value = make_obj(
             id="prod-1", name="Alpha", slug="alpha",
         )
