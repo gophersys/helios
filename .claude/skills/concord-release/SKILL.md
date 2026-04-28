@@ -21,22 +21,54 @@ the release is incomplete — continue work until all boxes pass.
 
 ```
 [ ] VERSION bumped on a release branch (never on main directly)
+[ ] corectl version bumped (lockstep major.minor with platform)
+[ ] corekinect version bumped (lockstep major.minor with platform)
 [ ] Release branch merged into main
 [ ] Annotated tag vX.Y.Z pushed to origin
 [ ] Staging deployed and rollout verified
+[ ] corectl + corekinect wheels published to STAGING pypi
 [ ] Staging release record exists in DB (POST /v2/releases returned 2xx)
 [ ] Production deployed and rollout verified
-[ ] Production release record exists in DB (POST /v2/releases returned 2xx)
+[ ] corectl + corekinect wheels published to PRODUCTION pypi
+[ ] Production release record exists in DB (with corectlMinVersion + corekinectVersion populated)
 [ ] Resolved bugs linked (or user confirmed "none") in both environments
 ```
 
 **Why this exists:** the release records drive the `/releases` page, the
 update-notification toast history, and bug-resolution traceability. A deploy
-without a DB record is a silent data-loss bug. The pairing `deploy → record`
-is enforced by structure (Phases 9 and 10 each bundle both steps).
+without published wheels is broken — the new backend expects clients running
+the new corectl/corekinect — so deploy and publish must ship together. A deploy
+without a DB record is a silent data-loss bug.
 
-Never treat the deploy as "the last step." The deploy is step 1 of 2 in each
-Phase 9/10 pair.
+Phases 9 and 10 each bundle three steps: **deploy → publish wheels → create
+record**. Never treat the deploy as "the last step."
+
+## Versioning model — lockstep major.minor
+
+Platform, corectl, and corekinect share the same `major.minor` version. Patch
+versions can diverge for hot-fixes that touch only one component, but every
+**minor or major** release bumps all three together. This makes "I'm running
+0.6.x" mean platform, corectl, and corekinect are all at 0.6.x and known to
+be compatible.
+
+| Component | Source of truth | Where it ships |
+|-----------|-----------------|----------------|
+| Platform (http-api, frontend, runners) | `VERSION` (repo root) | Docker images on `containers.ad.corekinect.com` |
+| corectl CLI | `tools/corectl/src/corectl/__init__.py` `__version__` | `pypi.<host>/simple/corectl/` |
+| corekinect framework | `libs/python/corekinect/__init__.py` `__version__` | `pypi.<host>/simple/corekinect/` |
+
+`tools/corectl/pyproject.toml` reads its version dynamically from the
+`__init__.py` (`[tool.hatch.version] path = "src/corectl/__init__.py"`). The
+top-level `libs/python/pyproject.toml` reads corekinect's version from
+`corekinect.__version__` via `setuptools.dynamic`. Bumping the `__init__.py`
+is the only edit needed.
+
+Each release record carries:
+- `corectlMinVersion` — minimum corectl that works against this backend (set
+  to the version published with this release; older corectl gets rejected at
+  upload time when the compat-check lands)
+- `corekinectVersion` — the corekinect framework version published with this
+  release
 
 ## Version: Single Source of Truth
 
@@ -63,8 +95,9 @@ fires automatically when the deployed version differs from the baked-in bundle.
 
 ## What a release covers
 
-- **Platform version** (`VERSION`) — one semver for all services
-- **corekinect SDK** (`libs/python/corekinect/__init__.py` → `__version__`) — independently versioned
+- **Platform version** (`VERSION`) — one semver for all services. Drives Docker image tags.
+- **corectl CLI** (`tools/corectl/src/corectl/__init__.py` `__version__`) — published as a wheel to the pypi server. Lockstep `major.minor` with platform.
+- **corekinect framework** (`libs/python/corekinect/__init__.py` `__version__`) — published as a wheel to the pypi server. Lockstep `major.minor` with platform.
 - **MTIB proto** (`libs/protocols/mtib/VERSION`) — independently versioned
 - **Prisma migration hash** — current schema fingerprint
 - **Changelog** — auto-generated from conventional commits since last tag
@@ -154,11 +187,28 @@ npx -y @devcontainers/cli exec ... python3 scripts/release_gate.py
 
 ## Phase 4 — Version bump
 
-Write the new version to `VERSION`:
+Write the new version to `VERSION` and bump corectl + corekinect in lockstep:
 
 ```bash
 echo "X.Y.Z" > VERSION
+
+# corectl: bump src/corectl/__init__.py (pyproject.toml reads it dynamically)
+sed -i 's/^__version__ = ".*"$/__version__ = "X.Y.Z"/' \
+  tools/corectl/src/corectl/__init__.py
+
+# corekinect: bump libs/python/corekinect/__init__.py
+sed -i 's/^__version__ = ".*"$/__version__ = "X.Y.Z"/' \
+  libs/python/corekinect/__init__.py
+
+# Verify
+grep '^__version__' tools/corectl/src/corectl/__init__.py
+grep '^__version__' libs/python/corekinect/__init__.py
+cat VERSION
 ```
+
+All three should report `X.Y.Z`. **Patch-only releases that touch ONE component
+(e.g. a corectl-only fix)** can keep the others' minors and bump only the patch
+of the changed component — but that should be an exception, not the norm.
 
 ## Phase 5 — Changelog and release metadata collection
 
@@ -196,7 +246,19 @@ LINES_REMOVED=$(echo "$DIFF_STAT" | grep -oP '\d+(?= deletion)' || echo 0)
 
 ```bash
 COREKINECT_VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' libs/python/corekinect/__init__.py)
+CORECTL_VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' tools/corectl/src/corectl/__init__.py)
+PLATFORM_VERSION=$(cat VERSION)
 PROTO_VERSION=$(cat libs/protocols/mtib/VERSION 2>/dev/null || echo "unknown")
+```
+
+All three of `PLATFORM_VERSION`, `CORECTL_VERSION`, `COREKINECT_VERSION` MUST
+match per the lockstep rule. If they don't, fix the bumps in Phase 4 before
+proceeding.
+
+```bash
+[ "$PLATFORM_VERSION" = "$CORECTL_VERSION" ] && [ "$PLATFORM_VERSION" = "$COREKINECT_VERSION" ] \
+  && echo "lockstep ok: $PLATFORM_VERSION" \
+  || { echo "VERSIONS DRIFTED — fix Phase 4"; exit 1; }
 ```
 
 ### 5e. Compute migration hash
@@ -322,11 +384,12 @@ git tag -a vX.Y.Z -m "vX.Y.Z"
 git push origin --tags
 ```
 
-## Phase 9 — Deploy STAGING + create staging release record (one atomic pair)
+## Phase 9 — Deploy STAGING + publish wheels + create staging release record
 
-**This phase has TWO mandatory steps. Do not move to Phase 10 until BOTH are
-complete.** If you deploy without creating the record, the release is broken.
-Think of these as a single logical operation, not two.
+**This phase has THREE mandatory steps. Do not move to Phase 10 until ALL three
+are complete.** Skipping wheel publishing leaves the new backend without a
+matching corectl/corekinect on pypi — clients can't talk to it. Skipping the
+record is a silent data-loss bug.
 
 ### 9.1 — Refresh .git-build-info and deploy staging
 
@@ -340,22 +403,56 @@ Verify the output shows:
 - All pods verified (checkmark for each deployment)
 - Smoke tests passed
 
-### 9.2 — Create the staging release record (IMMEDIATELY, before Phase 10)
+### 9.2 — Build + publish corectl and corekinect wheels to STAGING pypi
+
+Build both wheels inside the devcontainer (where `python3 -m build` works),
+then `kubectl cp` them straight into the pypi pod's `/data/packages/`
+directory. The pypi server picks them up immediately — no twine, no auth.
+
+```bash
+# Build (inside devcontainer)
+npx -y @devcontainers/cli exec ... bash -c "
+  rm -rf tools/corectl/dist libs/python/dist &&
+  cd tools/corectl && python3 -m build --wheel &&
+  cd /workspaces/concord/libs/python &&
+  rm -rf protocols && cp -r ../protocols protocols &&
+  python3 -m build --wheel --outdir dist/ &&
+  rm -rf protocols
+"
+
+# Publish (host kubectl, against staging cluster)
+STAGING_PYPI=$(kubectl get pods -n staging -l app.kubernetes.io/name=concord-pypi -o name | head -1 | cut -d/ -f2)
+kubectl cp tools/corectl/dist/corectl-X.Y.Z-py3-none-any.whl staging/$STAGING_PYPI:/data/packages/
+kubectl cp libs/python/dist/corekinect-X.Y.Z-py3-none-any.whl staging/$STAGING_PYPI:/data/packages/
+
+# Verify both are listed
+curl -sSk https://pypi.staging.concord.ad.corekinect.com/simple/corectl/ | grep "X.Y.Z"
+curl -sSk https://pypi.staging.concord.ad.corekinect.com/simple/corekinect/ | grep "X.Y.Z"
+```
+
+Both `grep`s must find the version. If the pypi pod was just restarted by the
+deploy in 9.1, give it ~5s to come back before the cp.
+
+### 9.3 — Create the staging release record (IMMEDIATELY)
 
 Do this now, not later. See the "Create release record" section below for the
 mechanics. Use the staging user ID and staging pod.
 
 - Find the http-api pod: `kubectl get pods -n staging -o name | grep concord-http-api | head -1`
 - Generate JWT inside the pod using `JWT_SECRET_KEY` env var
-- POST `/v2/releases` with all collected metadata
+- POST `/v2/releases` with all collected metadata. **Set
+  `corectlMinVersion: "X.Y.Z"` and `corekinectVersion: "X.Y.Z"`** so the
+  /releases page shows the matching SDK versions.
 - Verify the record by GET `/v2/releases?limit=5`
 
-**Exit criteria for Phase 9:** the POST returned 2xx and the version appears in
-the list. Do not proceed to Phase 10 otherwise.
+**Exit criteria for Phase 9:** rollout verified + both wheels visible on
+staging pypi + POST returned 2xx with corectlMinVersion + corekinectVersion
+populated. Do not proceed to Phase 10 otherwise.
 
-## Phase 10 — Deploy PRODUCTION + create production release record (one atomic pair)
+## Phase 10 — Deploy PRODUCTION + publish wheels + create production release record
 
-Same structure as Phase 9. Deploy and record are a single logical unit.
+Same three-step structure as Phase 9. Deploy, publish wheels, and record are
+one atomic group.
 
 ### 10.1 — Refresh .git-build-info and deploy production
 
@@ -364,12 +461,27 @@ Same structure as Phase 9. Deploy and record are a single logical unit.
 npx -y @devcontainers/cli exec ... nx update platform -c production
 ```
 
-### 10.2 — Create the production release record (IMMEDIATELY)
+### 10.2 — Publish corectl + corekinect wheels to PRODUCTION pypi
 
-Same mechanics as 9.2 but with the production pod and the production user ID.
+Wheels were already built in 9.2; just publish to production:
 
-**Exit criteria for Phase 10:** the POST returned 2xx and the version appears
-in production `/v2/releases`.
+```bash
+PROD_PYPI=$(kubectl get pods -n production -l app.kubernetes.io/name=concord-pypi -o name | head -1 | cut -d/ -f2)
+kubectl cp tools/corectl/dist/corectl-X.Y.Z-py3-none-any.whl production/$PROD_PYPI:/data/packages/
+kubectl cp libs/python/dist/corekinect-X.Y.Z-py3-none-any.whl production/$PROD_PYPI:/data/packages/
+
+# Verify
+curl -sSk https://pypi.concord.ad.corekinect.com/simple/corectl/ | grep "X.Y.Z"
+curl -sSk https://pypi.concord.ad.corekinect.com/simple/corekinect/ | grep "X.Y.Z"
+```
+
+### 10.3 — Create the production release record (IMMEDIATELY)
+
+Same mechanics as 9.3 but with the production pod and the production user ID.
+
+**Exit criteria for Phase 10:** rollout verified + both wheels visible on
+production pypi + POST returned 2xx with corectlMinVersion + corekinectVersion
+populated.
 
 ## Create release record — shared mechanics
 
@@ -427,7 +539,8 @@ kubectl exec -n <namespace> deploy/concord-http-api -- \
     "breakingChanges": "<breaking changes text from 5b, or null>",
     "linesAdded": <N from 5c>,
     "linesRemoved": <M from 5c>,
-    "corekinectVersion": "<from 5d>",
+    "corekinectVersion": "<X.Y.Z — same as platform per lockstep>",
+    "corectlMinVersion": "<X.Y.Z — same as platform per lockstep>",
     "protoVersion": "<from 5d>",
     "migrationHash": "<from 5e>",
     "testsPassed": <total from 5f>,
@@ -548,6 +661,16 @@ Always ask before performing destructive rollback actions.
   record specifically to prevent this. If you have deployed but not POSTed,
   the release is not complete; go back and post the record before anything else.
 - **Pushing directly to main**: Never. Always use a release branch + PR.
+- **Skipping wheel publishing**: The new backend expects clients running the
+  new corectl/corekinect (lockstep major.minor). If you bump VERSION and deploy
+  without publishing the matching wheels, every fresh `pip install corectl`
+  pulls the OLD wheel that doesn't speak the new wire format. Phases 9.2 and
+  10.2 are not optional.
+- **Version drift between platform / corectl / corekinect**: All three
+  `__version__`-style fields (`VERSION`, `tools/corectl/src/corectl/__init__.py`,
+  `libs/python/corekinect/__init__.py`) MUST share the same `major.minor`
+  inside a release commit. Phase 5d's lockstep check fails the release if any
+  drift exists.
 - **Stale commit hash in builds**: Forgetting to refresh `.git-build-info` before
   the devcontainer exec. The build output will show the wrong commit.
 - **OOMKill after changes**: http-api has memory limits (staging: 1Gi, production: 1Gi).
