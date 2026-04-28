@@ -179,8 +179,7 @@ class TestFindAvailableFixture:
             dutSnr="0964", dutDeviceId="dev-1", node=_ready_node(),
         )
         fixture = make_obj(
-            id="fix-1", name="Bench 1", lockState="FREE",
-            slots=[slot], stationId="st-1", design=None,
+            id="fix-1", name="Bench 1", slots=[slot], stationId="st-1", design=None,
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -194,8 +193,7 @@ class TestFindAvailableFixture:
         from src.services.builds.run_service import _find_available_fixture
         db = MagicMock()
         fixture = make_obj(
-            id="fix-1", name="Bench 1", lockState="IN_USE",
-            slots=[], stationId="st-1",
+            id="fix-1", name="Bench 1", slots=[], stationId="st-1",
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -213,8 +211,7 @@ class TestFindAvailableFixture:
             dutSnr="0964", dutDeviceId="dev-1", node=node,
         )
         fixture = make_obj(
-            id="fix-1", name="Bench 1", lockState="FREE",
-            slots=[slot], stationId="st-1",
+            id="fix-1", name="Bench 1", slots=[slot], stationId="st-1",
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -232,8 +229,7 @@ class TestFindAvailableFixture:
             dutSnr=None, dutDeviceId=None, node=_ready_node(),
         )
         fixture = make_obj(
-            id="fix-1", name="Bench 1", lockState="FREE",
-            slots=[slot], stationId="st-1",
+            id="fix-1", name="Bench 1", slots=[slot], stationId="st-1",
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -246,11 +242,19 @@ class TestAnalyzeUnavailability:
         from src.services.builds.run_service import _analyze_unavailability
         db = MagicMock()
 
-        locked = make_obj(name="Bench-1", lockState="IN_USE", slots=[])
+        # IDs are needed for the active-holder lookup that drives the
+        # derived lockState. Bench-1 simulates an active session/run on it.
+        locked = make_obj(id="fix-1", name="Bench-1", slots=[], disabled=False)
         node_offline = make_obj(status="OFFLINE")
         slot_configured = make_obj(active=True, dutSnr="0964", node=node_offline)
-        available_offline = make_obj(name="Bench-2", lockState="FREE", slots=[slot_configured])
-        unconfigured = make_obj(name="Bench-3", lockState="FREE", slots=[])
+        available_offline = make_obj(id="fix-2", name="Bench-2", slots=[slot_configured], disabled=False)
+        unconfigured = make_obj(id="fix-3", name="Bench-3", slots=[], disabled=False)
+
+        # An active session on fix-1 makes its derived lockState IN_USE.
+        db.manufacturingsession.find_many.return_value = [
+            make_obj(id="sess-1", fixtureId="fix-1", status="ACTIVE"),
+        ]
+        db.testrun.find_many.return_value = []
 
         result = _analyze_unavailability(db, [locked, available_offline, unconfigured])
         assert "Bench-1" in result["locked"]

@@ -1,11 +1,14 @@
 """Fixture-backed bench endpoints for validation infrastructure.
 
 Legacy bench CRUD — now delegates to the unified Fixture model.
+
+Reservation state (lockState/lockedBy/lockedAt in the response) is derived
+live from active sessions/runs. There are no bench lock/unlock endpoints —
+the only way to take a bench is to create a session or run on it.
 """
 
 import logging
 import math
-from datetime import datetime, timezone
 from typing import Any, Dict
 
 from database import Json
@@ -18,7 +21,8 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
-from .types import BenchCreateRequest, BenchLockRequest, BenchUpdateRequest
+from .fixtures import _compute_lock_state, _load_active_holders
+from .types import BenchCreateRequest, BenchUpdateRequest
 
 try:
     from kubernetes import client as k8s_client, config as k8s_config
@@ -29,11 +33,26 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def _serialize_bench(fixture, slot=None) -> Dict[str, Any]:
+def _serialize_bench(
+    fixture,
+    slot=None,
+    active_sessions_by_fixture: dict[str, Any] | None = None,
+    active_runs_by_fixture: dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     """Serialize a Fixture + first FixtureSlot to the legacy bench API shape.
 
-    Maintains backward compatibility for consumers expecting the old TestBench fields.
+    ``lockState``/``lockedBy``/``lockedAt`` are derived live from active
+    sessions/runs (see :func:`_compute_lock_state`) — never read from DB.
     """
+    if active_sessions_by_fixture is None and active_runs_by_fixture is None:
+        active_sessions_by_fixture, active_runs_by_fixture = _load_active_holders(
+            get_db_client(), [fixture.id]
+        )
+
+    lock_state, locked_by, locked_at = _compute_lock_state(
+        fixture, active_sessions_by_fixture, active_runs_by_fixture
+    )
+
     # Get first slot for DUT/hardware info
     if slot is None:
         slots = fixture.slots if hasattr(fixture, "slots") and fixture.slots else []
@@ -43,9 +62,10 @@ def _serialize_bench(fixture, slot=None) -> Dict[str, Any]:
         "id": fixture.id,
         "stationId": fixture.stationId,
         "name": fixture.name,
-        "lockState": getattr(fixture, "lockState", "FREE"),
-        "lockedBy": fixture.lockedBy,
-        "lockedAt": fixture.lockedAt.isoformat() if fixture.lockedAt else None,
+        "disabled": bool(getattr(fixture, "disabled", False)),
+        "lockState": lock_state,
+        "lockedBy": locked_by,
+        "lockedAt": locked_at,
         "profileOverrides": fixture.profileOverrides if hasattr(fixture, "profileOverrides") else None,
         "lastHealthCheck": fixture.lastHealthCheck.isoformat() if hasattr(fixture, "lastHealthCheck") and fixture.lastHealthCheck else None,
         "metadata": fixture.metadata,
@@ -129,11 +149,37 @@ def list_benches():
     if product:
         where["product"] = {"slug": {"contains": product.lower()}}
 
-    lock_state = request.args.get("lockState")
-    if lock_state:
-        where["lockState"] = lock_state.upper()
+    # Filter on derived lockState by translating to the underlying signal.
+    #   FREE         → no active session/run AND not disabled
+    #   IN_USE       → has an active session OR run on this fixture
+    #   MAINTENANCE  → fixture.disabled = true
+    lock_state_filter = (request.args.get("lockState") or "").strip().upper() or None
+    if lock_state_filter and lock_state_filter not in ("FREE", "IN_USE", "MAINTENANCE"):
+        return bad_request("lockState must be one of: FREE, IN_USE, MAINTENANCE")
 
     try:
+        if lock_state_filter == "MAINTENANCE":
+            where["disabled"] = True
+        elif lock_state_filter in ("FREE", "IN_USE"):
+            # Find fixtures with active sessions/runs first, then include or
+            # exclude as appropriate.
+            active_sess = db.manufacturingsession.find_many(where={"status": "ACTIVE"})
+            active_run = db.testrun.find_many(where={"status": "ACTIVE"})
+            held_ids = {s.fixtureId for s in active_sess if getattr(s, "fixtureId", None)}
+            held_ids |= {r.fixtureId for r in active_run if getattr(r, "fixtureId", None)}
+            if lock_state_filter == "IN_USE":
+                if not held_ids:
+                    return jsonify(ApiResponse.ok({
+                        "data": [],
+                        "pagination": {"page": page, "limit": limit, "total": 0, "pages": 0},
+                    }).to_dict()), 200
+                where["id"] = {"in": list(held_ids)}
+                where["disabled"] = False
+            else:  # FREE
+                where["disabled"] = False
+                if held_ids:
+                    where["id"] = {"notIn": list(held_ids)}
+
         total = db.fixture.count(where=where)
         fixtures = db.fixture.find_many(
             where=where,
@@ -151,10 +197,18 @@ def list_benches():
             },
         )
 
+        sess_by, run_by = _load_active_holders(db, [f.id for f in fixtures])
         pages = math.ceil(total / limit) if limit > 0 else 0
 
         return jsonify(ApiResponse.ok({
-            "data": [_serialize_bench(f) for f in fixtures],
+            "data": [
+                _serialize_bench(
+                    f,
+                    active_sessions_by_fixture=sess_by,
+                    active_runs_by_fixture=run_by,
+                )
+                for f in fixtures
+            ],
             "pagination": {
                 "page": page,
                 "limit": limit,
@@ -224,7 +278,6 @@ def create_bench():
             "stationId": data.station_id,
             "productId": product.id,
             "type": "VALIDATION",
-            "lockState": "FREE",
         }
         if data.fixture_design_id:
             create_data["designId"] = data.fixture_design_id
@@ -371,8 +424,9 @@ def delete_bench(bench_id: str):
     if not fixture:
         return not_found(f"Bench not found: {bench_id}")
 
-    if fixture.lockState == "IN_USE":
-        return bad_request("Cannot delete a locked bench")
+    sess_by, run_by = _load_active_holders(db, [bench_id])
+    if bench_id in sess_by or bench_id in run_by:
+        return conflict("Cannot delete a bench while a session or run is active on it")
 
     try:
         db.fixture.delete(where={"id": bench_id})
@@ -386,105 +440,6 @@ def delete_bench(bench_id: str):
     except Exception as e:
         logger.error("Failed to delete bench %s: %s", bench_id, e)
         return internal_error("Failed to delete bench")
-
-
-@require_permissions(Permissions.FIXTURES_MANAGE)
-def lock_bench(bench_id: str):
-    """POST /v2/fixtures/benches/<id>/lock - Lock a fixture for exclusive use."""
-    data, error = BenchLockRequest.from_json(request.get_json())
-    if error or data is None:
-        return bad_request(error)
-
-    db = get_db_client()
-
-    fixture = db.fixture.find_unique(where={"id": bench_id})
-    if not fixture:
-        return not_found(f"Bench not found: {bench_id}")
-
-    if fixture.lockState == "IN_USE":
-        return conflict(f"Bench already locked by: {fixture.lockedBy}")
-
-    if fixture.lockState == "MAINTENANCE":
-        return bad_request("Bench is in maintenance mode")
-
-    try:
-        db.fixture.update(
-            where={"id": bench_id},
-            data={
-                "lockState": "IN_USE",
-                "lockedBy": data.locked_by,
-                "lockedAt": datetime.now(timezone.utc),
-            },
-        )
-
-        updated = db.fixture.find_unique(
-            where={"id": bench_id},
-            include={
-                "product": True,
-                "design": True,
-                "slots": {
-                    "where": {"active": True},
-                    "order_by": {"slotIndex": "asc"},
-                    "include": {"node": True},
-                },
-            },
-        )
-
-        log_audit("validation.bench.lock", "Fixture", bench_id, {
-            "lockedBy": data.locked_by,
-        })
-
-        return jsonify(ApiResponse.ok(_serialize_bench(updated)).to_dict()), 200
-
-    except Exception as e:
-        logger.error("Failed to lock bench %s: %s", bench_id, e)
-        return internal_error("Failed to lock bench")
-
-
-@require_permissions(Permissions.FIXTURES_MANAGE)
-def unlock_bench(bench_id: str):
-    """POST /v2/fixtures/benches/<id>/unlock - Release a fixture lock."""
-    db = get_db_client()
-
-    fixture = db.fixture.find_unique(where={"id": bench_id})
-    if not fixture:
-        return not_found(f"Bench not found: {bench_id}")
-
-    if fixture.lockState != "IN_USE":
-        return bad_request("Bench is not locked")
-
-    try:
-        db.fixture.update(
-            where={"id": bench_id},
-            data={
-                "lockState": "FREE",
-                "lockedBy": None,
-                "lockedAt": None,
-            },
-        )
-
-        updated = db.fixture.find_unique(
-            where={"id": bench_id},
-            include={
-                "product": True,
-                "design": True,
-                "slots": {
-                    "where": {"active": True},
-                    "order_by": {"slotIndex": "asc"},
-                    "include": {"node": True},
-                },
-            },
-        )
-
-        log_audit("validation.bench.unlock", "Fixture", bench_id, {
-            "previousLockedBy": fixture.lockedBy,
-        })
-
-        return jsonify(ApiResponse.ok(_serialize_bench(updated)).to_dict()), 200
-
-    except Exception as e:
-        logger.error("Failed to unlock bench %s: %s", bench_id, e)
-        return internal_error("Failed to unlock bench")
 
 
 @require_permissions(Permissions.FIXTURES_VIEW)

@@ -311,14 +311,20 @@ def list_manufacturing_fixtures():
     )
     total = db.fixture.count(where=where)
 
+    # Derive lockState/lockedBy live from active sessions/runs — no DB column.
+    from src.api.v2.fixtures.fixtures import _compute_lock_state, _load_active_holders
+    sess_by, run_by = _load_active_holders(db, [f.id for f in fixtures])
+
     def _serialize_fixture(f) -> dict:
+        lock_state, locked_by, _ = _compute_lock_state(f, sess_by, run_by)
         return {
             "id": f.id,
             "name": f.name,
             "productId": f.productId,
             "type": f.type,
-            "lockState": getattr(f, "lockState", "FREE"),
-            "lockedBy": f.lockedBy,
+            "lockState": lock_state,
+            "lockedBy": locked_by,
+            "disabled": bool(getattr(f, "disabled", False)),
             "active": f.active,
             "product": {"id": f.product.id, "name": f.product.name} if hasattr(f, "product") and f.product else None,
         }
@@ -376,17 +382,20 @@ def create_manufacturing_session():
 
     # ``assignable`` collapses lock-state and health into one gate. The
     # reason string is surfaced verbatim — see _compute_assignable in
-    # api/v2/fixtures/fixtures.py for the canonical predicate.
+    # api/v2/fixtures/fixtures.py for the canonical predicate. lockState is
+    # derived live from active sessions/runs (never persisted).
     from src.api.v2.fixtures.fixtures import (
         _compute_assignable,
         _compute_fixture_health,
+        _compute_lock_state,
         _get_mtib_status_map,
+        _load_active_holders,
     )
 
     fixture_health = _compute_fixture_health(fixture, _get_mtib_status_map(None))
-    assignable, reason = _compute_assignable(
-        getattr(fixture, "lockState", "FREE"), fixture_health["health"],
-    )
+    sess_by, run_by = _load_active_holders(db, [fixture_id])
+    lock_state, _, _ = _compute_lock_state(fixture, sess_by, run_by)
+    assignable, reason = _compute_assignable(lock_state, fixture_health["health"])
     if not assignable:
         return conflict(reason or "Fixture is not assignable")
 
@@ -532,15 +541,9 @@ def create_manufacturing_session():
         },
     )
 
-    # Lock the fixture
-    db.fixture.update(
-        where={"id": fixture_id},
-        data={
-            "lockState": "IN_USE",
-            "lockedBy": session.id,
-            "lockedAt": datetime.now(timezone.utc),
-        },
-    )
+    # No fixture-locking write — the live IN_USE state is derived from
+    # this row (status=ACTIVE) at serialize time. End the session and the
+    # fixture is FREE again. See _compute_lock_state in fixtures/fixtures.py.
 
     log_audit("manufacturing_session.create", "ManufacturingSession", session.id, {
         "productId": product_id,
@@ -1242,11 +1245,8 @@ def end_manufacturing_session(session_id: str):
             data={"status": "ERROR", "completedAt": reconciled_at},
         )
 
-    # Unlock the fixture
-    db.fixture.update(
-        where={"id": session.fixtureId},
-        data={"lockState": "FREE", "lockedBy": None, "lockedAt": None},
-    )
+    # No fixture-unlocking write — the session row's status=COMPLETED
+    # already makes the live IN_USE → FREE transition (derived state).
 
     log_audit("manufacturing_session.end", "ManufacturingSession", session_id, {
         "status": "COMPLETED",

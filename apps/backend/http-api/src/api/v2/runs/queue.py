@@ -28,8 +28,17 @@ logger = logging.getLogger(__name__)
 #                            Serializers
 # -------------------------------------------------------------------
 
-def _serialize_queue_entry(entry) -> dict:
-    """Serialize a ValidationQueueEntry DB record to an API response dict."""
+def _serialize_queue_entry(
+    entry,
+    active_sessions_by_fixture: dict | None = None,
+    active_runs_by_fixture: dict | None = None,
+) -> dict:
+    """Serialize a ValidationQueueEntry DB record to an API response dict.
+
+    ``active_sessions_by_fixture`` / ``active_runs_by_fixture`` are the
+    same batched maps used by the fixture serializer; pass them when
+    serializing many entries at once to avoid N+1 lookups.
+    """
     data = {
         "id": entry.id,
         "assetSetId": entry.assetSetId,
@@ -64,11 +73,17 @@ def _serialize_queue_entry(entry) -> dict:
         }
     if hasattr(entry, "fixture") and entry.fixture is not None:
         f = entry.fixture
+        from src.api.v2.fixtures.fixtures import _compute_lock_state, _load_active_holders
+        sess_by = active_sessions_by_fixture
+        run_by = active_runs_by_fixture
+        if sess_by is None and run_by is None:
+            sess_by, run_by = _load_active_holders(get_db_client(), [f.id])
+        lock_state, _, _ = _compute_lock_state(f, sess_by, run_by)
         data["fixture"] = {
             "id": f.id,
             "name": f.name,
             "stationId": getattr(f, "stationId", None),
-            "lockState": getattr(f, "lockState", "FREE"),
+            "lockState": lock_state,
         }
     if hasattr(entry, "testRun") and entry.testRun is not None:
         r = entry.testRun

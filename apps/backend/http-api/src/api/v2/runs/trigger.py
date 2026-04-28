@@ -91,28 +91,19 @@ def trigger_run(run_id: str):
                 f"No available fixture for product '{product_name}'"
             )
 
-        # Lock the fixture for this run
-        db.fixture.update(
-            where={"id": fixture["id"]},
-            data={
-                "lockState": "IN_USE",
-                "lockedBy": f"run:{run_id}",
-                "lockedAt": datetime.now(timezone.utc),
-            },
-        )
-
-        # Link TestRun to fixture
+        # Link TestRun to fixture. The run's status=ACTIVE row is now what
+        # makes the fixture's derived lockState read as IN_USE — there is
+        # no separate fixture-lock write to perform.
         db.testrun.update(
             where={"id": run_id},
             data={"fixtureId": fixture["id"]},
         )
 
-        log_audit("validation.fixture.lock", "Fixture", fixture["id"], {
-            "lockedBy": f"run:{run_id}",
+        log_audit("validation.fixture.assign", "Fixture", fixture["id"], {
             "runId": run_id,
         })
 
-        logger.info("Locked fixture %s for run %s", fixture.get("stationId", fixture["id"]), run_id)
+        logger.info("Assigned fixture %s for run %s", fixture.get("stationId", fixture["id"]), run_id)
 
         # ── Multi-node: create one RunTarget + one K8s Job per active slot ──
         user_id = g.current_user["sub"]
@@ -232,11 +223,23 @@ def _find_available_fixture(
     Returns a dict with fixture fields merged with per-slot hardware
     paths and DUT identity, or None if no match found.
     """
+    # "Free" is derived live: not disabled, no active session, no active run.
+    held_session_ids = {
+        s.fixtureId for s in db.manufacturingsession.find_many(where={"status": "ACTIVE"})
+        if getattr(s, "fixtureId", None)
+    }
+    held_run_ids = {
+        r.fixtureId for r in db.testrun.find_many(where={"status": "ACTIVE"})
+        if getattr(r, "fixtureId", None)
+    }
+    held_ids = held_session_ids | held_run_ids
     where: Dict[str, Any] = {
         "productId": product_id,
-        "lockState": "FREE",
         "active": True,
+        "disabled": False,
     }
+    if held_ids:
+        where["id"] = {"notIn": list(held_ids)}
 
     try:
         fixture = db.fixture.find_first(
@@ -261,12 +264,14 @@ def _find_available_fixture(
             profile_path = fixture.metadata.get("profilePath")
 
         # Build result with per-slot info for multi-node execution
+        # lockState is derived; this picker only ever returns fixtures that
+        # were "FREE" at query time, so we hardcode it on the result dict.
         result: Dict[str, Any] = {
             "id": fixture.id,
             "stationId": fixture.stationId,
             "name": fixture.name,
             "productId": fixture.productId,
-            "lockState": getattr(fixture, "lockState", "FREE"),
+            "lockState": "FREE",
             "slots": [],
         }
 

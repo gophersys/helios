@@ -70,22 +70,6 @@ enum LifecycleStatus {
   EOL
 }
 
-/// Lock-state of a fixture. Independent of hardware health (which is
-/// computed live from K8s + gRPC probe).
-///
-///   FREE        — no session currently holds the fixture
-///   IN_USE      — a session is running on it
-///   MAINTENANCE — admin has explicitly taken it out of rotation
-///
-/// "Can a session start on this fixture?" is a separate boolean
-/// (``Fixture.assignable``) computed at serialize time as
-/// ``lockState == FREE && health == READY``.
-enum FixtureLockState {
-  FREE
-  IN_USE
-  MAINTENANCE
-}
-
 enum IcleDeviceStatus {
   ONLINE
   OFFLINE
@@ -784,13 +768,21 @@ model FixtureDesign {
 /// manufacturing fixtures (multi-slot with 4-6 MTIBs) and validation
 /// benches (single-slot with 1 MTIB).
 ///
+/// Reservation state (lockState in the API: FREE / IN_USE / MAINTENANCE) is
+/// **derived live** at serialize time — it is not stored on this row.
+///   - MAINTENANCE  ← `disabled = true` (admin override)
+///   - IN_USE       ← any ManufacturingSession or TestRun with status=ACTIVE on this fixture
+///   - FREE         ← otherwise
+/// This kills the stored-state drift bug class (orphaned locks on crashes /
+/// failed unlock paths). Same lesson as v0.7.0 collapsed Node.status.
+///
 /// Lifecycle:
 ///   1. Created with N slots (based on fixture type/design)
 ///   2. MTIBs registered and assigned to slots (auto-deploys MTIB server)
-///   3. All slots assigned → status becomes AVAILABLE
-///   4. Scheduler assigns queue entries → status becomes LOCKED
+///   3. All slots assigned → fixture is FREE (derived) and ready
+///   4. Scheduler/wizard creates a Session (status=ACTIVE) → fixture is IN_USE (derived)
 ///   5. Session runs (N parallel K8s Jobs, one per slot) → results collected
-///   6. Session finishes → status returns to AVAILABLE
+///   6. Session ends (status=COMPLETED|FAILED|CANCELLED) → fixture is FREE again
 model Fixture {
   id              String   @id @default(cuid())
   name            String /// "Alpha MFG Fixture 1", "Alpha B0 Bench 1"
@@ -804,10 +796,8 @@ model Fixture {
   panelRows Int @default(1) /// Number of rows in the panel grid
   panelCols Int @default(1) /// Number of columns in the panel grid
 
-  purpose   FixturePurpose   @default(RELEASE) /// DEV rig vs RELEASE fixture — gates which package status can run here
-  lockState FixtureLockState @default(FREE) /// Reservation state — orthogonal to health, see FixtureLockState docstring
-  lockedBy  String? /// Build run/job ID holding the lock (when lockState == IN_USE)
-  lockedAt  DateTime?
+  purpose  FixturePurpose @default(RELEASE) /// DEV rig vs RELEASE fixture — gates which package status can run here
+  disabled Boolean        @default(false) /// Admin override — when true, fixture is taken out of rotation regardless of session/health state. Reservation state (FREE/IN_USE) is derived live from active Sessions.
 
   profileOverrides Json? /// Fixture-specific profile overrides (merged with design template)
   description      String?
@@ -827,9 +817,7 @@ model Fixture {
   manufacturingSessions ManufacturingSession[]
   testRuns              TestRun[]
 
-  @@index([productId, lockState])
   @@index([boardRevisionId])
-  @@index([lockState])
   @@map("fixtures")
 }
 

@@ -166,26 +166,22 @@ def _store_log_overflow(log_output: str, run_id: str, entity_key: str) -> tuple[
     return truncated, object_name
 
 
-def _unlock_fixture(db, run) -> None:
-    """Release the fixture lock if the run holds one."""
+def _notify_fixture_freed(db, run) -> None:
+    """Run finished — kick the scheduler so the next queued entry can land.
+
+    The fixture's lockState is derived live from active sessions/runs, so
+    setting this run's status to a terminal value (which run_finish has
+    already done) automatically transitions it from IN_USE → FREE. There
+    is no fixture row to update — we just need to wake the scheduler.
+    """
     fixture_id = getattr(run, "fixtureId", None)
     if not fixture_id:
         return
-
     try:
-        fixture = db.fixture.find_unique(where={"id": fixture_id})
-        if fixture and fixture.lockState == "IN_USE":
-            db.fixture.update(
-                where={"id": fixture_id},
-                data={
-                    "lockState": "FREE",
-                    "lockedBy": None,
-                    "lockedAt": None,
-                },
-            )
-            logger.info("Released fixture lock %s (run %s)", fixture_id, run.id)
+        from src.api.v2.runs.scheduler import on_fixture_freed
+        on_fixture_freed(fixture_id)
     except Exception as e:
-        logger.warning("Failed to unlock fixture %s: %s", fixture_id, e)
+        logger.warning("Failed to notify scheduler for freed fixture %s: %s", fixture_id, e)
 
 
 def _propagate_to_build_run(db, run, now: datetime) -> None:
@@ -876,7 +872,7 @@ def report_finish(run_id: str):
     run = db.testrun.find_unique(where={"id": run_id})
 
     # Post-finish housekeeping
-    _unlock_fixture(db, run)
+    _notify_fixture_freed(db, run)
     _complete_queue_entry(db, run_id, now)
     _process_queue()
 

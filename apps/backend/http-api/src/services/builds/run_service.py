@@ -30,7 +30,9 @@ from src.api.v2.products.test_package_resolver import (
 from src.api.v2.fixtures.fixtures import (
     _compute_assignable,
     _compute_fixture_health,
+    _compute_lock_state,
     _get_mtib_status_map,
+    _load_active_holders,
 )
 from corekinect.stages import Stage
 
@@ -809,12 +811,13 @@ def _find_available_fixture(db, product_id: str):
         return None, None, None, []
 
     mtib_status = _get_mtib_status_map(None)
+    # Live lock-state is derived from active sessions/runs.
+    sess_by, run_by = _load_active_holders(db, [f.id for f in fixtures])
 
     for f in fixtures:
         health = _compute_fixture_health(f, mtib_status)
-        assignable, reason = _compute_assignable(
-            getattr(f, "lockState", "FREE"), health["health"],
-        )
+        lock_state, _, _ = _compute_lock_state(f, sess_by, run_by)
+        assignable, reason = _compute_assignable(lock_state, health["health"])
         if not assignable:
             logger.debug("Fixture %s skipped: %s", f.name, reason)
             continue
@@ -851,12 +854,14 @@ def _analyze_unavailability(db, fixtures, mtib_status: dict | None = None) -> di
     if mtib_status is None:
         mtib_status = _get_mtib_status_map(None)
 
+    sess_by, run_by = _load_active_holders(db, [f.id for f in fixtures])
+
     locked: list[str] = []
     offline: list[str] = []
     unconfigured: list[str] = []
 
     for f in fixtures:
-        lock_state = getattr(f, "lockState", "FREE")
+        lock_state, _, _ = _compute_lock_state(f, sess_by, run_by)
         if lock_state != "FREE":
             locked.append(f.name)
             continue
@@ -926,19 +931,15 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
 
 
 def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str, build_run, product, builds: list) -> dict:
-    """Lock the fixture, create session + device + API key records.
+    """Create session + device + API key records.
+
+    The fixture's lockState transitions to IN_USE automatically when the
+    TestRun (run_id) flips to status=ACTIVE — derived live, no fixture
+    write needed here.
 
     Returns a dict with keys: session, raw_key, api_url.
     """
-    db.fixture.update(
-        where={"id": fixture.id},
-        data={
-            "lockState": "IN_USE",
-            "lockedBy": f"buildRun:{run_id}",
-            "lockedAt": datetime.now(timezone.utc),
-        },
-    )
-    logger.info("Locked fixture %s for build run %s", fixture.name, run_id[:8])
+    logger.info("Assigning fixture %s for build run %s", fixture.name, run_id[:8])
 
     build_summaries = [
         {"id": b.id, "product": derive_build_product_slug(b), "variant": b.variant, "version": b.versionString}
@@ -1117,7 +1118,15 @@ def trigger_build_run_validation(run_id: str, build_run, builds: list) -> Option
 
         if not job_name:
             logger.error("Failed to create K8s job for build run %s", run_id)
-            db.fixture.update(where={"id": fixture.id}, data={"lockState": "FREE", "lockedBy": None, "lockedAt": None})
+            # Mark the run as failed so its derived fixture lockState rolls
+            # back from IN_USE → FREE. No direct fixture write.
+            try:
+                db.testrun.update(
+                    where={"id": run_id},
+                    data={"status": "FAILED", "completedAt": datetime.now(timezone.utc)},
+                )
+            except Exception as e:
+                logger.warning("Failed to mark run %s as FAILED on rollback: %s", run_id, e)
             return None
 
         config = session.config if isinstance(session.config, dict) else {}

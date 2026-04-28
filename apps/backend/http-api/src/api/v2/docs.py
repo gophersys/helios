@@ -249,6 +249,12 @@ def _build_spec() -> APISpec:
             "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
             "description": {"type": "string", "nullable": True},
             "active": {"type": "boolean"},
+            "disabled": {"type": "boolean", "description": "Admin override — when true, fixture is taken out of rotation"},
+            "lockState": {"type": "string", "enum": ["FREE", "IN_USE", "MAINTENANCE"], "description": "Derived live: MAINTENANCE if disabled, IN_USE if any active session/run, else FREE"},
+            "lockedBy": {"type": "string", "nullable": True, "description": "Session or run id holding the fixture (when lockState=IN_USE)"},
+            "lockedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "assignable": {"type": "boolean", "description": "True iff lockState=FREE AND health=ONLINE"},
+            "assignableReason": {"type": "string", "nullable": True},
             "metadata": {"type": "object", "nullable": True},
             "slotCount": {"type": "integer"},
             "productName": {"type": "string"},
@@ -1858,7 +1864,6 @@ def _build_spec() -> APISpec:
                     "dutSnr": {"type": "string"},
                     "dutImei": {"type": "string"},
                     "dutIccids": {"type": "array", "items": {"type": "string"}},
-                    "lockState": {"type": "string", "enum": ["FREE", "IN_USE", "MAINTENANCE"]},
                     "metadata": {"type": "object"},
                 },
             }}}},
@@ -1867,24 +1872,6 @@ def _build_spec() -> APISpec:
         delete={
             "tags": ["Benches"], "summary": "Delete a test bench", "security": _auth_security,
             "responses": {"200": _deleted_resp, "400": _400, "404": _404},
-        },
-    )
-    path("/fixtures/benches/{bench_id}/lock",
-        parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Benches"], "summary": "Lock a test bench for exclusive use", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["lockedBy"],
-                "properties": {"lockedBy": {"type": "string", "description": "Build run or job ID acquiring the lock"}},
-            }}}},
-            "responses": {"200": _ok("TestBench"), "400": _400, "404": _404, "409": _409},
-        },
-    )
-    path("/fixtures/benches/{bench_id}/unlock",
-        parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Benches"], "summary": "Release a test bench lock", "security": _auth_security,
-            "responses": {"200": _ok("TestBench"), "400": _400, "404": _404},
         },
     )
     path("/fixtures/benches/{bench_id}/profile",

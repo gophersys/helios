@@ -1050,11 +1050,12 @@ export type FixtureHealth = 'ONLINE' | 'OFFLINE' | 'ERROR' | 'UNASSIGNED';
 
 export type FixturePurpose = 'DEV' | 'RELEASE';
 
-/** Reservation state — orthogonal to health. Stored in the DB.
+/** Reservation state — derived live by the backend, never stored as a column.
  *
- *   FREE        — no session currently holds the fixture
- *   IN_USE      — a session is running on it (lockedBy populated)
- *   MAINTENANCE — admin has explicitly taken it out of rotation
+ *   FREE        — fixture not disabled and no active session/run on it
+ *   IN_USE      — an active ManufacturingSession or TestRun is on this
+ *                 fixture (``lockedBy`` is the session/run id)
+ *   MAINTENANCE — ``Fixture.disabled === true`` (admin override)
  *
  * "Can a session start right now?" is the separate ``assignable`` boolean. */
 export type FixtureLockState = 'FREE' | 'IN_USE' | 'MAINTENANCE';
@@ -1068,6 +1069,8 @@ export interface Fixture {
   type: string;
   /** DEV rigs accept dev + released packages; RELEASE fixtures only accept released. */
   purpose: FixturePurpose;
+  /** Admin override — when true, ``lockState`` derives to MAINTENANCE. */
+  disabled: boolean;
   lockState: FixtureLockState;
   lockedBy: string | null;
   lockedAt: string | null;

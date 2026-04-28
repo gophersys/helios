@@ -497,8 +497,7 @@ class TestFindAvailableFixture:
             dutSnr="0964", dutDeviceId="dev-1", node=node,
         )
         fixture = make_obj(
-            id="fix-1", name="Bench-33", lockState="FREE",
-            slots=[slot], design=None,
+            id="fix-1", name="Bench-33", slots=[slot], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -514,8 +513,7 @@ class TestFindAvailableFixture:
 
         db = MagicMock()
         fixture = make_obj(
-            id="fix-1", name="Bench-33", lockState="IN_USE",
-            slots=[], design=None,
+            id="fix-1", name="Bench-33", slots=[], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -532,8 +530,7 @@ class TestFindAvailableFixture:
         node = make_obj(status="OFFLINE", ipAddress="192.168.1.100")
         slot = make_obj(active=True, dutSnr="0964", dutDeviceId="dev-1", node=node)
         fixture = make_obj(
-            id="fix-1", name="Bench-33", lockState="FREE",
-            slots=[slot], design=None,
+            id="fix-1", name="Bench-33", slots=[slot], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -548,8 +545,7 @@ class TestFindAvailableFixture:
         db = MagicMock()
         slot = make_obj(active=True, dutSnr=None, dutDeviceId=None, node=None)
         fixture = make_obj(
-            id="fix-1", name="Bench-33", lockState="FREE",
-            slots=[slot], design=None,
+            id="fix-1", name="Bench-33", slots=[slot], design=None,
         )
         db.fixture.find_many.return_value = [fixture]
 
@@ -571,8 +567,13 @@ class TestAnalyzeUnavailability:
 
         db = MagicMock()
         fixtures = [
-            make_obj(name="Bench-1", lockState="IN_USE", slots=[]),
+            make_obj(id="fix-1", name="Bench-1", slots=[], disabled=False),
         ]
+        # Active session on fix-1 → derived lockState=IN_USE.
+        db.manufacturingsession.find_many.return_value = [
+            make_obj(id="sess-1", fixtureId="fix-1", status="ACTIVE"),
+        ]
+        db.testrun.find_many.return_value = []
 
         result = _analyze_unavailability(db, fixtures)
 
@@ -583,10 +584,12 @@ class TestAnalyzeUnavailability:
         from src.services.builds.run_service import _analyze_unavailability
 
         db = MagicMock()
+        db.manufacturingsession.find_many.return_value = []
+        db.testrun.find_many.return_value = []
         node = make_obj(status="OFFLINE")
         slot = make_obj(active=True, dutSnr="0964", node=node)
         fixtures = [
-            make_obj(name="Bench-2", lockState="FREE", slots=[slot]),
+            make_obj(id="fix-2", name="Bench-2", slots=[slot], disabled=False),
         ]
 
         result = _analyze_unavailability(db, fixtures)
@@ -598,9 +601,11 @@ class TestAnalyzeUnavailability:
         from src.services.builds.run_service import _analyze_unavailability
 
         db = MagicMock()
+        db.manufacturingsession.find_many.return_value = []
+        db.testrun.find_many.return_value = []
         slot = make_obj(active=False, dutSnr=None)
         fixtures = [
-            make_obj(name="Bench-3", lockState="FREE", slots=[slot]),
+            make_obj(id="fix-3", name="Bench-3", slots=[slot], disabled=False),
         ]
 
         result = _analyze_unavailability(db, fixtures)

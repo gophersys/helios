@@ -630,26 +630,27 @@ class TestReportFinish:
         )
         assert resp.status_code == 400
 
-    def test_unlocks_fixture(self, authed_client, mock_db):
-        fixture = make_obj(id="fix-1", lockState="IN_USE")
+    def test_run_finish_notifies_scheduler_for_fixture(self, authed_client, mock_db):
+        """When a run finishes, the scheduler is notified that the fixture
+        is now free (derived state). No direct fixture write happens."""
         run = _make_run(fixtureId="fix-1")
         mock_db.testrun.find_unique.return_value = run
         mock_db.runtarget.find_many.return_value = [_make_target()]
-        mock_db.fixture.find_unique.return_value = fixture
 
         with patch("api.v2.runs.reporter._emit"):
             with patch("api.v2.runs.reporter._process_queue"):
-                resp = authed_client.post(
-                    "/v2/runs/run-1/report/finish",
-                    data=json.dumps({
-                        "total": 1, "passed": 1, "failed": 0, "errors": 0,
-                    }),
-                )
+                with patch("src.api.v2.runs.scheduler.on_fixture_freed") as freed:
+                    resp = authed_client.post(
+                        "/v2/runs/run-1/report/finish",
+                        data=json.dumps({
+                            "total": 1, "passed": 1, "failed": 0, "errors": 0,
+                        }),
+                    )
 
         assert resp.status_code == 200
-        mock_db.fixture.update.assert_called_once()
-        update_data = mock_db.fixture.update.call_args.kwargs["data"]
-        assert update_data["lockState"] == "FREE"
+        # No fixture write — derived state.
+        mock_db.fixture.update.assert_not_called()
+        freed.assert_called_once_with("fix-1")
 
     def test_propagates_to_build_run(self, authed_client, mock_db):
         run = _make_run(buildRunId="pipe-1", fixtureId=None, failedCount=0)

@@ -455,7 +455,9 @@ class TestCancelRun:
 
         assert resp.status_code == 409
 
-    def test_cancel_unlocks_fixture(self, authed_client, mock_db):
+    def test_cancel_does_not_write_fixture(self, authed_client, mock_db):
+        """Cancelling a run flips its status; the fixture's derived
+        lockState rolls back automatically. There is no fixture write."""
         mock_db.testrun.find_unique.return_value = _make_run(
             status="ACTIVE", fixtureId="fix-1"
         )
@@ -467,11 +469,7 @@ class TestCancelRun:
             resp = authed_client.post("/v2/runs/run-1/cancel")
 
         assert resp.status_code == 200
-        mock_db.fixture.update.assert_called_once()
-        fix_data = mock_db.fixture.update.call_args.kwargs["data"]
-        assert fix_data["lockState"] == "FREE"
-        assert fix_data["lockedBy"] is None
-        assert fix_data["lockedAt"] is None
+        mock_db.fixture.update.assert_not_called()
 
     def test_cancel_not_found(self, authed_client, mock_db):
         mock_db.testrun.find_unique.return_value = None

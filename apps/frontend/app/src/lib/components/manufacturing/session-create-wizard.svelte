@@ -271,17 +271,35 @@
           {:else}
             <div class="grid gap-3">
               {#each fixtures as fixture}
-                {@const isAvailable = fixture.assignable === true}
+                <!--
+                  Two gates:
+                    isPickable  — can the operator click this card and walk
+                                  the wizard with it? Only blocks when the
+                                  fixture is genuinely unavailable for use
+                                  (locked by another session, or in
+                                  maintenance). Hardware OFFLINE doesn't
+                                  block pick — they may want to step through
+                                  the wizard for a powered-down rig.
+                    isStartable — can they actually press Start at step 5?
+                                  Lock + health combined (server-derived
+                                  ``assignable``).
+                -->
+                {@const isPickable = fixture.lockState !== 'IN_USE' && fixture.lockState !== 'MAINTENANCE'}
+                {@const lockBadge = fixture.lockState === 'IN_USE'
+                  ? 'In Use'
+                  : fixture.lockState === 'MAINTENANCE'
+                    ? 'Maintenance'
+                    : null}
                 <button
-                  onclick={() => { if (isAvailable) selectFixture(fixture.id); }}
-                  disabled={!isAvailable}
+                  onclick={() => { if (isPickable) selectFixture(fixture.id); }}
+                  disabled={!isPickable}
                   class="card card-md text-left transition-all
                     {selectedFixtureId === fixture.id ? 'border-accent bg-accent-muted' :
-                     !isAvailable ? 'opacity-50 cursor-not-allowed' :
+                     !isPickable ? 'opacity-50 cursor-not-allowed' :
                      'hover:border-text-tertiary'}"
                 >
                   <div class="flex items-center gap-4">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg {isAvailable ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'} shrink-0">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg {isPickable ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'} shrink-0">
                       <Wrench size={20} />
                     </div>
                     <div class="flex-1 min-w-0">
@@ -293,8 +311,10 @@
                         {/if}
                       </div>
                     </div>
-                    {#if !isAvailable}
-                      <span class="rounded bg-warning-muted px-2 py-0.5 text-2xs font-medium text-warning">In Use</span>
+                    {#if lockBadge}
+                      <span class="rounded bg-warning-muted px-2 py-0.5 text-2xs font-medium text-warning">{lockBadge}</span>
+                    {:else if fixture.assignable !== true}
+                      <span class="rounded bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-tertiary" title={fixture.assignableReason ?? ''}>Hardware offline</span>
                     {:else}
                       <ChevronRight size={16} class="text-text-tertiary shrink-0" />
                     {/if}
@@ -424,8 +444,16 @@
           </div>
 
           <div class="rounded-lg border border-accent/30 bg-accent-muted/30 px-4 py-3">
-            <p class="text-sm text-text-primary">Starting this session will <strong>lock the fixture</strong> and make it unavailable for other sessions until this one ends.</p>
+            <p class="text-sm text-text-primary">Starting this session will <strong>take the fixture</strong> for this run and make it unavailable for other sessions until this one ends.</p>
           </div>
+
+          {#if selectedFixture && selectedFixture.assignable !== true}
+            <div class="rounded-lg border border-warning/30 bg-warning-muted/30 px-4 py-3 text-sm">
+              <p class="font-medium text-warning">Cannot start yet</p>
+              <p class="text-text-secondary mt-1">{selectedFixture.assignableReason ?? 'Fixture is not ready.'}</p>
+              <p class="text-text-tertiary text-2xs mt-1">Power on the rig and wait for the MTIB pods to come up, then refresh this dialog.</p>
+            </div>
+          {/if}
 
           {#if error}
             <div class="rounded-lg border border-error/30 bg-error-muted px-4 py-3 text-sm text-error">{error}</div>
@@ -449,7 +477,7 @@
         {#if step === 5}
           <button
             onclick={handleStart}
-            disabled={submitting || !selectedFixtureId}
+            disabled={submitting || !selectedFixtureId || !selectedFixture || selectedFixture.assignable !== true}
             class="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
           >
             {#if submitting}<Loader2 size={14} class="animate-spin" />{/if}

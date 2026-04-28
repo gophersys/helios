@@ -11,6 +11,9 @@ import pytest
 from tests.conftest import make_obj
 
 
+NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+
 @pytest.fixture(autouse=True)
 def _stub_assignable():
     """Sessions are gated on ``Fixture.assignable`` which lives behind a
@@ -66,9 +69,6 @@ def _fixture(**overrides):
         productId="s10-prod-1",
         boardRevisionId="s10-rev-1",
         type="MANUFACTURING",
-        lockState="FREE",
-        lockedBy=None,
-        lockedAt=None,
         active=True,
         panelRows=2,
         panelCols=2,
@@ -248,7 +248,8 @@ class TestCreateSession:
         mock_db.testpackage.find_first.return_value = _test_package()
         created = _session()
         mock_db.manufacturingsession.create.return_value = created
-        mock_db.fixture.update.return_value = _fixture(lockState="IN_USE", lockedBy="s10-sess-1")
+        # No fixture.update call needed — IN_USE is derived from the new
+        # session row.
 
         resp = authed_client.post(
             "/v2/manufacturing/sessions",
@@ -260,7 +261,13 @@ class TestCreateSession:
         assert resp.status_code == 201
 
     def test_returns_409_if_fixture_locked(self, authed_client, mock_db):
-        mock_db.fixture.find_unique.return_value = _fixture(lockState="IN_USE", lockedBy="other-sess")
+        # Fixture itself is fine, but another active session already holds it.
+        mock_db.fixture.find_unique.return_value = _fixture()
+        mock_db.manufacturingsession.find_many.return_value = [
+            make_obj(id="other-sess", fixtureId="s10-fix-1", status="ACTIVE",
+                     startedAt=NOW, createdAt=NOW),
+        ]
+        mock_db.testrun.find_many.return_value = []
 
         resp = authed_client.post(
             "/v2/manufacturing/sessions",
@@ -442,7 +449,8 @@ class TestEndSession:
     def test_ends_session_and_releases_fixture(self, authed_client, mock_db):
         mock_db.manufacturingsession.find_unique.return_value = _session()
         mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
-        mock_db.fixture.update.return_value = _fixture(lockState="FREE", lockedBy=None)
+        # No fixture-unlock write — fixture's derived lockState transitions
+        # automatically when the session row flips to COMPLETED.
 
         resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")
         assert resp.status_code == 200
@@ -469,7 +477,8 @@ class TestEndSession:
         """
         mock_db.manufacturingsession.find_unique.return_value = _session()
         mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
-        mock_db.fixture.update.return_value = _fixture(lockState="FREE", lockedBy=None)
+        # No fixture-unlock write — fixture's derived lockState transitions
+        # automatically when the session row flips to COMPLETED.
 
         # Two update_many calls are expected: PENDING→FAILED, ACTIVE→CANCELLED.
         # The second return value exercises the "reconciled > 0" branch that
@@ -499,7 +508,8 @@ class TestEndSession:
         """If every run already hit /report/finish, don't touch run targets."""
         mock_db.manufacturingsession.find_unique.return_value = _session()
         mock_db.manufacturingsession.update.return_value = _session(status="COMPLETED")
-        mock_db.fixture.update.return_value = _fixture(lockState="FREE", lockedBy=None)
+        # No fixture-unlock write — fixture's derived lockState transitions
+        # automatically when the session row flips to COMPLETED.
         mock_db.testrun.update_many.return_value = 0  # no orphans
 
         resp = authed_client.post("/v2/manufacturing/sessions/s10-sess-1/end")

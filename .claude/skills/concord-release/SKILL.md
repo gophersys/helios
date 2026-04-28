@@ -161,6 +161,21 @@ Chain it before the devcontainer exec with `&&`.
    - Only `fix:/chore:/refactor:` → patch bump
    Propose the bump and wait for confirmation.
 
+   **No digit-rollover.** Each version component (major, minor, patch) is an
+   independent integer with no upper bound. We ship many revisions, so
+   components routinely go past 9 — accept values up to at least 100 before
+   ever considering a major bump:
+   - `0.9.0` + minor bump → `0.10.0` (NOT `1.0.0`)
+   - `0.9.99` + patch bump → `0.9.100` (NOT `0.10.0`)
+   - `0.99.0` + minor bump → `0.100.0` (NOT `1.0.0`)
+   - `0.10.5` + minor bump → `0.11.0`
+   A major bump (`X.0.0` → `X+1.0.0`) only happens when there is an explicit
+   `BREAKING CHANGE:` commit footer / `!` marker, or the user explicitly asks
+   for a major bump. Never auto-roll a minor → major just because minor hit
+   double digits. The release gate's semver pattern (`^\d+\.\d+\.\d+$`) already
+   accepts any digit count — this rule is about your bump *decision*, not the
+   format check.
+
 ## Phase 2 — Create release branch
 
 ```bash

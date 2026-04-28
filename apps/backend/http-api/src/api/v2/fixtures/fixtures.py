@@ -276,6 +276,64 @@ def _compute_node_status(
     return "OFFLINE"
 
 
+def _compute_lock_state(
+    fixture: Any,
+    active_sessions_by_fixture: dict[str, Any] | None = None,
+    active_runs_by_fixture: dict[str, Any] | None = None,
+) -> tuple[str, str | None, str | None]:
+    """Derive the API ``lockState`` (FREE/IN_USE/MAINTENANCE) for a fixture
+    from live session/run state. Never persisted on the row.
+
+    Order of precedence:
+      1. ``fixture.disabled == True``                                  → MAINTENANCE
+      2. an active ManufacturingSession on this fixture                → IN_USE
+      3. an active TestRun on this fixture                             → IN_USE
+      4. otherwise                                                     → FREE
+
+    Returns ``(lockState, lockedBy, lockedAt)``. ``lockedBy`` is the session
+    or run id when IN_USE; ``lockedAt`` is its ``startedAt`` (falling back
+    to ``createdAt``).
+
+    Both lookup maps are optional. When omitted, the corresponding source
+    is treated as "no active rows" — callers that serve a list endpoint
+    must batch-load these once and pass them in to avoid N+1 queries.
+    """
+    if getattr(fixture, "disabled", False):
+        return "MAINTENANCE", None, None
+
+    sess_map = active_sessions_by_fixture or {}
+    run_map = active_runs_by_fixture or {}
+
+    holder = sess_map.get(fixture.id) or run_map.get(fixture.id)
+    if holder is None:
+        return "FREE", None, None
+
+    started = getattr(holder, "startedAt", None) or getattr(holder, "createdAt", None)
+    locked_at = started.isoformat() if started else None
+    return "IN_USE", getattr(holder, "id", None), locked_at
+
+
+def _load_active_holders(db, fixture_ids: list[str] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Fetch active sessions + active runs by fixtureId for one batched
+    serialize pass. Each map is ``{fixtureId: row}`` keyed by the fixture
+    that's currently locked. Pass ``fixture_ids`` to scope the query;
+    omit to fetch globally (used by single-fixture endpoints)."""
+    where_sess: dict = {"status": "ACTIVE"}
+    where_run: dict = {"status": "ACTIVE"}
+    if fixture_ids is not None:
+        if not fixture_ids:
+            return {}, {}
+        where_sess["fixtureId"] = {"in": fixture_ids}
+        where_run["fixtureId"] = {"in": fixture_ids}
+
+    sessions = db.manufacturingsession.find_many(where=where_sess)
+    runs = db.testrun.find_many(where=where_run)
+
+    sess_by = {s.fixtureId: s for s in sessions if getattr(s, "fixtureId", None)}
+    run_by = {r.fixtureId: r for r in runs if getattr(r, "fixtureId", None)}
+    return sess_by, run_by
+
+
 def _compute_assignable(
     lock_state: str,
     health: str,
@@ -445,22 +503,38 @@ def _serialize_fixture(
     f: Any,
     include_slots: bool = False,
     mtib_status_by_deploy_name: dict[str, dict] | None = None,
+    active_sessions_by_fixture: dict[str, Any] | None = None,
+    active_runs_by_fixture: dict[str, Any] | None = None,
 ) -> dict:
     """Serialize a Fixture DB record to an API response dict.
 
-    Adds three computed fields the UI uses as the canonical readiness
+    Adds four computed fields the UI uses as the canonical readiness
     signals:
 
       * ``health``        — live aggregate of K8s + gRPC probe state
-      * ``lockState``     — DB-stored reservation state (FREE/IN_USE/MAINTENANCE)
+      * ``lockState``     — derived live (FREE/IN_USE/MAINTENANCE), see
+                            :func:`_compute_lock_state`. Never read from DB.
       * ``assignable``    — single boolean ``health == ONLINE && lockState == FREE``
       * ``assignableReason`` — short string explaining a False, else null
 
     Anything reading the fixture should consult ``assignable`` for "can
     I run a session?" and surface ``assignableReason`` verbatim. Direct
     reads of ``lockState`` or ``health`` are reserved for UI display.
+
+    ``active_sessions_by_fixture`` / ``active_runs_by_fixture`` should be
+    pre-batched by the caller for list endpoints; single-record callers
+    can omit them and let this function do its own lookup.
     """
-    lock_state = getattr(f, "lockState", "FREE")
+    if active_sessions_by_fixture is None and active_runs_by_fixture is None:
+        # Single-record path — batch on demand for just this fixture.
+        active_sessions_by_fixture, active_runs_by_fixture = _load_active_holders(
+            get_db_client(), [f.id]
+        )
+
+    lock_state, locked_by, locked_at = _compute_lock_state(
+        f, active_sessions_by_fixture, active_runs_by_fixture
+    )
+
     data = {
         "id": f.id,
         "name": f.name,
@@ -470,9 +544,10 @@ def _serialize_fixture(
         "designId": f.designId if hasattr(f, "designId") else None,
         "boardRevisionId": f.boardRevisionId if hasattr(f, "boardRevisionId") else None,
         "purpose": getattr(f, "purpose", "RELEASE"),
+        "disabled": bool(getattr(f, "disabled", False)),
         "lockState": lock_state,
-        "lockedBy": f.lockedBy if hasattr(f, "lockedBy") else None,
-        "lockedAt": f.lockedAt.isoformat() if hasattr(f, "lockedAt") and f.lockedAt else None,
+        "lockedBy": locked_by,
+        "lockedAt": locked_at,
         "profileOverrides": f.profileOverrides if hasattr(f, "profileOverrides") else None,
         "description": f.description,
         "panelRows": f.panelRows if hasattr(f, "panelRows") else 1,
@@ -619,8 +694,18 @@ def list_fixtures():
     )
     # Single batched K8s call shared across all fixtures in this response.
     mtib_status = _get_mtib_status_map(None)
+    # Single batched lookup of active sessions/runs — derives lockState live.
+    sess_by, run_by = _load_active_holders(db, [f.id for f in fixtures])
     return jsonify(ApiResponse.ok({
-        "data": [_serialize_fixture(f, mtib_status_by_deploy_name=mtib_status) for f in fixtures],
+        "data": [
+            _serialize_fixture(
+                f,
+                mtib_status_by_deploy_name=mtib_status,
+                active_sessions_by_fixture=sess_by,
+                active_runs_by_fixture=run_by,
+            )
+            for f in fixtures
+        ],
         "pagination": {
             "page": page,
             "limit": limit,
@@ -781,10 +866,11 @@ def update_fixture(fixture_id: str):
     # gate that admitted it (e.g. dev session → flip to RELEASE → next
     # panel scan rejects mid-shift). Refuse upfront.
     if data.purpose is not None and data.purpose != existing.purpose:
-        if existing.lockState == "IN_USE":
+        sess_by, run_by = _load_active_holders(db, [fixture_id])
+        if fixture_id in sess_by or fixture_id in run_by:
             return conflict(
-                "Cannot change fixture purpose while it is locked by an active "
-                "session. End the session first."
+                "Cannot change fixture purpose while a session or run is "
+                "active on it. End it first."
             )
 
     update_data = data.to_update_data()
@@ -1157,7 +1243,8 @@ def undeploy_fixture(fixture_id: str):
     if not fixture:
         return not_found("Fixture not found")
 
-    if fixture.lockState == "IN_USE":
+    sess_by, run_by = _load_active_holders(db, [fixture_id])
+    if fixture_id in sess_by or fixture_id in run_by:
         return conflict("Cannot undeploy a locked fixture — a session is running")
 
     undeployed = []
