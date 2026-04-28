@@ -287,7 +287,13 @@ RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" 
 # Warm the fastembed model cache at build time so first-run is instant and
 # autonomous cron nodes work fully offline. Cache lands at
 # /home/dev/.cache/fastembed/ which is bind-friendly.
-ENV FASTEMBED_CACHE_DIR=/home/${USERNAME}/.cache/fastembed
+#
+# Promote FASTEMBED_DEFAULT_MODEL from ARG to ENV so embed.py's runtime
+# `os.environ.get("FASTEMBED_DEFAULT_MODEL")` lookup actually finds it
+# in the shipped image; without ENV the value is build-time-only and
+# embed.py silently falls back to its hardcoded default.
+ENV FASTEMBED_CACHE_DIR=/home/${USERNAME}/.cache/fastembed \
+    FASTEMBED_DEFAULT_MODEL=${FASTEMBED_DEFAULT_MODEL}
 RUN mkdir -p "${FASTEMBED_CACHE_DIR}" \
  && /home/${USERNAME}/.venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('${FASTEMBED_DEFAULT_MODEL}', cache_dir='${FASTEMBED_CACHE_DIR}')"
 # NOTE: warm-cache attempts a model download. Under QEMU cross-arch build this
