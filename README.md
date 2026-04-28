@@ -83,7 +83,6 @@ meta-corekinect/
 │       └── k3s_git.bbappend               ← K3s BIN_PREFIX fix for OSTree
 ├── recipes-images/
 │   └── images/
-│       ├── corekinect-base.inc
 │       └── corekinect-mtib.bb              ← Main image recipe
 ├── recipes-kernel/
 │   └── linux/
@@ -96,13 +95,15 @@ meta-corekinect/
 │   └── corekinect-provisioning/
 │       ├── corekinect-provisioning.bb      ← Provisioning recipe
 │       └── files/
+│           ├── corekinect-password.service ← Firstboot password unit
+│           ├── corekinect-set-password.sh  ← Sets torizon password
 │           ├── k3s-registries.yaml
 │           └── k3s-logs.conf
 ├── recipes-utils/
 │   ├── btop/
-│   │   └── btop_1.4.5.bb                  ← System monitor
+│   │   └── btop_1.4.6.bb                  ← System monitor
 │   └── iperf3/
-│       └── iperf3_3.20.bb                  ← Network performance tool
+│       └── iperf3_3.21.bb                  ← Network performance tool
 └── secrets/                                ← .gitignored provisioning secrets
     └── README.md
 ```
@@ -117,7 +118,7 @@ Custom overlays for the MTIB hardware:
 | `mtib-v2-overlay.dtbo` | BME280 + TCA9534A GPIO expander + AT24C02C EEPROM (Rev 1.2) |
 | `no-i2s.dtbo` | Disables SAI2 to free pins for GPIO |
 | `no-i2c.dtbo` | Disables I2C4 to free pins for GPIO |
-| `usb.dtbo` | USB1/USB2 full-speed configuration |
+| `usb.dtbo` | Forces USB1/USB2 to full-speed (USB 1.1, 12 Mbps) — no high-speed/USB 2.0 support |
 
 ## Finding Device Tree Sources
 
@@ -137,8 +138,8 @@ Key files:
 
 | Package | Version |
 |---------|---------|
-| btop    | 1.4.5   |
-| iperf3  | 3.20    |
+| btop    | 1.4.6   |
+| iperf3  | 3.21    |
 | K3s     | latest from meta-virtualization |
 
 ## Dev Container Environment
@@ -147,7 +148,7 @@ Configuration lives in `.devcontainer/`:
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Build environment based on `crops/poky:debian-11` |
+| `Dockerfile` | Build environment based on `crops/poky:debian-12` |
 | `devcontainer.json` | VS Code dev container config |
 | `start.sh` | Repo init, env setup, EULA acceptance |
 | `.env` | Machine, distro, branch variables |
@@ -168,5 +169,5 @@ Configuration lives in `.devcontainer/`:
 1. SSH in with `torizon` / `corekinect` — no password change prompt
 2. `docker pull containers.ad.corekinect.com/concord-devcontainer-mtib:latest` — no cert errors
 3. `sudo k3s-agent` joins the cluster automatically
-4. `btop --version` shows 1.4.5
-5. `iperf3 --version` shows 3.20
+4. `btop --version` shows 1.4.6
+5. `iperf3 --version` shows 3.21
