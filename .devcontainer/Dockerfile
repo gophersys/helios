@@ -1,5 +1,5 @@
 # Inspired by https://github.com/torizon/torizon-image-build-env/tree/master
-FROM crops/poky:debian-11
+FROM crops/poky:debian-12
 
 USER root
 
@@ -26,6 +26,6 @@ RUN apt-get update && apt-get install --no-install-recommends --no-install-sugge
     && rm -rf /var/lib/apt/lists/*
 
 # Install repo
-RUN curl http://commondatastorage.googleapis.com/git-repo-downloads/repo > /bin/repo && chmod a+x /bin/repo
+RUN curl https://commondatastorage.googleapis.com/git-repo-downloads/repo > /bin/repo && chmod a+x /bin/repo
 
 USER usersetup
