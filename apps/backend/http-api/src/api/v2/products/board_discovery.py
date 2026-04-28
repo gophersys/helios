@@ -43,7 +43,6 @@ def init_ck_boards_service(config) -> None:
             email=config.BITBUCKET_EMAIL,
             api_token=config.BITBUCKET_API_TOKEN,
             fetch_interval=config.CK_BOARDS_FETCH_INTERVAL,
-            environment=config.ENVIRONMENT,
         )
     except RuntimeError as e:
         logging.getLogger(__name__).warning("CkBoards disabled: %s", e)
