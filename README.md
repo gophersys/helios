@@ -2,6 +2,28 @@
 
 Custom TorizonOS image for the **CoreKinect MTIB** (Modular Test Interface Board) running on a Toradex Verdin iMX8M Mini.
 
+## What this is
+
+Concord OS turns a Verdin iMX8M Mini SoM into a node in the **Concord K3s cluster**. The MTIB hosts an MTIB gRPC server that drives validation and manufacturing fixtures over GPIO / I²C / UART / USB / SWD. Every device gets the same image and on first boot it joins the cluster automatically — **flash-and-forget**, no per-device setup.
+
+```
+┌──────────── Toradex BSP (scarthgap-7.x.y) ────────────┐
+│  TorizonOS-docker (OSTree, read-only /usr)            │
+│  + meta-virtualization (K3s, Docker)                  │
+└───────────────────────────────────────────────────────┘
+                          ↑ inherits
+┌──────────── meta-corekinect (this repo) ──────────────┐
+│  Image recipe: corekinect-mtib.bb                     │
+│  + DTS overlays for MTIB hardware                     │
+│  + Provisioning (CA certs, K3s creds, password)       │
+│  + btop / iperf3 utilities                            │
+└───────────────────────────────────────────────────────┘
+                          ↓ produces
+        TEZI image → Toradex Easy Installer → device
+                          ↓ first boot
+                  joins Concord K3s cluster
+```
+
 ## References
 
 - [Build TorizonCore from source with Yocto/OE](https://developer.toradex.com/torizon/in-depth/build-torizoncore-from-source-with-yocto-projectopenembedded/#manifest-file)
@@ -54,6 +76,27 @@ torizon/build/tmp/deploy/images/verdin-imx8mm/
 bitbake -C do_image corekinect-mtib
 ```
 
+## How the build works
+
+1. `repo init` (run by `start.sh`) syncs the Toradex manifest at `BRANCH=scarthgap-7.x.y` — this pulls `poky`, `meta-openembedded`, `meta-toradex-*`, `meta-virtualization`, and overlays `meta-corekinect` from this repo.
+2. `bitbake corekinect-mtib` walks the recipe graph, cross-compiles every package for `verdin-imx8mm`, assembles an OSTree commit, and bundles a TEZI installer.
+3. The output is `CoreKinect-MTIB-Tezi-*.tar` under `torizon/build/tmp/deploy/images/verdin-imx8mm/`. Flash it via Toradex Easy Installer (USB recovery mode or the Easy Installer web UI on a unit already running TorizonOS).
+
+A cold build takes about an hour on 8 cores / 24 GB RAM. Incremental builds reuse the `sstate-cache` and complete in minutes.
+
+## Editing the image — what to change for what
+
+| Goal | Edit |
+|------|------|
+| Add a Linux package to the image | `IMAGE_INSTALL:append` in `recipes-images/images/corekinect-mtib.bb` |
+| Add a kernel config option | new `.cfg` fragment under `recipes-kernel/linux/linux-toradex/`, listed in `KERNEL_CONFIG_FRAGMENTS` of the bbappend |
+| Auto-load a kernel module at boot | `KERNEL_MODULE_AUTOLOAD` in `linux-toradex_%.bbappend` |
+| Add a device-tree overlay | drop a `.dts` in `recipes-kernel/linux/device-tree-overlays/`, then add it to **both** lists in `device-tree-overlays_%.bbappend` (`CUSTOM_OVERLAYS_SOURCE` and `CUSTOM_OVERLAYS_BINARY`) plus the `SRC_URI` |
+| Bake a config / script onto the rootfs | drop the file under `recipes-security/corekinect-provisioning/files/`, install it from `corekinect-provisioning.bb` |
+| Package your own binary | new recipe at `recipes-utils/<name>/<name>_<version>.bb` (use `btop_1.4.6.bb` as a template) |
+| Tune Docker daemon | `recipes-containers/docker/docker-moby_%.bbappend` |
+| Tune K3s agent | `recipes-containers/k3s/k3s_git.bbappend` and/or files in `corekinect-provisioning/files/` |
+
 ## What Gets Baked In
 
 The `corekinect-provisioning` recipe handles all node provisioning at build time, producing a **flash-and-forget** image:
@@ -65,6 +108,19 @@ The `corekinect-provisioning` recipe handles all node provisioning at build time
 | **Docker Registry** | `containers.ad.corekinect.com` trusted via CA bundle in `/etc/docker/certs.d/` |
 | **K3s Agent** | Pre-configured with server URL, join token, and registry mirror |
 | **K3s Logs** | Volatile log directories created via `tmpfiles.d` |
+
+## First-boot lifecycle
+
+What happens between flashing and the node appearing in `kubectl get nodes`:
+
+1. systemd boots from the OSTree commit (rootfs is read-only).
+2. `corekinect-password.service` runs once → sets the `torizon` user password to `corekinect`.
+3. CA trust is already populated (certs appended to `/etc/ssl/certs/ca-certificates.crt` and hashed into `/etc/ssl/certs/` at build time) — no runtime cert install.
+4. Docker registry `containers.ad.corekinect.com` is trusted via `/etc/docker/certs.d/`.
+5. `k3s-agent.service` reads the baked-in server URL + join token, registers with the control plane, pulls workloads.
+6. Node visible in `kubectl get nodes` typically within ~30 s.
+
+Everything above is set at **build time** from `meta-corekinect/secrets/`. There is no runtime configuration step on the device.
 
 ## Custom Layer Structure
 
@@ -80,7 +136,7 @@ meta-corekinect/
 │   ├── docker/
 │   │   └── docker-moby_%.bbappend          ← Docker daemon config (logging)
 │   └── k3s/
-│       └── k3s_git.bbappend               ← K3s BIN_PREFIX fix for OSTree
+│       └── k3s_git.bbappend                ← K3s BIN_PREFIX fix for OSTree
 ├── recipes-images/
 │   └── images/
 │       └── corekinect-mtib.bb              ← Main image recipe
@@ -114,10 +170,10 @@ Custom overlays for the MTIB hardware:
 
 | Overlay | Purpose |
 |---------|---------|
-| `ina219-overlay.dtbo` | INA219 current sensors + ADS1115 ADCs + LIS2DE12 accel on I2C4 |
+| `ina219-overlay.dtbo` | INA219 current sensors + ADS1115 ADCs + LIS2DE12 accel on I²C4 |
 | `mtib-v2-overlay.dtbo` | BME280 + TCA9534A GPIO expander + AT24C02C EEPROM (Rev 1.2) |
 | `no-i2s.dtbo` | Disables SAI2 to free pins for GPIO |
-| `no-i2c.dtbo` | Disables I2C4 to free pins for GPIO |
+| `no-i2c.dtbo` | Disables I²C4 to free pins for GPIO |
 | `usb.dtbo` | Forces USB1/USB2 to full-speed (USB 1.1, 12 Mbps) — no high-speed/USB 2.0 support |
 
 ## Finding Device Tree Sources
@@ -164,6 +220,17 @@ Configuration lives in `.devcontainer/`:
 | `DISTRO` | `torizon` | Distribution |
 | `BDDIR` | `build` | Build directory name |
 
+## Iteration loop
+
+| Change | Fastest rebuild |
+|--------|-----------------|
+| Edit `IMAGE_INSTALL` / image recipe | `bitbake corekinect-mtib` |
+| Edit a single package recipe (e.g. `btop`) | `bitbake -c cleansstate btop && bitbake corekinect-mtib` |
+| Edit a DTS overlay | `bitbake -c cleansstate device-tree-overlays && bitbake corekinect-mtib`, **or** `./ctl.sh compile && ./ctl.sh deploy` to hot-swap on a running device (currently wired for `ina219-overlay` only) |
+| Edit a kernel `.cfg` fragment | `bitbake -c cleansstate virtual/kernel && bitbake corekinect-mtib` |
+| Edit provisioning files (CA, K3s configs) | `bitbake -c cleansstate corekinect-provisioning && bitbake corekinect-mtib` |
+| Force a fresh image bundle | `bitbake -C do_image corekinect-mtib` |
+
 ## Verification After Flashing
 
 1. SSH in with `torizon` / `corekinect` — no password change prompt
@@ -171,3 +238,12 @@ Configuration lives in `.devcontainer/`:
 3. `sudo k3s-agent` joins the cluster automatically
 4. `btop --version` shows 1.4.6
 5. `iperf3 --version` shows 3.21
+
+## Troubleshooting
+
+- **`ACCEPT_FSL_EULA` not set** — re-run `.devcontainer/start.sh`. The EULA prompt fires only if `torizon/build/conf/local.conf` doesn't already have the accept line.
+- **`repo sync` hangs or fails partway** — `cd torizon && repo sync -j1` drops parallelism and surfaces the failing fetch.
+- **`bitbake: command not found`** — the build env isn't sourced for this shell. `cd torizon && source setup-environment build`.
+- **K3s agent not joining the cluster** — on the device: `journalctl -u k3s-agent`. Most common cause: the `k3s-server-url` or `k3s-token` files were missing or stale at **build time**. Fix the secrets, rebuild, reflash.
+- **"No space left on device" during build** — the build dir needs ~80 GB free; check `df -h /workspaces/concord-os-yocto/torizon`.
+- **Verify a DTS overlay without a full kernel rebuild** — preprocess and compile by hand: see `ctl.sh compile` for the canonical `cpp` + `dtc` invocation.
