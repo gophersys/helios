@@ -1,183 +1,272 @@
-"""Sigma5 app processor shell commands.
+"""Sigma5 nRF52840 application processor shell commands.
+
+Modeled on AlphaAppShell — uses :class:`ShellCommander` so the
+caller opens a persistent UART stream once (``start()``), races
+the manufacturing-shell window with spam-based locking
+(``lock(timeout_s)``), then issues commands against the live
+buffer without per-command stream churn.
 
 Usage:
     from corekinect.shells.sigma5 import Sigma5AppShell
 
-    shell = Sigma5AppShell(mtib_client)
-    success, err = shell.lock_shell()
-    accel_id, alt_id, flash_id, gps_hw, ble_mac, err = shell.get_chip_ids()
+    app = Sigma5AppShell(mtib_client)
+    app.start()                              # open UART before power
+    # … power-cycle the DUT here …
+    if not app.lock(timeout_s=20.0):
+        raise RuntimeError("missed mfg shell window")
+    app.debug_off()
+    app.reset_stream()
+
+    ids, err = app.get_chip_ids()
+    print(f"BLE MAC: {ids.ble_mac}")
 """
 
+from __future__ import annotations
+
 import re
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from protocols.mtib.mtib_pb2 import HostType
 
-from corekinect.shells._uart_cmd import send_uart_cmd
+from corekinect.shells.base import ShellCommander
+
+
+# ── Result types ─────────────────────────────────────────
+
+
+@dataclass
+class Sigma5ChipIds:
+    """Result from get_chip_ids on the Sigma5 nRF52840."""
+
+    accel_id: Optional[str] = None
+    altimeter_id: Optional[str] = None
+    ext_flash_id: Optional[str] = None
+    gps_hw_version: Optional[str] = None
+    ble_mac: Optional[str] = None
+
+
+@dataclass
+class Sigma5UbloxInfo:
+    """Result from get_ublox on the Sigma5 nRF52840."""
+
+    hw_version: Optional[str] = None
+    fw_version: Optional[str] = None
+    sw_version: Optional[str] = None
+    proto_version: Optional[str] = None
+    constellations: Optional[str] = None
+
+
+@dataclass
+class Sigma5AccelReading:
+    """Result from read_accel on the Sigma5 nRF52840."""
+
+    x: Optional[float] = None
+    y: Optional[float] = None
+    z: Optional[float] = None
+    temp_c: Optional[float] = None
+
+
+@dataclass
+class Sigma5AltimeterReading:
+    """Result from read_alt on the Sigma5 nRF52840."""
+
+    pressure_hg: Optional[float] = None
+    temp_c: Optional[float] = None
+
+
+# ── Shell interface ──────────────────────────────────────
 
 
 class Sigma5AppShell:
-    """Sigma5 app processor shell commands."""
+    """nRF52840 application processor manufacturing shell — Sigma5 C0.
 
-    def __init__(self, client):
-        self._client = client
-        self.logger = client.logger
+    Args:
+        mtib: Connected MtibV1Client instance.
+    """
+
+    TARGET = HostType.HOST_TYPE_NRF52840
+
+    def __init__(self, mtib):
+        self._cmd = ShellCommander(mtib, self.TARGET, label="APP")
+
+    # ── Lifecycle ────────────────────────────────────
+
+    def start(self) -> None:
+        """Start persistent UART stream. Call BEFORE power-on so the
+        boot output is captured from the first byte."""
+        self._cmd.start()
+
+    def stop(self) -> None:
+        """Stop persistent UART stream."""
+        self._cmd.stop()
+
+    def lock(self, timeout_s: float = 120.0) -> bool:
+        """Race the manufacturing-shell boot window.
+
+        Spams ``lock_shell`` for the first few seconds after boot,
+        then watches the buffer for the ``mode ON`` confirmation.
+        """
+        return self._cmd.lock(timeout_s=timeout_s)
+
+    def debug_off(self, timeout_s: float = 30.0) -> bool:
+        """Disable debug UART output. Call once shells are locked."""
+        return self._cmd.debug_off(timeout_s=timeout_s)
+
+    def reset_stream(self) -> None:
+        """Clear the buffer pipeline. Call after lock + debug_off,
+        before running real test commands."""
+        self._cmd.reset_stream()
+
+    # ── Back-compat aliases ──────────────────────────
 
     def lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
-        """Lock shell mode for the Sigma5 app processor.
+        """Deprecated single-shot lock helper.
 
-        Returns:
-            Tuple of (success, error_string)
+        Kept so older callers (test_03_verify_boot etc.) keep
+        working through the migration; new code should call
+        ``start()`` then ``lock(timeout_s=…)`` directly.
         """
-        response, err = send_uart_cmd(
-            self._client,
-            target=HostType.HOST_TYPE_NRF52840,
-            command="lock_shell",
-            success_patterns=["Locking shell mode ON"],
-            timeout_s=15,
-        )
-        if err:
-            return None, err
-        return "Locking shell mode ON" in (response or ""), None
+        ok = self._cmd.lock(timeout_s=20.0)
+        return (ok, None) if ok else (False, "lock_shell timeout")
 
     def debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
-        """Disable debug UART for the Sigma5 app processor.
+        """Deprecated alias for ``debug_off``."""
+        ok = self._cmd.debug_off(timeout_s=15.0)
+        return (ok, None) if ok else (False, "debug_off timeout")
 
-        Returns:
-            Tuple of (success, error_string)
-        """
-        response, err = send_uart_cmd(
-            self._client,
-            target=HostType.HOST_TYPE_NRF52840,
-            command="debug_enable 0",
-            success_patterns=["Debug is not enabled"],
-            timeout_s=15,
-        )
-        if err:
-            return None, err
-        return "Debug is not enabled" in (response or ""), None
+    # ── Hardware tests ───────────────────────────────
 
     def get_chip_ids(
-        self,
-    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
-        """Get chip IDs from the Sigma5 app processor.
-
-        Returns:
-            Tuple of (accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, error_string)
-        """
-        response, err = send_uart_cmd(
-            self._client,
-            target=HostType.HOST_TYPE_NRF52840,
-            command="get_chip_ids",
+        self, timeout_s: float = 30.0
+    ) -> Tuple[Sigma5ChipIds, Optional[str]]:
+        """Read accelerometer / altimeter / ext-flash / GPS / BLE MAC."""
+        lines, err = self._cmd.send(
+            "get_chip_ids",
             success_patterns=["BLE MAC:"],
-            timeout_s=15,
+            timeout_s=timeout_s,
         )
         if err:
-            return None, None, None, None, None, err
+            return Sigma5ChipIds(), err
 
-        full_response = response or ""
-
-        # Parse each field with regex
-        accel_match = re.search(r"Accel chip ID:\s*(.+)", full_response)
-        alt_match = re.search(r"Altimeter chip ID:\s*(.+)", full_response)
-        flash_match = re.search(r"Ext flash chip ID:\s*(.+)", full_response)
-        gps_match = re.search(r"GPS HW version:\s*(.+)", full_response)
-        ble_match = re.search(r"BLE MAC:\s*(\S+)", full_response)
-
-        return (
-            accel_match.group(1).strip() if accel_match else None,
-            alt_match.group(1).strip() if alt_match else None,
-            flash_match.group(1).strip() if flash_match else None,
-            gps_match.group(1).strip() if gps_match else None,
-            ble_match.group(1).strip() if ble_match else None,
-            None,
-        )
+        joined = "\n".join(lines)
+        result = Sigma5ChipIds()
+        m = re.search(r"Accel chip ID:\s*(.+)", joined)
+        if m:
+            result.accel_id = m.group(1).strip()
+        m = re.search(r"Altimeter chip ID:\s*(.+)", joined)
+        if m:
+            result.altimeter_id = m.group(1).strip()
+        m = re.search(r"Ext flash chip ID:\s*(.+)", joined)
+        if m:
+            result.ext_flash_id = m.group(1).strip()
+        m = re.search(r"GPS HW version:\s*(.+)", joined)
+        if m:
+            result.gps_hw_version = m.group(1).strip()
+        m = re.search(r"BLE MAC:\s*(\S+)", joined)
+        if m:
+            result.ble_mac = m.group(1).strip()
+        if not (result.accel_id or result.altimeter_id or result.ble_mac):
+            return result, f"Failed to parse chip IDs from: {joined[:300]}"
+        return result, None
 
     def get_ublox_version_info(
-        self,
-    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
-        """Get ublox version info from the Sigma5 app processor.
-
-        Returns:
-            Tuple of (hw_version, fw_version, sw_version, proto_version, constellations, error_string)
-        """
-        response, err = send_uart_cmd(
-            self._client,
-            target=HostType.HOST_TYPE_NRF52840,
-            command="get_ublox",
+        self, timeout_s: float = 30.0
+    ) -> Tuple[Sigma5UbloxInfo, Optional[str]]:
+        """Query the u-blox HW/FW/SW/protocol versions + constellations."""
+        lines, err = self._cmd.send(
+            "get_ublox",
             success_patterns=["GPS constellations:"],
-            timeout_s=15,
+            timeout_s=timeout_s,
         )
         if err:
-            return None, None, None, None, None, err
+            return Sigma5UbloxInfo(), err
 
-        full_response = response or ""
-
-        hw_match = re.search(r"GPS HW version:\s*(.+)", full_response)
-        fw_match = re.search(r"GPS FW version:\s*(.+)", full_response)
-        sw_match = re.search(r"GPS SW version:\s*(.+)", full_response)
-        proto_match = re.search(r"GPS protocol version:\s*(.+)", full_response)
-        const_match = re.search(r"GPS constellations:\s*(.+)", full_response)
-
-        return (
-            hw_match.group(1).strip() if hw_match else None,
-            fw_match.group(1).strip() if fw_match else None,
-            sw_match.group(1).strip() if sw_match else None,
-            proto_match.group(1).strip() if proto_match else None,
-            const_match.group(1).strip() if const_match else None,
-            None,
-        )
+        joined = "\n".join(lines)
+        result = Sigma5UbloxInfo()
+        m = re.search(r"GPS HW version:\s*(.+)", joined)
+        if m:
+            result.hw_version = m.group(1).strip()
+        m = re.search(r"GPS FW version:\s*(.+)", joined)
+        if m:
+            result.fw_version = m.group(1).strip()
+        m = re.search(r"GPS SW version:\s*(.+)", joined)
+        if m:
+            result.sw_version = m.group(1).strip()
+        m = re.search(r"GPS protocol version:\s*(.+)", joined)
+        if m:
+            result.proto_version = m.group(1).strip()
+        m = re.search(r"GPS constellations:\s*(.+)", joined)
+        if m:
+            result.constellations = m.group(1).strip()
+        if not (result.hw_version or result.fw_version):
+            return result, f"Failed to parse u-blox info from: {joined[:300]}"
+        return result, None
 
     def read_accel(
-        self,
-    ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
-        """Get accelerometer values from the Sigma5 app processor.
-
-        Returns:
-            Tuple of (x_raw, y_raw, z_raw, temp, error_string)
-        """
-        response, err = send_uart_cmd(
-            self._client,
-            target=HostType.HOST_TYPE_NRF52840,
-            command="read_accel",
+        self, timeout_s: float = 30.0
+    ) -> Tuple[Sigma5AccelReading, Optional[str]]:
+        """Read raw accelerometer values + temperature."""
+        lines, err = self._cmd.send(
+            "read_accel",
             success_patterns=["Accelerometer values"],
-            timeout_s=15,
+            timeout_s=timeout_s,
         )
         if err:
-            return None, None, None, None, err
+            return Sigma5AccelReading(), err
 
-        full_response = response or ""
-        # Parse format: "Accelerometer values: (x, y, z, temp): 0.890625, -0.015625, 0.437500, 31.000000"
-        match = re.search(r"Accelerometer values.*?:\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)", full_response)
-        if match:
-            try:
-                return float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4)), None
-            except ValueError:
-                pass
-        return None, None, None, None, f"Failed to parse accel from: {full_response[:200]}"
+        joined = "\n".join(lines)
+        m = re.search(
+            r"Accelerometer values.*?:\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)",
+            joined,
+        )
+        if not m:
+            return (
+                Sigma5AccelReading(),
+                f"Failed to parse accel from: {joined[:300]}",
+            )
+        try:
+            return (
+                Sigma5AccelReading(
+                    x=float(m.group(1)),
+                    y=float(m.group(2)),
+                    z=float(m.group(3)),
+                    temp_c=float(m.group(4)),
+                ),
+                None,
+            )
+        except ValueError as exc:
+            return Sigma5AccelReading(), f"accel parse error: {exc}"
 
-    def read_altimeter(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
-        """Get altimeter values from the Sigma5 app processor.
-
-        Returns:
-            Tuple of (pressure_hg, temperature_c, error_string)
-        """
-        response, err = send_uart_cmd(
-            self._client,
-            target=HostType.HOST_TYPE_NRF52840,
-            command="read_alt",
+    def read_altimeter(
+        self, timeout_s: float = 30.0
+    ) -> Tuple[Sigma5AltimeterReading, Optional[str]]:
+        """Read pressure + temperature from the altimeter."""
+        lines, err = self._cmd.send(
+            "read_alt",
             success_patterns=["Altimeter values"],
-            timeout_s=15,
+            timeout_s=timeout_s,
         )
         if err:
-            return None, None, err
+            return Sigma5AltimeterReading(), err
 
-        full_response = response or ""
-        # Parse format: "Altimeter values (pressure, temp): 28.722524, 25.412672"
-        match = re.search(r"Altimeter values.*?:\s*([-\d.]+),\s*([-\d.]+)", full_response)
-        if match:
-            try:
-                return float(match.group(1)), float(match.group(2)), None
-            except ValueError:
-                pass
-        return None, None, f"Failed to parse altimeter from: {full_response[:200]}"
+        joined = "\n".join(lines)
+        m = re.search(
+            r"Altimeter values.*?:\s*([-\d.]+),\s*([-\d.]+)",
+            joined,
+        )
+        if not m:
+            return (
+                Sigma5AltimeterReading(),
+                f"Failed to parse altimeter from: {joined[:300]}",
+            )
+        try:
+            return (
+                Sigma5AltimeterReading(
+                    pressure_hg=float(m.group(1)),
+                    temp_c=float(m.group(2)),
+                ),
+                None,
+            )
+        except ValueError as exc:
+            return Sigma5AltimeterReading(), f"altimeter parse error: {exc}"
