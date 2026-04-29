@@ -437,11 +437,27 @@ _helm_deploy() {
 _verify_rollout() {
   local env="$1"
   info "Verifying rollout..."
+  # Scope verification to Helm-managed deployments only.
+  #
+  # The platform namespace also hosts dynamic, application-managed
+  # deployments (mtib-server pods, one per fixture slot, created at
+  # runtime by http-api against the K8s API). Their readiness depends
+  # on whether the corresponding edge hardware is powered on, NOT on
+  # whether the Helm release deployed cleanly. Including them in the
+  # rollout check used to trip a `helm rollback` whenever a verdin
+  # node was off-cluster, even though no platform image had regressed.
+  #
+  # Helm sets ``app.kubernetes.io/managed-by=Helm`` on every chart
+  # template; MTIB deployments use ``corekinect.com/managed-by=concord``.
+  # The selector below is the cleanest separator and matches what the
+  # chart's standard labels include via ``concord.labels``.
   local deployments
-  deployments=$(kubectl get deployments -n "${env}" --no-headers -o custom-columns=":metadata.name" 2>/dev/null || true)
+  deployments=$(kubectl get deployments -n "${env}" \
+    -l app.kubernetes.io/managed-by=Helm \
+    --no-headers -o custom-columns=":metadata.name" 2>/dev/null || true)
 
   if [[ -z "${deployments}" ]]; then
-    warn "No deployments found in namespace ${env}"
+    warn "No Helm-managed deployments found in namespace ${env}"
     return 1
   fi
 
