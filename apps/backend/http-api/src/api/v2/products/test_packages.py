@@ -554,31 +554,26 @@ def _upload_test_package_impl(product_id: str):
         # up — operators can also delete it explicitly via the UI/API.
         return internal_error("Failed to upload test package")
 
-    # Phase 2 complete: flip status + record storageKey atomically.
+    # Phase 2 complete: stamp the storageKey but keep status=UPLOADING
+    # until every dependent row (testCount, FixtureDesign, stages) is
+    # written AND the joined re-fetch succeeds. Flipping the status
+    # earlier — as a previous version of this code did — meant any
+    # failure between the flip and the final fetch left a public-but-
+    # half-written package in the DB (stuck FixtureDesign in pickers,
+    # missing stages, etc.). Now any failure leaves the row in UPLOADING
+    # for the retention reaper, and the CASCADE on TestPackage drops
+    # FixtureDesign + TestPackageStage rows with it.
     db.testpackage.update(
         where={"id": tp.id},
-        data={
-            "status": status,
-            "storageKey": object_key,
-        },
+        data={"storageKey": object_key},
     )
 
-    log_audit("testPackage.create", "TestPackage", tp.id, {
-        "productSlug": product_slug,
-        "version": version,
-        "status": status,
-        "sizeBytes": size_bytes,
-    })
     # testCount comes from counting test_*.py files in the tarball — the
     # manifest is not authoritative because authors don't keep it in sync.
     # If extraction returns 0, the package legitimately has no test files
     # and the UI should show that honestly. Log when this happens so it's
     # not silent.
-    extracted_count = _extract_test_count(file_data)
-    db.testpackage.update(
-        where={"id": tp.id},
-        data={"testCount": extracted_count or 0},
-    )
+    extracted_count = _extract_test_count(file_data) or 0
     if not extracted_count:
         logger.warning(
             "Test package %s has 0 test files in archive — testCount left at 0.",
@@ -586,11 +581,33 @@ def _upload_test_package_impl(product_id: str):
         )
     _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
     _extract_stage_metadata(db, tp.id, file_data, manifest_version)
-    # Re-fetch with includes for serialization
+
+    # Re-fetch with the joined relations. Doing this BEFORE the status
+    # flip means a schema/DB drift (e.g., a missing migration on a joined
+    # column) surfaces here, while the row is still UPLOADING — the
+    # retention reaper will clean it up and no orphaned design ever
+    # reaches the picker.
     tp = db.testpackage.find_unique(
         where={"id": tp.id},
         include={"packageStages": True, "fixtureDesign": True},
     )
+
+    # Final commit: testCount + status flip in one update. From this
+    # point the package is publicly visible; everything before it stayed
+    # gated behind status=UPLOADING.
+    db.testpackage.update(
+        where={"id": tp.id},
+        data={"status": status, "testCount": extracted_count},
+    )
+    tp.status = status
+    tp.testCount = extracted_count
+
+    log_audit("testPackage.create", "TestPackage", tp.id, {
+        "productSlug": product_slug,
+        "version": version,
+        "status": status,
+        "sizeBytes": size_bytes,
+    })
     return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 201
 
 
