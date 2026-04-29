@@ -109,6 +109,12 @@ ARG FASTEMBED_VERSION=0.8.0                                            # latest 
 ARG ONNXRUNTIME_VERSION=1.25.0                                         # pulled in by fastembed; pinned for reproducibility
 ARG FASTEMBED_DEFAULT_MODEL=BAAI/bge-small-en-v1.5
 
+# Cross-encoder reranker (Phase 8 task #72). Reranks the hybrid retrieval
+# top-K (BM25 ⊕ vector via RRF) → top-K with a cross-encoder. ONNX path,
+# no torch dependency. Adds ~1 GB to the image (model only); inference is
+# CPU-only and runs at ~50-200 ms/query for 25 candidates on M-series.
+ARG BGE_RERANKER_MODEL=BAAI/bge-reranker-base                          # latest stable as of 2026-04-28
+
 # MCP (Model Context Protocol) Python SDK — used by tools/docs-rag/lib/mcp_server.py
 # to expose the RAG retrieval surface (search_docs, get_doc, list_related,
 # list_category, list_tags, stats) as a stdio MCP server consumable by
@@ -300,9 +306,11 @@ RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" 
 # in the shipped image; without ENV the value is build-time-only and
 # embed.py silently falls back to its hardcoded default.
 ENV FASTEMBED_CACHE_DIR=/home/${USERNAME}/.cache/fastembed \
-    FASTEMBED_DEFAULT_MODEL=${FASTEMBED_DEFAULT_MODEL}
+    FASTEMBED_DEFAULT_MODEL=${FASTEMBED_DEFAULT_MODEL} \
+    BGE_RERANKER_MODEL=${BGE_RERANKER_MODEL}
 RUN mkdir -p "${FASTEMBED_CACHE_DIR}" \
- && /home/${USERNAME}/.venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('${FASTEMBED_DEFAULT_MODEL}', cache_dir='${FASTEMBED_CACHE_DIR}')"
+ && /home/${USERNAME}/.venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('${FASTEMBED_DEFAULT_MODEL}', cache_dir='${FASTEMBED_CACHE_DIR}')" \
+ && /home/${USERNAME}/.venv/bin/python -c "from fastembed.rerank.cross_encoder import TextCrossEncoder; TextCrossEncoder('${BGE_RERANKER_MODEL}', cache_dir='${FASTEMBED_CACHE_DIR}')"
 # NOTE: warm-cache attempts a model download. Under QEMU cross-arch build this
 # may fail on network; the multi-arch CI runner has the bandwidth and it works
 # there. If this layer fails locally, build natively or skip and let the model
