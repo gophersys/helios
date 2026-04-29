@@ -20,16 +20,21 @@ walk this list before claiming the release is complete. If any box is unchecked,
 the release is incomplete — continue work until all boxes pass.
 
 ```
+[ ] Component-impact matrix consulted (see next section) — release type chosen
 [ ] VERSION bumped on a release branch (never on main directly)
-[ ] corectl version bumped (lockstep major.minor with platform)
-[ ] corekinect version bumped (lockstep major.minor with platform)
+[ ] corectl version bumped IF the release touches corectl
+[ ] corekinect version bumped IF the release touches corekinect
 [ ] Release branch merged into main
 [ ] Annotated tag vX.Y.Z pushed to origin
 [ ] Staging deployed and rollout verified
-[ ] corectl + corekinect wheels published to STAGING pypi
+[ ] corectl + corekinect wheels published to STAGING pypi (only the bumped ones)
+[ ] **If corekinect bumped: staging http-api/runner image rebuilt and rolled** —
+    the runner pod bakes corekinect at image-build time, NOT pip-installs at
+    session start. A wheel-only republish leaves runners on the old version.
 [ ] Staging release record exists in DB (POST /v2/releases returned 2xx)
 [ ] Production deployed and rollout verified
-[ ] corectl + corekinect wheels published to PRODUCTION pypi
+[ ] corectl + corekinect wheels published to PRODUCTION pypi (only the bumped ones)
+[ ] **If corekinect bumped: production http-api/runner image rebuilt and rolled**
 [ ] Production release record exists in DB (with corectlMinVersion + corekinectVersion populated)
 [ ] Resolved bugs linked (or user confirmed "none") in both environments
 ```
@@ -40,7 +45,16 @@ without published wheels is broken — the new backend expects clients running
 the new corectl/corekinect — so deploy and publish must ship together. A deploy
 without a DB record is a silent data-loss bug.
 
-Phases 9 and 10 each bundle three steps: **deploy → publish wheels → create
+**The runner-image gotcha:** the `concord-mtib-runner` and `concord-http-api`
+Docker images install corekinect from the in-repo source at build time
+(`pip install -e libs/python`). They do NOT pip-install corekinect from pypi
+at runtime. Bumping corekinect on pypi without rebuilding the platform images
+means: tools that install corekinect via `pip install corekinect` (corectl,
+local dev) get the new version, but every manufacturing/validation runner pod
+keeps using whatever corekinect was bundled in the image it was deployed
+from. ALWAYS pair a corekinect bump with a platform deploy.
+
+Phases 9 and 10 each bundle the steps: **deploy → publish wheels → create
 record**. Never treat the deploy as "the last step."
 
 ## Versioning model — lockstep major.minor
@@ -101,6 +115,36 @@ fires automatically when the deployed version differs from the baked-in bundle.
 - **MTIB proto** (`libs/protocols/mtib/VERSION`) — independently versioned
 - **Prisma migration hash** — current schema fingerprint
 - **Changelog** — auto-generated from conventional commits since last tag
+
+## Component impact matrix — pick this BEFORE Phase 1
+
+Walk this table on every release. Mismatches between "what changed" and "what
+shipped" are the source of every subtle release bug we've hit (corekinect on
+pypi but not in runner image, corectl bumped but the new templates not picked
+up by users, schema migration committed but no platform deploy to apply it).
+
+| Files changed | Bump | Wheel publish | Platform deploy | Why |
+|---|---|---|---|---|
+| `apps/backend/**`, `apps/frontend/**`, `deploy/**`, `prisma/**` | VERSION | no | yes | Backend/frontend/infra change. The runner image rebuilds with whatever corekinect is in `libs/python` even if you don't bump corekinect. |
+| `libs/python/corekinect/**` | VERSION + corekinect | corekinect | **yes** | Runner + http-api pods bake corekinect at image-build time. Wheel publish without deploy → tools updated, but every runner pod still on the old version. |
+| `tools/corectl/**` (templates, validator, CLI) | VERSION + corectl | corectl | usually no | corectl runs on the operator's host; pypi update is enough. Skip the platform deploy unless `apps/backend` also changed. |
+| `tools/corectl/templates/_shared/**` only | corectl | corectl | no | Operators get new templates on next `corectl test update`. No backend change required. |
+| `libs/protocols/mtib/**` | VERSION + corekinect (regenerate stubs) | corekinect | yes | Wire-format change — runners and tools must agree on the same proto version. |
+| `prisma/schema.prisma` + migration | VERSION | no | yes | Migration runs as init-container on http-api pod start. Always bump VERSION so the deploy is traceable. |
+| `infrastructure/**` | none | no | no | Cluster provisioning is its own layer; use `infrastructure/ctl.sh`. |
+
+**Patch-only releases.** Patches MAY bump only the changed component as long
+as they don't break the major.minor lockstep. Examples that worked cleanly:
+
+- `concord 0.9.5` (backend-only, no wheel) — corectl/corekinect stayed at 0.9.0.
+- `corekinect 0.9.2` (autoconf fix only) — bumped corekinect AND VERSION
+  because the runner image needed to rebuild; corectl stayed at 0.9.1.
+- `corectl 0.9.1` (templates + validator) — bumped corectl, no platform deploy
+  needed because no in-repo backend code changed.
+
+**Patch-only releases are an exception to the lockstep rule, NOT to the
+component-impact matrix.** If corekinect bumped, the platform deploys —
+period.
 
 ## Git workflow: NEVER push directly to main
 
@@ -681,6 +725,25 @@ Always ask before performing destructive rollback actions.
   without publishing the matching wheels, every fresh `pip install corectl`
   pulls the OLD wheel that doesn't speak the new wire format. Phases 9.2 and
   10.2 are not optional.
+- **Skipping the platform deploy on a corekinect-only bump**: The runner +
+  http-api images install corekinect from `libs/python` at image-build time.
+  Publishing a corekinect wheel to pypi updates `pip install corekinect` for
+  operators, but every runner pod keeps using the corekinect that was in the
+  image when it was deployed. Symptoms: operators see fixes (`corekinect 0.9.2`
+  on local), but live manufacturing sessions still fail with the old behavior.
+  Always pair a corekinect bump with a VERSION bump and a platform deploy.
+- **Skipping the corekinect bump on a corekinect-only fix**: If you change
+  `libs/python/corekinect/**` and only bump `VERSION`, the next deploy ships
+  the fix to the runner — but operators running `pip install corekinect`
+  locally pull the unchanged old wheel. Bump corekinect even if the only
+  consumer you care about is the runner image; the wheel republish costs
+  nothing and keeps versions consistent.
+- **Bumping corectl without rolling templates downstream**: corectl publishes
+  new `.claude/rules/...` template versions every release. Test apps don't
+  pick those up until the operator runs `corectl test update --apply`. If a
+  release tightens a contract the platform enforces server-side, the next
+  upload from a stale test app will fail. Note this in the changelog so
+  operators know to update.
 - **Version drift between platform / corectl / corekinect**: All three
   `__version__`-style fields (`VERSION`, `tools/corectl/src/corectl/__init__.py`,
   `libs/python/corekinect/__init__.py`) MUST share the same `major.minor`
