@@ -352,6 +352,42 @@ class CommsCoprocShell:
             return result, None
         return result, f"Failed to parse public keys from: {joined[:200]}"
 
+    def set_cgdcont(
+        self, at_string: str, timeout_s: float = 30.0
+    ) -> Tuple[bool, Optional[str]]:
+        """Persist the modem CGDCONT (APN) context for both SIM slots.
+
+        ``at_string`` is the full semicolon-delimited list the firmware
+        expects, in SIM order, e.g. for a Verizon-primary unit::
+
+            'AT+CGDCONT=1,"IPV4V6","VZWINTERNET",0,0,0,1;'
+            'AT+CGDCONT=1,"IP","internet",0,0,0,1'
+
+        The firmware command (``comm_coproc_mfg/src/app/shell_handler.c``
+        → ``cmd_set_cgdcont``) copies the string into the modem CGDCONT
+        persistent buffer and triggers ``persistent_data_save()``. The
+        modem applies it on the next attach.
+
+        WARNING: this writes both SIM contexts in one shot — get the
+        per-SIM order right.
+
+        Returns:
+            (success, error) — success is True when the firmware echoed
+            "Setting <command>".
+        """
+        lines, err = self._cmd.send(
+            f"set_cgdcont {at_string}",
+            success_patterns=["Setting "],
+            timeout_s=timeout_s,
+        )
+        if err:
+            return False, err
+        ok = any(("Setting " in l) and (at_string[:32] in l) for l in lines) \
+            or any("Setting " in l for l in lines)
+        if not ok:
+            return False, f"set_cgdcont did not echo 'Setting': {lines}"
+        return True, None
+
     def rekey_ipc(self, timeout_s: float = 15.0) -> Tuple[bool, Optional[str]]:
         """Rekey IPC — generates new IPC encryption key and syncs with app processor.
 
