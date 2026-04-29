@@ -248,6 +248,20 @@ class CoreOpsClient:
 
         return resp
 
+    @staticmethod
+    def _normalize_snr(snr: str) -> str:
+        """Normalize a board serial number for the CoreOps API.
+
+        CoreOps stores SNRs as uppercase ASCII and rejects any other
+        casing with HTTP 400 (no error code, just a 400 — easy to
+        misread as a network or auth issue). Operators routinely scan
+        barcodes that yield mixed-case strings, so normalize at the
+        boundary instead of pushing the rule onto every caller.
+        """
+        if snr is None:
+            return ""
+        return str(snr).strip().upper()
+
     # ═══════════════════════════════════════════════════════════════════════
     # Public API
     # ═══════════════════════════════════════════════════════════════════════
@@ -270,6 +284,7 @@ class CoreOpsClient:
         Raises:
             requests.HTTPError: On API error
         """
+        snr = self._normalize_snr(snr)
         resp = self._request(
             "GET",
             "/boards/assemblies/search",
@@ -294,6 +309,7 @@ class CoreOpsClient:
             requests.HTTPError: On API error
             ValueError: If response doesn't contain deviceId
         """
+        snr = self._normalize_snr(snr)
         resp = self._request(
             "POST",
             "/devices/ids/assign",
@@ -348,6 +364,7 @@ class CoreOpsClient:
         Raises:
             requests.HTTPError: On API error (except 400 "already exists")
         """
+        snr = self._normalize_snr(snr)
         resp = self._request(
             "POST",
             "/iccids/register",
