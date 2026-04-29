@@ -54,6 +54,30 @@ The `corectl test validate` test-depth checker (`test_depth.py`) catches this at
 
 Stage markers live in `pytest.ini` under `markers = [...]`. Add new markers there before using them on a test, otherwise pytest emits "PytestUnknownMarkWarning". The autoconf plugin also auto-registers any marker referenced by a stage in `concord.yaml stages.<stage>.markers`, so manifest-declared markers don't need a duplicate `pytest.ini` entry.
 
+## Stage layout: one directory per stage
+
+The scaffold ships every stage as its own directory under `tests/`:
+
+```
+tests/
+├── smoke/
+│   ├── conftest.py
+│   └── test_*.py
+├── driver/
+└── ...
+```
+
+Each stage's `concord.yaml` entry points at its own directory:
+
+```yaml
+stages:
+  smoke:
+    directory: tests/smoke
+    timeout_s: 300
+```
+
+**Manufacturing stages follow the same pattern.** The legacy "shared `tests/manufacturing/` directory + `module:` per stage" layout still works (the schema accepts it), but new test apps should use one directory per stage for consistency with validation. If you scaffold a new mfg stage with `/add-stage`, it lands at `tests/<stage>/`.
+
 ## Reading data — `assert_and_record`
 
 Use `assert_and_record(step, key, value, unit, predicate)` instead of plain `assert`. The reporter persists `(key, value, unit, pass/fail)` per step so the UI can render measurements alongside pass/fail status.

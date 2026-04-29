@@ -8,6 +8,9 @@ package:
 product:
   slug: {{product}}
   board: {{board}}
+  device:
+    type_id: {{device_type_id}}
+    variant_id: {{device_variant_id}}
 
 fixture:
   module: {{fixture_module}}

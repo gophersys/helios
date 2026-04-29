@@ -17,7 +17,13 @@ Activation:
 
 No-op conditions:
     - No concord.yaml found (silent no-op)
-    - MTIB/hardware env vars missing (ctx fixture skips with pytest.skip)
+    - MTIB/hardware env vars missing (the ``slot`` fixture skips with pytest.skip)
+
+Test-author surface:
+    The canonical fixtures used by tests are ``slot`` (per-DUT context,
+    parametrized across slots) and ``report`` (reporter for events).
+    ``ctx`` and ``fixture_ctx`` are session-scoped contexts that the
+    framework uses internally and are rarely used directly by tests.
 
 Environment variables:
     MOCK_MODE / MOCK_CLOUD   "1" to enable mock mode (no hardware)
@@ -518,7 +524,13 @@ def manifest(request: pytest.FixtureRequest) -> "Manifest":
 def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     """Session-scoped test context — connects once, shared across all tests.
 
-    Validation packages:
+    Most tests should NOT consume this directly. Use the per-slot
+    ``slot`` fixture instead — it parametrizes correctly over single
+    and multi-slot fixtures and gives test code a uniform interface.
+    ``ctx`` exists for the rare session-scoped needs (e.g., a fixture
+    parametrize that depends on the connected hardware).
+
+    Single-slot manifests:
         Creates a TestContext with the fixture class specified in
         concord.yaml (``fixture.module``). Connects to MTIB and
         starts UART capture, power polling, and telemetry.

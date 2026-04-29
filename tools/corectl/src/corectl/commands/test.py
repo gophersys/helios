@@ -534,8 +534,8 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
     click.echo("  Next:")
     click.echo(f"    cd {project_dir}")
     click.echo(f"    # Edit fixtures/{board_slug}/fixture.py — wire the DUT pinout")
-    click.echo(f"    corectl validate")
-    click.echo(f"    corectl run")
+    click.echo(f"    corectl test validate")
+    click.echo(f"    corectl test run <stage>")
     click.echo("")
 
 

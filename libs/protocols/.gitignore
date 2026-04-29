@@ -1,5 +1,12 @@
 # Ignore all .h, .c, and .py and .go files in this directory and all subdirectories
+# (these are generated from .proto by ctl.sh — never hand-written).
 **/*.h
 **/*.c
 **/*.py
 **/*.go
+
+# Exception: __init__.py is a regular-package marker, not generated.
+# Required so Python treats `protocols` and `protocols.mtib` as importable
+# packages when shipped inside the corekinect wheel via force-include.
+!__init__.py
+!**/__init__.py

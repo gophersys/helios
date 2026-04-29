@@ -569,9 +569,21 @@ def _upload_test_package_impl(product_id: str):
         "status": status,
         "sizeBytes": size_bytes,
     })
+    # testCount comes from counting test_*.py files in the tarball — the
+    # manifest is not authoritative because authors don't keep it in sync.
+    # If extraction returns 0, the package legitimately has no test files
+    # and the UI should show that honestly. Log when this happens so it's
+    # not silent.
     extracted_count = _extract_test_count(file_data)
-    if extracted_count:
-        db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
+    db.testpackage.update(
+        where={"id": tp.id},
+        data={"testCount": extracted_count or 0},
+    )
+    if not extracted_count:
+        logger.warning(
+            "Test package %s has 0 test files in archive — testCount left at 0.",
+            tp.id,
+        )
     _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
     _extract_stage_metadata(db, tp.id, file_data, manifest_version)
     # Re-fetch with includes for serialization
