@@ -31,6 +31,19 @@ if [ -n "${EXPECTED_VERSION}" ]; then
     fi
 fi
 
+echo "→ Installing pre-commit hooks"
+if ! command -v pre-commit >/dev/null 2>&1; then
+    pip install --quiet pre-commit
+fi
+# `pre-commit install` only writes .git/hooks/pre-commit if .git exists.
+# A fresh clone always has it; the rare `git init` skeleton might not.
+if [ -d .git ]; then
+    pre-commit install --install-hooks >/dev/null
+    echo "  pre-commit hook installed"
+else
+    echo "  (no .git directory — skipping pre-commit install)"
+fi
+
 echo "→ Pre-flight validate"
 # corectl test validate exits non-zero on errors; warnings keep exit 0.
 # We deliberately fail container start on errors — a half-set-up

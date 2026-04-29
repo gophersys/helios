@@ -77,15 +77,6 @@ class StageConfig:
 
 
 @dataclass(frozen=True)
-class StepConfig:
-    """A manufacturing test step (ordered, sequential)."""
-
-    name: str  # display name (e.g. "Electrical")
-    module: str  # dotted module path
-    timeout_s: int
-
-
-@dataclass(frozen=True)
 class Manifest:
     """Parsed and validated concord.yaml manifest."""
 
@@ -94,7 +85,6 @@ class Manifest:
     product: ProductConfig
     fixture: FixtureConfig
     stages: Dict[str, StageConfig] = field(default_factory=dict)
-    steps: List[StepConfig] = field(default_factory=list)
 
     @property
     def is_validation(self) -> bool:
@@ -106,10 +96,7 @@ class Manifest:
 
     @property
     def stage_names(self) -> List[str]:
-        """Stage names for validation packages, step names for manufacturing."""
-        if self.is_validation:
-            return list(self.stages.keys())
-        return [s.name for s in self.steps]
+        return list(self.stages.keys())
 
     @classmethod
     def from_dict(cls, data: dict) -> Manifest:
@@ -136,16 +123,6 @@ class Manifest:
                 markers=cfg.get("markers", []),
             )
 
-        steps: List[StepConfig] = []
-        for cfg in data.get("steps", []):
-            steps.append(
-                StepConfig(
-                    name=cfg["name"],
-                    module=cfg["module"],
-                    timeout_s=cfg["timeout_s"],
-                )
-            )
-
         return cls(
             schema_version=data["schema"],
             package=PackageConfig(
@@ -163,5 +140,4 @@ class Manifest:
                 multi_slot=fix.get("multi_slot", False),
             ),
             stages=stages,
-            steps=steps,
         )

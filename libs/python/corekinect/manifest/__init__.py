@@ -11,7 +11,6 @@ from corekinect.manifest.types import (
     DeviceConfig,
     FixtureConfig,
     StageConfig,
-    StepConfig,
 )
 from corekinect.manifest.loader import load_manifest, find_manifest
 from corekinect.manifest.schema import validate_manifest, SchemaVersion
@@ -23,7 +22,6 @@ __all__ = [
     "DeviceConfig",
     "FixtureConfig",
     "StageConfig",
-    "StepConfig",
     "load_manifest",
     "find_manifest",
     "validate_manifest",

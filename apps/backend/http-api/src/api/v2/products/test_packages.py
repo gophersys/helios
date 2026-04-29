@@ -264,11 +264,13 @@ def _check_framework_artifacts(file_data: bytes) -> Optional[str]:
 
 
 def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifest_version: str):
-    """Extract structured stage/step metadata from the concord.yaml inside the archive.
+    """Extract structured stage metadata from the concord.yaml inside the archive.
 
-    For validation packages, creates TestPackageStage records from 'stages'.
-    For manufacturing packages, creates TestPackageStage records from 'steps'.
-    Idempotent — deletes existing records before re-creating.
+    Both validation and manufacturing packages use the ``stages:`` dict.
+    Optional fields per stage: directory (required), module, timeout_s,
+    markers, hardware. Iteration order is the YAML insertion order, which
+    becomes the platform's stageIndex. Idempotent — deletes existing
+    records before re-creating.
     """
     try:
         buf = io.BytesIO(file_bytes)
@@ -290,7 +292,6 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
         # Delete existing stage records (idempotent for dev uploads)
         db.testpackagestage.delete_many(where={"testPackageId": test_package_id})
 
-        # Validation packages: stages dict
         for idx, (name, cfg) in enumerate(manifest_data.get("stages", {}).items()):
             if not isinstance(cfg, dict):
                 continue
@@ -299,20 +300,9 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
                 "name": name,
                 "stageIndex": idx,
                 "directory": cfg.get("directory"),
+                "module": cfg.get("module"),
                 "timeoutS": cfg.get("timeout_s"),
                 "markers": cfg.get("markers", []),
-            })
-
-        # Manufacturing packages: steps list
-        for idx, step in enumerate(manifest_data.get("steps", [])):
-            if not isinstance(step, dict):
-                continue
-            db.testpackagestage.create(data={
-                "testPackageId": test_package_id,
-                "name": step["name"],
-                "stageIndex": idx,
-                "module": step.get("module"),
-                "timeoutS": step.get("timeout_s"),
             })
 
         logger.info("Extracted stage metadata for package %s (manifest %s)", test_package_id, manifest_version)

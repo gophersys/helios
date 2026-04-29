@@ -123,6 +123,8 @@ stages:
     hardware: [mtib]
 ```
 
-Manufacturing manifests use a `steps:` list keyed by step name +
-module path instead of `stages:` — see the template at
-`tools/corectl/src/corectl/templates/manufacturing/concord.yaml`.
+Manufacturing manifests use the same `stages:` shape as validation —
+see the template at `tools/corectl/src/corectl/templates/manufacturing/concord.yaml`.
+Each stage entry can carry an optional `module:` to point at a single
+test module within `directory:` (used when a stage maps 1:1 to a single
+ordered test file like `test_01_electrical.py`).

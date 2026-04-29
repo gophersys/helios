@@ -18,7 +18,6 @@ from corekinect.manifest.types import (
     PackageConfig,
     ProductConfig,
     StageConfig,
-    StepConfig,
 )
 from corekinect.manifest.schema import (
     CURRENT_SCHEMA,
@@ -77,7 +76,10 @@ def _validation_dict() -> dict:
 
 
 def _manufacturing_dict() -> dict:
-    """Full manufacturing manifest dict matching the v1.0 schema."""
+    """Full manufacturing manifest dict matching the v1.0 schema.
+
+    Manufacturing uses the same ``stages:`` shape as validation.
+    """
     return {
         "schema": "1.0",
         "package": {
@@ -97,23 +99,20 @@ def _manufacturing_dict() -> dict:
             "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
             "multi_slot": True,
         },
-        "steps": [
-            {
-                "name": "Electrical",
-                "module": "tests.manufacturing.test_electrical",
+        "stages": {
+            "electrical": {
+                "directory": "tests/electrical",
                 "timeout_s": 30,
             },
-            {
-                "name": "Flash Firmware",
-                "module": "tests.manufacturing.test_flash",
+            "fw_flash": {
+                "directory": "tests/fw_flash",
                 "timeout_s": 120,
             },
-            {
-                "name": "POST",
-                "module": "tests.manufacturing.test_post",
+            "post": {
+                "directory": "tests/post",
                 "timeout_s": 300,
             },
-        ],
+        },
     }
 
 
@@ -194,11 +193,6 @@ class TestManifestFromDictValidation:
         assert smoke.timeout_s == 120
         assert smoke.markers == ["health_check"]
 
-    def test_steps_empty_for_validation(self):
-        m = Manifest.from_dict(_validation_dict())
-        assert m.steps == []
-
-
 class TestManifestFromDictManufacturing:
     """Manifest.from_dict with a full manufacturing manifest."""
 
@@ -206,20 +200,19 @@ class TestManifestFromDictManufacturing:
         m = Manifest.from_dict(_manufacturing_dict())
         assert m.package.type == "manufacturing"
 
-    def test_steps_parsed(self):
+    def test_stages_parsed(self):
         m = Manifest.from_dict(_manufacturing_dict())
-        assert len(m.steps) == 3
+        assert len(m.stages) == 3
+        assert "electrical" in m.stages
+        assert "fw_flash" in m.stages
+        assert "post" in m.stages
 
-    def test_step_config_fields(self):
+    def test_stage_config_fields(self):
         m = Manifest.from_dict(_manufacturing_dict())
-        first = m.steps[0]
-        assert first.name == "Electrical"
-        assert first.module == "tests.manufacturing.test_electrical"
+        first = m.stages["electrical"]
+        assert first.name == "electrical"
+        assert first.directory == "tests/electrical"
         assert first.timeout_s == 30
-
-    def test_stages_empty_for_manufacturing(self):
-        m = Manifest.from_dict(_manufacturing_dict())
-        assert m.stages == {}
 
     def test_fixture_multi_slot(self):
         m = Manifest.from_dict(_manufacturing_dict())
@@ -263,7 +256,7 @@ class TestManifestProperties:
 
     def test_stage_names_manufacturing(self):
         m = Manifest.from_dict(_manufacturing_dict())
-        assert m.stage_names == ["Electrical", "Flash Firmware", "POST"]
+        assert m.stage_names == ["electrical", "fw_flash", "post"]
 
 
 class TestFrozenDataclasses:
@@ -299,10 +292,6 @@ class TestFrozenDataclasses:
         with pytest.raises(AttributeError):
             m.stages["smoke"].timeout_s = 999
 
-    def test_step_config_frozen(self):
-        m = Manifest.from_dict(_manufacturing_dict())
-        with pytest.raises(AttributeError):
-            m.steps[0].name = "Other"
 
 
 # ===================================================================
@@ -359,9 +348,9 @@ class TestValidateManifestMissingFields:
         result = validate_manifest(data)
         assert not result.valid
 
-    def test_missing_steps_for_manufacturing(self):
+    def test_missing_stages_for_manufacturing(self):
         data = _manufacturing_dict()
-        del data["steps"]
+        del data["stages"]
         result = validate_manifest(data)
         assert not result.valid
 
@@ -375,19 +364,12 @@ class TestValidateManifestBadValues:
         result = validate_manifest(data)
         assert not result.valid
 
-    def test_both_stages_and_steps_is_invalid(self):
-        """Both stages and steps in the same manifest is invalid (oneOf)."""
+    def test_steps_field_rejected(self):
+        """The legacy ``steps:`` array is no longer accepted; only ``stages:``."""
         data = _validation_dict()
         data["steps"] = [
             {"name": "x", "module": "m.x", "timeout_s": 10},
         ]
-        result = validate_manifest(data)
-        assert not result.valid
-
-    def test_neither_stages_nor_steps_is_invalid(self):
-        """A manifest with neither stages nor steps is invalid."""
-        data = _validation_dict()
-        del data["stages"]
         result = validate_manifest(data)
         assert not result.valid
 
