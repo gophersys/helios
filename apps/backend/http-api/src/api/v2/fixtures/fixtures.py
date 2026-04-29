@@ -420,8 +420,14 @@ def _compute_fixture_health(
             replicas = deploy.get("replicas") or 0
             ready_replicas = deploy.get("readyReplicas") or 0
             replicas_ok = replicas > 0 and ready_replicas == replicas
+            # ``list_mtib_deployments`` is a bulk call (one K8s list per
+            # fixture-status request) and intentionally does NOT fan out
+            # per-deployment pod queries — that's the N+1 we're avoiding.
+            # When the pod list is absent, trust the deployment-level
+            # readiness gate above. Per-pod detail is still surfaced by
+            # the per-deployment status endpoint for drill-in views.
             pods = deploy.get("pods") or []
-            pods_ok = bool(pods) and all(p.get("ready") for p in pods)
+            pods_ok = all(p.get("ready") for p in pods) if pods else True
             if replicas_ok and pods_ok:
                 mtibs_ready += 1
 

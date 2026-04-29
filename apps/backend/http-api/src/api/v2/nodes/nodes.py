@@ -407,6 +407,26 @@ def _deploy_mtib_for_node(hostname: str, node_type: str) -> str | None:
     )
 
 
+def _resolve_node_ip_from_k8s(hostname: str) -> str | None:
+    """Read a K8s node's InternalIP by hostname. Returns None if K8s is
+    unavailable or the node has no InternalIP. Used to keep ``Node.ipAddress``
+    truthful when an MTIB is registered without one in the request — the
+    fixture health probe targets ``ipAddress:50053`` and a missing IP made
+    every probe fall back to the (unresolvable) hostname.
+    """
+    if not K8S_AVAILABLE:
+        return None
+    try:
+        core_v1 = get_core_v1_api()
+        k8s_node = core_v1.read_node(name=hostname)
+    except Exception:
+        return None
+    for addr in (k8s_node.status.addresses or []):
+        if addr.type == "InternalIP" and addr.address:
+            return addr.address
+    return None
+
+
 @require_permissions(Permissions.DEVICES_MANAGE)
 def register_node(node_id: str):
     """Register a discovered K8s node as an MTIB with labels and taints."""
@@ -432,11 +452,16 @@ def register_node(node_id: str):
     if err:
         return err
 
-    ip_address = req_data.get("ip", "")
+    # IP precedence: request body wins (lets the wizard pre-fill from its
+    # own discover call), otherwise pull straight from K8s. Either way we
+    # never store NULL when an InternalIP exists — that was the bug that
+    # left every newly-registered MTIB unprobeable until manual backfill.
+    ip_address = (req_data.get("ip") or "").strip() or _resolve_node_ip_from_k8s(hostname)
+
     node = db.node.create(
         data={
             "name": name, "hostname": hostname, "type": node_type,
-            "status": "ONLINE", "ipAddress": ip_address if ip_address else None,
+            "ipAddress": ip_address,
         },
         include={"fixtureSlot": True},
     )
