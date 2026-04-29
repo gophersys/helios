@@ -622,8 +622,19 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
             )
         )
 
+    # Import the fixture controller class declared in the manifest and
+    # pass it as a factory so ``slot.connect()`` can attach an instance
+    # to each ``SlotContext.fixture``. Without this, every test that
+    # reads ``slot.fixture`` AttributeErrors on ``None`` — the single-
+    # slot path below already does this; multi-slot was forgetting to.
+    module_ref = manifest.fixture.module
+    try:
+        fixture_cls = _import_fixture_class(module_ref)
+    except ImportError as exc:
+        pytest.skip(bad_fixture_class(module_ref, exc))
+
     fctx = FixtureContext.from_env()
-    fctx.connect_all()
+    fctx.connect_all(fixture_factory=lambda mtib: fixture_cls(mtib))
 
     # Create telemetry streamer for live power/UART streaming to frontend
     telemetry = None
