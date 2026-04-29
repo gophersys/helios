@@ -15,9 +15,8 @@ Arguments: $ARGUMENTS — bump kind (`major` / `minor` / `patch`) OR an explicit
 ## Definition of done
 
 ```
-[ ] concord.yaml package.version is the new semver
-[ ] corectl test validate --strict passed
 [ ] git working tree is clean (committed) — release SHA must match what shipped
+[ ] corectl test validate --strict passed
 [ ] corectl test upload --release returned 2xx
 [ ] Released version visible in `corectl test versions`
 [ ] (Optional) ProductStageConfig bindings updated in the platform UI
@@ -25,31 +24,26 @@ Arguments: $ARGUMENTS — bump kind (`major` / `minor` / `patch`) OR an explicit
 
 ## Steps
 
-1. **Resolve the new version.** Read `concord.yaml package.version`. If the argument is a bump kind, increment accordingly (e.g., current `1.2.3` + `minor` → `1.3.0`). If it's an explicit version, validate it parses as semver and is strictly greater than current.
+1. **Validate strictly.** Run `corectl test validate --strict`. ANY warning fails the release. Fix or justify, then re-run. Do not proceed past this gate with red.
 
-2. **Edit `concord.yaml`.** Update `package.version` to the new version. Do not commit yet.
+2. **Verify clean tree.** `git status --porcelain` returns empty. Anything uncommitted means the released SHA won't match what's on disk — fix it first.
 
-3. **Validate strictly.** Run `corectl test validate --strict`. ANY warning fails the release. Fix or justify, then re-run. Do not proceed past this gate with red.
-
-4. **Commit the version bump.** `git add concord.yaml && git commit -m "chore: release v<new_version>"`. Push to your branch.
-
-5. **Verify clean tree.** `git status --porcelain` returns empty.
-
-6. **Upload + release in one step.** `corectl test upload --release`. Provide a short release message (the changelog line). The command:
+3. **Upload + release in one step.** `corectl test upload --release`. Provide a short release message (the changelog line). The command:
    - Re-validates server-side.
-   - Creates the DEVELOPMENT row.
-   - Promotes immediately to RELEASED, stripping the `dev-` prefix.
+   - Creates the immutable upload row.
+   - **Auto-assigns the released semver** based on the current released stream (the operator does NOT pre-edit `concord.yaml package.version`; the `version` field there is informational for dev iterations).
+   - Promotes to RELEASED, stripping the `dev-` prefix.
    - Returns the released version string.
 
-7. **Confirm.** Run `corectl test versions`. The new version should appear with status RELEASED.
+4. **Confirm.** Run `corectl test versions`. The new version should appear with status RELEASED.
 
-8. **Surface the binding step.** Released packages do not auto-bind to ProductStageConfig. Tell the user to either:
+5. **Surface the binding step.** Released packages do not auto-bind to ProductStageConfig. Tell the user to either:
    - Bind via the Concord UI (Product → Stages → Set released package), or
    - Use the platform admin's release flow (separate from this app's release).
 
 ## Failure modes
 
 - **Validate fails strict** → fix warnings, do not loosen `--strict`.
-- **Version conflict** → another release just landed; rebase, bump again.
+- **Version conflict** → another release just landed; rebase and re-run.
 - **Upload rejects with "missing artifacts"** → run `/sync-with-backend` then `corectl test update --apply`. The framework artifacts must be present and current.
-- **Backend mismatch** → `corectl test sync` reconciles; re-run from step 3.
+- **Backend mismatch** → `corectl test sync` reconciles; re-run from step 1.

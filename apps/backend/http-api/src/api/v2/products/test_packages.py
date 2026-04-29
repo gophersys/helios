@@ -303,6 +303,7 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
                 "module": cfg.get("module"),
                 "timeoutS": cfg.get("timeout_s"),
                 "markers": cfg.get("markers", []),
+                "hardware": cfg.get("hardware", []),
             })
 
         logger.info("Extracted stage metadata for package %s (manifest %s)", test_package_id, manifest_version)
@@ -320,6 +321,7 @@ def _serialize_package_stage(s) -> dict:
         "module": s.module,
         "timeoutS": s.timeoutS,
         "markers": s.markers if s.markers else [],
+        "hardware": s.hardware if getattr(s, "hardware", None) else [],
     }
 
 

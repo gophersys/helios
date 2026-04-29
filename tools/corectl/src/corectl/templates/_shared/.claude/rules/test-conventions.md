@@ -11,7 +11,7 @@ import pytest
 from corekinect.test.assertions import assert_and_record
 
 
-@pytest.mark.{{kind}}
+@pytest.mark.smoke
 @pytest.mark.timeout(120)
 def test_some_behavior(slot, report):
     """One-sentence purpose. The reporter renders this as the test card title."""
@@ -24,9 +24,9 @@ def test_some_behavior(slot, report):
 ## Required pieces
 
 - **`@pytest.mark.timeout(N)`** — every test. The slot-parallel runner cannot enforce timeouts otherwise.
-- **`slot` fixture** — declares which DUT slot the test runs against. Auto-injected by `corekinect.test.autoconf`.
+- **`slot` fixture** — declares which DUT slot the test runs against. Auto-injected by `corekinect.test.autoconf` for both validation (single slot) and manufacturing (N slots).
 - **`report` fixture** — the reporter that streams events to the platform UI.
-- **One stage marker** — `@pytest.mark.<stage_name>` matching the directory the test lives in. Lets operators filter `pytest -m smoke`.
+- **One stage marker** — `@pytest.mark.<stage_name>` matching the directory the test lives in (e.g., `@pytest.mark.smoke` for `tests/smoke/`). Lets operators filter `pytest -m smoke`.
 
 ## Two-level depth contract
 
@@ -52,7 +52,7 @@ The `corectl test validate` test-depth checker (`test_depth.py`) catches this at
 
 ## Markers register, then decorate
 
-Stage markers live in `pyproject.toml` under `[tool.pytest.ini_options].markers`. Add new markers there before using them on a test, otherwise pytest emits a warning.
+Stage markers live in `pytest.ini` under `markers = [...]`. Add new markers there before using them on a test, otherwise pytest emits "PytestUnknownMarkWarning". The autoconf plugin also auto-registers any marker referenced by a stage in `concord.yaml stages.<stage>.markers`, so manifest-declared markers don't need a duplicate `pytest.ini` entry.
 
 ## Reading data — `assert_and_record`
 
