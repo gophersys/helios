@@ -496,7 +496,8 @@ class CommsCoprocShell:
 
         if hex_data:
             try:
-                return bytes.fromhex(hex_data), None
+                # Firmware always dumps in 16-byte rows (zero-padded), so slice down to what the caller asked for.
+                return bytes.fromhex(hex_data)[:num_bytes], None
             except ValueError as exc:
                 return None, f"Failed to decode hex output ({exc}): {hex_data[:64]}…"
         return None, f"Failed to parse hex data from: {lines}"
