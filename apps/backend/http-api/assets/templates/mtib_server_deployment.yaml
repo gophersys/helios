@@ -27,11 +27,22 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       initContainers:
+      # Tiny init that flips /sys to rw so the mtib-server can drive the
+      # IIO/GPIO sysfs entries. Must declare resources so the namespace
+      # ResourceQuota admits the pod — quotas reject any container that
+      # leaves cpu/memory unset, including initContainers.
       - name: remount-sys
         image: busybox:latest
         command: ['sh', '-c', 'mount -o remount,rw /sys']
         securityContext:
           privileged: true
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "16Mi"
+          limits:
+            cpu: "50m"
+            memory: "32Mi"
       nodeSelector:
         kubernetes.io/hostname: "{{NODE_HOSTNAME}}"
       tolerations:
