@@ -482,7 +482,23 @@ def upload_asset_set_zip(product_id: str):
 
 
 def _infer_role(filename: str, matrix_entry) -> str:
-    """Infer the asset role from filename patterns."""
+    """Infer the asset role from the matrix entry's fwType, falling
+    back to filename pattern heuristics.
+
+    The matrix entry comes from the product/board's stage config —
+    when the operator picks a label in the upload wizard, we know
+    which processor target (``app`` / ``comms``) that label is for.
+    Trusting the matrix avoids a class of bugs where an operator
+    uploaded a hex whose original filename didn't carry processor
+    hints (e.g. ``firmware.hex`` straight from a build job): the
+    canonical filename was already computed from ``entry.fwType``,
+    but the DB ``role`` column was left at the filename-only guess
+    so downstream consumers like FirmwareSet.hex(role=…) silently
+    fell through to the "app" default and never found the comms hex.
+    """
+    fw_type = getattr(matrix_entry, "fwType", None)
+    if fw_type:
+        return fw_type
     fn = filename.lower()
     if "modem" in fn:
         return "modem"
