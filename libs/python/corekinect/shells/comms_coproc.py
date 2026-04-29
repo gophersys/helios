@@ -19,15 +19,28 @@ Usage:
 
 from __future__ import annotations
 
+import base64
 import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from protocols.mtib.mtib_pb2 import HostType
 
 from corekinect.shells.base import ShellCommander
+
+
+def _hex_addr(address: Union[int, str]) -> str:
+    """Format an address for the firmware shell.
+
+    Tests pass int addresses for readability; the firmware accepts
+    either decimal or 0x-prefixed hex. Normalise to ``0x{:08x}`` so the
+    wire format is deterministic and matches what the firmware logs.
+    """
+    if isinstance(address, int):
+        return f"0x{address:08x}"
+    return str(address)
 
 
 # ── Result types ─────────────────────────────────────────
@@ -363,15 +376,32 @@ class CommsCoprocShell:
     # ── External flash ───────────────────────────────
 
     def write_ext_flash(
-        self, address: str, data_b64: str, timeout_s: float = 15.0
+        self,
+        address: Union[int, str],
+        data: Union[bytes, str],
+        timeout_s: float = 15.0,
     ) -> Tuple[bool, Optional[str]]:
-        """Write base64-encoded data to external flash.
+        """Write data to external flash.
+
+        ``data`` accepts raw ``bytes`` (preferred — encoded internally)
+        or an already-base64-encoded ``str``. Earlier callers were
+        passing raw bytes through an ``f"...{data}"`` format string,
+        which sent the Python ``b'\\xa5...'`` *repr* over UART; the
+        firmware base64 decoder rejected it with "Base64 conversion to
+        char array failed. Invalid argument".
+
+        ``address`` accepts an ``int`` (formatted as ``0x{:08x}``) or
+        an already-formatted hex/decimal string.
 
         Returns:
             (success, error)
         """
+        if isinstance(data, bytes):
+            data_b64 = base64.b64encode(data).decode("ascii")
+        else:
+            data_b64 = data
         lines, err = self._cmd.send(
-            f"write_ext_flash {address} {data_b64}",
+            f"write_ext_flash {_hex_addr(address)} {data_b64}",
             success_patterns=["Writing", "bytes to address:"],
             timeout_s=timeout_s,
         )
@@ -380,15 +410,23 @@ class CommsCoprocShell:
         return any("Writing" in l for l in lines), None
 
     def read_ext_flash(
-        self, address: str, num_bytes: int, timeout_s: float = 15.0
-    ) -> Tuple[Optional[str], Optional[str]]:
+        self,
+        address: Union[int, str],
+        num_bytes: int,
+        timeout_s: float = 15.0,
+    ) -> Tuple[Optional[bytes], Optional[str]]:
         """Read data from external flash.
 
+        Returns the actual bytes the firmware reported, parsed from the
+        hex dump it prints (``00000000: aa bb cc … |ascii|``). Returning
+        bytes — not the hex string — lets callers compare directly
+        against the bytes they wrote.
+
         Returns:
-            (hex_data, error) — hex_data is the concatenated hex bytes.
+            (data, error)
         """
         lines, err = self._cmd.send(
-            f"read_ext_flash {address} {num_bytes}",
+            f"read_ext_flash {_hex_addr(address)} {num_bytes}",
             success_patterns=["Reading", "Mfg shell:", "Comms Mfg:", "bytes from address"],
             timeout_s=timeout_s,
         )
@@ -401,25 +439,30 @@ class CommsCoprocShell:
         if err:
             return None, err
 
+        # The firmware emits a hex dump like:
+        #   00000000: a5 5a ff 01 02 03 fe ed                          |.Z......        |
+        # Strip the leading "<offset>:" address column before scanning
+        # for hex byte pairs — without this strip, the regex picks up
+        # the four bytes that make up the offset and prepends them to
+        # the data, returning 12 bytes when the caller asked for 8.
+        offset_re = re.compile(r"^\s*[0-9A-Fa-f]{4,8}\s*:\s*")
         hex_data = ""
         for line in lines:
             stripped = line.strip()
             if not stripped:
                 continue
-            # Format: "AA BB CC DD EE FF ...  |ASCII text|"
-            # Hex bytes separated by spaces, optionally followed by |...|
-            if "|" in stripped:
-                hex_part = stripped.split("|")[0].strip()
-                # Extract hex bytes (pairs of hex digits separated by spaces)
-                hex_bytes = re.findall(r"[0-9A-Fa-f]{2}", hex_part)
-                if hex_bytes:
-                    hex_data += "".join(hex_bytes)
-            # Format: "AA BB CC DD" (no ASCII sidebar)
-            elif re.match(r"^(?:[0-9A-Fa-f]{2}\s*)+$", stripped):
-                hex_data += re.sub(r"\s+", "", stripped)
+            payload = stripped.split("|", 1)[0]  # drop ASCII sidebar
+            payload = offset_re.sub("", payload).strip()  # drop "00000000: " prefix
+            if not payload:
+                continue
+            if re.fullmatch(r"(?:[0-9A-Fa-f]{2}\s*)+", payload):
+                hex_data += re.sub(r"\s+", "", payload)
 
         if hex_data:
-            return hex_data, None
+            try:
+                return bytes.fromhex(hex_data), None
+            except ValueError as exc:
+                return None, f"Failed to decode hex output ({exc}): {hex_data[:64]}…"
         return None, f"Failed to parse hex data from: {lines}"
 
     def erase_ext_flash(self, timeout_s: float = 30.0) -> Tuple[bool, Optional[str]]:
