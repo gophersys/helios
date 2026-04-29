@@ -209,8 +209,9 @@
         {/each}
       </div>
 
-      <!-- Revision picker (shown when on a revision-scoped tab) -->
-      {#if revisionTabs.has(activeTab) && activeRevisions.length > 1}
+      <!-- Revision picker (shown when on a revision-scoped tab; always visible
+           so operators see the active revision even when there's only one). -->
+      {#if revisionTabs.has(activeTab) && activeRevisions.length >= 1}
         <div class="flex items-center gap-1 pb-1.5">
           <span class="text-2xs font-medium text-text-tertiary mr-1">Rev:</span>
           {#each activeRevisions as rev}
