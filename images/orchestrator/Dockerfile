@@ -109,6 +109,12 @@ ARG FASTEMBED_VERSION=0.8.0                                            # latest 
 ARG ONNXRUNTIME_VERSION=1.25.0                                         # pulled in by fastembed; pinned for reproducibility
 ARG FASTEMBED_DEFAULT_MODEL=BAAI/bge-small-en-v1.5
 
+# MCP (Model Context Protocol) Python SDK — used by tools/docs-rag/lib/mcp_server.py
+# to expose the RAG retrieval surface (search_docs, get_doc, list_related,
+# list_category, list_tags, stats) as a stdio MCP server consumable by
+# the orchestrator's Claude Code session and by capability-scoped agents.
+ARG MCP_VERSION=1.27.0                                                 # latest as of 2026-04-28
+
 # yq binary.
 ARG YQ_VERSION=4.44.3                                                  # latest LTS as of 2026-04-24
 
@@ -281,7 +287,8 @@ RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" 
       "lxml_html_clean==${LXML_HTML_CLEAN_VERSION}" \
       "beautifulsoup4==${BEAUTIFULSOUP4_VERSION}" \
       "fastembed==${FASTEMBED_VERSION}" \
-      "onnxruntime==${ONNXRUNTIME_VERSION}"
+      "onnxruntime==${ONNXRUNTIME_VERSION}" \
+      "mcp==${MCP_VERSION}"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # Warm the fastembed model cache at build time so first-run is instant and
