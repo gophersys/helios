@@ -17,4 +17,8 @@ CARRIER_PREFIXES = {
     "8942310": "Soracom",
     "894573": "Onomondo",
     "890103": "Att",
+    # Sysmocom (sysmocom GmbH, Germany IIN 894944) — Sigma5 SIM 1.
+    # Verified via bifravst e118-iin-list lookup of the live ICCID
+    # 8949440009200185337F.
+    "894944": "Sysmocom",
 }

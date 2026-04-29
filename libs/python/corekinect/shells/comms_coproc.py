@@ -247,11 +247,21 @@ class CommsCoprocShell:
         """Parse IMEI/EID/ICCID from response lines.
 
         Parses comma-separated values after the header colon.
-        Classification by digit count:
-          15 digits  → IMEI
-          32 digits  → EID (eUICC identifier)
-          19-20 digits → ICCID
+        Classification by digit count (treating an optional trailing
+        Luhn check character ``F`` / ``A`` as part of the ID — many
+        ICCIDs are issued as 19 digits + 1 hex check char, e.g.
+        ``8949440009200185337F``):
+          15 digits          → IMEI
+          30–34 digits       → EID (eUICC identifier)
+          19–20 digits (or 19–20 + trailing letter) → ICCID
         """
+        # Keep only digits in the first len-1 positions; the last
+        # position may be a hex Luhn check character (F most commonly).
+        def _is_iccid_like(s: str) -> bool:
+            if not (19 <= len(s) <= 20):
+                return False
+            return s[:-1].isdigit() and (s[-1].isdigit() or s[-1] in "ABCDEFabcdef")
+
         for line in lines:
             # Match header line with colon-separated data
             m = re.search(r"IMEI[^:]*:\s*(.+)", line)
@@ -266,14 +276,12 @@ class CommsCoprocShell:
             for part in parts:
                 if not part:
                     continue
-                if not part.isdigit():
-                    continue
                 n = len(part)
-                if n == 15 and imei is None:
+                if n == 15 and part.isdigit() and imei is None:
                     imei = part
-                elif 30 <= n <= 34:
+                elif 30 <= n <= 34 and part.isdigit():
                     eids.append(part)
-                elif 19 <= n <= 20:
+                elif _is_iccid_like(part):
                     iccids.append(part)
 
             if imei and iccids:

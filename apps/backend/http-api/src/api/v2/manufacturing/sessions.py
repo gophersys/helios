@@ -1655,6 +1655,7 @@ def get_session_report(session_id: str):
                 if s.status == "PASSED" and uploaded is True:
                     personalized_ok = True
 
+        eid_0 = eid_1 = ""
         for s in imei_by_target.get(t.id, []):
             m = s.measurements or {}
             if isinstance(m, dict):
@@ -1664,6 +1665,10 @@ def get_session_report(session_id: str):
                     iccid_0 = (m.get("iccid_0") or {}).get("value") or ""
                 if not iccid_1:
                     iccid_1 = (m.get("iccid_1") or {}).get("value") or ""
+                if not eid_0:
+                    eid_0 = (m.get("eid_0") or {}).get("value") or ""
+                if not eid_1:
+                    eid_1 = (m.get("eid_1") or {}).get("value") or ""
 
         entry = per_snr.setdefault(snr, {
             "snr": snr,
@@ -1673,6 +1678,8 @@ def get_session_report(session_id: str):
             "imei": "",
             "iccid_0": "",
             "iccid_1": "",
+            "eid_0": "",
+            "eid_1": "",
             "last_target_id": t.id,
             "last_target_error": getattr(t, "errorMessage", None) or "",
             "last_started_at": started_at,
@@ -1680,7 +1687,9 @@ def get_session_report(session_id: str):
         # Merge: keep "ever personalized" and the best-available field values.
         entry["personalized_ok"] = entry["personalized_ok"] or personalized_ok
         for field, val in (("device_id", device_id), ("pub_key_b64", pub_key_b64),
-                           ("imei", imei), ("iccid_0", iccid_0), ("iccid_1", iccid_1)):
+                           ("imei", imei),
+                           ("iccid_0", iccid_0), ("iccid_1", iccid_1),
+                           ("eid_0", eid_0), ("eid_1", eid_1)):
             if val and not entry[field]:
                 entry[field] = val
         # Track the latest attempt for the fallback failure reason.
@@ -1715,33 +1724,88 @@ def get_session_report(session_id: str):
     return _build_zip_response(session, successful, failed)
 
 
+def _resolve_carrier_for_iccid(iccid: str) -> str | None:
+    """Return the carrier name for an ICCID, or None if no known prefix matches.
+
+    Imports the canonical CARRIER_PREFIXES table from corekinect so the
+    backend stays in lockstep with the test framework's SIM
+    classifier — adding a new carrier prefix in
+    libs/python/corekinect/utils/device/identifiers.py automatically
+    surfaces a new per-carrier activation CSV here.
+    """
+    if not iccid:
+        return None
+    try:
+        from corekinect.utils.device.identifiers import CARRIER_PREFIXES
+    except Exception:
+        return None
+    for prefix, name in CARRIER_PREFIXES.items():
+        if iccid.startswith(prefix):
+            return name
+    return None
+
+
 def _build_zip_response(session, successful: list[dict], failed: list[dict]):
-    """Bundle the 6 CSVs into an in-memory zip and return as a Flask Response."""
+    """Bundle the report CSVs into an in-memory zip and return as a Flask Response.
+
+    Always produces:
+      1_failed_snrs.csv
+      2_successful_snrs.csv
+      3_successful_full_info.csv
+      4_device_imei_iccid.csv
+
+    Plus one ``N_activation_<carrier>.csv`` per UNIQUE carrier observed
+    in the successful entries' ICCIDs (both iccid_0 and iccid_1 are
+    classified, deduplicated, and grouped). Carriers are emitted in
+    alphabetical order, numbered starting at 5. Unknown-prefix ICCIDs
+    are dropped (and visible in 4_device_imei_iccid.csv as the raw
+    string for the operator to investigate).
+    """
     # 1_failed_snrs.csv
     csv1 = _csv_bytes(["snr", "reason"], [[f["snr"], f["reason"]] for f in failed])
     # 2_successful_snrs.csv
     csv2 = _csv_bytes(["snr"], [[s["snr"]] for s in successful])
-    # 3_successful_full_info.csv
+    # 3_successful_full_info.csv — EIDs appended after ICCIDs in SIM-slot order
     csv3 = _csv_bytes(
-        ["snr", "device_id", "pub_key_hex", "pub_key_base64", "imei", "iccid1", "iccid2"],
+        ["snr", "device_id", "pub_key_hex", "pub_key_base64",
+         "imei", "iccid1", "iccid2", "eid1", "eid2"],
         [[s["snr"], s["device_id"], _pub_key_hex(s["pub_key_b64"]), s["pub_key_b64"],
-          s["imei"], s["iccid_0"], s["iccid_1"]] for s in successful],
+          s["imei"], s["iccid_0"], s["iccid_1"],
+          s.get("eid_0", ""), s.get("eid_1", "")] for s in successful],
     )
-    # 4_device_imei_iccid.csv — only successful rows have all fields
+    # 4_device_imei_iccid.csv — only successful rows have all fields; EIDs appended.
     csv4 = _csv_bytes(
-        ["device_id", "imei", "iccid1", "iccid2"],
-        [[s["device_id"], s["imei"], s["iccid_0"], s["iccid_1"]] for s in successful],
+        ["device_id", "imei", "iccid1", "iccid2", "eid1", "eid2"],
+        [[s["device_id"], s["imei"], s["iccid_0"], s["iccid_1"],
+          s.get("eid_0", ""), s.get("eid_1", "")] for s in successful],
     )
-    # 5_activation_verizon.csv
-    csv5 = _csv_bytes(
-        ["imei", "iccid"],
-        [[s["imei"], s["iccid_0"]] for s in successful],
-    )
-    # 6_activation_onomondo.csv
-    csv6 = _csv_bytes(
-        ["imei", "iccid"],
-        [[s["imei"], s["iccid_1"]] for s in successful],
-    )
+
+    # Per-carrier activation CSVs. Each (imei, iccid) pair is filed
+    # under the carrier whose IIN prefix matches the iccid. A device
+    # with two SIMs lands once in EACH of its two carriers' files —
+    # carriers are activated independently. Pairs are deduped per
+    # carrier so re-personalized devices don't double-list.
+    by_carrier: dict[str, list[tuple[str, str]]] = {}
+    for s in successful:
+        for iccid_field in ("iccid_0", "iccid_1"):
+            iccid = s.get(iccid_field, "")
+            carrier = _resolve_carrier_for_iccid(iccid)
+            if not carrier:
+                continue
+            by_carrier.setdefault(carrier, []).append((s["imei"], iccid))
+    carrier_files: list[tuple[str, bytes]] = []
+    for idx, carrier in enumerate(sorted(by_carrier.keys()), start=5):
+        # dedupe (imei, iccid) pairs while preserving insertion order
+        seen: set[tuple[str, str]] = set()
+        rows: list[list[str]] = []
+        for pair in by_carrier[carrier]:
+            if pair in seen:
+                continue
+            seen.add(pair)
+            rows.append(list(pair))
+        safe_name = re.sub(r"[^a-z0-9_-]", "_", carrier.lower())
+        fname = f"{idx}_activation_{safe_name}.csv"
+        carrier_files.append((fname, _csv_bytes(["imei", "iccid"], rows)))
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -1749,8 +1813,8 @@ def _build_zip_response(session, successful: list[dict], failed: list[dict]):
         z.writestr("2_successful_snrs.csv", csv2)
         z.writestr("3_successful_full_info.csv", csv3)
         z.writestr("4_device_imei_iccid.csv", csv4)
-        z.writestr("5_activation_verizon.csv", csv5)
-        z.writestr("6_activation_onomondo.csv", csv6)
+        for fname, data in carrier_files:
+            z.writestr(fname, data)
     buf.seek(0)
 
     # Filename: <product>-<session-id-short>-<YYYYMMDD>.zip

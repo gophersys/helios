@@ -40,12 +40,15 @@ log = Logger(log_name="device_personalizer")
 # TLS verification — enabled by default, can be disabled for local dev with self-signed certs
 _TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
-# ICCID carrier prefix mapping (from manufacturing step_9)
+# ICCID carrier prefix mapping (from manufacturing step_9).
+# Keep in sync with corekinect/utils/device/identifiers.py.
 CARRIER_PREFIXES = {
     "891480": "Verizon",
     "8942310": "Soracom",
     "894573": "Onomondo",
     "890103": "Att",
+    # Sysmocom (sysmocom GmbH, Germany IIN 894944) — Sigma5 SIM 1.
+    "894944": "Sysmocom",
 }
 
 # UART targets for Alpha B0
