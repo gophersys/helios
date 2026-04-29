@@ -133,19 +133,26 @@ def _timeout_seconds(node: ast.Call) -> Optional[float]:
 
 
 def _is_step_record_call(node: ast.expr) -> bool:
-    """True iff ``node`` is ``<anything>.record(...)`` on a step-like name.
+    """True iff ``node`` records a measurement onto a step.
 
-    Matches ``step.record(...)`` and similar — we accept any receiver
-    because tests often bind the step to various names via
-    ``with report.step(...) as step:`` / ``as s:`` / ``as power_step:``.
-    The call is the signal; we don't need to reason about the binding.
+    Matches:
+      * ``<anything>.record(...)`` — direct method call. We accept any
+        receiver because tests bind the step to various names via
+        ``with report.step(...) as step:`` / ``as s:`` / ``as power_step:``.
+      * ``assert_and_record(step, ...)`` and any other ``assert_*`` helper
+        from ``corekinect.test.assertions`` — these wrap a predicate AND
+        record on the step in one call. Treating them as both an assertion
+        and a record is the whole point of the helper; the validator has
+        to mirror that or every canonical mfg test trips empty-step.
     """
     if not isinstance(node, ast.Call):
         return False
     func = node.func
-    if not isinstance(func, ast.Attribute):
-        return False
-    return func.attr == "record"
+    if isinstance(func, ast.Attribute) and func.attr == "record":
+        return True
+    if isinstance(func, ast.Name) and func.id.startswith("assert_"):
+        return True
+    return False
 
 
 def _with_opens_step(node: ast.With) -> bool:

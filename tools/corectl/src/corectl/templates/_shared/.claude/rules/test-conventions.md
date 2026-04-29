@@ -54,9 +54,9 @@ The `corectl test validate` test-depth checker (`test_depth.py`) catches this at
 
 Stage markers live in `pytest.ini` under `markers = [...]`. Add new markers there before using them on a test, otherwise pytest emits "PytestUnknownMarkWarning". The autoconf plugin also auto-registers any marker referenced by a stage in `concord.yaml stages.<stage>.markers`, so manifest-declared markers don't need a duplicate `pytest.ini` entry.
 
-## Stage layout: one directory per stage
+## Validation layout: one directory per stage
 
-The scaffold ships every stage as its own directory under `tests/`:
+Validation apps ship each stage as its own directory under `tests/`:
 
 ```
 tests/
@@ -67,7 +67,7 @@ tests/
 └── ...
 ```
 
-Each stage's `concord.yaml` entry points at its own directory:
+Each validation stage's `concord.yaml` entry points at its own directory:
 
 ```yaml
 stages:
@@ -76,7 +76,58 @@ stages:
     timeout_s: 300
 ```
 
-**Manufacturing stages follow the same pattern.** The legacy "shared `tests/manufacturing/` directory + `module:` per stage" layout still works (the schema accepts it), but new test apps should use one directory per stage for consistency with validation. If you scaffold a new mfg stage with `/add-stage`, it lands at `tests/<stage>/`.
+## Manufacturing layout: one shared `tests/manufacturing/` dir, one file per step
+
+Manufacturing apps run as a SINGLE physical stage on the platform (`stage=manufacturing`). The runner hardcodes the test directory to `tests/manufacturing/` based on the stage name — that path is not configurable.
+
+What varies between manufacturing apps is the *steps* inside that directory. Each step is one `test_NN_<step>.py` file with multiple `test_*` functions that execute in alphabetical order:
+
+```
+tests/
+└── manufacturing/
+    ├── __init__.py
+    ├── conftest.py            # optional, scoped to manufacturing tests
+    ├── test_01_electrical.py  # rail checks, UVP, charger
+    ├── test_02_fw_flash.py    # flash app + comms processors via J-Link
+    └── test_03_post.py        # chip IDs, sensors, BLE, personalize, AP-protect
+```
+
+Each test function inside a step file carries the matching marker and timeout:
+
+```python
+@pytest.mark.electrical
+@pytest.mark.timeout(30)
+def test_01_uvlo(slot, report):
+    ...
+
+@pytest.mark.electrical
+@pytest.mark.timeout(30)
+def test_02_nominal(slot, report):
+    ...
+```
+
+The `concord.yaml` `stages` block is logical — every manufacturing stage entry points at the same physical directory but uses `module:` to identify the step file the platform tracks for UI grouping and per-step timeouts:
+
+```yaml
+stages:
+  electrical:
+    directory: tests/manufacturing
+    module: test_01_electrical
+    timeout_s: 120
+    hardware: [mtib, fixture]
+  fw_flash:
+    directory: tests/manufacturing
+    module: test_02_fw_flash
+    timeout_s: 300
+    hardware: [mtib, fixture, jlink]
+  post:
+    directory: tests/manufacturing
+    module: test_03_post
+    timeout_s: 900
+    hardware: [mtib, fixture, jlink]
+```
+
+Do NOT split manufacturing into per-step directories (`tests/electrical/`, `tests/fw_flash/`, etc). The runner won't find them — it ignores per-step `directory:` overrides for manufacturing and always runs `tests/manufacturing/`.
 
 ## Reading data — `assert_and_record`
 
