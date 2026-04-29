@@ -119,8 +119,11 @@ networkPolicies:
 
 resourceQuotas:
   enabled: true
-  cpu: "16"
-  memory: "20Gi"
+  # Sized for fixture-fleet growth. Each MTIB pod has limits.cpu=2 by
+  # default, so the namespace can host ~12 MTIBs alongside the platform
+  # baseline. Bump when Used/Hard exceeds 70%.
+  cpu: "32"
+  memory: "40Gi"
 
 backups:
   postgres:
