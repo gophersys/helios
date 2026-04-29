@@ -14,4 +14,4 @@ Authentication:
     corectl auth status         Show current auth status
 """
 
-__version__ = "0.9.1"
+__version__ = "0.9.2"
