@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "corekinect"
@@ -26,9 +26,22 @@ dependencies = [
 vault = ["hvac>=2.0"]
 pandas = ["pandas>=2.0"]
 
-[tool.setuptools.dynamic]
-version = {attr = "corekinect.__version__"}
+[tool.hatch.version]
+path = "corekinect/__init__.py"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["corekinect*", "protocols*", "mtib*"]
+# Hatch's default wheel target picks up Python packages auto-detected
+# from the source root. Spell out which ones to ship — corekinect (the
+# main package) and the proto stubs that consumers of corekinect need.
+[tool.hatch.build.targets.wheel]
+packages = ["corekinect"]
+
+# Pull libs/protocols/ (which lives outside this pyproject's directory
+# tree) into the wheel so a fresh `pip install corekinect` ships the
+# proto stubs alongside the framework. Without this, every host install
+# fails the `from protocols.mtib.mtib_pb2 import ...` import that
+# corekinect's own modules do, surfacing as a permanent yellow ImportError
+# warning during `corectl test validate`. force-include is a hatch
+# affordance that copies external paths into the built wheel; the proto
+# .proto source stays put for the firmware / mtib-server consumers.
+[tool.hatch.build.targets.wheel.force-include]
+"../protocols" = "protocols"

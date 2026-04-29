@@ -1599,6 +1599,7 @@ model TestPackageStage {
   module     String? /// "tests.manufacturing.test_electrical" (manufacturing steps)
   timeoutS   Int? /// Maximum execution time in seconds
   markers    String[] /// Pytest markers
+  hardware   String[] /// Hardware resources required (e.g., ["mtib", "fixture"])
 
   createdAt DateTime @default(now())
 

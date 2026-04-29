@@ -219,12 +219,58 @@ def _extract_test_count(file_data: bytes) -> Optional[int]:
         return None
 
 
-def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifest_version: str):
-    """Extract structured stage/step metadata from the concord.yaml inside the archive.
+# Framework artifacts the platform requires in every uploaded test package.
+# These ship with the corectl/corekinect wheel and are scaffolded by
+# `corectl test init`. Hand-drift is caught locally by `corectl test
+# validate`; this gate enforces the same contract server-side so packages
+# uploaded out-of-band (CI scripts, third-party tools) cannot bypass it.
+_REQUIRED_ARTIFACT_MARKERS = (
+    ".claude/.framework-version",
+    ".devcontainer/.framework-version",
+)
 
-    For validation packages, creates TestPackageStage records from 'stages'.
-    For manufacturing packages, creates TestPackageStage records from 'steps'.
-    Idempotent — deletes existing records before re-creating.
+
+def _check_framework_artifacts(file_data: bytes) -> Optional[str]:
+    """Return None if the tarball contains every required framework artifact
+    marker, otherwise an error message naming the missing ones.
+
+    Cheap up-front check — only inspects member names, doesn't extract.
+    Tarballs may root entries either at the top (``./.claude/...``) or
+    via a single wrapper directory (``app/.claude/...``); both shapes are
+    accepted as long as the relative tail matches.
+    """
+    try:
+        buf = BytesIO(file_data)
+        with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+            # ``str.lstrip(chars)`` removes any combination of the given
+            # characters from the left, NOT the literal prefix — using it
+            # here would mangle ``.claude/.framework-version`` into
+            # ``claude/.framework-version`` and break the marker check.
+            # ``removeprefix`` is the right tool.
+            names = {m.name.removeprefix("./") for m in tar.getmembers() if m.isfile()}
+    except Exception as exc:
+        return f"Could not read uploaded tarball: {exc}"
+
+    missing = []
+    for marker in _REQUIRED_ARTIFACT_MARKERS:
+        if not any(n == marker or n.endswith("/" + marker) for n in names):
+            missing.append(marker)
+    if missing:
+        return (
+            "Missing required framework artifacts: " + ", ".join(missing) + ". "
+            "Run `corectl test update --apply` then re-upload."
+        )
+    return None
+
+
+def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifest_version: str):
+    """Extract structured stage metadata from the concord.yaml inside the archive.
+
+    Both validation and manufacturing packages use the ``stages:`` dict.
+    Optional fields per stage: directory (required), module, timeout_s,
+    markers, hardware. Iteration order is the YAML insertion order, which
+    becomes the platform's stageIndex. Idempotent — deletes existing
+    records before re-creating.
     """
     try:
         buf = io.BytesIO(file_bytes)
@@ -246,7 +292,6 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
         # Delete existing stage records (idempotent for dev uploads)
         db.testpackagestage.delete_many(where={"testPackageId": test_package_id})
 
-        # Validation packages: stages dict
         for idx, (name, cfg) in enumerate(manifest_data.get("stages", {}).items()):
             if not isinstance(cfg, dict):
                 continue
@@ -255,20 +300,10 @@ def _extract_stage_metadata(db, test_package_id: str, file_bytes: bytes, manifes
                 "name": name,
                 "stageIndex": idx,
                 "directory": cfg.get("directory"),
+                "module": cfg.get("module"),
                 "timeoutS": cfg.get("timeout_s"),
                 "markers": cfg.get("markers", []),
-            })
-
-        # Manufacturing packages: steps list
-        for idx, step in enumerate(manifest_data.get("steps", [])):
-            if not isinstance(step, dict):
-                continue
-            db.testpackagestage.create(data={
-                "testPackageId": test_package_id,
-                "name": step["name"],
-                "stageIndex": idx,
-                "module": step.get("module"),
-                "timeoutS": step.get("timeout_s"),
+                "hardware": cfg.get("hardware", []),
             })
 
         logger.info("Extracted stage metadata for package %s (manifest %s)", test_package_id, manifest_version)
@@ -286,6 +321,7 @@ def _serialize_package_stage(s) -> dict:
         "module": s.module,
         "timeoutS": s.timeoutS,
         "markers": s.markers if s.markers else [],
+        "hardware": s.hardware if getattr(s, "hardware", None) else [],
     }
 
 
@@ -435,6 +471,13 @@ def _upload_test_package_impl(product_id: str):
     size_bytes = len(file_data)
     manifest_hash = hashlib.sha256(manifest_raw.encode()).hexdigest()
 
+    # Hard gate: every uploaded package MUST carry the framework artifact
+    # markers. Drift / customization / older-corectl uploads all fail
+    # here. See _REQUIRED_ARTIFACT_MARKERS for the list.
+    artifact_error = _check_framework_artifacts(file_data)
+    if artifact_error:
+        return bad_request(artifact_error)
+
     # ── Two-phase commit ──
     #
     # Phase 1: cheap duplicate check + create a placeholder row with
@@ -526,9 +569,21 @@ def _upload_test_package_impl(product_id: str):
         "status": status,
         "sizeBytes": size_bytes,
     })
+    # testCount comes from counting test_*.py files in the tarball — the
+    # manifest is not authoritative because authors don't keep it in sync.
+    # If extraction returns 0, the package legitimately has no test files
+    # and the UI should show that honestly. Log when this happens so it's
+    # not silent.
     extracted_count = _extract_test_count(file_data)
-    if extracted_count:
-        db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
+    db.testpackage.update(
+        where={"id": tp.id},
+        data={"testCount": extracted_count or 0},
+    )
+    if not extracted_count:
+        logger.warning(
+            "Test package %s has 0 test files in archive — testCount left at 0.",
+            tp.id,
+        )
     _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
     _extract_stage_metadata(db, tp.id, file_data, manifest_version)
     # Re-fetch with includes for serialization

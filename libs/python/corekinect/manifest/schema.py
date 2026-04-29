@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
+from importlib import resources
 from typing import List, Optional
 
 try:
@@ -12,8 +12,6 @@ try:
     _HAS_JSONSCHEMA = True
 except ImportError:
     _HAS_JSONSCHEMA = False
-
-SCHEMAS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "concord-manifest"
 
 CURRENT_SCHEMA = "1.0"
 MINIMUM_SCHEMA = "1.0"
@@ -100,12 +98,17 @@ class ValidationResult:
 
 
 def _load_json_schema(version: str) -> dict:
-    """Load the JSON Schema file for a given version."""
-    schema_path = SCHEMAS_DIR / f"v{version}.schema.json"
-    if not schema_path.exists():
-        raise FileNotFoundError(f"Schema file not found: {schema_path}")
-    with open(schema_path) as f:
-        return json.load(f)
+    """Load the JSON Schema file for a given version.
+
+    Reads from package data (``corekinect/manifest/schemas/``) so the schema
+    travels with the wheel and works identically in source checkouts and
+    installed environments.
+    """
+    schema_files = resources.files("corekinect.manifest").joinpath("schemas")
+    schema_path = schema_files.joinpath(f"v{version}.schema.json")
+    if not schema_path.is_file():
+        raise FileNotFoundError(f"Schema not found in package data: v{version}.schema.json")
+    return json.loads(schema_path.read_text(encoding="utf-8"))
 
 
 def validate_manifest(data: dict, schema_version: Optional[str] = None) -> ValidationResult:

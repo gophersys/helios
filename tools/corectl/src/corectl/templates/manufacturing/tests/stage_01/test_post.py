@@ -1,9 +1,9 @@
 """Manufacturing demo #3 — POST (power-on self-test).
 
-The ``booted_device`` fixture is provided by the framework once flashing
-has completed in this slot — consuming it here means this test will be
-skipped automatically on any slot where the flash step didn't succeed.
-That's the right default: there's nothing to POST on a brick.
+Runs after the firmware has been flashed in an earlier stage. The
+``slot`` fixture is the canonical accessor for the DUT — use
+``slot.uart``, ``slot.fixture``, etc. to talk to the just-flashed
+device.
 """
 
 import pytest
@@ -13,12 +13,13 @@ from corekinect.test.assertions import assert_and_record
 
 @pytest.mark.mfg_stage("stage_01")
 @pytest.mark.timeout(60)
-def test_post_identity(booted_device, report):
+def test_post_identity(slot, report):
     """Replace me — read an identity string from the just-flashed device."""
     with report.step("read IMEI") as step:
         # >>> INSERT YOUR CODE HERE
         #
-        #   imei = booted_device.shell("imei").strip()
+        #   slot.uart.send("comms", b"imei\n")
+        #   imei = slot.uart.expect("comms", b"\r\n", timeout_s=2).decode().strip()
         #   assert_and_record(step, "imei", imei, "str",
         #                     lambda v: len(v) == 15 and v.isdigit())
         # ------------------------------------------------------------------
