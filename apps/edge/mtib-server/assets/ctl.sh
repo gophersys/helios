@@ -79,8 +79,14 @@ generate_fluidnc_assets() {
     fi
 
     cd "fluidnc-v${FLUIDNC_VERSION}-posix"
+    # FluidNC's tools.sh references unset variables (e.g. BuildType) that trip
+    # our outer `set -u`. Default the known offender and disable nounset for
+    # the duration of the source so the whole pipeline doesn't abort.
+    export BuildType="${BuildType:-Release}"
+    set +u
     source ./tools.sh
     esptool_basic elf2image ../noradio-firmware.elf
+    set -u
     cd ..
 
     mkdir -p "fluidNc"
