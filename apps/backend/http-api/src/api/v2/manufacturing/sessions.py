@@ -1646,7 +1646,19 @@ def get_session_report(session_id: str):
             m = s.measurements or {}
             if isinstance(m, dict):
                 di = (m.get("device_id") or {}).get("value")
-                pk = (m.get("public_key") or {}).get("value")
+                # The test app's test_14_personalize records the EC public
+                # key under several names depending on the test package
+                # version: legacy `public_key` (older alpha-style apps),
+                # `public_key_base64` (current sigma5 — the canonical full
+                # base64 string), or `public_key_prefix` (truncated dev
+                # marker — not useful for the report). Prefer the full
+                # base64 value, fall back to the legacy name. Without
+                # this, every unit ends up in 1_failed_snrs.csv with
+                # "missing pub_key_b64" even after a clean run.
+                pk = (
+                    (m.get("public_key_base64") or {}).get("value")
+                    or (m.get("public_key") or {}).get("value")
+                )
                 uploaded = (m.get("info_uploaded") or {}).get("value")
                 if di and not device_id:
                     device_id = di
