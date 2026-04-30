@@ -335,11 +335,25 @@ class FirmwareHandler:
                 ("NRF91", ["-f", "NRF91"], HostType.HOST_TYPE_NRF9151, ["NRF9151", "NRF9120", "NRF9160"]),
                 ("NRF53", ["-f", "NRF53"], HostType.HOST_TYPE_NRF5340, ["NRF5340"]),
             ]
+            # nrfjprog's wording for AP-protect varies across versions/devices:
+            # nRF52 typically prints "ACCESS PROTECTION IS ENABLED", nRF91 prints
+            # "READBACK PROTECTION", and some firmwares print "USE --RECOVER".
+            # Match any of those signals.
+            def _is_locked(err_text: str) -> bool:
+                e = err_text.upper()
+                return (
+                    ("ACCESS" in e and "PROTECT" in e)
+                    or ("READBACK" in e and "PROTECT" in e)
+                    or "USE --RECOVER" in e
+                    or "MUST BE RECOVERED" in e
+                )
+
             for serial in serials:
                 if serial in self.programmers:
                     existing_type, _ = self.programmers[serial]
                     if existing_type is not None:
                         continue
+                identified = False
                 for family_name, family_flag, host_type, markers in family_attempts:
                     try:
                         result = subprocess.check_output(
@@ -350,15 +364,53 @@ class FirmwareHandler:
                         if any(m in result for m in markers):
                             self.programmers[serial] = (host_type, True)
                             self.logger.info(f"J-Link {serial} → {family_name} (direct)")
+                            identified = True
                             break
                     except subprocess.CalledProcessError as e:
-                        err = (e.output or b"").decode().upper()
-                        if "ACCESS" in err and "PROTECT" in err:
+                        err = (e.output or b"").decode()
+                        if _is_locked(err):
                             self.programmers[serial] = (host_type, True)
                             self.logger.info(f"J-Link {serial} → {family_name} (APPROTECT)")
+                            identified = True
                             break
                     except Exception:
                         continue
+
+                # Probe didn't talk via --deviceversion under any family — most
+                # likely an AP-protected chip whose error wording wasn't caught
+                # above. Try --recover with each family in order; whichever
+                # family's recover sequence succeeds is the chip's family, and
+                # the chip is now unlocked. Same operation the flash step would
+                # run anyway, so safe to do here.
+                if not identified:
+                    self.logger.info(
+                        f"J-Link {serial}: no family matched via --deviceversion — "
+                        f"attempting --recover to identify family"
+                    )
+                    for family_name, family_flag, host_type, _markers in family_attempts:
+                        try:
+                            subprocess.run(
+                                ["nrfjprog", "--snr", serial, "--recover",
+                                 "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag,
+                                capture_output=True, check=True, timeout=60,
+                            )
+                            self.programmers[serial] = (host_type, True)
+                            self.logger.info(
+                                f"J-Link {serial} → {family_name} (identified via --recover)"
+                            )
+                            identified = True
+                            break
+                        except subprocess.CalledProcessError:
+                            continue
+                        except subprocess.TimeoutExpired:
+                            self.logger.warning(
+                                f"J-Link {serial}: --recover -f {family_name} timed out"
+                            )
+                            continue
+                    if not identified:
+                        self.logger.warning(
+                            f"J-Link {serial}: could not identify family via --recover either"
+                        )
 
     def _try_detect_device(self, serial: str) -> bool:
         """Try to detect device type for a J-Link serial number. Returns True if successful."""
