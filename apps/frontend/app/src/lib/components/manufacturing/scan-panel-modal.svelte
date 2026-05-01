@@ -27,6 +27,7 @@
     hasStandaloneSlot = false,
     runType = 'panel',
     fixtureSlots = [],
+    snrLength = null,
     onClose,
     onStarted,
   }: {
@@ -37,6 +38,8 @@
     hasStandaloneSlot?: boolean;
     runType?: 'panel' | 'standalone';
     fixtureSlots?: FixtureSlotInfo[];
+    /** Expected SNR length from BoardRevision config. Null = no length enforcement. */
+    snrLength?: number | null;
     onClose?: () => void;
     onStarted?: (runId: string) => void;
   } = $props();
@@ -55,9 +58,16 @@
   let coreopsAvailable = $state(false);
 
   const isStandalone = $derived(runType === 'standalone');
-  const canResolve = $derived(!resolving && snrInput.trim().length > 0 && !resolved);
-  const canStart = $derived(!starting && resolved);
+  const trimmedSnr = $derived(snrInput.trim());
+  const snrLengthOk = $derived(snrLength == null || trimmedSnr.length === snrLength);
+  const canResolve = $derived(!resolving && trimmedSnr.length > 0 && snrLengthOk && !resolved);
   const hasCoreopsErrors = $derived(resolvedSlots.some(s => s.coreopsError));
+  // Block "Start Run" when CoreOps is reachable but rejected one or more SNRs.
+  // Without this guard, the panel run starts against bogus device IDs and the
+  // operator only finds out after tests fail. When CoreOps is unavailable,
+  // operators can still proceed (offline mode).
+  const blockedByCoreops = $derived(coreopsAvailable && hasCoreopsErrors);
+  const canStart = $derived(!starting && resolved && !blockedByCoreops);
 
   const title = $derived(isStandalone ? 'Scan Standalone' : 'Scan Panel');
 
@@ -227,6 +237,16 @@
         <button onclick={handleRescan} class="btn btn-sm btn-ghost text-accent">
           Scan different panel
         </button>
+      {:else if snrLength != null}
+        <p
+          class="text-2xs {snrLengthOk || trimmedSnr.length === 0 ? 'text-text-tertiary' : 'text-warning'}"
+          data-testid="snr-length-hint"
+        >
+          {trimmedSnr.length} / {snrLength} characters
+          {#if !snrLengthOk && trimmedSnr.length > 0}
+            &middot; expected {snrLength}
+          {/if}
+        </p>
       {/if}
     </div>
 
@@ -302,7 +322,12 @@
         </div>
 
         <!-- CoreOps warning -->
-        {#if hasCoreopsErrors}
+        {#if blockedByCoreops}
+          <p class="mt-3 text-2xs text-error flex items-center gap-1" data-testid="coreops-blocked-msg">
+            <AlertTriangle size={12} />
+            CoreOps rejected one or more SNRs. Fix the affected panel before starting the run.
+          </p>
+        {:else if hasCoreopsErrors}
           <p class="mt-3 text-2xs text-warning flex items-center gap-1">
             <AlertTriangle size={12} />
             Some device IDs could not be resolved. Run will continue without them.

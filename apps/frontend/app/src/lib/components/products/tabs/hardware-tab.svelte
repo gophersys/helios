@@ -429,6 +429,9 @@
           <div class="flex flex-wrap items-center gap-3 text-2xs text-text-secondary">
             <span>DeviceType <span class="font-mono text-text-primary">{rev.deviceType ?? '—'}</span></span>
             <span>Variant <span class="font-mono text-text-primary">{rev.deviceVariant ?? '—'}</span></span>
+            {#if rev.snrLength != null}
+              <span>SNR length <span class="font-mono text-text-primary">{rev.snrLength}</span></span>
+            {/if}
             {#if rev.modemFirmwares?.length}
               <span class="flex items-center gap-1">
                 <Radio size={10} class="text-text-tertiary" />

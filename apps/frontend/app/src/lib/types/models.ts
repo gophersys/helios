@@ -80,6 +80,8 @@ export interface BoardRevision {
   deviceVariant: number | null;
   modemVersion: string | null;
   hasModemFirmware: boolean;
+  /** Expected serial number length for this revision. Null = no enforcement at scan time. */
+  snrLength: number | null;
   status: string;
   notes: string | null;
   targets?: ProductTarget[];

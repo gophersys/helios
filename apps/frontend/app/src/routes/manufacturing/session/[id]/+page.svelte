@@ -68,6 +68,10 @@
   const hasStandaloneSlot = $derived(
     !!(session?.fixture?.metadata as Record<string, unknown> | null)?.hasStandaloneSlot
   );
+  // Per-board-revision SNR length config. Null = no enforcement.
+  const snrLength = $derived<number | null>(
+    (session?.fixture as any)?.boardRevision?.snrLength ?? null
+  );
   // Fixture slot info from session snapshot (MTIB node names for the scan modal)
   const fixtureSlots = $derived.by(() => {
     const snapshot = (session?.config as Record<string, any>)?.fixtureSnapshot;
@@ -866,6 +870,7 @@
   {panelCols}
   {hasStandaloneSlot}
   {fixtureSlots}
+  {snrLength}
   runType={scanRunType}
   onClose={() => { scanModalOpen = false; }}
   onStarted={handleRunStarted}
