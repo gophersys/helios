@@ -19,6 +19,8 @@
     disconnectRunSocket,
   } from '$lib/services/websocket';
   import { formatTimeAgo, formatDuration } from '$lib/utils/formatting';
+  import { effectiveRunStatus, isRunInFlight } from '$lib/utils/run-status';
+  import { createPollingInterval } from '$lib/hooks/use-polling.svelte';
   import { reportValidationError } from '$lib/stores/error-reporter.svelte';
   import { actionable } from '$lib/actions/actionable';
   import type { ManufacturingSession, TestRun, RunTarget, TestExecution } from '$lib/types/models';
@@ -83,14 +85,17 @@
   // ── Session-level computed values ──────────────────────────
   const allRuns = $derived(session?.runs || []);
 
-  // A run that's either executing or waiting to execute
-  const activeRun = $derived(
-    allRuns.find((r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING')
-  );
+  // A run that's either executing or waiting to execute. ``isRunInFlight``
+  // collapses the WS race where a target reports ``RUNNING`` before the
+  // run itself flips from ``PENDING`` to ``ACTIVE`` — both the panel widget
+  // and the run history row pick the same record this way.
+  const activeRun = $derived(allRuns.find(isRunInFlight));
 
-  // Only truly executing (blocks end session)
+  // Only truly executing (blocks end session). Using the effective status
+  // means a ``PENDING`` run with at least one ``RUNNING`` target also gates
+  // session end, matching what the operator sees in the widget.
   const runningRun = $derived(
-    allRuns.find((r: TestRun) => r.status === 'ACTIVE')
+    allRuns.find((r: TestRun) => effectiveRunStatus(r) === 'ACTIVE')
   );
 
   const latestRun = $derived(
@@ -161,6 +166,70 @@
     if (deployTimeoutTimer) { clearTimeout(deployTimeoutTimer); deployTimeoutTimer = null; }
     if (deployElapsedTimer) { clearInterval(deployElapsedTimer); deployElapsedTimer = null; }
   }
+
+  // ── Active-run fast poll (2s) ──────────────────────────────
+  // Belt-and-braces companion to the WS run subscription. The /runs WS
+  // emits per-execution events but a flaky network or a missed
+  // ``run_target_start`` would otherwise leave the panel widget frozen
+  // until ``run_finish`` arrives. Polling the *single* active run keeps
+  // the operator's UI responsive without fanning out to N+1 requests —
+  // we only ever fetch one run at a time, and only while a run is
+  // in flight. When the run reaches a terminal state we refresh the
+  // session once and stop polling.
+  const ACTIVE_RUN_POLL_MS = 2000;
+  let activeRunPoller: { start: () => void; stop: () => void } | null = null;
+  let activeRunPollId: string | null = null;
+
+  async function pollActiveRunOnce(runId: string) {
+    try {
+      const res = await apiFetch<ApiResponse<TestRun>>(`/v2/runs/${runId}`);
+      const fresh = res.data;
+      if (!session?.runs) return;
+      const idx = session.runs.findIndex(r => r.id === runId);
+      if (idx < 0) return;
+
+      // Splice the fresh run snapshot in. Use a targeted assignment so
+      // unrelated session fields (operator, fixture snapshot, etc.) stay
+      // untouched and Svelte's reactivity fires.
+      const next = [...session.runs];
+      next[idx] = { ...next[idx], ...fresh };
+      session = { ...session, runs: next };
+
+      // If the run has reached a terminal state, refresh the full
+      // session payload once and stop polling.
+      if (!isRunInFlight(fresh)) {
+        stopActiveRunPoll();
+        setTimeout(fetchSession, 500);
+      }
+    } catch {
+      // Network blip — keep polling, the next tick will retry.
+    }
+  }
+
+  function startActiveRunPoll(runId: string) {
+    if (activeRunPollId === runId && activeRunPoller) return;
+    stopActiveRunPoll();
+    activeRunPollId = runId;
+    activeRunPoller = createPollingInterval(
+      () => pollActiveRunOnce(runId),
+      ACTIVE_RUN_POLL_MS,
+    );
+    activeRunPoller.start();
+  }
+
+  function stopActiveRunPoll() {
+    if (activeRunPoller) { activeRunPoller.stop(); activeRunPoller = null; }
+    activeRunPollId = null;
+  }
+
+  // Start/stop poll based on whether there's an in-flight run.
+  $effect(() => {
+    if (activeRun?.id && session?.status === 'ACTIVE') {
+      startActiveRunPoll(activeRun.id);
+    } else {
+      stopActiveRunPoll();
+    }
+  });
 
   // Start/stop watcher based on deployment state
   $effect(() => {
@@ -245,9 +314,7 @@
   async function handleRunStarted(runId: string) {
     scanModalOpen = false;
     await fetchSession();
-    const newRun = allRuns.find(
-      (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
-    );
+    const newRun = allRuns.find(isRunInFlight);
     if (newRun) {
       subscribeToRun(newRun.id);
     }
@@ -485,9 +552,7 @@
 
   function setupWebSocket() {
     if (!session?.runs) return;
-    const run = session.runs.find(
-      (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
-    );
+    const run = session.runs.find(isRunInFlight);
     if (run) {
       subscribeToRun(run.id);
     }
@@ -599,6 +664,7 @@
 
   onDestroy(() => {
     stopDeploymentWatcher();
+    stopActiveRunPoll();
     if (unsubscribeRun) unsubscribeRun();
     if (unsubscribeRunnerStatus) unsubscribeRunnerStatus();
     closeSlotDetail();
@@ -839,7 +905,10 @@
                         {#if run.status === 'COMPLETED' && !run.failedCount}
                           <span class="badge badge-success">PASSED</span>
                         {:else}
-                          <StatusBadge status={run.status} />
+                          <!-- Show the same effective status the panel widget
+                               above uses, so a row never reads "Pending"
+                               while the widget shows targets running. -->
+                          <StatusBadge status={effectiveRunStatus(run)} />
                         {/if}
                       </td>
                     </tr>
