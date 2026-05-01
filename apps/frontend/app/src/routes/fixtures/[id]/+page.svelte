@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import {
@@ -9,6 +9,7 @@
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
+  import { createPollingInterval } from '$lib/hooks/use-polling.svelte';
   import { PageHeader, ErrorAlert, LoadingState, EmptyState } from '$lib/components/ui';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Tabs from '$lib/components/ui/tabs.svelte';
@@ -269,15 +270,33 @@
     if (activeTab === 'history' && auditEntries.length === 0 && !auditLoading) fetchAuditHistory();
   });
 
+  // ── Auto-refresh ────────────────────────────────────────────
+  // No node-health WS channel exists today (observability_ws.py only
+  // streams per-node power/GPIO/ADC samples, not slot.mtibStatus
+  // transitions). A 5s poll on GET /v2/fixtures/{id} keeps the slot
+  // tile colours, the assignability banner, and the readyCount stat
+  // in sync without sustaining an extra socket per fixture page. The
+  // poll silently no-ops when the tab is backgrounded.
+  const REFRESH_INTERVAL_MS = 5000;
+  const refreshPoller = createPollingInterval(
+    () => { void fetchFixture(); },
+    REFRESH_INTERVAL_MS,
+  );
+
   onMount(() => {
     if (!auth.hasPermission('fixtures:view')) { goto('/'); return; }
     fetchFixture().then(() => {
       if (canManage) fetchAvailableNodes();
+      refreshPoller.start();
     });
     // Sessions populate the headline stat card. Lazy-loading them on tab
     // switch leaves the card stuck at "—" even when the fixture has been
     // used many times — fetch upfront so the number lands with the page.
     fetchSessions();
+  });
+
+  onDestroy(() => {
+    refreshPoller.stop();
   });
 
   function formatDate(iso: string): string {
