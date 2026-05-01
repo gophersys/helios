@@ -57,6 +57,57 @@ from. ALWAYS pair a corekinect bump with a platform deploy.
 Phases 9 and 10 each bundle the steps: **deploy → publish wheels → create
 record**. Never treat the deploy as "the last step."
 
+## Hard gate: clean tree required (Phases 1, 9, 10)
+
+Releases and deploys MUST run from a clean working tree. Before:
+- Phase 1 (starting the release)
+- Phase 9 (`nx update platform -c staging`)
+- Phase 10 (`nx update platform -c production`)
+
+run this check:
+
+```bash
+DIRTY=$(git -C /home/mateo/work/concord/concord status --porcelain)
+if [ -n "$DIRTY" ]; then
+  echo "Working tree is dirty — release/deploy refused. Offending entries:"
+  echo "$DIRTY"
+  exit 1
+fi
+```
+
+If the gate fails, **STOP**. Do NOT:
+- `git stash` (silently hides work)
+- `git checkout .` or `git restore .` (destroys uncommitted changes)
+- `git clean -fd` (deletes untracked files — could be in-progress work)
+- auto-add and commit "WIP" (poisons history)
+- proceed anyway "because it's just untracked"
+
+The user MUST resolve the dirty state themselves. Their options:
+- commit the changes to a feature branch (e.g.
+  `feature/mega-cleanup-that-may-never-happen` is the holding pen for
+  long-lived "park this for later" work)
+- stash with `git stash -u` themselves and reapply after the release
+- delete files they confirm are trash
+- add a `.gitignore` rule if a file should never be tracked
+
+This rule applies even if the user says "just go" or "ignore the dirty
+files" — refuse and quote this gate. The reasons:
+
+1. **Reproducibility.** A deploy from a dirty tree means the running
+   image's source state is impossible to reconstruct from the tag.
+2. **`.git-build-info` lies.** The submodule fallback for `commit` and
+   `branch` doesn't capture uncommitted local edits — pods come up
+   reporting a commit SHA that doesn't match what they're actually
+   running.
+3. **Build cache poisoning.** Some Dockerfile layers `COPY .` and pick up
+   stray files (like an editor swap file or a `.git-build-info` written by
+   a previous run); those bake into the image silently.
+4. **Untracked artifacts get pushed by accident.** If a later step does a
+   `git add -A` the dirty entries get swept into the release commit.
+
+If you're tempted to bypass: don't. This gate exists because every prior
+"just this once" turned into the next debugging session.
+
 ## Versioning model — lockstep major.minor
 
 Platform, corectl, and corekinect share the same `major.minor` version. Patch
@@ -196,7 +247,20 @@ Chain it before the devcontainer exec with `&&`.
 ## Phase 1 — Pre-flight
 
 0. **Record start time:** `RELEASE_START=$(date +%s%3N)` — used for `releaseDurationMs`
-1. Confirm we are on `main` branch and it is clean
+1. Confirm we are on `main` branch and **the working tree is clean** — see
+   "Hard gate: clean tree required" below. If `git status --porcelain` returns
+   anything (modified, staged, untracked, ignored-but-tracked), **STOP**. Do
+   not stash, do not auto-commit, do not `git clean`, do not start the
+   release. Print the dirty entries and ask the user to handle them. The
+   user's options are typically:
+   - commit the changes to a feature branch
+   - stash them with `git stash -u` themselves
+   - delete the files themselves if they're trash
+   - add a `.gitignore` rule if the file should never be tracked
+
+   This rule applies even if the user says "just go" — refuse and quote this
+   gate. The reason is below.
+
 2. Read current `VERSION` file
 3. Find the latest git tag (`git describe --tags --abbrev=0`)
 4. If the user supplied an explicit version in `$ARGUMENTS`, use that.
@@ -450,6 +514,18 @@ are complete.** Skipping wheel publishing leaves the new backend without a
 matching corectl/corekinect on pypi — clients can't talk to it. Skipping the
 record is a silent data-loss bug.
 
+### 9.0 — Re-run the clean-tree gate
+
+```bash
+DIRTY=$(git -C /home/mateo/work/concord/concord status --porcelain)
+if [ -n "$DIRTY" ]; then echo "DIRTY — STOP"; echo "$DIRTY"; exit 1; fi
+```
+
+Even if Phase 1 was clean, files may have appeared between then and now
+(test artifacts, editor temp files, in-progress edits during a long
+release). Refuse the deploy if dirty — see "Hard gate: clean tree
+required" near the top of this file.
+
 ### 9.1 — Refresh .git-build-info and deploy staging
 
 ```bash
@@ -512,6 +588,16 @@ populated. Do not proceed to Phase 10 otherwise.
 
 Same three-step structure as Phase 9. Deploy, publish wheels, and record are
 one atomic group.
+
+### 10.0 — Re-run the clean-tree gate
+
+```bash
+DIRTY=$(git -C /home/mateo/work/concord/concord status --porcelain)
+if [ -n "$DIRTY" ]; then echo "DIRTY — STOP"; echo "$DIRTY"; exit 1; fi
+```
+
+Production deploys MUST run from a clean tree. Same enforcement as Phase
+9.0 — see "Hard gate: clean tree required" near the top.
 
 ### 10.1 — Refresh .git-build-info and deploy production
 
