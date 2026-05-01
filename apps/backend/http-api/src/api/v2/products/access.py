@@ -18,7 +18,11 @@ from src.services.database.prisma import get_db_client
 logger = logging.getLogger(__name__)
 
 VALID_ACCESS_LEVELS = {"view", "operate", "develop", "admin"}
-BYPASS_ROLES = {"ADMIN", "MAINTAINER"}
+# Roles that bypass per-product access checks. Only the ADMIN role sees every
+# product implicitly — granting ProductAccess to an admin is harmless but
+# adds nothing. Maintainers, Developers and Operators all need an explicit
+# entry to see a product.
+BYPASS_ROLES = {"ADMIN"}
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)

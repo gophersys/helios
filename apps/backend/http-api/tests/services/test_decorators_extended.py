@@ -327,6 +327,49 @@ class TestRequireProductAccess:
         resp = client.get("/products/prod-1", headers=headers)
         assert resp.status_code == 200
 
+    def test_maintainer_requires_explicit_access(self, mock_db):
+        """Maintainer role no longer auto-bypasses product access checks.
+
+        Regression test for r5ayeu: prior behaviour silently granted every
+        Maintainer access to every product. The contract is now that only
+        ADMIN bypasses; everyone else needs an explicit ProductAccess entry.
+        """
+        from src.lib.decorators import require_product_access
+
+        app = _make_flask_app()
+        headers = _make_auth_headers(role="MAINTAINER")
+        mock_db.permissionset.find_unique.return_value = None
+        mock_db.productaccess.find_first.return_value = None
+
+        @app.route("/products/<product_id>")
+        @require_product_access("develop")
+        def handler(product_id):
+            return json.dumps({"ok": True}), 200
+
+        client = app.test_client()
+        resp = client.get("/products/prod-1", headers=headers)
+        assert resp.status_code == 403
+
+    def test_maintainer_with_explicit_access_passes(self, mock_db):
+        """Maintainer with an explicit ProductAccess entry passes the check."""
+        from src.lib.decorators import require_product_access
+
+        app = _make_flask_app()
+        headers = _make_auth_headers(role="MAINTAINER")
+        mock_db.permissionset.find_unique.return_value = None
+        mock_db.productaccess.find_first.return_value = make_obj(
+            userId="test-user-id", productId="prod-1", level="develop",
+        )
+
+        @app.route("/products/<product_id>")
+        @require_product_access("develop")
+        def handler(product_id):
+            return json.dumps({"ok": True}), 200
+
+        client = app.test_client()
+        resp = client.get("/products/prod-1", headers=headers)
+        assert resp.status_code == 200
+
     def test_developer_with_access(self, mock_db):
         """Developer with sufficient product access passes."""
         from src.lib.decorators import require_product_access
