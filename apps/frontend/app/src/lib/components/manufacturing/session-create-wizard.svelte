@@ -4,6 +4,8 @@
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type { Product, Fixture, AssetSet } from '$lib/types/models';
+  import { toasts } from '$lib/stores/toast.svelte';
+  import { makeWizardKeyHandler } from '$lib/utils/wizard-keys';
 
   interface Props {
     open: boolean;
@@ -147,14 +149,42 @@
 
       const res = await api.post('/v2/manufacturing/sessions', body);
       const session = (res as any).data;
+      toasts.success(`Session started on ${selectedFixture?.name ?? 'fixture'}`);
       onStarted(session.id);
       resetAndClose();
     } catch (e: any) {
       error = e?.data?.errors?.[0]?.message || (e instanceof Error ? e.message : 'Failed to start session');
+      toasts.error(error || 'Failed to start session');
     } finally {
       submitting = false;
     }
   }
+
+  // Enter advances steps where possible; on the final step it submits.
+  function handleEnterKey() {
+    if (!open) return;
+    if (step === 5) {
+      const startable =
+        !!selectedFixtureId &&
+        !!selectedFixture &&
+        selectedFixture.assignable === true &&
+        !submitting;
+      if (startable) handleStart();
+      return;
+    }
+    const canAdvance =
+      (step === 1 && !!selectedProductId) ||
+      (step === 2 && !!selectedFixtureId) ||
+      (step === 3 && !!selectedTestPackageId) ||
+      (step === 4 && !!selectedAssetSetId);
+    if (canAdvance) step++;
+  }
+
+  const handleWizardKey = makeWizardKeyHandler(() => ({
+    onEnter: handleEnterKey,
+    onEscape: () => { if (!submitting) resetAndClose(); },
+    disabled: !open,
+  }));
 
   function resetAndClose() {
     step = 1;
@@ -167,7 +197,9 @@
   }
 </script>
 
-<Modal {open} onclose={resetAndClose} size="full" title="" noPadding showCloseButton={false}>
+<svelte:window onkeydown={handleWizardKey} />
+
+<Modal {open} onclose={resetAndClose} size="full" title="" noPadding showCloseButton={false} closeOnEscape={false}>
   <div class="flex flex-col h-[90vh]">
     <!-- Header -->
     <div class="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">

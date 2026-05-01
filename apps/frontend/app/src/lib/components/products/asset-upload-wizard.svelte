@@ -5,6 +5,12 @@
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
   import { stageName } from '$lib/types/stages';
   import { canonicalFilename } from '$lib/utils/assets';
+  import { toasts } from '$lib/stores/toast.svelte';
+  import { makeWizardKeyHandler } from '$lib/utils/wizard-keys';
+  import CharCounter from '$lib/components/ui/char-counter.svelte';
+
+  const VERSION_MAX = 40;
+  const NOTES_MAX = 500;
 
   interface Revision {
     id: string;
@@ -287,8 +293,10 @@
       };
       uploadSuccess = true;
       currentStep = 'complete';
+      toasts.success(`Assets uploaded: v${uploadVersion.trim()}`);
     } catch (e) {
       uploadError = e instanceof Error ? e.message : 'Upload failed';
+      toasts.error(uploadError || 'Upload failed');
     } finally {
       uploading = false;
     }
@@ -371,8 +379,10 @@
       };
       uploadSuccess = true;
       currentStep = 'complete';
+      toasts.success(`Assets uploaded: v${uploadVersion.trim()}`);
     } catch (e) {
       uploadError = e instanceof Error ? e.message : 'Upload failed';
+      toasts.error(uploadError || 'Upload failed');
     } finally {
       uploading = false;
     }
@@ -424,22 +434,54 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !uploading && !validating && !analyzing) {
-      onCancel();
+  const busy = $derived(uploading || validating || analyzing);
+
+  // Enter triggers the primary action visible at the current step.
+  // Escape closes the wizard (or finishes if on the complete step).
+  function handleEnterKey() {
+    if (currentStep === 'complete') {
+      onComplete();
+      return;
+    }
+    if (busy) return;
+    if (currentStep === 'upload') {
+      if (uploadMode === 'zip') {
+        if (selectedZipFile && !validationResult) {
+          handleValidateZip();
+          return;
+        }
+        if (validationResult?.valid && uploadVersion.trim() && zipModemReady) {
+          handleZipUpload();
+        }
+        return;
+      }
+      // files mode
+      if (selectedFiles.length > 0 && analyzedFiles.length === 0) {
+        handleAnalyze();
+        return;
+      }
+      if (allLabelsAssigned && uploadVersion.trim() && filesModemReady) {
+        handleFilesUpload();
+      }
     }
   }
 
-  const busy = $derived(uploading || validating || analyzing);
+  const handleWizardKey = makeWizardKeyHandler(() => ({
+    onEnter: handleEnterKey,
+    onEscape: () => {
+      if (currentStep === 'complete') { onComplete(); return; }
+      if (!busy) onCancel();
+    },
+  }));
 </script>
+
+<svelte:window onkeydown={handleWizardKey} />
 
 <!-- Overlay -->
 <div
   class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
   onclick={() => { if (!busy) onCancel(); }}
-  onkeydown={handleKeydown}
   role="presentation"
-  tabindex="-1"
 ></div>
 
 <!-- Dialog -->
@@ -762,10 +804,12 @@
                 <input
                   id="files-version"
                   type="text"
+                  maxlength={VERSION_MAX}
                   bind:value={uploadVersion}
                   placeholder="e.g., 0.5.2"
-                  class="input w-full"
+                  class="input input-md"
                 />
+                <CharCounter value={uploadVersion} max={VERSION_MAX} />
               </div>
 
               <!-- Modem firmware selection -->
@@ -802,10 +846,12 @@
                 <textarea
                   id="files-notes"
                   bind:value={uploadNotes}
+                  maxlength={NOTES_MAX}
                   placeholder="Notes about this firmware..."
                   rows="2"
-                  class="input w-full resize-none"
+                  class="textarea resize-none"
                 ></textarea>
+                <CharCounter value={uploadNotes} max={NOTES_MAX} />
               </div>
 
               <!-- Upload button -->
@@ -955,10 +1001,12 @@
                   <input
                     id="zip-version"
                     type="text"
+                    maxlength={VERSION_MAX}
                     bind:value={uploadVersion}
                     placeholder="e.g., 0.5.2"
-                    class="input input-sm w-full"
+                    class="input input-sm"
                   />
+                  <CharCounter value={uploadVersion} max={VERSION_MAX} />
                 </div>
 
                 <!-- Notes -->
@@ -969,10 +1017,12 @@
                   <textarea
                     id="zip-notes"
                     bind:value={uploadNotes}
+                    maxlength={NOTES_MAX}
                     placeholder="Notes about this firmware..."
                     rows="2"
-                    class="input input-sm w-full resize-none"
+                    class="textarea resize-none"
                   ></textarea>
+                  <CharCounter value={uploadNotes} max={NOTES_MAX} />
                 </div>
 
                 <!-- Modem firmware selection -->
