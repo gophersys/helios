@@ -466,6 +466,7 @@ class BoardRevisionCreateRequest:
     socs: List[str]
     deviceType: Optional[int] = None
     deviceVariant: Optional[int] = None
+    snrLength: Optional[int] = None
     status: str = "ACTIVE"
     notes: Optional[str] = None
 
@@ -506,12 +507,20 @@ class BoardRevisionCreateRequest:
         if err:
             return None, err
 
+        snr_length = data.get("snrLength")
+        err = _validate_optional_int(snr_length, "snrLength")
+        if err:
+            return None, err
+        if snr_length is not None and snr_length <= 0:
+            return None, "snrLength must be a positive integer"
+
         return cls(
             version=version,
             ckBoardsName=ck_boards_name,
             socs=socs,
             deviceType=device_type,
             deviceVariant=device_variant,
+            snrLength=snr_length,
             status=status,
             notes=notes.strip() if notes else None,
         ), None
@@ -526,6 +535,7 @@ class BoardRevisionUpdateRequest:
     socs: Optional[List[str]] = None
     deviceType: Optional[int] = None
     deviceVariant: Optional[int] = None
+    snrLength: Optional[int] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     _has_notes: bool = False
@@ -533,6 +543,7 @@ class BoardRevisionUpdateRequest:
     _has_socs: bool = False
     _has_device_type: bool = False
     _has_device_variant: bool = False
+    _has_snr_length: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardRevisionUpdateRequest"], Optional[str]]:
@@ -573,6 +584,14 @@ class BoardRevisionUpdateRequest:
         if has_device_variant and device_variant is not None and not isinstance(device_variant, int):
             return None, "deviceVariant must be an integer"
 
+        snr_length = data.get("snrLength")
+        has_snr_length = "snrLength" in data
+        if has_snr_length and snr_length is not None:
+            if not isinstance(snr_length, int) or isinstance(snr_length, bool):
+                return None, "snrLength must be an integer"
+            if snr_length <= 0:
+                return None, "snrLength must be a positive integer"
+
         status = data.get("status")
         if status is not None:
             status = status.strip()
@@ -582,7 +601,8 @@ class BoardRevisionUpdateRequest:
         has_notes = "notes" in data
 
         if (version is None and status is None and not has_notes and not has_ck_boards_name
-                and not has_socs and not has_device_type and not has_device_variant):
+                and not has_socs and not has_device_type and not has_device_variant
+                and not has_snr_length):
             return None, "No fields to update"
 
         return cls(
@@ -591,6 +611,7 @@ class BoardRevisionUpdateRequest:
             socs=socs,
             deviceType=device_type,
             deviceVariant=device_variant,
+            snrLength=snr_length,
             status=status,
             notes=notes.strip() if notes else notes,
             _has_notes=has_notes,
@@ -598,6 +619,7 @@ class BoardRevisionUpdateRequest:
             _has_socs=has_socs,
             _has_device_type=has_device_type,
             _has_device_variant=has_device_variant,
+            _has_snr_length=has_snr_length,
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
@@ -617,6 +639,8 @@ class BoardRevisionUpdateRequest:
             update_data["deviceType"] = self.deviceType
         if self._has_device_variant:
             update_data["deviceVariant"] = self.deviceVariant
+        if self._has_snr_length:
+            update_data["snrLength"] = self.snrLength
         if self.status is not None:
             update_data["status"] = self.status
         if self._has_notes:

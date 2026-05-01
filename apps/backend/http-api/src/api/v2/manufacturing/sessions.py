@@ -261,6 +261,15 @@ def _serialize_session(s, include_runs=False) -> dict:
                 "panelRows": s.fixture.panelRows,
                 "panelCols": s.fixture.panelCols,
                 "metadata": s.fixture.metadata,
+                "boardRevision": (
+                    {
+                        "id": s.fixture.boardRevision.id,
+                        "version": s.fixture.boardRevision.version,
+                        "snrLength": getattr(s.fixture.boardRevision, "snrLength", None),
+                    }
+                    if hasattr(s.fixture, "boardRevision") and s.fixture.boardRevision
+                    else None
+                ),
             }
             if hasattr(s, "fixture") and s.fixture
             else None
@@ -1023,7 +1032,91 @@ def add_manufacturing_run(session_id: str):
         for entry in slot_snrs:
             snr_lookup[entry["slotIndex"]] = entry["snr"]
 
-    # Create the TestRun
+    # ── Resolve per-slot SNRs + device IDs UP FRONT ──────────────────────
+    # We validate every slot before creating the TestRun so a bad SNR (CoreOps
+    # rejects it, returns no deviceId, or returns nothing) blocks the run with
+    # a clear 400 instead of letting the run start against bogus data.
+    #
+    # "Bad SNR" definition (causes the run to be blocked when CoreOps is
+    # reachable):
+    #   1. CoreOps returns 4xx/5xx (raises HTTPError) — likely unknown SNR.
+    #   2. CoreOps returns no `deviceId` in the response payload — raises
+    #      ValueError from the client.
+    #   3. The resolved per-slot SNR is empty/None for any slot in a panel.
+    #
+    # When CoreOps is unreachable (no proxy configured), device-id assignment
+    # is skipped entirely and the run proceeds with whatever SNRs are present
+    # — operators can run offline. An empty SNR is still a hard fail.
+    coreops_client = _get_coreops_client()
+    fixture_meta = fixture.metadata if hasattr(fixture, "metadata") and isinstance(fixture.metadata, dict) else {}
+    position_map = _parse_position_map(fixture_meta.get("panelPositionMap"))
+
+    # Per-slot resolution: produce (snr, device_id) for every active slot.
+    slot_resolutions: dict[int, dict] = {}
+
+    if run_type == "panel" and not slot_snrs:
+        resolved = _resolve_panel_snrs(qr_code, len(slots), position_map=position_map)
+        resolved_lookup = {r["slotIndex"]: r for r in resolved}
+        for slot in slots:
+            r = resolved_lookup.get(slot.slotIndex, {})
+            slot_resolutions[slot.slotIndex] = {"snr": r.get("snr")}
+    else:
+        for slot in slots:
+            if run_type == "standalone":
+                slot_snr = snr_lookup.get(slot.slotIndex, qr_code)
+            else:
+                slot_snr = snr_lookup.get(
+                    slot.slotIndex,
+                    slot.dutSnr if hasattr(slot, "dutSnr") else None,
+                )
+            slot_resolutions[slot.slotIndex] = {"snr": slot_snr}
+
+    # Validate SNRs are all present before any external calls.
+    missing_snr_slots = [
+        idx for idx, r in slot_resolutions.items()
+        if not (r.get("snr") or "").strip()
+    ]
+    if missing_snr_slots:
+        if run_type == "panel":
+            return bad_request(
+                "Cannot start run: serial number missing for slot(s) "
+                f"{', '.join(str(i + 1) for i in sorted(missing_snr_slots))}. "
+                "Re-scan the panel or check that CoreOps recognizes the panel SNR."
+            )
+        return bad_request("Cannot start run: serial number is empty.")
+
+    # When CoreOps is reachable, assign device IDs for every slot. Any failure
+    # blocks the run — the operator must fix the SNR before running tests.
+    if coreops_client:
+        coreops_failures: list[str] = []
+        for slot in slots:
+            slot_snr = slot_resolutions[slot.slotIndex]["snr"]
+            try:
+                device_id = coreops_client.assign_device_id(slot_snr)
+            except Exception as e:
+                logger.warning(
+                    "CoreOps assign_device_id failed for slot %s SNR %s: %s",
+                    slot.slotIndex, slot_snr, e,
+                )
+                coreops_failures.append(
+                    f"slot {slot.slotIndex + 1} (SNR {slot_snr})"
+                )
+                continue
+            if not device_id:
+                coreops_failures.append(
+                    f"slot {slot.slotIndex + 1} (SNR {slot_snr}) — no deviceId returned"
+                )
+                continue
+            slot_resolutions[slot.slotIndex]["deviceId"] = device_id
+
+        if coreops_failures:
+            return bad_request(
+                "Cannot start run: CoreOps rejected one or more serial numbers. "
+                f"Affected: {'; '.join(coreops_failures)}. "
+                "Verify the SNR is correct and registered in CoreOps."
+            )
+
+    # ── All SNRs validated. Create the TestRun and per-slot targets. ─────
     run_data: dict = {
         "type": "MANUFACTURING",
         "productId": session.productId,
@@ -1045,58 +1138,20 @@ def add_manufacturing_run(session_id: str):
 
     run = db.testrun.create(data=run_data)
 
-    # Auto-create RunTarget records (one per active fixture slot).
-    # For standalone runs, the qrCode IS the DUT serial number.
-    # For panel runs, resolve per-slot SNRs via CoreOps assembly lookup.
-    if run_type == "panel" and not slot_snrs:
-        # Look up panel assembly in CoreOps to get each board's unique SNR.
-        # position_map remaps CoreOps panelPosition → fixture slotIndex.
-        fixture_meta = fixture.metadata if hasattr(fixture, "metadata") and isinstance(fixture.metadata, dict) else {}
-        position_map = _parse_position_map(fixture_meta.get("panelPositionMap"))
-        resolved = _resolve_panel_snrs(qr_code, len(slots), position_map=position_map)
-        resolved_lookup = {r["slotIndex"]: r for r in resolved}
-
-        # Also resolve device IDs for each board
-        coreops_client = _get_coreops_client()
-        for slot in slots:
-            r = resolved_lookup.get(slot.slotIndex, {})
-            slot_snr = snr_lookup.get(slot.slotIndex, r.get("snr"))
-            device_id = None
-
-            if slot_snr and coreops_client:
-                try:
-                    device_id = coreops_client.assign_device_id(slot_snr)
-                except Exception as e:
-                    logger.warning("CoreOps assign_device_id failed for SNR %s: %s", slot_snr, e)
-
-            db.runtarget.create(
-                data={
-                    "runId": run.id,
-                    "slotIndex": slot.slotIndex,
-                    "slotId": slot.id,
-                    "serialNumber": slot_snr,
-                    "deviceId": device_id or (slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None),
-                },
-            )
-    else:
-        # Standalone or explicit slotSnrs
-        for slot in slots:
-            if run_type == "standalone":
-                serial_number = snr_lookup.get(slot.slotIndex, qr_code)
-            else:
-                serial_number = snr_lookup.get(
-                    slot.slotIndex,
-                    slot.dutSnr if hasattr(slot, "dutSnr") else None,
-                )
-            db.runtarget.create(
-                data={
-                    "runId": run.id,
-                    "slotIndex": slot.slotIndex,
-                    "slotId": slot.id,
-                    "serialNumber": serial_number,
-                    "deviceId": slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None,
-                },
-            )
+    for slot in slots:
+        resolution = slot_resolutions[slot.slotIndex]
+        device_id = resolution.get("deviceId") or (
+            slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None
+        )
+        db.runtarget.create(
+            data={
+                "runId": run.id,
+                "slotIndex": slot.slotIndex,
+                "slotId": slot.id,
+                "serialNumber": resolution.get("snr"),
+                "deviceId": device_id,
+            },
+        )
 
     # Re-fetch run with targets and test package for the response
     run = db.testrun.find_unique(
