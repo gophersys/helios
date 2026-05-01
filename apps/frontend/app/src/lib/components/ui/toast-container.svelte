@@ -16,11 +16,11 @@
   } as const;
 </script>
 
-<div class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+<div class="fixed bottom-4 right-4 z-[100] flex flex-col-reverse gap-2 pointer-events-none">
   {#each toasts.toasts as toast (toast.id)}
     {@const Icon = ICON[toast.kind]}
     <div
-      in:fly={{ y: -8, duration: 150 }}
+      in:fly={{ y: 8, duration: 150 }}
       out:fade={{ duration: 150 }}
       class="pointer-events-auto flex items-center gap-2 rounded-lg border px-3 py-2 shadow-elevated {COLOR[toast.kind]}"
     >
