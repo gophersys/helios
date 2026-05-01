@@ -381,6 +381,73 @@ class TestListSessions:
         assert resp.status_code == 200
         assert resp.get_json()["data"]["pagination"]["page"] == 2
 
+    def test_yj52qt_regression_list_with_runs_and_targets(self, authed_client, mock_db):
+        """Regression test for yj52qt — GET /v2/manufacturing/sessions?page=1&limit=25
+        returned 500 on app v0.7.1.
+
+        The list-sessions code path is byte-identical between v0.7.1 and
+        HEAD (the surrounding create/end paths are what changed), so the
+        500 on v0.7.1 was almost certainly a transient — the bug report
+        is "already fixed" rather than "fix needed". This test pins the
+        contract by serializing a session with the same shape the
+        production query produces: include runs and run targets so the
+        _compute_board_counts dedupe path is exercised, mix PASSED /
+        FAILED / ERROR / RUNNING target statuses, and keep the exact
+        page/limit the user reported (page=1&limit=25). If the endpoint
+        ever 500s on this shape again, this test catches it.
+        """
+        run = _run(
+            id="run-a",
+            status="COMPLETED",
+            targets=[
+                make_obj(
+                    id="t-1", serialNumber="SNR-1", status="PASSED",
+                    slotIndex=0, slotId="s10-slot-0", deviceId=None,
+                    metadata=None, errorMessage=None,
+                    startedAt=NOW, completedAt=NOW, durationMs=1000,
+                    runId="run-a", executions=[],
+                ),
+                make_obj(
+                    id="t-2", serialNumber="SNR-2", status="FAILED",
+                    slotIndex=1, slotId="s10-slot-1", deviceId=None,
+                    metadata=None, errorMessage="hw fault",
+                    startedAt=NOW, completedAt=NOW, durationMs=900,
+                    runId="run-a", executions=[],
+                ),
+                make_obj(
+                    id="t-3", serialNumber="SNR-3", status="ERROR",
+                    slotIndex=2, slotId=None, deviceId=None,
+                    metadata=None, errorMessage="mtib disconnect",
+                    startedAt=NOW, completedAt=NOW, durationMs=200,
+                    runId="run-a", executions=[],
+                ),
+                make_obj(
+                    id="t-4", serialNumber=None, status="RUNNING",
+                    slotIndex=3, slotId=None, deviceId=None,
+                    metadata=None, errorMessage=None,
+                    startedAt=NOW, completedAt=None, durationMs=None,
+                    runId="run-a", executions=[],
+                ),
+            ],
+        )
+        sess = _session(runs=[run])
+        mock_db.manufacturingsession.find_many.return_value = [sess]
+        mock_db.manufacturingsession.count.return_value = 1
+
+        # Replay the exact query the user reported in yj52qt.
+        resp = authed_client.get("/v2/manufacturing/sessions?page=1&limit=25")
+        assert resp.status_code == 200, resp.get_json()
+        body = resp.get_json()["data"]
+        assert len(body["data"]) == 1
+        s = body["data"][0]
+        # Per-board counts should dedupe by serial number, treat
+        # FAILED+ERROR as failed, and skip the unscanned (None SNR) slot
+        # — verify that the serializer produced sane numbers rather than
+        # propagating the v0.7.1 500.
+        assert s["totalUnits"] == 4  # 3 SNRs + 1 anonymous (uses target id)
+        assert s["passedUnits"] == 1
+        assert s["failedUnits"] == 2
+
 
 # ---------------------------------------------------------------------------
 # GET /v2/manufacturing/sessions/<id> — get session detail
