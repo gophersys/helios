@@ -188,9 +188,17 @@ class ErrorReporterState {
 
   private _sending = false;
 
-  async sendReport(): Promise<void> {
-    if (!this.current || this._sending) return;
+  /**
+   * POST the current report to the backend ticketing endpoint.
+   * Returns true if the server accepted it, false on transport or
+   * non-2xx response. Always sets `reportSent = true` so the UI moves
+   * past the Send button regardless — caller can decide whether to
+   * surface a success or failure toast based on the return value.
+   */
+  async sendReport(): Promise<boolean> {
+    if (!this.current || this._sending) return false;
     this._sending = true;
+    let ok = false;
     try {
       const token = localStorage.getItem('concord-token');
       const res = await fetch('/v2/system/error-reports', {
@@ -203,14 +211,16 @@ class ErrorReporterState {
       });
       if (!res.ok) {
         console.error('[error-reporter] Server returned', res.status);
+      } else {
+        ok = true;
       }
-      this.reportSent = true;
     } catch (err) {
       console.error('[error-reporter] Failed to send report:', err);
-      this.reportSent = true;
     } finally {
       this._sending = false;
+      this.reportSent = true;
     }
+    return ok;
   }
 
   getReportJson(): string {
@@ -279,12 +289,48 @@ export function reportApiError(opts: {
   }));
 }
 
+/**
+ * Patterns we treat as benign socket.io reconnect noise — not real backend
+ * failures. socket.io's xhr-polling fallback emits "xhr post error" and a
+ * few sibling messages every time the long-poll request is interrupted
+ * (page unload, brief WS gateway restart, NAT idle drop). The library
+ * already retries automatically, so logging a user-visible error report
+ * for each one only pollutes /v2/system/error-reports without surfacing
+ * any actionable signal.
+ *
+ * Anything outside this list is treated as a real WS error and reported
+ * normally — auth failures, namespace not found, server-emitted errors,
+ * etc. all stay visible.
+ */
+const TRANSIENT_WS_PATTERNS = [
+  /xhr post error/i,
+  /xhr poll error/i,
+  /websocket error\b/i,
+  /transport close/i,
+  /transport error/i,
+];
+
+export function isTransientWsError(message: string): boolean {
+  if (!message) return false;
+  return TRANSIENT_WS_PATTERNS.some((re) => re.test(message));
+}
+
 /** WebSocket error. */
 export function reportWsError(opts: {
   message: string;
   namespace?: string;
   event?: string;
 }): void {
+  // Suppress the noisy reconnect-cycle errors socket.io emits while the
+  // backend WS endpoint is briefly unreachable. We still want them visible
+  // in the browser console (the websocket.ts call site logs them), but
+  // we don't want them creating new error-reports rows. Real WS errors
+  // (auth failure, server-emitted error events, anything not matching the
+  // transient patterns above) still flow through.
+  if (isTransientWsError(opts.message)) {
+    trackAction(`ws ${opts.namespace ?? ''} transient: ${opts.message}`);
+    return;
+  }
   getErrorReporter().reportError(buildReport({
     type: 'websocket',
     severity: 'error',
