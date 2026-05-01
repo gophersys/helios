@@ -8,6 +8,11 @@
   import { fade, fly } from 'svelte/transition';
   import { overlayIn, overlayOut, modalIn, modalOut } from '$lib/utils/transitions';
   import { getErrorReporter, type ErrorSeverity, type ErrorReport } from '$lib/stores/error-reporter.svelte';
+  import CharCounter from '$lib/components/ui/char-counter.svelte';
+  import { toasts } from '$lib/stores/toast.svelte';
+  import { makeWizardKeyHandler } from '$lib/utils/wizard-keys';
+
+  const NOTES_MAX = 2000;
 
   const reporter = getErrorReporter();
   let detailsOpen = $state(false);
@@ -75,7 +80,12 @@
     if (userNotes.trim() && report) {
       report.userNotes = userNotes.trim();
     }
-    await reporter.sendReport();
+    const ok = await reporter.sendReport();
+    if (ok) {
+      toasts.success('Report sent');
+    } else {
+      toasts.error('Failed to send report');
+    }
   }
 
   async function copyDetails(): Promise<void> {
@@ -89,9 +99,17 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && !dismissLocked) dismiss();
-  }
+  // Enter sends the report (when not in textarea). Escape dismisses
+  // (subject to the 5s lock for non-user reports).
+  const handleWizardKey = makeWizardKeyHandler(() => ({
+    onEnter: () => {
+      if (!report) return;
+      if (reporter.reportSent) { dismiss(); return; }
+      send();
+    },
+    onEscape: () => { if (!dismissLocked) dismiss(); },
+    disabled: !open,
+  }));
 
   function formatTimestamp(iso: string): string {
     try {
@@ -108,7 +126,7 @@
   }
 </script>
 
-<svelte:window onkeydown={open ? handleKeydown : undefined} />
+<svelte:window onkeydown={open ? handleWizardKey : undefined} />
 
 {#if open && report}
   <!-- Backdrop -->
@@ -241,10 +259,12 @@
             <textarea
               id="error-user-notes"
               bind:value={userNotes}
+              maxlength={NOTES_MAX}
               placeholder="Describe the steps that led to this..."
-              rows="2"
-              class="input input-sm w-full resize-none text-xs"
+              rows="3"
+              class="textarea resize-none text-xs"
             ></textarea>
+            <CharCounter value={userNotes} max={NOTES_MAX} />
           </div>
         {/if}
 
