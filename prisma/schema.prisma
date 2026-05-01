@@ -334,6 +334,7 @@ model BoardRevision {
   deviceVariant   Int? /// CoreCloud device variant ID (e.g. 3 for B0)
   modemVersion    String? /// Nordic modem firmware version, e.g. "2.0.2"
   modemStorageKey String? /// MinIO key for modem firmware zip
+  snrLength       Int? /// Expected serial number length for this revision. When set, manufacturing scan UI enforces exact-length input.
   status          LifecycleStatus @default(ACTIVE)
   notes           String?
   createdById     String?

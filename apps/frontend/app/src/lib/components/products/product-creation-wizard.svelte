@@ -8,6 +8,14 @@
     BoardSummary,
     BoardDetail,
   } from '$lib/types/models';
+  import { toasts } from '$lib/stores/toast.svelte';
+  import { makeWizardKeyHandler } from '$lib/utils/wizard-keys';
+  import CharCounter from '$lib/components/ui/char-counter.svelte';
+
+  const PRODUCT_NAME_MAX = 60;
+  const PRODUCT_SLUG_MAX = 40;
+  const PRODUCT_DESCRIPTION_MAX = 200;
+  const REPO_SLUG_MAX = 80;
 
   interface Props {
     onCreated: () => void;
@@ -215,13 +223,28 @@
             }
           : null,
       });
+      toasts.success(`Product "${productName.trim()}" created`);
       onCreated();
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to create product';
+      toasts.error(error || 'Failed to create product');
     } finally {
       submitting = false;
     }
   }
+
+  function handleEnterKey() {
+    if (step < 4) {
+      if (canNext) handleNext();
+      return;
+    }
+    if (!submitting) handleCreate();
+  }
+
+  const handleWizardKey = makeWizardKeyHandler(() => ({
+    onEnter: handleEnterKey,
+    onEscape: () => { if (!submitting) onCancel(); },
+  }));
 
   // Load branches on mount
   $effect(() => {
@@ -237,6 +260,8 @@
   });
 
 </script>
+
+<svelte:window onkeydown={handleWizardKey} />
 
 <div class="rounded-lg border border-border bg-surface-1">
   <!-- Step indicator -->
@@ -381,27 +406,33 @@
               <input
                 type="text"
                 required
+                maxlength={PRODUCT_NAME_MAX}
                 bind:value={productName}
                 class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
               />
+              <CharCounter value={productName} max={PRODUCT_NAME_MAX} />
             </label>
             <label class="block">
               <span class="mb-1 block text-2xs font-medium text-text-tertiary">Slug</span>
               <input
                 type="text"
+                maxlength={PRODUCT_SLUG_MAX}
                 bind:value={productSlug}
                 class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
               />
+              <CharCounter value={productSlug} max={PRODUCT_SLUG_MAX} />
             </label>
           </div>
           <label class="block">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">Description</span>
             <input
               type="text"
+              maxlength={PRODUCT_DESCRIPTION_MAX}
               bind:value={productDescription}
               placeholder="Optional description"
               class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             />
+            <CharCounter value={productDescription} max={PRODUCT_DESCRIPTION_MAX} />
           </label>
 
           <!-- Per-Revision Configuration -->
@@ -470,6 +501,7 @@
               <div class="flex items-center gap-2">
                 <input
                   type="text"
+                  maxlength={REPO_SLUG_MAX}
                   bind:value={fwRepoSlug}
                   oninput={() => onFwSlugChange(fwRepoSlug)}
                   placeholder="e.g. alpha_fw"
@@ -483,12 +515,14 @@
                   <span title="Repository not found on Bitbucket"><AlertTriangle size={14} class="text-warning" /></span>
                 {/if}
               </div>
+              <CharCounter value={fwRepoSlug} max={REPO_SLUG_MAX} />
             </div>
             <div class="block">
               <span class="mb-1 block text-2xs font-medium text-text-tertiary">Manufacturing Firmware Repository (Bitbucket slug)</span>
               <div class="flex items-center gap-2">
                 <input
                   type="text"
+                  maxlength={REPO_SLUG_MAX}
                   bind:value={mfgFwRepoSlug}
                   oninput={() => onMfgSlugChange(mfgFwRepoSlug)}
                   placeholder="e.g. alpha_mfg_fw"
@@ -502,6 +536,7 @@
                   <span title="Repository not found on Bitbucket"><AlertTriangle size={14} class="text-warning" /></span>
                 {/if}
               </div>
+              <CharCounter value={mfgFwRepoSlug} max={REPO_SLUG_MAX} />
             </div>
           </div>
         </div>

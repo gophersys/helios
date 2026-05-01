@@ -2,9 +2,14 @@
   import { onMount } from 'svelte';
   import { ChevronRight, ChevronLeft, Check, Loader2, Box, Factory, Cpu, CircuitBoard, Wrench, X, FlaskConical, LayoutGrid, Cable } from 'lucide-svelte';
   import Modal from '$lib/components/ui/modal.svelte';
+  import CharCounter from '$lib/components/ui/char-counter.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type { Product, FixtureDesign } from '$lib/types/models';
+  import { toasts } from '$lib/stores/toast.svelte';
+  import { makeWizardKeyHandler } from '$lib/utils/wizard-keys';
+
+  const FIXTURE_NAME_MAX = 80;
 
   interface Props {
     open: boolean;
@@ -303,15 +308,41 @@
       }
 
       createProgress = '';
+      toasts.success(`Fixture "${fixtureName.trim()}" created`);
       onCreated();
       resetAndClose();
     } catch (e: any) {
       error = e?.data?.errors?.[0]?.message || (e instanceof Error ? e.message : 'Failed to create fixture');
+      toasts.error(error || 'Failed to create fixture');
       createProgress = '';
     } finally {
       submitting = false;
     }
   }
+
+  // Enter advances steps where possible; on the final step it submits.
+  // Escape cancels (resets and closes).
+  function handleEnterKey() {
+    if (!open) return;
+    if (step < totalSteps) {
+      const canAdvance =
+        (step === 1 && !!selectedProductId) ||
+        (step === 2 && !!selectedType) ||
+        (step === 3 && !!selectedRevisionId) ||
+        (step === 4 && !!selectedDesignId) ||
+        step === 5 ||
+        step === 6;
+      if (canAdvance) step++;
+      return;
+    }
+    if (!submitting && fixtureName.trim()) handleCreate();
+  }
+
+  const handleWizardKey = makeWizardKeyHandler(() => ({
+    onEnter: handleEnterKey,
+    onEscape: () => { if (!submitting) resetAndClose(); },
+    disabled: !open,
+  }));
 
   function resetAndClose() {
     step = 1;
@@ -331,7 +362,9 @@
   }
 </script>
 
-<Modal {open} onclose={resetAndClose} size="full" title="" noPadding showCloseButton={false}>
+<svelte:window onkeydown={handleWizardKey} />
+
+<Modal {open} onclose={resetAndClose} size="full" title="" noPadding showCloseButton={false} closeOnEscape={false}>
   <div class="flex flex-col h-[90vh]">
     <!-- Header (compact) -->
     <div class="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
@@ -753,10 +786,14 @@
               id="fixture-name"
               type="text"
               bind:value={fixtureName}
+              maxlength={FIXTURE_NAME_MAX}
               placeholder="e.g., Alpha B0 Mfg Fixture 1"
               class="input input-md w-full"
             />
-            <p class="text-2xs text-text-tertiary mt-1.5">This name must be unique across all fixtures.</p>
+            <div class="mt-1.5 flex items-baseline justify-between gap-2">
+              <p class="text-2xs text-text-tertiary">This name must be unique across all fixtures.</p>
+              <CharCounter value={fixtureName} max={FIXTURE_NAME_MAX} />
+            </div>
           </div>
 
           {#if error}

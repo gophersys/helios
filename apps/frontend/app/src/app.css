@@ -303,6 +303,23 @@
   @apply h-12 px-4 text-base; /* 48px height */
 }
 
+@utility textarea {
+  /* ─────────────────────────────────────────────────────────────────────
+     TEXTAREAS - Multi-line variant of input. Uses py-* (not h-*) so the
+     `rows` attribute drives the height; px-3 + py-2 gives even padding
+     on all sides instead of the cramped feel that `.input` causes when
+     applied to a textarea.
+     ───────────────────────────────────────────────────────────────────── */
+  @apply w-full rounded-lg border border-border bg-surface-1 text-sm text-text-primary
+           placeholder:text-text-tertiary
+           focus:outline-hidden focus:border-accent
+           transition-colors duration-150
+           px-3 py-2 leading-relaxed;
+  &:focus {
+    box-shadow: 0 0 0 3px var(--accent-muted);
+  }
+}
+
 @utility card {
   /* ─────────────────────────────────────────────────────────────────────
      CARDS - Consistent padding and rounded corners

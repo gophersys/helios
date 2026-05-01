@@ -145,6 +145,14 @@ def authed_client(client, auth_headers, mock_db):
     """
     Wrapper around the Flask test client that auto-injects auth headers
     and mocks permission checking to allow all permissions (superadmin).
+
+    The default JWT role is DEVELOPER (see ``auth_headers``), so any
+    endpoint that consults ``ProductAccess`` would 403/404 unless we also
+    pre-stub the access lookup. Since this fixture intentionally simulates
+    a superadmin caller, default ``productaccess.find_first`` to a
+    permissive entry. Tests that need to exercise the access gate either
+    bypass ``authed_client`` (using a raw ``client`` + custom token) or
+    override ``mock_db.productaccess.find_first`` directly.
     """
     # Mock the permission set lookup to return all permissions
     from src.lib.permissions import Permissions
@@ -156,6 +164,16 @@ def authed_client(client, auth_headers, mock_db):
         permissions=all_perms,
     )
     mock_db.permissionset.find_unique.return_value = perm_set
+
+    # Default product access to a permissive "admin"-level entry so the
+    # superadmin-style fixture continues to behave as before for existing
+    # tests that don't care about per-product gating.
+    mock_db.productaccess.find_first.return_value = stdlib_types.SimpleNamespace(
+        id="test-pa",
+        userId="test-user-id",
+        productId="*",
+        level="admin",
+    )
 
     class AuthedTestClient:
         """Wraps Flask test client to auto-inject auth headers."""

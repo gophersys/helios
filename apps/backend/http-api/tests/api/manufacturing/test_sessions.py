@@ -381,6 +381,73 @@ class TestListSessions:
         assert resp.status_code == 200
         assert resp.get_json()["data"]["pagination"]["page"] == 2
 
+    def test_yj52qt_regression_list_with_runs_and_targets(self, authed_client, mock_db):
+        """Regression test for yj52qt — GET /v2/manufacturing/sessions?page=1&limit=25
+        returned 500 on app v0.7.1.
+
+        The list-sessions code path is byte-identical between v0.7.1 and
+        HEAD (the surrounding create/end paths are what changed), so the
+        500 on v0.7.1 was almost certainly a transient — the bug report
+        is "already fixed" rather than "fix needed". This test pins the
+        contract by serializing a session with the same shape the
+        production query produces: include runs and run targets so the
+        _compute_board_counts dedupe path is exercised, mix PASSED /
+        FAILED / ERROR / RUNNING target statuses, and keep the exact
+        page/limit the user reported (page=1&limit=25). If the endpoint
+        ever 500s on this shape again, this test catches it.
+        """
+        run = _run(
+            id="run-a",
+            status="COMPLETED",
+            targets=[
+                make_obj(
+                    id="t-1", serialNumber="SNR-1", status="PASSED",
+                    slotIndex=0, slotId="s10-slot-0", deviceId=None,
+                    metadata=None, errorMessage=None,
+                    startedAt=NOW, completedAt=NOW, durationMs=1000,
+                    runId="run-a", executions=[],
+                ),
+                make_obj(
+                    id="t-2", serialNumber="SNR-2", status="FAILED",
+                    slotIndex=1, slotId="s10-slot-1", deviceId=None,
+                    metadata=None, errorMessage="hw fault",
+                    startedAt=NOW, completedAt=NOW, durationMs=900,
+                    runId="run-a", executions=[],
+                ),
+                make_obj(
+                    id="t-3", serialNumber="SNR-3", status="ERROR",
+                    slotIndex=2, slotId=None, deviceId=None,
+                    metadata=None, errorMessage="mtib disconnect",
+                    startedAt=NOW, completedAt=NOW, durationMs=200,
+                    runId="run-a", executions=[],
+                ),
+                make_obj(
+                    id="t-4", serialNumber=None, status="RUNNING",
+                    slotIndex=3, slotId=None, deviceId=None,
+                    metadata=None, errorMessage=None,
+                    startedAt=NOW, completedAt=None, durationMs=None,
+                    runId="run-a", executions=[],
+                ),
+            ],
+        )
+        sess = _session(runs=[run])
+        mock_db.manufacturingsession.find_many.return_value = [sess]
+        mock_db.manufacturingsession.count.return_value = 1
+
+        # Replay the exact query the user reported in yj52qt.
+        resp = authed_client.get("/v2/manufacturing/sessions?page=1&limit=25")
+        assert resp.status_code == 200, resp.get_json()
+        body = resp.get_json()["data"]
+        assert len(body["data"]) == 1
+        s = body["data"][0]
+        # Per-board counts should dedupe by serial number, treat
+        # FAILED+ERROR as failed, and skip the unscanned (None SNR) slot
+        # — verify that the serializer produced sane numbers rather than
+        # propagating the v0.7.1 500.
+        assert s["totalUnits"] == 4  # 3 SNRs + 1 anonymous (uses target id)
+        assert s["passedUnits"] == 1
+        assert s["failedUnits"] == 2
+
 
 # ---------------------------------------------------------------------------
 # GET /v2/manufacturing/sessions/<id> — get session detail
@@ -409,10 +476,12 @@ class TestGetSession:
 
 class TestAddRun:
     def test_adds_run_to_session(self, authed_client, mock_db):
-        slots = [_slot(id=f"s10-slot-{i}", slotIndex=i, name=f"Slot {i + 1}") for i in range(4)]
+        # Single-slot fixture so the panel-mode resolve produces a SNR for
+        # every slot even when CoreOps is unavailable in tests.
+        slots = [_slot(id="s10-slot-0", slotIndex=0, name="Slot 1")]
         fixture_with_slots = _fixture(slots=slots)
         mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
-        created = _run()
+        created = _run(targetCount=1)
         mock_db.testrun.create.return_value = created
         mock_db.testrun.find_unique.return_value = created
 
@@ -439,6 +508,113 @@ class TestAddRun:
             data=json.dumps({"qrCode": "s10-QR-001"}),
         )
         assert resp.status_code == 400
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_blocks_run_when_coreops_rejects_snr(self, mock_coreops, authed_client, mock_db):
+        """A bad SNR (CoreOps raises) must block the run with a clear 4xx."""
+        mock_client = MagicMock()
+        mock_client.assign_device_id.side_effect = ValueError("No deviceId in response")
+        mock_coreops.return_value = mock_client
+
+        slots = [_slot(id="s10-slot-0", slotIndex=0, name="Slot 1")]
+        fixture_with_slots = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "BADSNR",
+                "slotSnrs": [{"slotIndex": 0, "snr": "BADSNR"}],
+            }),
+        )
+        assert resp.status_code == 400
+        assert "CoreOps rejected" in resp.get_json()["errors"][0]["message"]
+        # Critical: the TestRun must NOT be created on a rejected SNR.
+        assert mock_db.testrun.create.call_count == 0
+        assert mock_db.runtarget.create.call_count == 0
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_blocks_run_when_coreops_returns_no_device_id(self, mock_coreops, authed_client, mock_db):
+        """CoreOps returning a falsy deviceId is also a bad SNR."""
+        mock_client = MagicMock()
+        mock_client.assign_device_id.return_value = None
+        mock_coreops.return_value = mock_client
+
+        slots = [_slot(id="s10-slot-0", slotIndex=0, name="Slot 1")]
+        fixture_with_slots = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "EMPTYID",
+                "slotSnrs": [{"slotIndex": 0, "snr": "EMPTYID"}],
+            }),
+        )
+        assert resp.status_code == 400
+        assert "no deviceId returned" in resp.get_json()["errors"][0]["message"]
+        assert mock_db.testrun.create.call_count == 0
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client")
+    def test_creates_run_when_coreops_assigns_device_id(self, mock_coreops, authed_client, mock_db):
+        mock_client = MagicMock()
+        mock_client.assign_device_id.return_value = "70B3D584C01E1FCC"
+        mock_coreops.return_value = mock_client
+
+        slots = [_slot(id="s10-slot-0", slotIndex=0, name="Slot 1")]
+        fixture_with_slots = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
+        created = _run(targetCount=1)
+        mock_db.testrun.create.return_value = created
+        mock_db.testrun.find_unique.return_value = created
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "GOODSNR",
+                "slotSnrs": [{"slotIndex": 0, "snr": "GOODSNR"}],
+            }),
+        )
+        assert resp.status_code == 201
+        # The persisted RunTarget should carry the CoreOps-assigned device ID.
+        assert mock_db.runtarget.create.call_count == 1
+        assert mock_db.runtarget.create.call_args.kwargs["data"]["deviceId"] == "70B3D584C01E1FCC"
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client", return_value=None)
+    def test_offline_mode_allows_run_without_coreops(self, _mock_coreops, authed_client, mock_db):
+        """When CoreOps is unreachable, runs proceed without device IDs (offline mode)."""
+        slots = [_slot(id="s10-slot-0", slotIndex=0, name="Slot 1")]
+        fixture_with_slots = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
+        created = _run(targetCount=1)
+        mock_db.testrun.create.return_value = created
+        mock_db.testrun.find_unique.return_value = created
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "OFFLINESNR",
+                "slotSnrs": [{"slotIndex": 0, "snr": "OFFLINESNR"}],
+            }),
+        )
+        assert resp.status_code == 201
+
+    @patch("api.v2.manufacturing.sessions._get_coreops_client", return_value=None)
+    def test_blocks_run_when_panel_resolve_misses_a_slot(self, _mock_coreops, authed_client, mock_db):
+        """If any slot's resolved SNR is empty, the run must be blocked even offline."""
+        # Four panel slots, qrCode supplies slot 0 only — slots 1-3 stay empty
+        # because CoreOps is unavailable.
+        slots = [_slot(id=f"s10-slot-{i}", slotIndex=i, name=f"Slot {i + 1}") for i in range(4)]
+        fixture_with_slots = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({"qrCode": "ONLY-FIRST-SLOT"}),
+        )
+        assert resp.status_code == 400
+        assert "serial number missing" in resp.get_json()["errors"][0]["message"]
+        assert mock_db.testrun.create.call_count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -819,9 +995,20 @@ class TestAddRunWithSlotSnrs:
         mock_db.testrun.create.return_value = created
         mock_db.testrun.find_unique.return_value = created
 
+        # Pre-resolved SNRs are required for multi-slot panels — a bare qrCode
+        # would only resolve slot 0 (CoreOps absent in tests) and the run is
+        # rightfully blocked. The realistic frontend flow always sends slotSnrs.
         resp = authed_client.post(
             "/v2/manufacturing/sessions/s10-sess-1/runs",
-            data=json.dumps({"qrCode": "0964"}),
+            data=json.dumps({
+                "qrCode": "0964",
+                "slotSnrs": [
+                    {"slotIndex": 0, "snr": "0964"},
+                    {"slotIndex": 1, "snr": "0965"},
+                    {"slotIndex": 2, "snr": "0966"},
+                    {"slotIndex": 3, "snr": "0967"},
+                ],
+            }),
         )
         assert resp.status_code == 201
         # All 4 slots should have targets

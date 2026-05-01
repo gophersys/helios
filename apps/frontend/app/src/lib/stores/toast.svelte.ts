@@ -2,7 +2,8 @@
  * Minimal toast/snackbar store.
  *
  * Entries auto-dismiss after `DEFAULT_DURATION_MS`. Mounted once at the
- * root layout via `<ToastContainer />`. Shows top-right, one at a time.
+ * root layout via `<ToastContainer />`. Shows bottom-right, stacking
+ * upwards as new toasts arrive.
  */
 
 export type ToastKind = 'info' | 'success' | 'error';

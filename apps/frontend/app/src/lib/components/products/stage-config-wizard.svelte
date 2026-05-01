@@ -19,6 +19,7 @@
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import { canonicalFilename } from '$lib/utils/assets';
+  import { toasts } from '$lib/stores/toast.svelte';
 
   interface Props {
     open: boolean;
@@ -830,10 +831,12 @@
       await updateStageConfig(productId, stage, { enabled: false }, config?.id);
       showDisableConfirm = false;
       disableConfirmText = '';
+      toasts.success(`${displayStageName} disabled`);
       onSaved();
       onClose();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to disable stage';
+      toasts.error(error || 'Failed to disable stage');
     } finally {
       disabling = false;
     }
@@ -868,10 +871,12 @@
         await api.put(recipeUrl, { content: recipe });
       }
 
+      toasts.success(`${displayStageName} ${config ? 'updated' : 'configured'}`);
       onSaved();
       onClose();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to save stage configuration';
+      toasts.error(error || 'Failed to save stage configuration');
     } finally {
       saving = false;
     }

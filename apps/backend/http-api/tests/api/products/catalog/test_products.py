@@ -479,3 +479,178 @@ def test_delete_product_with_board_targets_succeeds(authed_client, mock_db):
     data = json.loads(response.data)
     assert data["data"]["deleted"] is True
     mock_db.product.delete.assert_called_once_with(where={"id": "prod-cascade"})
+
+
+# ── Default-access tests (r5ayeu) ─────────────────────────
+#
+# Newly-created products grant access only to admins. Maintainers,
+# Developers and Operators must be granted access via ProductAccess.
+
+
+def _build_token_headers(role: str, user_id: str = "test-user-id") -> dict:
+    """Generate JWT auth headers for a specific role, bypassing the
+    superadmin permission-set wiring used by ``authed_client``.
+
+    The catalog access tests need to exercise the *role*-based gate and
+    therefore require a token whose ``role`` claim is something other than
+    ADMIN. ``authed_client`` always uses DEVELOPER, but the test setup
+    layers an "all permissions" permission set on top so the
+    require_permissions check still passes — exactly what we want for
+    these tests.
+    """
+    from src.services.auth.jwt import create_token
+    token = create_token(
+        user_id=user_id,
+        email=f"{role.lower()}@example.com",
+        name=f"{role.title()} User",
+        permission_set_id="test-perm-set-id",
+        role=role,
+    )
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+
+def _stub_perm_set(mock_db) -> None:
+    """Wire the per-set permission cache so role-only tests don't 403."""
+    from src.lib.permissions import Permissions
+    mock_db.permissionset.find_unique.return_value = make_obj(
+        id="test-perm-set-id",
+        name="Stub",
+        permissions=list(Permissions.all()),
+    )
+
+
+def test_list_products_admin_sees_newly_created_product(client, mock_db):
+    """A newly-created product (no ProductAccess entries) is visible to ADMIN."""
+    _stub_perm_set(mock_db)
+    new_prod = make_obj(
+        id="prod-new",
+        name="Fresh Product",
+        description="",
+        status="ACTIVE",
+        metadata={},
+        createdAt=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        updatedAt=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        boards=[],
+        firmwareSets=[],
+        **_product_defaults(),
+    )
+    mock_db.product.find_many.return_value = [new_prod]
+    mock_db.product.count.return_value = 1
+    mock_db.productaccess.find_many.return_value = []
+
+    response = client.get("/v2/products", headers=_build_token_headers("ADMIN"))
+    assert response.status_code == 200
+    payload = json.loads(response.data)["data"]
+    names = [p["name"] for p in payload["data"]]
+    assert "Fresh Product" in names
+    # Admin path must NOT consult ProductAccess at all.
+    assert mock_db.productaccess.find_many.called is False
+
+
+def test_list_products_developer_does_not_see_newly_created_product(client, mock_db):
+    """A newly-created product (no ProductAccess entries) is hidden from non-admins.
+
+    This is the contract for r5ayeu: products start invisible to everyone
+    except ADMIN until access is explicitly granted.
+    """
+    _stub_perm_set(mock_db)
+    mock_db.product.find_many.return_value = []
+    mock_db.product.count.return_value = 0
+    mock_db.productaccess.find_many.return_value = []  # No grants yet
+
+    response = client.get("/v2/products", headers=_build_token_headers("DEVELOPER"))
+    assert response.status_code == 200
+    payload = json.loads(response.data)["data"]
+    assert payload["data"] == []
+    # The find_many call must have been scoped to an empty allowlist.
+    where = mock_db.product.find_many.call_args.kwargs["where"]
+    assert where["id"] == {"in": []}
+
+
+def test_list_products_maintainer_does_not_see_newly_created_product(client, mock_db):
+    """Maintainer must also be granted explicit access — they no longer bypass."""
+    _stub_perm_set(mock_db)
+    mock_db.product.find_many.return_value = []
+    mock_db.product.count.return_value = 0
+    mock_db.productaccess.find_many.return_value = []
+
+    response = client.get("/v2/products", headers=_build_token_headers("MAINTAINER"))
+    assert response.status_code == 200
+    payload = json.loads(response.data)["data"]
+    assert payload["data"] == []
+    where = mock_db.product.find_many.call_args.kwargs["where"]
+    assert where["id"] == {"in": []}
+
+
+def test_list_products_developer_sees_product_after_explicit_grant(client, mock_db):
+    """After a ProductAccess entry is created, the developer sees the product."""
+    _stub_perm_set(mock_db)
+    granted_product = make_obj(
+        id="prod-granted",
+        name="Granted Product",
+        description="",
+        status="ACTIVE",
+        metadata={},
+        createdAt=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        updatedAt=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        boards=[],
+        firmwareSets=[],
+        **_product_defaults(),
+    )
+    mock_db.product.find_many.return_value = [granted_product]
+    mock_db.product.count.return_value = 1
+    mock_db.productaccess.find_many.return_value = [
+        make_obj(productId="prod-granted", level="view"),
+    ]
+
+    response = client.get("/v2/products", headers=_build_token_headers("DEVELOPER"))
+    assert response.status_code == 200
+    payload = json.loads(response.data)["data"]
+    assert [p["name"] for p in payload["data"]] == ["Granted Product"]
+    where = mock_db.product.find_many.call_args.kwargs["where"]
+    assert where["id"] == {"in": ["prod-granted"]}
+
+
+def test_get_product_developer_without_access_returns_404(client, mock_db):
+    """Direct GET for a product the developer hasn't been granted returns 404.
+
+    404 (not 403) deliberately hides existence — we don't want non-admins
+    probing the ID space.
+    """
+    _stub_perm_set(mock_db)
+    mock_db.productaccess.find_first.return_value = None
+
+    response = client.get(
+        "/v2/products/prod-secret", headers=_build_token_headers("DEVELOPER"),
+    )
+    assert response.status_code == 404
+    # The product itself must not have been fetched — the access check
+    # short-circuits before any product DB hit.
+    mock_db.product.find_unique.assert_not_called()
+
+
+def test_get_product_developer_with_access_returns_product(client, mock_db):
+    """A developer with an explicit ProductAccess entry can fetch the product."""
+    _stub_perm_set(mock_db)
+    mock_db.productaccess.find_first.return_value = make_obj(
+        userId="test-user-id", productId="prod-shared", level="view",
+    )
+    mock_db.product.find_unique.return_value = make_obj(
+        id="prod-shared",
+        name="Shared Product",
+        description="",
+        status="ACTIVE",
+        metadata={},
+        createdAt=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        updatedAt=datetime(2026, 4, 30, tzinfo=timezone.utc),
+        boards=[],
+        firmwareSets=[],
+        **_product_defaults(),
+    )
+
+    response = client.get(
+        "/v2/products/prod-shared", headers=_build_token_headers("DEVELOPER"),
+    )
+    assert response.status_code == 200
+    payload = json.loads(response.data)["data"]
+    assert payload["id"] == "prod-shared"

@@ -14,7 +14,11 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
-from .shared import serialize_target as _serialize_target
+from .shared import (
+    serialize_target as _serialize_target,
+    user_bypasses_product_access,
+    user_has_product_access,
+)
 from .types import ProductCreateRequest, ProductUpdateRequest
 
 logger = logging.getLogger(__name__)
@@ -229,20 +233,19 @@ def list_products():
     limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
     skip = (page - 1) * limit
 
-    # Filter by product access for Developer/Operator roles
-    # Uses effective_role (set by require_permissions → _resolve_effective_role)
-    # so the X-View-As-Role header works for product filtering too.
+    # Filter by product access for non-admin roles. Only ADMIN sees every
+    # product implicitly; Maintainers/Developers/Operators must be granted
+    # access via ProductAccess. Newly created products therefore start
+    # invisible to everyone except admins until explicit access is granted.
     where: dict = {}
-    if env_config.AUTH_ENABLED:
+    if not user_bypasses_product_access():
         user = getattr(g, "current_user", None)
         if user:
-            effective_role = getattr(g, "effective_role", user.get("role", "DEVELOPER"))
-            if effective_role not in ("ADMIN", "MAINTAINER"):
-                access_entries = db.productaccess.find_many(
-                    where={"userId": user["sub"]},
-                )
-                accessible_ids = [a.productId for a in access_entries]
-                where["id"] = {"in": accessible_ids}
+            access_entries = db.productaccess.find_many(
+                where={"userId": user["sub"]},
+            )
+            accessible_ids = [a.productId for a in access_entries]
+            where["id"] = {"in": accessible_ids}
 
     status = request.args.get("status", type=str)
     if status and status in ("ACTIVE", "ARCHIVED"):
@@ -361,6 +364,10 @@ def create_product():
 def get_product(product_id: str):
     """Get a product with boards, firmware sets, and stage configs."""
     db = get_db_client()
+    if not user_has_product_access(db, product_id):
+        # Hide existence from users without access — same response as a
+        # missing product to avoid leaking the ID space.
+        return not_found("Product not found")
     product = db.product.find_unique(
         where={"id": product_id},
         include={
@@ -572,6 +579,10 @@ def get_product_by_slug(slug: str):
         },
     )
     if not product:
+        return not_found(f"Product with slug '{slug}' not found")
+    if not user_has_product_access(db, product.id):
+        # Hide existence from users without access — match the slug-not-found
+        # response so the ID space and slug space aren't probable.
         return not_found(f"Product with slug '{slug}' not found")
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
 

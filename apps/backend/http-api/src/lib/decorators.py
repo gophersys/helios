@@ -274,7 +274,7 @@ def require_role(min_role: str):
 
 
 def require_product_access(min_level: str, product_param: str = "product_id"):
-    """Require product-level access. Admin/Maintainer bypass the check.
+    """Require product-level access. Only ADMIN bypasses the check.
 
     Args:
         min_level: Minimum access level required ("view", "operate", "develop", "admin").
@@ -296,9 +296,10 @@ def require_product_access(min_level: str, product_param: str = "product_id"):
             effective_role = _resolve_effective_role(user)
             g.effective_role = effective_role
 
-            # Admin and Maintainer bypass product access checks
-            # (unless using View As to simulate a lower role)
-            if effective_role in ("ADMIN", "MAINTAINER"):
+            # Only ADMIN bypasses product access checks. Maintainers,
+            # Developers and Operators must have an explicit ProductAccess
+            # entry to interact with the product.
+            if effective_role == "ADMIN":
                 return f(*args, **kwargs)
 
             # Get product ID from route params

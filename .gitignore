@@ -136,3 +136,4 @@ infrastructure/clusters/*/kubeconfigs/generated/
 *.dump
 *.zip
 
+/.claude/worktrees/
