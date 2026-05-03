@@ -24,8 +24,8 @@ import pytest
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[5]  # tests/unit/ → http-api → backend → apps → concord
-HELM_DIR = REPO_ROOT / "deploy" / "helm"
-LOCAL_DIR = REPO_ROOT / "deploy" / "local"
+HELM_DIR = REPO_ROOT / "deploy" / "production" / "helm"
+LOCAL_DIR = REPO_ROOT / "deploy" / "development"
 
 
 # ---------------------------------------------------------------------------
@@ -182,22 +182,29 @@ class TestJwtSecretValidation:
 # Helm values completeness
 # ---------------------------------------------------------------------------
 
-# Config keys that MUST be present in every Helm values file
+# Config keys that MUST be present in every Helm values file.
+#
+# When a feature reads a config field at startup or per-request and that
+# field has caused a 500 / silent disable in production, it goes here.
+# This list is the regression net for "field exists in env.py but nobody
+# remembered to set it in values-*.yaml" bugs. Add new entries when you
+# add a new ProxyConfig field whose absence breaks a feature in prod.
 _REQUIRED_CONFIG_KEYS = {
     "SERVER_PORT",
     "CORS_ORIGINS",
     "STORAGE_URL",
     "STORAGE_BUCKET_NAME",
     "CONCORD_API_HOST",
+    # CkBoards / Bitbucket integration — board-discovery 500s when these
+    # are missing (caught in production after the v0.9.16 deploy).
+    "BITBUCKET_EMAIL",
+    "BITBUCKET_WORKSPACE",
+    "CK_BOARDS_REPO_URL",
 }
 
-# Secret keys that MUST be present in every Helm values file
-_REQUIRED_SECRET_KEYS = {
-    "DATABASE_URL",
-    "STORAGE_ACCESS_KEY",
-    "STORAGE_SECRET_ACCESS_KEY",
-    "JWT_SECRET_KEY",
-}
+# NOTE: secrets are NOT in the helm values files. They're mounted from K8s
+# Secrets populated from ungitignored shared.env / {namespace}.env overlays.
+# A "required secret keys" check belongs against THOSE files, not helm values.
 
 
 def _load_yaml(path: Path) -> dict:
@@ -225,60 +232,18 @@ class TestHelmValuesCompleteness:
         missing = _REQUIRED_CONFIG_KEYS - set(config.keys())
         assert not missing, f"{env_file} missing config keys: {missing}"
 
-    @pytest.mark.parametrize("env_file", ["values-staging.yaml", "values-production.yaml"])
-    def test_secret_keys_present(self, env_file):
-        """Each environment values file must define all required secret keys."""
-        path = HELM_DIR / env_file
-        if not path.exists():
-            pytest.skip(f"{env_file} not found")
-
-        values = _load_yaml(path)
-        secrets = values.get("secrets", {})
-        missing = _REQUIRED_SECRET_KEYS - set(secrets.keys())
-        assert not missing, f"{env_file} missing secret keys: {missing}"
-
-    def test_staging_and_production_have_different_jwt_secrets(self):
-        """Staging and production must not share JWT secrets."""
-        staging_path = HELM_DIR / "values-staging.yaml"
-        prod_path = HELM_DIR / "values-production.yaml"
-        if not staging_path.exists() or not prod_path.exists():
-            pytest.skip("Both values files required")
-
-        staging = _load_yaml(staging_path)
-        prod = _load_yaml(prod_path)
-
-        staging_jwt = staging.get("secrets", {}).get("JWT_SECRET_KEY", "")
-        prod_jwt = prod.get("secrets", {}).get("JWT_SECRET_KEY", "")
-
-        # Both may use a placeholder when real secrets live in gitignored overlay files
-        _is_placeholder = "CHANGE-ME" in staging_jwt and "CHANGE-ME" in prod_jwt
-        if _is_placeholder:
-            pytest.skip("Both files use placeholder — real secrets in overlay files")
-
-        assert staging_jwt != prod_jwt, (
-            "Staging and production must have different JWT_SECRET_KEY values"
-        )
-
-    def test_staging_and_production_have_different_db_passwords(self):
-        """Staging and production must use different database credentials."""
-        staging_path = HELM_DIR / "values-staging.yaml"
-        prod_path = HELM_DIR / "values-production.yaml"
-        if not staging_path.exists() or not prod_path.exists():
-            pytest.skip("Both values files required")
-
-        staging = _load_yaml(staging_path)
-        prod = _load_yaml(prod_path)
-
-        staging_url = staging.get("secrets", {}).get("DATABASE_URL", "")
-        prod_url = prod.get("secrets", {}).get("DATABASE_URL", "")
-
-        _is_placeholder = "CHANGE-ME" in staging_url and "CHANGE-ME" in prod_url
-        if _is_placeholder:
-            pytest.skip("Both files use placeholder — real secrets in overlay files")
-
-        assert staging_url != prod_url, (
-            "Staging and production must have different DATABASE_URL values"
-        )
+    # Note: secret-key checks intentionally REMOVED.
+    #
+    # Secrets (DATABASE_URL, JWT_SECRET_KEY, *API_TOKEN, etc.) are NOT in the
+    # helm values files — they are mounted from K8s secrets sourced from
+    # ungitignored shared.env / {namespace}.env overlay files. The previous
+    # tests parsed values-*.yaml looking for a 'secrets:' block that doesn't
+    # exist there, and only "passed" because they were silently skipping
+    # against a stale HELM_DIR path.
+    #
+    # If a separate guard is needed for shared.env / overlay completeness,
+    # add it as a new test class that points at those files. Don't shoehorn
+    # it into the values-yaml checks.
 
 
 # ---------------------------------------------------------------------------

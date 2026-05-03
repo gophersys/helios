@@ -66,6 +66,7 @@ config:
   CORS_ORIGINS: "https://concord.ad.corekinect.com,http://concord.ad.corekinect.com"
   MTIB_PORT: "50053"
   BITBUCKET_EMAIL: "mateo@corekinect.com"
+  BITBUCKET_WORKSPACE: "corekinect"
   BITBUCKET_POLLER_ENABLED: "true"
   BITBUCKET_POLLER_INTERVAL_S: "300"
   BITBUCKET_SSH_KEY: "" # Mounted from bitbucket-ssh-key K8s secret

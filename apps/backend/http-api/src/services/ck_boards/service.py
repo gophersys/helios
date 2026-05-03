@@ -69,8 +69,23 @@ class CkBoardsService:
         api_token: str,
         fetch_interval: int = 60,
     ):
-        if not email or not api_token:
-            raise RuntimeError("CkBoards requires BITBUCKET_EMAIL and BITBUCKET_API_TOKEN")
+        # Fail loud at construction time so misconfigurations show up in
+        # startup logs, not as 500s on the first /v2/products/boards/branches
+        # request. Each field is independently named so the failure points
+        # at the exact missing key.
+        if not workspace:
+            raise RuntimeError(
+                "CkBoards requires BITBUCKET_WORKSPACE (e.g. 'corekinect') — "
+                "set it in helm values config block"
+            )
+        if not repo_slug:
+            raise RuntimeError(
+                "CkBoards requires CK_BOARDS_REPO_URL with a parseable repo slug"
+            )
+        if not email:
+            raise RuntimeError("CkBoards requires BITBUCKET_EMAIL")
+        if not api_token:
+            raise RuntimeError("CkBoards requires BITBUCKET_API_TOKEN")
 
         self._workspace = workspace
         self._repo_slug = repo_slug
