@@ -396,8 +396,14 @@ def _deploy_mtib_for_node(hostname: str, node_type: str) -> str | None:
     """Deploy an MTIB server K8s Deployment for a standalone node (no fixture slot).
 
     Returns the deployment name on success, None on failure.
+
+    MOTION_ENABLED is derived from node_type — same contract as the
+    fixture-bound path: VALIDATION nodes get motion=true (FluidNC linear
+    rail), everything else gets motion=false. See _mtib_env_for_fixture
+    in api/v2/fixtures/fixtures.py for the canonical rule.
     """
-    config: dict = {"env": {}}
+    motion_enabled = "true" if node_type == "VALIDATION" else "false"
+    config: dict = {"env": {"MOTION_ENABLED": motion_enabled}}
     return create_mtib_deployment(
         node_hostname=hostname,
         fixture_id="standalone",
