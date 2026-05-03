@@ -1126,12 +1126,29 @@ def _assign_slot_node_to(db, fixture_id: str, slot_id: str, slot, fixture, node_
 # ── MTIB Deployment Helpers ──────────────────────────────────
 
 
+def _mtib_env_for_fixture(fixture) -> dict[str, str]:
+    """Build the env-var dict the MTIB server pod needs for this fixture.
+
+    The fixture type is the single source of truth. Validation fixtures have
+    a FluidNC linear rail wired up for motion-driven tests (vibration, IMU
+    sweep, etc.) — the mtib-server's MotionStart RPC is gated behind
+    MOTION_ENABLED=true. Manufacturing fixtures never have motion hardware,
+    so the same flag stays false.
+
+    If a future fixture needs a per-instance override (e.g. a validation
+    bench without a rail), add it via Fixture.profileOverrides and read it
+    here — but the default must match the type contract.
+    """
+    motion_enabled = "true" if fixture.type == "VALIDATION" else "false"
+    return {"MOTION_ENABLED": motion_enabled}
+
+
 def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
     """Deploy an MTIB server K8s Deployment for a node in a fixture slot.
     Stores the deployment name in Node.metadata["deployment_name"].
     After deployment, polls gRPC port 50053 on the node IP for up to 60s.
     """
-    config: dict = {"env": {}}
+    config: dict = {"env": _mtib_env_for_fixture(fixture)}
     deploy_name = create_mtib_deployment(
         node_hostname=node.hostname,
         fixture_id=fixture.id,
