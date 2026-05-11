@@ -310,7 +310,7 @@ npx -y @devcontainers/cli exec ... python3 scripts/release_gate.py
 
 ## Phase 4 — Version bump
 
-Write the new version to `VERSION` and bump corectl + corekinect in lockstep:
+Write the new version to `VERSION` and bump corectl + corekinect + Helm chart in lockstep:
 
 ```bash
 echo "X.Y.Z" > VERSION
@@ -323,13 +323,21 @@ sed -i 's/^__version__ = ".*"$/__version__ = "X.Y.Z"/' \
 sed -i 's/^__version__ = ".*"$/__version__ = "X.Y.Z"/' \
   libs/python/corekinect/__init__.py
 
+# Helm chart: bump version + appVersion in lockstep with VERSION.
+# The chart is never published to a repo (helm upgrade runs from local
+# checkout) so the bump is mostly an audit trail, but keeping it
+# synchronized makes `helm history` and release records coherent.
+sed -i 's/^version: .*/version: X.Y.Z/' deploy/production/helm/concord/Chart.yaml
+sed -i 's/^appVersion: .*/appVersion: "X.Y.Z"/' deploy/production/helm/concord/Chart.yaml
+
 # Verify
 grep '^__version__' tools/corectl/src/corectl/__init__.py
 grep '^__version__' libs/python/corekinect/__init__.py
+grep -E '^(version|appVersion):' deploy/production/helm/concord/Chart.yaml
 cat VERSION
 ```
 
-All three should report `X.Y.Z`. **Patch-only releases that touch ONE component
+All four should report `X.Y.Z`. **Patch-only releases that touch ONE component
 (e.g. a corectl-only fix)** can keep the others' minors and bump only the patch
 of the changed component — but that should be an exception, not the norm.
 

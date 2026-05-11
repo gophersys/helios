@@ -2,7 +2,7 @@ apiVersion: v2
 name: concord
 description: Concord IoT Manufacturing Platform
 type: application
-version: 0.2.0
-appVersion: "0.2.0"
+version: 0.9.18
+appVersion: "0.9.18"
 maintainers:
   - name: CoreKinect

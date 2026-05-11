@@ -11,7 +11,7 @@ deploy/production/helm/
 ├── values-staging.yaml      # staging overrides
 ├── values-production.yaml   # production overrides
 └── concord/
-    ├── Chart.yaml           # name: concord, version: 0.2.0, appVersion: 0.2.0
+    ├── Chart.yaml           # name: concord, version + appVersion bumped in lockstep with VERSION by /concord-release
     ├── values.yaml          # defaults (almost everything off by default)
     └── templates/
         ├── _helpers.tpl
@@ -36,6 +36,8 @@ deploy/production/helm/
 ```
 
 The chart name in K8s is `concord` (the Helm release name set by `ctl.sh`).
+
+**Chart version** (`Chart.yaml::version` and `appVersion`) is kept in lockstep with the platform `VERSION` file. `/concord-release` Phase 4 sed-bumps both. The chart is never published to a Helm repo — `helm upgrade --install` runs from the local checkout — so the chart version is mostly an audit-trail concern, but having it match `VERSION` keeps `helm history concord -n <env>` coherent with the platform's own release timeline.
 
 ## Templates — what each one renders
 
