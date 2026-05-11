@@ -58,14 +58,14 @@ These are also listed in `infrastructure/clusters/office/nodes/labels.yaml`, whi
                               │
                               ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│ 4. PLATFORM: GET /v2/nodes/sync (the "Discover MTIBs" wizard)         │
+│ 4. PLATFORM: POST /v2/devices/mtibs/discover (the "Discover" wizard)  │
 │    - http-api calls k8s.list_node() filtered on `arch=arm64` + Ready  │
 │    - Returns `discovered` list (in K8s but not in DB)                │
 └──────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│ 5. PLATFORM: POST /v2/nodes/:k8sName/register                         │
+│ 5. PLATFORM: POST /v2/devices/mtibs/:nodeId/register                  │
 │    - Operator picks type: MANUFACTURING | VALIDATION                  │
 │    - _apply_edge_labels patches the K8s Node:                         │
 │       labels[corekinect.com/role]=edge                                │
@@ -98,9 +98,9 @@ These are also listed in `infrastructure/clusters/office/nodes/labels.yaml`, whi
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Step 4 endpoint: `GET /v2/nodes/sync` (the handler is `sync_nodes_from_k8s` in `apps/backend/http-api/src/api/v2/nodes/nodes.py`).
+Step 4 endpoint: `POST /v2/devices/mtibs/discover` (handler `sync_nodes_from_k8s` in `apps/backend/http-api/src/api/v2/devices/nodes.py`, registered in the devices Blueprint).
 
-Step 5 endpoint: `POST /v2/nodes/<id>/register` (handler `register_node`, same file).
+Step 5 endpoint: `POST /v2/devices/mtibs/<node_id>/register` (handler `register_node`, same file). The `<node_id>` is the platform's `Node.id` (UUID), not the K8s hostname — the row that `discover` returns carries the UUID the client passes back here.
 
 ## MTIB Deployment template
 
@@ -157,8 +157,8 @@ The realistic operator flow:
 
 1. **Manufacturing finishes a Verdin** → boards goes in the rack, power on.
 2. **Verdin joins K3s** (automatic — concord-os-yocto has the agent config). Verify: `kubectl get nodes` shows `verdin-imx8mm-<SNR>` Ready.
-3. **Operator opens the platform UI → Fixtures → "Discover MTIBs"**. The wizard calls `GET /v2/nodes/sync`; the new Verdin appears under "Discovered".
-4. **Operator clicks Register**, picks Type = MANUFACTURING or VALIDATION, names it. UI calls `POST /v2/nodes/<id>/register`. http-api labels + taints the K8s node and inserts the DB row.
+3. **Operator opens the platform UI → Fixtures → "Discover MTIBs"**. The wizard calls `POST /v2/devices/mtibs/discover`; the new Verdin appears under "Discovered".
+4. **Operator clicks Register**, picks Type = MANUFACTURING or VALIDATION, names it. UI calls `POST /v2/devices/mtibs/<node_id>/register`. http-api labels + taints the K8s node and inserts the DB row.
 5. **Operator binds the Node to a FixtureSlot** in the UI. http-api spawns the MTIB Deployment via `create_mtib_deployment`.
 6. **Within ~30 s** the mtib-server pod is Ready on the Verdin. `Node.status` flips to `ONLINE` (computed live by `_serialize_node`, not stored as a column).
 

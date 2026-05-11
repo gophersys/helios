@@ -218,5 +218,5 @@ All targets must run inside the Zephyr devcontainer or on a host with the equiva
 
 - [`architecture.md`](../../architecture.md) — note ICLE sits outside the three-tier platform diagram; it's listed under apps as "standalone".
 - [`libs/embedded.md`](../../libs/embedded.md) — Zephyr modules and `ck_board` overlays (where the future `icle_v1_0` board will live).
-- [`workflows/firmware-builds.md`](../../workflows/firmware-builds.md) — the broader Zephyr build pattern in this repo.
+- [`libs/embedded.md`](../../libs/embedded.md) — shared Zephyr drivers and board overlays; the canonical "Zephyr build pattern" reference for this repo.
 - [`glossary.md`](../../glossary.md) — note: ICLE is NOT an MTIB. They share the test-fixture concept loosely but ICLE ships with end users and runs on its own.

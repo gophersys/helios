@@ -146,7 +146,7 @@ The default personalization writes `device_id ↔ SNR ↔ SIM ↔ IMEI`. To add 
 
 **`fw_flash` stage hangs at 99%** — J-Link probe enumeration failure. The slot's `jlinkAppSerial` doesn't match the SNR of the J-Link physically connected to that slot. Verify with `JLinkExe -listemus` on the Verdin.
 
-**Personalize fails with CoreOps 401** — `COREOPS_API_KEY` / `COREOPS_AUTH_USER` / `COREOPS_AUTH_PASS` drift. All three rotate together — see [`../../workflows/credentials.md`](../../workflows/credentials.md#coreops-device-personalization).
+**Personalize fails with CoreOps 401** — `COREOPS_API_KEY` / `COREOPS_AUTH_USER` / `COREOPS_AUTH_PASS` drift. All three rotate together — see [`../workflows/credentials.md`](../workflows/credentials.md#coreops-device-personalization).
 
 **Session can't be ended** — the runner teardown failed. Inspect `kubectl get deploy -l concord.session=<id>` and clean up manually with `kubectl delete deploy <name>`. Then call `POST /v2/manufacturing/sessions/<id>/end` again.
 

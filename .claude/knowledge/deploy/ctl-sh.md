@@ -60,7 +60,7 @@ The script auto-detects `cd "$REPO_ROOT"` from `BASH_SOURCE`, so it can be invok
 | Helper | Purpose |
 |---|---|
 | `get_version` | `VERSION` file + `git describe`. Stamped into images as `APP_VERSION`. |
-| `_git_commit`, `_git_branch`, `_git_dirty`, `_git_describe` | Git metadata; fall back to `.git-build-info` when run inside the devcontainer of the umbrella `work/` workspace (where the parent `.git/modules` isn't mounted). See [`../../../../work/.claude/rules/concord-submodule.md`](../../../../work/.claude/rules/concord-submodule.md). |
+| `_git_commit`, `_git_branch`, `_git_dirty`, `_git_describe` | Git metadata; fall back to `.git-build-info` when run inside a devcontainer where `git` cannot resolve the repo (notably: when this repo is a submodule of an umbrella workspace and the parent `.git/modules` is not mounted). See "Submodule context" below. |
 | `_preflight` | `kubectl cluster-info` + `command -v helm`. Aborts if either fails. |
 | `_db_setup` | `cd prisma && yarn prisma generate && prisma db push && python3 -m seed.main`. Development only. |
 | `cmd_build <env> [targets…]` | Parallel `docker buildx build --load` for each target. Sets `APP_VERSION`, `ENVIRONMENT`, `GIT_*`, `BUILD_TIME`, `BUILD_HOST` as build args. Default targets: `api frontend git-poller build-service runner docs`. |
@@ -72,6 +72,23 @@ The script auto-detects `cd "$REPO_ROOT"` from `BASH_SOURCE`, so it can be invok
 | `_rollback_on_failure <env>` | `helm rollback concord <prev_deployed_rev> -n <env> --wait`. Then re-runs `_verify_rollout` (best-effort). |
 | `_restart_targets <env> [targets…]` | `kubectl rollout restart` + parallel `rollout status` wait. Backs `cmd_restart` and `cmd_quick`. |
 | `_run_logged <filter> <label> <cmd…>` | Run a command capturing output to a temp file; on failure dump full output, on success grep `filter` for a summary line. Used by `_db_setup` to keep dev output tidy without swallowing errors. |
+
+## Submodule context (when concord is a submodule)
+
+When concord is checked out as a git submodule inside an umbrella workspace, the devcontainer mounts the workspace tree — but `.git/modules/concord/concord/` is typically not bind-mounted into the container, so `git` commands inside the container fail silently. `deploy/ctl.sh` falls back to `.git-build-info` (a 3-line plain-text file written by the host) in that case.
+
+Refresh it on the host before any `nx update platform`:
+
+```bash
+{ git rev-parse --short HEAD; \
+  git rev-parse --abbrev-ref HEAD; \
+  [ -n "$(git status --porcelain 2>/dev/null)" ] && echo true || echo false; \
+} > .git-build-info
+```
+
+The file contains three lines: short commit, branch, dirty flag. `ctl.sh` reads it inside the container.
+
+When concord is cloned standalone (not as a submodule), `.git/` is a real directory and `git` works natively in the container — `.git-build-info` is unnecessary.
 | `_prisma_schema_hash` | `sha256sum prisma/schema.prisma`. Used by `cmd_dev_update` to skip the seed when schema is unchanged. |
 
 ## Why no `helm upgrade --wait`

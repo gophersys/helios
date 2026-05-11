@@ -36,11 +36,43 @@ libs/embedded/                 .claude/knowledge/libs/embedded.md
 prisma/schema.prisma           .claude/knowledge/prisma/schema-overview.md
 prisma/migrations/             .claude/knowledge/prisma/migrations.md
 
-# Deploy + CI (note: more specific prefixes first via longest-match)
+# Deploy + CI (more specific prefixes first — longest-match wins)
 deploy/ci/                     .claude/knowledge/ci/ci-platform.md
 deploy/                        .claude/knowledge/deploy/
 .ci/                           .claude/knowledge/ci/pipelines.md
 
-# Top-level developer-facing
-tools/corectl/                 .claude/knowledge/libs/python-corekinect.md
+# Cluster provisioning
+infrastructure/                .claude/knowledge/infrastructure.md
+
+# Developer tools
+tools/corectl/                 .claude/knowledge/tools/corectl.md
 tools/env/                     .claude/knowledge/deploy/secrets.md
+
+# ── Intentionally unmapped ─────────────────────────────────────────────
+# These code areas exist but do not require knowledge updates on change:
+#
+# libs/zephyr/        In-house Zephyr driver directories (lsm6dso, bq35100,
+#                     mlx90614, …). Currently mostly placeholders — promote
+#                     to a mapped row once any driver gets substantial source
+#                     worth its own knowledge file. Upstream Zephyr / NCS
+#                     come via `west.yml`, not via committed directories.
+#
+# libs/bash/          Small shared bash helpers (vault.sh, production.sh)
+#                     sourced by deploy/ctl.sh and infrastructure scripts.
+#                     Behavior is described where it's used (deploy/ctl-sh.md
+#                     and infrastructure.md), not in a standalone knowledge
+#                     file. If this grows into substantial logic, add a row.
+#
+# scripts/            Helper scripts invoked by the concord-release skill
+#                     (changelog.py, release_gate.py, compatibility.py).
+#                     Behavior is documented in skills/concord-release/SKILL.md;
+#                     no separate knowledge file.
+#
+# tests/              Top-level integration + smoke tests. Test behavior is
+#                     described in workflows/testing.md, which the hook
+#                     does not gate on (workflows are foundational, not
+#                     code-mirrored).
+#
+# Add an exclusion comment here when you decide a code area genuinely doesn't
+# warrant a knowledge file — it's better to be explicit than to leave the
+# next developer wondering whether the omission is intentional or an oversight.

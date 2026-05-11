@@ -231,7 +231,7 @@ on a column with `NULL` rows.
 - [`schema-overview.md`](schema-overview.md) — what the migrations are
   changing.
 - [`enums.md`](enums.md) — enum-specific change patterns.
-- [`../rules/prisma-flow.md`](../rules/prisma-flow.md) — overall
+- [`../../rules/prisma-flow.md`](../../rules/prisma-flow.md) — overall
   schema-change policy.
 - [`../apps/backend/http-api.md`](../apps/backend/http-api.md) — owns
   the init container.

@@ -288,5 +288,5 @@ DUTs). Heartbeat-and-pull model.
   generated client location.
 - [`../conventions.md`](../conventions.md) — backend ↔ frontend contract
   rule (hand-mirrored types).
-- [`../rules/prisma-flow.md`](../rules/prisma-flow.md) — schema-change
+- [`../../rules/prisma-flow.md`](../../rules/prisma-flow.md) — schema-change
   policy.

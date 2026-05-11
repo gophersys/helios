@@ -27,7 +27,7 @@ The folder has five top-level pieces:
 
 **If you change code, you update the matching `.claude/knowledge/` file in the same commit.**
 
-The `commit-msg` hook in `.claude/hooks/commit-msg-knowledge-freshness.sh` enforces this. The only escape hatch is `[no-arch-change]` in the commit message — use it for typos, formatting, log message tweaks, version bumps. Anything that changes behavior or shape requires the knowledge update.
+The git `commit-msg` hook at `.claude/hooks/commit-msg` enforces this — install once with `.claude/hooks/install.sh` (sets `core.hooksPath`). The only escape hatch is `[no-arch-change]` in the commit message — use it for typos, formatting, log message tweaks, version bumps. Anything that changes behavior or shape requires the knowledge update.
 
 See [`.claude/rules/update-knowledge-on-change.md`](.claude/rules/update-knowledge-on-change.md) for the full policy and the path map.
 
@@ -41,10 +41,12 @@ Every code path in this repo has a corresponding knowledge file:
 | `apps/frontend/app/` | `.claude/knowledge/apps/frontend/app.md` |
 | `apps/edge/mtib-server/` | `.claude/knowledge/apps/edge/mtib-server.md` |
 | `libs/python/` | `.claude/knowledge/libs/python-corekinect.md` |
+| `tools/corectl/` | `.claude/knowledge/tools/corectl.md` |
+| `infrastructure/` | `.claude/knowledge/infrastructure.md` |
 | `prisma/schema.prisma` | `.claude/knowledge/prisma/schema-overview.md` |
 | `deploy/` | `.claude/knowledge/deploy/{helm,ctl-sh,nx-targets,secrets,...}.md` |
 
-When you see a path, you know where its knowledge lives. When you write new knowledge, you put it at the path that mirrors the code.
+When you see a path, you know where its knowledge lives. When you write new knowledge, you put it at the path that mirrors the code. The full map is at [`.claude/hooks/knowledge-map.txt`](.claude/hooks/knowledge-map.txt).
 
 ## Starting points by intent
 
@@ -53,15 +55,41 @@ When you see a path, you know where its knowledge lives. When you write new know
 | Set up a fresh clone | `/start-here` |
 | Add a new feature | `/plan-feature` |
 | Add a v2 API endpoint | `/add-endpoint` |
-| Add a SvelteKit page | `/add-page` |
-| Add a Prisma model | `/add-prisma-model` |
-| Add an env var | `/add-env-var` |
+| Add a SvelteKit page (main app) | `/add-page` |
+| Add a Prisma model or enum value | `/add-prisma-model` |
+| Add an env var (non-secret) | `/add-env-var` |
+| Add a secret (credential) | `/add-secret` |
 | Add a new app | `/add-app` |
+| Stand up a new fixture | `/add-fixture` |
+| Onboard a new MTIB Verdin node | `/onboard-mtib` |
 | Deploy staging | `/deploy-staging` |
 | Deploy production | `/deploy-production` |
-| Cut a release | `/concord-release` |
+| Cut a versioned release (bump + tag + wheel + record) | `/concord-release` |
 | Debug a production issue | `/debug-prod` |
+| Audit `.claude/` for drift | `/refresh-claude` |
 | Just refresh your knowledge | Read [`.claude/knowledge/architecture.md`](.claude/knowledge/architecture.md) |
+
+**`/concord-release` vs `/deploy-production`**: `/concord-release` is the full release flow — bumps the `VERSION` file, builds + tags images, publishes the corekinect/corectl wheels, creates the release record, then deploys. `/deploy-production` is the deploy step alone, used for patch redeploys that don't need a new version cut.
+
+## Agents and when to spawn which
+
+Three high-level roles + nine per-service specialists. The skill files spawn the right one(s) for you, but if you're choosing directly:
+
+| Agent | Owns | When |
+|---|---|---|
+| `architect` | System-wide design + cross-cutting | "Where does this belong?" / consistency checks / trade-off calls. |
+| `planner` | Feature decomposition | "I want to add X" — produces a file-level plan with handoffs. |
+| `deployer` | Helm, K8s, ctl.sh, secrets, release flow | Anything between a green build and a running pod. |
+| `http-api-eng` | `apps/backend/http-api/` | v2 endpoints, Prisma access, auth, audit, SocketIO, K8s job scheduling. |
+| `frontend-eng` | `apps/frontend/app/` (main user UI) | SvelteKit routes, components, `api.ts`, `models.ts` mirror. |
+| `frontend-docs-eng` | `apps/frontend/docs/` (MkDocs site) | User-facing documentation site, role-based visibility. Distinct from `frontend-eng` — different app, different audience. |
+| `ci-admin-eng` | `apps/frontend/ci-admin/` + `deploy/ci/` | The standalone CI dashboard + cronjobs. Independent of main platform. |
+| `mtib-edge-eng` | `apps/edge/mtib-server/` + Python MTIB client | gRPC hardware control on Verdin fixture nodes. ARM64. |
+| `firmware-eng` | `apps/firmware/` + `libs/embedded/` + `libs/zephyr/` | Zephyr/ESP-IDF/nRF Connect SDK end-user firmware (icle today). **Not** the MTIB server — that's `mtib-edge-eng`. |
+| `build-service-eng` | `apps/backend/build-service/` | Firmware compilation worker, Bitbucket SSH, MinIO uploads. |
+| `git-poller-eng` | `apps/backend/git-poller/` | Bitbucket repo polling and build dispatch. |
+| `corekinect-sdk-eng` | `libs/python/` (the SDK) | Shared Python SDK consumed by every Python service + corectl. |
+| `db-schema-eng` | `prisma/` | Schema, migrations, enum values, frontend type mirror discipline. |
 
 ## The five things to know before doing anything
 

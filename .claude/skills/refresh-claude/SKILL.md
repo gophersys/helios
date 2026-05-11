@@ -35,9 +35,11 @@ This is the audit skill — the maintenance counterpart to the per-commit knowle
 
 ## Output
 
-A markdown report at `.claude/refresh-<YYYY-MM-DD>.md` (gitignored — temporary). Includes:
+A markdown report at `.claude/refresh-<YYYY-MM-DD>.md`. Includes:
 - Per-file findings with file paths and line numbers.
 - A suggested order to address them (highest-leverage first).
+
+The report is temporary scratch — delete it once the findings are addressed (or `.gitignore` the `refresh-*.md` pattern if you'd rather not eyeball it every time).
 
 ## Don't
 

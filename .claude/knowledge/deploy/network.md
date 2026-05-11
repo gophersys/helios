@@ -13,7 +13,7 @@ Refresh this file when: the ingress hostnames change, the TLS issuer/secret chan
 | CI dashboard (devops) | `admin.concord.local` (legacy) / `admin.staging.concord.local` | — |
 | dev (compose) | `localhost:9001` (api), `localhost:4200` (app via `nx serve`), `localhost:8675` (minio) | — |
 
-DNS for `*.concord.ad.corekinect.com` is served by the office Active Directory DNS; cluster IPs route through the office VIP. From off-site, the `concord-remote` tool (in the umbrella workspace) tunnels these to `127.0.0.2:443` on WSL — see [`/home/mateo/work/docs/CONCORD-REMOTE.md`](../../../../docs/CONCORD-REMOTE.md).
+DNS for `*.concord.ad.corekinect.com` is served by the office Active Directory DNS; cluster IPs route through the office VIP. From off-site, a separate piece of tooling (the `concord-remote` CLI in the umbrella `work/` workspace — not part of this repo) tunnels these to `127.0.0.2:443` on WSL. When concord is cloned standalone, you need direct VPN access to the office subnet `10.4.45.0/24` instead.
 
 The Helm `values.yaml` defaults still reference `staging.concord.local` (the bootstrap hostname); both staging and production override with `*.ad.corekinect.com` in their values files. The K3s-served `concord.local` host is what cert-manager bootstrap and the CI Helm chart use.
 
@@ -166,7 +166,7 @@ See [`verdin-edge.md`](verdin-edge.md) for how edge nodes onboard and how the IP
 
 ## concord-remote — off-site routing
 
-When a developer is off the office network, the `concord-remote` CLI (in the umbrella `work/` workspace, see `/home/mateo/work/docs/CONCORD-REMOTE.md`) sets up:
+When a developer is off the office network, the `concord-remote` CLI (a separate tool, lives in the umbrella `work/` workspace — not in this repo) sets up:
 
 - WireGuard tunnel to the office
 - DNS overrides so `staging.concord.ad.corekinect.com` resolves to `127.0.0.2`

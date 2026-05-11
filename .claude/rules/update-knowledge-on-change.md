@@ -2,7 +2,7 @@
 
 **If you change code, you update the matching `.claude/knowledge/` file in the same commit.**
 
-This is the rule that keeps `.claude/` from rotting. It's enforced by `.claude/hooks/commit-msg-knowledge-freshness.sh` — the commit will be rejected if a watched code path is touched without the corresponding knowledge update.
+This is the rule that keeps `.claude/` from rotting. It's enforced by the git `commit-msg` hook at `.claude/hooks/commit-msg` (installed by `.claude/hooks/install.sh`) — the commit will be rejected if a watched code path is touched without the corresponding knowledge update.
 
 ## The escape hatch
 

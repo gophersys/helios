@@ -43,7 +43,7 @@ The SSH key also has to be present **as a real key file** at `~/.ssh-devcontaine
 | File | Source | Purpose |
 |---|---|---|
 | `~/.kube/config` | office cluster admin (issued via `kubeadm` / k3s join) | Direct cluster access when on-site |
-| `~/.kube/config-concord-remote` | provisioned by the `concord-remote` tunnel installer (see `/home/mateo/work/docs/CONCORD-REMOTE.md`) | Off-site staging/prod access via WSL tunnel |
+| `~/.kube/config-concord-remote` | provisioned by the `concord-remote` tunnel installer (a separate tool in the umbrella `work/` workspace — not in this repo) | Off-site staging/prod access via WSL tunnel |
 
 Both are mounted into the devcontainer **readonly** at `/root/.kube/`. The `http-api` container in dev compose bind-mounts your host `~/.kube` at `/tmp/.kube` and reads `KUBECONFIG=/tmp/.kube/config` so it can discover MTIB nodes and schedule jobs against your cluster of choice.
 
@@ -142,7 +142,7 @@ nx start platform
 
 ## Off-site K8s access (concord-remote)
 
-When working remotely, the developer's WSL distro runs a tunnel daemon that bridges the office K3s API + container registry to localhost. The tunnel is provisioned by the script documented in `/home/mateo/work/docs/CONCORD-REMOTE.md`.
+When working remotely, the developer's WSL distro runs a tunnel daemon that bridges the office K3s API + container registry to localhost. The tunnel is provisioned by a separate tool (`concord-remote`) that lives in the umbrella `work/` workspace, not in this repo. Standalone clones of concord that need off-site cluster access should use direct VPN to `10.4.45.0/24` instead.
 
 What you get once it's up:
 
@@ -170,4 +170,4 @@ No additional credentials beyond the kubeconfig and an SSH key pinned in the tun
 - [`debugging.md`](debugging.md) — using `kubectl exec` to inspect secrets at runtime
 - [`../../rules/secrets-handling.md`](../../rules/secrets-handling.md) — what must never enter git
 - [`../../rules/auth-defaults.md`](../../rules/auth-defaults.md) — how the JWT and auth bypass work
-- `/home/mateo/work/docs/CONCORD-REMOTE.md` — the WSL tunnel to the office cluster
+- `concord-remote` — the WSL tunnel to the office cluster (a separate tool in the umbrella `work/` workspace, not in this repo)

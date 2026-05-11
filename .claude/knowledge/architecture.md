@@ -89,7 +89,7 @@ Tracing **"manufacturing test stage completes"** to make the contracts concrete:
 2. **Result POST**: Runner calls `POST /v2/runs/<run_id>/target/<target_id>/stage/<stage_id>/complete` with `{ status: PASSED|FAILED, results: {...} }`.
 3. **http-api handler** (`src/api/v2/runs/...`):
    - Validates the request via `<Type>.from_json()`.
-   - `@require_permissions(Permissions.MFG_RUNS_MANAGE)` checks JWT + permission set.
+   - `@require_permissions(Permissions.MANUFACTURING_MANAGE)` checks JWT + permission set.
    - Updates `Execution` row in Postgres via the Prisma client (`db.execution.update(...)`).
    - Recomputes parent `TestRun.status`.
    - Calls `log_audit("test.stage.complete", "Execution", stage_id, {...})`.

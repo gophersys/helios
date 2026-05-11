@@ -224,4 +224,4 @@ The MkDocs site under `apps/frontend/docs/` filters page visibility by role via 
 - [`../apps/frontend/app.md`](../apps/frontend/app.md) — frontend permission gating
 - [`../../rules/auth-defaults.md`](../../rules/auth-defaults.md) — the unconditional decorator rule
 - [`../../rules/audit-logging.md`](../../rules/audit-logging.md) — what to log and what not to
-- [`../../workflows/credentials.md`](../../workflows/credentials.md) — JWT_SECRET_KEY rotation
+- [`../workflows/credentials.md`](../workflows/credentials.md) — JWT_SECRET_KEY rotation

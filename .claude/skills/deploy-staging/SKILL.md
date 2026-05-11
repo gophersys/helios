@@ -10,13 +10,14 @@ Spawn `deployer` (`.claude/agents/deployer.md`).
 ## What the agent does
 
 1. **Pre-flight**:
-   - Confirm the current concord submodule branch and commit. Should be clean.
-   - Refresh `.git-build-info` per `/home/mateo/work/.claude/rules/concord-submodule.md`:
+   - Confirm the current concord branch and commit. Should be clean.
+   - **If concord is a git submodule of an umbrella workspace**: refresh `.git-build-info` on the host before invoking the devcontainer (the container can't resolve git when the parent `.git/modules/` isn't mounted). See [`.claude/knowledge/deploy/ctl-sh.md`](../../knowledge/deploy/ctl-sh.md) — "Submodule context".
      ```bash
      { git rev-parse --short HEAD; git rev-parse --abbrev-ref HEAD; \
        [ -n "$(git status --porcelain 2>/dev/null)" ] && echo true || echo false; \
      } > .git-build-info
      ```
+   - If concord is a standalone clone, skip this step — `git` works natively in the container.
 
 2. **Run the deploy from inside the devcontainer**, with KUBECONFIG pointing at the right cluster:
    ```bash
