@@ -91,6 +91,10 @@ For day-to-day rotation, prefer `nx run platform:sync-secrets -c <env>` (the dep
 
 Per-secret rotation flow is in [`deploy/secrets.md`](deploy/secrets.md). Rule: [`rules/secrets-handling.md`](../rules/secrets-handling.md).
 
+Note: `coreops-credentials` is a deliberate **second** Secret in addition to the `COREOPS_*` keys inside `concord-secrets`. The runner-pod templates (`apps/backend/http-api/assets/templates/{manufacturing_deployment,manufacturing_job,validation_job}.yaml`) consume the standalone `coreops-credentials` Secret directly because they don't share `concord-secrets`' scope. Don't remove either — both are load-bearing.
+
+Note: `PRODUCTION_SMOKE_API_KEY` (in `.env.example`) is NOT synced as a K8s Secret by `create-all.sh`. It's only read by `.ci/stages/smoke.sh` on the production smoke path, supplied as a Bitbucket Pipelines variable in CI. It's listed in `.env.example` so a workstation operator running production smoke locally knows to set it.
+
 ## Common operations
 
 | Need | Command |

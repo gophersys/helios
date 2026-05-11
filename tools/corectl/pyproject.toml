@@ -18,11 +18,13 @@ dependencies = [
     "rich>=13.0",
     "pyyaml>=6.0",
     "jsonschema>=4.0",
-    # corekinect ships in lockstep — same major.minor as corectl. Pin to
-    # ~=major.minor.0 so a corectl install always pulls the matching
-    # framework, and an upgrade pulls the matching framework upgrade.
-    # The release skill updates this constraint each minor bump.
-    "corekinect~=0.8.0",
+    # corekinect ships in lockstep with the platform minor. Pin to
+    # ~=major.minor.0 so a corectl install always pulls a corekinect from
+    # the same minor (PEP 440: ~=0.9.0 ≡ >=0.9.0, <0.10.0). When the
+    # platform minor bumps, update this pin in the same commit as the
+    # corekinect __init__.py bump — `/concord-release` does not automate
+    # this yet (see .claude/knowledge/tools/corectl.md).
+    "corekinect~=0.9.0",
 ]
 
 [project.scripts]

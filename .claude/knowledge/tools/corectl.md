@@ -111,11 +111,13 @@ The `force-include` block in `pyproject.toml` is critical: hatch otherwise exclu
 
 ## Version pinning to `corekinect`
 
-`corectl` pins `corekinect~=<MAJOR>.<MINOR>.0` in `pyproject.toml::dependencies`. The intent is that the CLI and the framework SDK stay in lockstep, because corectl's project validation rules (the schema for `concord.yaml`, the expected test discovery, the manifest format) come from the SDK.
+`corectl` pins `corekinect~=<MAJOR>.<MINOR>.0` in `pyproject.toml::dependencies`. PEP 440 `~=` means "compatible release": `~=0.9.0` is `>=0.9.0, <0.10.0`. The intent is that the CLI and the framework SDK stay in lockstep, because corectl's project validation rules (the schema for `concord.yaml`, the expected test discovery, the manifest format) come from the SDK.
 
-**The pin discipline is aspirational, not currently enforced.** `/concord-release` bumps the platform `VERSION` and corekinect's `__init__.py` but does **not** automatically update corectl's pin or version — that's a manual follow-up. The pin can (and currently does) drift behind the platform; whenever you publish a corectl release, update the corekinect pin in `pyproject.toml` to match the current `corekinect` minor before building.
+**The pin discipline is manual.** `/concord-release` bumps the platform `VERSION` and corekinect's `__init__.py` but does **not** automatically update corectl's pin — that's a follow-up to do in the same commit. Pip will refuse to install corectl if the pin can't resolve against the available corekinect version, so leaving the pin stale eventually breaks fresh installs.
 
-`version_check` (the daily upgrade-availability probe) compares the running `corectl` version to the internal pypi's latest and surfaces a notice; it does not enforce the corekinect pin range, but pip will refuse to install when the constraint can't be satisfied.
+Current pin: `corekinect~=0.9.0` (matches the platform's 0.9.x minor). When the platform bumps to 0.10.0, update this pin to `~=0.10.0` in the same commit as the corekinect `__init__.py` bump.
+
+`version_check` (the daily upgrade-availability probe) compares the running `corectl` version to the internal pypi's latest and surfaces a notice; it does not enforce the corekinect pin range.
 
 ## Build + distribution
 
