@@ -1,0 +1,46 @@
+# knowledge-map.txt — code path → matching .claude/knowledge/ file.
+#
+# Format: <code-path-prefix><whitespace><knowledge-file-or-dir>
+# Comments start with '#'. Blank lines ignored.
+#
+# Trailing slash on the knowledge target means "any file under this dir
+# satisfies the requirement". No trailing slash means "this exact file".
+#
+# The commit-msg hook uses longest-prefix-match: a staged file is matched
+# against the most-specific row. So `deploy/ci/foo.yaml` matches the
+# `deploy/ci/` row (not the broader `deploy/` row).
+#
+# When you add a new top-level code area, add a row here AND create the
+# corresponding knowledge file in the same commit.
+
+# Backend apps
+apps/backend/http-api/         .claude/knowledge/apps/backend/http-api.md
+apps/backend/build-service/    .claude/knowledge/apps/backend/build-service.md
+apps/backend/git-poller/       .claude/knowledge/apps/backend/git-poller.md
+
+# Frontend apps
+apps/frontend/app/             .claude/knowledge/apps/frontend/app.md
+apps/frontend/docs/            .claude/knowledge/apps/frontend/docs.md
+apps/frontend/ci-admin/        .claude/knowledge/apps/frontend/ci-admin.md
+
+# Edge + firmware
+apps/edge/mtib-server/         .claude/knowledge/apps/edge/mtib-server.md
+apps/firmware/icle/            .claude/knowledge/apps/firmware/icle.md
+
+# Shared libraries
+libs/python/                   .claude/knowledge/libs/python-corekinect.md
+libs/protocols/                .claude/knowledge/libs/protocols.md
+libs/embedded/                 .claude/knowledge/libs/embedded.md
+
+# Database schema
+prisma/schema.prisma           .claude/knowledge/prisma/schema-overview.md
+prisma/migrations/             .claude/knowledge/prisma/migrations.md
+
+# Deploy + CI (note: more specific prefixes first via longest-match)
+deploy/ci/                     .claude/knowledge/ci/ci-platform.md
+deploy/                        .claude/knowledge/deploy/
+.ci/                           .claude/knowledge/ci/pipelines.md
+
+# Top-level developer-facing
+tools/corectl/                 .claude/knowledge/libs/python-corekinect.md
+tools/env/                     .claude/knowledge/deploy/secrets.md

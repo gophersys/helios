@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# commit-msg hook — enforce that code changes ship with matching
+# .claude/knowledge/ updates. Bypass with [no-arch-change] in the message.
+#
+# Installed by: .claude/hooks/install.sh (sets core.hooksPath=.claude/hooks).
+# Map source:   .claude/hooks/knowledge-map.txt
+
+set -e
+
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+# Bypass marker — for typos, formatting, version bumps, lockfile syncs.
+if grep -qE '\[no-arch-change\]' "$msg_file"; then
+    exit 0
+fi
+
+staged=$(git diff --cached --name-only)
+[ -z "$staged" ] && exit 0
+
+map_file=".claude/hooks/knowledge-map.txt"
+[ -f "$map_file" ] || exit 0
+
+# Load map rows into parallel arrays.
+declare -a PREFIXES KNOWLEDGE
+while IFS= read -r line; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    stripped="${line#"${line%%[![:space:]]*}"}"
+    [ -z "$stripped" ] && continue
+    p=$(echo "$stripped" | awk '{print $1}')
+    k=$(echo "$stripped" | awk '{print $2}')
+    [ -z "$p" ] || [ -z "$k" ] && continue
+    PREFIXES+=("$p")
+    KNOWLEDGE+=("$k")
+done < "$map_file"
+
+# For each staged file, find the longest matching code prefix and
+# record the knowledge target it requires.
+declare -A REQUIRED
+while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    best_len=-1
+    best_k=""
+    for i in "${!PREFIXES[@]}"; do
+        p="${PREFIXES[$i]}"
+        if [[ "$f" == "$p"* ]]; then
+            if [ "${#p}" -gt "$best_len" ]; then
+                best_len="${#p}"
+                best_k="${KNOWLEDGE[$i]}"
+            fi
+        fi
+    done
+    [ -n "$best_k" ] && REQUIRED["$best_k"]=1
+done <<< "$staged"
+
+# Verify each required knowledge target is in the staged set.
+violations=()
+for k in "${!REQUIRED[@]}"; do
+    if [[ "$k" == */ ]]; then
+        # Directory target — any staged file under it satisfies.
+        if ! echo "$staged" | grep -qE "^${k}"; then
+            violations+=("$k")
+        fi
+    else
+        # Exact file target.
+        if ! echo "$staged" | grep -qFx "$k"; then
+            violations+=("$k")
+        fi
+    fi
+done
+
+if [ "${#violations[@]}" -gt 0 ]; then
+    {
+        echo ""
+        echo "[knowledge-freshness] commit refused"
+        echo ""
+        echo "Code changed without updating the matching .claude/knowledge file:"
+        for v in "${violations[@]}"; do
+            echo "  needs update: $v"
+        done
+        echo ""
+        echo "Either:"
+        echo "  • update the knowledge file(s) above, re-stage, and re-commit, or"
+        echo "  • add [no-arch-change] to your commit message if the change is"
+        echo "    purely cosmetic (typo, formatting, version bump, lockfile sync)."
+        echo ""
+        echo "See .claude/rules/update-knowledge-on-change.md for the full policy."
+        echo ""
+    } >&2
+    exit 1
+fi
+
+exit 0
