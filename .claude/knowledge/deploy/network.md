@@ -47,31 +47,30 @@ rules:
 
 The order of `paths` matters: longer prefixes (`/v2`, `/auth`, `/socket.io`) come first, the catch-all `/` last. Traefik resolves longest-prefix first regardless, but the explicit ordering makes the intent obvious.
 
-## TLS — cert-manager
+## TLS — manual rotation against the corp CA
 
-`infrastructure/clusters/office/networking/cert-manager-ca.yaml` bootstraps a self-signed `ClusterIssuer/selfsigned-bootstrap`, then issues a 10-year CA Certificate (`concord-ca`) stored in `Secret/concord-ca-secret` in the `cert-manager` namespace, then exposes `ClusterIssuer/concord-ca-issuer` referencing that CA Secret.
+The chart's Ingress references `secretName: concord-tls`. That Secret is the same in both `staging` and `production`: a wildcard cert issued by the **CoreKinect Sub-CA** (Windows AD CS, `CoreKinectSubCA-WINSRV01`) covering:
 
-`infrastructure/clusters/office/networking/certificates/staging-cert.yaml` issues the per-namespace Certificate:
+- `*.concord.ad.corekinect.com`, `concord.ad.corekinect.com`
+- `*.staging.concord.ad.corekinect.com`, `staging.concord.ad.corekinect.com`
 
+Current cert is valid through **2028-04-14**.
+
+The cert is **not managed by cert-manager**. It's manually issued against the corp CA and pushed into both namespaces via `kubectl create secret tls concord-tls`. The full rotation procedure lives at [`infrastructure/clusters/office/networking/certificates/README.md`](../../../infrastructure/clusters/office/networking/certificates/README.md).
+
+cert-manager IS bootstrapped on the cluster (see `infrastructure/clusters/office/networking/cert-manager-ca.yaml` — self-signed `ClusterIssuer/selfsigned-bootstrap` → 10-year `concord-ca` Certificate → `ClusterIssuer/concord-ca-issuer`), but only the local CA infrastructure is kept warm. No `Certificate` resources reference it for ingress today. The local CA is held in reserve for future internal-only TLS (service-to-service mTLS, etc.).
+
+To force-rotate the live cert: follow the procedure in the certificates/README above — re-issue against the corp CA and `kubectl create secret tls concord-tls --dry-run=client -o yaml | kubectl apply -f -` into both namespaces.
+
+To check current expiry:
+
+```bash
+KUBECONFIG=~/.kube/config-concord-remote \
+  kubectl -n production get secret concord-tls -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d | openssl x509 -noout -enddate
 ```
-kind: Certificate
-metadata:
-  name: staging-concord-tls
-  namespace: staging
-spec:
-  secretName: staging-concord-tls
-  issuerRef:
-    name: concord-ca-issuer
-    kind: ClusterIssuer
-  commonName: staging.concord.local
-  dnsNames: [staging.concord.local, "*.concord.local"]
-  duration: 8760h        # 1 year
-  renewBefore: 720h      # 30 days
-```
 
-The Ingress in the chart references `secretName: concord-tls`. **The naming is environment-dependent**: bootstrap uses `*.concord.local` for self-signed certs (suitable for the lab and `concord-remote` tunneling). When the cluster is wired to the real CoreKinect SubCA, the secret name in the chart values still references `concord-tls` — the Certificate resource gets pointed at the upstream issuer in `infrastructure/`.
-
-cert-manager renews automatically 30 days before expiry. To force re-issue: `kubectl delete secret concord-tls -n <env>` and wait ~30 seconds for cert-manager to recreate it.
+No automated alert for cert expiry today — set a calendar reminder for 60 days before the next expiry until that's wired up.
 
 ### CA distribution
 

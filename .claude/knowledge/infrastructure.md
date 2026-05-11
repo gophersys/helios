@@ -52,7 +52,7 @@ Both office and eks scripts follow the same skeleton:
 1. **Namespaces** — `staging`, `production`, `devops` (for CI), `cert-manager`, …
 2. **Node labels** — applied from `cluster.yaml::nodes` (control-plane vs agent vs edge). Edge nodes get `concord.corekinect.com/workload-edge=true` (and a `kubernetes.io/arch=arm64` from the K3s join, not from us).
 3. **Cluster dependencies** — `helm install` for each, using `dependencies/<name>/values.yaml`. Today: `cert-manager`. Slots reserved for future: otel collector, vault.
-4. **Post-install manifests** — `cert-manager-ca.yaml` (self-signed bootstrap → 10-year CA → ClusterIssuer), TLS certificates per namespace.
+4. **Post-install manifests** — `cert-manager-ca.yaml` only (self-signed bootstrap → 10-year CA → `concord-ca-issuer` ClusterIssuer, kept available for future internal-only certs). Ingress TLS is NOT managed by cert-manager — it uses a wildcard cert manually issued by the corp CoreKinect Sub-CA and pushed into both namespaces as `concord-tls`. See [`infrastructure/clusters/office/networking/certificates/README.md`](../../infrastructure/clusters/office/networking/certificates/README.md) for the rotation procedure and [`deploy/network.md`](deploy/network.md) for the full picture.
 5. **RBAC** — applies ClusterRoles + RoleBindings from `clusters/office/rbac/` referencing `rbac/role-mapping.yaml`.
 6. **Storage verification** — checks the expected StorageClasses exist (`local-path` for K3s, `gp3` for EKS).
 7. **Secrets** — runs `clusters/office/secrets/create-all.sh` which reads per-env `.env` files and creates K8s Secrets via `kubectl apply` of generated manifests.

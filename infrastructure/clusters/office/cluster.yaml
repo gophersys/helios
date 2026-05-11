@@ -32,9 +32,11 @@ dependencies:
     namespace: cert-manager
     # values: uses shared defaults from infrastructure/dependencies/cert-manager/values.yaml
     postInstall:
-      # After cert-manager is running, apply the CA issuer + certificates
+      # After cert-manager is running, apply the CA issuer. The local CA
+      # is kept available for future internal-only certs (mTLS, etc.),
+      # but ingress TLS is not managed by cert-manager today — see
+      # networking/certificates/README.md.
       - networking/cert-manager-ca.yaml
-      - networking/certificates/staging-cert.yaml
 
   # ── Future dependencies (uncomment when ready) ────────────────
   # - name: opentelemetry-collector
