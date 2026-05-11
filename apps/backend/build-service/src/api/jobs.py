@@ -47,16 +47,38 @@ def notify():
 
 @jobs_bp.route("/cancel", methods=["POST"])
 def cancel():
-    """Request cancellation of the current build."""
+    """Request cancellation of the current build.
+
+    Flips the worker's cancel_event. The build's subprocess streaming
+    loop (executor.py or docker_runner.py) sees the event on its next
+    line read and kills the underlying process / docker container.
+    The pipeline then reports the job as CANCELLED to the HTTP-API
+    rather than FAILED.
+
+    Cancellation is best-effort: the kill propagates within ~1 second
+    of the next stdout line on a healthy build, but a build wedged
+    waiting on I/O may take longer. Cancellation does not abort an
+    already-running stage transition — only the build subprocess.
+
+    Returns:
+      200 — no active build to cancel (idempotent).
+      202 — cancellation requested; the worker will tear the build down.
+    """
     from src.worker.loop import get_worker_state
 
     state = get_worker_state()
     if not state or not state.is_busy:
         return jsonify({"status": "no_active_build"}), 200
 
-    # TODO: Implement actual cancellation via shutdown event on the build subprocess
-    # For now, just report the current state
+    data = request.get_json(silent=True) or {}
+    reason = (data.get("reason") or "user")[:64]
+
+    state.request_cancel(reason=reason)
+    log.info("Cancellation requested for job %s (reason=%s)",
+             state.current_job_id, reason)
+
     return jsonify({
         "status": "cancel_requested",
         "currentJobId": state.current_job_id,
+        "reason": reason,
     }), 202

@@ -97,6 +97,66 @@ class TestCancelEndpoint:
         data = resp.get_json()
         assert data["status"] == "no_active_build"
 
+    def test_cancel_busy_worker_flips_event(self, client):
+        """A busy worker accepts cancel and the cancel_event is set."""
+        from src.worker import loop as loop_module
+        from src.worker.state import WorkerState
+
+        # Inject a busy worker state into the module-level singleton.
+        ws = WorkerState(worker_id="w-test")
+        ws.start_job("job-busy-1", product="alpha")
+        loop_module._worker_state = ws
+        try:
+            resp = client.post("/jobs/cancel",
+                               data=json.dumps({"reason": "user"}),
+                               content_type="application/json")
+            assert resp.status_code == 202
+            data = resp.get_json()
+            assert data["status"] == "cancel_requested"
+            assert data["currentJobId"] == "job-busy-1"
+            assert data["reason"] == "user"
+            # The shared cancel_event is now set — the runner's streaming
+            # loop will see this and tear the subprocess down.
+            assert ws.cancel_event.is_set()
+            assert ws.cancel_reason == "user"
+        finally:
+            loop_module._worker_state = None
+
+    def test_cancel_is_idempotent_when_already_cancelling(self, client):
+        """Repeated cancels while one is in flight don't error."""
+        from src.worker import loop as loop_module
+        from src.worker.state import WorkerState
+
+        ws = WorkerState(worker_id="w-test")
+        ws.start_job("job-busy-2")
+        loop_module._worker_state = ws
+        try:
+            client.post("/jobs/cancel")
+            resp = client.post("/jobs/cancel")
+            assert resp.status_code == 202
+            assert ws.cancel_event.is_set()
+        finally:
+            loop_module._worker_state = None
+
+    def test_cancel_reason_truncated(self, client):
+        """Reason is capped at 64 chars to keep audit/logs sane."""
+        from src.worker import loop as loop_module
+        from src.worker.state import WorkerState
+
+        ws = WorkerState(worker_id="w-test")
+        ws.start_job("job-busy-3")
+        loop_module._worker_state = ws
+        try:
+            long_reason = "x" * 200
+            resp = client.post("/jobs/cancel",
+                               data=json.dumps({"reason": long_reason}),
+                               content_type="application/json")
+            assert resp.status_code == 202
+            assert len(resp.get_json()["reason"]) == 64
+            assert ws.cancel_reason == "x" * 64
+        finally:
+            loop_module._worker_state = None
+
 
 class TestHealthEndpoint:
     def test_health_returns_200(self, client):

@@ -150,11 +150,28 @@ class BuildPipeline:
                 pass
 
     def _report_failure(self, ctx: BuildContext, error: str, duration: int):
-        """Report build failure to the API."""
-        error_summary = error[-4000:] if len(error) > 4000 else error
+        """Report build failure to the API.
+
+        If the failure was caused by user-requested cancellation
+        (worker cancel_event flipped during the build), report the job
+        as CANCELLED rather than FAILED so the UI distinguishes "the
+        user stopped it" from "the build broke".
+        """
+        from src.worker.loop import get_worker_state  # noqa: PLC0415 (avoid circular import)
+        ws = get_worker_state()
+        cancelled = ws is not None and ws.cancel_event.is_set()
+
+        if cancelled:
+            status = "CANCELLED"
+            message = f"Build cancelled by {ws.cancel_reason or 'user'}"
+        else:
+            status = "FAILED"
+            error_summary = error[-4000:] if len(error) > 4000 else error
+            message = error_summary[:2000]
+
         data: Dict[str, Any] = {
-            "status": "FAILED",
-            "errorMessage": error_summary[:2000],
+            "status": status,
+            "errorMessage": message,
             "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "durationSeconds": duration,
         }

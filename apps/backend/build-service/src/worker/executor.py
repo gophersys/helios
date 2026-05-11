@@ -276,6 +276,11 @@ class BuildExecutor:
         log_lines: List[str] = []
         log_buffer: List[str] = []  # Buffer for batching API calls
 
+        # Cache the worker-state reference once. cancel_event.is_set() is
+        # a cheap atomic read, safe to call on every iteration.
+        from src.worker.loop import get_worker_state  # noqa: PLC0415  (avoid circular import at module load)
+        ws = get_worker_state()
+
         try:
             log.info("Running: %s", " ".join(cmd))
 
@@ -292,6 +297,30 @@ class BuildExecutor:
 
             with open(log_file, "w") as f:
                 while True:
+                    # Check cancel request from POST /jobs/cancel.
+                    # Done before each readline so a build wedged with no
+                    # stdout output can still be torn down within a few
+                    # seconds (terminate → wait → kill).
+                    if ws is not None and ws.cancel_event.is_set():
+                        log.warning(
+                            "Cancellation requested for job %s (reason=%s) — terminating subprocess",
+                            job.id, ws.cancel_reason,
+                        )
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            log.warning("Subprocess did not exit on SIGTERM — sending SIGKILL")
+                            process.kill()
+                            try:
+                                process.wait(timeout=2)
+                            except subprocess.TimeoutExpired:
+                                pass
+                        # Flush whatever we've captured so far before returning
+                        if log_buffer:
+                            self.api_client.stream_log_chunk(job.id, "".join(log_buffer))
+                        return False, "".join(log_lines) + "\n[CANCELLED]"
+
                     assert process.stdout is not None
                     line = process.stdout.readline()
                     if not line and process.poll() is not None:

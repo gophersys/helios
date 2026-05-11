@@ -82,3 +82,68 @@ class TestWorkerState:
     def test_uptime(self):
         ws = WorkerState(worker_id="w1")
         assert ws.uptime_seconds >= 0
+
+
+class TestCancelSignal:
+    """Tests for the cancel_event / request_cancel / clear_cancel flow."""
+
+    def test_no_cancel_when_idle(self):
+        ws = WorkerState(worker_id="w1")
+        assert ws.cancel_requested is False
+        # request_cancel on an idle worker returns False and does NOT flip
+        # the event — there's nothing to cancel.
+        assert ws.request_cancel(reason="user") is False
+        assert ws.cancel_requested is False
+        assert ws.cancel_reason is None
+
+    def test_request_cancel_when_busy(self):
+        ws = WorkerState(worker_id="w1")
+        ws.start_job("job-1")
+        assert ws.request_cancel(reason="user") is True
+        assert ws.cancel_requested is True
+        assert ws.cancel_event.is_set()
+        assert ws.cancel_reason == "user"
+
+    def test_start_job_clears_stale_cancel(self):
+        """A new job must not inherit the previous job's cancel signal."""
+        ws = WorkerState(worker_id="w1")
+        ws.start_job("job-1")
+        ws.request_cancel(reason="user")
+        assert ws.cancel_requested is True
+        # Even without an explicit finish_job, starting a new one resets.
+        ws.start_job("job-2")
+        assert ws.cancel_requested is False
+        assert ws.cancel_reason is None
+
+    def test_clear_cancel_is_idempotent(self):
+        ws = WorkerState(worker_id="w1")
+        ws.clear_cancel()
+        ws.clear_cancel()
+        assert ws.cancel_requested is False
+
+    def test_finish_job_counts_cancelled_separately(self):
+        """Cancellation should not pollute jobs_failed."""
+        ws = WorkerState(worker_id="w1")
+        ws.start_job("job-1")
+        ws.request_cancel()
+        # The runner returns success=False on cancel; finish_job should
+        # bucket this into jobs_cancelled, not jobs_failed.
+        ws.finish_job(success=False)
+        assert ws.jobs_cancelled == 1
+        assert ws.jobs_failed == 0
+        assert ws.jobs_completed == 0
+
+    def test_request_cancel_with_custom_reason(self):
+        ws = WorkerState(worker_id="w1")
+        ws.start_job("job-1")
+        ws.request_cancel(reason="shutdown")
+        assert ws.cancel_reason == "shutdown"
+
+    def test_to_dict_exposes_cancel_state(self):
+        ws = WorkerState(worker_id="w1")
+        ws.start_job("job-1")
+        ws.request_cancel(reason="user")
+        d = ws.to_dict()
+        assert d["cancelRequested"] is True
+        assert d["cancelReason"] == "user"
+        assert d["jobsCancelled"] == 0  # only counted after finish_job

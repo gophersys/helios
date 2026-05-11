@@ -131,7 +131,21 @@ Flask + `waitress` on `BUILD_SERVICE_PORT` (default 9002), started in a daemon t
 | `GET /queue` | Job queue depth + `_seen` set |
 | `GET /metrics` | Prometheus exposition (when `METRICS_ENABLED=true`) |
 | `POST /jobs/notify` | Push-job notification from HTTP API |
-| `POST /jobs/cancel` | Stubbed cancellation — currently reports `cancel_requested` only; the build subprocess is not yet interrupted |
+| `POST /jobs/cancel` | Real cancellation. Body: `{"reason": "<text>"}` (optional, capped at 64 chars, default `"user"`). Flips `WorkerState.cancel_event`; the subprocess streaming loop in both `executor.py` and `docker_runner.py` checks the event on every line and tears the build down. Returns 200 with `no_active_build` if idle, 202 with `cancel_requested` if a job is running. The pipeline then patches the job status to `CANCELLED` (not `FAILED`) via `_report_failure`. |
+
+### Cancellation mechanics
+
+`WorkerState.cancel_event` (a `threading.Event`) is the single cancellation primitive. Flow:
+
+1. `POST /jobs/cancel` (Flask thread) → `state.request_cancel(reason)` → `cancel_event.set()`.
+2. The build subprocess streaming loops in `executor.py` and `docker_runner.py` check `ws.cancel_event.is_set()` before each `stdout.readline()`. On set:
+   - **local subprocess** (`executor.py`): `process.terminate()` (SIGTERM) → `wait(timeout=5)` → `process.kill()` (SIGKILL) if still alive → return `(False, "...\n[CANCELLED]")`.
+   - **docker container** (`docker_runner.py`): `_kill_container(container_name)` (`docker kill <name>`) → `process.kill()` on the host `docker run` process → return `(False, "...\n[CANCELLED]")`.
+3. `pipeline._report_failure` detects `cancel_event.is_set()` and patches the job as `status=CANCELLED` (not `FAILED`), with `errorMessage = "Build cancelled by <reason>"`.
+4. `state.finish_job(False)` then counts the outcome into `jobs_cancelled` (separate from `jobs_failed`).
+5. The next `state.start_job(...)` calls `clear_cancel()` so a fresh job never inherits the previous job's signal.
+
+Cancellation is best-effort. Latency between the flip and the kill is bounded by the time until the next stdout line (typically <1s on a healthy build, longer if the build is wedged silently). Cancellation does not abort a stage transition that's already running — only the build subprocess itself.
 
 ## External dependencies
 

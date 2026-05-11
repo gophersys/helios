@@ -232,6 +232,11 @@ class DockerBuildRunner:
         output_lines = []
         self._current_container = container_name
 
+        # Cache the worker-state reference once. cancel_event.is_set() is
+        # a cheap atomic read, safe to do once per stdout line.
+        from src.worker.loop import get_worker_state  # noqa: PLC0415  (avoid circular import at module load)
+        ws = get_worker_state()
+
         try:
             process = subprocess.Popen(
                 docker_cmd,
@@ -258,6 +263,16 @@ class DockerBuildRunner:
                     if log_callback:
                         log_callback(chunk)
                     log_batch = []
+
+                # Check cancel request from POST /jobs/cancel.
+                if ws is not None and ws.cancel_event.is_set():
+                    log.warning(
+                        "Cancellation requested for job %s (reason=%s) — killing container %s",
+                        job_id, ws.cancel_reason, container_name,
+                    )
+                    self._kill_container(container_name)
+                    process.kill()
+                    return False, "\n".join(output_lines) + "\n[CANCELLED]"
 
                 # Check timeout
                 elapsed = time.time() - start_time
