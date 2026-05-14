@@ -177,3 +177,6 @@ The current state (as of the pin fix landing in main): the source tree has corec
 
 
 **Version 0.10.1** (2026-05-14): lockstep bump alongside corekinect 0.10.1 and the FixtureDesign → TestBedDesign Concord-side rename. corectl's templates and CLI text were already updated in 0.10.0; this is a no-shape-change ride-along.
+
+
+**v0.10.3** (2026-05-14): `_shared/.claude/` framework templates (rules + skills + agents) sweep — every `slot.fixture` → `slot.testbed`, every `fixtures/{{board}}/fixture.py` → `testbeds/{{board}}/testbed.py`, every "fixture controller" → "testbed controller". `corectl test update --apply` propagates this to existing scaffolded projects.

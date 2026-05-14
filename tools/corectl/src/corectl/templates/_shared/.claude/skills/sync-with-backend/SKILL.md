@@ -7,7 +7,7 @@ user-invocable: true
 
 # Sync with the backend
 
-The backend owns: product slug, board revision name, device IDs, fixture controller class path. Anything else in `concord.yaml` is dev-owned. This skill pulls authoritative fields from the backend and shows the diff.
+The backend owns: product slug, board revision name, device IDs, testbed controller class path. Anything else in `concord.yaml` is dev-owned. This skill pulls authoritative fields from the backend and shows the diff.
 
 ## When to invoke
 

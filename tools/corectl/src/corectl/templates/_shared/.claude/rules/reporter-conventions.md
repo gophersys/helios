@@ -9,8 +9,8 @@ The reporter streams test/step events to the platform UI in real time. How to us
 ```python
 def test_voltage_rails(slot, report):
     with report.step("Power on") as step:
-        slot.fixture.power_on()
-        assert_and_record(step, "boot_current_ma", slot.fixture.read_total_current_ma(),
+        slot.testbed.power_on()
+        assert_and_record(step, "boot_current_ma", slot.testbed.read_total_current_ma(),
                           "mA", lambda v: v > 5.0)
 
     with report.step("Read 3V3 rail") as step:

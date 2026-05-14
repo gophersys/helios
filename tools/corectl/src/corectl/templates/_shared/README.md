@@ -27,7 +27,7 @@ Scaffolded by `corectl test init`. The test framework is
 concord.yaml             manifest — owned by the backend, kept in sync by `corectl test sync`
 pyproject.toml           package name + framework dependency
 conftest.py              one-line framework plugin loader
-fixtures/{{board}}/      fixture controller + profile (backend-authoritative)
+testbeds/{{board}}/      testbed controller + profile (backend-authoritative)
 tests/
   <stage>/               one directory per enabled stage
     test_*.py            test modules — use the `assert_and_record` DSL
@@ -36,7 +36,7 @@ tests/
 ## Keeping this project in sync
 
 The backend is the source of truth for the product slug, board revision,
-and fixture controller class. If ops bumps a board revision or swaps a
+and testbed controller class. If ops bumps a board revision or swaps a
 testbed:
 
 ```bash

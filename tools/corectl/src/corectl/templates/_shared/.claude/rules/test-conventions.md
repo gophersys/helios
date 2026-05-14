@@ -16,7 +16,7 @@ from corekinect.test.assertions import assert_and_record
 def test_some_behavior(slot, report):
     """One-sentence purpose. The reporter renders this as the test card title."""
     with report.step("Apply 4.5 V to VBAT") as step:
-        slot.fixture.power_on()
+        slot.testbed.power_on()
         assert_and_record(step, "vbat_v", slot.adc.read("battery_sys"), "V",
                           lambda v: 4.4 <= v <= 4.6)
 ```

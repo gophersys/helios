@@ -12,7 +12,7 @@ Run pre-flight validation and surface every issue with an actionable fix.
 ## When to invoke
 
 - Before every commit.
-- After editing `concord.yaml`, `fixtures/{{board}}/fixture.py`, or any test file.
+- After editing `concord.yaml`, `testbeds/{{board}}/testbed.py`, or any test file.
 - After `corectl test sync` (drift may have introduced inconsistencies).
 
 ## Steps

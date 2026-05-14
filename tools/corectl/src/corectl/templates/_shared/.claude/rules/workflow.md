@@ -33,7 +33,7 @@ Released versions are immutable. They get bound to ProductStageConfig per-stage 
 
 ## Reconciling with the backend
 
-The backend owns: product slug, board revision, device IDs, fixture controller class path. The local manifest reflects them.
+The backend owns: product slug, board revision, device IDs, testbed controller class path. The local manifest reflects them.
 
 If an admin renames a board, bumps device IDs, or swaps fixtures:
 
@@ -67,7 +67,7 @@ Hand-editing files in `.claude/` or `.devcontainer/` causes `corectl test valida
 - `concord.yaml` (manifest)
 - `conftest.py`
 - `pyproject.toml`
-- `fixtures/<board>/fixture.py`
+- `testbeds/<board>/testbed.py`
 - everything under `tests/`
 - `assets/`, `README.md`
 

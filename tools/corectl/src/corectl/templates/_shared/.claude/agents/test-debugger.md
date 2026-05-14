@@ -22,7 +22,7 @@ Always start with these, in order:
 
 1. **Read the failing test file.** Note: `@pytest.mark.timeout`, the `slot`/`report` fixtures used, every `with report.step(...)` block, every `assert_and_record` call. Pay attention to the step boundaries — the failure is almost always inside a specific step.
 
-2. **Read the fixture file** (`fixtures/{{board}}/fixture.py`). Confirm the resources the test uses (`slot.adc.read("X")`, `slot.fixture.gpios["Y"]`, etc.) actually exist in the resource maps. Mismatched keys are a top-3 cause.
+2. **Read the fixture file** (`testbeds/{{board}}/testbed.py`). Confirm the resources the test uses (`slot.adc.read("X")`, `slot.testbed.gpios["Y"]`, etc.) actually exist in the resource maps. Mismatched keys are a top-3 cause.
 
 3. **Look at the failure message + traceback.** Classify it:
    - **AssertionError from `assert_and_record`** → measurement out of spec. Read the predicate; check the recorded value.
@@ -32,7 +32,7 @@ Always start with these, in order:
    - **Connection / MTIB error** → fixture isn't powered, MTIB host wrong, network issue. Not a test-code bug.
    - **fixture extraction error** at validate time → fixture.py shape broken.
 
-4. **Check recent commits.** `git log --oneline -10 tests/<stage>/<test_file>.py fixtures/{{board}}/fixture.py` — recent changes to either the test or the fixture often explain a regression.
+4. **Check recent commits.** `git log --oneline -10 tests/<stage>/<test_file>.py testbeds/{{board}}/testbed.py` — recent changes to either the test or the fixture often explain a regression.
 
 5. **Cross-check against the rules.** If the failure pattern matches something in `.claude/rules/`, link it explicitly in your report.
 

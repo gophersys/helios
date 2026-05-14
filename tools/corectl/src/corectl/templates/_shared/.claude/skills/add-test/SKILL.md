@@ -37,7 +37,7 @@ Arguments: $ARGUMENTS — first is the stage name, second is the test name (with
        """<longer docstring with context, optional>."""
        with report.step("<step description>") as step:
            # >>> INSERT YOUR CODE HERE
-           # Use slot.fixture, slot.adc, slot.uart, slot.jlink, slot.power.
+           # Use slot.testbed, slot.adc, slot.uart, slot.jlink, slot.power.
            # Record measurements with assert_and_record(step, key, value, unit, predicate).
            assert_and_record(step, "<measurement_key>", <value>, "<unit>",
                              lambda v: <predicate>)
@@ -60,7 +60,7 @@ Arguments: $ARGUMENTS — first is the stage name, second is the test name (with
 ## Common patterns
 
 - **Reading an ADC:** `slot.adc.read("<key>")` — returns a float in volts.
-- **Toggling a GPIO:** `slot.fixture.gpios["<key>"].config(direction="output").set_low()`.
+- **Toggling a GPIO:** `slot.testbed.gpios["<key>"].config(direction="output").set_low()`.
 - **UART exchange:** `slot.uart.send("<key>", b"command\n")`; `slot.uart.expect("<key>", b"OK", timeout_s=2)`.
 - **J-Link flash:** `slot.jlink.flash("<key>", path_to_hex)` — the SDK handles signing and AP-protect.
-- **Power cycle:** `slot.fixture.power_off(); time.sleep(0.5); slot.fixture.power_on()`.
+- **Power cycle:** `slot.testbed.power_off(); time.sleep(0.5); slot.testbed.power_on()`.

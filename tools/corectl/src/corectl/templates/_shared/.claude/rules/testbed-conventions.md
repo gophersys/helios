@@ -2,7 +2,7 @@
 
 # TestBed Conventions
 
-How to declare and extend a fixture for this repo. Lives in `fixtures/{{board}}/fixture.py`.
+How to declare and extend a testbed for this repo. Lives in `testbeds/{{board}}/testbed.py`.
 
 ## Class shape
 
@@ -61,7 +61,7 @@ thresholds = {
 }
 ```
 
-Tests use `slot.fixture.thresholds["nominal_voltage_v"]`.
+Tests use `slot.testbed.thresholds["nominal_voltage_v"]`.
 
 ## Multi-slot vs single-slot
 

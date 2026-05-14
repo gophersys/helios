@@ -2,7 +2,7 @@
 
 Runs after the firmware has been flashed in an earlier stage. The
 ``slot`` fixture is the canonical accessor for the DUT — use
-``slot.uart``, ``slot.fixture``, etc. to talk to the just-flashed
+``slot.uart``, ``slot.testbed``, etc. to talk to the just-flashed
 device.
 """
 
