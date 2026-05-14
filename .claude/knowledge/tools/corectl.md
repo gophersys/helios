@@ -115,7 +115,7 @@ The `force-include` block in `pyproject.toml` is critical: hatch otherwise exclu
 
 **The pin discipline is manual.** `/concord-release` bumps the platform `VERSION` and corekinect's `__init__.py` but does **not** automatically update corectl's pin — that's a follow-up to do in the same commit. Pip will refuse to install corectl if the pin can't resolve against the available corekinect version, so leaving the pin stale eventually breaks fresh installs.
 
-Current pin: `corekinect~=0.9.0` (matches the platform's 0.9.x minor). When the platform bumps to 0.10.0, update this pin to `~=0.10.0` in the same commit as the corekinect `__init__.py` bump.
+Current pin: `corekinect~=0.10.0` (matches the platform's 0.10.x minor). When the platform bumps to 0.10.0, update this pin to `~=0.10.0` in the same commit as the corekinect `__init__.py` bump.
 
 `version_check` (the daily upgrade-availability probe) compares the running `corectl` version to the internal pypi's latest and surfaces a notice; it does not enforce the corekinect pin range.
 
@@ -134,13 +134,13 @@ The internal pypi is a `concord-pypi` deployment in each environment (Helm templ
 Before running `nx push corectl -c production`:
 
 1. **Bump corectl's `__init__.py` version** to a new semver (don't republish under an existing version).
-2. **Confirm the corekinect pin** matches the platform minor you want users to land on. Today the pin is `corekinect~=0.9.0` and the platform ships corekinect 0.9.x — congruent.
+2. **Confirm the corekinect pin** matches the platform minor you want users to land on. Today the pin is `corekinect~=0.10.0` and the platform ships corekinect 0.10.x — congruent.
 3. **Confirm the corekinect version on the target pypi** is at least the lower bound of the pin (`pip` will error otherwise).
 4. **Stage first**: `nx push corectl -c staging`. Test `pip install --extra-index-url https://pypi.staging.concord.ad.corekinect.com/ corectl` in a clean venv. Confirm the install resolves and `corectl --help` runs.
 5. **Communicate**: if the new corectl forces a corekinect-minor upgrade on existing users, post a release note before pushing to production. Otherwise their next `corectl update` will pull both a new corectl and a new corekinect together, breaking any local Python code that imported the old corekinect surface.
 6. **Then production**: `nx push corectl -c production`.
 
-The current state (as of the pin fix landing in main): the source tree has corectl `0.9.6` with `corekinect~=0.9.0`. The production pypi has **not** received a new wheel yet — existing installs still pull corectl `0.9.5` with the old `corekinect~=0.8.0` pin, which resolves against the still-published corekinect 0.8.0. Status quo until someone explicitly republishes.
+The current state (as of the pin fix landing in main): the source tree has corectl `0.9.6` with `corekinect~=0.10.0`. The production pypi has **not** received a new wheel yet — existing installs still pull corectl `0.9.5` with the old `corekinect~=0.8.0` pin, which resolves against the still-published corekinect 0.8.0. Status quo until someone explicitly republishes.
 
 ## How to add a new corectl command
 

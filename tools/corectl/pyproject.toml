@@ -24,7 +24,7 @@ dependencies = [
     # platform minor bumps, update this pin in the same commit as the
     # corekinect __init__.py bump — `/concord-release` does not automate
     # this yet (see .claude/knowledge/tools/corectl.md).
-    "corekinect~=0.9.0",
+    "corekinect~=0.10.0",
 ]
 
 [project.scripts]
