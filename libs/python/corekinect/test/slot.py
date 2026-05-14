@@ -1,17 +1,17 @@
 """Multi-slot fixture support for manufacturing and validation.
 
-Provides SlotContext (per-DUT hardware context) and FixtureContext
+Provides SlotContext (per-DUT hardware context) and TestBedContext
 (multi-slot manager) for test suites that run against fixtures with
 one or more MTIBs.
 
 Single-slot (typical validation):
 
-    fixture_ctx = FixtureContext.from_env(fixture_factory=AlphaB0Fixture)
+    fixture_ctx = TestBedContext.from_env(testbed_factory=AlphaB0TestBed)
     # fixture_ctx.slots has 1 entry
 
 Multi-slot (manufacturing panel, multi-DUT validation):
 
-    fixture_ctx = FixtureContext.from_env(fixture_factory=AlphaB0MfgFixture)
+    fixture_ctx = TestBedContext.from_env(testbed_factory=AlphaB0MfgTestBed)
     # fixture_ctx.slots has N entries (one per MTIB_HOSTS address)
 
 Environment variables:
@@ -73,7 +73,7 @@ class SlotContext:
     mtib: Optional[MtibV1Client] = field(default=None, repr=False)
     fixture: Optional[Any] = field(default=None, repr=False)
 
-    def connect(self, fixture_factory: Optional[Callable] = None) -> None:
+    def connect(self, testbed_factory: Optional[Callable] = None) -> None:
         """Connect MTIB client and create fixture controller.
 
         Retries on transient failures (e.g., MTIB mid-restart, gRPC
@@ -96,8 +96,8 @@ class SlotContext:
                 if not ready:
                     raise ConnectionError(f"MTIB not ready: {errors}")
 
-                if fixture_factory:
-                    self.fixture = fixture_factory(self.mtib)
+                if testbed_factory:
+                    self.fixture = testbed_factory(self.mtib)
 
                 log.info(
                     "Slot %s connected: %s:%d (snr=%s)%s",
@@ -129,7 +129,7 @@ class SlotContext:
             f"{CONNECT_MAX_ATTEMPTS} attempts: {last_err}"
         )
 
-    def ensure_connected(self, fixture_factory: Optional[Callable] = None) -> bool:
+    def ensure_connected(self, testbed_factory: Optional[Callable] = None) -> bool:
         """Health-check the current connection, reconnect if stale.
 
         Call this before running tests on a slot whose MTIB may have
@@ -154,7 +154,7 @@ class SlotContext:
             self.mtib = None
 
         try:
-            self.connect(fixture_factory=fixture_factory)
+            self.connect(testbed_factory=testbed_factory)
             return True
         except Exception as e:
             log.error("Slot %s reconnect failed: %s", self.slot_id, e)
@@ -170,7 +170,7 @@ class SlotContext:
 
 
 @dataclass
-class FixtureContext:
+class TestBedContext:
     """Multi-slot fixture manager.
 
     Wraps N SlotContexts for fixtures with one or more MTIBs.
@@ -200,8 +200,8 @@ class FixtureContext:
     @classmethod
     def from_env(
         cls,
-        fixture_factory: Optional[Callable] = None,
-    ) -> "FixtureContext":
+        testbed_factory: Optional[Callable] = None,
+    ) -> "TestBedContext":
         """Build from environment variables or config file.
 
         Resolution order:
@@ -224,7 +224,7 @@ class FixtureContext:
         return cls._from_single_env()
 
     @classmethod
-    def _from_slot_bindings(cls) -> "FixtureContext":
+    def _from_slot_bindings(cls) -> "TestBedContext":
         """Build from :func:`resolve_slot_bindings` — MTIB_HOSTS path.
 
         Honours ``SLOT_FILTER`` / ``SLOT_SNRS`` / ``SLOT_DEVICE_IDS``
@@ -251,7 +251,7 @@ class FixtureContext:
         return cls(slots=slots)
 
     @classmethod
-    def _from_config_file(cls, config_path: str) -> "FixtureContext":
+    def _from_config_file(cls, config_path: str) -> "TestBedContext":
         """Build from fixture config JSON file.
 
         Expected format:
@@ -284,7 +284,7 @@ class FixtureContext:
         return cls(slots=slots, config=config)
 
     @classmethod
-    def _from_single_env(cls) -> "FixtureContext":
+    def _from_single_env(cls) -> "TestBedContext":
         """Build single-slot context from MTIB_ADDRESS/MTIB_HOST."""
         mtib_addr = os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST")
         if not mtib_addr:
@@ -307,13 +307,13 @@ class FixtureContext:
         log.info("Single-slot mode: %s:%d", host, port)
         return cls(slots={"slot-0": slot})
 
-    def connect_all(self, fixture_factory: Optional[Callable] = None) -> None:
+    def connect_all(self, testbed_factory: Optional[Callable] = None) -> None:
         """Connect all slots. Raises on first failure."""
         for slot in self.slots.values():
-            slot.connect(fixture_factory=fixture_factory)
+            slot.connect(testbed_factory=testbed_factory)
         log.info("All %d slots connected", len(self.slots))
 
-    def connect_available(self, fixture_factory: Optional[Callable] = None) -> int:
+    def connect_available(self, testbed_factory: Optional[Callable] = None) -> int:
         """Connect as many slots as possible, skipping failures.
 
         Used by the manufacturing runner at startup — connects all MTIBs
@@ -325,14 +325,14 @@ class FixtureContext:
         connected = 0
         for slot in self.slots.values():
             try:
-                slot.connect(fixture_factory=fixture_factory)
+                slot.connect(testbed_factory=testbed_factory)
                 connected += 1
             except Exception as e:
                 log.warning("Slot %s connection failed (skipping): %s", slot.slot_id, e)
         log.info("Connected %d/%d slots", connected, len(self.slots))
         return connected
 
-    def ensure_all_connected(self, fixture_factory: Optional[Callable] = None) -> int:
+    def ensure_all_connected(self, testbed_factory: Optional[Callable] = None) -> int:
         """Health-check every slot, reconnect any that are stale.
 
         Returns count of slots currently healthy. Used by the runner before
@@ -340,7 +340,7 @@ class FixtureContext:
         """
         healthy = 0
         for slot in self.slots.values():
-            if slot.ensure_connected(fixture_factory=fixture_factory):
+            if slot.ensure_connected(testbed_factory=testbed_factory):
                 healthy += 1
         log.info("Ensured connections: %d/%d slots healthy", healthy, len(self.slots))
         return healthy
@@ -388,7 +388,7 @@ def get_slot_ids_from_env() -> List[str]:
     Derived from :func:`corekinect.test.slot_env.resolve_slot_bindings`
     so the slot fixture's parametrization is always in lockstep with
     the binding stash (set at collection time by autoconf) and the
-    :class:`FixtureContext` MTIB connections (set at fixture-setup
+    :class:`TestBedContext` MTIB connections (set at fixture-setup
     time). One source of truth means MTIB ↔ slot ↔ SNR alignment is
     a property of the resolver, not a coincidence between three
     parsers.

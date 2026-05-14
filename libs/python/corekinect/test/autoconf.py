@@ -54,13 +54,13 @@ from corekinect.test.context import TestContext
 from corekinect.test.reporter import NoOpReporter
 from corekinect.test.reporter import pytest_configure as reporter_configure
 from corekinect.test.runner import ProductContext
-from corekinect.test.slot import FixtureContext, SlotContext, get_slot_ids_from_env
+from corekinect.test.slot import TestBedContext, SlotContext, get_slot_ids_from_env
 from corekinect.test.slot_binding import attach_binding
 from corekinect.test.slot_env import resolve_slot_bindings, slot_bindings_by_index
 from corekinect.test.stage_assets import StageAssets
 from corekinect.test.telemetry import TelemetryStreamer
 from corekinect.utils import Logger
-from corekinect.test.errors import bad_fixture_class, missing_env_var
+from corekinect.test.errors import bad_testbed_class, missing_env_var
 
 try:
     from corekinect.test.mock_cloud import MockCloudClient
@@ -83,7 +83,7 @@ log = Logger(log_name="autoconf")
 #
 #   * Two concurrent ``pytest.main()`` invocations in the same process (e.g.
 #     pytester meta-tests) can't clobber each other's manifest.
-#   * Fixtures read from ``request.config`` directly, so there's no
+#   * TestBeds read from ``request.config`` directly, so there's no
 #     "whoever called pytest_configure first wins" race.
 #   * The state is garbage-collected with the config, avoiding a cross-run
 #     leak in tools that embed pytest.
@@ -134,8 +134,8 @@ def _is_mock_mode(config: Optional[pytest.Config] = None) -> bool:
     return False
 
 
-def _import_fixture_class(module_ref: str) -> Any:
-    """Import a Fixture subclass from a ``module:Class`` reference.
+def _import_testbed_class(module_ref: str) -> Any:
+    """Import a TestBed subclass from a ``module:Class`` reference.
 
     The format matches ``concord.yaml`` ``fixture.module``:
     ``dotted.module.path:ClassName``.
@@ -153,7 +153,7 @@ def _import_fixture_class(module_ref: str) -> Any:
     cls = getattr(module, class_name, None)
     if cls is None:
         raise ImportError(
-            f"Fixture class {class_name!r} not found in module {module_path!r}"
+            f"TestBed class {class_name!r} not found in module {module_path!r}"
         )
     return cls
 
@@ -168,7 +168,7 @@ def _maybe_register_slot_parallel(config: pytest.Config) -> None:
     validation runs.
 
     Slot count comes from :func:`slot_env.resolve_slot_bindings` — the
-    canonical parser used everywhere else (FixtureContext.from_env,
+    canonical parser used everywhere else (TestBedContext.from_env,
     autoconf._attach_slot_bindings, slot.get_slot_ids_from_env). One
     source of truth means the registration decision can never disagree
     with the bindings the rest of the framework will see at fixture
@@ -503,7 +503,7 @@ def _get_slot_ids() -> List[str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Fixtures
+# TestBeds
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -545,7 +545,7 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
         pytest.skip("No concord.yaml manifest — ctx fixture unavailable")
 
     # Manufacturing packages use fixture_ctx, not ctx
-    if manifest.fixture.multi_slot:
+    if manifest.testbed.multi_slot:
         pytest.skip(
             "Multi-slot manifest — use fixture_ctx and slot fixtures instead of ctx"
         )
@@ -575,15 +575,15 @@ def ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
         pytest.skip(missing_env_var("DEVICE_ID", "create test context"))
 
     # Import and instantiate the fixture class from the manifest
-    module_ref = manifest.fixture.module
+    module_ref = manifest.testbed.module
     try:
-        fixture_cls = _import_fixture_class(module_ref)
+        testbed_cls = _import_testbed_class(module_ref)
     except ImportError as exc:
-        pytest.skip(bad_fixture_class(module_ref, exc))
+        pytest.skip(bad_testbed_class(module_ref, exc))
 
     try:
         context = TestContext.from_env(
-            fixture_factory=lambda mtib: fixture_cls(mtib)
+            testbed_factory=lambda mtib: testbed_cls(mtib)
         )
         context.connect()
     except Exception as exc:
@@ -627,14 +627,14 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
     # to each ``SlotContext.fixture``. Without this, every test that
     # reads ``slot.fixture`` AttributeErrors on ``None`` — the single-
     # slot path below already does this; multi-slot was forgetting to.
-    module_ref = manifest.fixture.module
+    module_ref = manifest.testbed.module
     try:
-        fixture_cls = _import_fixture_class(module_ref)
+        testbed_cls = _import_testbed_class(module_ref)
     except ImportError as exc:
-        pytest.skip(bad_fixture_class(module_ref, exc))
+        pytest.skip(bad_testbed_class(module_ref, exc))
 
-    fctx = FixtureContext.from_env()
-    fctx.connect_all(fixture_factory=lambda mtib: fixture_cls(mtib))
+    fctx = TestBedContext.from_env()
+    fctx.connect_all(testbed_factory=lambda mtib: testbed_cls(mtib))
 
     # Create telemetry streamer for live power/UART streaming to frontend
     telemetry = None
@@ -853,7 +853,7 @@ def _test_lifecycle(request: pytest.FixtureRequest):
 def _build_mock_validation_context(manifest: "Manifest"):
     """Build a TestContext with all-mock components for offline testing.
 
-    The fixture is the real ``Fixture`` subclass declared by the test
+    The fixture is the real ``TestBed`` subclass declared by the test
     package; the difference from hardware mode is that it's bound to a
     ``MockMtibClient`` instead of a live gRPC channel.
     """
@@ -866,10 +866,10 @@ def _build_mock_validation_context(manifest: "Manifest"):
     cloud = MockCloudClient(device_id=device_id)
     mock_mtib = MockMtibClient()
     try:
-        fixture_cls = _import_fixture_class(manifest.fixture.module)
+        testbed_cls = _import_testbed_class(manifest.testbed.module)
     except ImportError as exc:
-        pytest.skip(bad_fixture_class(manifest.fixture.module, exc))
-    fixture_ctrl = fixture_cls(mtib=mock_mtib)
+        pytest.skip(bad_testbed_class(manifest.testbed.module, exc))
+    fixture_ctrl = testbed_cls(mtib=mock_mtib)
     uart = MockUartDemuxer()
     power = MockPowerProfiler()
 
@@ -906,7 +906,7 @@ def _build_mock_validation_context(manifest: "Manifest"):
 
 
 def _build_mock_fixture_context():
-    """Build a FixtureContext with mock MTIB clients for manufacturing."""
+    """Build a TestBedContext with mock MTIB clients for manufacturing."""
     mock_snrs = ["MOCK0", "MOCK1", "MOCK2", "MOCK3"]
     slots = {}
     for i, snr in enumerate(mock_snrs):
@@ -921,4 +921,4 @@ def _build_mock_fixture_context():
         slots[slot_id] = slot
 
     log.info("Mock mode: %d-slot fixture with mock MTIB clients", len(slots))
-    return FixtureContext(slots=slots, config={})
+    return TestBedContext(slots=slots, config={})

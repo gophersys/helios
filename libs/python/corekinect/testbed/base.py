@@ -1,17 +1,17 @@
-"""``Fixture`` base class — typed accessor surface for tests.
+"""``TestBed`` base class — typed accessor surface for tests.
 
-A test app subclasses :class:`Fixture` once per hardware revision and
+A test app subclasses :class:`TestBed` once per hardware revision and
 declares its DUT-side wiring via class-level dicts of declarative
-types from :mod:`corekinect.fixture.types`. At runtime the subclass
+types from :mod:`corekinect.testbed.types`. At runtime the subclass
 is instantiated with an :class:`MtibV1Client`, which binds each
 declaration to a runtime accessor.
 
 ::
 
-    # fixtures/alpha_b0/fixture.py — in the test app
-    from corekinect.fixture import Fixture, ADC, GPIO, UART, JLink, Power
+    # testbeds/alpha_b0/testbed.py — in the test app
+    from corekinect.testbed import TestBed, ADC, GPIO, UART, JLink, Power
 
-    class AlphaB0Fixture(Fixture):
+    class AlphaB0TestBed(TestBed):
         name = "alpha_b0-fixture"
         revision = "1.0"
         battery_installed = False
@@ -39,7 +39,7 @@ declaration to a runtime accessor.
         }
 
 The ``concord.yaml`` manifest points at the fixture module via
-``fixture.module: fixtures.alpha_b0.fixture:AlphaB0Fixture``. The
+``testbed.module: testbeds.alpha_b0.testbed:AlphaB0TestBed``. The
 backend AST-extracts ``name``/``revision`` (and the resource map
 summaries) at upload time without instantiating the class.
 """
@@ -48,7 +48,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar, Dict, Optional
 
-from corekinect.fixture.types import (
+from corekinect.testbed.types import (
     ADC,
     GPIO,
     UART,
@@ -59,12 +59,13 @@ from corekinect.fixture.types import (
     BoundUART,
     BoundJLink,
     BoundPower,
-    FixtureValidationError,
+    TestBedValidationError,
     _ResourceMap,
 )
 
 
-class Fixture:
+class TestBed:
+    __test__ = False  # not a pytest test class
     """Base class for product-specific fixture wiring.
 
     Subclass and declare ``name``, ``revision``, and the resource
@@ -96,11 +97,11 @@ class Fixture:
         """
         super().__init_subclass__(**kwargs)
         if not cls.name:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"{cls.__name__}: class attribute ``name`` is required"
             )
         if not cls.revision:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"{cls.__name__}: class attribute ``revision`` is required"
             )
 
@@ -113,18 +114,18 @@ class Fixture:
         ):
             value = getattr(cls, attr, {})
             if not isinstance(value, dict):
-                raise FixtureValidationError(
+                raise TestBedValidationError(
                     f"{cls.__name__}.{attr} must be a dict, got "
                     f"{type(value).__name__}"
                 )
             for key, decl in value.items():
                 if not isinstance(key, str) or not key:
-                    raise FixtureValidationError(
+                    raise TestBedValidationError(
                         f"{cls.__name__}.{attr}: keys must be non-empty "
                         f"strings, got {key!r}"
                     )
                 if not isinstance(decl, expected_type):
-                    raise FixtureValidationError(
+                    raise TestBedValidationError(
                         f"{cls.__name__}.{attr}[{key!r}]: expected "
                         f"{expected_type.__name__}, got "
                         f"{type(decl).__name__}"
@@ -185,7 +186,7 @@ class Fixture:
         """Machine-readable description of the fixture's wiring.
 
         Used by the backend's AST extractor to populate the
-        ``FixtureDesign.profileTemplate`` JSON for the UI. Captures
+        ``TestBedDesign.profileTemplate`` JSON for the UI. Captures
         the mapping shape but not the live MTIB state.
         """
         cls = type(self)

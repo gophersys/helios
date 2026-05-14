@@ -5,7 +5,7 @@ manufacturing test suite for a product. Development packages are mutable
 (overwritten on each upload); released packages are immutable.
 
 On upload, fixture profiles (fixtures/*/fixture.yaml) are auto-extracted
-and used to create/update FixtureDesign records — the test app is the
+and used to create/update TestBedDesign records — the test app is the
 source of truth for fixture hardware configuration.
 """
 
@@ -43,10 +43,10 @@ logger = logging.getLogger(__name__)
 TEST_PACKAGES_PREFIX = "test-packages"
 
 
-# ── Fixture Design Auto-Extraction ──────────────────────────────────
+# ── TestBed Design Auto-Extraction ──────────────────────────────────
 
 
-def _extract_fixture_designs(
+def _extract_testbed_designs(
     file_data: bytes,
     test_package_id: str,
     package_status: str,
@@ -58,26 +58,26 @@ def _extract_fixture_designs(
     The test app declares its DUT-side wiring in a Python class:
 
         # fixtures/<board_rev>/fixture.py
-        class AlphaB0Fixture(Fixture):
+        class AlphaB0TestBed(TestBed):
             name = "alpha_b0-fixture"
             revision = "1.0"
             adcs = {"battery": ADC(channel=1, ...)}
 
     The path comes from ``concord.yaml`` ``fixture.module``
-    (``fixtures.alpha_b0.fixture:AlphaB0Fixture`` →
+    (``testbeds.alpha_b0.testbed:AlphaB0TestBed`` →
     ``fixtures/alpha_b0/fixture.py``). The class is AST-parsed
     server-side — never executed — so an uploaded test app cannot
     run code in the http-api process.
 
-    Returns the FixtureDesign row id, or ``None`` if no extractable
+    Returns the TestBedDesign row id, or ``None`` if no extractable
     fixture is in the archive.
     """
     db = get_db_client()
 
     try:
-        from corekinect.fixture.extractor import (
-            FixtureExtractionError,
-            extract_fixture,
+        from corekinect.testbed.extractor import (
+            TestBedExtractionError,
+            extract_testbed,
         )
 
         buf = BytesIO(file_data)
@@ -130,9 +130,9 @@ def _extract_fixture_designs(
                 return None
 
             try:
-                summary = extract_fixture(source, source_path=file_path)
-            except FixtureExtractionError as e:
-                logger.warning("Fixture extraction rejected: %s", e)
+                summary = extract_testbed(source, source_path=file_path)
+            except TestBedExtractionError as e:
+                logger.warning("TestBed extraction rejected: %s", e)
                 return None
 
             board_rev = db.boardrevision.find_first(
@@ -200,7 +200,7 @@ def _extract_fixture_designs(
             return design.id
 
     except Exception as e:
-        logger.warning("Fixture design extraction failed: %s", e)
+        logger.warning("TestBed design extraction failed: %s", e)
 
     return None
 
@@ -555,14 +555,14 @@ def _upload_test_package_impl(product_id: str):
         return internal_error("Failed to upload test package")
 
     # Phase 2 complete: stamp the storageKey but keep status=UPLOADING
-    # until every dependent row (testCount, FixtureDesign, stages) is
+    # until every dependent row (testCount, TestBedDesign, stages) is
     # written AND the joined re-fetch succeeds. Flipping the status
     # earlier — as a previous version of this code did — meant any
     # failure between the flip and the final fetch left a public-but-
-    # half-written package in the DB (stuck FixtureDesign in pickers,
+    # half-written package in the DB (stuck TestBedDesign in pickers,
     # missing stages, etc.). Now any failure leaves the row in UPLOADING
     # for the retention reaper, and the CASCADE on TestPackage drops
-    # FixtureDesign + TestPackageStage rows with it.
+    # TestBedDesign + TestPackageStage rows with it.
     db.testpackage.update(
         where={"id": tp.id},
         data={"storageKey": object_key},
@@ -579,7 +579,7 @@ def _upload_test_package_impl(product_id: str):
             "Test package %s has 0 test files in archive — testCount left at 0.",
             tp.id,
         )
-    _extract_fixture_designs(file_data, tp.id, status, product.id, package_type)
+    _extract_testbed_designs(file_data, tp.id, status, product.id, package_type)
     _extract_stage_metadata(db, tp.id, file_data, manifest_version)
 
     # Re-fetch with the joined relations. Doing this BEFORE the status

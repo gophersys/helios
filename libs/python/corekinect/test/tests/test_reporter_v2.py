@@ -434,7 +434,7 @@ def test_setup_phase_skip_fires_execution_result_with_skipped_true() -> None:
 
 
 def test_setup_phase_failure_fires_execution_result_with_error_message() -> None:
-    """Fixture failure path: setup-phase failure → execution-result ``passed=False`` with error.
+    """TestBed failure path: setup-phase failure → execution-result ``passed=False`` with error.
 
     Pytest reports a fixture exception as ``report.failed=True`` with
     ``report.when == "setup"`` and never invokes the call phase. Without

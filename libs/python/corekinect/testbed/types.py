@@ -23,14 +23,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, Optional, Tuple
 
-from corekinect.fixture import topology
+from corekinect.testbed import topology
 
 
-class FixtureValidationError(ValueError):
+class TestBedValidationError(ValueError):
+    __test__ = False  # not a pytest test class
     """Raised when a fixture declaration has an out-of-range channel/pin."""
 
 
-class FixtureIOError(RuntimeError):
+class TestBedIOError(RuntimeError):
+    __test__ = False  # not a pytest test class
     """Raised when an MTIB RPC fails inside a bound accessor.
 
     Tests should catch this at the test boundary; fixture-level
@@ -59,12 +61,12 @@ class ADC:
 
     def __post_init__(self) -> None:
         if self.channel not in topology.ADC_CHANNELS:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"ADC channel {self.channel} out of range. "
                 f"Valid: {topology.ADC_CHANNELS}"
             )
         if self.divider <= 0:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"ADC divider must be > 0 (got {self.divider})"
             )
 
@@ -94,11 +96,11 @@ class BoundADC:
         """Read the rail voltage in volts (after divider correction)."""
         v, err = self._mtib.AdcRead(self._decl.channel)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"ADC ch{self._decl.channel} ({self._decl.signal}): {err}"
             )
         if v is None:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"ADC ch{self._decl.channel} ({self._decl.signal}): no reading"
             )
         return v * self._decl.divider
@@ -123,7 +125,7 @@ class GPIO:
 
     def __post_init__(self) -> None:
         if self.pin not in topology.GPIO_PINS:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"GPIO pin {self.pin} out of range. Valid: {topology.GPIO_PINS}"
             )
 
@@ -173,11 +175,11 @@ class BoundGPIO:
             "none": GpioResistorConfig.NONE,
         }
         if direction not in dir_map:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"direction must be one of {list(dir_map)}; got {direction!r}"
             )
         if pull not in pull_map:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"pull must be one of {list(pull_map)}; got {pull!r}"
             )
         err = self._mtib.GpioConfig(
@@ -186,7 +188,7 @@ class BoundGPIO:
             resistor=pull_map[pull],
         )
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"GPIO {self._decl.pin} ({self._decl.role}) config: {err}"
             )
         return self
@@ -194,21 +196,21 @@ class BoundGPIO:
     def set_high(self) -> None:
         err = self._mtib.GpioWrite(gpio=self._decl.pin, state=True)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"GPIO {self._decl.pin} ({self._decl.role}) set_high: {err}"
             )
 
     def set_low(self) -> None:
         err = self._mtib.GpioWrite(gpio=self._decl.pin, state=False)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"GPIO {self._decl.pin} ({self._decl.role}) set_low: {err}"
             )
 
     def read(self) -> bool:
         state, err = self._mtib.GpioRead(gpio=self._decl.pin)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"GPIO {self._decl.pin} ({self._decl.role}) read: {err}"
             )
         return bool(state)
@@ -228,12 +230,12 @@ class UART:
 
     def __post_init__(self) -> None:
         if self.port not in topology.UART_PORTS:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"UART port {self.port} out of range. "
                 f"Valid: {topology.UART_PORTS}"
             )
         if self.baud <= 0:
-            raise FixtureValidationError(f"UART baud must be > 0 (got {self.baud})")
+            raise TestBedValidationError(f"UART baud must be > 0 (got {self.baud})")
 
 
 class BoundUART:
@@ -272,7 +274,7 @@ class BoundUART:
         proto ``HostType`` enum directly.
         """
         # The mapping from declarative ``target`` strings to proto
-        # ``HostType`` values lives in :mod:`corekinect.fixture.base`
+        # ``HostType`` values lives in :mod:`corekinect.testbed.base`
         # to keep import cycles out of this file.
         return self._mtib.UartStream(
             target=_target_to_host_type(self._decl.target),
@@ -296,7 +298,7 @@ def _target_to_host_type(target: str) -> Any:
     }
     key = target.strip().lower()
     if key not in table:
-        raise FixtureValidationError(
+        raise TestBedValidationError(
             f"Unknown UART target {target!r}. Valid: {sorted(table)}"
         )
     return table[key]
@@ -322,7 +324,7 @@ class JLink:
     def __post_init__(self) -> None:
         fam = self.family.strip().upper()
         if fam not in topology.KNOWN_JLINK_FAMILIES:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"Unknown J-Link family {self.family!r}. "
                 f"Valid: {topology.KNOWN_JLINK_FAMILIES}"
             )
@@ -360,7 +362,7 @@ class BoundJLink:
         }
         host = family_to_host.get(self._decl.family)
         if host is None:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"J-Link family {self._decl.family} has no host type mapping. "
                 f"Add it to BoundJLink._resolve_host."
             )
@@ -377,7 +379,7 @@ class BoundJLink:
         host = self._resolve_host()
         err = self._mtib.EraseFlash(target=host, recover=recover)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"J-Link {self._decl.family} erase (recover={recover}): {err}"
             )
 
@@ -404,13 +406,13 @@ class BoundJLink:
 
         err = self._mtib.UploadFwFile(file_path=firmware_path, target=host)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"J-Link {self._decl.family} upload {firmware_path}: {err}"
             )
 
         files, err = self._mtib.ListFwFiles()
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"J-Link {self._decl.family} list-after-upload: {err}"
             )
         file_info = next(
@@ -418,14 +420,14 @@ class BoundJLink:
             None,
         )
         if file_info is None:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"J-Link {self._decl.family}: uploaded {file_name} not "
                 f"visible in ListFwFiles — server lost the file"
             )
 
         time_ms, err = self._mtib.FlashFwFile(file_info=file_info, recover=recover)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"J-Link {self._decl.family} flash {firmware_path}: {err}"
             )
         return time_ms or 0
@@ -449,7 +451,7 @@ class Power:
     def __post_init__(self) -> None:
         rail = self.rail.strip().upper()
         if rail not in topology.POWER_RAILS:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"Unknown power rail {self.rail!r}. "
                 f"Valid: {topology.POWER_RAILS}"
             )
@@ -476,19 +478,19 @@ class BoundPower:
     def enable(self, voltage_v: float) -> None:
         """Enable the rail at the given voltage."""
         if voltage_v <= 0:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"voltage_v must be > 0 (got {voltage_v})"
             )
         err = self._mtib.PowerEnable(channel=self.channel, voltage_v=voltage_v)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"Power {self._decl.rail} enable @ {voltage_v}V: {err}"
             )
 
     def disable(self) -> None:
         err = self._mtib.PowerDisable(channel=self.channel)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"Power {self._decl.rail} disable: {err}"
             )
 
@@ -496,7 +498,7 @@ class BoundPower:
         """Return ``(voltage_v, current_ma)`` for the rail."""
         result, err = self._mtib.PowerRead(channel=self.channel)
         if err:
-            raise FixtureIOError(
+            raise TestBedIOError(
                 f"Power {self._decl.rail} read: {err}"
             )
         return float(result.voltage_v), float(result.current_ma)
@@ -520,7 +522,7 @@ class I2C:
 
     def __post_init__(self) -> None:
         if self.port not in topology.I2C_PORTS:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"I2C port {self.port} out of range. "
                 f"Valid: {topology.I2C_PORTS}"
             )
@@ -535,7 +537,7 @@ class SPI:
 
     def __post_init__(self) -> None:
         if self.port not in topology.SPI_PORTS:
-            raise FixtureValidationError(
+            raise TestBedValidationError(
                 f"SPI port {self.port} out of range. "
                 f"Valid: {topology.SPI_PORTS}"
             )

@@ -117,8 +117,8 @@ def _write_manifest(pytester: pytest.Pytester) -> None:
                 type_id: 99
                 variant_id: 1
 
-            fixture:
-              module: tests.common._harness:NoopFixture
+            testbed:
+              module: tests.common._harness:NoopTestBed
               multi_slot: true
 
             stages: {}

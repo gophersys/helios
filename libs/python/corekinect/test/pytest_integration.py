@@ -22,7 +22,7 @@ import pytest
 
 
 def _find_fixture(func: Callable, args: tuple, kwargs: dict):
-    """Find the Fixture instance from a test's args/kwargs. Returns None if not found."""
+    """Find the TestBed instance from a test's args/kwargs. Returns None if not found."""
     # Direct fixture kwargs
     fixture = kwargs.get("fixture") or kwargs.get("validation_fixture")
     if fixture is not None:
@@ -95,7 +95,7 @@ def requires_capability(*caps: str) -> Callable:
 
             if missing:
                 missing_str = ", ".join(missing)
-                pytest.skip(f"Fixture lacks capabilities: {missing_str}")
+                pytest.skip(f"TestBed lacks capabilities: {missing_str}")
 
             return func(*args, **kwargs)
 

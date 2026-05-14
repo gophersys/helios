@@ -51,7 +51,7 @@ from .fuota_orchestrator import FuotaOrchestrator, personalize_with_retry
 from .version_detector import DEFAULT_VERSION_PATTERNS, BootVersionDetector
 
 # ── Multi-Slot ──
-from .slot import FixtureContext, SlotContext
+from .slot import TestBedContext, SlotContext
 
 # ── Environment ──
 from .env import get_run_id
@@ -107,7 +107,7 @@ __all__ = [
     "FuotaOrchestrator",
     "personalize_with_retry",
     # ── Multi-Slot ──
-    "FixtureContext",
+    "TestBedContext",
     "SlotContext",
     # ── Environment ──
     "get_run_id",

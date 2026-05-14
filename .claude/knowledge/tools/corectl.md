@@ -83,8 +83,8 @@ tools/corectl/
 - **`corectl auth`** — OAuth login flow. Mints an access token (15-min) + refresh token (30-day rotated). Both are written into `~/.corectl/config.yaml` along with `expires_at`. `status` reports the active user + which API the tokens target. There is no separate token file — corectl keeps one shape and one shape only (the legacy `api_token` field has been removed).
 - **`corectl test`** — the bulk of the tool. Each subcommand is also aliased at the top level (`corectl init`, `corectl validate`, …). Subcommands:
   - `init [PATH] --type <manufacturing|validation> --product <id> --board <name>` — scaffold a new project from `templates/<type>/`. Renders Jinja-style placeholders.
-  - `validate [path]` — walk the project, confirm the contract (manifest schema, fixture.yaml schema, test discovery, marker discipline). Internally invokes `validate_project` / `validate_file` from `test_contracts.py` (schema correctness) and `test_depth.py` (per-stage test coverage). These are internal validators, **not** their own Click subcommands.
-  - `upload` — zip the project's `tests/` + `manifest.yaml` + `fixture.yaml` into a structured archive; `POST /v2/test-packages/upload` to register, follow up with chunked uploads via presigned URLs. Status: DEVELOPMENT on success.
+  - `validate [path]` — walk the project, confirm the contract (manifest schema, testbed declaration, test discovery, marker discipline). Internally invokes `validate_project` / `validate_file` from `test_contracts.py` (schema correctness) and `test_depth.py` (per-stage test coverage). These are internal validators, **not** their own Click subcommands.
+  - `upload` — zip the project's `tests/` + `concord.yaml` + `concord.yaml` `testbed:` block into a structured archive; `POST /v2/test-packages/upload` to register, follow up with chunked uploads via presigned URLs. Status: DEVELOPMENT on success.
   - `release <pkg-id>` — promote DEVELOPMENT → RELEASED (operator-level permission required).
   - `versions` — list published versions of the current project's package.
 - **`corectl runs`** — list / show / cancel `TestRun`s, filtered by package, fixture, or status. Useful for CI scripts.
@@ -107,7 +107,7 @@ Env-var overrides: `CONCORD_API_URL`, `CONCORD_VERIFY_SSL`, `CONCORD_API_KEY` (f
 
 `templates/_shared/` is copied into every scaffolded project unconditionally; `templates/manufacturing/` and `templates/validation/` overlay on top. Notable: `_shared/.claude/` ships a small `.claude/` folder into the new project — rules, skills, and agents oriented at writing tests against the platform, not at modifying the platform itself. Keep that scope distinction in mind when updating the templates.
 
-The `force-include` block in `pyproject.toml` is critical: hatch otherwise excludes anything that isn't `*.py`, which would strip out `concord.yaml`, `fixture.yaml`, `conftest.py`, `.claude/` and the entire templates tree. Tested by `tests/test_template_rendering.py`.
+The `force-include` block in `pyproject.toml` is critical: hatch otherwise excludes anything that isn't `*.py`, which would strip out `concord.yaml`, `concord.yaml` `testbed:` block, `conftest.py`, `.claude/` and the entire templates tree. Tested by `tests/test_template_rendering.py`.
 
 ## Version pinning to `corekinect`
 
@@ -163,7 +163,7 @@ The current state (as of the pin fix landing in main): the source tree has corec
 - **`corectl: command not found`** — the wheel installs `corectl` as a `[project.scripts]` entry; if `pip install` succeeded but the binary is missing, the `~/.local/bin` (or virtualenv `bin/`) isn't on `PATH`.
 - **`401 Unauthorized` on first command** — token expired or never logged in. `corectl auth login`.
 - **`SSL: CERTIFICATE_VERIFY_FAILED`** — local machine doesn't trust the internal CA. Run with `--insecure` for one-off, or install the CA chain into the OS trust store for permanence.
-- **`Upload failed: schema mismatch`** — the project's `concord.yaml` or `manifest.yaml` violates the contract. Run `corectl validate` first; it surfaces the exact line.
+- **`Upload failed: schema mismatch`** — the project's `concord.yaml` or `concord.yaml` violates the contract. Run `corectl validate` first; it surfaces the exact line.
 - **`Version check warns about corectl + corekinect skew`** — the `~=` pin caught a drift. Update both with `pip install -U corectl` (which pulls a matching corekinect).
 - **Scaffold output is missing `.claude/`** — the `force-include` block in `pyproject.toml` regressed; verify the wheel contains `corectl/templates/` with `python -m zipfile -l <wheel>`. Fixed by re-publishing with the proper hatch config.
 

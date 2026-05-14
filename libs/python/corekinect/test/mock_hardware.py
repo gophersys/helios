@@ -4,7 +4,7 @@ Replaces the live MTIB gRPC client, UART demuxer, and power profiler
 with no-op implementations so test suites can run with ``MOCK_MODE=1``
 on a workstation without any rig attached.
 
-Tests still use the real :class:`corekinect.fixture.Fixture` subclass
+Tests still use the real :class:`corekinect.testbed.TestBed` subclass
 declared by their package — the mock client provides the methods the
 ``Bound*`` accessors call (``PowerEnable``, ``GpioWrite``, ``AdcRead``,
 …) so the same code path runs in both modes.

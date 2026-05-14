@@ -1,7 +1,7 @@
 """Purpose-built test stubs for framework unit tests.
 
 These are not mocks — they're configurable fake implementations with
-event recording, following the ProgrammableFixture pattern. They let
+event recording, following the ProgrammableTestBed pattern. They let
 us unit test StageAssets, FuotaOrchestrator, and BootVersionDetector
 without network calls, hardware, or CoreCloud connectivity.
 

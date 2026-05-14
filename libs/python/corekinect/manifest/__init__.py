@@ -9,7 +9,7 @@ from corekinect.manifest.types import (
     PackageConfig,
     ProductConfig,
     DeviceConfig,
-    FixtureConfig,
+    TestBedConfig,
     StageConfig,
 )
 from corekinect.manifest.loader import load_manifest, find_manifest
@@ -20,7 +20,7 @@ __all__ = [
     "PackageConfig",
     "ProductConfig",
     "DeviceConfig",
-    "FixtureConfig",
+    "TestBedConfig",
     "StageConfig",
     "load_manifest",
     "find_manifest",

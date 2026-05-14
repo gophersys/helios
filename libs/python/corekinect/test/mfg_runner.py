@@ -28,7 +28,7 @@ import requests
 import socketio
 
 from corekinect.test.runner import TestRunner
-from corekinect.test.slot import FixtureContext
+from corekinect.test.slot import TestBedContext
 from corekinect.utils import Logger
 
 log = Logger(log_name="mfg_runner")
@@ -57,7 +57,7 @@ class ManufacturingRunnerLoop:
         self.api_key = api_key
         self.api_host = api_host
 
-        self.fixture_ctx: Optional[FixtureContext] = None
+        self.fixture_ctx: Optional[TestBedContext] = None
         self.sio: Optional[socketio.Client] = None
         self._running_lock = threading.Lock()
         self._current_run_id: Optional[str] = None
@@ -102,13 +102,13 @@ class ManufacturingRunnerLoop:
         log.info("  max_lifetime = %dh", max_lifetime_h)
 
         # 1. Connect MTIB hardware — wait until ALL slots are reachable.
-        # Fixtures may be powered off overnight; the runner stays alive and
+        # TestBeds may be powered off overnight; the runner stays alive and
         # retries until the operator powers them back on.
         mock_mode = os.environ.get("MOCK_MODE", "0") in ("1", "true", "yes")
         log.info("Connecting to MTIB hardware...%s", " (MOCK_MODE)" if mock_mode else "")
         retry_interval = int(os.environ.get("MTIB_RETRY_INTERVAL_S", "60"))
         try:
-            self.fixture_ctx = FixtureContext.from_env()
+            self.fixture_ctx = TestBedContext.from_env()
             total = self.fixture_ctx.slot_count
             while not self._shutting_down:
                 connected = self.fixture_ctx.connect_available()
@@ -271,7 +271,7 @@ class ManufacturingRunnerLoop:
         os.environ["CONCORD_SESSION_ID"] = run_id
 
         # Extract target info from the run assignment and set env vars.
-        # pytest/autoconf creates a fresh FixtureContext per run that reads
+        # pytest/autoconf creates a fresh TestBedContext per run that reads
         # SLOT_FILTER, SLOT_SNRS, and SLOT_DEVICE_IDS from the environment.
         targets = data.get("targets", [])
         if targets:
@@ -284,7 +284,7 @@ class ManufacturingRunnerLoop:
             # SLOT_SNRS + SLOT_DEVICE_IDS: per-slot DUT identity for this panel
             # These must be comma-separated aligned with MTIB_HOSTS order (all slots),
             # not just the filtered ones. Build a full-width list with blanks for
-            # slots not in this run, then FixtureContext.from_env() picks them up.
+            # slots not in this run, then TestBedContext.from_env() picks them up.
             mtib_hosts = os.environ.get("MTIB_HOSTS", "")
             total_slots = len([a for a in mtib_hosts.split(",") if a.strip()]) if mtib_hosts else 0
             snrs = [""] * total_slots

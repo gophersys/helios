@@ -509,7 +509,7 @@ def test_fast_slot_finish_does_not_teardown_slow_slot_fixture(
     """A slot that finishes early must NOT trigger teardown of other slots' fixtures.
 
     Reproduces the "Stream dead (stream closed by caller)" bug: when
-    slot-0 finishes all its tests first, pytest calls FixtureDef.finish()
+    slot-0 finishes all its tests first, pytest calls TestBedDef.finish()
     which pops _finalizers. Without per-thread isolation, that pops ALL
     threads' finalizers — executing the generator fixture's finally block
     for slots still running tests. The still-running slots then fail

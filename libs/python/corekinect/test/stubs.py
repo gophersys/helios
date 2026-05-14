@@ -5,7 +5,7 @@ Jared's actual test functions against known scenarios and verify the
 test logic correctly detects pass/fail conditions.
 
 Usage:
-    fixture = StubFixture()
+    fixture = StubTestBed()
     fixture.stub_current(avg=20.0)  # Over budget → test should fail
     power = StubPowerProfiler(avg_current_ma=20.0)
 
@@ -25,7 +25,7 @@ log = Logger(log_name="stubs")
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# StubFixtureProfile — matches profiles.FixtureProfile structure
+# StubTestBedProfile — matches profiles.TestBedProfile structure
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -39,18 +39,18 @@ class StubPowerConfig:
 
 
 @dataclass
-class StubFixtureProfile:
+class StubTestBedProfile:
     """Configurable fixture profile for stub testing.
 
     Defaults match Alpha B0 battery mode. Override fields to test
     different product configurations.
 
-    Structure matches profiles.FixtureProfile with nested power config.
+    Structure matches profiles.TestBedProfile with nested power config.
     """
     product: str = "alpha"
     board: str = "alpha_b0"
 
-    # Nested power config (matches new FixtureProfile structure)
+    # Nested power config (matches new TestBedProfile structure)
     power: StubPowerConfig = field(default_factory=StubPowerConfig)
 
     # Button
@@ -84,40 +84,40 @@ class StubFixtureProfile:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# StubFixture
+# StubTestBed
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class StubFixture:
+class StubTestBed:
     """Configurable fixture stub for testing test logic.
 
-    Unlike MockFixtureController (which returns plausible defaults),
-    StubFixture lets you pre-program specific behaviors to verify
+    Unlike MockTestBedController (which returns plausible defaults),
+    StubTestBed lets you pre-program specific behaviors to verify
     that tests correctly detect both passing and failing conditions.
 
     Examples:
         # Test should pass with normal current
-        stub = StubFixture()
+        stub = StubTestBed()
         assert stub.verify_dut_powered()  # True by default
 
         # Test should fail when device is "off"
-        stub = StubFixture(powered=False)
+        stub = StubTestBed(powered=False)
         assert not stub.verify_dut_powered()
 
         # Pre-program LED readings for button test
-        stub = StubFixture()
+        stub = StubTestBed()
         stub.stub_led_after_press(red=0.0, green=0.8, blue=0.0)
     """
 
     def __init__(
         self,
-        profile: Optional[StubFixtureProfile] = None,
+        profile: Optional[StubTestBedProfile] = None,
         powered: bool = True,
         dut_current_ma: float = 10.0,
         charger_current_ma: float = 20.0,
     ):
         """  init  ."""
-        self.profile = profile or StubFixtureProfile()
+        self.profile = profile or StubTestBedProfile()
         self._powered = powered
         self._dut_current_ma = dut_current_ma
         self._charger_current_ma = charger_current_ma
@@ -151,41 +151,41 @@ class StubFixture:
         """Stubs have all capabilities by default (testing test logic, not hardware)."""
         return self.has(cap)
 
-    def disable_capability(self, cap) -> "StubFixture":
+    def disable_capability(self, cap) -> "StubTestBed":
         """Disable a capability for testing skip logic."""
         self._disabled_capabilities.add(cap)
         return self
 
-    def enable_capability(self, cap) -> "StubFixture":
+    def enable_capability(self, cap) -> "StubTestBed":
         """Re-enable a previously disabled capability."""
         self._disabled_capabilities.discard(cap)
         return self
 
     # ── Stubbing API ──
 
-    def stub_current(self, dut_ma: float = 10.0, charger_ma: float = 20.0) -> "StubFixture":
+    def stub_current(self, dut_ma: float = 10.0, charger_ma: float = 20.0) -> "StubTestBed":
         """Set current readings for power tests."""
         self._dut_current_ma = dut_ma
         self._charger_current_ma = charger_ma
         return self
 
-    def stub_led_after_press(self, red: float = 0.0, green: float = 0.8, blue: float = 0.0) -> "StubFixture":
+    def stub_led_after_press(self, red: float = 0.0, green: float = 0.8, blue: float = 0.0) -> "StubTestBed":
         """Stub led after press."""
         self._led_after_press = {"red": red, "green": green, "blue": blue}
         return self
 
-    def stub_led_idle(self, red: float = 0.0, green: float = 0.0, blue: float = 0.0) -> "StubFixture":
+    def stub_led_idle(self, red: float = 0.0, green: float = 0.0, blue: float = 0.0) -> "StubTestBed":
         """Stub led idle."""
         self._led_idle = {"red": red, "green": green, "blue": blue}
         return self
 
-    def stub_temperature(self, baseline: float = 2.5, heated: float = 2.8) -> "StubFixture":
+    def stub_temperature(self, baseline: float = 2.5, heated: float = 2.8) -> "StubTestBed":
         """Stub temperature."""
         self._temp_baseline = baseline
         self._temp_heated = heated
         return self
 
-    def stub_power_rails(self, **rails: float) -> "StubFixture":
+    def stub_power_rails(self, **rails: float) -> "StubTestBed":
         """Stub power rails."""
         self._power_rails.update(rails)
         return self
@@ -563,13 +563,13 @@ class StubTestContext:
 
     def __init__(
         self,
-        fixture: StubFixture = None,
+        fixture: StubTestBed = None,
         power: StubPowerProfiler = None,
         cloud: StubCloudClient = None,
         uart: StubUartDemuxer = None,
     ):
         """  init  ."""
-        self.fixture = fixture or StubFixture()
+        self.fixture = fixture or StubTestBed()
         self.power = power or StubPowerProfiler()
         self.cloud = cloud or StubCloudClient()
         self.uart = uart or StubUartDemuxer()
@@ -592,7 +592,7 @@ class StubTestContext:
     def passing(cls) -> "StubTestContext":
         """Context where all tests should pass (within all budgets)."""
         return cls(
-            fixture=StubFixture(powered=True, dut_current_ma=10.0, charger_current_ma=20.0),
+            fixture=StubTestBed(powered=True, dut_current_ma=10.0, charger_current_ma=20.0),
             power=StubPowerProfiler(avg_current_ma=3.0, peak_current_ma=80.0, min_current_ma=1.0),
             cloud=StubCloudClient(),
         )
@@ -601,7 +601,7 @@ class StubTestContext:
     def failing_power(cls, avg_current_ma: float = 20.0, peak_current_ma: float = 250.0) -> "StubTestContext":
         """Context where power tests should fail (over budget)."""
         return cls(
-            fixture=StubFixture(powered=True),
+            fixture=StubTestBed(powered=True),
             power=StubPowerProfiler(avg_current_ma=avg_current_ma, peak_current_ma=peak_current_ma),
         )
 
@@ -609,15 +609,15 @@ class StubTestContext:
     def device_off(cls) -> "StubTestContext":
         """Context where device is not powered."""
         return cls(
-            fixture=StubFixture(powered=False, dut_current_ma=0.0, charger_current_ma=0.0),
+            fixture=StubTestBed(powered=False, dut_current_ma=0.0, charger_current_ma=0.0),
             power=StubPowerProfiler(avg_current_ma=0.0, peak_current_ma=0.0, min_current_ma=0.0),
         )
 
     @classmethod
     def batteryless(cls) -> "StubTestContext":
         """Context with batteryless fixture profile."""
-        profile = StubFixtureProfile(power=StubPowerConfig(battery_installed=False))
+        profile = StubTestBedProfile(power=StubPowerConfig(battery_installed=False))
         return cls(
-            fixture=StubFixture(profile=profile, dut_current_ma=15.0, charger_current_ma=0.0),
+            fixture=StubTestBed(profile=profile, dut_current_ma=15.0, charger_current_ma=0.0),
             power=StubPowerProfiler(avg_current_ma=8.0),
         )

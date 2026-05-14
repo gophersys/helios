@@ -33,11 +33,12 @@ class ProductConfig:
 
 
 @dataclass(frozen=True)
-class FixtureConfig:
-    """Pointer to the test app's Python ``Fixture`` class.
+class TestBedConfig:
+    __test__ = False  # not a pytest test class
+    """Pointer to the test app's Python ``TestBed`` class.
 
     Format: ``dotted.module.path:ClassName`` (e.g.
-    ``fixtures.alpha_b0.fixture:AlphaB0Fixture``). The class is the
+    ``testbeds.alpha_b0.testbed:AlphaB0TestBed``). The class is the
     single source of truth for the fixture's DUT-side wiring; the
     backend AST-extracts ``name`` and ``revision`` from the class at
     upload time so the manifest doesn't need to repeat them.
@@ -61,7 +62,7 @@ class FixtureConfig:
     def file_path(self) -> str:
         """Relative file path within the tar.gz, derived from ``module_path``.
 
-        ``fixtures.alpha_b0.fixture`` → ``fixtures/alpha_b0/fixture.py``.
+        ``testbeds.alpha_b0.testbed`` → ``testbeds/alpha_b0/testbed.py``.
         """
         return self.module_path.replace(".", "/") + ".py"
 
@@ -83,7 +84,7 @@ class Manifest:
     schema_version: str  # "1.0"
     package: PackageConfig
     product: ProductConfig
-    fixture: FixtureConfig
+    testbed: TestBedConfig
     stages: Dict[str, StageConfig] = field(default_factory=dict)
 
     @property
@@ -106,7 +107,7 @@ class Manifest:
         """
         pkg = data["package"]
         prod = data["product"]
-        fix = data["fixture"]
+        fix = data["testbed"]
 
         device_data = prod.get("device", {})
         device = DeviceConfig(
@@ -135,7 +136,7 @@ class Manifest:
                 board=prod["board"],
                 device=device,
             ),
-            fixture=FixtureConfig(
+            testbed=TestBedConfig(
                 module=fix["module"],
                 multi_slot=fix.get("multi_slot", False),
             ),

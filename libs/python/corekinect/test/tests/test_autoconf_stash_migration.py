@@ -48,8 +48,8 @@ def _make_minimal_manifest(pytester: pytest.Pytester) -> None:
               device:
                 type_id: 1
                 variant_id: 1
-            fixture:
-              module: corekinect.test.tests.stubs:StubFixture
+            testbed:
+              module: corekinect.test.tests.stubs:StubTestBed
               multi_slot: false
             stages: {}
             """

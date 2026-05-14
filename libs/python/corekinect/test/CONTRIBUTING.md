@@ -122,7 +122,7 @@ class YourClass:
 
 ## Adding a Test Stub
 
-Test stubs go in `tests/stubs.py`. They follow the `ProgrammableFixture` pattern:
+Test stubs go in `tests/stubs.py`. They follow the `ProgrammableTestBed` pattern:
 
 - Configurable return values (set before test runs)
 - Event recording (verify what was called)

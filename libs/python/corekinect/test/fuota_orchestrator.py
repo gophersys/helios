@@ -38,7 +38,7 @@ class FuotaOrchestrator:
         """
         Args:
             fuota_client: FuotaClient instance (authenticated).
-            fixture: Optional Fixture instance for power cycling during
+            fixture: Optional TestBed instance for power cycling during
                 stalls. If None, power cycling is skipped.
             logger: Optional logger. Defaults to module logger.
         """

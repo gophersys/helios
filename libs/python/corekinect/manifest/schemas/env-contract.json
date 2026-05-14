@@ -95,7 +95,7 @@
       }
     },
 
-    "fixture": {
+    "testbed": {
       "MTIB_HOSTS": {
         "type": "string",
         "required": true,
@@ -120,7 +120,7 @@
       "FIXTURE_ID": {
         "type": "string",
         "required": true,
-        "description": "Fixture DB ID for session tracking and fixture locking."
+        "description": "TestBed DB ID for session tracking and fixture locking."
       },
       "FIXTURE_CONFIG_PATH": {
         "type": "string",

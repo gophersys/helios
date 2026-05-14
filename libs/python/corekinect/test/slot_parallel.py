@@ -166,7 +166,7 @@ class _SessionPreservingSetupState:
 
     In practice this meant: the fastest slot finishes test_11, its
     worker's teardown fires the ``fixture_ctx`` finalizer, which calls
-    ``FixtureContext.disconnect_all()`` — closing MTIB channels and
+    ``TestBedContext.disconnect_all()`` — closing MTIB channels and
     SlotTestContext UART demuxers that OTHER worker threads were
     actively using to run their remaining tests. The victims saw
     "Stream dead (stream closed by caller)" on whichever test was mid-

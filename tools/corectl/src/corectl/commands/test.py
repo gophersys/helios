@@ -244,31 +244,31 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
                 else:
                     result.error(f"Stage '{stage_name}' directory missing: {directory}")
 
-    # Fixture profile
-    fixture = manifest.get("fixture", {})
-    profile_path = fixture.get("profile", "")
+    # TestBed profile
+    testbed = manifest.get("testbed", {})
+    profile_path = testbed.get("profile", "")
     if profile_path:
         full_path = project_dir / profile_path
         if full_path.exists():
-            result.ok(f"Fixture profile: {profile_path}")
+            result.ok(f"TestBed profile: {profile_path}")
             # Validate fixture YAML content
             try:
                 with open(full_path) as f:
                     profile_data = yaml.safe_load(f)
                 if not profile_data:
-                    result.error(f"Fixture profile is empty: {profile_path}")
+                    result.error(f"TestBed profile is empty: {profile_path}")
                 else:
                     if "power" not in profile_data:
-                        result.error(f"Fixture profile missing 'power' config: {profile_path}")
+                        result.error(f"TestBed profile missing 'power' config: {profile_path}")
                     else:
-                        result.ok(f"Fixture profile has power config")
+                        result.ok(f"TestBed profile has power config")
             except Exception as exc:
-                result.error(f"Fixture profile invalid YAML: {exc}")
+                result.error(f"TestBed profile invalid YAML: {exc}")
         else:
-            result.error(f"Fixture profile not found: {profile_path}")
+            result.error(f"TestBed profile not found: {profile_path}")
 
-    # Fixture controller
-    controller = fixture.get("controller", "")
+    # TestBed controller
+    controller = testbed.get("controller", "")
     if controller:
         # Convert dotted path to file path
         parts = controller.rsplit(".", 1)
@@ -279,11 +279,11 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
                 # Verify the class exists in the file
                 content = (project_dir / module_path).read_text()
                 if f"class {class_name}" in content:
-                    result.ok(f"Fixture controller: {controller}")
+                    result.ok(f"TestBed controller: {controller}")
                 else:
-                    result.error(f"Fixture controller class '{class_name}' not found in {module_path}")
+                    result.error(f"TestBed controller class '{class_name}' not found in {module_path}")
             else:
-                result.error(f"Fixture controller module not found: {module_path}")
+                result.error(f"TestBed controller module not found: {module_path}")
 
     # Timeout sanity checks
     for stage_name, stage_cfg in (manifest.get("stages", {}) or {}).items():
@@ -367,31 +367,31 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
             result.warn("conftest.py does not load corekinect.test.autoconf — multi-slot and lifecycle fixtures unavailable")
 
     # multi_slot consistency
-    fixture = manifest.get("fixture", {})
+    testbed = manifest.get("testbed", {})
     pkg_type = manifest.get("package", {}).get("type", "validation")
-    multi_slot = fixture.get("multi_slot", False)
+    multi_slot = testbed.get("multi_slot", False)
     if pkg_type == "manufacturing" and not multi_slot:
         result.warn("Manufacturing package with multi_slot=false — most manufacturing fixtures are multi-slot")
 
     # Validate the Python fixture file referenced by ``fixture.module``.
     # AST-only — never imports the user's code.
-    fixture_module = fixture.get("module", "")
-    if fixture_module:
+    testbed_module = testbed.get("module", "")
+    if testbed_module:
         try:
-            from corekinect.fixture.extractor import (
-                FixtureExtractionError,
-                extract_fixture,
+            from corekinect.testbed.extractor import (
+                TestBedExtractionError,
+                extract_testbed,
             )
         except ImportError:
-            result.warn("corekinect.fixture not installed — skipping fixture extraction")
+            result.warn("corekinect.testbed not installed — skipping fixture extraction")
         else:
-            if ":" not in fixture_module:
+            if ":" not in testbed_module:
                 result.error(
-                    f"fixture.module={fixture_module!r} is malformed "
+                    f"fixture.module={testbed_module!r} is malformed "
                     f"(expected 'dotted.path:ClassName')"
                 )
             else:
-                module_path, _ = fixture_module.split(":", 1)
+                module_path, _ = testbed_module.split(":", 1)
                 fixture_file = project_dir / Path(*module_path.split(".")).with_suffix(".py")
                 if not fixture_file.is_file():
                     result.error(
@@ -399,11 +399,11 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
                     )
                 else:
                     try:
-                        extract_fixture(fixture_file.read_text(), source_path=str(fixture_file))
+                        extract_testbed(fixture_file.read_text(), source_path=str(fixture_file))
                         result.ok(
                             f"{fixture_file.relative_to(project_dir)} passes fixture validation"
                         )
-                    except FixtureExtractionError as exc:
+                    except TestBedExtractionError as exc:
                         result.error(
                             f"{fixture_file.relative_to(project_dir)}: {exc}"
                         )
@@ -508,7 +508,7 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
         "product": product_record["slug"],
         "board": board_slug,
         "board_class": board_class,
-        "fixture_module": f"fixtures.{board_slug}.fixture:{board_class}Fixture",
+        "testbed_module": f"testbeds.{board_slug}.testbed:{board_class}TestBed",
         "device_type_id": revision.get("deviceType") if revision.get("deviceType") is not None else 0,
         "device_variant_id": revision.get("deviceVariant") if revision.get("deviceVariant") is not None else 0,
         "pkg_type": pkg_type,
@@ -520,9 +520,9 @@ def init(ctx, product: Optional[str], board: Optional[str], pkg_type: str, path:
     fixture_dir = project_dir / "fixtures" / board_slug
     fixture_dir.mkdir(parents=True, exist_ok=True)
     (fixture_dir / "__init__.py").touch()
-    fixture_class = ctx_vars["fixture_module"].split(":", 1)[1]
+    testbed_class = ctx_vars["testbed_module"].split(":", 1)[1]
     (fixture_dir / "fixture.py").write_text(
-        _starter_fixture_source(fixture_class, pkg_type),
+        _starter_fixture_source(testbed_class, pkg_type),
         encoding="utf-8",
     )
 
@@ -718,10 +718,10 @@ def _starter_fixture_source(class_name: str, pkg_type: str) -> str:
 
 from __future__ import annotations
 
-from corekinect.fixture import ADC, GPIO, JLink, Power, UART, Fixture
+from corekinect.testbed import ADC, GPIO, JLink, Power, UART, TestBed
 
 
-class {class_name}(Fixture):
+class {class_name}(TestBed):
     name = "{class_name.lower()}"
     revision = "1.0"
 
@@ -770,9 +770,9 @@ def _project_ctx_vars(project_dir: Path, manifest: dict) -> dict:
     product_slug = (manifest.get("product") or {}).get("slug") or "unknown"
     board_slug = (manifest.get("product") or {}).get("board") or "unknown"
     board_class = "".join(p.capitalize() for p in board_slug.split("_"))
-    fixture_module = (manifest.get("fixture") or {}).get(
+    testbed_module = (manifest.get("testbed") or {}).get(
         "module",
-        f"fixtures.{board_slug}.fixture:{board_class}Fixture",
+        f"testbeds.{board_slug}.testbed:{board_class}TestBed",
     )
     device = (manifest.get("product") or {}).get("device") or {}
     pkg_type = (manifest.get("package") or {}).get("type", "validation")
@@ -791,7 +791,7 @@ def _project_ctx_vars(project_dir: Path, manifest: dict) -> dict:
         "product": product_slug,
         "board": board_slug,
         "board_class": board_class,
-        "fixture_module": fixture_module,
+        "testbed_module": testbed_module,
         "device_type_id": device.get("type_id", 0),
         "device_variant_id": device.get("variant_id", 0),
         "pkg_type": pkg_type,
@@ -1139,14 +1139,14 @@ def _authoritative_fields(local: dict, product: dict, revision: dict) -> List[Tu
     # The fixture module reference we KNOW is correct for this board —
     # but only rewrite it if the author hasn't custom-named it (same
     # module prefix). Never clobber a bespoke class name.
-    fx = (local.get("fixture") or {})
+    fx = (local.get("testbed") or {})
     module_ref = fx.get("module", "")
-    expected_module_prefix = f"fixtures.{board_slug}.fixture:"
+    expected_module_prefix = f"testbeds.{board_slug}.testbed:"
     desired_module = module_ref
     if not module_ref or ":" not in module_ref or not module_ref.startswith("fixtures."):
         # Fresh manifest — fill in a reasonable default.
         pkg_type = (local.get("package") or {}).get("type", "validation")
-        suffix = "MfgFixture" if pkg_type == "manufacturing" else "Fixture"
+        suffix = "MfgTestBed" if pkg_type == "manufacturing" else "TestBed"
         board_class = "".join(p.capitalize() for p in board_slug.split("_"))
         desired_module = expected_module_prefix + f"{board_class}{suffix}"
     elif not module_ref.startswith(expected_module_prefix):

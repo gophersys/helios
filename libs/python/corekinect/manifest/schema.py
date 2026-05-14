@@ -194,7 +194,7 @@ def _basic_validate(data: dict) -> List[ValidationError]:
     """Minimal validation when jsonschema is not available."""
     errors = []
 
-    for field in ("schema", "package", "product", "fixture"):
+    for field in ("schema", "package", "product", "testbed"):
         if field not in data:
             errors.append(ValidationError(field, f"Missing required field '{field}'"))
 
@@ -214,8 +214,8 @@ def _basic_validate(data: dict) -> List[ValidationError]:
             if field not in prod:
                 errors.append(ValidationError(f"product.{field}", f"Missing required field"))
 
-    if "fixture" in data:
-        fix = data["fixture"]
+    if "testbed" in data:
+        fix = data["testbed"]
         for field in ("controller", "profile"):
             if field not in fix:
                 errors.append(ValidationError(f"fixture.{field}", f"Missing required field"))
@@ -242,7 +242,7 @@ def _semantic_checks(data: dict) -> List[ValidationError]:
         )
 
     pkg_type = data.get("package", {}).get("type")
-    if pkg_type == "manufacturing" and not data.get("fixture", {}).get("multi_slot"):
+    if pkg_type == "manufacturing" and not data.get("testbed", {}).get("multi_slot"):
         warnings.append(
             ValidationError(
                 "fixture.multi_slot",

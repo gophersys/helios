@@ -1,21 +1,21 @@
 """Typed fixture-definition library.
 
 A test app declares its DUT-side wiring in a Python class that
-subclasses :class:`Fixture` and lists the MTIB resources it uses by
+subclasses :class:`TestBed` and lists the MTIB resources it uses by
 their physical channel/pin numbers. The class is the single source
 of truth for how this product's fixture talks to its DUT.
 
 Public API:
 
-* :class:`Fixture` — base class. Subclass per ``<board_revision>``.
+* :class:`TestBed` — base class. Subclass per ``<board_revision>``.
 * :class:`ADC`, :class:`GPIO`, :class:`UART`, :class:`JLink`,
   :class:`Power`, :class:`I2C`, :class:`SPI` — declarative wrappers.
-* :exc:`FixtureValidationError` — raised on malformed declarations.
-* :exc:`FixtureIOError` — raised on MTIB RPC failures.
-* :mod:`corekinect.fixture.topology` — fixed MTIB pin/channel limits.
+* :exc:`TestBedValidationError` — raised on malformed declarations.
+* :exc:`TestBedIOError` — raised on MTIB RPC failures.
+* :mod:`corekinect.testbed.topology` — fixed MTIB pin/channel limits.
 """
 
-from corekinect.fixture.types import (
+from corekinect.testbed.types import (
     ADC,
     GPIO,
     UART,
@@ -28,13 +28,13 @@ from corekinect.fixture.types import (
     BoundUART,
     BoundJLink,
     BoundPower,
-    FixtureValidationError,
-    FixtureIOError,
+    TestBedValidationError,
+    TestBedIOError,
 )
-from corekinect.fixture.base import Fixture
+from corekinect.testbed.base import TestBed
 
 __all__ = [
-    "Fixture",
+    "TestBed",
     "ADC",
     "GPIO",
     "UART",
@@ -47,6 +47,6 @@ __all__ = [
     "BoundUART",
     "BoundJLink",
     "BoundPower",
-    "FixtureValidationError",
-    "FixtureIOError",
+    "TestBedValidationError",
+    "TestBedIOError",
 ]

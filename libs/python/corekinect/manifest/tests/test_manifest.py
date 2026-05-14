@@ -13,7 +13,7 @@ import yaml
 
 from corekinect.manifest.types import (
     DeviceConfig,
-    FixtureConfig,
+    TestBedConfig,
     Manifest,
     PackageConfig,
     ProductConfig,
@@ -36,7 +36,7 @@ from corekinect.manifest.loader import (
 
 
 # ---------------------------------------------------------------------------
-# Fixture data: reusable manifest dicts
+# TestBed data: reusable manifest dicts
 # ---------------------------------------------------------------------------
 
 def _validation_dict() -> dict:
@@ -56,8 +56,8 @@ def _validation_dict() -> dict:
                 "variant_id": 7,
             },
         },
-        "fixture": {
-            "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
+        "testbed": {
+            "module": "testbeds.alpha_b0.testbed:AlphaB0TestBed",
             "multi_slot": False,
         },
         "stages": {
@@ -95,8 +95,8 @@ def _manufacturing_dict() -> dict:
                 "variant_id": 7,
             },
         },
-        "fixture": {
-            "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
+        "testbed": {
+            "module": "testbeds.alpha_b0.testbed:AlphaB0TestBed",
             "multi_slot": True,
         },
         "stages": {
@@ -129,8 +129,8 @@ def _minimal_validation_dict() -> dict:
             "slug": "beta",
             "board": "beta_a0",
         },
-        "fixture": {
-            "module": "fixtures.beta_a0.fixture:BetaA0Fixture",
+        "testbed": {
+            "module": "testbeds.beta_a0.testbed:BetaA0TestBed",
         },
         "stages": {
             "smoke": {
@@ -173,11 +173,11 @@ class TestManifestFromDictValidation:
 
     def test_fixture_fields(self):
         m = Manifest.from_dict(_validation_dict())
-        assert m.fixture.module == "fixtures.alpha_b0.fixture:AlphaB0Fixture"
-        assert m.fixture.module_path == "fixtures.alpha_b0.fixture"
-        assert m.fixture.class_name == "AlphaB0Fixture"
-        assert m.fixture.file_path == "fixtures/alpha_b0/fixture.py"
-        assert m.fixture.multi_slot is False
+        assert m.testbed.module == "testbeds.alpha_b0.testbed:AlphaB0TestBed"
+        assert m.testbed.module_path == "testbeds.alpha_b0.testbed"
+        assert m.testbed.class_name == "AlphaB0TestBed"
+        assert m.testbed.file_path == "testbeds/alpha_b0/testbed.py"
+        assert m.testbed.multi_slot is False
 
     def test_stages_parsed(self):
         m = Manifest.from_dict(_validation_dict())
@@ -216,7 +216,7 @@ class TestManifestFromDictManufacturing:
 
     def test_fixture_multi_slot(self):
         m = Manifest.from_dict(_manufacturing_dict())
-        assert m.fixture.multi_slot is True
+        assert m.testbed.multi_slot is True
 
 
 class TestManifestFromDictMinimal:
@@ -234,7 +234,7 @@ class TestManifestFromDictMinimal:
 
     def test_multi_slot_defaults_to_false(self):
         m = Manifest.from_dict(_minimal_validation_dict())
-        assert m.fixture.multi_slot is False
+        assert m.testbed.multi_slot is False
 
 
 class TestManifestProperties:
@@ -285,7 +285,7 @@ class TestFrozenDataclasses:
     def test_fixture_config_frozen(self):
         m = Manifest.from_dict(_validation_dict())
         with pytest.raises(AttributeError):
-            m.fixture.module = "other:Other"
+            m.testbed.module = "other:Other"
 
     def test_stage_config_frozen(self):
         m = Manifest.from_dict(_validation_dict())
@@ -337,10 +337,10 @@ class TestValidateManifestMissingFields:
 
     def test_missing_fixture(self):
         data = _validation_dict()
-        del data["fixture"]
+        del data["testbed"]
         result = validate_manifest(data)
         assert not result.valid
-        assert any("fixture" in str(e).lower() for e in result.errors)
+        assert any("testbed" in str(e).lower() for e in result.errors)
 
     def test_missing_stages_for_validation(self):
         data = _validation_dict()
@@ -393,13 +393,13 @@ class TestValidateManifestBadValues:
 
     def test_module_without_class_name_rejected(self):
         data = _validation_dict()
-        data["fixture"]["module"] = "fixtures.alpha_b0.fixture"
+        data["testbed"]["module"] = "testbeds.alpha_b0.testbed"
         result = validate_manifest(data)
         assert not result.valid
 
     def test_module_with_lowercase_class_rejected(self):
         data = _validation_dict()
-        data["fixture"]["module"] = "fixtures.alpha_b0.fixture:alphaB0Fixture"
+        data["testbed"]["module"] = "testbeds.alpha_b0.testbed:alphaB0TestBed"
         result = validate_manifest(data)
         assert not result.valid
 
@@ -428,7 +428,7 @@ class TestValidateManifestWarnings:
 
     def test_warns_on_manufacturing_without_multi_slot(self):
         data = _manufacturing_dict()
-        data["fixture"]["multi_slot"] = False
+        data["testbed"]["multi_slot"] = False
         result = validate_manifest(data)
         assert result.valid
         assert any("multi_slot" in str(w) for w in result.warnings)

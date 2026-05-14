@@ -77,7 +77,7 @@ libs/python/corekinect/
 │   └── db_orm_v1_0.py
 ├── core_ops/               # CoreOps proxy client
 │   └── client.py           # CoreOpsClient, CoreOpsConfig
-├── fixture/                # declarative fixture-wiring DSL
+├── testbed/                # declarative TestBed-wiring DSL
 │   ├── base.py             # class Fixture
 │   ├── types.py            # ADC, GPIO, UART, JLink, Power, I2C, SPI + Bound* + errors
 │   ├── topology.py         # MTIB physical pin/channel limits
@@ -135,7 +135,7 @@ libs/python/corekinect/
 | `corekinect.mtib_client.v1.client` | `MtibV1Client` — the gRPC client. The only sanctioned way to call `mtib-server`. | `from corekinect.mtib_client.v1.client import MtibV1Client` |
 | `corekinect.core_cloud` | `CoreCloudClient` + DTOs for telemetry / FUOTA / registration. | `from corekinect.core_cloud import CoreCloudClient, FuotaPlan` |
 | `corekinect.core_ops` | `CoreOpsClient` — SNR→deviceId, public-key upload, ICCID registration. | `from corekinect.core_ops import CoreOpsClient` |
-| `corekinect.fixture` | Declarative `Fixture` base class + typed channel wrappers. Each product subclasses `Fixture` to declare DUT-side wiring. | `from corekinect.fixture import Fixture, ADC, GPIO, UART` |
+| `corekinect.testbed` | Declarative `TestBed` base class + typed channel wrappers. Each product subclasses `TestBed` to declare DUT-side wiring. | `from corekinect.testbed import TestBed, ADC, GPIO, UART` |
 | `corekinect.firmware` | CFW generation/parsing + firmware-package validator. | `from corekinect.firmware import generate_cfw, parse_cfw, validate_package` |
 | `corekinect.manifest` | `concord.yaml` typed loader + JSON Schema validation. Shared with `corectl` and the http-api upload handler. | `from corekinect.manifest import load_manifest, validate_manifest` |
 | `corekinect.shells` | One class per processor target. Wraps MTIB UART for manufacturing-shell commands. | `from corekinect.shells import AlphaAppShell, CommsCoprocShell` |

@@ -2,14 +2,14 @@
 
 The backend uploads-and-extracts path needs to read fixture metadata
 out of a Python module *without* executing the test app's code. We
-walk the AST, find the unique class that subclasses ``Fixture``, and
+walk the AST, find the unique class that subclasses ``TestBed``, and
 read its class-level constants and resource maps as literals.
 
 Failure modes that get rejected here (each raises
-:exc:`FixtureExtractionError` with a specific message):
+:exc:`TestBedExtractionError` with a specific message):
 
-* No class subclassing ``Fixture`` in the source.
-* More than one ``Fixture`` subclass in a single module.
+* No class subclassing ``TestBed`` in the source.
+* More than one ``TestBed`` subclass in a single module.
 * ``name`` or ``revision`` missing or non-literal-string.
 * A resource value like ``ADC(channel=99)`` with an out-of-range
   channel.
@@ -17,8 +17,8 @@ Failure modes that get rejected here (each raises
 * Anything that requires evaluating arbitrary code (variables,
   imports, list comprehensions in resource maps, etc.).
 
-The returned dict is shaped to match :func:`Fixture.summary` so the
-backend can drop it directly into ``FixtureDesign.profileTemplate``.
+The returned dict is shaped to match :func:`TestBed.summary` so the
+backend can drop it directly into ``TestBedDesign.profileTemplate``.
 """
 
 from __future__ import annotations
@@ -26,10 +26,11 @@ from __future__ import annotations
 import ast
 from typing import Any, Dict, List, Optional, Tuple
 
-from corekinect.fixture import topology
+from corekinect.testbed import topology
 
 
-class FixtureExtractionError(ValueError):
+class TestBedExtractionError(ValueError):
+    __test__ = False  # not a pytest test class
     """A fixture module's AST violates the extraction contract."""
 
 
@@ -37,11 +38,11 @@ class FixtureExtractionError(ValueError):
 # arguments. Each entry maps the type name to a parser that returns
 # the summary dict for one declaration. Adding a new declarative type
 # means: add it here, add the binding in
-# :mod:`corekinect.fixture.types`, add a topology limit if needed.
+# :mod:`corekinect.testbed.types`, add a topology limit if needed.
 _KNOWN_RESOURCE_TYPES = {"ADC", "GPIO", "UART", "JLink", "Power", "I2C", "SPI"}
 
 
-def extract_fixture(source: str, *, source_path: str = "<fixture>") -> Dict[str, Any]:
+def extract_testbed(source: str, *, source_path: str = "<fixture>") -> Dict[str, Any]:
     """Extract a fixture's metadata from its Python source.
 
     ``source_path`` is included in error messages to help operators
@@ -50,26 +51,26 @@ def extract_fixture(source: str, *, source_path: str = "<fixture>") -> Dict[str,
     try:
         tree = ast.parse(source, filename=source_path)
     except SyntaxError as e:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: syntax error: {e.msg} (line {e.lineno})"
         ) from None
 
-    fixture_classes = [
+    testbed_classes = [
         node for node in tree.body
         if isinstance(node, ast.ClassDef) and _has_fixture_base(node)
     ]
-    if not fixture_classes:
-        raise FixtureExtractionError(
-            f"{source_path}: no class subclassing Fixture found"
+    if not testbed_classes:
+        raise TestBedExtractionError(
+            f"{source_path}: no class subclassing TestBed found"
         )
-    if len(fixture_classes) > 1:
-        names = [c.name for c in fixture_classes]
-        raise FixtureExtractionError(
-            f"{source_path}: expected exactly one Fixture subclass, found "
-            f"{len(fixture_classes)}: {names}"
+    if len(testbed_classes) > 1:
+        names = [c.name for c in testbed_classes]
+        raise TestBedExtractionError(
+            f"{source_path}: expected exactly one TestBed subclass, found "
+            f"{len(testbed_classes)}: {names}"
         )
 
-    cls = fixture_classes[0]
+    cls = testbed_classes[0]
     constants = _collect_class_assigns(cls)
 
     name = _require_string_literal(constants, "name", cls, source_path)
@@ -91,13 +92,13 @@ def extract_fixture(source: str, *, source_path: str = "<fixture>") -> Dict[str,
 
 
 def _has_fixture_base(cls: ast.ClassDef) -> bool:
-    """Does ``cls`` list ``Fixture`` (any import alias) as a base?"""
+    """Does ``cls`` list ``TestBed`` (any import alias) as a base?"""
     for base in cls.bases:
-        # ``class Foo(Fixture):``
-        if isinstance(base, ast.Name) and base.id == "Fixture":
+        # ``class Foo(TestBed):``
+        if isinstance(base, ast.Name) and base.id == "TestBed":
             return True
-        # ``class Foo(corekinect.fixture.Fixture):``
-        if isinstance(base, ast.Attribute) and base.attr == "Fixture":
+        # ``class Foo(corekinect.testbed.TestBed):``
+        if isinstance(base, ast.Attribute) and base.attr == "TestBed":
             return True
     return False
 
@@ -129,17 +130,17 @@ def _require_string_literal(
 ) -> str:
     node = constants.get(attr)
     if node is None:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: class {cls.name} missing required attribute "
             f"``{attr}`` (must be a string literal)"
         )
     if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: class {cls.name}.{attr} must be a string "
             f"literal, got {type(node).__name__}"
         )
     if not node.value:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: class {cls.name}.{attr} must be a non-empty "
             f"string"
         )
@@ -158,29 +159,29 @@ def _extract_resource_map(
     if node is None:
         return {}
     if not isinstance(node, ast.Dict):
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: ``{attr}`` must be a dict literal"
         )
 
     result: Dict[str, Any] = {}
     for key_node, val_node in zip(node.keys, node.values):
         if not isinstance(key_node, ast.Constant) or not isinstance(key_node.value, str):
-            raise FixtureExtractionError(
+            raise TestBedExtractionError(
                 f"{source_path}: ``{attr}`` keys must be string literals"
             )
         key = key_node.value
         if not key:
-            raise FixtureExtractionError(
+            raise TestBedExtractionError(
                 f"{source_path}: ``{attr}`` has an empty-string key"
             )
         if not isinstance(val_node, ast.Call):
-            raise FixtureExtractionError(
+            raise TestBedExtractionError(
                 f"{source_path}: ``{attr}[{key!r}]`` must be a call to "
                 f"{expected_type}(...)"
             )
         type_name = _call_type_name(val_node)
         if type_name != expected_type:
-            raise FixtureExtractionError(
+            raise TestBedExtractionError(
                 f"{source_path}: ``{attr}[{key!r}]`` expected "
                 f"{expected_type}(...), got {type_name}(...)"
             )
@@ -226,7 +227,7 @@ def _require_int(
 ) -> int:
     val = _const(kwargs.get(name))
     if not isinstance(val, int):
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: ``{name}`` must be an integer literal"
         )
     return val
@@ -277,13 +278,13 @@ def _parse_adc(call: ast.Call, attr: str, key: str, source_path: str) -> Dict[st
     kw = _kwargs(call)
     channel = _require_int(kw, "channel", where, source_path)
     if channel not in topology.ADC_CHANNELS:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: ADC channel {channel} out of range. "
             f"Valid: {topology.ADC_CHANNELS}"
         )
     divider = _optional_float(kw, "divider", 1.0)
     if divider <= 0:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: divider must be > 0, got {divider}"
         )
     return {
@@ -299,7 +300,7 @@ def _parse_gpio(call: ast.Call, attr: str, key: str, source_path: str) -> Dict[s
     kw = _kwargs(call)
     pin = _require_int(kw, "pin", where, source_path)
     if pin not in topology.GPIO_PINS:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: GPIO pin {pin} out of range. "
             f"Valid: {topology.GPIO_PINS}"
         )
@@ -315,13 +316,13 @@ def _parse_uart(call: ast.Call, attr: str, key: str, source_path: str) -> Dict[s
     kw = _kwargs(call)
     port = _require_int(kw, "port", where, source_path)
     if port not in topology.UART_PORTS:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: UART port {port} out of range. "
             f"Valid: {topology.UART_PORTS}"
         )
     baud = _optional_int(kw, "baud", 115200)
     if baud <= 0:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: baud must be > 0, got {baud}"
         )
     return {
@@ -337,17 +338,17 @@ def _parse_jlink(call: ast.Call, attr: str, key: str, source_path: str) -> Dict[
     kw = _kwargs(call)
     family_node = kw.get("family")
     if family_node is None:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: ``family`` is required"
         )
     family_val = _const(family_node)
     if not isinstance(family_val, str) or not family_val:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: ``family`` must be a non-empty string"
         )
     family = family_val.strip().upper()
     if family not in topology.KNOWN_JLINK_FAMILIES:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: unknown J-Link family {family_val!r}. "
             f"Valid: {topology.KNOWN_JLINK_FAMILIES}"
         )
@@ -359,17 +360,17 @@ def _parse_power(call: ast.Call, attr: str, key: str, source_path: str) -> Dict[
     kw = _kwargs(call)
     rail_node = kw.get("rail")
     if rail_node is None:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: ``rail`` is required"
         )
     rail_val = _const(rail_node)
     if not isinstance(rail_val, str) or not rail_val:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: ``rail`` must be a non-empty string"
         )
     rail = rail_val.strip().upper()
     if rail not in topology.POWER_RAILS:
-        raise FixtureExtractionError(
+        raise TestBedExtractionError(
             f"{source_path}: {where}: unknown power rail {rail_val!r}. "
             f"Valid: {topology.POWER_RAILS}"
         )

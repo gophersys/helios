@@ -1,21 +1,21 @@
 <!-- generated-by: corectl/corekinect {{framework_version}} — do not hand-edit; run `corectl test update` to refresh -->
 
-# Fixture Conventions
+# TestBed Conventions
 
 How to declare and extend a fixture for this repo. Lives in `fixtures/{{board}}/fixture.py`.
 
 ## Class shape
 
 ```python
-from corekinect.fixture import ADC, GPIO, JLink, Power, UART, Fixture
+from corekinect.testbed import ADC, GPIO, JLink, Power, UART, TestBed
 
 
-class {{board_class}}Fixture(Fixture):
+class {{board_class}}TestBed(TestBed):
     name = "{{board}}-{{kind}}"
     revision = "1.0"
 
     # Class-level resource maps — the platform AST-extracts these at upload
-    # to populate the FixtureDesign row. Add entries here when you wire new
+    # to populate the TestBedDesign row. Add entries here when you wire new
     # DUT pins; remove entries when you rip them out.
     adcs = {
         "battery": ADC(channel=0, signal="VBAT"),
@@ -42,8 +42,8 @@ class {{board_class}}Fixture(Fixture):
 
 ## Required class attributes
 
-- **`name`** — extracted into `FixtureDesign.name`. Use `<board>-<kind>` (e.g., `alpha_b0-validation`).
-- **`revision`** — extracted into `FixtureDesign.revision`. Bump when the physical fixture's wiring changes.
+- **`name`** — extracted into `TestBedDesign.name`. Use `<board>-<kind>` (e.g., `alpha_b0-validation`).
+- **`revision`** — extracted into `TestBedDesign.revision`. Bump when the physical fixture's wiring changes.
 
 ## Resource map keys are the API
 

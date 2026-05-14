@@ -11,13 +11,13 @@ Message helpers (this module) format the boilerplate for common
 failure modes so every skip/fail message names the variable or file
 path at fault instead of leaving the operator to grep:
 
-    from corekinect.test.errors import missing_env_var, bad_fixture_class
+    from corekinect.test.errors import missing_env_var, bad_testbed_class
 
     raise HardwareError(missing_env_var("MTIB_ADDRESS", "connect to hardware",
                                         hint="or set MOCK_MODE=1"))
     pytest.skip(missing_env_var("MTIB_HOSTS", "enumerate slots",
                                 alternatives=("MTIB_HOST", "FIXTURE_CONFIG_PATH")))
-    raise ConfigError(bad_fixture_class(module_ref, cause=exc))
+    raise ConfigError(bad_testbed_class(module_ref, cause=exc))
 """
 
 from typing import Iterable, Optional
@@ -40,7 +40,7 @@ __all__ = [
     "TimeoutError",
     "ValidationError",
     "missing_env_var",
-    "bad_fixture_class",
+    "bad_testbed_class",
 ]
 
 
@@ -73,7 +73,7 @@ def missing_env_var(
     return " ".join(parts)
 
 
-def bad_fixture_class(module_ref: str, cause: BaseException) -> str:
+def bad_testbed_class(module_ref: str, cause: BaseException) -> str:
     """Format an error message for a failed ``fixture.module`` import.
 
     The ``module:Class`` reference in ``concord.yaml`` may fail for

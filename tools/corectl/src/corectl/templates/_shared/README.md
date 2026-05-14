@@ -37,7 +37,7 @@ tests/
 
 The backend is the source of truth for the product slug, board revision,
 and fixture controller class. If ops bumps a board revision or swaps a
-fixture:
+testbed:
 
 ```bash
 corectl test sync      # diff remote vs local, apply with confirm

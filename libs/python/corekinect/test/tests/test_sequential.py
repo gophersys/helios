@@ -104,7 +104,7 @@ class TestMakeReport:
         assert "slot-2" in plugin.failed_slots
 
     def test_setup_phase_failure_does_not_track(self):
-        """Fixture setup failures cascade via pytest's own machinery;
+        """TestBed setup failures cascade via pytest's own machinery;
         double-counting them here would mask fixture bugs."""
         plugin = SequentialTestPlugin()
         item = _make_item(nodeid="t.py::test_foo[slot-0]")

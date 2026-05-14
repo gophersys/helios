@@ -59,7 +59,7 @@ def assert_powered(
     Takes multiple samples to handle modem burst variability.
 
     Args:
-        fixture: FixtureController instance.
+        fixture: TestBedController instance.
         min_current_ma: Minimum current to consider "powered".
         samples: Number of samples to take.
         interval_s: Interval between samples.

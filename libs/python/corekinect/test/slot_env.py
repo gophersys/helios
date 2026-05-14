@@ -4,7 +4,7 @@ Before this module, four separate functions parsed ``MTIB_HOSTS`` /
 ``SLOT_FILTER`` / ``SLOT_SNRS`` / ``SLOT_DEVICE_IDS``:
 ``autoconf._seed_reporter_slot_serials``,
 ``autoconf._maybe_register_slot_parallel``,
-``slot.FixtureContext._from_hosts_env``, and ``slot.get_slot_ids_from_env``.
+``slot.TestBedContext._from_hosts_env``, and ``slot.get_slot_ids_from_env``.
 Each drifted from the others (off-by-one on SLOT_FILTER, different
 whitespace handling, different empty-var behaviour). One source of
 truth eliminates that drift.

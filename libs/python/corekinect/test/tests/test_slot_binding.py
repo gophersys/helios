@@ -41,7 +41,7 @@ from corekinect.test.slot_env import resolve_slot_bindings, slot_bindings_by_ind
 
 
 # ────────────────────────────────────────────────────────────────────────
-# Fixtures
+# TestBeds
 # ────────────────────────────────────────────────────────────────────────
 
 

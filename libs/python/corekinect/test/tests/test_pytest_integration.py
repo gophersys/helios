@@ -12,7 +12,7 @@ from corekinect.test.pytest_integration import (
 )
 
 
-class _StubFixture:
+class _StubTestBed:
     """Minimal fixture stub for testing requires_capability."""
 
     def __init__(self, caps=None):
@@ -33,7 +33,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_passes_when_capability_present(self):
         """Test runs when fixture has required capability."""
-        fixture = _StubFixture(["button"])
+        fixture = _StubTestBed(["button"])
 
         results = []
 
@@ -50,7 +50,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_skips_when_capability_missing(self):
         """Test is skipped when fixture lacks capability."""
-        fixture = _StubFixture([])
+        fixture = _StubTestBed([])
 
         @requires_capability("button")
         def test_func(fixture):
@@ -64,7 +64,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_multiple_capabilities_all_present(self):
         """Test runs when all required capabilities present."""
-        fixture = _StubFixture(["ppg_servo", "ppg_led"])
+        fixture = _StubTestBed(["ppg_servo", "ppg_led"])
 
         ran = []
 
@@ -78,7 +78,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_multiple_capabilities_one_missing(self):
         """Test skips when any required capability missing."""
-        fixture = _StubFixture(["ppg_servo"])
+        fixture = _StubTestBed(["ppg_servo"])
 
         @requires_capability("ppg_servo", "ppg_led")
         def test_func(fixture):
@@ -92,7 +92,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_finds_fixture_in_positional_args(self):
         """Decorator finds fixture when passed positionally."""
-        fixture = _StubFixture(["button"])
+        fixture = _StubTestBed(["button"])
 
         ran = []
 
@@ -129,7 +129,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_finds_fixture_via_ctx_pattern(self):
         """Decorator finds fixture via ctx.fixture (Stage 4 test pattern)."""
-        fixture = _StubFixture(["button"])
+        fixture = _StubTestBed(["button"])
 
         class MockCtx:
             """Tests for MockCtx."""
@@ -149,7 +149,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_skips_via_ctx_pattern_when_missing(self):
         """Decorator skips via ctx.fixture when capability missing."""
-        fixture = _StubFixture([])
+        fixture = _StubTestBed([])
 
         class MockCtx:
             """Tests for MockCtx."""

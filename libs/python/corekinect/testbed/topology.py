@@ -2,7 +2,7 @@
 
 The MTIB exposes a finite set of physical resources to a DUT. This
 module enumerates the limits so the fixture validators (and the
-declarative wrappers in :mod:`corekinect.fixture.types`) can reject
+declarative wrappers in :mod:`corekinect.testbed.types`) can reject
 out-of-range channels/pins at fixture-load time, before any test runs.
 
 Source of truth: ``apps/edge/mtib-server/docs/schematics/MTIB-Expansion_2026-04-23.pdf``
@@ -73,7 +73,7 @@ STEPPER_PORTS: Tuple[int, ...] = (1, 2)
 # ``-f`` flag is derived from the family (NRF52, NRF53, NRF91).
 #
 # The mapping family → MTIB ``HostType`` enum lives in
-# :mod:`corekinect.fixture.types` (``BoundJLink._resolve_host``).
+# :mod:`corekinect.testbed.types` (``BoundJLink._resolve_host``).
 # Both must stay in sync — adding a family here without a matching
 # host map entry will fail at runtime with a clear error.
 KNOWN_JLINK_FAMILIES: Tuple[str, ...] = ("NRF52", "NRF53", "NRF91")

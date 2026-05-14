@@ -4,7 +4,7 @@
   "title": "Concord Test Package Manifest v1.0",
   "description": "Defines the structure of concord.yaml for validation and manufacturing test packages.",
   "type": "object",
-  "required": ["schema", "package", "product", "fixture", "stages"],
+  "required": ["schema", "package", "product", "testbed", "stages"],
   "additionalProperties": false,
 
   "properties": {
@@ -71,7 +71,7 @@
       }
     },
 
-    "fixture": {
+    "testbed": {
       "type": "object",
       "required": ["module"],
       "additionalProperties": false,
@@ -79,7 +79,7 @@
         "module": {
           "type": "string",
           "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*:[A-Z][a-zA-Z0-9_]*$",
-          "description": "Fixture class location, formatted as 'dotted.module.path:ClassName' (e.g. 'fixtures.alpha_b0.fixture:AlphaB0Fixture'). The class must subclass corekinect.fixture.Fixture and declare its DUT-side wiring via class-level resource maps. Backend AST-extracts ``name`` and ``revision`` from the class at upload time."
+          "description": "TestBed class location, formatted as 'dotted.module.path:ClassName' (e.g. 'testbeds.alpha_b0.testbed:AlphaB0TestBed'). The class must subclass corekinect.testbed.TestBed and declare its DUT-side wiring via class-level resource maps. Backend AST-extracts ``name`` and ``revision`` from the class at upload time."
         },
         "multi_slot": {
           "type": "boolean",

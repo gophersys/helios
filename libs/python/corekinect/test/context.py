@@ -3,13 +3,13 @@
 Composes MTIB client, CloudClient, fixture controller, UartDemuxer,
 and PowerProfiler into a single object shared across all tests.
 
-    ctx = TestContext.from_env(fixture_factory=AlphaFixture)
+    ctx = TestContext.from_env(testbed_factory=AlphaTestBed)
     ctx.connect()
     # ... run tests ...
     ctx.disconnect()
 
 The fixture parameter is duck-typed. Product test apps inject their
-own fixture via from_env(fixture_factory=...).
+own fixture via from_env(testbed_factory=...).
 """
 
 import os
@@ -150,12 +150,12 @@ class TestContext:
     @classmethod
     def from_env(
         cls,
-        fixture_factory: Optional[Callable[[MtibV1Client], Any]] = None,
+        testbed_factory: Optional[Callable[[MtibV1Client], Any]] = None,
     ) -> "TestContext":
         """Create TestContext from environment variables.
 
         Args:
-            fixture_factory: Takes an MtibV1Client, returns a product-specific
+            testbed_factory: Takes an MtibV1Client, returns a product-specific
                 fixture controller. If None, fixture is set to None.
 
         Required env vars: MTIB_HOST or MTIB_ADDRESS, DEVICE_ID.
@@ -185,7 +185,7 @@ class TestContext:
         mtib = MtibV1Client(config)
 
         # Build fixture via product-specific factory or leave None
-        fixture = fixture_factory(mtib) if fixture_factory else None
+        fixture = testbed_factory(mtib) if testbed_factory else None
 
         # Build components
         cloud = CloudClient(device_id=device_id, api_env=db_env)
@@ -323,7 +323,7 @@ class TestContext:
         if test_name:
             self.telemetry.set_test(test_name, module=module)
         # Reset transient fixture state (button press, etc.) between tests
-        # for fixtures that track it. Real Fixture subclasses drive GPIO
+        # for fixtures that track it. Real TestBed subclasses drive GPIO
         # directly and don't carry this attribute.
         if hasattr(self.fixture, '_button_pressed'):
             self.fixture._button_pressed = False

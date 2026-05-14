@@ -100,7 +100,7 @@ class SequentialTestPlugin:
     def pytest_runtest_makereport(self, item, call):
         """Record failures by slot (and preflight-class, globally)."""
         if call.when != "call" or call.excinfo is None:
-            # Only count real test-call failures. Fixture setup
+            # Only count real test-call failures. TestBed setup
             # failures still cascade via pytest's own machinery; adding
             # them here would double-count and mask fixture bugs.
             return

@@ -161,6 +161,11 @@ Started from `src/main.py` after the clients are initialised:
 
 Graceful shutdown (SIGTERM/SIGINT) stops the schedulers first, sleeps 2 s for in-flight queries, then closes MTIB observability, Prisma, MinIO, and the K8s client.
 
+
+### TestBed extraction on test package upload
+
+`src/api/v2/products/test_packages.py::_extract_testbed_designs` reads the uploaded test package's `concord.yaml`, walks the user's Python `TestBed` subclass via `corekinect.testbed.extractor.extract_testbed` (AST-only — no import), and writes a `FixtureDesign` row in Concord linking back to the parent `TestPackage`. The user-Python class is called **TestBed** (since 2026-05); Concord's storage row remains **FixtureDesign**. The two names are deliberately different: the user declares a TestBed (DUT-side wiring), Concord stores a FixtureDesign (the platform-side row that powers fixture creation + slot binding).
+
 ## External dependencies
 
 | Dep | Where | Env var(s) | Notes |
