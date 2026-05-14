@@ -207,7 +207,7 @@ test.describe('Developer role story', () => {
     const token = await getDeveloperToken(page);
 
     // Attempting to create/manage validation config should be denied
-    const res = await page.request.post(`${API_URL}/v2/fixtures/designs`, {
+    const res = await page.request.post(`${API_URL}/v2/test-bed-designs`, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',

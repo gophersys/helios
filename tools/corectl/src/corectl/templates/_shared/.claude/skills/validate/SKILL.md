@@ -21,7 +21,7 @@ Run pre-flight validation and surface every issue with an actionable fix.
 2. For each ✗ error or ⚠ warning, identify the source file (the line is in the message) and the contract that was violated.
 3. Map the message to the right rule in `.claude/rules/`:
    - "Test depth" / "two-level step contract" → `rules/reporter-conventions.md`.
-   - "fixture validation" → `rules/fixture-conventions.md`.
+   - "fixture validation" → `rules/testbed-conventions.md`.
    - "Schema:" → `concord.yaml` field shape; cross-check against `rules/test-conventions.md`.
    - "manifest drifted from backend" → `corectl test sync`.
    - "Framework artifacts" → `corectl test update`.

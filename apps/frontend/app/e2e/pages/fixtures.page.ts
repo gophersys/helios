@@ -33,7 +33,7 @@ export class FixturesPage extends BasePage {
     await this.page.waitForTimeout(300);
   }
 
-  /** Create a fixture design via the UI. */
+  /** Create a TestBed design via the UI. */
   async createDesign(config: DesignConfig): Promise<void> {
     await this.page.getByRole('button', { name: /create|new|add/i }).first().click();
     await this.page.getByLabel(/name/i).first().fill(config.name);

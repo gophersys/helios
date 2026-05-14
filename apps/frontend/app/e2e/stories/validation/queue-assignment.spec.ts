@@ -4,7 +4,7 @@ import {
   createQueueEntry,
   getQueueEntry,
   createBuildRun,
-  createFixtureDesign,
+  createTestBedDesign,
   createFixture,
   createNode,
   createSlot,
@@ -62,9 +62,9 @@ test.describe('Queue Entry Assignment', () => {
       buildRunId = '';
     }
 
-    // Create fixture design
+    // Create TestBed design
     try {
-      const design = await createFixtureDesign({
+      const design = await createTestBedDesign({
         name: `Assign Design ${ts}`,
         description: 'Design for assignment tests',
         slotCount: 1,

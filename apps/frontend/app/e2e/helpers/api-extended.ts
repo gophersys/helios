@@ -252,25 +252,25 @@ export interface DesignConfig {
   notes?: string;
 }
 
-export interface FixtureDesign {
+export interface TestBedDesign {
   id: string;
   name: string;
 }
 
-export async function createFixtureDesign(config: DesignConfig): Promise<FixtureDesign> {
-  return concordPost<FixtureDesign>('/v2/fixtures/designs', config);
+export async function createTestBedDesign(config: DesignConfig): Promise<TestBedDesign> {
+  return concordPost<TestBedDesign>('/v2/test-bed-designs', config);
 }
 
-export async function deleteFixtureDesign(designId: string): Promise<void> {
-  await concordDelete(`/v2/fixtures/designs/${designId}`);
+export async function deleteTestBedDesign(designId: string): Promise<void> {
+  await concordDelete(`/v2/test-bed-designs/${designId}`);
 }
 
-export async function getFixtureDesign(designId: string): Promise<FixtureDesign> {
-  return concordGet<FixtureDesign>(`/v2/fixtures/designs/${designId}`);
+export async function getTestBedDesign(designId: string): Promise<TestBedDesign> {
+  return concordGet<TestBedDesign>(`/v2/test-bed-designs/${designId}`);
 }
 
-export async function updateFixtureDesign(designId: string, data: Partial<DesignConfig>): Promise<FixtureDesign> {
-  const res = await fetch(`${API_URL}/v2/fixtures/designs/${designId}`, {
+export async function updateTestBedDesign(designId: string, data: Partial<DesignConfig>): Promise<TestBedDesign> {
+  const res = await fetch(`${API_URL}/v2/test-bed-designs/${designId}`, {
     method: 'PATCH',
     headers: {
       Authorization: `ApiKey ${API_KEY}`,
@@ -279,12 +279,12 @@ export async function updateFixtureDesign(designId: string, data: Partial<Design
     body: JSON.stringify(data),
   });
   const body = await res.json();
-  if (!res.ok) throw new Error(`PATCH /v2/fixtures/designs/${designId} failed (${res.status}): ${JSON.stringify(body)}`);
+  if (!res.ok) throw new Error(`PATCH /v2/test-bed-designs/${designId} failed (${res.status}): ${JSON.stringify(body)}`);
   return body.data;
 }
 
-export async function listFixtureDesigns(): Promise<FixtureDesign[]> {
-  const result = await concordGet<{ data: FixtureDesign[] }>('/v2/fixtures/designs');
+export async function listTestBedDesigns(): Promise<TestBedDesign[]> {
+  const result = await concordGet<{ data: TestBedDesign[] }>('/v2/test-bed-designs');
   return (result as any).data || result;
 }
 

@@ -12,8 +12,8 @@ import { test, expect } from '../../fixtures';
  * - 4 dev users: admin, maintainer, developer, operator (@concord.dev)
  * - Default permission sets (built-in)
  * - Default roles (built-in)
- * - 1 seed product: Alpha (with fixture designs, fixtures, build runs, etc.)
- * - Seed fixture designs (alpha-val-fixture-v1.2, alpha-mfg-fixture-v1.0)
+ * - 1 seed product: Alpha (with TestBed designs, fixtures, build runs, etc.)
+ * - Seed TestBed designs (alpha-val-fixture-v1.2, alpha-mfg-fixture-v1.0)
  * - Seed fixtures (bench instances)
  * - Seed build runs
  */
@@ -40,7 +40,7 @@ const SEED_USER_DOMAINS = [
 /** Slugs of products that are seeded and should not be counted as E2E leftovers */
 const SEED_PRODUCT_SLUGS = ['alpha'];
 
-/** Prefixes of fixture design names that are seeded */
+/** Prefixes of TestBed design names that are seeded */
 const SEED_DESIGN_PREFIXES = ['alpha-'];
 
 /** Prefixes of fixture names that are seeded */
@@ -93,14 +93,14 @@ test.describe('Cleanup: Database Zero-State', () => {
       }
     }
 
-    // Delete leftover E2E fixture designs
-    const designData = await apiGet('/v2/fixtures/designs');
+    // Delete leftover E2E TestBed designs
+    const designData = await apiGet('/v2/test-bed-designs');
     const designs = extractList(designData);
     for (const d of designs) {
       const name = (d as any)?.name ?? '';
       if (!SEED_DESIGN_PREFIXES.some((prefix) => name.startsWith(prefix))) {
-        console.log(`[cleanup:active] Deleting leftover fixture design: ${name}`);
-        await apiDelete(`/v2/fixtures/designs/${(d as any).id}`);
+        console.log(`[cleanup:active] Deleting leftover TestBed design: ${name}`);
+        await apiDelete(`/v2/test-bed-designs/${(d as any).id}`);
       }
     }
 
@@ -197,17 +197,17 @@ test.describe('Cleanup: Database Zero-State', () => {
     expect(nonSeedProducts).toHaveLength(0);
   });
 
-  test('zero non-seed fixture designs remain', async () => {
-    const data = await apiGet('/v2/fixtures/designs');
+  test('zero non-seed TestBed designs remain', async () => {
+    const data = await apiGet('/v2/test-bed-designs');
     const designs = extractList(data);
 
-    // Filter out seed fixture designs (e.g., alpha-val-fixture-v1.2, alpha-mfg-fixture-v1.0)
+    // Filter out seed TestBed designs (e.g., alpha-val-fixture-v1.2, alpha-mfg-fixture-v1.0)
     const nonSeedDesigns = designs.filter((d: any) => {
       const name = d?.name ?? '';
       return !SEED_DESIGN_PREFIXES.some((prefix) => name.startsWith(prefix));
     });
 
-    console.log(`[cleanup] Fixture designs total: ${designs.length}, non-seed: ${nonSeedDesigns.length}`);
+    console.log(`[cleanup] TestBed designs total: ${designs.length}, non-seed: ${nonSeedDesigns.length}`);
     expect(nonSeedDesigns).toHaveLength(0);
   });
 

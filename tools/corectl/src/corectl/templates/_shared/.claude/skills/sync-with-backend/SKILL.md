@@ -12,7 +12,7 @@ The backend owns: product slug, board revision name, device IDs, testbed control
 ## When to invoke
 
 - After a `validate`/`run`/`upload` warning surfaces "manifest drifted from backend".
-- After a known backend change (admin renamed a board, bumped device IDs, swapped fixture).
+- After a known backend change (admin renamed a board, bumped device IDs, swapped testbed).
 - Periodically — once a week is healthy hygiene for an active app.
 
 ## Steps
@@ -23,11 +23,11 @@ The backend owns: product slug, board revision name, device IDs, testbed control
    - **`product.slug`** — should never change without a product rename. If you see this, ask the user before applying.
    - **`product.board`** — the board's `ckBoardsName` was changed in the platform. Apply.
    - **`product.device.{type_id,variant_id}`** — CoreCloud device identity. Apply.
-   - **`fixture.module`** — class path moved. Apply only if the dotted module exists at that path on disk; otherwise the test app is broken and needs the fixture file moved/renamed first.
+   - **`testbed.module`** — class path moved. Apply only if the dotted module exists at that path on disk; otherwise the test app is broken and needs the fixture file moved/renamed first.
 
 3. **If the diff looks safe**, run `corectl test sync --apply` to write the changes back to `concord.yaml`.
 
-4. **Re-run `corectl test validate`.** Sync only changes manifest fields; tests/fixtures may need updates downstream (e.g., if `fixture.module` moved, you also moved the file). Confirm everything still validates.
+4. **Re-run `corectl test validate`.** Sync only changes manifest fields; tests/fixtures may need updates downstream (e.g., if `testbed.module` moved, you also moved the file). Confirm everything still validates.
 
 5. **Commit the sync.** `git add concord.yaml && git commit -m "chore: sync manifest with backend"`. Push.
 

@@ -272,7 +272,7 @@ test.describe('Admin role story', () => {
       '/v2/builds/runs',
       '/v2/sessions',
       '/v2/fixtures',
-      '/v2/fixtures/designs',
+      '/v2/test-bed-designs',
       '/v2/users',
       '/v2/permissions',
       '/v2/api-keys',

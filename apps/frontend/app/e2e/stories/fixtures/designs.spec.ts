@@ -1,10 +1,10 @@
 import { test, expect } from '../../fixtures';
 import {
-  createFixtureDesign,
-  deleteFixtureDesign,
-  listFixtureDesigns,
-  getFixtureDesign,
-  updateFixtureDesign,
+  createTestBedDesign,
+  deleteTestBedDesign,
+  listTestBedDesigns,
+  getTestBedDesign,
+  updateTestBedDesign,
   createFixture,
   deleteFixture,
   createProductViaAPI,
@@ -12,13 +12,13 @@ import {
 import { apiGet } from '../../helpers/api';
 
 /**
- * Fixture Design CRUD tests.
+ * TestBed Design CRUD tests.
  * Designs are versioned hardware specs that fixtures can reference.
  */
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Fixture Designs: CRUD', () => {
+test.describe('TestBed Designs: CRUD', () => {
   const uniqueSuffix = `e2e-${Date.now()}`;
   const designName = `Alpha E2E v1.2 ${uniqueSuffix}`;
   let designId: string;
@@ -59,7 +59,7 @@ test.describe('Fixture Designs: CRUD', () => {
     // Cleanup: delete design if it was created
     if (designId) {
       try {
-        await deleteFixtureDesign(designId);
+        await deleteTestBedDesign(designId);
       } catch {
         // Best effort
       }
@@ -67,9 +67,9 @@ test.describe('Fixture Designs: CRUD', () => {
   });
 
   test('create design with name, product, and revision', async () => {
-    const design = await createFixtureDesign({
+    const design = await createTestBedDesign({
       name: designName,
-      description: 'E2E test fixture design',
+      description: 'E2E test TestBed design',
       boardRevisionId: BOARD_REVISION_ID,
       revision: '1.2',
     });
@@ -80,7 +80,7 @@ test.describe('Fixture Designs: CRUD', () => {
   });
 
   test('design appears in list after creation', async () => {
-    const designs = await listFixtureDesigns();
+    const designs = await listTestBedDesigns();
     // Designs endpoint returns paginated data
     const list = Array.isArray(designs) ? designs : [];
     const found = list.find((d: any) => d.id === designId);
@@ -88,13 +88,13 @@ test.describe('Fixture Designs: CRUD', () => {
   });
 
   test('design detail returns correct fields', async () => {
-    const design = await getFixtureDesign(designId);
+    const design = await getTestBedDesign(designId);
     expect(design).toBeTruthy();
     expect((design as any).name).toBe(designName);
   });
 
   test('update design notes', async () => {
-    const updated = await updateFixtureDesign(designId, {
+    const updated = await updateTestBedDesign(designId, {
       notes: 'Updated via E2E test',
     });
     expect(updated).toBeTruthy();
@@ -102,7 +102,7 @@ test.describe('Fixture Designs: CRUD', () => {
 
   test('duplicate design name returns conflict error', async () => {
     try {
-      await createFixtureDesign({
+      await createTestBedDesign({
         name: designName,
         description: 'Duplicate name test',
         boardRevisionId: BOARD_REVISION_ID,
@@ -117,7 +117,7 @@ test.describe('Fixture Designs: CRUD', () => {
 
   test('delete design with no fixture instances succeeds', async () => {
     // Create a temporary design to delete
-    const tempDesign = await createFixtureDesign({
+    const tempDesign = await createTestBedDesign({
       name: `Temp Design ${uniqueSuffix}`,
       description: 'To be deleted',
       boardRevisionId: BOARD_REVISION_ID,
@@ -125,11 +125,11 @@ test.describe('Fixture Designs: CRUD', () => {
     });
     expect(tempDesign.id).toBeTruthy();
 
-    await deleteFixtureDesign(tempDesign.id);
+    await deleteTestBedDesign(tempDesign.id);
 
     // Verify it's gone
     try {
-      await getFixtureDesign(tempDesign.id);
+      await getTestBedDesign(tempDesign.id);
       expect(true).toBe(false); // Should 404
     } catch (error: any) {
       expect(error.message).toContain('404');
@@ -137,12 +137,12 @@ test.describe('Fixture Designs: CRUD', () => {
   });
 });
 
-test.describe('Fixture Designs: Access Control', () => {
+test.describe('TestBed Designs: Access Control', () => {
   // These tests verify that designs are accessible via API with correct permissions.
   // Role-based UI access is tested via the auth-extended helpers.
 
   test('designs endpoint returns data for authenticated user', async () => {
-    const designs = await listFixtureDesigns();
+    const designs = await listTestBedDesigns();
     // Should not throw — returns empty list or array
     expect(designs).toBeDefined();
   });

@@ -28,7 +28,7 @@ export function productConfig(overrides?: Partial<ProductConfig>): ProductConfig
   };
 }
 
-// ── Fixture Design ───────────────────────────────────────────
+// ── TestBed Design ───────────────────────────────────────────
 
 export interface DesignConfig {
   name: string;
@@ -37,14 +37,14 @@ export interface DesignConfig {
   slotCount: number;
 }
 
-export function fixtureDesignConfig(
+export function testBedDesignConfig(
   boardRevisionId: string,
   overrides?: Partial<DesignConfig>,
 ): DesignConfig {
   const id = uid();
   return {
     name: `${PREFIX}-Design-${id}`,
-    description: `Auto-generated fixture design (${id})`,
+    description: `Auto-generated TestBed design (${id})`,
     boardRevisionId,
     slotCount: 1,
     ...overrides,

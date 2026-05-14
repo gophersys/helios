@@ -2,12 +2,12 @@ import { test, expect } from '../../fixtures';
 import { loginAsRole } from '../../helpers/auth-extended';
 import {
   createProductViaAPI,
-  createFixtureDesign,
+  createTestBedDesign,
   createFixture,
   createNode,
   assignNodeToSlot,
   deleteFixture,
-  deleteFixtureDesign,
+  deleteTestBedDesign,
   deleteNode,
 } from '../../helpers/api-extended';
 
@@ -68,7 +68,7 @@ test.describe('Manufacturing Fixture Setup', () => {
     // Cleanup in reverse order
     for (const [fn, id] of [
       [deleteFixture, fixtureId],
-      [deleteFixtureDesign, designId],
+      [deleteTestBedDesign, designId],
       [deleteNode, nodeId],
       [() => apiDelete(`/v2/products/${productId}`), productId],
     ] as const) {
@@ -82,7 +82,7 @@ test.describe('Manufacturing Fixture Setup', () => {
     }
   });
 
-  test('create MANUFACTURING fixture design for Alpha B0', async () => {
+  test('create MANUFACTURING TestBed design for Alpha B0', async () => {
     // Fetch Alpha B0 revision ID dynamically
     const listRes = await fetch(`${API_URL}/v2/products`, {
       headers: { Authorization: `ApiKey ${API_KEY}` },
@@ -100,9 +100,9 @@ test.describe('Manufacturing Fixture Setup', () => {
       ?.find((r: any) => r.version === 'B0');
     expect(b0).toBeTruthy();
 
-    const design = await createFixtureDesign({
+    const design = await createTestBedDesign({
       name: `MFG Design ${suffix}`,
-      description: 'E2E manufacturing fixture design',
+      description: 'E2E manufacturing TestBed design',
       boardRevisionId: b0.id,
       revision: '1.0',
     });

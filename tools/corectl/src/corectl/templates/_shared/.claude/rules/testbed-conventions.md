@@ -78,6 +78,6 @@ The autoconf plugin parametrizes the `slot` fixture across slots when `multi_slo
 
 - `name` and `revision` are class-level string constants.
 - Each resource map declares dataclass instances of the right type.
-- The fixture class is the one referenced by `concord.yaml fixture.module`.
+- The fixture class is the one referenced by `concord.yaml testbed.module`.
 
 If extraction fails, fix the file shape — the platform won't accept the package otherwise.
