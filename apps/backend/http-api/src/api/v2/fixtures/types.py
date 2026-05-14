@@ -361,7 +361,7 @@ class BenchCreateRequest:
     mtib_address: str
     dut_product: str
     dut_revision: str
-    fixture_design_id: Optional[str] = None
+    testbed_design_id: Optional[str] = None
     profile_overrides: Optional[Dict[str, Any]] = None
     mtib_revision: Optional[str] = None
     dut_device_id: Optional[str] = None
@@ -400,9 +400,9 @@ class BenchCreateRequest:
         if not dut_revision:
             return None, "dutRevision is required"
 
-        fixture_design_id = data.get("fixtureDesignId")
-        if fixture_design_id:
-            fixture_design_id = fixture_design_id.strip()
+        testbed_design_id = data.get("testBedDesignId")
+        if testbed_design_id:
+            testbed_design_id = testbed_design_id.strip()
 
         profile_overrides = data.get("profileOverrides")
         if profile_overrides is not None and not isinstance(profile_overrides, dict):
@@ -454,7 +454,7 @@ class BenchCreateRequest:
             mtib_address=mtib_address,
             dut_product=dut_product,
             dut_revision=dut_revision,
-            fixture_design_id=fixture_design_id,
+            testbed_design_id=testbed_design_id,
             profile_overrides=profile_overrides,
             mtib_revision=mtib_revision,
             dut_device_id=dut_device_id,
@@ -476,7 +476,7 @@ class BenchUpdateRequest:
     name: Optional[str] = None
     mtib_address: Optional[str] = None
     mtib_revision: Optional[str] = None
-    fixture_design_id: Optional[str] = None
+    testbed_design_id: Optional[str] = None
     profile_overrides: Optional[Dict[str, Any]] = None
     dut_device_id: Optional[str] = None
     dut_snr: Optional[str] = None
@@ -492,7 +492,7 @@ class BenchUpdateRequest:
     _has_name: bool = field(default=False, repr=False)
     _has_mtib_address: bool = field(default=False, repr=False)
     _has_mtib_revision: bool = field(default=False, repr=False)
-    _has_fixture_design_id: bool = field(default=False, repr=False)
+    _has_testbed_design_id: bool = field(default=False, repr=False)
     _has_profile_overrides: bool = field(default=False, repr=False)
     _has_dut_device_id: bool = field(default=False, repr=False)
     _has_dut_snr: bool = field(default=False, repr=False)
@@ -517,7 +517,7 @@ class BenchUpdateRequest:
             ("name",             "_has_name",             "name"),
             ("mtibAddress",      "_has_mtib_address",     "mtib_address"),
             ("mtibRevision",     "_has_mtib_revision",    "mtib_revision"),
-            ("fixtureDesignId",  "_has_fixture_design_id","fixture_design_id"),
+            ("testBedDesignId",  "_has_testbed_design_id","testbed_design_id"),
             ("dutSnr",           "_has_dut_snr",          "dut_snr"),
             ("dutImei",          "_has_dut_imei",         "dut_imei"),
             ("jlinkAppSerial",   "_has_jlink_app_serial", "jlink_app_serial"),
@@ -566,8 +566,8 @@ class BenchUpdateRequest:
             update["mtibAddress"] = self.mtib_address
         if self._has_mtib_revision:
             update["mtibRevision"] = self.mtib_revision
-        if self._has_fixture_design_id:
-            update["fixtureDesignId"] = self.fixture_design_id
+        if self._has_testbed_design_id:
+            update["testBedDesignId"] = self.testbed_design_id
         if self._has_profile_overrides:
             update["profileOverrides"] = self.profile_overrides
         if self._has_dut_device_id:
@@ -591,12 +591,12 @@ class BenchUpdateRequest:
         return update
 
 
-# ─── Fixture Design types (merged from validation/designs/types.py) ──────────
+# ─── TestBed Design types (merged from validation/designs/types.py) ──────────
 
 
 @dataclass
-class FixtureDesignCreateRequest:
-    """POST /v2/fixtures/designs - Create a new fixture design."""
+class TestBedDesignCreateRequest:
+    """POST /v2/test-bed-designs - Create a new fixture design."""
 
     name: str
     product: str
@@ -608,8 +608,8 @@ class FixtureDesignCreateRequest:
     notes: Optional[str] = None
 
     @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["FixtureDesignCreateRequest"], Optional[str]]:
-        """Parse and validate JSON into a FixtureDesignCreateRequest."""
+    def from_json(cls, data: dict) -> Tuple[Optional["TestBedDesignCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a TestBedDesignCreateRequest."""
         if not data:
             return None, "Request body required"
 
@@ -642,8 +642,8 @@ class FixtureDesignCreateRequest:
 
 
 @dataclass
-class FixtureDesignUpdateRequest:
-    """PATCH /v2/fixtures/designs/<id> - Update a fixture design."""
+class TestBedDesignUpdateRequest:
+    """PATCH /v2/test-bed-designs/<id> - Update a fixture design."""
 
     _has_name: bool = False
     _has_profile_template: bool = False
@@ -660,8 +660,8 @@ class FixtureDesignUpdateRequest:
     notes: Optional[str] = None
 
     @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["FixtureDesignUpdateRequest"], Optional[str]]:
-        """Parse and validate JSON into a FixtureDesignUpdateRequest."""
+    def from_json(cls, data: dict) -> Tuple[Optional["TestBedDesignUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a TestBedDesignUpdateRequest."""
         if not data:
             return None, "Request body required"
 

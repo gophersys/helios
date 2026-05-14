@@ -23,7 +23,7 @@ _DESIGN_INCLUDE = {
 
 
 def _serialize_design(design) -> Dict[str, Any]:
-    """Serialize a FixtureDesign DB record to an API response dict."""
+    """Serialize a TestBedDesign DB record to an API response dict."""
     data = {
         "id": design.id,
         "name": design.name,
@@ -56,7 +56,7 @@ def _serialize_design(design) -> Dict[str, Any]:
 
 
 def _serialize_design_summary(design) -> Dict[str, Any]:
-    """Serialize a FixtureDesign to a compact summary dict for list responses."""
+    """Serialize a TestBedDesign to a compact summary dict for list responses."""
     data = {
         "id": design.id,
         "name": design.name,
@@ -80,7 +80,7 @@ def _serialize_design_summary(design) -> Dict[str, Any]:
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def list_designs():
-    """GET /v2/fixtures/designs — list fixture designs."""
+    """GET /v2/test-bed-designs — list fixture designs."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -95,8 +95,8 @@ def list_designs():
     if type_filter in ("MANUFACTURING", "VALIDATION"):
         where["type"] = type_filter
 
-    total = db.fixturedesign.count(where=where)
-    designs = db.fixturedesign.find_many(
+    total = db.testbeddesign.count(where=where)
+    designs = db.testbeddesign.find_many(
         where=where,
         skip=skip,
         take=limit,
@@ -113,9 +113,9 @@ def list_designs():
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def get_design(design_id: str):
-    """GET /v2/fixtures/designs/<id> — get fixture design detail."""
+    """GET /v2/test-bed-designs/<id> — get fixture design detail."""
     db = get_db_client()
-    design = db.fixturedesign.find_unique(where={"id": design_id}, include=_DESIGN_INCLUDE)
+    design = db.testbeddesign.find_unique(where={"id": design_id}, include=_DESIGN_INCLUDE)
     if not design:
         return not_found("Fixture design not found")
     return jsonify(ApiResponse.ok(_serialize_design(design)).to_dict()), 200
@@ -123,7 +123,7 @@ def get_design(design_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def create_design():
-    """POST /v2/fixtures/designs — create a new fixture design."""
+    """POST /v2/test-bed-designs — create a new fixture design."""
     db = get_db_client()
     data = request.get_json()
     if not data:
@@ -147,7 +147,7 @@ def create_design():
         return not_found("Board revision not found")
 
     # Check duplicate name
-    existing = db.fixturedesign.find_unique(where={"name": name})
+    existing = db.testbeddesign.find_unique(where={"name": name})
     if existing:
         return conflict(f"Design '{name}' already exists")
 
@@ -167,19 +167,19 @@ def create_design():
     if user and isinstance(user, dict):
         design_create_data["createdById"] = user.get("sub")
 
-    design = db.fixturedesign.create(
+    design = db.testbeddesign.create(
         data=design_create_data,
         include=_DESIGN_INCLUDE,
     )
-    log_audit("fixtureDesign.create", "FixtureDesign", design.id, {"name": name, "revision": revision})
+    log_audit("testBedDesign.create", "TestBedDesign", design.id, {"name": name, "revision": revision})
     return jsonify(ApiResponse.ok(_serialize_design(design)).to_dict()), 201
 
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def update_design(design_id: str):
-    """PUT /v2/fixtures/designs/<id> — update fixture design."""
+    """PUT /v2/test-bed-designs/<id> — update fixture design."""
     db = get_db_client()
-    design = db.fixturedesign.find_unique(where={"id": design_id})
+    design = db.testbeddesign.find_unique(where={"id": design_id})
     if not design:
         return not_found("Fixture design not found")
 
@@ -191,7 +191,7 @@ def update_design(design_id: str):
     if "name" in data:
         name = (data["name"] or "").strip()
         if name and name != design.name:
-            existing = db.fixturedesign.find_unique(where={"name": name})
+            existing = db.testbeddesign.find_unique(where={"name": name})
             if existing:
                 return conflict(f"Design '{name}' already exists")
             update_data["name"] = name
@@ -209,32 +209,32 @@ def update_design(design_id: str):
     if not update_data:
         return bad_request("No fields to update")
 
-    updated = db.fixturedesign.update(where={"id": design_id}, data=update_data, include=_DESIGN_INCLUDE)
-    log_audit("fixtureDesign.update", "FixtureDesign", design_id, {"fields": list(update_data.keys())})
+    updated = db.testbeddesign.update(where={"id": design_id}, data=update_data, include=_DESIGN_INCLUDE)
+    log_audit("testBedDesign.update", "TestBedDesign", design_id, {"fields": list(update_data.keys())})
     return jsonify(ApiResponse.ok(_serialize_design(updated)).to_dict()), 200
 
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_design(design_id: str):
-    """DELETE /v2/fixtures/designs/<id> — delete fixture design."""
+    """DELETE /v2/test-bed-designs/<id> — delete fixture design."""
     db = get_db_client()
-    design = db.fixturedesign.find_unique(where={"id": design_id}, include={"fixtures": True})
+    design = db.testbeddesign.find_unique(where={"id": design_id}, include={"fixtures": True})
     if not design:
         return not_found("Fixture design not found")
 
     if design.fixtures and len(design.fixtures) > 0:
         return conflict(f"Cannot delete — {len(design.fixtures)} fixture(s) use this design")
 
-    db.fixturedesign.delete(where={"id": design_id})
-    log_audit("fixtureDesign.delete", "FixtureDesign", design_id, {"name": design.name})
+    db.testbeddesign.delete(where={"id": design_id})
+    log_audit("testBedDesign.delete", "TestBedDesign", design_id, {"name": design.name})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def get_design_profile(design_id: str):
-    """GET /v2/fixtures/designs/<id>/profile — get the raw profile template JSON."""
+    """GET /v2/test-bed-designs/<id>/profile — get the raw profile template JSON."""
     db = get_db_client()
-    design = db.fixturedesign.find_unique(where={"id": design_id})
+    design = db.testbeddesign.find_unique(where={"id": design_id})
     if not design:
         return not_found("Fixture design not found")
     return jsonify(ApiResponse.ok(design.profileTemplate).to_dict()), 200

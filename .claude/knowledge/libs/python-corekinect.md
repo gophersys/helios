@@ -233,3 +233,6 @@ and the `encode_flags` packing logic). Re-export the new constants from
   server the MTIB client targets.
 - [`../conventions.md`](../conventions.md) — logging, env config, code
   patterns shared with backend.
+
+
+**Version 0.10.1** (2026-05-14): patch alongside the platform's FixtureDesign → TestBedDesign rename. The SDK itself doesn't change shape — the extractor still produces a `TestBedSummary` from a user `TestBed` class — but the Concord-side row name in the response was renamed (see `apps/backend/http-api.md`).

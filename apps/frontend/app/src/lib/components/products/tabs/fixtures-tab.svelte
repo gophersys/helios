@@ -5,7 +5,7 @@
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import { api, apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
-  import type { Product, FixtureDesign } from '$lib/types/models';
+  import type { Product, TestBedDesign } from '$lib/types/models';
 
   interface Props {
     product: Product;
@@ -15,7 +15,7 @@
 
   let { product, canManage, onRefresh }: Props = $props();
 
-  let designs = $state<FixtureDesign[]>([]);
+  let designs = $state<TestBedDesign[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let selectedRevId = $state<string | null>(null);
@@ -31,7 +31,7 @@
     revisions.find((r) => r.id === selectedRevId) ?? revisions[0] ?? null
   );
 
-  function designsForRevision(revId: string): FixtureDesign[] {
+  function designsForRevision(revId: string): TestBedDesign[] {
     return designs.filter((d) => d.boardRevisionId === revId);
   }
 
@@ -39,9 +39,9 @@
     loading = true;
     error = null;
     try {
-      const res = await apiFetch<ApiResponse<{ data: FixtureDesign[] }>>('/v2/fixtures/designs?limit=100');
+      const res = await apiFetch<ApiResponse<{ data: TestBedDesign[] }>>('/v2/test-bed-designs?limit=100');
       const data = res.data;
-      const all: FixtureDesign[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
+      const all: TestBedDesign[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
       const revIds = new Set(revisions.map((r) => r.id));
       designs = all.filter((d) => revIds.has(d.boardRevisionId));
     } catch (e) {
@@ -54,7 +54,7 @@
   async function handleDeleteDesign(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/fixtures/designs/${id}`);
+      await api.delete(`/v2/test-bed-designs/${id}`);
       await loadDesigns();
       onRefresh?.();
     } catch (e) {

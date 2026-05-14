@@ -182,8 +182,8 @@ export interface TestPackage {
   notes: string | null;
   releasedAt: string | null;
   releasedById: string | null;
-  fixtureDesignId: string | null;
-  fixtureDesign?: FixtureDesignSummary | null;
+  testBedDesignId: string | null;
+  testBedDesign?: TestBedDesignSummary | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1085,7 +1085,7 @@ export interface Fixture {
   assignedCount?: number;
   productName?: string;
   boardRevision?: { id: string; version: string; ckBoardsName: string; socs: string[] } | null;
-  design?: FixtureDesignSummary | null;
+  design?: TestBedDesignSummary | null;
   slots?: FixtureSlot[];
   health?: FixtureHealth;
   healthDetails?: FixtureHealthDetails;
@@ -1395,7 +1395,7 @@ export interface DeploymentK8sStatus {
 
 // ── Validation Infrastructure ─────────────────────────────────
 
-export interface FixtureDesign {
+export interface TestBedDesign {
   id: string;
   name: string;
   boardRevisionId: string;
@@ -1412,7 +1412,7 @@ export interface FixtureDesign {
   updatedAt: string;
 }
 
-export interface FixtureDesignSummary {
+export interface TestBedDesignSummary {
   id: string;
   name: string;
   boardRevisionId: string;
@@ -1429,8 +1429,8 @@ export interface TestBench {
   name: string;
   mtibAddress: string;
   mtibRevision: string | null;
-  fixtureDesignId: string | null;
-  fixtureDesign?: FixtureDesignSummary;
+  testBedDesignId: string | null;
+  testBedDesign?: TestBedDesignSummary;
   profileOverrides: Record<string, unknown> | null;
   dutProduct: string;
   dutRevision: string;

@@ -16,7 +16,7 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Pagination from '$lib/components/ui/pagination.svelte';
   import SelectionBar from '$lib/components/ui/selection-bar.svelte';
-  import type { Fixture, Product, Board, FixtureDesign } from '$lib/types/models';
+  import type { Fixture, Product, Board, TestBedDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
   import { actionable } from '$lib/actions/actionable';
 
@@ -88,7 +88,7 @@
   // Create form
   let showCreate = $state(false);
   let boards = $state<Board[]>([]);
-  let availableDesigns = $state<FixtureDesign[]>([]);
+  let availableDesigns = $state<TestBedDesign[]>([]);
   let formName = $state('');
   let formProductId = $state('');
   let formBoardRevisionId = $state('');
@@ -172,7 +172,7 @@
   async function fetchDesignsForRevision(revId: string) {
     if (!revId) { availableDesigns = []; return; }
     try {
-      const res = await apiFetch<ApiResponse<{ data: FixtureDesign[] }>>(`/v2/fixtures/designs?boardRevisionId=${revId}`);
+      const res = await apiFetch<ApiResponse<{ data: TestBedDesign[] }>>(`/v2/test-bed-designs?boardRevisionId=${revId}`);
       const payload = res.data;
       availableDesigns = Array.isArray(payload) ? payload : (payload as any)?.data || [];
     } catch { availableDesigns = []; }

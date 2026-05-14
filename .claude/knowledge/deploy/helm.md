@@ -162,3 +162,5 @@ rollme: {{ randAlphaNum 10 | quote }}
 - [`secrets.md`](secrets.md) — what *isn't* in the chart.
 - [`network.md`](network.md) — ingress, TLS, NetworkPolicy.
 - [`../prisma/migrations.md`](../prisma/migrations.md) — the init container that runs them.
+
+**Chart.yaml v0.10.1** — version + appVersion bumped in lockstep with VERSION for the TestBedDesign rename. Same bump pattern as the v0.10.0 release; no other helm changes.

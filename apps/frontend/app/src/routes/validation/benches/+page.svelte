@@ -434,7 +434,7 @@
             <th class="table-header">Product</th>
             <th class="table-header">Status</th>
             <th class="table-header">DUT SNR</th>
-            <th class="table-header">Fixture Design</th>
+            <th class="table-header">TestBed Design</th>
             <th class="table-header text-right">Updated</th>
             {#if canManage}
               <th class="table-header w-20"></th>
@@ -468,7 +468,7 @@
                 {bench.dutSnr || '-'}
               </td>
               <td class="table-cell text-text-secondary">
-                {bench.fixtureDesign?.name || '-'}
+                {bench.testBedDesign?.name || '-'}
               </td>
               <td class="table-cell text-right text-text-tertiary">
                 {formatTimeAgo(bench.updatedAt)}

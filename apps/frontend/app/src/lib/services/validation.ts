@@ -1,14 +1,14 @@
 import { apiFetch, api } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
 import type {
-  FixtureDesign,
-  FixtureDesignSummary,
+  TestBedDesign,
+  TestBedDesignSummary,
   TestBench,
   UnregisteredMtib,
   Pagination,
 } from '$lib/types/models';
 
-// ── Fixture Designs ────────────────────────────────────────────
+// ── TestBed Designs ────────────────────────────────────────────
 
 export interface FetchDesignsParams {
   page?: number;
@@ -18,20 +18,20 @@ export interface FetchDesignsParams {
 
 export async function fetchDesigns(
   params?: FetchDesignsParams
-): Promise<{ data: FixtureDesignSummary[]; pagination: Pagination }> {
+): Promise<{ data: TestBedDesignSummary[]; pagination: Pagination }> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.product) qs.set('product', params.product);
 
-  const res = await apiFetch<ApiResponse<{ data: FixtureDesignSummary[]; pagination: Pagination }>>(
-    `/v2/fixtures/designs?${qs.toString()}`
+  const res = await apiFetch<ApiResponse<{ data: TestBedDesignSummary[]; pagination: Pagination }>>(
+    `/v2/test-bed-designs?${qs.toString()}`
   );
   return res.data;
 }
 
-export async function fetchDesign(id: string): Promise<FixtureDesign> {
-  const res = await apiFetch<ApiResponse<FixtureDesign>>(`/v2/fixtures/designs/${id}`);
+export async function fetchDesign(id: string): Promise<TestBedDesign> {
+  const res = await apiFetch<ApiResponse<TestBedDesign>>(`/v2/test-bed-designs/${id}`);
   return res.data;
 }
 
@@ -46,16 +46,16 @@ export interface CreateDesignRequest {
   notes?: string;
 }
 
-export async function createDesign(data: CreateDesignRequest): Promise<FixtureDesign> {
-  const res = await api.post<ApiResponse<FixtureDesign>>('/v2/fixtures/designs', data);
+export async function createDesign(data: CreateDesignRequest): Promise<TestBedDesign> {
+  const res = await api.post<ApiResponse<TestBedDesign>>('/v2/test-bed-designs', data);
   return res.data;
 }
 
 export async function updateDesign(
   id: string,
   data: Partial<CreateDesignRequest>
-): Promise<FixtureDesign> {
-  const res = await apiFetch<ApiResponse<FixtureDesign>>(`/v2/fixtures/designs/${id}`, {
+): Promise<TestBedDesign> {
+  const res = await apiFetch<ApiResponse<TestBedDesign>>(`/v2/test-bed-designs/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
@@ -63,7 +63,7 @@ export async function updateDesign(
 }
 
 export async function deleteDesign(id: string): Promise<void> {
-  await api.delete(`/v2/fixtures/designs/${id}`);
+  await api.delete(`/v2/test-bed-designs/${id}`);
 }
 
 // ── Test Benches ───────────────────────────────────────────────
@@ -105,7 +105,7 @@ export interface CreateBenchRequest {
   name: string;
   mtibAddress: string;
   mtibRevision?: string;
-  fixtureDesignId?: string;
+  testBedDesignId?: string;
   profileOverrides?: Record<string, unknown>;
   dutProduct: string;
   dutRevision: string;

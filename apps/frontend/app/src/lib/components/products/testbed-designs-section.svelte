@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Wrench, Box, ExternalLink } from 'lucide-svelte';
   import { api } from '$lib/api';
-  import type { FixtureDesign } from '$lib/types/models';
+  import type { TestBedDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   interface Props {
@@ -11,17 +11,17 @@
 
   let { type, boardRevisionId }: Props = $props();
 
-  let designs = $state<FixtureDesign[]>([]);
+  let designs = $state<TestBedDesign[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
   interface DesignGroup {
     name: string;
-    revisions: FixtureDesign[];
+    revisions: TestBedDesign[];
   }
 
   const grouped = $derived.by<DesignGroup[]>(() => {
-    const map = new Map<string, FixtureDesign[]>();
+    const map = new Map<string, TestBedDesign[]>();
     for (const d of designs) {
       const list = map.get(d.name) || [];
       list.push(d);
@@ -37,11 +37,11 @@
     loading = true;
     error = null;
     try {
-      let url = `/v2/fixtures/designs?type=${type}&limit=100`;
+      let url = `/v2/test-bed-designs?type=${type}&limit=100`;
       if (boardRevisionId) {
         url += `&boardRevisionId=${boardRevisionId}`;
       }
-      const res = await api.get<ApiResponse<{ data: FixtureDesign[]; pagination: unknown }>>(url);
+      const res = await api.get<ApiResponse<{ data: TestBedDesign[]; pagination: unknown }>>(url);
       designs = (res.data as any).data ?? res.data;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load fixture designs';
@@ -60,7 +60,7 @@
 <div class="mt-4">
   <h4 class="text-xs font-semibold text-text-secondary mb-2 flex items-center gap-1.5">
     <Wrench size={13} class="text-text-tertiary" />
-    Fixture Designs
+    TestBed Designs
   </h4>
 
   {#if loading}

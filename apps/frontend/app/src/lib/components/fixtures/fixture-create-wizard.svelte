@@ -5,7 +5,7 @@
   import CharCounter from '$lib/components/ui/char-counter.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
-  import type { Product, FixtureDesign } from '$lib/types/models';
+  import type { Product, TestBedDesign } from '$lib/types/models';
   import { toasts } from '$lib/stores/toast.svelte';
   import { makeWizardKeyHandler } from '$lib/utils/wizard-keys';
 
@@ -37,8 +37,8 @@
   let selectedRevisionId = $state('');
   const selectedRevision = $derived(revisions.find(r => r.id === selectedRevisionId));
 
-  // Step 4: Fixture Design
-  let designs = $state<FixtureDesign[]>([]);
+  // Step 4: TestBed Design
+  let designs = $state<TestBedDesign[]>([]);
   let selectedDesignId = $state('');
   const selectedDesign = $derived(designs.find(d => d.id === selectedDesignId));
 
@@ -208,7 +208,7 @@
   // Load designs when revision + type change
   $effect(() => {
     if (selectedRevisionId && selectedType) {
-      apiFetch<ApiResponse<any>>(`/v2/fixtures/designs?boardRevisionId=${selectedRevisionId}&type=${selectedType}`).then(res => {
+      apiFetch<ApiResponse<any>>(`/v2/test-bed-designs?boardRevisionId=${selectedRevisionId}&type=${selectedType}`).then(res => {
         const payload = res.data;
         designs = Array.isArray(payload) ? payload : (payload as any)?.data ?? [];
       }).catch(() => { designs = []; });
@@ -520,7 +520,7 @@
           {/if}
         </div>
 
-      <!-- Step 4: Fixture Design -->
+      <!-- Step 4: TestBed Design -->
       {:else if step === 4}
         <div class="max-w-3xl space-y-4">
           <p class="text-sm text-text-secondary">Select the hardware design this fixture is built from.</p>

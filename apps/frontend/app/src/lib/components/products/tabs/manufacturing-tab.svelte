@@ -3,7 +3,7 @@
   import ProductStages from '../product-stages.svelte';
   import TestAppStatusCard from '../test-app-status-card.svelte';
   import TestPackageList from '../test-package-list.svelte';
-  import FixtureDesignsSection from '../fixture-designs-section.svelte';
+  import TestBedDesignsSection from '../testbed-designs-section.svelte';
   import FixtureInstances from '../fixture-instances.svelte';
   import SessionStartDialog from '$lib/components/manufacturing/session-start-dialog.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
@@ -200,9 +200,9 @@
       <TestPackageList productId={product.id} packageType="MANUFACTURING" {onRefresh} />
     </div>
 
-    <!-- Section 3: Fixture Designs -->
+    <!-- Section 3: TestBed Designs -->
     <div class="card card-md">
-      <FixtureDesignsSection type="MANUFACTURING" boardRevisionId={selectedRevision?.id} />
+      <TestBedDesignsSection type="MANUFACTURING" boardRevisionId={selectedRevision?.id} />
     </div>
 
     <!-- Section 4: Fixture Instances -->

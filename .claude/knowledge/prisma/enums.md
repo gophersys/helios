@@ -37,7 +37,7 @@ updates — review `models.ts` by hand.
 
 | Enum | Values | Used on | Notes |
 |---|---|---|---|
-| `NodeType` | `MANUFACTURING`, `VALIDATION` | `Node.type`, `Fixture.type`, `FixtureDesign.type` | The fundamental hardware-purpose discriminator. |
+| `NodeType` | `MANUFACTURING`, `VALIDATION` | `Node.type`, `Fixture.type`, `TestBedDesign.type` | The fundamental hardware-purpose discriminator. |
 | `FixturePurpose` | `DEV`, `RELEASE` | `Fixture.purpose` | DEV rigs accept only DEVELOPMENT TestPackages; RELEASE fixtures accept only RELEASED. |
 
 ### Lifecycle
@@ -59,7 +59,7 @@ updates — review `models.ts` by hand.
 | `TargetStatus` | `PENDING`, `RUNNING`, `PASSED`, `FAILED`, `ERROR` | `RunTarget.status` | Per-DUT pass/fail. ERROR ≠ FAILED — ERROR means infrastructure (MTIB lost, runner crash), FAILED means the DUT failed a test. |
 | `ExecutionStatus` | `PENDING`, `RUNNING`, `PASSED`, `FAILED`, `SKIPPED`, `ERROR` | `TestExecution.status`, `TestStep.status` | Adds SKIPPED relative to TargetStatus (pytest's `@skipif`). |
 | `ManufacturingSessionStatus` | `ACTIVE`, `COMPLETED`, `CANCELLED`, `ARCHIVED` | `ManufacturingSession.status` | ARCHIVED is for post-COMPLETED archival; live sessions hold a fixture's IN_USE lock state derivation. |
-| `TestPackageStatus` | `UPLOADING`, `DEVELOPMENT`, `RELEASED` | `TestPackage.status`, `FixtureDesign.status` (denormalized mirror of owner) | UPLOADING is the two-phase commit placeholder before the MinIO PUT completes. |
+| `TestPackageStatus` | `UPLOADING`, `DEVELOPMENT`, `RELEASED` | `TestPackage.status`, `TestBedDesign.status` (denormalized mirror of owner) | UPLOADING is the two-phase commit placeholder before the MinIO PUT completes. |
 | `TestPackageType` | `VALIDATION`, `MANUFACTURING` | `TestPackage.type` | Selects which runner consumes the package. |
 
 ### Builds & artifacts

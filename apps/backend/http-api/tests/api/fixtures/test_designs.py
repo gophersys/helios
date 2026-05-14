@@ -30,10 +30,10 @@ def _make_design(id="design-1", **overrides):
 
 
 def test_list_designs(authed_client, mock_db):
-    mock_db.fixturedesign.count.return_value = 1
-    mock_db.fixturedesign.find_many.return_value = [_make_design()]
+    mock_db.testbeddesign.count.return_value = 1
+    mock_db.testbeddesign.find_many.return_value = [_make_design()]
 
-    resp = authed_client.get("/v2/fixtures/designs")
+    resp = authed_client.get("/v2/test-bed-designs")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     assert len(data["data"]["data"]) == 1
@@ -43,9 +43,9 @@ def test_list_designs(authed_client, mock_db):
 
 
 def test_get_design(authed_client, mock_db):
-    mock_db.fixturedesign.find_unique.return_value = _make_design()
+    mock_db.testbeddesign.find_unique.return_value = _make_design()
 
-    resp = authed_client.get("/v2/fixtures/designs/design-1")
+    resp = authed_client.get("/v2/test-bed-designs/design-1")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     assert data["data"]["name"] == "Alpha B0 Fixture"
@@ -54,19 +54,19 @@ def test_get_design(authed_client, mock_db):
 
 
 def test_get_design_not_found(authed_client, mock_db):
-    mock_db.fixturedesign.find_unique.return_value = None
+    mock_db.testbeddesign.find_unique.return_value = None
 
-    resp = authed_client.get("/v2/fixtures/designs/bad-id")
+    resp = authed_client.get("/v2/test-bed-designs/bad-id")
     assert resp.status_code == 404
 
 
 @patch("api.v2.fixtures.designs.log_audit")
 def test_create_design(mock_audit, authed_client, mock_db):
     mock_db.boardrevision.find_unique.return_value = make_obj(id="rev-1")
-    mock_db.fixturedesign.find_unique.return_value = None  # no duplicate
-    mock_db.fixturedesign.create.return_value = _make_design()
+    mock_db.testbeddesign.find_unique.return_value = None  # no duplicate
+    mock_db.testbeddesign.create.return_value = _make_design()
 
-    resp = authed_client.post("/v2/fixtures/designs", data=json.dumps({
+    resp = authed_client.post("/v2/test-bed-designs", data=json.dumps({
         "name": "Alpha B0 Fixture",
         "boardRevisionId": "rev-1",
         "revision": "1.2",
@@ -79,7 +79,7 @@ def test_create_design(mock_audit, authed_client, mock_db):
 
 
 def test_create_design_missing_name(authed_client, mock_db):
-    resp = authed_client.post("/v2/fixtures/designs", data=json.dumps({
+    resp = authed_client.post("/v2/test-bed-designs", data=json.dumps({
         "boardRevisionId": "rev-1",
         "revision": "1.2",
     }))
@@ -89,9 +89,9 @@ def test_create_design_missing_name(authed_client, mock_db):
 @patch("api.v2.fixtures.designs.log_audit")
 def test_create_design_duplicate_name(mock_audit, authed_client, mock_db):
     mock_db.boardrevision.find_unique.return_value = make_obj(id="rev-1")
-    mock_db.fixturedesign.find_unique.return_value = _make_design()  # already exists
+    mock_db.testbeddesign.find_unique.return_value = _make_design()  # already exists
 
-    resp = authed_client.post("/v2/fixtures/designs", data=json.dumps({
+    resp = authed_client.post("/v2/test-bed-designs", data=json.dumps({
         "name": "Alpha B0 Fixture",
         "boardRevisionId": "rev-1",
         "revision": "1.2",
@@ -101,10 +101,10 @@ def test_create_design_duplicate_name(mock_audit, authed_client, mock_db):
 
 @patch("api.v2.fixtures.designs.log_audit")
 def test_update_design(mock_audit, authed_client, mock_db):
-    mock_db.fixturedesign.find_unique.return_value = _make_design()
-    mock_db.fixturedesign.update.return_value = _make_design(notes="Updated")
+    mock_db.testbeddesign.find_unique.return_value = _make_design()
+    mock_db.testbeddesign.update.return_value = _make_design(notes="Updated")
 
-    resp = authed_client.patch("/v2/fixtures/designs/design-1", data=json.dumps({
+    resp = authed_client.patch("/v2/test-bed-designs/design-1", data=json.dumps({
         "notes": "Updated",
     }))
     assert resp.status_code == 200
@@ -112,17 +112,17 @@ def test_update_design(mock_audit, authed_client, mock_db):
 
 @patch("api.v2.fixtures.designs.log_audit")
 def test_delete_design(mock_audit, authed_client, mock_db):
-    mock_db.fixturedesign.find_unique.return_value = _make_design(fixtures=[])
+    mock_db.testbeddesign.find_unique.return_value = _make_design(fixtures=[])
 
-    resp = authed_client.delete("/v2/fixtures/designs/design-1")
+    resp = authed_client.delete("/v2/test-bed-designs/design-1")
     assert resp.status_code == 200
 
 
 @patch("api.v2.fixtures.designs.log_audit")
 def test_delete_design_has_fixtures(mock_audit, authed_client, mock_db):
-    mock_db.fixturedesign.find_unique.return_value = _make_design(
+    mock_db.testbeddesign.find_unique.return_value = _make_design(
         fixtures=[make_obj(id="fix-1", name="Fixture 1")],
     )
 
-    resp = authed_client.delete("/v2/fixtures/designs/design-1")
+    resp = authed_client.delete("/v2/test-bed-designs/design-1")
     assert resp.status_code == 409

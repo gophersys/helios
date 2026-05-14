@@ -209,3 +209,14 @@ Env vars consumed at build/runtime:
 - [`apps/frontend/ci-admin.md`](ci-admin.md) — sibling standalone dashboard, not part of this app.
 - [`workflows/local-dev.md`](../../workflows/local-dev.md) — running `nx serve app` against a staging backend.
 - [`rules/prisma-flow.md`](../../../rules/prisma-flow.md) — backend schema → frontend type mirror.
+
+
+## TestBedDesign UI (renamed from FixtureDesign, 2026-05-14)
+
+The user-facing TestBed design rows are surfaced in three places:
+
+- `src/lib/components/products/testbed-designs-section.svelte` — the per-product list (was `fixture-designs-section.svelte`).
+- `src/lib/components/fixtures/testbed-designs.svelte` — the admin CRUD page (was `fixture-designs.svelte`).
+- `src/routes/validation/testbed-designs/+page.svelte` — the validation-engineer index (was `routes/validation/designs/+page.svelte`).
+
+All UI strings show "TestBed Design" (capital T, capital B). The TypeScript types in `models.ts` are `TestBedDesign` and `TestBedDesignSummary`. API client calls hit `/v2/test-bed-designs` (not the old `/v2/fixtures/designs`). Concord's `Fixture` (the physical rig) is unchanged — see `product-domains/fixtures.md`.

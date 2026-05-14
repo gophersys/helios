@@ -174,3 +174,6 @@ The current state (as of the pin fix landing in main): the source tree has corec
 - [`product-domains/validation.md`](../product-domains/validation.md) — the model `corectl run` operates against.
 - [`product-domains/manufacturing.md`](../product-domains/manufacturing.md) — the manufacturing equivalent.
 - [`workflows/credentials.md`](../workflows/credentials.md) — where the OAuth token lives, how to switch APIs.
+
+
+**Version 0.10.1** (2026-05-14): lockstep bump alongside corekinect 0.10.1 and the FixtureDesign → TestBedDesign Concord-side rename. corectl's templates and CLI text were already updated in 0.10.0; this is a no-shape-change ride-along.

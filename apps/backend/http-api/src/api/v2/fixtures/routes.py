@@ -51,11 +51,11 @@ def register_fixture_routes(api: Blueprint):
     api.add_url_rule("/fixtures/benches/<bench_id>",                     endpoint="delete_bench",                 view_func=delete_bench,             methods=["DELETE"])
     api.add_url_rule("/fixtures/benches/<bench_id>/profile",             endpoint="get_bench_profile",            view_func=get_bench_profile,        methods=["GET"])
 
-    api.add_url_rule("/fixtures/designs",                                endpoint="list_designs",                 view_func=list_designs,             methods=["GET"])
-    api.add_url_rule("/fixtures/designs",                                endpoint="create_design",                view_func=create_design,            methods=["POST"])
-    api.add_url_rule("/fixtures/designs/<design_id>",                    endpoint="get_design",                   view_func=get_design,               methods=["GET"])
-    api.add_url_rule("/fixtures/designs/<design_id>",                    endpoint="update_design",                view_func=update_design,            methods=["PATCH"])
-    api.add_url_rule("/fixtures/designs/<design_id>",                    endpoint="delete_design",                view_func=delete_design,            methods=["DELETE"])
-    api.add_url_rule("/fixtures/designs/<design_id>/profile",            endpoint="get_design_profile",           view_func=get_design_profile,       methods=["GET"])
+    api.add_url_rule("/test-bed-designs",                                endpoint="list_designs",                 view_func=list_designs,             methods=["GET"])
+    api.add_url_rule("/test-bed-designs",                                endpoint="create_design",                view_func=create_design,            methods=["POST"])
+    api.add_url_rule("/test-bed-designs/<design_id>",                    endpoint="get_design",                   view_func=get_design,               methods=["GET"])
+    api.add_url_rule("/test-bed-designs/<design_id>",                    endpoint="update_design",                view_func=update_design,            methods=["PATCH"])
+    api.add_url_rule("/test-bed-designs/<design_id>",                    endpoint="delete_design",                view_func=delete_design,            methods=["DELETE"])
+    api.add_url_rule("/test-bed-designs/<design_id>/profile",            endpoint="get_design_profile",           view_func=get_design_profile,       methods=["GET"])
 
     api.add_url_rule("/dashboard/overview",                              endpoint="dashboard_overview",          view_func=dashboard_overview,         methods=["GET"])

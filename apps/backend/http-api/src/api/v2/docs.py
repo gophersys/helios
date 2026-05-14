@@ -1747,7 +1747,7 @@ def _build_spec() -> APISpec:
             "name": {"type": "string"},
             "mtibAddress": {"type": "string"},
             "mtibRevision": {"type": "string", "nullable": True},
-            "fixtureDesignId": {"type": "string", "nullable": True},
+            "testBedDesignId": {"type": "string", "nullable": True},
             "profileOverrides": {"type": "object", "nullable": True},
             "dutProduct": {"type": "string"},
             "dutRevision": {"type": "string"},
@@ -1766,7 +1766,7 @@ def _build_spec() -> APISpec:
             "metadata": {"type": "object", "nullable": True},
             "createdAt": {"type": "string", "format": "date-time"},
             "updatedAt": {"type": "string", "format": "date-time"},
-            "fixtureDesign": {"type": "object", "nullable": True, "properties": {
+            "testBedDesign": {"type": "object", "nullable": True, "properties": {
                 "id": {"type": "string"},
                 "name": {"type": "string"},
                 "product": {"type": "string"},
@@ -1812,7 +1812,7 @@ def _build_spec() -> APISpec:
                     "name": {"type": "string"},
                     "mtibAddress": {"type": "string"},
                     "mtibRevision": {"type": "string"},
-                    "fixtureDesignId": {"type": "string"},
+                    "testBedDesignId": {"type": "string"},
                     "profileOverrides": {"type": "object"},
                     "dutProduct": {"type": "string"},
                     "dutRevision": {"type": "string"},
@@ -1858,7 +1858,7 @@ def _build_spec() -> APISpec:
                     "name": {"type": "string"},
                     "mtibAddress": {"type": "string"},
                     "mtibRevision": {"type": "string"},
-                    "fixtureDesignId": {"type": "string"},
+                    "testBedDesignId": {"type": "string"},
                     "profileOverrides": {"type": "object"},
                     "dutDeviceId": {"type": "string"},
                     "dutSnr": {"type": "string"},
@@ -1880,7 +1880,7 @@ def _build_spec() -> APISpec:
             "tags": ["Benches"], "summary": "Get merged fixture profile for a test bench", "security": _auth_security,
             "description": (
                 "Returns the complete fixture profile for a test bench, merging:\n"
-                "1. FixtureDesign.profileTemplate (base hardware config)\n"
+                "1. TestBedDesign.profileTemplate (base hardware config)\n"
                 "2. TestBench.profileOverrides (bench-specific overrides)\n"
                 "3. TestBench DUT info (device_id, snr, imei, iccids)\n\n"
                 "This is the profile that validation tests should use."

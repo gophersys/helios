@@ -3,12 +3,12 @@
   import { Plus, Check, Pencil, Trash2 } from 'lucide-svelte';
   import { apiFetch, api } from '$lib/api';
   import { ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog, Select, FormCard } from '$lib/components/ui';
-  import type { FixtureDesign, Product, Board, BoardRevision } from '$lib/types/models';
+  import type { TestBedDesign, Product, Board, BoardRevision } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   let { canManage }: { canManage: boolean } = $props();
 
-  let designs = $state<FixtureDesign[]>([]);
+  let designs = $state<TestBedDesign[]>([]);
   let products = $state<Product[]>([]);
   let boards = $state<Board[]>([]);
   let loading = $state(true);
@@ -43,9 +43,9 @@
 
   async function fetchDesigns() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: FixtureDesign[] }>>('/v2/fixtures/designs');
+      const res = await apiFetch<ApiResponse<{ data: TestBedDesign[] }>>('/v2/test-bed-designs');
       const payload = res.data;
-      designs = Array.isArray(payload) ? payload : (payload as { data: FixtureDesign[] }).data || [];
+      designs = Array.isArray(payload) ? payload : (payload as { data: TestBedDesign[] }).data || [];
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load designs';
     } finally {
@@ -109,7 +109,7 @@
     showForm = false;
   }
 
-  function startEdit(d: FixtureDesign) {
+  function startEdit(d: TestBedDesign) {
     formName = d.name;
     formBoardRevisionId = d.boardRevisionId;
     formRevision = d.revision;
@@ -157,9 +157,9 @@
 
     try {
       if (editingId) {
-        await api.put(`/v2/fixtures/designs/${editingId}`, body);
+        await api.put(`/v2/test-bed-designs/${editingId}`, body);
       } else {
-        await api.post('/v2/fixtures/designs', body);
+        await api.post('/v2/test-bed-designs', body);
       }
       resetForm();
       fetchDesigns();
@@ -178,7 +178,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/fixtures/designs/${id}`);
+      await api.delete(`/v2/test-bed-designs/${id}`);
       fetchDesigns();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete design';

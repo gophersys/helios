@@ -1,6 +1,6 @@
 ---
 name: add-fixture
-description: Define a new fixture (test rig) on the platform — registers a FixtureDesign, creates a Fixture instance, binds MTIB slots, and exposes it to validation/manufacturing runs. Use this for adding a new fixture configuration; use /onboard-mtib first if the underlying Verdin hardware isn't in the cluster yet.
+description: Define a new fixture (test rig) on the platform — registers a TestBedDesign, creates a Fixture instance, binds MTIB slots, and exposes it to validation/manufacturing runs. Use this for adding a new fixture configuration; use /onboard-mtib first if the underlying Verdin hardware isn't in the cluster yet.
 argument-hint: "<fixture-name> — <product> — <DEV|RELEASE> — <MANUFACTURING|VALIDATION>"
 ---
 
@@ -10,20 +10,20 @@ Spawn `architect` first to confirm scope (is this a new fixture instance of an e
 
 ## Authoritative knowledge to load
 
-- `.claude/knowledge/product-domains/fixtures.md` — the domain model (FixtureDesign, Fixture, FixtureSlot, Node, FixturePurpose, NodeType, derived lock state).
+- `.claude/knowledge/product-domains/fixtures.md` — the domain model (TestBedDesign, Fixture, FixtureSlot, Node, FixturePurpose, NodeType, derived lock state).
 - `.claude/knowledge/deploy/verdin-edge.md` — how MTIBs (Nodes) get on the cluster in the first place.
 - `.claude/knowledge/apps/backend/http-api.md` — `/v2/fixtures/*` endpoints.
 - `.claude/knowledge/product-domains/validation.md` and `.claude/knowledge/product-domains/manufacturing.md` — what runs *on* the fixture.
 
 ## Decide first: design vs instance
 
-A **`FixtureDesign`** is the *template* — a versioned hardware design (PCB/wiring spec) bound 1:1 to a `TestPackage` via its `fixture.yaml` manifest. New designs are rare; they arrive when a new product variant launches or an existing fixture is redesigned.
+A **`TestBedDesign`** is the *template* — a versioned hardware design (PCB/wiring spec) bound 1:1 to a `TestPackage` via its `fixture.yaml` manifest. New designs are rare; they arrive when a new product variant launches or an existing fixture is redesigned.
 
 A **`Fixture`** is a *physical instance* of a design — one rack, one set of slots, one specific MTIB binding. New fixtures are common; you stand up a new instance every time you build a new test rig.
 
 Pick:
 
-- **New design needed?** The fixture's hardware/wiring is unlike any existing design. → You must upload a test package (manufacturing or validation type) whose `fixture.yaml` introduces the new design. The platform creates the `FixtureDesign` row when the package upload succeeds; the design's status mirrors the package's (`DEVELOPMENT` → `RELEASED`). Use `corectl upload` from the project that defines this fixture.
+- **New design needed?** The fixture's hardware/wiring is unlike any existing design. → You must upload a test package (manufacturing or validation type) whose `fixture.yaml` introduces the new design. The platform creates the `TestBedDesign` row when the package upload succeeds; the design's status mirrors the package's (`DEVELOPMENT` → `RELEASED`). Use `corectl upload` from the project that defines this fixture.
 - **Existing design, new instance?** Skip the design step — just create the Fixture instance.
 
 ## Pre-flight
@@ -42,7 +42,7 @@ Pick:
    corectl upload          # → DEVELOPMENT
    # (operator promotes to RELEASED later via the UI or `corectl test release <pkg-id>`)
    ```
-   The `FixtureDesign` row appears in the platform when the upload completes.
+   The `TestBedDesign` row appears in the platform when the upload completes.
 
 2. **Create the Fixture instance** in the platform UI (`/fixtures` → "New fixture"). Or scripted via http-api — the actual `FixtureCreateRequest` shape (`apps/backend/http-api/src/api/v2/fixtures/types.py:6`):
    ```
@@ -83,7 +83,7 @@ Pick:
 
 ## Don't
 
-- Don't create a fixture instance referencing a `FixtureDesign` that's `DEVELOPMENT` if `purpose=RELEASE`. The package-status gate will reject runs on it.
+- Don't create a fixture instance referencing a `TestBedDesign` that's `DEVELOPMENT` if `purpose=RELEASE`. The package-status gate will reject runs on it.
 - Don't bind a `MANUFACTURING` node to a `VALIDATION` fixture (or vice versa). The types must agree on both sides.
 - Don't manually `kubectl apply` an mtib-server Deployment. The platform owns those — see `deploy/verdin-edge.md::MTIB Deployment template`.
 - Don't bind two slots to the same node. The DB enforces `@unique` on `FixtureSlot.nodeId` (NULL is exempt — multiple empty slots are fine).

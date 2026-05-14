@@ -758,7 +758,7 @@ def create_fixture():
     design_id = getattr(data, "designId", None)
     design = None
     if design_id:
-        design = db.fixturedesign.find_unique(where={"id": design_id})
+        design = db.testbeddesign.find_unique(where={"id": design_id})
         if not design:
             return not_found("Fixture design not found")
         create_data["designId"] = design_id

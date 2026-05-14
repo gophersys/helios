@@ -156,7 +156,7 @@ def cleanup_old_dev_test_packages(
     Per-product+type bucket: the most recent ``keep_latest`` dev packages
     survive regardless of age, so a quiet product still has its last few
     iterations available. Older rows are dropped with their MinIO
-    tarball; ``FixtureDesign`` is FK-cascaded by the schema.
+    tarball; ``TestBedDesign`` is FK-cascaded by the schema.
 
     RELEASED packages and any package referenced by a TestRun, an
     active manufacturing session, or a stage-config binding are never
@@ -189,7 +189,7 @@ def cleanup_old_dev_test_packages(
     dev_packages = db.testpackage.find_many(
         where={"status": "DEVELOPMENT"},
         order={"createdAt": "desc"},
-        include={"fixtureDesign": True},
+        include={"testBedDesign": True},
     )
 
     # Bucket by (productId, type) so we apply keep_latest per bucket.
@@ -248,18 +248,18 @@ def cleanup_old_dev_test_packages(
             skipped_in_use += 1
             continue
 
-        # FixtureDesign cascades from TestPackage (onDelete: Cascade), but
+        # TestBedDesign cascades from TestPackage (onDelete: Cascade), but
         # Fixture pins its design with onDelete: Restrict — a stale dev
         # rig still pointing at this design would block the cascade with
         # a constraint violation. Detect that here and skip cleanly so
         # the retention run produces a clear "stale fixture is holding
         # this design" log instead of a postgres error.
-        if tp.fixtureDesign:
-            fixture_count = db.fixture.count(where={"designId": tp.fixtureDesign.id})
+        if tp.testBedDesign:
+            fixture_count = db.fixture.count(where={"designId": tp.testBedDesign.id})
             if fixture_count:
                 logger.debug(
                     "Skipping test package %s — design %s is in use by %d fixture(s)",
-                    tp.id[:8], tp.fixtureDesign.id[:8], fixture_count,
+                    tp.id[:8], tp.testBedDesign.id[:8], fixture_count,
                 )
                 skipped_in_use += 1
                 continue

@@ -441,28 +441,28 @@ class TestDesignsPermissions:
     """Tests for /v2/benches/designs routes — requires fixtures:view / fixtures:manage."""
 
     def test_list_designs_unauthenticated(self, client):
-        response = client.get("/v2/fixtures/designs")
+        response = client.get("/v2/test-bed-designs")
         _assert_401(response)
 
     def test_list_designs_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view",
         )
-        response = client.get("/v2/fixtures/designs", headers=auth_headers)
+        response = client.get("/v2/test-bed-designs", headers=auth_headers)
         _assert_403(response)
 
     def test_list_designs_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "fixtures:view",
         )
-        response = client.get("/v2/fixtures/designs", headers=auth_headers)
+        response = client.get("/v2/test-bed-designs", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_create_design_view_only(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "fixtures:view",
         )
-        response = client.post("/v2/fixtures/designs",
+        response = client.post("/v2/test-bed-designs",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 

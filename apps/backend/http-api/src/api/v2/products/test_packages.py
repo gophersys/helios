@@ -161,11 +161,11 @@ def _extract_testbed_designs(
             design_revision = summary["revision"]
 
             # Upsert by testPackageId — one design per test package.
-            existing = db.fixturedesign.find_unique(
+            existing = db.testbeddesign.find_unique(
                 where={"testPackageId": test_package_id},
             )
             if existing:
-                db.fixturedesign.update(
+                db.testbeddesign.update(
                     where={"id": existing.id},
                     data={
                         "name": design_name,
@@ -182,7 +182,7 @@ def _extract_testbed_designs(
                 )
                 return existing.id
 
-            design = db.fixturedesign.create(
+            design = db.testbeddesign.create(
                 data={
                     "testPackageId": test_package_id,
                     "name": design_name,
@@ -327,12 +327,12 @@ def _serialize_package_stage(s) -> dict:
 
 def _serialize_test_package(tp: Any) -> dict:
     """Serialize a TestPackage DB record to an API response dict."""
-    fixture_design = getattr(tp, "fixtureDesign", None)
+    testbed_design = getattr(tp, "testBedDesign", None)
     data = {
         "id": tp.id,
         "productId": tp.productId,
         "boardRevisionId": getattr(tp, "boardRevisionId", None),
-        "fixtureDesignId": fixture_design.id if fixture_design else None,
+        "testBedDesignId": testbed_design.id if testbed_design else None,
         "version": tp.version,
         "type": tp.type,
         "status": tp.status,
@@ -351,9 +351,9 @@ def _serialize_test_package(tp: Any) -> dict:
     }
     if hasattr(tp, "packageStages") and tp.packageStages:
         data["packageStages"] = [_serialize_package_stage(s) for s in tp.packageStages]
-    if hasattr(tp, "fixtureDesign") and tp.fixtureDesign:
-        fd = tp.fixtureDesign
-        data["fixtureDesign"] = {
+    if hasattr(tp, "testBedDesign") and tp.testBedDesign:
+        fd = tp.testBedDesign
+        data["testBedDesign"] = {
             "id": fd.id,
             "name": fd.name,
             "revision": fd.revision,
@@ -589,7 +589,7 @@ def _upload_test_package_impl(product_id: str):
     # reaches the picker.
     tp = db.testpackage.find_unique(
         where={"id": tp.id},
-        include={"packageStages": True, "fixtureDesign": True},
+        include={"packageStages": True, "testBedDesign": True},
     )
 
     # Final commit: testCount + status flip in one update. From this
@@ -649,7 +649,7 @@ def list_test_packages(product_id: str):
         skip=skip,
         take=limit,
         order={"createdAt": "desc"},
-        include={"packageStages": True, "fixtureDesign": True},
+        include={"packageStages": True, "testBedDesign": True},
     )
 
     return jsonify(ApiResponse.ok({
@@ -762,7 +762,7 @@ def get_test_package(product_id: str, package_id: str):
     db = get_db_client()
     tp = db.testpackage.find_first(
         where={"id": package_id, "productId": product.id},
-        include={"packageStages": True, "fixtureDesign": True},
+        include={"packageStages": True, "testBedDesign": True},
     )
     if not tp:
         return not_found(f"Test package '{package_id}' not found")
@@ -871,15 +871,15 @@ def release_test_package(product_id: str, package_id: str):
     tp = db.testpackage.update(
         where={"id": tp.id},
         data=update_data,
-        include={"packageStages": True, "fixtureDesign": True},
+        include={"packageStages": True, "testBedDesign": True},
     )
 
     # The fixture design is extracted at upload time (per-package ownership)
     # so on release we just propagate the status. If a dev upload didn't
     # have a fixtures dir, no design exists — that's fine, nothing to update.
-    if tp.fixtureDesign is not None:
-        db.fixturedesign.update(
-            where={"id": tp.fixtureDesign.id},
+    if tp.testBedDesign is not None:
+        db.testbeddesign.update(
+            where={"id": tp.testBedDesign.id},
             data={"status": "RELEASED"},
         )
 
@@ -898,15 +898,15 @@ def release_test_package(product_id: str, package_id: str):
 
     tp = db.testpackage.find_unique(
         where={"id": tp.id},
-        include={"packageStages": True, "fixtureDesign": True},
+        include={"packageStages": True, "testBedDesign": True},
     )
 
-    fixture_design_id = tp.fixtureDesign.id if tp.fixtureDesign is not None else None
+    testbed_design_id = tp.testBedDesign.id if tp.testBedDesign is not None else None
     log_audit("testPackage.release", "TestPackage", tp.id, {
         "productId": product.id,
         "type": tp.type,
         "releasedVersion": released_version,
-        "fixtureDesignId": fixture_design_id,
+        "testBedDesignId": testbed_design_id,
         "stageBindings": bound_count,
         "previousStatus": "DEVELOPMENT",
     })

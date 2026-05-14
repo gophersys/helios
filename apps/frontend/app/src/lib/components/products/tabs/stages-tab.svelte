@@ -3,7 +3,7 @@
   import ProductStages from '../product-stages.svelte';
   import TestAppStatusCard from '../test-app-status-card.svelte';
   import TestPackageList from '../test-package-list.svelte';
-  import FixtureDesignsSection from '../fixture-designs-section.svelte';
+  import TestBedDesignsSection from '../testbed-designs-section.svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -33,7 +33,7 @@
   <h3 class="text-sm font-semibold text-text-primary mb-3">Validation Test App</h3>
   <TestAppStatusCard status={product.testAppStatus?.validation ?? null} type="VALIDATION" />
   <TestPackageList productId={product.id} packageType="VALIDATION" {onRefresh} />
-  <FixtureDesignsSection type="VALIDATION" />
+  <TestBedDesignsSection type="VALIDATION" />
 </div>
 
 {#if activeRevisions.length === 0}

@@ -4,7 +4,7 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import Modal from '$lib/components/ui/modal.svelte';
-  import type { Fixture, FixtureDesign } from '$lib/types/models';
+  import type { Fixture, TestBedDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   interface Props {
@@ -17,7 +17,7 @@
   let { productId, boardRevisionId, canManage, designId }: Props = $props();
 
   let fixtures = $state<Fixture[]>([]);
-  let designs = $state<FixtureDesign[]>([]);
+  let designs = $state<TestBedDesign[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -48,11 +48,11 @@
 
   async function fetchDesigns(): Promise<void> {
     try {
-      let url = `/v2/fixtures/designs?type=MANUFACTURING&limit=100`;
+      let url = `/v2/test-bed-designs?type=MANUFACTURING&limit=100`;
       if (boardRevisionId) {
         url += `&boardRevisionId=${boardRevisionId}`;
       }
-      const res = await api.get<ApiResponse<{ data: FixtureDesign[] }>>(url);
+      const res = await api.get<ApiResponse<{ data: TestBedDesign[] }>>(url);
       designs = (res.data as any).data ?? res.data;
     } catch {
       designs = [];
@@ -189,8 +189,8 @@
       </div>
 
       <div class="form-group">
-        <label for="fixture-design" class="form-label">Fixture Design</label>
-        <select id="fixture-design" bind:value={formDesignId} class="input input-md">
+        <label for="test-bed-design" class="form-label">TestBed Design</label>
+        <select id="test-bed-design" bind:value={formDesignId} class="input input-md">
           <option value="">Select a design...</option>
           {#each designs as design}
             <option value={design.id}>{design.name} v{design.revision}</option>

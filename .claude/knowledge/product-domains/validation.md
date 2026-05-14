@@ -123,7 +123,7 @@ The `TestExecution.measurements` JSON blob is freeform — any structured data t
 
 - [`builds.md`](builds.md) — BuildRun/AssetSet that drives a validation run
 - [`manufacturing.md`](manufacturing.md) — same TestRun/RunTarget/TestExecution hierarchy, different lifecycle
-- [`fixtures.md`](fixtures.md) — Fixture, FixtureSlot, FixtureDesign, FixturePurpose
+- [`fixtures.md`](fixtures.md) — Fixture, FixtureSlot, TestBedDesign, FixturePurpose
 - [`products.md`](products.md) — Product, ProductVariant, TestPackage status flow
 - [`../apps/backend/http-api.md`](../apps/backend/http-api.md) — runs handler internals
 - [`../apps/edge/mtib-server.md`](../apps/edge/mtib-server.md) — gRPC API the runner drives

@@ -239,15 +239,15 @@
                     </td>
                   {/if}
                 </tr>
-                {#if pkg.fixtureDesign}
+                {#if pkg.testBedDesign}
                   <tr class="border-none">
                     <td colspan={canManage ? 7 : 6} class="px-4 pb-2 pt-0">
                       <a
-                        href="/fixtures?designId={pkg.fixtureDesign.id}"
+                        href="/fixtures?designId={pkg.testBedDesign.id}"
                         class="inline-flex items-center gap-1 text-2xs text-text-tertiary hover:text-accent transition-colors"
                       >
                         <Wrench size={10} />
-                        Fixture: {pkg.fixtureDesign.name} v{pkg.fixtureDesign.revision}
+                        Fixture: {pkg.testBedDesign.name} v{pkg.testBedDesign.revision}
                       </a>
                     </td>
                   </tr>

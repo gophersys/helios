@@ -265,7 +265,7 @@ model TestPackage {
   boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
   createdBy     User?                  @relation(fields: [createdById], references: [id], onDelete: SetNull)
   releasedBy    User?                  @relation("TestPackageReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
-  fixtureDesign FixtureDesign? /// 1:1 reverse — set when this package's manifest extracts a fixture profile
+  testBedDesign TestBedDesign? /// 1:1 reverse — set when this package's manifest extracts a fixture profile
   testRuns      TestRun[]
   packageStages TestPackageStage[]
   stageConfigs  ProductStageConfig[]   @relation("StageReleasedPackage") /// Stages that point to this package as their blessed release
@@ -347,7 +347,7 @@ model BoardRevision {
   firmwareSets         FirmwareSet[]
   stageConfigs         ProductStageConfig[]
   assetSets            AssetSet[]
-  fixtureDesigns       FixtureDesign[]
+  testBedDesigns       TestBedDesign[]
   fixtures             Fixture[]
   manufacturingConfigs ManufacturingConfig[]
   testPackages         TestPackage[]
@@ -737,7 +737,7 @@ model BuildArtifact {
 /// to know GPIO pins, UART paths, power config, etc.
 ///
 /// Individual Fixture records can override specific fields via profileOverrides.
-model FixtureDesign {
+model TestBedDesign {
   id              String            @id @default(cuid())
   testPackageId   String            @unique /// 1:1 — every design is owned by exactly one TestPackage
   status          TestPackageStatus /// Mirrors owner package status — denormalized so fixtures can join without TestPackage
@@ -754,7 +754,7 @@ model FixtureDesign {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  createdBy     User?         @relation("FixtureDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy     User?         @relation("TestBedDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
   testPackage   TestPackage   @relation(fields: [testPackageId], references: [id], onDelete: Cascade)
   fixtures      Fixture[]
@@ -762,7 +762,7 @@ model FixtureDesign {
   @@index([boardRevisionId])
   @@index([type])
   @@index([status])
-  @@map("fixture_designs")
+  @@map("test_bed_designs")
 }
 
 /// A physical test fixture instance. Unified model for both
@@ -791,7 +791,7 @@ model Fixture {
   productId       String
   boardRevisionId String? /// FK — which board revision this fixture tests (denormalized from design)
   type            NodeType /// MANUFACTURING or VALIDATION
-  designId        String? /// FK to FixtureDesign (optional — design can be assigned later)
+  designId        String? /// FK to TestBedDesign (optional — design can be assigned later)
 
   // Panel layout — defines the physical grid of DUT positions
   panelRows Int @default(1) /// Number of rows in the panel grid
@@ -812,7 +812,7 @@ model Fixture {
   createdBy             User?                  @relation("FixtureCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   product               Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
   boardRevision         BoardRevision?         @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
-  design                FixtureDesign?         @relation(fields: [designId], references: [id], onDelete: Restrict)
+  design                TestBedDesign?         @relation(fields: [designId], references: [id], onDelete: Restrict)
   slots                 FixtureSlot[]
   queueEntries          ValidationQueueEntry[]
   manufacturingSessions ManufacturingSession[]
@@ -1011,7 +1011,7 @@ model User {
   createdBoards         Board[]                  @relation("BoardCreatedBy")
   createdBoardRevisions BoardRevision[]          @relation("BoardRevisionCreatedBy")
   createdStageConfigs   ProductStageConfig[]     @relation("StageConfigCreatedBy")
-  createdFixtureDesigns FixtureDesign[]          @relation("FixtureDesignCreatedBy")
+  createdTestBedDesigns TestBedDesign[]          @relation("TestBedDesignCreatedBy")
   createdFixtures       Fixture[]                @relation("FixtureCreatedBy")
   createdBuildRuns      BuildRun[]               @relation("BuildRunCreatedBy")
   resolvedErrorReports  ErrorReport[]

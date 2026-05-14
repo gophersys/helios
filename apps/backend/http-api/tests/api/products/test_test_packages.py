@@ -763,7 +763,7 @@ class TestReleaseTestPackage:
             version="dev-abc123-1700000000",
             storageKey="test-packages/alpha-b0/validation/dev-abc123-1700000000/package.tar.gz",
             packageStages=[],
-            fixtureDesign=None,
+            testBedDesign=None,
         )
         released_tp = _test_package_obj(
             status="RELEASED",
@@ -772,7 +772,7 @@ class TestReleaseTestPackage:
             releasedAt=_now(),
             releasedById="test-user-id",
             packageStages=[],
-            fixtureDesign=None,
+            testBedDesign=None,
         )
 
         self._setup_release_mocks(mock_db, product, tp, latest_released=None)
@@ -799,7 +799,7 @@ class TestReleaseTestPackage:
             version="dev-xyz789-1700000000",
             storageKey="test-packages/alpha-b0/validation/dev-xyz789-1700000000/package.tar.gz",
             packageStages=[],
-            fixtureDesign=None,
+            testBedDesign=None,
         )
         released_tp = _test_package_obj(
             status="RELEASED",
@@ -808,7 +808,7 @@ class TestReleaseTestPackage:
             releasedAt=_now(),
             releasedById="test-user-id",
             packageStages=[],
-            fixtureDesign=None,
+            testBedDesign=None,
         )
 
         self._setup_release_mocks(mock_db, product, tp, latest_released=None)

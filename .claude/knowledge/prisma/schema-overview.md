@@ -52,7 +52,7 @@ Product ─┬─ Board ── BoardRevision ─┬─ ProductTarget ── Firm
          │                          ├─ ProductStageConfig ─ StageBuildMatrix
          │                          ├─ ManufacturingConfig
          │                          ├─ TestPackage ── TestPackageStage
-         │                          │           └─ FixtureDesign ── Fixture ─ FixtureSlot ─ Node
+         │                          │           └─ TestBedDesign ── Fixture ─ FixtureSlot ─ Node
          │                          └─ AssetSet ─ Asset
          │
          ├─ BuildRun ── BuildJob ── BuildArtifact
@@ -87,7 +87,7 @@ The catalog every other cluster anchors to.
 |---|---|---|
 | `Product` | One canonical hardware product. Status `ACTIVE`/`ARCHIVED`. Holds Bitbucket repo slugs (`fwRepoSlug`, `mfgFwRepoSlug`), builder image, build config JSON. | Has many of nearly everything (Board, BuildRun, TestRun, …). `onDelete: Cascade` for Board/TestPackage/FirmwareSet; `Restrict` for the business-logic models (TestRun, BuildJob, AssetSet) so they cannot orphan-cascade. |
 | `Board` | A distinct PCB design within a product (1:1 with Product today). Carries `ckBoardsFamily` — the prefix used in firmware repos (`alpha`, `sigma5`). | Owns BoardRevisions. |
-| `BoardRevision` | A revision (A0/B0/C1). Carries `ckBoardsName` (`alpha_b0`), parsed `socs` list, CoreCloud `deviceType`/`deviceVariant`, modem version, `snrLength` (manufacturing-scan input enforcement), and `LifecycleStatus`. | Targets, FirmwareSet, AssetSet, FixtureDesign, Fixture, ManufacturingConfig, TestPackage, ModemFirmware, ProductStageConfig, TestRun — everything that needs to be revision-specific points here. |
+| `BoardRevision` | A revision (A0/B0/C1). Carries `ckBoardsName` (`alpha_b0`), parsed `socs` list, CoreCloud `deviceType`/`deviceVariant`, modem version, `snrLength` (manufacturing-scan input enforcement), and `LifecycleStatus`. | Targets, FirmwareSet, AssetSet, TestBedDesign, Fixture, ManufacturingConfig, TestPackage, ModemFirmware, ProductStageConfig, TestRun — everything that needs to be revision-specific points here. |
 | `ProductTarget` | A firmware target (`role=comms|app`, SoC, CoreCloud `appId`) inside a revision. | Owns FirmwareBuilds. |
 
 A `Product` always has exactly one `Board` (`@unique` on `Board.productId`).
@@ -148,13 +148,13 @@ The runtime side — physical rigs and their MTIBs.
 
 | Model | Carries |
 |---|---|
-| `FixtureDesign` | Versioned design owned 1:1 by a TestPackage. `profileTemplate` JSON is the source of truth for what hardware the design exposes. `type` mirrors the parent package type. |
+| `TestBedDesign` | Versioned design owned 1:1 by a TestPackage. `profileTemplate` JSON is the source of truth for what hardware the design exposes. `type` mirrors the parent package type. |
 | `Fixture` | A physical fixture instance. `NodeType` (MANUFACTURING / VALIDATION), `FixturePurpose` (DEV / RELEASE), `panelRows × panelCols`, `disabled` (admin override). **`lockState` is derived live** at serialize time — never stored. |
 | `FixtureSlot` | A position on a fixture. `@unique` on `nodeId` (a node can be in at most one slot). Carries J-Link serials, UART paths, current DUT identity. |
 | `Node` | A K8s node. `NodeType`, `hostname` (unique), `hardwareRevision`. Reachability **never persisted**; computed from k8s + gRPC probe. Only `disabled` is stored. |
 
 ```
-FixtureDesign (1) ── (N) Fixture (1) ── (N) FixtureSlot (1) ── (0..1) Node
+TestBedDesign (1) ── (N) Fixture (1) ── (N) FixtureSlot (1) ── (0..1) Node
        ▲
        │ 1:1
        │
@@ -219,7 +219,7 @@ DUTs). Heartbeat-and-pull model.
 - **`TestExecution.name` is unique per RunTarget.** Enforced at the DB so
   a reporter regression (drop slotIndex → fall through to wrong target)
   can't silently create duplicate rows.
-- **`FixtureDesign` is owned 1:1 by a TestPackage.** This is the contract:
+- **`TestBedDesign` is owned 1:1 by a TestPackage.** This is the contract:
   a package's manifest is the authority for what fixture the test
   expects.
 - **`FixturePurpose` gates `TestPackageStatus`.** DEV fixtures accept only

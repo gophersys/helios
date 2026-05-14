@@ -12,7 +12,7 @@
     Wrench,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { FixtureDesign, FixtureDesignSummary, Pagination } from '$lib/types/models';
+  import type { TestBedDesign, TestBedDesignSummary, Pagination } from '$lib/types/models';
   import { formatTimeAgo, formatDateTime } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
@@ -33,7 +33,7 @@
   const canManage = $derived(auth.hasPermission('validation:manage'));
 
   // List state
-  let designs = $state<FixtureDesignSummary[]>([]);
+  let designs = $state<TestBedDesignSummary[]>([]);
   let pagination = $state<Pagination>({ page: 1, limit: 50, total: 0, pages: 0 });
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -54,7 +54,7 @@
   let submitting = $state(false);
 
   // Delete confirmation
-  let deleteTarget = $state<FixtureDesignSummary | null>(null);
+  let deleteTarget = $state<TestBedDesignSummary | null>(null);
   let deleting = $state(false);
 
   async function loadDesigns(): Promise<void> {
@@ -178,13 +178,13 @@
 </script>
 
 <svelte:head>
-  <title>Fixture Designs - Concord</title>
+  <title>TestBed Designs - Concord</title>
 </svelte:head>
 
 <div class="animate-fade-in">
   <div class="mb-6">
     <PageHeader
-      title="Fixture Designs"
+      title="TestBed Designs"
       description="Versioned hardware designs for validation fixtures with profile templates."
     />
   </div>
@@ -195,7 +195,7 @@
   {#if deleteTarget}
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="w-full max-w-md rounded-lg bg-surface-1 p-6 shadow-xl">
-        <h3 class="mb-2 text-lg font-semibold text-text-primary">Delete Fixture Design</h3>
+        <h3 class="mb-2 text-lg font-semibold text-text-primary">Delete TestBed Design</h3>
         <p class="mb-4 text-sm text-text-secondary">
           Are you sure you want to delete <span class="font-medium">{deleteTarget.name}</span>? This
           action cannot be undone.
@@ -212,7 +212,7 @@
 
   <!-- Create/Edit form -->
   {#if showForm}
-    <FormCard title={editingId ? 'Edit Fixture Design' : 'New Fixture Design'} onClose={resetForm}>
+    <FormCard title={editingId ? 'Edit TestBed Design' : 'New TestBed Design'} onClose={resetForm}>
       <form onsubmit={handleSubmit} class="space-y-3">
         <TextInput
           bind:value={formName}

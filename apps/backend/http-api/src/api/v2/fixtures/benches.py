@@ -82,7 +82,7 @@ def _serialize_bench(
 
     # Design info
     if hasattr(fixture, "design") and fixture.design:
-        result["fixtureDesign"] = {
+        result["testBedDesign"] = {
             "id": fixture.design.id,
             "name": fixture.design.name,
             "boardRevisionId": fixture.design.boardRevisionId,
@@ -91,7 +91,7 @@ def _serialize_bench(
         result["dutRevision"] = fixture.design.revision
         result["mtibRevision"] = fixture.design.revision
     else:
-        result["fixtureDesign"] = None
+        result["testBedDesign"] = None
         result["dutRevision"] = None
         result["mtibRevision"] = None
 
@@ -279,8 +279,8 @@ def create_bench():
             "productId": product.id,
             "type": "VALIDATION",
         }
-        if data.fixture_design_id:
-            create_data["designId"] = data.fixture_design_id
+        if data.testbed_design_id:
+            create_data["designId"] = data.testbed_design_id
         if data.profile_overrides:
             create_data["profileOverrides"] = Json(data.profile_overrides)
         if data.metadata:
@@ -363,7 +363,7 @@ def update_bench(bench_id: str):
     fixture_key_map = {
         "name": "name",
         "mtibRevision": None,  # Stored in design now
-        "fixtureDesignId": "designId",
+        "testBedDesignId": "designId",
         "profileOverrides": "profileOverrides",
         "status": "status",
         "metadata": "metadata",

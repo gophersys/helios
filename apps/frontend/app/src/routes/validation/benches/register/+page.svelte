@@ -16,7 +16,7 @@
   import type { ApiResponse } from '$lib/types';
   import type {
     UnregisteredMtib,
-    FixtureDesignSummary,
+    TestBedDesignSummary,
     Product,
   } from '$lib/types/models';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
@@ -41,7 +41,7 @@
 
   // Step 2: Select product & fixture design
   let products = $state<{ value: string; label: string }[]>([]);
-  let designs = $state<FixtureDesignSummary[]>([]);
+  let designs = $state<TestBedDesignSummary[]>([]);
   let loadingProducts = $state(false);
   let selectedProductId = $state('');
   let selectedDesignId = $state('');
@@ -170,7 +170,7 @@
       name: benchName.trim(),
       mtibAddress: selectedMtib.mtibAddress,
       mtibRevision: selectedMtib.hardwareRevision || undefined,
-      fixtureDesignId: selectedDesignId || undefined,
+      testBedDesignId: selectedDesignId || undefined,
       dutProduct: selectedProduct?.label.toLowerCase() || '',
       dutRevision: dutRevision.trim(),
       dutDeviceId: dutDeviceId.trim() || undefined,
@@ -322,10 +322,10 @@
       </div>
     {/if}
 
-    <!-- Step 2: Product & Fixture Design -->
+    <!-- Step 2: Product & TestBed Design -->
     {#if currentStep === 2}
       <div class="rounded-lg border border-border bg-surface-1 p-6">
-        <h2 class="mb-4 text-lg font-semibold text-text-primary">Product & Fixture Design</h2>
+        <h2 class="mb-4 text-lg font-semibold text-text-primary">Product & TestBed Design</h2>
 
         {#if loadingProducts}
           <LoadingState message="Loading products..." />
@@ -348,7 +348,7 @@
 
             <div>
               <span class="mb-1 block text-2xs font-medium text-text-tertiary">
-                Fixture Design (Optional)
+                TestBed Design (Optional)
               </span>
               {#if filteredDesigns.length === 0}
                 <div class="rounded-lg border border-border bg-surface-0 p-4 text-center text-sm text-text-tertiary">
@@ -502,7 +502,7 @@
               <div class="text-text-secondary">{selectedProduct?.label || '-'}</div>
               <div class="text-text-tertiary">DUT Revision</div>
               <div class="text-text-secondary">{dutRevision}</div>
-              <div class="text-text-tertiary">Fixture Design</div>
+              <div class="text-text-tertiary">TestBed Design</div>
               <div class="text-text-secondary">{selectedDesign?.name || 'None'}</div>
             </div>
           </div>

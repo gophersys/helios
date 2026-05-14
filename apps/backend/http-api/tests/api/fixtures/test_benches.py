@@ -207,14 +207,14 @@ def test_get_bench_requires_auth(client):
 
 
 def test_get_bench_no_design(authed_client, mock_db):
-    """Bench without design has fixtureDesign=null and no design-derived fields."""
+    """Bench without design has testBedDesign=null and no design-derived fields."""
     mock_db.fixture.find_unique.return_value = _make_bench(design=None)
 
     response = authed_client.get("/v2/fixtures/benches/bench-1")
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["fixtureDesign"] is None
+    assert data["data"]["testBedDesign"] is None
     assert data["data"]["dutRevision"] is None
     assert data["data"]["mtibRevision"] is None
 
