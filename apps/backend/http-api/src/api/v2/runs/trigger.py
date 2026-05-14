@@ -256,7 +256,7 @@ def _find_available_fixture(
         if not fixture:
             return None
 
-        # Compute profile path from fixture design
+        # Compute profile path from TestBed design
         profile_path = None
         if hasattr(fixture, "design") and fixture.design:
             profile_path = f"/app/fixtures/{fixture.design.revision}.json"

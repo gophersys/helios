@@ -220,3 +220,5 @@ The user-facing TestBed design rows are surfaced in three places:
 - `src/routes/validation/testbed-designs/+page.svelte` — the validation-engineer index (was `routes/validation/designs/+page.svelte`).
 
 All UI strings show "TestBed Design" (capital T, capital B). The TypeScript types in `models.ts` are `TestBedDesign` and `TestBedDesignSummary`. API client calls hit `/v2/test-bed-designs` (not the old `/v2/fixtures/designs`). Concord's `Fixture` (the physical rig) is unchanged — see `product-domains/fixtures.md`.
+
+**v0.10.2** (2026-05-14): user-visible string sweep finishing the TestBedDesign rename. Lowercase 'fixture design(s)' → 'TestBed design(s)' across empty states, error toasts, loading labels, dialog confirmations, and form fields. No schema, no API, no shape change.

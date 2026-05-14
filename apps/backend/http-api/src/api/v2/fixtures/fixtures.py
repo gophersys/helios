@@ -760,7 +760,7 @@ def create_fixture():
     if design_id:
         design = db.testbeddesign.find_unique(where={"id": design_id})
         if not design:
-            return not_found("Fixture design not found")
+            return not_found("TestBed design not found")
         create_data["designId"] = design_id
         # Derive type and boardRevisionId from design if not explicitly set
         if not create_data.get("boardRevisionId") and design.boardRevisionId:

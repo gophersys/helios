@@ -44,7 +44,7 @@
       const res = await api.get<ApiResponse<{ data: TestBedDesign[]; pagination: unknown }>>(url);
       designs = (res.data as any).data ?? res.data;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load fixture designs';
+      error = err instanceof Error ? err.message : 'Failed to load TestBed designs';
     } finally {
       loading = false;
     }
@@ -70,8 +70,8 @@
   {:else if designs.length === 0}
     <div class="rounded-lg border border-dashed border-border bg-surface-0 px-4 py-5 text-center">
       <Wrench size={20} class="mx-auto text-text-tertiary mb-2 opacity-40" />
-      <p class="text-xs text-text-secondary">No fixture designs yet.</p>
-      <p class="text-2xs text-text-tertiary mt-1">Release a test app to publish a fixture design.</p>
+      <p class="text-xs text-text-secondary">No TestBed designs yet.</p>
+      <p class="text-2xs text-text-tertiary mt-1">Release a test app to publish a TestBed design.</p>
     </div>
   {:else}
     <div class="space-y-3">

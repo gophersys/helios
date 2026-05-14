@@ -596,7 +596,7 @@ class BenchUpdateRequest:
 
 @dataclass
 class TestBedDesignCreateRequest:
-    """POST /v2/test-bed-designs - Create a new fixture design."""
+    """POST /v2/test-bed-designs - Create a new TestBed design."""
 
     name: str
     product: str
@@ -643,7 +643,7 @@ class TestBedDesignCreateRequest:
 
 @dataclass
 class TestBedDesignUpdateRequest:
-    """PATCH /v2/test-bed-designs/<id> - Update a fixture design."""
+    """PATCH /v2/test-bed-designs/<id> - Update a TestBed design."""
 
     _has_name: bool = False
     _has_profile_template: bool = False

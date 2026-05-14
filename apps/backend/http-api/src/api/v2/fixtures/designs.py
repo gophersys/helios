@@ -1,4 +1,4 @@
-"""Fixture design CRUD — versioned fixture hardware specs."""
+"""TestBed design CRUD — versioned fixture hardware specs."""
 
 import logging
 import math
@@ -80,7 +80,7 @@ def _serialize_design_summary(design) -> Dict[str, Any]:
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def list_designs():
-    """GET /v2/test-bed-designs — list fixture designs."""
+    """GET /v2/test-bed-designs — list TestBed designs."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -113,17 +113,17 @@ def list_designs():
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def get_design(design_id: str):
-    """GET /v2/test-bed-designs/<id> — get fixture design detail."""
+    """GET /v2/test-bed-designs/<id> — get TestBed design detail."""
     db = get_db_client()
     design = db.testbeddesign.find_unique(where={"id": design_id}, include=_DESIGN_INCLUDE)
     if not design:
-        return not_found("Fixture design not found")
+        return not_found("TestBed design not found")
     return jsonify(ApiResponse.ok(_serialize_design(design)).to_dict()), 200
 
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def create_design():
-    """POST /v2/test-bed-designs — create a new fixture design."""
+    """POST /v2/test-bed-designs — create a new TestBed design."""
     db = get_db_client()
     data = request.get_json()
     if not data:
@@ -177,11 +177,11 @@ def create_design():
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def update_design(design_id: str):
-    """PUT /v2/test-bed-designs/<id> — update fixture design."""
+    """PUT /v2/test-bed-designs/<id> — update TestBed design."""
     db = get_db_client()
     design = db.testbeddesign.find_unique(where={"id": design_id})
     if not design:
-        return not_found("Fixture design not found")
+        return not_found("TestBed design not found")
 
     data = request.get_json()
     if not data:
@@ -216,11 +216,11 @@ def update_design(design_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_design(design_id: str):
-    """DELETE /v2/test-bed-designs/<id> — delete fixture design."""
+    """DELETE /v2/test-bed-designs/<id> — delete TestBed design."""
     db = get_db_client()
     design = db.testbeddesign.find_unique(where={"id": design_id}, include={"fixtures": True})
     if not design:
-        return not_found("Fixture design not found")
+        return not_found("TestBed design not found")
 
     if design.fixtures and len(design.fixtures) > 0:
         return conflict(f"Cannot delete — {len(design.fixtures)} fixture(s) use this design")
@@ -236,5 +236,5 @@ def get_design_profile(design_id: str):
     db = get_db_client()
     design = db.testbeddesign.find_unique(where={"id": design_id})
     if not design:
-        return not_found("Fixture design not found")
+        return not_found("TestBed design not found")
     return jsonify(ApiResponse.ok(design.profileTemplate).to_dict()), 200

@@ -45,7 +45,7 @@
       const revIds = new Set(revisions.map((r) => r.id));
       designs = all.filter((d) => revIds.has(d.boardRevisionId));
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load fixture designs';
+      error = e instanceof Error ? e.message : 'Failed to load TestBed designs';
     } finally {
       loading = false;
     }
@@ -58,7 +58,7 @@
       await loadDesigns();
       onRefresh?.();
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to delete fixture design';
+      error = e instanceof Error ? e.message : 'Failed to delete TestBed design';
     }
   }
 
@@ -105,8 +105,8 @@
     {#if revDesigns.length === 0}
       <div class="text-center py-8">
         <Wrench size={32} class="mx-auto text-text-tertiary mb-3 opacity-50" />
-        <p class="text-sm text-text-secondary">No fixture designs for {selectedRevision.version}</p>
-        <p class="text-2xs text-text-tertiary mt-1">Fixture designs are auto-extracted when a test package is uploaded via corectl.</p>
+        <p class="text-sm text-text-secondary">No TestBed designs for {selectedRevision.version}</p>
+        <p class="text-2xs text-text-tertiary mt-1">TestBed designs are auto-extracted when a test package is uploaded via corectl.</p>
       </div>
     {:else}
       <div class="grid gap-3 sm:grid-cols-2">
@@ -121,7 +121,7 @@
                   <button
                     onclick={() => deleteTarget = { id: design.id, name: design.name }}
                     class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
-                    title="Delete fixture design"
+                    title="Delete TestBed design"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -154,7 +154,7 @@
 
 <ConfirmDeleteDialog
   open={!!deleteTarget}
-  entityType="fixture design"
+  entityType="TestBed design"
   entityName={deleteTarget?.name || ''}
   onConfirm={() => { handleDeleteDesign(deleteTarget!.id); deleteTarget = null; }}
   onCancel={() => (deleteTarget = null)}

@@ -527,8 +527,8 @@
           {#if designs.length === 0}
             <div class="card card-md text-center py-8 border-dashed">
               <Wrench size={28} class="mx-auto mb-3 text-text-tertiary" />
-              <p class="text-sm text-text-secondary">No fixture designs available.</p>
-              <p class="text-2xs text-text-tertiary mt-1">Release a test app to publish a fixture design for this revision.</p>
+              <p class="text-sm text-text-secondary">No TestBed designs available.</p>
+              <p class="text-2xs text-text-tertiary mt-1">Release a test app to publish a TestBed design for this revision.</p>
             </div>
           {:else}
             <div class="grid gap-3">

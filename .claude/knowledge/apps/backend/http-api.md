@@ -247,3 +247,5 @@ Add the thread inside `start_scheduler()` in `src/services/scheduling/scheduler.
 - [`../../product-domains/builds.md`](../../product-domains/builds.md) — end-to-end build flow.
 - [`../../product-domains/validation.md`](../../product-domains/validation.md), [`../../product-domains/manufacturing.md`](../../product-domains/manufacturing.md), [`../../product-domains/fixtures.md`](../../product-domains/fixtures.md), [`../../product-domains/users-rbac.md`](../../product-domains/users-rbac.md) — concept-oriented views of the routes here.
 - [`../../../rules/auth-defaults.md`](../../../rules/auth-defaults.md), [`../../../rules/audit-logging.md`](../../../rules/audit-logging.md), [`../../../rules/all-three-envs.md`](../../../rules/all-three-envs.md), [`../../../rules/prisma-flow.md`](../../../rules/prisma-flow.md).
+
+**v0.10.2** (2026-05-14): backend log + error strings that referenced 'fixture design' (lowercase) were renamed to 'TestBed design' for consistency. Includes `Fixture design not found` 404 message and the CRUD-handler docstrings/log lines in `api/v2/fixtures/designs.py` and `api/v2/products/test_packages.py`.

@@ -68,7 +68,7 @@
 
   async function handleCreate(): Promise<void> {
     if (!formName.trim()) { createError = 'Name is required'; return; }
-    if (!formDesignId) { createError = 'Select a fixture design'; return; }
+    if (!formDesignId) { createError = 'Select a TestBed design'; return; }
     submitting = true;
     createError = null;
     try {
@@ -118,8 +118,8 @@
   {:else if designs.length === 0}
     <div class="rounded-lg border border-dashed border-border bg-surface-0 px-4 py-5 text-center">
       <Wrench size={20} class="mx-auto text-text-tertiary mb-2 opacity-40" />
-      <p class="text-xs text-text-secondary">Publish a fixture design first.</p>
-      <p class="text-2xs text-text-tertiary mt-1">Release a test app to auto-generate fixture designs.</p>
+      <p class="text-xs text-text-secondary">Publish a TestBed design first.</p>
+      <p class="text-2xs text-text-tertiary mt-1">Release a test app to auto-generate TestBed designs.</p>
     </div>
   {:else if fixtures.length === 0}
     <div class="rounded-lg border border-dashed border-border bg-surface-0 px-4 py-5 text-center">

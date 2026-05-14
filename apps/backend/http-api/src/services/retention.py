@@ -184,7 +184,7 @@ def cleanup_old_dev_test_packages(
     )
 
     # All DEV packages, ordered newest-first so the keep-latest slice
-    # is straightforward. Eager-load the fixture design so the
+    # is straightforward. Eager-load the TestBed design so the
     # Fixture-reference check below doesn't need an extra round-trip.
     dev_packages = db.testpackage.find_many(
         where={"status": "DEVELOPMENT"},

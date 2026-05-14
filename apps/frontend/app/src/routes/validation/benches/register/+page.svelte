@@ -39,7 +39,7 @@
   let loadingMtibs = $state(true);
   let selectedMtib = $state<UnregisteredMtib | null>(null);
 
-  // Step 2: Select product & fixture design
+  // Step 2: Select product & TestBed design
   let products = $state<{ value: string; label: string }[]>([]);
   let designs = $state<TestBedDesignSummary[]>([]);
   let loadingProducts = $state(false);
@@ -352,7 +352,7 @@
               </span>
               {#if filteredDesigns.length === 0}
                 <div class="rounded-lg border border-border bg-surface-0 p-4 text-center text-sm text-text-tertiary">
-                  No fixture designs available for this product
+                  No TestBed designs available for this product
                 </div>
               {:else}
                 <div class="space-y-2">
@@ -364,7 +364,7 @@
                     class:border-border={selectedDesignId}
                     class:hover:bg-surface-2={selectedDesignId}
                   >
-                    <div class="text-sm text-text-secondary">No fixture design (manual config)</div>
+                    <div class="text-sm text-text-secondary">No TestBed design (manual config)</div>
                   </button>
                   {#each filteredDesigns as design (design.id)}
                     <button

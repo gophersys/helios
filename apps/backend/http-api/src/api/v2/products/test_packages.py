@@ -146,7 +146,7 @@ def _extract_testbed_designs(
             )
             if not board_rev:
                 logger.info(
-                    "No board revision found for '%s' — skipping fixture design",
+                    "No board revision found for '%s' — skipping TestBed design",
                     board_name,
                 )
                 return None
@@ -177,7 +177,7 @@ def _extract_testbed_designs(
                     },
                 )
                 logger.info(
-                    "Updated fixture design '%s' rev %s for package %s",
+                    "Updated TestBed design '%s' rev %s for package %s",
                     design_name, design_revision, test_package_id,
                 )
                 return existing.id
@@ -194,7 +194,7 @@ def _extract_testbed_designs(
                 },
             )
             logger.info(
-                "Created fixture design '%s' rev %s for package %s",
+                "Created TestBed design '%s' rev %s for package %s",
                 design_name, design_revision, test_package_id,
             )
             return design.id
@@ -874,7 +874,7 @@ def release_test_package(product_id: str, package_id: str):
         include={"packageStages": True, "testBedDesign": True},
     )
 
-    # The fixture design is extracted at upload time (per-package ownership)
+    # The TestBed design is extracted at upload time (per-package ownership)
     # so on release we just propagate the status. If a dev upload didn't
     # have a fixtures dir, no design exists — that's fine, nothing to update.
     if tp.testBedDesign is not None:

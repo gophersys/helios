@@ -183,7 +183,7 @@
 
   async function handleCreate(e: Event) {
     e.preventDefault();
-    if (!formDesignId) { error = 'Fixture design is required'; return; }
+    if (!formDesignId) { error = 'TestBed design is required'; return; }
     submitting = true;
     error = null;
     try {

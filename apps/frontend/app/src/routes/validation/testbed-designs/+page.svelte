@@ -65,7 +65,7 @@
       designs = result.data;
       pagination = result.pagination;
     } catch (err: unknown) {
-      error = err instanceof Error ? err.message : 'Failed to load fixture designs';
+      error = err instanceof Error ? err.message : 'Failed to load TestBed designs';
     } finally {
       loading = false;
     }
@@ -301,9 +301,9 @@
   </div>
 
   {#if loading}
-    <LoadingState message="Loading fixture designs..." />
+    <LoadingState message="Loading TestBed designs..." />
   {:else if designs.length === 0}
-    <EmptyState message="No fixture designs found." icon={Wrench} />
+    <EmptyState message="No TestBed designs found." icon={Wrench} />
   {:else}
     <div class="table-wrapper">
       <table class="table">

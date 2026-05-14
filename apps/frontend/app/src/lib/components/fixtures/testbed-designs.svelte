@@ -272,7 +272,7 @@
   {#if loading}
     <LoadingState message="Loading designs..." />
   {:else if designs.length === 0}
-    <EmptyState message="No fixture designs yet" />
+    <EmptyState message="No TestBed designs yet" />
   {:else}
     <div class="table-wrapper">
       <table class="table">
@@ -325,7 +325,7 @@
 
   <ConfirmDeleteDialog
     open={!!deleteTarget}
-    entityType="fixture design"
+    entityType="TestBed design"
     entityName={deleteTarget?.name || ''}
     onConfirm={() => { handleDelete(deleteTarget!.id); deleteTarget = null; }}
     onCancel={() => (deleteTarget = null)}
