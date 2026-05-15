@@ -548,33 +548,61 @@ Verify the output shows:
 
 ### 9.2 — Build + publish corectl and corekinect wheels to STAGING pypi
 
-Build both wheels inside the devcontainer (where `python3 -m build` works),
-then `kubectl cp` them straight into the pypi pod's `/data/packages/`
-directory. The pypi server picks them up immediately — no twine, no auth.
+Build + push both wheels through the `nx push` targets. Each target depends
+on `build`, port-forwards to `svc/concord-pypi` (port 18080 staging, 18081
+production), and twine-uploads with authenticated htpasswd creds.
+
+**Prereq — set pypi creds.** The push targets fail-fast if `PYPI_USERNAME`
+or `PYPI_PASSWORD` is unset. Both live in Bitwarden:
 
 ```bash
-# Build (inside devcontainer)
-npx -y @devcontainers/cli exec ... bash -c "
-  rm -rf tools/corectl/dist libs/python/dist &&
-  cd tools/corectl && python3 -m build --wheel &&
-  cd /workspaces/concord/libs/python &&
-  rm -rf protocols && cp -r ../protocols protocols &&
-  python3 -m build --wheel --outdir dist/ &&
-  rm -rf protocols
-"
-
-# Publish (host kubectl, against staging cluster)
-STAGING_PYPI=$(kubectl get pods -n staging -l app.kubernetes.io/name=concord-pypi -o name | head -1 | cut -d/ -f2)
-kubectl cp tools/corectl/dist/corectl-X.Y.Z-py3-none-any.whl staging/$STAGING_PYPI:/data/packages/
-kubectl cp libs/python/dist/corekinect-X.Y.Z-py3-none-any.whl staging/$STAGING_PYPI:/data/packages/
-
-# Verify both are listed
-curl -sSk https://pypi.staging.concord.ad.corekinect.com/simple/corectl/ | grep "X.Y.Z"
-curl -sSk https://pypi.staging.concord.ad.corekinect.com/simple/corekinect/ | grep "X.Y.Z"
+export PYPI_USERNAME=concord
+export PYPI_PASSWORD="$(bw get password 'project/corekinect/concord/pypi/upload')"
+# or pull from infrastructure/clusters/office/secrets/shared.env (PYPI_HTPASSWD's plaintext)
 ```
 
-Both `grep`s must find the version. If the pypi pod was just restarted by the
-deploy in 9.1, give it ~5s to come back before the cp.
+`twine` must be on PATH. If missing: `pip install --user twine`.
+
+**Auto-detect what to publish.** Only push the wheels that changed in this
+release (per the component impact matrix). Use git to detect:
+
+```bash
+RELEASE_BASE=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo HEAD~1)
+PUBLISH_CORECTL=$(git diff --name-only $RELEASE_BASE..HEAD -- tools/corectl/ | head -1 && echo yes || echo no)
+PUBLISH_COREKINECT=$(git diff --name-only $RELEASE_BASE..HEAD -- libs/python/ libs/protocols/ | head -1 && echo yes || echo no)
+```
+
+If both report `no` and Phase 1 confirmed no version bump for that wheel,
+skip the corresponding push.
+
+**Push.** `nx push` re-runs `nx build` as a dependency, so this is one shot:
+
+```bash
+if [ "$PUBLISH_COREKINECT" = "yes" ]; then
+  npx nx run corekinect:push:staging
+fi
+if [ "$PUBLISH_CORECTL" = "yes" ]; then
+  npx nx run corectl:push:staging
+fi
+```
+
+**Tests-passing gate.** Phase 6 already runs the full test suite as a
+release gate. If Phase 6 reported any failure for `corectl` or
+`corekinect` (e.g., `nx test corectl` or `nx test corekinect-python`),
+the release halts — that test failure blocks the wheel publish for the
+same reason it blocks the deploy. Do not push a wheel from a red test
+suite.
+
+**Verify both are listed:**
+
+```bash
+[ "$PUBLISH_CORECTL" = "yes" ] && curl -sSk https://pypi.staging.concord.ad.corekinect.com/simple/corectl/ | grep "X.Y.Z"
+[ "$PUBLISH_COREKINECT" = "yes" ] && curl -sSk https://pypi.staging.concord.ad.corekinect.com/simple/corekinect/ | grep "X.Y.Z"
+```
+
+Each `grep` must find the version if its publish ran. If the pypi pod was
+just restarted by the deploy in 9.1, give it ~5s to come back before the
+push (the port-forward in the nx target retries on failure).
 
 ### 9.3 — Create the staging release record (IMMEDIATELY)
 
@@ -616,17 +644,28 @@ npx -y @devcontainers/cli exec ... nx update platform -c production
 
 ### 10.2 — Publish corectl + corekinect wheels to PRODUCTION pypi
 
-Wheels were already built in 9.2; just publish to production:
+Same nx push pattern as 9.2, against production. Wheels already built in
+9.2 (cached by nx); production push is just the twine step.
+
+Reuse `PUBLISH_CORECTL` / `PUBLISH_COREKINECT` from 9.2 — what shipped to
+staging must ship to production:
 
 ```bash
-PROD_PYPI=$(kubectl get pods -n production -l app.kubernetes.io/name=concord-pypi -o name | head -1 | cut -d/ -f2)
-kubectl cp tools/corectl/dist/corectl-X.Y.Z-py3-none-any.whl production/$PROD_PYPI:/data/packages/
-kubectl cp libs/python/dist/corekinect-X.Y.Z-py3-none-any.whl production/$PROD_PYPI:/data/packages/
+if [ "$PUBLISH_COREKINECT" = "yes" ]; then
+  npx nx run corekinect:push:production
+fi
+if [ "$PUBLISH_CORECTL" = "yes" ]; then
+  npx nx run corectl:push:production
+fi
 
 # Verify
-curl -sSk https://pypi.concord.ad.corekinect.com/simple/corectl/ | grep "X.Y.Z"
-curl -sSk https://pypi.concord.ad.corekinect.com/simple/corekinect/ | grep "X.Y.Z"
+[ "$PUBLISH_CORECTL" = "yes" ] && curl -sSk https://pypi.concord.ad.corekinect.com/simple/corectl/ | grep "X.Y.Z"
+[ "$PUBLISH_COREKINECT" = "yes" ] && curl -sSk https://pypi.concord.ad.corekinect.com/simple/corekinect/ | grep "X.Y.Z"
 ```
+
+`PYPI_USERNAME` and `PYPI_PASSWORD` must still be in the environment from
+Phase 9.2. The production push target port-forwards `svc/concord-pypi` to
+`localhost:18081` and twine-uploads with htpasswd auth.
 
 ### 10.3 — Create the production release record (IMMEDIATELY)
 

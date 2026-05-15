@@ -436,13 +436,19 @@ def _validate_compatibility(project_dir: Path, manifest: dict, result: Validatio
         installed = getattr(corekinect, "__version__", "unknown")
         result.ok(f"corekinect {installed} installed (requires {required_version})")
 
-        # Basic version check (not full semver range parsing)
         if required_version.startswith(">="):
             min_ver = required_version.lstrip(">=").split(",")[0].strip()
-            if installed < min_ver:
-                result.error(
-                    f"corekinect {installed} does not satisfy {required_version}"
-                )
+            try:
+                from packaging.version import Version
+                if Version(installed) < Version(min_ver):
+                    result.error(
+                        f"corekinect {installed} does not satisfy {required_version}"
+                    )
+            except Exception:
+                if installed < min_ver:
+                    result.error(
+                        f"corekinect {installed} does not satisfy {required_version}"
+                    )
     except ImportError:
         result.warn(f"corekinect not installed — cannot verify compatibility")
 

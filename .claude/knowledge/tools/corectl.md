@@ -119,6 +119,8 @@ Current pin: `corekinect~=0.10.0` (matches the platform's 0.10.x minor). When th
 
 `version_check` (the daily upgrade-availability probe) compares the running `corectl` version to the internal pypi's latest and surfaces a notice; it does not enforce the corekinect pin range.
 
+The separate **runtime framework-version check** inside `corectl test validate` (`commands/test.py::_validate_compatibility`) reads `framework` from the test app's `concord.yaml` (e.g., `corekinect>=0.3.0`) and compares the installed `corekinect.__version__` against the lower bound using PEP 440 parsing (`packaging.version.Version`). String comparison was previously used and produced false negatives at the 1.x→0.10.x boundary (`'0.10.4' < '0.3.0'` lex-wise). Always use Version-aware parsing for any new version check added to the validator.
+
 ## Build + distribution
 
 - Build: `nx build corectl` → wheel in `tools/corectl/dist/`.
