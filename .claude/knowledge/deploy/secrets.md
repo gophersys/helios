@@ -126,6 +126,21 @@ Rotating `JWT_SECRET_KEY` invalidates every issued token immediately. After rota
 - **pypi pod CrashLoopBackOff after enabling auth** — the htpasswd init container couldn't find `concord-pypi-htpasswd`. `PYPI_HTPASSWD` wasn't set in `shared.env`, or sync-secrets wasn't run. Disable auth temporarily in values (`infrastructure.pypi.auth.enabled: false`), set the secret, re-enable.
 - **CI nightly CronJob can't talk to CoreKinect internal hosts** — `corekinect-ca-certs` missing in `devops`. That Secret is cluster-managed by infra (not by `create-all.sh`); contact whoever bootstrapped the office cluster.
 
+## Canonical Bitwarden items
+
+Bitwarden is the source of truth. Each rotation works the same: edit the canonical item, mirror to `shared.env` / `<env>.env`, run `sync-secrets`, rolling-restart consumers. The table below is the single registry so a future rotation doesn't accidentally update a stale duplicate.
+
+| Secret material | Canonical Bitwarden item | Field on item | Mirrors to (gitignored env file → K8s) |
+|---|---|---|---|
+| Bitbucket API token | `project/corekinect/shared/bitbucket/api-token` | hidden field `API Token` | `BITBUCKET_API_TOKEN` in `shared.env` → `concord-secrets`, `concord-build-service-secrets` |
+| Bitbucket account email | `project/corekinect/shared/bitbucket/email` | password field | `BITBUCKET_EMAIL` in `shared.env` |
+| Bitbucket SSH key | `project/corekinect/shared/bitbucket/ssh-key` | attachment | `BITBUCKET_SSH_KEY_PATH` (file on host) → `bitbucket-ssh-key` |
+| Internal pypi htpasswd creds | `project/corekinect/concord/pypi/upload` | password field | `PYPI_USERNAME` / `PYPI_PASSWORD` (only used by `nx push corectl|corekinect`) |
+
+Items NOT in this table (legacy `shared/bitbucket/api-token`, `personal/bitbucket/account-credentials`, etc.) are either redirects to the canonical or personal-scope copies. **Do not rotate from them** — when in doubt, rotate from the canonical and re-mirror.
+
+The full rotation procedure for each item is stored in the item's notes in Bitwarden so the steps live with the secret. Copy/paste it into a fresh AI session if needed.
+
 ## Related knowledge
 
 - [`overview.md`](overview.md) — env model.
