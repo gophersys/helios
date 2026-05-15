@@ -36,7 +36,7 @@ logger = logging.getLogger("schema_drift")
 # load-bearing columns here as the schema evolves so future deploys
 # don't suffer the same transitional-pod failure mode.
 PROBES: List[Tuple[str, str]] = [
-    ("fixture_designs", "testPackageId"),
+    ("test_bed_designs", "testPackageId"),
     ("fixtures", "purpose"),
     ("product_stage_configs", "releasedTestPackageId"),
     ("manufacturing_sessions", "testPackageId"),

@@ -199,7 +199,7 @@ def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
             return manifest
     else:
         result.warn("corekinect.manifest not installed — skipping JSON Schema validation")
-        for fld in ["schema", "package", "product", "fixture"]:
+        for fld in ["schema", "package", "product", "testbed"]:
             if fld not in manifest:
                 result.error(f"Manifest missing '{fld}' field")
 
@@ -373,7 +373,7 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
     if pkg_type == "manufacturing" and not multi_slot:
         result.warn("Manufacturing package with multi_slot=false — most manufacturing fixtures are multi-slot")
 
-    # Validate the Python fixture file referenced by ``fixture.module``.
+    # Validate the Python testbed file referenced by ``testbed.module``.
     # AST-only — never imports the user's code.
     testbed_module = testbed.get("module", "")
     if testbed_module:
@@ -383,29 +383,29 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
                 extract_testbed,
             )
         except ImportError:
-            result.warn("corekinect.testbed not installed — skipping fixture extraction")
+            result.warn("corekinect.testbed not installed — skipping testbed extraction")
         else:
             if ":" not in testbed_module:
                 result.error(
-                    f"fixture.module={testbed_module!r} is malformed "
+                    f"testbed.module={testbed_module!r} is malformed "
                     f"(expected 'dotted.path:ClassName')"
                 )
             else:
                 module_path, _ = testbed_module.split(":", 1)
-                fixture_file = project_dir / Path(*module_path.split(".")).with_suffix(".py")
-                if not fixture_file.is_file():
+                testbed_file = project_dir / Path(*module_path.split(".")).with_suffix(".py")
+                if not testbed_file.is_file():
                     result.error(
-                        f"fixture.module points to {fixture_file.relative_to(project_dir)} — file not found"
+                        f"testbed.module points to {testbed_file.relative_to(project_dir)} — file not found"
                     )
                 else:
                     try:
-                        extract_testbed(fixture_file.read_text(), source_path=str(fixture_file))
+                        extract_testbed(testbed_file.read_text(), source_path=str(testbed_file))
                         result.ok(
-                            f"{fixture_file.relative_to(project_dir)} passes fixture validation"
+                            f"{testbed_file.relative_to(project_dir)} passes testbed validation"
                         )
                     except TestBedExtractionError as exc:
                         result.error(
-                            f"{fixture_file.relative_to(project_dir)}: {exc}"
+                            f"{testbed_file.relative_to(project_dir)}: {exc}"
                         )
 
     # Check pytest markers in pytest.ini or pyproject.toml
@@ -436,13 +436,19 @@ def _validate_compatibility(project_dir: Path, manifest: dict, result: Validatio
         installed = getattr(corekinect, "__version__", "unknown")
         result.ok(f"corekinect {installed} installed (requires {required_version})")
 
-        # Basic version check (not full semver range parsing)
         if required_version.startswith(">="):
             min_ver = required_version.lstrip(">=").split(",")[0].strip()
-            if installed < min_ver:
-                result.error(
-                    f"corekinect {installed} does not satisfy {required_version}"
-                )
+            try:
+                from packaging.version import Version
+                if Version(installed) < Version(min_ver):
+                    result.error(
+                        f"corekinect {installed} does not satisfy {required_version}"
+                    )
+            except Exception:
+                if installed < min_ver:
+                    result.error(
+                        f"corekinect {installed} does not satisfy {required_version}"
+                    )
     except ImportError:
         result.warn(f"corekinect not installed — cannot verify compatibility")
 
@@ -1136,22 +1142,19 @@ def _authoritative_fields(local: dict, product: dict, revision: dict) -> List[Tu
     """
     board_slug = _revision_slug(product, revision)
 
-    # The fixture module reference we KNOW is correct for this board —
+    # The testbed module reference we KNOW is correct for this board —
     # but only rewrite it if the author hasn't custom-named it (same
     # module prefix). Never clobber a bespoke class name.
-    fx = (local.get("testbed") or {})
-    module_ref = fx.get("module", "")
+    tb = (local.get("testbed") or {})
+    module_ref = tb.get("module", "")
     expected_module_prefix = f"testbeds.{board_slug}.testbed:"
     desired_module = module_ref
-    if not module_ref or ":" not in module_ref or not module_ref.startswith("fixtures."):
-        # Fresh manifest — fill in a reasonable default.
+    if not module_ref or ":" not in module_ref or not module_ref.startswith("testbeds."):
         pkg_type = (local.get("package") or {}).get("type", "validation")
         suffix = "MfgTestBed" if pkg_type == "manufacturing" else "TestBed"
         board_class = "".join(p.capitalize() for p in board_slug.split("_"))
         desired_module = expected_module_prefix + f"{board_class}{suffix}"
     elif not module_ref.startswith(expected_module_prefix):
-        # Board changed under us; move the class name across but keep
-        # the part after ``:`` (the author's class name) intact.
         last = module_ref.split(":", 1)[1]
         desired_module = expected_module_prefix + last
 
@@ -1160,7 +1163,7 @@ def _authoritative_fields(local: dict, product: dict, revision: dict) -> List[Tu
         ("product.board", board_slug),
         ("product.device.type_id", revision.get("deviceType") if revision.get("deviceType") is not None else (local.get("product", {}).get("device", {}) or {}).get("type_id", 0)),
         ("product.device.variant_id", revision.get("deviceVariant") if revision.get("deviceVariant") is not None else (local.get("product", {}).get("device", {}) or {}).get("variant_id", 0)),
-        ("fixture.module", desired_module),
+        ("testbed.module", desired_module),
     ]
 
 
@@ -1397,16 +1400,18 @@ def package(path: str):
 @test.command()
 @click.argument("path", default=".", required=False)
 @click.option("--release", "auto_release", is_flag=True, help="Upload and release in one step (auto-versioned)")
+@click.option("--message", "-m", "message_flag", default=None, help="Upload message (skips the interactive prompt; pass empty string for no message)")
 @click.pass_context
-def upload(ctx, path: str, auto_release: bool):
+def upload(ctx, path: str, auto_release: bool, message_flag: Optional[str]):
     """Upload test package to Concord platform as a development version.
 
     Auto-generates version from git SHA + timestamp for uniqueness.
     Use --release to upload and promote to released in one step.
 
     Examples:
-        corectl upload                     # dev-abc12345-1713100800
-        corectl upload --release           # upload + auto-release
+        corectl upload                                  # dev-abc12345-1713100800 (prompts)
+        corectl upload -m "wire VBAT shunt"             # non-interactive with message
+        corectl upload --release -m "v0.10.5 patch"     # upload + auto-release
     """
     import tarfile
     import hashlib
@@ -1473,12 +1478,14 @@ def upload(ctx, path: str, auto_release: bool):
     sha = git_sha or "unknown"
     version = f"dev-{sha}-{int(_time.time())}"
 
-    # Prompt for upload message
-    upload_message = click.prompt(
-        f"Upload message [{git_sha}]",
-        default="",
-        show_default=False,
-    ).strip()
+    if message_flag is not None:
+        upload_message = message_flag.strip()
+    else:
+        upload_message = click.prompt(
+            f"Upload message [{git_sha}]",
+            default="",
+            show_default=False,
+        ).strip()
 
     status = "DEVELOPMENT"
     package_type = _get_package_type(manifest)

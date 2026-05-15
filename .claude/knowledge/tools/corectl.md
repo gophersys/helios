@@ -84,7 +84,8 @@ tools/corectl/
 - **`corectl test`** — the bulk of the tool. Each subcommand is also aliased at the top level (`corectl init`, `corectl validate`, …). Subcommands:
   - `init [PATH] --type <manufacturing|validation> --product <id> --board <name>` — scaffold a new project from `templates/<type>/`. Renders Jinja-style placeholders.
   - `validate [path]` — walk the project, confirm the contract (manifest schema, testbed declaration, test discovery, marker discipline). Internally invokes `validate_project` / `validate_file` from `test_contracts.py` (schema correctness) and `test_depth.py` (per-stage test coverage). These are internal validators, **not** their own Click subcommands.
-  - `upload` — zip the project's `tests/` + `concord.yaml` + `concord.yaml` `testbed:` block into a structured archive; `POST /v2/test-packages/upload` to register, follow up with chunked uploads via presigned URLs. Status: DEVELOPMENT on success.
+  - `upload [-m MESSAGE]` — zip the project's `tests/` + `concord.yaml` + `concord.yaml` `testbed:` block into a structured archive; `POST /v2/test-packages/upload` to register, follow up with chunked uploads via presigned URLs. Status: DEVELOPMENT on success. The `-m / --message` flag skips the interactive prompt for scripted / CI use; without it, corectl prompts for a free-form upload message.
+  - `sync` — pull `product` + `board` + `testbed.module` from the backend and reconcile `concord.yaml`. The authoritative-fields list lives in `commands/test.py::_authoritative_fields` — keyed on `testbed.module` (not the legacy `fixture.module`). The expected module prefix is `testbeds.<board>.testbed:` and the default class name is `<BoardClass>{MfgTestBed|TestBed}` based on package type. Touching this function silently changes which manifest fields the platform owns; treat additions as a deliberate policy call.
   - `release <pkg-id>` — promote DEVELOPMENT → RELEASED (operator-level permission required).
   - `versions` — list published versions of the current project's package.
 - **`corectl runs`** — list / show / cancel `TestRun`s, filtered by package, fixture, or status. Useful for CI scripts.
@@ -118,6 +119,8 @@ The `force-include` block in `pyproject.toml` is critical: hatch otherwise exclu
 Current pin: `corekinect~=0.10.0` (matches the platform's 0.10.x minor). When the platform bumps to 0.10.0, update this pin to `~=0.10.0` in the same commit as the corekinect `__init__.py` bump.
 
 `version_check` (the daily upgrade-availability probe) compares the running `corectl` version to the internal pypi's latest and surfaces a notice; it does not enforce the corekinect pin range.
+
+The separate **runtime framework-version check** inside `corectl test validate` (`commands/test.py::_validate_compatibility`) reads `framework` from the test app's `concord.yaml` (e.g., `corekinect>=0.3.0`) and compares the installed `corekinect.__version__` against the lower bound using PEP 440 parsing (`packaging.version.Version`). String comparison was previously used and produced false negatives at the 1.x→0.10.x boundary (`'0.10.4' < '0.3.0'` lex-wise). Always use Version-aware parsing for any new version check added to the validator.
 
 ## Build + distribution
 
