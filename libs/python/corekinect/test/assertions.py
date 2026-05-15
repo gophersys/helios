@@ -9,7 +9,7 @@ Two layers:
 * **Coarse helpers** (``assert_powered``, ``assert_current_in_range``,
   ``assert_cloud_message``, ``assert_flash_success``,
   ``assert_fuota_progress``) — built around the validation
-  ``ctx.fixture`` / cloud-client surfaces.
+  ``ctx.testbed`` / cloud-client surfaces.
 
 * **Test-author DSL** (``assert_and_record``, ``assert_adc_settles``,
   ``assert_current_settles``) — the three-call patterns that recur
@@ -24,7 +24,7 @@ Usage:
         assert_and_record, assert_adc_settles, assert_current_settles,
     )
 
-    assert_powered(ctx.fixture, min_current_ma=5.0)
+    assert_powered(ctx.testbed, min_current_ma=5.0)
     assert_current_in_range(current_ma, min_ma=0.05, max_ma=0.1, name="sleep")
 
     # In a manufacturing test:

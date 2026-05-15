@@ -1,12 +1,12 @@
 """Configurable stubs for testing validation test logic.
 
-Stubs let you pre-program fixture/power/cloud behavior so you can run
+Stubs let you pre-program testbed/power/cloud behavior so you can run
 Jared's actual test functions against known scenarios and verify the
 test logic correctly detects pass/fail conditions.
 
 Usage:
-    fixture = StubTestBed()
-    fixture.stub_current(avg=20.0)  # Over budget → test should fail
+    testbed = StubTestBed()
+    testbed.stub_current(avg=20.0)  # Over budget → test should fail
     power = StubPowerProfiler(avg_current_ma=20.0)
 
     # Run the actual test function and assert it raises AssertionError
@@ -40,7 +40,7 @@ class StubPowerConfig:
 
 @dataclass
 class StubTestBedProfile:
-    """Configurable fixture profile for stub testing.
+    """Configurable testbed profile for stub testing.
 
     Defaults match Alpha B0 battery mode. Override fields to test
     different product configurations.
@@ -89,7 +89,7 @@ class StubTestBedProfile:
 
 
 class StubTestBed:
-    """Configurable fixture stub for testing test logic.
+    """Configurable testbed stub for testing test logic.
 
     Unlike MockTestBedController (which returns plausible defaults),
     StubTestBed lets you pre-program specific behaviors to verify
@@ -563,13 +563,13 @@ class StubTestContext:
 
     def __init__(
         self,
-        fixture: StubTestBed = None,
+        testbed: StubTestBed = None,
         power: StubPowerProfiler = None,
         cloud: StubCloudClient = None,
         uart: StubUartDemuxer = None,
     ):
         """  init  ."""
-        self.fixture = fixture or StubTestBed()
+        self.testbed = testbed or StubTestBed()
         self.power = power or StubPowerProfiler()
         self.cloud = cloud or StubCloudClient()
         self.uart = uart or StubUartDemuxer()
@@ -579,8 +579,8 @@ class StubTestContext:
         """Setup test."""
         self.cloud.mark_test_start()
         self.uart.clear()
-        if hasattr(self.fixture, '_button_pressed'):
-            self.fixture._button_pressed = False
+        if hasattr(self.testbed, '_button_pressed'):
+            self.testbed._button_pressed = False
 
     def teardown_test(self, test_name: str, artifacts_dir: str = None) -> None:
         """Teardown test."""
@@ -592,7 +592,7 @@ class StubTestContext:
     def passing(cls) -> "StubTestContext":
         """Context where all tests should pass (within all budgets)."""
         return cls(
-            fixture=StubTestBed(powered=True, dut_current_ma=10.0, charger_current_ma=20.0),
+            testbed=StubTestBed(powered=True, dut_current_ma=10.0, charger_current_ma=20.0),
             power=StubPowerProfiler(avg_current_ma=3.0, peak_current_ma=80.0, min_current_ma=1.0),
             cloud=StubCloudClient(),
         )
@@ -601,7 +601,7 @@ class StubTestContext:
     def failing_power(cls, avg_current_ma: float = 20.0, peak_current_ma: float = 250.0) -> "StubTestContext":
         """Context where power tests should fail (over budget)."""
         return cls(
-            fixture=StubTestBed(powered=True),
+            testbed=StubTestBed(powered=True),
             power=StubPowerProfiler(avg_current_ma=avg_current_ma, peak_current_ma=peak_current_ma),
         )
 
@@ -609,15 +609,15 @@ class StubTestContext:
     def device_off(cls) -> "StubTestContext":
         """Context where device is not powered."""
         return cls(
-            fixture=StubTestBed(powered=False, dut_current_ma=0.0, charger_current_ma=0.0),
+            testbed=StubTestBed(powered=False, dut_current_ma=0.0, charger_current_ma=0.0),
             power=StubPowerProfiler(avg_current_ma=0.0, peak_current_ma=0.0, min_current_ma=0.0),
         )
 
     @classmethod
     def batteryless(cls) -> "StubTestContext":
-        """Context with batteryless fixture profile."""
+        """Context with batteryless testbed profile."""
         profile = StubTestBedProfile(power=StubPowerConfig(battery_installed=False))
         return cls(
-            fixture=StubTestBed(profile=profile, dut_current_ma=15.0, charger_current_ma=0.0),
+            testbed=StubTestBed(profile=profile, dut_current_ma=15.0, charger_current_ma=0.0),
             power=StubPowerProfiler(avg_current_ma=8.0),
         )

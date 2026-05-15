@@ -44,7 +44,7 @@ class TestContext:
     Attributes:
         mtib: MTIB V1 gRPC client.
         cloud: CoreCloud polling client.
-        fixture: Physical stimulus controller (duck-typed).
+        testbed: Physical stimulus controller (duck-typed).
         uart: Dual-target UART capture.
         power: Power measurement profiler.
         accel: Accelerometer profiler (None if hardware doesn't support it).
@@ -57,14 +57,14 @@ class TestContext:
         self,
         mtib: MtibV1Client,
         cloud: CloudClient,
-        fixture: Any,
+        testbed: Any,
         uart: UartDemuxer,
         power: PowerProfiler,
         product=None,
     ):
         self.mtib = mtib
         self.cloud = cloud
-        self.fixture = fixture
+        self.testbed = testbed
         self.uart = uart
         self.power = power
         self.product = product
@@ -317,16 +317,16 @@ class TestContext:
     # ═══════════════════════════════════════════════════════════════════════
 
     def setup_test(self, test_name: Optional[str] = None, module: Optional[str] = None) -> None:
-        """Mark test start, clear UART buffer, reset fixture state."""
+        """Mark test start, clear UART buffer, reset testbed state."""
         self.cloud.mark_test_start()
         self.uart.clear()
         if test_name:
             self.telemetry.set_test(test_name, module=module)
-        # Reset transient fixture state (button press, etc.) between tests
-        # for fixtures that track it. Real TestBed subclasses drive GPIO
+        # Reset transient testbed state (button press, etc.) between tests
+        # for testbeds that track it. Real TestBed subclasses drive GPIO
         # directly and don't carry this attribute.
-        if hasattr(self.fixture, '_button_pressed'):
-            self.fixture._button_pressed = False
+        if hasattr(self.testbed, '_button_pressed'):
+            self.testbed._button_pressed = False
 
     def teardown_test(self, test_name: str, artifacts_dir: Optional[str] = None) -> None:
         """Dump UART logs to artifacts_dir if provided."""
