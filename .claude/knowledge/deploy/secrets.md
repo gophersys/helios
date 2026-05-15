@@ -134,3 +134,45 @@ Rotating `JWT_SECRET_KEY` invalidates every issued token immediately. After rota
 - [`network.md`](network.md) — TLS Secret (`concord-tls`) + cert-manager.
 - [`../../rules/secrets-handling.md`](../../rules/secrets-handling.md) — the rule of "no secrets in git".
 - [`../../rules/all-three-envs.md`](../../rules/all-three-envs.md) — every new env var touches dev + staging + production.
+
+
+## Internal PyPI upload credentials
+
+`nx push corectl -c <env>` and `nx push corekinect -c <env>` need to authenticate against the cluster's internal pypi (`concord-pypi` service in each namespace, htpasswd-protected). Set:
+
+```
+export PYPI_USERNAME=concord
+export PYPI_PASSWORD=<plaintext-from-bitwarden>
+```
+
+| Field | Where |
+|---|---|
+| Plaintext password | Bitwarden item `project/corekinect/concord/pypi/upload` |
+| Hashed entry | `infrastructure/clusters/office/secrets/shared.env` as `PYPI_HTPASSWD` |
+| K8s Secret | `concord-pypi-htpasswd` in both `staging` + `production` namespaces (synced by `create-all.sh`) |
+| Username | always `concord` |
+
+### Rotation procedure
+
+1. Generate new plaintext + htpasswd line:
+   ```bash
+   NEW_PW=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+   HTPASSWD=$(echo -n "$NEW_PW" | openssl dgst -sha1 -binary | base64 | awk -v u=concord '{print u":{SHA}"$1}')
+   ```
+2. Update Bitwarden item `project/corekinect/concord/pypi/upload` with the new plaintext.
+3. Update `infrastructure/clusters/office/secrets/shared.env`: `PYPI_HTPASSWD=$HTPASSWD`.
+4. Re-apply both K8s Secrets:
+   ```bash
+   for ns in production staging; do
+     echo "$HTPASSWD" | kubectl -n $ns create secret generic concord-pypi-htpasswd \
+       --from-file=.htpasswd=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+   done
+   ```
+5. Restart pypi pods so the init container reloads the htpasswd:
+   ```bash
+   kubectl -n production rollout restart deploy/concord-pypi
+   kubectl -n staging    rollout restart deploy/concord-pypi
+   ```
+6. Test: `PYPI_PASSWORD=$NEW_PW nx push corectl -c staging` should succeed.
+
+The credential was rotated 2026-05-15 — previous hash `concord:{SHA}cLWNyHnLEc9PjKNjtW9nvOjjLp8=` (plaintext never captured) replaced with a fresh one stored in Bitwarden.

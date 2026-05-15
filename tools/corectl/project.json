@@ -3,41 +3,56 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "tools/corectl",
   "projectType": "application",
-  "tags": ["scope:tools", "type:cli"],
+  "tags": [
+    "scope:tools",
+    "type:cli"
+  ],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
       "options": {
         "cwd": "tools/corectl",
-        "command": "pip install build && python -m build"
+        "command": "pip install build && python3 -m build"
       },
       "configurations": {
         "development": {},
         "staging": {},
         "production": {}
       },
-      "outputs": ["{projectRoot}/dist"]
+      "outputs": [
+        "{projectRoot}/dist"
+      ]
     },
     "push": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "tools/corectl" },
+      "options": {
+        "cwd": "tools/corectl"
+      },
       "configurations": {
-        "development": { "command": "twine upload --repository-url http://localhost:8091 --username '' --password '' --disable-progress-bar dist/*.whl" },
-        "staging": { "commands": [
-          "kubectl port-forward -n staging svc/concord-pypi 18080:8080 &",
-          "sleep 2",
-          "twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar dist/*.whl",
-          "kill %1 2>/dev/null || true"
-        ] },
-        "production": { "commands": [
-          "kubectl port-forward -n production svc/concord-pypi 18081:8080 &",
-          "sleep 2",
-          "twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar dist/*.whl",
-          "kill %1 2>/dev/null || true"
-        ] }
+        "development": {
+          "command": "twine upload --repository-url http://localhost:8091 --username '' --password '' --disable-progress-bar dist/*.whl"
+        },
+        "staging": {
+          "commands": [
+            ": ${PYPI_USERNAME:?PYPI_USERNAME must be set \u2014 see infrastructure/clusters/office/secrets/.env.example or Bitwarden \"project/corekinect/concord/pypi/upload\"}",
+            ": ${PYPI_PASSWORD:?PYPI_PASSWORD must be set \u2014 see Bitwarden \"project/corekinect/concord/pypi/upload\"}",
+            "kubectl port-forward -n staging svc/concord-pypi 18080:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18080 --username \"$PYPI_USERNAME\" --password \"$PYPI_PASSWORD\" --disable-progress-bar dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
+          ],
+          "parallel": false
+        },
+        "production": {
+          "commands": [
+            ": ${PYPI_USERNAME:?PYPI_USERNAME must be set \u2014 see infrastructure/clusters/office/secrets/.env.example or Bitwarden \"project/corekinect/concord/pypi/upload\"}",
+            ": ${PYPI_PASSWORD:?PYPI_PASSWORD must be set \u2014 see Bitwarden \"project/corekinect/concord/pypi/upload\"}",
+            "kubectl port-forward -n production svc/concord-pypi 18081:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18081 --username \"$PYPI_USERNAME\" --password \"$PYPI_PASSWORD\" --disable-progress-bar dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
+          ],
+          "parallel": false
+        }
       }
     },
     "test": {
@@ -56,21 +71,25 @@
     },
     "publish-wheel": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "defaultConfiguration": "staging",
-      "options": { "cwd": "tools/corectl" },
+      "options": {
+        "cwd": "tools/corectl"
+      },
       "configurations": {
         "staging": {
           "commands": [
             "pip install --quiet --upgrade twine",
-            "kubectl port-forward -n staging svc/concord-pypi 18080:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar --skip-existing dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
+            "kubectl port-forward -n staging svc/concord-pypi 18080:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
           ],
           "parallel": false
         },
         "production": {
           "commands": [
             "pip install --quiet --upgrade twine",
-            "kubectl port-forward -n production svc/concord-pypi 18081:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar --skip-existing dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
+            "kubectl port-forward -n production svc/concord-pypi 18081:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
           ],
           "parallel": false
         }
