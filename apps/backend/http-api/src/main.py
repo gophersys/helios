@@ -73,13 +73,15 @@ def health():
 
 @server.route("/ready")
 def ready():
-    """Readiness probe — DB reachable AND Prisma client matches schema.
+    """Readiness probe — DB reachable, Prisma client matches schema,
+    and dependent integrations (CkBoards / Bitbucket) initialized.
 
-    The schema-drift guard is the load-bearing addition: a transitional
-    deploy where this pod's bundled Prisma client was built against a
-    newer schema than the DB had received caused silent 500s on the
-    ``releases`` write path. Failing readiness yanks the mismatched pod
-    from rotation immediately instead of letting it serve broken writes.
+    The schema-drift guard caught transitional Prisma mismatches. The
+    CkBoards guard catches the failure mode where BITBUCKET_API_TOKEN
+    has been revoked at Bitbucket but the K8s Secret still carries the
+    old value — pre-fix this surfaced as a 500 on /v2/products/boards/branches
+    after every deploy. Now /ready returns 503 so the rollout verifier
+    catches it before the deploy claims success.
     """
     try:
         db = get_db_client()
@@ -91,7 +93,7 @@ def ready():
         from src.services.database.schema_drift import check_schema_drift
         report = check_schema_drift(db)
     except Exception:  # never let the probe itself crash the pod
-        return jsonify({"status": "ready", "service": "http-api"}), 200
+        report = {"healthy": True}
 
     if not report.get("healthy"):
         return jsonify({
@@ -100,6 +102,20 @@ def ready():
             "reason": "schema_drift",
             "drift": report.get("drift", []),
         }), 503
+
+    try:
+        from api.v2.products.board_discovery import get_ck_boards_service
+        ck_svc = get_ck_boards_service()
+        if ck_svc is None or not ck_svc.is_ready:
+            return jsonify({
+                "status": "not_ready",
+                "service": "http-api",
+                "reason": "ckboards_unavailable",
+                "hint": "Rotate the K8s Secret carrying BITBUCKET_API_TOKEN and restart the deployment.",
+            }), 503
+    except Exception:
+        pass
+
     return jsonify({"status": "ready", "service": "http-api"}), 200
 
 
@@ -206,9 +222,16 @@ if __name__ == "__main__":
         init_observability_service(poll_interval_s=5)
 
         # Initialize CkBoards service (board definition discovery via Bitbucket REST API)
-        from api.v2.products.board_discovery import init_ck_boards_service
+        from api.v2.products.board_discovery import init_ck_boards_service, get_ck_boards_service
         init_ck_boards_service(env_config)
-        logger.info("CkBoards service ready")
+        _ck_svc = get_ck_boards_service()
+        if _ck_svc is not None and _ck_svc.is_ready:
+            logger.info("CkBoards service ready")
+        else:
+            logger.error(
+                "CkBoards UNAVAILABLE — board discovery endpoints will 500. "
+                "Rotate the K8s Secret carrying BITBUCKET_API_TOKEN and restart."
+            )
 
         # Give the notifier access to SocketIO for real-time push
         init_socketio(socketio)
