@@ -137,3 +137,10 @@ infrastructure/clusters/*/kubeconfigs/generated/
 *.zip
 
 /.claude/worktrees/
+
+# Stale root-owned directories left behind by prior devcontainer runs.
+# These accumulate when the container writes to host-bind-mounted paths as
+# root and the host user can't delete the contents. Renaming + ignoring is
+# the only host-side cleanup until a session re-enters the container.
+**/.dist-stale-root/
+**/.logs-stale-root/
