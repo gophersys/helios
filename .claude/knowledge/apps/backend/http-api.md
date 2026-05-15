@@ -170,7 +170,7 @@ Graceful shutdown (SIGTERM/SIGINT) stops the schedulers first, sleeps 2 s for in
 
 | Dep | Where | Env var(s) | Notes |
 |---|---|---|---|
-| PostgreSQL (via Prisma) | `services/database/prisma.py` | inherited via Prisma's `DATABASE_URL` | Schema authority is `prisma/schema.prisma`. `/ready` runs a drift check (`schema_drift.py`) and returns 503 on mismatch |
+| PostgreSQL (via Prisma) | `services/database/prisma.py` | inherited via Prisma's `DATABASE_URL` | Schema authority is `prisma/schema.prisma`. `/ready` runs a drift check (`schema_drift.py`) and returns 503 on mismatch. `PROBES` list tracks post-rename table names (e.g., `test_bed_designs`, not the legacy `fixture_designs`) — update when a column is renamed or a table replaced. |
 | MinIO | `services/storage/client.py` | `STORAGE_URL`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_BUCKET_NAME` | Buckets: `firmware`, `test-packages`, `artifacts` |
 | Kubernetes API | `services/kubernetes/client.py` | in-cluster or kubeconfig | Used for runner Jobs, deployment status, MTIB deployments. `VALIDATION_NAMESPACE` (default `validation`) is privileged. |
 | Bitbucket Cloud | `services/integrations/bitbucket_client.py` | `BITBUCKET_SSH_KEY` (base64, written to disk), `BITBUCKET_API_TOKEN`, `BITBUCKET_EMAIL`, `BITBUCKET_WORKSPACE`, `BITBUCKET_WEBHOOK_SECRET` | SSH for clone-equivalents; API token (Basic auth) for PR + branch REST queries |
