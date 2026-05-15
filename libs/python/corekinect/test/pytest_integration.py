@@ -1,17 +1,17 @@
 """Capability-based test skipping for pytest.
 
-Tests skip gracefully when the fixture lacks required hardware.
+Tests skip gracefully when the testbed lacks required hardware.
 Capabilities are plain strings (e.g., "button", "ppg_servo") defined
-in product fixture YAML.
+in product testbed YAML.
 
     @requires_capability("button")
-    def test_button_press(fixture):
-        fixture.press_button()
+    def test_button_press(testbed):
+        testbed.press_button()
 
     class TestBiometric:
         @requires_capability("ppg_servo", "ppg_led")
         def test_on_skin(self):
-            self.ctx.fixture.simulate_on_skin(True)
+            self.ctx.testbed.simulate_on_skin(True)
 """
 
 import functools
@@ -21,34 +21,42 @@ from typing import Callable, List, Optional
 import pytest
 
 
-def _find_fixture(func: Callable, args: tuple, kwargs: dict):
-    """Find the TestBed instance from a test's args/kwargs. Returns None if not found."""
-    # Direct fixture kwargs
-    fixture = kwargs.get("fixture") or kwargs.get("validation_fixture")
-    if fixture is not None:
-        return fixture
+def _find_testbed(func: Callable, args: tuple, kwargs: dict):
+    """Find the TestBed instance from a test's args/kwargs. Returns None if not found.
 
-    # ctx kwarg
+    Looks up under "testbed" first (the post-rename canonical name), then
+    falls back to "fixture" / "validation_fixture" for legacy callers.
+    """
+    testbed = kwargs.get("testbed") or kwargs.get("fixture") or kwargs.get("validation_fixture")
+    if testbed is not None:
+        return testbed
+
     ctx = kwargs.get("ctx")
-    if ctx is not None and hasattr(ctx, "fixture"):
-        return ctx.fixture
-
-    # Class-based test: self is args[0], may have self.ctx
-    if args and hasattr(args[0], "ctx"):
-        ctx = args[0].ctx
-        if ctx is not None and hasattr(ctx, "fixture"):
+    if ctx is not None:
+        if hasattr(ctx, "testbed"):
+            return ctx.testbed
+        if hasattr(ctx, "fixture"):
             return ctx.fixture
 
-    # Positional args by parameter name (fallback)
+    if args and hasattr(args[0], "ctx"):
+        ctx = args[0].ctx
+        if ctx is not None:
+            if hasattr(ctx, "testbed"):
+                return ctx.testbed
+            if hasattr(ctx, "fixture"):
+                return ctx.fixture
+
     try:
         sig = inspect.signature(func)
         params = list(sig.parameters.keys())
         for i, param in enumerate(params):
-            if param in ("fixture", "validation_fixture"):
+            if param in ("testbed", "fixture", "validation_fixture"):
                 if i < len(args):
                     return args[i]
             elif param == "ctx" and i < len(args):
                 obj = args[i]
+                if hasattr(obj, "testbed"):
+                    return obj.testbed
                 if hasattr(obj, "fixture"):
                     return obj.fixture
     except (ValueError, TypeError):
@@ -57,15 +65,19 @@ def _find_fixture(func: Callable, args: tuple, kwargs: dict):
     return None
 
 
+# Back-compat alias — old callers may have imported _find_fixture directly.
+_find_fixture = _find_testbed
+
+
 def _cap_to_str(cap) -> str:
     """Convert a capability to a string. Accepts str or Capability enum."""
     return cap.value if hasattr(cap, "value") else str(cap)
 
 
 def requires_capability(*caps: str) -> Callable:
-    """Skip test if fixture lacks any of the listed capabilities.
+    """Skip test if testbed lacks any of the listed capabilities.
 
-    Works with function-based tests, class-based tests with fixture/ctx
+    Works with function-based tests, class-based tests with testbed/ctx
     params, and class-based tests with self.ctx.
 
     Args:
@@ -74,23 +86,23 @@ def requires_capability(*caps: str) -> Callable:
     cap_strings = [_cap_to_str(c) for c in caps]
 
     def decorator(func: Callable) -> Callable:
-        """Wrap func to skip if fixture lacks required capabilities."""
+        """Wrap func to skip if testbed lacks required capabilities."""
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             """Invoke the wrapped test, skipping if capabilities are missing."""
-            fixture = _find_fixture(func, args, kwargs)
+            testbed = _find_testbed(func, args, kwargs)
 
-            if fixture is None:
+            if testbed is None:
                 return func(*args, **kwargs)
 
             # Check capabilities — try has() first (new API), fall back to has_capability()
             missing = []
             for cap_str in cap_strings:
-                if hasattr(fixture, "has"):
-                    if not fixture.has(cap_str):
+                if hasattr(testbed, "has"):
+                    if not testbed.has(cap_str):
                         missing.append(cap_str)
-                elif hasattr(fixture, "has_capability"):
-                    if not fixture.has_capability(cap_str):
+                elif hasattr(testbed, "has_capability"):
+                    if not testbed.has_capability(cap_str):
                         missing.append(cap_str)
 
             if missing:

@@ -622,10 +622,10 @@ def fixture_ctx(request: pytest.FixtureRequest, manifest: "Manifest"):
             )
         )
 
-    # Import the fixture controller class declared in the manifest and
+    # Import the testbed controller class declared in the manifest and
     # pass it as a factory so ``slot.connect()`` can attach an instance
-    # to each ``SlotContext.fixture``. Without this, every test that
-    # reads ``slot.fixture`` AttributeErrors on ``None`` — the single-
+    # to each ``SlotContext.testbed``. Without this, every test that
+    # reads ``slot.testbed`` AttributeErrors on ``None`` — the single-
     # slot path below already does this; multi-slot was forgetting to.
     module_ref = manifest.testbed.module
     try:

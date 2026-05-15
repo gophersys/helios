@@ -71,7 +71,7 @@ class SlotContext:
 
     # Set during connect()
     mtib: Optional[MtibV1Client] = field(default=None, repr=False)
-    fixture: Optional[Any] = field(default=None, repr=False)
+    testbed: Optional[Any] = field(default=None, repr=False)
 
     def connect(self, testbed_factory: Optional[Callable] = None) -> None:
         """Connect MTIB client and create fixture controller.
@@ -97,7 +97,7 @@ class SlotContext:
                     raise ConnectionError(f"MTIB not ready: {errors}")
 
                 if testbed_factory:
-                    self.fixture = testbed_factory(self.mtib)
+                    self.testbed = testbed_factory(self.mtib)
 
                 log.info(
                     "Slot %s connected: %s:%d (snr=%s)%s",

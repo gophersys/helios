@@ -33,7 +33,7 @@ class TestRequiresCapabilityDecorator:
 
     def test_passes_when_capability_present(self):
         """Test runs when fixture has required capability."""
-        fixture = _StubTestBed(["button"])
+        testbed = _StubTestBed(["button"])
 
         results = []
 
@@ -43,14 +43,14 @@ class TestRequiresCapabilityDecorator:
             results.append("ran")
             return True
 
-        result = test_func(fixture=fixture)
+        result = test_func(fixture=testbed)
 
         assert result is True
         assert results == ["ran"]
 
     def test_skips_when_capability_missing(self):
-        """Test is skipped when fixture lacks capability."""
-        fixture = _StubTestBed([])
+        """Test is skipped when testbed lacks capability."""
+        testbed = _StubTestBed([])
 
         @requires_capability("button")
         def test_func(fixture):
@@ -58,13 +58,13 @@ class TestRequiresCapabilityDecorator:
             pytest.fail("Should not run")
 
         with pytest.raises(pytest.skip.Exception) as exc_info:
-            test_func(fixture=fixture)
+            test_func(fixture=testbed)
 
         assert "button" in str(exc_info.value).lower()
 
     def test_multiple_capabilities_all_present(self):
         """Test runs when all required capabilities present."""
-        fixture = _StubTestBed(["ppg_servo", "ppg_led"])
+        testbed = _StubTestBed(["ppg_servo", "ppg_led"])
 
         ran = []
 
@@ -73,12 +73,12 @@ class TestRequiresCapabilityDecorator:
             """Test func."""
             ran.append(True)
 
-        test_func(fixture=fixture)
+        test_func(fixture=testbed)
         assert ran == [True]
 
     def test_multiple_capabilities_one_missing(self):
         """Test skips when any required capability missing."""
-        fixture = _StubTestBed(["ppg_servo"])
+        testbed = _StubTestBed(["ppg_servo"])
 
         @requires_capability("ppg_servo", "ppg_led")
         def test_func(fixture):
@@ -86,13 +86,13 @@ class TestRequiresCapabilityDecorator:
             pytest.fail("Should not run")
 
         with pytest.raises(pytest.skip.Exception) as exc_info:
-            test_func(fixture=fixture)
+            test_func(fixture=testbed)
 
         assert "ppg_led" in str(exc_info.value).lower()
 
     def test_finds_fixture_in_positional_args(self):
         """Decorator finds fixture when passed positionally."""
-        fixture = _StubTestBed(["button"])
+        testbed = _StubTestBed(["button"])
 
         ran = []
 
@@ -101,7 +101,7 @@ class TestRequiresCapabilityDecorator:
             """Test func."""
             ran.append(True)
 
-        test_func(fixture)  # positional arg
+        test_func(testbed)  # positional arg
         assert ran == [True]
 
     def test_stores_requirements_on_function(self):
@@ -128,14 +128,14 @@ class TestRequiresCapabilityDecorator:
         assert ran == [True]
 
     def test_finds_fixture_via_ctx_pattern(self):
-        """Decorator finds fixture via ctx.fixture (Stage 4 test pattern)."""
-        fixture = _StubTestBed(["button"])
+        """Decorator finds fixture via ctx.testbed (Stage 4 test pattern)."""
+        testbed = _StubTestBed(["button"])
 
         class MockCtx:
             """Tests for MockCtx."""
             pass
         ctx = MockCtx()
-        ctx.fixture = fixture
+        ctx.testbed = testbed
 
         ran = []
 
@@ -148,14 +148,14 @@ class TestRequiresCapabilityDecorator:
         assert ran == [True]
 
     def test_skips_via_ctx_pattern_when_missing(self):
-        """Decorator skips via ctx.fixture when capability missing."""
-        fixture = _StubTestBed([])
+        """Decorator skips via ctx.testbed when capability missing."""
+        testbed = _StubTestBed([])
 
         class MockCtx:
             """Tests for MockCtx."""
             pass
         ctx = MockCtx()
-        ctx.fixture = fixture
+        ctx.testbed = testbed
 
         @requires_capability("button")
         def test_func(ctx, firmware_build):
