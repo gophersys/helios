@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _CLEANUP_INTERVAL_HOURS = 24
 _RETENTION_DAYS = 30
 _BUILD_RECOVERY_INTERVAL_SECONDS = 60
+_NODE_IP_REFRESH_INTERVAL_SECONDS = 60
 
 
 def _cleanup_old_audit_logs():
@@ -60,6 +61,29 @@ def _build_recovery_loop():
         time.sleep(_BUILD_RECOVERY_INTERVAL_SECONDS)
 
 
+def _node_ip_refresh_loop():
+    """Keep Node.ipAddress in sync with live K8s InternalIPs.
+
+    Verdin edge fixtures get DHCP-assigned IPs that rotate on
+    reboot. The MTIB observability poller + per-node fixture health
+    check both read Node.ipAddress from the DB cache, so a rebooted
+    Verdin with a new lease silently becomes unprobeable until the
+    cache is refreshed. Runs every 60 s so a Verdin coming back
+    online is reachable within at most one cycle without needing
+    anyone to click around in the UI.
+    """
+    from src.services.kubernetes.node_sync import refresh_node_ips_from_k8s
+    time.sleep(60)  # let other init settle before the first sweep
+    while True:
+        try:
+            updated = refresh_node_ips_from_k8s()
+            if updated:
+                logger.info("node_ip_refresh: updated %d Node.ipAddress row(s)", updated)
+        except Exception as e:
+            logger.warning("node_ip_refresh tick failed: %s", e)
+        time.sleep(_NODE_IP_REFRESH_INTERVAL_SECONDS)
+
+
 def start_scheduler():
     """Start background scheduler threads."""
     # Audit log cleanup
@@ -71,6 +95,11 @@ def start_scheduler():
     t2 = threading.Thread(target=_build_recovery_loop, daemon=True, name="build-recovery")
     t2.start()
     logger.info("Build recovery scheduler started (interval=%ds)", _BUILD_RECOVERY_INTERVAL_SECONDS)
+
+    # Node IP refresh (Verdin DHCP self-heal — backstop for the discover endpoint)
+    t_nodeip = threading.Thread(target=_node_ip_refresh_loop, daemon=True, name="node-ip-refresh")
+    t_nodeip.start()
+    logger.info("Node IP refresh scheduler started (interval=%ds)", _NODE_IP_REFRESH_INTERVAL_SECONDS)
 
     # Bitbucket poller — polls repos for new commits to trigger stage builds
     if env_config.BITBUCKET_POLLER_ENABLED:
