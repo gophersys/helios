@@ -215,8 +215,20 @@ def sync_nodes_from_k8s():
 
         if hostname in db_hostname_map:
             db_node = db_hostname_map[hostname]
-            # Live status: admin override wins, else "ONLINE" because the
-            # K8s Ready check already filtered the iteration.
+            # Self-heal the DB cache when the live K8s InternalIP has
+            # drifted from what we stored. Verdin fixtures get DHCP
+            # leases that rotate when they reboot, so the old IP in DB
+            # would otherwise stay stale until manual backfill (the
+            # observability poller + grpc health checks read this
+            # cache). Only write when there's a live IP AND it differs
+            # — don't clobber a last-known-good value with empty, and
+            # don't generate audit noise on every sync tick when
+            # nothing changed.
+            if ip and ip != db_node.ipAddress:
+                try:
+                    db.node.update(where={"id": db_node.id}, data={"ipAddress": ip})
+                except Exception as e:
+                    logger.warning("Failed to refresh Node.ipAddress for %s: %s", hostname, e)
             status = "MAINTENANCE" if getattr(db_node, "disabled", False) else "ONLINE"
             registered.append({
                 "id": db_node.id,

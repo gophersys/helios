@@ -178,6 +178,125 @@ class TestSyncNodesFromK8s:
         response = client.post("/v2/devices/mtibs/discover")
         assert response.status_code == 401
 
+    def test_sync_updates_stale_ipAddress_in_db(self, authed_client, mock_db):
+        """When K8s reports a different IP than the DB cached value, the
+        DB row is updated. This is what makes the stale-IP problem
+        self-healing — a Verdin coming back online with a new DHCP lease
+        no longer leaves the observability poller stuck on the old IP.
+        """
+        k8s_node = MagicMock()
+        k8s_node.metadata.name = "verdin-roaming"
+        k8s_node.metadata.labels = {"kubernetes.io/arch": "arm64"}
+        k8s_node.status.conditions = [MagicMock(type="Ready", status="True")]
+        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="10.4.45.99")]
+        k8s_node.status.node_info = MagicMock(os_image="TorizonOS", kubelet_version="v1.28")
+
+        k8s_list = MagicMock()
+        k8s_list.items = [k8s_node]
+
+        core_v1 = MagicMock()
+        core_v1.list_node.return_value = k8s_list
+
+        # DB has the stale IP from a previous DHCP lease
+        existing = _node(id="node-roam", hostname="verdin-roaming", ipAddress="10.4.45.33")
+        mock_db.node.find_many.return_value = [existing]
+
+        with patch("api.v2.nodes.nodes.K8S_AVAILABLE", True):
+            with patch("api.v2.nodes.nodes.get_core_v1_api", return_value=core_v1):
+                response = authed_client.post("/v2/devices/mtibs/discover")
+
+        assert response.status_code == 200
+        # The DB row should have been refreshed to the live K8s IP.
+        mock_db.node.update.assert_any_call(
+            where={"id": "node-roam"},
+            data={"ipAddress": "10.4.45.99"},
+        )
+        # Response also reports the live IP, not the cached one.
+        body = json.loads(response.data)
+        assert body["data"]["registered"][0]["ipAddress"] == "10.4.45.99"
+
+    def test_sync_does_not_update_when_ipAddress_matches(self, authed_client, mock_db):
+        """When K8s IP equals DB IP, no write is issued — avoid pointless
+        churn + audit log noise on every sync tick."""
+        k8s_node = MagicMock()
+        k8s_node.metadata.name = "verdin-stable"
+        k8s_node.metadata.labels = {"kubernetes.io/arch": "arm64"}
+        k8s_node.status.conditions = [MagicMock(type="Ready", status="True")]
+        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="10.4.45.50")]
+        k8s_node.status.node_info = MagicMock(os_image="TorizonOS", kubelet_version="v1.28")
+
+        k8s_list = MagicMock()
+        k8s_list.items = [k8s_node]
+
+        core_v1 = MagicMock()
+        core_v1.list_node.return_value = k8s_list
+
+        existing = _node(id="node-stable", hostname="verdin-stable", ipAddress="10.4.45.50")
+        mock_db.node.find_many.return_value = [existing]
+
+        with patch("api.v2.nodes.nodes.K8S_AVAILABLE", True):
+            with patch("api.v2.nodes.nodes.get_core_v1_api", return_value=core_v1):
+                response = authed_client.post("/v2/devices/mtibs/discover")
+
+        assert response.status_code == 200
+        mock_db.node.update.assert_not_called()
+
+    def test_sync_writes_ipAddress_for_first_time_when_db_has_null(self, authed_client, mock_db):
+        """When the DB row's ipAddress is NULL (newly-created node never
+        had its IP backfilled), sync populates it from K8s."""
+        k8s_node = MagicMock()
+        k8s_node.metadata.name = "verdin-first-time"
+        k8s_node.metadata.labels = {"kubernetes.io/arch": "arm64"}
+        k8s_node.status.conditions = [MagicMock(type="Ready", status="True")]
+        k8s_node.status.addresses = [MagicMock(type="InternalIP", address="10.4.45.42")]
+        k8s_node.status.node_info = MagicMock(os_image="TorizonOS", kubelet_version="v1.28")
+
+        k8s_list = MagicMock()
+        k8s_list.items = [k8s_node]
+
+        core_v1 = MagicMock()
+        core_v1.list_node.return_value = k8s_list
+
+        existing = _node(id="node-first", hostname="verdin-first-time", ipAddress=None)
+        mock_db.node.find_many.return_value = [existing]
+
+        with patch("api.v2.nodes.nodes.K8S_AVAILABLE", True):
+            with patch("api.v2.nodes.nodes.get_core_v1_api", return_value=core_v1):
+                response = authed_client.post("/v2/devices/mtibs/discover")
+
+        assert response.status_code == 200
+        mock_db.node.update.assert_any_call(
+            where={"id": "node-first"},
+            data={"ipAddress": "10.4.45.42"},
+        )
+
+    def test_sync_does_not_clobber_with_empty_ipAddress(self, authed_client, mock_db):
+        """When K8s reports a node with no InternalIP yet (still booting),
+        do NOT overwrite the DB's last-known-good IP with an empty string.
+        Better to keep a stale value than to lose it."""
+        k8s_node = MagicMock()
+        k8s_node.metadata.name = "verdin-booting"
+        k8s_node.metadata.labels = {"kubernetes.io/arch": "arm64"}
+        k8s_node.status.conditions = [MagicMock(type="Ready", status="True")]
+        k8s_node.status.addresses = []  # not yet assigned
+        k8s_node.status.node_info = MagicMock(os_image="TorizonOS", kubelet_version="v1.28")
+
+        k8s_list = MagicMock()
+        k8s_list.items = [k8s_node]
+
+        core_v1 = MagicMock()
+        core_v1.list_node.return_value = k8s_list
+
+        existing = _node(id="node-boot", hostname="verdin-booting", ipAddress="10.4.45.77")
+        mock_db.node.find_many.return_value = [existing]
+
+        with patch("api.v2.nodes.nodes.K8S_AVAILABLE", True):
+            with patch("api.v2.nodes.nodes.get_core_v1_api", return_value=core_v1):
+                response = authed_client.post("/v2/devices/mtibs/discover")
+
+        assert response.status_code == 200
+        mock_db.node.update.assert_not_called()
+
 
 class TestCheckNodeHealth:
     """Tests for POST /v2/devices/mtibs/<node_id>/health."""
