@@ -183,19 +183,31 @@ _FUOTA_BUILDS: List[StageBuildDef] = [
 # SMOKE stage — quick sanity check (3 builds)
 # =============================================================================
 
+# SMOKE stage targets the Zephyr ztest framework, not pytest. Each entry is
+# a *ztest hardware test binary* produced by `west twister -p <board>` — a
+# self-contained Zephyr image that runs ZTEST_SUITE on real silicon via JLink
+# and reports PASS/FAIL on UART. The runner dispatch picks `framework=ztest`
+# at deploy time (see TestPackage.framework, runner_dispatch.py); the runner
+# pod invokes `python -m corekinect.test.ztest_runner` instead of pytest.
+#
+# fw_type "test_app" / "test_comms" distinguishes ztest binaries from regular
+# firmware so the build pipeline / artifact validator can route them to the
+# right twister invocation rather than `west build`. The processor field is
+# Alpha-flavored (nrf9151) by default — products on other silicon (Sigma5
+# uses nrf9160) override per-product via PUT /v2/products/<id>/stages/1/build-matrix.
+#
+# No modem_fw entry: ztest binaries don't need a separately-flashed modem
+# image, the test binary is self-contained.
 _SMOKE_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="smoke_app_debug", fw_type="app", variant="debug", processor="nrf52840",
-        produces_hex=True, git_ref="pr", description="App processor — debug",
+        label="smoke_app_ztest", fw_type="test_app", variant="ztest", processor="nrf52840",
+        produces_hex=True, produces_cfw=False, git_ref="pr",
+        description="ztest hardware test binary for app processor (Zephyr ztest, flashed via JLink)",
     ),
     StageBuildDef(
-        label="smoke_comms_debug", fw_type="comms", variant="debug", processor="nrf9151",
-        produces_hex=True, git_ref="pr", description="Comms processor — debug",
-    ),
-    StageBuildDef(
-        label="modem_fw", fw_type="modem", variant="release", processor="nrf9151",
-        produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
-        description="Modem firmware (selected separately)",
+        label="smoke_comms_ztest", fw_type="test_comms", variant="ztest", processor="nrf9151",
+        produces_hex=True, produces_cfw=False, git_ref="pr",
+        description="ztest hardware test binary for comms processor (Zephyr ztest, flashed via JLink)",
     ),
 ]
 

@@ -63,7 +63,11 @@ libs/python/corekinect/
 ├── __init__.py             # top-level re-exports: errors, Stage, stage helpers
 ├── errors.py               # CloudError, ConfigError, FirmwareError, HardwareError,
 │                           # TimeoutError, ValidationError
-├── stages.py               # Stage, StageType, StageBuildDef, STAGE_NAMES, …
+├── stages.py               # Stage, StageType, StageBuildDef, STAGE_NAMES, default
+│                           # build matrices. NOTE: SMOKE default is ztest-on-hardware
+│                           # (labels: smoke_app_ztest, smoke_comms_ztest, fw_type=test_app/
+│                           # test_comms, variant=ztest) — runner dispatches to ztest_runner
+│                           # via TestPackage.framework. Per-product override via API.
 ├── validation/             # re-exports stages.* (back-compat shim)
 │   └── stage_defs.py       # legacy stage definitions
 ├── mtib_client/            # gRPC client to mtib-server
