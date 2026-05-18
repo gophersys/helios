@@ -57,16 +57,22 @@ class TestCheckSchemaDrift:
         assert result["drift"] == []
         assert result["healthy"] is True
 
-    def test_detects_missing_fixture_design_test_package_id(self):
-        """Missing ``fixture_designs.testPackageId`` → drift entry."""
+    def test_detects_missing_test_bed_design_test_package_id(self):
+        """Missing ``test_bed_designs.testPackageId`` → drift entry.
+
+        Note: the underlying table was renamed from ``fixture_designs``
+        to ``test_bed_designs`` in v0.10.1 (Fixture→TestBed concept
+        rename). The PROBES list in schema_drift.py was updated in
+        v0.10.6 — this test follows.
+        """
         from src.services.database.schema_drift import check_schema_drift
 
-        db = _missing_column_db({("fixture_designs", "testPackageId")})
+        db = _missing_column_db({("test_bed_designs", "testPackageId")})
         result = check_schema_drift(db)
 
         assert result["healthy"] is False
         names = [d["table"] + "." + d["column"] for d in result["drift"]]
-        assert "fixture_designs.testPackageId" in names
+        assert "test_bed_designs.testPackageId" in names
 
     def test_detects_missing_fixture_purpose(self):
         """Missing ``fixtures.purpose`` → drift entry."""
