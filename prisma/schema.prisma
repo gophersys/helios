@@ -123,6 +123,20 @@ enum TestPackageType {
   MANUFACTURING
 }
 
+/// Which test framework the runner should dispatch for this package.
+///
+/// PYTEST  — the existing path: download the package, run pytest with
+///           the corekinect reporter. This is the default for any
+///           package created before the framework dispatch existed,
+///           which means every legacy row reads correctly.
+/// ZTEST   — Zephyr ztest captured over UART after MTIB flashes a hex.
+///           Used for low-level firmware tests on real hardware. The
+///           runner image dispatches to corekinect.test.ztest_runner.
+enum TestFramework {
+  PYTEST
+  ZTEST
+}
+
 enum FixturePurpose {
   DEV /// Dev rig — accepts only DEVELOPMENT test packages
   RELEASE /// Production fixture — accepts only RELEASED test packages
@@ -244,6 +258,7 @@ model TestPackage {
   version          String /// "1.2.0" (release) or "dev-abc12345-1713100800" (development)
   type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
   status           TestPackageStatus @default(DEVELOPMENT)
+  framework        TestFramework     @default(PYTEST) /// PYTEST (default, legacy) or ZTEST (Zephyr ztest over UART). Selects the runner pod entrypoint.
   storageKey       String? /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz. NULL while status=UPLOADING (two-phase commit) and gets set when the MinIO put completes.
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.yaml for change detection

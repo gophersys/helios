@@ -61,6 +61,7 @@ updates — review `models.ts` by hand.
 | `ManufacturingSessionStatus` | `ACTIVE`, `COMPLETED`, `CANCELLED`, `ARCHIVED` | `ManufacturingSession.status` | ARCHIVED is for post-COMPLETED archival; live sessions hold a fixture's IN_USE lock state derivation. |
 | `TestPackageStatus` | `UPLOADING`, `DEVELOPMENT`, `RELEASED` | `TestPackage.status`, `TestBedDesign.status` (denormalized mirror of owner) | UPLOADING is the two-phase commit placeholder before the MinIO PUT completes. |
 | `TestPackageType` | `VALIDATION`, `MANUFACTURING` | `TestPackage.type` | Selects which runner consumes the package. |
+| `TestFramework` | `PYTEST`, `ZTEST` | `TestPackage.framework` | Selects the runner Job entrypoint at dispatch time. PYTEST (default) runs the existing `/app/entrypoint.sh` → pytest path. ZTEST overrides container `command` to `python3 -m corekinect.test.ztest_runner` (UART capture + parse). Default keeps legacy rows working unchanged. See `apps/backend/http-api.md` and `libs/python-corekinect.md`. |
 
 ### Builds & artifacts
 

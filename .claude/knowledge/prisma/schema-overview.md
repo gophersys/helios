@@ -135,12 +135,18 @@ product — the runner pod downloads it from MinIO at startup.
 
 | Model | Carries |
 |---|---|
-| `TestPackage` | `TestPackageType = VALIDATION | MANUFACTURING`, `TestPackageStatus = UPLOADING → DEVELOPMENT | RELEASED`. Version string (`1.2.0` or `dev-<sha>-<ts>`), MinIO `storageKey`, `frameworkVersion`, `manifestVersion`, optional `releasedVersion` + `releasedById` + `releasedAt`. |
+| `TestPackage` | `TestPackageType = VALIDATION | MANUFACTURING`, `TestPackageStatus = UPLOADING → DEVELOPMENT | RELEASED`, `TestFramework = PYTEST (default) | ZTEST` (selects runner pod entrypoint — `framework` column). Version string (`1.2.0` or `dev-<sha>-<ts>`), MinIO `storageKey`, `frameworkVersion`, `manifestVersion`, optional `releasedVersion` + `releasedById` + `releasedAt`. |
 | `TestPackageStage` | Structured per-stage metadata extracted from the manifest. Replaces the prior `stagesEnabled` JSON blob. Carries `directory`, `module`, `markers`, `hardware`, `timeoutS`. |
 
 Two-phase commit: a row is created with `status=UPLOADING` and `storageKey=NULL`,
 then flipped to `DEVELOPMENT`/`RELEASED` once the MinIO PUT completes. Stale
 `UPLOADING` rows are reaped by retention.
+
+The `framework` column (added in migration `20260518210000_add_test_package_framework`)
+selects pytest vs ztest dispatch in the validation runner. Default is `PYTEST` so
+every legacy row keeps its behaviour. The upload handler reads
+`manifest.framework` (or `manifest.testFramework`) — missing / None / empty all
+collapse to PYTEST. See `apps/backend/http-api.md` for the dispatch flow.
 
 ### 5. Fixtures, slots & nodes
 

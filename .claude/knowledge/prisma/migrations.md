@@ -241,3 +241,5 @@ on a column with `NULL` rows.
 ## Notable migrations
 
 - `20260514180340_rename_fixturedesign_to_testbeddesign` — hand-written ALTER TABLE RENAME from `fixture_designs` to `test_bed_designs`, with index and own-FK-constraint renames. Cross-table FKs pointing at this table track by OID and need no renames. Metadata-only on Postgres; sub-second on the live production table. See `prisma/schema-overview.md` for the model context (TestBed Python class → TestBedDesign Concord row, vs the unchanged Fixture rig).
+
+- `20260518210000_add_test_package_framework` — adds `TestFramework` Postgres enum (`PYTEST | ZTEST`) and the `framework` column on `test_packages` with default `PYTEST`. Additive, safe to deploy without app changes — every existing row reads back as PYTEST and the runner dispatch (`runner_dispatch.py` + `manual.py`) treats that as the back-compat path (no override of container `command`). See `apps/backend/http-api.md` for the dispatch flow and `libs/python-corekinect.md` for the ztest runner.
