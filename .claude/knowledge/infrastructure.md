@@ -139,6 +139,7 @@ The `/onboard-mtib` skill walks the full flow end-to-end.
 - **Edge Verdin labels disappear after a node reboot** — K3s reload sometimes drops labels that aren't in a static manifest. The `bootstrap.sh --labels-only` mode (if present, otherwise full bootstrap) re-applies; verify by adding the node to `labels.yaml` so future bootstraps catch it.
 - **`secrets/create-all.sh` fails: "missing value for X"** — the per-env `.env` file is incomplete. Diff against `.env.example` and fill in from your team's secret store.
 - **`role-mapping.yaml` change doesn't take effect** — the kubeconfig is baked at generation time. Existing kubeconfigs use the bindings at the time they were issued. Regenerate to pick up new role mappings.
+- **`generate.sh` emits an empty `certificate-authority-data:`** — the operator's current kubeconfig has `insecure-skip-tls-verify: true` (typical for the `concord-remote` tunnel context), so there's no CA to extract. `generate.sh` falls back to SSH'ing `${CONCORD_K3S_SERVER_HOST:-concordserver01}` and reading `/var/lib/rancher/k3s/server/tls/server-ca.crt`. Requires SSH access to a control-plane node and `sudo` rights to read the file.
 
 ## Related knowledge
 

@@ -61,7 +61,20 @@ get_cluster_server() {
 }
 
 get_cluster_ca() {
-  kubectl config view --minify --flatten -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' 2>/dev/null
+  # Try the current kubeconfig first — works when you're running this
+  # from a machine whose kubeconfig has the cluster CA inline.
+  local ca
+  ca=$(kubectl config view --minify --flatten -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' 2>/dev/null)
+  if [[ -n "${ca}" ]]; then
+    echo "${ca}"
+    return
+  fi
+  # Fallback: when the current kubeconfig is insecure-skip-tls-verify
+  # (e.g. concord-remote tunnel context), fetch the CA from a control-plane
+  # node over SSH. Requires CONCORD_K3S_SERVER_HOST set, or use the SSH
+  # alias `concordserver01` (typical for office-cluster admins).
+  local host="${CONCORD_K3S_SERVER_HOST:-concordserver01}"
+  ssh -o BatchMode=yes "${host}" "sudo cat /var/lib/rancher/k3s/server/tls/server-ca.crt 2>/dev/null" 2>/dev/null | base64 -w0
 }
 
 # ─── Create Kubeconfig ──────────────────────────────────────
