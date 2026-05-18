@@ -79,7 +79,8 @@ apps/backend/http-api/
 │   │   ├── integrations/            # Bitbucket REST client, webhook trigger
 │   │   ├── kubernetes/              # K8s client, deployments, jobs, pods, nodes,
 │   │   │                            #   events, configmaps, RBAC, MTIB deployments,
-│   │   │                            #   runner env, serializers
+│   │   │                            #   runner env, runner_dispatch (pytest|ztest),
+│   │   │                            #   serializers
 │   │   ├── log/                     # Logger init + LogFilter for /healthcheck noise
 │   │   ├── mfg_session_reaper.py    # Mid-stage manufacturing-session reaper
 │   │   ├── notifications/           # notify_user() + SocketIO emit
@@ -165,6 +166,27 @@ Graceful shutdown (SIGTERM/SIGINT) stops the schedulers first, sleeps 2 s for in
 ### TestBed extraction on test package upload
 
 `src/api/v2/products/test_packages.py::_extract_testbed_designs` reads the uploaded test package's `concord.yaml`, walks the user's Python `TestBed` subclass via `corekinect.testbed.extractor.extract_testbed` (AST-only — no import), and writes a `TestBedDesign` row in Concord linking back to the parent `TestPackage`. The user-Python class is called **TestBed** (since 2026-05); Concord's storage row remains **TestBedDesign**. The two names are deliberately different: the user declares a TestBed (DUT-side wiring), Concord stores a TestBedDesign (the platform-side row that powers fixture creation + slot binding).
+
+### Runner framework dispatch (pytest vs ztest)
+
+`src/services/kubernetes/runner_dispatch.py` is the single source of truth for converting a `TestPackage.framework` value (`PYTEST` / `ZTEST` / None) into:
+
+- the container `command` array for the K8s Job (`runner_command_for_framework`), and
+- the `TEST_FRAMEWORK` env-var value injected into the runner pod (`framework_env_var`).
+
+`normalize_framework(value)` is the boundary helper — accepts `None`, `""`, `"pytest"`, `"PYTEST"`, `"ztest"`, `"ZTEST"` and returns canonical `"PYTEST"` / `"ZTEST"`. Anything else raises `ValueError` so the upload handler can surface a 400 with a useful message.
+
+Back-compat invariant: every test package created before this dispatch existed has `framework=NULL` in old DB rows (default `PYTEST` post-migration) and no `framework` field in concord.yaml. All three paths — DB NULL, missing manifest field, `framework=None` kwarg — collapse to PYTEST, and PYTEST leaves the container `command` unset so the existing image ENTRYPOINT (`/app/entrypoint.sh`) runs unchanged.
+
+Flow:
+
+1. Upload (`api/v2/products/test_packages.py::_upload_test_package_impl`) reads `manifest.framework` (also accepts `manifest.testFramework`), calls `normalize_framework`, persists to `TestPackage.framework`.
+2. Scheduler (`api/v2/runs/scheduler.py::_trigger_validation_job`) reads `tp.framework`, passes it as `framework=` to:
+   - `create_kubernetes_job` (staging/prod path in `api/v2/runs/manual.py`) — substitutes `{{TEST_FRAMEWORK}}` in `validation_job.yaml` AND overrides `container.command` when ZTEST,
+   - `KubernetesExecutor.submit` / Docker fallback (dev path) — passes `TEST_FRAMEWORK` env + framework-specific `command` list.
+3. Runner pod entrypoint (`deploy/runner/entrypoint.sh`) branches on `TEST_FRAMEWORK`: PYTEST → existing `run.py` / `pytest` path; ZTEST → `exec python3 -m corekinect.test.ztest_runner ...` (only reached when running through the entrypoint — the K8s/Docker dispatch already bypasses it for ZTEST by overriding command).
+
+The ZTEST module lives in `libs/python/corekinect/test/ztest_runner.py` — see `libs/python-corekinect.md` for the runner's internals, CLI, and replay mode.
 
 ## External dependencies
 
