@@ -28,7 +28,7 @@ Read `.claude/knowledge/deploy/verdin-edge.md` and `.claude/knowledge/ci/ci-plat
 - **Diff before deploy**: `nx diff platform -c <env>` shows the helm template diff. Use this when something feels risky.
 - **Rollback**: `nx rollback platform -c <env>` reverts to the previous helm release.
 - **Helm values changes**: edit `deploy/production/helm/values-{staging,production}.yaml`. Verify the helm template completeness check (`tests/test_env_config.py`) still passes.
-- **Secret rotation**: rotate in Bitwarden, update `.env` (per-env), `nx run platform:sync-secrets -c <env>`, rolling restart of affected deployments.
+- **Secret rotation**: rotate in your team's secret store, update `.env` (per-env), `nx run platform:sync-secrets -c <env>`, rolling restart of affected deployments.
 - **Add an env var**: enforce the all-three-envs rule — touch `deploy/development/docker-compose.yaml`, `values-staging.yaml`, `values-production.yaml`. Update `.claude/knowledge/deploy/helm.md` or `secrets.md` as appropriate.
 - **Verdin edge onboarding**: walk the user through registering a new MTIB node (cluster join → label → http-api node registration). See `deploy/verdin-edge.md`.
 

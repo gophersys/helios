@@ -100,7 +100,7 @@ tools/corectl/
 - `access_token`, `refresh_token`, `expires_at` — the active session. Refresh tokens are long-lived (30 days) and rotated.
 - `tls_verify` — `true`, `false`, or a **path string** to a CA bundle. `false` disables cert verification (for WSL with self-signed CA in dev). When unset, `config.py::_system_ca_bundle()` walks four standard Linux trust-store paths and falls back to `certifi` if none exist — this auto-detection is what makes the internal CoreKinect CA work without manual config on most Linux distros.
 
-URL precedence (Bitwarden-style): `$CONCORD_API_URL` → saved `api_url` → hardcoded `https://concord.ad.corekinect.com`.
+URL precedence (env-first): `$CONCORD_API_URL` → saved `api_url` in `~/.corectl/config.yaml` → hardcoded `https://concord.ad.corekinect.com`.
 
 Env-var overrides: `CONCORD_API_URL`, `CONCORD_VERIFY_SSL`, `CONCORD_API_KEY` (for service-account / CI use — never written to the config file), `REQUESTS_CA_BUNDLE` (standard Python TLS path override). The `--insecure` global flag short-circuits to `CONCORD_VERIFY_SSL=false` for one run.
 

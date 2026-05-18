@@ -15,7 +15,7 @@ Secrets never go in git. Period.
 | Layer | Storage | Used by |
 |---|---|---|
 | Production / staging | K8s `Secret` resources in their namespace | running pods |
-| Source of truth | Bitwarden (account: `secrets.mateosegura.com`) | humans, before they sync to K8s |
+| Source of truth | Your team's secret store (1Password, Vault, encrypted file — admin's call) | humans, before they sync to K8s |
 | Sync mechanism | `infrastructure/clusters/office/secrets/create-all.sh` reads `shared.env` + per-env `.env` files | applies as K8s Secrets |
 | Local dev | `deploy/development/.env` (gitignored) and per-service `.env` files (gitignored) | docker-compose |
 | Templates | `.env.example` files (committed) | onboarding new devs |
@@ -40,7 +40,7 @@ See `.claude/knowledge/deploy/secrets.md` for the master inventory and the per-s
 ## If a secret leaks
 
 1. Rotate it immediately. The leaked value is dead the moment it's in git, even if you force-push it out.
-2. Update Bitwarden with the new value.
+2. Update your team's secret store with the new value.
 3. Re-sync K8s Secrets: `nx run platform:sync-secrets -c staging` and `-c production`.
 4. Restart the affected deployments (rolling restart picks up the new env).
 5. File an incident note under `/home/mateo/work/docs/incidents/`.

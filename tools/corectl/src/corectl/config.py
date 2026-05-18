@@ -5,7 +5,7 @@ access token (15-min) plus a refresh token (30-day rotated) — and the
 backend URL. Service-account API keys (CI/build servers) are passed via
 flag/env and never written here.
 
-URL precedence (Bitwarden style):
+URL precedence (env first):
     1. ``$CONCORD_API_URL``
     2. ``api_url`` in the saved config
     3. Hardcoded production: ``https://concord.ad.corekinect.com``

@@ -83,7 +83,7 @@ Generated kubeconfigs land in `clusters/office/kubeconfigs/generated/` (gitignor
 
 ## Secrets sync
 
-Production secrets aren't stored in this repo. They live in Bitwarden (the canonical store) and a developer's local `clusters/office/secrets/{shared,staging,production}.env` files (gitignored).
+Production secrets aren't stored in this repo. They live in your team's secret store and a developer's local `clusters/office/secrets/{shared,staging,production}.env` files (gitignored).
 
 `secrets/create-all.sh` reads those `.env` files and writes K8s `Secret` resources for `concord-secrets`, `bitbucket-ssh-key`, `build-service-credentials`, `coreops-credentials`, etc. Idempotent — re-running rotates the values.
 
@@ -137,7 +137,7 @@ The `/onboard-mtib` skill walks the full flow end-to-end.
 - **`bootstrap.sh` partially applies, then fails on cert-manager** — usually the K3s API hasn't fully come up yet. Wait 30s, re-run. The script is idempotent.
 - **Generated kubeconfig works for one command, then fails 401** — the ServiceAccount token rotated. Regenerate.
 - **Edge Verdin labels disappear after a node reboot** — K3s reload sometimes drops labels that aren't in a static manifest. The `bootstrap.sh --labels-only` mode (if present, otherwise full bootstrap) re-applies; verify by adding the node to `labels.yaml` so future bootstraps catch it.
-- **`secrets/create-all.sh` fails: "missing value for X"** — the per-env `.env` file is incomplete. Diff against `.env.example` and fill in from Bitwarden.
+- **`secrets/create-all.sh` fails: "missing value for X"** — the per-env `.env` file is incomplete. Diff against `.env.example` and fill in from your team's secret store.
 - **`role-mapping.yaml` change doesn't take effect** — the kubeconfig is baked at generation time. Existing kubeconfigs use the bindings at the time they were issued. Regenerate to pick up new role mappings.
 
 ## Related knowledge

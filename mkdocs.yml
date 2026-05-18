@@ -131,6 +131,7 @@ nav:
   - Administration:
     - administration/index.md
     - Initial Setup: administration/initial-setup.md
+    - Developer Onboarding: administration/onboarding.md
     - Users & Roles: administration/users-and-roles.md
     - Permission Sets: administration/permission-sets.md
     - API Keys: administration/api-keys.md

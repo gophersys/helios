@@ -553,12 +553,13 @@ on `build`, port-forwards to `svc/concord-pypi` (port 18080 staging, 18081
 production), and twine-uploads with authenticated htpasswd creds.
 
 **Prereq — set pypi creds.** The push targets fail-fast if `PYPI_USERNAME`
-or `PYPI_PASSWORD` is unset. Both live in Bitwarden:
+or `PYPI_PASSWORD` is unset. Source them from wherever your team keeps the
+htpasswd plaintext (the same one that landed in `infrastructure/clusters/office/secrets/shared.env`
+as `PYPI_HTPASSWD`):
 
 ```bash
 export PYPI_USERNAME=concord
-export PYPI_PASSWORD="$(bw get password 'project/corekinect/concord/pypi/upload')"
-# or pull from infrastructure/clusters/office/secrets/shared.env (PYPI_HTPASSWD's plaintext)
+export PYPI_PASSWORD=<plaintext from your team's secret store>
 ```
 
 `twine` must be on PATH. If missing: `pip install --user twine`.

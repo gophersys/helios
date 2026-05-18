@@ -25,7 +25,7 @@ You are guiding a developer who just cloned this repo. They want to get to a gre
    ```
    This sets `core.hooksPath=.claude/hooks` and makes the `commit-msg` hook executable. Future commits that touch a tracked code path without updating the matching `.claude/knowledge/` file will be refused (escape hatch: `[no-arch-change]`). See `.claude/rules/update-knowledge-on-change.md`.
 
-5. **Credentials**: walk `.claude/knowledge/workflows/credentials.md`. List every credential they need, point at Bitwarden (`secrets.mateosegura.com`) for the canonical store. Most can wait — for first boot they only need:
+5. **Credentials**: walk `.claude/knowledge/workflows/credentials.md`. List every credential they need — the platform owner sources them from your team's secret store. Most can wait — for first boot they only need:
    - K8s kubeconfig (only if testing against staging; not required for local dev)
    - Bitbucket API token + SSH key (only if testing the build service)
 
