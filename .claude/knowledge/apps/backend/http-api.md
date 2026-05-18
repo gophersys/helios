@@ -180,13 +180,15 @@ Back-compat invariant: every test package created before this dispatch existed h
 
 Flow:
 
-1. Upload (`api/v2/products/test_packages.py::_upload_test_package_impl`) reads `manifest.framework` (also accepts `manifest.testFramework`), calls `normalize_framework`, persists to `TestPackage.framework`.
+1. Upload (`api/v2/products/test_packages.py::_upload_test_package_impl`) reads `manifest.framework` (also accepts `manifest.testFramework`), calls `normalize_framework`, persists to `TestPackage.framework`. Invalid framework values → 400 with the allowed set in the error body. Missing / empty / None all default to PYTEST.
 2. Scheduler (`api/v2/runs/scheduler.py::_trigger_validation_job`) reads `tp.framework`, passes it as `framework=` to:
    - `create_kubernetes_job` (staging/prod path in `api/v2/runs/manual.py`) — substitutes `{{TEST_FRAMEWORK}}` in `validation_job.yaml` AND overrides `container.command` when ZTEST,
    - `KubernetesExecutor.submit` / Docker fallback (dev path) — passes `TEST_FRAMEWORK` env + framework-specific `command` list.
-3. Runner pod entrypoint (`deploy/runner/entrypoint.sh`) branches on `TEST_FRAMEWORK`: PYTEST → existing `run.py` / `pytest` path; ZTEST → `exec python3 -m corekinect.test.ztest_runner ...` (only reached when running through the entrypoint — the K8s/Docker dispatch already bypasses it for ZTEST by overriding command).
+3. Runner pod entrypoint (`deploy/runner/entrypoint.sh`) branches on `TEST_FRAMEWORK` as a safety net: PYTEST → existing `run.py` / `pytest` path; ZTEST → `exec python3 -m corekinect.test.ztest_runner ...` (only reached when running through the entrypoint — the K8s/Docker dispatch already bypasses it for ZTEST by overriding command). Unknown values exit 2.
 
-The ZTEST module lives in `libs/python/corekinect/test/ztest_runner.py` — see `libs/python-corekinect.md` for the runner's internals, CLI, and replay mode.
+`validation_job.yaml` carries `TEST_FRAMEWORK` directly so the runner pod can log + verify the dispatch. The `_serialize_test_package` helper exposes `framework` in the v2 API response.
+
+The ZTEST module lives in `libs/python/corekinect/test/ztest_runner.py` — see `libs/python-corekinect.md` for the runner's internals, CLI, and replay mode. Regression coverage for both dispatch paths lives in `tests/api/runs/test_manual_framework.py` (real-template render) and `tests/services/test_runner_framework_dispatch.py` (pure dispatch unit tests).
 
 ## External dependencies
 

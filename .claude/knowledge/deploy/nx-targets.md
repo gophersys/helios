@@ -88,6 +88,13 @@ See [`../ci/ci-platform.md`](../ci/ci-platform.md).
 
 The runner image is the base layer for K8s Jobs spawned by http-api during validation/manufacturing sessions. Build it once per release; runner Jobs reference the `:staging` or `:production` tag depending on which platform created them.
 
+The image's `ENTRYPOINT` (`/app/entrypoint.sh`) branches on the `TEST_FRAMEWORK` env var injected by the backend:
+
+- `PYTEST` (default; legacy) — downloads the test package, installs deps, runs `python3 /app/run.py --stage <stage>` or the direct `pytest tests/<stage>/` fallback.
+- `ZTEST` — `exec python3 -m corekinect.test.ztest_runner --run-id ... --target-id ... --asset-set /app/assets --mtib-host ... --labels ...`. For the ZTEST path the backend ALSO overrides container `command` to `["python3", "-m", "corekinect.test.ztest_runner", ...]` so the entrypoint script is bypassed entirely — the entrypoint branch is the in-script safety net for callers that don't override command.
+
+Dispatch lives in `apps/backend/http-api/src/services/kubernetes/runner_dispatch.py` and is wired from `manual.py` (staging/prod) and `scheduler.py` (Docker dev fallback). See `apps/backend/http-api.md` for the full flow.
+
 ## `ci` target catalog
 
 | Target | Underlying command | Notes |

@@ -35,6 +35,7 @@ echo "Product:      ${PRODUCT_SLUG}"
 echo "Stage:        ${STAGE}"
 echo "Package Type: ${TEST_PACKAGE_TYPE}"
 echo "Test Package: ${TEST_PACKAGE_VERSION}"
+echo "Framework:    ${TEST_FRAMEWORK:-PYTEST}"
 echo "API:          ${CONCORD_API_URL}"
 echo "Runner:       ${GIT_COMMIT:-unknown}"
 echo ""
@@ -132,13 +133,42 @@ fi
 # One-shot mode (default)
 echo "Running ${STAGE} stage..."
 
-# Use run.py if it exists (TestRunner with preflight + reporting)
-if [ -f /app/run.py ]; then
-    exec python3 /app/run.py --stage "${STAGE}" "$@"
-else
-    # Fallback to direct pytest
-    exec python3 -m pytest "tests/${STAGE}/" \
-        -v \
-        --timeout="${TEST_TIMEOUT:-120}" \
-        "$@"
-fi
+# Framework dispatch — the backend sets TEST_FRAMEWORK from the
+# TestPackage's framework column. When unset (legacy rows / pre-dispatch
+# deploys), we behave exactly as before: run pytest via run.py or the
+# direct fallback. ZTEST hands off to corekinect.test.ztest_runner.
+case "${TEST_FRAMEWORK:-PYTEST}" in
+    ZTEST|ztest)
+        echo "Framework=ZTEST — dispatching to corekinect.test.ztest_runner"
+        : "${CONCORD_RUN_ID:?CONCORD_RUN_ID is required for ztest dispatch}"
+        : "${CONCORD_TARGET_ID:?CONCORD_TARGET_ID is required for ztest dispatch}"
+        : "${MTIB_HOST:?MTIB_HOST is required for ztest dispatch}"
+        : "${ZTEST_LABELS:?ZTEST_LABELS is required for ztest dispatch (comma-separated)}"
+        exec python3 -m corekinect.test.ztest_runner \
+            --run-id "${CONCORD_RUN_ID}" \
+            --target-id "${CONCORD_TARGET_ID}" \
+            --api-url "${CONCORD_API_URL}" \
+            --api-key "${CONCORD_API_KEY}" \
+            --asset-set "${ZTEST_ASSET_SET_DIR:-/app/assets}" \
+            --mtib-host "${MTIB_HOST}" \
+            --mtib-port "${MTIB_PORT:-50053}" \
+            --labels "${ZTEST_LABELS}" \
+            --timeout-s "${ZTEST_TIMEOUT_S:-600}"
+        ;;
+    PYTEST|pytest|"")
+        # Use run.py if it exists (TestRunner with preflight + reporting)
+        if [ -f /app/run.py ]; then
+            exec python3 /app/run.py --stage "${STAGE}" "$@"
+        else
+            # Fallback to direct pytest
+            exec python3 -m pytest "tests/${STAGE}/" \
+                -v \
+                --timeout="${TEST_TIMEOUT:-120}" \
+                "$@"
+        fi
+        ;;
+    *)
+        echo "ERROR: unknown TEST_FRAMEWORK '${TEST_FRAMEWORK}' (allowed: PYTEST, ZTEST)"
+        exit 2
+        ;;
+esac

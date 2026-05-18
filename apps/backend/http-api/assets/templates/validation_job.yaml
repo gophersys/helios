@@ -30,6 +30,9 @@ spec:
           value: "{{ENVIRONMENT}}"
         - name: STAGE
           value: "{{STAGE}}"
+        # ── Test framework dispatch (PYTEST default; ZTEST for Zephyr ztest) ──
+        - name: TEST_FRAMEWORK
+          value: "{{TEST_FRAMEWORK}}"
         - name: LOG_LEVEL
           value: "4"
         - name: BUILD_RUN_ID

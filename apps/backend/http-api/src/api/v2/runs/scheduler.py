@@ -257,6 +257,9 @@ def _trigger_validation_job(
     # dev iterations work without a release.
     test_package_id = None
     test_package_version = "latest"
+    # ``framework`` from the resolved TestPackage. None collapses to PYTEST
+    # at the runner_dispatch layer — legacy back-compat.
+    test_package_framework = None
     product_slug = None
     product_id = asset_set.productId
     try:
@@ -305,9 +308,10 @@ def _trigger_validation_job(
                     return None
                 test_package_id = tp.id
                 test_package_version = tp.version
+                test_package_framework = getattr(tp, "framework", None)
                 logger.info(
-                    "Using test package %s@%s",
-                    product_slug, test_package_version,
+                    "Using test package %s@%s (framework=%s)",
+                    product_slug, test_package_version, test_package_framework or "PYTEST",
                 )
             elif env_config.ENVIRONMENT == "production":
                 logger.warning(
@@ -377,6 +381,7 @@ def _trigger_validation_job(
             product_slug=product_slug,
             stage=stage_name,
             test_package_version=test_package_version,
+            framework=test_package_framework,
             extra_env={
                 "MTIB_HOSTS": mtib_hosts,
                 "SLOT_SNRS": slot_snrs,
@@ -386,7 +391,31 @@ def _trigger_validation_job(
             },
         )
     else:
-        # Development: spawn test-runner container via Docker
+        # Development: spawn test-runner container via Docker.
+        # The runner_dispatch module gives us both the env value
+        # (entrypoint.sh reads TEST_FRAMEWORK and branches) and the
+        # command override (for ZTEST we bypass entrypoint.sh entirely
+        # and exec the ztest_runner module). PYTEST keeps the existing
+        # entrypoint untouched, preserving back-compat exactly.
+        from src.services.kubernetes.runner_dispatch import (
+            framework_env_var,
+            runner_command_for_framework,
+        )
+
+        try:
+            dispatch_framework = framework_env_var(test_package_framework)
+        except ValueError as fw_exc:
+            logger.error(
+                "Invalid framework %r on test package for entry %s: %s",
+                test_package_framework, entry_id, fw_exc,
+            )
+            return None
+        dispatch_command = (
+            ["/app/entrypoint.sh"]
+            if dispatch_framework == "PYTEST"
+            else runner_command_for_framework(dispatch_framework)
+        )
+
         result = executor.submit(
             image=f"concord/test-runner:{env_config.ENVIRONMENT}",
             job_id=entry_id,
@@ -394,6 +423,7 @@ def _trigger_validation_job(
                 "ENVIRONMENT": env_config.ENVIRONMENT,
                 "STAGE": stage_name,
                 "PRODUCT": product_slug or "",
+                "TEST_FRAMEWORK": dispatch_framework,
                 "CONCORD_API_URL": api_url,
                 "CONCORD_RUN_ID": run_id,
                 "CONCORD_SESSION_ID": run_id,
@@ -415,7 +445,7 @@ def _trigger_validation_job(
                 "BUILD_RUN_ID": build_run.id if build_run else "",
                 **({"ASSET_SET_ID": asset_set_id} if asset_set_id else {}),
             },
-            command=["/app/entrypoint.sh"],
+            command=dispatch_command,
             labels={"app": f"validation-{product_slug or 'unknown'}"},
             timeout_seconds=3600,
         )
