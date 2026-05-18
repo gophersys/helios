@@ -1,0 +1,24 @@
+*** Booting Zephyr OS build v3.6.0 ***
+*** Booting Zephyr OS build v3.6.0 ***
+Running TESTSUITE lsm6dso_smoke
+===================================================================
+START - test_chip_id
+ PASS - test_chip_id in 0.012 seconds
+START - test_xl_init
+ PASS - test_xl_init in 0.034 seconds
+START - test_gyro_init
+ PASS - test_gyro_init in 0.041 seconds
+===================================================================
+TESTSUITE lsm6dso_smoke succeeded
+
+------ TESTSUITE SUMMARY START ------
+
+SUITE PASS - 100.00% [lsm6dso_smoke]: pass = 3, fail = 0, skip = 0, total = 3 duration = 0.087 seconds
+ - PASS - [lsm6dso_smoke.test_chip_id] duration = 0.012 seconds
+ - PASS - [lsm6dso_smoke.test_xl_init] duration = 0.034 seconds
+ - PASS - [lsm6dso_smoke.test_gyro_init] duration = 0.041 seconds
+
+------ TESTSUITE SUMMARY END ------
+
+===================================================================
+PROJECT EXECUTION SUCCESSFUL

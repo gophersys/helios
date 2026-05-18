@@ -101,6 +101,8 @@ libs/python/corekinect/
 ├── test/                   # validation/manufacturing pytest framework
 │   ├── runner.py           # top-level run loop (validation runner pod entry)
 │   ├── mfg_runner.py       # manufacturing runner pod entry
+│   ├── ztest_runner.py     # Zephyr ztest entry — flash via MTIB,
+│   │                       #   capture UART, parse, POST results
 │   ├── sequential.py / slot_parallel.py
 │   ├── context.py          # TestContext (per-target state)
 │   ├── slot.py / slot_binding.py / slot_context.py / slot_env.py
@@ -114,6 +116,7 @@ libs/python/corekinect/
 │   ├── pytest_integration.py / conftest.py / assertions.py / timing.py / stages.py
 │   ├── uart_demuxer.py / mock_hardware.py / mock_cloud.py / telemetry.py / post.py
 │   └── tests/              # framework self-tests
+│       └── fixtures/       # canned ztest UART captures for parser tests
 └── utils/                  # cross-cutting helpers
     ├── banner.py           # print_banner, BuildInfo, collect_build_info
     ├── config/env.py       # EnvConfig
@@ -139,7 +142,7 @@ libs/python/corekinect/
 | `corekinect.firmware` | CFW generation/parsing + firmware-package validator. | `from corekinect.firmware import generate_cfw, parse_cfw, validate_package` |
 | `corekinect.manifest` | `concord.yaml` typed loader + JSON Schema validation. Shared with `corectl` and the http-api upload handler. | `from corekinect.manifest import load_manifest, validate_manifest` |
 | `corekinect.shells` | One class per processor target. Wraps MTIB UART for manufacturing-shell commands. | `from corekinect.shells import AlphaAppShell, CommsCoprocShell` |
-| `corekinect.test` | The pytest framework runner pods execute. Owns context, artifact upload, reporter, FUOTA orchestrator, slot binding, power profiler. | `from corekinect.test.context import TestContext` |
+| `corekinect.test` | The pytest framework runner pods execute. Owns context, artifact upload, reporter, FUOTA orchestrator, slot binding, power profiler. Also hosts `ztest_runner` for the Zephyr ztest dispatch path. | `from corekinect.test.context import TestContext` / `python -m corekinect.test.ztest_runner` |
 | `corekinect.utils` | Logger, env config, singletons, serde, encoding, units, etc. | `from corekinect.utils import EnvConfig, Logger` |
 | `corekinect.validation` | Back-compat shim — re-exports from `corekinect.stages`. Don't add to it. | (avoid in new code; import from `corekinect.stages`) |
 
@@ -163,6 +166,51 @@ Version lives in `corekinect/__init__.py` as `__version__`. `pyproject.toml`
 reads it dynamically via `[tool.hatch.version]`. Bumping the version requires
 a `push` afterwards or downstream services will pin the old wheel. The
 `/concord-release` skill handles this automatically.
+
+## `corekinect.test.ztest_runner` — Zephyr ztest dispatch
+
+When a `TestPackage` declares `framework: ztest` in its `concord.yaml`, the
+backend's runner Job dispatches to this module instead of the pytest path
+(see `apps/backend/http-api.md` for the dispatch flow). The module owns:
+
+| Concern | Implementation |
+|---|---|
+| Parser | `parse_ztest_output(text)` — defensive regex over Zephyr ztest UART output. Tolerates Zephyr log noise, ANSI escapes, variable whitespace, missing project markers. Returns a `ZTestSummary` with per-suite, per-test breakdown. |
+| AssetSet discovery | `discover_hex_files(asset_set_dir, labels)` — locates `<label>.hex` for each requested label, infers processor role from the label suffix (`_app_ztest` / `_comms_ztest`). |
+| MTIB I/O | `MtibClientLike` Protocol — production wires `MtibV1Adapter` around the existing `MtibV1Client` (no reinvention); tests inject a recorded-fixture stand-in. Adapter handles UploadFwFile → FlashFwFile → UartStream. |
+| HTTP reporter | `ZTestReporter` — POSTs to the same `/v2/runs/<id>/report/{execution-start,execution-result,finish,log-chunk}` endpoints the pytest reporter uses. Body shape identical, so the backend doesn't branch on framework. `requests.Session` is injectable for tests. |
+| Heartbeat | Background thread POSTs an empty `report/log-chunk` every 30 s so the scheduler's stale-runner reaper doesn't kill the Job mid-capture. |
+| CLI | `python -m corekinect.test.ztest_runner --run-id <id> --target-id <tid> --asset-set <dir> --api-url <url> --api-key <key> --mtib-host <host> --labels <l1,l2,...> [--timeout-s 600]` — production invocation. |
+| Replay / dry-run | `--replay-uart <path>` parses a captured UART log file instead of talking to hardware; `--dry-run-http` prints what would be POSTed instead of sending. Combined, they enable hardware-free debugging from the host. |
+| Exit codes | 0 all-pass, 1 any test failure, 2 infra error (asset missing, flash failed, UART lost, parse failed). |
+
+The MTIB adapter sits at `MtibV1Adapter` and exposes only the four methods
+the runner needs (`connect`, `disconnect`, `flash_hex`, `stream_uart`). This
+seam is the only test-substitution point — every other component (parser,
+reporter wire shape, asset discovery) runs the real production code in
+unit tests.
+
+Production deploy path:
+
+1. Test package author writes `framework: ztest` in `concord.yaml`.
+2. `corectl test upload` POSTs to `/v2/products/<slug>/test-packages`.
+3. Upload handler persists `TestPackage.framework = ZTEST`.
+4. Scheduler picks the package, calls `create_kubernetes_job(framework="ztest", ...)`.
+5. K8s Job spec has `container.command = ["python3", "-m", "corekinect.test.ztest_runner", ...]` and `TEST_FRAMEWORK=ZTEST` env.
+6. Runner pod starts, the module discovers hexes, flashes via MTIB, captures UART, parses, POSTs back.
+
+Demo / port-forward path (no Job needed): port-forward the target fixture's
+MTIB pod to localhost and run the CLI from the host:
+
+```
+kubectl -n production port-forward svc/mtib-<verdin-id>-s0 50053:50053
+python -m corekinect.test.ztest_runner \
+    --run-id <id> --target-id <tid> \
+    --asset-set <dir-with-hex-files> \
+    --api-url <api> --api-key <key> \
+    --mtib-host localhost --mtib-port 50053 \
+    --labels <label> [--dry-run-http]
+```
 
 ## Wheel layout caveat (force-include)
 

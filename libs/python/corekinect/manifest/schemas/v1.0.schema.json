@@ -33,6 +33,12 @@
           "type": "string",
           "pattern": "^>=[0-9]+\\.[0-9]+\\.[0-9]+$",
           "description": "Minimum corekinect framework version constraint (e.g., '>=0.3.0')."
+        },
+        "test_framework": {
+          "type": "string",
+          "enum": ["pytest", "ztest"],
+          "default": "pytest",
+          "description": "Test framework dispatch — 'pytest' (default; the existing path) or 'ztest' (Zephyr ztest captured over UART via MTIB). The backend selects the runner Job entrypoint from this value. Omit for legacy packages."
         }
       }
     },
