@@ -6,7 +6,7 @@ argument-hint: "<VAR_NAME> — <which service> — <one-line purpose>"
 
 # /add-env-var
 
-> **If the value is a credential** (API token, password, key, secret), stop and use `/add-secret` instead. That flow handles the Bitwarden + K8s Secret + sync-secrets steps that this skill doesn't. Plain config (URLs, feature flags, timeouts) belongs here.
+> **If the value is a credential** (API token, password, key, secret), stop and use `/add-secret` instead. That flow handles the K8s Secret + sync-secrets steps that this skill doesn't. Plain config (URLs, feature flags, timeouts) belongs here.
 
 Spawn `deployer` (`.claude/agents/deployer.md`) with the env var details.
 

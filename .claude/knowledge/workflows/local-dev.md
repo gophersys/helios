@@ -8,7 +8,7 @@ Refresh this file when: the devcontainer image changes, a new app is added to th
 
 - VS Code with the **Dev Containers** extension installed.
 - Docker Desktop (Windows/macOS) or Docker Engine (Linux/WSL2). The host must have `/var/run/docker.sock` writeable.
-- Bitwarden access to the `secrets.mateosegura.com` vault (for first-run secrets — see [`credentials.md`](credentials.md)).
+- Access to your team's secret store for first-run secrets — see [`credentials.md`](credentials.md). Ask the platform owner.
 - Bitbucket SSH access — your `~/.ssh-devcontainer/` populated with the `corekinect` SSH key so the devcontainer can clone firmware repos. Keys are mounted **readonly** into the container at `/root/.ssh/`.
 - Kubeconfig for the office cluster at `~/.kube/config-concord-remote` if you intend to touch staging or run anything that hits real K8s. Not required for `nx start platform`.
 

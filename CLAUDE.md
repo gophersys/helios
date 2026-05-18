@@ -62,6 +62,7 @@ When you see a path, you know where its knowledge lives. When you write new know
 | Add a new app | `/add-app` |
 | Stand up a new fixture | `/add-fixture` |
 | Onboard a new MTIB Verdin node | `/onboard-mtib` |
+| Onboard a new developer to the platform | `/onboard-dev` |
 | Deploy staging | `/deploy-staging` |
 | Deploy production | `/deploy-production` |
 | Cut a versioned release (bump + tag + wheel + record) | `/concord-release` |

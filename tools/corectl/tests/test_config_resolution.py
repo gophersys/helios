@@ -1,4 +1,4 @@
-"""Bitwarden-style URL resolution: env > config > default.
+"""Env-first URL resolution: env > config > default.
 
 We verify the precedence is correct, including the edge case where the
 saved config has a stale URL but ``$CONCORD_API_URL`` overrides it (the

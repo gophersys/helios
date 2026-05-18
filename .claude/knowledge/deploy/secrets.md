@@ -17,12 +17,12 @@ infrastructure/clusters/office/secrets/
 └── README.md
 ```
 
-The committed source of truth for *what* each Secret needs is `.env.example`. The committed source of truth for *how* it gets applied is `create-all.sh`. The values themselves live in Bitwarden (account: `secrets.mateosegura.com`); developers copy them into local `.env` files when bootstrapping. See [`../../rules/secrets-handling.md`](../../rules/secrets-handling.md).
+The committed source of truth for *what* each Secret needs is `.env.example`. The committed source of truth for *how* it gets applied is `create-all.sh`. The values themselves live in your team's secret store (1Password, Vault, encrypted file — admin's call); developers copy them into local `.env` files when bootstrapping. See [`../../rules/secrets-handling.md`](../../rules/secrets-handling.md).
 
 ## How a secret reaches a pod
 
 ```
-Bitwarden ──manual──▶ shared.env / <env>.env (gitignored, on dev or CI host)
+team secret store ──manual──▶ shared.env / <env>.env (gitignored, on dev or CI host)
                               │
                               │ bash create-all.sh <env>
                               ▼
@@ -44,7 +44,7 @@ Bitwarden ──manual──▶ shared.env / <env>.env (gitignored, on dev or CI
 |---|---|---|---|---|---|
 | `bitbucket-ssh-key` | staging, production, devops | `ssh-private-key` (file) | http-api (`/home/appuser/.ssh/id_rsa`), build-service, git-poller, ci-nightly CronJob | `BITBUCKET_SSH_KEY_PATH` → path on local disk | Generate new Bitbucket app key, replace file, rerun `sync-secrets`, rolling-restart consumers. |
 | `concord-build-service-secrets` | staging, production | `api-key`, `bitbucket-email`, `bitbucket-api-token` | build-service, git-poller (`CONCORD_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN`) | `BUILD_SERVICE_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN` | Rotate `BUILD_SERVICE_API_KEY`, re-seed it on the http-api side (the matching `User.api_key`), sync-secrets, restart build-service + git-poller. |
-| `concord-secrets` | staging, production | `DATABASE_URL`, `DIRECT_DATABASE_URL`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `JWT_SECRET_KEY`, `BITBUCKET_API_TOKEN`, `AUTH_SERVER_API_KEY`, `DELETE_ALL_KEY`, `BITBUCKET_WEBHOOK_SECRET`, `COREOPS_API_KEY`, `COREOPS_AUTH_USER`, `COREOPS_AUTH_PASS` | http-api (entire Secret via `envFrom.secretRef`) | All keys named above | Rotate via Bitwarden + `<env>.env`, sync-secrets, rolling-restart http-api. JWT rotation forces all users to log in again. |
+| `concord-secrets` | staging, production | `DATABASE_URL`, `DIRECT_DATABASE_URL`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `JWT_SECRET_KEY`, `BITBUCKET_API_TOKEN`, `AUTH_SERVER_API_KEY`, `DELETE_ALL_KEY`, `BITBUCKET_WEBHOOK_SECRET`, `COREOPS_API_KEY`, `COREOPS_AUTH_USER`, `COREOPS_AUTH_PASS` | http-api (entire Secret via `envFrom.secretRef`) | All keys named above | Rotate via your team's secret store + `<env>.env`, sync-secrets, rolling-restart http-api. JWT rotation forces all users to log in again. |
 | `concord-infra-credentials` | staging, production | `POSTGRES_PASSWORD`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Postgres StatefulSet, MinIO Deployment | `POSTGRES_PASSWORD`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Sensitive — rotating the Postgres password requires a coordinated change inside Postgres + restart of http-api with new `DATABASE_URL`. See "Postgres rotation" below. |
 | `concord-pypi-htpasswd` | staging, production | `.htpasswd` (file) | concord-pypi (htpasswd init container copies it into `/data/.htpasswd`) | `PYPI_HTPASSWD` (full htpasswd content) | Generate with `htpasswd -nb <user> <password>`; paste into `shared.env`; sync-secrets; restart pypi pod. |
 | `coreops-credentials` | staging, production | `api-key`, `auth-user`, `auth-pass` | (currently mirrored into `concord-secrets`; this Secret exists as a separate handle for clarity) | `COREOPS_API_KEY`, `COREOPS_AUTH_USER`, `COREOPS_AUTH_PASS` | Coordinate with the CoreOps service owner; rotate in both Concord and CoreOps simultaneously. |
@@ -113,7 +113,7 @@ Rotating `JWT_SECRET_KEY` invalidates every issued token immediately. After rota
 2. **Add the `apply_secret` call** to `create-all.sh` under the right namespace block.
 3. **Reference it in the Helm template** that consumes it (`valueFrom.secretKeyRef`).
 4. **Mirror it in compose** if the service also runs locally — usually a non-secret default + a docs note.
-5. **Put the real value in Bitwarden** under the `secrets.mateosegura.com` account.
+5. **Put the real value in your team's secret store** so other admins can find it during rotation.
 6. **Update this file's master inventory table**.
 7. **Run `nx run platform:sync-secrets -c <env>`** to push it.
 8. **Restart consuming pods**.
@@ -126,20 +126,23 @@ Rotating `JWT_SECRET_KEY` invalidates every issued token immediately. After rota
 - **pypi pod CrashLoopBackOff after enabling auth** — the htpasswd init container couldn't find `concord-pypi-htpasswd`. `PYPI_HTPASSWD` wasn't set in `shared.env`, or sync-secrets wasn't run. Disable auth temporarily in values (`infrastructure.pypi.auth.enabled: false`), set the secret, re-enable.
 - **CI nightly CronJob can't talk to CoreKinect internal hosts** — `corekinect-ca-certs` missing in `devops`. That Secret is cluster-managed by infra (not by `create-all.sh`); contact whoever bootstrapped the office cluster.
 
-## Canonical Bitwarden items
+## Secret material registry
 
-Bitwarden is the source of truth. Each rotation works the same: edit the canonical item, mirror to `shared.env` / `<env>.env`, run `sync-secrets`, rolling-restart consumers. The table below is the single registry so a future rotation doesn't accidentally update a stale duplicate.
+Each rotation works the same: edit the value in your team's secret store, mirror to `shared.env` / `<env>.env`, run `sync-secrets`, rolling-restart consumers. The table below lists *what* each secret is and where it lands; *where the canonical value lives* is a team decision (1Password, Vault, encrypted file, etc.).
 
-| Secret material | Canonical Bitwarden item | Field on item | Mirrors to (gitignored env file → K8s) |
-|---|---|---|---|
-| Bitbucket API token | `project/corekinect/shared/bitbucket/api-token` | hidden field `API Token` | `BITBUCKET_API_TOKEN` in `shared.env` → `concord-secrets`, `concord-build-service-secrets` |
-| Bitbucket account email | `project/corekinect/shared/bitbucket/email` | password field | `BITBUCKET_EMAIL` in `shared.env` |
-| Bitbucket SSH key | `project/corekinect/shared/bitbucket/ssh-key` | attachment | `BITBUCKET_SSH_KEY_PATH` (file on host) → `bitbucket-ssh-key` |
-| Internal pypi htpasswd creds | `project/corekinect/concord/pypi/upload` | password field | `PYPI_USERNAME` / `PYPI_PASSWORD` (only used by `nx push corectl|corekinect`) |
+| Secret material | Mirrors to (gitignored env file → K8s) | Used by |
+|---|---|---|
+| Bitbucket API token | `BITBUCKET_API_TOKEN` in `shared.env` → `concord-secrets`, `concord-build-service-secrets` | http-api, build-service, git-poller — REST API + PR webhooks |
+| Bitbucket account email | `BITBUCKET_EMAIL` in `shared.env` | git commit author for platform-driven commits |
+| Bitbucket SSH key (file) | `BITBUCKET_SSH_KEY_PATH` (host file path) → `bitbucket-ssh-key` | http-api, build-service — git clone over SSH |
+| Internal pypi htpasswd plaintext | `PYPI_USERNAME=concord`, `PYPI_PASSWORD=<plaintext>` (env vars only at release time) | `nx run corectl:push -c <env>` + `nx run corekinect:push -c <env>` |
+| Internal pypi htpasswd hash | `PYPI_HTPASSWD` in `shared.env` → `concord-pypi-htpasswd` K8s Secret | the `concord-pypi` deployment in staging + production |
+| Firmware signing keys (3) | `BENCH_SIGNING_KEY`, `ENGINEERING_SIGNING_KEY`, `PRODUCTION_SIGNING_KEY` in `deploy/development/.env` / production `.env` | build-service — signs firmware images per release track |
+| Build-service API key | `BUILD_SERVICE_API_KEY` in `shared.env` → `concord-build-service-secrets` | build-service identifies itself to http-api; must match a `User.api_key` row seeded in the DB |
+| JWT signing key | `JWT_SECRET_KEY` in `<env>.env` → `concord-secrets` | http-api signs HS256 session tokens — ≥32 chars in staging/production |
+| CoreOps creds | `COREOPS_API_KEY`, `COREOPS_AUTH_USER`, `COREOPS_AUTH_PASS` in `<env>.env` → `concord-secrets` | http-api + device personalizer — calls the CoreOps device registry |
 
-Items NOT in this table (legacy `shared/bitbucket/api-token`, `personal/bitbucket/account-credentials`, etc.) are either redirects to the canonical or personal-scope copies. **Do not rotate from them** — when in doubt, rotate from the canonical and re-mirror.
-
-The full rotation procedure for each item is stored in the item's notes in Bitwarden so the steps live with the secret. Copy/paste it into a fresh AI session if needed.
+Each entry above is one rotation unit — when you rotate a Bitbucket API token, you touch one secret-store entry, one env-file line, then sync. If a value appears in multiple K8s Secrets (e.g. `BITBUCKET_API_TOKEN` lands in two), `sync-secrets` writes both from the single source.
 
 ## Related knowledge
 
@@ -157,12 +160,12 @@ The full rotation procedure for each item is stored in the item's notes in Bitwa
 
 ```
 export PYPI_USERNAME=concord
-export PYPI_PASSWORD=<plaintext-from-bitwarden>
+export PYPI_PASSWORD=<plaintext from your team's secret store>
 ```
 
 | Field | Where |
 |---|---|
-| Plaintext password | Bitwarden item `project/corekinect/concord/pypi/upload` |
+| Plaintext password | your team's secret store (alongside the hashed `PYPI_HTPASSWD` so they stay paired) |
 | Hashed entry | `infrastructure/clusters/office/secrets/shared.env` as `PYPI_HTPASSWD` |
 | K8s Secret | `concord-pypi-htpasswd` in both `staging` + `production` namespaces (synced by `create-all.sh`) |
 | Username | always `concord` |
@@ -174,7 +177,7 @@ export PYPI_PASSWORD=<plaintext-from-bitwarden>
    NEW_PW=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
    HTPASSWD=$(echo -n "$NEW_PW" | openssl dgst -sha1 -binary | base64 | awk -v u=concord '{print u":{SHA}"$1}')
    ```
-2. Update Bitwarden item `project/corekinect/concord/pypi/upload` with the new plaintext.
+2. Update your team's secret store with the new plaintext (paired with the hash from the next step).
 3. Update `infrastructure/clusters/office/secrets/shared.env`: `PYPI_HTPASSWD=$HTPASSWD`.
 4. Re-apply both K8s Secrets:
    ```bash
@@ -190,4 +193,4 @@ export PYPI_PASSWORD=<plaintext-from-bitwarden>
    ```
 6. Test: `PYPI_PASSWORD=$NEW_PW nx push corectl -c staging` should succeed.
 
-The credential was rotated 2026-05-15 — previous hash `concord:{SHA}cLWNyHnLEc9PjKNjtW9nvOjjLp8=` (plaintext never captured) replaced with a fresh one stored in Bitwarden.
+The credential was rotated 2026-05-15 — previous hash `concord:{SHA}cLWNyHnLEc9PjKNjtW9nvOjjLp8=` (plaintext never captured) replaced with a fresh one stored in the team secret store.
