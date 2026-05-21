@@ -136,3 +136,9 @@ rules:
   - apiGroups: [""]
     resources: [configmaps, services]
     verbs: [patch]
+  # Nodes: allow patch for the MTIB onboarding flow — POST /v2/devices/mtibs/<id>/register
+  # applies edge labels (corekinect.com/role=edge, corekinect.com/purpose=<type>) and
+  # the NoSchedule taint so the right MTIB Deployment lands on the right hardware.
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [patch]
