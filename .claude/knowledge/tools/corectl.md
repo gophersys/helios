@@ -248,6 +248,10 @@ Transient failures (network errors, 5xx) trigger a 15-second retry backoff. Afte
 
 Other already-scaffolded validation / manufacturing projects pick up the template change on their next `corectl test update --apply`.
 
+### Template propagation
+
+The `_shared` template ships with the claim flow pre-wired so future scaffolds (and any existing repo that refreshes its framework artifacts) inherit it automatically: `_shared/conftest.py` carries the `.concord-claim.json` env-injection `pytest_configure` hook, and `_shared/.claude/rules/workflow.md` documents the `claim` / `status` / `unclaim` loop alongside the daily test commands. Sub-repos pick up the workflow doc on the next `corectl test update --apply`; conftest.py is dev-owned and is not overwritten by `update`, so existing repos either inherit the hook on next re-scaffold or copy the pattern by hand (sigma5_validation is the reference implementation today).
+
 ### When to refresh this section
 
 Refresh when: the daemon's exit conditions change, the env-injection contract changes, the TTL clamp changes, a new flag is added to `claim`, or the state file shape changes.

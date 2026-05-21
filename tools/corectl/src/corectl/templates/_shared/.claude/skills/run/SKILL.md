@@ -16,6 +16,7 @@ Arguments: $ARGUMENTS — first arg is the stage name; optional `-m <marker>` fi
 
 1. **Stage must exist.** Confirm `concord.yaml stages.<stage>` is defined and `tests/<stage>/` has at least one `test_*.py`.
 2. **Fixture must be reachable.** Validate that `MTIB_HOSTS` is set in the environment (`echo $MTIB_HOSTS`) — comma-separated `<addr>:<port>` of the MTIB(s) wired to the DUT(s) you'll run against. Without this, the autoconf plugin will fail to bind the slot fixture and the run dies before any test starts.
+   - If you have an active DEV_HOLD claim (`.concord-claim.json` present at project root), `corectl test run` injects `MTIB_HOST` / `MTIB_HOSTS` automatically from the claim's slot bindings. Run `corectl test status` if you're unsure which fixture is currently held.
 3. **Manifest in sync.** `corectl test sync` (no --apply) — abort if drift, fix first via `/sync-with-backend`.
 
 ## Run
