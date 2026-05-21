@@ -145,6 +145,30 @@ Before running `nx push corectl -c production`:
 
 The current state (as of the pin fix landing in main): the source tree has corectl `0.9.6` with `corekinect~=0.10.0`. The production pypi has **not** received a new wheel yet — existing installs still pull corectl `0.9.5` with the old `corekinect~=0.8.0` pin, which resolves against the still-published corekinect 0.8.0. Status quo until someone explicitly republishes.
 
+## Auto-upgrade
+
+On every launch, `cli.py` runs `auto_upgrade.maybe_auto_upgrade(...)` **before** Click parses any subcommand. If the internal PyPI has a newer corectl wheel than the installed one, the CLI `pip install --upgrade`s itself and then `os.execv`s the same command so the new code picks up immediately. The developer never has to type `pip install --upgrade corectl` by hand.
+
+The flow is intentionally conservative — running `pip install` mid-command is a sharp edge, so the contract is:
+
+- **Triggers on launch** when the internal pypi (`pypi.<env>.concord.ad.corekinect.com`, derived from `get_api_url`) reports a higher version than the installed one. URL derivation mirrors `version_check._pypi_index_url` — same hostname rewrite, same wheel-name regex.
+- **Throttled to once per `CHECK_INTERVAL` hours** (default 6), tracked in `~/.corectl/.upgrade_cache.json`. The cache records `last_check_at`, `last_seen_latest`, `last_attempt_at`, `last_attempt_outcome` (`upgraded | failed | skipped | noop`). The diagnostic fields exist so a failed pip install isn't retried on every subsequent invocation.
+- **Opt-out**:
+  - `--no-auto-upgrade` flag (also `envvar=CONCORD_NO_AUTO_UPGRADE`).
+  - `CONCORD_NO_AUTO_UPGRADE=1` env var (any value other than literal `1` is treated as not-set — keep `=1` if you set it in CI configs).
+  - The existing `--no-version-check` / `CORECTL_SKIP_VERSION_CHECK` opt-out **also implies no-auto-upgrade**, because a user who said "don't probe pypi" definitely didn't sign up for "but also re-install yourself".
+  - The opt-out flags are scanned out of `sys.argv` before Click parses, because a successful upgrade re-execs the process before Click would get a chance.
+- **Non-interactive skips unconditionally**. `interactive=sys.stdin.isatty()` is computed in `cli.py` and passed in. CI, scripts, and piped invocations never auto-upgrade — surprise dependency churn in an automated pipeline is far worse than running a slightly stale CLI for one more day. The lighter `version_check.maybe_print_upgrade_notice` (the courtesy "you should upgrade" hint) still runs in those contexts.
+- **Read-only site-packages** (system Python, distro package, container image baked-in install): we probe with `os.access(site.getsitepackages()[0], os.W_OK)`. When unwritable, the user gets a one-time yellow notice ("corectl X is outdated; re-install in a writable env to enable auto-upgrade"), the throttle is set so it isn't repeated for the rest of the window, and the launch continues.
+- **Fail-soft on every error**:
+  - PyPI unreachable / parse failure → no warning, just cache the attempt as `skipped` and proceed.
+  - `pip install` exits non-zero → yellow "auto-upgrade failed (pip exit N); continuing with X.Y.Z" warning, cache as `failed`, proceed with the installed version.
+  - `os.execv` raises (running as `python -m corectl`, frozen binary, etc.) → the upgrade was already installed successfully but the re-exec didn't happen; the original command continues on the old code path. The new code takes over on the next invocation.
+
+The pip command itself uses `sys.executable -m pip install --upgrade --extra-index-url https://pypi.<env>.concord.ad.corekinect.com/simple/ corectl==<latest>`. `--extra-index-url` (not `--index-url`) keeps the public PyPI fallback so corekinect's transitive deps still resolve.
+
+`maybe_auto_upgrade` and `maybe_print_upgrade_notice` (in `version_check.py`) are two different code paths with two different cache files (`.upgrade_cache.json` vs `last-version-check.json`). The notice runs unconditionally on every command (it's just a string echo), the auto-upgrade is gated on interactive + opt-in defaults. Keep the split — the notice path is the safe fallback if auto-upgrade is opted out, and the two together give us "always nag, sometimes actually upgrade".
+
 ## How to add a new corectl command
 
 1. Add a new file under `src/corectl/commands/<verb>.py` exposing a Click group or command.

@@ -18,12 +18,45 @@ Resource-qualified (when outside a project or managing other resources):
 """
 
 import os
+import sys
 
 import click
 
 from . import __version__
 from .config import load_config
 from .commands import auth, budgets, runs, test, update as update_cmd
+
+
+def _argv_opt_out() -> bool:
+    """Detect ``--no-auto-upgrade`` / ``--no-version-check`` in argv pre-parse.
+
+    The auto-upgrade path runs *before* Click parses arguments because a
+    successful upgrade re-execs the process — if Click parsed first, the
+    subcommand would already be dispatched. We mirror Click's own
+    boolean-flag matching here for the handful of opt-out flags.
+    """
+    for tok in sys.argv[1:]:
+        if tok in ("--no-auto-upgrade", "--no-version-check"):
+            return True
+    return False
+
+
+# Run the upgrade attempt before Click does anything else. The function
+# is fail-soft — any error path returns silently, the original command
+# continues unchanged. On a successful upgrade it ``os.execv``s and
+# never returns.
+try:
+    from .auto_upgrade import maybe_auto_upgrade as _maybe_auto_upgrade
+
+    _maybe_auto_upgrade(
+        interactive=sys.stdin.isatty(),
+        opt_out=(
+            os.environ.get("CONCORD_NO_AUTO_UPGRADE") == "1"
+            or _argv_opt_out()
+        ),
+    )
+except Exception:
+    pass
 
 
 @click.group(invoke_without_command=True)
@@ -42,8 +75,17 @@ from .commands import auth, budgets, runs, test, update as update_cmd
     envvar="CORECTL_SKIP_VERSION_CHECK",
     help="Skip the daily upgrade-availability check on internal pypi.",
 )
+@click.option(
+    "--no-auto-upgrade",
+    is_flag=True,
+    default=False,
+    envvar="CONCORD_NO_AUTO_UPGRADE",
+    help="Skip the in-place self-upgrade on launch. Implied by --no-version-check. "
+         "Auto-upgrade is throttled to once per 6h and never runs in non-interactive "
+         "shells regardless of this flag.",
+)
 @click.pass_context
-def main(ctx, insecure, no_version_check):
+def main(ctx, insecure, no_version_check, no_auto_upgrade):
     """Concord platform CLI — manage validation, fixtures, and manufacturing."""
     if insecure:
         os.environ["CONCORD_VERIFY_SSL"] = "false"
@@ -58,7 +100,9 @@ def main(ctx, insecure, no_version_check):
 
     # Best-effort upgrade-available notice. Cached 24h on disk; errors
     # never block the command. Skipped via --no-version-check or
-    # CORECTL_SKIP_VERSION_CHECK=1 so CI runs stay quiet.
+    # CORECTL_SKIP_VERSION_CHECK=1 so CI runs stay quiet. The notice is
+    # the courtesy "you should upgrade" hint — the real auto-upgrade
+    # ran before Click parsed argv (see top of this file).
     if not no_version_check:
         try:
             from .config import get_api_url, get_tls_verify
