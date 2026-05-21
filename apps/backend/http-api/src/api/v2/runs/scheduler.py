@@ -23,7 +23,7 @@ from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
 from src.services.executors import get_executor
 from src.services.executors.kubernetes_executor import KubernetesExecutor
-from src.services.kubernetes.client import resolve_node_ips
+from src.services.kubernetes.address_resolver import resolve_node_addresses
 
 logger = logging.getLogger(__name__)
 
@@ -63,50 +63,42 @@ def _create_job_api_key(db, entry_id: str) -> str:
 def _resolve_all_slot_info(fixture):
     """Extract DUT info and node addresses from ALL active fixture slots.
 
-    Node IPs are resolved from the K8s API at call time — never uses stored IPs.
-    Returns a list of slot dicts with keys:
+    Address resolution is delegated to ``resolve_node_addresses`` so the
+    K8s lookup + Node.ipAddress fallback are shared with the fixture-claim
+    endpoints. Returns a list of slot dicts with keys:
         slotIndex, slotId, dutSnr, dutDeviceId, nodeIp, nodeHostname
     """
     slots = fixture.slots if hasattr(fixture, "slots") and fixture.slots else []
 
-    # Collect hostnames for K8s IP resolution
-    hostnames = []
-    for slot in slots:
-        if slot.active and slot.nodeId:
-            node = slot.node if hasattr(slot, "node") and slot.node else None
-            if node:
-                hostnames.append(node.hostname)
-
-    # Resolve IPs from K8s (live, not cached)
-    ip_map: dict[str, str] = {}
-    if hostnames:
-        try:
-            ip_map = resolve_node_ips(hostnames)
-        except Exception:
-            logger.warning("K8s IP resolution failed — falling back to stored IPs")
-            for slot in slots:
-                node = slot.node if hasattr(slot, "node") and slot.node else None
-                if node and node.ipAddress:
-                    ip_map[node.hostname] = node.ipAddress
-
-    result = []
+    # Walk active slots that have a node bound; record both nodeId (for the
+    # address resolver) and hostname (for the returned dict).
+    bound_slots: list[tuple[Any, Any]] = []
     for slot in slots:
         if not slot.active or not slot.nodeId:
             continue
         node = slot.node if hasattr(slot, "node") and slot.node else None
         if not node:
             continue
-        hostname = node.hostname
-        ip = ip_map.get(hostname)
-        if not ip:
+        bound_slots.append((slot, node))
+
+    node_ids = [n.id for _, n in bound_slots]
+    addr_map = resolve_node_addresses(node_ids) if node_ids else {}
+
+    result = []
+    for slot, node in bound_slots:
+        host_port = addr_map.get(node.id)
+        if not host_port:
             continue
+        # The legacy scheduler returns nodeIp (bare IP) — split off the port
+        # so downstream env var assembly continues to use MTIB_PORT explicitly.
+        ip = host_port.rsplit(":", 1)[0]
         result.append({
             "slotIndex": slot.slotIndex,
             "slotId": slot.id,
             "dutSnr": slot.dutSnr or f"slot-{slot.slotIndex}",
             "dutDeviceId": slot.dutDeviceId,
             "nodeIp": ip,
-            "nodeHostname": hostname,
+            "nodeHostname": node.hostname,
         })
     return result
 
@@ -512,7 +504,7 @@ def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]
         return assignments
 
     # Get all free fixtures (include boardRevisionId for revision matching).
-    # "Free" is derived live: not disabled AND no active session/run on it.
+    # "Free" is derived live: not disabled AND no active session/run/claim on it.
     # Only checks lock state — the per-pick health check happens below.
     held_session_ids = {
         s.fixtureId for s in db.manufacturingsession.find_many(where={"status": "ACTIVE"})
@@ -522,7 +514,17 @@ def schedule_queue(max_assignments: Optional[int] = None) -> List[Dict[str, Any]
         r.fixtureId for r in db.testrun.find_many(where={"status": "ACTIVE"})
         if getattr(r, "fixtureId", None)
     }
-    held_ids = held_session_ids | held_run_ids
+    # Fixture-mode DEV_HOLD claims hold the whole fixture; node-mode claims
+    # would require expanding ClaimedNode → FixtureSlot → Fixture, which is
+    # done by the per-pick is_fixture_busy() call in the manufacturing path.
+    # For the validation scheduler the pre-filter is enough — node-mode
+    # holds are uncommon and the test-run create endpoint enforces the gate
+    # once the queue picks one up.
+    held_claim_ids = {
+        c.fixtureId for c in db.fixtureclaim.find_many(where={"status": "ACTIVE"})
+        if getattr(c, "fixtureId", None)
+    }
+    held_ids = held_session_ids | held_run_ids | held_claim_ids
     fixture_where: dict = {"active": True, "disabled": False}
     if held_ids:
         fixture_where["id"] = {"notIn": list(held_ids)}

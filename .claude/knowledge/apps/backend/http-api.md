@@ -80,6 +80,7 @@ apps/backend/http-api/
 │   │   ├── kubernetes/              # K8s client, deployments, jobs, pods, nodes,
 │   │   │                            #   events, configmaps, RBAC, MTIB deployments,
 │   │   │                            #   runner env, runner_dispatch (pytest|ztest),
+│   │   │                            #   address_resolver (nodeId → MTIB host),
 │   │   │                            #   serializers
 │   │   ├── log/                     # Logger init + LogFilter for /healthcheck noise
 │   │   ├── mfg_session_reaper.py    # Mid-stage manufacturing-session reaper
