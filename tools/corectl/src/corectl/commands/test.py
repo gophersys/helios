@@ -1342,9 +1342,45 @@ def run(ctx, stage: str, marker: Optional[str], timeout: int, path: str, verbose
     if marker:
         cmd.extend(["-m", marker])
 
+    # Inject MTIB host + claim id from an active DEV_HOLD claim, if any.
+    # Falls back silently to the operator's ambient env when no state
+    # file is present — preserves the existing "MTIB_HOST in your shell"
+    # workflow for devs who haven't adopted the claim flow yet.
+    run_env = _env_with_claim_bindings(project_dir, os.environ)
+
     click.echo(f"Running {stage} tests...")
-    result = subprocess.run(cmd, cwd=str(project_dir))
+    result = subprocess.run(cmd, cwd=str(project_dir), env=run_env)
     raise SystemExit(result.returncode)
+
+
+def _env_with_claim_bindings(project_dir: Path, base_env) -> dict:
+    """Return a copy of ``base_env`` with MTIB_HOST(S)/CONCORD_CLAIM_ID set.
+
+    Reads ``.concord-claim.json`` if present and injects:
+
+    * ``CONCORD_CLAIM_ID`` — always set when a claim exists. The SDK uses
+      it to correlate test runs with their lease in the audit log.
+    * ``MTIB_HOST`` — single-slot claims. The pytest fixtures + corekinect
+      MTIB client default to this when ``MTIB_HOSTS`` is absent.
+    * ``MTIB_HOSTS`` — multi-slot claims, comma-joined. The slot-parallel
+      runner uses this to spin up one worker per host.
+
+    No-op when the state file is missing or has zero slot bindings.
+    """
+    from .. import claim_state
+
+    env = dict(base_env)
+    state = claim_state.load(project_dir)
+    if state is None:
+        return env
+
+    env["CONCORD_CLAIM_ID"] = claim_state.claim_id(state)
+    hosts = claim_state.slot_hosts(state)
+    if len(hosts) == 1:
+        env["MTIB_HOST"] = hosts[0]
+    elif len(hosts) > 1:
+        env["MTIB_HOSTS"] = ",".join(hosts)
+    return env
 
 
 @test.command()
