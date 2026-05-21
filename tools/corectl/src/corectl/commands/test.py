@@ -12,10 +12,11 @@ Usage:
     corectl test release --version dev-abc12345
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 import yaml
@@ -1701,3 +1702,535 @@ def versions(ctx, path: str):
         tests = str(pkg.get("testCount", "?")).rjust(3)
         date = str(pkg.get("createdAt", ""))[:10]
         click.echo(f"  {click.style(ver, fg=status_color)} {status} {tests} tests  {date}")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# DEV_HOLD fixture claims
+#
+# A claim leases a fixture (or a set of nodes) for the duration of a local
+# TDD session. The CLI commands below (``claim``, ``unclaim``, ``status``)
+# are the dev-side surface — they write/read ``.concord-claim.json`` at
+# the project root and spawn/stop a detached heartbeat daemon process
+# (``corectl.heartbeat_daemon``) that keeps the lease alive against the
+# backend's sliding TTL.
+#
+# Defaults & clamps (from spec):
+#   * Default TTL: 3600 s (1 h)
+#   * Min TTL:        60 s
+#   * Max TTL:    28800 s (8 h, matches hard-ceiling)
+#
+# See ``.claude/specs/dev-hold-claim.md`` for the canonical contract.
+# ═════════════════════════════════════════════════════════════════════════
+
+
+# TTL clamps mirror the backend's hard ceiling (8 h). Out-of-range values
+# are silently clamped — the operator gets feedback in the printed summary.
+_TTL_DEFAULT_SECONDS = 3600
+_TTL_MIN_SECONDS = 60
+_TTL_MAX_SECONDS = 28800
+
+
+def _clamp_ttl(ttl: Optional[int]) -> int:
+    """Apply the [60, 28800] clamp from the spec. None → default 3600."""
+    if ttl is None:
+        return _TTL_DEFAULT_SECONDS
+    return max(_TTL_MIN_SECONDS, min(_TTL_MAX_SECONDS, int(ttl)))
+
+
+def _resolve_fixture_id(api: ConcordAPI, name_or_id: str) -> str:
+    """Return a fixture id given either an id (passthrough) or a name (lookup).
+
+    Lookup is name-equality on ``/v2/fixtures?limit=200``. The fixture
+    list endpoint is the source of truth; we do not maintain a local
+    cache because fixture names rotate when stations get re-keyed.
+    """
+    # If it already looks like a CUID-style id, pass through. Real ids
+    # start with the prefix "fix_" or are plain CUIDs; names tend to be
+    # human-friendly with dashes (e.g., "sigma5-bench-mateo").
+    if name_or_id.startswith("fix_") or (len(name_or_id) > 20 and "-" not in name_or_id):
+        return name_or_id
+
+    resp = api.get("/v2/fixtures", params={"limit": "200"})
+    if not resp.ok:
+        raise click.ClickException(
+            f"Could not list fixtures: HTTP {resp.status_code} — {resp.text[:200]}"
+        )
+    payload = resp.json().get("data") or {}
+    fixtures = payload.get("data") if isinstance(payload, dict) else payload
+    fixtures = fixtures or []
+    for f in fixtures:
+        if f.get("name") == name_or_id or f.get("id") == name_or_id:
+            return f["id"]
+    raise click.ClickException(
+        f"Fixture not found: {name_or_id!r}. "
+        f"Run `corectl` against the web UI to see available fixtures."
+    )
+
+
+def _resolve_node_ids(api: ConcordAPI, names_or_ids: List[str]) -> List[Tuple[str, str]]:
+    """Resolve node names/ids to (resolved_id, original_label) pairs.
+
+    The original_label is preserved so the operator's slot labels (e.g.,
+    "slot1" or the host name they typed) flow through to the backend's
+    ``label`` hint. The backend can choose to honor it for slot binding
+    or override it based on the node's wired position.
+    """
+    resp = api.get("/v2/nodes", params={"limit": "100"})
+    if not resp.ok:
+        raise click.ClickException(
+            f"Could not list nodes: HTTP {resp.status_code} — {resp.text[:200]}"
+        )
+    payload = resp.json().get("data") or {}
+    nodes = payload.get("data") if isinstance(payload, dict) else payload
+    nodes = nodes or []
+
+    # Build two lookup maps so name + id both work as input.
+    by_name = {n.get("name"): n.get("id") for n in nodes if n.get("name")}
+    by_host = {n.get("hostname"): n.get("id") for n in nodes if n.get("hostname")}
+    by_id = {n.get("id"): n.get("id") for n in nodes if n.get("id")}
+
+    resolved: List[Tuple[str, str]] = []
+    missing: List[str] = []
+    for entry in names_or_ids:
+        nid = by_name.get(entry) or by_host.get(entry) or by_id.get(entry)
+        if nid is None:
+            missing.append(entry)
+        else:
+            resolved.append((nid, entry))
+    if missing:
+        raise click.ClickException(
+            "Unknown node(s): " + ", ".join(missing)
+        )
+    return resolved
+
+
+def _format_local_time(iso_string: str) -> str:
+    """Convert a UTC ISO-8601 timestamp to the operator's local-tz display.
+
+    Falls back to the raw string on parse errors — never raise from a
+    formatter; a stale display is better than a broken command.
+    """
+    from datetime import datetime, timezone
+    try:
+        # Accept both "Z" and "+00:00" suffixes the backend may produce.
+        ts = iso_string.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    except Exception:
+        return iso_string
+
+
+def _format_time_remaining(iso_string: str) -> str:
+    """Pretty-print "X minutes remaining" for an absolute timestamp.
+
+    Negative values render as "expired" so the operator immediately sees
+    a stale claim without needing to compare timestamps mentally.
+    """
+    from datetime import datetime, timezone
+    try:
+        ts = iso_string.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = (dt - datetime.now(timezone.utc)).total_seconds()
+    except Exception:
+        return "?"
+    if delta < 0:
+        return click.style("expired", fg="red")
+    minutes = int(delta // 60)
+    seconds = int(delta % 60)
+    if minutes >= 60:
+        return f"{minutes // 60}h {minutes % 60}m"
+    return f"{minutes}m {seconds:02d}s"
+
+
+def _spawn_heartbeat_daemon(
+    *,
+    project_dir: Path,
+    api_url: str,
+    token: Optional[str],
+    api_key: Optional[str],
+    insecure: bool,
+) -> int:
+    """Start the heartbeat daemon detached from the parent shell.
+
+    Returns the daemon's PID. The daemon outlives the parent — closing
+    stdin/stdout/stderr and ``start_new_session=True`` together produce
+    a true POSIX daemon (no controlling terminal, no SIGHUP on parent
+    exit).
+    """
+    cmd = [sys.executable, "-m", "corectl.heartbeat_daemon", str(project_dir),
+           "--api-url", api_url]
+    if api_key:
+        cmd.extend(["--api-key", api_key])
+    elif token:
+        cmd.extend(["--token", token])
+    if insecure:
+        cmd.append("--insecure")
+
+    proc = subprocess.Popen(  # noqa: S603 — controlled cmd
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+        cwd=str(project_dir),
+    )
+    return proc.pid
+
+
+def _build_claim_request_body(
+    *,
+    fixture_id: Optional[str],
+    node_specs: Optional[List[Tuple[str, str]]],
+    ttl_seconds: int,
+    description: Optional[str],
+) -> dict:
+    """Assemble the JSON body for POST /v2/fixture-claims.
+
+    Either ``fixture_id`` is set (fixture-mode) OR ``node_specs`` is set
+    (node-mode). Mutual exclusion is enforced by the click XOR — by the
+    time we get here, exactly one is provided.
+    """
+    body: Dict[str, Any] = {"ttlSeconds": ttl_seconds}
+    if description:
+        body["description"] = description
+    if fixture_id is not None:
+        body["fixtureId"] = fixture_id
+    else:
+        body["nodes"] = [
+            {"nodeId": nid, "label": label} for nid, label in (node_specs or [])
+        ]
+    return body
+
+
+def _print_claim_summary(claim: dict) -> None:
+    """Format-and-print the response from POST /v2/fixture-claims."""
+    cid = claim.get("id", "?")
+    fixture_id = claim.get("fixtureId")
+    expires_at = claim.get("expiresAt", "")
+    hard_ceiling = claim.get("hardCeilingAt", "")
+    bindings = claim.get("slotBindings") or []
+
+    click.echo(click.style(f"Claimed: {cid}", fg="green"))
+    if fixture_id:
+        click.echo(f"  Fixture:        {fixture_id}")
+    else:
+        click.echo("  Mode:           node-mode (no fixture binding)")
+    click.echo(f"  Expires at:     {_format_local_time(expires_at)}")
+    click.echo(f"  Hard ceiling:   {_format_local_time(hard_ceiling)}")
+    if bindings:
+        click.echo("  Slots:")
+        # Aligned columns; widths set to the worst-case observed in dev.
+        label_w = max((len(str(b.get("label") or "")) for b in bindings), default=6)
+        node_w = max((len(str(b.get("nodeId") or "")) for b in bindings), default=12)
+        for b in bindings:
+            label = (b.get("label") or "—").ljust(label_w)
+            node = (b.get("nodeId") or "—").ljust(node_w)
+            host = b.get("mtibHost") or "—"
+            click.echo(f"    {label}  node={node}  mtib={host}")
+
+
+def _state_from_response(claim: dict, *, heartbeat_pid: int) -> dict:
+    """Build the on-disk state dict from a backend claim response.
+
+    We persist exactly what ``run``, ``status``, and the daemon need —
+    not the entire backend payload — so the state file stays compact and
+    schema-stable across backend changes.
+    """
+    return {
+        "id": claim["id"],
+        "fixtureId": claim.get("fixtureId"),
+        "slotBindings": claim.get("slotBindings") or [],
+        "expiresAt": claim.get("expiresAt"),
+        "hardCeilingAt": claim.get("hardCeilingAt"),
+        "heartbeatPid": heartbeat_pid,
+        "createdAt": claim.get("acquiredAt") or claim.get("createdAt"),
+    }
+
+
+def _post_claim(
+    api: ConcordAPI,
+    *,
+    fixture: Optional[str],
+    nodes: Optional[List[str]],
+    ttl_seconds: int,
+    description: Optional[str],
+) -> dict:
+    """Resolve names, POST the claim, return the parsed response.
+
+    Splits out from the click command so tests can drive the resolution +
+    HTTP path without a click CliRunner harness.
+    """
+    fixture_id: Optional[str] = None
+    node_specs: Optional[List[Tuple[str, str]]] = None
+    if fixture:
+        fixture_id = _resolve_fixture_id(api, fixture)
+    else:
+        node_specs = _resolve_node_ids(api, nodes or [])
+
+    body = _build_claim_request_body(
+        fixture_id=fixture_id,
+        node_specs=node_specs,
+        ttl_seconds=ttl_seconds,
+        description=description,
+    )
+    resp = api.post("/v2/fixture-claims", json=body)
+    if resp.status_code == 409:
+        # Conflict — another claim, run, or session holds the requested
+        # hardware. Surface the backend message so the dev knows who.
+        try:
+            detail = resp.json().get("message") or resp.text[:200]
+        except Exception:
+            detail = resp.text[:200]
+        raise click.ClickException(
+            f"Fixture/node is busy: {detail}\n"
+            f"Run `corectl test status` once it frees up, or pass --replace to take over your own."
+        )
+    if resp.status_code not in (200, 201):
+        raise click.ClickException(
+            f"Claim failed: HTTP {resp.status_code} — {resp.text[:200]}"
+        )
+    return (resp.json().get("data") or resp.json())
+
+
+@test.command()
+@click.option("--fixture", default=None, help="Fixture name or id (mutually exclusive with --node)")
+@click.option("--node", "node_names", multiple=True, help="Node name(s) or id(s) to claim ad-hoc. Repeat for multi-slot.")
+@click.option("--ttl", "ttl_seconds", type=int, default=None,
+              help=f"Lease TTL in seconds (default {_TTL_DEFAULT_SECONDS}, "
+                   f"clamped to [{_TTL_MIN_SECONDS}, {_TTL_MAX_SECONDS}])")
+@click.option("--description", default=None, help="Free-form note for the audit log")
+@click.option("--replace", is_flag=True,
+              help="Release any existing local claim first, then re-claim")
+@click.argument("path", default=".", required=False)
+@click.pass_context
+def claim(ctx, fixture: Optional[str], node_names: tuple, ttl_seconds: Optional[int],
+          description: Optional[str], replace: bool, path: str):
+    """Claim a fixture (or a set of nodes) for local-dev TDD.
+
+    The claim is held until ``corectl test unclaim``, the 8-hour hard
+    ceiling, or 5 minutes after heartbeats stop. A detached daemon
+    spawned alongside this command keeps the lease alive.
+
+    Examples:
+
+        corectl test claim --fixture sigma5-bench-mateo
+        corectl test claim --fixture sigma5-bench-mateo --ttl 7200
+        corectl test claim --node verdin-15005689 --node verdin-15005690
+    """
+    # Local import to avoid a circular reference between commands/test.py
+    # and the top-level corectl package (claim_state is at package root).
+    from .. import claim_state
+
+    nodes_list = list(node_names) if node_names else None
+
+    # Exclusive: exactly one of (fixture, nodes) must be set.
+    if (fixture and nodes_list) or (not fixture and not nodes_list):
+        raise click.UsageError(
+            "Pass exactly one of --fixture NAME or --node NAME (--node may repeat)"
+        )
+
+    project_dir = Path(path).resolve()
+    state_file = claim_state.state_path(project_dir)
+
+    if state_file.exists():
+        if not replace:
+            raise click.ClickException(
+                f"A claim already exists at {state_file}.\n"
+                f"Pass --replace to release + re-claim, or run `corectl test unclaim` first."
+            )
+        # --replace: try to release the old one before claiming again. We
+        # don't propagate its failures — the operator's intent was "stop
+        # the old one, start a new one" and we'd rather start the new one
+        # than block on a stale lease.
+        try:
+            _release_existing(ctx, project_dir, claim_state)
+        except click.ClickException as exc:
+            click.echo(click.style(f"  (release of prior claim failed: {exc.message})", fg="yellow"))
+
+    api = _client(ctx)
+    ttl = _clamp_ttl(ttl_seconds)
+    if ttl_seconds is not None and ttl != ttl_seconds:
+        click.echo(click.style(
+            f"  (TTL {ttl_seconds}s clamped to {ttl}s)", fg="yellow"
+        ))
+
+    claim_data = _post_claim(
+        api,
+        fixture=fixture,
+        nodes=nodes_list,
+        ttl_seconds=ttl,
+        description=description,
+    )
+
+    # Spawn the heartbeat daemon BEFORE we write the state file. If the
+    # daemon fails to spawn (e.g., the user's python is broken), we want
+    # to surface that before the file gets written — otherwise the lease
+    # silently dies after 5 minutes with no heartbeats.
+    config = ctx.obj["config"]
+    from ..config import get_api_url, get_tls_verify, get_service_account_key
+    api_url = get_api_url(config)
+    api_key = get_service_account_key(config)
+    token = None if api_key else (config.get("access_token") or None)
+    tls = get_tls_verify(config)
+    insecure = tls is False
+
+    pid = _spawn_heartbeat_daemon(
+        project_dir=project_dir,
+        api_url=api_url,
+        token=token,
+        api_key=api_key,
+        insecure=insecure,
+    )
+
+    state = _state_from_response(claim_data, heartbeat_pid=pid)
+    claim_state.save(project_dir, state)
+
+    _print_claim_summary(claim_data)
+    click.echo(f"  Heartbeat pid:  {pid} (logs: {claim_state.log_path(project_dir)})")
+
+
+def _release_existing(ctx, project_dir: Path, claim_state) -> Optional[str]:
+    """Release whatever claim the on-disk state file points to.
+
+    Returns the released claim's id, or None if there was no state file.
+    Raises ``click.ClickException`` on backend errors so the caller can
+    decide whether to propagate or swallow (e.g., ``claim --replace``
+    swallows; ``unclaim`` propagates).
+    """
+    state = claim_state.load(project_dir)
+    if state is None:
+        return None
+    cid = state["id"]
+    api = _client(ctx)
+    resp = api.post(f"/v2/fixture-claims/{cid}/release")
+    if resp.status_code not in (200, 201):
+        # 404 is mildly suspicious (the lease vanished from under us)
+        # but not fatal — we'll wipe the state file regardless.
+        if resp.status_code != 404:
+            raise click.ClickException(
+                f"Release failed: HTTP {resp.status_code} — {resp.text[:200]}"
+            )
+    claim_state.remove(project_dir)
+    return cid
+
+
+@test.command()
+@click.argument("path", default=".", required=False)
+@click.pass_context
+def unclaim(ctx, path: str):
+    """Release the current fixture claim.
+
+    Reads ``.concord-claim.json``, POSTs the release, deletes the state
+    file. If no state file exists, prints a friendly notice and exits 0
+    so scripted teardown is idempotent.
+    """
+    from .. import claim_state
+
+    project_dir = Path(path).resolve()
+    state = claim_state.load(project_dir)
+    if state is None:
+        click.echo("No active claim — nothing to release.")
+        return
+
+    cid = state["id"]
+    api = _client(ctx)
+    resp = api.post(f"/v2/fixture-claims/{cid}/release")
+    if resp.status_code in (200, 201):
+        click.echo(click.style(f"Released claim {cid}", fg="green"))
+    elif resp.status_code == 404:
+        # The lease is already gone server-side (TTL expired, admin
+        # released it). Wipe the local state regardless.
+        click.echo(click.style(
+            f"Claim {cid} not found on backend — wiping local state.",
+            fg="yellow",
+        ))
+    else:
+        # Something genuinely wrong — surface, but still wipe state so
+        # the dev isn't stuck unable to claim again.
+        click.echo(click.style(
+            f"Release returned HTTP {resp.status_code}: {resp.text[:200]}",
+            fg="yellow",
+        ), err=True)
+    claim_state.remove(project_dir)
+
+
+@test.command()
+@click.argument("path", default=".", required=False)
+@click.pass_context
+def status(ctx, path: str):
+    """Show the current claim, reconciling state file with backend live status.
+
+    Prints a small summary table. When the local file says ACTIVE but the
+    backend says EXPIRED/RELEASED/ABANDONED, the state file is wiped and
+    a warning surfaced — the dev was about to run pytest against
+    hardware they no longer own.
+    """
+    from .. import claim_state
+
+    project_dir = Path(path).resolve()
+    state = claim_state.load(project_dir)
+    if state is None:
+        click.echo("No active claim. Run `corectl test claim --fixture <name>` to acquire one.")
+        return
+
+    cid = state["id"]
+    api = _client(ctx)
+    resp = api.get(f"/v2/fixture-claims/{cid}")
+    if resp.status_code == 404:
+        click.echo(click.style(
+            f"Claim {cid} not found on backend — wiping local state.",
+            fg="yellow",
+        ))
+        claim_state.remove(project_dir)
+        return
+    if not resp.ok:
+        click.echo(click.style(
+            f"Could not fetch claim: HTTP {resp.status_code} — {resp.text[:200]}",
+            fg="red",
+        ), err=True)
+        raise SystemExit(1)
+
+    live = resp.json().get("data") or resp.json()
+    live_status = live.get("status", "?")
+
+    # State-vs-backend reconciliation. The state file is implicitly
+    # "ACTIVE" — it only exists while the dev considers themself the
+    # holder. Any non-ACTIVE backend status invalidates that.
+    if live_status != "ACTIVE":
+        click.echo(click.style(
+            f"WARNING: local state says ACTIVE but backend reports {live_status}. "
+            f"Cleaning up local state.",
+            fg="yellow",
+        ), err=True)
+        claim_state.remove(project_dir)
+
+    expires_at = live.get("expiresAt") or state.get("expiresAt", "")
+    hard_ceiling = live.get("hardCeilingAt") or state.get("hardCeilingAt", "")
+    bindings = live.get("slotBindings") or state.get("slotBindings") or []
+
+    status_color = "green" if live_status == "ACTIVE" else "yellow"
+    click.echo(f"Claim:          {cid}")
+    click.echo(f"  Status:         {click.style(live_status, fg=status_color)}")
+    fixture_id = live.get("fixtureId") or state.get("fixtureId")
+    if fixture_id:
+        click.echo(f"  Fixture:        {fixture_id}")
+    else:
+        click.echo("  Mode:           node-mode")
+    click.echo(f"  Expires at:     {_format_local_time(expires_at)}")
+    click.echo(f"  Hard ceiling:   {_format_local_time(hard_ceiling)}")
+    click.echo(f"  Time remaining: {_format_time_remaining(expires_at)}")
+    if bindings:
+        click.echo("  Slots:")
+        for b in bindings:
+            label = b.get("label") or "—"
+            node = b.get("nodeId") or "—"
+            host = b.get("mtibHost") or "—"
+            click.echo(f"    {label:8s}  node={node:24s}  mtib={host}")
+    daemon_pid = state.get("heartbeatPid")
+    if daemon_pid:
+        click.echo(f"  Heartbeat pid:  {daemon_pid}")

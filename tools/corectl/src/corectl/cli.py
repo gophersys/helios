@@ -90,6 +90,9 @@ main.add_command(test.package, "package")
 main.add_command(test.init, "init")
 main.add_command(test.release, "release")
 main.add_command(test.sync, "sync")
+main.add_command(test.claim, "claim")
+main.add_command(test.unclaim, "unclaim")
+main.add_command(test.status, "status")
 main.add_command(update_cmd.update, "update")
 
 
