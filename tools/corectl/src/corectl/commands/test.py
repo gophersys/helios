@@ -1811,7 +1811,7 @@ def _resolve_node_ids(api: ConcordAPI, names_or_ids: List[str]) -> List[Tuple[st
     ``label`` hint. The backend can choose to honor it for slot binding
     or override it based on the node's wired position.
     """
-    resp = api.get("/v2/nodes", params={"limit": "100"})
+    resp = api.get("/v2/devices/mtibs", params={"limit": "100"})
     if not resp.ok:
         raise click.ClickException(
             f"Could not list nodes: HTTP {resp.status_code} — {resp.text[:200]}"
