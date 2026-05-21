@@ -54,6 +54,7 @@ apps/backend/http-api/
 │   │   ├── devices/                 # ICLE + MTIB device CRUD (devices/routes.py is
 │   │   │                            #   the thin wrapper; ICLE handlers live in v2/icle/)
 │   │   ├── fixtures/                # fixtures, benches, designs
+│   │   ├── fixture_claims/          # DEV_HOLD claims — create/heartbeat/release/list/get
 │   │   ├── icle/                    # ICLE device commands, config, heartbeat, logs, OTA
 │   │   ├── kubernetes/              # cluster info, deployments, jobs, pods, events,
 │   │   │                            #   nodes, services, RBAC, configmaps
@@ -76,6 +77,7 @@ apps/backend/http-api/
 │   │   ├── database/                # Prisma client init, schema-drift report
 │   │   ├── devices/                 # MTIB observability poller (gRPC to fixtures)
 │   │   ├── executors/               # docker_executor + kubernetes_executor + factory
+│   │   ├── fixtures/                # reservation gate (is_fixture_busy / are_nodes_busy)
 │   │   ├── integrations/            # Bitbucket REST client, webhook trigger
 │   │   ├── kubernetes/              # K8s client, deployments, jobs, pods, nodes,
 │   │   │                            #   events, configmaps, RBAC, MTIB deployments,
@@ -159,6 +161,7 @@ Started from `src/main.py` after the clients are initialised:
 | `build-recovery` | `scheduling/scheduler.py` → `services/builds/recovery.py` | every 60 s (30 s startup delay) | Resets builds stuck in `CLONING`/`BUILDING` after worker death |
 | `git-poller` (in-process) | `scheduling/scheduler.py` → `integrations/webhook_trigger.poll_for_changes` | `BITBUCKET_POLLER_INTERVAL_S` (default 300 s) | Triggers stage builds when a watched branch advances. Gated by `BITBUCKET_POLLER_ENABLED` — runs in addition to the separate `git-poller` service. |
 | `queue-scheduler` | `scheduling/queue_scheduler.py` | `SCHEDULER_INTERVAL_S` (15 s) plus wake events | Dispatches QUEUED build/validation/mfg jobs respecting concurrency caps; notifies build-service via `/jobs/notify` when slots open |
+| `claim-expiry-sweep` | `scheduling/scheduler.py` → `api/v2/fixture_claims/service.sweep_expired_claims` | every 60 s (30 s startup delay) | Transitions ACTIVE `FixtureClaim` rows: → `EXPIRED` past `expiresAt`, → `ABANDONED` past `hardCeilingAt`. Writes one `fixture.claim.release` audit row per transition (reason `expired` or `abandoned`). |
 | MTIB observability | `services/devices/mtib_observability.py` | 5 s (polled in `init_observability_service`) | gRPC poll of every fixture node for power, GPIO, ADC, motion state |
 
 Graceful shutdown (SIGTERM/SIGINT) stops the schedulers first, sleeps 2 s for in-flight queries, then closes MTIB observability, Prisma, MinIO, and the K8s client.
@@ -190,6 +193,34 @@ Flow:
 `validation_job.yaml` carries `TEST_FRAMEWORK` directly so the runner pod can log + verify the dispatch. The `_serialize_test_package` helper exposes `framework` in the v2 API response.
 
 The ZTEST module lives in `libs/python/corekinect/test/ztest_runner.py` — see `libs/python-corekinect.md` for the runner's internals, CLI, and replay mode. Regression coverage for both dispatch paths lives in `tests/api/runs/test_manual_framework.py` (real-template render) and `tests/services/test_runner_framework_dispatch.py` (pure dispatch unit tests).
+
+### DEV_HOLD fixture claims (`/v2/fixture-claims/`)
+
+Local-dev TDD lets a developer lease a real fixture or a set of raw nodes for the duration of a development session. The lease is honored against concurrent scheduled work via the shared reservation gate at `services/fixtures/reservation.py`.
+
+Endpoints (all routed through `api/v2/fixture_claims/routes.py`):
+
+| Method + path | What it does | Permission gate | Audit |
+|---|---|---|---|
+| `POST /v2/fixture-claims` | Create. Body is XOR `fixtureId` vs `nodes[]` (`CreateClaimRequest` in `validators.py`). `ttlSeconds` defaults to 3600, clamped to 8h. Refuses 409 if the gate reports busy. | `VALIDATION_RUN` for validation-typed targets, `MANUFACTURING_MANAGE` otherwise — classified by `service.is_validation_target`. | `fixture.claim.create` |
+| `POST /v2/fixture-claims/<id>/heartbeat` | Bump `lastHeartbeatAt = now`, recompute `expiresAt = min(now + 5min, hardCeilingAt)`. Returns 410 when the row is not ACTIVE. | Owner OR `SYSTEM_VIEW` OR Admin/Maintainer | *(none — too hot)* |
+| `POST /v2/fixture-claims/<id>/release` | Idempotent: ACTIVE → RELEASED, anything else passes through. | Same as heartbeat. | `fixture.claim.release` with `reason="explicit"` |
+| `GET /v2/fixture-claims` | List filtered by `userId` (default: caller), `status` (default: ACTIVE), `fixtureId`. List omits `slotBindings` to avoid one K8s call per row — call the detail endpoint for those. | `VALIDATION_VIEW` OR `MANUFACTURING_MANAGE` | *(read)* |
+| `GET /v2/fixture-claims/<id>` | Fetch one with `slotBindings` resolved live. | `VALIDATION_VIEW` OR `MANUFACTURING_MANAGE` | *(read)* |
+
+Internals:
+
+- `service.create_claim` writes `acquiredAt`, `lastHeartbeatAt`, `expiresAt = now + ttl`, `hardCeilingAt = now + 8h` (immutable). `expiresAt` is clamped to the ceiling on every write.
+- `service.serialize_claim` calls `services/kubernetes/address_resolver.resolve_node_addresses` to build `slotBindings[*].mtibHost`. Same helper is used by `api/v2/runs/scheduler._resolve_all_slot_info` so the K8s lookup + `Node.ipAddress` fallback live in one place.
+- `service.sweep_expired_claims` is the background lifecycle driver — see the `claim-expiry-sweep` row in the scheduler table above. Called from `scheduling/scheduler._claim_expiry_sweep_loop` every 60 s.
+- The reservation gate (`services/fixtures/reservation.is_fixture_busy` + `are_nodes_busy`) is the single source of truth for "is this hardware busy?". It unions ACTIVE `TestRun`, `ManufacturingSession`, and `FixtureClaim` rows — plus, for node-mode claims, the transitive case where a node is wired into a slot whose fixture has an active run/session. Consulted by:
+  - `api/v2/runs/scheduler.schedule_queue` (pre-filter — excludes claim-held fixtures from the eligible set)
+  - `api/v2/manufacturing/sessions.create_manufacturing_session` (refuses 409 when a `CLAIM_ACTIVE` reason is returned)
+  - `api/v2/fixture_claims/routes.create` (refuses 409 for any of the three reasons)
+
+Permission peculiarity: `@require_permissions(*perms)` requires ALL listed permissions, but the claim endpoints want ANY-of (a developer with only `VALIDATION_RUN` should be able to claim a validation fixture). So the routes use `@require_auth` for JWT plumbing and call `_user_has_permission_any` inline. The create endpoint additionally re-gates on the precise permission once the target type is parsed.
+
+Tests live in `tests/api/fixture_claims/test_routes.py` and exercise every endpoint plus the sweeper (which is called directly with a mock `db` — the scheduler thread itself is not under test).
 
 ## External dependencies
 

@@ -18,6 +18,7 @@ _CLEANUP_INTERVAL_HOURS = 24
 _RETENTION_DAYS = 30
 _BUILD_RECOVERY_INTERVAL_SECONDS = 60
 _NODE_IP_REFRESH_INTERVAL_SECONDS = 60
+_CLAIM_SWEEP_INTERVAL_SECONDS = 60
 
 
 def _cleanup_old_audit_logs():
@@ -61,6 +62,58 @@ def _build_recovery_loop():
         time.sleep(_BUILD_RECOVERY_INTERVAL_SECONDS)
 
 
+def _claim_expiry_sweep_loop():
+    """Periodically transition expired/abandoned FixtureClaims.
+
+    Background sweep that flips ACTIVE → EXPIRED past expiresAt and
+    ACTIVE → ABANDONED past hardCeilingAt. Without this thread a stale
+    DEV_HOLD claim would block every scheduling path until manually
+    released — defeating the whole point of the sliding TTL.
+
+    Audit rows are written here (instead of inside the sweeper itself)
+    so the service module stays HTTP-agnostic and reusable from tests.
+    """
+    from src.api.v2.fixture_claims.service import sweep_expired_claims
+    from src.lib.audit import log_audit
+
+    time.sleep(30)  # initial delay — same convention as the other loops
+    while True:
+        try:
+            result = sweep_expired_claims(get_db_client())
+            for cid in result.get("expired", []):
+                # No Flask request context here — log_audit gracefully
+                # handles a missing g.current_user / request.
+                try:
+                    log_audit(
+                        "fixture.claim.release",
+                        "FixtureClaim",
+                        cid,
+                        {"reason": "expired"},
+                    )
+                except Exception:
+                    pass
+            for cid in result.get("abandoned", []):
+                try:
+                    log_audit(
+                        "fixture.claim.release",
+                        "FixtureClaim",
+                        cid,
+                        {"reason": "abandoned"},
+                    )
+                except Exception:
+                    pass
+            transitioned = len(result.get("expired", [])) + len(result.get("abandoned", []))
+            if transitioned:
+                logger.info(
+                    "Fixture-claim sweep: %d expired, %d abandoned",
+                    len(result.get("expired", [])),
+                    len(result.get("abandoned", [])),
+                )
+        except Exception as e:
+            logger.warning("Fixture-claim sweep tick failed: %s", e)
+        time.sleep(_CLAIM_SWEEP_INTERVAL_SECONDS)
+
+
 def _node_ip_refresh_loop():
     """Keep Node.ipAddress in sync with live K8s InternalIPs.
 
@@ -100,6 +153,11 @@ def start_scheduler():
     t_nodeip = threading.Thread(target=_node_ip_refresh_loop, daemon=True, name="node-ip-refresh")
     t_nodeip.start()
     logger.info("Node IP refresh scheduler started (interval=%ds)", _NODE_IP_REFRESH_INTERVAL_SECONDS)
+
+    # Fixture-claim expiry sweep (DEV_HOLD lifecycle — see api/v2/fixture_claims/)
+    t_claim = threading.Thread(target=_claim_expiry_sweep_loop, daemon=True, name="claim-expiry-sweep")
+    t_claim.start()
+    logger.info("Fixture-claim expiry sweep started (interval=%ds)", _CLAIM_SWEEP_INTERVAL_SECONDS)
 
     # Bitbucket poller — polls repos for new commits to trigger stage builds
     if env_config.BITBUCKET_POLLER_ENABLED:

@@ -111,6 +111,7 @@ Three things to notice that recur everywhere:
 - **Notifications** — `notify_user(user_id, type, title, message, **refs)` writes `Notification` and pushes via SocketIO.
 - **Storage** — MinIO. Buckets: `firmware`, `test-packages`, `artifacts`. Service uses presigned URLs for client uploads.
 - **K8s scheduling** — http-api creates K8s Jobs (validation runner, manufacturing runner) using the `kubernetes` Python client. Pod observability flows back via gRPC + heartbeat.
+- **Fixture reservation gate** — a fixture or node is "busy" if any ACTIVE `TestRun`, `ManufacturingSession`, OR `FixtureClaim` (DEV_HOLD) references it. The union lives in `apps/backend/http-api/src/services/fixtures/reservation.py` and is consulted by the validation scheduler, the manufacturing session create path, and the `/v2/fixture-claims` endpoints — the same predicate everywhere so no path can drift.
 
 ## Where to go next
 
