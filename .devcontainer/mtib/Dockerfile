@@ -39,7 +39,6 @@ WORKDIR /tmp
 
 # Install common dependencies
 RUN apt-get update && \
-    apt-get upgrade -y && \
     apt-get install -y x11-common \
     libxcb-icccm4 \
     libxcb-image0 \

@@ -30,6 +30,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.api.v2.products.test_package_resolver import assert_purpose_match, resolve_test_package
 from src.services.database.prisma import get_db_client
+from src.services.fixtures.reservation import is_fixture_busy
 from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
 
 logger = logging.getLogger(__name__)
@@ -388,6 +389,15 @@ def create_manufacturing_session():
     )
     if not fixture:
         return not_found("Fixture not found")
+
+    # Reservation gate — refuses the session if any active TestRun,
+    # ManufacturingSession, OR FixtureClaim (DEV_HOLD) holds the fixture.
+    # The legacy ``_compute_assignable`` check below also catches the
+    # session/run cases, but it doesn't know about FixtureClaim — running
+    # the shared helper first keeps both sources in lockstep.
+    busy, reason = is_fixture_busy(db, fixture_id)
+    if busy and reason == "CLAIM_ACTIVE":
+        return conflict("Fixture is held by an active DEV_HOLD claim")
 
     # ``assignable`` collapses lock-state and health into one gate. The
     # reason string is surfaced verbatim — see _compute_assignable in

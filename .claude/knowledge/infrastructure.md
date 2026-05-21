@@ -74,6 +74,8 @@ The scripts are idempotent: re-running `bootstrap.sh` is the canonical "drift re
 
 ADMIN gets the `concord-super-admin` ClusterRole (cluster-wide); the other roles get namespace-scoped ClusterRoles applied via RoleBinding per namespace. `infrastructure/rbac/role-mapping.yaml` is the authoritative table.
 
+The platform's own ServiceAccount (`concord-api` in each namespace) binds to `concord-api-system-monitor` — a separate ClusterRole defined in both `clusters/office/rbac/clusterroles.yaml` and `clusters/eks/rbac/clusterroles.yaml`. It grants the http-api pod the cluster-wide permissions needed for fixture orchestration: `get/list/watch` on nodes + namespaces, `create/delete` on pods/deployments/jobs, `patch` on configmaps + services + nodes (the last one drives MTIB onboarding — `POST /v2/devices/mtibs/<id>/register` applies edge labels + taints to the Verdin K8s node). When adding a new ClusterAPI call to the platform, add the verb here and re-run `./infrastructure/ctl.sh office bootstrap` (idempotent) to roll the change out.
+
 The `kubeconfigs/generate.sh` script bakes a user's effective bindings into a single `KUBECONFIG` file by minting a ServiceAccount, granting the right `ClusterRole`s, and emitting a kubeconfig that uses the ServiceAccount token. Two CLI forms:
 
 - `infrastructure/ctl.sh office kubeconfig create --user <email> --role <ADMIN|...>` — single user.

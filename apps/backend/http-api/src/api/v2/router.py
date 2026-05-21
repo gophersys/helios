@@ -12,6 +12,7 @@ from .products.routes import register_product_routes
 from .builds.routes import register_build_routes
 from .runs.routes import register_run_routes
 from .fixtures.routes import register_fixture_routes
+from .fixture_claims.routes import register_fixture_claim_routes
 from .devices.routes import register_device_routes
 from .kubernetes.routes import register_kubernetes_routes
 from .system.routes import register_system_routes
@@ -44,6 +45,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     register_build_routes(v2, socketio)
     register_run_routes(v2, socketio)
     register_fixture_routes(v2)
+    register_fixture_claim_routes(v2)
     register_device_routes(v2, socketio)
     register_kubernetes_routes(v2)
     register_system_routes(v2, socketio)

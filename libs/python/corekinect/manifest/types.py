@@ -16,11 +16,19 @@ class DeviceConfig:
 
 @dataclass(frozen=True)
 class PackageConfig:
-    """Test-package metadata: kind, version, and framework version constraint."""
+    """Test-package metadata: kind, version, framework version constraint,
+    and test framework dispatch.
+
+    ``framework`` is a *corekinect version constraint* (kept for back-
+    compat with the existing manifest schema). ``test_framework`` is the
+    new dispatch field that selects pytest vs ztest at runner-Job
+    creation time. Default is ``"pytest"`` so any concord.yaml predating
+    the dispatch keeps the same behaviour."""
 
     type: str  # "validation" or "manufacturing"
     version: str  # semver e.g. "1.0.0"
     framework: str  # version constraint e.g. ">=0.3.0"
+    test_framework: str = "pytest"  # "pytest" or "ztest"
 
 
 @dataclass(frozen=True)
@@ -130,6 +138,7 @@ class Manifest:
                 type=pkg["type"],
                 version=pkg["version"],
                 framework=pkg["framework"],
+                test_framework=pkg.get("test_framework", "pytest"),
             ),
             product=ProductConfig(
                 slug=prod["slug"],

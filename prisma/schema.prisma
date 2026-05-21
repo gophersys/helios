@@ -123,6 +123,20 @@ enum TestPackageType {
   MANUFACTURING
 }
 
+/// Which test framework the runner should dispatch for this package.
+///
+/// PYTEST  — the existing path: download the package, run pytest with
+///           the corekinect reporter. This is the default for any
+///           package created before the framework dispatch existed,
+///           which means every legacy row reads correctly.
+/// ZTEST   — Zephyr ztest captured over UART after MTIB flashes a hex.
+///           Used for low-level firmware tests on real hardware. The
+///           runner image dispatches to corekinect.test.ztest_runner.
+enum TestFramework {
+  PYTEST
+  ZTEST
+}
+
 enum FixturePurpose {
   DEV /// Dev rig — accepts only DEVELOPMENT test packages
   RELEASE /// Production fixture — accepts only RELEASED test packages
@@ -244,6 +258,7 @@ model TestPackage {
   version          String /// "1.2.0" (release) or "dev-abc12345-1713100800" (development)
   type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
   status           TestPackageStatus @default(DEVELOPMENT)
+  framework        TestFramework     @default(PYTEST) /// PYTEST (default, legacy) or ZTEST (Zephyr ztest over UART). Selects the runner pod entrypoint.
   storageKey       String? /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz. NULL while status=UPLOADING (two-phase commit) and gets set when the MinIO put completes.
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.yaml for change detection
@@ -817,6 +832,7 @@ model Fixture {
   queueEntries          ValidationQueueEntry[]
   manufacturingSessions ManufacturingSession[]
   testRuns              TestRun[]
+  fixtureClaims         FixtureClaim[]
 
   @@index([boardRevisionId])
   @@map("fixtures")
@@ -857,6 +873,80 @@ model FixtureSlot {
   @@map("fixture_slots")
 }
 
+/// Lifecycle of a developer-held lease on a Fixture or a set of raw
+/// Nodes. Lives next to TestRun/ManufacturingSession as a third source
+/// of "this hardware is busy" — the `is_fixture_busy` helper unions all
+/// three. State is advanced by explicit user action (ACTIVE → RELEASED),
+/// sliding-TTL lapse (ACTIVE → EXPIRED), or hard-ceiling lapse
+/// (ACTIVE → ABANDONED).
+enum FixtureClaimStatus {
+  ACTIVE /// heartbeat alive, holder using the hardware
+  RELEASED /// explicit release by holder via API
+  EXPIRED /// sliding TTL elapsed without heartbeat
+  ABANDONED /// hard ceiling (8h) hit
+}
+
+/// A developer's "DEV_HOLD" lease on real fixture hardware for a local
+/// TDD loop. Two mutually exclusive binding modes:
+///   * fixture-mode  — ``fixtureId`` set; whole fixture is held
+///   * node-mode     — ``claimedNodes`` populated; ad-hoc node set
+///                     held without a Fixture row (first-time bootstrap
+///                     or cross-fixture scratch)
+///
+/// Reservation gate: a fixture/node is "busy" if it has any active
+/// TestRun OR ManufacturingSession OR ACTIVE FixtureClaim on it. The
+/// claim lifecycle (heartbeat / expire / release) is shared by both
+/// modes; only the binding shape differs.
+///
+/// TTL is sliding: ``expiresAt = lastHeartbeatAt + 5min``, capped at
+/// ``hardCeilingAt = acquiredAt + 8h``. Background sweep (or
+/// compute-on-read) flips ACTIVE → EXPIRED past expiresAt and
+/// ACTIVE → ABANDONED past hardCeilingAt.
+model FixtureClaim {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  /// EXACTLY ONE of (fixtureId, claimedNodes) is meaningful at a time.
+  fixtureId String?
+  fixture   Fixture? @relation(fields: [fixtureId], references: [id])
+
+  claimedNodes ClaimedNode[]
+
+  status FixtureClaimStatus @default(ACTIVE)
+
+  acquiredAt      DateTime  @default(now())
+  lastHeartbeatAt DateTime  @default(now())
+  expiresAt       DateTime /// sliding window: lastHeartbeatAt + 5min (clamped to hardCeilingAt)
+  hardCeilingAt   DateTime /// acquiredAt + 8h, immutable
+  releasedAt      DateTime?
+
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fixtureId, status])
+  @@index([userId, status])
+  @@map("fixture_claims")
+}
+
+/// One node held by a node-mode FixtureClaim. In fixture-mode, the
+/// fixture's slots already encode the held nodes — no rows here.
+model ClaimedNode {
+  id      String       @id @default(cuid())
+  claimId String
+  claim   FixtureClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  nodeId  String
+  node    Node         @relation(fields: [nodeId], references: [id])
+  label   String? /// optional slot-label hint the claimer supplied
+
+  @@unique([claimId, nodeId])
+  @@index([nodeId])
+  @@map("claimed_nodes")
+}
+
 // =============================================================================
 //
 //  DEVICES
@@ -891,6 +981,7 @@ model Node {
   updatedAt        DateTime @updatedAt
 
   fixtureSlot FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
+  claimedBy   ClaimedNode[]
 
   @@map("nodes")
 }
@@ -1018,6 +1109,7 @@ model User {
   releasesCreated       Release[]                @relation("releasesCreated")
   notifications         Notification[]
   notificationPrefs     NotificationPreference[]
+  fixtureClaims         FixtureClaim[]
 
   @@map("users")
 }

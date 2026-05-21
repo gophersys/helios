@@ -28,7 +28,7 @@ ARG TRIVY_VERSION=0.69.3
 # ----------------------------------------------------
 #                                      System Packages
 # ----------------------------------------------------
-RUN DEBIAN_FRONTEND=noninteractive apt update && apt upgrade -y && \
+RUN DEBIAN_FRONTEND=noninteractive apt update && \
     apt install -y zsh \
     curl \
     git \

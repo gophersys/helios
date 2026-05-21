@@ -12,6 +12,11 @@ import yaml  # type: ignore[import-untyped]
 from config.env import env_config
 
 from src.services.kubernetes.client import get_batch_v1_api
+from src.services.kubernetes.runner_dispatch import (
+    framework_env_var,
+    normalize_framework,
+    runner_command_for_framework,
+)
 from src.services.kubernetes.runner_env import build_common_runner_env
 from src.services.log.logger import get_logger
 
@@ -127,6 +132,9 @@ def create_kubernetes_job(
     extra_env: Optional[Dict[str, str]] = None,
     # Multi-slot: comma-separated MTIB hosts (alongside single mtib_address)
     mtib_hosts: Optional[str] = None,
+    # Test framework dispatch — resolved from the TestPackage's framework
+    # column. ``None`` collapses to PYTEST (back-compat).
+    framework: Optional[str] = None,
 ) -> Optional[str]:
     """
     Create a new kubernetes job with the new firmware file environment variables.
@@ -227,11 +235,37 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{PYTEST_DIR}}", test_directory or "")
         job_yaml = job_yaml.replace("{{PYTEST_MARKER}}", test_marker or "")
 
+        # Framework dispatch — selects pytest vs ztest at the runner pod.
+        # ``framework`` may be:
+        #   * a TestFramework enum value from the resolved TestPackage,
+        #   * a raw "pytest"/"ztest" string from corectl trigger payloads,
+        #   * or None — in which case we collapse to PYTEST (back-compat
+        #     for every test package created before the dispatch existed).
+        try:
+            resolved_framework = framework_env_var(framework)
+        except ValueError as fw_exc:
+            logger.error("Invalid framework %r for job %s: %s", framework, job_id, fw_exc)
+            return None
+        job_yaml = job_yaml.replace("{{TEST_FRAMEWORK}}", resolved_framework)
+
         # Parse the YAML and create the job
         job_spec = yaml.safe_load(job_yaml)
 
         # Override the job name in the spec to ensure it includes the product
         job_spec["metadata"]["name"] = job_name
+
+        # Framework dispatch — override the container ``command`` for
+        # ZTEST so the runner pod bypasses the pytest entrypoint and goes
+        # straight to ``python -m corekinect.test.ztest_runner``. PYTEST
+        # leaves command unset, which means the image's ENTRYPOINT
+        # (``/app/entrypoint.sh``) runs unchanged — guaranteeing
+        # back-compat for every test package created before the dispatch.
+        if resolved_framework != "PYTEST":
+            override_command = runner_command_for_framework(resolved_framework)
+            containers = job_spec["spec"]["template"]["spec"].get("containers", [])
+            if containers:
+                containers[0]["command"] = override_command
+                containers[0]["args"] = []
 
         # Inject extra_env vars into the container spec
         if extra_env:

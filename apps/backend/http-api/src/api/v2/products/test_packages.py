@@ -31,6 +31,7 @@ from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.kubernetes.runner_dispatch import normalize_framework
 from src.services.storage.client import (
     get_bucket_name,
     get_storage_client,
@@ -336,6 +337,9 @@ def _serialize_test_package(tp: Any) -> dict:
         "version": tp.version,
         "type": tp.type,
         "status": tp.status,
+        # ``framework`` selects pytest vs ztest at runner-Job dispatch
+        # time. Pre-dispatch rows default to PYTEST via the schema.
+        "framework": getattr(tp, "framework", "PYTEST"),
         "frameworkVersion": tp.frameworkVersion,
         "testCount": tp.testCount,
         "manifestVersion": getattr(tp, "manifestVersion", "1.0"),
@@ -445,6 +449,16 @@ def _upload_test_package_impl(product_id: str):
     if package_type not in ("VALIDATION", "MANUFACTURING"):
         return bad_request("manifest.type must be VALIDATION or MANUFACTURING")
 
+    # Test-framework dispatch — selects the runner Job entrypoint
+    # (pytest vs ztest). Optional in the upload payload; missing / None /
+    # empty all collapse to PYTEST so legacy uploads keep working
+    # without changes. Anything other than pytest|ztest is a 400.
+    raw_framework = manifest.get("framework") or manifest.get("testFramework")
+    try:
+        framework = normalize_framework(raw_framework)
+    except ValueError as exc:
+        return bad_request(str(exc))
+
     test_count = manifest.get("testCount", 0)
     upload_message = (manifest.get("message") or "").strip() or None
     git_sha = (manifest.get("gitSha") or "").strip() or None
@@ -521,6 +535,7 @@ def _upload_test_package_impl(product_id: str):
                 "version": version,
                 "type": package_type,
                 "status": "UPLOADING",
+                "framework": framework,
                 "storageKey": None,
                 "frameworkVersion": framework_version,
                 "manifestHash": manifest_hash,
