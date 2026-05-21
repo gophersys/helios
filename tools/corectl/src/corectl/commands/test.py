@@ -1977,11 +1977,15 @@ def _state_from_response(claim: dict, *, heartbeat_pid: int) -> dict:
     not the entire backend payload — so the state file stays compact and
     schema-stable across backend changes.
     """
+    # NB: expiresAt is intentionally omitted — it's a sliding value
+    # (lastHeartbeatAt + 5 min) that changes with every heartbeat, so
+    # caching it on disk creates a "state says alive, backend already
+    # expired" drift class. `corectl test status` reads expiresAt live
+    # from the backend. hardCeilingAt is immutable, so it stays.
     return {
         "id": claim["id"],
         "fixtureId": claim.get("fixtureId"),
         "slotBindings": claim.get("slotBindings") or [],
-        "expiresAt": claim.get("expiresAt"),
         "hardCeilingAt": claim.get("hardCeilingAt"),
         "heartbeatPid": heartbeat_pid,
         "createdAt": claim.get("acquiredAt") or claim.get("createdAt"),
@@ -2245,7 +2249,9 @@ def status(ctx, path: str):
         ), err=True)
         claim_state.remove(project_dir)
 
-    expires_at = live.get("expiresAt") or state.get("expiresAt", "")
+    # expiresAt is live-only (sliding window). hardCeilingAt is immutable
+    # and stays on disk as a fallback for offline display.
+    expires_at = live.get("expiresAt", "")
     hard_ceiling = live.get("hardCeilingAt") or state.get("hardCeilingAt", "")
     bindings = live.get("slotBindings") or state.get("slotBindings") or []
 

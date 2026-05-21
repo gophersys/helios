@@ -209,7 +209,7 @@ Flags on `claim`:
 
 ### Files
 
-- `tools/corectl/src/corectl/claim_state.py` — atomic read/write/remove of `.concord-claim.json`, the on-disk record of an active claim. Stores claim id, fixture id (or null for node mode), slot bindings (each with label / nodeId / mtibHost), expires/hard-ceiling timestamps, heartbeat PID, createdAt.
+- `tools/corectl/src/corectl/claim_state.py` — atomic read/write/remove of `.concord-claim.json`, the on-disk record of an active claim. Stores **only immutable fields**: claim id, fixture id (or null for node mode), slot bindings (each with label / nodeId / mtibHost), `hardCeilingAt`, heartbeat PID, `createdAt`. `expiresAt` is intentionally NOT persisted — it's sliding (`lastHeartbeatAt + 5min`) and changes with every heartbeat, so caching it would create a "state says alive, backend already expired" drift class. `corectl test status` reads `expiresAt` live from the backend each time.
 - `tools/corectl/src/corectl/heartbeat_daemon.py` — standalone script (`python -m corectl.heartbeat_daemon <project> --api-url URL [--token T | --api-key K]`) that POSTs `/v2/fixture-claims/<id>/heartbeat` every 60 s. Exits cleanly on state-file deletion, HTTP 410, or SIGTERM. Logs to `.concord-claim.log` via `RotatingFileHandler` (1 MB cap, 2 backups).
 - `tools/corectl/src/corectl/commands/test.py` — the three `@test.command()` definitions (`claim`, `unclaim`, `status`), the resolver helpers (`_resolve_fixture_id`, `_resolve_node_ids`), the daemon launcher (`_spawn_heartbeat_daemon`), and the env-injector (`_env_with_claim_bindings`).
 

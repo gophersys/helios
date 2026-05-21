@@ -18,11 +18,17 @@ State file shape::
       "slotBindings": [
         {"label": "slot1", "nodeId": "node_xyz", "mtibHost": "10.4.45.38:50053"}
       ],
-      "expiresAt": "2026-05-21T18:00:00Z",
       "hardCeilingAt": "2026-05-22T02:00:00Z",
       "heartbeatPid": 12345,
       "createdAt": "2026-05-21T17:00:00Z"
     }
+
+Only immutable values live on disk. ``expiresAt`` is sliding
+(``lastHeartbeatAt + 5 min``) and changes with every heartbeat — caching
+it locally would create a "state file says alive, backend already
+expired" drift class. ``corectl test status`` fetches that field live
+from the backend instead. ``hardCeilingAt`` IS immutable (set once at
+claim time, never moves) so it stays on disk.
 
 Why a flat JSON file (not YAML, not a .corectl/ dir):
 

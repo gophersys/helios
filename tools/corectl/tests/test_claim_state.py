@@ -139,13 +139,15 @@ def test_clamp_ttl_respects_spec_bounds(raw, expected):
 
 
 def test_state_save_and_load_round_trips(tmp_path: Path):
+    # expiresAt is intentionally NOT in the state file — it's sliding
+    # (lastHeartbeatAt + 5min) so we never cache it. corectl status reads
+    # it live from the backend.
     state = {
         "id": "clm_x",
         "fixtureId": "fix_a",
         "slotBindings": [
             {"label": "slot1", "nodeId": "n1", "mtibHost": "h:50053"}
         ],
-        "expiresAt": "2026-05-21T18:00:00+00:00",
         "hardCeilingAt": "2026-05-22T02:00:00+00:00",
         "heartbeatPid": 12345,
         "createdAt": "2026-05-21T17:00:00+00:00",
@@ -153,6 +155,25 @@ def test_state_save_and_load_round_trips(tmp_path: Path):
     claim_state.save(tmp_path, state)
     loaded = claim_state.load(tmp_path)
     assert loaded == state
+
+
+def test_state_from_response_omits_sliding_expires_at():
+    """``_state_from_response`` must not persist ``expiresAt`` — it's
+    sliding (lastHeartbeatAt + 5 min) and caching it creates drift."""
+    claim = {
+        "id": "clm_x",
+        "fixtureId": "fix_a",
+        "slotBindings": [{"label": "slot1", "nodeId": "n1", "mtibHost": "h:50053"}],
+        "expiresAt": "2026-05-21T18:00:00+00:00",
+        "hardCeilingAt": "2026-05-22T02:00:00+00:00",
+        "acquiredAt": "2026-05-21T17:00:00+00:00",
+    }
+    state = test_cmd._state_from_response(claim, heartbeat_pid=42)
+    assert "expiresAt" not in state
+    # The immutable hardCeilingAt + acquiredAt stay so corectl status can
+    # render them offline if the backend is briefly unreachable.
+    assert state["hardCeilingAt"] == claim["hardCeilingAt"]
+    assert state["createdAt"] == claim["acquiredAt"]
 
 
 def test_state_load_missing_returns_none(tmp_path: Path):
@@ -395,7 +416,6 @@ def test_status_warns_on_state_file_backend_mismatch(tmp_path: Path):
     claim_state.save(tmp_path, {
         "id": "clm_stale", "fixtureId": "fix_x",
         "slotBindings": [{"label": "slot1", "nodeId": "n1", "mtibHost": "h:1"}],
-        "expiresAt": "2026-01-01T00:00:00+00:00",
         "hardCeilingAt": "2026-01-01T08:00:00+00:00",
         "heartbeatPid": 99,
     })
