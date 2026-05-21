@@ -183,3 +183,71 @@ The current state (as of the pin fix landing in main): the source tree has corec
 
 
 **v0.10.3** (2026-05-14): `_shared/.claude/` framework templates (rules + skills + agents) sweep — every `slot.fixture` → `slot.testbed`, every `fixtures/{{board}}/fixture.py` → `testbeds/{{board}}/testbed.py`, every "fixture controller" → "testbed controller". `corectl test update --apply` propagates this to existing scaffolded projects.
+
+
+## DEV_HOLD claim commands
+
+A local-dev workflow that leases real hardware (a fixture or a set of nodes) for the duration of a TDD session, surfaced via three new `corectl test` subcommands. The lease is held by a sliding 5-minute TTL backed by a detached heartbeat daemon, with an 8-hour hard ceiling. See `.claude/specs/dev-hold-claim.md` for the canonical contract.
+
+### Surface
+
+| Command | What it does |
+|---|---|
+| `corectl test claim --fixture NAME` | Lease a fixture for local dev. Single-slot or panel. |
+| `corectl test claim --node NAME [--node NAME …]` | Lease specific nodes ad-hoc (node-mode — no fixture row required). |
+| `corectl test unclaim` | Release the current claim and stop the heartbeat daemon. |
+| `corectl test status` | Show the active claim: id, status, slot bindings, time remaining. Reconciles local state file with backend live status. |
+
+All three are also exposed as top-level aliases (`corectl claim`, `corectl unclaim`, `corectl status`) so they work from a project root the same way `corectl validate` does.
+
+Flags on `claim`:
+
+- `--fixture NAME` xor `--node NAME …` — pick exactly one mode. Node mode accepts repeated `--node` for multi-slot.
+- `--ttl SECONDS` — lease TTL, default 3600 (1 h), clamped to `[60, 28800]` (matches backend hard ceiling). Out-of-range values are clamped silently with a yellow notice.
+- `--description STRING` — free-form note attached to the audit event.
+- `--replace` — release any pre-existing local claim before re-claiming. Without it, `claim` refuses when `.concord-claim.json` already exists.
+
+### Files
+
+- `tools/corectl/src/corectl/claim_state.py` — atomic read/write/remove of `.concord-claim.json`, the on-disk record of an active claim. Stores claim id, fixture id (or null for node mode), slot bindings (each with label / nodeId / mtibHost), expires/hard-ceiling timestamps, heartbeat PID, createdAt.
+- `tools/corectl/src/corectl/heartbeat_daemon.py` — standalone script (`python -m corectl.heartbeat_daemon <project> --api-url URL [--token T | --api-key K]`) that POSTs `/v2/fixture-claims/<id>/heartbeat` every 60 s. Exits cleanly on state-file deletion, HTTP 410, or SIGTERM. Logs to `.concord-claim.log` via `RotatingFileHandler` (1 MB cap, 2 backups).
+- `tools/corectl/src/corectl/commands/test.py` — the three `@test.command()` definitions (`claim`, `unclaim`, `status`), the resolver helpers (`_resolve_fixture_id`, `_resolve_node_ids`), the daemon launcher (`_spawn_heartbeat_daemon`), and the env-injector (`_env_with_claim_bindings`).
+
+### Run-time env injection
+
+`corectl test run <stage>` now consults `.concord-claim.json` before invoking pytest. When the file exists it injects:
+
+- `CONCORD_CLAIM_ID=<id>` — always, so the SDK / reporter can correlate test runs with their lease in audit logs.
+- `MTIB_HOST=<host>` — single-slot claims (one entry in `slotBindings`).
+- `MTIB_HOSTS=h1,h2,…` — multi-slot claims (>1 entry), comma-joined in slot order.
+
+When the state file is missing, `run` is unchanged — the operator's ambient `MTIB_HOST` / `MTIB_HOSTS` shell env wins, preserving the pre-claim workflow for devs who haven't adopted it yet.
+
+### Daemon lifecycle
+
+Spawn: `subprocess.Popen` with `start_new_session=True` (detaches from controlling tty) and `stdin/stdout/stderr=DEVNULL` (so the parent shell isn't tethered). The daemon's PID is recorded in the state file before `claim` returns, so `unclaim` and `status` know who's heartbeating.
+
+Exit conditions (all clean):
+
+1. State file deleted → cooperative shutdown (the CLI signals "stop" by removing the file the daemon polls).
+2. HTTP 410 from `/heartbeat` → backend says the claim is terminal (EXPIRED / RELEASED / ABANDONED). Daemon wipes the state file and exits.
+3. SIGTERM / SIGINT → orderly shutdown; the main loop checks an exit flag every second so a kill lands fast.
+
+Transient failures (network errors, 5xx) trigger a 15-second retry backoff. After 20 consecutive failures (~5 min) the daemon gives up and exits — the lease has expired anyway by that point.
+
+### Reconciliation
+
+`corectl test status` GETs `/v2/fixture-claims/<id>` and compares the live `status` to the implicit "ACTIVE" assumption of the on-disk file. Any mismatch wipes the state file and emits a yellow WARNING — the dev was about to run pytest against hardware they no longer own.
+
+### Gitignore
+
+`.concord-claim.json` and `.concord-claim.log` are added to:
+
+- `tools/corectl/src/corectl/templates/_shared/.gitignore` — the template all scaffolded projects inherit.
+- `validation/sigma5_validation/.gitignore` — backfill for the one already-existing project that needs the entry today.
+
+Other already-scaffolded validation / manufacturing projects pick up the template change on their next `corectl test update --apply`.
+
+### When to refresh this section
+
+Refresh when: the daemon's exit conditions change, the env-injection contract changes, the TTL clamp changes, a new flag is added to `claim`, or the state file shape changes.
