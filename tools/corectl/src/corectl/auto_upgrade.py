@@ -1,9 +1,15 @@
 """Best-effort self-upgrade on launch.
 
-When the internal PyPI publishes a newer ``corectl`` wheel, this module
-pip-installs it in place and re-execs the same command so the new code
-picks up immediately. The intent is that developers never run a stale
-CLI without ever needing to type ``pip install --upgrade`` themselves.
+When the internal PyPI publishes a newer ``corectl`` or ``corekinect``
+wheel, this module pip-installs them in place and re-execs the same
+command so the new code picks up immediately. The intent is that
+developers never run a stale CLI/SDK without ever needing to type
+``pip install --upgrade`` themselves.
+
+The two packages are upgraded together (atomic) per the lockstep
+``major.minor`` policy: corectl and corekinect always ship matching
+minors and either being behind is a problem we want to fix in one
+shot rather than have one stale + one current.
 
 Compared to the lighter ``version_check.maybe_print_upgrade_notice``,
 this path actually performs the upgrade. The two coexist:
@@ -20,7 +26,11 @@ Failure modes — all silent / fail-soft:
 * Opted out via ``--no-auto-upgrade`` or ``CONCORD_NO_AUTO_UPGRADE=1`` → no-op.
 * Throttle window not elapsed → no-op.
 * PyPI unreachable / index parse failure → cache the attempt, no-op.
-* Installed already equals latest → cache, no-op.
+* Installed already equals latest for both packages → cache, no-op.
+* Either package is editable-installed (``pip install -e``) → skip the
+  upgrade entirely. Editable installs are dev source checkouts; pip
+  ``--upgrade`` would replace them with a downloaded wheel and silently
+  break the dev's working tree. We never do that.
 * ``pip install`` exits non-zero → yellow warning, cache the failure to
   avoid retrying on every subsequent invocation for the rest of the
   throttle window, continue with the old version.
@@ -40,7 +50,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 from . import __version__
@@ -49,14 +59,21 @@ from . import __version__
 # Module-level so tests can monkey-patch a tighter window. Hours.
 CHECK_INTERVAL = 6
 
+# Packages this module keeps in lockstep. corectl is the CLI; corekinect
+# is the test framework / SDK that corectl ships alongside.
+MANAGED_PACKAGES: Tuple[str, ...] = ("corectl", "corekinect")
+
 _REQUEST_TIMEOUT_S = 3.0
 _PIP_TIMEOUT_S = 120.0
 
-# Same wheel-filename grammar used by version_check (PEP 427):
+# Wheel filename grammar (PEP 427), parameterized by package name so the
+# same regex factory can serve both managed packages:
 #   {name}-{version}(-{build})?-{python}-{abi}-{platform}.whl
-_WHEEL_VERSION_RE = re.compile(
-    r"corectl-(\d+(?:\.\d+){1,2}(?:[ab]\d+|rc\d+|\.post\d+|\.dev\d+)?)-"
-)
+def _wheel_version_re(pkg: str) -> re.Pattern:
+    return re.compile(
+        rf"{re.escape(pkg)}-(\d+(?:\.\d+){{1,2}}(?:[ab]\d+|rc\d+|\.post\d+|\.dev\d+)?)-"
+    )
+
 
 _ANSI_YELLOW = "\033[33m"
 _ANSI_GREEN = "\033[32m"
@@ -106,8 +123,8 @@ def _semver_tuple(v: str) -> tuple:
     return tuple(int(p) for p in core.group(1).split("."))
 
 
-def _pypi_index_url(api_url: str) -> Optional[str]:
-    """Derive the internal PyPI ``simple/corectl/`` URL from the API URL.
+def _pypi_index_url(api_url: str, pkg: str = "corectl") -> Optional[str]:
+    """Derive the internal PyPI ``simple/<pkg>/`` URL from the API URL.
 
     Mirrors ``version_check._pypi_index_url`` — Concord's ingress serves
     PyPI at the ``pypi.`` subdomain alongside the main API host. When
@@ -118,12 +135,12 @@ def _pypi_index_url(api_url: str) -> Optional[str]:
         parsed = urlparse(api_url)
         if not parsed.scheme or not parsed.hostname:
             return None
-        return f"{parsed.scheme}://pypi.{parsed.hostname}/simple/corectl/"
+        return f"{parsed.scheme}://pypi.{parsed.hostname}/simple/{pkg}/"
     except Exception:
         return None
 
 
-def _fetch_latest_version(index_url: str, verify) -> Optional[str]:
+def _fetch_latest_version(index_url: str, pkg: str, verify) -> Optional[str]:
     """Return the highest published version on the internal PyPI, or None.
 
     Returns None on any error — network, HTTP status, parse failure.
@@ -139,12 +156,66 @@ def _fetch_latest_version(index_url: str, verify) -> Optional[str]:
         if resp.status_code != 200:
             return None
         versions = sorted(
-            set(_WHEEL_VERSION_RE.findall(resp.text)),
+            set(_wheel_version_re(pkg).findall(resp.text)),
             key=_semver_tuple,
         )
         return versions[-1] if versions else None
     except Exception:
         return None
+
+
+def _installed_version(pkg: str) -> Optional[str]:
+    """Return the version of ``pkg`` installed in the current interpreter,
+    or None if the package isn't installed at all.
+
+    Used to detect "corekinect is way behind corectl" so we can pull it
+    forward without the user noticing the drift.
+    """
+    if pkg == "corectl":
+        # Avoid an importlib round-trip for our own module.
+        return __version__
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+    except ImportError:
+        return None
+    try:
+        return version(pkg)
+    except PackageNotFoundError:
+        return None
+
+
+def _is_editable_install(pkg: str) -> bool:
+    """True if ``pkg`` was installed via ``pip install -e``.
+
+    Editable installs point at a source checkout. ``pip install --upgrade``
+    would silently replace them with a downloaded wheel — destroying the
+    dev's working tree without warning. So whenever EITHER package in the
+    lockstep set is editable we skip the auto-upgrade entirely; the dev
+    is clearly working on the code locally and we shouldn't surprise
+    them. Returns False on any introspection error (we'd rather attempt
+    and let pip succeed than skip a legitimate upgrade).
+    """
+    try:
+        from importlib.metadata import PackageNotFoundError, distribution
+    except ImportError:
+        return False
+    try:
+        dist = distribution(pkg)
+    except PackageNotFoundError:
+        # Not installed at all — treat as non-editable so the upgrade
+        # path can install it fresh from PyPI.
+        return False
+    try:
+        # PEP 660 / pip editable installs write ``direct_url.json`` with
+        # ``dir_info.editable: true``. Older "develop" installs predating
+        # PEP 660 leave a ``.egg-link`` file in site-packages; both forms
+        # appear in ``dist.files`` so the json probe is the canonical check.
+        raw = dist.read_text("direct_url.json")
+        if not raw:
+            return False
+        return bool(json.loads(raw).get("dir_info", {}).get("editable", False))
+    except Exception:
+        return False
 
 
 def _site_packages_writable() -> bool:
@@ -169,8 +240,60 @@ def _print_stderr(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
+def _resolve_targets(
+    api_url: str, verify
+) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    """For each managed package, fetch ``installed`` + ``latest`` versions.
+
+    Returns ``{pkg: {"installed": str|None, "latest": str|None}}`` or None
+    if PyPI couldn't be reached for ANY of the managed packages — in
+    which case the throttle is updated and the caller no-ops. Partial
+    success (one reachable, one not) is treated as full failure to keep
+    the lockstep contract honest: we never upgrade just one package and
+    leave the other behind.
+    """
+    out: Dict[str, Dict[str, Optional[str]]] = {}
+    for pkg in MANAGED_PACKAGES:
+        idx = _pypi_index_url(api_url, pkg)
+        if idx is None:
+            return None
+        latest = _fetch_latest_version(idx, pkg, verify)
+        if latest is None:
+            return None
+        out[pkg] = {"installed": _installed_version(pkg), "latest": latest}
+    return out
+
+
+def _needs_upgrade(targets: Dict[str, Dict[str, Optional[str]]]) -> bool:
+    """True when ANY managed package is behind its latest published wheel.
+
+    Missing-installed counts as out-of-date so a fresh corectl-only
+    install on a machine without corekinect pulls the SDK on next launch.
+    """
+    for pkg, ver in targets.items():
+        installed = ver["installed"]
+        latest = ver["latest"]
+        if installed is None:
+            return True
+        if _semver_tuple(latest) > _semver_tuple(installed):
+            return True
+    return False
+
+
+def _format_upgrade_summary(
+    targets: Dict[str, Dict[str, Optional[str]]],
+) -> str:
+    parts = []
+    for pkg, ver in targets.items():
+        installed = ver["installed"] or "(missing)"
+        latest = ver["latest"]
+        if installed != latest:
+            parts.append(f"{pkg} {installed} → {latest}")
+    return ", ".join(parts) if parts else "(no diff)"
+
+
 def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
-    """Upgrade-and-re-exec on launch when a newer corectl is available.
+    """Upgrade-and-re-exec on launch when a newer wheel is available.
 
     Parameters
     ----------
@@ -189,14 +312,16 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
 
     1. Early-return if ``opt_out`` or not ``interactive``.
     2. Throttled to one PyPI probe per ``CHECK_INTERVAL`` hours.
-    3. On newer-version-available: print yellow notice, run
-       ``pip install --upgrade --extra-index-url <pypi> corectl==<latest>``
+    3. Probes PyPI for the latest published ``corectl`` AND ``corekinect``
+       in one round so the upgrade respects the lockstep policy.
+    4. On either-out-of-date: print yellow notice, run
+       ``pip install --upgrade --extra-index-url <pypi> corectl==<v> corekinect==<v>``
        as a subprocess (``sys.executable -m pip``), then on success
        print green notice and ``os.execv(sys.argv[0], sys.argv)`` so
        the new code picks up.
-    4. Any failure (pip non-zero, PyPI unreachable, read-only site-
-       packages) emits a yellow warning at most once per throttle
-       window and the original command continues.
+    5. Any failure (pip non-zero, PyPI unreachable, read-only site-
+       packages, editable install) emits a yellow warning at most once
+       per throttle window and the original command continues.
     """
     if opt_out:
         return
@@ -227,14 +352,11 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
     except Exception:
         return
 
-    index_url = _pypi_index_url(api_url)
-    if index_url is None:
-        return
-
-    latest = _fetch_latest_version(index_url, verify)
-    if latest is None:
-        # PyPI unreachable / parse failure — mark the throttle so we
-        # don't retry on every command for the next CHECK_INTERVAL hours.
+    targets = _resolve_targets(api_url, verify)
+    if targets is None:
+        # PyPI unreachable / parse failure for at least one package —
+        # cache the attempt so we don't retry on every command for the
+        # next CHECK_INTERVAL hours.
         _write_cache(
             {
                 "last_check_at": _now_iso(),
@@ -245,14 +367,39 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
         )
         return
 
-    if _semver_tuple(latest) <= _semver_tuple(__version__):
-        # Already current. Record the no-op so the throttle clock starts.
+    # Record the freshly-observed latest versions even when there's no
+    # work to do — handy when poking at the cache to confirm the probe
+    # ran. Per-package values keep the format honest about lockstep.
+    seen_latest = {pkg: targets[pkg]["latest"] for pkg in MANAGED_PACKAGES}
+
+    if not _needs_upgrade(targets):
+        # Already current on every managed package. Record the no-op so
+        # the throttle clock starts.
         _write_cache(
             {
                 "last_check_at": _now_iso(),
-                "last_seen_latest": latest,
+                "last_seen_latest": seen_latest,
                 "last_attempt_at": _now_iso(),
                 "last_attempt_outcome": "noop",
+            }
+        )
+        return
+
+    # If EITHER managed package is editable-installed we never auto-
+    # upgrade. The dev is working on the source tree; replacing their
+    # editable install with a wheel would silently destroy their
+    # working changes. Just log it and bail.
+    editable = [pkg for pkg in MANAGED_PACKAGES if _is_editable_install(pkg)]
+    if editable:
+        # No yellow notice — devs in this mode know what they're doing
+        # and don't want to be nagged every launch. We still cache so
+        # the throttle clock starts and we don't probe PyPI again.
+        _write_cache(
+            {
+                "last_check_at": _now_iso(),
+                "last_seen_latest": seen_latest,
+                "last_attempt_at": _now_iso(),
+                "last_attempt_outcome": "skipped_editable",
             }
         )
         return
@@ -262,28 +409,29 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
     # will EACCES on every command, and we don't want the user to see
     # that error every single time. Print a one-time notice and bail.
     if not _site_packages_writable():
+        diff = _format_upgrade_summary(targets)
         _print_stderr(
-            f"{_ANSI_YELLOW}corectl {__version__} is outdated (latest: {latest}); "
-            f"re-install in a writable env to enable auto-upgrade.{_ANSI_RESET}"
+            f"{_ANSI_YELLOW}{diff} is outdated; re-install in a writable env "
+            f"to enable auto-upgrade.{_ANSI_RESET}"
         )
         _write_cache(
             {
                 "last_check_at": _now_iso(),
-                "last_seen_latest": latest,
+                "last_seen_latest": seen_latest,
                 "last_attempt_at": _now_iso(),
                 "last_attempt_outcome": "skipped",
             }
         )
         return
 
-    _print_stderr(
-        f"{_ANSI_YELLOW}Upgrading corectl {__version__} → {latest}...{_ANSI_RESET}"
-    )
+    summary = _format_upgrade_summary(targets)
+    _print_stderr(f"{_ANSI_YELLOW}Upgrading {summary}...{_ANSI_RESET}")
 
     # PEP 503 names the index URL; pip wants ``--extra-index-url`` so we
-    # don't disable the public PyPI fallback (corekinect's deps live
-    # there). The pinned ``corectl==<latest>`` request is what forces
-    # pip to land exactly on the wheel we just saw on the index.
+    # don't disable the public PyPI fallback (transitive deps live
+    # there). Pinned ``pkg==<latest>`` per managed package forces pip
+    # to land exactly on the wheels we just saw on the index, and
+    # passing both in one invocation keeps the upgrade atomic.
     pip_cmd = [
         sys.executable,
         "-m",
@@ -292,8 +440,7 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
         "--upgrade",
         "--extra-index-url",
         _pip_index_url(api_url),
-        f"corectl=={latest}",
-    ]
+    ] + [f"{pkg}=={targets[pkg]['latest']}" for pkg in MANAGED_PACKAGES]
 
     try:
         result = subprocess.run(
@@ -309,15 +456,15 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
 
     if rc != 0:
         _print_stderr(
-            f"{_ANSI_YELLOW}corectl auto-upgrade to {latest} failed "
-            f"(pip exit {rc}); continuing with {__version__}.{_ANSI_RESET}"
+            f"{_ANSI_YELLOW}corectl auto-upgrade failed (pip exit {rc}); "
+            f"continuing with {summary.split(' →')[0] if summary else __version__}.{_ANSI_RESET}"
         )
         # Record the failure so we don't keep retrying on every command
         # for the next CHECK_INTERVAL hours.
         _write_cache(
             {
                 "last_check_at": _now_iso(),
-                "last_seen_latest": latest,
+                "last_seen_latest": seen_latest,
                 "last_attempt_at": _now_iso(),
                 "last_attempt_outcome": "failed",
             }
@@ -327,15 +474,13 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
     _write_cache(
         {
             "last_check_at": _now_iso(),
-            "last_seen_latest": latest,
+            "last_seen_latest": seen_latest,
             "last_attempt_at": _now_iso(),
             "last_attempt_outcome": "upgraded",
         }
     )
 
-    _print_stderr(
-        f"{_ANSI_GREEN}Upgrade complete. Re-running...{_ANSI_RESET}"
-    )
+    _print_stderr(f"{_ANSI_GREEN}Upgrade complete. Re-running...{_ANSI_RESET}")
 
     # Re-exec the same command so the new wheel's code path takes over.
     # ``argv[0]`` is the absolute path to the corectl entry-point script;
@@ -349,7 +494,7 @@ def maybe_auto_upgrade(*, interactive: bool, opt_out: bool) -> None:
 
 
 def _pip_index_url(api_url: str) -> str:
-    """Strip the trailing ``corectl/`` from the simple index for pip.
+    """Strip the trailing ``<pkg>/`` from the simple index for pip.
 
     pip's ``--extra-index-url`` wants the root of the simple index,
     not a per-package directory. ``_pypi_index_url`` produces the

@@ -147,11 +147,15 @@ The current state (as of the pin fix landing in main): the source tree has corec
 
 ## Auto-upgrade
 
-On every launch, `cli.py` runs `auto_upgrade.maybe_auto_upgrade(...)` **before** Click parses any subcommand. If the internal PyPI has a newer corectl wheel than the installed one, the CLI `pip install --upgrade`s itself and then `os.execv`s the same command so the new code picks up immediately. The developer never has to type `pip install --upgrade corectl` by hand.
+On every launch, `cli.py` runs `auto_upgrade.maybe_auto_upgrade(...)` **before** Click parses any subcommand. If the internal PyPI has a newer wheel than the installed one for **either** managed package (`corectl` or `corekinect`), the CLI `pip install --upgrade`s **both** atomically and then `os.execv`s the same command so the new code picks up immediately. The developer never has to type `pip install --upgrade corectl corekinect` by hand.
+
+The lockstep coverage matters: in earlier versions only `corectl` was kept current, and `corekinect` would silently drift behind on a dev's machine (the failure mode the sub-repo refresh agent hit during the v0.11.0 rollout — running `corectl test update --apply` rendered templates against a stale local `corekinect`, then validate immediately rejected them). The list of managed packages is `auto_upgrade.MANAGED_PACKAGES`; add a new lockstep package there if a future framework component needs the same treatment.
 
 The flow is intentionally conservative — running `pip install` mid-command is a sharp edge, so the contract is:
 
-- **Triggers on launch** when the internal pypi (`pypi.<env>.concord.ad.corekinect.com`, derived from `get_api_url`) reports a higher version than the installed one. URL derivation mirrors `version_check._pypi_index_url` — same hostname rewrite, same wheel-name regex.
+- **Triggers on launch** when the internal pypi (`pypi.<env>.concord.ad.corekinect.com`, derived from `get_api_url`) reports a higher version than the installed one for **any** package in `MANAGED_PACKAGES`. PyPI URL derivation now takes a package name (`_pypi_index_url(api_url, pkg)`); the wheel-version regex is built per-package by `_wheel_version_re(pkg)`.
+- **Lockstep upgrade**: if any managed package is behind, ALL managed packages get pinned-upgraded in the same pip invocation (`pip install --upgrade ... corectl==<latest> corekinect==<latest>`). Partial-success is forbidden by design — if PyPI is unreachable for even one package, the whole attempt is cached as `skipped` and no pip runs. This keeps the major.minor lockstep contract honest.
+- **Editable installs are sacred**: if EITHER `corectl` or `corekinect` is `pip install -e` (detected via PEP 660 `direct_url.json::dir_info.editable`), the upgrade is skipped silently and the cache records `skipped_editable`. The dev is working on the source tree; auto-replacing it with a downloaded wheel would silently destroy their working changes. No yellow warning either — devs in editable mode know what they're doing.
 - **Throttled to once per `CHECK_INTERVAL` hours** (default 6), tracked in `~/.corectl/.upgrade_cache.json`. The cache records `last_check_at`, `last_seen_latest`, `last_attempt_at`, `last_attempt_outcome` (`upgraded | failed | skipped | noop`). The diagnostic fields exist so a failed pip install isn't retried on every subsequent invocation.
 - **Opt-out**:
   - `--no-auto-upgrade` flag (also `envvar=CONCORD_NO_AUTO_UPGRADE`).
@@ -165,7 +169,9 @@ The flow is intentionally conservative — running `pip install` mid-command is 
   - `pip install` exits non-zero → yellow "auto-upgrade failed (pip exit N); continuing with X.Y.Z" warning, cache as `failed`, proceed with the installed version.
   - `os.execv` raises (running as `python -m corectl`, frozen binary, etc.) → the upgrade was already installed successfully but the re-exec didn't happen; the original command continues on the old code path. The new code takes over on the next invocation.
 
-The pip command itself uses `sys.executable -m pip install --upgrade --extra-index-url https://pypi.<env>.concord.ad.corekinect.com/simple/ corectl==<latest>`. `--extra-index-url` (not `--index-url`) keeps the public PyPI fallback so corekinect's transitive deps still resolve.
+The pip command itself uses `sys.executable -m pip install --upgrade --extra-index-url https://pypi.<env>.concord.ad.corekinect.com/simple/ corectl==<latest> corekinect==<latest>`. `--extra-index-url` (not `--index-url`) keeps the public PyPI fallback so transitive deps still resolve. Both packages on the same command line means pip's resolver sees them together — if they share an incompatible transitive dep that's a real bug to surface, not something to paper over by upgrading one at a time.
+
+The cache shape is `last_seen_latest: {corectl: "0.11.2", corekinect: "0.11.0"}` — a dict, not a bare string — since v0.11.2. Older single-string caches are tolerated by the read path (treated as never-checked) so a brand-new release doesn't refuse to start on machines with an older cache file.
 
 `maybe_auto_upgrade` and `maybe_print_upgrade_notice` (in `version_check.py`) are two different code paths with two different cache files (`.upgrade_cache.json` vs `last-version-check.json`). The notice runs unconditionally on every command (it's just a string echo), the auto-upgrade is gated on interactive + opt-in defaults. Keep the split — the notice path is the safe fallback if auto-upgrade is opted out, and the two together give us "always nag, sometimes actually upgrade".
 
