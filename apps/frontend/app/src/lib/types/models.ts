@@ -1098,6 +1098,58 @@ export interface Fixture {
   updatedAt: string;
 }
 
+// ── Fixture claim (DEV_HOLD) types ────────────────────────────
+
+/** Lifecycle of a developer's DEV_HOLD lease on a Fixture or a set of
+ *  raw Nodes.
+ *
+ *    ACTIVE     — heartbeat alive, holder using the hardware
+ *    RELEASED   — explicit release by holder via API
+ *    EXPIRED    — sliding TTL elapsed without heartbeat
+ *    ABANDONED  — hard ceiling (8h) hit
+ */
+export type FixtureClaimStatus = 'ACTIVE' | 'RELEASED' | 'EXPIRED' | 'ABANDONED';
+
+/** One node held by a node-mode FixtureClaim. In fixture-mode this list
+ *  is empty — the fixture's own slots encode the held nodes. */
+export interface ClaimedNode {
+  id: string;
+  claimId: string;
+  nodeId: string;
+  /** Optional slot-label hint the claimer supplied. */
+  label: string | null;
+  node?: { id: string; name: string; hostname: string } | null;
+}
+
+/** Developer "DEV_HOLD" lease on real fixture hardware for a local TDD
+ *  loop. Exactly one of (fixtureId, claimedNodes) is meaningful:
+ *    * fixture-mode  — fixtureId set; all slots of that fixture held
+ *    * node-mode     — claimedNodes set; ad-hoc node set held without
+ *                      a Fixture row (first-time bootstrap or
+ *                      cross-fixture scratch)
+ *
+ *  Honored by the reservation gate alongside active TestRun /
+ *  ManufacturingSession. Sliding TTL = lastHeartbeatAt + 5min, clamped
+ *  to hardCeilingAt = acquiredAt + 8h. */
+export interface FixtureClaim {
+  id: string;
+  userId: string;
+  fixtureId: string | null;
+  status: FixtureClaimStatus;
+  acquiredAt: string;
+  lastHeartbeatAt: string;
+  expiresAt: string;
+  hardCeilingAt: string;
+  releasedAt: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Relations (when included)
+  user?: { id: string; name: string; email: string };
+  fixture?: { id: string; name: string; stationId?: string } | null;
+  claimedNodes?: ClaimedNode[];
+}
+
 // ── Manufacturing config types ─────────────────────────────
 
 export interface ManufacturingStageConfig {

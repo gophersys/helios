@@ -158,14 +158,29 @@ The runtime side — physical rigs and their MTIBs.
 | `Fixture` | A physical fixture instance. `NodeType` (MANUFACTURING / VALIDATION), `FixturePurpose` (DEV / RELEASE), `panelRows × panelCols`, `disabled` (admin override). **`lockState` is derived live** at serialize time — never stored. |
 | `FixtureSlot` | A position on a fixture. `@unique` on `nodeId` (a node can be in at most one slot). Carries J-Link serials, UART paths, current DUT identity. |
 | `Node` | A K8s node. `NodeType`, `hostname` (unique), `hardwareRevision`. Reachability **never persisted**; computed from k8s + gRPC probe. Only `disabled` is stored. |
+| `FixtureClaim` | A developer "DEV_HOLD" lease on real hardware for a local TDD loop. `FixtureClaimStatus = ACTIVE | RELEASED | EXPIRED | ABANDONED`. Two mutually exclusive binding modes: **fixture-mode** (`fixtureId` set — whole fixture held) and **node-mode** (`claimedNodes` populated — ad-hoc node set held without a Fixture row). Sliding TTL = `lastHeartbeatAt + 5min`, clamped by `hardCeilingAt = acquiredAt + 8h`. Honored by the reservation gate alongside active `TestRun` / `ManufacturingSession`. |
+| `ClaimedNode` | One node bound to a node-mode `FixtureClaim`. `@@unique([claimId, nodeId])` prevents double-holding the same node from one claim. Cascades on claim delete. Empty in fixture-mode (the fixture's slots encode the held nodes). |
 
 ```
 TestBedDesign (1) ── (N) Fixture (1) ── (N) FixtureSlot (1) ── (0..1) Node
-       ▲
-       │ 1:1
-       │
-TestPackage (uploading product's fixture profile)
+       ▲                    ▲                                          ▲
+       │ 1:1                │                                          │
+       │                    │   fixture-mode                           │
+TestPackage                 │                                          │
+                            │   ┌──────────────┐                       │
+                       FixtureClaim ─┐                                 │
+                            │        │ node-mode                       │
+                            ▼        └─→ (N) ClaimedNode ──────────────┘
+                            User
 ```
+
+**Reservation gate (`is_fixture_busy`).** A fixture/node is "busy" when
+any of: active `TestRun` on it, active `ManufacturingSession` on it,
+ACTIVE `FixtureClaim` on it, or ACTIVE `FixtureClaim` with a
+`ClaimedNode` that overlaps the fixture's slot nodes. Both the
+TestRun/Session start paths AND the claim-create path share this
+helper so a claim cannot be acquired on hardware already running a
+session and vice versa.
 
 ### 6. Manufacturing & test runs
 

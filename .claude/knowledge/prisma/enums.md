@@ -59,6 +59,7 @@ updates — review `models.ts` by hand.
 | `TargetStatus` | `PENDING`, `RUNNING`, `PASSED`, `FAILED`, `ERROR` | `RunTarget.status` | Per-DUT pass/fail. ERROR ≠ FAILED — ERROR means infrastructure (MTIB lost, runner crash), FAILED means the DUT failed a test. |
 | `ExecutionStatus` | `PENDING`, `RUNNING`, `PASSED`, `FAILED`, `SKIPPED`, `ERROR` | `TestExecution.status`, `TestStep.status` | Adds SKIPPED relative to TargetStatus (pytest's `@skipif`). |
 | `ManufacturingSessionStatus` | `ACTIVE`, `COMPLETED`, `CANCELLED`, `ARCHIVED` | `ManufacturingSession.status` | ARCHIVED is for post-COMPLETED archival; live sessions hold a fixture's IN_USE lock state derivation. |
+| `FixtureClaimStatus` | `ACTIVE`, `RELEASED`, `EXPIRED`, `ABANDONED` | `FixtureClaim.status` | Developer DEV_HOLD lease lifecycle. ACTIVE = heartbeat alive (sliding 5min TTL). RELEASED = explicit holder release. EXPIRED = sliding TTL lapsed. ABANDONED = hard 8h ceiling hit. The reservation gate (`is_fixture_busy`) only treats ACTIVE rows as busy. |
 | `TestPackageStatus` | `UPLOADING`, `DEVELOPMENT`, `RELEASED` | `TestPackage.status`, `TestBedDesign.status` (denormalized mirror of owner) | UPLOADING is the two-phase commit placeholder before the MinIO PUT completes. |
 | `TestPackageType` | `VALIDATION`, `MANUFACTURING` | `TestPackage.type` | Selects which runner consumes the package. |
 | `TestFramework` | `PYTEST`, `ZTEST` | `TestPackage.framework` | Selects the runner Job entrypoint at dispatch time. PYTEST (default) runs the existing `/app/entrypoint.sh` → pytest path. ZTEST overrides container `command` to `python3 -m corekinect.test.ztest_runner` (UART capture + parse). Default keeps legacy rows working unchanged. See `apps/backend/http-api.md` and `libs/python-corekinect.md`. |
@@ -125,7 +126,7 @@ RELEASE_PUBLISHED                 — Legacy alias; do not use in new code
 
 ## Status pairs that look similar but differ
 
-- **`TestRunStatus`** has `ACTIVE`; **`ManufacturingSessionStatus`** also has `ACTIVE`. Both mean "running now," but they live on different parents. Don't reuse handler code blindly.
+- **`TestRunStatus`**, **`ManufacturingSessionStatus`**, and **`FixtureClaimStatus`** all have `ACTIVE`. All three mean "live right now," but they live on different parents and the reservation gate (`is_fixture_busy`) unions all three when deciding whether a fixture is busy. Don't reuse handler code blindly.
 - **`TargetStatus`** has 5 values; **`ExecutionStatus`** adds `SKIPPED`. A skipped pytest function is `ExecutionStatus.SKIPPED` and contributes to its target's `passedCount` as "neither pass nor fail."
 - **`BuildRunStatus`** has both `BUILD_FAILED` and `FAILED`. The former means a child compilation failed; the latter means a subsequent validation step failed. Both surface as red in the UI but tell different stories.
 - **`ErrorReportStatus.RESOLVED`** vs **`ReleaseStatus.RELEASED`** — close in spelling, opposite meaning. RESOLVED = the bug is fixed; RELEASED = the platform release is live.

@@ -56,7 +56,7 @@ apps/frontend/app/
 │       ├── api.ts             # apiFetch + apiUpload + api.* helpers
 │       ├── docs.ts            # links into docs site
 │       ├── types/
-│       │   ├── models.ts      # backend type mirrors (1481 lines)
+│       │   ├── models.ts      # backend type mirrors (~1500 lines)
 │       │   ├── ci.ts, queue.ts, stages.ts
 │       ├── stores/            # Svelte 5 runes state (singletons + contexts)
 │       │   ├── auth.svelte.ts        # AuthState class, context
@@ -222,3 +222,13 @@ The user-facing TestBed design rows are surfaced in three places:
 All UI strings show "TestBed Design" (capital T, capital B). The TypeScript types in `models.ts` are `TestBedDesign` and `TestBedDesignSummary`. API client calls hit `/v2/test-bed-designs` (not the old `/v2/fixtures/designs`). Concord's `Fixture` (the physical rig) is unchanged — see `product-domains/fixtures.md`.
 
 **v0.10.2** (2026-05-14): user-visible string sweep finishing the TestBedDesign rename. Lowercase 'fixture design(s)' → 'TestBed design(s)' across empty states, error toasts, loading labels, dialog confirmations, and form fields. No schema, no API, no shape change.
+
+## FixtureClaim (DEV_HOLD) types
+
+`src/lib/types/models.ts` carries the type mirrors for the developer-lease feature:
+
+- `FixtureClaimStatus` — string-union `'ACTIVE' | 'RELEASED' | 'EXPIRED' | 'ABANDONED'` matching the Prisma enum.
+- `FixtureClaim` — the lease itself; `fixtureId` is non-null in fixture-mode and null in node-mode. `claimedNodes` is populated only in node-mode.
+- `ClaimedNode` — the node-mode child rows, one per held node.
+
+Only the type definitions land in this commit. The API-client wiring (`api.fixtureClaims.*`) and any UI that surfaces "I'm holding this fixture" indicators ship in follow-up commits and add their own knowledge entries when they do.
