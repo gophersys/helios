@@ -140,6 +140,21 @@ def are_nodes_busy(db, node_ids: list[str]) -> tuple[bool, Optional[str], Option
         )
         return True, REASON_MFG_SESSION, offending
 
+    # 3. Wired into a slot whose fixture has an ACTIVE fixture-mode
+    # FixtureClaim. Symmetric with the node-mode side of
+    # ``is_fixture_busy``: a fixture-mode claim implicitly holds every
+    # node bound to one of the fixture's slots, so an ad-hoc node-mode
+    # request that names any of those nodes must be refused.
+    busy_claim = db.fixtureclaim.find_first(
+        where={"fixtureId": {"in": list(fixture_ids)}, "status": "ACTIVE"},
+    )
+    if busy_claim is not None:
+        offending = next(
+            (s.nodeId for s in slots if s.fixtureId == busy_claim.fixtureId),
+            None,
+        )
+        return True, REASON_CLAIM, offending
+
     return False, None, None
 
 

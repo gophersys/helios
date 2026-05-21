@@ -210,6 +210,31 @@ class TestCreateClaim:
         assert resp.status_code == 409
         mock_db.fixtureclaim.create.assert_not_called()
 
+    def test_create_node_mode_refuses_when_fixture_claim_holds_slot(
+        self, authed_client, mock_db, _busy_helpers_clean
+    ):
+        """Cross-mode collision: an active fixture-mode claim on F implicitly
+        holds every node wired to F's slots. A node-mode claim that names
+        any of those nodes must be refused, mirroring the inverse direction
+        already handled in is_fixture_busy().
+        """
+        mock_db.node.find_many.return_value = [_node()]
+        # node-1 is wired into slot-0 of fixture fix-1.
+        slot = make_obj(id="slot-0", nodeId="node-1", fixtureId="fix-1")
+        mock_db.fixtureslot.find_many.return_value = [slot]
+        # No active TestRun / MfgSession, but an active fixture-mode claim
+        # on fix-1 — the case the original implementation missed.
+        mock_db.fixtureclaim.find_first.return_value = make_obj(
+            id="clm-already", fixtureId="fix-1", status="ACTIVE",
+        )
+
+        resp = authed_client.post(
+            "/v2/fixture-claims",
+            data=json.dumps({"nodes": [{"nodeId": "node-1"}]}),
+        )
+        assert resp.status_code == 409
+        mock_db.fixtureclaim.create.assert_not_called()
+
     def test_create_xor_violation(self, authed_client, mock_db):
         # Both fixtureId AND nodes provided → 400
         resp = authed_client.post(
