@@ -30,6 +30,10 @@ from src.api.v2.fixture_claims.validators import (
     CreateClaimRequest,
 )
 from src.services.kubernetes.address_resolver import resolve_node_addresses
+from src.services.kubernetes.mtib_deployments import (
+    create_mtib_deployment,
+    delete_mtib_deployments_for_claim,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -197,6 +201,121 @@ def release_claim(db, claim: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# MTIB provisioning — make dev claims "just work"
+# ---------------------------------------------------------------------------
+
+
+def _claimed_targets(claim: Any) -> list[tuple[Any, int]]:
+    """Return ``[(node, slot_index), ...]`` for every node held by the claim.
+
+    Fixture-mode claims walk the bound slots; node-mode claims walk
+    ``claimedNodes``. Either way, missing nodes are silently dropped — the
+    serializer surfaces those as ``mtibHost=None`` so callers can render
+    partial state without us raising here.
+    """
+    targets: list[tuple[Any, int]] = []
+    if getattr(claim, "fixtureId", None):
+        fixture = getattr(claim, "fixture", None)
+        if fixture is None:
+            return targets
+        for slot in (getattr(fixture, "slots", None) or []):
+            node = getattr(slot, "node", None)
+            if node is None:
+                continue
+            targets.append((node, getattr(slot, "slotIndex", 0) or 0))
+        return targets
+
+    for idx, cn in enumerate(getattr(claim, "claimedNodes", None) or []):
+        node = getattr(cn, "node", None)
+        if node is None:
+            continue
+        targets.append((node, idx))
+    return targets
+
+
+def _motion_enabled_for_node(node: Any) -> str:
+    """Mirror the fixture/node-registration rule: VALIDATION → motion, else off.
+
+    Matches ``_mtib_env_for_fixture`` in ``api/v2/fixtures/fixtures.py`` and
+    ``_deploy_mtib_for_node`` in ``api/v2/nodes/nodes.py``. Keep all three in
+    sync if the rule ever changes.
+    """
+    return "true" if getattr(node, "type", None) == "VALIDATION" else "false"
+
+
+def provision_mtibs_for_claim(claim: Any) -> dict[str, list[str]]:
+    """Ensure every node held by ``claim`` has a healthy mtib-server pod.
+
+    Idempotent: ``create_mtib_deployment`` returns the existing deploy name
+    on 409, so an existing fixture-bound or standalone deployment is
+    reused untouched (its ``claim-id`` label stays empty and it survives
+    claim teardown). Only freshly-created pods get tagged with the claim id.
+
+    Returns ``{"created": [...], "reused": [...], "failed": [...]}`` keyed by
+    node hostname. The caller should treat a non-empty ``failed`` as a
+    provisioning failure and release the claim — see route layer.
+    """
+    result: dict[str, list[str]] = {"created": [], "reused": [], "failed": []}
+    claim_id = getattr(claim, "id", "") or ""
+
+    fixture = getattr(claim, "fixture", None)
+    fixture_id_for_deploy = getattr(fixture, "id", None) or "claim-standalone"
+
+    for node, slot_index in _claimed_targets(claim):
+        hostname = getattr(node, "hostname", None)
+        if not hostname:
+            continue
+        existing_name = None
+        meta = getattr(node, "metadata", None)
+        if isinstance(meta, dict):
+            existing_name = meta.get("deployment_name")
+
+        config: dict = {"env": {"MOTION_ENABLED": _motion_enabled_for_node(node)}}
+        deploy_id = (
+            f"fixture-{fixture_id_for_deploy[:8]}"
+            if getattr(claim, "fixtureId", None)
+            else f"claim-{claim_id[:8]}"
+        )
+        deploy_name = create_mtib_deployment(
+            node_hostname=hostname,
+            fixture_id=fixture_id_for_deploy,
+            deployment_id=deploy_id,
+            slot_index=slot_index,
+            config=config,
+            claim_id=claim_id,
+        )
+        if deploy_name is None:
+            logger.error("Provisioning mtib-server failed for node %s", hostname)
+            result["failed"].append(hostname)
+            continue
+        # Distinguish reused-existing from newly-created: if Node.metadata
+        # already pointed at the same deploy_name, it pre-existed.
+        if existing_name and existing_name == deploy_name:
+            result["reused"].append(hostname)
+        else:
+            result["created"].append(hostname)
+    return result
+
+
+def teardown_claim_mtibs(claim: Any) -> list[str]:
+    """Delete only the mtib-server Deployments this claim spun up.
+
+    Matches by the ``corekinect.com/claim-id`` label, so fixture-bound and
+    standalone-node deployments (which set the label to empty) are
+    untouched. Idempotent — re-calling after a previous teardown returns
+    ``[]``.
+    """
+    claim_id = getattr(claim, "id", None)
+    if not claim_id:
+        return []
+    deleted = delete_mtib_deployments_for_claim(claim_id)
+    if deleted:
+        logger.info("Tore down %d claim-owned mtib deployments for claim %s: %s",
+                    len(deleted), claim_id, deleted)
+    return deleted
+
+
+# ---------------------------------------------------------------------------
 # Serializer
 # ---------------------------------------------------------------------------
 
@@ -313,6 +432,7 @@ def sweep_expired_claims(db) -> dict[str, list[str]]:
             where={"id": c.id},
             data={"status": "ABANDONED", "releasedAt": now},
         )
+        teardown_claim_mtibs(c)
         abandoned_ids.append(c.id)
 
     expired = db.fixtureclaim.find_many(
@@ -323,6 +443,7 @@ def sweep_expired_claims(db) -> dict[str, list[str]]:
             where={"id": c.id},
             data={"status": "EXPIRED", "releasedAt": now},
         )
+        teardown_claim_mtibs(c)
         expired_ids.append(c.id)
 
     return {"expired": expired_ids, "abandoned": abandoned_ids}

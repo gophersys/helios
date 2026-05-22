@@ -42,10 +42,16 @@ def create_mtib_deployment(
     deployment_id: str,
     slot_index: int,
     config: dict,
+    claim_id: str = "",
 ) -> Optional[str]:
     """Create a K8s deployment for an MTIB server on a specific node.
 
     Returns the K8s deployment name on success, None on failure.
+
+    ``claim_id`` tags the deployment with ``corekinect.com/claim-id`` so a
+    DEV_HOLD claim teardown can find and delete only the deployments it
+    created. Fixture-bound and standalone-node deployments leave it empty
+    and survive ``delete_mtib_deployments_for_claim`` calls.
     """
     template_path = os.path.join(
         env_config.ASSETS_FOLDER, "templates", "mtib_server_deployment.yaml"
@@ -84,6 +90,7 @@ def create_mtib_deployment(
     manifest = manifest.replace("{{NODE_HOSTNAME}}", node_hostname)
     manifest = manifest.replace("{{FIXTURE_ID}}", fixture_id)
     manifest = manifest.replace("{{DEPLOYMENT_ID}}", deployment_id)
+    manifest = manifest.replace("{{CLAIM_ID}}", claim_id or "")
     manifest = manifest.replace("{{IMAGE}}", image)
     manifest = manifest.replace("{{MOTION_ENABLED}}", motion_enabled)
     manifest = manifest.replace("{{METRICS_ENABLED}}", metrics_enabled)
@@ -125,6 +132,41 @@ def delete_mtib_deployment(deploy_name: str) -> bool:
             return True
         logger.error("Failed to delete K8s deployment %s: %s", deploy_name, e.reason)
         return False
+
+
+def delete_mtib_deployments_for_claim(claim_id: str) -> list[str]:
+    """Delete every mtib-server Deployment tagged with this claim id.
+
+    Used by the DEV_HOLD claim release/expiry path. Fixture-bound and
+    standalone-node deployments have an empty ``claim-id`` label and are
+    NOT matched here — only deployments the claim itself spun up come down.
+
+    Returns the list of deploy names actually deleted. Idempotent: a second
+    call with the same claim_id is a no-op (returns ``[]``) because the
+    list call comes back empty.
+    """
+    if not claim_id:
+        return []
+    try:
+        namespace = _get_mtib_namespace()
+        apps_v1 = get_apps_v1_api()
+        selector = f"corekinect.com/claim-id={claim_id}"
+        deps = apps_v1.list_namespaced_deployment(
+            namespace=namespace, label_selector=selector,
+        )
+    except ApiException as e:
+        logger.error("Failed to list mtib deployments for claim %s: %s", claim_id, e.reason)
+        return []
+    except Exception as e:
+        logger.error("Failed to list mtib deployments for claim %s: %s", claim_id, e)
+        return []
+
+    deleted: list[str] = []
+    for dep in (deps.items or []):
+        name = dep.metadata.name
+        if delete_mtib_deployment(name):
+            deleted.append(name)
+    return deleted
 
 
 def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:

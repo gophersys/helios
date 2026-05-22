@@ -138,6 +138,21 @@ def _mock_address_resolver():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _mock_mtib_provisioning():
+    """Stub K8s deployment calls so claim tests don't talk to a real cluster.
+
+    Default: create_mtib_deployment returns a name (success), teardown
+    returns []. Individual tests can override these via the returned
+    MagicMocks (see ``test_create_aborts_when_provisioning_fails``).
+    """
+    with patch("src.api.v2.fixture_claims.service.create_mtib_deployment") as create_m, \
+         patch("src.api.v2.fixture_claims.service.delete_mtib_deployments_for_claim") as delete_m:
+        create_m.return_value = "mtib-test-deploy"
+        delete_m.return_value = []
+        yield create_m, delete_m
+
+
 @pytest.fixture
 def _busy_helpers_clean(mock_db):
     """Default the reservation gate to "free" — counts all zero, find_first None."""
@@ -272,6 +287,109 @@ class TestCreateClaim:
         assert resp.status_code == 201
         # The hard ceiling is 8h; expiresAt should == hardCeilingAt when ttl > 8h.
         assert captured["expiresAt"] == captured["hardCeilingAt"]
+
+
+# ---------------------------------------------------------------------------
+# MTIB auto-provisioning on claim
+# ---------------------------------------------------------------------------
+
+
+class TestProvisioning:
+    def test_create_provisions_mtib_on_each_held_node_fixture_mode(
+        self, authed_client, mock_db, _busy_helpers_clean, _mock_mtib_provisioning,
+    ):
+        create_m, _ = _mock_mtib_provisioning
+        mock_db.fixture.find_unique.return_value = _fixture()
+        mock_db.fixtureclaim.create.return_value = _claim()
+
+        resp = authed_client.post(
+            "/v2/fixture-claims",
+            data=json.dumps({"fixtureId": "fix-1", "ttlSeconds": 3600}),
+        )
+        assert resp.status_code == 201, resp.get_json()
+        # Provisioning should have been invoked for the slot's node.
+        create_m.assert_called_once()
+        call = create_m.call_args
+        assert call.kwargs["node_hostname"] == "verdin-node-1"
+        assert call.kwargs["claim_id"] == "clm-1"
+        # VALIDATION-type node → motion enabled.
+        assert call.kwargs["config"]["env"]["MOTION_ENABLED"] == "true"
+
+    def test_create_provisions_mtib_on_each_held_node_node_mode(
+        self, authed_client, mock_db, _busy_helpers_clean, _mock_mtib_provisioning,
+    ):
+        create_m, _ = _mock_mtib_provisioning
+        mock_db.node.find_many.return_value = [_node()]
+        mock_db.fixtureslot.find_many.return_value = []
+        mock_db.fixtureclaim.create.return_value = _node_claim()
+
+        resp = authed_client.post(
+            "/v2/fixture-claims",
+            data=json.dumps({"nodes": [{"nodeId": "node-1", "label": "slot1"}]}),
+        )
+        assert resp.status_code == 201, resp.get_json()
+        create_m.assert_called_once()
+        call = create_m.call_args
+        assert call.kwargs["node_hostname"] == "node-1"
+        assert call.kwargs["claim_id"] == "clm-n-1"
+        # Node-mode → deployment_id is claim-scoped.
+        assert call.kwargs["deployment_id"].startswith("claim-")
+
+    def test_create_aborts_when_provisioning_fails(
+        self, authed_client, mock_db, _busy_helpers_clean, _mock_mtib_provisioning,
+    ):
+        """Provisioning failure should release the claim and return 502.
+
+        The dev shouldn't end up holding a lease with no working mtib.
+        """
+        create_m, delete_m = _mock_mtib_provisioning
+        create_m.return_value = None  # simulate k8s failure
+        mock_db.node.find_many.return_value = [_node()]
+        mock_db.fixtureslot.find_many.return_value = []
+        mock_db.fixtureclaim.create.return_value = _node_claim()
+
+        resp = authed_client.post(
+            "/v2/fixture-claims",
+            data=json.dumps({"nodes": [{"nodeId": "node-1"}]}),
+        )
+        assert resp.status_code == 502, resp.get_json()
+        # Should have attempted teardown of whatever we managed to create.
+        delete_m.assert_called_once()
+        # And released the claim row.
+        mock_db.fixtureclaim.update.assert_called()
+        update_args = mock_db.fixtureclaim.update.call_args
+        assert update_args.kwargs["data"]["status"] == "RELEASED"
+
+    def test_release_tears_down_claim_mtibs(
+        self, authed_client, mock_db, _mock_mtib_provisioning,
+    ):
+        _, delete_m = _mock_mtib_provisioning
+        delete_m.return_value = ["mtib-verdin-node-1-s0"]
+        active = _claim(status="ACTIVE")
+        # find_unique on release does an `include={...}` lookup — return active.
+        mock_db.fixtureclaim.find_unique.return_value = active
+        mock_db.fixtureclaim.update.return_value = _claim(
+            status="RELEASED", releasedAt=NOW,
+        )
+
+        resp = authed_client.post(f"/v2/fixture-claims/{active.id}/release")
+        assert resp.status_code == 200, resp.get_json()
+        delete_m.assert_called_once()
+
+    def test_release_skips_teardown_when_already_released(
+        self, authed_client, mock_db, _mock_mtib_provisioning,
+    ):
+        """Idempotency: re-releasing an already-RELEASED claim is a no-op
+        — including the K8s teardown. A second release MUST NOT try to
+        delete deployments a second time (they may have been re-created
+        on a follow-up claim by now)."""
+        _, delete_m = _mock_mtib_provisioning
+        released = _claim(status="RELEASED", releasedAt=NOW)
+        mock_db.fixtureclaim.find_unique.return_value = released
+
+        resp = authed_client.post(f"/v2/fixture-claims/{released.id}/release")
+        assert resp.status_code == 200
+        delete_m.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
