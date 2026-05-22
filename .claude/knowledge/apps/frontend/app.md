@@ -71,7 +71,11 @@ apps/frontend/app/
 │       │                      #   manufacturing, fixtures, users, ci, ui, icons,
 │       │                      #   layout.svelte, sidebar.svelte
 │       ├── constants/, hooks/, actions/, utils/
-├── static/                    # served as-is
+├── static/                    # served as-is by Nginx
+│   └── corectl/install.sh     # GENERATED — do not edit directly; source is
+│                              #   tools/corectl/install.sh. Synced by
+│                              #   nx run corectl:sync-install-script, which
+│                              #   containerize depends on.
 ├── deploy/                    # Dockerfile + nginx.conf
 ├── e2e/                       # Playwright specs + page objects + fixtures
 ├── tests/                     # vitest setup

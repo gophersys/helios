@@ -126,7 +126,17 @@ The separate **runtime framework-version check** inside `corectl test validate` 
 
 - Build: `nx build corectl` → wheel in `tools/corectl/dist/`.
 - Publish: `nx push corectl -c staging` (or `-c production`) — uploads to the internal PyPI at `pypi.<env>.concord.ad.corekinect.com`.
-- Install (engineer machine): `pip install --extra-index-url https://pypi.concord.ad.corekinect.com/ corectl`.
+- Install (engineer machine): `curl -fsSL https://concord.ad.corekinect.com/corectl/install.sh | bash` — uses pipx; handles PEP 668 and CA trust automatically.
+
+## Install script — single source of truth
+
+`tools/corectl/install.sh` is the canonical source for the one-liner install script. It installs via `pipx` (not bare `pip install`) to work correctly on Python 3.12+ systems with PEP 668 externally-managed-environment protection.
+
+The file served to users at `https://concord.ad.corekinect.com/corectl/install.sh` lives at `apps/frontend/app/static/corectl/install.sh`. It is a **generated file** — always identical to the canonical source. Do not edit it directly.
+
+- **To update the install script**: edit `tools/corectl/install.sh` only. Then run `nx run corectl:sync-install-script` to propagate the change to the static path. Commit both files together.
+- **Build enforcement**: `nx run app:containerize` depends on `corectl:sync-install-script`, so the static file is always up-to-date before a Docker image is built.
+- **Test enforcement**: `nx run corectl:unit-test` includes `test_install_script.py`, which asserts the two files are byte-for-byte identical and that the canonical script uses pipx. A drift or regression fails the test suite.
 
 The internal pypi is a `concord-pypi` deployment in each environment (Helm template under `deploy/production/helm/concord/templates/pypi-deployment.yaml`). Auth is htpasswd, configured per-env.
 

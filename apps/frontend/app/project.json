@@ -74,6 +74,9 @@
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
       "defaultConfiguration": "development",
+      "dependsOn": [
+        { "target": "sync-install-script", "projects": ["corectl"] }
+      ],
       "options": {
         "context": "{workspaceRoot}",
         "cwd": "{workspaceRoot}",

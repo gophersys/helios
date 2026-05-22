@@ -55,8 +55,31 @@
         }
       }
     },
+    "sync-install-script": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "cp tools/corectl/install.sh apps/frontend/app/static/corectl/install.sh"
+      },
+      "inputs": [
+        "tools/corectl/install.sh"
+      ],
+      "outputs": [
+        "apps/frontend/app/static/corectl/install.sh"
+      ]
+    },
+    "unit-test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "tools/corectl",
+        "command": "pip install -e '.[dev]' -q 2>/dev/null || pip install -e . -q && python3 -m pytest tests/ -v"
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        "unit-test"
+      ],
       "options": {
         "cwd": "tools/corectl",
         "command": "pip install -e . && corectl --version && corectl auth status"
