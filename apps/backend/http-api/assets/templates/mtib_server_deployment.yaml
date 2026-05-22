@@ -7,6 +7,7 @@ metadata:
     corekinect.com/managed-by: concord
     corekinect.com/fixture-id: "{{FIXTURE_ID}}"
     corekinect.com/deployment-id: "{{DEPLOYMENT_ID}}"
+    corekinect.com/claim-id: "{{CLAIM_ID}}"
 spec:
   replicas: 1
   selector:
@@ -24,6 +25,7 @@ spec:
         corekinect.com/managed-by: concord
         corekinect.com/fixture-id: "{{FIXTURE_ID}}"
         corekinect.com/deployment-id: "{{DEPLOYMENT_ID}}"
+        corekinect.com/claim-id: "{{CLAIM_ID}}"
     spec:
       terminationGracePeriodSeconds: 1
       initContainers:

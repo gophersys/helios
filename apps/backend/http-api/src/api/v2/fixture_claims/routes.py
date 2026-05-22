@@ -31,8 +31,10 @@ from src.api.v2.fixture_claims.service import (
     create_claim,
     heartbeat_claim,
     is_validation_target,
+    provision_mtibs_for_claim,
     release_claim,
     serialize_claim,
+    teardown_claim_mtibs,
 )
 from src.api.v2.fixture_claims.validators import (
     CreateClaimRequest,
@@ -125,6 +127,44 @@ def create():
         },
     )
 
+    # ── Provision mtib-server on each held node ──
+    # The point of DEV_HOLD: claiming a node means it's ready for dev. We
+    # call create_mtib_deployment for each held node (idempotent: returns
+    # the existing deploy name on 409). If anything fails, release the
+    # claim so the caller doesn't get a half-broken lease they have to
+    # debug.
+    provisioning = provision_mtibs_for_claim(claim)
+    if provisioning["failed"]:
+        teardown_claim_mtibs(claim)
+        release_claim(db, claim)
+        log_audit(
+            "fixture.claim.release",
+            "FixtureClaim",
+            claim.id,
+            {"reason": "provisioning_failed", "failedNodes": provisioning["failed"]},
+        )
+        return jsonify(
+            ApiResponse.error(ErrorDetail(
+                code="MTIB_PROVISIONING_FAILED",
+                message=(
+                    "Claim was released because mtib-server failed to deploy on: "
+                    + ", ".join(provisioning["failed"])
+                ),
+            )).to_dict()
+        ), 502
+
+    if provisioning["created"]:
+        log_audit(
+            "mtib.deployment.create",
+            "FixtureClaim",
+            claim.id,
+            {
+                "claimId": claim.id,
+                "createdOnNodes": provisioning["created"],
+                "reusedOnNodes": provisioning["reused"],
+            },
+        )
+
     return jsonify(ApiResponse.created(serialize_claim(claim)).to_dict()), 201
 
 
@@ -195,6 +235,16 @@ def release(claim_id: str):
             updated.id,
             {"reason": "explicit"},
         )
+        # Tear down only the mtib deployments we created on claim — fixture-
+        # bound and standalone-node deployments (claim-id label empty) survive.
+        deleted = teardown_claim_mtibs(updated)
+        if deleted:
+            log_audit(
+                "mtib.deployment.delete",
+                "FixtureClaim",
+                updated.id,
+                {"claimId": updated.id, "deletedDeployments": deleted},
+            )
 
     return jsonify(ApiResponse.ok(serialize_claim(updated)).to_dict()), 200
 
