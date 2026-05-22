@@ -6,7 +6,7 @@ Refresh this file when: a new common failure shape is recognized, the K8s namesp
 
 ## Prerequisites
 
-- Kubeconfig for the office cluster — on-site `~/.kube/config`, off-site `~/.kube/config-concord-remote` (see `/home/mateo/work/docs/CONCORD-REMOTE.md`).
+- Kubeconfig for the office cluster — on-site `~/.kube/config`, off-site `~/.kube/config-concord-remote` (see `/home/bottinger/work/docs/CONCORD-REMOTE.md`).
 - `kubectl` and the standard kube plugins (`stern` is handy but not required).
 - For the audit log and notifications: an admin JWT or the dev bypass.
 - Devcontainer running — never invoke `kubectl` from the host directly unless you're absolutely sure your kubeconfig is sane.
@@ -318,5 +318,5 @@ nx diff platform -c production
 - [`../architecture.md`](../architecture.md) — what each pod actually does
 - [`../../rules/all-three-envs.md`](../../rules/all-three-envs.md) — why so many bugs come from one-env config drift
 - [`../../rules/audit-logging.md`](../../rules/audit-logging.md) — what the audit log will and won't tell you
-- `/home/mateo/work/docs/CONCORD-REMOTE.md` — off-site cluster access
-- `/home/mateo/work/docs/incidents/` — postmortems for prior failures
+- `/home/bottinger/work/docs/CONCORD-REMOTE.md` — off-site cluster access
+- `/home/bottinger/work/docs/incidents/` — postmortems for prior failures

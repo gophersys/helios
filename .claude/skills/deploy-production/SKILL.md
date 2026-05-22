@@ -19,7 +19,7 @@ Spawn `deployer` (`.claude/agents/deployer.md`). Production is gated — the age
 
 3. **Submodule is clean**:
    ```bash
-   git -C /home/mateo/work/concord/concord status --porcelain
+   git -C /home/bottinger/work/concord/concord status --porcelain
    ```
    Empty output is required.
 
@@ -56,7 +56,7 @@ Same flow as staging: preflight → build → push → helm upgrade → rollout 
    nx rollback platform -c production
    ```
 2. **Then debug**. Don't try to fix forward on production while users are seeing errors.
-3. **Capture the incident**: `/home/mateo/work/docs/incidents/<YYYY-MM-DD>-<short-name>/incident.md` with a human-voice description of what happened.
+3. **Capture the incident**: `/home/bottinger/work/docs/incidents/<YYYY-MM-DD>-<short-name>/incident.md` with a human-voice description of what happened.
 
 ## Don't
 

@@ -43,7 +43,7 @@ See `.claude/knowledge/deploy/secrets.md` for the master inventory and the per-s
 2. Update your team's secret store with the new value.
 3. Re-sync K8s Secrets: `nx run platform:sync-secrets -c staging` and `-c production`.
 4. Restart the affected deployments (rolling restart picks up the new env).
-5. File an incident note under `/home/mateo/work/docs/incidents/`.
+5. File an incident note under `/home/bottinger/work/docs/incidents/`.
 
 `git filter-repo` to scrub history is a secondary action — the rotation must happen first because anyone watching the public repo state has the leaked value.
 

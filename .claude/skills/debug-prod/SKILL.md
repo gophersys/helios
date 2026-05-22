@@ -46,5 +46,5 @@ Spawn `architect` first (to scope the investigation), then the relevant speciali
 
 ## When to escalate
 
-- If the issue affects data integrity → stop, write up the incident at `/home/mateo/work/docs/incidents/`, and only proceed with explicit user direction.
+- If the issue affects data integrity → stop, write up the incident at `/home/bottinger/work/docs/incidents/`, and only proceed with explicit user direction.
 - If the fix requires a schema migration → it's not a hotfix; plan the full prisma-flow.

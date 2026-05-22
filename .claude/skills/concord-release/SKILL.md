@@ -67,7 +67,7 @@ Releases and deploys MUST run from a clean working tree. Before:
 run this check:
 
 ```bash
-DIRTY=$(git -C /home/mateo/work/concord/concord status --porcelain)
+DIRTY=$(git -C /home/bottinger/work/concord/concord status --porcelain)
 if [ -n "$DIRTY" ]; then
   echo "Working tree is dirty — release/deploy refused. Offending entries:"
   echo "$DIRTY"
@@ -222,12 +222,12 @@ All `nx` commands MUST run through the devcontainer:
 
 ```bash
 npx -y @devcontainers/cli exec \
-  --workspace-folder /home/mateo/work/concord/concord \
-  --config /home/mateo/work/concord/concord/.devcontainer/base/devcontainer.json \
+  --workspace-folder /home/bottinger/work/concord/concord \
+  --config /home/bottinger/work/concord/concord/.devcontainer/base/devcontainer.json \
   <command>
 ```
 
-When operating from the umbrella repo (`/home/mateo/work/`), concord is a git
+When operating from the umbrella repo (`/home/bottinger/work/`), concord is a git
 submodule. Git does not work inside the devcontainer because `.git` is a pointer
 file to an unmounted parent directory. The deploy script falls back to
 `.git-build-info` for commit metadata.
@@ -235,11 +235,11 @@ file to an unmounted parent directory. The deploy script falls back to
 **Before EVERY deploy command**, refresh `.git-build-info` on the host:
 
 ```bash
-{ git -C /home/mateo/work/concord/concord rev-parse --short HEAD; \
-  git -C /home/mateo/work/concord/concord rev-parse --abbrev-ref HEAD; \
-  [ -n "$(git -C /home/mateo/work/concord/concord status --porcelain 2>/dev/null)" ] \
+{ git -C /home/bottinger/work/concord/concord rev-parse --short HEAD; \
+  git -C /home/bottinger/work/concord/concord rev-parse --abbrev-ref HEAD; \
+  [ -n "$(git -C /home/bottinger/work/concord/concord status --porcelain 2>/dev/null)" ] \
     && echo true || echo false; \
-} > /home/mateo/work/concord/concord/.git-build-info
+} > /home/bottinger/work/concord/concord/.git-build-info
 ```
 
 Chain it before the devcontainer exec with `&&`.
@@ -405,14 +405,14 @@ Run backend and frontend tests and capture results:
 ```bash
 # Backend tests
 BACKEND_TEST_OUTPUT=$(npx -y @devcontainers/cli exec \
-  --workspace-folder /home/mateo/work/concord/concord \
-  --config /home/mateo/work/concord/concord/.devcontainer/base/devcontainer.json \
+  --workspace-folder /home/bottinger/work/concord/concord \
+  --config /home/bottinger/work/concord/concord/.devcontainer/base/devcontainer.json \
   bash -c 'cd apps/backend/http-api && PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v --tb=short 2>&1' || true)
 
 # Frontend tests
 FRONTEND_TEST_OUTPUT=$(npx -y @devcontainers/cli exec \
-  --workspace-folder /home/mateo/work/concord/concord \
-  --config /home/mateo/work/concord/concord/.devcontainer/base/devcontainer.json \
+  --workspace-folder /home/bottinger/work/concord/concord \
+  --config /home/bottinger/work/concord/concord/.devcontainer/base/devcontainer.json \
   nx test app 2>&1 || true)
 ```
 
@@ -456,7 +456,7 @@ Wait for user confirmation before proceeding.
 
 1. Set git identity:
    ```bash
-   git config user.name "Mateo Segura" && git config user.email "mateo@corekinect.com"
+   git config user.name "Blake Ottinger" && git config user.email "blake@corekinect.com"
    ```
 
 2. Stage and commit:
@@ -525,7 +525,7 @@ record is a silent data-loss bug.
 ### 9.0 — Re-run the clean-tree gate
 
 ```bash
-DIRTY=$(git -C /home/mateo/work/concord/concord status --porcelain)
+DIRTY=$(git -C /home/bottinger/work/concord/concord status --porcelain)
 if [ -n "$DIRTY" ]; then echo "DIRTY — STOP"; echo "$DIRTY"; exit 1; fi
 ```
 
@@ -537,7 +537,7 @@ required" near the top of this file.
 ### 9.1 — Refresh .git-build-info and deploy staging
 
 ```bash
-{ git -C /home/mateo/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
+{ git -C /home/bottinger/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
 npx -y @devcontainers/cli exec ... nx update platform -c staging
 ```
 
@@ -629,7 +629,7 @@ one atomic group.
 ### 10.0 — Re-run the clean-tree gate
 
 ```bash
-DIRTY=$(git -C /home/mateo/work/concord/concord status --porcelain)
+DIRTY=$(git -C /home/bottinger/work/concord/concord status --porcelain)
 if [ -n "$DIRTY" ]; then echo "DIRTY — STOP"; echo "$DIRTY"; exit 1; fi
 ```
 
@@ -639,7 +639,7 @@ Production deploys MUST run from a clean tree. Same enforcement as Phase
 ### 10.1 — Refresh .git-build-info and deploy production
 
 ```bash
-{ git -C /home/mateo/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
+{ git -C /home/bottinger/work/concord/concord rev-parse --short HEAD; ... } > .git-build-info && \
 npx -y @devcontainers/cli exec ... nx update platform -c production
 ```
 
@@ -691,8 +691,8 @@ import jwt, os
 from datetime import datetime, timezone, timedelta
 token = jwt.encode({
     'sub': '<USER_ID>',
-    'email': 'mateo@corekinect.com',
-    'name': 'Mateo Segura',
+    'email': 'blake@corekinect.com',
+    'name': 'Blake Ottinger',
     'role': 'ADMIN',
     'iat': datetime.now(timezone.utc),
     'exp': datetime.now(timezone.utc) + timedelta(hours=1),
@@ -702,8 +702,8 @@ print(token)
 ```
 
 **Known user IDs** (look up if stale — query `/v2/users` with any valid token):
-- Staging: `cmnz59zya000ylno28xrj4gu1` (mateo@corekinect.com)
-- Production: `cmny0hvd0000yq1k0vmv2mwto` (mateo@corekinect.com)
+- Staging: `cmnz59zya000ylno28xrj4gu1` (blake@corekinect.com)
+- Production: `cmny0hvd0000yq1k0vmv2mwto` (blake@corekinect.com)
 
 ### Step 2: Compute release duration
 

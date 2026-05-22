@@ -42,7 +42,7 @@ Read `.claude/knowledge/deploy/verdin-edge.md` and `.claude/knowledge/ci/ci-plat
 
 Before running `nx update platform -c <env>`:
 
-- Concord submodule `.git-build-info` is fresh: `git -C concord/concord rev-parse --short HEAD; git rev-parse --abbrev-ref HEAD; <dirty?>` written to the file. (See `/home/mateo/work/.claude/rules/concord-submodule.md`.)
+- Concord submodule `.git-build-info` is fresh: `git -C concord/concord rev-parse --short HEAD; git rev-parse --abbrev-ref HEAD; <dirty?>` written to the file. (See `/home/bottinger/work/.claude/rules/concord-submodule.md`.)
 - The branch and version match expectations.
 - For production: staging has already been deployed at the same version and the smoke tests passed.
 - Tests pass: `nx run platform:check`.

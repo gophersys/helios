@@ -125,7 +125,7 @@ Hardware contracts are too sharp to mock — gRPC stubs always drift from real d
 
 The `mtib_stub` fixture in `conftest.py` is only for `contract` tests — validating the protobuf shapes match what `mtib-server` emits. It is **not** for asserting that a stage passes against fake data.
 
-This rule is load-bearing. The 2025 Q4 manufacturing slot-swap incident traced to a mocked-pass test that masked a real wiring bug. See the relevant incident report under `/home/mateo/work/docs/incidents/`.
+This rule is load-bearing. The 2025 Q4 manufacturing slot-swap incident traced to a mocked-pass test that masked a real wiring bug. See the relevant incident report under `/home/bottinger/work/docs/incidents/`.
 
 ### Don't bump test tolerances to make a test pass
 

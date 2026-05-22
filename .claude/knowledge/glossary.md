@@ -55,7 +55,7 @@ Refresh this file when: a new domain concept is introduced, an existing one is r
 
 - **CI platform** — The separate Helm release in the `devops` namespace running nightly/weekly E2E pipelines. Independent of the main `concord` chart.
 - **Office cluster** — The K3s cluster in the office. 3 control-plane + multiple agents + Verdin edges.
-- **concord-remote** — Local tooling on the developer's WSL that tunnels K8s + registry traffic to the office cluster when off-site. See `/home/mateo/work/docs/CONCORD-REMOTE.md`.
+- **concord-remote** — Local tooling on the developer's WSL that tunnels K8s + registry traffic to the office cluster when off-site. See `/home/bottinger/work/docs/CONCORD-REMOTE.md`.
 - **CoreOps** — External device registry service. Binds `device_id ↔ SNR ↔ SIM/IMEI/EID`. Backend uses `corekinect.core_ops` to register devices post-manufacturing.
 - **CoreCloud** — External device telemetry/OTA service.
 

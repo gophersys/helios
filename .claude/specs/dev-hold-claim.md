@@ -183,7 +183,7 @@ State file written to project root: `.concord-claim.json`
 ### `corectl test claim` — acquire
 
 ```
-corectl test claim --fixture sigma5-bench-mateo [--ttl 3600]
+corectl test claim --fixture sigma5-bench-blake [--ttl 3600]
 corectl test claim --node verdin-15005689 [--node verdin-15005690 ...] [--ttl 3600]
 ```
 

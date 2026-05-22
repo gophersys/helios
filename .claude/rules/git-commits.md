@@ -2,11 +2,11 @@
 
 ## Identity
 
-Every commit MUST be authored by `Mateo Segura <mateo@corekinect.com>`. Set on first commit in a fresh clone:
+Every commit MUST be authored by `Blake Ottinger <blake@corekinect.com>`. Set on first commit in a fresh clone:
 
 ```bash
-git config user.name "Mateo Segura"
-git config user.email "mateo@corekinect.com"
+git config user.name "Blake Ottinger"
+git config user.email "blake@corekinect.com"
 ```
 
 Use repo-local config (`git config` without `--global`) so other repos aren't affected.

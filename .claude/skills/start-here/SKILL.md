@@ -15,8 +15,8 @@ You are guiding a developer who just cloned this repo. They want to get to a gre
 
 3. **Identity**: set repo-local git identity per `.claude/rules/git-commits.md`:
    ```bash
-   git config user.name "Mateo Segura"
-   git config user.email "mateo@corekinect.com"
+   git config user.name "Blake Ottinger"
+   git config user.email "blake@corekinect.com"
    ```
 
 4. **Install git hooks** (once per clone — wires the knowledge-freshness check):

@@ -159,4 +159,4 @@ The default personalization writes `device_id ↔ SNR ↔ SIM ↔ IMEI`. To add 
 - [`users-rbac.md`](users-rbac.md) — `MANUFACTURING_RUN` vs `MANUFACTURING_MANAGE` permissions
 - [`../apps/backend/http-api.md`](../apps/backend/http-api.md) — handler internals
 - [`../libs/python-corekinect.md`](../libs/python-corekinect.md) — CoreOps client wrapper
-- `/home/mateo/work/docs/incidents/` — prior manufacturing incident postmortems
+- `/home/bottinger/work/docs/incidents/` — prior manufacturing incident postmortems
