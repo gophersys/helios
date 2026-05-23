@@ -94,6 +94,7 @@ The proto groups RPCs into clear categories. Each category maps to a single hand
 | Category | Proto RPCs | Handler | Hardware involved |
 |---|---|---|---|
 | Health | `HealthCheck` | inlined on `MtibV1Provider` | none — returns capabilities list |
+| Standard health | `grpc.health.v1.Health.Check` (and `Watch`) | `grpc_health.v1.health.HealthServicer` | none — defense-in-depth for SDKs that probe the standard health protocol on connect. Both `""` (overall) and `"mtib.v1.MtibV1"` set to SERVING at startup. Prefer `MtibV1.HealthCheck` for richer payload. |
 | Power | `PowerEnable`, `PowerDisable`, `PowerRead`, `PowerMeasure`, `PowerStream` | `PowerHandler` | INA219 (current/voltage), MCP4017 (digital pot for DUT voltage), optional Joulescope JS220 |
 | GPIO | `GpioConfig`, `GpioWrite`, `GpioRead`, `GpioWatch` | `GpioHandler` | gpiod via `Gpio` driver; pin map in `config.GPIO_PIN_MAP` |
 | ADC | `AdcRead`, `AdcReadAll`, `AdcStream` | `AdcHandler` | ADS1015 8-channel I2C ADC |

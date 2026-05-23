@@ -15,6 +15,13 @@ from corekinect.utils.banner import print_banner
 # Protocol imports
 from protocols.mtib import mtib_pb2_grpc
 
+# Standard gRPC health-checking (grpc.health.v1.Health). Registered as a
+# defense-in-depth so SDKs that probe the standard service on connect get a
+# SERVING response instead of UNIMPLEMENTED. Client SDKs SHOULD prefer
+# mtib.v1.MtibV1.HealthCheck (richer payload: hw_revision, capabilities,
+# errors) — this is the fallback for SDKs that don't.
+from grpc_health.v1 import health, health_pb2, health_pb2_grpc
+
 # Application imports
 from src.server import MtibV1Provider
 from src.config import MtibEnvConfig, MtibV1ProviderConfig
@@ -77,6 +84,12 @@ if __name__ == "__main__":
 
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=50))
         mtib_pb2_grpc.add_MtibV1Servicer_to_server(provider, server)
+
+        health_servicer = health.HealthServicer()
+        health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+        health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+        health_servicer.set("mtib.v1.MtibV1", health_pb2.HealthCheckResponse.SERVING)
+
         server.add_insecure_port(f"[::]:{env_config.SERVER_PORT}")
 
         # Start the gRPC server
