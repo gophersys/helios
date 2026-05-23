@@ -7,6 +7,7 @@ setup(
     install_requires=[
         "grpcio>=1.74.0",
         "grpcio-tools>=1.74.0",
+        "grpcio-health-checking>=1.74.0",
         "protobuf>=4.21.6",
         "python-dotenv==1.0.1",
         "pyserial==3.5",
