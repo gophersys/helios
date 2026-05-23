@@ -52,14 +52,12 @@
         },
         "staging": {
           "tags": [
-            "concord/mtib-server:staging",
             "containers.ad.corekinect.com/concord-mtib-server:staging"
           ],
           "push": true
         },
         "production": {
           "tags": [
-            "concord/mtib-server:production",
             "containers.ad.corekinect.com/concord-mtib-server:production"
           ],
           "push": true
