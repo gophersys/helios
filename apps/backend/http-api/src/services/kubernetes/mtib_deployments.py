@@ -5,11 +5,115 @@ import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
+import requests
 import yaml  # type: ignore[import-untyped]
 
 from config.env import env_config
 from kubernetes.client.exceptions import ApiException
 from src.services.kubernetes.client import get_apps_v1_api, get_core_v1_api
+
+
+class MtibImageUnavailable(Exception):
+    """Raised when the requested mtib-server image cannot be resolved
+    in the container registry. Surfaces a structured error code so the
+    route layer can return ``MTIB_IMAGE_UNAVAILABLE`` to callers
+    instead of letting the cluster fall into ``ImagePullBackOff``.
+    """
+
+    code = "MTIB_IMAGE_UNAVAILABLE"
+
+
+# Per-request HEAD timeout — keeps the create call fast when the
+# registry is slow. Three seconds covers warm DNS + one TLS RTT on a
+# healthy in-cluster registry; longer than that and we'd rather skip
+# the digest pin than block the API thread.
+_REGISTRY_HEAD_TIMEOUT_S = 3
+
+
+def _split_image_ref(image_ref: str) -> tuple[str, str]:
+    """Split ``registry/repo:tag`` into ``(registry/repo, tag)``.
+
+    Already-digested images (``...@sha256:...``) are returned with an
+    empty tag — the caller treats that as "no resolution needed".
+    """
+    if "@sha256:" in image_ref:
+        return image_ref, ""
+    # Tags are split at the last colon, but only if the colon comes
+    # after the last slash — registry ports (``host:5000/repo``) and
+    # tagged refs (``repo:tag``) must not collide.
+    last_slash = image_ref.rfind("/")
+    last_colon = image_ref.rfind(":")
+    if last_colon > last_slash:
+        return image_ref[:last_colon], image_ref[last_colon + 1:]
+    return image_ref, "latest"
+
+
+def _head_image_manifest(image_ref: str) -> "requests.Response":
+    """HEAD the OCI manifest endpoint for ``image_ref``.
+
+    Returns the raw ``requests.Response``. The caller inspects
+    ``status_code`` (404 = unavailable) and the ``Docker-Content-Digest``
+    header. Connection errors are propagated as the underlying
+    ``requests`` exceptions so a transient network issue doesn't get
+    misclassified as MTIB_IMAGE_UNAVAILABLE.
+    """
+    repo, tag = _split_image_ref(image_ref)
+    # The OCI Distribution spec maps to ``/v2/<repo>/manifests/<ref>``.
+    # We assume the registry is reachable as ``https://<host>``; this
+    # is true for the in-cluster ``containers.ad.corekinect.com`` host
+    # and for any standard registry.
+    host_sep = repo.find("/")
+    if host_sep <= 0:
+        # No registry host means we can't build a URL — return a fake
+        # 200 with no digest so the caller silently falls back to the
+        # bare tag. This is the docker-hub library shorthand case.
+        resp = requests.Response()
+        resp.status_code = 200
+        return resp
+    host, repo_path = repo[:host_sep], repo[host_sep + 1:]
+    url = f"https://{host}/v2/{repo_path}/manifests/{tag}"
+    headers = {
+        "Accept": (
+            "application/vnd.docker.distribution.manifest.v2+json,"
+            "application/vnd.oci.image.manifest.v1+json,"
+            "application/vnd.docker.distribution.manifest.list.v2+json"
+        ),
+    }
+    return requests.head(url, headers=headers, timeout=_REGISTRY_HEAD_TIMEOUT_S)
+
+
+def _resolve_image_digest(image_ref: str) -> str:
+    """Resolve ``image_ref`` to ``registry/repo@sha256:...`` when possible.
+
+    A 404 from the registry → :class:`MtibImageUnavailable`.
+    Any other failure (timeout, missing header, DNS) → return the
+    original ref so the cluster pulls by tag like before.
+    """
+    if "@sha256:" in image_ref:
+        return image_ref  # already pinned
+    try:
+        resp = _head_image_manifest(image_ref)
+    except requests.RequestException as e:
+        logger.warning(
+            "Registry HEAD for %s failed (%s) — proceeding with tag",
+            image_ref, e,
+        )
+        return image_ref
+    if resp.status_code == 404:
+        raise MtibImageUnavailable(
+            f"mtib-server image not found in registry: {image_ref}"
+        )
+    if resp.status_code >= 400:
+        logger.warning(
+            "Registry HEAD for %s returned %s — proceeding with tag",
+            image_ref, resp.status_code,
+        )
+        return image_ref
+    digest = (resp.headers.get("Docker-Content-Digest") or "").strip()
+    if not digest.startswith("sha256:"):
+        return image_ref
+    repo, _tag = _split_image_ref(image_ref)
+    return f"{repo}@{digest}"
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +168,28 @@ def create_mtib_deployment(
         logger.error("MTIB deployment template not found at %s", template_path)
         return None
 
-    # Generate RFC 1123-compliant name
-    deploy_name = f"mtib-{node_hostname}-s{slot_index}"
+    # Generate RFC 1123-compliant name. Claim-mode deployments need a
+    # distinct name so they don't collide with the fixture-bound
+    # deployment that owns the same node (and the same hostPort 50053).
+    # Without the ``claim-<id>`` prefix the create call 409s and the
+    # caller silently reuses the fixture deployment — which then
+    # ignores the claim's MOTION_ENABLED / IMAGE config and never gets
+    # tagged with the claim-id label, so teardown_claim_mtibs no-ops.
+    if claim_id:
+        claim_short = claim_id[:8]
+        deploy_name = f"mtib-claim-{claim_short}-{node_hostname}-s{slot_index}"
+    else:
+        deploy_name = f"mtib-{node_hostname}-s{slot_index}"
     if len(deploy_name) > 63:
         deploy_name = deploy_name[:63].rstrip("-")
 
     image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server:latest")
+
+    # Resolve the tag to an immutable digest. A 404 here raises
+    # MtibImageUnavailable BEFORE any cluster mutation so the operator
+    # gets a clean error instead of an ImagePullBackOff that takes
+    # minutes to surface. Network errors fall through with a warning.
+    image = _resolve_image_digest(image)
 
     # Build env vars
     env_vars = config.get("env", {})
@@ -102,10 +222,30 @@ def create_mtib_deployment(
 
     try:
         spec = yaml.safe_load(manifest)
+
+        # Claim-mode pods must NOT bind hostPort 50053 — that port is
+        # owned by the fixture-bound MTIB on the same node. Strip the
+        # hostPort while keeping the containerPort, and create a
+        # ClusterIP Service so runner pods can still reach the MTIB
+        # via DNS (``<deploy_name>.<ns>.svc.cluster.local:50053``).
+        if claim_id:
+            try:
+                containers = spec["spec"]["template"]["spec"]["containers"]
+                for c in containers:
+                    for p in (c.get("ports") or []):
+                        if p.get("hostPort") == 50053:
+                            p.pop("hostPort", None)
+            except (KeyError, TypeError):
+                pass
+
         namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
         apps_v1.create_namespaced_deployment(namespace=namespace, body=spec)
         logger.info("Created K8s deployment: %s", deploy_name)
+
+        if claim_id:
+            _ensure_claim_mtib_service(deploy_name, namespace, claim_id)
+
         return deploy_name
     except ApiException as e:
         if e.status == 409:
@@ -116,6 +256,49 @@ def create_mtib_deployment(
     except Exception as e:
         logger.error("Failed to create K8s deployment: %s", e)
         return None
+
+
+def _ensure_claim_mtib_service(deploy_name: str, namespace: str, claim_id: str) -> None:
+    """Create the ClusterIP Service that fronts a claim-mode MTIB pod.
+
+    Runner pods inside the cluster reach the MTIB via
+    ``{deploy_name}.{namespace}.svc.cluster.local:50053``. We create
+    the Service idempotently — a 409 means the previous create already
+    landed it, so the reuse path is safe.
+    """
+    service_body = {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+            "name": deploy_name,
+            "labels": {
+                "app": deploy_name,
+                "corekinect.com/managed-by": "concord",
+                "corekinect.com/claim-id": claim_id,
+            },
+        },
+        "spec": {
+            "type": "ClusterIP",
+            "selector": {"app": deploy_name},
+            "ports": [{
+                "name": "mtib-grpc",
+                "port": 50053,
+                "targetPort": 50053,
+                "protocol": "TCP",
+            }],
+        },
+    }
+    try:
+        core_v1 = get_core_v1_api()
+        core_v1.create_namespaced_service(namespace=namespace, body=service_body)
+        logger.info("Created K8s service for claim MTIB: %s", deploy_name)
+    except ApiException as e:
+        if e.status == 409:
+            logger.debug("K8s service %s already exists", deploy_name)
+            return
+        logger.warning("Failed to create K8s service %s: %s", deploy_name, e.reason)
+    except Exception as e:
+        logger.warning("Failed to create K8s service %s: %s", deploy_name, e)
 
 
 def delete_mtib_deployment(deploy_name: str) -> bool:
@@ -166,6 +349,30 @@ def delete_mtib_deployments_for_claim(claim_id: str) -> list[str]:
         name = dep.metadata.name
         if delete_mtib_deployment(name):
             deleted.append(name)
+
+    # Companion ClusterIP Services live under the same name and
+    # ``claim-id`` label. Best-effort cleanup — a missing Service is
+    # not a teardown failure.
+    try:
+        core_v1 = get_core_v1_api()
+        services = core_v1.list_namespaced_service(
+            namespace=_get_mtib_namespace(),
+            label_selector=f"corekinect.com/claim-id={claim_id}",
+        )
+        for svc in (services.items or []):
+            try:
+                core_v1.delete_namespaced_service(
+                    name=svc.metadata.name, namespace=_get_mtib_namespace(),
+                )
+            except ApiException as e:
+                if e.status != 404:
+                    logger.warning(
+                        "Failed to delete claim MTIB service %s: %s",
+                        svc.metadata.name, e.reason,
+                    )
+    except Exception as e:
+        logger.debug("Service-cleanup pass for claim %s skipped: %s", claim_id, e)
+
     return deleted
 
 

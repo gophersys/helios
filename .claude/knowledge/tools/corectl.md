@@ -237,6 +237,54 @@ A local-dev workflow that leases real hardware (a fixture or a set of nodes) for
 | `corectl test claim --node NAME [--node NAME …]` | Lease specific nodes ad-hoc (node-mode — no fixture row required). |
 | `corectl test unclaim` | Release the current claim and stop the heartbeat daemon. |
 | `corectl test status` | Show the active claim: id, status, slot bindings, time remaining. Reconciles local state file with backend live status. |
+| `corectl test list-nodes [--available] [--purpose <p>] [--product <id>]` | Read-only discovery: enumerate the test nodes (MTIBs) visible to the platform, with type, hostname, fixture binding, and a free/held flag. Backed by `GET /v2/test/nodes` — see `.claude/knowledge/apps/backend/http-api.md`. |
+
+### Scaffolded devcontainer expects the concord monorepo to be mounted
+
+`templates/_shared/.devcontainer/post-create.sh` requires
+`/workspaces/concord/libs/python/corekinect/` to exist when
+`CONCORD_DEV_MODE=1` is in effect. Without this mount the editable
+install silently picks up the wheel-from-PyPI version, so dev's
+local edits to `libs/python/corekinect/` never reflect in the
+container's runtime. The loud check fires on container start and
+exits 1 with a fix-it message (clone concord adjacent, add the
+bind mount). Operators who only consume the published wheel
+unset `CONCORD_DEV_MODE` to skip the check. README in the same
+template documents both paths.
+
+### `corectl update` install-context detection
+
+`commands/update.py` exposes :func:`detect_install_context` returning
+``"pipx" | "uv" | "pip"``. Detection looks at ``sys.executable``
+(``/pipx/``, ``pipx/venvs``, ``/uv/`` in the path) and three env vars
+(``PIPX_HOME``, ``UV_CACHE_DIR``, ``UV_TOOL_DIR``). The matching
+:func:`upgrade_command_for` returns ``pipx upgrade corectl`` /
+``uv tool upgrade corectl`` / the curl-bash ``install.sh``. This
+honours PEP 668 — bare ``pip install --user --upgrade`` would fail
+on externally-managed Pythons, so we route through the right tool.
+
+The same helper powers the "Environment" upgrade hint in
+``corectl test validate`` (see below) so both commands suggest the
+same fix.
+
+### `corectl test validate` failure categories
+
+The validate command groups findings into three buckets:
+
+| Bucket | Method on `ValidationResult` | Blocking? |
+|---|---|---|
+| Project errors | `error(msg)` | Yes (exit 1) |
+| Project warnings | `warn(msg)` | Only under `--strict` |
+| Environment warnings | `env_warn(msg)` | Never |
+
+Environment warnings cover issues the operator can fix by refreshing
+their local install — framework-artifact drift, framework version
+mismatch with the platform, missing pre-commit hook. These do not
+gate uploads; they print in a separate "Environment (non-blocking)"
+section together with an upgrade command (`pipx upgrade corectl` /
+`uv tool upgrade corectl` / `corectl update`) chosen via
+`_install_context_upgrade_hint()` from `sys.executable` and env vars
+(`PIPX_HOME`, `UV_CACHE_DIR`).
 
 All three are also exposed as top-level aliases (`corectl claim`, `corectl unclaim`, `corectl status`) so they work from a project root the same way `corectl validate` does.
 
@@ -278,6 +326,8 @@ Transient failures (network errors, 5xx) trigger a 15-second retry backoff. Afte
 ### Reconciliation
 
 `corectl test status` GETs `/v2/fixture-claims/<id>` and compares the live `status` to the implicit "ACTIVE" assumption of the on-disk file. Any mismatch wipes the state file and emits a yellow WARNING — the dev was about to run pytest against hardware they no longer own.
+
+The status output also renders the `podPhase` per slot binding (read from the backend serializer). `Running` is green, anything else (`Pending`, `ImagePullBackOff`, `CrashLoopBackOff`) is yellow so degraded slots stand out without a separate `kubectl get pod`.
 
 ### Gitignore
 

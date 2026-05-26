@@ -335,6 +335,68 @@ class TestProvisioning:
         # Node-mode → deployment_id is claim-scoped.
         assert call.kwargs["deployment_id"].startswith("claim-")
 
+    def test_create_blocks_on_wait_for_mtibs_healthy(
+        self, authed_client, mock_db, _busy_helpers_clean, _mock_mtib_provisioning,
+    ):
+        """After create_mtib_deployment, the claim flow must call
+        wait_for_mtibs_healthy and only return 201 once every slot is
+        reachable. Without this, the dev gets a claim back before the
+        pod has finished pulling its image.
+        """
+        from src.api.v2.fixture_claims import service as service_mod
+
+        mock_db.fixture.find_unique.return_value = _fixture()
+        mock_db.fixtureclaim.create.return_value = _claim()
+
+        with patch.object(
+            service_mod, "wait_for_mtibs_healthy",
+            return_value={"healthy": [{"slotIndex": 0, "nodeIp": "10.4.45.38"}], "unhealthy": []},
+        ) as wait_m:
+            resp = authed_client.post(
+                "/v2/fixture-claims",
+                data=json.dumps({"fixtureId": "fix-1", "ttlSeconds": 3600}),
+            )
+        assert resp.status_code == 201, resp.get_json()
+        # The wait helper was called exactly once during provisioning.
+        wait_m.assert_called()
+
+    def test_create_aborts_when_mtibs_never_become_healthy(
+        self, authed_client, mock_db, _busy_helpers_clean, _mock_mtib_provisioning,
+    ):
+        """If wait_for_mtibs_healthy reports unhealthy slots, the claim
+        must release + tear down. The dev should not end up with a lease
+        whose pods are stuck in ImagePullBackOff.
+        """
+        from src.api.v2.fixture_claims import service as service_mod
+
+        _, delete_m = _mock_mtib_provisioning
+        mock_db.fixture.find_unique.return_value = _fixture()
+        mock_db.fixtureclaim.create.return_value = _claim()
+
+        with patch.object(
+            service_mod, "wait_for_mtibs_healthy",
+            return_value={
+                "healthy": [],
+                "unhealthy": [{
+                    "hostname": "verdin-node-1",
+                    "slotIndex": 0,
+                    "nodeIp": "10.4.45.38",
+                }],
+            },
+        ), patch.object(
+            service_mod, "DEFAULT_PROVISIONING_WAIT_S", 0,
+        ), patch.object(
+            service_mod, "DEFAULT_PROVISIONING_POLL_INTERVAL_S", 0,
+        ):
+            resp = authed_client.post(
+                "/v2/fixture-claims",
+                data=json.dumps({"fixtureId": "fix-1", "ttlSeconds": 3600}),
+            )
+        assert resp.status_code == 502, resp.get_json()
+        delete_m.assert_called_once()
+        update_call = mock_db.fixtureclaim.update.call_args
+        assert update_call.kwargs["data"]["status"] == "RELEASED"
+
     def test_create_aborts_when_provisioning_fails(
         self, authed_client, mock_db, _busy_helpers_clean, _mock_mtib_provisioning,
     ):

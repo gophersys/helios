@@ -33,6 +33,32 @@ tests/
     test_*.py            test modules — use the `assert_and_record` DSL
 ```
 
+## Devcontainer assumes the concord monorepo is on disk
+
+The supplied `.devcontainer` is wired for the editable development
+workflow: the concord monorepo is expected to be mounted at
+`/workspaces/concord` so changes to `libs/python/corekinect/` land in
+this container without a wheel rebuild.
+
+Set up once:
+
+1. Clone `concord/concord` next to this test app.
+2. Make sure the devcontainer mounts it. The default `devcontainer.json`
+   contains a bind mount along the lines of:
+
+   ```jsonc
+   "mounts": [
+     "source=${localWorkspaceFolder}/../concord,target=/workspaces/concord,type=bind"
+   ]
+   ```
+
+`.devcontainer/post-create.sh` will fail loudly if
+`/workspaces/concord/libs/python/corekinect` is missing while
+`CONCORD_DEV_MODE=1` is in effect — fix the layout (or unset the
+env var) before the dev loop starts. Without the mount the editable
+install silently picks up the wheel-from-PyPI version, and nothing
+in the dev loop reflects local edits.
+
 ## Keeping this project in sync
 
 The backend is the source of truth for the product slug, board revision,

@@ -281,10 +281,28 @@ class MtibV1Client:
             # Create a stub using the newly created channel
             self.client = MtibClientV1(self.channel)
 
-            # Health check
-            ready, errors, error = self.HealthCheck(DEFAULT_GRPC_TIMEOUT_SECONDS)
-            if error:
-                return error
+            # Health check. Older MTIB servers may not expose the
+            # HealthCheck RPC yet — in that case the server returns
+            # ``StatusCode.UNIMPLEMENTED`` and we proceed with a
+            # warning rather than refusing to open the channel. Any
+            # other RpcError is still a hard failure.
+            try:
+                response = self.client.HealthCheck(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
+                ready = response.ready
+                errors = list(response.errors) if response.errors else []
+            except grpc.RpcError as e:
+                code = e.code() if callable(getattr(e, "code", None)) else None
+                if code == grpc.StatusCode.UNIMPLEMENTED:
+                    self.logger.warning(
+                        "HealthCheck not implemented by MTIB at %s:%d — proceeding "
+                        "without server-side readiness check",
+                        self.config.net.addr, self.config.net.port,
+                    )
+                    return None
+                return (
+                    f"gRPC error for HealthCheck at {self.config.net.addr}. "
+                    f"Error: {str(e.details() if callable(getattr(e, 'details', None)) else e)}"
+                )
 
             if not ready:
                 return f"Error checking health: {errors}"

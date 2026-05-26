@@ -143,6 +143,7 @@ libs/python/corekinect/
 | `corekinect.core_cloud` | `CoreCloudClient` + DTOs for telemetry / FUOTA / registration. | `from corekinect.core_cloud import CoreCloudClient, FuotaPlan` |
 | `corekinect.core_ops` | `CoreOpsClient` — SNR→deviceId, public-key upload, ICCID registration. | `from corekinect.core_ops import CoreOpsClient` |
 | `corekinect.testbed` | Declarative `TestBed` base class + typed channel wrappers. Each product subclasses `TestBed` to declare DUT-side wiring. | `from corekinect.testbed import TestBed, ADC, GPIO, UART` |
+| `corekinect.fixture` | **Deprecated shim.** Re-exports everything from `corekinect.testbed` and emits a `DeprecationWarning` on import. Lets pre-rename test apps keep working for one minor release while users migrate their imports. Slated for removal in the next minor. | (avoid in new code; the warning points at the new path) |
 | `corekinect.firmware` | CFW generation/parsing + firmware-package validator. | `from corekinect.firmware import generate_cfw, parse_cfw, validate_package` |
 | `corekinect.manifest` | `concord.yaml` typed loader + JSON Schema validation. Shared with `corectl` and the http-api upload handler. | `from corekinect.manifest import load_manifest, validate_manifest` |
 | `corekinect.shells` | One class per processor target. Wraps MTIB UART for manufacturing-shell commands. | `from corekinect.shells import AlphaAppShell, CommsCoprocShell` |
@@ -251,6 +252,35 @@ Touch `corekinect/firmware/cfw.py` (the `TRACK_*` and `APPID_*` constants
 and the `encode_flags` packing logic). Re-export the new constants from
 `corekinect/firmware/__init__.py` and update consumer codepaths
 (build-service, the `corectl` CFW tool).
+
+## Backward-compat: `fixture:` key in `concord.yaml`
+
+`corekinect.manifest.schema.validate_manifest()` accepts manifests
+that still use the legacy `fixture:` block (pre-rename projects).
+The pre-processor rewrites `fixture:` to the canonical `testbed:` key
+and emits a deprecation warning so the operator sees the cue to
+rename. When both keys are present, `testbed:` wins and `fixture:`
+is dropped with a louder warning. One-minor-version compat — slated
+for removal alongside the `corekinect.fixture` import shim.
+
+## Resilience contracts
+
+- **`SlotContext` surfaces pod state on connect failures.** When
+  `connect()` runs out of retries and `pod_state_lookup` is wired on
+  the slot, the helper is consulted from attempt 2 onwards (transient
+  single failures don't pay the K8s round trip). Its return value
+  (`ImagePullBackOff`, `CrashLoopBackOff`, `Pending`, …) appears in
+  the final `ConnectionError` so the operator sees *why* gRPC was
+  unreachable instead of a generic "connection failed". Pods running
+  without K8s read access simply leave the hook unset.
+- **`MtibV1Client.connect()` is lenient on `HealthCheck` UNIMPLEMENTED.**
+  Older `mtib-server` builds did not expose the `HealthCheck` RPC. When the
+  channel opens but the readiness probe returns
+  `grpc.StatusCode.UNIMPLEMENTED`, the client logs a warning and returns
+  success rather than refusing to bind. Any other gRPC error path still
+  returns the usual `Optional[str]` error string. `SlotContext.connect()`
+  in `corekinect.test.slot` mirrors the same lenient behaviour so test
+  runners aren't blocked by an old MTIB image.
 
 ## Common failure modes
 
