@@ -21,6 +21,7 @@ Lifecycle summary:
 """
 
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -33,7 +34,21 @@ from src.services.kubernetes.address_resolver import resolve_node_addresses
 from src.services.kubernetes.mtib_deployments import (
     create_mtib_deployment,
     delete_mtib_deployments_for_claim,
+    wait_for_mtibs_healthy,
 )
+
+
+# How long to wait for newly-created mtib-server pods to become
+# reachable before declaring provisioning a failure. 60 s comfortably
+# covers an image pull on a warm node + a Verdin's slow boot, and stops
+# the dev from waiting on a stuck pull indefinitely. Tunable per-call
+# via ``wait_timeout_s`` on :func:`provision_mtibs_for_claim`.
+DEFAULT_PROVISIONING_WAIT_S = 60
+
+# Poll interval used when waiting for pods to become healthy. Kept
+# short so the happy path returns quickly once the pods land. The wait
+# helper itself blocks per-attempt for its own short TCP timeout.
+DEFAULT_PROVISIONING_POLL_INTERVAL_S = 2
 
 
 logger = logging.getLogger(__name__)
@@ -243,16 +258,30 @@ def _motion_enabled_for_node(node: Any) -> str:
     return "true" if getattr(node, "type", None) == "VALIDATION" else "false"
 
 
-def provision_mtibs_for_claim(claim: Any) -> dict[str, list[str]]:
+def provision_mtibs_for_claim(
+    claim: Any,
+    *,
+    wait_timeout_s: Optional[int] = None,
+    poll_interval_s: Optional[int] = None,
+) -> dict[str, list[str]]:
     """Ensure every node held by ``claim`` has a healthy mtib-server pod.
 
-    Idempotent: ``create_mtib_deployment`` returns the existing deploy name
-    on 409, so an existing fixture-bound or standalone deployment is
-    reused untouched (its ``claim-id`` label stays empty and it survives
-    claim teardown). Only freshly-created pods get tagged with the claim id.
+    The function has two phases:
 
-    Returns ``{"created": [...], "reused": [...], "failed": [...]}`` keyed by
-    node hostname. The caller should treat a non-empty ``failed`` as a
+    1. **Create** — call ``create_mtib_deployment`` for every held node.
+       Idempotent: returns the existing deploy name on 409, so an
+       existing fixture-bound or standalone deployment is reused
+       untouched (its ``claim-id`` label stays empty and it survives
+       claim teardown). Only freshly-created pods get tagged with the
+       claim id.
+    2. **Wait** — poll ``wait_for_mtibs_healthy`` until every node IP
+       answers on the MTIB gRPC port, or ``wait_timeout_s`` elapses.
+       Nodes that never become reachable are moved into ``failed`` so
+       the caller can release the claim instead of handing the dev a
+       lease against pods that are stuck in ``ImagePullBackOff``.
+
+    Returns ``{"created": [...], "reused": [...], "failed": [...]}`` keyed
+    by node hostname. The caller should treat a non-empty ``failed`` as a
     provisioning failure and release the claim — see route layer.
     """
     result: dict[str, list[str]] = {"created": [], "reused": [], "failed": []}
@@ -260,6 +289,11 @@ def provision_mtibs_for_claim(claim: Any) -> dict[str, list[str]]:
 
     fixture = getattr(claim, "fixture", None)
     fixture_id_for_deploy = getattr(fixture, "id", None) or "claim-standalone"
+
+    # node_hostname -> slot_dict for the wait phase. We only wait on
+    # nodes whose deployment call succeeded.
+    health_slots: list[dict] = []
+    hostname_to_ip: dict[str, str] = {}
 
     for node, slot_index in _claimed_targets(claim):
         hostname = getattr(node, "hostname", None)
@@ -294,6 +328,50 @@ def provision_mtibs_for_claim(claim: Any) -> dict[str, list[str]]:
             result["reused"].append(hostname)
         else:
             result["created"].append(hostname)
+
+        node_ip = getattr(node, "ipAddress", None) or ""
+        if node_ip:
+            health_slots.append({
+                "hostname": hostname,
+                "slotIndex": slot_index,
+                "nodeIp": node_ip,
+            })
+            hostname_to_ip[hostname] = node_ip
+
+    if not health_slots:
+        return result
+
+    # Phase 2 — block until every IP answers. The wait helper itself
+    # does a single TCP probe per call; we loop with a short backoff so
+    # the dev's POST returns as soon as everything's reachable.
+    # Resolve the timeouts lazily so tests can monkeypatch the module
+    # constants instead of threading kwargs through callers.
+    effective_timeout = (
+        wait_timeout_s if wait_timeout_s is not None else DEFAULT_PROVISIONING_WAIT_S
+    )
+    effective_poll = (
+        poll_interval_s if poll_interval_s is not None else DEFAULT_PROVISIONING_POLL_INTERVAL_S
+    )
+    deadline = time.monotonic() + max(0, effective_timeout)
+    unhealthy: list[dict] = list(health_slots)
+    while True:
+        status = wait_for_mtibs_healthy(unhealthy, timeout_s=effective_poll)
+        unhealthy = list(status.get("unhealthy") or [])
+        if not unhealthy:
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(effective_poll)
+
+    for slot in unhealthy:
+        hostname = slot.get("hostname") or ""
+        if hostname and hostname not in result["failed"]:
+            logger.warning(
+                "mtib-server on node %s (ip=%s) never became reachable within %ds",
+                hostname, hostname_to_ip.get(hostname, "?"), effective_timeout,
+            )
+            result["failed"].append(hostname)
+
     return result
 
 
