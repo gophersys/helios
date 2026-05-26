@@ -96,12 +96,13 @@ libs/python/corekinect/
 │   ├── types.py            # Manifest, PackageConfig, StageConfig, …
 │   └── schemas/            # JSON Schema files
 ├── shells/                 # MTIB-UART shell command wrappers
-│   ├── base.py             # ShellCommander (line assembly)
+│   ├── base.py             # ShellCommander (line assembly), hex_addr helper
 │   ├── _uart_cmd.py
 │   ├── alpha_app.py        # AlphaAppShell
 │   ├── comms_coproc.py     # CommsCoprocShell (shared)
-│   ├── sigma5.py           # Sigma5AppShell
-│   └── theta.py            # ThetaAppShell
+│   ├── sigma5.py           # Sigma5AppShell (incl. {write,read,erase}_ext_flash)
+│   ├── theta.py            # ThetaAppShell
+│   └── tests/              # unit tests for shell wrappers (mock send())
 ├── test/                   # validation/manufacturing pytest framework
 │   ├── runner.py           # top-level run loop (validation runner pod entry)
 │   ├── mfg_runner.py       # manufacturing runner pod entry
@@ -146,7 +147,7 @@ libs/python/corekinect/
 | `corekinect.fixture` | **Deprecated shim.** Re-exports everything from `corekinect.testbed` and emits a `DeprecationWarning` on import. Lets pre-rename test apps keep working for one minor release while users migrate their imports. Slated for removal in the next minor. | (avoid in new code; the warning points at the new path) |
 | `corekinect.firmware` | CFW generation/parsing + firmware-package validator. | `from corekinect.firmware import generate_cfw, parse_cfw, validate_package` |
 | `corekinect.manifest` | `concord.yaml` typed loader + JSON Schema validation. Shared with `corectl` and the http-api upload handler. | `from corekinect.manifest import load_manifest, validate_manifest` |
-| `corekinect.shells` | One class per processor target. Wraps MTIB UART for manufacturing-shell commands. | `from corekinect.shells import AlphaAppShell, CommsCoprocShell` |
+| `corekinect.shells` | One class per processor target. Wraps MTIB UART for manufacturing-shell commands. ``Sigma5AppShell`` covers the nRF52840 app processor, including ``{write,read,erase}_ext_flash`` helpers that mirror the firmware shell commands in ``sigma5_mfg_fw/src/app/sensor_handler.c``. The ``hex_addr`` helper in ``shells/base`` formats addresses ``0x{:08x}`` so the wire format matches firmware log lines exactly. | `from corekinect.shells import AlphaAppShell, CommsCoprocShell, Sigma5AppShell` |
 | `corekinect.test` | The pytest framework runner pods execute. Owns context, artifact upload, reporter, FUOTA orchestrator, slot binding, power profiler. Also hosts `ztest_runner` for the Zephyr ztest dispatch path. | `from corekinect.test.context import TestContext` / `python -m corekinect.test.ztest_runner` |
 | `corekinect.utils` | Logger, env config, singletons, serde, encoding, units, etc. | `from corekinect.utils import EnvConfig, Logger` |
 | `corekinect.validation` | Back-compat shim — re-exports from `corekinect.stages`. Don't add to it. | (avoid in new code; import from `corekinect.stages`) |
