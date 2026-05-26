@@ -64,8 +64,18 @@ def create_mtib_deployment(
         logger.error("MTIB deployment template not found at %s", template_path)
         return None
 
-    # Generate RFC 1123-compliant name
-    deploy_name = f"mtib-{node_hostname}-s{slot_index}"
+    # Generate RFC 1123-compliant name. Claim-mode deployments need a
+    # distinct name so they don't collide with the fixture-bound
+    # deployment that owns the same node (and the same hostPort 50053).
+    # Without the ``claim-<id>`` prefix the create call 409s and the
+    # caller silently reuses the fixture deployment — which then
+    # ignores the claim's MOTION_ENABLED / IMAGE config and never gets
+    # tagged with the claim-id label, so teardown_claim_mtibs no-ops.
+    if claim_id:
+        claim_short = claim_id[:8]
+        deploy_name = f"mtib-claim-{claim_short}-{node_hostname}-s{slot_index}"
+    else:
+        deploy_name = f"mtib-{node_hostname}-s{slot_index}"
     if len(deploy_name) > 63:
         deploy_name = deploy_name[:63].rstrip("-")
 
@@ -102,10 +112,30 @@ def create_mtib_deployment(
 
     try:
         spec = yaml.safe_load(manifest)
+
+        # Claim-mode pods must NOT bind hostPort 50053 — that port is
+        # owned by the fixture-bound MTIB on the same node. Strip the
+        # hostPort while keeping the containerPort, and create a
+        # ClusterIP Service so runner pods can still reach the MTIB
+        # via DNS (``<deploy_name>.<ns>.svc.cluster.local:50053``).
+        if claim_id:
+            try:
+                containers = spec["spec"]["template"]["spec"]["containers"]
+                for c in containers:
+                    for p in (c.get("ports") or []):
+                        if p.get("hostPort") == 50053:
+                            p.pop("hostPort", None)
+            except (KeyError, TypeError):
+                pass
+
         namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
         apps_v1.create_namespaced_deployment(namespace=namespace, body=spec)
         logger.info("Created K8s deployment: %s", deploy_name)
+
+        if claim_id:
+            _ensure_claim_mtib_service(deploy_name, namespace, claim_id)
+
         return deploy_name
     except ApiException as e:
         if e.status == 409:
@@ -116,6 +146,49 @@ def create_mtib_deployment(
     except Exception as e:
         logger.error("Failed to create K8s deployment: %s", e)
         return None
+
+
+def _ensure_claim_mtib_service(deploy_name: str, namespace: str, claim_id: str) -> None:
+    """Create the ClusterIP Service that fronts a claim-mode MTIB pod.
+
+    Runner pods inside the cluster reach the MTIB via
+    ``{deploy_name}.{namespace}.svc.cluster.local:50053``. We create
+    the Service idempotently — a 409 means the previous create already
+    landed it, so the reuse path is safe.
+    """
+    service_body = {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+            "name": deploy_name,
+            "labels": {
+                "app": deploy_name,
+                "corekinect.com/managed-by": "concord",
+                "corekinect.com/claim-id": claim_id,
+            },
+        },
+        "spec": {
+            "type": "ClusterIP",
+            "selector": {"app": deploy_name},
+            "ports": [{
+                "name": "mtib-grpc",
+                "port": 50053,
+                "targetPort": 50053,
+                "protocol": "TCP",
+            }],
+        },
+    }
+    try:
+        core_v1 = get_core_v1_api()
+        core_v1.create_namespaced_service(namespace=namespace, body=service_body)
+        logger.info("Created K8s service for claim MTIB: %s", deploy_name)
+    except ApiException as e:
+        if e.status == 409:
+            logger.debug("K8s service %s already exists", deploy_name)
+            return
+        logger.warning("Failed to create K8s service %s: %s", deploy_name, e.reason)
+    except Exception as e:
+        logger.warning("Failed to create K8s service %s: %s", deploy_name, e)
 
 
 def delete_mtib_deployment(deploy_name: str) -> bool:
@@ -166,6 +239,30 @@ def delete_mtib_deployments_for_claim(claim_id: str) -> list[str]:
         name = dep.metadata.name
         if delete_mtib_deployment(name):
             deleted.append(name)
+
+    # Companion ClusterIP Services live under the same name and
+    # ``claim-id`` label. Best-effort cleanup — a missing Service is
+    # not a teardown failure.
+    try:
+        core_v1 = get_core_v1_api()
+        services = core_v1.list_namespaced_service(
+            namespace=_get_mtib_namespace(),
+            label_selector=f"corekinect.com/claim-id={claim_id}",
+        )
+        for svc in (services.items or []):
+            try:
+                core_v1.delete_namespaced_service(
+                    name=svc.metadata.name, namespace=_get_mtib_namespace(),
+                )
+            except ApiException as e:
+                if e.status != 404:
+                    logger.warning(
+                        "Failed to delete claim MTIB service %s: %s",
+                        svc.metadata.name, e.reason,
+                    )
+    except Exception as e:
+        logger.debug("Service-cleanup pass for claim %s skipped: %s", claim_id, e)
+
     return deleted
 
 
