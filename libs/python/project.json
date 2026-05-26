@@ -40,16 +40,16 @@
         },
         "staging": {
           "commands": [
-            ": ${PYPI_USERNAME:?PYPI_USERNAME must be set \u2014 see infrastructure/clusters/office/secrets/.env.example (PYPI_HTPASSWD username, always 'concord') or your team's secret store}",
-            ": ${PYPI_PASSWORD:?PYPI_PASSWORD must be set \u2014 plaintext for PYPI_HTPASSWD; source from your team's secret store}",
+            ": ${PYPI_USERNAME:?PYPI_USERNAME must be set - see infrastructure/clusters/office/secrets/.env.example for PYPI_HTPASSWD username (always concord) or your team secret store}",
+            ": ${PYPI_PASSWORD:?PYPI_PASSWORD must be set - plaintext for PYPI_HTPASSWD; source from your team secret store}",
             "kubectl port-forward -n staging svc/concord-pypi 18080:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18080 --username \"$PYPI_USERNAME\" --password \"$PYPI_PASSWORD\" --disable-progress-bar dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
           ],
           "parallel": false
         },
         "production": {
           "commands": [
-            ": ${PYPI_USERNAME:?PYPI_USERNAME must be set \u2014 see infrastructure/clusters/office/secrets/.env.example (PYPI_HTPASSWD username, always 'concord') or your team's secret store}",
-            ": ${PYPI_PASSWORD:?PYPI_PASSWORD must be set \u2014 plaintext for PYPI_HTPASSWD; source from your team's secret store}",
+            ": ${PYPI_USERNAME:?PYPI_USERNAME must be set - see infrastructure/clusters/office/secrets/.env.example for PYPI_HTPASSWD username (always concord) or your team secret store}",
+            ": ${PYPI_PASSWORD:?PYPI_PASSWORD must be set - plaintext for PYPI_HTPASSWD; source from your team secret store}",
             "kubectl port-forward -n production svc/concord-pypi 18081:8080 >/dev/null 2>&1 & PF=$!; sleep 2; twine upload --repository-url http://localhost:18081 --username \"$PYPI_USERNAME\" --password \"$PYPI_PASSWORD\" --disable-progress-bar dist/*.whl; rc=$?; kill $PF 2>/dev/null || true; wait $PF 2>/dev/null || true; exit $rc"
           ],
           "parallel": false
