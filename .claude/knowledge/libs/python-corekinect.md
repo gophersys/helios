@@ -252,6 +252,17 @@ and the `encode_flags` packing logic). Re-export the new constants from
 `corekinect/firmware/__init__.py` and update consumer codepaths
 (build-service, the `corectl` CFW tool).
 
+## Resilience contracts
+
+- **`MtibV1Client.connect()` is lenient on `HealthCheck` UNIMPLEMENTED.**
+  Older `mtib-server` builds did not expose the `HealthCheck` RPC. When the
+  channel opens but the readiness probe returns
+  `grpc.StatusCode.UNIMPLEMENTED`, the client logs a warning and returns
+  success rather than refusing to bind. Any other gRPC error path still
+  returns the usual `Optional[str]` error string. `SlotContext.connect()`
+  in `corekinect.test.slot` mirrors the same lenient behaviour so test
+  runners aren't blocked by an old MTIB image.
+
 ## Common failure modes
 
 - **`ImportError: No module named 'protocols.mtib.mtib_pb2'` after pip

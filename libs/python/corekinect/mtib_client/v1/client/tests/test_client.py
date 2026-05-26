@@ -65,6 +65,33 @@ class TestConnect(unittest.TestCase):
 
     @patch("corekinect.mtib_client.v1.client.core.insecure_channel")
     @patch("corekinect.mtib_client.v1.client.core.MtibClientV1")
+    def test_connect_lenient_when_healthcheck_unimplemented(self, mock_stub_cls, mock_channel):
+        """When HealthCheck RPC returns UNIMPLEMENTED, connect() should
+        log a warning and proceed (older MTIB servers may not expose
+        the RPC yet). The channel is still considered open.
+        """
+        client = MtibV1Client(MtibV1Client.Config(net=NetConfig(addr="10.0.0.1", port=50051)))
+        client.logger = MagicMock()
+
+        mock_stub = MagicMock()
+        mock_stub_cls.return_value = mock_stub
+
+        # Build a real-looking RpcError that reports UNIMPLEMENTED so the
+        # client can detect the status code path. grpc.Call exposes
+        # ``code()`` / ``details()``; the simplest stand-in here is a
+        # MagicMock that satisfies isinstance(grpc.RpcError).
+        rpc_err = grpc.RpcError()
+        rpc_err.code = MagicMock(return_value=grpc.StatusCode.UNIMPLEMENTED)
+        rpc_err.details = MagicMock(return_value="HealthCheck not implemented")
+        mock_stub.HealthCheck.side_effect = rpc_err
+
+        err = client.connect()
+        assert err is None, f"connect() should be lenient on UNIMPLEMENTED, got: {err}"
+        # Warning surfaced to operator
+        assert client.logger.warning.called
+
+    @patch("corekinect.mtib_client.v1.client.core.insecure_channel")
+    @patch("corekinect.mtib_client.v1.client.core.MtibClientV1")
     def test_connect_health_not_ready(self, mock_stub_cls, mock_channel):
         """Test connect health not ready."""
         client = MtibV1Client(MtibV1Client.Config(net=NetConfig(addr="10.0.0.1", port=50051)))

@@ -92,8 +92,19 @@ class SlotContext:
 
                 ready, errors, err = self.mtib.HealthCheck()
                 if err:
-                    raise ConnectionError(f"HealthCheck returned error: {err}")
-                if not ready:
+                    # Older MTIB builds may not implement the
+                    # HealthCheck RPC yet — match the lenient
+                    # behaviour of MtibV1Client.connect() and proceed
+                    # with a warning instead of refusing to bind.
+                    if "UNIMPLEMENTED" in err:
+                        log.warning(
+                            "Slot %s: HealthCheck not implemented by MTIB at %s:%d — "
+                            "proceeding without server-side readiness check",
+                            self.slot_id, self.mtib_address, self.mtib_port,
+                        )
+                    else:
+                        raise ConnectionError(f"HealthCheck returned error: {err}")
+                elif not ready:
                     raise ConnectionError(f"MTIB not ready: {errors}")
 
                 if testbed_factory:
