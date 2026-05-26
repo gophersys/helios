@@ -40,13 +40,9 @@ Concord OS turns a Verdin iMX8M Mini SoM into a node in the **Concord K3s cluste
 
 ## Quick Start
 
-### 1. Open in Dev Container
+### 1. Place Secrets (first time only)
 
-Open this repository in VS Code and use **Reopen in Container** (or run the `.devcontainer/start.sh` script manually). The container initialises the Yocto environment, syncs repos, and accepts the Freescale EULA on first run.
-
-### 2. Place Secrets (first time only)
-
-Before building, place provisioning secrets in `meta-corekinect/secrets/`:
+`start.sh` hard-fails on missing secrets, so drop these in `meta-corekinect/secrets/` **before** opening the dev container:
 
 ```
 meta-corekinect/secrets/
@@ -56,7 +52,24 @@ meta-corekinect/secrets/
 └── k3s-token                   ← node join token from control plane
 ```
 
-See [`meta-corekinect/secrets/README.md`](meta-corekinect/secrets/README.md) for details on obtaining each file. These are `.gitignore`d and must be provided manually.
+See [`meta-corekinect/secrets/README.md`](meta-corekinect/secrets/README.md) for how to obtain each file. They are `.gitignore`d and must be provided manually. If any of the four are missing or empty, container startup aborts with a list of what's missing.
+
+### 2. Open in Dev Container
+
+Open this repository in VS Code and use **Reopen in Container** (or run the `.devcontainer/start.sh` script manually). The container initialises the Yocto environment, syncs repos, accepts the Freescale EULA, and registers `meta-corekinect` with bitbake.
+
+#### Working from the umbrella `corekinect/work` repo
+
+This repo is consumed as a git submodule of the umbrella workspace (`work/concord/concord-os-yocto`). When that's the case, the submodule's `.git` is a pointer file (`gitdir: ../../.git/modules/concord/concord-os-yocto`) whose target lives **outside** the workspace bind mount. On top of that, the gitdir's own `config` carries a relative `core.worktree` (`../../../../concord/concord-os-yocto`) that was computed against the umbrella's directory layout. To make both relative paths resolve identically inside the container, the devcontainer mirrors that layout:
+
+| Host (umbrella)                                  | Container                                              |
+|--------------------------------------------------|--------------------------------------------------------|
+| `<umbrella>/concord/concord-os-yocto/`           | `/workspaces/concord/concord-os-yocto/` (workspace)    |
+| `<umbrella>/.git/modules/concord/concord-os-yocto/` | `/workspaces/.git/modules/concord/concord-os-yocto/` (bind-mounted gitdir) |
+
+Both are set in `.devcontainer/devcontainer.json` (`workspaceMount` + a second bind mount). With this in place, every git invocation inside the container — including the ones bitbake fetchers run for AUTOREV recipes (`u-boot-toradex`, `linux-toradex-upstream`) — finds the gitdir and the worktree exactly as it would on the host. No env vars or wrappers are required.
+
+A standalone clone of this repo (no umbrella) has a real `.git` directory and never consults the umbrella mount — the second bind mount just lands as an empty directory inside the container and is otherwise inert.
 
 ### 3. Build the Image
 
@@ -245,5 +258,5 @@ Configuration lives in `.devcontainer/`:
 - **`repo sync` hangs or fails partway** — `cd torizon && repo sync -j1` drops parallelism and surfaces the failing fetch.
 - **`bitbake: command not found`** — the build env isn't sourced for this shell. `cd torizon && source setup-environment build`.
 - **K3s agent not joining the cluster** — on the device: `journalctl -u k3s-agent`. Most common cause: the `k3s-server-url` or `k3s-token` files were missing or stale at **build time**. Fix the secrets, rebuild, reflash.
-- **"No space left on device" during build** — the build dir needs ~80 GB free; check `df -h /workspaces/concord-os-yocto/torizon`.
+- **"No space left on device" during build** — the build dir needs ~80 GB free; check `df -h "$WORKDIR"` (the `WORKDIR` env var resolves to the active build root inside the container).
 - **Verify a DTS overlay without a full kernel rebuild** — preprocess and compile by hand: see `ctl.sh compile` for the canonical `cpp` + `dtc` invocation.

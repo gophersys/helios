@@ -2,7 +2,7 @@
 
 function compile() {
     # Set kernel source path
-    export STAGING_KERNEL_DIR=/workspaces/concord-os-yocto/linux-toradex
+    export STAGING_KERNEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/linux-toradex"
 
     # Compile DTS to DTBO
     cpp -nostdinc \

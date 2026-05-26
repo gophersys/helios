@@ -9,8 +9,11 @@
         "--env-file",
         ".devcontainer/.env"
     ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/concord/concord-os-yocto,type=bind",
+    "workspaceFolder": "/workspaces/concord/concord-os-yocto",
     "mounts": [
-        "source=/mnt/c,target=/mnt/c,type=bind"
+        "source=/mnt/c,target=/mnt/c,type=bind",
+        "source=${localWorkspaceFolder}/../../.git/modules/concord/concord-os-yocto,target=/workspaces/.git/modules/concord/concord-os-yocto,type=bind"
     ],
     "remoteUser": "usersetup",
     "remoteEnv": {

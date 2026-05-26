@@ -6,10 +6,35 @@ then
     exit 1
 fi
 
+WORKSPACE_ROOT="$(dirname "$WORKDIR")"
+
 # Check if machine is set otherwise exit
 if [ -z "$MACHINE" ]
 then
     echo "Please set MACHINE variable"
+    exit 1
+fi
+
+# Verify required provisioning secrets are present before doing any heavy work.
+# Bitbake will only catch this much later — during recipe parse / fetch — so we
+# fail fast here with a clear list of what's missing instead.
+SECRETS_DIR="$WORKSPACE_ROOT/meta-corekinect/secrets"
+REQUIRED_SECRETS=(corekinect-root-ca.crt corekinect-sub-ca.crt k3s-server-url k3s-token)
+MISSING_SECRETS=()
+for s in "${REQUIRED_SECRETS[@]}"; do
+    if [ ! -s "$SECRETS_DIR/$s" ]; then
+        MISSING_SECRETS+=("$s")
+    fi
+done
+if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+    echo "" >&2
+    echo "[ERROR] Missing required provisioning secret(s) in $SECRETS_DIR:" >&2
+    for s in "${MISSING_SECRETS[@]}"; do
+        echo "  - $s" >&2
+    done
+    echo "" >&2
+    echo "See meta-corekinect/secrets/README.md for how to obtain each file." >&2
+    echo "The image cannot be built without these — aborting devcontainer startup." >&2
     exit 1
 fi
 
@@ -41,9 +66,11 @@ fi
 mkdir -p $WORKDIR
 cd $WORKDIR
 
-# Initialize if repo not yet initialized
-if [ ! -d ".repo" ]; then
-    echo "No .repo directory found - first time initialization"
+# Initialize if repo not yet initialized. We key off `.repo/manifests` rather
+# than `.repo` itself, so a previous run that crashed after the repo tool was
+# unpacked but before the manifest was fetched gets re-initialized cleanly.
+if [ ! -d ".repo/manifests" ]; then
+    echo "No initialized .repo/manifests found - running repo init"
     repo init -u https://git.toradex.com/toradex-manifest.git -b $BRANCH -m $MANIFEST
     echo "Running initial repo sync..."
     repo sync -q || { echo "[ERROR] Initial repo sync failed"; exit 1; }
@@ -60,12 +87,27 @@ else
     fi
 fi
 
-# Initialize build environment
+# Initialize build environment. EULA=1 tells the Toradex setup-environment
+# script to auto-accept the BSP EULA (it otherwise prompts interactively and
+# spins forever when stdin is not a TTY — e.g. devcontainer postStartCommand).
 if [ -z "$DISTRO"  ]
 then
-    MACHINE=$MACHINE BUILDDIRECTORY=$BDDIR source setup-environment $BDDIR
+    EULA=1 MACHINE=$MACHINE BUILDDIRECTORY=$BDDIR source setup-environment $BDDIR
 else
-    DISTRO=$DISTRO MACHINE=$MACHINE BUILDDIRECTORY=$BDDIR source setup-environment $BDDIR
+    EULA=1 DISTRO=$DISTRO MACHINE=$MACHINE BUILDDIRECTORY=$BDDIR source setup-environment $BDDIR
+fi
+
+# Register this repo's meta-corekinect layer with bitbake. The Toradex
+# manifest doesn't know about it (it lives outside torizon/, in the umbrella
+# repo root), so bblayers.conf needs to be extended on every fresh build dir.
+META_COREKINECT="$WORKDIR/../meta-corekinect"
+if [ -d "$META_COREKINECT" ] && ! grep -q "meta-corekinect" $WORKDIR/$BDDIR/conf/bblayers.conf
+then
+    echo "Adding meta-corekinect layer to bblayers.conf..."
+    (cd $WORKDIR/$BDDIR && bitbake-layers add-layer "$META_COREKINECT") || {
+        echo "[ERROR] bitbake-layers add-layer meta-corekinect failed"
+        exit 1
+    }
 fi
 
 # Configure debug paths properly
@@ -129,7 +171,7 @@ if [ -d "${WORKDIR}" ]; then
         echo "Setting up Yocto build environment..."
         # Save current PS1
         OLD_PS1="\$PS1"
-        MACHINE=${MACHINE} DISTRO=${DISTRO} BUILDDIRECTORY=${BDDIR} source setup-environment ${BDDIR}
+        EULA=1 MACHINE=${MACHINE} DISTRO=${DISTRO} BUILDDIRECTORY=${BDDIR} source setup-environment ${BDDIR}
         # Restore our colorful PS1
         PS1="\$OLD_PS1"
     fi
