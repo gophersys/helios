@@ -254,6 +254,14 @@ and the `encode_flags` packing logic). Re-export the new constants from
 
 ## Resilience contracts
 
+- **`SlotContext` surfaces pod state on connect failures.** When
+  `connect()` runs out of retries and `pod_state_lookup` is wired on
+  the slot, the helper is consulted from attempt 2 onwards (transient
+  single failures don't pay the K8s round trip). Its return value
+  (`ImagePullBackOff`, `CrashLoopBackOff`, `Pending`, …) appears in
+  the final `ConnectionError` so the operator sees *why* gRPC was
+  unreachable instead of a generic "connection failed". Pods running
+  without K8s read access simply leave the hook unset.
 - **`MtibV1Client.connect()` is lenient on `HealthCheck` UNIMPLEMENTED.**
   Older `mtib-server` builds did not expose the `HealthCheck` RPC. When the
   channel opens but the readiness probe returns

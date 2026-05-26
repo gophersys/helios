@@ -2272,7 +2272,19 @@ def status(ctx, path: str):
             label = b.get("label") or "—"
             node = b.get("nodeId") or "—"
             host = b.get("mtibHost") or "—"
-            click.echo(f"    {label:8s}  node={node:24s}  mtib={host}")
+            phase = b.get("podPhase") or "—"
+            # Colour the phase so a degraded slot leaps out — Running
+            # is the only happy state; everything else is a warning
+            # the operator probably wants to act on (ImagePullBackOff,
+            # CrashLoopBackOff, Pending) or just doesn't know about
+            # ("—" when K8s wasn't reachable).
+            if phase == "Running":
+                phase_str = click.style(phase, fg="green")
+            elif phase in ("—", None):
+                phase_str = phase
+            else:
+                phase_str = click.style(phase, fg="yellow")
+            click.echo(f"    {label:8s}  node={node:24s}  mtib={host:24s}  pod={phase_str}")
     daemon_pid = state.get("heartbeatPid")
     if daemon_pid:
         click.echo(f"  Heartbeat pid:  {daemon_pid}")

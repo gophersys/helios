@@ -280,6 +280,8 @@ Transient failures (network errors, 5xx) trigger a 15-second retry backoff. Afte
 
 `corectl test status` GETs `/v2/fixture-claims/<id>` and compares the live `status` to the implicit "ACTIVE" assumption of the on-disk file. Any mismatch wipes the state file and emits a yellow WARNING — the dev was about to run pytest against hardware they no longer own.
 
+The status output also renders the `podPhase` per slot binding (read from the backend serializer). `Running` is green, anything else (`Pending`, `ImagePullBackOff`, `CrashLoopBackOff`) is yellow so degraded slots stand out without a separate `kubectl get pod`.
+
 ### Gitignore
 
 `.concord-claim.json` and `.concord-claim.log` are added to:

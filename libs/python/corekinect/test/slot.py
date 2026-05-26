@@ -73,6 +73,17 @@ class SlotContext:
     mtib: Optional[MtibV1Client] = field(default=None, repr=False)
     testbed: Optional[Any] = field(default=None, repr=False)
 
+    # Optional hook that returns a one-word K8s pod state (e.g.
+    # ``"ImagePullBackOff"``, ``"CrashLoopBackOff"``, ``"Pending"``)
+    # for the MTIB backing this slot. When set, connect() consults it
+    # after the second failure so the final error message tells the
+    # operator *why* the gRPC channel won't open instead of a generic
+    # "connection refused". A runner pod that lacks K8s read access
+    # simply leaves this unset and falls back to the historic message.
+    pod_state_lookup: Optional[Callable[[], Optional[str]]] = field(
+        default=None, repr=False
+    )
+
     def connect(self, testbed_factory: Optional[Callable] = None) -> None:
         """Connect MTIB client and create fixture controller.
 
@@ -80,6 +91,7 @@ class SlotContext:
         connection reset). Gives up after CONNECT_MAX_ATTEMPTS attempts.
         """
         last_err: Optional[str] = None
+        pod_state: Optional[str] = None
         for attempt in range(1, CONNECT_MAX_ATTEMPTS + 1):
             try:
                 config = MtibV1Client.Config(
@@ -126,6 +138,20 @@ class SlotContext:
                     except Exception:
                         pass
                     self.mtib = None
+                # On the 2nd+ failure, ask the operator-supplied hook
+                # whether the underlying pod is wedged in a non-Running
+                # state. Doing this from attempt 2 (rather than 1)
+                # keeps a transient single failure cheap — the typical
+                # MTIB-mid-restart case doesn't need a K8s round trip.
+                if attempt >= 2 and pod_state is None and self.pod_state_lookup is not None:
+                    try:
+                        pod_state = self.pod_state_lookup()
+                    except Exception as lookup_exc:
+                        log.debug(
+                            "Slot %s pod_state_lookup raised %s — ignoring",
+                            self.slot_id, lookup_exc,
+                        )
+                        pod_state = None
                 if attempt < CONNECT_MAX_ATTEMPTS:
                     log.warning(
                         "Slot %s connect attempt %d/%d failed (%s) — retrying in %.1fs",
@@ -134,10 +160,11 @@ class SlotContext:
                     )
                     time.sleep(CONNECT_RETRY_DELAY_S)
 
+        pod_state_suffix = f" [pod state: {pod_state}]" if pod_state else ""
         raise ConnectionError(
             f"Slot {self.slot_id}: MTIB connection to "
             f"{self.mtib_address}:{self.mtib_port} failed after "
-            f"{CONNECT_MAX_ATTEMPTS} attempts: {last_err}"
+            f"{CONNECT_MAX_ATTEMPTS} attempts: {last_err}{pod_state_suffix}"
         )
 
     def ensure_connected(self, testbed_factory: Optional[Callable] = None) -> bool:

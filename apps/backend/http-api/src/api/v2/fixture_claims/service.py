@@ -34,6 +34,7 @@ from src.services.kubernetes.address_resolver import resolve_node_addresses
 from src.services.kubernetes.mtib_deployments import (
     create_mtib_deployment,
     delete_mtib_deployments_for_claim,
+    get_mtib_deployment_status,
     wait_for_mtibs_healthy,
 )
 
@@ -468,6 +469,39 @@ def _build_slot_bindings(claim: Any) -> list[dict]:
     for b in bindings:
         if b["nodeId"]:
             b["mtibHost"] = addr_map.get(b["nodeId"])
+
+    # Attach pod phase per binding when the node's metadata points at a
+    # known mtib-server Deployment. Empty/None when K8s is unavailable
+    # or the deployment hasn't been recorded yet — the client renders
+    # ``—`` in that case.
+    if getattr(claim, "fixtureId", None):
+        fixture = getattr(claim, "fixture", None)
+        slots = getattr(fixture, "slots", None) or []
+        nodes_by_id = {
+            getattr(getattr(s, "node", None), "id", None): getattr(s, "node", None)
+            for s in slots
+        }
+    else:
+        nodes_by_id = {
+            getattr(cn, "nodeId", None): getattr(cn, "node", None)
+            for cn in (getattr(claim, "claimedNodes", None) or [])
+        }
+    for b in bindings:
+        node = nodes_by_id.get(b.get("nodeId"))
+        meta = getattr(node, "metadata", None) if node is not None else None
+        deploy_name = meta.get("deployment_name") if isinstance(meta, dict) else None
+        if not deploy_name:
+            b["podPhase"] = None
+            continue
+        try:
+            status = get_mtib_deployment_status(deploy_name)
+        except Exception:
+            status = None
+        if not status or not status.get("pods"):
+            b["podPhase"] = None
+            continue
+        pod = status["pods"][0]
+        b["podPhase"] = pod.get("status")
     return bindings
 
 

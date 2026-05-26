@@ -67,3 +67,57 @@ class TestSlotContextConnectLenient:
         slot.connect()
         # The slot now has an MTIB attached.
         assert slot.mtib is mock_mtib
+
+
+class TestSlotContextPodStateSurfacing:
+    """When the MTIB never answers, the final error mentions pod state."""
+
+    @patch("corekinect.test.slot.MtibV1Client")
+    def test_failure_message_includes_pod_state_when_lookup_returns_one(self, mock_client_cls):
+        """If a ``pod_state_lookup`` callable is wired on the slot, its
+        return value (e.g. ``ImagePullBackOff``) must appear in the final
+        ConnectionError so the operator sees *why* gRPC was unreachable
+        instead of just "connection failed".
+        """
+        mock_mtib = MagicMock()
+        mock_mtib.connect.return_value = "connection refused"  # always fail
+        mock_client_cls.return_value = mock_mtib
+
+        slot = SlotContext(
+            slot_id="slot-0",
+            slot_index=0,
+            mtib_address="10.0.0.1",
+            mtib_port=50053,
+        )
+        slot.pod_state_lookup = MagicMock(return_value="ImagePullBackOff")
+
+        with pytest.raises(ConnectionError) as exc_info:
+            slot.connect()
+
+        assert "ImagePullBackOff" in str(exc_info.value), (
+            f"expected pod state in error, got: {exc_info.value}"
+        )
+
+    @patch("corekinect.test.slot.MtibV1Client")
+    def test_no_pod_state_lookup_falls_back_to_plain_error(self, mock_client_cls):
+        """Without a lookup configured, the historic generic error message
+        is preserved. We don't want to silently start requiring k8s
+        access from every test runner.
+        """
+        mock_mtib = MagicMock()
+        mock_mtib.connect.return_value = "connection refused"
+        mock_client_cls.return_value = mock_mtib
+
+        slot = SlotContext(
+            slot_id="slot-0",
+            slot_index=0,
+            mtib_address="10.0.0.1",
+            mtib_port=50053,
+        )
+
+        with pytest.raises(ConnectionError) as exc_info:
+            slot.connect()
+
+        # Generic — must not gratuitously mention pod state.
+        assert "ImagePullBackOff" not in str(exc_info.value)
+        assert "10.0.0.1" in str(exc_info.value)
