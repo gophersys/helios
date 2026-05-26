@@ -275,27 +275,51 @@ def test_manifest_schema_testbed_key() -> None:
 
 def test_v2_test_bed_designs_endpoint() -> None:
     """The Flask app's URL map must contain ``/v2/test-bed-designs`` and not the old path."""
-    # Importing src.main constructs the Flask `server` but does not register
-    # v2 routes (those are guarded by `if __name__ == "__main__"`). We import
-    # the router module and register the blueprint ourselves.
-    import logging
-
-    from src.main import server  # type: ignore
-    from api.v2.router import register_v2_routes  # type: ignore
+    # ``v2`` is a module-level Blueprint singleton — once Flask has
+    # registered it to *any* app it freezes, and ``add_url_rule`` raises
+    # on a subsequent call. Other tests in the suite may have already
+    # forced that registration on their own Flask app, so we cannot call
+    # ``register_v2_routes`` here unconditionally — the parallel-worker
+    # version of this test file would explode the second time around.
+    #
+    # Either way the route list we care about lives on the blueprint
+    # itself: ``v2.deferred_functions`` are the ``add_url_rule`` closures
+    # captured at import time. We inspect those when the blueprint is
+    # already frozen, and fall back to a fresh Flask app + registration
+    # when it isn't.
+    from api.v2.router import register_v2_routes, v2  # type: ignore
     from corekinect.utils import Logger  # type: ignore
+    from flask import Flask  # type: ignore
     from flask_socketio import SocketIO  # type: ignore
 
-    # Make registration idempotent across re-runs of the test session: only
-    # register if the v2 blueprint is not already attached.
-    if "v2" not in {bp.name for bp in server.blueprints.values()}:
-        # Logger() with no args uses a default Config — good enough; we never
-        # actually log anything from this test, register_v2_routes just needs
-        # the .add_filter() shim.
+    if v2._got_registered_once:
+        # Blueprint already registered — walk its deferred-rule list.
+        rules: list[str] = []
+        # Each registered rule shows up as a partial; the captured kwargs
+        # contain the path. Easier: use the blueprint's own bookkeeping.
+        # Flask exposes registered url rules through the app's url_map
+        # after registration, so reach for the first app that owns it.
+        # `v2.deferred_functions` are pre-registration; `_blueprints` on
+        # the app is the post-registration source of truth. We
+        # reconstruct paths from the deferred functions' captured args.
+        for fn in v2.deferred_functions:
+            # bp.add_url_rule populates a closure that calls
+            # state.add_url_rule(rule=...). We can't introspect the
+            # closure cleanly; instead, rebuild via a throwaway state.
+            pass
+        # Simpler path: register the blueprint to a fresh Flask app and
+        # read its url_map. Flask permits a second registration as long
+        # as we don't call add_url_rule again — we don't.
+        throwaway = Flask("rename-completeness-probe")
+        throwaway.register_blueprint(v2)
+        rules = [str(r) for r in throwaway.url_map.iter_rules()]
+    else:
+        # Blueprint not yet registered — wire it up on a fresh app.
+        throwaway = Flask("rename-completeness-probe")
         logger = Logger(log_name="test-rename-completeness")
         socketio = SocketIO()
-        register_v2_routes(logger, server, socketio)
-
-    rules = [str(r) for r in server.url_map.iter_rules()]
+        register_v2_routes(logger, throwaway, socketio)
+        rules = [str(r) for r in throwaway.url_map.iter_rules()]
 
     has_new = any(r.startswith("/v2/test-bed-designs") for r in rules)
     has_old = any(r.startswith("/v2/fixtures/designs") for r in rules)
