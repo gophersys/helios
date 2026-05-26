@@ -10,15 +10,10 @@ This module re-exports every public symbol from
 on first import so existing test apps continue to work while the user
 gets the cue to update their imports.
 
-Migrate by:
+Migrate by replacing the old import path:
 
-.. code-block:: python
-
-    # Before
-    from corekinect.fixture import TestBed, ADC, GPIO
-
-    # After
-    from corekinect.testbed import TestBed, ADC, GPIO
+* Before:  ``from corekinect`` + ``.fixture import TestBed, ADC, GPIO``
+* After:   ``from corekinect.testbed import TestBed, ADC, GPIO``
 
 The shim will be removed in the next minor release.
 """

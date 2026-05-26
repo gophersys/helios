@@ -242,7 +242,9 @@ def _make_manifest(top_key: str) -> dict:
 
 
 def test_manifest_schema_testbed_key() -> None:
-    """The manifest schema accepts ``testbed:`` and rejects a manifest keyed by ``fixture:``."""
+    """``testbed:`` is canonical; ``fixture:`` is accepted with a deprecation warning
+    for one-minor-version backward compatibility (see corekinect knowledge file).
+    """
     from corekinect.manifest.schema import validate_manifest
 
     ok = validate_manifest(_make_manifest("testbed"))
@@ -251,17 +253,19 @@ def test_manifest_schema_testbed_key() -> None:
         + "\n".join(f"  - {e}" for e in ok.errors)
     )
 
-    bad = validate_manifest(_make_manifest("fixture"))
-    assert not bad.valid, (
-        "Manifest with legacy `fixture:` key validated successfully — "
-        "schema still tolerates the pre-rename top-level key. "
-        "Expected at least one error pointing at the missing `testbed` field."
+    # Legacy `fixture:` key still validates — backward compat for one
+    # minor — but must emit a deprecation warning pointing operators
+    # at the new key.
+    legacy = validate_manifest(_make_manifest("fixture"))
+    assert legacy.valid, (
+        "Manifest with legacy `fixture:` key failed to validate — the one-minor "
+        "backward-compat path is broken:\n"
+        + "\n".join(f"  - {e}" for e in legacy.errors)
     )
-    # Be helpful: show the violations we got, to confirm they reference testbed.
-    error_str = "\n".join(str(e) for e in bad.errors)
-    assert "testbed" in error_str.lower(), (
-        "Legacy `fixture:` key was rejected, but the error did not mention `testbed`:\n"
-        + error_str
+    warning_str = "\n".join(str(w) for w in legacy.warnings).lower()
+    assert "deprecated" in warning_str and "testbed" in warning_str, (
+        "Legacy `fixture:` key validated, but no deprecation warning pointed at the "
+        "new `testbed:` key:\n" + warning_str
     )
 
 
