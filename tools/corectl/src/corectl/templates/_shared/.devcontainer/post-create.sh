@@ -7,6 +7,39 @@
 
 set -euo pipefail
 
+# The base image ships corectl + corekinect from the in-cluster PyPI,
+# but the *editable* development workflow assumes the concord monorepo
+# is mounted at /workspaces/concord (so changes to libs/python land in
+# this container without a wheel rebuild). When that path is missing
+# the editable install silently picks up the wheel-from-PyPI version
+# and nothing in the dev loop reflects the user's local edits.
+#
+# Fail loudly here so the operator fixes the layout BEFORE the dev
+# loop starts, rather than chasing "why didn't my change land?" later.
+if [ ! -d /workspaces/concord/libs/python/corekinect ] && [ "${CONCORD_DEV_MODE:-}" = "1" ]; then
+    cat <<'EOF' >&2
+
+✗ /workspaces/concord/libs/python/corekinect is missing.
+
+This devcontainer expects the concord monorepo to be mounted at
+/workspaces/concord (alongside the test app) so corekinect changes
+land in the container without a wheel rebuild. Fix one of:
+
+  1. Clone concord/concord next to this repo and add it to the
+     devcontainer "mounts" section, e.g.:
+
+       "mounts": [
+         "source=\${localWorkspaceFolder}/../concord,
+          target=/workspaces/concord,type=bind"
+       ]
+
+  2. If you do NOT need monorepo edits, set CONCORD_DEV_MODE=0 in
+     this devcontainer's "remoteEnv" to skip this check.
+
+EOF
+    exit 1
+fi
+
 EXPECTED_VERSION="$(cat .claude/.framework-version 2>/dev/null || echo '')"
 
 echo "→ Verifying corectl"

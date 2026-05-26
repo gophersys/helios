@@ -239,6 +239,19 @@ A local-dev workflow that leases real hardware (a fixture or a set of nodes) for
 | `corectl test status` | Show the active claim: id, status, slot bindings, time remaining. Reconciles local state file with backend live status. |
 | `corectl test list-nodes [--available] [--purpose <p>] [--product <id>]` | Read-only discovery: enumerate the test nodes (MTIBs) visible to the platform, with type, hostname, fixture binding, and a free/held flag. Backed by `GET /v2/test/nodes` — see `.claude/knowledge/apps/backend/http-api.md`. |
 
+### Scaffolded devcontainer expects the concord monorepo to be mounted
+
+`templates/_shared/.devcontainer/post-create.sh` requires
+`/workspaces/concord/libs/python/corekinect/` to exist when
+`CONCORD_DEV_MODE=1` is in effect. Without this mount the editable
+install silently picks up the wheel-from-PyPI version, so dev's
+local edits to `libs/python/corekinect/` never reflect in the
+container's runtime. The loud check fires on container start and
+exits 1 with a fix-it message (clone concord adjacent, add the
+bind mount). Operators who only consume the published wheel
+unset `CONCORD_DEV_MODE` to skip the check. README in the same
+template documents both paths.
+
 ### `corectl update` install-context detection
 
 `commands/update.py` exposes :func:`detect_install_context` returning
