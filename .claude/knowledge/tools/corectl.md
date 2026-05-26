@@ -239,6 +239,25 @@ A local-dev workflow that leases real hardware (a fixture or a set of nodes) for
 | `corectl test status` | Show the active claim: id, status, slot bindings, time remaining. Reconciles local state file with backend live status. |
 | `corectl test list-nodes [--available] [--purpose <p>] [--product <id>]` | Read-only discovery: enumerate the test nodes (MTIBs) visible to the platform, with type, hostname, fixture binding, and a free/held flag. Backed by `GET /v2/test/nodes` — see `.claude/knowledge/apps/backend/http-api.md`. |
 
+### `corectl test validate` failure categories
+
+The validate command groups findings into three buckets:
+
+| Bucket | Method on `ValidationResult` | Blocking? |
+|---|---|---|
+| Project errors | `error(msg)` | Yes (exit 1) |
+| Project warnings | `warn(msg)` | Only under `--strict` |
+| Environment warnings | `env_warn(msg)` | Never |
+
+Environment warnings cover issues the operator can fix by refreshing
+their local install — framework-artifact drift, framework version
+mismatch with the platform, missing pre-commit hook. These do not
+gate uploads; they print in a separate "Environment (non-blocking)"
+section together with an upgrade command (`pipx upgrade corectl` /
+`uv tool upgrade corectl` / `corectl update`) chosen via
+`_install_context_upgrade_hint()` from `sys.executable` and env vars
+(`PIPX_HOME`, `UV_CACHE_DIR`).
+
 All three are also exposed as top-level aliases (`corectl claim`, `corectl unclaim`, `corectl status`) so they work from a project root the same way `corectl validate` does.
 
 Flags on `claim`:

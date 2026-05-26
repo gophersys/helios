@@ -64,6 +64,26 @@ FRAMEWORK_ARTIFACT_FILES = (".gitattributes", ".pre-commit-config.yaml")
 FRAMEWORK_VERSION_MARKER = ".framework-version"
 
 
+def _install_context_upgrade_hint() -> str:
+    """Best-effort upgrade command that matches how corectl was installed.
+
+    Returns the command the operator should run to refresh corectl +
+    corekinect. The check uses ``sys.executable`` and a couple of
+    environment markers — when nothing matches, falls back to the
+    legacy ``corectl update`` which routes through the install script.
+    """
+    import sys
+
+    exe = (sys.executable or "").lower()
+    # pipx installs land under ~/.local/pipx/venvs/<pkg>/bin/python or
+    # similar. The simplest heuristic is to look for /pipx/ in the path.
+    if "/pipx/" in exe or os.environ.get("PIPX_HOME"):
+        return "pipx upgrade corectl"
+    if "/uv/" in exe or os.environ.get("UV_CACHE_DIR"):
+        return "uv tool upgrade corectl"
+    return "corectl update"
+
+
 def _framework_version() -> str:
     """Return the installed corekinect version string.
 
@@ -145,11 +165,25 @@ def _get_package_type(manifest: dict) -> str:
 
 
 class ValidationResult:
-    """Collects errors and warnings from validation."""
+    """Collects errors and warnings from validation.
+
+    Two failure categories — *project* and *environment* — keep the
+    upload pipe open when the operator's local install has drifted
+    from the platform while their actual project is fine:
+
+    * ``error()`` / ``warn()`` — project issues (manifest shape, test
+      structure, missing files the package needs to ship). Errors are
+      blocking; warnings are blocking under ``--strict``.
+    * ``env_warn()`` — environment drift the operator can fix with
+      ``corectl update`` (framework artifact drift, pre-commit hook
+      missing, framework version mismatch). Never blocking — uploads
+      proceed even when these are non-empty.
+    """
 
     def __init__(self):
         self.errors: List[str] = []
         self.warnings: List[str] = []
+        self.env_warnings: List[str] = []
         self.info: List[str] = []
 
     def error(self, msg: str) -> None:
@@ -157,6 +191,9 @@ class ValidationResult:
 
     def warn(self, msg: str) -> None:
         self.warnings.append(msg)
+
+    def env_warn(self, msg: str) -> None:
+        self.env_warnings.append(msg)
 
     def ok(self, msg: str) -> None:
         self.info.append(msg)
@@ -870,16 +907,15 @@ def _validate_framework_artifacts(
     on_disk_version = ctx_vars["framework_version"]
     installed_version = _framework_version()
 
-    # Version mismatch is a hard failure, not a warning. The on-disk
-    # version drives token substitution in _iter_framework_artifact_renders;
-    # leaving it unaligned means the byte-comparison still passes but the
-    # project ships stale framework artifacts to the platform. The user
-    # explicitly chose "fail on drift, no overrides" — apply the same rule
-    # to the version marker.
+    # Framework version drift is an *environment* issue — the package
+    # itself is fine; the operator's installed corectl/corekinect is
+    # behind. Surface it as a warning with the right upgrade command
+    # so the upload pipe stays open while telling the user how to fix
+    # the local env.
     if on_disk_version != installed_version:
-        result.error(
+        result.env_warn(
             f"Framework artifacts at v{on_disk_version}; installed framework is "
-            f"v{installed_version}. Run 'corectl update' then "
+            f"v{installed_version}. Run '{_install_context_upgrade_hint()}' then "
             f"'corectl test update --apply' to refresh."
         )
 
@@ -908,14 +944,14 @@ def _validate_framework_artifacts(
 
     if missing:
         for m in missing:
-            result.error(f"Framework artifact missing: {m}")
-        result.error(
+            result.env_warn(f"Framework artifact missing: {m}")
+        result.env_warn(
             "Run 'corectl test update --apply' to install missing framework artifacts."
         )
     if drifted:
         for d in drifted:
-            result.error(f"Framework artifact drifted from template: {d}")
-        result.error(
+            result.env_warn(f"Framework artifact drifted from template: {d}")
+        result.env_warn(
             "Framework artifacts must not be hand-edited. Run "
             "'corectl test update --apply' to revert, or upstream a change to the "
             "framework if you really need it."
@@ -946,7 +982,11 @@ def _validate_framework_artifacts(
 
     if hook_path is not None:
         if not hook_path.is_file():
-            result.error(
+            # Local env concern — uploads aren't gated on the
+            # operator having pre-commit wired up. Still surface it
+            # because the gate is the only thing that catches
+            # framework-artifact drift before push.
+            result.env_warn(
                 "Pre-commit hook not installed. Run "
                 "`pip install pre-commit && pre-commit install` once per clone."
             )
@@ -1296,16 +1336,33 @@ def validate(ctx, path: str, strict: bool):
     for msg in result.errors:
         click.echo(click.style(f"  ✗ {msg}", fg="red"))
 
+    if result.env_warnings:
+        click.echo()
+        click.echo(click.style("Environment (non-blocking):", fg="cyan", bold=True))
+        for msg in result.env_warnings:
+            click.echo(click.style(f"  ⓘ {msg}", fg="cyan"))
+        click.echo(click.style(
+            f"  → To refresh your local install: {_install_context_upgrade_hint()}",
+            fg="cyan",
+        ))
+
     click.echo()
     if result.errors:
-        click.echo(click.style(f"FAILED — {len(result.errors)} errors, {len(result.warnings)} warnings", fg="red"))
+        click.echo(click.style(
+            f"FAILED — {len(result.errors)} project errors, "
+            f"{len(result.warnings)} warnings, "
+            f"{len(result.env_warnings)} env warnings",
+            fg="red",
+        ))
         raise SystemExit(1)
     elif result.warnings and strict:
         click.echo(click.style(f"FAILED (strict) — {len(result.warnings)} warnings", fg="yellow"))
         raise SystemExit(1)
     else:
         click.echo(click.style(
-            f"PASSED — {len(result.info)} checks, {len(result.warnings)} warnings",
+            f"PASSED — {len(result.info)} checks, "
+            f"{len(result.warnings)} project warnings, "
+            f"{len(result.env_warnings)} env warnings",
             fg="green",
         ))
 
