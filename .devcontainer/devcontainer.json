@@ -11,9 +11,10 @@
     ],
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/concord/concord-os-yocto,type=bind",
     "workspaceFolder": "/workspaces/concord/concord-os-yocto",
+    "initializeCommand": ".devcontainer/init-umbrella-gitdir.sh",
     "mounts": [
         "source=/mnt/c,target=/mnt/c,type=bind",
-        "source=${localWorkspaceFolder}/../../.git/modules/concord/concord-os-yocto,target=/workspaces/.git/modules/concord/concord-os-yocto,type=bind"
+        "source=${localWorkspaceFolder}/.devcontainer/.umbrella-gitdir,target=/workspaces/.git/modules/concord/concord-os-yocto,type=bind"
     ],
     "remoteUser": "usersetup",
     "remoteEnv": {

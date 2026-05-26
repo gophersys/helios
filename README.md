@@ -69,7 +69,9 @@ This repo is consumed as a git submodule of the umbrella workspace (`work/concor
 
 Both are set in `.devcontainer/devcontainer.json` (`workspaceMount` + a second bind mount). With this in place, every git invocation inside the container — including the ones bitbake fetchers run for AUTOREV recipes (`u-boot-toradex`, `linux-toradex-upstream`) — finds the gitdir and the worktree exactly as it would on the host. No env vars or wrappers are required.
 
-A standalone clone of this repo (no umbrella) has a real `.git` directory and never consults the umbrella mount — the second bind mount just lands as an empty directory inside the container and is otherwise inert.
+The second bind mount's source path is `${localWorkspaceFolder}/.devcontainer/.umbrella-gitdir`, populated by `.devcontainer/init-umbrella-gitdir.sh` (run as `initializeCommand` before container start). In **umbrella** mode it symlinks to the real gitdir on host; in **standalone** mode it creates an empty stub. Either way, Docker's `--mount type=bind` always sees an existing source, and the in-container path is meaningful only in umbrella mode (where git actually needs it).
+
+A standalone clone of this repo (no umbrella) has a real `.git` directory and never consults the umbrella mount — the stub directory inside the container is inert.
 
 ### 3. Build the Image
 
