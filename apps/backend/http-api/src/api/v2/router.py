@@ -17,6 +17,7 @@ from .devices.routes import register_device_routes
 from .kubernetes.routes import register_kubernetes_routes
 from .system.routes import register_system_routes
 from .assets.routes import register_asset_routes
+from .test_namespace.routes import register_test_routes
 from .docs import openapi_spec, swagger_ui
 
 
@@ -50,6 +51,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     register_kubernetes_routes(v2)
     register_system_routes(v2, socketio)
     register_asset_routes(v2)
+    register_test_routes(v2)
 
     # Docs
     v2.add_url_rule("/openapi.json",         view_func=openapi_spec,    methods=["GET"])

@@ -66,9 +66,12 @@ apps/backend/http-api/
 │   │   ├── runs/                    # test runs, executions, queue, scheduler,
 │   │   │                            #   artifacts, logs, telemetry, ws, reporter,
 │   │   │                            #   manual triggers, guard patches, demo
-│   │   └── system/                  # healthcheck, info, history, releases, retention,
-│   │                                #   secrets, observability WS, poller state,
-│   │                                #   error reports, notifications WS, user reports
+│   │   ├── system/                  # healthcheck, info, history, releases, retention,
+│   │   │                            #   secrets, observability WS, poller state,
+│   │   │                            #   error reports, notifications WS, user reports
+│   │   └── test_namespace/          # /v2/test/* discovery endpoints (list-nodes for
+│   │                                #   corectl test list-nodes; read-only window onto
+│   │                                #   Node + FixtureClaim, mutations stay in fixture_claims)
 │   ├── services/
 │   │   ├── auth/                    # JWT issue/verify, CoreCloud OAuth bridge
 │   │   ├── builds/                  # job runner glue, recovery, run service, promotion,

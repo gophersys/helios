@@ -237,6 +237,7 @@ A local-dev workflow that leases real hardware (a fixture or a set of nodes) for
 | `corectl test claim --node NAME [--node NAME …]` | Lease specific nodes ad-hoc (node-mode — no fixture row required). |
 | `corectl test unclaim` | Release the current claim and stop the heartbeat daemon. |
 | `corectl test status` | Show the active claim: id, status, slot bindings, time remaining. Reconciles local state file with backend live status. |
+| `corectl test list-nodes [--available] [--purpose <p>] [--product <id>]` | Read-only discovery: enumerate the test nodes (MTIBs) visible to the platform, with type, hostname, fixture binding, and a free/held flag. Backed by `GET /v2/test/nodes` — see `.claude/knowledge/apps/backend/http-api.md`. |
 
 All three are also exposed as top-level aliases (`corectl claim`, `corectl unclaim`, `corectl status`) so they work from a project root the same way `corectl validate` does.
 

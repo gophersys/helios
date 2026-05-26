@@ -2276,3 +2276,62 @@ def status(ctx, path: str):
     daemon_pid = state.get("heartbeatPid")
     if daemon_pid:
         click.echo(f"  Heartbeat pid:  {daemon_pid}")
+
+
+@test.command("list-nodes")
+@click.option("--available", is_flag=True,
+              help="Only show nodes without an active claim.")
+@click.option("--purpose", type=click.Choice(["manufacturing", "validation"]),
+              default=None, help="Filter by node purpose.")
+@click.option("--product", default=None,
+              help="Filter to nodes bound to a fixture under the given product id.")
+@click.pass_context
+def list_nodes(ctx, available: bool, purpose: Optional[str], product: Optional[str]):
+    """List physical test nodes (MTIBs) visible to the platform.
+
+    Use this before ``corectl test claim`` to see what hardware is
+    free, what's bound to which fixture, and what's currently held by
+    another claim. The output mirrors ``/v2/test/nodes`` and is
+    intended for quick human triage — pipe through ``grep`` if you
+    need to script against it.
+    """
+    api = _client(ctx)
+    params: Dict[str, str] = {}
+    if available:
+        params["available"] = "true"
+    if purpose:
+        params["purpose"] = purpose
+    if product:
+        params["product"] = product
+
+    resp = api.get("/v2/test/nodes", params=params)
+    if not resp.ok:
+        raise click.ClickException(
+            f"GET /v2/test/nodes returned {resp.status_code}: "
+            f"{resp.text[:200] if hasattr(resp, 'text') else 'no body'}"
+        )
+
+    body = resp.json()
+    # The envelope is `{data: {data: [...], pagination: {...}}}`. Peel
+    # one level if the inner payload is the list+pagination dict.
+    payload = body.get("data", body)
+    rows = payload.get("data", payload) if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        rows = []
+
+    if not rows:
+        click.echo("No nodes matched.")
+        return
+
+    click.echo(f"{'ID':<24} {'NAME':<14} {'HOSTNAME':<26} {'TYPE':<14} {'AVAIL':<6} {'FIXTURE'}")
+    for n in rows:
+        node_id = (n.get("id") or "—")[:24]
+        name = (n.get("name") or "—")[:14]
+        hostname = (n.get("hostname") or "—")[:26]
+        ntype = (n.get("type") or "—")[:14]
+        is_avail = bool(n.get("available"))
+        avail_str = click.style("free" if is_avail else "held",
+                                fg="green" if is_avail else "yellow")
+        slot = n.get("fixtureSlot") or {}
+        fix = slot.get("fixtureName") or slot.get("label") or "—"
+        click.echo(f"{node_id:<24} {name:<14} {hostname:<26} {ntype:<14} {avail_str:<14} {fix}")
