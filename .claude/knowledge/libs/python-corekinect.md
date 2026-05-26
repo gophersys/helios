@@ -143,6 +143,7 @@ libs/python/corekinect/
 | `corekinect.core_cloud` | `CoreCloudClient` + DTOs for telemetry / FUOTA / registration. | `from corekinect.core_cloud import CoreCloudClient, FuotaPlan` |
 | `corekinect.core_ops` | `CoreOpsClient` — SNR→deviceId, public-key upload, ICCID registration. | `from corekinect.core_ops import CoreOpsClient` |
 | `corekinect.testbed` | Declarative `TestBed` base class + typed channel wrappers. Each product subclasses `TestBed` to declare DUT-side wiring. | `from corekinect.testbed import TestBed, ADC, GPIO, UART` |
+| `corekinect.fixture` | **Deprecated shim.** Re-exports everything from `corekinect.testbed` and emits a `DeprecationWarning` on import. Lets pre-rename test apps keep working for one minor release while users migrate their imports. Slated for removal in the next minor. | (avoid in new code; the warning points at the new path) |
 | `corekinect.firmware` | CFW generation/parsing + firmware-package validator. | `from corekinect.firmware import generate_cfw, parse_cfw, validate_package` |
 | `corekinect.manifest` | `concord.yaml` typed loader + JSON Schema validation. Shared with `corectl` and the http-api upload handler. | `from corekinect.manifest import load_manifest, validate_manifest` |
 | `corekinect.shells` | One class per processor target. Wraps MTIB UART for manufacturing-shell commands. | `from corekinect.shells import AlphaAppShell, CommsCoprocShell` |
@@ -251,6 +252,16 @@ Touch `corekinect/firmware/cfw.py` (the `TRACK_*` and `APPID_*` constants
 and the `encode_flags` packing logic). Re-export the new constants from
 `corekinect/firmware/__init__.py` and update consumer codepaths
 (build-service, the `corectl` CFW tool).
+
+## Backward-compat: `fixture:` key in `concord.yaml`
+
+`corekinect.manifest.schema.validate_manifest()` accepts manifests
+that still use the legacy `fixture:` block (pre-rename projects).
+The pre-processor rewrites `fixture:` to the canonical `testbed:` key
+and emits a deprecation warning so the operator sees the cue to
+rename. When both keys are present, `testbed:` wins and `fixture:`
+is dropped with a louder warning. One-minor-version compat — slated
+for removal alongside the `corekinect.fixture` import shim.
 
 ## Resilience contracts
 

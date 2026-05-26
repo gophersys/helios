@@ -125,6 +125,33 @@ def validate_manifest(data: dict, schema_version: Optional[str] = None) -> Valid
     errors: List[ValidationError] = []
     warnings: List[ValidationError] = []
 
+    # Backward-compat shim for the ``fixture:`` → ``testbed:`` rename.
+    # Projects scaffolded before the rename still ship ``fixture:``; we
+    # accept it for one minor version with a deprecation warning. The
+    # rest of the validator (and any consumer reading the manifest)
+    # sees the canonical ``testbed:`` key only.
+    if "fixture" in data and "testbed" not in data:
+        warnings.append(
+            ValidationError(
+                "fixture",
+                "Key 'fixture:' is deprecated — rename to 'testbed:' in concord.yaml. "
+                "Support will be removed in the next minor release.",
+            )
+        )
+        data = dict(data)
+        data["testbed"] = data.pop("fixture")
+    elif "fixture" in data and "testbed" in data:
+        warnings.append(
+            ValidationError(
+                "fixture",
+                "Both 'fixture:' and 'testbed:' are present — using 'testbed:' "
+                "and ignoring the legacy 'fixture:' block. Remove the 'fixture:' "
+                "key to silence this warning.",
+            )
+        )
+        data = dict(data)
+        data.pop("fixture")
+
     # Determine schema version
     declared = data.get("schema")
     if declared is None:
