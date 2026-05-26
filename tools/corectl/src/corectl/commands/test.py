@@ -67,20 +67,17 @@ FRAMEWORK_VERSION_MARKER = ".framework-version"
 def _install_context_upgrade_hint() -> str:
     """Best-effort upgrade command that matches how corectl was installed.
 
-    Returns the command the operator should run to refresh corectl +
-    corekinect. The check uses ``sys.executable`` and a couple of
-    environment markers — when nothing matches, falls back to the
-    legacy ``corectl update`` which routes through the install script.
+    Delegates to :func:`corectl.commands.update.detect_install_context`
+    and :func:`upgrade_command_for` so the validate "Environment"
+    block and ``corectl update`` agree on which command to suggest.
     """
-    import sys
+    # Local import to avoid a top-of-module circular reference between
+    # commands/update.py and commands/test.py.
+    from . import update as update_mod
 
-    exe = (sys.executable or "").lower()
-    # pipx installs land under ~/.local/pipx/venvs/<pkg>/bin/python or
-    # similar. The simplest heuristic is to look for /pipx/ in the path.
-    if "/pipx/" in exe or os.environ.get("PIPX_HOME"):
-        return "pipx upgrade corectl"
-    if "/uv/" in exe or os.environ.get("UV_CACHE_DIR"):
-        return "uv tool upgrade corectl"
+    context = update_mod.detect_install_context()
+    if context in ("pipx", "uv"):
+        return update_mod.upgrade_command_for(context)
     return "corectl update"
 
 

@@ -239,6 +239,21 @@ A local-dev workflow that leases real hardware (a fixture or a set of nodes) for
 | `corectl test status` | Show the active claim: id, status, slot bindings, time remaining. Reconciles local state file with backend live status. |
 | `corectl test list-nodes [--available] [--purpose <p>] [--product <id>]` | Read-only discovery: enumerate the test nodes (MTIBs) visible to the platform, with type, hostname, fixture binding, and a free/held flag. Backed by `GET /v2/test/nodes` — see `.claude/knowledge/apps/backend/http-api.md`. |
 
+### `corectl update` install-context detection
+
+`commands/update.py` exposes :func:`detect_install_context` returning
+``"pipx" | "uv" | "pip"``. Detection looks at ``sys.executable``
+(``/pipx/``, ``pipx/venvs``, ``/uv/`` in the path) and three env vars
+(``PIPX_HOME``, ``UV_CACHE_DIR``, ``UV_TOOL_DIR``). The matching
+:func:`upgrade_command_for` returns ``pipx upgrade corectl`` /
+``uv tool upgrade corectl`` / the curl-bash ``install.sh``. This
+honours PEP 668 — bare ``pip install --user --upgrade`` would fail
+on externally-managed Pythons, so we route through the right tool.
+
+The same helper powers the "Environment" upgrade hint in
+``corectl test validate`` (see below) so both commands suggest the
+same fix.
+
 ### `corectl test validate` failure categories
 
 The validate command groups findings into three buckets:
