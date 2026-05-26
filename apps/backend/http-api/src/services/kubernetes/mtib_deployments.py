@@ -5,11 +5,115 @@ import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
+import requests
 import yaml  # type: ignore[import-untyped]
 
 from config.env import env_config
 from kubernetes.client.exceptions import ApiException
 from src.services.kubernetes.client import get_apps_v1_api, get_core_v1_api
+
+
+class MtibImageUnavailable(Exception):
+    """Raised when the requested mtib-server image cannot be resolved
+    in the container registry. Surfaces a structured error code so the
+    route layer can return ``MTIB_IMAGE_UNAVAILABLE`` to callers
+    instead of letting the cluster fall into ``ImagePullBackOff``.
+    """
+
+    code = "MTIB_IMAGE_UNAVAILABLE"
+
+
+# Per-request HEAD timeout — keeps the create call fast when the
+# registry is slow. Three seconds covers warm DNS + one TLS RTT on a
+# healthy in-cluster registry; longer than that and we'd rather skip
+# the digest pin than block the API thread.
+_REGISTRY_HEAD_TIMEOUT_S = 3
+
+
+def _split_image_ref(image_ref: str) -> tuple[str, str]:
+    """Split ``registry/repo:tag`` into ``(registry/repo, tag)``.
+
+    Already-digested images (``...@sha256:...``) are returned with an
+    empty tag — the caller treats that as "no resolution needed".
+    """
+    if "@sha256:" in image_ref:
+        return image_ref, ""
+    # Tags are split at the last colon, but only if the colon comes
+    # after the last slash — registry ports (``host:5000/repo``) and
+    # tagged refs (``repo:tag``) must not collide.
+    last_slash = image_ref.rfind("/")
+    last_colon = image_ref.rfind(":")
+    if last_colon > last_slash:
+        return image_ref[:last_colon], image_ref[last_colon + 1:]
+    return image_ref, "latest"
+
+
+def _head_image_manifest(image_ref: str) -> "requests.Response":
+    """HEAD the OCI manifest endpoint for ``image_ref``.
+
+    Returns the raw ``requests.Response``. The caller inspects
+    ``status_code`` (404 = unavailable) and the ``Docker-Content-Digest``
+    header. Connection errors are propagated as the underlying
+    ``requests`` exceptions so a transient network issue doesn't get
+    misclassified as MTIB_IMAGE_UNAVAILABLE.
+    """
+    repo, tag = _split_image_ref(image_ref)
+    # The OCI Distribution spec maps to ``/v2/<repo>/manifests/<ref>``.
+    # We assume the registry is reachable as ``https://<host>``; this
+    # is true for the in-cluster ``containers.ad.corekinect.com`` host
+    # and for any standard registry.
+    host_sep = repo.find("/")
+    if host_sep <= 0:
+        # No registry host means we can't build a URL — return a fake
+        # 200 with no digest so the caller silently falls back to the
+        # bare tag. This is the docker-hub library shorthand case.
+        resp = requests.Response()
+        resp.status_code = 200
+        return resp
+    host, repo_path = repo[:host_sep], repo[host_sep + 1:]
+    url = f"https://{host}/v2/{repo_path}/manifests/{tag}"
+    headers = {
+        "Accept": (
+            "application/vnd.docker.distribution.manifest.v2+json,"
+            "application/vnd.oci.image.manifest.v1+json,"
+            "application/vnd.docker.distribution.manifest.list.v2+json"
+        ),
+    }
+    return requests.head(url, headers=headers, timeout=_REGISTRY_HEAD_TIMEOUT_S)
+
+
+def _resolve_image_digest(image_ref: str) -> str:
+    """Resolve ``image_ref`` to ``registry/repo@sha256:...`` when possible.
+
+    A 404 from the registry → :class:`MtibImageUnavailable`.
+    Any other failure (timeout, missing header, DNS) → return the
+    original ref so the cluster pulls by tag like before.
+    """
+    if "@sha256:" in image_ref:
+        return image_ref  # already pinned
+    try:
+        resp = _head_image_manifest(image_ref)
+    except requests.RequestException as e:
+        logger.warning(
+            "Registry HEAD for %s failed (%s) — proceeding with tag",
+            image_ref, e,
+        )
+        return image_ref
+    if resp.status_code == 404:
+        raise MtibImageUnavailable(
+            f"mtib-server image not found in registry: {image_ref}"
+        )
+    if resp.status_code >= 400:
+        logger.warning(
+            "Registry HEAD for %s returned %s — proceeding with tag",
+            image_ref, resp.status_code,
+        )
+        return image_ref
+    digest = (resp.headers.get("Docker-Content-Digest") or "").strip()
+    if not digest.startswith("sha256:"):
+        return image_ref
+    repo, _tag = _split_image_ref(image_ref)
+    return f"{repo}@{digest}"
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +184,12 @@ def create_mtib_deployment(
         deploy_name = deploy_name[:63].rstrip("-")
 
     image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server:latest")
+
+    # Resolve the tag to an immutable digest. A 404 here raises
+    # MtibImageUnavailable BEFORE any cluster mutation so the operator
+    # gets a clean error instead of an ImagePullBackOff that takes
+    # minutes to surface. Network errors fall through with a warning.
+    image = _resolve_image_digest(image)
 
     # Build env vars
     env_vars = config.get("env", {})

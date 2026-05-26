@@ -36,6 +36,7 @@ from src.api.v2.fixture_claims.service import (
     serialize_claim,
     teardown_claim_mtibs,
 )
+from src.services.kubernetes.mtib_deployments import MtibImageUnavailable
 from src.api.v2.fixture_claims.validators import (
     CreateClaimRequest,
     ListClaimsQuery,
@@ -133,7 +134,28 @@ def create():
     # the existing deploy name on 409). If anything fails, release the
     # claim so the caller doesn't get a half-broken lease they have to
     # debug.
-    provisioning = provision_mtibs_for_claim(claim)
+    try:
+        provisioning = provision_mtibs_for_claim(claim)
+    except MtibImageUnavailable as exc:
+        # The cluster was never touched for the un-resolvable image —
+        # release the claim row and surface MTIB_IMAGE_UNAVAILABLE so
+        # the operator gets a clean, actionable error instead of a pod
+        # stuck in ImagePullBackOff.
+        teardown_claim_mtibs(claim)
+        release_claim(db, claim)
+        log_audit(
+            "fixture.claim.release",
+            "FixtureClaim",
+            claim.id,
+            {"reason": "mtib_image_unavailable", "detail": str(exc)},
+        )
+        return jsonify(
+            ApiResponse.error(ErrorDetail(
+                code=MtibImageUnavailable.code,
+                message=str(exc),
+            )).to_dict()
+        ), 502
+
     if provisioning["failed"]:
         teardown_claim_mtibs(claim)
         release_claim(db, claim)

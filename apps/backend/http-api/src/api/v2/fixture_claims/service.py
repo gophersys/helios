@@ -32,6 +32,7 @@ from src.api.v2.fixture_claims.validators import (
 )
 from src.services.kubernetes.address_resolver import resolve_node_addresses
 from src.services.kubernetes.mtib_deployments import (
+    MtibImageUnavailable,
     create_mtib_deployment,
     delete_mtib_deployments_for_claim,
     get_mtib_deployment_status,
@@ -311,14 +312,23 @@ def provision_mtibs_for_claim(
             if getattr(claim, "fixtureId", None)
             else f"claim-{claim_id[:8]}"
         )
-        deploy_name = create_mtib_deployment(
-            node_hostname=hostname,
-            fixture_id=fixture_id_for_deploy,
-            deployment_id=deploy_id,
-            slot_index=slot_index,
-            config=config,
-            claim_id=claim_id,
-        )
+        try:
+            deploy_name = create_mtib_deployment(
+                node_hostname=hostname,
+                fixture_id=fixture_id_for_deploy,
+                deployment_id=deploy_id,
+                slot_index=slot_index,
+                config=config,
+                claim_id=claim_id,
+            )
+        except MtibImageUnavailable as exc:
+            # Re-raise so the route layer returns a structured
+            # MTIB_IMAGE_UNAVAILABLE before any further nodes are
+            # touched. Every other create() returning None falls
+            # through to the generic "failed" list.
+            logger.error("mtib-server image unavailable for node %s: %s", hostname, exc)
+            result["failed"].append(hostname)
+            raise
         if deploy_name is None:
             logger.error("Provisioning mtib-server failed for node %s", hostname)
             result["failed"].append(hostname)
