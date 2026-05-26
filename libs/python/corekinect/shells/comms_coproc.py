@@ -28,19 +28,13 @@ from typing import List, Optional, Tuple, Union
 
 from protocols.mtib.mtib_pb2 import HostType
 
-from corekinect.shells.base import ShellCommander
+from corekinect.shells.base import ShellCommander, hex_addr
 
 
-def _hex_addr(address: Union[int, str]) -> str:
-    """Format an address for the firmware shell.
-
-    Tests pass int addresses for readability; the firmware accepts
-    either decimal or 0x-prefixed hex. Normalise to ``0x{:08x}`` so the
-    wire format is deterministic and matches what the firmware logs.
-    """
-    if isinstance(address, int):
-        return f"0x{address:08x}"
-    return str(address)
+# Backwards-compatible alias — kept so any in-repo importer (and any
+# external pinned consumer) that referenced the previous module-private
+# helper keeps resolving. Prefer ``hex_addr`` from ``shells.base``.
+_hex_addr = hex_addr
 
 
 # ── Result types ─────────────────────────────────────────

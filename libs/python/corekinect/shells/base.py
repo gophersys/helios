@@ -15,11 +15,24 @@ import queue
 import re
 import threading
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 
 log = logging.getLogger(__name__)
+
+
+def hex_addr(address: Union[int, str]) -> str:
+    """Format an address for a firmware shell command.
+
+    Callers pass ``int`` addresses for readability; the firmware
+    accepts decimal or 0x-prefixed hex. Normalise to ``0x{:08x}`` so the
+    wire format is deterministic and matches what the firmware logs
+    back on the response line.
+    """
+    if isinstance(address, int):
+        return f"0x{address:08x}"
+    return str(address)
 
 # Standard ANSI escape: ESC [ <params> <letter>
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
