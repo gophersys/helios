@@ -98,12 +98,25 @@ ARG GIT_COMMIT=unknown
 ARG GIT_BRANCH=unknown
 ARG BUILD_TIME=unknown
 ARG ENVIRONMENT=development
+# Phase D Layer 2 — corekinect tree SHA baked at build time. The
+# `_check_runner_corekinect_freshness` gate in deploy/ctl.sh reads this
+# env var from `docker image inspect` and refuses to deploy if it
+# diverges from the workspace's libs/python/corekinect/ HEAD.
+ARG COREKINECT_GIT_SHA=unknown
 
 ENV APP_VERSION=${APP_VERSION}
 ENV GIT_COMMIT=${GIT_COMMIT}
 ENV GIT_BRANCH=${GIT_BRANCH}
 ENV BUILD_TIME=${BUILD_TIME}
 ENV ENVIRONMENT=${ENVIRONMENT}
+ENV COREKINECT_GIT_SHA=${COREKINECT_GIT_SHA}
+
+# Human-readable build info file. Also readable by the runner entrypoint
+# at runtime so we can correlate a pod to its source SHA without docker
+# inspect access.
+RUN printf 'app_version=%s\ngit_commit=%s\ngit_branch=%s\nbuild_time=%s\nenvironment=%s\ncorekinect_git_sha=%s\n' \
+      "${APP_VERSION}" "${GIT_COMMIT}" "${GIT_BRANCH}" "${BUILD_TIME}" "${ENVIRONMENT}" "${COREKINECT_GIT_SHA}" \
+      > /etc/concord-runner-build-info
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime defaults

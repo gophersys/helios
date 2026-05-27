@@ -79,8 +79,55 @@ the `REQUIRED_IMPLICIT_DEPENDENCIES` tuple at the top of the test file.
 
 ## Layer 2 — ctl.sh runtime SHA gate
 
-(Wired in Phase D Layer 2 — see commit history on
-`chore/enforce-runner-corekinect-coupling`.)
+The runner Dockerfile bakes the workspace's `libs/python/corekinect/`
+tree SHA into the image as:
+- `ENV COREKINECT_GIT_SHA=<sha>` (readable via `docker image inspect`)
+- A line in `/etc/concord-runner-build-info` (readable from inside a
+  running pod for correlation)
+
+The SHA is computed by `_corekinect_sha()` in `deploy/ctl.sh`:
+```
+git log -1 --format=%H -- libs/python/corekinect/   # primary
+git ls-tree -d HEAD libs/python/corekinect | awk    # fallback
+sed -n '4p' .git-build-info                          # last resort
+```
+
+Passed to the build via `--build-arg COREKINECT_GIT_SHA` from
+`cmd_build` (see the `runner|test-runner)` branch).
+
+Before `cmd_deploy` runs (inside `cmd_update`), the gate
+`_check_runner_corekinect_freshness <env>` reads the baked SHA from
+`docker image inspect <registry>/concord-test-runner:<env>` and
+compares it against `_corekinect_sha`.
+
+Behavior matrix:
+
+| Baked SHA       | Workspace SHA | Result |
+|-----------------|---------------|--------|
+| matches         | (any)         | pass silently (`✓ runner freshness: ...`) |
+| diverges        | (any)         | **fail**, name the drift, point to `CONCORD_FORCE_STALE_RUNNER=1` |
+| absent / "unknown" | (any)      | warn + pass (legacy image — pre-Phase-D builds) |
+| local image missing | (any)     | warn + pass (registry-only or other-node build) |
+
+Escape hatch: `CONCORD_FORCE_STALE_RUNNER=1` downgrades the
+divergence-fail to a screaming-banner warn-and-continue. Use only for
+emergencies where you understand the cost.
+
+**Manufacturing-safety note:** the runner deployed at v0.12.3 (the one
+serving the active session `cmpn99zoa0088i6ahaxcz0tcq`) was built
+BEFORE this layer existed and therefore has no `COREKINECT_GIT_SHA`
+baked in. The "absent / unknown" row above is what protects that
+session — the v0.12.4 first-deploy will warn and pass through, NOT
+refuse, so manufacturing is never blocked by the gate enabling itself.
+After v0.12.4 ships, every subsequent rebuild populates the var and
+the gate becomes hard-fail on real drift.
+
+The gate is sourceable for testing: `deploy/ctl.sh` is guarded by
+`if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "${CONCORD_CTL_NO_DISPATCH:-0}" == "1" ]]`,
+so the test harness in
+[`deploy/runner/tests/test_ctl_runner_freshness_gate.py`](../../../../deploy/runner/tests/test_ctl_runner_freshness_gate.py)
+can source the file and call the gate function directly without
+triggering the main dispatcher.
 
 ## Layer 3 — /concord-release skill range gate
 

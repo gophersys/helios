@@ -97,6 +97,130 @@ _git_describe() {
   git describe --tags --exact-match 2>/dev/null || true
 }
 
+# ═════════════════════════════════════════════════════════════════
+# Phase D Layer 2 — runner freshness gate
+# ═════════════════════════════════════════════════════════════════
+#
+# Compute a deterministic SHA for the libs/python/corekinect/ tree at
+# HEAD. The runner Docker image bakes this in as COREKINECT_GIT_SHA at
+# build time, and `_check_runner_corekinect_freshness` compares the
+# baked value against this helper's output before a deploy. If they
+# diverge, the live runner pods are running stale corekinect against
+# the new platform — the v0.12.0->0.12.3 silent-skew failure mode.
+#
+# Primary: `git log -1 --format=%H -- libs/python/corekinect/` returns
+# the commit SHA that last touched the tree. Deterministic across
+# clones (everyone on the same commit gets the same SHA).
+#
+# Fallback: tree-hash via `git ls-tree HEAD libs/python/corekinect/`,
+# sha256summed. Used when `git log` is unavailable (e.g., shallow
+# clones in CI). The hash space is different from a commit SHA but
+# still serves the equality check.
+#
+# Last resort: read .git-build-info (line 4 — see _populate_build_info
+# helper that gets called from the umbrella refresh script). Returns
+# "unknown" if nothing works.
+_corekinect_sha() {
+  local sha
+  sha=$(git log -1 --format=%H -- libs/python/corekinect/ 2>/dev/null)
+  if [[ -n "${sha}" ]]; then
+    echo "${sha}"
+    return 0
+  fi
+  sha=$(git ls-tree -d HEAD libs/python/corekinect 2>/dev/null | awk '{print $3}')
+  if [[ -n "${sha}" ]]; then
+    echo "${sha}"
+    return 0
+  fi
+  # File fallback (e.g., container without parent .git)
+  sed -n '4p' "${_git_info_file}" 2>/dev/null || echo "unknown"
+}
+
+# Verify the runner image bundled at the registry tag for `<env>` has the
+# same corekinect tree SHA baked in as the current workspace HEAD.
+# Behavior (see deploy/runner/tests/test_ctl_runner_freshness_gate.py):
+#   - SHAs match                  → exit 0, silent
+#   - SHAs diverge                → exit 1, name the drift, mention the
+#                                   CONCORD_FORCE_STALE_RUNNER bypass
+#   - No COREKINECT_GIT_SHA env   → warn (legacy image), exit 0
+#   - Image not present locally   → warn (registry-only / other node),
+#                                   exit 0
+#   - CONCORD_FORCE_STALE_RUNNER  → downgrade fail-on-divergence to a
+#     ="1"                          loud warn and exit 0
+#
+# The gate runs BEFORE `cmd_deploy`. `cmd_deploy` rebuilds the image
+# with the current SHA baked in, so the gate's purpose is to catch
+# operators who skipped the rebuild (e.g., running `nx update platform`
+# against a hand-built runner that hasn't been rebuilt for the current
+# corekinect HEAD).
+_check_runner_corekinect_freshness() {
+  local env="$1"
+  local image_ref="${REGISTRY_TEST_RUNNER}:${env}"
+  local workspace_sha
+  workspace_sha=$(_corekinect_sha)
+
+  # Probe the local image. If it's not present, the freshness check
+  # can't run here (the image may live only on the registry / a CI
+  # builder). Warn and pass.
+  local inspect_json
+  if ! inspect_json=$(docker image inspect "${image_ref}" 2>/dev/null); then
+    warn "Runner freshness gate: image ${image_ref} not present locally; skipping check."
+    info "  (Build the image first with \`nx run test-runner:build -c ${env}\`, or run the gate on the node that built it.)"
+    return 0
+  fi
+
+  # Extract COREKINECT_GIT_SHA from Config.Env. Use a tolerant parser
+  # rather than jq — jq isn't a guaranteed dep on every operator host.
+  local baked_sha
+  baked_sha=$(echo "${inspect_json}" \
+    | tr ',' '\n' \
+    | grep -oE '"COREKINECT_GIT_SHA=[^"]*"' \
+    | head -1 \
+    | sed -E 's/^"COREKINECT_GIT_SHA=//' \
+    | sed -E 's/"$//')
+
+  if [[ -z "${baked_sha}" || "${baked_sha}" == "unknown" ]]; then
+    warn "Runner freshness gate: no baked COREKINECT_GIT_SHA in ${image_ref}."
+    warn "  This is a legacy image (pre-Phase-D). The next rebuild will populate it."
+    warn "  Passing through; rebuild and redeploy to enable the gate on the next update."
+    return 0
+  fi
+
+  if [[ "${baked_sha}" == "${workspace_sha}" ]]; then
+    info "  ✓ runner freshness: corekinect SHA ${baked_sha:0:12} matches workspace"
+    return 0
+  fi
+
+  # SHAs diverged. Either fail or, with the explicit escape hatch, warn loudly.
+  if [[ "${CONCORD_FORCE_STALE_RUNNER:-0}" == "1" ]]; then
+    warn "═══════════════════════════════════════════════════════════════════"
+    warn "  CONCORD_FORCE_STALE_RUNNER=1 — bypassing runner freshness gate"
+    warn "  Image ${image_ref} bakes corekinect ${baked_sha:0:12}"
+    warn "  Workspace HEAD libs/python/corekinect/ is ${workspace_sha:0:12}"
+    warn "  This is an explicit override. The deployed runner WILL run stale"
+    warn "  corekinect code against the current platform. You have been warned."
+    warn "═══════════════════════════════════════════════════════════════════"
+    return 0
+  fi
+
+  err "Runner freshness gate: corekinect SHA diverged."
+  err "  baked in image ${image_ref}: ${baked_sha}"
+  err "  workspace HEAD:                ${workspace_sha}"
+  err ""
+  err "  The runner image is stale relative to libs/python/corekinect/."
+  err "  This is the v0.12.0->0.12.3 skew failure mode — deploying now would"
+  err "  leave runner pods executing old corekinect against new test packages."
+  err ""
+  err "  Rebuild the runner:"
+  err "    nx run test-runner:build -c ${env}"
+  err "    nx run test-runner:push -c ${env}"
+  err ""
+  err "  Or, to deploy anyway (e.g., emergency fix), set:"
+  err "    CONCORD_FORCE_STALE_RUNNER=1"
+  err "  Loud warning will be logged."
+  return 1
+}
+
 get_version() {
     local version_file="${REPO_ROOT}/VERSION"
     local sha
@@ -215,6 +339,9 @@ cmd_build() {
   export GIT_DIRTY="$(_git_dirty)"
   export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   export BUILD_HOST="$(hostname)"
+  # Phase D Layer 2 — bake the corekinect tree SHA into the runner image.
+  # Read by `_check_runner_corekinect_freshness` at deploy time.
+  export COREKINECT_GIT_SHA="$(_corekinect_sha)"
 
   info "  commit=${GIT_COMMIT} branch=${GIT_BRANCH} dirty=${GIT_DIRTY}"
 
@@ -261,6 +388,7 @@ cmd_build() {
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
           --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
+          --build-arg COREKINECT_GIT_SHA \
           --file deploy/runner/Dockerfile \
           --tag "${REGISTRY_TEST_RUNNER}:${env}" \
           --tag "${REGISTRY_TEST_RUNNER}:${env}-${GIT_COMMIT}" \
@@ -1035,6 +1163,17 @@ cmd_update() {
   fi
   echo ""
 
+  # Phase D Layer 2 — runner freshness gate. Refuse the update if the
+  # cached runner image bakes a different corekinect SHA than HEAD.
+  # cmd_deploy below rebuilds the image, so this gate is for the case
+  # where the operator skipped a rebuild on this node (or where the
+  # registry tag drifted from the workspace).
+  step "Runner freshness check"
+  if ! _check_runner_corekinect_freshness "${env}"; then
+    exit 1
+  fi
+  echo ""
+
   # Build + push + helm deploy
   step "Deploying applications"
   cmd_deploy "${env}"
@@ -1154,6 +1293,16 @@ EOF
 # ═════════════════════════════════════════════════════════════════
 # Main dispatch
 # ═════════════════════════════════════════════════════════════════
+#
+# Only run when invoked as a script. When `source`d (e.g., from the
+# Phase D Layer 2 freshness-gate test harness), the dispatcher MUST NOT
+# fire — otherwise sourcing with no args would unconditionally print
+# usage and exit. The harness sets CONCORD_CTL_NO_DISPATCH=1 to be
+# extra explicit; the BASH_SOURCE check covers the common `source`d
+# case automatically.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "${CONCORD_CTL_NO_DISPATCH:-0}" == "1" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
 
 if [[ $# -eq 0 ]] || [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "help" ]]; then
   usage
