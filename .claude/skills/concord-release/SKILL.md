@@ -21,6 +21,7 @@ the release is incomplete — continue work until all boxes pass.
 
 ```
 [ ] Component-impact matrix consulted (see next section) — release type chosen
+[ ] Runner-rebuild gate passed (Phase 1.5 — Phase D Layer 3)
 [ ] VERSION bumped on a release branch (never on main directly)
 [ ] corectl version bumped IF the release touches corectl
 [ ] corekinect version bumped IF the release touches corekinect
@@ -283,6 +284,48 @@ Chain it before the devcontainer exec with `&&`.
    double digits. The release gate's semver pattern (`^\d+\.\d+\.\d+$`) already
    accepts any digit count — this rule is about your bump *decision*, not the
    format check.
+
+## Phase 1.5 — Runner rebuild gate (Phase D Layer 3)
+
+Before the release branch is cut, verify that if this release touches
+`libs/python/corekinect/`, `libs/protocols/mtib/`, or `tools/corectl/`,
+then the `test-runner` project will actually be rebuilt by the deploy.
+
+The runner Docker image bakes those three trees in at build time. A
+release that ships changes to them without rebuilding the runner
+leaves deployed pods running stale code — the v0.12.0 → v0.12.3
+silent-skew failure mode this enforcement was built to prevent.
+
+```bash
+LAST_TAG=$(git describe --tags --abbrev=0)
+bash scripts/release-gates/check-runner-affected.sh "${LAST_TAG}" HEAD
+```
+
+Exit codes:
+- `0` silent — nothing of interest touched in range (most releases)
+- `0` info-banner — paths touched AND `test-runner` is in the Nx
+  affected set; deploy will rebuild the runner image
+- `0` loud-warn — touched-but-not-affected, bypassed via
+  `CONCORD_FORCE_NO_RUNNER_REBUILD=1` (use only with explicit user
+  approval; the deployed runner WILL be stale)
+- `1` hard fail — paths touched, runner NOT affected. The script's
+  error message names the touched projects and points at
+  `deploy/runner/project.json` `implicitDependencies` (Phase D Layer 1)
+  as the fix location.
+
+If the gate fails:
+1. Read the gate's error output — it lists which projects-of-interest
+   changed and tells you what nx-affected query was used.
+2. The fix is almost always missing `implicitDependencies` on the
+   runner project. See [`.claude/knowledge/deploy/runner.md`](../../knowledge/deploy/runner.md).
+3. Land the fix on a separate branch first, then retry the release.
+4. Only set `CONCORD_FORCE_NO_RUNNER_REBUILD=1` with the user's
+   explicit blessing.
+
+The full layered enforcement is documented in
+[`.claude/knowledge/deploy/runner.md`](../../knowledge/deploy/runner.md).
+Tests for this gate live at
+[`scripts/tests/test_check_runner_affected.py`](../../../scripts/tests/test_check_runner_affected.py).
 
 ## Phase 2 — Create release branch
 

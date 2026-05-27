@@ -131,8 +131,50 @@ triggering the main dispatcher.
 
 ## Layer 3 — /concord-release skill range gate
 
-(Wired in Phase D Layer 3 — see commit history on
-`chore/enforce-runner-corekinect-coupling`.)
+The `/concord-release` skill runs a release-range gate in
+[`Phase 1.5`](../../skills/concord-release/SKILL.md), between
+pre-flight and the version-bump branch creation. The gate is a
+standalone bash script:
+
+[`scripts/release-gates/check-runner-affected.sh <last_tag> [<head_ref>]`](../../../scripts/release-gates/check-runner-affected.sh)
+
+What it does:
+
+1. `git diff --name-only $LAST_TAG..$HEAD_REF -- libs/python/corekinect/ libs/protocols/mtib/ tools/corectl/`
+2. If empty → exit 0 silent (most releases land here).
+3. If non-empty → run `nx show projects --affected --base=$LAST_TAG --head=$HEAD_REF`.
+4. If `test-runner` is in the affected list → exit 0 with an
+   info-banner naming what changed and confirming the rebuild.
+5. If `test-runner` is NOT in the affected list → exit 1 with a
+   clear remediation pointing at Layer 1
+   (`deploy/runner/project.json` `implicitDependencies`).
+
+Escape hatch: `CONCORD_FORCE_NO_RUNNER_REBUILD=1` downgrades the
+hard-fail to a loud warn-and-continue. Use only with explicit user
+approval — the deployed runner WILL be stale.
+
+**Inconclusive fallback (submodule caveat):** when `nx` cannot
+resolve the `base..head` range — most common when running from
+inside a devcontainer where `concord` is a submodule of the umbrella
+`work/` workspace and the parent `.git/modules` is not mounted, OR
+when running from the host where `nx` itself isn't on PATH — the gate
+detects the failure (patterns: `not a git repository`,
+`Command failed: git diff`, `command not found`) and treats it as
+**inconclusive — pass through with a loud warning**. The operator
+must then visually confirm "Test runner" appears in `cmd_build`'s
+output during Phase 9/10 of the release. Mirrors Layer 2's
+"missing local image → warn + pass" behavior so a submodule-mount
+limitation never blocks a real release.
+
+To bypass the inconclusive fallback (i.e., get a real answer), set
+`NX_AFFECTED_CMD="<a-wrapper-that-runs-nx-from-a-context-that-can-see-the-range>"`
+or run the gate from a standalone (non-submodule) clone of concord.
+
+Contract pinned by
+[`scripts/tests/test_check_runner_affected.py`](../../../scripts/tests/test_check_runner_affected.py)
+(11 tests covering: empty range, runner-in-set, runner-missing for
+each of the three paths-of-interest, unrelated change, escape
+hatch, usage error, nx-failure-inconclusive, and the SKILL.md wiring).
 
 ## Layer 4 — entrypoint.sh semver gate
 
