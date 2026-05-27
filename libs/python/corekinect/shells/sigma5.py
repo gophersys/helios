@@ -420,15 +420,37 @@ class Sigma5AppShell:
                 return None, f"Failed to decode hex output ({exc}): {hex_data[:64]}…"
         return None, f"Failed to parse hex data from: {lines}"
 
-    def erase_ext_flash(self, timeout_s: float = 30.0) -> Tuple[bool, Optional[str]]:
+    def erase_ext_flash(self, timeout_s: float = 150.0) -> Tuple[bool, Optional[str]]:
         """Erase entire external flash.
+
+        The MX25L6406E whole-chip erase blocks the SPI bus while the
+        chip's WIP bit is high — datasheet quotes 80 s typ / 100 s max.
+        The firmware shell sits inside ``flash_erase()`` for that entire
+        window, then prints the prompt. Default ``timeout_s`` is 150 s
+        — comfortably above the datasheet max plus shell-print latency
+        and a small jitter margin.
+
+        ``success_patterns`` is intentionally ``None``: ``ShellCommander.
+        send()`` then waits for the prompt, which is the *only* signal
+        that ``flash_erase()`` has actually returned. Earlier versions
+        used ``["Erasing flash", "pages", "Flash erase failed"]``, but
+        the first two tokens match the firmware's *prologue* line
+        (``shell_print("Erasing flash. %d pages, ...")``) emitted BEFORE
+        the syscall runs — so ``send()``'s 3 s premature-success
+        fallback fired ~3 s into the erase and reported success while
+        the chip was still busy. The next shell command then raced the
+        still-erasing chip and lost (run cmpnd4ifm on panel 0AW2,
+        test_08 failures on all 5 slots). The ``Flash erase failed``
+        error line is still detected from the captured ``lines`` after
+        the prompt arrives. See
+        ``shells/tests/test_read_ext_flash_cadence.py``.
 
         Returns:
             (success, error)
         """
         lines, err = self._cmd.send(
             "erase_ext_flash",
-            success_patterns=["Erasing flash", "pages", "Flash erase failed"],
+            success_patterns=None,
             timeout_s=timeout_s,
         )
         if err:
