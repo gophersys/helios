@@ -104,13 +104,23 @@ echo "Extracted to /app/ — ${TEST_FILE_COUNT} test files"
 
 # ── Step 3: Install app dependencies ──────────────────────────────────────
 
+# P3 (Phase D, branch fix/manifest-load-failure-visibility):
+# install the downloaded test package NON-editable. The pre-fix
+# `pip install -e /app/` fails on modern setuptools' build_meta
+# because PEP 660 build_editable is not implemented for the default
+# backend, surfacing a confusing
+#   ERROR: Project ... has a 'pyproject.toml' and its build backend
+#   is missing the 'build_editable' hook
+# in every runner pod log. The runner mounts the test package
+# read-only at /app/ and doesn't need editable semantics — pip
+# install . is the right shape.
 if [ -f /app/pyproject.toml ]; then
     echo "Installing app dependencies from pyproject.toml..."
-    pip3 install --no-cache-dir -e /app/ 2>&1 | tail -5
+    pip3 install --no-cache-dir /app/ 2>&1 | tail -5
     echo "Dependencies installed"
 elif [ -f /app/setup.py ]; then
     echo "Installing app dependencies from setup.py..."
-    pip3 install --no-cache-dir -e /app/ 2>&1 | tail -5
+    pip3 install --no-cache-dir /app/ 2>&1 | tail -5
     echo "Dependencies installed"
 elif [ -f /app/requirements.txt ]; then
     echo "Installing app dependencies from requirements.txt..."

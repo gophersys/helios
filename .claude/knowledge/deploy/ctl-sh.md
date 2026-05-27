@@ -134,6 +134,34 @@ The `release` Nx target wraps `staging update`/`production update` in a check + 
 4. Add or modify the matching Nx target in `deploy/project.json` so consumers don't bypass Nx.
 5. Update [`nx-targets.md`](nx-targets.md) and this file's catalog.
 
+## Runner test-package install (P3)
+
+`deploy/runner/entrypoint.sh` Step 3 installs the downloaded test
+package into the runner pod's Python environment. Historically this
+was `pip install -e /app/` (editable). That fails on modern
+setuptools because the default `build_meta` backend doesn't
+implement PEP 660's `build_editable` hook — every runner pod logged:
+
+```
+ERROR: Project file:///app has a 'pyproject.toml' and its build
+backend is missing the 'build_editable' hook.
+```
+
+P3 (branch `fix/manifest-load-failure-visibility`) switches the
+runner to non-editable `pip install /app/`. The runner mounts the
+test package read-only and doesn't need editable semantics. The
+`--no-cache-dir` flag is preserved across the change to keep the
+pod's ephemeral filesystem lean.
+
+The three branches in `entrypoint.sh` Step 3 (pyproject.toml,
+setup.py, requirements.txt) all use the non-editable form.
+
+Contract pinned by
+`deploy/runner/tests/test_entrypoint_install_mode.py` (3 tests:
+forbid `pip install -e /app/`, require at least one non-editable
+`pip install /app/`, require `--no-cache-dir` on every /app
+install line).
+
 ## Common failure modes
 
 - **`kubectl cluster-info` fails** — `_preflight` aborts. Most often: VPN down, WSL routing broken, or `~/.kube/config` points at the wrong cluster. Run `kubectl cluster-info` standalone to see the real error.
