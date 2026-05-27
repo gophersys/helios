@@ -28,7 +28,7 @@ implicit dependencies declared**, a change to corekinect would NOT mark
 the runner as affected — leaving stale runner pods running new test
 packages.
 
-## The four enforcement layers
+## The five enforcement layers
 
 | Layer | Where | What it does |
 |---|---|---|
@@ -36,16 +36,22 @@ packages.
 | 2 | `deploy/ctl.sh` SHA gate | Before `update`, compares the runner image's bundled corekinect git SHA against `HEAD`. Fails the deploy if drifted. |
 | 3 | `/concord-release` skill release-range gate | Before version bump, checks `git diff $LAST_TAG..HEAD -- libs/python/corekinect/ libs/protocols/mtib/ tools/corectl/`; if non-empty, asserts test-runner is in the release build set. |
 | 4 | `deploy/runner/entrypoint.sh` semver gate | Reads `frameworkVersion` from the downloaded `concord.yaml`, compares against the runner's bundled corekinect version. Fails (with operator-friendly message) if the constraint is violated. |
+| 5 | `/concord-release` Phase 11 test-app sweep | Reads `.claude/known-test-apps.yaml`; for each entry runs `corectl test update --apply`, validate, commit, push, and upload. Refreshes every test app's scaffold artifacts at release time so they never drift silently. |
 
 Layer 1 is the Nx-affected hook. Layer 2 catches a hand-built local image
 drifting from a CI build. Layer 3 catches a missed runner rebuild at
 release-cut time. Layer 4 catches a runner that's already deployed
-running a test package newer than its bundled SDK.
+running a test package newer than its bundled SDK. Layer 5 catches
+scaffold drift in downstream test apps — the failure mode where
+`.claude/rules/`, `.claude/skills/`, `.devcontainer/`, and validator
+templates fall behind across many releases even though the runtime
+constraint (Layer 4) still passes. See [version-skew case study #4](../workflows/version-skew.md).
 
 Escape hatches (loud-log when used):
 - `CONCORD_FORCE_STALE_RUNNER=1` — bypass Layer 2.
 - `--force-no-runner-rebuild` — bypass Layer 3.
 - `CONCORD_FORCE_STALE_PACKAGE=1` — bypass Layer 4.
+- `--skip-test-app-refresh` — bypass Layer 5.
 
 ## Layer 1 — Nx implicitDependencies
 
@@ -293,6 +299,73 @@ concord.yaml (`sigma5_manufacturing`, `sigma5_validation`, etc.) and
 flows through `corectl test upload`. The runner-side gate does not
 need any change for that tightening — it just evaluates whatever
 PEP 440 specifier the test app declares.
+
+## Layer 5 — Test-app scaffold sweep
+
+Manifest: [`.claude/known-test-apps.yaml`](../../known-test-apps.yaml).
+Wiring: `/concord-release` Phase 11.
+
+### Why the gap existed
+
+Layers 1-4 protect the **runtime** path: a stale runner can't run a
+newer test package, a release that touches corekinect can't ship
+without rebuilding the runner image, an unbuilt local image can't
+deploy. But none of them touch the test app's **scaffold** — the
+`.claude/rules/`, `.claude/skills/`, `.devcontainer/`, and validator
+templates that `corectl test init` and `corectl test update` write.
+
+Those templates drift silently across many releases. On 2026-05-26
+the previous agent shipped v0.12.4 and deferred the sigma5_validation
+refresh on the reasoning that "`framework: ">=0.9.0"` is still
+satisfied at runtime by 0.12.4" — true, but the scaffold was still
+v0.11.0. The next dev opening sigma5_validation would have read stale
+rules and skills. Multiply across alpha and theta apps and the
+divergence compounds. Layer 5 closes that gap structurally.
+
+### What the sweep does
+
+For each entry in `.claude/known-test-apps.yaml` (currently 4 apps:
+`alpha_manufacturing`, `alpha_validation`, `sigma5_manufacturing`,
+`sigma5_validation`):
+
+1. `cd <path>` (the umbrella-relative path).
+2. Pull latest main.
+3. `corectl test update --apply` — re-renders every framework artifact
+   from the bundled templates.
+4. `corectl test validate` — must be clean.
+5. `git commit -m "chore: refresh framework artifacts to corectl X.Y.Z [no-arch-change]"`.
+6. `git push origin main`.
+7. `corectl test upload -m "Refresh for corekinect X.Y.Z (concord vX.Y.Z release)"`.
+
+Halt the release on any failure. Idempotent per-app — re-running
+finds no changes if the app is already current.
+
+### Escape hatch
+
+`--skip-test-app-refresh` (passed to `/concord-release`) bypasses
+Phase 11 with a loud-warn banner. Use only when a known test app is
+in a degraded state (e.g., disk-pressure on the host, mid-investigation
+of an unrelated failure) and the release truly cannot wait. Document
+the bypass reason in the release record.
+
+### Discovery / registration of new test apps
+
+When a new test app is scaffolded (`corectl test init ...`), add it
+to `.claude/known-test-apps.yaml`. The pre-release hook (Phase 0)
+will then pick it up automatically. Skeleton repos with no
+`concord.yaml` (e.g., today's `theta_manufacturing` and
+`theta_validation`) stay excluded until they're initialized.
+
+### Known issue — `.framework-version` stamps not updated by `corectl test update`
+
+As of v0.12.4, `corectl test update --apply` writes the file contents
+from the new templates correctly but does NOT update the
+`.claude/.framework-version` and `.devcontainer/.framework-version`
+stamps. `corectl test validate` reads those stamps and reports
+"framework artifacts at v0.11.0; installed framework is v0.12.4" even
+when the actual contents are current. Workaround: manually bump the
+stamps and commit. Long-term fix: corectl bug, to be addressed in a
+future corectl release.
 
 ## When you touch this area
 
