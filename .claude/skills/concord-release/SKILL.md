@@ -20,7 +20,10 @@ walk this list before claiming the release is complete. If any box is unchecked,
 the release is incomplete — continue work until all boxes pass.
 
 ```
+[ ] Phase 0 pre-release hook reviewed (coupling reminder, if any)
+[ ] Phase 0.5 release-impact auditor agent run (if Phase 0 flagged anything)
 [ ] Component-impact matrix consulted (see next section) — release type chosen
+[ ] Runner-rebuild gate passed (Phase 1.5 — Phase D Layer 3)
 [ ] VERSION bumped on a release branch (never on main directly)
 [ ] corectl version bumped IF the release touches corectl
 [ ] corekinect version bumped IF the release touches corekinect
@@ -244,6 +247,51 @@ file to an unmounted parent directory. The deploy script falls back to
 
 Chain it before the devcontainer exec with `&&`.
 
+## Phase 0 — Coupling scan (pre-flight instrumentation)
+
+Before any other release work, run the read-only coupling scan:
+
+```bash
+LAST_TAG=$(git describe --tags --abbrev=0)
+bash .claude/hooks/pre-release "${LAST_TAG}" HEAD
+```
+
+The hook scans the `${LAST_TAG}..HEAD` range for risky path patterns
+(corekinect, mtib protocols, corectl, prisma, deploy/) and emits a
+`<system-reminder>`-formatted block listing downstream artifacts that
+need attention and which Phase D enforcement layer will catch a
+missed step. Silent when nothing risky is touched.
+
+This is **purely informational** — it never blocks the release. The
+actual gating happens later:
+- Phase 1.5 (Phase D Layer 3): hard gate via
+  `scripts/release-gates/check-runner-affected.sh`
+- Deploy time (Phase D Layer 2): runner SHA gate in `ctl.sh`
+- Runtime (Phase D Layer 4): framework-constraint gate in the
+  runner pod
+
+Read the section(s) the hook emits and confirm you've planned for the
+listed downstream artifacts before moving to Phase 1.
+
+## Phase 0.5 — Release-impact audit (when Phase 0 flagged anything)
+
+If Phase 0 emitted a `<system-reminder>` (i.e., the range touched
+something risky), spawn the `release-impact-auditor` sub-agent before
+proceeding to Phase 1. Its persona at
+[`.claude/agents/release-impact-auditor.md`](../../agents/release-impact-auditor.md)
+reads the actual file diffs and produces a structured report
+distinguishing test-only changes (low impact) from public-API or
+wire-format changes (high impact), names specific verification
+commands, and gives a go/no-go recommendation.
+
+The auditor has **no Edit/Write tools** — it produces a Markdown
+report on stdout, no mutations. Embed the report into your turn
+output verbatim so the user sees it before they approve Phase 1.
+
+If the auditor returns "Block — resolve these first", stop. Surface
+the items to the user. Do not proceed to Phase 1 without explicit
+user confirmation that they accept the listed risks.
+
 ## Phase 1 — Pre-flight
 
 0. **Record start time:** `RELEASE_START=$(date +%s%3N)` — used for `releaseDurationMs`
@@ -283,6 +331,48 @@ Chain it before the devcontainer exec with `&&`.
    double digits. The release gate's semver pattern (`^\d+\.\d+\.\d+$`) already
    accepts any digit count — this rule is about your bump *decision*, not the
    format check.
+
+## Phase 1.5 — Runner rebuild gate (Phase D Layer 3)
+
+Before the release branch is cut, verify that if this release touches
+`libs/python/corekinect/`, `libs/protocols/mtib/`, or `tools/corectl/`,
+then the `test-runner` project will actually be rebuilt by the deploy.
+
+The runner Docker image bakes those three trees in at build time. A
+release that ships changes to them without rebuilding the runner
+leaves deployed pods running stale code — the v0.12.0 → v0.12.3
+silent-skew failure mode this enforcement was built to prevent.
+
+```bash
+LAST_TAG=$(git describe --tags --abbrev=0)
+bash scripts/release-gates/check-runner-affected.sh "${LAST_TAG}" HEAD
+```
+
+Exit codes:
+- `0` silent — nothing of interest touched in range (most releases)
+- `0` info-banner — paths touched AND `test-runner` is in the Nx
+  affected set; deploy will rebuild the runner image
+- `0` loud-warn — touched-but-not-affected, bypassed via
+  `CONCORD_FORCE_NO_RUNNER_REBUILD=1` (use only with explicit user
+  approval; the deployed runner WILL be stale)
+- `1` hard fail — paths touched, runner NOT affected. The script's
+  error message names the touched projects and points at
+  `deploy/runner/project.json` `implicitDependencies` (Phase D Layer 1)
+  as the fix location.
+
+If the gate fails:
+1. Read the gate's error output — it lists which projects-of-interest
+   changed and tells you what nx-affected query was used.
+2. The fix is almost always missing `implicitDependencies` on the
+   runner project. See [`.claude/knowledge/deploy/runner.md`](../../knowledge/deploy/runner.md).
+3. Land the fix on a separate branch first, then retry the release.
+4. Only set `CONCORD_FORCE_NO_RUNNER_REBUILD=1` with the user's
+   explicit blessing.
+
+The full layered enforcement is documented in
+[`.claude/knowledge/deploy/runner.md`](../../knowledge/deploy/runner.md).
+Tests for this gate live at
+[`scripts/tests/test_check_runner_affected.py`](../../../scripts/tests/test_check_runner_affected.py).
 
 ## Phase 2 — Create release branch
 

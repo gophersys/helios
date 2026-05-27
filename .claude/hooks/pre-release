@@ -1,0 +1,292 @@
+#!/usr/bin/env bash
+# ───────────────────────────────────────────────────────────────────
+# pre-release — concord-release Phase 0 instrumentation
+# ───────────────────────────────────────────────────────────────────
+#
+# Scans the LAST_TAG..HEAD range for risky path patterns and emits a
+# <system-reminder>-formatted block listing downstream artifacts that
+# need attention. Wired into .claude/skills/concord-release/SKILL.md
+# as Phase 0 (BEFORE Phase 1 Pre-flight).
+#
+# Read-only. Idempotent. Always exits 0 unless an invariant of the
+# invocation itself is broken (bad tag ref, etc.) — actual gating is
+# done by scripts/release-gates/check-runner-affected.sh (Phase D
+# Layer 3) and the runtime gates (Layers 2 + 4).
+#
+# Usage:
+#   .claude/hooks/pre-release                 # auto-detect last tag
+#   .claude/hooks/pre-release <last_tag>
+#   .claude/hooks/pre-release <last_tag> <head_ref>
+#
+# Output (stdout): a <system-reminder> block when something risky is
+# touched in the range; silent otherwise.
+#
+# Companion files:
+#   .claude/rules/version-coupling.md          — the contracts
+#   .claude/knowledge/workflows/version-skew.md — case studies
+#   scripts/release-gates/check-runner-affected.sh — the hard gate
+
+set -euo pipefail
+
+# shellcheck disable=SC2001  # sed used for clarity on multi-line lists
+
+# ───────────────────────────────────────────────────────────────────
+# Args
+# ───────────────────────────────────────────────────────────────────
+
+LAST_TAG="${1:-}"
+HEAD_REF="${2:-HEAD}"
+
+if [[ -z "${LAST_TAG}" ]]; then
+  # Auto-detect: nearest ancestor tag.
+  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+  if [[ -z "${LAST_TAG}" ]]; then
+    echo "pre-release: cannot auto-detect last tag (no tags in repo?)" >&2
+    echo "Pass it explicitly: .claude/hooks/pre-release <last_tag>" >&2
+    exit 0   # informational — never block a release
+  fi
+fi
+
+# Sanity-check the refs resolve.
+if ! git rev-parse --verify "${LAST_TAG}" &>/dev/null; then
+  echo "pre-release: last_tag '${LAST_TAG}' does not resolve to a git ref" >&2
+  exit 0
+fi
+if ! git rev-parse --verify "${HEAD_REF}" &>/dev/null; then
+  echo "pre-release: head_ref '${HEAD_REF}' does not resolve to a git ref" >&2
+  exit 0
+fi
+
+# ───────────────────────────────────────────────────────────────────
+# Risky-path scan — keep keys in lockstep with
+# .claude/rules/version-coupling.md.
+# ───────────────────────────────────────────────────────────────────
+
+# Each path-pattern → "key" + collected file list.
+declare -A TOUCHED
+TOUCHED=()
+
+_collect() {
+  local key="$1"
+  shift
+  local files
+  files=$(git diff --name-only "${LAST_TAG}..${HEAD_REF}" -- "$@" 2>/dev/null || true)
+  if [[ -n "${files}" ]]; then
+    TOUCHED["${key}"]="${files}"
+  fi
+}
+
+_collect "corekinect"   "libs/python/corekinect/"
+_collect "protocols"    "libs/protocols/mtib/"
+_collect "corectl"      "tools/corectl/"
+_collect "prisma"       "prisma/schema.prisma" "prisma/migrations/"
+_collect "deploy"       "deploy/development/docker-compose.yaml" \
+                        "deploy/production/helm/values-staging.yaml" \
+                        "deploy/production/helm/values-production.yaml" \
+                        "deploy/production/helm/concord/" \
+                        "deploy/ctl.sh" \
+                        "deploy/runner/"
+
+# If nothing risky, exit silently. `set -u` would complain about
+# `${#TOUCHED[@]}` when the array has never been assigned, but our
+# `declare -A TOUCHED; TOUCHED=()` above gives it a definite empty
+# state, so the size check is safe.
+if [[ "${#TOUCHED[@]}" -eq 0 ]]; then
+  exit 0
+fi
+
+# ───────────────────────────────────────────────────────────────────
+# Emit the reminder block (deterministic ordering)
+# ───────────────────────────────────────────────────────────────────
+
+emit_section_corekinect() {
+  cat <<'EOF'
+### corekinect changes in range
+
+Files:
+EOF
+  # shellcheck disable=SC2001
+  echo "${TOUCHED[corekinect]}" | sed 's/^/  - /'
+  cat <<'EOF'
+
+Downstream artifacts:
+  - test-runner Docker image MUST rebuild (bakes corekinect at build time)
+  - corekinect wheel MUST publish if the change is public-API
+  - Test apps may need re-upload if their package.framework constraint
+    excludes the new corekinect version (corectl test refresh-framework
+    && corectl test upload)
+
+Enforcement layers (Phase D, branch chore/enforce-runner-corekinect-coupling):
+  - Layer 1 (deploy/runner/project.json implicitDependencies):
+    Nx marks test-runner affected on any corekinect change
+  - Layer 2 (deploy/ctl.sh _check_runner_corekinect_freshness):
+    refuses nx update if the runner image's baked COREKINECT_GIT_SHA
+    differs from libs/python/corekinect HEAD
+  - Layer 3 (scripts/release-gates/check-runner-affected.sh):
+    refuses to cut a release if corekinect touched and test-runner is
+    not in the affected set (this runs in Phase 1.5)
+  - Layer 4 (deploy/runner/check_framework_constraint.py):
+    runner pod refuses pytest if test package's framework constraint
+    is violated by the runner's bundled corekinect
+
+See: .claude/knowledge/workflows/version-skew.md case studies 1 and 3.
+
+EOF
+}
+
+emit_section_protocols() {
+  cat <<'EOF'
+### libs/protocols/mtib changes in range
+
+Files:
+EOF
+  # shellcheck disable=SC2001
+  echo "${TOUCHED[protocols]}" | sed 's/^/  - /'
+  cat <<'EOF'
+
+Downstream artifacts:
+  - test-runner image MUST rebuild (corekinect imports the generated
+    mtib gRPC stubs at runtime)
+  - mtib-server image MUST rebuild (the server-side gRPC handlers
+    compile against the same protos)
+  - If the .proto schema changed, regenerate protocol code with:
+    nx run protocols:create
+
+Enforcement layers:
+  - Layer 1 covers test-runner via implicitDependencies including
+    "protocols"
+  - No standalone mtib-server freshness gate exists — by-eye review
+
+EOF
+}
+
+emit_section_corectl() {
+  cat <<'EOF'
+### tools/corectl changes in range
+
+Files:
+EOF
+  # shellcheck disable=SC2001
+  echo "${TOUCHED[corectl]}" | sed 's/^/  - /'
+  cat <<'EOF'
+
+Downstream artifacts:
+  - corectl wheel MUST publish to staging pypi then production pypi
+    (nx run corectl:push -c staging; nx run corectl:push -c production)
+  - test-runner image MUST rebuild (corectl ships inside the runner
+    image for some flows)
+  - Dev hosts running corectl will see an upgrade prompt on next
+    invocation — communicate to users
+
+Enforcement layers:
+  - Layer 1 covers test-runner via implicitDependencies including
+    "corectl"
+  - Layer 3 (release-range gate) catches missed runner rebuild
+  - scripts/release_gate.py enforces a corectl version bump if any
+    tools/corectl/src/** file changed in the release range
+
+EOF
+}
+
+emit_section_prisma() {
+  cat <<'EOF'
+### prisma schema changes in range
+
+Files:
+EOF
+  # shellcheck disable=SC2001
+  echo "${TOUCHED[prisma]}" | sed 's/^/  - /'
+  cat <<'EOF'
+
+Downstream artifacts:
+  - Forward migration MUST exist in prisma/migrations/
+  - Python client MUST regenerate (npx prisma generate; included in
+    nx build http-api)
+  - Frontend type mirror MUST update at
+    apps/frontend/app/src/lib/types/models.ts (BY HAND — no codegen)
+  - Knowledge MUST update:
+    .claude/knowledge/prisma/schema-overview.md (entities)
+    .claude/knowledge/prisma/enums.md (enum values)
+    plus the matching product-domain file
+
+Enforcement layers:
+  - Deploy-time migration runs in http-api's migrate-and-seed init
+    container — bad migration → pod stuck Init:CrashLoopBackOff
+  - Frontend models.ts mirror has NO automated enforcement — review
+
+See: .claude/rules/prisma-flow.md for the full sequence.
+
+EOF
+}
+
+emit_section_deploy() {
+  cat <<'EOF'
+### deploy/ changes in range
+
+Files:
+EOF
+  # shellcheck disable=SC2001
+  echo "${TOUCHED[deploy]}" | sed 's/^/  - /'
+  cat <<'EOF'
+
+Downstream artifacts (all-three-envs rule, plus deploy-machinery):
+  - Any env var, port, replica count, or helm value that exists in
+    one of (development docker-compose, staging values, production
+    values) MUST exist in all three with environment-appropriate
+    values
+  - K8s Secret references must match between staging and production
+    helm values
+  - Helm template completeness CI check (added in v0.9.18) covers
+    some of this — by-eye verification still required
+  - If deploy/ctl.sh changed, test the relevant subcommands locally
+    (`bash deploy/ctl.sh version`, `bash deploy/ctl.sh --help`)
+    before deploy. The dispatcher guard added in Phase D Layer 2
+    makes ctl.sh sourceable for tests; library-mode tests live at
+    deploy/runner/tests/.
+  - If deploy/runner/ changed, the runner image will be rebuilt by
+    `nx update platform`. Verify the new image's COREKINECT_GIT_SHA
+    matches HEAD via `docker image inspect`.
+
+Enforcement layers:
+  - CI helm-values-completeness check at .ci/ pipeline (catches some
+    missing keys)
+  - Phase D Layer 2 catches stale runner images at deploy time
+  - No git-time hook for all-three-envs — discipline + code review
+
+See: .claude/rules/all-three-envs.md and .claude/knowledge/deploy/runner.md.
+
+EOF
+}
+
+# Header + ordered sections.
+{
+  echo "<system-reminder>"
+  echo "Phase 0 — pre-release scan of ${LAST_TAG}..${HEAD_REF}"
+  echo ""
+  echo "The release range touches paths with cross-artifact coupling."
+  echo "Review the section(s) below BEFORE proceeding to Phase 1 pre-flight."
+  echo "Each section names the downstream artifacts and which Phase D"
+  echo "enforcement layer (if any) will catch a missed step."
+  echo ""
+
+  # Stable section order so reruns are byte-identical.
+  for key in corekinect protocols corectl prisma deploy; do
+    if [[ -n "${TOUCHED[$key]:-}" ]]; then
+      case "${key}" in
+        corekinect) emit_section_corekinect ;;
+        protocols)  emit_section_protocols ;;
+        corectl)    emit_section_corectl ;;
+        prisma)     emit_section_prisma ;;
+        deploy)     emit_section_deploy ;;
+      esac
+    fi
+  done
+
+  echo "References:"
+  echo "  - .claude/rules/version-coupling.md (the contracts)"
+  echo "  - .claude/knowledge/workflows/version-skew.md (case studies)"
+  echo "  - .claude/knowledge/deploy/runner.md (Phase D layer design)"
+  echo "</system-reminder>"
+}
+
+exit 0

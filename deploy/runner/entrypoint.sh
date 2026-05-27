@@ -102,6 +102,35 @@ rm /tmp/test-package.tar.gz
 TEST_FILE_COUNT=$(find /app -name 'test_*.py' | wc -l)
 echo "Extracted to /app/ — ${TEST_FILE_COUNT} test files"
 
+# ── Step 2.5: Phase D Layer 4 — framework-constraint gate ─────────────────
+#
+# Before pytest starts, assert that the runner's bundled corekinect
+# satisfies the test package's `package.framework` constraint
+# (e.g., ">=0.9.0"). Semver-compatible, NOT strict-SHA. See
+# .claude/knowledge/deploy/runner.md Layer 4 for the full design.
+#
+# Exit codes:
+#   0 — constraint satisfied (or absent → warn + pass)
+#   1 — constraint violated — refuse to start pytest
+#   2 — usage / manifest / parse error
+#
+# Bypass: CONCORD_FORCE_STALE_PACKAGE=1 (loud-warn). The script logs
+# the bypass usage so the operator's reason is visible in pod logs.
+echo ""
+if [ -f /app/concord.yaml ]; then
+    if ! python3 /app/check_framework_constraint.py /app/concord.yaml; then
+        gate_exit=$?
+        echo ""
+        echo "[runner] framework-constraint gate refused the run (exit ${gate_exit})."
+        echo "[runner] Not invoking pytest. See gate output above for the fix."
+        exit ${gate_exit}
+    fi
+else
+    echo "[runner] WARNING: /app/concord.yaml not found after extract — "
+    echo "[runner] skipping framework gate (legacy / non-corekinect package?)."
+fi
+echo ""
+
 # ── Step 3: Install app dependencies ──────────────────────────────────────
 
 if [ -f /app/pyproject.toml ]; then

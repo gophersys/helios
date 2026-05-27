@@ -61,6 +61,8 @@ The script auto-detects `cd "$REPO_ROOT"` from `BASH_SOURCE`, so it can be invok
 |---|---|
 | `get_version` | `VERSION` file + `git describe`. Stamped into images as `APP_VERSION`. |
 | `_git_commit`, `_git_branch`, `_git_dirty`, `_git_describe` | Git metadata; fall back to `.git-build-info` when run inside a devcontainer where `git` cannot resolve the repo (notably: when this repo is a submodule of an umbrella workspace and the parent `.git/modules` is not mounted). See "Submodule context" below. |
+| `_corekinect_sha` | Deterministic SHA for `libs/python/corekinect/` at HEAD. Primary: `git log -1 --format=%H -- libs/python/corekinect/`. Fallbacks: `git ls-tree -d HEAD libs/python/corekinect`, then line 4 of `.git-build-info`. Baked into runner images as `COREKINECT_GIT_SHA`; read back by `_check_runner_corekinect_freshness`. See [`runner.md`](runner.md) Layer 2. |
+| `_check_runner_corekinect_freshness <env>` | Phase D Layer 2 gate. Called by `cmd_update` before `cmd_deploy`. Compares the runner image's baked `COREKINECT_GIT_SHA` (via `docker image inspect`) against `_corekinect_sha`. Fails when they diverge unless `CONCORD_FORCE_STALE_RUNNER=1`. Warns + passes on legacy images (no baked var) and on locally-missing images. Full behavior matrix in [`runner.md`](runner.md). |
 | `_preflight` | `kubectl cluster-info` + `command -v helm`. Aborts if either fails. |
 | `_db_setup` | `cd prisma && yarn prisma generate && prisma db push && python3 -m seed.main`. Development only. |
 | `cmd_build <env> [targets…]` | Parallel `docker buildx build --load` for each target. Sets `APP_VERSION`, `ENVIRONMENT`, `GIT_*`, `BUILD_TIME`, `BUILD_HOST` as build args. Default targets: `api frontend git-poller build-service runner docs`. |
@@ -143,9 +145,30 @@ The `release` Nx target wraps `staging update`/`production update` in a check + 
 - **Builds hang on docker buildx** — usually a buildx builder going stale. `docker buildx prune` and retry. Don't disable the parallel build (the timing matters for the release flow).
 - **`git rev-parse` returns empty** — running inside the umbrella `work/` devcontainer where the parent `.git/modules` isn't mounted. Refresh `.git-build-info` on the host first: see the submodule rule in the workspace `work/.claude/rules/`.
 
+## Library-mode sourcing (for tests)
+
+The dispatcher at the bottom is guarded by:
+
+```bash
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "${CONCORD_CTL_NO_DISPATCH:-0}" == "1" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
+```
+
+This lets a test harness `source deploy/ctl.sh` to access the internal
+functions without triggering the main dispatcher. Used by
+[`deploy/runner/tests/test_ctl_runner_freshness_gate.py`](../../../../deploy/runner/tests/test_ctl_runner_freshness_gate.py)
+to exercise `_check_runner_corekinect_freshness` with stubbed `docker`,
+`git`, `kubectl`, `helm` binaries on PATH.
+
+If you add a future test that wants to call a `cmd_*` or `_*` helper
+directly, follow the same pattern: set `CONCORD_CTL_NO_DISPATCH=1`,
+shove your stubs into a temp dir on PATH, then `source`.
+
 ## Related knowledge
 
 - [`overview.md`](overview.md) — the env model + cluster topology that this CLI manages.
 - [`helm.md`](helm.md) — the chart `_helm_deploy` installs.
 - [`nx-targets.md`](nx-targets.md) — the Nx wrappers that call `ctl.sh`.
 - [`secrets.md`](secrets.md) — `create-all.sh`, which `_secrets` step depends on.
+- [`runner.md`](runner.md) — the test-runner image and its four-layer freshness enforcement (Layer 2 lives in this file).
