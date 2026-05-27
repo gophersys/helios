@@ -540,44 +540,69 @@ class ShellCommander:
     def debug_off(self, timeout_s: float = 30.0) -> bool:
         """Disable debug UART output.
 
-        Retries ``debug_enable 0`` up to 4 times before giving up. The
-        firmware's Zephyr LOG backend (GPS, watchdog, IPC threads) flood
-        the UART continuously until we successfully disable it — and that
-        flood frequently chops our command echo in half. Captured UART
-        from run cmpodyfob on panel 0AW2, slot 0:
+        The firmware's Zephyr LOG backend (gps_thread @1 Hz, watchdog,
+        ck_ipc, …) floods the UART continuously until we successfully
+        disable it — and that flood frequently chops the command echo
+        in half. Captured UART from run cmpodyfob on panel 0AW2, slot 0:
 
             Mfg shell: debug_enable[00:00:10.148,498] <inf> app: Feeding watchdog
             ...lots more log lines...
             Mfg shell:
 
         The shell saw ``debug_enable`` then a log-line stream then the
-        next prompt — no ``0`` argument, no execution, no
-        ``Debug is not enabled`` response. One ``send()`` is therefore
-        not enough on this firmware. We re-issue the command on each
-        miss, splitting the budget across N attempts. Each attempt
-        triple-clears + waits for echo + waits for success pattern, so
-        the retries are naturally spaced and give the LOG stream
-        windows to drain between tries.
+        next prompt — no ``0`` argument, no execution. So we cannot rely
+        on the standard ``send()`` echo+pattern handshake. Instead:
+
+          1. Write ``\\rdebug_enable 0\\r`` at a 1-Hz cadence — once per
+             gps_thread tick — for up to ``timeout_s`` seconds.
+          2. After each write, poll the buffer for ``Debug is not
+             enabled``. The firmware's ``shell_warn`` for that string
+             is the FIRST line of the handler, BEFORE
+             ``log_backend_disable``. If we see that line, the command
+             executed cleanly and we're done.
+
+        No echo check. The buffer can be (and usually is) full of log
+        spam; we don't care. The presence of the success string is the
+        only thing that matters.
+
+        Once any attempt succeeds, the firmware disables the log
+        backend and subsequent UART traffic is quiet — so later commands
+        (``get_chip_ids``, ``read_ext_flash``, etc.) get clean echo +
+        prompt sequences.
         """
-        max_attempts = 4
-        per_attempt_s = max(timeout_s / max_attempts, 4.0)
+        if self._stream.check_alive() is not None:
+            return False
+
         deadline = time.time() + timeout_s
-        last_err: Optional[str] = None
-        for attempt in range(1, max_attempts + 1):
-            remaining = deadline - time.time()
-            if remaining <= 0:
-                break
-            this_attempt_s = min(per_attempt_s, remaining)
-            _lines, err = self.send(
-                "debug_enable 0",
-                ["Debug is not enabled"],
-                timeout_s=this_attempt_s,
-            )
-            if err is None:
+        next_write = 0.0
+        write_count = 0
+        while time.time() < deadline:
+            # Re-issue the command once per second — phased between
+            # gps_thread @1 Hz ticks, so half our writes land in a
+            # quiet window and avoid the chop.
+            now = time.time()
+            if now >= next_write:
+                self._stream.write(b"\rdebug_enable 0\r")
+                next_write = now + 1.0
+                write_count += 1
+
+            text = self._stream.get_text()
+            if "Debug is not enabled" in text:
+                # Give the firmware ~250 ms to actually flush
+                # log_backend_disable() before we return — so the next
+                # command's send() doesn't race the tail end of the
+                # log stream.
+                time.sleep(0.25)
+                # Clear the buffer of accumulated log spam so the next
+                # send()'s echo detection isn't searching megabytes.
+                self._stream.clear()
                 return True
-            last_err = err
+
+            self._stream._data_event.clear()
+            self._stream._data_event.wait(timeout=0.2)
+
         log.warning(
-            "[%s] debug_off failed after %d attempt(s): %s",
-            getattr(self._stream, "_label", "?"), max_attempts, last_err,
+            "[%s] debug_off timed out after %d write(s) in %.1fs",
+            getattr(self._stream, "_label", "?"), write_count, timeout_s,
         )
         return False
