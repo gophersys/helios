@@ -97,6 +97,25 @@ else
     EULA=1 DISTRO=$DISTRO MACHINE=$MACHINE BUILDDIRECTORY=$BDDIR source setup-environment $BDDIR
 fi
 
+# Detect a stale build/tmp left over from a previous workspace path (e.g.
+# from before the umbrella-mirror devcontainer change). Bitbake bakes the
+# absolute TMPDIR into build/tmp/saved_tmpdir and refuses to run when the
+# current TMPDIR doesn't match. The tmp tree can't be reused once that
+# happens, so just wipe it — sstate-cache and downloads (the expensive
+# bits) are kept and the rebuild reuses them.
+EXPECTED_TMPDIR="$WORKDIR/$BDDIR/tmp"
+if [ -f "$EXPECTED_TMPDIR/saved_tmpdir" ]; then
+    SAVED_TMPDIR=$(cat "$EXPECTED_TMPDIR/saved_tmpdir")
+    if [ "$SAVED_TMPDIR" != "$EXPECTED_TMPDIR" ]; then
+        echo "[start.sh] Stale build/tmp detected — workspace path changed."
+        echo "           saved_tmpdir: $SAVED_TMPDIR"
+        echo "           expected   : $EXPECTED_TMPDIR"
+        echo "           wiping build/tmp and build/cache so bitbake re-inits cleanly"
+        echo "           (sstate-cache and downloads are kept)"
+        rm -rf "$EXPECTED_TMPDIR" "$WORKDIR/$BDDIR/cache"
+    fi
+fi
+
 # Register this repo's meta-corekinect layer with bitbake. The Toradex
 # manifest doesn't know about it (it lives outside torizon/, in the umbrella
 # repo root), so bblayers.conf needs to be extended on every fresh build dir.
