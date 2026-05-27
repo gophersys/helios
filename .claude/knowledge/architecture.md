@@ -112,6 +112,7 @@ Three things to notice that recur everywhere:
 - **Storage** — MinIO. Buckets: `firmware`, `test-packages`, `artifacts`. Service uses presigned URLs for client uploads.
 - **K8s scheduling** — http-api creates K8s Jobs (validation runner, manufacturing runner) using the `kubernetes` Python client. Pod observability flows back via gRPC + heartbeat.
 - **Fixture reservation gate** — a fixture or node is "busy" if any ACTIVE `TestRun`, `ManufacturingSession`, OR `FixtureClaim` (DEV_HOLD) references it. The union lives in `apps/backend/http-api/src/services/fixtures/reservation.py` and is consulted by the validation scheduler, the manufacturing session create path, and the `/v2/fixture-claims` endpoints — the same predicate everywhere so no path can drift.
+- **Version coupling** — multiple independently-versioned artifacts (corekinect wheel, corectl wheel, test-runner image, test packages, prisma schema) move together. The contracts are auto-loaded from [`rules/version-coupling.md`](../rules/version-coupling.md); the case studies of what happens when a contract is violated are at [`workflows/version-skew.md`](workflows/version-skew.md); the runtime enforcement is the Phase D four-layer system documented in [`deploy/runner.md`](deploy/runner.md).
 
 ## Where to go next
 
@@ -121,6 +122,7 @@ Three things to notice that recur everywhere:
 - [`prisma/schema-overview.md`](prisma/schema-overview.md) — data model
 - [`deploy/overview.md`](deploy/overview.md) — how this gets shipped
 - [`workflows/local-dev.md`](workflows/local-dev.md) — clone → green
+- [`workflows/version-skew.md`](workflows/version-skew.md) — case studies of cross-artifact coupling violations and Phase D's response
 - [`product-domains/`](product-domains/) — concept-oriented docs (builds, validation, manufacturing, fixtures, products, users-rbac)
 - [`glossary.md`](glossary.md) — domain terms
 - [`conventions.md`](conventions.md) — code-shape conventions
