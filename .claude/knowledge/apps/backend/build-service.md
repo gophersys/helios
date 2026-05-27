@@ -211,3 +211,7 @@ Concurrency is enforced upstream in the HTTP API's `queue_scheduler`. The worker
 - [`../../deploy/secrets.md`](../../deploy/secrets.md) — credentials for SSH, API key, signing keys.
 - [`../../libs/python-corekinect.md`](../../libs/python-corekinect.md) — `EnvConfig`, `Logger`, `print_banner` used here.
 - [`../../../rules/all-three-envs.md`](../../../rules/all-three-envs.md), [`../../../rules/nx-only.md`](../../../rules/nx-only.md).
+
+## v0.12.12 — protobuf codegen pre-wired
+
+The service's Nx `containerize` target now declares `dependsOn: ["protocols:create"]` so the gitignored `libs/protocols/mtib/*_pb2.py` / `*_pb2_grpc.py` stubs are always generated before the Docker build runs. Before this change, the build would silently ship without the stubs on any fresh clone. See [`../../libs/protocols.md`](../../libs/protocols.md) § Codegen flow.

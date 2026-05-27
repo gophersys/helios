@@ -3,6 +3,9 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "apps/backend/build-service/src",
+  "implicitDependencies": [
+    "protocols"
+  ],
   "targets": {
     "get-build-info": {
       "executor": "nx:run-commands",
@@ -44,6 +47,9 @@
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
       "defaultConfiguration": "development",
+      "dependsOn": [
+        "protocols:create"
+      ],
       "options": {
         "file": "apps/backend/build-service/deploy/Dockerfile",
         "context": "{workspaceRoot}",

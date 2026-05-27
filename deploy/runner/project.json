@@ -35,6 +35,9 @@
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
       "defaultConfiguration": "development",
+      "dependsOn": [
+        "protocols:create"
+      ],
       "options": {
         "context": "{workspaceRoot}",
         "cwd": "{workspaceRoot}",

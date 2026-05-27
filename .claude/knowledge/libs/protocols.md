@@ -76,6 +76,35 @@ Driven by `libs/protocols/ctl.sh`. The Nx wrapper is in
 | `nx run protocols:create` | `./libs/protocols/ctl.sh generate` | Generates Python `*_pb2.py`, `*_pb2_grpc.py`, and nanopb `*.pb.c/h` next to each `.proto`. |
 | `nx run protocols:clean` | `./libs/protocols/ctl.sh clean` | Removes all generated files (Python `*.py` except `__init__.py`, `*.c`, `*.h`). |
 
+### Auto-run before every consumer build (since v0.12.12)
+
+The generated `*_pb2.py` / `*_pb2_grpc.py` files are gitignored
+(`libs/protocols/.gitignore` excludes `**/*.py` except `__init__.py`).
+Every consumer Nx target that builds an artifact depending on these
+stubs declares `protocols:create` as a `dependsOn`, so the codegen runs
+automatically before the build — no manual step required.
+
+| Consumer | Nx target with the dependency |
+|---|---|
+| `http-api` | `containerize` (consumes `protocols.mtib.mtib_pb2` in `services/devices/mtib_observability.py`) |
+| `build-service` | `containerize` (defensive — has `PYTHONPATH` reference) |
+| `git-poller` | `containerize` (defensive — has `PYTHONPATH` reference) |
+| `mtib-server` | `containerize` (gRPC server side of MtibV1) |
+| `test-runner` | `containerize` (bakes the runner image with corekinect + protocols) |
+| `corekinect` | `build` (the wheel ships protocols via `force-include`) |
+
+Plus the matching `implicitDependencies: ["protocols"]` so Nx's
+affected-graph marks each consumer dirty when `libs/protocols/**`
+changes — that's how `/concord-release`'s Phase 1.5 runner-rebuild gate
+fires correctly on proto edits.
+
+This wiring was introduced after a v0.12.11 production deploy crashed
+the http-api on `ModuleNotFoundError: No module named
+'protocols.mtib.mtib_pb2'` — the gitignored generated module was
+missing from the build context because no Nx target had forced
+`protocols:create` to run. See v0.12.12 commit `chore(nx): wire
+protocols:create as dependsOn for every consumer build`.
+
 `ctl.sh` notes:
 
 - Walks `libs/protocols` with `find -name '*.proto'`. Duplicate basenames

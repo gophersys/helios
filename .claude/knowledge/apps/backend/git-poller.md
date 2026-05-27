@@ -189,3 +189,7 @@ The HTTP API also has its own in-process poll thread keyed off `BITBUCKET_POLLER
 - [`../../deploy/secrets.md`](../../deploy/secrets.md) — SSH key, API key, Bitbucket token.
 - [`../../prisma/schema-overview.md`](../../prisma/schema-overview.md) — `Product`, `StageConfig`, `PollCache` models.
 - [`../../../rules/all-three-envs.md`](../../../rules/all-three-envs.md), [`../../../rules/prisma-flow.md`](../../../rules/prisma-flow.md).
+
+## v0.12.12 — protobuf codegen pre-wired
+
+The service's Nx `containerize` target now declares `dependsOn: ["protocols:create"]` so the gitignored `libs/protocols/mtib/*_pb2.py` / `*_pb2_grpc.py` stubs are always generated before the Docker build runs. Before this change, the build would silently ship without the stubs on any fresh clone. See [`../../libs/protocols.md`](../../libs/protocols.md) § Codegen flow.

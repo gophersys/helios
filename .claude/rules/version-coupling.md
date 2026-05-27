@@ -117,8 +117,19 @@ for the incident that motivated this layer.
 
 - Layer 1 of runner enforcement (implicitDependencies lists
   `protocols`). Nx marks both `test-runner` and `mtib-server` as
-  affected on any protocol change.
-- No standalone mtib-server freshness gate today — if proto wire
+  affected on any protocol change. Since v0.12.12 the same
+  `implicitDependencies` entry is also on `http-api`, `build-service`,
+  `git-poller`, and `corekinect`.
+- **Layer 2 (added v0.12.12)** — every consumer's `containerize`
+  (or `build` for `corekinect`) Nx target has
+  `dependsOn: ["protocols:create"]`, so `nx update platform` always
+  regenerates the gitignored `*_pb2.py` / `*_pb2_grpc.py` stubs before
+  the Docker build runs. This prevents the v0.12.11-class outage
+  where http-api crashed on `ModuleNotFoundError` because the
+  generated module wasn't present in the build context. Code: each
+  consumer's `project.json`. See
+  [`libs/protocols.md`](../knowledge/libs/protocols.md) § Codegen flow.
+- No standalone mtib-server wire-compat gate today — if proto wire
   changes silently, you find out at runtime. (Improvement candidate.)
 
 **Knowledge:** [`libs/protocols.md`](../knowledge/libs/protocols.md),

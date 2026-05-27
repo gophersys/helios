@@ -230,3 +230,7 @@ A capability is a string in the `HealthCheck.capabilities` list. To add one:
 - [`product-domains/validation.md`](../../product-domains/validation.md), [`product-domains/manufacturing.md`](../../product-domains/manufacturing.md) — the runners that call MTIB RPCs during a TestRun.
 - [`deploy/helm.md`](../../deploy/helm.md) — per-node deployment, secrets, MOTION_ENABLED derivation.
 - [`glossary.md`](../../glossary.md) — MTIB, Fixture, Node, Verdin, FluidNC.
+
+## v0.12.12 — protobuf codegen pre-wired
+
+The service's Nx `containerize` target now declares `dependsOn: ["protocols:create"]` so the gitignored `libs/protocols/mtib/*_pb2.py` / `*_pb2_grpc.py` stubs are always generated before the Docker build runs. Before this change, the build would silently ship without the stubs on any fresh clone. See [`../../libs/protocols.md`](../../libs/protocols.md) § Codegen flow.
