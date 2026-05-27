@@ -9,3 +9,8 @@ python-dotenv==1.2.1
 pyyaml==6.0.3
 python-socketio[client]==5.12.1
 termcolor==2.5.0
+# Phase D Layer 4 — used by /app/check_framework_constraint.py to
+# evaluate `package.framework` PEP 440 specifier sets against the
+# runner's bundled corekinect.__version__. Already a transitive dep
+# via pip/setuptools, pinned here to be explicit.
+packaging==24.2

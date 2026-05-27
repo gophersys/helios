@@ -176,18 +176,123 @@ Contract pinned by
 each of the three paths-of-interest, unrelated change, escape
 hatch, usage error, nx-failure-inconclusive, and the SKILL.md wiring).
 
-## Layer 4 — entrypoint.sh semver gate
+## Layer 4 — entrypoint.sh framework-constraint gate
 
-(Wired in Phase D Layer 4 — see commit history on
-`chore/enforce-runner-corekinect-coupling`.)
+After the test package is downloaded and extracted, BEFORE pytest is
+invoked, `entrypoint.sh` runs the standalone Python gate:
 
-The Layer 4 check is **semver-compatible**, not strict-SHA. The runner
-must satisfy the test package's `frameworkVersion` constraint
-(e.g., `>=0.9.0`), not match a specific git SHA. This avoids
-unnecessarily blocking older-but-still-compatible test packages from
-running on a freshly deployed newer runner. The active manufacturing
-session's package (`dev-99490cd3-1779845120`,
-`frameworkVersion: ">=0.9.0"`) MUST continue to satisfy runners ≥ 0.9.0.
+[`deploy/runner/check_framework_constraint.py <path-to-concord.yaml>`](../../../deploy/runner/check_framework_constraint.py)
+
+The gate reads the test package's `package.framework` constraint from
+its `concord.yaml` (the canonical key — verified against the live
+sigma5_manufacturing manifest 2026-05-26) and asserts that the runner
+image's bundled `corekinect.__version__` satisfies it.
+
+### Why semver-compatible, not strict-SHA
+
+The check is implemented with `packaging.specifiers.SpecifierSet`
+(PEP 440). A strict-SHA equality check would unnecessarily block
+older-but-still-compatible test packages from running on a freshly
+deployed newer runner. Concrete example:
+
+- The active session on panel `0AW2` (session `cmpn99zoa0088i6ahaxcz0tcq`,
+  test package `dev-99490cd3-1779845120`) declares
+  `package.framework: ">=0.9.0"` in its concord.yaml.
+- After v0.12.4 ships, the runner has `corekinect.__version__ == "0.12.4"`.
+- `0.12.4` satisfies `>=0.9.0` → gate passes → manufacturing
+  continues without interruption.
+
+A strict-SHA check would reject this and block manufacturing.
+
+### Behavior matrix
+
+| Constraint | Runner version | Force var | Exit | Output |
+|---|---|---|---|---|
+| `>=0.9.0` | `0.12.4` | unset | 0 | `✓ ... satisfied by corekinect 0.12.4` |
+| `>=1.0` | `0.8.0` | unset | 1 | hard error with constraint, runner version, and `corectl test refresh-framework && corectl test upload` remediation |
+| `>=1.0` | `0.8.0` | `1` | 0 | 6-line banner warning + pass |
+| `<1.0,>=0.9` | `1.0.0` | unset | 1 | upper-bound violation |
+| `~=0.12.0` | `0.13.0` | unset | 1 | compatible-release upper bound |
+| (absent / empty) | any | unset | 0 | warn-and-pass — legacy v1 manifests fall back to permissive |
+| `hilarious garbage` | any | unset | 2 | parse error |
+| (manifest missing) | any | unset | 2 | "concord.yaml not found at ..." |
+
+Escape hatch: `CONCORD_FORCE_STALE_PACKAGE=1` downgrades the
+violation-fail to a 6-line loud-warn banner and passes. Use only for
+emergency triage where you understand the implication (tests will run
+against a corekinect version they weren't validated against).
+
+### Failure propagation to http-api (Option B)
+
+Decision: **Option B — exit non-zero from the runner pod, let the
+existing failure-detection path mark the run FAILED**, rather than
+Option A (have entrypoint.sh POST `report/finish` itself).
+
+Rationale:
+- `report/finish` is gated by `@require_auth` and expects a real JWT,
+  not the runner's API-key model. Minting a token in bash would
+  require new auth plumbing.
+- The Phase D P2 visibility batch (next branch,
+  `fix/manifest-load-failure-visibility`) is already going to harden
+  http-api's "all-tests-skipped → FAILED with errorMessage" path
+  AND surface `run.errorMessage` in the frontend. The gate's
+  non-zero exit feeds into that path cleanly: runner pod exits 1
+  → no further heartbeats → existing timeout-failure handler kicks in
+  → run shows FAILED. After P2 lands, the operator also sees the
+  errorMessage that explains the constraint mismatch.
+- Adds zero new code-surface to the gate itself.
+
+If a future tightening is needed (e.g., the operator wants the FAILED
+status to appear instantly rather than after the heartbeat-timeout
+window), revisit and switch to Option A — but only after the http-api
+exposes a runner-friendly authenticated channel for terminal-failure
+reporting.
+
+### Wiring
+
+`deploy/runner/Dockerfile` copies the script to `/app/check_framework_constraint.py`:
+```dockerfile
+COPY deploy/runner/check_framework_constraint.py /app/check_framework_constraint.py
+RUN chmod +x /app/entrypoint.sh /app/check_framework_constraint.py
+```
+
+`deploy/runner/entrypoint.sh` invokes it in a new "Step 2.5" block
+between the extract and the pip-install:
+```bash
+if [ -f /app/concord.yaml ]; then
+    if ! python3 /app/check_framework_constraint.py /app/concord.yaml; then
+        gate_exit=$?
+        echo "[runner] framework-constraint gate refused the run (exit ${gate_exit})."
+        exit ${gate_exit}
+    fi
+fi
+```
+
+`deploy/runner/requirements.txt` pins `packaging==24.2` explicitly
+(it was already a transitive dep via pip).
+
+Contract pinned by
+[`deploy/runner/tests/test_framework_constraint_gate.py`](../../../deploy/runner/tests/test_framework_constraint_gate.py)
+— 14 tests including:
+- `test_active_session_emulation_must_pass` (synthesized constraint
+  `>=0.9.0` + runner 0.12.4)
+- `test_real_sigma5_manufacturing_concord_yaml` (real live
+  concord.yaml copied from
+  `/home/mateo/work/manufacturing/sigma5_manufacturing/concord.yaml`,
+  evaluated against a stubbed corekinect 0.12.4)
+
+Both must pass — they are the tonight-manufacturing safety case.
+
+### Future hardening (not in scope for v0.12.4)
+
+The active session's `framework: ">=0.9.0"` is intentionally
+permissive — it lets the runner upgrade freely. If we later want to
+tighten it (e.g., to `~=0.12.0` so a 0.13.x runner upgrade requires
+an explicit re-test), that change lives in the **test app's**
+concord.yaml (`sigma5_manufacturing`, `sigma5_validation`, etc.) and
+flows through `corectl test upload`. The runner-side gate does not
+need any change for that tightening — it just evaluates whatever
+PEP 440 specifier the test app declares.
 
 ## When you touch this area
 

@@ -87,7 +87,8 @@ RUN pip3 install --no-cache-dir /tmp/corectl && rm -rf /tmp/corectl
 # ─────────────────────────────────────────────────────────────────────────────
 
 COPY deploy/runner/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY deploy/runner/check_framework_constraint.py /app/check_framework_constraint.py
+RUN chmod +x /app/entrypoint.sh /app/check_framework_constraint.py
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Build Metadata
