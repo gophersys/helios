@@ -488,22 +488,49 @@ class ShellCommander:
         self._stream.clear()
 
         deadline = time.time() + timeout_s
-        # Cap the active spam window so we don't burn TX bandwidth past
-        # the point the firmware's shell timer would have expired anyway
-        # (the firmware deactivates the shell at ``CONFIG_SHELL_TIMEOUT_SEC``,
-        # currently 20 s — after that, no amount of bytes will help).
         spam_until = time.time() + min(timeout_s, 6.0)
-        next_send = 0.0  # time.time() at which next write should fire
+        # Cadence backoff. Aggressive first 400 ms (two near-back-to-back
+        # writes — if either gRPC frame lands the lock arms), then space
+        # out so we don't pile lock_shell commands into the firmware's
+        # Zephyr shell line buffer. Run cmpodbsac on panel 0AW2 showed
+        # what happens when we don't back off: 17 queued lock_shells
+        # were still being drained when the very next command
+        # (debug_enable 0) arrived, and the firmware shell missed it —
+        # every slot's debug_off step then timed out at 15 s. Eight
+        # writes spaced across 6 s wins the gRPC-frame race without
+        # over-stuffing the firmware.
+        send_intervals = [0.2, 0.4, 0.6, 0.8, 1.0, 1.0, 1.0, 1.0]
+        next_send_idx = 0
+        next_send = 0.0
+        # Post-success settle: after we see the confirmation, give the
+        # firmware ~250 ms to finish processing whatever lock_shell
+        # writes are still in its UART RX line buffer (each one prints
+        # a fresh ``Mfg shell:`` prompt). Returning early leaves those
+        # tail bytes in flight, and the next send()'s clear() runs
+        # while they're still arriving — corrupting the next command's
+        # echo / prompt match.
+        success_settle_until = None
 
         while time.time() < deadline:
             text = self._stream.get_text()
             if "mode ON" in text or "Mfg shell:" in text or "Comms Mfg:" in text:
-                return True
+                if success_settle_until is None:
+                    success_settle_until = time.time() + 0.25
+                if time.time() >= success_settle_until:
+                    return True
+                self._stream._data_event.clear()
+                self._stream._data_event.wait(timeout=0.05)
+                continue
 
             now = time.time()
-            if now < spam_until and now >= next_send:
+            if (
+                now < spam_until
+                and now >= next_send
+                and next_send_idx < len(send_intervals)
+            ):
                 self._stream.write(b"\rlock_shell\r")
-                next_send = now + 0.2  # 200 ms cadence
+                next_send = now + send_intervals[next_send_idx]
+                next_send_idx += 1
 
             self._stream._data_event.clear()
             self._stream._data_event.wait(timeout=0.1)
