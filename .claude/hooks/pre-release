@@ -219,6 +219,128 @@ See: .claude/rules/prisma-flow.md for the full sequence.
 EOF
 }
 
+emit_section_test_apps() {
+  # ─────────────────────────────────────────────────────────────────
+  # Phase D Layer 5 — known-test-app refresh sweep
+  # ─────────────────────────────────────────────────────────────────
+  #
+  # Fires when corekinect, protocols, or corectl changed in the range.
+  # Enumerates every entry from .claude/known-test-apps.yaml so the
+  # operator can plan the /concord-release Phase 11 sweep up front.
+  #
+  # Read-only. If the manifest is absent (older clones), emit a short
+  # note and move on — never crash.
+
+  local manifest=".claude/known-test-apps.yaml"
+  cat <<'EOF'
+### Test apps to refresh (Phase D Layer 5)
+
+The release range touches corekinect, protocols/mtib, or corectl. Per
+.claude/rules/version-coupling.md (contracts #1, #2, #3), EVERY test
+app in .claude/known-test-apps.yaml MUST be refreshed and re-uploaded
+as part of /concord-release Phase 11 — even if its package.framework
+constraint still satisfies. The scaffold artifacts (.claude/rules/,
+.claude/skills/, .devcontainer/, validator templates) drift over time
+and operators forget. This section lists the apps so you can plan the
+sweep up front.
+
+EOF
+
+  if [[ ! -f "${manifest}" ]]; then
+    cat <<'EOF'
+Manifest .claude/known-test-apps.yaml NOT FOUND in this checkout.
+The Phase 11 sweep cannot enumerate test apps without it. Either:
+  - add the manifest (see .claude/known-test-apps.yaml header for
+    discovery instructions), OR
+  - perform the refresh by hand in every test app repo, OR
+  - confirm with the release operator that no test apps exist.
+
+EOF
+    return 0
+  fi
+
+  cat <<EOF
+Apps to refresh (from ${manifest}):
+
+EOF
+
+  # Parse the manifest. Format is intentionally simple so we can rely
+  # on bash regex — no python or yq dependency at hook time.
+  #
+  # Expected layout per entry:
+  #   - name: <string>
+  #     path: <absolute-path>
+  #     product: <slug>
+  #     type: <UPPER>
+  #     repo: <git-url>
+  #
+  # Anything else in the file (comments, header) is ignored.
+
+  local name path product type_ repo
+  name="" path="" product="" type_="" repo=""
+
+  flush_entry() {
+    if [[ -z "${name}" ]]; then
+      return 0
+    fi
+    echo "  - ${name}"
+    if [[ -n "${path}" ]]; then
+      if [[ -d "${path}" ]]; then
+        local sha
+        sha=$(git -C "${path}" rev-parse --short HEAD 2>/dev/null || echo "?")
+        echo "      path: ${path}  (HEAD ${sha})"
+      else
+        echo "      path: ${path}  (WARNING: missing on this host — clone or refresh elsewhere)"
+      fi
+    fi
+    name="" path="" product="" type_="" repo=""
+  }
+
+  # Stream the manifest line-by-line. Each `- name:` opens a new entry.
+  while IFS= read -r line; do
+    # Strip comments and skip blank lines.
+    case "${line}" in
+      ''|'#'*) continue ;;
+    esac
+    if [[ "${line}" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.+)$ ]]; then
+      flush_entry
+      name="${BASH_REMATCH[1]}"
+    elif [[ "${line}" =~ ^[[:space:]]+path:[[:space:]]*(.+)$ ]]; then
+      path="${BASH_REMATCH[1]}"
+    elif [[ "${line}" =~ ^[[:space:]]+product:[[:space:]]*(.+)$ ]]; then
+      product="${BASH_REMATCH[1]}"
+    elif [[ "${line}" =~ ^[[:space:]]+type:[[:space:]]*(.+)$ ]]; then
+      type_="${BASH_REMATCH[1]}"
+    elif [[ "${line}" =~ ^[[:space:]]+repo:[[:space:]]*(.+)$ ]]; then
+      repo="${BASH_REMATCH[1]}"
+    fi
+  done < "${manifest}"
+  flush_entry
+
+  cat <<'EOF'
+
+Remediation (one per app — /concord-release Phase 11 sweeps these
+automatically; this is the manual equivalent):
+
+  cd <path> && \
+    corectl test update --apply && \
+    corectl test validate && \
+    git add -A && git commit -m "chore: refresh framework artifacts to corectl X.Y.Z [no-arch-change]" && \
+    git push origin main && \
+    corectl test upload -m "Refresh for corekinect X.Y.Z"
+
+Enforcement:
+  - Phase 11 of /concord-release runs the sweep automatically.
+  - Escape hatch: --skip-test-app-refresh (loud-warn). Use ONLY when a
+    release intentionally skips the sweep (e.g., hot-fix that did not
+    actually touch corekinect/corectl/protocols downstream).
+
+See: .claude/rules/version-coupling.md contracts #1 / #2 / #3,
+     .claude/knowledge/workflows/version-skew.md case study #4.
+
+EOF
+}
+
 emit_section_deploy() {
   cat <<'EOF'
 ### deploy/ changes in range
@@ -281,6 +403,15 @@ EOF
       esac
     fi
   done
+
+  # Phase D Layer 5: any of corekinect / protocols / corectl touched →
+  # emit the test-app sweep section. Prisma and deploy do NOT trigger
+  # the sweep — the scaffold doesn't depend on them.
+  if [[ -n "${TOUCHED[corekinect]:-}" ]] \
+     || [[ -n "${TOUCHED[protocols]:-}" ]] \
+     || [[ -n "${TOUCHED[corectl]:-}" ]]; then
+    emit_section_test_apps
+  fi
 
   echo "References:"
   echo "  - .claude/rules/version-coupling.md (the contracts)"

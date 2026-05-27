@@ -15,14 +15,18 @@ Contract:
       Phase D Layer 3 at scripts/release-gates/check-runner-affected.sh)
 
 Tested cases:
-    - No risky paths in range  → silent (no system-reminder emitted)
-    - corekinect touched       → reports corekinect coupling
-    - corectl touched          → reports corectl coupling
-    - prisma touched           → reports prisma coupling
-    - mtib protocols touched   → reports protocols coupling
-    - deploy/ touched          → reports all-three-envs coupling
-    - Combination              → reports each in its own section
-    - Range that doesn't exist → exits non-zero with usage
+    - No risky paths in range       → silent (no system-reminder emitted)
+    - corekinect touched            → reports corekinect coupling
+    - corectl touched               → reports corectl coupling
+    - prisma touched                → reports prisma coupling
+    - mtib protocols touched        → reports protocols coupling
+    - deploy/ touched               → reports all-three-envs coupling
+    - Combination                   → reports each in its own section
+    - corekinect + known-test-apps  → reports Phase D Layer 5 test-app sweep
+    - corectl + known-test-apps     → reports Phase D Layer 5 test-app sweep
+    - docs-only changes             → no test-app section emitted
+    - Missing path on disk          → warning emitted for absent app
+    - Range that doesn't exist      → exits non-zero with usage
 """
 
 from __future__ import annotations
@@ -277,3 +281,212 @@ def test_skill_file_wires_the_hook() -> None:
         "SKILL.md must invoke the pre-release hook as Phase 0. "
         "Defining the hook without wiring it leaves it unused."
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase D Layer 5 — test-app refresh sweep
+# ---------------------------------------------------------------------------
+#
+# When the release range touches corekinect, protocols, or corectl, the
+# hook must additionally enumerate every test app from
+# .claude/known-test-apps.yaml and emit a "Test apps to refresh" section
+# pointing the operator at the Phase 11 sweep. The section MUST:
+#   - name every entry from the manifest
+#   - include each entry's local path
+#   - warn when a path doesn't exist on disk
+#   - print the concrete remediation command
+#
+# The hook is read-only (informational). It does NOT execute the refresh
+# itself — Phase 11 of /concord-release does that.
+
+
+def _write_known_test_apps(
+    repo: Path,
+    entries: list[dict[str, str]],
+) -> None:
+    """Write a .claude/known-test-apps.yaml inside the throwaway repo."""
+    manifest_dir = repo / ".claude"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# test fixture manifest",
+        "test_apps:",
+    ]
+    for entry in entries:
+        lines.append(f"  - name: {entry['name']}")
+        lines.append(f"    path: {entry['path']}")
+        lines.append(f"    product: {entry.get('product', 'unknown')}")
+        lines.append(f"    type: {entry.get('type', 'UNKNOWN')}")
+        lines.append(
+            f"    repo: {entry.get('repo', 'git@example.com:test/repo.git')}"
+        )
+    (manifest_dir / "known-test-apps.yaml").write_text(
+        "\n".join(lines) + "\n"
+    )
+    _git(repo, "add", ".claude/known-test-apps.yaml")
+    _git(repo, "commit", "-q", "-m", "seed test-app manifest")
+
+
+def test_corekinect_touched_emits_test_app_section(tmp_path: Path) -> None:
+    """corekinect change + known-test-apps.yaml present → Layer 5 section."""
+    repo = _make_repo(tmp_path, ["libs/python/corekinect/__init__.py"])
+    # Add a manifest AFTER the tag so the hook sees it on HEAD.
+    _write_known_test_apps(
+        repo,
+        [
+            {
+                "name": "sigma5_validation",
+                "path": str(tmp_path / "fake-sigma5-validation"),
+            },
+            {
+                "name": "sigma5_manufacturing",
+                "path": str(tmp_path / "fake-sigma5-manufacturing"),
+            },
+        ],
+    )
+    # Create one of the paths so we can assert mixed present/absent behavior.
+    (tmp_path / "fake-sigma5-validation").mkdir()
+    _git(tmp_path / "fake-sigma5-validation", "init", "-q", "-b", "main")
+    _git(tmp_path / "fake-sigma5-validation", "config", "user.name", "test")
+    _git(tmp_path / "fake-sigma5-validation", "config", "user.email", "test@example.com")
+    _git(tmp_path / "fake-sigma5-validation", "config", "commit.gpgsign", "false")
+    (tmp_path / "fake-sigma5-validation" / "README.md").write_text("hi\n")
+    _git(tmp_path / "fake-sigma5-validation", "add", "README.md")
+    _git(tmp_path / "fake-sigma5-validation", "commit", "-q", "-m", "seed")
+
+    result = _run_hook(repo)
+    assert result.returncode == 0, f"stderr={result.stderr}"
+    assert "<system-reminder>" in result.stdout
+    out = result.stdout
+    out_lower = out.lower()
+
+    # The Layer 5 section MUST appear and name every manifest entry.
+    assert "test apps to refresh" in out_lower or "layer 5" in out_lower, (
+        f"Layer 5 section missing:\n{out}"
+    )
+    assert "sigma5_validation" in out, f"sigma5_validation not listed:\n{out}"
+    assert "sigma5_manufacturing" in out, (
+        f"sigma5_manufacturing not listed:\n{out}"
+    )
+
+    # Remediation command MUST be printed verbatim so the operator can
+    # copy-paste it. We assert the load-bearing fragments.
+    assert "corectl test update --apply" in out, (
+        f"refresh command missing:\n{out}"
+    )
+    assert "corectl test upload" in out, f"upload command missing:\n{out}"
+
+    # Missing-path warning for the absent entry.
+    assert "fake-sigma5-manufacturing" in out
+    assert "missing" in out_lower or "not found" in out_lower or "warn" in out_lower, (
+        f"Missing-path warning not emitted:\n{out}"
+    )
+
+
+def test_corectl_touched_emits_test_app_section(tmp_path: Path) -> None:
+    """corectl change alone → Layer 5 section still emits."""
+    repo = _make_repo(tmp_path, ["tools/corectl/src/corectl/__init__.py"])
+    _write_known_test_apps(
+        repo,
+        [
+            {
+                "name": "alpha_validation",
+                "path": str(tmp_path / "alpha_validation"),
+            },
+        ],
+    )
+
+    result = _run_hook(repo)
+    assert "<system-reminder>" in result.stdout
+    out_lower = result.stdout.lower()
+    assert "test apps to refresh" in out_lower or "layer 5" in out_lower, (
+        f"corectl change must trigger Layer 5 sweep section:\n{result.stdout}"
+    )
+    assert "alpha_validation" in result.stdout
+
+
+def test_protocols_touched_emits_test_app_section(tmp_path: Path) -> None:
+    """protocols change → Layer 5 section emits (proto wire format change)."""
+    repo = _make_repo(tmp_path, ["libs/protocols/mtib/mtib.proto"])
+    _write_known_test_apps(
+        repo,
+        [
+            {
+                "name": "sigma5_validation",
+                "path": str(tmp_path / "sigma5_validation"),
+            },
+        ],
+    )
+
+    result = _run_hook(repo)
+    out_lower = result.stdout.lower()
+    assert "test apps to refresh" in out_lower or "layer 5" in out_lower, (
+        f"protocols change must trigger Layer 5 sweep section:\n{result.stdout}"
+    )
+
+
+def test_docs_only_does_not_emit_test_app_section(tmp_path: Path) -> None:
+    """docs-only range → no test-app section (no Layer 5 trigger paths)."""
+    repo = _make_repo(tmp_path, ["docs/some-page.md"])
+    _write_known_test_apps(
+        repo,
+        [
+            {
+                "name": "sigma5_validation",
+                "path": str(tmp_path / "sigma5_validation"),
+            },
+        ],
+    )
+
+    result = _run_hook(repo)
+    assert result.returncode == 0
+    # Either no reminder at all, or a reminder that does NOT contain the
+    # Layer 5 section. Both are acceptable; what we ASSERT is that the
+    # section is not falsely emitted on docs-only ranges.
+    out_lower = result.stdout.lower()
+    assert "test apps to refresh" not in out_lower, (
+        f"docs-only change must not trigger Layer 5 section:\n{result.stdout}"
+    )
+
+
+def test_prisma_alone_does_not_emit_test_app_section(tmp_path: Path) -> None:
+    """prisma change without corekinect/corectl/protocols → no test-app sweep.
+
+    The Layer 5 sweep is scoped to changes that affect what the test app
+    consumes (corekinect/corectl/protocols). A pure schema change does not
+    invalidate the test app's scaffold — it invalidates database state.
+    """
+    repo = _make_repo(tmp_path, ["prisma/schema.prisma"])
+    _write_known_test_apps(
+        repo,
+        [
+            {
+                "name": "sigma5_validation",
+                "path": str(tmp_path / "sigma5_validation"),
+            },
+        ],
+    )
+
+    result = _run_hook(repo)
+    out_lower = result.stdout.lower()
+    assert "test apps to refresh" not in out_lower, (
+        "prisma-only change must NOT trigger Layer 5 sweep "
+        f"(scope is corekinect/corectl/protocols only):\n{result.stdout}"
+    )
+
+
+def test_missing_manifest_falls_back_gracefully(tmp_path: Path) -> None:
+    """corekinect touched but no known-test-apps.yaml → hook must not crash.
+
+    Older clones of concord may not yet have the manifest. The hook
+    should degrade gracefully: emit the existing corekinect section
+    unchanged, and either omit the Layer 5 section or note the manifest
+    is missing. Either is fine; what we forbid is a hard crash.
+    """
+    repo = _make_repo(tmp_path, ["libs/python/corekinect/__init__.py"])
+    result = _run_hook(repo)
+    assert result.returncode == 0, (
+        f"Hook must not crash when manifest absent.\n"
+        f"stdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert "<system-reminder>" in result.stdout
+    assert "corekinect" in result.stdout.lower()
