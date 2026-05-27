@@ -1,4 +1,4 @@
-"""Regression tests for the read_ext_flash UART-cadence parser race.
+"""Regression tests for read_ext_flash and erase_ext_flash UART-cadence parser races.
 
 What this exercises
 -------------------
@@ -278,3 +278,133 @@ def test_read_strips_offset_column_so_address_bytes_dont_leak_into_data():
 
     assert err is None
     assert data == b"\xde\xad\xbe\xef\x11\x22\x33\x44"
+
+
+# ── erase_ext_flash cadence — symmetric race ─────────────
+
+
+def test_erase_does_not_return_before_prompt_arrives():
+    """The firmware emits ``Erasing flash. N pages, ...`` BEFORE the
+    underlying ``flash_erase()`` syscall runs; the chip is then busy
+    for 80 s typ / 100 s max (MX25L6406E datasheet) before the prompt
+    returns.
+
+    If ``erase_ext_flash`` includes ``"Erasing flash"`` / ``"pages"`` in
+    its success_patterns, ``ShellCommander.send()`` arms a 3 s
+    fallback the moment the prologue lands and returns *successful*
+    BEFORE the chip is actually idle. The caller then issues the next
+    shell command (test_08 writes the pattern right after) which hits
+    a busy shell; the echo never comes back, the next op times out,
+    and the test fails with an empty UART buffer.
+
+    Run cmpnd4ifm on panel 0AW2 demonstrated exactly this on all 5
+    slots:
+
+      step 1 erase: erased=True, post_erase UART = "erase_ext_flash\\r
+                    Erasing flash. 128 pages, ..." (no prompt visible)
+      step 2 write: pre_write UART unchanged from above, post_write_fail
+                    UART empty (send() timeout)
+
+    The fix mirrors the read fix: pass ``success_patterns=None`` so
+    ``send()`` waits for the prompt — which only arrives AFTER
+    ``flash_erase()`` returns. To prove the fix is in place, we time
+    the helper's return against a cadence where the prompt arrives 6 s
+    after the prologue. The helper must NOT return until at least the
+    prompt time.
+    """
+    # Cadence: prologue lands fast, prompt 6 s later. send()'s 3 s
+    # premature-success fallback would return at ~3 s if any prologue
+    # token is in success_patterns; the fix waits for the prompt.
+    prompt_delay_s = 6.0
+    scenario = [
+        (0.05, "Erasing flash. 128 pages, 65536 bytes per page. Chip size 8388608 bytes\r\n"),
+        (prompt_delay_s, "Mfg shell: "),
+    ]
+    stream = FakeStream(scenario)
+    shell = CommsCoprocShell(mtib=object())
+    _attach(stream, shell)
+
+    t0 = time.monotonic()
+    ok, err = shell.erase_ext_flash(timeout_s=15.0)
+    elapsed = time.monotonic() - t0
+
+    assert err is None, f"erase_ext_flash error: {err!r}"
+    assert ok is True
+    # Must wait for the prompt — i.e., at least ~6 s (allowing some
+    # scheduler jitter on the lower bound). A return in < 4 s means
+    # ``send()`` bailed on a prologue success_pattern.
+    assert elapsed >= 5.5, (
+        f"erase_ext_flash returned in {elapsed:.2f}s — earlier than the "
+        f"prompt arrival ({prompt_delay_s:.1f}s). success_patterns "
+        f"probably still match the 'Erasing flash' prologue."
+    )
+
+
+def test_erase_sigma5_app_side_also_waits_for_prompt():
+    """Same cadence assertion against Sigma5AppShell.erase_ext_flash —
+    the fix must be symmetric across both shells."""
+    prompt_delay_s = 6.0
+    scenario = [
+        (0.05, "Erasing flash. 128 pages, 65536 bytes per page. Chip size 8388608 bytes\r\n"),
+        (prompt_delay_s, "Mfg shell: "),
+    ]
+    stream = FakeStream(scenario)
+    shell = Sigma5AppShell(mtib=object())
+    _attach(stream, shell)
+
+    t0 = time.monotonic()
+    ok, err = shell.erase_ext_flash(timeout_s=15.0)
+    elapsed = time.monotonic() - t0
+
+    assert err is None, f"sigma5 app erase error: {err!r}"
+    assert ok is True
+    assert elapsed >= 5.5, (
+        f"sigma5 app erase returned in {elapsed:.2f}s — earlier than the "
+        f"prompt arrival ({prompt_delay_s:.1f}s)."
+    )
+
+
+def test_erase_returns_error_on_flash_erase_failed_line():
+    """Firmware error path: ``Flash erase failed.`` arrives after the
+    prologue, then the prompt. Helper must surface as ``(False, err)``.
+    """
+    scenario = [
+        (0.05, "Erasing flash. 128 pages, 65536 bytes per page. Chip size 8388608 bytes\r\n"),
+        (0.10, "Flash erase failed. Invalid argument\r\n"),
+        (0.10, "Mfg shell: "),
+    ]
+    stream = FakeStream(scenario)
+    shell = CommsCoprocShell(mtib=object())
+    _attach(stream, shell)
+
+    ok, err = shell.erase_ext_flash(timeout_s=5.0)
+
+    assert ok is False
+    assert err is not None and "Flash erase failed" in err
+
+
+def test_erase_times_out_with_clear_message_when_prompt_never_arrives():
+    """If the prompt genuinely never lands inside the budget, the
+    helper must surface a timeout error — not falsely report success.
+    Pinning this means a runaway chip-busy condition fails the run
+    loudly instead of cascading into the next command.
+    """
+    # Prologue lands, then nothing — prompt never arrives inside the
+    # 2 s budget.
+    scenario = [
+        (0.05, "Erasing flash. 128 pages, 65536 bytes per page. Chip size 8388608 bytes\r\n"),
+    ]
+    stream = FakeStream(scenario)
+    shell = CommsCoprocShell(mtib=object())
+    _attach(stream, shell)
+
+    ok, err = shell.erase_ext_flash(timeout_s=2.0)
+
+    assert ok is False, (
+        "erase_ext_flash returned ok=True without seeing the prompt — "
+        "this is the original race in disguise."
+    )
+    assert err is not None, "expected a timeout error, got err=None"
+    assert "Timeout" in err or "timeout" in err, (
+        f"expected a timeout-shaped error message, got {err!r}"
+    )
