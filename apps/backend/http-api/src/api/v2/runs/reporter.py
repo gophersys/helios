@@ -808,9 +808,28 @@ def report_finish(run_id: str):
     failed = body.get("failed", 0)
     errors = body.get("errors", 0)
 
-    # Determine final status and validate the transition
+    # Determine final status and validate the transition.
+    #
+    # P2.2 (Phase D, branch fix/manifest-load-failure-visibility):
+    # detect the "all tests skipped" pathology. The v0.12.0 -> 0.12.3
+    # silent-skew incident produced total>0, passed=0, failed=0,
+    # errors=0 every time the test package was incompatible with the
+    # deployed runner's corekinect. Pre-fix code accepted that as
+    # COMPLETED, dashboard showed a green-ish row. New contract: it's
+    # FAILED, with an operator-friendly errorMessage that names the
+    # corectl remediation. See
+    # .claude/knowledge/workflows/version-skew.md case study 1.
     has_system_errors = errors > 0
-    final_status = "FAILED" if has_system_errors or failed > 0 else "COMPLETED"
+    all_skipped = (
+        total > 0
+        and passed == 0
+        and failed == 0
+        and errors == 0
+    )
+    if has_system_errors or failed > 0 or all_skipped:
+        final_status = "FAILED"
+    else:
+        final_status = "COMPLETED"
     err = _validate_run_transition(run.status, final_status)
     if err:
         return bad_request(err)
@@ -864,7 +883,24 @@ def report_finish(run_id: str):
     elif run.startedAt:
         run_update["durationMs"] = int((now - run.startedAt).total_seconds() * 1000)
     if body.get("errorMessage"):
+        # Caller provided a specific message (e.g., the runner's
+        # framework-constraint gate gave a precise reason). Preserve it
+        # verbatim — never clobber with the synthetic all-skipped text.
         run_update["errorMessage"] = body["errorMessage"]
+    elif all_skipped:
+        # No explicit reason from the runner, but the all-skipped
+        # pathology fired. Synthesize an operator-friendly message
+        # that names the count and the corectl remediation path.
+        run_update["errorMessage"] = (
+            f"All {total} tests skipped — no executions completed. "
+            f"Most likely cause: test package framework version "
+            f"mismatch with the runner's corekinect. "
+            f"Run 'corectl test refresh-framework && corectl test "
+            f"upload' to re-publish the test package against the new "
+            f"framework, then redeploy. "
+            f"See .claude/knowledge/workflows/version-skew.md case "
+            f"study 1."
+        )
 
     db.testrun.update(where={"id": run_id}, data=run_update)
 

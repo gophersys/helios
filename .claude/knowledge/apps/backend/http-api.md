@@ -197,6 +197,38 @@ Flow:
 
 The ZTEST module lives in `libs/python/corekinect/test/ztest_runner.py` — see `libs/python-corekinect.md` for the runner's internals, CLI, and replay mode. Regression coverage for both dispatch paths lives in `tests/api/runs/test_manual_framework.py` (real-template render) and `tests/services/test_runner_framework_dispatch.py` (pure dispatch unit tests).
 
+### Run-finish all-skipped detection (P2.2)
+
+`api/v2/runs/reporter.py::report_finish` flags the "all tests skipped"
+pathology. When a `POST /v2/runs/<id>/report/finish` arrives with
+`total > 0 AND passed == 0 AND failed == 0 AND errors == 0`, the run
+is marked **FAILED** (not COMPLETED) with a synthetic
+`errorMessage` naming the most-likely cause (test package framework
+version mismatch) and the corectl remediation
+(`corectl test refresh-framework && corectl test upload`).
+
+This is the diagnostic of last resort for the v0.12.0 → 0.12.3
+silent-skew pathology (every test skipped because the manifest
+load no-op'd or the framework constraint didn't match). It is
+case-study #1 in `.claude/knowledge/workflows/version-skew.md`.
+
+The synthesized errorMessage is only added when the runner did NOT
+supply its own `errorMessage` in the request body. Explicit messages
+(e.g., from the Layer-4 framework-constraint gate) are preserved
+verbatim — never clobbered.
+
+`total == 0` (no tests collected at all) and `total > 0 with any
+passed/failed/errors > 0` are explicitly NOT treated as the
+pathology — those have well-defined existing semantics.
+
+Tested in `tests/api/runs/test_reporter.py::TestReportFinish`:
+- `test_all_skipped_marks_run_failed`
+- `test_all_skipped_sets_operator_friendly_error_message`
+- `test_all_skipped_does_not_clobber_explicit_error_message`
+- `test_one_passed_is_not_treated_as_all_skipped`
+- `test_total_zero_is_not_treated_as_all_skipped`
+- `test_one_failed_is_not_treated_as_all_skipped`
+
 ### DEV_HOLD fixture claims (`/v2/fixture-claims/`)
 
 Local-dev TDD lets a developer lease a real fixture or a set of raw nodes for the duration of a development session. The lease is honored against concurrent scheduled work via the shared reservation gate at `services/fixtures/reservation.py`.

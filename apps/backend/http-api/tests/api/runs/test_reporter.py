@@ -717,6 +717,169 @@ class TestReportFinish:
         )
         assert resp.status_code == 401
 
+    # ----- P2.2: all-tests-skipped detection ----------------------------
+    #
+    # The v0.12.0 -> 0.12.3 silent-skew incident produced
+    # total>0, passed=0, failed=0, errors=0 every time the test package
+    # was incompatible with the deployed runner's corekinect. The pre-fix
+    # report_finish accepted that as COMPLETED. New contract: it's FAILED,
+    # with an operator-friendly errorMessage that names the remediation.
+    # See .claude/knowledge/workflows/version-skew.md case study 1.
+
+    def test_all_skipped_marks_run_failed(self, authed_client, mock_db):
+        """total>0 with zero passed/failed/errors → FAILED."""
+        mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
+        mock_db.runtarget.find_many.return_value = [_make_target()]
+
+        with patch("api.v2.runs.reporter._emit"):
+            with patch("api.v2.runs.reporter._process_queue"):
+                resp = authed_client.post(
+                    "/v2/runs/run-1/report/finish",
+                    data=json.dumps({
+                        "total": 126, "passed": 0, "failed": 0, "errors": 0,
+                    }),
+                )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["status"] == "FAILED", (
+            f"All-skipped run must be FAILED, not COMPLETED. body={body}"
+        )
+
+    def test_all_skipped_sets_operator_friendly_error_message(
+        self, authed_client, mock_db,
+    ):
+        """The errorMessage must name the count + the corectl remediation."""
+        mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
+        mock_db.runtarget.find_many.return_value = [_make_target()]
+
+        with patch("api.v2.runs.reporter._emit"):
+            with patch("api.v2.runs.reporter._process_queue"):
+                authed_client.post(
+                    "/v2/runs/run-1/report/finish",
+                    data=json.dumps({
+                        "total": 126, "passed": 0, "failed": 0, "errors": 0,
+                    }),
+                )
+
+        # Inspect the testrun.update call to confirm the message landed.
+        update_data = mock_db.testrun.update.call_args.kwargs["data"]
+        assert "errorMessage" in update_data, update_data
+        msg = update_data["errorMessage"]
+        # Must include the count so the operator sees scale.
+        assert "126" in msg, msg
+        # Must include the remediation command.
+        assert "corectl test refresh-framework" in msg or "refresh-framework" in msg, msg
+        # Must include the upload step.
+        assert "upload" in msg.lower(), msg
+        # Must explain "why" — most-likely cause.
+        assert "framework" in msg.lower() or "version mismatch" in msg.lower(), msg
+
+    def test_all_skipped_does_not_clobber_explicit_error_message(
+        self, authed_client, mock_db,
+    ):
+        """If the runner already sent a specific errorMessage, keep it.
+
+        The all-skipped pattern is a diagnostic of last resort. When the
+        runner had a better explanation (e.g., framework-constraint
+        gate refused with a precise message), don't overwrite it.
+        """
+        mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
+        mock_db.runtarget.find_many.return_value = [_make_target()]
+
+        explicit_msg = (
+            "Framework constraint '>=1.0' violated by runner corekinect 0.8.0"
+        )
+        with patch("api.v2.runs.reporter._emit"):
+            with patch("api.v2.runs.reporter._process_queue"):
+                authed_client.post(
+                    "/v2/runs/run-1/report/finish",
+                    data=json.dumps({
+                        "total": 126, "passed": 0, "failed": 0, "errors": 0,
+                        "errorMessage": explicit_msg,
+                    }),
+                )
+
+        update_data = mock_db.testrun.update.call_args.kwargs["data"]
+        assert update_data["errorMessage"] == explicit_msg, (
+            "Explicit errorMessage from the runner must not be replaced. "
+            f"Got: {update_data['errorMessage']!r}"
+        )
+        assert update_data["status"] == "FAILED"
+
+    def test_one_passed_is_not_treated_as_all_skipped(
+        self, authed_client, mock_db,
+    ):
+        """Control: at least one passed → COMPLETED, no override errorMessage."""
+        mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
+        mock_db.runtarget.find_many.return_value = [_make_target()]
+
+        with patch("api.v2.runs.reporter._emit"):
+            with patch("api.v2.runs.reporter._process_queue"):
+                authed_client.post(
+                    "/v2/runs/run-1/report/finish",
+                    data=json.dumps({
+                        "total": 5, "passed": 1, "failed": 0, "errors": 0,
+                    }),
+                )
+
+        update_data = mock_db.testrun.update.call_args.kwargs["data"]
+        assert update_data["status"] == "COMPLETED"
+        # No synthetic all-skipped errorMessage should have been added.
+        assert "errorMessage" not in update_data or not update_data.get(
+            "errorMessage"
+        ), f"Should not synthesize errorMessage when passed > 0: {update_data}"
+
+    def test_total_zero_is_not_treated_as_all_skipped(
+        self, authed_client, mock_db,
+    ):
+        """Control: total=0 (genuinely no tests collected) → COMPLETED.
+
+        Distinct from total>0 with no execution outcomes. A test app
+        with zero discoverable tests should not be flagged as the
+        all-skipped pathology.
+        """
+        mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
+        mock_db.runtarget.find_many.return_value = [_make_target()]
+
+        with patch("api.v2.runs.reporter._emit"):
+            with patch("api.v2.runs.reporter._process_queue"):
+                authed_client.post(
+                    "/v2/runs/run-1/report/finish",
+                    data=json.dumps({
+                        "total": 0, "passed": 0, "failed": 0, "errors": 0,
+                    }),
+                )
+
+        update_data = mock_db.testrun.update.call_args.kwargs["data"]
+        assert update_data["status"] == "COMPLETED"
+        assert "errorMessage" not in update_data or not update_data.get(
+            "errorMessage"
+        ), f"Should not synthesize errorMessage when total == 0: {update_data}"
+
+    def test_one_failed_is_not_treated_as_all_skipped(
+        self, authed_client, mock_db,
+    ):
+        """Control: at least one failed → FAILED (already the existing path)."""
+        mock_db.testrun.find_unique.return_value = _make_run(fixtureId=None)
+        mock_db.runtarget.find_many.return_value = [_make_target()]
+
+        with patch("api.v2.runs.reporter._emit"):
+            with patch("api.v2.runs.reporter._process_queue"):
+                authed_client.post(
+                    "/v2/runs/run-1/report/finish",
+                    data=json.dumps({
+                        "total": 5, "passed": 0, "failed": 1, "errors": 0,
+                    }),
+                )
+
+        update_data = mock_db.testrun.update.call_args.kwargs["data"]
+        assert update_data["status"] == "FAILED"
+        # No synthetic all-skipped message — there's a real failure here.
+        assert "errorMessage" not in update_data or not update_data.get(
+            "errorMessage"
+        ), f"Should not synthesize errorMessage when failed > 0: {update_data}"
+
 
 # ---------------------------------------------------------------------------
 # POST /v2/runs/<id>/report/log-chunk (routed to logs.report_log_chunk)
