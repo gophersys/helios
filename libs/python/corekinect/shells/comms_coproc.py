@@ -463,9 +463,25 @@ class CommsCoprocShell:
         Returns:
             (data, error)
         """
+        # success_patterns intentionally None: the firmware emits
+        # ``Reading %d bytes from address: 0x%x`` BEFORE the underlying
+        # SPI flash_read() runs, then the hex-dump, then the prompt.
+        # If we put "Reading" / "bytes from address" / a prompt into
+        # success_patterns, ShellCommander.send() arms its 3 s fallback
+        # the moment the prologue line lands and returns BEFORE the
+        # actual hex-dump arrives whenever the read is slow (on the
+        # nRF9151 comms processor under LTE modem load this happens
+        # every time — see run cmpnbxt5y on panel 0AW2 where every
+        # slot failed with ``Failed to parse hex data from:
+        # ['Reading 8 bytes from address: 0x0']``).
+        #
+        # With no success_patterns, ``send()`` waits for the prompt
+        # line — which the firmware prints AFTER ``shell_hexdump``
+        # completes. The full read response is then in ``lines`` and
+        # the hex parser below has data to work on.
         lines, err = self._cmd.send(
             f"read_ext_flash {_hex_addr(address)} {num_bytes}",
-            success_patterns=["Reading", "Mfg shell:", "Comms Mfg:", "bytes from address"],
+            success_patterns=None,
             timeout_s=timeout_s,
         )
         # If send() timed out but there's data in the buffer, try parsing it

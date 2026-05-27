@@ -360,14 +360,19 @@ class Sigma5AppShell:
         Returns:
             (data, error)
         """
+        # success_patterns intentionally None: the firmware emits
+        # ``Reading %d bytes from address: 0x%x`` BEFORE the underlying
+        # SPI flash_read() runs, then the hex-dump, then the prompt.
+        # Including "Reading" / "bytes from address" in success_patterns
+        # arms ShellCommander.send()'s 3 s fallback the instant the
+        # prologue lands — so when flash_read takes longer than 3 s
+        # (the comms processor under LTE modem load hits this every
+        # time; the app processor only on edge cases) ``send()``
+        # returns BEFORE the hex-dump has been buffered. Waiting for
+        # the prompt instead lets the full response settle first.
         lines, err = self._cmd.send(
             f"read_ext_flash {hex_addr(address)} {num_bytes}",
-            success_patterns=[
-                "Reading",
-                "bytes from address",
-                "Flash read failed",
-                "must be ablt to fit",
-            ],
+            success_patterns=None,
             timeout_s=timeout_s,
         )
         # If send() timed out but UART may still have buffered data,
