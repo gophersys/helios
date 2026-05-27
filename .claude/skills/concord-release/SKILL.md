@@ -39,6 +39,7 @@ the release is incomplete — continue work until all boxes pass.
 [ ] corectl + corekinect wheels published to PRODUCTION pypi (only the bumped ones)
 [ ] **If corekinect bumped: production http-api/runner image rebuilt and rolled**
 [ ] Production release record exists in DB (with corectlMinVersion + corekinectVersion populated)
+[ ] **Phase 11 — Test-app refresh sweep run (every entry in .claude/known-test-apps.yaml refreshed + re-uploaded)** — Phase D Layer 5
 [ ] Resolved bugs linked (or user confirmed "none") in both environments
 ```
 
@@ -862,7 +863,121 @@ They have separate databases, separate JWT secrets, and separate user IDs.
 Do not batch the POSTs together at the end — each deploy pairs with its own
 record creation immediately.
 
-## Phase 11 — Link resolved bugs (MANDATORY)
+## Phase 11 — Test-app refresh sweep (Phase D Layer 5)
+
+**Run this step whenever the release touched corekinect, protocols/mtib,
+or corectl** (i.e., the Phase 0 hook flagged any of those, or the Phase
+0.5 auditor identified scaffold-affecting changes). Skip ONLY when the
+release was a pure backend/frontend/deploy change with no impact on the
+test app scaffold.
+
+This phase closes the gap that bit us on 2026-05-26 (see case study #4
+in [`.claude/knowledge/workflows/version-skew.md`](../../knowledge/workflows/version-skew.md)):
+the runtime safety gates (Layers 1-4) pass even when the test apps'
+`.claude/rules/`, `.claude/skills/`, `.devcontainer/`, and corectl
+validator templates have drifted from the canonical templates. The
+drift accumulates silently across releases until a contract tightens
+and unrelated uploads break. Operators forget to refresh because at
+runtime "the framework constraint is still satisfied" — true, but the
+scaffold rots.
+
+### Step 1: Load the manifest
+
+```bash
+MANIFEST=.claude/known-test-apps.yaml
+test -f "$MANIFEST" || {
+  echo "Manifest missing — Phase 11 cannot run. See $MANIFEST header"
+  echo "for discovery instructions, or add --skip-test-app-refresh"
+  echo "if this release genuinely doesn't touch the scaffold."
+  exit 1
+}
+```
+
+If `--skip-test-app-refresh` was supplied AND the user confirmed the
+skip is intentional, log a loud-warn banner and proceed to Phase 12.
+
+### Step 2: For each entry, refresh + commit + push + re-upload
+
+Iterate every entry in the manifest. For each one:
+
+```bash
+# Example: sigma5_validation
+cd /home/<user>/work/validation/sigma5_validation
+
+# 2a. Pull latest main so we're not refreshing onto a stale branch
+git checkout main
+git pull origin main
+
+# 2b. Pull the new corectl templates into the test app
+corectl test update --apply
+
+# 2c. Validate that the refresh produced a coherent app
+corectl test validate
+
+# 2d. Commit and push the scaffold refresh
+git add -A
+git commit -m "chore: refresh framework artifacts to corectl X.Y.Z [no-arch-change]"
+git push origin main
+
+# 2e. Re-upload the test package so the runner picks up the fresh scaffold
+corectl test upload -m "Refresh for corekinect X.Y.Z (concord vX.Y.Z release)"
+```
+
+The release ID in step 2e's message is the production release record
+from Phase 10.3 — Phase 11 runs AFTER both staging and production
+deploys are complete, so both ends of the wire are on the new version.
+
+### Step 3: Halt on any failure
+
+If `corectl test validate`, `git push`, or `corectl test upload` fails
+for any test app:
+
+1. **Halt the release.** Do NOT proceed to Phase 12 with a partially-
+   refreshed fleet — that leaves some test apps on the new scaffold and
+   others on the old, which is worse than the all-old starting state.
+2. **Inspect the failure** in that specific test app. Common causes:
+   - `corectl test update --apply` introduced a conflicting change in
+     a template the test app has customized → reconcile manually.
+   - `corectl test validate` flagged a contract that the test app
+     never satisfied, even on the old templates → file a defect against
+     the test app, not corectl.
+   - `git push` rejected because main moved → fetch, rebase, retry.
+3. **Resume from the failed entry.** Phase 11 is idempotent per-app —
+   re-running it on already-refreshed apps is a no-op (the commit
+   step finds nothing to commit).
+
+### Escape: `--skip-test-app-refresh`
+
+For releases that genuinely have no scaffold impact (e.g., a hot-fix
+to `apps/backend/http-api/` that does not touch corekinect, protocols,
+or corectl), pass `--skip-test-app-refresh`. The skill logs a loud
+banner:
+
+```
+[ Phase 11 SKIPPED via --skip-test-app-refresh ]
+Reason: release range does not touch corekinect/protocols/corectl
+Operator: <name>
+Time: <ISO timestamp>
+```
+
+Never use this flag to "ship faster" on a corekinect/corectl/protocols
+release. The whole point of Layer 5 is that operators always think
+"the constraint is still satisfied" and defer the refresh — that
+deferral IS the bug.
+
+### Definition of done for Phase 11
+
+- Every entry in `.claude/known-test-apps.yaml` either:
+  - has a fresh `chore: refresh framework artifacts to corectl X.Y.Z`
+    commit on its `main` branch dated within this release window, OR
+  - was logged as missing-on-host (operator must refresh elsewhere or
+    confirm intentional skip), OR
+  - was logged as skipped via `--skip-test-app-refresh` with a
+    documented reason
+- A new test package upload exists in the backend for every refreshed
+  app (visible via `corectl test list`)
+
+## Phase 12 — Link resolved bugs (MANDATORY)
 
 **Always run this step.** Query open/acknowledged error reports and ask the
 user which ones this release fixes. Linking is the canonical close-loop:

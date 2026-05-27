@@ -90,10 +90,14 @@ Read these before producing the report:
    auditing against
 2. `.claude/knowledge/workflows/version-skew.md` — the case studies
    that show how violations manifest
-3. `.claude/knowledge/deploy/runner.md` — Phase D's four layers in
-   detail
+3. `.claude/knowledge/deploy/runner.md` — Phase D's enforcement
+   layers in detail
 4. `.claude/skills/concord-release/SKILL.md` — what comes AFTER your
    audit, so your report can reference the right Phase number
+5. `.claude/known-test-apps.yaml` — the Phase D Layer 5 manifest of
+   test apps that get swept on every corekinect/protocols/corectl
+   release. Required when populating the "Test apps to refresh"
+   section of the report.
 
 You do NOT need to read every per-app knowledge file. Read the
 specific app's knowledge ONLY when the diff touches that app.
@@ -161,6 +165,28 @@ specific app's knowledge ONLY when the diff touches that app.
    - <artifact>: <action> — <command if any> — <Phase D layer if any>
    ...
 
+   #### Test apps to refresh (Phase D Layer 5)
+   Emit this section if and only if corekinect, protocols, or corectl
+   appeared in "Changes by kind". For each entry in
+   .claude/known-test-apps.yaml:
+   - <name> (<type>, product=<slug>)
+       path: <path>  (HEAD <short-sha>)
+       last framework refresh: <commit subject / date — see workflow
+         below; "unknown" if no matching commit was found in the
+         repo's history>
+       status: <up-to-date | drifted | unknown>
+       action: cd <path> && corectl test update --apply &&
+               corectl test validate && git push && corectl test upload
+
+   To find the last framework refresh for a test app, search its git
+   log for the conventional refresh commit subject pattern:
+
+       git -C <path> log --oneline -20 --grep="refresh framework artifacts"
+
+   The most recent matching commit's "corectl X.Y.Z" version is what
+   that test app was last refreshed to. Compare against the corectl
+   version this release is publishing — if older, mark drifted.
+
    #### Verifications to run before Phase 1
    - <specific verification step>
    - <another>
@@ -203,9 +229,11 @@ your output verbatim into its turn output.
 ## Related
 
 - `.claude/rules/version-coupling.md` — the contracts
+- `.claude/known-test-apps.yaml` — the Phase D Layer 5 manifest
 - `.claude/knowledge/workflows/version-skew.md` — case studies
 - `.claude/knowledge/deploy/runner.md` — Phase D layer design
 - `.claude/hooks/pre-release` — the coarser Phase 0 instrumentation
   that runs immediately before you
 - `.claude/skills/concord-release/SKILL.md` — the skill that spawns
-  you in Phase 0.5
+  you in Phase 0.5; the Phase 11 sweep consumes the manifest your
+  audit cross-references

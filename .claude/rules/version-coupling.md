@@ -19,12 +19,18 @@ purpose — the full incident reasoning lives in
 ## Quick reference
 
 ```
-libs/python/corekinect/   →  test-runner image rebuild, test apps re-upload (if framework constraint changed)
-libs/protocols/mtib/      →  test-runner rebuild, mtib-server image rebuild
-tools/corectl/            →  wheel publish (per-env pypi), test-runner rebuild, dev hosts run `corectl upgrade`
+libs/python/corekinect/   →  test-runner image rebuild, ALL test apps refresh + re-upload (.claude/known-test-apps.yaml)
+libs/protocols/mtib/      →  test-runner rebuild, mtib-server image rebuild, ALL test apps refresh + re-upload
+tools/corectl/            →  wheel publish (per-env pypi), test-runner rebuild, dev hosts run `corectl upgrade`, ALL test apps refresh + re-upload
 prisma/schema.prisma      →  forward migration, Python client regen, frontend models.ts mirror, knowledge files
 deploy/{helm,ctl-sh,...}  →  all-three-envs rule (dev compose, staging values, production values)
 ```
+
+The "ALL test apps refresh + re-upload" sweep is enforced by Phase D
+Layer 5: the manifest [`.claude/known-test-apps.yaml`](../known-test-apps.yaml)
+is swept by `/concord-release` Phase 11. See case study #4 in
+[`workflows/version-skew.md`](../knowledge/workflows/version-skew.md)
+for the incident that motivated this layer.
 
 ## The contracts
 
@@ -43,7 +49,21 @@ deploy/{helm,ctl-sh,...}  →  all-three-envs rule (dev compose, staging values,
    `package.framework` constraint in `concord.yaml` would no longer
    satisfy the new corekinect version. Most active test packages
    (e.g., sigma5_manufacturing's `dev-99490cd3-1779845120`) declare
-   permissive constraints like `">=0.9.0"` and don't need re-upload.
+   permissive constraints like `">=0.9.0"` and don't need re-upload
+   for the runtime safety check to pass.
+4. **Refresh and re-upload EVERY test app in
+   [`.claude/known-test-apps.yaml`](../known-test-apps.yaml) — even
+   if the framework constraint still satisfies.** This is a scaffold-
+   drift sweep, NOT a runtime safety check. The test apps'
+   `.claude/rules/`, `.claude/skills/`, `.devcontainer/`, and corectl
+   validator templates fall behind silently over many releases.
+   Operators forget because "the constraint is still satisfied" at
+   runtime — true, but the scaffold drift accumulates until
+   `corectl test validate` starts failing on a release that didn't
+   touch the test app at all. Enforcement: `/concord-release` Phase
+   11 sweeps every entry automatically; the pre-release hook (Phase
+   0) lists them upfront so the operator can plan. Escape:
+   `--skip-test-app-refresh` (loud-warn).
 
 **Enforcement layers (Phase D, branch `chore/enforce-runner-corekinect-coupling`):**
 
@@ -63,6 +83,13 @@ deploy/{helm,ctl-sh,...}  →  all-three-envs rule (dev compose, staging values,
   the runner pod between extract and pytest. PEP 440 specifier check
   of `package.framework` vs `corekinect.__version__`. Escape:
   `CONCORD_FORCE_STALE_PACKAGE=1`.
+- **Layer 5** — [`.claude/known-test-apps.yaml`](../known-test-apps.yaml)
+  manifest swept by `/concord-release` Phase 11. Refreshes every
+  listed test app's framework artifacts (rules, skills, devcontainer,
+  validator templates) and re-uploads, even if Layer 4 would
+  pass at runtime. Closes the scaffold-drift gap — see case study #4
+  in [`workflows/version-skew.md`](../knowledge/workflows/version-skew.md).
+  Escape: `--skip-test-app-refresh`.
 
 **Knowledge:** [`deploy/runner.md`](../knowledge/deploy/runner.md) has the full design.
 
@@ -111,6 +138,16 @@ deploy/{helm,ctl-sh,...}  →  all-three-envs rule (dev compose, staging values,
    `corectl test refresh-framework`).
 4. **Notify dev hosts** that `corectl upgrade` is recommended. This is
    surfaced by corectl's own `--version` self-check against pypi.
+5. **Refresh and re-upload EVERY test app in
+   [`.claude/known-test-apps.yaml`](../known-test-apps.yaml).** Same
+   reasoning as contract #1: corectl ships the framework artifact
+   templates (`.claude/rules/`, `.claude/skills/`, validator schemas).
+   When corectl bumps, those templates need to propagate downstream
+   even if no individual test fails today — otherwise the scaffold
+   drifts until a future release tightens a contract and unrelated
+   uploads start failing. Enforcement: `/concord-release` Phase 11
+   sweeps every entry; pre-release hook (Phase 0) lists them upfront.
+   Escape: `--skip-test-app-refresh` (loud-warn).
 
 **Enforcement layers:**
 
@@ -118,6 +155,9 @@ deploy/{helm,ctl-sh,...}  →  all-three-envs rule (dev compose, staging values,
   `implicitDependencies`).
 - Wheel publish step is gated by Phase 4 (Version bump) and Phase 9.2
   (Build + publish wheels) of `/concord-release`.
+- Layer 5 (Phase 11 test-app sweep, manifest at
+  [`.claude/known-test-apps.yaml`](../known-test-apps.yaml)) closes
+  the template-propagation gap.
 
 **Knowledge:** [`tools/corectl.md`](../knowledge/tools/corectl.md).
 
@@ -203,7 +243,8 @@ file keeps the coupling map honest.
 ## Related
 
 - [`workflows/version-skew.md`](../knowledge/workflows/version-skew.md) — case studies of what went wrong when these contracts were violated.
-- [`deploy/runner.md`](../knowledge/deploy/runner.md) — Phase D's four-layer enforcement of contracts #1-3.
+- [`deploy/runner.md`](../knowledge/deploy/runner.md) — Phase D's five-layer enforcement of contracts #1-3.
+- [`known-test-apps.yaml`](../known-test-apps.yaml) — the Layer 5 manifest of test apps swept by `/concord-release` Phase 11.
 - [`prisma-flow.md`](prisma-flow.md) — full prisma sequence.
 - [`all-three-envs.md`](all-three-envs.md) — three-environment discipline.
 - [`update-knowledge-on-change.md`](update-knowledge-on-change.md) — the parent rule that says "knowledge updates in the same commit as code."

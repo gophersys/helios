@@ -293,6 +293,135 @@ What to do:
 
 ---
 
+## Case study 4 — Test-app scaffold drift
+
+### Symptom
+
+Across multiple concord releases (v0.10 → v0.12), the test apps'
+framework artifacts — `.claude/rules/`, `.claude/skills/`,
+`.devcontainer/`, and the corectl-shipped validator templates —
+fell behind the canonical templates in `tools/corectl/templates/`.
+No individual release "broke" any test app. Every release passed
+Phase D Layers 1-4 cleanly. `corectl test validate` kept passing.
+The runtime framework-constraint gate (Layer 4) kept letting test
+packages run because constraints like `framework: ">=0.9.0"` are
+permissive by design.
+
+But the scaffold rotted. By 2026-05-26, sigma5_validation's
+`.claude/skills/` was carrying obsolete skill files for tooling that
+no longer existed in corectl, the devcontainer pinned a Zephyr SDK
+two minor versions behind the canonical template, and the validator
+schema in the local copy lagged a contract that the platform had
+quietly tightened. A re-onboarding developer hit confusing failures
+and the team had to spend an hour reconciling drift that had been
+accumulating across ~15 releases.
+
+### Root cause
+
+The concord release flow had four enforcement layers for runtime
+correctness (Phase D Layers 1-4) but **zero enforcement for
+scaffold freshness**. Refresh was a separate manual step:
+`cd <test-app> && corectl test update --apply && git push &&
+corectl test upload`. Operators correctly reasoned that because the
+runtime constraint was still satisfied, the refresh was "optional"
+— so they deferred it. Each individual deferral was harmless; the
+sum across ~15 releases was not.
+
+A previous agent on 2026-05-26 night explicitly chose not to refresh
+sigma5_validation, with the (technically correct) reasoning:
+
+> "The framework constraint is still satisfied — at runtime, the
+>  runner pod will load the package fine. The refresh can wait."
+
+True at runtime. False as a maintenance discipline. By the next
+release that tightened any contract, the cumulative scaffold drift
+caused unrelated uploads to fail validate, and the team had to do
+in one painful release what should have been ~15 cheap refreshes.
+
+### Failure shape
+
+Three things made this slow-burn skew possible:
+
+1. **The runtime gates (Layers 1-4) only fire on runtime failure.**
+   They are correct, but they only catch the moment the platform
+   refuses to run. Scaffold drift is a maintenance failure, not a
+   runtime failure.
+2. **The release flow had no enumeration of test apps.** The
+   `/concord-release` skill listed corekinect/corectl/protocols as
+   things that needed downstream attention, but did not name the
+   specific apps that needed re-uploading. Without a manifest, the
+   operator had to remember which apps existed.
+3. **The pre-release hook surfaced the coupling generically** ("test
+   apps may need re-upload IF constraint changed") instead of
+   naming every app and printing the remediation command.
+
+### Prevention layers (Phase D Layer 5)
+
+- **Layer 5** — `.claude/known-test-apps.yaml` is the authoritative
+  registry of test apps that consume corekinect/protocols/corectl.
+  Swept on every release by `/concord-release` Phase 11 (refresh +
+  re-upload). Pre-release hook (Phase 0) enumerates the apps upfront
+  so the operator sees the work before Phase 1. The release-impact
+  auditor (Phase 0.5) cross-references each app's git log for
+  `chore: refresh framework artifacts to corectl X.Y.Z` commits to
+  flag drifted apps. Code:
+  [`.claude/known-test-apps.yaml`](../../known-test-apps.yaml),
+  [`.claude/hooks/pre-release`](../../hooks/pre-release),
+  [`.claude/skills/concord-release/SKILL.md`](../../skills/concord-release/SKILL.md)
+  Phase 11.
+- Escape: `--skip-test-app-refresh` (loud-warn). Use only when the
+  release truly has no scaffold impact.
+
+### What an agent should do when they see this shape
+
+Symptoms:
+
+- `corectl test validate` failing on a test app that "wasn't touched"
+  in the release range.
+- Manual reconciliation of `.claude/rules/`, `.claude/skills/`,
+  `.devcontainer/`, or validator schemas across multiple test apps
+  in one painful sitting.
+- The phrase "the constraint is still satisfied" appearing in the
+  release notes as justification for skipping a refresh.
+
+What to do:
+
+1. **Sweep every entry in `.claude/known-test-apps.yaml` now.** Run
+   the Phase 11 sequence for each app:
+   `cd <path> && corectl test update --apply && corectl test validate
+   && git push && corectl test upload`.
+2. **Do not defer.** If the apps are drifted, the refresh produces a
+   `chore: refresh framework artifacts to corectl X.Y.Z` commit. If
+   they are not drifted, the refresh is a near-no-op (no scaffold
+   changes, but the `corectl test upload` still uploads a fresh
+   build, which is what the runner pod needs to pick up).
+3. **Update the manifest** if you discover a test app that isn't
+   listed. The discovery command is:
+   `find /home/<user>/work/manufacturing /home/<user>/work/validation
+   -maxdepth 3 -name concord.yaml`.
+
+### What NOT to do
+
+- **Do not defer the refresh** with the reasoning "the framework
+  constraint is still satisfied." That is the exact phrase that
+  motivated this case study — the reasoning is technically true at
+  runtime but operationally toxic over many releases.
+- **Do not mass-edit the test apps' `.claude/` directories by hand**
+  to "catch them up." `corectl test update --apply` is the canonical
+  refresh path; manual edits will drift again on the next release.
+- **Do not remove entries from `.claude/known-test-apps.yaml`**
+  because "we haven't released that product in a while." If the app
+  exists in `manufacturing/` or `validation/`, it gets refreshed.
+  If the app is genuinely end-of-life, remove it AND archive the
+  repo in the same commit.
+- **Do not use `--skip-test-app-refresh` to ship faster** on a
+  release that touches corekinect, protocols, or corectl. That flag
+  exists for releases that genuinely have no scaffold impact (e.g.,
+  http-api-only hot-fix). Using it to skip a real sweep recreates
+  exactly the drift this layer was built to prevent.
+
+---
+
 ## Cross-cutting prevention pattern
 
 All three case studies share a pattern: **silence is the failure
