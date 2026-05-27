@@ -24,7 +24,8 @@ Each backend app (`http-api`, `git-poller`, `build-service`) and the frontends h
 | Target | Configurations | Underlying command | Notes |
 |---|---|---|---|
 | `start` | `development` (default), `staging`, `production` | `bash deploy/ctl.sh <env> start` | Full 0→running. `dependsOn: env:preflight`. |
-| `update` | `development` (default), `staging`, `production` | `bash deploy/ctl.sh <env> update` | Fast rebuild + redeploy. `forwardAllArgs: true` so `--sync-secrets` reaches `ctl.sh`. `dependsOn: env:preflight`. |
+| `update` | `development` (default), `staging`, `production` | `bash deploy/ctl.sh <env> update` (staging + production also chain `bash scripts/record-release.sh <env>`) | Fast rebuild + redeploy. `forwardAllArgs: true` so `--sync-secrets` reaches `ctl.sh`. `dependsOn: env:preflight`. Since v0.12.13 the staging + production configurations also run `scripts/record-release.sh` after `ctl.sh update` returns so the env's `releases` table reflects every deploy — closes the 2026-05-27 gap where 0.12.6 through 0.12.12 deploys never showed up in the UI's /releases page. |
+| `record-release` | `staging`, `production` | `bash scripts/record-release.sh <env>` | Standalone re-run of the release-record POST for the current `VERSION`. Use when a deploy was made out-of-band (e.g., direct `ctl.sh` invocation) and the record never landed. Idempotent — POSTs, falls back to PATCH on 409. |
 | `stop` | `development` (default), `staging`, `production` | `bash deploy/ctl.sh <env> stop` | Production refuses without `--confirm-delete`. |
 | `ready` | (no configs) | `bash deploy/ctl.sh development ready` | Re-migrate + re-seed dev DB without bouncing containers. |
 | `status` | `development` (default), `staging`, `production` | `bash deploy/ctl.sh <env> status` | Compose `ps` for dev; `kubectl get pods,svc` for K8s. |
@@ -61,7 +62,38 @@ nx stop platform -c production -- --confirm-delete
 # Operations
 nx run platform:status -c staging            # pods + services
 nx logs platform -c staging                  # not a target — use `kubectl logs` or run ctl.sh directly
+
+# Release record (auto-fires after nx update; this is the manual re-run)
+nx run platform:record-release -c production
 ```
+
+### `record-release` — auto-paired with every deploy
+
+`scripts/record-release.sh <env>` runs automatically after every
+`nx update platform -c {staging,production}` because the `update`
+target's configuration chains them sequentially:
+
+```json
+"staging": {
+  "commands": [
+    "bash deploy/ctl.sh staging update",
+    "bash scripts/record-release.sh staging"
+  ],
+  "parallel": false
+}
+```
+
+What it does:
+
+1. Reads `VERSION`, `git rev-parse HEAD`, `git rev-parse --abbrev-ref HEAD`. Falls back to `.git-build-info` if `git` is unavailable inside the devcontainer (submodule layout).
+2. Looks up the previous version from `releases.createdAt DESC` and builds a changelog from `git log <prev>..HEAD`.
+3. Picks the http-api pod, mints a JWT inside it using `JWT_SECRET_KEY` with `role: "ADMIN"` for the release-recorder user (`RELEASE_RECORDER_USER_ID` env var on the http-api Deployment; falls back to `mateo@corekinect.com`).
+4. POSTs `/v2/releases`. On 409 (version already exists) PATCHes the existing row so re-runs are idempotent.
+5. Verifies the top of the `releases` table matches `<VERSION>|RELEASED`.
+
+Escape hatch: `CONCORD_SKIP_RELEASE_RECORD=1` skips the script (use only when you're intentionally deploying without recording — e.g., the deploy itself is being tested).
+
+This contract closes the 2026-05-27 incident where `0.12.6` through `0.12.12` deploys all landed in production without ever creating a release record, because operators ran `nx update platform -c production` directly instead of going through `/concord-release` Phase 11.
 
 ## `deploy-ci` target catalog
 

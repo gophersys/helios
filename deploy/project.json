@@ -39,10 +39,33 @@
           "command": "bash deploy/ctl.sh development update"
         },
         "staging": {
-          "command": "bash deploy/ctl.sh staging update"
+          "commands": [
+            "bash deploy/ctl.sh staging update",
+            "bash scripts/record-release.sh staging"
+          ],
+          "parallel": false
         },
         "production": {
-          "command": "bash deploy/ctl.sh production update"
+          "commands": [
+            "bash deploy/ctl.sh production update",
+            "bash scripts/record-release.sh production"
+          ],
+          "parallel": false
+        }
+      }
+    },
+
+    "record-release": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "staging": {
+          "command": "bash scripts/record-release.sh staging"
+        },
+        "production": {
+          "command": "bash scripts/record-release.sh production"
         }
       }
     },
