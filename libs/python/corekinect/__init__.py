@@ -13,7 +13,7 @@ Subpackages:
     corekinect.shells      — Device shell command interfaces
 """
 
-__version__ = "0.12.9"
+__version__ = "0.12.10"
 
 # ── Errors ──
 from .errors import (

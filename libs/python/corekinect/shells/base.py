@@ -356,19 +356,46 @@ class ShellCommander:
         deadline = time.time() + timeout_s
         echo_pos: Optional[int] = None  # index of THIS command's echo in text
         pattern_found_time = None
-        # Echo-loss retry: if the gRPC pump fragments our write so the
-        # firmware never sees a complete line (run cmpoen8zu on panel
-        # 0AW2: slot-0 got ``Mfg shell: get_chip_id`` with the trailing
-        # ``s\\r`` chopped, no execution, hence 30 s timeout waiting
-        # for ``BLE MAC:``), the shell will sit silent forever. Re-write
-        # the command every 4 s while we still have budget so the second
-        # attempt's frame boundaries differ from the first's and at
-        # least one lands intact.
+        # Progress-based retry. Run cmpof4qs9 on panel 0AW2 captured the
+        # exact failure: ``Mfg shell: get_chip_id`` arrived with the
+        # ``s\\r`` chopped by gRPC frame fragmentation. The shell
+        # buffered the partial line and waited for the missing \\r.
+        # Our rfind found ``get_chip_id`` as the echo (echo_pos=49) but
+        # ``BLE MAC:`` never appears in post_echo because the firmware
+        # never executed the command. The old retry was gated on
+        # ``echo_pos is None`` — a partial echo defeated it.
+        #
+        # New rule: every 4 s of no-progress (no success pattern after
+        # echo, OR no echo at all), re-write the command AND clear our
+        # echo lock so the next echo we see is the fresh one. Capped at
+        # 4 rewrites to bound the firmware's command-queue depth.
+        last_progress_at = time.time()
         next_rewrite_at = time.time() + 4.0
         rewrites = 0
 
         while time.time() < deadline:
             text = self._stream.get_text()
+
+            # Progress check: if neither echo nor success pattern advanced
+            # in the last 4 s, re-issue the command. Different frame
+            # boundaries on the retry mean at least one write lands
+            # intact.
+            now = time.time()
+            stalled = now >= next_rewrite_at
+            if (
+                stalled
+                and rewrites < 4
+                and (deadline - now) > 1.0
+                and pattern_found_time is None
+            ):
+                self._stream.write(wire_command)
+                rewrites += 1
+                next_rewrite_at = now + 4.0
+                # Reset echo lock so we find the NEW echo after this
+                # retry, not the stale partial echo from the previous
+                # attempt. Without this, post_echo stays anchored to
+                # the chopped echo forever.
+                echo_pos = None
 
             # Step 1: Wait for echo (proves device received command).
             # Record the echo position so subsequent pattern/prompt
@@ -381,19 +408,8 @@ class ShellCommander:
                 idx = text.rfind(echo_check)
                 if idx >= 0:
                     echo_pos = idx
+                    last_progress_at = now
                 else:
-                    # No echo yet. If 4 s have passed since the last
-                    # write and we still have budget, re-issue. Capped
-                    # at 4 rewrites to bound the firmware's command-
-                    # queue depth.
-                    if (
-                        rewrites < 4
-                        and time.time() >= next_rewrite_at
-                        and (deadline - time.time()) > 1.0
-                    ):
-                        self._stream.write(wire_command)
-                        rewrites += 1
-                        next_rewrite_at = time.time() + 4.0
                     self._stream._data_event.clear()
                     self._stream._data_event.wait(timeout=0.05)
                     continue
