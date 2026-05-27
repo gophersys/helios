@@ -301,6 +301,17 @@ class ShellCommander:
         Clears buffer, sends command, watches buffer fill at ~50Hz.
         Pattern matching runs on ANSI-stripped accumulated text.
 
+        The buffer is double-cleared then settled-and-cleared a third time
+        so a slow trailing prompt from the *previous* command (still in
+        flight on the wire when ``clear()`` ran) can't masquerade as the
+        prompt for THIS command. Beyond the clears, success-pattern and
+        prompt matching are scoped to the substring AFTER our own command
+        echo — a stale prompt arriving in between clear() and the echo is
+        ignored. Without that scoping, e.g. ``read_ext_flash`` issued right
+        after ``write_ext_flash`` (whose 64-byte hex-dump is still draining)
+        sees the write's trailing prompt the instant the read echo arrives
+        and returns the write's tail rows as the read's data.
+
         Returns:
             (lines, error) — clean response lines. error is None on success.
         """
@@ -312,7 +323,16 @@ class ShellCommander:
         if err is not None:
             return [], f"Stream dead ({err})"
 
-        # Double-clear: flush any in-flight data, brief settle, flush again
+        # Triple-clear with settles between: each pass eats whatever
+        # arrived during the previous settle. Two clears (the old shape)
+        # only drained data that was already buffered; a slow prompt
+        # arriving 100–300 ms after the previous command finished its
+        # SPI work would land between clear #2 and the new echo, fooling
+        # the prompt-match below. Three passes with 50 ms settles cover
+        # the observed cadence in failed runs (see run cmpob5vz on panel
+        # 0AW6, test_13 slot-0).
+        self._stream.clear()
+        time.sleep(0.05)
         self._stream.clear()
         time.sleep(0.05)
         self._stream.clear()
@@ -326,48 +346,62 @@ class ShellCommander:
         cmd_token = command.split()[0]
         echo_check = cmd_token[:-1] if len(cmd_token) > 3 else cmd_token
         deadline = time.time() + timeout_s
-        echo_seen = False
+        echo_pos: Optional[int] = None  # index of THIS command's echo in text
         pattern_found_time = None
 
         while time.time() < deadline:
             text = self._stream.get_text()
 
-            # Step 1: Wait for echo (proves device received command)
-            if not echo_seen:
-                if echo_check in text:
-                    echo_seen = True
+            # Step 1: Wait for echo (proves device received command).
+            # Record the echo position so subsequent pattern/prompt
+            # matching only considers bytes that arrived after it. We
+            # rfind() so the LAST occurrence wins — if the previous
+            # command happened to contain ``cmd_token`` (unlikely but
+            # possible for repeated commands like a re-send), we still
+            # latch onto OUR echo, not the previous one.
+            if echo_pos is None:
+                idx = text.rfind(echo_check)
+                if idx >= 0:
+                    echo_pos = idx
                 else:
                     self._stream._data_event.clear()
                     self._stream._data_event.wait(timeout=0.05)
                     continue
 
+            # Everything we care about lives after the echo. Slicing
+            # here is what blocks a stale ``Mfg shell:`` prompt — left
+            # behind by the previous command's late drain — from being
+            # accepted as THIS command's terminator.
+            post_echo = text[echo_pos:]
+
             # Step 2: Check success patterns (only after echo)
             if success_patterns and not pattern_found_time:
                 for p in success_patterns:
-                    if p in text:
+                    if p in post_echo:
                         pattern_found_time = time.time()
                         break
 
             # Step 3: Exit conditions
             if pattern_found_time:
                 # Pattern found — wait for prompt or 3s fallback
-                if any(p in text for p in _PROMPT_PATTERNS):
+                if any(p in post_echo for p in _PROMPT_PATTERNS):
                     return self._clean(text, cmd_token), None
                 if time.time() - pattern_found_time > 3.0:
                     return self._clean(text, cmd_token), None
             elif not success_patterns:
                 # No patterns required — just wait for prompt
-                if any(p in text for p in _PROMPT_PATTERNS):
+                if any(p in post_echo for p in _PROMPT_PATTERNS):
                     return self._clean(text, cmd_token), None
 
             self._stream._data_event.clear()
             self._stream._data_event.wait(timeout=0.05)
 
-        # Timeout — final check
+        # Timeout — final check (still post-echo if we ever saw it).
         text = self._stream.get_text()
+        scope = text[echo_pos:] if echo_pos is not None else text
         if success_patterns:
             for p in success_patterns:
-                if p in text:
+                if p in scope:
                     return self._clean(text, cmd_token), None
         alive = "alive" if self._stream.is_alive else f"DEAD({self._stream.last_error})"
         return [], f"Timeout ({timeout_s}s) stream={alive} rx={self._stream.rx_bytes}B. Got: {text[:300]}"
@@ -420,35 +454,56 @@ class ShellCommander:
     def lock(self, timeout_s: float = 120.0) -> bool:
         """Lock manufacturing shell.
 
-        Sends ONE lock_shell command, then watches the buffer for up to
-        timeout_s. Minimizes TX messages to avoid degrading HTTP/2 stream
-        throughput on the embedded gRPC server (even a handful of TX
-        messages can permanently drop throughput to ~3 B/s).
+        Spams ``lock_shell`` at a 200 ms cadence for the first
+        ``min(timeout_s, 6.0)`` seconds, then continues polling the
+        buffer at 100 ms for the remainder of the deadline. Returns
+        as soon as ``mode ON`` / ``Mfg shell:`` / ``Comms Mfg:`` is
+        seen.
 
-        The shell activation window is ~6s after boot. The POST test
-        sends lock_shell before boot output arrives, so one command
-        queued early is sufficient. A second attempt fires only if the
-        first produced no response after 8s.
+        Why spam instead of "one shot + one retry": the firmware shell
+        runs a 20 s expiration timer (``CONFIG_SHELL_TIMEOUT_SEC=20`` in
+        sigma5_mfg_fw/prj.conf). The ``lock_shell`` handler in
+        ``shell_handler.c`` only prints ``Locking shell mode ON`` while
+        that timer is still alive — once it expires, ``deactivate_shell``
+        runs and ``uart_rx_disable`` cuts the wire entirely. The test
+        side gets exactly one 20 s budget shared with the firmware: any
+        gRPC/HTTP/2 hiccup that loses a TX frame on the single shot is
+        fatal. The previous "one shot + one retry at 8 s" path was even
+        worse — the 8 s retry was guarded by ``if text == ""`` so any
+        boot banner suppressed it. Run cmpoawlf500ob on panel 0AW6
+        showed every slot stuck at exactly 21.2 s (the 20 s deadline +
+        ~1 s overhead) while same-panel re-runs immediately afterward
+        passed in 3–17 s — the signature of a sub-second race against
+        the firmware deadline.
+
+        The bandwidth cost is trivial: ``lock_shell`` is 12 bytes and we
+        stop spamming the moment the confirmation arrives, which is
+        usually well under 1 s. The 6 s cap on the spam window bounds
+        the worst-case TX volume well under the HTTP/2 throughput
+        sensitivity threshold called out in ``BufferedUartStream._run``.
         """
         if self._stream.check_alive() is not None:
             return False
 
         self._stream.clear()
-        self._stream.write(b"\rlock_shell\r")
 
         deadline = time.time() + timeout_s
-        retry_at = time.time() + 8.0  # One retry if first attempt missed
-        retried = False
+        # Cap the active spam window so we don't burn TX bandwidth past
+        # the point the firmware's shell timer would have expired anyway
+        # (the firmware deactivates the shell at ``CONFIG_SHELL_TIMEOUT_SEC``,
+        # currently 20 s — after that, no amount of bytes will help).
+        spam_until = time.time() + min(timeout_s, 6.0)
+        next_send = 0.0  # time.time() at which next write should fire
 
         while time.time() < deadline:
             text = self._stream.get_text()
             if "mode ON" in text or "Mfg shell:" in text or "Comms Mfg:" in text:
                 return True
 
-            # Single retry after 8s if nothing detected
-            if not retried and time.time() >= retry_at:
+            now = time.time()
+            if now < spam_until and now >= next_send:
                 self._stream.write(b"\rlock_shell\r")
-                retried = True
+                next_send = now + 0.2  # 200 ms cadence
 
             self._stream._data_event.clear()
             self._stream._data_event.wait(timeout=0.1)
