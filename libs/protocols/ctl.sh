@@ -19,10 +19,10 @@ gather_proto_files() {
     local -A proto_map
     while IFS= read -r file; do
         name=$(basename "$file")
-        if [[ -z "${proto_map[$name]}" ]]; then
+        if [[ -z "${proto_map[$name]:-}" ]]; then
             proto_map[$name]="$file"
         else
-            warn "Duplicate proto file found: $file (using ${proto_map[$name]})"
+            warn "Duplicate proto file found: $file (using ${proto_map[$name]:-})"
         fi
     done < <(find libs/protocols -name '*.proto')
 

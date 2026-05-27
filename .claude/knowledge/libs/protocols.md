@@ -211,3 +211,7 @@ side-by-side service definition during the migration window.
   the Python MTIB client for fixture observability polling.
 - [`../glossary.md`](../glossary.md) — MTIB / DUT / Fixture / Verdin
   definitions.
+
+## v0.12.12 (continued) — `gather_proto_files` under `set -u`
+
+The `ctl.sh generate` path silently no-op'd under `set -u` because `${proto_map[$name]}` errored on first-key lookup (unbound). Fixed by using `:-` default-empty: `${proto_map[$name]:-}`. Without this fix, the `nx run protocols:create` target reported success but produced zero `*_pb2.py` files — which is what made the v0.12.11 production outage so confusing (the Nx dry-run showed "[proto] Generating..." but the on-disk files never appeared).
