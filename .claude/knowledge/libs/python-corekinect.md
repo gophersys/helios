@@ -282,6 +282,25 @@ for removal alongside the `corekinect.fixture` import shim.
   returns the usual `Optional[str]` error string. `SlotContext.connect()`
   in `corekinect.test.slot` mirrors the same lenient behaviour so test
   runners aren't blocked by an old MTIB image.
+- **`corekinect.test.autoconf` FAILS LOUDLY on a malformed manifest.**
+  Branch `fix/manifest-load-failure-visibility`, P2.1. The pre-fix code
+  in `pytest_configure` caught every `Exception` from `load_manifest`,
+  emitted a `warnings.warn`, and returned early — which turned schema
+  mismatches and missing-key bugs into silent no-ops that surfaced
+  downstream as "all tests skipped, zero failures, zero errors"
+  (see `.claude/knowledge/workflows/version-skew.md` case study 1).
+  Current contract:
+    - No `concord.yaml` in tree → silent no-op (legitimate
+      standalone test scripts).
+    - `concord.yaml` present, `find_manifest` returned it, but the
+      file vanished by the time we open it → silent no-op
+      (race / symlink defence).
+    - Any other failure (yaml.YAMLError, KeyError, ValueError, schema
+      mismatch, empty `package.type`) → PROPAGATES. `pytest_configure`
+      raises and collection hard-fails. Runner pod exits non-zero.
+  Pinned by `libs/python/corekinect/test/tests/test_autoconf_loud_failure.py`
+  (5 tests: no-manifest no-op, malformed YAML, missing required
+  `package:` key, empty `package.type`, valid-manifest sanity).
 
 ## Common failure modes
 

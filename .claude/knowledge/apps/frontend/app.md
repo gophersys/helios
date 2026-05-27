@@ -148,6 +148,46 @@ Authentication uses the JWT in the `auth` payload (Socket.IO supports this nativ
 
 PostCSS-based, single entry at `src/app.css`. Design tokens (`bg-surface-0`, `text-text-primary`, `border-accent`, etc.) defined there. No `tailwind.config.js`. Components compose `tailwind-variants` for variant-driven styles and `clsx` / `tailwind-merge` for runtime composition.
 
+### Run-error banner (P2.3)
+
+The run-detail pages (validation runs, manufacturing session runs)
+surface a top-of-page failure banner when a run finishes with a
+visible problem. Lives at
+`src/lib/components/execution/run-error-banner.svelte` (thin
+renderer) over `run-error-banner.ts` (pure-TS classification — unit
+tested at `run-error-banner.test.ts`).
+
+Three variants:
+
+- `all-skipped` — yellow warning banner. Fires when
+  `status === 'FAILED' AND completedCount > 0 AND passedCount === 0
+  AND failedCount === 0` — the v0.12.0 → 0.12.3 silent-skew pathology.
+  Headline names the count (`All 126 tests skipped — run did not
+  execute`); detail prefers the API-supplied `errorMessage` and falls
+  back to a synthetic remediation pointing at
+  `corectl test refresh-framework && corectl test upload`.
+- `failed` — red alert banner. Fires when `status === 'FAILED'` with
+  a non-empty `errorMessage` and at least one passed/failed test.
+  Headline is "Run failed"; detail is the verbatim errorMessage.
+- `cancelled` — neutral surface-2 banner. Fires when
+  `status === 'CANCELLED'` with a note.
+
+Wired into `run-execution-page.svelte` between the top-level
+ErrorAlert and the `RunExecutionHeader`. Visible on every page that
+uses `RunExecutionPage` — validation runs, manufacturing session
+runs, and any future executors.
+
+The classification logic mirrors the http-api detection at
+`apps/backend/http-api/src/api/v2/runs/reporter.py::report_finish`
+(P2.2): both compute `all_skipped` the same way. If the http-api
+synthesizes an `errorMessage`, the frontend renders it; if the
+http-api didn't (defensive), the frontend synthesizes one. Tested
+in `run-error-banner.test.ts` (15 unit tests).
+
+No Svelte component-test harness exists in this app, so the
+component itself is verified visually in dev. The pure-TS helper
+behind it is the unit-tested boundary.
+
 ## External dependencies
 
 | Concern | Where |

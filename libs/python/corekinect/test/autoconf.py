@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import importlib
 import os
-import warnings
 from pathlib import Path
 from typing import Any, List, Optional, TYPE_CHECKING
 
@@ -254,28 +253,59 @@ def pytest_configure(config: pytest.Config) -> None:
     rootdir = Path(str(config.rootdir))
     manifest_path = find_manifest(start_dir=rootdir)
     if manifest_path is None:
+        # LEGITIMATE no-op: no concord.yaml in tree means this is a
+        # standalone test (e.g., a library unit-test, a contributor
+        # running pytest in libs/python/corekinect/ directly). The
+        # plugin imports cleanly and registers nothing.
         log.debug("No concord.yaml found under %s — autoconf is a no-op", rootdir)
         return
 
+    # ── Manifest present — any failure to load is a hard error. ──
+    #
+    # P2.1 (Phase D, branch fix/manifest-load-failure-visibility):
+    # the old behaviour caught *any* exception, warned, and no-op'd —
+    # which turned schema-validation errors and missing-key bugs into
+    # silent test-collection no-ops. The runner then reported
+    # ``total>0, passed=0, failed=0, errors=0`` and the dashboard
+    # showed a green-ish row while every test was actually skipped.
+    #
+    # New contract: a manifest file that EXISTS but cannot be loaded
+    # or has structurally-invalid content propagates the exception.
+    # pytest collection hard-fails. The runner pod exits non-zero.
+    # The Layer-4 framework-constraint gate is the operator's
+    # remediation lever; failures here are real bugs that need a fix
+    # in the test app's concord.yaml.
+    #
+    # The ONLY no-op path remains "no manifest in tree" — handled
+    # above, before we get here.
     try:
         manifest, result = load_manifest(manifest_path, validate=False)
-    except Exception as exc:
-        # v1 manifests or malformed YAML — warn and bail out
-        warnings.warn(
-            f"corekinect.test.autoconf: failed to load {manifest_path}: {exc}. "
-            f"The manifest may be v1 format. Run 'corectl test migrate' to upgrade.",
-            stacklevel=2,
-        )
+    except FileNotFoundError:
+        # Defensive: find_manifest returned a path that no longer
+        # exists by the time we read it (race condition or symlink
+        # weirdness). Treat the same as no-manifest — silent no-op.
+        log.debug("concord.yaml disappeared between discovery and load — no-op")
         return
 
-    # Sanity check: from_dict succeeded but produced an empty manifest
+    # Anything else (yaml.YAMLError, KeyError from Manifest.from_dict,
+    # ValueError from missing required keys) PROPAGATES. pytest's
+    # collection layer will surface it as a CollectionError visible in
+    # the runner pod logs and exit non-zero. See
+    # libs/python/corekinect/test/tests/test_autoconf_loud_failure.py
+    # for the contract test suite.
+
+    # Structural sanity check — if the loader returned an "empty"
+    # manifest (no package.type), that's the v1/pre-rename shape that
+    # bit us in v0.12.0. Raise rather than warn.
     if not manifest.package.type:
-        warnings.warn(
-            f"corekinect.test.autoconf: manifest at {manifest_path} has no package type. "
-            f"It may be a v1 manifest. Run 'corectl test migrate' to upgrade.",
-            stacklevel=2,
+        raise RuntimeError(
+            f"corekinect.test.autoconf: manifest at {manifest_path} has no "
+            f"package.type. This is the v1/pre-rename shape that produced "
+            f"the silent all-skipped failure mode in the v0.12.0 release. "
+            f"Run 'corectl test migrate' to upgrade the manifest, OR fix "
+            f"the schema mismatch in concord.yaml. See "
+            f".claude/knowledge/workflows/version-skew.md case study 1."
         )
-        return
 
     config.stash[_MANIFEST_KEY] = manifest
     config.stash[_MANIFEST_PATH_KEY] = manifest_path

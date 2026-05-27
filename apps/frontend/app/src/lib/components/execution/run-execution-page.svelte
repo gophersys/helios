@@ -4,6 +4,7 @@
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import { type RunExecutionContext, getRunExecutionContext } from './run-execution-context.svelte';
   import RunExecutionHeader from './run-execution-header.svelte';
+  import RunErrorBanner from './run-error-banner.svelte';
   import SlotNavigator from './slot-navigator.svelte';
   import SlotExecutionView from './slot-execution-view.svelte';
   import CancelRunDialog from './cancel-run-dialog.svelte';
@@ -98,6 +99,11 @@
     <ErrorAlert message={ctx.error} />
   {:else if ctx.run}
     <ErrorAlert message={ctx.error} />
+
+    <!-- P2.3: top-of-page failure banner. Renders only when the run is
+         FAILED with an errorMessage or in the all-tests-skipped pathology
+         shape. Logic lives in run-error-banner.ts (unit-tested). -->
+    <RunErrorBanner run={ctx.run} />
 
     <!-- Shared header (back, title, status, timeline, counts, cancel) -->
     <RunExecutionHeader extra={headerExtra} />
