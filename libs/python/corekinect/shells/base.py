@@ -20,6 +20,13 @@ from typing import List, Optional, Tuple, Union
 from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 
 log = logging.getLogger(__name__)
+# Dedicated UART-evidence logger. Every successful or failing shell
+# call writes a one-line summary here PLUS the trailing buffer tail.
+# StepReporter's log capture pipes Python ``logging`` into the
+# ``TestStep.logOutput`` column at the platform — so any test step that
+# fails inside a shell call lands the actual UART bytes in the DB
+# alongside the failure, no per-test instrumentation needed.
+uart_log = logging.getLogger("corekinect.shells.uart")
 
 
 def hex_addr(address: Union[int, str]) -> str:
@@ -341,13 +348,24 @@ class ShellCommander:
         # gRPC messages causes the Zephyr shell to lose the first character
         # of the command (the ENTER triggers prompt output whose ANSI codes
         # interfere with the command echo at the serial level).
-        self._stream.write(f"\r{command}\r".encode())
+        wire_command = f"\r{command}\r".encode()
+        self._stream.write(wire_command)
 
         cmd_token = command.split()[0]
         echo_check = cmd_token[:-1] if len(cmd_token) > 3 else cmd_token
         deadline = time.time() + timeout_s
         echo_pos: Optional[int] = None  # index of THIS command's echo in text
         pattern_found_time = None
+        # Echo-loss retry: if the gRPC pump fragments our write so the
+        # firmware never sees a complete line (run cmpoen8zu on panel
+        # 0AW2: slot-0 got ``Mfg shell: get_chip_id`` with the trailing
+        # ``s\\r`` chopped, no execution, hence 30 s timeout waiting
+        # for ``BLE MAC:``), the shell will sit silent forever. Re-write
+        # the command every 4 s while we still have budget so the second
+        # attempt's frame boundaries differ from the first's and at
+        # least one lands intact.
+        next_rewrite_at = time.time() + 4.0
+        rewrites = 0
 
         while time.time() < deadline:
             text = self._stream.get_text()
@@ -364,6 +382,18 @@ class ShellCommander:
                 if idx >= 0:
                     echo_pos = idx
                 else:
+                    # No echo yet. If 4 s have passed since the last
+                    # write and we still have budget, re-issue. Capped
+                    # at 4 rewrites to bound the firmware's command-
+                    # queue depth.
+                    if (
+                        rewrites < 4
+                        and time.time() >= next_rewrite_at
+                        and (deadline - time.time()) > 1.0
+                    ):
+                        self._stream.write(wire_command)
+                        rewrites += 1
+                        next_rewrite_at = time.time() + 4.0
                     self._stream._data_event.clear()
                     self._stream._data_event.wait(timeout=0.05)
                     continue
@@ -404,6 +434,23 @@ class ShellCommander:
                 if p in scope:
                     return self._clean(text, cmd_token), None
         alive = "alive" if self._stream.is_alive else f"DEAD({self._stream.last_error})"
+        # Dump the full buffer tail to the UART log on timeout. This is
+        # the evidence the operator needs when debugging — without it,
+        # ``debug_off`` and ``send`` failures are blind. The platform's
+        # StepReporter pipes everything we log into ``TestStep.logOutput``
+        # so this text shows up next to the failed step in the UI.
+        uart_log.warning(
+            "[%s] send(%r) TIMEOUT after %.1fs (stream=%s rx=%dB echo_pos=%s success_patterns=%s)\n"
+            "==== UART buffer tail (last 4096 B) ====\n%s\n==== /UART buffer ====",
+            getattr(self._stream, "_label", "?"),
+            command,
+            timeout_s,
+            alive,
+            self._stream.rx_bytes,
+            echo_pos,
+            success_patterns,
+            text[-4096:],
+        )
         return [], f"Timeout ({timeout_s}s) stream={alive} rx={self._stream.rx_bytes}B. Got: {text[:300]}"
 
     @staticmethod
@@ -511,12 +558,20 @@ class ShellCommander:
         # echo / prompt match.
         success_settle_until = None
 
+        t_start = time.time()
         while time.time() < deadline:
             text = self._stream.get_text()
             if "mode ON" in text or "Mfg shell:" in text or "Comms Mfg:" in text:
                 if success_settle_until is None:
                     success_settle_until = time.time() + 0.25
                 if time.time() >= success_settle_until:
+                    uart_log.info(
+                        "[%s] lock() OK in %.2fs after %d write(s); tail=%r",
+                        getattr(self._stream, "_label", "?"),
+                        time.time() - t_start,
+                        next_send_idx,
+                        text[-256:],
+                    )
                     return True
                 self._stream._data_event.clear()
                 self._stream._data_event.wait(timeout=0.05)
@@ -535,6 +590,19 @@ class ShellCommander:
             self._stream._data_event.clear()
             self._stream._data_event.wait(timeout=0.1)
 
+        # Timeout — dump the buffer so the operator can see what the
+        # firmware was actually emitting (or not).
+        final_text = self._stream.get_text()
+        uart_log.warning(
+            "[%s] lock() TIMEOUT after %.1fs (writes=%d rx=%dB stream=%s)\n"
+            "==== UART buffer tail (last 4096 B) ====\n%s\n==== /UART buffer ====",
+            getattr(self._stream, "_label", "?"),
+            timeout_s,
+            next_send_idx,
+            self._stream.rx_bytes,
+            "alive" if self._stream.is_alive else f"DEAD({self._stream.last_error})",
+            final_text[-4096:],
+        )
         return False
 
     def debug_off(self, timeout_s: float = 30.0) -> bool:
@@ -573,7 +641,8 @@ class ShellCommander:
         if self._stream.check_alive() is not None:
             return False
 
-        deadline = time.time() + timeout_s
+        t_start = time.time()
+        deadline = t_start + timeout_s
         next_write = 0.0
         write_count = 0
         while time.time() < deadline:
@@ -593,6 +662,13 @@ class ShellCommander:
                 # command's send() doesn't race the tail end of the
                 # log stream.
                 time.sleep(0.25)
+                uart_log.info(
+                    "[%s] debug_off() OK in %.2fs after %d write(s); tail=%r",
+                    getattr(self._stream, "_label", "?"),
+                    time.time() - t_start,
+                    write_count,
+                    text[-256:],
+                )
                 # Clear the buffer of accumulated log spam so the next
                 # send()'s echo detection isn't searching megabytes.
                 self._stream.clear()
@@ -601,8 +677,14 @@ class ShellCommander:
             self._stream._data_event.clear()
             self._stream._data_event.wait(timeout=0.2)
 
-        log.warning(
-            "[%s] debug_off timed out after %d write(s) in %.1fs",
-            getattr(self._stream, "_label", "?"), write_count, timeout_s,
+        final_text = self._stream.get_text()
+        uart_log.warning(
+            "[%s] debug_off() TIMEOUT after %.1fs (writes=%d rx=%dB)\n"
+            "==== UART buffer tail (last 4096 B) ====\n%s\n==== /UART buffer ====",
+            getattr(self._stream, "_label", "?"),
+            timeout_s,
+            write_count,
+            self._stream.rx_bytes,
+            final_text[-4096:],
         )
         return False
