@@ -538,8 +538,46 @@ class ShellCommander:
         return False
 
     def debug_off(self, timeout_s: float = 30.0) -> bool:
-        """Disable debug UART output."""
-        lines, err = self.send(
-            "debug_enable 0", ["Debug is not enabled"], timeout_s
+        """Disable debug UART output.
+
+        Retries ``debug_enable 0`` up to 4 times before giving up. The
+        firmware's Zephyr LOG backend (GPS, watchdog, IPC threads) flood
+        the UART continuously until we successfully disable it — and that
+        flood frequently chops our command echo in half. Captured UART
+        from run cmpodyfob on panel 0AW2, slot 0:
+
+            Mfg shell: debug_enable[00:00:10.148,498] <inf> app: Feeding watchdog
+            ...lots more log lines...
+            Mfg shell:
+
+        The shell saw ``debug_enable`` then a log-line stream then the
+        next prompt — no ``0`` argument, no execution, no
+        ``Debug is not enabled`` response. One ``send()`` is therefore
+        not enough on this firmware. We re-issue the command on each
+        miss, splitting the budget across N attempts. Each attempt
+        triple-clears + waits for echo + waits for success pattern, so
+        the retries are naturally spaced and give the LOG stream
+        windows to drain between tries.
+        """
+        max_attempts = 4
+        per_attempt_s = max(timeout_s / max_attempts, 4.0)
+        deadline = time.time() + timeout_s
+        last_err: Optional[str] = None
+        for attempt in range(1, max_attempts + 1):
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            this_attempt_s = min(per_attempt_s, remaining)
+            _lines, err = self.send(
+                "debug_enable 0",
+                ["Debug is not enabled"],
+                timeout_s=this_attempt_s,
+            )
+            if err is None:
+                return True
+            last_err = err
+        log.warning(
+            "[%s] debug_off failed after %d attempt(s): %s",
+            getattr(self._stream, "_label", "?"), max_attempts, last_err,
         )
-        return err is None
+        return False
