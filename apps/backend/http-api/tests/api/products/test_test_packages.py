@@ -2,6 +2,7 @@
 
 import io
 import json
+import tarfile
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -75,9 +76,30 @@ def _manifest(**overrides):
     return defaults
 
 
-def _tar_gz_data():
-    """Return minimal bytes simulating a tar.gz file."""
-    return b"\x1f\x8b" + b"\x00" * 100
+def _tar_gz_data(include_framework_markers: bool = True) -> bytes:
+    """Build a minimal valid tar.gz containing the framework-artifact markers
+    enforced by ``_check_framework_artifacts`` in the upload handler.
+
+    The handler refuses any tarball without ``.claude/.framework-version`` and
+    ``.devcontainer/.framework-version`` — this helper keeps tests honest by
+    producing the same shape ``corectl test init`` writes to disk. Pass
+    ``include_framework_markers=False`` to simulate a stale uploader.
+    """
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        def _add(name: str, content: bytes) -> None:
+            info = tarfile.TarInfo(name=name)
+            info.size = len(content)
+            tar.addfile(info, io.BytesIO(content))
+
+        if include_framework_markers:
+            _add(".claude/.framework-version", b"0.12.0\n")
+            _add(".devcontainer/.framework-version", b"0.12.0\n")
+        # Throw in a placeholder concord.yaml so the tarball isn't empty
+        # — keeps the bytes shape closer to a real upload without
+        # invoking the stage extractor.
+        _add("concord.yaml", b"schema: '1.0'\n")
+    return buf.getvalue()
 
 
 # ---------------------------------------------------------------------------
@@ -215,14 +237,25 @@ class TestUploadTestPackage:
         # MinIO put happened.
         assert _mock_storage.put_object.called
 
-        # Status was flipped to DEVELOPMENT after the put.
+        # Two updates after the put: first stamps storageKey while status
+        # is still UPLOADING, then flips status to DEVELOPMENT once stage
+        # extraction + joined re-fetch succeed (the new two-phase commit
+        # gates public visibility on stage metadata being written first).
         update_calls = mock_db.testpackage.update.call_args_list
+        key_writes = [
+            c for c in update_calls
+            if c.kwargs.get("data", {}).get("storageKey") is not None
+        ]
+        assert key_writes, "expected an update stamping storageKey"
         flip_calls = [
             c for c in update_calls
             if c.kwargs.get("data", {}).get("status") == "DEVELOPMENT"
         ]
         assert flip_calls, "expected an update flipping status=DEVELOPMENT"
-        assert flip_calls[0].kwargs["data"]["storageKey"] is not None
+        # The key write must happen before (or with) the flip — never after.
+        key_idx = update_calls.index(key_writes[0])
+        flip_idx = update_calls.index(flip_calls[0])
+        assert key_idx <= flip_idx, "storageKey must be set no later than the flip"
 
     def test_upload_storage_failure_leaves_uploading_placeholder(
         self, authed_client, mock_db, _mock_storage,

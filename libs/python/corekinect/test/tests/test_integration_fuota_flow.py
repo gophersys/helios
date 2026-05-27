@@ -221,8 +221,8 @@ class TestStageValidation:
     def test_smoke_stage_needs_fewer_builds(self):
         """Smoke stage only needs 3 builds — simpler build run."""
         resolver = StubArtifactResolver()
-        resolver.add_build("smoke_app_debug", version="0.5.0", variant="debug", track="BM")
-        resolver.add_build("smoke_comms_debug", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("smoke_app_ztest", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("smoke_comms_ztest", version="0.5.0", variant="debug", track="BM")
         resolver.add_build("modem_fw", version="1.3.6", variant="release", track="BM")
 
         assets = StageAssets(resolver, stage="smoke", strict=True)

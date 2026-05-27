@@ -42,7 +42,7 @@ def test_render_validation_tree_produces_all_five_stages(tmp_path: Path):
             "product": "alpha",
             "board": "alpha_b0",
             "board_class": "AlphaB0",
-            "fixture_module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
+            "testbed_module": "testbeds.alpha_b0.testbed:AlphaB0TestBed",
             "device_type_id": 2,
             "device_variant_id": 3,
             "pkg_type": "validation",
@@ -78,7 +78,7 @@ def test_render_manufacturing_tree_has_single_stage(tmp_path: Path):
         tmp_path,
         {
             "product": "alpha", "board": "alpha_b0", "board_class": "AlphaB0",
-            "fixture_module": "fixtures.alpha_b0.fixture:AlphaB0MfgFixture",
+            "testbed_module": "testbeds.alpha_b0.testbed:AlphaB0MfgTestBed",
             "device_type_id": 0, "device_variant_id": 0,
             "pkg_type": "manufacturing",
         },
@@ -101,8 +101,8 @@ def test_diff_manifest_flags_board_drift():
         "package": {"type": "validation"},
         "product": {"slug": "alpha", "board": "alpha_b0",
                     "device": {"type_id": 2, "variant_id": 3}},
-        "fixture": {
-            "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
+        "testbed": {
+            "module": "testbeds.alpha_b0.testbed:AlphaB0TestBed",
         },
     }
     product = {"slug": "alpha", "id": "p1"}
@@ -116,7 +116,7 @@ def test_diff_manifest_flags_board_drift():
     paths = {p for p, _b, _a in diff}
     # Board slug changed → everything derived from it is drifted.
     assert "product.board" in paths
-    assert "fixture.module" in paths
+    assert "testbed.module" in paths
     # Device IDs are unchanged → must NOT appear in drift.
     assert "product.device.type_id" not in paths
 
@@ -126,8 +126,8 @@ def test_diff_manifest_empty_when_in_sync():
         "package": {"type": "validation"},
         "product": {"slug": "alpha", "board": "alpha_b0",
                     "device": {"type_id": 2, "variant_id": 3}},
-        "fixture": {
-            "module": "fixtures.alpha_b0.fixture:AlphaB0Fixture",
+        "testbed": {
+            "module": "testbeds.alpha_b0.testbed:AlphaB0TestBed",
         },
     }
     product = {"slug": "alpha", "id": "p1"}

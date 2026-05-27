@@ -36,9 +36,9 @@ def resolver():
 
 @pytest.fixture
 def populated_resolver(resolver):
-    """Resolver pre-loaded with smoke_app_debug and smoke_comms_debug builds."""
-    resolver.add_build("smoke_app_debug", version="0.8.3", variant="debug", track="BM")
-    resolver.add_build("smoke_comms_debug", version="0.8.3", variant="debug", track="BM")
+    """Resolver pre-loaded with smoke_app_ztest and smoke_comms_ztest builds."""
+    resolver.add_build("smoke_app_ztest", version="0.8.3", variant="debug", track="BM")
+    resolver.add_build("smoke_comms_ztest", version="0.8.3", variant="debug", track="BM")
     resolver.add_build("modem_fw", version="1.3.6", variant="release", track="BM")
     return resolver
 
@@ -66,13 +66,13 @@ class TestBuildAssetHex:
 
     def test_hex_app_returns_existing_file(self, populated_resolver):
         """Test hex app returns existing file."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         path = asset.hex("app")
         assert os.path.isfile(path)
 
     def test_hex_comms_returns_different_path(self, populated_resolver):
         """Test hex comms returns different path."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         app_path = asset.hex("app")
         comms_path = asset.hex("comms")
         assert os.path.isfile(comms_path)
@@ -80,7 +80,7 @@ class TestBuildAssetHex:
 
     def test_hex_nonexistent_role_raises_value_error(self, populated_resolver):
         """Test hex nonexistent role raises value error."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         with pytest.raises(ConfigError, match="No plaintext hex"):
             asset.hex("nonexistent_role")
 
@@ -90,13 +90,13 @@ class TestBuildAssetCfw:
 
     def test_cfw_app_returns_existing_file(self, populated_resolver):
         """Test cfw app returns existing file."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         path = asset.cfw("app")
         assert os.path.isfile(path)
 
     def test_cfws_returns_two_paths(self, populated_resolver):
         """Test cfws returns two paths."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         paths = asset.cfws()
         assert len(paths) == 2
         for p in paths:
@@ -116,24 +116,24 @@ class TestBuildAssetVersion:
 
     def test_version_returns_string(self, populated_resolver):
         """Test version returns string."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         assert asset.version() == "0.8.3"
 
     def test_version_string_app(self, populated_resolver):
         """Test version string app."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         vs = asset.version_string("app")
         assert vs == "109.0.8.3-BM"
 
     def test_version_string_comms(self, populated_resolver):
         """Test version string comms."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         vs = asset.version_string("comms")
         assert vs == "108.0.8.3-BM"
 
     def test_version_string_bad_role_raises(self, populated_resolver):
         """Test version string bad role raises."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         with pytest.raises(ConfigError, match="No target"):
             asset.version_string("bad_role")
 
@@ -143,7 +143,7 @@ class TestBuildAssetTargetStrings:
 
     def test_target_strings_returns_list(self, populated_resolver):
         """Test target strings returns list."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         ts = asset.target_strings()
         assert isinstance(ts, list)
         assert len(ts) == 2
@@ -156,39 +156,39 @@ class TestBuildAssetManifest:
 
     def test_manifest_returns_build_manifest(self, populated_resolver):
         """Test manifest returns build manifest."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         m = asset.manifest()
         assert isinstance(m, BuildManifest)
 
     def test_manifest_is_cached(self, populated_resolver):
         """Test manifest is cached."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         m1 = asset.manifest()
         m2 = asset.manifest()
         assert m1 is m2
 
     def test_targets_returns_list(self, populated_resolver):
         """Test targets returns list."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         targets = asset.targets()
         assert len(targets) == 2
 
     def test_target_app_found(self, populated_resolver):
         """Test target app found."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         t = asset.target("app")
         assert t.role == "app"
         assert t.app_id == 109
 
     def test_target_bad_role_raises(self, populated_resolver):
         """Test target bad role raises."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         with pytest.raises(ConfigError, match="No target 'bad'"):
             asset.target("bad")
 
     def test_app_ids_returns_set(self, populated_resolver):
         """Test app ids returns set."""
-        asset = BuildAsset(label="smoke_app_debug", resolver=populated_resolver)
+        asset = BuildAsset(label="smoke_app_ztest", resolver=populated_resolver)
         ids = asset.app_ids()
         assert ids == {108, 109}
 
@@ -208,16 +208,16 @@ class TestStageAssetsConstruction:
 
     def test_missing_label_strict_raises(self, resolver):
         """Test missing label strict raises."""
-        resolver.add_build("smoke_app_debug", version="0.8.3", variant="debug", track="BM")
+        resolver.add_build("smoke_app_ztest", version="0.8.3", variant="debug", track="BM")
         with pytest.raises(ConfigError, match="missing required builds"):
             StageAssets(resolver, stage="smoke", strict=True)
 
     def test_missing_label_non_strict_no_error(self, resolver):
         """Test missing label non strict no error."""
-        resolver.add_build("smoke_app_debug", version="0.8.3", variant="debug", track="BM")
+        resolver.add_build("smoke_app_ztest", version="0.8.3", variant="debug", track="BM")
         assets = StageAssets(resolver, stage="smoke", strict=False)
         missing = assets.missing_labels()
-        assert "smoke_comms_debug" in missing
+        assert "smoke_comms_ztest" in missing
 
     def test_missing_labels_empty_when_all_present(self, populated_resolver):
         """Test missing labels empty when all present."""
@@ -231,9 +231,9 @@ class TestStageAssetsLabelAccess:
     def test_by_label_returns_build_asset(self, populated_resolver):
         """Test by label returns build asset."""
         assets = StageAssets(populated_resolver, stage="smoke")
-        ba = assets.by_label("smoke_app_debug")
+        ba = assets.by_label("smoke_app_ztest")
         assert isinstance(ba, BuildAsset)
-        assert ba.label == "smoke_app_debug"
+        assert ba.label == "smoke_app_ztest"
 
     def test_by_label_nonexistent_raises_key_error(self, populated_resolver):
         """Test by label nonexistent raises key error."""
@@ -244,13 +244,13 @@ class TestStageAssetsLabelAccess:
     def test_hex_resolves_label_and_downloads(self, populated_resolver):
         """Test hex() resolves the correct label and downloads."""
         assets = StageAssets(populated_resolver, stage="smoke")
-        path = assets.hex("app", "debug")
+        path = assets.hex("app", "ztest")
         assert os.path.isfile(path)
 
     def test_hex_pair_returns_both(self, populated_resolver):
         """Test hex_pair() returns app and comms hex paths."""
         assets = StageAssets(populated_resolver, stage="smoke")
-        app_hex, comms_hex = assets.hex_pair("debug")
+        app_hex, comms_hex = assets.hex_pair("ztest")
         assert os.path.isfile(app_hex)
         assert os.path.isfile(comms_hex)
         assert app_hex != comms_hex
@@ -283,10 +283,10 @@ class TestStageAssetsModem:
     def test_modem_zip_from_build(self, resolver):
         """Test modem zip from build."""
         resolver.add_build(
-            "smoke_app_debug", version="0.8.3", variant="debug", track="BM",
+            "smoke_app_ztest", version="0.8.3", variant="debug", track="BM",
             modem_firmware="/tmp/modem.zip",
         )
-        resolver.add_build("smoke_comms_debug", version="0.8.3", variant="debug", track="BM")
+        resolver.add_build("smoke_comms_ztest", version="0.8.3", variant="debug", track="BM")
         resolver.add_build("modem_fw", version="1.3.6", variant="release", track="BM")
         assets = StageAssets(resolver, stage="smoke")
         path = assets.modem_zip()
@@ -307,8 +307,8 @@ class TestStageAssetsLabelsProperty:
         assets = StageAssets(populated_resolver, stage="smoke")
         labels = assets.labels
         assert labels == sorted(labels)
-        assert "smoke_app_debug" in labels
-        assert "smoke_comms_debug" in labels
+        assert "smoke_app_ztest" in labels
+        assert "smoke_comms_ztest" in labels
 
     def test_required_labels_returns_stage_labels(self, populated_resolver):
         """Test required labels returns stage labels."""
@@ -323,10 +323,10 @@ class TestStageAssetsValidation:
     def test_validate_raises_on_failed_build(self, resolver):
         """Test validate raises on failed build."""
         resolver.add_build(
-            "smoke_app_debug", version="0.8.3", variant="debug", track="BM",
+            "smoke_app_ztest", version="0.8.3", variant="debug", track="BM",
             status="FAILED",
         )
-        resolver.add_build("smoke_comms_debug", version="0.8.3", variant="debug", track="BM")
+        resolver.add_build("smoke_comms_ztest", version="0.8.3", variant="debug", track="BM")
         resolver.add_build("modem_fw", version="1.3.6", variant="release", track="BM")
         with pytest.raises(ConfigError, match="failed builds"):
             StageAssets(resolver, stage="smoke", strict=True)
@@ -334,10 +334,10 @@ class TestStageAssetsValidation:
     def test_validate_passes_with_cached_status(self, resolver):
         """Test validate passes with cached status."""
         resolver.add_build(
-            "smoke_app_debug", version="0.8.3", variant="debug", track="BM",
+            "smoke_app_ztest", version="0.8.3", variant="debug", track="BM",
             status="CACHED",
         )
-        resolver.add_build("smoke_comms_debug", version="0.8.3", variant="debug", track="BM")
+        resolver.add_build("smoke_comms_ztest", version="0.8.3", variant="debug", track="BM")
         resolver.add_build("modem_fw", version="1.3.6", variant="release", track="BM")
         # Should not raise
         assets = StageAssets(resolver, stage="smoke", strict=True)
@@ -362,6 +362,9 @@ class TestGetRequiredLabels:
         """Test fuota has seven labels."""
         assert len(get_required_labels(Stage.FUOTA)) == 7
 
-    def test_smoke_has_three_labels(self):
-        """Test smoke has three labels."""
-        assert len(get_required_labels(Stage.SMOKE)) == 3
+    def test_smoke_has_two_labels(self):
+        """Test smoke has two labels (ztest hardware binaries)."""
+        labels = get_required_labels(Stage.SMOKE)
+        assert len(labels) == 2
+        assert "smoke_app_ztest" in labels
+        assert "smoke_comms_ztest" in labels
