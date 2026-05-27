@@ -215,3 +215,18 @@ side-by-side service definition during the migration window.
 ## v0.12.12 (continued) — `gather_proto_files` under `set -u`
 
 The `ctl.sh generate` path silently no-op'd under `set -u` because `${proto_map[$name]}` errored on first-key lookup (unbound). Fixed by using `:-` default-empty: `${proto_map[$name]:-}`. Without this fix, the `nx run protocols:create` target reported success but produced zero `*_pb2.py` files — which is what made the v0.12.11 production outage so confusing (the Nx dry-run showed "[proto] Generating..." but the on-disk files never appeared).
+
+## v0.12.12 (continued) — hardened `ctl.sh` + regression test
+
+The initial `:-` fix unblocked codegen, but the script could still silently regress in other ways. v0.12.12 also:
+
+1. Replaces `generate_python`'s "skip with warning" branch when `grpc_tools.protoc` is missing with a hard error — codegen is REQUIRED, not optional, for the consumer build chain.
+2. Adds a `verify_generated_files` post-step that scans every input `.proto` and confirms the matching `_pb2.py` + `_pb2_grpc.py` exist on disk. Missing → exit non-zero with the missing file list.
+3. Adds an empty-input guard: if `gather_proto_files` returns zero files, `ctl.sh generate` exits non-zero instead of "succeeding" silently.
+4. Adds `libs/protocols/tests/test_protocols_create.sh`, wired to `nx run protocols:test`. Tests:
+   - clean removes generated files but preserves `__init__.py` + `.proto` sources
+   - generate produces both `_pb2.py` + `_pb2_grpc.py` for every `.proto`
+   - `from protocols.mtib.mtib_pb2 import Empty` (the exact http-api startup import) resolves
+   - empty-proto-set generate exits non-zero (negative test that would have caught the v0.12.11 silent no-op)
+
+CI should run `nx run protocols:test` in the PR pipeline so any future regression is caught before the deploy chain.

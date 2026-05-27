@@ -21,6 +21,15 @@
         ],
         "cwd": "{workspaceRoot}"
       }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "chmod +x ./libs/protocols/tests/test_protocols_create.sh && ./libs/protocols/tests/test_protocols_create.sh"
+        ],
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }
