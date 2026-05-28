@@ -154,10 +154,25 @@ What it does:
 5. If `test-runner` is NOT in the affected list → exit 1 with a
    clear remediation pointing at Layer 1
    (`deploy/runner/project.json` `implicitDependencies`).
+6. **mtib-server requirement (added 2026-05-28):** if the touched paths
+   include `libs/protocols/mtib/`, the gate ALSO requires `mtib-server`
+   in the affected set — the edge server compiles the same gRPC stubs as
+   the runner. A proto bump that rebuilds only the runner leaves the
+   deployed `mtib-server` image stale, so the new RPCs return
+   `UNIMPLEMENTED` ("Method not found!") at runtime — the HealthCheck/
+   UartStream outage where every panel failed at step 1 with the hardware
+   fine. Fails exit 1 naming `mtib-server` if it's missing.
 
-Escape hatch: `CONCORD_FORCE_NO_RUNNER_REBUILD=1` downgrades the
+Escape hatches: `CONCORD_FORCE_NO_RUNNER_REBUILD=1` (runner gate) and
+`CONCORD_FORCE_NO_MTIB_REBUILD=1` (mtib-server gate) each downgrade the
 hard-fail to a loud warn-and-continue. Use only with explicit user
-approval — the deployed runner WILL be stale.
+approval — the corresponding image WILL be stale.
+
+**Runtime caveat:** Layer 3 ensures the image is *rebuilt at release
+time*; it does not roll the live edge `mtib-server` deployments (those are
+app-managed by http-api, pinned to a digest resolved at bind time). After a
+proto change, regenerate the fixture's MTIB deployments (or `kubectl set
+image`) so the Verdins actually pull the new server.
 
 **Inconclusive fallback (submodule caveat):** when `nx` cannot
 resolve the `base..head` range — most common when running from

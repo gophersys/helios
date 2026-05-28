@@ -129,8 +129,22 @@ for the incident that motivated this layer.
   generated module wasn't present in the build context. Code: each
   consumer's `project.json`. See
   [`libs/protocols.md`](../knowledge/libs/protocols.md) § Codegen flow.
-- No standalone mtib-server wire-compat gate today — if proto wire
-  changes silently, you find out at runtime. (Improvement candidate.)
+- **Layer 3 (release-range gate)** — `scripts/release-gates/check-runner-affected.sh`
+  refuses to cut a release that touches `libs/protocols/mtib/` unless
+  **both** `test-runner` **and** `mtib-server` are in the Nx affected set.
+  This closes the gap behind the 2026-05-28 outage: a proto bump rebuilt
+  the runner but left the deployed `mtib-server` image stale, so the new
+  RPCs (`HealthCheck`, `UartStream`, …) returned `UNIMPLEMENTED`
+  ("Method not found!") at runtime and every manufacturing panel failed at
+  step 1 with the hardware fine. Escape: `CONCORD_FORCE_NO_MTIB_REBUILD=1`
+  (loud-warn). Tests: `scripts/tests/test_check_runner_affected.py`.
+- **Still a runtime gap (improvement candidate):** the gate ensures the
+  image is *rebuilt at release time*, but the `mtib-server` deployments on
+  the edge Verdins are app-managed by http-api and pinned to a digest
+  resolved at bind time — they don't auto-roll on a new image. After a
+  proto change, the fixture's MTIB deployments must be regenerated (or
+  `kubectl set image`'d) to actually pick up the new server. There is no
+  automated wire-compat probe between a live runner and a live mtib-server.
 
 **Knowledge:** [`libs/protocols.md`](../knowledge/libs/protocols.md),
 [`apps/edge/mtib-server.md`](../knowledge/apps/edge/mtib-server.md).

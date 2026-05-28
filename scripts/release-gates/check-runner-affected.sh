@@ -12,11 +12,20 @@
 # runner pods drift from the platform — the v0.12.0->0.12.3 silent
 # skew failure mode.
 #
+# ADDITIONALLY (contract #2): when `libs/protocols/mtib/` changes,
+# `mtib-server` must ALSO be in the affected set — the edge server
+# compiles the same gRPC stubs as the runner. A proto bump that rebuilds
+# only the runner leaves the deployed mtib-server image stale, so the new
+# RPCs return UNIMPLEMENTED ("Method not found!") at runtime — the
+# HealthCheck/UartStream outage where every panel failed at step 1 with
+# the hardware perfectly fine.
+#
 # Usage:
 #   check-runner-affected.sh <last_tag> [<head_ref>]
 #
 # Env:
-#   CONCORD_FORCE_NO_RUNNER_REBUILD=1   bypass the gate (loud-warn)
+#   CONCORD_FORCE_NO_RUNNER_REBUILD=1   bypass the runner gate (loud-warn)
+#   CONCORD_FORCE_NO_MTIB_REBUILD=1     bypass the mtib-server gate (loud-warn)
 #   NX_AFFECTED_CMD=<cmd>               override nx command (tests)
 #
 # Exits:
@@ -159,6 +168,23 @@ else
   runner_affected=false
 fi
 
+# mtib-server must ALSO rebuild when the mtib *protocol* changes — the
+# edge server compiles the same gRPC stubs as the runner (contract #2).
+# Skipping it is what caused the HealthCheck/UartStream UNIMPLEMENTED
+# outage: a proto bump rebuilt the runner but left the deployed
+# mtib-server image stale, so the new RPCs came back "Method not found!"
+# and every panel failed at step 1 with the hardware perfectly fine.
+if echo "${touched_paths}" | grep -q "^libs/protocols/mtib/"; then
+  proto_touched=true
+else
+  proto_touched=false
+fi
+if echo "${affected_output}" | grep -qx "mtib-server"; then
+  mtib_affected=true
+else
+  mtib_affected=false
+fi
+
 # ───────────────────────────────────────────────────────────────────
 # Step 3 — decide
 # ───────────────────────────────────────────────────────────────────
@@ -185,44 +211,83 @@ summarise_touched() {
 
 touched_summary=$(summarise_touched "${touched_paths}")
 
-if ${runner_affected}; then
-  ok "release-range runner-rebuild gate: OK"
-  info "  touched in range: ${touched_summary}"
-  info "  test-runner IS in the Nx affected set — the deploy will rebuild it."
-  exit 0
-fi
+# test-runner must rebuild for ANY touched path; mtib-server must ALSO
+# rebuild when the mtib protocol changed. Each requirement has its own
+# escape hatch so an operator can override them independently.
 
-# Touched but runner not affected — danger zone.
-if [[ "${CONCORD_FORCE_NO_RUNNER_REBUILD:-0}" == "1" ]]; then
+runner_ok=false
+if ${runner_affected}; then
+  runner_ok=true
+elif [[ "${CONCORD_FORCE_NO_RUNNER_REBUILD:-0}" == "1" ]]; then
   warn "═══════════════════════════════════════════════════════════════════"
   warn "  CONCORD_FORCE_NO_RUNNER_REBUILD=1 — bypassing runner-rebuild gate"
   warn "  Range ${LAST_TAG}..${HEAD_REF} touched: ${touched_summary}"
-  warn "  test-runner is NOT in the Nx affected set for this range."
-  warn "  This release WILL ship those changes WITHOUT rebuilding the runner"
-  warn "  image. Deployed runner pods will run stale corekinect/protocols/corectl."
-  warn "  This is an explicit override. You have been warned."
+  warn "  test-runner is NOT in the Nx affected set. Runner pods will run"
+  warn "  stale corekinect/protocols/corectl. Explicit override."
   warn "═══════════════════════════════════════════════════════════════════"
+  runner_ok=true
+fi
+
+mtib_ok=true
+if ${proto_touched} && ! ${mtib_affected}; then
+  if [[ "${CONCORD_FORCE_NO_MTIB_REBUILD:-0}" == "1" ]]; then
+    warn "═══════════════════════════════════════════════════════════════════"
+    warn "  CONCORD_FORCE_NO_MTIB_REBUILD=1 — bypassing mtib-server-rebuild gate"
+    warn "  libs/protocols/mtib/ changed but mtib-server is NOT in the Nx"
+    warn "  affected set. Deployed edge servers will lack the new RPCs."
+    warn "  Explicit override."
+    warn "═══════════════════════════════════════════════════════════════════"
+  else
+    mtib_ok=false
+  fi
+fi
+
+if ${runner_ok} && ${mtib_ok}; then
+  ok "release-range proto/runner-rebuild gate: OK"
+  info "  touched in range: ${touched_summary}"
+  if ${runner_affected}; then
+    info "  test-runner IS in the Nx affected set — the deploy will rebuild it."
+  fi
+  if ${proto_touched} && ${mtib_affected}; then
+    info "  mtib-server IS in the Nx affected set — the proto change will rebuild the edge server."
+  fi
   exit 0
 fi
 
-err "release-range runner-rebuild gate: FAIL"
-err "  paths touched in ${LAST_TAG}..${HEAD_REF}: ${touched_summary}"
-err "  test-runner is NOT in the Nx affected set."
-err ""
-err "  The runner Docker image bakes corekinect/protocols/corectl in at"
-err "  build time. A release that ships changes to those without"
-err "  rebuilding the runner image leaves deployed pods on the old code"
-err "  — the v0.12.0->0.12.3 silent-skew failure mode."
-err ""
-err "  Fix one of these BEFORE retrying the release:"
-err "    1. Ensure deploy/runner/project.json implicitDependencies"
-err "       covers corekinect, protocols, corectl (Phase D Layer 1)."
-err "       Run: cat deploy/runner/project.json | grep implicitDependencies -A 5"
-err "    2. Confirm the Nx affected query is correct:"
-err "         ${NX_CMD}"
-err "    3. If you intentionally want to ship without a runner rebuild"
-err "       (rare; e.g. emergency frontend-only patch where corekinect"
-err "       was touched cosmetically), set:"
-err "         CONCORD_FORCE_NO_RUNNER_REBUILD=1"
-err "       Loud warning will be logged."
+# ── One or both requirements unmet — fail with specific guidance. ────
+if ! ${runner_ok}; then
+  err "release-range runner-rebuild gate: FAIL"
+  err "  paths touched in ${LAST_TAG}..${HEAD_REF}: ${touched_summary}"
+  err "  test-runner is NOT in the Nx affected set."
+  err ""
+  err "  The runner Docker image bakes corekinect/protocols/corectl in at"
+  err "  build time. A release that ships changes to those without"
+  err "  rebuilding the runner image leaves deployed pods on the old code"
+  err "  — the v0.12.0->0.12.3 silent-skew failure mode."
+  err ""
+  err "  Fix one of these BEFORE retrying the release:"
+  err "    1. Ensure deploy/runner/project.json implicitDependencies"
+  err "       covers corekinect, protocols, corectl (Phase D Layer 1)."
+  err "    2. Confirm the Nx affected query is correct: ${NX_CMD}"
+  err "    3. Intentional ship-without-rebuild (rare): set"
+  err "         CONCORD_FORCE_NO_RUNNER_REBUILD=1"
+fi
+if ! ${mtib_ok}; then
+  err "release-range mtib-server-rebuild gate: FAIL"
+  err "  libs/protocols/mtib/ changed in ${LAST_TAG}..${HEAD_REF} but"
+  err "  mtib-server is NOT in the Nx affected set."
+  err ""
+  err "  The mtib-server image compiles the SAME gRPC stubs as the runner."
+  err "  Shipping a proto change without rebuilding AND redeploying"
+  err "  mtib-server leaves the edge Verdins on a server missing the new"
+  err "  RPCs — the HealthCheck/UartStream 'Method not found!' (UNIMPLEMENTED)"
+  err "  outage where every panel failed at step 1 with the hardware fine."
+  err ""
+  err "  Fix BEFORE retrying the release:"
+  err "    1. Confirm apps/edge/mtib-server/project.json implicitDependencies"
+  err "       covers protocols (it should)."
+  err "    2. Rebuild + push the arm64 image (nx run mtib-server:containerize"
+  err "       -c production) AND redeploy the fixture MTIB deployments."
+  err "    3. Intentional override (rare): set CONCORD_FORCE_NO_MTIB_REBUILD=1"
+fi
 exit 1

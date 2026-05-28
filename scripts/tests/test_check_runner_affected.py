@@ -305,6 +305,77 @@ def test_protocols_mtib_touched_runner_missing(tmp_path: Path) -> None:
     assert "protocols" in combined.lower() or "mtib" in combined.lower(), combined
 
 
+def test_protocols_mtib_touched_runner_present_mtib_server_missing(tmp_path: Path) -> None:
+    """Proto changed + test-runner rebuilt BUT mtib-server NOT affected →
+    fail. This is the exact gap that caused the HealthCheck/UartStream
+    UNIMPLEMENTED outage: the runner was rebuilt, the edge server wasn't.
+    """
+    result = _run_gate(
+        tmp_path,
+        files_touched_in_range=("libs/protocols/mtib/mtib.proto",),
+        affected_projects=("protocols", "test-runner", "platform"),  # mtib-server absent
+    )
+    assert result.returncode == 1, (
+        f"proto touched + mtib-server missing must fail even when test-runner "
+        f"IS rebuilt. stdout={result.stdout}\nstderr={result.stderr}"
+    )
+    combined = result.stdout + result.stderr
+    assert "mtib-server" in combined.lower(), f"Failure must name mtib-server:\n{combined}"
+    assert "CONCORD_FORCE_NO_MTIB_REBUILD" in combined, (
+        f"Failure must mention the mtib escape hatch:\n{combined}"
+    )
+
+
+def test_protocols_mtib_touched_both_runner_and_mtib_present(tmp_path: Path) -> None:
+    """Proto changed + BOTH test-runner and mtib-server affected → pass."""
+    result = _run_gate(
+        tmp_path,
+        files_touched_in_range=("libs/protocols/mtib/mtib.proto",),
+        affected_projects=("protocols", "test-runner", "mtib-server", "platform"),
+    )
+    assert result.returncode == 0, (
+        f"proto touched + both rebuilt must pass. "
+        f"stdout={result.stdout}\nstderr={result.stderr}"
+    )
+    combined = result.stdout + result.stderr
+    assert "mtib-server" in combined.lower(), (
+        f"OK message should confirm the mtib-server rebuild:\n{combined}"
+    )
+
+
+def test_mtib_force_bypass_downgrades_to_warn(tmp_path: Path) -> None:
+    """CONCORD_FORCE_NO_MTIB_REBUILD=1 turns the mtib fail-case into pass+warn."""
+    result = _run_gate(
+        tmp_path,
+        files_touched_in_range=("libs/protocols/mtib/mtib.proto",),
+        affected_projects=("protocols", "test-runner", "platform"),  # mtib-server absent
+        extra_env={"CONCORD_FORCE_NO_MTIB_REBUILD": "1"},
+    )
+    assert result.returncode == 0, (
+        f"mtib escape hatch must pass through. "
+        f"stdout={result.stdout}\nstderr={result.stderr}"
+    )
+    combined = result.stdout + result.stderr
+    assert "CONCORD_FORCE_NO_MTIB_REBUILD" in combined, (
+        f"Bypass usage must be logged:\n{combined}"
+    )
+
+
+def test_corekinect_only_change_does_not_require_mtib_server(tmp_path: Path) -> None:
+    """A corekinect-only change (no proto) requires test-runner but NOT
+    mtib-server — the mtib gate is scoped to libs/protocols/mtib/ changes.
+    """
+    result = _run_gate(
+        tmp_path,
+        files_touched_in_range=("libs/python/corekinect/__init__.py",),
+        affected_projects=("corekinect", "test-runner", "platform"),  # mtib-server absent — fine
+    )
+    assert result.returncode == 0, (
+        f"corekinect-only + test-runner present must pass without requiring "
+        f"mtib-server. stdout={result.stdout}\nstderr={result.stderr}"
+    )
+
+
 def test_unrelated_path_unrelated_affected_set(tmp_path: Path) -> None:
     """A frontend-only change must not trigger the gate at all."""
     result = _run_gate(
