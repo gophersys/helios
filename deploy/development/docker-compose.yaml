@@ -70,7 +70,7 @@ services:
       DELETE_ALL_KEY: ${DELETE_ALL_KEY:-dev-delete-key}
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN:-}
-      BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-mateo@corekinect.com}
+      BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-}
       BITBUCKET_WORKSPACE: corekinect
       BITBUCKET_POLLER_ENABLED: "false"
       CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
@@ -126,7 +126,7 @@ services:
       SSH_KEY_PATH: /tmp/.ssh/id_rsa
       BITBUCKET_WORKSPACE: corekinect
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN:-}
-      BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-mateo@corekinect.com}
+      BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-}
     depends_on:
       http-api:
         condition: service_healthy

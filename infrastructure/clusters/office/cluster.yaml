@@ -103,7 +103,7 @@ workloadTypes:
       nodes to parallelize firmware builds, container builds, etc.
 
   devops:
-    description: Standalone CI platform (Helm chart: concord-ci)
+    description: "Standalone CI platform (Helm chart: concord-ci)"
     requirements:
       cpu: 8
       memory: 16Gi

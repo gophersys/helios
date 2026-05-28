@@ -162,6 +162,16 @@ spec:
                 name: concord-config
             - secretRef:
                 name: concord-secrets
+          env:
+            # Bitbucket REST basic-auth username must pair with the API token's
+            # owning account. Sourced from the same secret as the token so the
+            # pair always rotates together — never hardcode it in the configmap.
+            - name: BITBUCKET_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-service-secrets
+                  key: bitbucket-email
+                  optional: true
           resources:
             {{- toYaml .Values.httpApi.resources | nindent 12 }}
           volumeMounts:

@@ -43,7 +43,7 @@ team secret store ──manual──▶ shared.env / <env>.env (gitignored, on d
 | K8s Secret | Namespaces | Keys | Consumed by | Source env var | Rotation |
 |---|---|---|---|---|---|
 | `bitbucket-ssh-key` | staging, production, devops | `ssh-private-key` (file) | http-api (`/home/appuser/.ssh/id_rsa`), build-service, git-poller, ci-nightly CronJob | `BITBUCKET_SSH_KEY_PATH` → path on local disk | Generate new Bitbucket app key, replace file, rerun `sync-secrets`, rolling-restart consumers. |
-| `concord-build-service-secrets` | staging, production | `api-key`, `bitbucket-email`, `bitbucket-api-token` | build-service, git-poller (`CONCORD_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN`) | `BUILD_SERVICE_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN` | Rotate `BUILD_SERVICE_API_KEY`, re-seed it on the http-api side (the matching `User.api_key`), sync-secrets, restart build-service + git-poller. |
+| `concord-build-service-secrets` | staging, production | `api-key`, `bitbucket-email`, `bitbucket-api-token` | build-service, git-poller (`CONCORD_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN`); **http-api** (`BITBUCKET_EMAIL` only — explicit `env` override) | `BUILD_SERVICE_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN` | Rotate `BUILD_SERVICE_API_KEY`, re-seed it on the http-api side (the matching `User.api_key`), sync-secrets, restart build-service + git-poller. **`bitbucket-email` must be the Atlassian account that owns `bitbucket-api-token`** — REST basic auth is `email:token`, so a mismatched pair 401s. Both come from `shared.env` so they rotate together. |
 | `concord-secrets` | staging, production | `DATABASE_URL`, `DIRECT_DATABASE_URL`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `JWT_SECRET_KEY`, `BITBUCKET_API_TOKEN`, `AUTH_SERVER_API_KEY`, `DELETE_ALL_KEY`, `BITBUCKET_WEBHOOK_SECRET`, `COREOPS_API_KEY`, `COREOPS_AUTH_USER`, `COREOPS_AUTH_PASS` | http-api (entire Secret via `envFrom.secretRef`) | All keys named above | Rotate via your team's secret store + `<env>.env`, sync-secrets, rolling-restart http-api. JWT rotation forces all users to log in again. |
 | `concord-infra-credentials` | staging, production | `POSTGRES_PASSWORD`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Postgres StatefulSet, MinIO Deployment | `POSTGRES_PASSWORD`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Sensitive — rotating the Postgres password requires a coordinated change inside Postgres + restart of http-api with new `DATABASE_URL`. See "Postgres rotation" below. |
 | `concord-pypi-htpasswd` | staging, production | `.htpasswd` (file) | concord-pypi (htpasswd init container copies it into `/data/.htpasswd`) | `PYPI_HTPASSWD` (full htpasswd content) | Generate with `htpasswd -nb <user> <password>`; paste into `shared.env`; sync-secrets; restart pypi pod. |
@@ -65,7 +65,7 @@ Even though they look credential-shaped, these go in the Helm `values.yaml` (or 
 | Key | Why |
 |---|---|
 | `AUTH_SERVER_URL`, `COREOPS_SERVER_URL`, `COREOPS_AUTH_SERVER_URL` | URLs are not secret — the authentication tokens that flow to them are. |
-| `BITBUCKET_EMAIL`, `BITBUCKET_WORKSPACE` | Identifiers, not credentials. |
+| `BITBUCKET_WORKSPACE` | Identifier, not a credential. (`BITBUCKET_EMAIL` used to live here too, but it pairs with the API token for REST basic auth and now travels with the token in `concord-build-service-secrets` — see the inventory row above. Do **not** put it back in the configmap.) |
 | `MINIO_ROOT_USER` (in development) | Set to `concord` in compose; the production value lives in `concord-infra-credentials`. |
 | `JWT_SECRET_KEY` (in development) | Compose default is `concord-dev-jwt-secret-change-in-production`. Production lives in `concord-secrets`. |
 
@@ -73,7 +73,7 @@ Even though they look credential-shaped, these go in the Helm `values.yaml` (or 
 
 | Service | Reads via |
 |---|---|
-| http-api | `envFrom: [configMapRef: concord-config, secretRef: concord-secrets]`. `bitbucket-ssh-key` mounted at `/home/appuser/.ssh/id_rsa`. |
+| http-api | `envFrom: [configMapRef: concord-config, secretRef: concord-secrets]`, plus an explicit `env` entry for `BITBUCKET_EMAIL` from `concord-build-service-secrets.bitbucket-email` (so the REST basic-auth username pairs with `BITBUCKET_API_TOKEN`). `bitbucket-ssh-key` mounted at `/home/appuser/.ssh/id_rsa`. |
 | build-service | Individual `valueFrom.secretKeyRef` entries for `CONCORD_API_KEY`, `BITBUCKET_SSH_KEY`. Also mounts `bitbucket-ssh-key` as a file. |
 | git-poller | `valueFrom.secretKeyRef` for `CONCORD_API_KEY`, `BITBUCKET_EMAIL`, `BITBUCKET_API_TOKEN`. `bitbucket-ssh-key` mounted as a file. |
 | Postgres StatefulSet | `valueFrom.secretKeyRef: name=concord-infra-credentials key=POSTGRES_PASSWORD`. |

@@ -65,7 +65,9 @@ config:
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://concord.ad.corekinect.com,http://concord.ad.corekinect.com"
   MTIB_PORT: "50053"
-  BITBUCKET_EMAIL: "mateo@corekinect.com"
+  # BITBUCKET_EMAIL is sourced from concord-build-service-secrets (bitbucket-email)
+  # by the http-api/git-poller deployments — it pairs with the API token and must
+  # not be hardcoded here. See .claude/knowledge/deploy/secrets.md.
   BITBUCKET_WORKSPACE: "corekinect"
   BITBUCKET_POLLER_ENABLED: "true"
   BITBUCKET_POLLER_INTERVAL_S: "300"
