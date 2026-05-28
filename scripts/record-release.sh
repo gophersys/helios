@@ -105,11 +105,13 @@ USER_ID=$(kubectl exec -n "$ENV" "$POD" -c http-api -- \
     bash -c 'echo "${RELEASE_RECORDER_USER_ID:-}"' 2>/dev/null | tr -d '[:space:]')
 
 if [[ -z "$USER_ID" ]]; then
-    # Look up the platform-owner User row by email. Same source-of-truth
-    # the legacy SKILL.md hardcoded; just looked up at runtime now.
+    # Fall back to the current platform lead's User row by email. Prefer
+    # setting RELEASE_RECORDER_USER_ID on the http-api Deployment so this
+    # person-specific fallback never runs — it must be retargeted whenever
+    # the platform lead changes (was mateo@ before the 2026 handoff).
     USER_ID=$(kubectl exec -n "$ENV" deploy/concord-postgres -- \
         psql -U concord -d concord -tAc \
-        "SELECT id FROM users WHERE email = 'mateo@corekinect.com' LIMIT 1;" \
+        "SELECT id FROM users WHERE email = 'jared@corekinect.com' LIMIT 1;" \
         2>/dev/null | tr -d '[:space:]')
 fi
 
