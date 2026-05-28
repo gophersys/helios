@@ -9,7 +9,11 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 import grpc
 
-from corekinect.mtib_client.v1.client.core import MtibV1Client, DEFAULT_GRPC_TIMEOUT_SECONDS
+from corekinect.mtib_client.v1.client.core import (
+    MtibV1Client,
+    DEFAULT_GRPC_TIMEOUT_SECONDS,
+    is_healthcheck_unimplemented,
+)
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import (
     GpioDirection,
@@ -186,6 +190,52 @@ class TestHealthCheck(unittest.TestCase):
         assert result.ready is True
         assert result.hw_revision == "1.2"
         assert result.capabilities == ["gpio", "adc"]
+
+    def test_health_check_extended_unimplemented_surfaces_token(self):
+        """HealthCheckExtended() normalizes UNIMPLEMENTED the same way
+        HealthCheck() does. An older MTIB returns gRPC's auto-generated
+        details ('Method not found!') with no token, so detection keys off
+        the status code and the returned error carries 'UNIMPLEMENTED' for
+        callers (e.g. TestContext capability probe) that gate on it.
+        """
+        client = _make_client()
+        rpc_err = grpc.RpcError()
+        rpc_err.code = MagicMock(return_value=grpc.StatusCode.UNIMPLEMENTED)
+        rpc_err.details = MagicMock(return_value="Method not found!")
+        client.client.HealthCheck.side_effect = rpc_err
+
+        result, err = client.HealthCheckExtended()
+        assert result is None
+        assert err is not None and "UNIMPLEMENTED" in err
+
+
+class TestIsHealthcheckUnimplemented(unittest.TestCase):
+    """The shared predicate readiness-gating callers (slot bind,
+    TestContext, runner preflight) use to tolerate older MTIB builds that
+    don't implement the HealthCheck RPC.
+    """
+
+    def test_recognizes_normalized_token(self):
+        assert is_healthcheck_unimplemented(
+            "UNIMPLEMENTED: HealthCheck not implemented at 10.0.0.1 (Method not found!)"
+        )
+
+    def test_rejects_real_errors(self):
+        assert not is_healthcheck_unimplemented(
+            "gRPC error for HealthCheck at 10.0.0.1. Error: connection refused"
+        )
+
+    def test_rejects_raw_grpc_details_without_token(self):
+        # The outage's root cause: gRPC's raw UNIMPLEMENTED details carries
+        # no token, so the predicate (and the substring match it backs)
+        # must NOT match it — leniency depends on the client normalizing
+        # the status code into the error string first.
+        assert not is_healthcheck_unimplemented("Method not found!")
+        assert not is_healthcheck_unimplemented("Method not implemented!")
+
+    def test_handles_none_and_empty(self):
+        assert not is_healthcheck_unimplemented(None)
+        assert not is_healthcheck_unimplemented("")
 
 
 class TestGpio(unittest.TestCase):

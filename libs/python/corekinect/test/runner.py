@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 from corekinect.mtib_client.v1.client.config import NetConfig
-from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.mtib_client.v1.client.core import MtibV1Client, is_healthcheck_unimplemented
 from corekinect.test.env import get_run_id
 from corekinect.test.fuota_client import FuotaClient
 from corekinect.utils import Logger
@@ -404,6 +404,12 @@ class PreflightChecker:
                     else:
                         ok, err = result if isinstance(result, tuple) else (result, None)
 
+                    if is_healthcheck_unimplemented(err):
+                        # Older MTIB without the HealthCheck RPC — connect()
+                        # already succeeded leniently above, so treat as
+                        # reachable rather than reporting a health failure.
+                        suffix = "" if attempt == 1 else f" (attempt {attempt})"
+                        return True, f"OK{suffix} (HealthCheck unimplemented)"
                     if err:
                         last_msg = f"Health check failed: {err}"
                     elif not ok:

@@ -17,7 +17,7 @@ import threading
 import time
 from typing import Any, Callable, Optional, Tuple
 
-from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.mtib_client.v1.client.core import MtibV1Client, is_healthcheck_unimplemented
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils import Logger
@@ -215,12 +215,17 @@ class TestContext:
         if err:
             raise ConnectionError(f"MTIB connection failed: {err}")
 
-        # Verify MTIB is healthy and check capabilities
+        # Verify MTIB is healthy and check capabilities. Older MTIB
+        # builds without the HealthCheck RPC report UNIMPLEMENTED — proceed
+        # without the server-side readiness check rather than failing the
+        # run, mirroring slot bind and MtibV1Client.connect().
         ready, errors, err = self.mtib.HealthCheck()
-        if err:
+        if err and not is_healthcheck_unimplemented(err):
             raise ConnectionError(f"MTIB health check failed: {err}")
-        if not ready:
+        if err is None and not ready:
             raise ConnectionError(f"MTIB not ready: {errors}")
+        if is_healthcheck_unimplemented(err):
+            log.warning("MTIB HealthCheck not implemented — proceeding without server-side readiness check")
 
         # Check for Joulescope capability
         ext, ext_err = self.mtib.HealthCheckExtended()

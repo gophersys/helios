@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from corekinect.mtib_client.v1.client.config import NetConfig
-from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.mtib_client.v1.client.core import MtibV1Client, is_healthcheck_unimplemented
 from corekinect.test.slot_context import SlotTestContext
 from corekinect.test.slot_env import _parse_address, resolve_slot_bindings
 from corekinect.utils import Logger
@@ -108,7 +108,7 @@ class SlotContext:
                     # HealthCheck RPC yet — match the lenient
                     # behaviour of MtibV1Client.connect() and proceed
                     # with a warning instead of refusing to bind.
-                    if "UNIMPLEMENTED" in err:
+                    if is_healthcheck_unimplemented(err):
                         log.warning(
                             "Slot %s: HealthCheck not implemented by MTIB at %s:%d — "
                             "proceeding without server-side readiness check",
@@ -177,7 +177,11 @@ class SlotContext:
         if self.mtib:
             try:
                 ready, _errors, err = self.mtib.HealthCheck()
-                if not err and ready:
+                if (not err and ready) or is_healthcheck_unimplemented(err):
+                    # An older MTIB without the HealthCheck RPC reports
+                    # UNIMPLEMENTED on every probe — treat the existing
+                    # connection as healthy rather than churning a
+                    # reconnect on each call.
                     return True
                 log.warning(
                     "Slot %s stale connection (healthcheck err=%s, ready=%s) — reconnecting",

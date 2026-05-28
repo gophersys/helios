@@ -274,27 +274,37 @@ for removal alongside the `corekinect.fixture` import shim.
   the final `ConnectionError` so the operator sees *why* gRPC was
   unreachable instead of a generic "connection failed". Pods running
   without K8s read access simply leave the hook unset.
-- **`HealthCheck` UNIMPLEMENTED is tolerated — detected by status code, not
-  details text.** Older `mtib-server` builds don't expose the `HealthCheck`
-  RPC. Both `MtibV1Client.connect()`'s readiness probe AND the standalone
-  `MtibV1Client.HealthCheck()` catch `grpc.RpcError`, check
-  `e.code() == grpc.StatusCode.UNIMPLEMENTED`, and proceed leniently —
-  `connect()` returns success; `HealthCheck()` returns an error string that
-  **contains the `"UNIMPLEMENTED"` token**. `SlotContext.connect()` in
-  `corekinect.test.slot` substring-matches `"UNIMPLEMENTED" in err` to skip the
-  server-side readiness check. **The token-in-string contract is load-bearing:**
-  gRPC's auto-generated details for an unimplemented method is
-  `"Method not found!"` / `"Method not implemented!"` (no token), so detection
-  MUST key off the status code, never the details text.
+- **`HealthCheck`/`HealthCheckExtended` UNIMPLEMENTED is tolerated everywhere —
+  detected by status code, normalized to a token, checked via one predicate.**
+  Older `mtib-server` builds don't expose the `HealthCheck` RPC. The contract has
+  three cohesive parts:
+    1. **Normalize at the source.** `MtibV1Client.connect()`, `.HealthCheck()`,
+       and `.HealthCheckExtended()` all catch `grpc.RpcError`, check
+       `e.code() == grpc.StatusCode.UNIMPLEMENTED`, and on that case proceed —
+       `connect()` returns `None`; `HealthCheck()`/`HealthCheckExtended()` return
+       an error string that **contains the `"UNIMPLEMENTED"` token**. This is
+       load-bearing: gRPC's auto-generated details for an unimplemented method is
+       `"Method not found!"` / `"Method not implemented!"` (**no token**), so
+       detection MUST key off the status code, never the details text.
+    2. **One predicate.** `core.is_healthcheck_unimplemented(err)` is the single
+       place that knows the token contract.
+    3. **Every readiness-gating caller uses it** to proceed instead of failing:
+       `SlotContext.connect()` and `.ensure_connected()` (`corekinect.test.slot`),
+       `TestContext._connect_mtib` (`corekinect.test.context`), and the runner
+       preflight (`corekinect.test.runner`). `ensure_connected` also treats
+       UNIMPLEMENTED as "still healthy" so it doesn't churn a reconnect on an old
+       MTIB every call.
   **Prod outage 2026-05-28:** a new runner (`concord-test-runner:production`)
   against older `mtib-server` pods (image digest lacking `HealthCheck`) rejected
   every slot — "Connected 0/6 slots, waiting for hardware" — even though all 6
-  pods were `Ready`, because the standalone `HealthCheck()` forwarded only the
-  raw `"Method not found!"` details and `SlotContext.connect()`'s substring
-  match missed it. Fixed by normalizing UNIMPLEMENTED in `HealthCheck()`
-  (`mtib_client/v1/client/core.py`). Regression guards:
-  `test_bare_unimplemented_servicer_connects` (slot integration),
-  `test_health_check_unimplemented_surfaces_token` (client).
+  pods were `Ready`, because the standalone `HealthCheck()` forwarded only the raw
+  `"Method not found!"` details and `SlotContext.connect()`'s substring match
+  missed it. Fixed in `mtib_client/v1/client/core.py` + propagated to all callers.
+  Regression guards: `test_bare_unimplemented_servicer_connects`,
+  `test_ensure_connected_tolerates_unimplemented_without_reconnect` (slot
+  integration); `test_health_check_unimplemented_surfaces_token`,
+  `test_health_check_extended_unimplemented_surfaces_token`,
+  `TestIsHealthcheckUnimplemented` (client).
 - **`corekinect.test.autoconf` FAILS LOUDLY on a malformed manifest.**
   Branch `fix/manifest-load-failure-visibility`, P2.1. The pre-fix code
   in `pytest_configure` caught every `Exception` from `load_manifest`,

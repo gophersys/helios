@@ -38,6 +38,23 @@ from .types import *
 DEFAULT_GRPC_TIMEOUT_SECONDS = 10
 
 
+def is_healthcheck_unimplemented(err: Optional[str]) -> bool:
+    """True when a HealthCheck / HealthCheckExtended error string means the
+    MTIB simply doesn't implement the RPC (an older server build) rather
+    than a real failure.
+
+    ``HealthCheck`` / ``HealthCheckExtended`` normalize a gRPC
+    ``UNIMPLEMENTED`` status into an error string carrying the
+    ``"UNIMPLEMENTED"`` token. gRPC's raw details ("Method not found!" /
+    "Method not implemented!") does NOT contain it, so detection must key
+    off this normalized token, never the raw details. Readiness-gating
+    callers (slot bind, TestContext, runner preflight) use this to proceed
+    without a server-side readiness check instead of refusing to bind,
+    mirroring ``connect()``'s lenient handling.
+    """
+    return bool(err) and "UNIMPLEMENTED" in err
+
+
 class MtibV1Client:
     """gRPC client for communicating with MTIB (Motion Test Interface Board) devices.
 
@@ -806,7 +823,14 @@ class MtibV1Client:
                 capabilities=list(response.capabilities),
             ), None
         except grpc.RpcError as e:
-            return None, f"gRPC error for HealthCheckExtended at {self.config.net.addr}. Error: {str(e.details())}"
+            code = e.code() if callable(getattr(e, "code", None)) else None
+            detail = str(e.details() if callable(getattr(e, "details", None)) else e)
+            if code == grpc.StatusCode.UNIMPLEMENTED:
+                # Mirror HealthCheck(): surface the UNIMPLEMENTED token so
+                # is_healthcheck_unimplemented() recognizes an older MTIB
+                # build regardless of gRPC's raw details text.
+                return None, f"UNIMPLEMENTED: HealthCheckExtended not implemented at {self.config.net.addr} ({detail})"
+            return None, f"gRPC error for HealthCheckExtended at {self.config.net.addr}. Error: {detail}"
         except Exception as e:
             return None, f"Unexpected error in HealthCheckExtended at {self.config.net.addr}: {str(e)}"
 

@@ -183,6 +183,29 @@ class TestSlotConnectAgainstLiveServer:
         finally:
             server.stop(grace=0).wait()
 
+    def test_ensure_connected_tolerates_unimplemented_without_reconnect(self):
+        """A connected slot whose MTIB lacks HealthCheck must stay
+        connected on ``ensure_connected()`` — the UNIMPLEMENTED probe is
+        not treated as a stale connection, so the slot doesn't churn a
+        reconnect on every call.
+        """
+        port = _free_port()
+        server = _start_server(_BareServicer(), port)
+        try:
+            slot = SlotContext(
+                slot_id="slot-0", slot_index=0,
+                mtib_address="127.0.0.1", mtib_port=port,
+            )
+            slot.connect()
+            assert slot.mtib is not None
+            original = slot.mtib
+            assert slot.ensure_connected() is True
+            # Same client instance retained — no reconnect churn.
+            assert slot.mtib is original
+            slot.disconnect()
+        finally:
+            server.stop(grace=0).wait()
+
     def test_not_ready_server_eventually_raises(self):
         """ready=False on every attempt → ConnectionError with the
         error list surfaced.
