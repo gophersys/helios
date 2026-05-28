@@ -75,6 +75,13 @@ config:
   CK_BOARDS_REPO_URL: "git@bitbucket.org:corekinect/ck_boards.git"
   CK_BOARDS_FETCH_INTERVAL: "60"
   BUILD_SERVICE_URL: "http://concord-build-service:9002"
+  # Release-record author for scripts/record-release.sh (runs on every nx update
+  # platform). Set to project owner Jared's STAGING User.id to skip the
+  # person-coupled jared@corekinect.com email fallback in the script. Look up:
+  #   kubectl exec -n staging deploy/concord-postgres -- psql -U concord -d concord \
+  #     -tAc "SELECT id FROM users WHERE email='jared@corekinect.com';"
+  # Empty = use the fallback (current behavior). Populate, then redeploy.
+  RELEASE_RECORDER_USER_ID: ""
   # Queue scheduler — per-domain concurrency and timeouts
   SCHEDULER_INTERVAL_S: "15"
   MAX_CONCURRENT_BUILDS: "4"

@@ -76,6 +76,9 @@ services:
       CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
       CK_BOARDS_FETCH_INTERVAL: "60"
       BUILD_SERVICE_URL: http://build-service:9002
+      # Release-record author for record-release.sh; empty falls back to the
+      # jared@corekinect.com lookup. Dev rarely records releases.
+      RELEASE_RECORDER_USER_ID: ${RELEASE_RECORDER_USER_ID:-}
       # Queue scheduler — per-domain concurrency and timeouts
       SCHEDULER_INTERVAL_S: "15"
       MAX_CONCURRENT_BUILDS: "2"
@@ -96,7 +99,7 @@ services:
       VALIDATION_NAMESPACE: ${VALIDATION_NAMESPACE:-development}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${KUBECONFIG_HOST_PATH:-/home/mateo/.kube}:/tmp/.kube:ro
+      - ${KUBECONFIG_HOST_PATH:-${HOME}/.kube}:/tmp/.kube:ro
     depends_on:
       db:
         condition: service_healthy
