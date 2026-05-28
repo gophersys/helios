@@ -545,9 +545,9 @@ Wait for user confirmation before proceeding.
 
 ## Phase 6 — Commit and push the release branch
 
-1. Set git identity:
+1. Set git identity to **yourself** (repo-local), if not already configured:
    ```bash
-   git config user.name "Blake Ottinger" && git config user.email "blake@corekinect.com"
+   git config user.name "Your Name" && git config user.email "you@corekinect.com"
    ```
 
 2. Stage and commit:
@@ -782,8 +782,8 @@ import jwt, os
 from datetime import datetime, timezone, timedelta
 token = jwt.encode({
     'sub': '<USER_ID>',
-    'email': 'blake@corekinect.com',
-    'name': 'Blake Ottinger',
+    'email': 'jared@corekinect.com',
+    'name': 'Jared Walton',
     'role': 'ADMIN',
     'iat': datetime.now(timezone.utc),
     'exp': datetime.now(timezone.utc) + timedelta(hours=1),
@@ -792,9 +792,11 @@ print(token)
 " 2>/dev/null)
 ```
 
-**Known user IDs** (look up if stale — query `/v2/users` with any valid token):
-- Staging: `cmnz59zya000ylno28xrj4gu1` (blake@corekinect.com)
-- Production: `cmny0hvd0000yq1k0vmv2mwto` (blake@corekinect.com)
+**Release author** = project owner `jared@corekinect.com`. Prefer the automated
+path (`scripts/record-release.sh`, run by every `nx update platform`), which
+resolves the user via `RELEASE_RECORDER_USER_ID` on the http-api Deployment and
+falls back to a `jared@corekinect.com` lookup. If minting by hand, look up the
+`sub` per env: `/v2/users?email=jared@corekinect.com` (it differs staging↔prod).
 
 ### Step 2: Compute release duration
 

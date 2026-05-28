@@ -87,7 +87,7 @@ What it does:
 
 1. Reads `VERSION`, `git rev-parse HEAD`, `git rev-parse --abbrev-ref HEAD`. Falls back to `.git-build-info` if `git` is unavailable inside the devcontainer (submodule layout).
 2. Looks up the previous version from `releases.createdAt DESC` and builds a changelog from `git log <prev>..HEAD`.
-3. Picks the http-api pod, mints a JWT inside it using `JWT_SECRET_KEY` with `role: "ADMIN"` for the release-recorder user (`RELEASE_RECORDER_USER_ID` env var on the http-api Deployment; falls back to `mateo@corekinect.com`).
+3. Picks the http-api pod, mints a JWT inside it using `JWT_SECRET_KEY` with `role: "ADMIN"` for the release-recorder user (`RELEASE_RECORDER_USER_ID` env var on the http-api Deployment; falls back to a `jared@corekinect.com` lookup — the project owner. Set `RELEASE_RECORDER_USER_ID` to avoid the person-specific fallback).
 4. POSTs `/v2/releases`. On 409 (version already exists) PATCHes the existing row so re-runs are idempotent.
 5. Verifies the top of the `releases` table matches `<VERSION>|RELEASED`.
 

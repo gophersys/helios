@@ -2,14 +2,16 @@
 
 ## Identity
 
-Every commit MUST be authored by `Blake Ottinger <blake@corekinect.com>`. Set on first commit in a fresh clone:
+Author every commit as **yourself** — your own name and corekinect email. Set repo-local identity on the first commit in a fresh clone:
 
 ```bash
-git config user.name "Blake Ottinger"
-git config user.email "blake@corekinect.com"
+git config user.name "Your Name"
+git config user.email "you@corekinect.com"
 ```
 
 Use repo-local config (`git config` without `--global`) so other repos aren't affected.
+
+(Before the 2026 handoff this rule pinned every commit to a single fixed identity; it now reflects per-person authorship — e.g. Jared Walton as project owner/lead/admin, Blake Ottinger as test & tools engineer. The "no Claude/AI attribution" rule below is unchanged and unconditional.)
 
 ## Format — Conventional Commits
 
