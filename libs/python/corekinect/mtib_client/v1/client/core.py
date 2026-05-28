@@ -384,7 +384,18 @@ class MtibV1Client:
             response = self.client.HealthCheck(Empty(), timeout=timeout)
             return response.ready, response.errors, None
         except grpc.RpcError as e:
-            return None, None, f"gRPC error for HealthCheck at {self.config.net.addr}. Error: {str(e.details())}"
+            code = e.code() if callable(getattr(e, "code", None)) else None
+            detail = str(e.details() if callable(getattr(e, "details", None)) else e)
+            if code == grpc.StatusCode.UNIMPLEMENTED:
+                # Older MTIB builds don't expose the HealthCheck RPC. gRPC
+                # auto-generates details like "Method not implemented!" /
+                # "Method not found!", which do NOT contain the token
+                # "UNIMPLEMENTED" — so surface the status-code name
+                # explicitly. Callers (e.g. test.slot.SlotContext.connect)
+                # key off this token to proceed without a server-side
+                # readiness check, mirroring connect()'s lenient handling.
+                return None, None, f"UNIMPLEMENTED: HealthCheck not implemented at {self.config.net.addr} ({detail})"
+            return None, None, f"gRPC error for HealthCheck at {self.config.net.addr}. Error: {detail}"
         except Exception as e:
             return None, None, f"Unexpected error in HealthCheck at {self.config.net.addr}: {str(e)}"
 

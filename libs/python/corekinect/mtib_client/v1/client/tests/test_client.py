@@ -152,6 +152,25 @@ class TestHealthCheck(unittest.TestCase):
         assert errors is None
         assert "connection refused" in err
 
+    def test_health_check_unimplemented_surfaces_token(self):
+        """An MTIB without the HealthCheck RPC returns UNIMPLEMENTED with
+        gRPC's auto-generated details ('Method not found!') — which has
+        no 'UNIMPLEMENTED' token. HealthCheck() must detect the status
+        code and surface 'UNIMPLEMENTED' in the error so the runner's
+        slot-connect lenient path (substring match) fires against a real
+        older MTIB build.
+        """
+        client = _make_client()
+        rpc_err = grpc.RpcError()
+        rpc_err.code = MagicMock(return_value=grpc.StatusCode.UNIMPLEMENTED)
+        rpc_err.details = MagicMock(return_value="Method not found!")
+        client.client.HealthCheck.side_effect = rpc_err
+
+        ready, errors, err = client.HealthCheck()
+        assert ready is None
+        assert errors is None
+        assert err is not None and "UNIMPLEMENTED" in err
+
     def test_health_check_extended_success(self):
         """Test health check extended success."""
         client = _make_client()

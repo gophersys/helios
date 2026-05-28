@@ -70,27 +70,26 @@ class _HealthyServicer(_BaseServicer):
 
 
 class _UnimplementedServicer(_BaseServicer):
-    """Inherits default: HealthCheck → UNIMPLEMENTED with the explicit
-    details string. The string ``"UNIMPLEMENTED"`` appears in the
-    server-set details so the substring-match in
-    :meth:`SlotContext.connect` fires correctly.
+    """Inherits default: HealthCheck → UNIMPLEMENTED with an explicit
+    ``"UNIMPLEMENTED"`` token in the details string.
 
-    See :class:`_BareServicer` for the case where the server doesn't
-    implement HealthCheck at all — gRPC then auto-generates
-    ``"Method not implemented!"`` as details, which the slot's
-    substring match does **not** recognize. That divergence is
-    intentionally exercised by ``test_bare_unimplemented_servicer_currently_fails``
-    so the bug stays visible.
+    See :class:`_BareServicer` for the realistic case where the server
+    doesn't implement HealthCheck at all — gRPC then auto-generates
+    ``"Method not implemented!"`` as details (no token). Both cases now
+    connect: :meth:`MtibV1Client.HealthCheck` recognizes UNIMPLEMENTED
+    via ``e.code()`` and surfaces the token, so the slot's lenient path
+    fires regardless of the server's details text
+    (``test_bare_unimplemented_servicer_connects``).
     """
 
 
 class _BareServicer(mtib_pb2_grpc.MtibV1Servicer):
     """No HealthCheck override at all — the framework returns
-    ``StatusCode.UNIMPLEMENTED`` with details ``"Method not implemented!"``.
-    The SDK's :meth:`MtibV1Client.connect` recognizes this via
-    ``e.code() == UNIMPLEMENTED`` and proceeds, but the slot's second
-    HealthCheck call relies on a substring match against the error
-    string and does *not* recognize this case.
+    ``StatusCode.UNIMPLEMENTED`` with details ``"Method not implemented!"``
+    (the realistic production case). Both :meth:`MtibV1Client.connect`
+    and the slot's standalone :meth:`MtibV1Client.HealthCheck` recognize
+    this via ``e.code() == UNIMPLEMENTED`` and proceed — the slot no
+    longer depends on the server's details text containing a token.
     """
 
 
@@ -157,28 +156,18 @@ class TestSlotConnectAgainstLiveServer:
         finally:
             server.stop(grace=0).wait()
 
-    @pytest.mark.xfail(
-        reason=(
-            "SlotContext.connect uses a substring match on the error "
-            "string (``'UNIMPLEMENTED' in err``) rather than the gRPC "
-            "status code. When a server doesn't implement HealthCheck "
-            "at all, gRPC auto-generates details='Method not "
-            "implemented!' which does NOT contain the token. "
-            "MtibV1Client.connect uses ``e.code() == UNIMPLEMENTED`` and "
-            "handles this correctly; the slot's second HealthCheck "
-            "call doesn't have access to the status code and so the "
-            "lenient path is missed in this realistic case."
-        ),
-        strict=True,
-    )
-    def test_bare_unimplemented_servicer_currently_fails(self):
-        """Documents the substring-match bug in SlotContext.connect.
+    def test_bare_unimplemented_servicer_connects(self):
+        """A server that doesn't implement HealthCheck at all must still
+        connect. gRPC auto-generates details like 'Method not
+        implemented!' (no "UNIMPLEMENTED" token), so the old
+        substring-only match in SlotContext.connect missed it.
 
-        When the bug is fixed (e.g., by checking the gRPC status code
-        directly instead of substring-matching ``err`` or by having
-        ``MtibV1Client.HealthCheck`` recognize UNIMPLEMENTED leniently),
-        this test will start passing — at which point flip the xfail
-        to a regular test.
+        Regression guard for the fix: ``MtibV1Client.HealthCheck`` now
+        recognizes UNIMPLEMENTED via the gRPC **status code** and
+        surfaces the token in its returned error string, so the slot's
+        lenient path fires for a *real* bare MTIB — not only one that
+        happens to put "UNIMPLEMENTED" in its details. (Previously an
+        xfail that pinned the substring-match bug.)
         """
         port = _free_port()
         server = _start_server(_BareServicer(), port)
@@ -187,8 +176,7 @@ class TestSlotConnectAgainstLiveServer:
                 slot_id="slot-0", slot_index=0,
                 mtib_address="127.0.0.1", mtib_port=port,
             )
-            # The contract: an older MTIB without HealthCheck should
-            # still connect successfully. Today it raises.
+            # An older MTIB without HealthCheck still connects.
             slot.connect()
             assert slot.mtib is not None
             slot.disconnect()
