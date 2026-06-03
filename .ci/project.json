@@ -1,0 +1,53 @@
+{
+  "name": "ci-monorepo",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "tags": ["scope:monorepo", "type:ci"],
+  "targets": {
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh validate", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "build-all": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh build-all", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "test-all": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh test-all", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "lint-all": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh lint-all", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "typecheck-all": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh typecheck-all", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "affected-build": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh affected-build", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "affected-test": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh affected-test", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "affected-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh affected-check", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "release-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh release-check", "cwd": "{projectRoot}" },
+      "cache": false
+    }
+  }
+}

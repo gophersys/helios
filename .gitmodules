@@ -1,0 +1,9 @@
+[submodule "infrastructure"]
+	path = infrastructure
+	url = https://github.com/gophersys/infrastructure.git
+[submodule "libs"]
+	path = libs
+	url = https://github.com/gophersys/libs.git
+[submodule ".devcontainer"]
+	path = .devcontainer
+	url = https://github.com/gophersys/.devcontainer.git

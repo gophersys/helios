@@ -1,0 +1,18 @@
+# Build artifacts
+dist/
+build/
+out/
+coverage/
+tmp/
+.nx/
+node_modules/
+.yarn/
+
+# Submodules
+.devcontainer/
+infrastructure/
+libs/
+
+# Generated files
+*.min.js
+*.min.css

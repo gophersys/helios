@@ -1,0 +1,44 @@
+# Node / Yarn
+node_modules/
+.yarn/install-state.gz
+.yarn/cache/
+.yarn/*.log
+.pnp.*
+
+# Nx
+.nx/cache/
+.nx/workspace-data/
+
+# Build output
+dist/
+build/
+out/
+coverage/
+tmp/
+
+# TypeScript
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Rust
+target/
+
+# Editor state
+.vscode/.history/
+.idea/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,33 @@
+name: on-pr
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: on-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    name: affected-check
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/gophersys/base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Run affected-check
+        env:
+          NX_BASE: origin/${{ github.base_ref }}
+        run: bash .ci/ctl.sh affected-check
