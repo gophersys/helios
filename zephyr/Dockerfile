@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# images/zephyr — Zephyr RTOS build host on top of gophersys/base.
+# zephyr — Zephyr RTOS build host on top of gophersys/base.
 #
 # Adds the Zephyr-specific system deps, the `west` meta-tool (installed via
 # uv into an isolated venv), and the Zephyr SDK for cross-compilation.

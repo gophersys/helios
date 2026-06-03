@@ -85,11 +85,11 @@ function cmd_validate() {
   shellcheck "$REPO_ROOT/ctl.sh" || rc=1
 
   for name in "${BUILD_ORDER[@]}"; do
-    dir="$REPO_ROOT/images/$name"
-    log_info "shellcheck: images/${name}/ctl.sh"
+    dir="$REPO_ROOT/$name"
+    log_info "shellcheck: ${name}/ctl.sh"
     shellcheck "$dir/ctl.sh" || rc=1
 
-    log_info "jq parse: images/${name}/project.json"
+    log_info "jq parse: ${name}/project.json"
     jq empty "$dir/project.json" || rc=1
   done
 
@@ -101,8 +101,8 @@ function cmd_validate() {
 
   if command -v hadolint >/dev/null 2>&1; then
     for name in "${BUILD_ORDER[@]}"; do
-      dir="$REPO_ROOT/images/$name"
-      log_info "hadolint: images/${name}/Dockerfile"
+      dir="$REPO_ROOT/$name"
+      log_info "hadolint: ${name}/Dockerfile"
       hadolint "$dir/Dockerfile" || rc=1
     done
   else

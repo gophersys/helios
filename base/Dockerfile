@@ -7,7 +7,7 @@
 # supports sh/bash/dash/ksh and warns on every zsh RUN line. The `set -o
 # pipefail` semantics hold in zsh as well; the warning is a tooling gap.
 #
-# images/base — Ubuntu 24.04 LTS IDP base image.
+# base — Ubuntu 24.04 LTS IDP base image.
 #
 # Single "pick up and work" image for the brain ecosystem: shells, languages
 # (Node, Python, Go, Rust), infra CLIs (kubectl/helm/terraform/tailscale/gh),
