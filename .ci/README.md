@@ -1,7 +1,7 @@
 # .ci — CI orchestration layer
 
 This directory owns **everything that spans more than one image** in the
-gophersys/.devcontainer repo. Individual images live under `images/<name>/`
+gophersys/.devcontainer repo. Individual images live under `<name>/`
 and each carries its own `ctl.sh` + `project.json` + `Dockerfile`. The
 repo-level `ctl.sh` delegates to those per-image scripts. This layer sits one
 level above that and is the only entrypoint that should ever appear in a CI

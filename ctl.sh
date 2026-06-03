@@ -2,8 +2,8 @@
 #
 # ctl.sh — repo-wide control for gophersys/.devcontainer
 #
-# Builds, pushes, lists, and validates every base image under images/*.
-# Delegates per-image work to images/<name>/ctl.sh.
+# Builds, pushes, lists, and validates every image under the repo root.
+# Delegates per-image work to <name>/ctl.sh.
 #
 # Multi-arch policy:
 #   - `build`               native single-arch (fast dev loop)
@@ -20,9 +20,8 @@ REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
 export REPO_ROOT
 
 # Dependency order — parents first. `base` is the root of the dev-image
-# family; `flutter` and `zephyr` both layer on top of `base`. `orchestrator`
-# is a peer of `base` (not a derivative) — different role, different size.
-BUILD_ORDER=(base flutter zephyr orchestrator)
+# family; `flutter` and `zephyr` both layer on top of `base`.
+BUILD_ORDER=(base flutter zephyr)
 
 # Multi-arch platforms enforced on push.
 MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"
@@ -95,7 +94,7 @@ trap on_exit EXIT
 # -------- helpers --------
 function image_dir() {
   local name="$1"
-  printf '%s/images/%s' "$PROJECT_ROOT" "$name"
+  printf '%s/%s' "$PROJECT_ROOT" "$name"
 }
 
 function image_ctl() {
@@ -184,10 +183,10 @@ function cmd_validate() {
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$(image_dir "$name")"
-    log_info "shellcheck: images/${name}/ctl.sh"
+    log_info "shellcheck: ${name}/ctl.sh"
     shellcheck "$dir/ctl.sh" || rc=1
 
-    log_info "jq parse: images/${name}/project.json"
+    log_info "jq parse: ${name}/project.json"
     jq empty "$dir/project.json" || rc=1
 
     if [[ ! -s "$dir/Dockerfile" ]]; then
@@ -205,7 +204,7 @@ function cmd_validate() {
     local bad
     bad="$(grep -nE '^[[:space:]]*RUN[[:space:]].*=[0-9]+\.[0-9]+\.[0-9]+' "$dir/Dockerfile" || true)"
     if [[ -n "$bad" ]]; then
-      log_error "images/${name}/Dockerfile: hardcoded version(s) in RUN lines — use ARGs"
+      log_error "${name}/Dockerfile: hardcoded version(s) in RUN lines — use ARGs"
       printf '%s\n' "$bad" >&2
       rc=1
     fi
@@ -217,7 +216,7 @@ function cmd_validate() {
   if command -v hadolint >/dev/null 2>&1; then
     for name in "${BUILD_ORDER[@]}"; do
       dir="$(image_dir "$name")"
-      log_info "hadolint: images/${name}/Dockerfile"
+      log_info "hadolint: ${name}/Dockerfile"
       hadolint "$dir/Dockerfile" || rc=1
     done
   else

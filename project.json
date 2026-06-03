@@ -22,9 +22,9 @@
       "inputs": [
         "{projectRoot}/ctl.sh",
         "{projectRoot}/project.json",
-        "{projectRoot}/images/*/ctl.sh",
-        "{projectRoot}/images/*/Dockerfile",
-        "{projectRoot}/images/*/project.json"
+        "{projectRoot}/*/ctl.sh",
+        "{projectRoot}/*/Dockerfile",
+        "{projectRoot}/*/project.json"
       ]
     },
     "propagate": {

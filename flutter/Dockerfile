@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# images/flutter — Flutter SDK + Android toolchain on top of gophersys/base.
+# flutter — Flutter SDK + Android toolchain on top of gophersys/base.
 #
 # Scope is Android + Linux desktop targets. iOS builds require macOS and are
 # explicitly out of scope. Every version is pinned as an ARG at the top.
