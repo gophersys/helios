@@ -14,7 +14,6 @@
 | OD-13 | **Fleet deployment architecture** (C17): per-customer isolated environments, gated rollouts of one change across N deployments, fleet-wide observability — D4 modeling + orchestrator design | needs architecture work before the production milestone; rides ADR-0012's posture. | post-spine |
 | OD-6 | **Hosted-tier billing**: Stripe adapter scope and metering granularity | defer until hosted milestone; F3 contract designed to carry it. | hosted milestone |
 | OD-7 | **agentconfiguration open items** inherited from upstream (CLI module split, yaml v3 vs v4, harness plugin model, per-call key rotation, content-based routing) | per upstream agentcfg-architecture §open-questions; rule during WS2. | WS2 |
-| OD-8 | **External corpus migration**: when/how the upstream Helios-named corpus (`~/Documents/...`) gets renamed/folded — the in-repo half was executed by ADR-0010 | lazily on touch (recommended). | ongoing |
 | OD-9 | **Transcript retention & privacy policy** (per-project retention, redaction verification) | needs ruling before any non-Mateo user exists. | L4 |
 | OD-10 | **Visual editor scope** for v1 dashboard (read-only pipeline/artifact viewer first vs editable canvas) | viewer-first recommended; editing re-enters via phase artifacts, not canvas mutation — this constraint is the editor's architectural contract regardless of scope ruling. | L2/L4 |
 | OD-11 | **S6 observability stack composition** (trace/metric/log storage, dashboarding) — the one v1 subsystem whose concrete components are unpinned while buf/Connect/kind/etc. are | candidates to be evaluated (e.g. Grafana LGTM stack, ClickHouse-backed, openobserve); must be minimally live by L1 exit (06 §2). | L0/L1 |
@@ -36,3 +35,4 @@
 | RD-10 | Project document schemas | JSON Schema 2020-12 · dual-surface canonical form (md+frontmatter / yaml → one JSON projection) · `schemas/document/v1/` · design system stays a separate linked F6 artifact | 0011 |
 | RD-11 | Compute posture | hosted-default central multi-tenant cluster (an ordinary F1 adapter, metered); clients are control surfaces; local k3d/kind = just another cluster; BYO encouraged | 0012 |
 | RD-12 | SCM integration (formerly OD-5) | eden-authority default · byo-authority advanced (org metadata only) · per-project enforcement {enforced via host app \| advisory} with permanently visible guarantees | 0013 |
+| RD-13 | Upstream corpus (formerly OD-8) | copied verbatim into `docs/upstream/` as a fifth document class; all citations repointed in-repo; root README becomes the human front door | 0014 |
