@@ -91,6 +91,7 @@ const ADR_TIMELINE = [
   { id: '0011', title: 'Document schema language', status: 'Accepted', one: 'JSON Schema 2020-12 as the document-schema language; dual-surface canonical form (md+frontmatter / yaml → one JSON projection). Makes E2 concrete.' },
   { id: '0012', title: 'Compute posture (hosted-default)', status: 'Accepted · amends ADR-0006', one: 'Amends ADR-0006 to hosted-default: clients are control surfaces; compute runs on a cluster the user points at; BYO encouraged. Driven by founder intake C3–C7/C19.' },
   { id: '0013', title: 'SCM integration modes', status: 'Accepted · resolves OD-5', one: 'Two per-project SCM modes (eden-authority default, byo-authority advanced) with per-project enforcement {enforced|advisory}. Driven by intake C8/C18.' },
+  { id: '0014', title: 'Upstream consolidation + human front door', status: 'Accepted · resolves OD-8', one: 'External corpus copied verbatim into docs/upstream/ as a fifth document class; all citations repointed in-repo; root README becomes the plain-language entry layer.' },
 ];
 
 // ── mermaid: section 2 system map (S1–S10 + connector families + kernel) ────────
@@ -630,7 +631,7 @@ ${breadcrumbHtml}
 
 <section id="timeline">
   <div class="sec-chip">4 · DECISIONS TIMELINE</div>
-  <h2>ADR-0001 … 0013</h2>
+  <h2>ADR-0001 … 0014</h2>
   <p class="sec-blurb">The append-only decision record, one line each with status. Follow the amendment chain: ADR-0006 (local-first) is amended by ADR-0012 (hosted-default); ADR-0013 resolves OD-5. Each chip opens the full ADR.</p>
   ${timelineHtml}
 </section>
