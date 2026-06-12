@@ -33,7 +33,7 @@ validation strategy, isolation, abstraction) built as a product rather than adop
 |---|---|---|
 | T1 | **Contracts over integrations.** Eden defines requirement contracts (ports); adapters satisfy them per provider. | Adding a provider is additive work, never architectural work (05). |
 | T2 | **The SDLC is the product.** A typed artifact pipeline with hard schemas at every phase; agents are transform functions; the platform is the type-checker and orchestrator. | "Process baked into code" — corpus doc 04's spine, instantiated (04). |
-| T3 | **Evidence-gated autonomy.** Nothing promotes on agent say-so; gates read evidence envelopes produced in clean rooms. | Kills the master-agent-monitor role; humans do up-front specification and gate rulings only (E6). |
+| T3 | **Evidence-gated autonomy.** Nothing promotes on agent say-so; gates read evidence envelopes produced in clean rooms. | Eliminates the master-agent-monitor role; humans do up-front specification and gate rulings only (E6). |
 | T4 | **Opinionation is the feature.** One blessed library set, one naming standard, one process per cell. | Shrinks agent output space; makes generated systems uniform, reviewable, observable by construction. |
 | T5 | **Eden builds Eden.** The platform's complexity proof is self-hosting: version N builds, deploys, and migrates to version N+1. | Migration, updates, and observability are core subsystems, not features (06). |
 | T6 | **Token and cost predictability.** Every run is metered (tokens, provider spend) from run 1; archetype cost models come from accumulated run data. | Pre-run estimates, budgets, and cost ceilings are first-class (04 §6, S9). |

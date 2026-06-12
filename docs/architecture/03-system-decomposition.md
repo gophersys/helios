@@ -121,8 +121,8 @@ connect out; nothing listens.
   server). External SCM (GitHub/GitLab) are F2 connector *mirrors* with declared ownership: pushes
   arriving at the mirror are drift (05 §5) — flagged with adopt/revert/fork options, satisfying
   "detect changes made external to the platform". byo-authority projects (ADR-0013) invert this:
-  the user's host is authoritative, Eden holds organizational metadata only, and gate teeth come
-  via host-app enforcement or are explicitly advisory.
+  the user's host is authoritative, Eden holds organizational metadata only, and gate enforcement
+  comes via host-app enforcement (required status checks + branch protection) or is explicitly advisory.
 - **S4 swarms.** Parallel safety comes from worktree isolation plus FileLeases (02 §2) assigned
   at planning time; operational semantics in 04 §7, build-time discipline in 09 §3.
 - **S5 executors.** The CI contract is an executor port (docker, kubernetes); a future adapter may

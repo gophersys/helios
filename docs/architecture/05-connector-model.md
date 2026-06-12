@@ -60,7 +60,7 @@ flowchart LR
 
 Notes. F2: eden-authority keeps gates server-enforceable and makes external mirrors a clean
 drift surface. byo-authority (ADR-0013) inverts this for advanced users — their host is
-authoritative, Eden stores organizational metadata only, and gate teeth come from host-app
+authoritative, Eden stores organizational metadata only, and gate enforcement comes from host-app
 enforcement (required status checks + branch protection) or are explicitly advisory with a
 permanently visible guarantee badge. F4: the agent contract layers over the upstream
 `AgentTransport`/factory design (docs/research/02 ✅ prototyped in `poc/agents`);

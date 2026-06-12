@@ -1,4 +1,4 @@
-# Platform UI Paradigms — how deep professional tools stay learnable, and what Eden steals
+# Platform UI Paradigms — how deep professional tools stay learnable, and which patterns Eden adopts
 
 > Research date: June 12, 2026 · Lens: the Ableton-like "mega-tool" (C11) — tool depth & learnability,
 > document UX, diagrams-as-runtime (C10), onboarding, desktop/web parity, multi-altitude navigation.
@@ -9,13 +9,13 @@
 
 ## Thesis
 
-> **Density is earned, not imposed.** A mega-tool feels premium — not punishing — when one
+> **Density is earned, not imposed.** A mega-tool reads as professional rather than punishing when one
 > typed model is projected into many task-postured views, every verb is reachable two ways
 > (discoverable click *and* keyboard/palette), the structure is legible (breadcrumb + color-coded
 > types + bounded depth), and learning *is* the work (the tutorial builds your first real artifact
 > and ticks itself off when you actually do the thing). Eden's hardest, most-defensible bet —
 > the **design-time diagram that doubles as the runtime observability surface (C10)** — is the one
-> place where no shipped product fully closes the loop; everyone else has half of it.
+> place where no shipped product fully closes the loop; existing tools implement one side of it.
 
 The deep-tool field has converged on a small set of load-bearing primitives. ✅ Across Ableton,
 Blender, Figma, DaVinci Resolve, Unreal, TouchDesigner, Linear, VS Code, Backstage, Datadog,
@@ -27,7 +27,7 @@ key); **(4)** a command palette as the scale-proof escape hatch *and* live docum
 with a breadcrumb; **(7)** persisted, task-scoped layouts; **(8)** spatial muscle-memory
 accelerators; **(9)** type-as-color with enforced legal connections; **(10)** the design diagram
 as the runtime observability surface. Eden should treat (1)–(9) as solved patterns to copy and (10)
-as the greenfield it uniquely owns — because Eden *generates* both code and model, it alone holds
+as the unclaimed capability Eden is positioned to own — because Eden *generates* both code and model, it alone holds
 ground truth on both sides of the drift comparison (T2/T4/C13).
 
 ---
@@ -109,7 +109,7 @@ This is the foundational architecture decision for Eden's doc 11 system.
 ✅ **The prose↔code highlight (Stripe) is the most-praised single reading mechanic** — hovering an
 element in the description highlights the corresponding lines in the live code panel, removing the
 cognitive mapping cost between explanation and implementation. It generalizes directly to Eden's
-killer move: **document ↔ diagram ↔ code ↔ runtime sync** (hover a component in a design doc →
+differentiating capability: **document ↔ diagram ↔ code ↔ runtime sync** (hover a component in a design doc →
 highlight it in the diagram → in the code → in the live observability overlay).
 
 ✅ **Review/merge rails generalize from code to docs.** GitBook ships branch → request review →

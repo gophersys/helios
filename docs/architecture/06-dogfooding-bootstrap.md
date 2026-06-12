@@ -70,8 +70,9 @@ kernel's own instrument dashboards are its first customer.
   any other change. This is the LSC mechanism (04 §2) — and platform development uses the same
   machinery on project #1 first (canary = ourselves).
 - **Compatibility windows.** N+1 must migrate projects from N (contract-tested); skipping versions
-  composes migrations. Breaking a published contract without a migration is the cardinal sin
-  (10 §9) — `buf breaking` literally stops the platform from amputating itself.
+  composes migrations. Breaking a published contract without a migration is the most severe
+  violation in the system (10 §9) — `buf breaking` mechanically blocks a release that would
+  remove a contract the platform itself depends on.
 - **Rollback posture.** Deliver-phase reversibility (D4) is preserved by migration steps being
   individually reversible or checkpointed; release never outruns detection (Bender mode 9) —
   observability SLOs gate rollout progression. Rollback is deterministic machinery (P8).

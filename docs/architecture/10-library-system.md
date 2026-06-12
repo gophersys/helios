@@ -282,7 +282,7 @@ Plugins live at `libs/plugins/project-<ecosystem>/` with a `libs/.claude-plugin/
 ## 9. Interface / API-design discipline
 
 > **Knowledge ≠ enforcement** (= P7). `.claude` knowledge *guides* authoring; deterministic
-> linters + breaking-change gates *enforce*. Breaking a published interface is the cardinal sin.
+> linters + breaking-change gates *enforce*. Breaking a published interface is the most severe violation in the system.
 
 - **Network/API** (`libs/protocols`): governed by **AIPs** (aip.dev) — resource-oriented design
   (AIP-121/122), standard methods (131–135), field naming (140), enums (126), pagination (158),
@@ -300,7 +300,7 @@ Plugins live at `libs/plugins/project-<ecosystem>/` with a `libs/.claude-plugin/
   trigger points.
 - **Self-hosting payoff:** the same skills feed the kernel's resolved agent context, so generated
   features are AIP/interface-compliant by construction — and because Eden consumes its own
-  *published* protocols, `buf breaking` literally stops the build system from amputating itself.
+  *published* protocols, `buf breaking` mechanically blocks a release that would remove a contract the build system itself depends on.
   The override-never-reaches-main rule and the breaking-change gate are the same safety property.
 
 ## 10. Build order

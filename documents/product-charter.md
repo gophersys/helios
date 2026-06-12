@@ -42,7 +42,8 @@ data:
         advisory badge that says the guarantee is off (C8, C18). What earns their trust is that
         Eden is extremely well git-integrated and always knows exactly what has drifted between
         their repo and the state Eden knows about (C8). Done right, the release-engineering
-        discipline saves them so much time that they "cream themselves" to have it present (C9).
+        discipline produces a time saving large enough to be the persona's primary adoption
+        driver (C9).
     - id: PER-0003
       name: The builder
       description: |
@@ -69,7 +70,7 @@ The same platform that hides every technical detail from the founder exposes all
 engineer who wants it. A picky platform engineer connects their own cluster and their own git host,
 keeps full guarantees, and gets release engineering — versioning, release trains, hotfix flow,
 drift detection — as a product feature so good it genuinely saves them time (C7, C8, C9, C18). When
-it works, release engineering is invisible to the founder and delightful to the engineer, and
+it works, release engineering is invisible to the founder and a measurable time-saving for the engineer, and
 Eden's own libraries are the standing proof: Eden builds Eden, through Eden's own gates (C12).
 
 ## Problem
@@ -108,7 +109,7 @@ gates, no founder should believe it can build their product (C12).
   cluster and their own git host, and retains the complete set of gate guarantees and drift
   detection — or sees an explicit, permanently visible advisory badge naming exactly which
   guarantee is off (C8, C18).
-- **Release engineering is invisible to founders and delightful to engineers.** The same
+- **Release engineering is invisible to founders and a time-saver for engineers.** The same
   versioning, release-train, hotfix, and bug-report-to-fix machinery that a founder never has to
   think about is the feature a technical user values most — and it genuinely saves them time (C9).
 

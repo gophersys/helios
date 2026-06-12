@@ -154,7 +154,7 @@ type Source interface {
 
 // Config is the parse configuration. Zero value is valid and STRICT: unknown
 // and duplicate keys become SeverityError (silent acceptance of typo'd config
-// is the failure mode this pattern exists to kill). Idiomatic Go type name,
+// is the failure mode this pattern exists to prevent). Idiomatic Go type name,
 // exempt from the HNS-1 slug rule (10 §5).
 type Config struct {
 	Format Format // the encoding Parse decodes; FormatEnv for the env edge

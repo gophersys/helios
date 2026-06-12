@@ -80,7 +80,7 @@ data:
       statement: "WHILE building or evolving a project THE SYSTEM SHALL drive an evidence-gated agent pipeline in which nothing promotes on an agent's say-so, and SHALL require a human only at gates."
       kind: functional
       priority: P1
-      rationale: "Evidence-gated autonomy is the spine: gates read evidence envelopes produced in clean rooms, which kills the master-agent-monitor role and leaves humans doing up-front specification and gate rulings only (charter 00 T3). Self-build runs through this same pipeline (C12)."
+      rationale: "Evidence-gated autonomy is the spine: gates read evidence envelopes produced in clean rooms, which eliminates the master-agent-monitor role and leaves humans doing up-front specification and gate rulings only (charter 00 T3). Self-build runs through this same pipeline (C12)."
       acceptance:
         - "Promotion of any artifact requires a green validation + traceability report plus the policy table's human gate action; no artifact promotes on an agent's assertion alone (doc 11 §8)."
         - "Between gates the pipeline runs without human supervision; the human's only required interactions are gate rulings."
@@ -214,10 +214,10 @@ data:
         - run: founder-intake-01
           span: "C18"
     - id: REQ-0012
-      statement: "THE SYSTEM SHALL provide release engineering as a product feature — versioning, changelogs, release trains, a hotfix flow, and a bug-report-to-fix pipeline — so the burden is invisible to founders and the capability is a delight to technical users."
+      statement: "THE SYSTEM SHALL provide release engineering as a product feature — versioning, changelogs, release trains, a hotfix flow, and a bug-report-to-fix pipeline — so the burden is invisible to founders and the capability is directly operable by technical users."
       kind: functional
       priority: P2
-      rationale: "World-class release engineering must be present: git versioning, releases, release cycles, maintenance, and bug-report-to-fix flows — an invisible burden lifted from non-technical founders and a genuine time-saver for technical ones (C9)."
+      rationale: "Release engineering must be present as a first-class product feature: git versioning, releases, release cycles, maintenance, and bug-report-to-fix flows — an invisible burden lifted from non-technical founders and a measurable time-saving for technical ones (C9)."
       acceptance:
         - "A project automatically maintains versions and changelogs across releases without the founder authoring them."
         - "A release train and a separate hotfix flow are available, with the hotfix flow able to ship an urgent fix outside the normal train."

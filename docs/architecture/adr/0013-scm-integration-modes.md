@@ -10,7 +10,7 @@
 BYO-GitHub-as-authority. The intake overturned the parking: advanced users keep repos on their
 own platforms, use the Eden backend only for organizational data about their projects, and
 expect Eden to be "extremely well git integrated" — knowing exactly what drifted between their
-repo and known state (C8). The tension: gates lose their teeth when Eden is not the authority.
+repo and known state (C8). The tension: gates lose their enforcement power when Eden is not the authority.
 
 ## Decision
 

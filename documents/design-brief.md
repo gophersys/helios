@@ -21,15 +21,15 @@ meta:
 data:
   design_system_reference: null
   token_hints:
-    - "🔶 Visual language deliberately OPEN pending research note 04: palette, type scale, and density are not yet fixed; the brief commits to the experience, not the surface treatment."
+    - "🔶 Visual language deliberately OPEN pending photosphere's re-founding (OD-1): palette, type scale, and density are not yet fixed; the brief commits to the experience, not the surface treatment."
     - "Density as the default: the engineer's views (PER-0002) carry information at high density; the founder's views (PER-0001) lift the non-technical signal out of that density without forking the tool."
     - "Diagrams are a primary type, not decoration: the architecture diagram is a working surface that doubles as a live production view (C10)."
 ---
 
 ## Intent
 
-Eden should feel like Ableton (C11): deep, dense, and professional — a mega-tool that earns its
-learning curve. The thesis is that there is a *way to do things* here, and that the way is worth
+Eden should feel like Ableton (C11): deep, dense, and professional — a mega-tool (C11) whose depth
+justifies its learning curve. The thesis is that there is a *way to do things* here, and that the way is worth
 learning; the product does not apologize for its depth by hiding it behind a thin "simple mode."
 Instead it makes the depth navigable. A user is not expected to discover the tool on their own — it
 is learnable via an in-app tutorial and guided onboarding (C11, REQ-0015) — but once learned, the
@@ -38,7 +38,7 @@ could ever offer.
 
 The intent ties directly to charter 00 §1: Eden is the discipline layer packaged as a product, with
 a low-code/no-code interface over a full-code output. The design's job is to make that discipline —
-documents, gates, evidence, observability — feel like a powerful instrument rather than a
+documents, gates, evidence, observability — feel like a precise working instrument rather than a
 compliance burden. The emotional target for the founder is *trust without operating*; for the
 engineer it is *control with leverage*. Both are served by the same dense surface, viewed at
 different altitudes.
@@ -85,7 +85,7 @@ teaches the way to do things — so the working surfaces can stay dense and quie
 - **Density with two altitudes:** the same surface must serve the founder's non-technical altitude
   and the engineer's dense altitude without forking into two products; the learning curve is
   acceptable and is carried by the in-app tutorial (C11, REQ-0015).
-- **🔶 Visual language is deliberately OPEN, pending research note 04.** Palette, type scale, and
+- **🔶 Visual language is deliberately OPEN, pending photosphere's re-founding (OD-1).** Palette, type scale, and
   surface treatment are not committed in v1; this brief fixes the *experience* (Ableton-thesis
   density, dual-altitude audience, first-class documents and diagrams) and leaves the *look* to that
   research. `data.design_system_reference` is `null` because photosphere's re-founding is still in

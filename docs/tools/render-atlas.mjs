@@ -191,7 +191,7 @@ const PHOTOSPHERE = `flowchart LR
 // Links are relative to docs/ (the atlas lives at docs/eden-atlas.html).
 const HERO = [
   { group: 'Canon', cards: [
-    { title: 'Eden Architecture', href: 'architecture/eden-architecture.html', meta: 'README + 00–11 + ADR + open-decisions', why: 'The whole canonical doc set as one navigable reading surface — the A1 document altitude for Eden-the-project.' },
+    { title: 'Eden Architecture', href: 'architecture/eden-architecture.html', meta: 'README + 00–12 + ADR + open-decisions', why: 'The whole canonical doc set as one navigable reading surface — the A1 document altitude for Eden-the-project.' },
   ]},
   { group: 'Project Eden (dogfood #1)', cards: [
     { title: 'Project Documents', href: '../documents/documents.html', meta: 'product-charter · requirements · user-workflows · design-brief', why: 'Eden as project #1 of its own document system (E5), rendered from the validator\'s projection — the §5 reading paths in practice.' },
