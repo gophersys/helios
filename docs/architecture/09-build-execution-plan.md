@@ -84,3 +84,22 @@ cost model is calibrated on the kernel's own construction. 🔶
 3. WS1 contract drafts for the six universal patterns (the first interface negotiations).
 4. WS2 spike: `codingharness` driving one headless Claude Code session end-to-end with transcript
    + token capture (de-risks the kernel's biggest item first).
+
+## 8. L0 bill of materials (the dogfooding cut)
+
+Everything the hand-operated dogfood loop — *specification in → agent implements in a worktree →
+clean-room verification → deterministic gate → merge + ledger* — needs, in dependency order.
+Implementations never start before their contract freezes (§4); once B7 exists, the remaining B2
+backlog becomes the kernel's own first task inventory (06 L0→L1).
+
+| # | Item | Contents | Depends on |
+|---|---|---|---|
+| B0 | Document system | doc 11 + `schemas/document/v1` + `tools/documentvalidator` (+ `project` verb, `--against` transition check, golden projection fixtures) | — (✅ shipped; additions in flight) |
+| B1 | Six pattern contracts | configuration · dependencies · errors · observability · secrets · testing — contracts + fakes + conformance (WS1 negotiation → freeze) | — |
+| B2 | Pattern implementations | minimal impls in `libs/go/` (one module each; root gitignored `go.work`) | B1 frozen |
+| B3 | `evidence` | envelope interface + `GoTestEvidence` + JSON serialization | B1 |
+| B4 | `agentconfiguration` (v0-thin) | model+auth binding; compiles a Claude Code invocation | B1 |
+| B5 | `codingharness` | headless Claude Code driver on a worktree per specification; transcript + token ledger (WS2 spike de-risks) | B1, B4 |
+| B6 | `testharness` | clean-room provision + exercise + emit Evidence (07 §4) | B1, B3 |
+| B7 | `gate` + kernel CLI | linear runner: spec → worktree → B5 → B6 → gate verdict → run record. **This is the L0 engine** (= M1) | B3–B6 |
+| B8 | Repo glue | `.ci` document/kernel verbs, `documents/` for project eden, `runs/` ledger convention | B0 |

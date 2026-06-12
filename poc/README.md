@@ -11,5 +11,7 @@ set.
 | `agents/` | Go agent daemon (`agentd`) + cpuload demo: dial-out management link, RPC bridge, tool dispatch, token tracking, embedded UI | The `management` (dial-out-only) pattern and agent transport/factory design (docs/research/02); donor for `apps/agent` and the F4 connector layer |
 | `knowledge/` | Knowledge-library eval harness: 10 oracle-backed rules, 6 temptation tasks, 4 arms, 72-run matrix on omp + DeepSeek V4 Flash | The knowledge≠enforcement thesis (P7) and the post-cutoff-seam result cited by 08 §4; its rule schema and `_verify/` clean-room layout feed the kernel's test harness design (docs/research/03) |
 
+| `codingharness/` | WS2 spike (09 §7): Go program driving one headless Claude Code session end-to-end, capturing the transcript and token ledger | De-risks the kernel's F4 adapter (ADR-0008) before `libs/go/codingharness` is contract-drafted |
+
 Results under `knowledge/results/` are provenance-stamped evidence — keep intact. Compiled
 binaries (`knowledge/bin/`) are regenerable and gitignored.

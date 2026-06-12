@@ -59,6 +59,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 11 | [Project document system](11-project-document-system.md) | Document tiers, id/link grammar, envelope, traceability, enforcement | Draft |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
+| — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
 
 The former root planning docs (`/LIBRARIES.md`, `/LIBRARY-SYSTEM.md`) are absorbed into doc 10
 (ADR-0010); originals preserved in `docs/attic/`. `docs/research/00–03` remain as point-in-time
