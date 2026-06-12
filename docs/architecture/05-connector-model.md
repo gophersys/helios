@@ -19,6 +19,34 @@ Every connector family ships seven parts. An adapter is not "done" until all sev
 | **Usage meter** | How consumption/billing data is polled or computed for this provider, normalized into UsageRecords (S9). |
 | **Drift detector** | The family's ownership domain + reconcile loop emitting DriftEvents (§5). |
 
+```mermaid
+%% D3: Connector anatomy (seven parts) and families F1–F6 — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart LR
+  subgraph ANATOMY ["Connector anatomy — seven parts (all required)"]
+    direction TB
+    C1["Contract (port: interfaces + protobuf, buf-breaking gated)"]
+    C2["Adapter (per-provider; only place a vendor SDK is imported)"]
+    C3["CapabilityManifest (declares optional capabilities; graceful degrade)"]
+    C4["Conformance suite (executable semantics; every adapter passes)"]
+    C5["Credential profile (scopes; wizard renders; vault enforces)"]
+    C6["Usage meter (consumption -> UsageRecords, S9)"]
+    C7["Drift detector (ownership domain + reconcile loop -> DriftEvents)"]
+    C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7
+  end
+
+  C1 -.realized per family.-> FAM
+
+  subgraph FAM ["Families"]
+    direction TB
+    F1["F1 Infrastructure (substrate): docker-compose, kubernetes(kind)"]
+    F2["F2 SCM: eden-authority + github mirror (authority_mode, enforcement_level)"]
+    F3["F3 Billing & usage: cloud-billing polling"]
+    F4["F4 Agents: claude-code (ADR-0008)"]
+    F5["F5 Observability export: none in v1 (self-contained)"]
+    F6["F6 Design systems: photosphere reference impl"]
+  end
+```
+
 ## 2. Families
 
 | ID | Family | Contract summary | v1 adapters | Later |

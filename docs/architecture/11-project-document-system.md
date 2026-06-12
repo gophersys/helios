@@ -34,6 +34,42 @@ verifies specifications, §7). The **design system** itself (DTCG ThemeDoc + com
 is a separate F6 artifact (05 §2); the product tier carries a `design-brief` that links to it 🧩
 (ruled: separate-but-linked).
 
+```mermaid
+%% D4: Document tiers P/A/I, typed links, and traceability — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart TB
+  subgraph P ["P — Product (what/why) · phase Specify · gate edit"]
+    direction LR
+    PC[product-charter]
+    RQ[requirements]
+    WFD[user-workflows]
+    DB[design-brief]
+  end
+  subgraph A ["A — Architecture (how) · Specify->Author · gate approve at contract freeze"]
+    direction LR
+    DM[domain-model]
+    SD[system-design]
+    SC[service-contracts]
+    AD[architecture-decisions]
+  end
+  subgraph I ["I — Implementation · phase Author"]
+    direction LR
+    IP[implementation-plan]
+    SP[specification per WP]
+  end
+  subgraph R ["records (machine-emitted, Build->Observe)"]
+    direction LR
+    EV[Evidence]
+    SCh[SourceChange]
+    RC[ReleaseCandidate]
+  end
+
+  A -->|realizes upstream only| P
+  I -->|realizes| A
+  DB -.informs.-> F6["F6 design-system artifact (05)"]
+  EV -->|verifies| SP
+  EV -->|verifies| RQ
+```
+
 ## 3. Identifier grammar and link model
 
 Stable identifiers are the join keys of the whole system (the HNS-1 move, applied to documents):

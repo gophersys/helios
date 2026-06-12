@@ -27,6 +27,28 @@ persona that matters); hosted-only (kills offline, free local PoCs, and the dogf
    GKE, AKS, DO, …) or cloud (C7, C15). Conformance + capability manifests (05 §3/§6) are what
    "anything from k3s to EKS works" means mechanically.
 
+```mermaid
+%% D5: Deployment topology — control surfaces and clusters — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart TB
+  subgraph SURF ["Control surfaces (never run project compute)"]
+    WEB[Web app]
+    DESK[Desktop app]
+  end
+
+  SURF -->|point at a cluster| CL{Cluster the user points at}
+
+  CL --> CENTRAL["Central: Eden-operated multi-tenant kubernetes (hosted-default; metered + charged)"]
+  CL --> BYO["BYO: any conformant kubernetes/cloud — k3s, EKS, GKE, AKS, DO"]
+  CL --> LOCAL["Local: k3d/kind cluster — free PoCs, offline, L0–L2 dogfooding home"]
+
+  CENTRAL -.same F1 adapter, same conformance suite, zero special code paths.-> BYO
+  BYO -.- LOCAL
+
+  CENTRAL --> WL["Workloads: agent pods · remote VS Code workspaces · CI runners · deployed PoCs"]
+  BYO --> WL
+  LOCAL --> WL
+```
+
 ## Consequences
 
 - ADR-0006 is amended: "local-first" becomes "hosted-default with local-as-a-cluster"; the

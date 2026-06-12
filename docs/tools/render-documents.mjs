@@ -8,7 +8,7 @@
 // It shells out to `documentvalidator project|links|validate` and renders their output.
 // The .md/.yaml files are the authoring format; this file is a reading copy (regenerate).
 
-import { writeFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -23,6 +23,16 @@ try {
   process.exit(1);
 }
 marked.use({ gfm: true });
+
+// Locate the self-contained mermaid browser bundle (mermaid.min.js, ~3.3 MB) so it can be
+// inlined and keep the HTML offline. Resolved via the same require used for marked.
+function mermaidBundlePath() {
+  try {
+    return require.resolve('mermaid/dist/mermaid.min.js');
+  } catch {
+    return null;
+  }
+}
 
 // ── arguments ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -142,10 +152,27 @@ const STATUS_ORDER = ['draft', 'review', 'approved', 'superseded'];
 const statusChip = (status) =>
   `<span class="chip status-${esc(status)}">${esc(status)}</span>`;
 
-// Markdown → HTML, with the same table-wrapper treatment as render-html.mjs.
+// marked renders a ```mermaid fence as <pre><code class="language-mermaid">…</code></pre>;
+// mermaid's browser API expects <pre class="mermaid">…</pre>. Rewrite those blocks (and only
+// those), decoding the entities marked introduced, and count them so the ~3.3 MB bundle is
+// only inlined when at least one diagram is present.
+const MERMAID_BLOCK_RE = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g;
+let mermaidCount = 0;
+function transformMermaid(html) {
+  return html.replace(MERMAID_BLOCK_RE, (_, body) => {
+    mermaidCount++;
+    const code = body
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    return `<pre class="mermaid">${code}</pre>`;
+  });
+}
+
+// Markdown → HTML, with the same table-wrapper and mermaid treatment as render-html.mjs.
 function md(src) {
   if (src == null || src === '') return '';
   let html = marked.parse(String(src));
+  html = transformMermaid(html);
   return html.replace(/<table>/g, '<div class="tw"><table>').replace(/<\/table>/g, '</table></div>');
 }
 
@@ -466,7 +493,31 @@ dl.dl{margin:0} dl.dl dt{font-size:.74rem; font-weight:650; color:var(--muted); 
   .edges{grid-template-columns:1fr}
 }
 @media print{ nav{display:none} main{max-width:none; padding:0} }
+pre.mermaid{background:none; border:none; padding:0; overflow-x:auto; text-align:center; line-height:1.4}
+pre.mermaid svg{max-width:100%; height:auto}
 `;
+
+// Inline the mermaid bundle + initializer only when the document set contains mermaid blocks
+// (the bundle is ~3.3 MB; a diagram-free build stays small). Theme follows prefers-color-scheme.
+function mermaidScript() {
+  if (!mermaidCount) return '';
+  const bundlePath = mermaidBundlePath();
+  if (!bundlePath) {
+    console.warn(`warning: ${mermaidCount} mermaid block(s) found but the mermaid bundle was not resolvable ` +
+      `(mermaid/dist/mermaid.min.js) — diagrams will render as plain text. Run \`yarn install\` or set NODE_PATH.`);
+    return '';
+  }
+  const lib = readFileSync(bundlePath, 'utf8');
+  return `<script>${lib}</script>
+<script>
+(function () {
+  var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+  mermaid.run({ querySelector: 'pre.mermaid' });
+})();
+</script>`;
+}
+const mermaidTag = mermaidScript();
 
 const page = `<!doctype html>
 <html lang="en">
@@ -488,6 +539,7 @@ const page = `<!doctype html>
 ${overview}
 ${docSections}
 </main>
+${mermaidTag}
 </body>
 </html>`;
 

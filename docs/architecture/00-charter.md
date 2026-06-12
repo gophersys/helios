@@ -77,7 +77,8 @@ the abstraction already covers it, so deferral adds no design debt 🔶.
 
 ## 6. Non-goals (v1)
 
-- **Hosted multi-tenancy.** Designed-for (tenancy boundaries in 07), not built.
+- **Hosted-tier billing/charging.** The central cluster is multi-tenant and metered from v1
+  (ADR-0012); charging customers (Stripe/F3) is deferred (OD-6).
 - **BYO existing repositories.** The adoption pipeline (analyze → map to archetypes → graft
   libraries incrementally) is deliberately deferred, but three constraints are binding now so the
   door stays open: ① `graft` must not assume Eden-created scaffolding (it is defined over any

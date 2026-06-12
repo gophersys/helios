@@ -12,7 +12,7 @@
 | 3 | **Agent-introduced supply-chain compromise** (malicious/typosquatted dependencies) | locked dependency sets, SBOM, provenance (§5) |
 | 4 | **Sandbox escape / lateral movement from an agent pod** | pod isolation + egress policy + dial-out-only (§3) |
 | 5 | **Out-of-band tampering** with repos/infrastructure | drift detection (05 §5) + server-side gates |
-| 6 | **Cross-tenant access** (hosted tier) | tenancy boundaries designed now, enforced later (§6) |
+| 6 | **Cross-tenant access** (hosted tier) | namespace-per-project isolation + quotas on the central cluster (F1 obligations, ADR-0012) — enforced from v1; tenancy keys everywhere (§6) |
 | 7 | **Secret leakage via logs/telemetry/transcripts** | un-printable Secret type + redaction by construction (§2) |
 
 ## 2. Credentials & secrets
@@ -69,12 +69,15 @@ The verifier never runs in an environment the author wrote to (build-system inva
 
 ## 6. Tenancy
 
-v1 is local-first single-tenant (ADR-0006): the user's machine/cluster is the trust boundary, and
-the dominant risks are §1–§5, not cross-tenant. The hosted tier's requirements are **designed in
-now**: Organization/RBAC entities exist from day 1 (02 §1), all data rows carry tenancy keys, the
-vault is namespaced per organization, and per-tenant encryption is an adapter concern of the vault
-port — so multi-tenancy is policy + deployment work, not a remodel. 🔶 (claim to be validated when
-the hosted milestone is scoped).
+The Eden-operated central kubernetes cluster is **multi-tenant from v1** (ADR-0012, amending the
+ADR-0006 baseline): hosted-default is the compute posture, so **cross-tenant access (threat #6) is
+a live v1 risk on the central cluster, not deferred**. Namespace-per-project isolation and
+quota/metering are **F1 contract obligations for the multi-tenant adapter now** — Organization/RBAC
+entities exist from day 1 (02 §1), all data rows carry tenancy keys, and the vault is namespaced per
+organization with per-tenant encryption as an adapter concern of the vault port. The
+single-tenant/user-is-the-trust-boundary property survives only in **local-as-a-cluster** and
+**byo-authority** projects (ADR-0013 data minimization: the user's host is authoritative, Eden holds
+organizational metadata only), where the dominant risks remain §1–§5 rather than cross-tenant.
 
 ## 7. Audit
 

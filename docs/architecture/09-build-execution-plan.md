@@ -103,3 +103,30 @@ backlog becomes the kernel's own first task inventory (06 L0→L1).
 | B6 | `testharness` | clean-room provision + exercise + emit Evidence (07 §4) | B1, B3 |
 | B7 | `gate` + kernel CLI | linear runner: spec → worktree → B5 → B6 → gate verdict → run record. **This is the L0 engine** (= M1) | B3–B6 |
 | B8 | Repo glue | `.ci` document/kernel verbs, `documents/` for project eden, `runs/` ledger convention | B0 |
+
+```mermaid
+%% D8: L0 bill of materials — dependency graph B0–B8 — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart TB
+  B0["B0 Document system (doc 11 + schemas/document/v1 + documentvalidator)"]
+  B1["B1 Six pattern contracts (configuration · dependencies · errors · observability · secrets · testing)"]
+  B2["B2 Pattern implementations (libs/go minimal impls)"]
+  B3["B3 evidence (envelope + GoTestEvidence + JSON)"]
+  B4["B4 agentconfiguration v0-thin (model+auth; compiles a Claude Code invocation)"]
+  B5["B5 codingharness (headless Claude Code driver; transcript + token ledger)"]
+  B6["B6 testharness (clean-room provision + exercise + emit Evidence)"]
+  B7["B7 gate + kernel CLI — the L0 engine (= M1)"]
+  B8["B8 Repo glue (.ci verbs, documents/, runs/ ledger)"]
+
+  B1 -->|frozen| B2
+  B1 --> B3
+  B1 --> B4
+  B1 --> B5
+  B4 --> B5
+  B1 --> B6
+  B3 --> B6
+  B3 --> B7
+  B4 --> B7
+  B5 --> B7
+  B6 --> B7
+  B0 --> B8
+```

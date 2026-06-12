@@ -17,6 +17,17 @@ try {
   process.exit(1);
 }
 
+// Locate the self-contained mermaid browser bundle (mermaid.min.js, ~3.3 MB) so it can be
+// inlined into the output and keep the HTML offline. Resolved via the same require used for
+// marked, so NODE_PATH / node_modules discovery is identical.
+function mermaidBundlePath() {
+  try {
+    return require.resolve('mermaid/dist/mermaid.min.js');
+  } catch {
+    return null;
+  }
+}
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'architecture');
 const OUT = `${ROOT}/eden-architecture.html`;
 const GENERATED = new Date().toISOString().slice(0, 10);
@@ -35,6 +46,7 @@ const DOCS = [
   { id: 'd-09-build-execution-plan', file: '09-build-execution-plan.md', nav: 'Build execution plan', chip: '09' },
   { id: 'd-10-library-system', file: '10-library-system.md', nav: 'Library system', chip: '10' },
   { id: 'd-11-project-document-system', file: '11-project-document-system.md', nav: 'Project document system', chip: '11' },
+  { id: 'd-12-presentation-layer', file: '12-presentation-layer.md', nav: 'Presentation layer', chip: '12' },
   { id: 'd-open-decisions', file: 'open-decisions.md', nav: 'Open decisions', chip: 'OD' },
   { id: 'd-adr-0001', file: 'adr/0001-record-architecture-decisions.md', nav: 'Record architecture decisions', chip: 'ADR-0001', adr: true },
   { id: 'd-adr-0002', file: 'adr/0002-rename-helios-to-eden.md', nav: 'Rename Helios → Eden', chip: 'ADR-0002', adr: true },
@@ -63,12 +75,36 @@ const rewriteLinks = (md) => md
 const slug = (s) => s.replace(/<[^>]+>/g, '').toLowerCase()
   .replace(/&amp;/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 
+// marked renders a ```mermaid fence as <pre><code class="language-mermaid">…</code></pre>.
+// mermaid's browser API expects the source in <pre class="mermaid">…</pre>, so rewrite those
+// blocks (and only those). Returns { html, count } so the caller knows whether any diagrams
+// exist (the ~3.3 MB mermaid bundle is only inlined when at least one block is present).
+const MERMAID_BLOCK_RE =
+  /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g;
+function transformMermaid(html) {
+  let count = 0;
+  const out = html.replace(MERMAID_BLOCK_RE, (_, body) => {
+    count++;
+    // marked HTML-escapes the fence body (&lt; &amp; …); mermaid wants the raw source, so
+    // decode the entities marked introduced. Source text is then re-parsed by mermaid itself.
+    const src = body
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    return `<pre class="mermaid">${src}</pre>`;
+  });
+  return { html: out, count };
+}
+
 const sections = [];
 const navEntries = [];
+let mermaidCount = 0;
 
 for (const d of DOCS) {
   const raw = readFileSync(`${ROOT}/${d.file}`, 'utf8');
   let html = marked.parse(rewriteLinks(raw));
+  const mm = transformMermaid(html);
+  html = mm.html;
+  mermaidCount += mm.count;
   html = html.replace(/<table>/g, '<div class="tw"><table>').replace(/<\/table>/g, '</table></div>');
   const subs = [];
   html = html.replace(/<h2>([\s\S]*?)<\/h2>/g, (_, inner) => {
@@ -161,6 +197,8 @@ strong{font-weight:650}
   main{padding:1.4rem 1.2rem 4rem}
 }
 @media print{ nav{display:none} main{max-width:none; padding:0} }
+pre.mermaid{background:none; border:none; padding:0; overflow-x:auto; text-align:center; line-height:1.4}
+pre.mermaid svg{max-width:100%; height:auto}
 `;
 
 const firstAdrIdx = navEntries.findIndex((d) => d.adr);
@@ -169,6 +207,29 @@ const navHtml = (items) => items.map((d) => {
     `<ul>${d.subs.map((s) => `<li><a href="#${s.id}">${s.label}</a></li>`).join('')}</ul>`;
   return `<li class="${d.adr ? 'nav-adr' : 'nav-doc'}"><a href="#${d.id}"><span class="nchip">${d.chip}</span>${d.nav}</a>${subs}</li>`;
 }).join('\n');
+
+// Inline the mermaid browser bundle + an initializer, but only when the corpus actually
+// contains mermaid blocks — the bundle is ~3.3 MB, so a diagram-free build stays ~200 KB.
+// Theme follows prefers-color-scheme so diagrams match the page's light/dark palette.
+function mermaidScript() {
+  if (!mermaidCount) return '';
+  const bundlePath = mermaidBundlePath();
+  if (!bundlePath) {
+    console.warn(`warning: ${mermaidCount} mermaid block(s) found but the mermaid bundle was not resolvable ` +
+      `(mermaid/dist/mermaid.min.js) — diagrams will render as plain text. Run \`yarn install\` or set NODE_PATH.`);
+    return '';
+  }
+  const lib = readFileSync(bundlePath, 'utf8');
+  return `<script>${lib}</script>
+<script>
+(function () {
+  var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
+  mermaid.run({ querySelector: 'pre.mermaid' });
+})();
+</script>`;
+}
+const mermaidTag = mermaidScript();
 
 const page = `<!doctype html>
 <html lang="en">
@@ -191,6 +252,7 @@ const page = `<!doctype html>
 <div class="banner">Generated from the markdown in <code>docs/architecture/</code> — the markdown stays the source of truth; this file is a reading copy. Legend: ✅ verified · 🔶 hypothesis · ⚠️ corrected · 🧩 design choice.</div>
 ${sections.join('\n')}
 </main>
+${mermaidTag}
 </body>
 </html>`;
 

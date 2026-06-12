@@ -119,6 +119,13 @@ func (s *Secret) MarshalText() ([]byte, error)  // ([]byte(Redacted), nil)
 func (s *Secret) MarshalJSON() ([]byte, error)  // ([]byte(`"`+Redacted+`"`), nil)
 func (s *Secret) LogValue() slog.Value          // slog.StringValue(Redacted)
 
+// TelemetryValue returns the telemetry-safe projection of a Secret — always Redacted, never
+// the value. It structurally satisfies observability.Valuer (TelemetryValue() any) WITHOUT
+// importing observability, so a *Secret can ride observability.Any(key, valuer) as nothing but
+// its sentinel. secrets stays a leaf library (no upward dependency); Go interface satisfaction
+// is implicit, so the seam needs no shared type. (observability.md Q9.)
+func (s *Secret) TelemetryValue() any           // returns Redacted
+
 // Redacted is the single sentinel every formatting/marshaling path on Secret returns.
 const Redacted = "secrets.Secret(REDACTED)"
 
@@ -367,3 +374,4 @@ func (e *Engine) callModel(ctx context.Context, b ModelBinding, body []byte) (*R
 | 6 | Routing — a package `Mediator` keyed by scheme, or per-stage adapter selection at the root? | `Mediator` routes by scheme inside the package | composition root switches the adapter per stage; the `Provider` flows downstream | 🧩 **Both compose.** The `Mediator` is one concrete `Provider` that routes by scheme; the composition root still does the per-stage switch by deciding which adapters populate `Deps.Resolvers`. A single-adapter app can also bind that adapter directly as the `Provider` and skip the `Mediator`. No conflict once `Deps.Resolvers` is the seam. |
 | 7 | Test minting hook — exported `NewForTest`, `//go:linkname`, or a shared internal package? | shared internal package, no linkname, never public | same demand; producer to pick the mechanism | 🧩 **Shared internal package.** `secrets` and `secretstest` both import an unexported `internal/...` minting hook; no `//go:linkname`, no exported `NewForTest`. `secretstest.MintSecret` is the only public, test-only surface that yields a `Secret`, and it yields a genuine un-printable one. Both sides already agreed in substance; mechanism fixed here. |
 | 8 | Redaction sentinel value — `"***REDACTED***"` or `"secrets.Secret(REDACTED)"`? | `"secrets.Secret(REDACTED)"` (typed, greppable) | `"***REDACTED***"` | 🧩 **`"secrets.Secret(REDACTED)"`.** Names the type at the leak site, so a grep over logs/transcripts points at the offending field, and `%#v` stays self-describing. Exported as `secrets.Redacted` so tests/`AssertNotLeaked` reference the constant, not a literal. Minor; recorded so the consumer's literal is not silently dropped. |
+| 9 | `observability.Valuer` conformance: should `Secret` carry `TelemetryValue() any` so it can ride `observability.Any(key, Valuer)` (the seam observability.md depends on)? | n/a | n/a | 🧩 **cross-contract reconciliation, post-draft.** Added `func (s *Secret) TelemetryValue() any` returning `Redacted`. It structurally satisfies `observability.Valuer` *without* `secrets` importing `observability` (Go interface satisfaction is implicit), so `secrets` stays a leaf library and the seam closes from this side. Resolves observability.md Q9. |

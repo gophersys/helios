@@ -5,22 +5,25 @@
 ## 1. Scope
 
 `testing` is the **meta-pattern**: it does not define a domain port and nothing injects it into a
-`Deps`. It owns exactly (a) the two universal deterministic ports every hexagon's `Deps` needs —
-`Clock`, `RandomSource` — and their canonical fakes; and (b) the reusable **conformance-suite**
-construct that proves `adapter ≡ fake` for any port (08 §2), closing the fakes-drift-from-reality
-failure mode by *executing* substitutability rather than asserting it. It does **not** own
-per-pattern fakes (`FakeSink`, `FakeSecretProvider`, …) — those live in each pattern's own
-`<pattern>test` package; this library owns only the *shape* they conform to. The core `package
-testing` imports neither stdlib `testing` nor any assertion library, so the kernel (`engine`,
-`testharness`) can run suites inside shipped static binaries to mint Evidence (10 §6.1, 07 §4).
+`Deps`. It owns exactly (a) the **canonical fakes** for the two universal deterministic ports every
+hexagon's `Deps` needs — `Clock` and `RandomSource`, whose port *interfaces* are owned by the
+`dependencies` pattern (10 §4, `dependencies.md`), not here; and (b) the reusable
+**conformance-suite** construct that proves `adapter ≡ fake` for any port (08 §2), closing the
+fakes-drift-from-reality failure mode by *executing* substitutability rather than asserting it. It
+does **not** own per-pattern fakes (`FakeSink`, `FakeSecretProvider`, …) — those live in each
+pattern's own `<pattern>test` package; this library owns only the *shape* they conform to. The core
+`package testing` imports neither stdlib `testing` nor any assertion library, so the kernel
+(`engine`, `testharness`) can run suites inside shipped static binaries to mint Evidence (10 §6.1,
+07 §4).
 
 ## 2. Contract
 
 ```go
 // Module: github.com/gophersys/libs/go/testing  (go 1.26)
 //
-// Package testing is the meta-pattern. It defines the two universal deterministic
-// ports (Clock, RandomSource), the pure constructor that vends their fakes, and the
+// Package testing is the meta-pattern. It vends the canonical FAKES of the two
+// universal deterministic ports (Clock, RandomSource — the interfaces are owned by
+// the dependencies pattern, 10 §4) via a pure constructor, and owns the
 // conformance-suite construct that proves adapter ≡ fake substitutability (08 §2).
 //
 // It intentionally imports NEITHER stdlib "testing" NOR any assertion library:
@@ -34,40 +37,30 @@ import (
 	"context"
 	"iter"
 	"time"
+
+	"github.com/gophersys/libs/go/dependencies"
 )
 
-// ── The two universal deterministic ports ──────────────────────────────────
-// These are the ports `dependencies` (10 §4) injects that a fake cannot be honest
-// about without control over time/entropy. They are owned HERE and nowhere else;
-// other libraries reference them, never redefine them (cohesion contract).
+// ── The two universal deterministic ports (interfaces owned elsewhere) ──────
+// The Clock and RandomSource port INTERFACES are owned by the `dependencies`
+// pattern (10 §4, dependencies.md) — one concept, one home (cohesion contract).
+// This library does NOT re-declare them; it references dependencies.Clock /
+// dependencies.RandomSource and owns only their canonical FAKES (testingtest,
+// §3) and the conformance-suite construct. The dependencies shapes are:
+//
+//	dependencies.Clock        — Now() time.Time; After(ctx, d) <-chan time.Time
+//	dependencies.RandomSource — Read(p []byte) (n int, err error)  (io.Reader-shaped)
+//
+// Aliases below are convenience re-exports of the dependencies-owned interfaces,
+// NOT independent definitions; a fake satisfying these satisfies dependencies'.
 
-// Clock is the time port. Production binds a real monotonic clock; tests bind
-// FakeClock (testingtest). Concurrency: implementations must be goroutine-safe.
-type Clock interface {
-	// Now returns the clock's current instant. The fake returns its virtual time.
-	Now() time.Time
-	// Since is Now().Sub(t); it earns its place as the single most-called Clock op
-	// in adapters, and centralising it prevents per-caller drift.
-	Since(t time.Time) time.Duration
-	// NewTimer returns a channel that fires once after d on this clock, plus a stop
-	// func (true iff it stopped the timer before firing). On the fake the channel
-	// fires only when Advance crosses d — the seam that makes timeouts testable.
-	NewTimer(d time.Duration) (fire <-chan time.Time, stop func() bool)
-	// Sleep blocks until d elapses on this clock or ctx is done, whichever first;
-	// it returns ctx.Err() on cancellation. On the fake, Advance releases it. ctx
-	// is first per the blocking-call rule (10 §9).
-	Sleep(ctx context.Context, d time.Duration) error
-}
+// Clock aliases dependencies.Clock so the suite/fake signatures read locally; the
+// canonical definition (Now + After(ctx, d)) lives in dependencies.md.
+type Clock = dependencies.Clock
 
-// RandomSource is the entropy port. It is deliberately io.Reader-shaped so
-// crypto/rand (production) and FakeRandomSource (tests) interchange directly.
-// Typed randomness (UUIDs, jitter, Uint64) is built ON TOP of Read by callers;
-// keeping the port to one method preserves the crypto/rand substitution.
-type RandomSource interface {
-	// Read fills p with random bytes; it never returns a short read without a
-	// non-nil error (io.Reader contract). Implementations must be goroutine-safe.
-	Read(p []byte) (n int, err error)
-}
+// RandomSource aliases dependencies.RandomSource (the io.Reader-shaped entropy
+// port); the canonical definition lives in dependencies.md.
+type RandomSource = dependencies.RandomSource
 
 // ── The conformance-suite construct (the reusable core) ─────────────────────
 
@@ -211,28 +204,30 @@ const (
 package testingtest
 
 import (
+	"context"
 	stdtesting "testing"
 	"time"
 
+	"github.com/gophersys/libs/go/dependencies"
 	"github.com/gophersys/libs/go/testing"
 )
 
 // FakeClock is virtual-time: it NEVER advances on its own. Tests drive time
 // explicitly via Advance, which is what makes timeout/retry/backoff/hibernate
-// logic deterministic. Concurrency: every method is goroutine-safe; Advance
-// releases all timers/sleeps whose deadline it crosses, in deadline order, before
-// returning. Zero start (NewFakeClock(time.Time{})) → the Unix epoch.
+// logic deterministic. It implements dependencies.Clock exactly (Now + After);
+// Advance is the test-only affordance, not part of the port. Concurrency: every
+// method is goroutine-safe; Advance releases all After channels whose deadline it
+// crosses, in deadline order, before returning. Zero start
+// (NewFakeClock(time.Time{})) → the Unix epoch.
 type FakeClock struct{ /* unexported: mu, now, waiters */ }
 
 func NewFakeClock(start time.Time) *FakeClock
 
-func (c *FakeClock) Now() time.Time
-func (c *FakeClock) Since(t time.Time) time.Duration
-func (c *FakeClock) NewTimer(d time.Duration) (<-chan time.Time, func() bool)
-func (c *FakeClock) Sleep(ctx context.Context, d time.Duration) error
-func (c *FakeClock) Advance(d time.Duration) // THE affordance: move virtual time
+func (c *FakeClock) Now() time.Time                                              { return time.Time{} }
+func (c *FakeClock) After(ctx context.Context, d time.Duration) <-chan time.Time { return nil }
+func (c *FakeClock) Advance(d time.Duration)                                     {} // THE affordance: move virtual time
 
-var _ testing.Clock = (*FakeClock)(nil)
+var _ dependencies.Clock = (*FakeClock)(nil)
 
 // FakeRandomSource is a deterministic, reproducible byte stream from seed. NOT
 // crypto-secure — tests only; production binds crypto/rand. Concurrency: Read is
@@ -244,7 +239,7 @@ func NewFakeRandomSource(seed uint64) *FakeRandomSource
 
 func (r *FakeRandomSource) Read(p []byte) (int, error)
 
-var _ testing.RandomSource = (*FakeRandomSource)(nil)
+var _ dependencies.RandomSource = (*FakeRandomSource)(nil)
 
 // ── Adapters from stdlib testing into the assertion-free core ───────────────
 
@@ -335,8 +330,8 @@ func TestTestHarness_EmitsDeterministicEvidence(t *testing.T) {
 // selects injected wiring at the composition root only).
 func main() {
 	deps := backend.Deps{
-		Clock:  realclock.System(),  // a real testing.Clock
-		Random: cryptorand.Source(), // crypto/rand-backed testing.RandomSource
+		Clock:  realclock.System(),  // a real dependencies.Clock
+		Random: cryptorand.Source(), // crypto/rand-backed dependencies.RandomSource
 	}
 	_ = deps
 }
@@ -354,9 +349,11 @@ func TestRetry_FiresOnSchedule(t *testing.T) {
 ## 6. Design rationale
 
 1. **`testing` is a meta-pattern, not a port** (10 §4). Nothing injects a `testing.Provider` into
-   any `Deps`. It owns exactly the two ports production code *does* inject (`Clock`,
-   `RandomSource`, named under `dependencies` in 10 §4) plus the construct every other
-   `<pattern>test` reuses. That is its whole reason to be a library rather than scattered helpers.
+   any `Deps`. It owns the canonical **fakes** of the two ports production code *does* inject —
+   `Clock` and `RandomSource`, whose interfaces are owned by `dependencies` (10 §4,
+   `dependencies.md`), referenced here as type aliases, never redefined — plus the conformance-suite
+   construct every other `<pattern>test` reuses. That is its whole reason to be a library rather
+   than scattered helpers.
 2. **One `Suite[S]` value, imported by both sides, closes fakes-drift** (08 §2). The fake's test and
    each adapter's test run the *same* `Suite` through `RunSuite`; there is no second copy to drift.
    Substitutability isn't asserted, it's executed against shared cases — the mechanical closure 08
@@ -370,9 +367,10 @@ func TestRetry_FiresOnSchedule(t *testing.T) {
    Unix-epoch start; `FakeClock` zero-start → epoch. Never `time.Now()`, never real entropy. A fake
    that silently reads the wall clock is the exact bug class this pattern abolishes, so the zero
    value must be reproducible, not convenient.
-5. **`FakeClock` is virtual time with explicit `Advance`.** It never self-advances; `Sleep`/
-   `NewTimer` block until `Advance` crosses their deadline. The kernel's `testharness`, the
-   orchestrator's reconcile loop, and any retry/backoff/hibernate logic depend on this determinism.
+5. **`FakeClock` is virtual time with explicit `Advance`.** It implements `dependencies.Clock`
+   (`Now` + `After`) and never self-advances; an `After` channel fires only when `Advance` crosses
+   its deadline. The kernel's `testharness`, the orchestrator's reconcile loop, and any
+   retry/backoff/hibernate logic depend on this determinism.
 6. **`Harness` is the subject's wiring seam, ≤5 methods.** It vends `Clock`/`RandomSource` for the
    subject's own `Deps`, gates capabilities (`Has`), owns LIFO teardown (`Cleanup`), and exposes the
    run `Context`. Five methods exactly — at the `interfacebloat` ceiling (10 §9), none speculative.
@@ -408,3 +406,4 @@ func TestRetry_FiresOnSchedule(t *testing.T) {
 | 7 | `Deps` content: empty `struct{}` (producer) vs `Deps{Epoch time.Time}` (consumer)? | `Deps struct{}` — fakes take no impure inputs; uniform spine, additive. | `Deps{Epoch}` so vended fakes are reproducible across processes; Epoch is injected, never read. | 🧩 **Consumer.** An *injected* `Epoch` is not impure (it is data, not a clock read), and it makes cross-process reproducibility explicit at the spine rather than hidden in `Config`. The producer's purity guarantee is unbroken: `New` still performs no I/O, clock, or env read. |
 | 8 | Where does the `testing.T` capability live — `Wrap(t)` returning the suite `T` (producer) vs `Report(t)`/`Harness(t)` adapters (consumer)? | `testingtest.Wrap(*testing.T) testing.T`. | `testingtest.NewReport`, `NewHarness`, `AssertResult` adapters. | 🧩 **Consumer's adapter set**, renamed to avoid shadowing the package-level `Report`/`Harness` *types*: `NewReport`, `NewHarness`, plus `AssertResult` (Result→pass/fail bridge). The producer's one-liner ergonomics survive as `NewReport(t)` / `NewHarness(t)`. |
 | 9 | `RunSuite` as a free function (consumer) vs `Suite.Run` method (producer)? | `func (s Suite[S]) Run(ctx, t, factory)`. | `func RunSuite[S](ctx, r, suite, factory) Result`. | 🧩 **Consumer's free function.** Go methods cannot add type parameters beyond the receiver's, and threading the `*Runner` (epoch/seed/policy) + returning `Result` is cleaner as a generic free function. `RunSuite[S](r, suite, factory) Result` — ctx flows through `Harness.Context()`/`Config.CaseTimeout`, so it is not a separate parameter. |
+| 10 | `Clock`/`RandomSource` ownership + shape: this draft re-declared both port interfaces and claimed sole ownership ("owned HERE and nowhere else"), with a 4-method `Clock` (`Now`/`Since`/`NewTimer`/`Sleep`) that diverges from `dependencies.Clock`'s `Now`/`After`. | n/a | n/a | 🧩 **cross-contract reconciliation, post-draft.** 10 §4 and `dependencies.md` own the port *interfaces*; `testing` owns only their canonical **fakes** + the suite construct. The re-declarations are replaced by type aliases of `dependencies.Clock`/`dependencies.RandomSource`, so the signatures match exactly (`Clock` = `Now` + `After(ctx, d)`); `FakeClock` implements that 2-method port with `Advance` as the test-only affordance. Supersedes this table's row 4 (which had reconciled to a 4-method `Clock` before the `dependencies` ownership was settled). The "owned HERE and nowhere else" claim is struck. |

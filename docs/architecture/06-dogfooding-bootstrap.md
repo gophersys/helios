@@ -20,9 +20,39 @@ central claim was never exercised during its own construction — rejected (ADR-
 |---|---|---|---|
 | **L0 — Kernel** | `agentconfiguration` · `evidence` (+GoTestEvidence) · `testharness` (clean temp env + go test) · `codingharness` (Claude Code connector, ADR-0008) · `specification`/`template` · linear `engine`; plus the universal Go pattern libraries (configuration, dependencies, errors, observability, secrets, testing) | humans + Claude Code directly (worktrees, TDD, interface negotiation — 09) | kernel closes the loop on one task: spec in → gated, evidence-passing Go package out, with tokens metered and variance/mutation instrumented from run 1 |
 | **L1 — Kernel builds libraries** | the remaining Go pattern/control-plane libraries, ~50 tasks through the `go-backend` cell (build-system invariant I11). The task inventory is drawn from real WS1/WS3 packages (09 §2), not synthetic exercises | the L0 kernel | ≥50 tasks gated on a non-gameable oracle; spec-determinacy + mutation-score dashboards live; libraries enter `main` only via dev→release→adopt |
-| **L2 — Kernel builds the platform** | control plane slices (S1–S3, S5, S6, S9), workspace service, connector framework, Svelte frontend walking skeleton | the kernel, fanned as swarms; humans at `approve` gates | Eden runs via `eden up`; the eden monorepo is registered as **project #1**; drift detection live on Eden's own mirrors and infrastructure |
+| **L2 — Kernel builds the platform** | control plane slices (S1–S3, S5, S6, S9), workspace service, connector framework, Svelte frontend walking skeleton | the kernel, fanned as swarms; humans at `approve` gates | Eden runs via `eden up` (on a local k3d/kind cluster — local-as-a-cluster, ADR-0012); the eden monorepo is registered as **project #1**; drift detection live on Eden's own mirrors and infrastructure |
 | **L3 — Eden maintains Eden** | nothing new — the proof rung: feature work on Eden flows through Eden's own process engine; version N builds N+1, deploys it, migrates project #1 onto it | Eden (N) | one full self-migration N→N+1 with rollback rehearsed; postmortem artifacts produced by the platform about itself |
 | **L4 — Generalization** | second cell (`svelte-ui`) through the full pipeline; archetype registry + graft; the wizard; first external-style project end-to-end | Eden | a project that is not Eden goes wizard→deployed→observed with no out-of-band human work |
+
+```mermaid
+%% D2: Bootstrap ladder L0–L4 — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+stateDiagram-v2
+  direction TB
+  [*] --> L0
+  L0: L0 Kernel (humans + Claude build it)
+  L1: L1 Kernel builds libraries
+  L2: L2 Kernel builds the platform
+  L3: L3 Eden maintains Eden
+  L4: L4 Generalization
+
+  L0 --> L1: loop closed on one task (spec in, gated Go pkg out; tokens + mutation metered)
+  L1 --> L2: >=50 tasks gated on non-gameable oracle; dashboards live; dev->release->adopt
+  L2 --> L3: eden up runs; eden repo = project #1; drift detection live
+  L3 --> L4: one self-migration N to N+1, rollback rehearsed
+  L4 --> [*]: non-Eden project goes wizard to deployed to observed, no out-of-band work
+
+  note right of L0
+    Built by: humans + Claude Code directly
+    B2 hand-built exemption
+  end note
+  note right of L1
+    Built by: the L0 kernel
+  end note
+  note right of L2
+    Built by: kernel, fanned as swarms;
+    humans at approve gates
+  end note
+```
 
 Scope guard: no engine DAG, no recursion/altitudes, no additional cells before L1's 50 tasks
 close (build-system invariant I11). The ladder is sequenced proof, not a roadmap of parallel

@@ -30,6 +30,24 @@ invariant I8 🔶).
 | 9 Deliver | DeploymentRecord / Availability | `deployer` | compose up / kustomize apply via F1 |
 | 10 Observe | runtime Evidence → feeds 1 | `observer` | OTel planes (S6); drift detection feeds back as DriftEvents |
 
+```mermaid
+%% D7: The 10-phase spine with the observe→specify feedback loop — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart LR
+  P1["1 Specify -> Spec"]
+  P2["2 Author -> SourceChange (author port)"]
+  P3["3 Build -> Artifact + provenance (builder)"]
+  P4["4 Analyze -> static Evidence (static_analyzer)"]
+  P5["5 Provision -> Environment (environment_provider)"]
+  P6["6 Exercise -> dynamic Evidence (harness)"]
+  P7["7 Package -> ReleaseCandidate (packager)"]
+  P8["8 Gate -> Decision + signature (gate_policy + signer)"]
+  P9["9 Deliver -> DeploymentRecord (deployer)"]
+  P10["10 Observe -> runtime Evidence (observer)"]
+
+  P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+  P10 -.feeds.-> P1
+```
+
 ## 2. Google practice mapping
 
 | Google practice | Eden mechanism |

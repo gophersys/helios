@@ -41,6 +41,54 @@ S9 finops ──────────────▶ S3 (usage), S4 (token le
 S10 security ─────────── cross-cutting: vault and sandbox are services; policies are library-enforced
 ```
 
+```mermaid
+%% D1: System decomposition — subsystems S1–S10 and dependency edges — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart TD
+  S1["S1 Control plane"]
+  S2["S2 Workspace service"]
+  S3["S3 Connector framework"]
+  S4["S4 Process engine (kernel)"]
+  S5["S5 CI/CD engine"]
+  S6["S6 Observability"]
+  S7["S7 Photosphere (design system)"]
+  S8["S8 Library system"]
+  S9["S9 FinOps"]
+  S10["S10 Security (cross-cutting)"]
+
+  S1 -->|composes all| S2
+  S1 --> S3
+  S1 --> S4
+  S1 --> S5
+  S1 --> S9
+
+  S4 -->|workspaces/pods| S2
+  S4 -->|agent + infra connectors| S3
+  S4 -->|templates/specs| S8
+
+  S5 --> S2
+  S5 -->|executor substrates| S3
+  S5 -->|gates/linters| S8
+
+  S2 -->|infrastructure family only| S3
+
+  S9 -->|usage| S3
+  S9 -->|token ledger| S4
+
+  S1 -.emits.-> S6
+  S2 -.emits.-> S6
+  S3 -.emits.-> S6
+  S4 -.emits.-> S6
+  S5 -.emits.-> S6
+  S9 -.emits.-> S6
+
+  S6 -->|consumes published libraries| S8
+  S1 -->|consumes published via F6| S7
+  S8 --- L([bottom layer: consumed published])
+
+  S10 -.cross-cutting: vault + sandbox + policy.-> S1
+  S10 -.-> S4
+```
+
 Hard rules: ① no subsystem imports a vendor SDK except inside an S3 adapter (P1/E1). ② nothing
 below S1 knows about tenancy. ③ S4 never talks to a provider directly — agent pods and infra are
 reached through S2/S3 ports. ④ libraries are consumed **published**, never by source path, except
@@ -72,7 +120,9 @@ connect out; nothing listens.
 - **S2 built-in git.** Eden hosts the authoritative repo (audit trail, gate enforcement at the
   server). External SCM (GitHub/GitLab) are F2 connector *mirrors* with declared ownership: pushes
   arriving at the mirror are drift (05 §5) — flagged with adopt/revert/fork options, satisfying
-  "detect changes made external to the platform".
+  "detect changes made external to the platform". byo-authority projects (ADR-0013) invert this:
+  the user's host is authoritative, Eden holds organizational metadata only, and gate teeth come
+  via host-app enforcement or are explicitly advisory.
 - **S4 swarms.** Parallel safety comes from worktree isolation plus FileLeases (02 §2) assigned
   at planning time; operational semantics in 04 §7, build-time discipline in 09 §3.
 - **S5 executors.** The CI contract is an executor port (docker, kubernetes); a future adapter may

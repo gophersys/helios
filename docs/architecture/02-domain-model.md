@@ -9,7 +9,7 @@
 
 | Entity | Definition |
 |---|---|
-| **Organization / User** | Tenancy root; RBAC principal. v1 is single-tenant local; the entities exist from day 1 so the hosted tier is a policy change, not a remodel (07 §6). |
+| **Organization / User** | Tenancy root; RBAC principal. The central cluster is multi-tenant from v1 (ADR-0012); local-as-a-cluster and byo-authority projects are effectively single-tenant. Entities and tenancy keys exist from day 1 (07 §6). |
 | **Project** | The unit a user creates and operates. Owns exactly one Monorepo, a set of enabled Archetypes, Connector bindings, Environments, budgets, and dashboards. |
 | **Monorepo** | The project's single git repository, Eden-hosted (built-in git), mirrored to external SCM via connectors. All artifacts — specs, code, schemas, pipelines, decisions — live in it; git is the audit trail. |
 | **Workspace** | A provisioned development environment attached to a Monorepo: browser editor or remote-VS-Code session, or an agent pod. Pod/session lifecycle is owned by S2's orchestrator over the `workspaceprovider` port; what runs *inside* an agent pod (harness invocation, tool grants, transcript capture) is owned by the F4 agent connector (05 §2). |

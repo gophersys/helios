@@ -30,6 +30,25 @@ repo and known state (C8). The tension: gates lose their teeth when Eden is not 
    guarantees (E3 promotion gating, T5 transition enforcement) are off. Eden never silently
    claims guarantees it cannot enforce.
 
+```mermaid
+%% D6: SCM integration modes and gate enforcement — v0 hand-authored projection of this document (12 §3); to be generated from model data.
+flowchart TB
+  PROJ{Per-project SCM mode}
+
+  PROJ --> EA["eden-authority (default): Eden hosts authoritative repo; external SCM are mirrors"]
+  PROJ --> BYO["byo-authority (advanced): user's GitHub/GitLab authoritative; Eden stores org/project metadata only"]
+
+  EA --> EAG["Gates server-enforced as designed (05 §2); full E3"]
+
+  BYO --> ENF{Enforcement level (per-project choice)}
+  ENF --> E1["enforced: Eden installed as GitHub/GitLab app — required status checks + branch protection + Eden-run verification block non-conforming merges; full E3"]
+  ENF --> E2["advisory: Eden observes, detects drift, reports violations — cannot block"]
+
+  E2 -.standing badge: E3/T5 guarantees OFF.-> BADGE["Guarantees permanently visible (never silently claimed)"]
+  E1 -.mode + level displayed.-> BADGE
+  EAG -.mode displayed.-> BADGE
+```
+
 ## Consequences
 
 - OD-5 resolved; the F2 contract gains `authority_mode` and `enforcement_level`, and its
