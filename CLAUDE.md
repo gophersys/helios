@@ -25,7 +25,8 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
 - **Pipeline vocabulary:** "phase" = a step of the 10-phase SDLC pipeline; "stage" = the
   environment axis (development/test/staging/production). Never mix them.
 - **Commits:** Conventional Commits; **no AI/LLM attribution lines** (ratified in ADR-0010 —
-  omit Co-Authored-By trailers).
+  omit Co-Authored-By trailers). **Always push after committing** (standing directive,
+  2026-06-12: never lose data — save and push).
 - **Go:** floor 1.26; everything that can be Go is Go (ADR-0003). UI is Svelte 5 (ADR-0004).
 - `poc/` is donor material: reference freely, but code enters `main` only through gates
   (ADR-0009 D). Do not modify PoC artifacts in place.
