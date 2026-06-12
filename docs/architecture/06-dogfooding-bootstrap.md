@@ -36,7 +36,7 @@ stateDiagram-v2
   L4: L4 Generalization
 
   L0 --> L1: loop closed on one task (spec in, gated Go pkg out; tokens + mutation metered)
-  L1 --> L2: >=50 tasks gated on non-gameable oracle; dashboards live; dev->release->adopt
+  L1 --> L2: >=50 tasks gated on non-gameable oracle; dashboards live; dev→release→adopt
   L2 --> L3: eden up runs; eden repo = project #1; drift detection live
   L3 --> L4: one self-migration N to N+1, rollback rehearsed
   L4 --> [*]: non-Eden project goes wizard to deployed to observed, no out-of-band work

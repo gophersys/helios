@@ -40,7 +40,7 @@ flowchart TB
 
   EA --> EAG["Gates server-enforced as designed (05 §2); full E3"]
 
-  BYO --> ENF{Enforcement level (per-project choice)}
+  BYO --> ENF{"Enforcement level (per-project choice)"}
   ENF --> E1["enforced: Eden installed as GitHub/GitLab app — required status checks + branch protection + Eden-run verification block non-conforming merges; full E3"]
   ENF --> E2["advisory: Eden observes, detects drift, reports violations — cannot block"]
 
