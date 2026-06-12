@@ -128,7 +128,14 @@ func walkDocuments(dir string) ([]string, error) {
 		if strings.HasSuffix(d.Name(), ".schema.json") {
 			return nil
 		}
-		if projection.IsDocumentFile(path) {
+		if !projection.IsDocumentFile(path) {
+			return nil
+		}
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if projection.Sniff(path, raw) {
 			paths = append(paths, path)
 		}
 		return nil

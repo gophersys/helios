@@ -24,15 +24,17 @@ Every connector family ships seven parts. An adapter is not "done" until all sev
 | ID | Family | Contract summary | v1 adapters | Later |
 |---|---|---|---|---|
 | F1 | **Infrastructure (substrate)** | provision/teardown environments, run workloads, expose endpoints, secrets backend, registry, DNS, object storage, Postgres-class DB, metrics ingestion | `docker-compose`, `kubernetes` (kind) | managed kubernetes: EKS · GKE · AKS · DO; `bare-host`; `vm` (Firecracker/KubeVirt); `mac` (Orka); GPU; Test Bed (hardware) |
-| F2 | **SCM** | mirror push/pull, PR/MR surface, webhooks, commit status, identity mapping | Eden-internal git is the **authority** (not a connector); `github` mirror | `gitlab`, others |
+| F2 | **SCM** | mirror push/pull, PR/MR surface, webhooks, commit status, branch protection, identity mapping; per-project `authority_mode` (eden-authority \| byo-authority) and `enforcement_level` (enforced \| advisory) per ADR-0013 | eden-authority + `github` mirror | `gitlab`; byo-authority host-app enforcement |
 | F3 | **Billing & usage** | poll provider spend, normalize cost lines, alerts; (hosted tier later: charge customers) | cloud-billing polling via F1 providers' APIs | `stripe` (when hosted tier exists) |
 | F4 | **Agents** | `execute(spec, context, tools, schema) → artifact + transcript + token ledger`; tool grants; session persistence; interactive AssistantSessions (02 §1) use the same connector with read-scoped grants | `claude-code` (ADR-0008) | `pi`/`oh-my-pi` (+DeepSeek), `codex`, own-loop on `agentconfiguration.Client` |
 | F5 | **Observability export** | OTel-native internally; export/forward to external backends; dashboard embedding | none needed in v1 (self-contained stack) | Datadog, Grafana Cloud, Honeycomb |
 | F6 | **Design systems** | DTCG ThemeDoc + component manifest + usage rules in, validated UI generation out | `photosphere` (the reference implementation) | user-uploaded design systems (same contract — upload IS the adapter data) |
 
-Notes. F2: making Eden's git authoritative keeps gates server-enforceable and makes external
-mirrors a clean drift surface; "bring your own GitHub as authority" is deliberately not offered in
-v1 (recorded in open-decisions). F4: the agent contract layers over the upstream
+Notes. F2: eden-authority keeps gates server-enforceable and makes external mirrors a clean
+drift surface. byo-authority (ADR-0013) inverts this for advanced users — their host is
+authoritative, Eden stores organizational metadata only, and gate teeth come from host-app
+enforcement (required status checks + branch protection) or are explicitly advisory with a
+permanently visible guarantee badge. F4: the agent contract layers over the upstream
 `AgentTransport`/factory design (docs/research/02 ✅ prototyped in `poc/agents`);
 `agentconfiguration` compiles per-harness configuration (agents.yaml → native files) and routes
 models. Boundary (per 02 §1 Workspace): S2 owns pod provisioning and lifecycle over

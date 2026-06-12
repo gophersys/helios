@@ -63,10 +63,13 @@ types are one archetype, not two. The Tauri desktop shell is a platform app wrap
 Svelte bundle (ADR-0006) — a delivery wrapper, not a cell.
 
 **v1 substrates:** the substrate enum has four values from day 1 (`docker-compose · kubernetes ·
-bare-host · vm`, 02 §1); v1 ships **two adapters** — docker-compose (PoC tier) and kubernetes
-(kind locally; managed-cloud adapters EKS/GKE/AKS/DO follow per 05 F1). **v1 posture:**
-local-first — `eden up` on the user's machine/cluster; projects live with the user (ADR-0006).
-The hosted multi-tenant SaaS is a later milestone on the same platform port.
+bare-host · vm`, 02 §1); v1 ships **two adapters** — docker-compose (platform-local) and
+kubernetes (k3d/kind locally; managed-cloud adapters EKS/GKE/AKS/DO follow per 05 F1).
+**v1 posture:** hosted-default with local-as-a-cluster (ADR-0012, amending ADR-0006) — clients
+are control surfaces; compute always runs on a cluster the user points at: the Eden-operated
+central metered cluster by default, a local k3d/kind cluster (free, offline, the dogfooding
+home), or their own (BYO strongly encouraged). In byo-authority mode (ADR-0013) projects and
+repos live entirely with the user; Eden holds organizational metadata only.
 
 **Later cells (catalogued, not built):** mobile, embedded/Zephyr (explicitly last), ML/LLM, IaC
 (reconciliation topology). Hardware is "just another substrate adapter" (bare-host/Test Bed) —

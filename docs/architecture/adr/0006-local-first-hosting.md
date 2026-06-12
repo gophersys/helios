@@ -1,6 +1,8 @@
 # ADR-0006: Local-first hosting posture; hosted tier later on the same ports
 
-- **Status:** Accepted
+- **Status:** Accepted — **amended by ADR-0012** (hosted-default compute; local is just another
+  cluster; the projects-live-with-the-user property survives via BYO mode + ADR-0013 data
+  minimization)
 - **Date:** 2026-06-12
 - **Deciders:** Mateo
 

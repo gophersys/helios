@@ -47,6 +47,8 @@ const DOCS = [
   { id: 'd-adr-0009', file: 'adr/0009-library-system-rulings.md', nav: 'Library-system rulings A–F', chip: 'ADR-0009', adr: true },
   { id: 'd-adr-0010', file: 'adr/0010-documentation-scheme.md', nav: 'Documentation scheme', chip: 'ADR-0010', adr: true },
   { id: 'd-adr-0011', file: 'adr/0011-document-schema-language.md', nav: 'Document schema language', chip: 'ADR-0011', adr: true },
+  { id: 'd-adr-0012', file: 'adr/0012-compute-posture.md', nav: 'Hosted-default compute', chip: 'ADR-0012', adr: true },
+  { id: 'd-adr-0013', file: 'adr/0013-scm-integration-modes.md', nav: 'SCM integration modes', chip: 'ADR-0013', adr: true },
 ];
 
 marked.use({ gfm: true });

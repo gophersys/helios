@@ -11,7 +11,7 @@
 | OD-2 | **Svelte app framework**: SvelteKit vs Vite SPA (Tauri wraps the same bundle either way) | SvelteKit (routing/SSR story, ecosystem default) vs SPA (simpler Tauri parity). | M3 frontend skeleton |
 | OD-3 | **Client state/query layers** post-React: replaces the zustand/jotai/xstate/TanStack-Query choices of the former `/LIBRARIES.md` (now 10 §12) | Svelte 5 runes + TanStack Svelte Query; XState's Svelte adapter only if machine-mirroring of backend lifecycle survives review. | M3 |
 | OD-4 | **CI executor v1 shape**: own runner on docker/kubernetes from day 1, or wrap an existing runner behind the executor port first | own runner (contract purity, content-aware caching) vs wrap (speed). | L2 |
-| OD-5 | **BYO-GitHub-as-authority** (Eden git as mirror instead of authority) — explicitly not offered in v1 (05 §2) | revisit when adoption pipeline (BYO repos) is scoped. | hosted/BYO milestone |
+| OD-13 | **Fleet deployment architecture** (C17): per-customer isolated environments, gated rollouts of one change across N deployments, fleet-wide observability — D4 modeling + orchestrator design | needs architecture work before the production milestone; rides ADR-0012's posture. | post-spine |
 | OD-6 | **Hosted-tier billing**: Stripe adapter scope and metering granularity | defer until hosted milestone; F3 contract designed to carry it. | hosted milestone |
 | OD-7 | **agentconfiguration open items** inherited from upstream (CLI module split, yaml v3 vs v4, harness plugin model, per-call key rotation, content-based routing) | per upstream agentcfg-architecture §open-questions; rule during WS2. | WS2 |
 | OD-8 | **External corpus migration**: when/how the upstream Helios-named corpus (`~/Documents/...`) gets renamed/folded — the in-repo half was executed by ADR-0010 | lazily on touch (recommended). | ongoing |
@@ -34,3 +34,5 @@
 | RD-8 | Library-system open decisions A–F (10 §11) | dependencies slug · eden module root · root gitignored go.work · U1 as gated donor material · bare-host · docs-first | 0009 |
 | RD-9 | Documentation scheme + in-repo migration pass | four doc classes, kebab-case naming, attic policy; root planning docs absorbed into doc 10 | 0010 |
 | RD-10 | Project document schemas | JSON Schema 2020-12 · dual-surface canonical form (md+frontmatter / yaml → one JSON projection) · `schemas/document/v1/` · design system stays a separate linked F6 artifact | 0011 |
+| RD-11 | Compute posture | hosted-default central multi-tenant cluster (an ordinary F1 adapter, metered); clients are control surfaces; local k3d/kind = just another cluster; BYO encouraged | 0012 |
+| RD-12 | SCM integration (formerly OD-5) | eden-authority default · byo-authority advanced (org metadata only) · per-project enforcement {enforced via host app \| advisory} with permanently visible guarantees | 0013 |

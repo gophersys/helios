@@ -62,6 +62,25 @@ func IsDocumentFile(path string) bool {
 	}
 }
 
+// Sniff reports whether raw looks like a project document at all: a .md file
+// opening with a frontmatter fence, or a .yaml/.yml file whose root mapping
+// carries a "meta" mapping. Files that fail the sniff are not documents
+// (READMEs, intake transcripts, fixtures living beside documents) and every
+// verb skips them; files that pass the sniff but fail projection or shape are
+// violations — a broken document is never silently skipped.
+func Sniff(path string, raw []byte) bool {
+	if strings.ToLower(filepath.Ext(path)) == ".md" {
+		trimmed := bytes.TrimLeft(raw, "\xef\xbb\xbf \t\r\n")
+		return bytes.HasPrefix(trimmed, []byte("---"))
+	}
+	var root map[string]any
+	if err := yaml.Unmarshal(raw, &root); err != nil {
+		return false
+	}
+	_, ok := root["meta"].(map[string]any)
+	return ok
+}
+
 // Project reads the file at path and returns its projection. A YAML parse error,
 // a missing frontmatter block in a .md file, or a non-object root is returned as
 // an error so the caller can surface it as an io/usage diagnostic rather than a

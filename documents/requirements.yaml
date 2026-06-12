@@ -1,0 +1,339 @@
+meta:
+  id: requirements
+  type: requirements
+  schema_version: 1.0.0
+  project: eden
+  status: draft
+  version: 1
+  created: 2026-06-12
+  updated: 2026-06-12
+  authors:
+    - run: founder-intake-01
+    - human: mateo
+  links:
+    realizes: []
+    supersedes: null
+    informs: []
+  source:
+    - run: founder-intake-01
+      span: "C1-C20"
+
+data:
+  items:
+    - id: REQ-0001
+      statement: "WHEN a user completes an intake conversation about a new project THE SYSTEM SHALL distil it into the product-tier document chain (product-charter, requirements, user-workflows, design-brief) and SHALL accept only documents that validate against their v1 schemas."
+      kind: functional
+      priority: P1
+      rationale: "The conversation's whole job is to move what is in the user's head into schema-valid documents up front, so downstream work is gated, not supervised (doc 11 §1). This is the entry point of the founder PoC journey and the first demo (C20)."
+      acceptance:
+        - "Completing the intake conversation produces a product-charter, requirements, user-workflows, and design-brief that each pass `documentvalidator validate` (shape + links) with zero violations."
+        - "Each generated product-tier document carries `meta.source` citing the intake run, so every requirement and persona traces back to the user's words (doc 11 §4)."
+        - "A document that fails schema validation is returned to the authoring loop as structured diagnostics for bounded retry and is never accepted downstream (doc 11 §8)."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C1"
+        - run: founder-intake-01
+          span: "C20"
+    - id: REQ-0002
+      statement: "WHEN a user accepts a generated project THE SYSTEM SHALL instantiate a working monorepo from typed archetypes — go-backend (Connect services) and svelte-ui — that builds and runs from its first commit."
+      kind: functional
+      priority: P1
+      rationale: "A core set of opinionated archetypes encapsulates the user's business data into a known, maintainable architecture (C13); generating a real, runnable system from them is what turns documents into a product (C20, charter 00 §5)."
+      acceptance:
+        - "The generated monorepo contains a go-backend Connect service and a svelte-ui app wired together, and a clean checkout builds without manual edits."
+        - "The generated system runs end to end against a local cluster and serves a request through the svelte-ui to the go-backend."
+        - "The monorepo is openable by the user in a browser editor or local VS Code at any point (charter 00 §1)."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C13"
+        - run: founder-intake-01
+          span: "C20"
+    - id: REQ-0003
+      statement: "WHEN a founder requests a PoC deployment THE SYSTEM SHALL deploy the generated system onto a cluster in a single action — the central metered multi-tenant cluster by default, or a free local k3d cluster — without the founder configuring infrastructure."
+      kind: functional
+      priority: P1
+      rationale: "The headline founder promise is a cheap PoC that 'just works' for them to test the product (C2). Compute always runs on a cluster the client points at (C4); the hosted-default, local-as-a-cluster posture makes the central metered cluster the easy path and local k3d the free one (C3, C19)."
+      acceptance:
+        - "A single founder action deploys the generated system to a cluster with no infrastructure configuration entered by the founder."
+        - "When the founder has no infrastructure credentials, the deploy targets the central metered multi-tenant cluster and usage is metered (C3)."
+        - "A local k3d/kind cluster is fully supported as just-another-cluster for free, offline PoCs (C19)."
+        - "On success the deployed PoC is reachable and appears in the dashboard as a live deployment."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C2"
+        - run: founder-intake-01
+          span: "C3"
+        - run: founder-intake-01
+          span: "C19"
+        - run: founder-intake-01
+          span: "C20"
+    - id: REQ-0004
+      statement: "WHILE building or evolving a project THE SYSTEM SHALL drive an evidence-gated agent pipeline in which nothing promotes on an agent's say-so, and SHALL require a human only at gates."
+      kind: functional
+      priority: P1
+      rationale: "Evidence-gated autonomy is the spine: gates read evidence envelopes produced in clean rooms, which kills the master-agent-monitor role and leaves humans doing up-front specification and gate rulings only (charter 00 T3). Self-build runs through this same pipeline (C12)."
+      acceptance:
+        - "Promotion of any artifact requires a green validation + traceability report plus the policy table's human gate action; no artifact promotes on an agent's assertion alone (doc 11 §8)."
+        - "Between gates the pipeline runs without human supervision; the human's only required interactions are gate rulings."
+        - "Every gated promotion is backed by an evidence record that a gate can deterministically check (no model in the enforcement path)."
+      links:
+        realizes:
+          - PER-0001
+          - PER-0003
+      source:
+        - run: founder-intake-01
+          span: "C5"
+        - run: founder-intake-01
+          span: "C12"
+    - id: REQ-0005
+      statement: "WHILE a project is running THE SYSTEM SHALL present one unified observability view covering deployments, health, infrastructure spend, and token spend."
+      kind: functional
+      priority: P1
+      rationale: "The founder must see their PoC working without operating it (C2), and every run is metered for tokens and provider spend from run 1 (charter 00 T6). One operate view — deploys, health, cost, token spend — is the non-technical surface that makes the platform trustworthy (charter 00 §4)."
+      acceptance:
+        - "A single dashboard view shows current deployments and their health status."
+        - "The same view reports infrastructure spend and token spend for the project, attributable to runs."
+        - "A founder can confirm their PoC is healthy and see what it is costing without leaving the observability view."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C2"
+        - run: founder-intake-01
+          span: "C9"
+    - id: REQ-0006
+      statement: "WHEN a user connects compute THE SYSTEM SHALL accept any cluster that satisfies the F1 connect conformance — the central cluster, a local k3d/kind cluster, or a bring-your-own k3s, EKS, GKE, AKS, or DO cluster — behind one declared infrastructure interface."
+      kind: functional
+      priority: P1
+      rationale: "Infrastructure interfaces must be declared so anything from k3s to EKS to DO kubernetes works (C15); adding a provider is additive work, never architectural (charter 00 T1). The client is a control surface; compute runs on the cluster the user points at (C4), with BYO strongly encouraged (C6, C19)."
+      acceptance:
+        - "A cluster that passes the F1 conformance suite can be connected and used to run a project regardless of provider (central, k3d/kind, k3s, EKS, GKE, AKS, DO)."
+        - "Adding a new provider adapter requires no change to the project's architecture or documents — it is additive (charter 00 T1)."
+        - "A BYO cluster is connectable through the same interface as the central cluster, and the user is steered toward BYO while the central path remains available (C6, C7)."
+      links:
+        realizes:
+          - PER-0001
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C4"
+        - run: founder-intake-01
+          span: "C6"
+        - run: founder-intake-01
+          span: "C15"
+        - run: founder-intake-01
+          span: "C19"
+    - id: REQ-0007
+      statement: "WHEN a user opens a project's documents THE SYSTEM SHALL let them read, navigate between, and download those documents in a clear, organized presentation."
+      kind: functional
+      priority: P1
+      rationale: "Deep UI research is required for presenting documents to read in a clear, organized way, with navigation, and for downloading them (C10). The documents are first-class surfaces for both the non-technical founder and the technical engineer (doc 11 §9)."
+      acceptance:
+        - "A user can read any product-tier document of a project in a clear, organized layout rendered from its projection."
+        - "A user can navigate between linked documents and items (e.g. from a requirement to the workflow that realizes it) following the link graph."
+        - "A user can download a project's documents for offline reading."
+      links:
+        realizes:
+          - PER-0001
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C10"
+    - id: REQ-0008
+      statement: "THE SYSTEM SHALL build Eden itself through Eden's own pipeline and gates, and SHALL surface that self-build as a continuously visible proof that the platform can code anything."
+      kind: constraint
+      priority: P1
+      rationale: "Pluggability, extensibility, and self-building are requirements precisely because the self-build is the proof the platform works and can code anything (C12); version N builds, deploys, and migrates to version N+1 (charter 00 T5). The ladder runs underneath the founder demo as the build method (C20)."
+      acceptance:
+        - "Eden's own libraries are built and promoted through Eden's evidence-gated pipeline, not by an out-of-band path."
+        - "The self-build is observable in the same surfaces a customer project uses (deploys, health, gates), making it visible as the standing proof."
+        - "A change to Eden cannot bypass Eden's gates to reach a release; the self-build is held to the guarantees Eden sells."
+      links:
+        realizes:
+          - PER-0003
+      source:
+        - run: founder-intake-01
+          span: "C12"
+    - id: REQ-0009
+      statement: "WHEN a project advances through its lifecycle THE SYSTEM SHALL support an environment maturity ladder — founder-only PoC, then a test cohort, then production — with promotion between rungs occurring only through a gate."
+      kind: functional
+      priority: P2
+      rationale: "The maturity ladder is the founder's path from a cheap PoC for themselves, to a small cohort of real test users, to production (C2). Gated promotion keeps each rung trustworthy without making the founder an operator."
+      acceptance:
+        - "A project can hold distinct PoC, test-cohort, and production environments simultaneously."
+        - "Promoting a build from one rung to the next requires passing a gate (validation + human ruling); it cannot be promoted silently."
+        - "The current rung and the gate state of each environment are visible in the dashboard."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C2"
+    - id: REQ-0010
+      statement: "WHEN a change is ready to roll out to a deployment fleet THE SYSTEM SHALL apply it across N per-customer isolated environments through a gated rollout, where each environment is gated independently."
+      kind: functional
+      priority: P2
+      rationale: "Both classic one-deployment SaaS and per-customer isolated deployments are supported; the headline capability is the fleet — one change rolled across N customer environments, each gated (C17). This is how a founder reaches 1000+ user production deployments, each on a different environment (C2)."
+      acceptance:
+        - "A project can hold multiple per-customer isolated environments managed as one fleet."
+        - "A single change can be rolled out across the fleet, advancing through each environment's gate before it lands there."
+        - "A failed gate on one environment halts or quarantines that environment's rollout without forcing the rest of the fleet to roll back."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C2"
+        - run: founder-intake-01
+          span: "C17"
+    - id: REQ-0011
+      statement: "WHEN a user runs a project in byo-authority git mode THE SYSTEM SHALL apply that project's chosen gate enforcement — enforced (Eden installed as a GitHub/GitLab app with required status checks and branch protection) or advisory (observe and report only) — and SHALL permanently display a guarantee badge stating which guarantees are off."
+      kind: functional
+      priority: P2
+      rationale: "BYO-git gate enforcement is a per-project choice between enforced and advisory, and the dashboard must permanently display which guarantees are off so the picky engineer is never misled (C8, C18). Real guarantees or honest badges — never theater (charter 00 §5)."
+      acceptance:
+        - "A project can be set to enforced mode, in which Eden runs required status checks and branch protection through a GitHub/GitLab app, or to advisory mode, in which Eden only observes and reports."
+        - "When any guarantee is not enforced, a guarantee badge naming the off guarantee is permanently visible in the dashboard for that project."
+        - "Advisory mode is never presented as if it were enforced; the badge state is honest about what Eden actually controls."
+      links:
+        realizes:
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C8"
+        - run: founder-intake-01
+          span: "C18"
+    - id: REQ-0012
+      statement: "THE SYSTEM SHALL provide release engineering as a product feature — versioning, changelogs, release trains, a hotfix flow, and a bug-report-to-fix pipeline — so the burden is invisible to founders and the capability is a delight to technical users."
+      kind: functional
+      priority: P2
+      rationale: "World-class release engineering must be present: git versioning, releases, release cycles, maintenance, and bug-report-to-fix flows — an invisible burden lifted from non-technical founders and a genuine time-saver for technical ones (C9)."
+      acceptance:
+        - "A project automatically maintains versions and changelogs across releases without the founder authoring them."
+        - "A release train and a separate hotfix flow are available, with the hotfix flow able to ship an urgent fix outside the normal train."
+        - "A bug report can be filed and tracked through triage to a fix and a release as one pipeline."
+        - "A founder can operate the project without engaging the release machinery directly, while a technical user can drive it in full."
+      links:
+        realizes:
+          - PER-0001
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C9"
+    - id: REQ-0013
+      statement: "WHILE a project is connected through any connector family THE SYSTEM SHALL detect drift between the state Eden knows and the actual state on the user's platforms, and SHALL offer remediation."
+      kind: functional
+      priority: P2
+      rationale: "Eden must be extremely well git-integrated and know exactly what drifted between the user's repo and known state (C8); drift detection is a contract obligation of every connector family, with out-of-band changes detected, flagged, and offered remediation (charter 00 T7)."
+      acceptance:
+        - "An out-of-band change (e.g. a direct push to the user's git host or a console edit on their cloud) is detected and surfaced as a drift event across every connector family."
+        - "Each drift event names what differs between Eden's known state and the actual state."
+        - "A remediation option is offered for each drift event rather than the change being silently absorbed or broken."
+      links:
+        realizes:
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C8"
+    - id: REQ-0014
+      statement: "WHEN a system-design document exists THE SYSTEM SHALL generate an architecture diagram from it, and SHALL render live production telemetry onto that same diagram."
+      kind: functional
+      priority: P2
+      rationale: "The deep-UI requirement is that the same diagrams used to view architecture are used to observe production systems (C10). One diagram serving both design and production observation makes the system legible to founder and engineer alike."
+      acceptance:
+        - "An architecture diagram is generated from a project's system-design document and stays in sync with it."
+        - "The same diagram can display live production telemetry (e.g. health, traffic) overlaid on its components."
+        - "Switching a diagram between its design view and its live-observation view requires no separate, hand-built second diagram."
+      links:
+        realizes:
+          - PER-0001
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C10"
+    - id: REQ-0015
+      statement: "WHEN a user is new to a workflow THE SYSTEM SHALL provide an in-app tutorial and guided onboarding that teaches that workflow in context."
+      kind: functional
+      priority: P2
+      rationale: "Eden is a mega-tool with a deliberate way of doing things; it is learnable via an in-app tutorial (C11). The learning curve is earned by guidance built into the product, not left to the user to discover."
+      acceptance:
+        - "A first-time user can complete a guided onboarding that walks them through a core workflow in-app."
+        - "An in-app tutorial is reachable from the relevant workflow context, not only from a separate help area."
+        - "Tutorial steps reflect the actual workflows the product exposes (e.g. creating a PoC, working the gate queue)."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C11"
+    - id: REQ-0016
+      statement: "THE SYSTEM SHALL offer a desktop shell with full-screen workflows and SHALL provide the web client at functional parity with it."
+      kind: functional
+      priority: P2
+      rationale: "Desktop is encouraged for full-screen use of a deep tool, but the web client works just fine and must keep up (C11). The desktop shell is a delivery wrapper around the same bundle (charter 00 §5)."
+      acceptance:
+        - "A desktop shell presents the workflows full-screen."
+        - "Every workflow available in the desktop shell is available in the web client at functional parity."
+        - "The desktop shell wraps the same UI bundle as the web client rather than forking the experience."
+      links:
+        realizes:
+          - PER-0001
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C11"
+    - id: REQ-0017
+      statement: "WHEN a user supplies their own design system THE SYSTEM SHALL accept it through the F6 design-system contract (DTCG ThemeDoc + component manifest + usage rules) and SHALL generate validated UI from it."
+      kind: functional
+      priority: P3
+      rationale: "User-uploaded design systems use the same F6 contract as the reference implementation — the upload is the adapter data (charter 00 §4, doc 05 F6). This lets a project carry its own visual identity without a bespoke integration."
+      acceptance:
+        - "A user-supplied DTCG ThemeDoc, component manifest, and usage rules are accepted through the F6 contract."
+        - "UI generated against a user-supplied design system is validated to conform to that system's usage rules."
+        - "Supplying a design system requires no architectural change — it is adapter data, not new code (charter 00 T1)."
+      links:
+        realizes:
+          - PER-0002
+      source:
+        - run: founder-intake-01
+          span: "C11"
+    - id: REQ-0018
+      statement: "WHEN a project's compute runs on the central multi-tenant cluster THE SYSTEM SHALL meter that usage and charge the responsible account for it."
+      kind: functional
+      priority: P3
+      rationale: "Users without their own infrastructure credentials run on the platform's hosted infrastructure, metered and charged (C3). Metered billing makes the set-it-and-forget-it path sustainable while BYO stays free of platform charges."
+      acceptance:
+        - "Compute on the central cluster is metered per account and attributable to the project that incurred it."
+        - "A metered account is charged for its central-cluster usage."
+        - "A project running entirely on a BYO or local cluster incurs no central-cluster compute charge."
+      links:
+        realizes:
+          - PER-0001
+      source:
+        - run: founder-intake-01
+          span: "C3"
+    - id: REQ-0019
+      statement: "THE SYSTEM SHALL allow new connectors and archetypes to be added without architectural change, so the platform's pluggability and extensibility hold as it grows."
+      kind: quality
+      priority: P3
+      rationale: "Pluggability and extensibility are stated requirements (C12); contracts over integrations means adding a provider or archetype is additive work, never architectural (charter 00 T1, T4). This is what keeps the self-build proof valid as the platform scales."
+      acceptance:
+        - "A new connector can be added by satisfying its family's contract, with no change to existing project documents or architecture."
+        - "A new archetype can be added to the catalogue and selected by a project without modifying the core platform."
+        - "Adding a connector or archetype does not require migrating or re-gating existing projects beyond the standard version-pinning path (doc 11 §8)."
+      links:
+        realizes:
+          - PER-0003
+      source:
+        - run: founder-intake-01
+          span: "C12"

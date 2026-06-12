@@ -77,3 +77,19 @@
   that anything from k3s to EKS to DO kubernetes works.
 - **C16** Standing directives: ask more questions, push back, stay cohesive; never lose data —
   always save and push.
+
+## Session 01b — structured rulings (same day, follow-up Q&A)
+
+- **C17** Fleet model: BOTH classic one-deployment SaaS and per-customer isolated deployments;
+  fleet (one change rolled across N customer environments, each gated) is the headline
+  capability.
+- **C18** BYO-git gate enforcement is a per-project choice: enforced (Eden installed as a
+  GitHub/GitLab app — required status checks, branch protection, Eden-run verification) or
+  advisory (observe/report only); the dashboard permanently displays which guarantees are off.
+- **C19** Compute posture: hosted-default, local-as-a-cluster — the central metered multi-tenant
+  cluster is the default path; a local k3d/kind cluster is fully supported as just-another
+  cluster (free PoCs, offline, Eden's own dogfooding); BYO strongly encouraged. Amends
+  ADR-0006's local-first ruling.
+- **C20** The first end-to-end demo is the founder PoC journey: wizard conversation → documents
+  → generated system → cheap PoC deployed on a cluster → observable in the dashboard. Self-build
+  continues underneath as the build method (the ladder), not the demo.

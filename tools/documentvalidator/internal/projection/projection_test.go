@@ -131,3 +131,26 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+func TestSniffDiscriminatesNonDocuments(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		raw  string
+		want bool
+	}{
+		{"markdown with frontmatter", "doc.md", "---\nmeta:\n  type: requirements\n---\nbody", true},
+		{"markdown without frontmatter (README)", "README.md", "# readme\n\nprose only", false},
+		{"yaml with meta mapping", "doc.yaml", "meta:\n  type: requirements\ndata: {}\n", true},
+		{"yaml without meta (fixture)", "values.yaml", "replicas: 3\nimage: nginx\n", false},
+		{"yaml meta not a mapping", "odd.yaml", "meta: 4\n", false},
+		{"invalid yaml", "broken.yaml", ":\n  - [", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := Sniff(c.path, []byte(c.raw)); got != c.want {
+				t.Fatalf("Sniff(%s) = %v, want %v", c.path, got, c.want)
+			}
+		})
+	}
+}

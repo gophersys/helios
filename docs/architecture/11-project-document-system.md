@@ -107,7 +107,11 @@ Two canonical forms, one JSON projection 🧩 (ruled: both surfaces, equal prior
   implementation-plan, specification.
 
 The validator projects both to the same JSON shape — `{meta, data, sections}` — and validates
-**the projection** against the schema. Consequences: git review and HTML rendering read the
+**the projection** against the schema. Discrimination rule: a file is a *document* iff it sniffs
+as one (a `.md` opening with a frontmatter fence; a `.yaml` whose root carries a `meta` mapping).
+Non-document files living beside documents (READMEs, intake transcripts) are skipped by every
+verb; a file that sniffs as a document but fails projection or shape is a violation — broken
+documents are never silently skipped. Consequences: git review and HTML rendering read the
 files as-written (the `docs/tools/render-html.mjs` pattern generalizes); dashboards and the
 non-technical views (T8) consume the projection through the gateway; neither surface is an
 export of the other. A document is the projection — the file is just its authoring format.
