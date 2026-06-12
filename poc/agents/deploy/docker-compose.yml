@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  agent-runtime:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: helios/agent-runtime:latest
+    container_name: helios-agent
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    environment:
+      - OMP_AGENT_DIR=/etc/omp/agent
+      - OMP_PROJECT_DIR=/etc/omp/project
+      - PORT=8080
+      - OMP_PATH=omp
+      # Inject API key for model access
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./config:/etc/omp:ro
+      - agent-data:/var/lib/omp
+      - reports:/var/lib/omp/reports
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "1"
+          memory: 512M
+
+  # Test runner (optional, for CI)
+  agent-tests:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.test
+    image: helios/agent-tests:latest
+    container_name: helios-agent-tests
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OMP_PATH=/usr/local/bin/omp
+    depends_on:
+      agent-runtime:
+        condition: service_healthy
+    volumes:
+      - ./config:/etc/omp:ro
+      - test-reports:/var/lib/omp/reports
+
+volumes:
+  agent-data:
+  reports:
+  test-reports:

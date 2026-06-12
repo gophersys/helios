@@ -1,0 +1,21 @@
+{
+  "arm": "baseline",
+  "task": "t2-configuration",
+  "seed": 2,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/environment-confinement": false,
+    "go/error-wrapping": false
+  },
+  "all_violations": [
+    {
+      "rule": "go/errors-astype",
+      "pos": "configuration_test.go:79:6",
+      "message": "errors.As(err, \u0026target) is the pre-1.26 form; use t, ok := errors.AsType[T](err)"
+    }
+  ],
+  "test_output_tail": "ok  \texample.helios/configuration\t0.213s\n?   \texample.helios/configuration/cmd/configprint\t[no test files]\n"
+}

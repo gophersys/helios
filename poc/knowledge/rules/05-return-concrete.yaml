@@ -1,0 +1,46 @@
+id: go/return-concrete
+class: C1
+category: idiom
+statement: >-
+  Exported functions and constructors return concrete types (or error), not
+  project-defined interface types. "Accept interfaces, return structs":
+  the consumer decides which interface to view the value through.
+rationale: >-
+  Returning an interface erases the concrete API surface, blocks method
+  additions without breaking callers, defeats inlining, and inverts ownership:
+  interfaces belong to consumers, not producers. Returning the struct keeps
+  the full API available and lets each caller declare its own narrow seam.
+applicability: >-
+  Any exported function in a library package whose result is a project-defined
+  named interface.
+exceptions:
+  - error and context.Context are interfaces by design — always allowed.
+  - >-
+    Standard-library interfaces (io.Reader, slog.Handler, http.Handler, ...)
+    are established contracts; returning them is allowed when the function's
+    purpose is to produce that contract.
+  - >-
+    Factories that genuinely select among implementations at runtime may
+    return an interface; document why.
+example:
+  good: |
+    func New(cfg Config) (*Cache, error) { ... }   // caller sees the full *Cache API
+  bad: |
+    type Cacher interface{ Get(string) (string, bool); Put(string, string) }
+    func New(cfg Config) (Cacher, error) { ... }   // producer-owned interface
+oracle:
+  kind: analyzer
+  ref: returnconcrete
+fix_hint: >-
+  Return the concrete *Type; if a caller needs a seam, the caller defines the
+  interface next to its own code.
+provenance:
+  - source: "Go Code Review Comments — interfaces (consumer side); CodeReviewComments wiki"
+    tier: 2
+  - source: "helios LIBRARY-SYSTEM.md §9 — 'accept interfaces, return concrete' + ireturn linter"
+    tier: 4
+  - source: "Jack Lindamood, 'Preemptive Interface Anti-Pattern in Go' (2016)"
+    tier: 3
+staleness: { go_minimum: "1.0", review_by: "2027-06" }
+status: VERIFIED
+hypothesis_baseline_violation: medium

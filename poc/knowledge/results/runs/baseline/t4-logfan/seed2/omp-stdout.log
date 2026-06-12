@@ -1,0 +1,18 @@
+Done. Here's what was implemented:
+
+**`logfan.go`** — two types:
+
+- **`Ring`** — ring-buffer `slog.Handler` with O(1) insert/evict. Stores `preAttrs` from `WithAttrs()` and applies them during `Handle()`. `Records()` returns a deep copy (mutating the result doesn't touch the buffer). Thread-safe via `sync.RWMutex`.
+- **`multiHandler`** — fans every record to all registered handlers; `New()` wraps it into an `*slog.Logger`.
+
+**`logfan_test.go`** — 20 tests covering:
+
+| Area | Tests |
+|---|---|
+| `NewRing` validation | invalid capacity (0, -1), empty ring |
+| Ring store/retrieve | single record, oldest-first ordering, eviction (past capacity and multi-wraparound), exact capacity, levels, timestamps |
+| Deep copy | mutating returned slice doesn't affect ring |
+| Concurrency | 20 writers + 10 readers |
+| slog integration | `Enabled`, direct `slog.New()`, `With("key","val")` attrs flow through handler |
+| fan-out `New()` | zero-handler error, fan-out to 2 rings, fan-out with attrs |
+| `WithAttrs` / `WithGroup` | returned Ring works and stores records correctly |

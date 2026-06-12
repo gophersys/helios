@@ -1,0 +1,23 @@
+{
+  "arm": "baseline",
+  "task": "t4-logfan",
+  "seed": 3,
+  "model": "openrouter/deepseek/deepseek-v4-flash",
+  "thinking": "low",
+  "omp_version": "omp/15.10.0",
+  "go_version": "go1.26.4",
+  "prompt_sha256": "1d933981be69eb4907c5b7dd5856e4bdb74bd834b6e33e2517226283b8f4b8c9",
+  "started_at": "2026-06-06T23:52:22Z",
+  "duration_seconds": 373.657249625,
+  "timed_out": false,
+  "over_token_budget": false,
+  "exit_code": 0,
+  "assistant_turns": 32,
+  "tokens": {
+    "input": 290198,
+    "output": 33374,
+    "cache_read": 1209216,
+    "total": 1532788,
+    "cost_usd": 0.058909347
+  }
+}

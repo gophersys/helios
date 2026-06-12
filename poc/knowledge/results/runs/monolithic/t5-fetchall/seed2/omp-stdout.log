@@ -1,0 +1,19 @@
+Done. Implementation and tests complete, all passing.
+
+**`fetchall.go`** — bounded-concurrency batch processor:
+- Counting semaphore (buffered channel) enforces the concurrency limit
+- Context cancellation in the launch loop prevents starting new work past a cancelled parent
+- Results collected under mutex, sorted by `Index` at the end
+- Failed operations wrapped with `fmt.Errorf("input %d: %w", idx, err)` before `errors.Join`, preserving reachability via `errors.Is`/`errors.AsType`
+- Edge cases: `concurrency < 1` → error, empty inputs → `(nil, nil)`
+
+**`fetchall_test.go`** — 10 tests covering:
+- Empty/nil inputs, invalid concurrency
+- All-succeed with ordered output
+- Ordering when later indices complete before earlier ones (channel barrier)
+- Partial failures with sentinel reachability via `errors.Is`
+- Typed error reachability via `errors.AsType` across `errors.Join` tree (two distinct types)
+- All-fail → nil results + joined error
+- Concurrency limit enforcement (peak-inflight counter)
+- Context cancellation while operation is running
+- Parent context value propagation

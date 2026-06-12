@@ -1,0 +1,30 @@
+=== RUN   TestNew_InvalidConfig
+=== RUN   TestNew_InvalidConfig/zero_capacity
+=== RUN   TestNew_InvalidConfig/negative_capacity
+=== RUN   TestNew_InvalidConfig/negative_refill
+--- PASS: TestNew_InvalidConfig (0.00s)
+    --- PASS: TestNew_InvalidConfig/zero_capacity (0.00s)
+    --- PASS: TestNew_InvalidConfig/negative_capacity (0.00s)
+    --- PASS: TestNew_InvalidConfig/negative_refill (0.00s)
+=== RUN   TestNew_ZeroRefill
+--- PASS: TestNew_ZeroRefill (0.00s)
+=== RUN   TestNew_NilClockUsesSystemClock
+--- PASS: TestNew_NilClockUsesSystemClock (0.00s)
+=== RUN   TestAllow_ZeroOrNegativeTokens
+--- PASS: TestAllow_ZeroOrNegativeTokens (0.00s)
+=== RUN   TestAllow_CancelledContext
+--- PASS: TestAllow_CancelledContext (0.00s)
+=== RUN   TestAllow_DeadlineExceeded
+--- PASS: TestAllow_DeadlineExceeded (0.00s)
+=== RUN   TestAllow_ConsumesTokensInOrder
+--- PASS: TestAllow_ConsumesTokensInOrder (0.00s)
+=== RUN   TestAllow_RefillsOverTime
+--- PASS: TestAllow_RefillsOverTime (0.00s)
+=== RUN   TestAllow_CapsAtCapacity
+--- PASS: TestAllow_CapsAtCapacity (0.00s)
+=== RUN   TestAllow_FractionalAccumulation
+--- PASS: TestAllow_FractionalAccumulation (0.00s)
+=== RUN   TestAllow_ConcurrentSafe
+--- PASS: TestAllow_ConcurrentSafe (0.00s)
+PASS
+ok  	example.helios/ratelimiter	1.223s

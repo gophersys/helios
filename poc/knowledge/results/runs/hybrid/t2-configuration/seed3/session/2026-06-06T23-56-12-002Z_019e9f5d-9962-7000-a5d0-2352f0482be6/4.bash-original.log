@@ -1,0 +1,53 @@
+=== RUN   TestLoadDefaults
+--- PASS: TestLoadDefaults (0.00s)
+=== RUN   TestLoadPort
+=== RUN   TestLoadPort/HELIOS_PORT="80"
+=== RUN   TestLoadPort/HELIOS_PORT="1"
+=== RUN   TestLoadPort/HELIOS_PORT="65535"
+=== RUN   TestLoadPort/HELIOS_PORT="0"
+=== RUN   TestLoadPort/HELIOS_PORT="65536"
+=== RUN   TestLoadPort/HELIOS_PORT="-1"
+=== RUN   TestLoadPort/HELIOS_PORT="abc"
+=== RUN   TestLoadPort/HELIOS_PORT=""
+--- PASS: TestLoadPort (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="80" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="1" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="65535" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="0" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="65536" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="-1" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="abc" (0.00s)
+    --- PASS: TestLoadPort/HELIOS_PORT="" (0.00s)
+=== RUN   TestLoadPortPreservesNumError
+--- PASS: TestLoadPortPreservesNumError (0.00s)
+=== RUN   TestLoadName
+=== RUN   TestLoadName/HELIOS_NAME="my-service"
+=== RUN   TestLoadName/HELIOS_NAME=""
+--- PASS: TestLoadName (0.00s)
+    --- PASS: TestLoadName/HELIOS_NAME="my-service" (0.00s)
+    --- PASS: TestLoadName/HELIOS_NAME="" (0.00s)
+=== RUN   TestLoadDebug
+=== RUN   TestLoadDebug/HELIOS_DEBUG="true"
+=== RUN   TestLoadDebug/HELIOS_DEBUG="1"
+=== RUN   TestLoadDebug/HELIOS_DEBUG="false"
+=== RUN   TestLoadDebug/HELIOS_DEBUG="0"
+=== RUN   TestLoadDebug/HELIOS_DEBUG="TRUE"
+=== RUN   TestLoadDebug/HELIOS_DEBUG="FALSE"
+=== RUN   TestLoadDebug/HELIOS_DEBUG="yes"
+=== RUN   TestLoadDebug/HELIOS_DEBUG=""
+--- PASS: TestLoadDebug (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="true" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="1" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="false" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="0" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="TRUE" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="FALSE" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="yes" (0.00s)
+    --- PASS: TestLoadDebug/HELIOS_DEBUG="" (0.00s)
+=== RUN   TestLoadDebugPreservesParseError
+--- PASS: TestLoadDebugPreservesParseError (0.00s)
+=== RUN   TestLoadMultipleKeys
+--- PASS: TestLoadMultipleKeys (0.00s)
+PASS
+ok  	example.helios/configuration	0.223s
+?   	example.helios/configuration/cmd/configprint	[no test files]

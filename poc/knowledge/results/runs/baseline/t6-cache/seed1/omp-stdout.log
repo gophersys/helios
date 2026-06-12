@@ -1,0 +1,18 @@
+Done. Here's what was delivered:
+
+**`cache.go`** — LRU cache implementation using `container/list` + `map[string]*list.Element`, goroutine-safe via `sync.Mutex`. Exported API matches the spec exactly (`Config`, `New`, `Get`, `Put`, `Len`).
+
+**`cache_test.go`** — 8 tests covering:
+- Invalid capacity (0, -1)
+- Basic Put/Get and miss
+- Existing key update
+- Eviction ordering (LRU correctly evicted after `Get` promotions)
+- Update on full cache (doesn't evict, just moves to MRU)
+- Len tracking
+- Concurrent access (20 writers + 20 readers, passes `-race`)
+
+**Benchmarks:**
+- `BenchmarkGetHit` — `Get` on a known key in a 1000-entry cache
+- `BenchmarkPutWithEviction` — `Put` new keys into a full 100-entry cache
+
+All clean: `go build`, `go vet`, `go test -race` all pass.

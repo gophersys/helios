@@ -1,0 +1,19 @@
+Done. Here's what was delivered:
+
+**`configuration.go`** — the `configuration` package:
+- `Source` type (func key → value, found)
+- `Config` struct with `Port`, `Name`, `Debug`
+- `Load(source)` reads `HELIOS_PORT` (int, 1–65535, default 8080), `HELIOS_NAME` (non-empty, default `"helios"`), `HELIOS_DEBUG` (ParseBool, default false)
+- Parse errors wrapped with `%w` so `errors.Is(err, strconv.ErrSyntax)` works; out-of-range port and empty-name are plain errors; multiple errors joined via `errors.Join`
+
+**`cmd/configprint/main.go`** — CLI that loads from `os.LookupEnv` and prints `port=<port> name=<name> debug=<debug>`
+
+**`configuration_test.go`** — 8 tests covering:
+- All defaults when source returns nothing
+- All fields explicitly set
+- Bad port (parse error via `errors.Is(err, strconv.ErrSyntax)`)
+- Port out of range (0 and 65536)
+- Empty `HELIOS_NAME`
+- Bad debug value (via `errors.Is(err, strconv.ErrSyntax)`)
+- Multiple errors simultaneously (all three keys bad)
+- Partial override (only `HELIOS_NAME` set, others fall through to defaults)

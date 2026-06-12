@@ -1,0 +1,10 @@
+Done. Here's what got delivered:
+
+**`logfan.go`** — package implementation:
+- `NewRing(capacity int) (*Ring, error)` — thread-safe ring-buffer handler, returns error for `capacity <= 0`
+- `(r *Ring) Records() []slog.Record` — returns oldest-first deep copies (each record `.Clone()`'d), mutating result doesn't affect ring
+- `(r *Ring) Enabled` / `Handle` / `WithAttrs` / `WithGroup` — full `slog.Handler` interface
+- `WithGroup("g").WithAttrs([...])` correctly wraps attrs in nested `slog.Group` calls
+- `New(handlers ...slog.Handler) (*slog.Logger, error)` — fans out via `slog.NewMultiHandler` (Go 1.26), errors on empty handlers
+
+**`logfan_test.go`** — 17 tests covering: invalid capacity, empty ring, order preservation, eviction (including capacity 1 case), deep copy isolation (slice mutation + AddAttrs mutation), concurrent safety, no-handler error, single/multi handler fan-out, `WithAttrs`, `WithGroup`, `Enabled` semantics.

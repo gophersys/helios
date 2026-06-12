@@ -1,0 +1,16 @@
+Everything done. Here's a summary:
+
+**Created files:**
+
+- `configuration.go` — package with `Source`, `Config`, `Load`. Reads `HELIOS_PORT` (int 1–65535, default `8080`), `HELIOS_NAME` (non-empty string, default `"helios"`), `HELIOS_DEBUG` (ParseBool syntax, default `false`). Parse errors wrap the original error; empty name is an error.
+
+- `cmd/configprint/main.go` — CLI that loads from `os.LookupEnv` and prints `port=<port> name=<name> debug=<debug>\n`.
+
+- `configuration_test.go` — 10 tests covering defaults, custom values, port out of range, bad port string (with `errors.AsType[*strconv.NumError]` check), empty name, bad debug, false variants, and source-not-found behavior.
+
+**Verification:**
+
+- `go build ./...` — passes
+- `go vet ./...` — passes
+- `go test -v ./...` — all 10 tests pass
+- `bash ./check.sh` — exits 0 (build + vet + rulecheck all satisfied)

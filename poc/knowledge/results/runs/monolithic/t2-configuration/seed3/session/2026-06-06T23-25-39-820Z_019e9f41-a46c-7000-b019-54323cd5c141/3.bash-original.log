@@ -1,0 +1,6 @@
+--- FAIL: TestLoadMultipleErrors (0.00s)
+    configuration_test.go:105: expected at least 3 wrapped errors, got 1
+FAIL
+FAIL	example.helios/configuration	0.197s
+?   	example.helios/configuration/cmd/configprint	[no test files]
+FAIL

@@ -1,0 +1,24 @@
+=== RUN   TestProcessSuccess
+--- PASS: TestProcessSuccess (0.00s)
+=== RUN   TestProcessConcurrencyLessThanOne
+--- PASS: TestProcessConcurrencyLessThanOne (0.00s)
+=== RUN   TestProcessEmptyInputs
+--- PASS: TestProcessEmptyInputs (0.00s)
+=== RUN   TestProcessAllFail
+--- PASS: TestProcessAllFail (0.00s)
+=== RUN   TestProcessMixedFailures
+--- PASS: TestProcessMixedFailures (0.00s)
+=== RUN   TestProcessResultOrderingPreserved
+--- PASS: TestProcessResultOrderingPreserved (0.01s)
+=== RUN   TestProcessConcurrencyBounded
+--- PASS: TestProcessConcurrencyBounded (0.40s)
+=== RUN   TestProcessConcurrencyOne
+--- PASS: TestProcessConcurrencyOne (0.03s)
+=== RUN   TestProcessContextCancellation
+--- PASS: TestProcessContextCancellation (0.01s)
+=== RUN   TestProcessAllErrorsReachable
+--- PASS: TestProcessAllErrorsReachable (0.00s)
+=== RUN   TestProcessAllErrorsAsTypeReachable
+--- PASS: TestProcessAllErrorsAsTypeReachable (0.00s)
+PASS
+ok  	example.helios/fetchall	0.735s

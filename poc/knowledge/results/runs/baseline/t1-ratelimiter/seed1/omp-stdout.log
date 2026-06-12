@@ -1,0 +1,12 @@
+Everything passes cleanly:
+
+- `go build ./...` — OK
+- `go vet ./...` — OK
+- `go test ./...` — OK (all 11 tests pass)
+
+**Implementation** — `ratelimiter.go`:
+- `New` validates `Capacity <= 0` and `RefillPerSecond < 0`, falls back to `realClock` when `Clock` is nil, starts bucket full at `Capacity`
+- `Allow` returns error on `tokens <= 0`, checks `ctx.Done()` before and returns `ctx.Err()` (satisfies `errors.Is`), refills fractionally from elapsed time, caps at `Capacity`, consumes if enough tokens available
+- `sync.Mutex` guards all mutable state for concurrent safety
+
+**Tests** — `ratelimiter_test.go`: 11 test cases covering invalid config, nil clock default, non-positive tokens, cancelled context, starts full, deny-when-empty, refill over time, cap-at-capacity, fractional accumulation, zero refill rate, and concurrent safety with 1000 goroutines.

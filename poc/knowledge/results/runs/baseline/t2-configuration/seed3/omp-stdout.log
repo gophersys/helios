@@ -1,0 +1,5 @@
+All passing. Three files implemented:
+
+- **`configuration.go`** — package with `Source`, `Config`, `Load`. Parses `HELIOS_PORT` (int, 1–65535), `HELIOS_NAME` (non-empty string), `HELIOS_DEBUG` (ParseBool). Wraps parse errors via `%w` so callers can use `errors.As`.
+- **`cmd/configprint/main.go`** — CLI reads from `os.LookupEnv`, prints `port=N name=S debug=B\n`.
+- **`configuration_test.go`** — covers defaults, explicit values, port range edges (0, 65536, -1), port parse error (wraps `*strconv.NumError`), empty name, debug false/true variants, and an Example function.

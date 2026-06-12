@@ -1,0 +1,22 @@
+Done. Implementation in `retry.go`, tests in `retry_test.go`.
+
+**`retry.go`** — exported API matches spec exactly:
+- `Sleeper` interface, `TransientError` (with `Error()`/`Unwrap()`), `Config`, `Dependencies`, `New`, `Retrier.Do`
+- New validates config, defaults nil Sleeper to system clock
+- Do uses `errors.AsType[*TransientError]` (Go 1.26) to detect retryable errors at any wrap depth
+- Backoff: exponential `BaseDelay * 2^attempt`; `RetryAfter` overrides when > 0
+- Sleeper error or context cancellation stops immediately
+
+**`retry_test.go`** — 18 tests covering:
+- Config validation (MaxAttempts<1, BaseDelay<0)
+- Nil Sleeper defaulting
+- Success first try, retryable-then-success, all retries fail
+- Non-retryable returns immediately (matches via `errors.Is`)
+- `RetryAfter` honored, exponential backoff values verified
+- Sleeper error propagation, context cancellation
+- Wrapped `TransientError` (not top level)
+- `TransientError.Error()` and `Unwrap()` formatting
+- `MaxAttempts=1` (no sleep), `BaseDelay=0`
+- Non-retryable and final-failure error matching via `errors.Is`
+
+**Verification:** `go build` → OK, `go vet` → OK, `go test` → 18/18 PASS.

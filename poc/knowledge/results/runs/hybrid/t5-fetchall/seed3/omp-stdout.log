@@ -1,0 +1,19 @@
+Done. Here's the summary:
+
+**Implementation** (`fetchall.go`) — worker pool pattern:
+- Validates `concurrency < 1` → error, empty `inputs` → `(nil, nil)`
+- Enqueues indices on a buffered channel then spawns `concurrency` goroutines via `wg.Go` (Go 1.25+)
+- Each goroutine reads from the channel, writes to `results[idx]` — no mutex needed since each slot is written exactly once
+- Post-processing builds ordered `[]Result` with successes, collects errors, joins them via `errors.Join` preserving individual reachability
+
+**Tests** (`fetchall_test.go`) — 11 tests covering:
+- Success, ordering, mixed failures, all-fail, empty inputs, `concurrency < 1`
+- Concurrency bound verified via `concurrencyCounter` (max in-flight ≤ limit)
+- Context cancellation does not hang
+- Error reachability via both `errors.Is` (sentinel) and `errors.AsType` (Go 1.26+, typed custom error)
+
+**All gates pass:**
+- `go build ./...` ✓
+- `go vet ./...` ✓
+- `go test ./... -count=1` — 11/11 PASS ✓
+- `bash ./check.sh` (build + vet + rulecheck) — exits 0 ✓

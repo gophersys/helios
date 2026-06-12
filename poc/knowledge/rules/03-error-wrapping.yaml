@@ -1,0 +1,46 @@
+id: go/error-wrapping
+class: C1
+category: idiom
+statement: >-
+  When propagating an error with added context use fmt.Errorf with the %w verb
+  (or errors.Join for aggregation). Never format an error with %v/%s into a new
+  error and never concatenate err.Error() — both destroy the error tree, so
+  errors.Is/As/AsType stop working for callers.
+rationale: >-
+  Wrapped errors keep sentinel and typed errors inspectable across package
+  boundaries. A %v-formatted error is a dead string: callers can no longer
+  branch on the cause, which forces string matching — the canonical Go
+  anti-pattern.
+applicability: >-
+  Any code path that returns an error derived from another error.
+exceptions:
+  - >-
+    Deliberate boundary opacity: when an error must NOT be inspectable (e.g.
+    redacting internal detail at an API boundary), formatting with %v and
+    documenting the opacity is correct.
+  - Log messages (not returned errors) may format errors with %v freely.
+example:
+  good: |
+    if err != nil {
+        return fmt.Errorf("load configuration: %w", err)
+    }
+  bad: |
+    if err != nil {
+        return fmt.Errorf("load configuration: %v", err) // breaks errors.Is/As
+    }
+oracle:
+  kind: analyzer
+  ref: errorwrapping
+fix_hint: >-
+  Replace the %v/%s verb with %w (fmt.Errorf("context: %w", err)), or use
+  errors.Join to aggregate multiple errors.
+provenance:
+  - source: "Go release notes 1.13 + errors package docs — error wrapping with %w"
+    tier: 1
+  - source: "Go blog, 'Working with Errors in Go 1.13'"
+    tier: 2
+  - source: "100 Go Mistakes and How to Avoid Them, mistake #49 (ignoring when to wrap an error)"
+    tier: 3
+staleness: { go_minimum: "1.13", review_by: "2027-06" }
+status: VERIFIED
+hypothesis_baseline_violation: low

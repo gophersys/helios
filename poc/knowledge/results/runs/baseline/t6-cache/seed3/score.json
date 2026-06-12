@@ -1,0 +1,47 @@
+{
+  "arm": "baseline",
+  "task": "t6-cache",
+  "seed": 3,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/benchmark-loop": true,
+    "go/interface-size": false,
+    "go/return-concrete": false
+  },
+  "all_violations": [
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "cache_test.go:166:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    },
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "cache_test.go:181:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    },
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "cache_test.go:192:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    },
+    {
+      "rule": "go/benchmark-loop",
+      "pos": "cache_test.go:205:2",
+      "message": "benchmark iterates with b.N; use `for b.Loop()` (Go 1.24+) — setup stays unmeasured and dead-code elimination is prevented"
+    },
+    {
+      "rule": "go/benchmark-loop",
+      "pos": "cache_test.go:211:2",
+      "message": "benchmark iterates with b.N; use `for b.Loop()` (Go 1.24+) — setup stays unmeasured and dead-code elimination is prevented"
+    },
+    {
+      "rule": "go/benchmark-loop",
+      "pos": "cache_test.go:221:2",
+      "message": "benchmark iterates with b.N; use `for b.Loop()` (Go 1.24+) — setup stays unmeasured and dead-code elimination is prevented"
+    }
+  ],
+  "test_output_tail": "ok  \texample.helios/cache\t0.219s\n"
+}

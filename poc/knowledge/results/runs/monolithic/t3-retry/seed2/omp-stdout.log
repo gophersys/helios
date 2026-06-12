@@ -1,0 +1,5 @@
+Done. Two files created:
+
+- **`retry.go`** — Full implementation: `TransientError` (with `Error()`/`Unwrap()`), `Config`, `Dependencies`, `New` (validation + nil sleeper defaulting), `Retrier.Do` (retry loop, transient checking via `errors.AsType`, exponential backoff, `RetryAfter` override, sleeper error propagation, `errors.Is` matching on returns).
+
+- **`retry_test.go`** — 22 tests covering: `New` validation (MaxAttempts < 1, BaseDelay < 0, nil sleeper default), `TransientError` `Error()`/`Unwrap()`/`errors.Is` through wrapping, immediate success, success on retry, non-retryable stops immediately (including wrapped sentinel), all-attempts-fail transient, sleeper-returned error stops retries, system sleeper respects context cancellation, `RetryAfter` override, `MaxAttempts=1` edge case, sleeper not called on success/non-retryable, exponential backoff progression, sleeper failure mid-sequence, wrapped `TransientError` deep in tree, context cancellation passed to operation, plus a runnable example.

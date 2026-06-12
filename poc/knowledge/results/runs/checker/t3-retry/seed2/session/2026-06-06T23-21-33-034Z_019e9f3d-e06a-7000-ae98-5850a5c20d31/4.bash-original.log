@@ -1,0 +1,36 @@
+=== RUN   TestNew_InvalidMaxAttempts
+--- PASS: TestNew_InvalidMaxAttempts (0.00s)
+=== RUN   TestNew_NegativeBaseDelay
+--- PASS: TestNew_NegativeBaseDelay (0.00s)
+=== RUN   TestNew_ValidConfig
+--- PASS: TestNew_ValidConfig (0.00s)
+=== RUN   TestNew_DefaultSleeper
+--- PASS: TestNew_DefaultSleeper (0.00s)
+=== RUN   TestDo_ImmediateSuccess
+--- PASS: TestDo_ImmediateSuccess (0.00s)
+=== RUN   TestDo_RetryThenSuccess
+--- PASS: TestDo_RetryThenSuccess (0.00s)
+=== RUN   TestDo_NonRetryableErrorReturnedImmediately
+--- PASS: TestDo_NonRetryableErrorReturnedImmediately (0.00s)
+=== RUN   TestDo_AllAttemptsFail_ReturnsLastError
+--- PASS: TestDo_AllAttemptsFail_ReturnsLastError (0.00s)
+=== RUN   TestDo_AllAttemptsFail_MaxAttempts1
+--- PASS: TestDo_AllAttemptsFail_MaxAttempts1 (0.00s)
+=== RUN   TestDo_RetryAfterHonored
+--- PASS: TestDo_RetryAfterHonored (0.00s)
+=== RUN   TestDo_ZeroRetryAfterFallsBackToExponential
+--- PASS: TestDo_ZeroRetryAfterFallsBackToExponential (0.00s)
+=== RUN   TestDo_TransientWrappingSentinel_ErrorsIsWorks
+--- PASS: TestDo_TransientWrappingSentinel_ErrorsIsWorks (0.00s)
+=== RUN   TestDo_DeeplyWrappedTransientError
+--- PASS: TestDo_DeeplyWrappedTransientError (0.00s)
+=== RUN   TestDo_SleeperError_ReturnsImmediately
+--- PASS: TestDo_SleeperError_ReturnsImmediately (0.00s)
+=== RUN   TestDo_ContextCancelledBeforeStart
+--- PASS: TestDo_ContextCancelledBeforeStart (0.00s)
+=== RUN   TestDo_ZeroBaseDelay
+--- PASS: TestDo_ZeroBaseDelay (0.00s)
+=== RUN   TestDo_TransientErrorIsDetectedAtAnyDepth
+--- PASS: TestDo_TransientErrorIsDetectedAtAnyDepth (0.00s)
+PASS
+ok  	example.helios/retry	0.208s

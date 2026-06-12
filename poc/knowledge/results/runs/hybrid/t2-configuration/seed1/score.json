@@ -1,0 +1,15 @@
+{
+  "arm": "hybrid",
+  "task": "t2-configuration",
+  "seed": 1,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/environment-confinement": false,
+    "go/error-wrapping": false
+  },
+  "all_violations": null,
+  "test_output_tail": "ok  \texample.helios/configuration\t0.226s\n?   \texample.helios/configuration/cmd/configprint\t[no test files]\n"
+}

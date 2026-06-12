@@ -1,0 +1,21 @@
+All tasks complete. Here's the summary:
+
+**`fetchall.go`** — Implementation of `Process`:
+- Concurrent semaphore via buffered channel (`concurrency` capacity)
+- `wg.Go(f)` (Go 1.25+) to spawn goroutines
+- `errors.Join` aggregates failures, preserving each in the error tree for `errors.Is`/`errors.As`/`errors.AsType`
+- Results ordered by `Index` ascending, only successes included
+
+**`fetchall_test.go`** — 8 tests:
+| Test | What it verifies |
+|---|---|
+| `EmptyInputs` | nil/empty inputs → `(nil, nil)` |
+| `InvalidConcurrency` | 0 or negative → error |
+| `Success` | All ops succeed, results ordered, correct output |
+| `ResultsOrderedByIndex` | Out-of-order completion still yields correct Index order |
+| `PartialFailures` | Mix of success/failure → successes returned, `errors.Is` for each sentinel |
+| `AllFailures` | Every op fails → empty results, `errors.Is` works on aggregated |
+| `ContextCancellation` | Cancelled context propagated to each operation |
+| `ConcurrencyLimit` | At most `concurrency` ops in flight (atomically tracked) |
+
+**Checks:** `go build`, `go vet`, `go test`, `check.sh` — all pass.

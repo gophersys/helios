@@ -1,0 +1,27 @@
+=== RUN   TestDefaults
+--- PASS: TestDefaults (0.00s)
+=== RUN   TestDefaultsEmptyMap
+--- PASS: TestDefaultsEmptyMap (0.00s)
+=== RUN   TestCustomPort
+--- PASS: TestCustomPort (0.00s)
+=== RUN   TestCustomName
+--- PASS: TestCustomName (0.00s)
+=== RUN   TestCustomDebugTrue
+--- PASS: TestCustomDebugTrue (0.00s)
+=== RUN   TestCustomDebugOne
+--- PASS: TestCustomDebugOne (0.00s)
+=== RUN   TestAllCustom
+--- PASS: TestAllCustom (0.00s)
+=== RUN   TestPortParseError
+--- PASS: TestPortParseError (0.00s)
+=== RUN   TestPortOutOfRangeLow
+--- PASS: TestPortOutOfRangeLow (0.00s)
+=== RUN   TestPortOutOfRangeHigh
+--- PASS: TestPortOutOfRangeHigh (0.00s)
+=== RUN   TestEmptyName
+--- PASS: TestEmptyName (0.00s)
+=== RUN   TestBadDebug
+--- PASS: TestBadDebug (0.00s)
+PASS
+ok  	example.helios/configuration	0.224s
+?   	example.helios/configuration/cmd/configprint	[no test files]

@@ -1,0 +1,3 @@
+# example.helios/cache
+# [example.helios/cache]
+vet: ./cache_test.go:4:2: "runtime" imported and not used

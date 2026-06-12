@@ -1,0 +1,49 @@
+id: go/benchmark-loop
+class: C1
+category: post-cutoff
+statement: >-
+  Benchmarks iterate with `for b.Loop()` (Go 1.24), not
+  `for i := 0; i < b.N; i++` and not `for range b.N`. b.Loop keeps setup and
+  cleanup outside the measured region exactly once and prevents the compiler
+  from optimizing the benchmarked call away.
+rationale: >-
+  The b.N pattern re-runs setup on every benchmark restart, silently measures
+  dead code when the compiler proves results unused, and is the single most
+  copied stale idiom in Go. b.Loop fixes all three; since Go 1.26 it no longer
+  even inhibits inlining.
+applicability: >-
+  Any *_test.go benchmark on Go >= 1.24.
+exceptions:
+  - Code that must build on Go < 1.24 keeps b.N.
+  - >-
+    Benchmarks that intentionally index by iteration (e.g. pre-generated
+    inputs[i]) may keep a manual counter alongside b.Loop.
+example:
+  good: |
+    func BenchmarkGet(b *testing.B) {
+        c := mustCache(b)
+        for b.Loop() { c.Get("k") }
+    }
+  bad: |
+    func BenchmarkGet(b *testing.B) {
+        c := mustCache(b)
+        for i := 0; i < b.N; i++ { c.Get("k") } // stale idiom: setup re-runs, dead-code risk
+    }
+oracle:
+  kind: analyzer
+  ref: benchmarkloop
+fix_hint: >-
+  Replace the b.N loop with `for b.Loop() { ... }` (Go 1.24+).
+provenance:
+  - source: "Go 1.24 release notes — testing: new B.Loop method (go.dev/doc/go1.24)"
+    tier: 1
+  - source: "Go 1.26 release notes — testing: B.Loop no longer prevents inlining (go.dev/doc/go1.26)"
+    tier: 1
+staleness: { go_minimum: "1.24", review_by: "2027-06" }
+probe:
+  question: >-
+    Write the loop header of an idiomatic Go benchmark function for the
+    current Go toolchain (1.24+). Just the for-statement.
+  expect_markers: ["b.Loop()"]
+status: VERIFIED
+hypothesis_baseline_violation: high

@@ -1,0 +1,4 @@
+# example.helios/fetchall
+# [example.helios/fetchall]
+vet: ./fetchall_test.go:182:20: impossible type assertion: errors.Unwrap(err).([]error)
+	[]error does not implement error (missing method Error)

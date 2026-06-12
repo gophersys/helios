@@ -1,0 +1,24 @@
+Delivered. Two files, zero dependencies.
+
+**`cache.go`** — `sync.RWMutex`-protected LRU using `container/list` + `map[string]*list.Element`. O(1) Get/Put. Exact API per spec.
+
+**`cache_test.go`** — 11 tests + 2 benchmarks.
+
+```
+$ go build ./...   # clean
+$ go vet ./...     # clean
+$ go test -bench=. ./...
+--- PASS: TestNewInvalidCapacity (0.00s)
+--- PASS: TestPutAndGet (0.00s)
+--- PASS: TestGetMiss (0.00s)
+--- PASS: TestGetEmptyCache (0.00s)
+--- PASS: TestUpdateValue (0.00s)
+--- PASS: TestEviction (0.00s)
+--- PASS: TestGetMakesMostRecent (0.00s)
+--- PASS: TestPutMakesMostRecent (0.00s)
+--- PASS: TestCapacityOne (0.00s)
+--- PASS: TestLen (0.00s)
+--- PASS: TestConcurrency (0.00s)
+BenchmarkGet-10    122394255   9.857 ns/op
+BenchmarkPut-10    14197899    83.23 ns/op
+```

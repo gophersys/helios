@@ -42,3 +42,9 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Claude Code harness state
+.claude/scheduled_tasks.lock
+
+# Generated reading copies (regenerate: node docs/tools/render-html.mjs)
+docs/architecture/eden-architecture.html

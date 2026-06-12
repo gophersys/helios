@@ -1,0 +1,17 @@
+{
+  "arm": "monolithic",
+  "task": "t3-retry",
+  "seed": 2,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/constructor-purity": false,
+    "go/context-first": false,
+    "go/error-wrapping": false,
+    "go/errors-astype": false
+  },
+  "all_violations": null,
+  "test_output_tail": "ok  \texample.helios/retry\t0.218s\n"
+}

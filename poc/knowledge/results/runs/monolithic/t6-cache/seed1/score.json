@@ -1,0 +1,27 @@
+{
+  "arm": "monolithic",
+  "task": "t6-cache",
+  "seed": 1,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/benchmark-loop": false,
+    "go/interface-size": false,
+    "go/return-concrete": false
+  },
+  "all_violations": [
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "cache_test.go:148:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    },
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "cache_test.go:158:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    }
+  ],
+  "test_output_tail": "ok  \texample.helios/cache\t0.523s\n"
+}

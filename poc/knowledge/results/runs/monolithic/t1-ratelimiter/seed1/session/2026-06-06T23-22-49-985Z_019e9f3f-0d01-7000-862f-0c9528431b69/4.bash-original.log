@@ -1,0 +1,7 @@
+goos: darwin
+goarch: arm64
+pkg: example.helios/ratelimiter
+cpu: Apple M5
+BenchmarkAllow-10    	     100	        62.50 ns/op
+PASS
+ok  	example.helios/ratelimiter	0.204s

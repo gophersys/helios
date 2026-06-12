@@ -1,0 +1,23 @@
+Done. Here's a summary of what was delivered:
+
+**`cache.go`** — LRU cache using `container/list` + `map[string]*list.Element` + `sync.RWMutex`:
+- `New(Config)` returns error when `Capacity <= 0`, otherwise allocates the cache
+- `Get(key)` — RLock-optimistic then promotes under write lock; double-check pattern for concurrent safety
+- `Put(key, value)` — updates existing entry or evicts LRU tail when full, then inserts at front
+- `Len()` — RLock-guarded
+
+**`cache_test.go`** — 8 tests covering:
+- Invalid capacity (zero, negative)
+- Valid capacity, empty cache
+- Get miss
+- Put and Get round-trip
+- Update existing key (value change, no length growth)
+- LRU eviction order
+- Access promotion (`Get` moves entry to MRU)
+- Concurrent safety (sync.WaitGroup.Go)
+
+**Benchmarks** (using `b.Loop()`):
+- `BenchmarkGet` — hit path, ~9.6 ns/op on M5
+- `BenchmarkPutEviction` — full cache overwrite with eviction, ~20.0 ns/op
+
+**Verification**: `go build ./...` ✓, `go vet ./...` ✓, `go test ./... -v` ✓ (all 8 pass), `bash ./check.sh` ✓ (rulecheck all satisfied). Zero third-party dependencies.

@@ -1,0 +1,25 @@
+Everything passes. Here's what was delivered:
+
+**`ratelimiter.go`** — token-bucket rate limiter implementing the spec API exactly:
+- `Clock` interface, `Config`, `Dependencies`, `New`, `*Limiter.Allow`
+- Validates `Capacity > 0` and `RefillPerSecond >= 0` on construction
+- Nil clock → `systemClock` wrapping `time.Now()`
+- Bucket starts at `Capacity`
+- `Allow`: rejects `tokens <= 0`, early-returns context cancellation via `errors.Is`, refills fractionally from last call (capped at `Capacity`), consumes if sufficient, no side-effects on deny
+- `sync.Mutex` for concurrent safety
+
+**`ratelimiter_test.go`** — 16 tests covering:
+- Construction validation (zero/negative capacity, negative refill rate, zero refill rate allowed)
+- Token positivity check
+- Cancelled context & deadline-exceeded context (with `errors.Is`)
+- Full-capacity consumption, starvation, partial consumption
+- Time-based refill (500ms → 5/10 tokens)
+- Fractional accumulation (100ms → 0.1 tokens)
+- Capped-at-capacity after long idle
+- Zero refill rate (no tokens restored)
+- Bucket starts full
+- Concurrent goroutine safety (200 goroutines against 100 tokens)
+- Nil clock falls back to system clock
+- No side-effects on denied `Allow`
+
+**Verification**: `go build`, `go vet`, `go test`, and `rulecheck` all pass.

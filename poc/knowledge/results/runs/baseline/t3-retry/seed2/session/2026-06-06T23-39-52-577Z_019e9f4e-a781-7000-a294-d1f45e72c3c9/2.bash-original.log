@@ -1,0 +1,3 @@
+# example.helios/retry
+# [example.helios/retry]
+vet: ./retry_test.go:176:6: declared and not used: lastErr

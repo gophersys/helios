@@ -1,0 +1,20 @@
+Done. Two files created:
+
+**`fetchall.go`** — bounded-concurrency processor using:
+- Buffered channel as semaphore (at most `concurrency` in flight)
+- `sync.WaitGroup.Go()` (Go 1.25+) for safe goroutine lifecycle
+- `errors.Join()` for aggregate error where `errors.Is`/`errors.As` reach every individual failure
+- `sort.Slice` to order results by `Index`
+
+**`fetchall_test.go`** — 11 tests covering:
+- Basic success with result ordering
+- Empty inputs → `(nil, nil)`
+- Invalid concurrency (< 1) → error
+- Concurrency limit enforcement (verified with atomic counter)
+- Error aggregation: mixed success/failure, `errors.Is`/`errors.As` reachable
+- All-fail case
+- Context cancellation (mid-flight and pre-cancelled)
+- Concurrency > len(inputs) (all run in parallel)
+- Partial cancellation (fast results collected before cancellation)
+
+All gates pass: `go build`, `go vet`, `go test`, and `rulecheck` (via `check.sh`).

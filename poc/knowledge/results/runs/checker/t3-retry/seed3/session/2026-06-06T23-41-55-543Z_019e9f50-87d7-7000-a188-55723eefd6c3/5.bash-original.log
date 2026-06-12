@@ -1,0 +1,45 @@
+=== RUN   TestNew_ValidatesMaxAttempts
+--- PASS: TestNew_ValidatesMaxAttempts (0.00s)
+=== RUN   TestNew_ValidatesBaseDelay
+--- PASS: TestNew_ValidatesBaseDelay (0.00s)
+=== RUN   TestNew_NilSleeperDefaults
+--- PASS: TestNew_NilSleeperDefaults (0.00s)
+=== RUN   TestDo_SuccessOnFirstAttempt
+--- PASS: TestDo_SuccessOnFirstAttempt (0.00s)
+=== RUN   TestDo_NonRetryableErrorReturnedImmediately
+--- PASS: TestDo_NonRetryableErrorReturnedImmediately (0.00s)
+=== RUN   TestDo_TransientErrorTriggersRetry
+    retry_test.go:128: expected nil on third attempt success, got sleeper error
+--- FAIL: TestDo_TransientErrorTriggersRetry (0.00s)
+=== RUN   TestDo_ExhaustedRetriesReturnLastError
+    retry_test.go:146: expected last error via errors.Is, got sleeper error
+--- FAIL: TestDo_ExhaustedRetriesReturnLastError (0.00s)
+=== RUN   TestDo_ExponentialBackoff
+    retry_test.go:168: expected 3 delays, got 1
+--- FAIL: TestDo_ExponentialBackoff (0.00s)
+=== RUN   TestDo_RetryAfterOverridesBackoff
+    retry_test.go:192: expected 2 sleeps, got 1
+--- FAIL: TestDo_RetryAfterOverridesBackoff (0.00s)
+=== RUN   TestDo_SleeperErrorStopsRetry
+    retry_test.go:221: expected 2 calls (initial + 1 retry), got 1
+--- FAIL: TestDo_SleeperErrorStopsRetry (0.00s)
+=== RUN   TestDo_ContextCancelledDuringSleep
+--- PASS: TestDo_ContextCancelledDuringSleep (0.00s)
+=== RUN   TestDo_TransientErrorWrappedInTree
+    retry_test.go:261: expected nil, got sleeper error
+--- FAIL: TestDo_TransientErrorWrappedInTree (0.00s)
+=== RUN   TestDo_ZeroBaseDelay
+    retry_test.go:283: expected nil, got sleeper error
+--- FAIL: TestDo_ZeroBaseDelay (0.00s)
+=== RUN   TestDo_TransientErrorRetryAfterZero_UsesBackoff
+    retry_test.go:311: expected 2 sleeps, got 1
+--- FAIL: TestDo_TransientErrorRetryAfterZero_UsesBackoff (0.00s)
+=== RUN   TestDo_DefaultSleeperRespectsCancellation
+--- PASS: TestDo_DefaultSleeperRespectsCancellation (0.01s)
+=== RUN   TestDo_NonRetryableErrorsIs
+--- PASS: TestDo_NonRetryableErrorsIs (0.00s)
+=== RUN   TestDo_NoDataRace
+--- PASS: TestDo_NoDataRace (0.00s)
+FAIL
+FAIL	example.helios/retry	0.224s
+FAIL

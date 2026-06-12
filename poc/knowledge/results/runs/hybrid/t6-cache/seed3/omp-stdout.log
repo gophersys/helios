@@ -1,0 +1,20 @@
+All tasks complete. Here's what was delivered:
+
+**`cache.go`** — LRU cache implementation using `container/list` + `map[string]*list.Element` guarded by `sync.Mutex`.
+
+**`cache_test.go`** — tests covering:
+- `TestNew` — zero/negative capacity errors, valid construction
+- `TestPutAndGet` — basic insert/retrieve
+- `TestGetMiss` — miss returns empty string + false
+- `TestPutUpdatesExisting` — update preserves Len, returns new value
+- `TestPutUpdatesExistingMarksMRU` — updating an existing key promotes it, making the correct entry the eviction target
+- `TestGetMarksMRU` — getting a key promotes it
+- `TestEviction` — insert past capacity evicts LRU entry
+- `TestLen` — tracks size correctly across insert/update
+- `TestConcurrency` — 10 goroutines × 100 ops each (via `sync.WaitGroup.Go`)
+
+**Benchmarks** (with `b.Loop()`):
+- `BenchmarkGet` — 15.3M ops, 7.84 ns/op, 0 allocs/op
+- `BenchmarkPut` — 13.5M ops, 8.90 ns/op, 0 allocs/op
+
+**Verification**: `go build ./...`, `go vet ./...`, `go test -bench=. ./...`, and `bash ./check.sh` (rulecheck) all exit 0. No third-party dependencies.

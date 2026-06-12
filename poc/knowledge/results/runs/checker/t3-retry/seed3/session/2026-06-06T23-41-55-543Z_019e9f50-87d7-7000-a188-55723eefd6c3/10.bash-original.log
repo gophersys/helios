@@ -1,0 +1,36 @@
+=== RUN   TestNew_ValidatesMaxAttempts
+--- PASS: TestNew_ValidatesMaxAttempts (0.00s)
+=== RUN   TestNew_ValidatesBaseDelay
+--- PASS: TestNew_ValidatesBaseDelay (0.00s)
+=== RUN   TestNew_NilSleeperDefaults
+--- PASS: TestNew_NilSleeperDefaults (0.00s)
+=== RUN   TestDo_SuccessOnFirstAttempt
+--- PASS: TestDo_SuccessOnFirstAttempt (0.00s)
+=== RUN   TestDo_NonRetryableErrorReturnedImmediately
+--- PASS: TestDo_NonRetryableErrorReturnedImmediately (0.00s)
+=== RUN   TestDo_TransientErrorTriggersRetry
+--- PASS: TestDo_TransientErrorTriggersRetry (0.00s)
+=== RUN   TestDo_ExhaustedRetriesReturnLastError
+--- PASS: TestDo_ExhaustedRetriesReturnLastError (0.00s)
+=== RUN   TestDo_ExponentialBackoff
+--- PASS: TestDo_ExponentialBackoff (0.00s)
+=== RUN   TestDo_RetryAfterOverridesBackoff
+--- PASS: TestDo_RetryAfterOverridesBackoff (0.00s)
+=== RUN   TestDo_SleeperErrorStopsRetry
+--- PASS: TestDo_SleeperErrorStopsRetry (0.00s)
+=== RUN   TestDo_ContextCancelledDuringSleep
+--- PASS: TestDo_ContextCancelledDuringSleep (0.00s)
+=== RUN   TestDo_TransientErrorWrappedInTree
+--- PASS: TestDo_TransientErrorWrappedInTree (0.00s)
+=== RUN   TestDo_ZeroBaseDelay
+--- PASS: TestDo_ZeroBaseDelay (0.00s)
+=== RUN   TestDo_TransientErrorRetryAfterZero_UsesBackoff
+--- PASS: TestDo_TransientErrorRetryAfterZero_UsesBackoff (0.00s)
+=== RUN   TestDo_DefaultSleeperRespectsCancellation
+--- PASS: TestDo_DefaultSleeperRespectsCancellation (0.01s)
+=== RUN   TestDo_NonRetryableErrorsIs
+--- PASS: TestDo_NonRetryableErrorsIs (0.00s)
+=== RUN   TestDo_NoDataRace
+--- PASS: TestDo_NoDataRace (0.00s)
+PASS
+ok  	example.helios/retry	0.213s

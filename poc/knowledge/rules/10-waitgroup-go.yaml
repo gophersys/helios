@@ -1,0 +1,50 @@
+id: go/waitgroup-go
+class: C1
+category: post-cutoff
+statement: >-
+  When spawning one goroutine per task, use sync.WaitGroup.Go(f) (Go 1.25)
+  instead of the wg.Add(1) / go func() { defer wg.Done(); ... }() triple.
+rationale: >-
+  The Add/go/Done triple has two classic failure modes — Add inside the
+  goroutine (race with Wait) and a forgotten Done on an early return (deadlock).
+  WaitGroup.Go makes both unrepresentable and reads as one line.
+applicability: >-
+  Code on Go >= 1.25 that spawns goroutines tracked by a sync.WaitGroup,
+  where the goroutine is created at the call site.
+exceptions:
+  - Code that must build on Go < 1.25 keeps Add/Done.
+  - >-
+    Decoupled lifecycles — when Add happens in one place and the goroutine is
+    started elsewhere (worker pools handing tasks to pre-started workers),
+    Add/Done remains the correct primitive.
+example:
+  good: |
+    var wg sync.WaitGroup
+    for _, input := range inputs {
+        wg.Go(func() { process(input) })
+    }
+    wg.Wait()
+  bad: |
+    var wg sync.WaitGroup
+    for _, input := range inputs {
+        wg.Add(1)
+        go func() { defer wg.Done(); process(input) }()
+    }
+    wg.Wait()
+oracle:
+  kind: analyzer
+  ref: waitgroupgo
+fix_hint: >-
+  Replace wg.Add(1) + go func(){ defer wg.Done(); ... }() with
+  wg.Go(func(){ ... }) (Go 1.25+).
+provenance:
+  - source: "Go 1.25 release notes — sync: new WaitGroup.Go method (go.dev/doc/go1.25)"
+    tier: 1
+staleness: { go_minimum: "1.25", review_by: "2027-06" }
+probe:
+  question: >-
+    In modern Go (1.25+), what is the most idiomatic way to spawn one
+    goroutine per item tracked by a sync.WaitGroup? Show the loop body.
+  expect_markers: ["wg.Go(", "WaitGroup.Go"]
+status: VERIFIED
+hypothesis_baseline_violation: high

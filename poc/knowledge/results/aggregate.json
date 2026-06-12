@@ -1,0 +1,356 @@
+{
+  "arms": [
+    {
+      "arm": "baseline",
+      "runs": 18,
+      "functional_pass_rate": 0.9444444444444444,
+      "mean_output_tokens": 9799.166666666666,
+      "std_output_tokens": 8926.324566399424,
+      "mean_duration_seconds": 137.54343773622224,
+      "mean_turns": 16.27777777777778,
+      "total_cost_usd": 0.4427738840999999,
+      "timed_out": 0,
+      "mean_tempted_violations": 0.6666666666666666
+    },
+    {
+      "arm": "checker",
+      "runs": 18,
+      "functional_pass_rate": 0.9444444444444444,
+      "mean_output_tokens": 11329.111111111111,
+      "std_output_tokens": 5666.367348496264,
+      "mean_duration_seconds": 172.98658543283332,
+      "mean_turns": 24.055555555555557,
+      "total_cost_usd": 0.6242948944000001,
+      "timed_out": 0,
+      "mean_tempted_violations": 0.05555555555555555
+    },
+    {
+      "arm": "hybrid",
+      "runs": 16,
+      "functional_pass_rate": 1,
+      "mean_output_tokens": 10252.125,
+      "std_output_tokens": 4364.9628158019095,
+      "mean_duration_seconds": 207.67407379706248,
+      "mean_turns": 21.25,
+      "total_cost_usd": 0.5187719144,
+      "timed_out": 0,
+      "mean_tempted_violations": 0
+    },
+    {
+      "arm": "monolithic",
+      "runs": 18,
+      "functional_pass_rate": 1,
+      "mean_output_tokens": 9044.222222222223,
+      "std_output_tokens": 4706.678541061508,
+      "mean_duration_seconds": 146.15307746983333,
+      "mean_turns": 17.666666666666668,
+      "total_cost_usd": 0.4481573605,
+      "timed_out": 0,
+      "mean_tempted_violations": 0.1111111111111111
+    }
+  ],
+  "rule_by_arm": {
+    "go/benchmark-loop": {
+      "baseline": {
+        "applicable": 3,
+        "violated": 3,
+        "rate": 1
+      },
+      "checker": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/constructor-purity": {
+      "baseline": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "checker": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 7,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/context-first": {
+      "baseline": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "checker": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/environment-confinement": {
+      "baseline": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "checker": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/error-wrapping": {
+      "baseline": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      },
+      "checker": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/errors-astype": {
+      "baseline": {
+        "applicable": 3,
+        "violated": 3,
+        "rate": 1
+      },
+      "checker": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 2,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/interface-size": {
+      "baseline": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "checker": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/return-concrete": {
+      "baseline": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "checker": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 8,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 9,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/slog-multihandler": {
+      "baseline": {
+        "applicable": 3,
+        "violated": 3,
+        "rate": 1
+      },
+      "checker": {
+        "applicable": 2,
+        "violated": 0,
+        "rate": 0
+      },
+      "hybrid": {
+        "applicable": 2,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      }
+    },
+    "go/waitgroup-go": {
+      "baseline": {
+        "applicable": 3,
+        "violated": 3,
+        "rate": 1
+      },
+      "checker": {
+        "applicable": 3,
+        "violated": 1,
+        "rate": 0.3333333333333333
+      },
+      "hybrid": {
+        "applicable": 3,
+        "violated": 0,
+        "rate": 0
+      },
+      "monolithic": {
+        "applicable": 3,
+        "violated": 2,
+        "rate": 0.6666666666666666
+      }
+    }
+  },
+  "hypotheses": [
+    {
+      "rule": "go/benchmark-loop",
+      "category": "post-cutoff",
+      "predicted": "high",
+      "measured_baseline_rate": 1,
+      "applicable_baseline_runs": 3,
+      "verdict": "CONFIRMED"
+    },
+    {
+      "rule": "go/constructor-purity",
+      "category": "architecture",
+      "predicted": "medium",
+      "measured_baseline_rate": 0,
+      "applicable_baseline_runs": 8,
+      "verdict": "REFUTED"
+    },
+    {
+      "rule": "go/context-first",
+      "category": "idiom",
+      "predicted": "low",
+      "measured_baseline_rate": 0,
+      "applicable_baseline_runs": 8,
+      "verdict": "CONFIRMED"
+    },
+    {
+      "rule": "go/environment-confinement",
+      "category": "architecture",
+      "predicted": "medium",
+      "measured_baseline_rate": 0,
+      "applicable_baseline_runs": 3,
+      "verdict": "REFUTED"
+    },
+    {
+      "rule": "go/error-wrapping",
+      "category": "idiom",
+      "predicted": "low",
+      "measured_baseline_rate": 0,
+      "applicable_baseline_runs": 9,
+      "verdict": "CONFIRMED"
+    },
+    {
+      "rule": "go/errors-astype",
+      "category": "post-cutoff",
+      "predicted": "high",
+      "measured_baseline_rate": 1,
+      "applicable_baseline_runs": 3,
+      "verdict": "CONFIRMED"
+    },
+    {
+      "rule": "go/interface-size",
+      "category": "idiom",
+      "predicted": "low",
+      "measured_baseline_rate": 0,
+      "applicable_baseline_runs": 8,
+      "verdict": "CONFIRMED"
+    },
+    {
+      "rule": "go/return-concrete",
+      "category": "idiom",
+      "predicted": "medium",
+      "measured_baseline_rate": 0,
+      "applicable_baseline_runs": 8,
+      "verdict": "REFUTED"
+    },
+    {
+      "rule": "go/slog-multihandler",
+      "category": "post-cutoff",
+      "predicted": "high",
+      "measured_baseline_rate": 1,
+      "applicable_baseline_runs": 3,
+      "verdict": "CONFIRMED"
+    },
+    {
+      "rule": "go/waitgroup-go",
+      "category": "post-cutoff",
+      "predicted": "high",
+      "measured_baseline_rate": 1,
+      "applicable_baseline_runs": 3,
+      "verdict": "CONFIRMED"
+    }
+  ]
+}

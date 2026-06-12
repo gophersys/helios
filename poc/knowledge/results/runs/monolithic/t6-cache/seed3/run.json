@@ -1,0 +1,24 @@
+{
+  "arm": "monolithic",
+  "task": "t6-cache",
+  "seed": 3,
+  "model": "openrouter/deepseek/deepseek-v4-flash",
+  "thinking": "low",
+  "omp_version": "omp/15.10.0",
+  "go_version": "go1.26.4",
+  "prompt_sha256": "1d933981be69eb4907c5b7dd5856e4bdb74bd834b6e33e2517226283b8f4b8c9",
+  "system_prompt_sha256": "f2e7b0f68962a80a9873883d5d5d273c7d69d54224e646d2d1551ebd1737ba47",
+  "started_at": "2026-06-06T23:33:52Z",
+  "duration_seconds": 87.167152791,
+  "timed_out": false,
+  "over_token_budget": false,
+  "exit_code": 0,
+  "assistant_turns": 14,
+  "tokens": {
+    "input": 105242,
+    "output": 4835,
+    "cache_read": 290688,
+    "total": 400765,
+    "cost_usd": 0.0170224032
+  }
+}

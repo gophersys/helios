@@ -1,0 +1,27 @@
+All tasks pass. Here's the summary:
+
+**Files created:**
+
+- `ratelimiter.go` — token-bucket rate limiter implementation
+- `ratelimiter_test.go` — 18 tests + 1 benchmark
+
+**Exported API** matches spec exactly: `Clock`, `Config`, `Dependencies`, `New`, `Allow`.
+
+**Behavior covered:**
+
+| Spec item | Test |
+|---|---|
+| `Capacity <= 0` error | `TestNew_NegativeCapacity`, `TestNew_ZeroCapacity` |
+| `RefillPerSecond < 0` error | `TestNew_NegativeRefillRate` |
+| nil clock defaults to system clock | `TestNew_NilClockDefaultsToSystemClock` |
+| bucket starts full | `TestAllow_ConsumesTokens` |
+| `tokens <= 0` error | `TestAllow_ZeroTokens`, `TestAllow_NegativeTokens` |
+| cancelled context → `errors.Is(ctx.Err())` | `TestAllow_CancelledContext`, `TestAllow_DeadlineExceededContext` |
+| fractional accumulation | `TestAllow_FractionalAccumulation` |
+| time-based refill | `TestAllow_RefillsOverTime` |
+| capped at capacity | `TestAllow_CapsAtCapacity` |
+| no consumption on insufficient tokens | `TestAllow_ReturnsFalseWhenInsufficient` |
+| concurrent safety | `TestAllow_ConcurrentSafety` (race detector clean) |
+| clock jump backward (negative elapsed ignored) | `TestAllow_NegativeElapsed_Ignored` |
+
+**Results:** `go build ./...` ✓, `go vet ./...` ✓, `go test -race -v ./...` 18/18 PASS, benchmark ~62.5 ns/op. No third-party dependencies.

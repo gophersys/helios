@@ -1,0 +1,7 @@
+id: t1-ratelimiter
+package: ratelimiter
+tempts:
+  - go/constructor-purity
+  - go/context-first
+  - go/return-concrete
+  - go/interface-size

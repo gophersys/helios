@@ -1,0 +1,18 @@
+Done. Here's what was delivered:
+
+**`fetchall.go`** — `Process` with bounded concurrency via a buffered channel semaphore. Uses `sync.WaitGroup.Go` (Go 1.25+). Results collected in a pre-allocated `[]*Result` slice indexed by input position, then filtered to non-nil entries (preserving order). Errors aggregated via `errors.Join` so each failure remains reachable through `errors.Is`/`errors.As`.
+
+**`fetchall_test.go`** — 11 tests covering:
+- Empty inputs → `(nil, nil)`
+- `concurrency < 1` → error
+- All succeed, correct ordering
+- Out-of-order completion preserves input order
+- Concurrency limit enforced (peak tracking via atomics)
+- Mixed success/failure with error reachability
+- All fail → empty results + aggregated error
+- Context pre-cancelled → all ops still run
+- Mid-flight cancellation → all ops still run
+- Multiple distinct error sentinels reachable via `errors.Is`
+- Sequential (`concurrency=1`) and high-concurrency (`concurrency=n`) modes
+
+All gates pass: `go build`, `go vet`, `go test`, `bash ./check.sh` (rulecheck).

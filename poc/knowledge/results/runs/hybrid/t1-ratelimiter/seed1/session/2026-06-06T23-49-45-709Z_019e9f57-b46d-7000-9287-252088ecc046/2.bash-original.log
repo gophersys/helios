@@ -1,0 +1,32 @@
+=== RUN   TestNew_InvalidCapacity
+=== RUN   TestNew_InvalidCapacity/zero_capacity
+=== RUN   TestNew_InvalidCapacity/negative_capacity
+--- PASS: TestNew_InvalidCapacity (0.00s)
+    --- PASS: TestNew_InvalidCapacity/zero_capacity (0.00s)
+    --- PASS: TestNew_InvalidCapacity/negative_capacity (0.00s)
+=== RUN   TestNew_NegativeRefillRate
+--- PASS: TestNew_NegativeRefillRate (0.00s)
+=== RUN   TestNew_ZeroRefillRateIsValid
+--- PASS: TestNew_ZeroRefillRateIsValid (0.00s)
+=== RUN   TestNew_NilClockDefaultsToSystemClock
+--- PASS: TestNew_NilClockDefaultsToSystemClock (0.00s)
+=== RUN   TestAllow_NegativeTokens
+--- PASS: TestAllow_NegativeTokens (0.00s)
+=== RUN   TestAllow_ZeroTokens
+--- PASS: TestAllow_ZeroTokens (0.00s)
+=== RUN   TestAllow_CancelledContext
+--- PASS: TestAllow_CancelledContext (0.00s)
+=== RUN   TestAllow_StartsFull
+--- PASS: TestAllow_StartsFull (0.00s)
+=== RUN   TestAllow_RefillsOverTime
+--- PASS: TestAllow_RefillsOverTime (0.00s)
+=== RUN   TestAllow_RefillDoesNotExceedCapacity
+--- PASS: TestAllow_RefillDoesNotExceedCapacity (0.00s)
+=== RUN   TestAllow_RejectsWhenInsufficientTokens
+--- PASS: TestAllow_RejectsWhenInsufficientTokens (0.00s)
+=== RUN   TestAllow_FractionalAccumulation
+--- PASS: TestAllow_FractionalAccumulation (0.00s)
+=== RUN   TestAllow_ConcurrentSafety
+--- PASS: TestAllow_ConcurrentSafety (0.00s)
+PASS
+ok  	example.helios/ratelimiter	0.209s

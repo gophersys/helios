@@ -1,0 +1,1 @@
+Done. Implementation matches the spec exactly: exported API is `NewRing(capacity int) (*Ring, error)`, `(*Ring).Records() []slog.Record`, and `New(handlers ...slog.Handler) (*slog.Logger, error)`. No third-party dependencies. All gates pass.

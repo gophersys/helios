@@ -1,0 +1,28 @@
+=== RUN   TestNewInvalidCapacity
+--- PASS: TestNewInvalidCapacity (0.00s)
+=== RUN   TestNewValidCapacity
+--- PASS: TestNewValidCapacity (0.00s)
+=== RUN   TestGetEmpty
+--- PASS: TestGetEmpty (0.00s)
+=== RUN   TestPutGet
+--- PASS: TestPutGet (0.00s)
+=== RUN   TestPutUpdate
+--- PASS: TestPutUpdate (0.00s)
+=== RUN   TestEviction
+--- PASS: TestEviction (0.00s)
+=== RUN   TestGetMarksMRU
+--- PASS: TestGetMarksMRU (0.00s)
+=== RUN   TestPutMarksMRU
+--- PASS: TestPutMarksMRU (0.00s)
+=== RUN   TestConcurrency
+--- PASS: TestConcurrency (0.00s)
+goos: darwin
+goarch: arm64
+pkg: example.helios/cache
+cpu: Apple M5
+BenchmarkGet
+BenchmarkGet-10    	93503457	        12.67 ns/op
+BenchmarkPut
+BenchmarkPut-10    	20586912	        58.64 ns/op
+PASS
+ok  	example.helios/cache	2.665s

@@ -1,0 +1,3 @@
+# example.helios/fetchall
+# [example.helios/fetchall]
+vet: ./fetchall_test.go:6:2: "sync" imported and not used

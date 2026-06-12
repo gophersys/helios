@@ -1,0 +1,7 @@
+Done. All 22 tests pass across 13 test functions (including subtables).
+
+**Files created:**
+
+- `retry.go` — exported API matching the contract exactly: `Sleeper` interface, `TransientError`, `Config`, `Dependencies`, `New`, `(*Retrier).Do`. Default `realSleeper` uses `time.NewTimer` with `select` on `ctx.Done()`. Backoff is exponential: attempt N → `BaseDelay * 2^(N-1)`, overridden by `RetryAfter > 0`.
+
+- `retry_test.go` — covers: invalid config rejection (4 cases), valid config acceptance (3 cases), nil Sleeper default, immediate success, non-retryable error (matches via `errors.Is`), retryable → success on 2nd attempt, exhaustion (matches last error via `errors.Is`), exponential backoff sequence, `RetryAfter` override, `RetryAfter == 0` falls back to backoff, sleeper failure stops, context cancellation during sleep, single-attempt (no sleep), wrapped `*TransientError` at any depth recognized as retryable.

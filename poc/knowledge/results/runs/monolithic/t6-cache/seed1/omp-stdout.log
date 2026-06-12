@@ -1,0 +1,15 @@
+All passes.
+
+**Delivered:**
+
+- `cache.go` — LRU implementation using `container/list` + `map[string]*list.Element`, protected by `sync.RWMutex`. Exported API matches the spec exactly.
+- `cache_test.go` — 9 unit tests (invalid capacity, valid capacity, get miss, get hit, len, eviction, LRU order via Get promotion, LRU order via Put promotion, concurrent safety) + 2 benchmarks (`BenchmarkGet`, `BenchmarkPutWithEviction`).
+
+**Verification:**
+
+| Step | Result |
+|------|--------|
+| `go build ./...` | OK |
+| `go vet ./...` | OK |
+| `go test -v -bench=. ./...` | 9/9 PASS, benchmarks at ~11 ns/op |
+| Third-party deps | None — stdlib only |

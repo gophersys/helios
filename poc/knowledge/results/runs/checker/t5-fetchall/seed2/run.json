@@ -1,0 +1,23 @@
+{
+  "arm": "checker",
+  "task": "t5-fetchall",
+  "seed": 2,
+  "model": "openrouter/deepseek/deepseek-v4-flash",
+  "thinking": "low",
+  "omp_version": "omp/15.10.0",
+  "go_version": "go1.26.4",
+  "prompt_sha256": "70a634ac989b5002e9590ab87fd06df67f4f56f2e384f33b6d31a382ed21f0fd",
+  "started_at": "2026-06-06T23:45:12Z",
+  "duration_seconds": 256.985784833,
+  "timed_out": false,
+  "over_token_budget": false,
+  "exit_code": 0,
+  "assistant_turns": 34,
+  "tokens": {
+    "input": 377978,
+    "output": 16312,
+    "cache_read": 854656,
+    "total": 1248946,
+    "cost_usd": 0.0571988998
+  }
+}

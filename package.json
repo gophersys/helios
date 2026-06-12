@@ -1,5 +1,5 @@
 {
-  "name": "@helios/source",
+  "name": "@eden/source",
   "version": "0.0.0",
   "license": "UNLICENSED",
   "private": true,
@@ -10,6 +10,7 @@
   ],
   "devDependencies": {
     "@nx/js": "22.6.5",
+    "marked": "^15.0.0",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
     "@swc/helpers": "0.5.18",

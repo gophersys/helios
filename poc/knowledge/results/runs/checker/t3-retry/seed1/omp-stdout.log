@@ -1,0 +1,20 @@
+Done. Results:
+
+**`retry.go`** — exports exactly the contract signatures from spec.md.
+- `New` validates `MaxAttempts ≥ 1` and `BaseDelay ≥ 0`; defaults nil `Sleeper` to `clockSleeper` (real-time via `time.After`/`ctx.Done`).
+- `Do` loops up to `MaxAttempts` times; uses `errors.AsType[*TransientError]` (Go 1.26) for retryability checks; respects `RetryAfter > 0` per attempt, else exponential backoff (`BaseDelay, 2×, 4×, …`).
+- `TransientError.Error()` delegates to inner `Err`, `Unwrap()` returns it — so `errors.Is` chains through correctly.
+- Sleeper errors (including context cancellation) abort immediately and match via `errors.Is`.
+
+**`retry_test.go`** — 16 tests covering:
+- Constructor validation (MaxAttempts < 1, BaseDelay < 0, valid, nil sleeper default)
+- First-attempt success, success after retries
+- Non-retryable error immediately returned, plain error not retried
+- All attempts exhausted, MaxAttempts=1, context cancellation, sleeper returns error
+- RetryAfter override, exponential backoff values, wrapped TransientError at depth, BaseDelay=0
+
+**Verification:**
+- `go build ./...` ✓
+- `go vet ./...` ✓
+- `go test ./...` — 16/16 pass ✓
+- `bash ./check.sh` (includes `rulecheck`) — all rules satisfied ✓

@@ -1,0 +1,33 @@
+{
+  "arm": "baseline",
+  "task": "t4-logfan",
+  "seed": 1,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/constructor-purity": false,
+    "go/interface-size": false,
+    "go/return-concrete": false,
+    "go/slog-multihandler": true
+  },
+  "all_violations": [
+    {
+      "rule": "go/slog-multihandler",
+      "pos": "fan.go:10:6",
+      "message": "type fanHandler is a hand-rolled slog fan-out handler; use slog.NewMultiHandler (Go 1.26) instead"
+    },
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "ring_test.go:294:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    },
+    {
+      "rule": "go/waitgroup-go",
+      "pos": "ring_test.go:304:3",
+      "message": "inline wg.Add/go/Done pattern; use wg.Go(func(){...}) (Go 1.25+) — Done and Add become unforgettable"
+    }
+  ],
+  "test_output_tail": "ok  \texample.helios/logfan\t0.232s\n"
+}

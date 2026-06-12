@@ -1,0 +1,46 @@
+id: go/slog-multihandler
+class: C1
+category: post-cutoff
+statement: >-
+  To send log records to several slog handlers, use slog.NewMultiHandler
+  (Go 1.26). Do not hand-roll a fan-out type that holds a slice of handlers
+  and loops over them in Handle.
+rationale: >-
+  Hand-rolled multi-handlers were the standard workaround before 1.26 and they
+  routinely get the contract wrong: Enabled short-circuiting, WithAttrs/
+  WithGroup cloning, and error joining across children. The stdlib version
+  handles all four correctly and is the single obvious way.
+applicability: >-
+  Code on Go >= 1.26 that needs one logger writing to multiple sinks.
+exceptions:
+  - Code that must build on Go < 1.26 may hand-roll (or vendor) a fan-out handler.
+  - >-
+    A custom Handler that filters/transforms per child (not a plain fan-out)
+    is real logic, not a multi-handler — allowed.
+example:
+  good: |
+    logger := slog.New(slog.NewMultiHandler(jsonHandler, ringHandler))
+  bad: |
+    type multiHandler struct{ handlers []slog.Handler }
+    func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
+        for _, h := range m.handlers { h.Handle(ctx, r) } // wrong on 4 contract points
+        return nil
+    }
+oracle:
+  kind: analyzer
+  ref: slogmultihandler
+fix_hint: >-
+  Delete the hand-rolled fan-out type and use
+  slog.New(slog.NewMultiHandler(h1, h2, ...)) (Go 1.26+).
+provenance:
+  - source: "Go 1.26 release notes — log/slog: new NewMultiHandler and MultiHandler (go.dev/doc/go1.26)"
+    tier: 1
+staleness: { go_minimum: "1.26", review_by: "2026-12" }
+probe:
+  question: >-
+    Using only the Go standard library (latest release), how do you build one
+    slog.Logger that writes every record to BOTH a JSON handler and a custom
+    in-memory handler? Show the construction line.
+  expect_markers: ["NewMultiHandler", "MultiHandler"]
+status: VERIFIED
+hypothesis_baseline_violation: high

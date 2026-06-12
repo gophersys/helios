@@ -1,0 +1,23 @@
+{
+  "arm": "baseline",
+  "task": "t3-retry",
+  "seed": 2,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/constructor-purity": false,
+    "go/context-first": false,
+    "go/error-wrapping": false,
+    "go/errors-astype": true
+  },
+  "all_violations": [
+    {
+      "rule": "go/errors-astype",
+      "pos": "retry.go:91:7",
+      "message": "errors.As(err, \u0026target) is the pre-1.26 form; use t, ok := errors.AsType[T](err)"
+    }
+  ],
+  "test_output_tail": "ok  \texample.helios/retry\t0.227s\n"
+}

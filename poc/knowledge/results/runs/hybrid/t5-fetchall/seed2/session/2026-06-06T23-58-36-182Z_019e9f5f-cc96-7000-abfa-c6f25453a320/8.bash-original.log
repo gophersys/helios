@@ -1,0 +1,39 @@
+=== RUN   TestProcess_EmptyInputs
+--- PASS: TestProcess_EmptyInputs (0.00s)
+=== RUN   TestProcess_InvalidConcurrency
+--- PASS: TestProcess_InvalidConcurrency (0.00s)
+=== RUN   TestProcess_AllSucceed
+--- PASS: TestProcess_AllSucceed (0.00s)
+=== RUN   TestProcess_ResultsOrderedByIndex
+--- PASS: TestProcess_ResultsOrderedByIndex (0.00s)
+=== RUN   TestProcess_ConcurrencyLimitMax
+--- PASS: TestProcess_ConcurrencyLimitMax (0.02s)
+=== RUN   TestProcess_MixedFailure
+--- PASS: TestProcess_MixedFailure (0.00s)
+=== RUN   TestProcess_AllFail
+    fetchall_test.go:153: expected nil results, got []
+--- FAIL: TestProcess_AllFail (0.00s)
+=== RUN   TestProcess_RespectsContextCancellation
+--- PASS: TestProcess_RespectsContextCancellation (0.00s)
+=== RUN   TestProcess_ContextCancellationStopsNewOps
+panic: sync: negative WaitGroup counter [recovered, repanicked]
+
+goroutine 58 [running]:
+sync.(*WaitGroup).Go.func1.1()
+	/opt/homebrew/Cellar/go/1.26.4/libexec/src/sync/waitgroup.go:251 +0x48
+panic({0x1004c9dc0?, 0x1004fdab0?})
+	/opt/homebrew/Cellar/go/1.26.4/libexec/src/runtime/panic.go:860 +0x12c
+sync.(*WaitGroup).Add(0x46e2609161c0, 0xffffffffffffffff)
+	/opt/homebrew/Cellar/go/1.26.4/libexec/src/sync/waitgroup.go:118 +0x264
+sync.(*WaitGroup).Done(...)
+	/opt/homebrew/Cellar/go/1.26.4/libexec/src/sync/waitgroup.go:156
+example.helios/fetchall.TestProcess_ContextCancellationStopsNewOps.func1({0x1004ff070?, 0x46e2609462d0?}, {0x1003b00c8, 0x1})
+	/Users/mateo/helios/poc/knowledge/results/runs/hybrid/t5-fetchall/seed2/workspace/fetchall_test.go:192 +0x34
+example.helios/fetchall.Process.func1()
+	/Users/mateo/helios/poc/knowledge/results/runs/hybrid/t5-fetchall/seed2/workspace/fetchall.go:49 +0x78
+sync.(*WaitGroup).Go.func1()
+	/opt/homebrew/Cellar/go/1.26.4/libexec/src/sync/waitgroup.go:258 +0x48
+created by sync.(*WaitGroup).Go in goroutine 53
+	/opt/homebrew/Cellar/go/1.26.4/libexec/src/sync/waitgroup.go:238 +0x70
+FAIL	example.helios/fetchall	0.207s
+FAIL

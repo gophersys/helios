@@ -1,0 +1,23 @@
+Everything passes.
+
+**logfan.go** — exports exactly the contract API:
+- `NewRing(capacity)` — positive-capacity guard, `sync.RWMutex`-protected ring buffer, clones records on write, returns oldest-first copy on read
+- `*Ring` implements `slog.Handler` (Enabled yes-all, Handle stores clone, WithAttrs/WithGroup return self — attrs already in record)
+- `New(handlers...)` — empty-guard, delegates fan-out to `slog.NewMultiHandler`
+
+**logfan_test.go** — 13 tests covering:
+- Invalid capacity error (0, negative)
+- Empty ring returns nil
+- Capture order within capacity
+- Single eviction and multiple-wrap eviction
+- Records returns isolated copy
+- Concurrent safety (race detector clean, 10 goroutines writing, 5 reading)
+- New(no-handlers) error
+- New sends to all handlers (two rings, same message in both)
+- Compile-time `slog.Handler` interface check
+- Enabled returns true for debug/info
+- WithAttrs/WithGroup return *Ring
+- Partial fill (non-wrapped) ordering
+- Records are cloned (stored record unaffected by later Handle)
+
+`go build ./...` ✓, `go vet ./...` ✓, `go test -race ./...` ✓

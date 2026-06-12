@@ -1,0 +1,17 @@
+{
+  "arm": "hybrid",
+  "task": "t4-logfan",
+  "seed": 3,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": false,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/constructor-purity": false,
+    "go/interface-size": false,
+    "go/return-concrete": false,
+    "go/slog-multihandler": false
+  },
+  "all_violations": null,
+  "test_output_tail": "example.helios/logfan: no non-test Go files in /Users/mateo/helios/poc/knowledge/results/runs/hybrid/t4-logfan/seed3/scoredir\nFAIL\texample.helios/logfan [build failed]\nFAIL\n"
+}

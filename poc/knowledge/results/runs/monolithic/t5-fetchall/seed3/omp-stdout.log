@@ -1,0 +1,18 @@
+Delivered. Two files at the module root:
+
+**`fetchall.go`** — `Process` function with:
+- Semaphore (buffered chan) for strict concurrency limiting, `sync.WaitGroup.Go` for goroutine management
+- Indexed slot array (`slots []slot`) so each goroutine writes to its own pre-assigned position — no mutex on the hot path, results naturally ordered by Index
+- `errors.Join` for aggregation so every individual error is reachable via `errors.Is`/`errors.As`
+- `concurrency < 1` → error, empty inputs → `(nil, nil)`
+
+**`fetchall_test.go`** — 9 tests covering:
+- Invalid concurrency (0, -1)
+- Empty inputs (nil, empty slice)
+- All succeed + correct ordering
+- Results ordered when operations finish out of order
+- Some fail (sentinel error reachable via `errors.Is`)
+- All fail (typed error reachable via `errors.As`)
+- Concurrency bound respected (peak ≤ limit measured via atomic counter)
+- Context cancellation propagates
+- Concurrency=1 runs sequentially

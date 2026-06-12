@@ -1,0 +1,16 @@
+{
+  "arm": "hybrid",
+  "task": "t5-fetchall",
+  "seed": 2,
+  "phase": 1,
+  "build_ok": true,
+  "functional_pass": true,
+  "analysis_ok": true,
+  "applicable_violated": {
+    "go/context-first": false,
+    "go/error-wrapping": false,
+    "go/waitgroup-go": false
+  },
+  "all_violations": null,
+  "test_output_tail": "ok  \texample.helios/fetchall\t0.313s\n"
+}

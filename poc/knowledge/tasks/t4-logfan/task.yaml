@@ -1,0 +1,7 @@
+id: t4-logfan
+package: logfan
+tempts:
+  - go/slog-multihandler
+  - go/return-concrete
+  - go/interface-size
+  - go/constructor-purity

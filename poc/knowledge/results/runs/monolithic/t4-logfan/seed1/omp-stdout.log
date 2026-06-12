@@ -1,0 +1,27 @@
+Delivered. Here's what was implemented:
+
+**`logfan.go`** — two exported functions, one exported type:
+
+- `NewRing(capacity int) (*Ring, error)` — validates capacity > 0, returns a concurrency-safe ring buffer handler.
+- `(*Ring).Records() []slog.Record` — returns oldest-first copy (cloned elements, fresh slice).
+- `New(handlers ...slog.Handler) (*slog.Logger, error)` — error on zero handlers; single handler → `slog.New`; multiple → `slog.NewMultiHandler` (Go 1.26 stdlib).
+- `*Ring` implements `slog.Handler` — `WithAttrs`/`WithGroup` return an internal `ringAttacher` wrapper that prepends attrs/groups before delegating to the ring.
+
+**`logfan_test.go`** — 10 tests:
+
+| Test | What it covers |
+|---|---|
+| `TestNewRing_InvalidCapacity` | ≤ 0 → error + nil Ring |
+| `TestNewRing_ValidCapacity` | happy path construction |
+| `TestRing_Records_Empty` | empty ring → empty slice |
+| `TestRing_Records_FewerThanCapacity` | partial buffer, oldest-first ordering |
+| `TestRing_Records_FullBuffer` | eviction at boundary |
+| `TestRing_Records_EvictionOrder` | multiple wrap-around evictions |
+| `TestRing_Records_MultipleWrap` | 12 writes to cap=4, verifies last 4 by index attr |
+| `TestRing_Records_IsCopy` | mutating returned slice doesn't corrupt ring |
+| `TestRing_Concurrent` | 10 writers + 5 readers with `-race` |
+| `TestNew_NoHandlers` | zero handlers → error |
+| `TestNew_OneHandler` | single handler works |
+| `TestNew_MultipleHandlers` | fan-out to two rings |
+| `TestRing_WithAttrs` | `WithAttrs` attrs appear in record |
+| `TestRing_WithGroup` | `WithGroup`+`WithAttrs` creates nested group attr |

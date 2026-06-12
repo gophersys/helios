@@ -1,0 +1,24 @@
+=== RUN   TestNew_InvalidCapacity
+=== RUN   TestNew_InvalidCapacity/zero
+=== RUN   TestNew_InvalidCapacity/negative
+--- PASS: TestNew_InvalidCapacity (0.00s)
+    --- PASS: TestNew_InvalidCapacity/zero (0.00s)
+    --- PASS: TestNew_InvalidCapacity/negative (0.00s)
+=== RUN   TestNew_ValidCapacity
+--- PASS: TestNew_ValidCapacity (0.00s)
+=== RUN   TestGet_Miss
+--- PASS: TestGet_Miss (0.00s)
+=== RUN   TestPutAndGet
+--- PASS: TestPutAndGet (0.00s)
+=== RUN   TestPut_UpdateExisting
+--- PASS: TestPut_UpdateExisting (0.00s)
+=== RUN   TestEviction_LRU
+--- PASS: TestEviction_LRU (0.00s)
+=== RUN   TestEviction_AccessPromotes
+--- PASS: TestEviction_AccessPromotes (0.00s)
+=== RUN   TestLen
+--- PASS: TestLen (0.00s)
+=== RUN   TestConcurrency
+--- PASS: TestConcurrency (0.00s)
+PASS
+ok  	example.helios/cache	0.266s

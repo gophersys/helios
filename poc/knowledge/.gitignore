@@ -1,0 +1,7 @@
+# build artifacts
+/bin/
+
+# per-run scratch (the evidence envelopes run.json/score.json and the reports
+# are the durable artifacts; transcripts and workspaces are large)
+/results/runs/*/*/seed*/scoredir/
+/results/matrix.log

@@ -1,0 +1,24 @@
+{
+  "arm": "hybrid",
+  "task": "t2-configuration",
+  "seed": 1,
+  "model": "openrouter/deepseek/deepseek-v4-flash",
+  "thinking": "low",
+  "omp_version": "omp/15.10.0",
+  "go_version": "go1.26.4",
+  "prompt_sha256": "70a634ac989b5002e9590ab87fd06df67f4f56f2e384f33b6d31a382ed21f0fd",
+  "system_prompt_sha256": "0cce9bf7e872e765cc1586a78a262cf0c61bb68205f243581e6ebd1a965a9580",
+  "started_at": "2026-06-06T23:41:52Z",
+  "duration_seconds": 71.138431167,
+  "timed_out": false,
+  "over_token_budget": false,
+  "exit_code": 0,
+  "assistant_turns": 20,
+  "tokens": {
+    "input": 203739,
+    "output": 5584,
+    "cache_read": 384896,
+    "total": 594219,
+    "cost_usd": 0.0287078093
+  }
+}

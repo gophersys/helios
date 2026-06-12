@@ -1,0 +1,15 @@
+All clean — `go build`, `go vet`, and `go test` pass with no issues.
+
+**Delivered:**
+
+| File | Purpose |
+|---|---|
+| `configuration.go` | `Source`, `Config`, `Load` — implementation of the contract |
+| `configuration_test.go` | 7 test functions covering defaults, port parsing/validation (incl. boundary, bad input, NumError preservation), name validation (ErrSyntax), debug (ParseBool variants), and combined loading |
+| `cmd/configprint/main.go` | CLI that loads from `os.LookupEnv` and prints `port=<p> name=<n> debug=<d>` |
+
+**Key design decisions:**
+- Bad port → `*strconv.NumError` from `Atoi` (or synthetic `NumError` with `ErrRange` for out-of-range ints) — callers can `errors.As`/`errors.Is` as spec requires
+- Empty `HELIOS_NAME` → `strconv.ErrSyntax` (identifiable via `errors.Is`)
+- No third-party dependencies, pure stdlib
+- All tests verify error types, not just error presence

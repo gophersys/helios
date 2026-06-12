@@ -1,37 +1,40 @@
-# helios
+# eden
 
-Monorepo scaffolded from the `gophersys/template` blueprint. Nx workspace
-with three shared submodules and a baseline CI layer.
+**Eden** is an opinionated platform for building and operating software systems with agentic
+engineering — the discipline layer (process, contracts, evidence, observability) packaged as a
+product. This is its monorepo, currently in the architecture/bootstrap phase.
+
+> Formerly "helios" (ADR-0002 records the rename; the GitHub repo rename to `gophersys/eden` is a
+> pending gated change). Nx workspace seeded from `gophersys/template`, with three shared
+> submodules and a baseline CI layer.
+
+## Start here
+
+- **`docs/README.md`** — the documentation scheme and map.
+- **`docs/architecture/README.md`** — the canonical architecture set (charter, principles,
+  decomposition, process model, connectors, bootstrap ladder, ADRs). Read this before touching
+  anything.
+- **`docs/architecture/09-build-execution-plan.md`** — what gets built first and how.
 
 ## Structure
 
 ```
-helios/
-├── .devcontainer/          (submodule — gophersys/.devcontainer)
-├── infrastructure/         (submodule — gophersys/infrastructure)
-├── libs/                   (submodule — gophersys/libs)
-├── apps/                   # apps live here (backend/, frontend/, …)
+eden/
+├── docs/                   # documentation (scheme in docs/README.md)
+├── apps/                   # deployables: backend/, frontend/, desktop/, agent/ (to be created)
+├── poc/                    # proofs of concept — donor material, gated salvage (poc/README.md)
+├── .devcontainer/          (submodule — gophersys/.devcontainer: base images)
+├── infrastructure/         (submodule — gophersys/infrastructure: machines, clusters)
+├── libs/                   (submodule — gophersys/libs: language-partitioned libraries)
 ├── .ci/                    # baseline CI — ctl.sh verbs + provider shims
-├── .github/workflows/      # symlinks into .ci/providers/github/
-├── nx.json
-├── package.json
-├── tsconfig.base.json
-└── tsconfig.json
+└── .github/workflows/      # symlinks into .ci/providers/github/
 ```
-
-## Submodules
 
 Clone with submodules, or initialize after the fact:
 
 ```bash
 git submodule update --init --recursive
 ```
-
-| Path | Upstream |
-|---|---|
-| `.devcontainer/` | `gophersys/.devcontainer` — base images (dev + CI) |
-| `infrastructure/` | `gophersys/infrastructure` — machines, clusters, platform services |
-| `libs/` | `gophersys/libs` — language-partitioned shared libraries |
 
 ## CI
 
@@ -44,12 +47,11 @@ bash .ci/ctl.sh build-all
 ```
 
 The verbs no-op gracefully until `nx` is installed (`yarn install`).
-`.github/workflows/*.yml` are symlinks into `.ci/providers/github/` — the
-provider directory is the source of truth.
+`.github/workflows/*.yml` are symlinks into `.ci/providers/github/` — the provider directory is
+the source of truth.
 
 ## Conventions
 
-- Apps follow the `project.json` + `ctl.sh` pattern; targets wrap
-  `bash ./ctl.sh <cmd>` via `nx:run-commands`.
-- Nx Cloud is disabled (`neverConnectToCloud` in `nx.json`); do not remove it.
-- Conventional Commits. No AI/LLM attribution.
+- Projects follow the `project.json` + `ctl.sh` pattern; Nx targets wrap `bash ./ctl.sh <cmd>`.
+- Everything else — naming, commit rules, agent rules — lives in `CLAUDE.md` (ratified in
+  ADR-0010; canonical naming standard: `docs/architecture/10-library-system.md` §5).

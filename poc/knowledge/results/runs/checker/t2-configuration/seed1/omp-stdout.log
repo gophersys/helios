@@ -1,0 +1,13 @@
+Done. All checks pass.
+
+**Files created:**
+
+- `configuration.go` — `Source` type, `Config` struct, `Load` function with parsing and validation per spec
+- `cmd/configprint/main.go` — CLI that loads from `os.LookupEnv` and prints `port=<port> name=<name> debug=<debug>`
+- `configuration_test.go` — 12 tests covering defaults, custom values, parse errors (bad port, out-of-range, empty name, bad debug), including `errors.AsType` for Go 1.26
+
+**Verification:**
+- `go build ./...` — clean
+- `go vet ./...` — clean
+- `go test ./... -v` — 12/12 PASS
+- `bash ./check.sh` — rulecheck: all rules satisfied

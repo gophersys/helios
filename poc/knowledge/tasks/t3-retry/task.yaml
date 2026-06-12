@@ -1,0 +1,7 @@
+id: t3-retry
+package: retry
+tempts:
+  - go/errors-astype
+  - go/constructor-purity
+  - go/error-wrapping
+  - go/context-first

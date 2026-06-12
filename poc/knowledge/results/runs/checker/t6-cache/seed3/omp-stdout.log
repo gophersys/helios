@@ -1,0 +1,13 @@
+All done. Here's the final summary:
+
+**Files:**
+- `cache.go` — LRU cache with `container/list` + `map[string]*list.Element`, `sync.Mutex` for concurrency. O(1) Get/Put/eviction.
+- `cache_test.go` — 8 tests + 2 benchmarks.
+
+**Verification:**
+- `go build ./...` — clean
+- `go vet ./...` — clean
+- `go test ./... -v` — 8/8 PASS
+- `bash check.sh` — exit 0 (build + vet + rulecheck all satisfied)
+
+**API matches spec exactly:** `Config`, `New(Config) (*Cache, error)`, `Get(string) (string, bool)`, `Put(string, string)`, `Len() int`. No third-party dependencies.

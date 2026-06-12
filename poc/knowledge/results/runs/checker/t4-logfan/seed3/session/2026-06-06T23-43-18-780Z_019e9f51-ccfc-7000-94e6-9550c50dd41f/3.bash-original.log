@@ -1,0 +1,3 @@
+# example.helios/logfan
+# [example.helios/logfan]
+vet: ./logfan.go:115:47: cannot use wrapped (variable of type []slog.Attr) as []any value in argument to slog.Group

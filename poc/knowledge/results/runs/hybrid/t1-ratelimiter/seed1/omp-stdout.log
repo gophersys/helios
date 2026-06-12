@@ -1,0 +1,20 @@
+All done. Here's a summary:
+
+**Files:**
+- `limiter.go` — token-bucket implementation with exported `Clock`, `Config`, `Dependencies`, `New`, `Allow`
+- `limiter_test.go` — 15 tests covering all spec semantics
+
+**Verification:**
+- `go build ./...` — clean
+- `go vet ./...` — clean
+- `go test ./... -v` — 15/15 PASS
+- `bash ./check.sh` — rulecheck: all rules satisfied
+
+**Design decisions:**
+- `New` is a pure constructor — defaults nil Clock to `systemClock{}` (no `time.Now` call inside `New` itself), mirroring the constructor-purity rule's explicit exception example
+- `sync.Mutex` for concurrent safety
+- Fractional accumulation uses `elapsed.Seconds() * refillRate` — no precision loss, no precomputed per-nanosecond rate
+- Refill capped at `Capacity`
+- Context cancellation checked before locking the mutex (fast path)
+- On reject, tokens are not consumed (the comparison is pure: `tokens >= float64(tokens)` with no decrement)
+- Uses `wg.Go` (Go 1.25+) in the concurrent test as required by the `go/waitgroup-go` rule

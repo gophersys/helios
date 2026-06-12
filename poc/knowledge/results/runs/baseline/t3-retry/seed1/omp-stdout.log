@@ -1,0 +1,11 @@
+Delivered. Two files at module root:
+
+**`retry.go`** — implementation. Exports `Sleeper`, `TransientError` (with `Error()`/`Unwrap()`), `Config`, `Dependencies`, `New`, and `Retrier.Do`. Key decisions:
+
+- `TransientError.Unwrap()` returns the inner `Err` so `errors.Is`/`errors.As` traverse the tree naturally
+- Nil `Sleeper` defaults to `realSleeper` using `time.After` + `ctx.Done` select
+- Exponential backoff: `BaseDelay * 2^(attempt-1)`; `RetryAfter > 0` overrides
+- Sleeper error stops immediately, returned as-is (`errors.Is` matchable)
+- Final exhaustion returns `lastErr` directly — trivially matches itself via `errors.Is`
+
+**`retry_test.go`** — 13 tests covering: `New` validation, nil-sleeper default, first-attempt success, non-retryable immediate return, wrapped non-retryable (`errors.Is`), wrapped `TransientError` still retried, `RetryAfter` override, exponential sequence, context cancellation mid-sleep, all-attempts-exhausted last-error matching, zero `BaseDelay`, sleeper error stop, `RetryAfter=0` fallback.

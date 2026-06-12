@@ -1,0 +1,41 @@
+=== RUN   TestNewRing_InvalidCapacity
+--- PASS: TestNewRing_InvalidCapacity (0.00s)
+=== RUN   TestNewRing_Valid
+--- PASS: TestNewRing_Valid (0.00s)
+=== RUN   TestRing_Empty
+--- PASS: TestRing_Empty (0.00s)
+=== RUN   TestRing_OrderPreserved
+--- PASS: TestRing_OrderPreserved (0.00s)
+=== RUN   TestRing_EvictsOldest
+--- PASS: TestRing_EvictsOldest (0.00s)
+=== RUN   TestRing_EvictAll
+--- PASS: TestRing_EvictAll (0.00s)
+=== RUN   TestRing_RecordsAreCopies
+--- PASS: TestRing_RecordsAreCopies (0.00s)
+=== RUN   TestRing_RecordsAreDeepCopied
+--- PASS: TestRing_RecordsAreDeepCopied (0.00s)
+=== RUN   TestRing_Concurrency
+--- PASS: TestRing_Concurrency (0.00s)
+=== RUN   TestNew_NoHandlers
+--- PASS: TestNew_NoHandlers (0.00s)
+=== RUN   TestNew_SingleHandler
+--- PASS: TestNew_SingleHandler (0.00s)
+=== RUN   TestNew_FanOut
+--- PASS: TestNew_FanOut (0.00s)
+=== RUN   TestNew_FanOutMessages
+--- PASS: TestNew_FanOutMessages (0.00s)
+=== RUN   TestRing_WithAttrs
+--- PASS: TestRing_WithAttrs (0.00s)
+=== RUN   TestRing_WithGroup
+--- PASS: TestRing_WithGroup (0.00s)
+=== RUN   TestNew_FanOutWithAttrs
+    logfan_test.go:296: expected 1 record each, got 0 and 0
+--- FAIL: TestNew_FanOutWithAttrs (0.00s)
+=== RUN   TestNew_FanOutWithGroupAndAttrs
+    logfan_test.go:328: expected 1 record each, got 0 and 0
+--- FAIL: TestNew_FanOutWithGroupAndAttrs (0.00s)
+=== RUN   TestRing_EnabledTrue
+--- PASS: TestRing_EnabledTrue (0.00s)
+FAIL
+FAIL	example.helios/logfan	0.222s
+FAIL

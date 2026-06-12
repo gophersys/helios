@@ -1,0 +1,19 @@
+All checks pass. Here's what was delivered:
+
+**Implementation** (`ratelimiter.go`):
+- `Clock` interface, `Config`/`Dependencies` structs, `Limiter` type
+- `New` validates config (Capacity ≤ 0, RefillPerSecond < 0), injects `realClock` when nil, bucket starts full
+- `Allow` validates tokens > 0, checks context cancellation (wraps with `%w`), refills fractionally with cap, then consumes atomically under `sync.Mutex`
+- Constructor avoids `time.Now` — `lastRefill` starts zero and first `Allow` skips refill (bucket already full)
+
+**Tests** (`ratelimiter_test.go`): 12 tests covering
+- Valid/invalid configs, nil clock fallback
+- Invalid/cancelled-context Allow
+- Starts full, depletes, refills fractionally, caps at capacity
+- Concurrent safety using `sync.WaitGroup.Go` (Go 1.25+)
+
+**Verification** — all pass:
+- `go build ./...` ✓
+- `go vet ./...` ✓
+- `go test ./...` ✓ (12/12)
+- `bash ./check.sh` ✓ (rulecheck: all rules satisfied)

@@ -1,0 +1,5 @@
+# example.helios/logfan
+# [example.helios/logfan]
+vet: ./logfan_test.go:40:57: not enough arguments in call to slog.NewRecord
+	have (slog.Level, string, number)
+	want (time.Time, slog.Level, string, uintptr)

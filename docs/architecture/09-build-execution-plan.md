@@ -1,0 +1,86 @@
+# 09 — Build Execution Plan
+
+> Status: Draft · 2026-06-12 · Canonical home for: workstreams, parallelism discipline, the
+> interface-negotiation protocol, milestones.
+> Constraint set: built with Claude (Claude Code sessions + swarms); Mateo is never idle waiting
+> on a single agent (divide and conquer); the build itself must *exercise* the practices the
+> platform will later enforce — worktrees, interface negotiation, TDD, evidence gates — so that
+> L0 is built the way L1+ will build (06 §1).
+
+## 1. Posture
+
+Everything that can be Go is Go (floor 1.26, ADR-0003). Development follows the ladder (06):
+this plan details **L0**, the seeding of L1's task inventory, and the path into L2. Hand-built
+work is bounded by 06's B2 exemption: humans + Claude hand-build the kernel, the universal
+pattern libraries, and seam *contracts*; production implementations beyond that enter the L1/L2
+task inventory and are built by the kernel. The practices below are not ceremony — each is a
+rehearsal of machinery the kernel must later automate, performed manually first so its contract
+is understood before it is coded.
+
+## 2. Workstreams (parallel by construction)
+
+Workstreams are sliced so their seams are Contracts, negotiable up front; after negotiation they
+proceed independently in separate worktrees/sessions.
+
+| WS | Scope | Depends on | First deliverables |
+|---|---|---|---|
+| WS1 | **Protocols + pattern libraries** | — | `libs/protocols` buf module skeleton; `libs/go/`: configuration · dependencies · errors · observability · secrets · testing (each: contract, fakes, conformance) |
+| WS2 | **Kernel** | WS1 contracts only | `agentconfiguration` (resurrect agentd U1 as donor material through gates — ADR-0009/D) · `evidence` + GoTestEvidence · `testharness` · `codingharness`(Claude Code) · `specification`/`template` · linear `engine` |
+| WS3 | **Control-plane spine** | WS1 contracts only | contract drafts (`workspaceprovider`, broker, gateway) + thin de-risking spikes; production implementations of `workspaceprovider(docker-compose)`, orchestrator, gateway, and `apps/agent` (salvaging `poc/agents` dial-out patterns) enter the **L1 kernel task inventory** (06 B2) — WS3 seeds kernel work, it does not bypass it |
+| WS4 | **Photosphere re-founding** | independent (own repo) | ADR chain update in photosphere; theming engine retained; Svelte behavior-layer selection spike (OD-1) |
+| WS5 | **Process & docs** | — | this set's review loop; phase-artifact schema drafts; knowledge-rule promotion from `poc/knowledge` |
+
+Parallelism rule: WS2/WS3 start the moment their WS1 seam contracts freeze — not when WS1
+finishes. Mateo's attention rotates across `approve` gates and open-decision rulings, not across
+agent supervision (P13).
+
+## 3. Worktree & merge discipline
+
+- One worktree per work package; branch naming `ws<N>/<package-slug>`; short-lived (days).
+- File-lease sets declared in each package's plan; overlapping leases across concurrent packages
+  are a planning error — fix the plan, not the merge.
+- Merge to `main` only with: tests green in a clean checkout (not the authoring worktree),
+  lint/naming gates, and the ADOPTED-only library invariant (10 §8).
+- Conventional Commits; no AI attribution in commits (repo convention).
+
+## 4. Interface negotiation protocol
+
+The manual rehearsal of the ServiceContract freeze gate (04 §4):
+
+1. Producer and consumer of a seam each draft the contract from their side (interface + proto +
+   usage examples) — cheaply, in parallel.
+2. Reconcile into one **contract PR**: the interface, its fakes, and black-box contract tests —
+   no implementation.
+3. Freeze at review (photosphere's G1 interface-freeze gate: the contract is frozen before any
+   implementation exists ✅). Post-freeze changes are new negotiations; `buf breaking` enforces
+   the wire layer mechanically.
+4. Both sides implement against the frozen contract + fakes, independently, TDD-style: tests
+   first against the contract, typed holes (`panic("unimplemented")`), decompress to green.
+
+## 5. TDD as practiced here
+
+Contract-first, tests-pin-the-contract (not implementation accidents — the photosphere
+divergence, resolved in its favor for human work; strict test-first remains the *template*
+discipline for kernel-driven work where tests are phase artifacts). Every package lands with its
+fakes and its conformance suite; "tests actually test" is checked by mutation where cheap (08 §3).
+
+## 6. Milestones
+
+| M | Gate (demonstrable, not aspirational) | Maps to |
+|---|---|---|
+| M0 | Seam contracts frozen: protocols skeleton + the six universal pattern contracts; worktree/CI discipline running on this repo | L0 entry |
+| M1 | **Kernel closes the loop**: one task spec → Claude-Code-driven implementation → clean-room evidence → gate pass; tokens/variance/mutation metered (L0 exit) | 06 L0 |
+| M2 | 50-task run through the go-backend cell (inventory: WS1/WS3 packages); instruments dashboarded; libraries adopted via dev→release→adopt (L1 exit) | 06 L1 |
+| M3 | `eden up` walking skeleton: gateway + workspaceprovider(docker-compose) + agent + Svelte shell — kernel-built per L2; eden repo registered as project #1; first drift event detected on its own mirror (L2 exit criteria) | 06 L2 |
+
+Estimates are deliberately absent: M1's run data is what makes estimation honest (T6); the first
+cost model is calibrated on the kernel's own construction. 🔶
+
+## 7. Immediate next actions (post doc-review)
+
+1. Mateo reviews this set; rulings recorded as ADRs; open-decisions register updated.
+2. Rename mechanics (ADR-0002, Consequences): repo rename, module paths, scope — one LSC-style
+   change, gated.
+3. WS1 contract drafts for the six universal patterns (the first interface negotiations).
+4. WS2 spike: `codingharness` driving one headless Claude Code session end-to-end with transcript
+   + token capture (de-risks the kernel's biggest item first).
