@@ -77,6 +77,17 @@ function cmd_validate() {
   log_success "validate: example is clean"
 }
 
+function cmd_project() {
+  require_cmd go
+  if [[ ! -d "$EXAMPLE_DIR" ]]; then
+    log_error "example project not found at $EXAMPLE_DIR"
+    exit 1
+  fi
+  log_info "project: emitting the linkbox example projections (NDJSON to stdout)"
+  (cd "$PROJECT_ROOT" && go run ./cmd/documentvalidator project "$EXAMPLE_DIR" --schemas "$SCHEMA_DIR")
+  log_success "project: OK"
+}
+
 # -------- usage --------
 function usage() {
   cat <<EOF
@@ -87,6 +98,7 @@ Commands:
   test         Run the Go test suite (go test ./...)
   lint         Check formatting (gofmt) and run go vet
   validate     Run the validator against the worked linkbox example project
+  project      Emit the linkbox example's JSON projections (the UI contract)
   help         Show this message
 EOF
 }
@@ -100,6 +112,7 @@ function main() {
     test)     cmd_test     "$@" ;;
     lint)     cmd_lint     "$@" ;;
     validate) cmd_validate "$@" ;;
+    project)  cmd_project  "$@" ;;
     help|"")  usage ;;
     *)        log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac

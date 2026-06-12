@@ -48,3 +48,4 @@ Thumbs.db
 
 # Generated reading copies (regenerate: node docs/tools/render-html.mjs)
 docs/architecture/eden-architecture.html
+**/documents.html

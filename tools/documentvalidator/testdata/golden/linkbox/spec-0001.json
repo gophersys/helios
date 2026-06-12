@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "authors": [
+      {
+        "run": "run-plan-2f08"
+      },
+      {
+        "human": "mateo"
+      }
+    ],
+    "created": "2026-06-12",
+    "id": "spec-0001",
+    "links": {
+      "informs": [],
+      "realizes": [
+        "WP-0001",
+        "CTR-0001"
+      ],
+      "supersedes": null
+    },
+    "project": "linkbox",
+    "schema_version": "1.0.0",
+    "status": "approved",
+    "type": "specification",
+    "updated": "2026-06-12",
+    "version": 1
+  },
+  "data": {
+    "contract": "CTR-0001",
+    "gate": {
+      "evidence_required": [
+        "go-test",
+        "coverage",
+        "mutation-score"
+      ],
+      "policy": "approve",
+      "thresholds": {
+        "coverage": 0.9,
+        "mutation-score": 0.8
+      }
+    },
+    "template_reference": "path://templates/connect-service/v1",
+    "tests_reference": "path://internal/link/link_test.go",
+    "work_package": "WP-0001"
+  }
+}

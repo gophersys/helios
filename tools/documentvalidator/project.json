@@ -23,6 +23,11 @@
       "executor": "nx:run-commands",
       "options": { "command": "bash ./ctl.sh validate", "cwd": "{projectRoot}" },
       "cache": false
+    },
+    "project": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh project", "cwd": "{projectRoot}" },
+      "cache": false
     }
   }
 }

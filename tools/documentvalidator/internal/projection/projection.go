@@ -40,6 +40,17 @@ type Document struct {
 	Projection map[string]any
 }
 
+// DocumentID returns meta.id from the projection, or "" when it is absent or not
+// a string. It is the stable identifier used to sort and name projections.
+func (d *Document) DocumentID() string {
+	meta, ok := d.Projection["meta"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	id, _ := meta["id"].(string)
+	return id
+}
+
 // IsDocumentFile reports whether a path is a candidate project document by
 // extension. Schema files (.schema.json) and everything else are skipped.
 func IsDocumentFile(path string) bool {
@@ -60,8 +71,19 @@ func Project(path string) (*Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
+	return ProjectBytes(path, raw)
+}
 
-	var proj map[string]any
+// ProjectBytes projects already-read document bytes, choosing the authoring
+// surface (.md vs .yaml) by the extension of path. It is the byte-level core of
+// Project, used when a document's content comes from somewhere other than the
+// working tree (e.g. `git show <ref>:<path>` for the transition check). The path
+// is used only for surface selection and error context, not read from disk.
+func ProjectBytes(path string, raw []byte) (*Document, error) {
+	var (
+		proj map[string]any
+		err  error
+	)
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".yaml", ".yml":
 		proj, err = projectYAML(raw)

@@ -93,6 +93,18 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	for _, d := range c.CheckAll() {
 		diags = append(diags, fromCorpus(opts.dir, d))
 	}
+
+	// T5 lifecycle transition check (--against): compare each changed document to
+	// its content at the given git ref. Its diagnostics are violations like the
+	// corpus rules, so they fold into diags and set the exit code.
+	if opts.against != "" {
+		transitionDiags, terr := checkTransitions(opts.dir, opts.against)
+		if terr != nil {
+			fmt.Fprintf(stderr, "documentvalidator: transition check against %q: %v\n", opts.against, terr)
+			return exitUsage
+		}
+		diags = append(diags, transitionDiags...)
+	}
 	coverage := make([]diagnostic, 0)
 	for _, d := range c.CoverageReport() {
 		coverage = append(coverage, fromCorpus(opts.dir, d))

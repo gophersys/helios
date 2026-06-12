@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "authors": [
+      {
+        "run": "run-intake-0a91"
+      },
+      {
+        "human": "mateo"
+      }
+    ],
+    "created": "2026-06-12",
+    "id": "user-workflows",
+    "links": {
+      "informs": [],
+      "realizes": [],
+      "supersedes": null
+    },
+    "project": "linkbox",
+    "schema_version": "1.0.0",
+    "source": [
+      {
+        "run": "run-intake-0a91",
+        "span": "messages 33-46"
+      }
+    ],
+    "status": "approved",
+    "type": "user-workflows",
+    "updated": "2026-06-12",
+    "version": 2
+  },
+  "data": {
+    "items": [
+      {
+        "id": "WF-0001",
+        "links": {
+          "realizes": [
+            "REQ-0001",
+            "REQ-0002"
+          ]
+        },
+        "name": "Save and tag a link",
+        "outcome": "The link is durably saved in the user's library and retrievable by each tag they added.",
+        "persona": "PER-0001",
+        "steps": [
+          "Paste or type the URL into the single save field and press Save.",
+          "See the link appear at the top of the library immediately, with the page title resolved.",
+          "Type one or two tags into the link's tag field and confirm."
+        ],
+        "trigger": "WHEN the collector finds a URL worth keeping and opens Linkbox to save it."
+      },
+      {
+        "id": "WF-0002",
+        "links": {
+          "realizes": [
+            "REQ-0003"
+          ]
+        },
+        "name": "Publish and share a collection",
+        "outcome": "Anyone with the share link can read the collection while it is published, and loses access the moment the curator revokes it.",
+        "persona": "PER-0002",
+        "steps": [
+          "Open the collection and add the saved links that belong in it.",
+          "Press Publish to generate a read-only share link.",
+          "Copy the share link and hand it to the audience; later, press Revoke to take it down."
+        ],
+        "trigger": "WHEN the curator has gathered a themed set of links and wants to share just that set."
+      }
+    ]
+  }
+}

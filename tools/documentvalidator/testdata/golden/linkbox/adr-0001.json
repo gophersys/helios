@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "authors": [
+      {
+        "run": "run-arch-1c40"
+      },
+      {
+        "human": "mateo"
+      }
+    ],
+    "created": "2026-06-12",
+    "id": "adr-0001",
+    "links": {
+      "informs": [],
+      "realizes": [
+        "REQ-0001",
+        "CMP-0001"
+      ],
+      "supersedes": null
+    },
+    "project": "linkbox",
+    "schema_version": "1.0.0",
+    "status": "approved",
+    "type": "architecture-decision",
+    "updated": "2026-06-12",
+    "version": 1
+  },
+  "data": {
+    "deciders": [
+      "mateo",
+      "run-arch-1c40"
+    ]
+  },
+  "sections": {
+    "consequences": "Easier: the contract becomes a generated, type-safe artifact both cells share, so parallel\nbuilds of CMP-0001 and CMP-0002 are safe and the freeze in service-contracts is mechanically\nenforceable. Connect's binary-over-HTTP keeps the save path lean, which helps the REQ-0004\nlatency budget. Harder: every boundary change now flows through a `.proto` edit and codegen\nstep rather than an ad-hoc handler tweak, and contributors must learn the Connect toolchain.\nWe take on a build-time codegen dependency and commit to keeping generated clients in sync,\nwhich is the price of the no-drift guarantee.",
+    "context": "REQ-0001 requires that saving a link be durable and confirmed, and REQ-0004 sets a 300ms p95\nbudget on the save and library calls. The backend (CMP-0001, `linkbox-api`) and the web client\n(CMP-0002, `linkbox-web`) are built by separate work packages that must proceed in parallel\nagainst a stable boundary, and the web client is generated, type-safe, and browser-resident.\nThe question is what shape the client-server boundary takes: a hand-written REST/JSON surface,\nGraphQL, or a schema-first RPC. A hand-written REST surface drifts from its clients and leaves\nparallel teams negotiating field names in review; GraphQL adds a query layer the product does\nnot need (the access patterns are a small fixed set).",
+    "decision": "We will define the client-server boundary as Connect RPC services with protobuf as the source\nof truth, beginning with the frozen `LinkService` (CTR-0001). The `.proto` is the contract:\nthe Go server and the Svelte client both generate from it, so the boundary cannot drift and the\ntwo work packages can be built concurrently against a checked shape. We reject hand-written REST\n(no single source of truth, drift-prone) and GraphQL (query flexibility we do not need, at the\ncost of a heavier server and N+1 risk against the latency budget)."
+  }
+}

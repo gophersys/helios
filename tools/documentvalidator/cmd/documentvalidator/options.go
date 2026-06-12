@@ -16,10 +16,14 @@ type options struct {
 	dir     string
 	schemas string
 	json    bool
+	// against, when non-empty, is the git ref the T5 transition check diffs the
+	// corpus against (validate only).
+	against string
 }
 
-// parseArgs parses the positional directory and the --schemas / --json flags.
-// Exactly one positional argument (the target directory) is required.
+// parseArgs parses the positional directory and the --schemas / --json /
+// --against flags. Exactly one positional argument (the target directory) is
+// required.
 func parseArgs(args []string) (options, error) {
 	var (
 		opts options
@@ -38,6 +42,14 @@ func parseArgs(args []string) (options, error) {
 			opts.schemas = args[i]
 		case strings.HasPrefix(a, "--schemas="):
 			opts.schemas = strings.TrimPrefix(a, "--schemas=")
+		case a == "--against":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("--against requires a git-ref argument")
+			}
+			i++
+			opts.against = args[i]
+		case strings.HasPrefix(a, "--against="):
+			opts.against = strings.TrimPrefix(a, "--against=")
 		case strings.HasPrefix(a, "-"):
 			return opts, fmt.Errorf("unknown flag %q", a)
 		default:
