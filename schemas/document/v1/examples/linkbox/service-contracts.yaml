@@ -1,0 +1,47 @@
+meta:
+  id: service-contracts
+  type: service-contracts
+  schema_version: 1.0.0
+  project: linkbox
+  status: approved
+  version: 1
+  created: 2026-06-12
+  updated: 2026-06-12
+  authors:
+    - run: run-arch-1c40
+    - human: mateo
+  links:
+    realizes: []
+    supersedes: null
+    informs: []
+
+data:
+  contracts:
+    - id: CTR-0001
+      name: LinkService
+      kind: connect-service
+      definition_reference: "path://proto/linkbox/v1/link.proto#LinkService"
+      summary: |
+        The frozen RPC boundary for saving, tagging, and listing links. Draws the line between
+        the web client and the backend for the core capture flow: SaveLink, ListLinks, AddTag,
+        RemoveTag, ListByTag. Frozen at contract freeze so the web app and api can be built in
+        parallel against a stable shape; every call is scoped to the authenticated user (INV-0001).
+      status: frozen
+      links:
+        realizes:
+          - REQ-0001
+          - CMP-0001
+    - id: CTR-0002
+      name: CollectionService
+      kind: connect-service
+      definition_reference: "path://proto/linkbox/v1/collection.proto#CollectionService"
+      summary: |
+        The RPC boundary for collections and sharing: CreateCollection, AddMember, Publish,
+        Revoke, and an unauthenticated GetSharedCollection that resolves a share token. Still
+        draft while the revocation and token-rotation semantics are being negotiated; not yet
+        safe to build the public share view against.
+      status: draft
+      links:
+        realizes:
+          - REQ-0003
+          - CMP-0001

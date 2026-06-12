@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eden://document/v1/product-charter",
+  "title": "Product charter document",
+  "description": "Tier-P product charter (doc 11 §6): the why/what root of a project. Narrative canonical form (.md): YAML frontmatter (envelope) + a personas data block + required markdown sections. Authored by the intake agent from the creation conversation and grounded in it (meta.source required). All downstream architecture and implementation walks back to this document.",
+  "allOf": [
+    { "$ref": "eden://document/v1/envelope" },
+    {
+      "type": "object",
+      "required": ["meta", "data", "sections"],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": ["type", "source"],
+          "properties": {
+            "type": {
+              "const": "product-charter",
+              "description": "Selects this schema. MUST be the literal string \"product-charter\"."
+            },
+            "source": {
+              "description": "Conversation grounding (Tier P requirement, doc 11 §4): at least one transcript span this charter was distilled from, so the user's words are traceable. Provide one entry per contributing run. Item shape matches the envelope's meta.source.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["run"],
+                "additionalProperties": false,
+                "properties": {
+                  "run": {
+                    "description": "The Run id (02 §2) whose transcript this content was drawn from.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "span": {
+                    "description": "Optional locator within the transcript, e.g. \"messages 12-31\".",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "required": ["personas"],
+          "additionalProperties": false,
+          "properties": {
+            "personas": {
+              "description": "The people this product serves. List every distinct persona the charter reasons about; user-workflows later reference these by id. At least one persona is required.",
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "description"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "description": "Stable persona identifier, PER-NNNN (e.g. PER-0001). MUST be unique within this charter; downstream documents cite it.",
+                    "allOf": [
+                      { "$ref": "eden://document/v1/envelope#/$defs/itemId" },
+                      { "pattern": "^PER-[0-9]{4}$" }
+                    ]
+                  },
+                  "name": {
+                    "description": "Short human-readable label for the persona (e.g. \"Solo backend engineer\"). One line, no markdown.",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "description": "Who this persona is, their goals, and their context, in prose. Markdown allowed.",
+                    "$ref": "eden://document/v1/envelope#/$defs/markdown"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "sections": {
+          "type": "object",
+          "required": ["vision", "problem", "success-criteria", "non-goals"],
+          "additionalProperties": false,
+          "properties": {
+            "vision": {
+              "description": "The desired future state this product brings about: what the world looks like when it succeeds. Markdown.",
+              "$ref": "eden://document/v1/envelope#/$defs/markdown"
+            },
+            "problem": {
+              "description": "The problem being solved and why it matters now — the pain, who feels it, and the cost of the status quo. Markdown.",
+              "$ref": "eden://document/v1/envelope#/$defs/markdown"
+            },
+            "success-criteria": {
+              "description": "How success is judged: the observable outcomes or measures that, if met, mean the product worked. Markdown (a list is typical).",
+              "$ref": "eden://document/v1/envelope#/$defs/markdown"
+            },
+            "non-goals": {
+              "description": "What this product explicitly does NOT do — scope boundaries the team commits to, to prevent drift. Markdown (a list is typical).",
+              "$ref": "eden://document/v1/envelope#/$defs/markdown"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

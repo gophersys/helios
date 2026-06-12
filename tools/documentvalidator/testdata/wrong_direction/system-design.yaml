@@ -1,0 +1,33 @@
+meta:
+  id: system-design
+  type: system-design
+  schema_version: 1.0.0
+  project: fixture
+  status: draft
+  version: 1
+  created: 2026-06-12
+  updated: 2026-06-12
+  authors:
+    - human: fixture
+  links:
+    realizes: []
+    supersedes: null
+    informs: []
+
+data:
+  components:
+    - id: CMP-0001
+      name: fixture-service
+      responsibility: A component that exists as the downstream target of the bad edge.
+      cell: go-backend
+      depends_on: []
+      connectors:
+        - F1
+      links:
+        realizes:
+          - REQ-0001
+  environments_plan:
+    environments:
+      - development
+    substrate_map:
+      development: docker-compose

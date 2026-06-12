@@ -34,6 +34,7 @@ const DOCS = [
   { id: 'd-08-testing-strategy', file: '08-testing-strategy.md', nav: 'Testing strategy', chip: '08' },
   { id: 'd-09-build-execution-plan', file: '09-build-execution-plan.md', nav: 'Build execution plan', chip: '09' },
   { id: 'd-10-library-system', file: '10-library-system.md', nav: 'Library system', chip: '10' },
+  { id: 'd-11-project-document-system', file: '11-project-document-system.md', nav: 'Project document system', chip: '11' },
   { id: 'd-open-decisions', file: 'open-decisions.md', nav: 'Open decisions', chip: 'OD' },
   { id: 'd-adr-0001', file: 'adr/0001-record-architecture-decisions.md', nav: 'Record architecture decisions', chip: 'ADR-0001', adr: true },
   { id: 'd-adr-0002', file: 'adr/0002-rename-helios-to-eden.md', nav: 'Rename Helios → Eden', chip: 'ADR-0002', adr: true },
@@ -45,6 +46,7 @@ const DOCS = [
   { id: 'd-adr-0008', file: 'adr/0008-claude-code-first-agent-connector.md', nav: 'Claude Code first connector', chip: 'ADR-0008', adr: true },
   { id: 'd-adr-0009', file: 'adr/0009-library-system-rulings.md', nav: 'Library-system rulings A–F', chip: 'ADR-0009', adr: true },
   { id: 'd-adr-0010', file: 'adr/0010-documentation-scheme.md', nav: 'Documentation scheme', chip: 'ADR-0010', adr: true },
+  { id: 'd-adr-0011', file: 'adr/0011-document-schema-language.md', nav: 'Document schema language', chip: 'ADR-0011', adr: true },
 ];
 
 marked.use({ gfm: true });

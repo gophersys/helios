@@ -1,0 +1,31 @@
+meta:
+  id: requirements
+  type: requirements
+  schema_version: 1.0.0
+  project: fixture
+  status: draft
+  version: 1
+  created: 2026-06-12
+  updated: 2026-06-12
+  authors:
+    - human: fixture
+  links:
+    realizes: []
+    supersedes: null
+    informs: []
+  source:
+    - run: run-fixture
+      span: "messages 1-2"
+
+data:
+  items:
+    - id: REQ-0001
+      statement: "THE SYSTEM SHALL exist so a dangling link can be exercised."
+      kind: functional
+      priority: P2
+      rationale: "Fixture requirement."
+      acceptance:
+        - "The validator runs against this corpus."
+      links:
+        realizes:
+          - PER-9999

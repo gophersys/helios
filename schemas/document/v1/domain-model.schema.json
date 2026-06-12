@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eden://document/v1/domain-model",
+  "title": "Domain model document",
+  "description": "Tier-A architecture document (doc 11 §6): the project's entities and the invariants that constrain them. Canonical form: registry YAML projected to {meta, data, sections}; this schema validates the projection. Authoring guidance: name the nouns the system reasons about and the rules that must always hold; ground each in tier P via links.realizes (rule T3).",
+  "type": "object",
+  "allOf": [
+    { "$ref": "eden://document/v1/envelope" },
+    {
+      "type": "object",
+      "required": ["meta", "data"],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "domain-model",
+              "description": "Selects this schema; MUST be the literal string `domain-model`."
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "description": "Structured content of the domain model: the entity set and the invariants over it.",
+          "additionalProperties": false,
+          "required": ["entities", "invariants"],
+          "properties": {
+            "entities": {
+              "type": "array",
+              "description": "The domain entities — the nouns the system reasons about. One object per entity; ids MUST be unique within the document.",
+              "items": { "$ref": "#/$defs/entity" }
+            },
+            "invariants": {
+              "type": "array",
+              "description": "Rules that MUST hold across the entity set at all times — the constraints no workflow may violate. One object per invariant; ids MUST be unique within the document.",
+              "items": { "$ref": "#/$defs/invariant" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "entityId": {
+      "type": "string",
+      "pattern": "^ENT-[0-9]{4}$",
+      "description": "Stable entity identifier (doc 11 §3 grammar): the literal `ENT-` followed by exactly four digits, e.g. ENT-0001."
+    },
+    "invariantId": {
+      "type": "string",
+      "pattern": "^INV-[0-9]{4}$",
+      "description": "Stable invariant identifier (doc 11 §3 grammar): the literal `INV-` followed by exactly four digits, e.g. INV-0001."
+    },
+    "entity": {
+      "type": "object",
+      "description": "A single domain entity: a noun the system models, with its attributes and its relationships to other entities.",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "attributes", "relationships"],
+      "properties": {
+        "id": { "$ref": "#/$defs/entityId" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable entity name, singular and domain-meaningful (e.g. `Order`, `Subscriber`). Not an identifier — use `id` for joins."
+        },
+        "description": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/markdown" }],
+          "description": "What this entity represents in the domain and why it exists. Markdown prose; state the concept in domain terms, not implementation terms."
+        },
+        "attributes": {
+          "type": "array",
+          "description": "The entity's attributes — its named, typed fields. May be empty for a pure relationship/junction entity.",
+          "items": { "$ref": "#/$defs/attribute" }
+        },
+        "relationships": {
+          "type": "array",
+          "description": "Typed, directed associations from this entity to other entities in the model. May be empty.",
+          "items": { "$ref": "#/$defs/relationship" }
+        },
+        "links": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/links" }],
+          "description": "Typed upstream edges for this entity (doc 11 §3). Tier-A guidance: SHOULD carry at least one `realizes` edge into tier P (a REQ/WF/PER it serves) — rule T3 is the corpus-level check, not enforced here."
+        }
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "description": "A named, typed field of an entity.",
+      "additionalProperties": false,
+      "required": ["name", "type", "description"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Attribute name in domain terms (e.g. `placedAt`, `status`)."
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Domain-level type as a free string (e.g. `string`, `Money`, `Timestamp`, `Status enum`). Conceptual, not a language/storage type — physical types are decided downstream in system-design."
+        },
+        "description": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/markdown" }],
+          "description": "What this attribute means and any domain rules on its values. Markdown prose."
+        }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "description": "A directed association from the owning entity to a target entity.",
+      "additionalProperties": false,
+      "required": ["to", "kind", "cardinality"],
+      "properties": {
+        "to": {
+          "allOf": [{ "$ref": "#/$defs/entityId" }],
+          "description": "Target entity id (ENT-NNNN). MUST resolve to an entity in this document (corpus rule T1 checks resolution)."
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The nature of the association, named in domain terms (e.g. `places`, `belongs-to`, `references`, `composed-of`). Free string; the verb that reads from owner to target."
+        },
+        "cardinality": {
+          "enum": ["one-to-one", "one-to-many", "many-to-many"],
+          "description": "Multiplicity of the association, read from the owning entity to the target: `one-to-one`, `one-to-many`, or `many-to-many`."
+        }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "description": "A rule that MUST always hold over the entity set.",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "$ref": "#/$defs/invariantId" },
+        "statement": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/markdown" }],
+          "description": "The rule the model must always satisfy, stated declaratively (e.g. `Every Order has at least one OrderLine`). Markdown prose; phrase as a condition that is true in every valid state, not as a procedure."
+        },
+        "links": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/links" }],
+          "description": "Typed upstream edges for this invariant (doc 11 §3). Tier-A guidance: SHOULD carry at least one `realizes` edge into tier P (the REQ/constraint it enforces) — rule T3 is the corpus-level check, not enforced here."
+        }
+      }
+    }
+  }
+}

@@ -21,6 +21,8 @@ product. This is its monorepo, currently in the architecture/bootstrap phase.
 ```
 eden/
 ├── docs/                   # documentation (scheme in docs/README.md)
+├── schemas/                # machine-validated artifact schemas (E2; schemas/README.md)
+├── tools/                  # repo tooling: documentvalidator (doc 11 §8)
 ├── apps/                   # deployables: backend/, frontend/, desktop/, agent/ (to be created)
 ├── poc/                    # proofs of concept — donor material, gated salvage (poc/README.md)
 ├── .devcontainer/          (submodule — gophersys/.devcontainer: base images)

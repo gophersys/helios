@@ -56,6 +56,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 08 | [Testing strategy](08-testing-strategy.md) | Three test layers; evidence quality instruments | Draft |
 | 09 | [Build execution plan](09-build-execution-plan.md) | How we build Eden with Claude; workstreams | Draft |
 | 10 | [Library system](10-library-system.md) | Patterns, HNS-1 naming, environment≠platform axes, lifecycle, manifest | Draft |
+| 11 | [Project document system](11-project-document-system.md) | Document tiers, id/link grammar, envelope, traceability, enforcement | Draft |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
 
@@ -97,6 +98,7 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Pattern catalogue, HNS-1 naming, dev→release→adopt lifecycle, library manifest | 10 |
 | Environment ≠ Platform axes (hard rule, detection, default map) | 10 §2 |
 | Bender failure modes 1–15 (compact in-repo list) | 03 §1 |
+| Document tiers, id/link grammar, envelope, traceability rules T1–T7 | 11 |
 
 ## 5. Eden-level invariants
 

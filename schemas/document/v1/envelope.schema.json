@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eden://document/v1/envelope",
+  "title": "Eden project document envelope",
+  "description": "Common machine frontmatter carried by every project document (doc 11 §4). Document-type schemas reference this via allOf and constrain `type`, `data`, and `sections`.",
+  "type": "object",
+  "required": ["meta"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["id", "type", "schema_version", "project", "status", "version", "created", "updated", "authors"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/documentId" },
+        "type": { "$ref": "#/$defs/documentType" },
+        "schema_version": { "$ref": "#/$defs/semver" },
+        "project": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+        "status": { "enum": ["draft", "review", "approved", "superseded"] },
+        "version": { "type": "integer", "minimum": 1 },
+        "created": { "$ref": "#/$defs/isoDate" },
+        "updated": { "$ref": "#/$defs/isoDate" },
+        "authors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/author" }
+        },
+        "links": { "$ref": "#/$defs/links" },
+        "source": {
+          "description": "Conversation grounding (product tier): where in a transcript this content came from.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["run"],
+            "additionalProperties": false,
+            "properties": {
+              "run": { "type": "string", "minLength": 1 },
+              "span": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "data": {
+      "description": "Structured content; shape is constrained by each document-type schema.",
+      "type": "object"
+    },
+    "sections": {
+      "description": "Narrative content as markdown strings keyed by stable section id; required keys are constrained by each document-type schema.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "documentType": {
+      "enum": [
+        "product-charter",
+        "requirements",
+        "user-workflows",
+        "design-brief",
+        "domain-model",
+        "system-design",
+        "service-contracts",
+        "architecture-decision",
+        "implementation-plan",
+        "specification"
+      ]
+    },
+    "documentId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(-[0-9]{4})?$",
+      "description": "Type slug for singletons (e.g. requirements); slug-NNNN for multi-instance types (e.g. adr-0004, spec-0012)."
+    },
+    "itemId": {
+      "type": "string",
+      "pattern": "^(PER|REQ|WF|ENT|INV|CMP|CTR|ADR|WP|SPEC)-[0-9]{4}$",
+      "description": "Stable item identifier (doc 11 §3 grammar)."
+    },
+    "reference": {
+      "description": "An item id, a document id, or an external artifact reference (F6 design system, code path).",
+      "anyOf": [
+        { "$ref": "#/$defs/itemId" },
+        { "$ref": "#/$defs/documentId" },
+        { "type": "string", "pattern": "^(artifact|path)://.+$" }
+      ]
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "realizes": { "type": "array", "items": { "$ref": "#/$defs/reference" } },
+        "refines": { "type": "array", "items": { "$ref": "#/$defs/reference" } },
+        "verifies": { "type": "array", "items": { "$ref": "#/$defs/reference" } },
+        "informs": { "type": "array", "items": { "$ref": "#/$defs/reference" } },
+        "supersedes": {
+          "anyOf": [{ "$ref": "#/$defs/documentId" }, { "type": "null" }]
+        }
+      }
+    },
+    "author": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "run": { "type": "string", "minLength": 1, "description": "Agent authorship: the Run id (02 §2) whose transcript produced this revision." },
+        "human": { "type": "string", "minLength": 1 }
+      }
+    },
+    "semver": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "isoDate": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "markdown": { "type": "string", "description": "Prose field; markdown allowed." }
+  }
+}

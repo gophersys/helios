@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eden://document/v1/user-workflows",
+  "title": "Eden user-workflows document",
+  "description": "Product-tier (P) registry document (doc 11 §6) cataloguing the end-to-end workflows a persona performs: each workflow names its triggering persona, the trigger condition, the ordered steps, and the resulting outcome. Canonical form: registry (YAML); the validator validates the {meta, data, sections} projection. Extends the common envelope.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "eden://document/v1/envelope" },
+    {
+      "type": "object",
+      "required": ["meta", "data"],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": ["type", "source"],
+          "properties": {
+            "type": {
+              "const": "user-workflows",
+              "description": "Selects this schema; must be the literal string \"user-workflows\"."
+            },
+            "source": {
+              "description": "Conversation grounding is REQUIRED for product-tier (P) documents (doc 11 §4, tier P): at least one transcript span the workflows were elicited from.",
+              "type": "array",
+              "minItems": 1
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "required": ["items"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "description": "The catalogue of user workflows. Author one entry per distinct end-to-end task a persona accomplishes with the system; at least one workflow is required.",
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/workflow" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "workflow": {
+      "type": "object",
+      "required": ["id", "name", "persona", "trigger", "steps", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^WF-[0-9]{4}$",
+          "description": "Stable workflow identifier of the form WF-NNNN (e.g. WF-0002); unique within this document. This is the join key other documents cite via links (doc 11 §3)."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short imperative label naming the workflow from the user's standpoint (e.g. \"Submit an expense report\")."
+        },
+        "persona": {
+          "type": "string",
+          "pattern": "^PER-[0-9]{4}$",
+          "description": "The persona that performs this workflow, referenced as PER-NNNN; must resolve to a persona defined in product-charter (doc 11 §3, no dangling references)."
+        },
+        "trigger": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/markdown" }],
+          "description": "EARS-style trigger: the condition or event that starts the workflow — WHEN <trigger> the persona begins this workflow (e.g. \"WHEN a purchase exceeds the personal approval limit\"). Markdown."
+        },
+        "steps": {
+          "description": "The ordered sequence of actions the persona takes from trigger to outcome; at least one step is required. Each step is one user-facing action, written as markdown.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/markdown" }],
+            "description": "One step: a single user-facing action in imperative voice (e.g. \"Attach the receipt image and confirm the total\"). Markdown."
+          }
+        },
+        "outcome": {
+          "allOf": [{ "$ref": "eden://document/v1/envelope#/$defs/markdown" }],
+          "description": "The observable end state once the workflow completes successfully — what the persona has achieved (e.g. \"The report is queued for manager approval and the user sees a confirmation\"). Markdown."
+        },
+        "links": {
+          "$ref": "eden://document/v1/envelope#/$defs/links",
+          "description": "Typed upstream edges for this workflow (doc 11 §3, §7): e.g. realizes/refines the requirements (REQ-NNNN) or personas (PER-NNNN) this workflow serves. Upstream only; reverse edges are derived by tooling."
+        }
+      }
+    }
+  }
+}

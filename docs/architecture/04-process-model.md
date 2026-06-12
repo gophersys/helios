@@ -68,8 +68,9 @@ these two altitudes is explicitly deferred (build-system invariant I11).
 | ReleaseCandidate | packager | artifact digests, SBOM, provenance attestation |
 | DeploymentRecord / Observation | deployer / observer | versions, environments, SLO snapshots, incidents, drift events |
 
-Schemas are versioned in the eden monorepo next to the engine; validation runs at the phase
-boundary **and** in CI (defense in depth). An agent output failing validation triggers bounded
+The authored-document subset of these artifacts (product/architecture/implementation tiers,
+ids, links, envelope) is specified in 11; schemas live at `schemas/document/v1/` (ADR-0011).
+Validation runs at the phase boundary **and** in CI (defense in depth). An agent output failing validation triggers bounded
 retry-with-diagnostics; budget exhaustion escalates per §6 — invalid artifacts never flow
 downstream (P2).
 

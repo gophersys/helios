@@ -33,3 +33,4 @@
 | RD-7 | First agent connector | Claude Code; pi/omp+DeepSeek second (proves abstraction + cheap arm) | 0008 |
 | RD-8 | Library-system open decisions A–F (10 §11) | dependencies slug · eden module root · root gitignored go.work · U1 as gated donor material · bare-host · docs-first | 0009 |
 | RD-9 | Documentation scheme + in-repo migration pass | four doc classes, kebab-case naming, attic policy; root planning docs absorbed into doc 10 | 0010 |
+| RD-10 | Project document schemas | JSON Schema 2020-12 · dual-surface canonical form (md+frontmatter / yaml → one JSON projection) · `schemas/document/v1/` · design system stays a separate linked F6 artifact | 0011 |

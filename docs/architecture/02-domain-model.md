@@ -72,7 +72,7 @@ Cell ── Spec ── {Contract, Template, Tests, Gate} ── Run ── Evid
 | Schema | Source of truth | Consumers |
 |---|---|---|
 | Wire/domain messages & services | `libs/protocols` (Protobuf, buf; Connect transport) | Go backend, Svelte client, agent pods |
-| Phase artifact schemas | `eden` monorepo, versioned alongside the process engine | Process engine, CI validation, agents |
+| Phase artifact schemas | `schemas/document/v1/` in the eden monorepo (11, ADR-0011) | Process engine, CI validation, agents, dashboards |
 | Theme/design-system schema | photosphere (DTCG-shaped ThemeDoc + component manifest) | Design-system connector family, `svelte-ui` cell |
 | agents.yaml (agent configuration) | upstream portable-agent-config schema → `agentconfiguration` library | Agent layer (05 family F4) |
 | Knowledge rule schema | `poc/knowledge` rule YAML (to be promoted into the knowledge pipeline) | Knowledge libraries, eval harness |

@@ -1,0 +1,31 @@
+meta:
+  id: requirements
+  type: requirements
+  schema_version: 1.0.0
+  project: fixture
+  status: draft
+  version: 1
+  created: 2026-06-12
+  updated: 2026-06-12
+  authors:
+    - human: fixture
+  links:
+    realizes: []
+    supersedes: null
+    informs: []
+  source:
+    - run: run-fixture
+      span: "messages 1-2"
+
+data:
+  items:
+    - id: REQ-0001
+      statement: "THE SYSTEM SHALL carry an invalid priority to exercise shape validation."
+      kind: functional
+      priority: P9
+      rationale: "P9 is outside the P1-P3 enum; this is the schema violation."
+      acceptance:
+        - "The validator reports an enum failure on /data/items/0/priority."
+      links:
+        realizes:
+          - PER-0001
