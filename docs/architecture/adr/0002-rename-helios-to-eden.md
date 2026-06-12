@@ -24,8 +24,8 @@ under the `eden` scope.
 ## Consequences
 
 - Invariant E7: no `helios` identifier in new code or documents.
-- Upstream corpus documents (`~/Documents/Claude/Projects/Helios/`) and `docs/research/` still
-  say Helios — corrected as touched; silent partial renames are forbidden. (The former root
+- Upstream corpus documents (now in-repo under `docs/upstream/`, ADR-0014) and `docs/research/`
+  still say Helios — corrected as touched; silent partial renames are forbidden. (The former root
   planning docs were migrated under Eden naming into doc 10 — ADR-0010.)
 - Rename execution is one gated LSC-style change (09 §7): repo rename, module paths, scope,
   CI references. The local checkout directory (`~/helios`) renames with the repo.

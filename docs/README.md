@@ -3,7 +3,7 @@
 > Status: Living · 2026-06-12 · The map of everything under `docs/` and the documentation scheme
 > (ADR-0010) every document must follow.
 
-## 1. The scheme — four document classes
+## 1. The scheme — five document classes
 
 | Class | Location | Naming | Rules |
 |---|---|---|---|
@@ -11,6 +11,7 @@
 | **Research notes** | `docs/research/` | `NN-slug.md`, numbered chronologically | Point-in-time findings with a research date and sources. Never canonical: findings are **promoted** into specs (with a citation), not edited in place. Supersession is noted at the top, content left intact. |
 | **Operational docs** | `README.md` per directory | `README.md` only | Orientation for the directory they sit in: what this is, how to use it, where the canon lives. No decisions, no specs — they cite. Exception: `docs/architecture/README.md` belongs to the canonical-spec class (it is the set's index and carries its legend, invariants, and cohesion contract). |
 | **Attic** | `docs/attic/` | `YYYY-MM-DD-original-slug.md` | Superseded/absorbed documents preserved **verbatim** (pre-commit history cannot protect untracked work). Append-only; every entry logged below with its absorption target. Never cite the attic as authority. |
+| **Upstream corpus** | `docs/upstream/` | verbatim imports, original filenames | Point-in-time references imported whole (ADR-0014); Helios-era naming preserved; never edited in place — corrections happen in the canonical set, which supersedes upstream on conflict. |
 
 **Naming rules (all classes):** filenames are lowercase kebab-case. The only uppercase filenames
 are tool-imposed conventions (`README.md`, `CLAUDE.md`, `LICENSE`). One H1 per document — the
@@ -27,6 +28,7 @@ docs/
 ├── architecture/            ← canonical specs: README (doc map) · 00–10 · open-decisions · adr/
 │   └── eden-architecture.html   (generated reading copy — see docs/tools/)
 ├── research/                ← research notes 00–03 (see its README for the index)
+├── upstream/                ← verbatim upstream corpus: agentic-engineering/ · build-system/ (ADR-0014)
 ├── attic/                   ← preserved superseded documents (see §3)
 └── tools/                   ← doc tooling (render-html.mjs)
 ```

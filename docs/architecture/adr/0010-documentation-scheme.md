@@ -44,7 +44,8 @@ unrecoverable — "remove" needs a preservation policy.
   not a judgment call.
 - The architecture set's external-source registry now points at doc 10 instead of the root files;
   all `LIBRARY-SYSTEM §N` citations across the set become `10 §N`.
-- The upstream corpus (`~/Documents/...`) remains outside the repo and outside this scheme; its
-  migration is still lazy-on-touch.
+- The upstream corpus was outside the repo and outside this scheme at the time of this ruling; its
+  migration was then lazy-on-touch. **Superseded by ADR-0014:** the corpus is now imported verbatim
+  into `docs/upstream/` as a fifth document class.
 - The repo/origin rename to `gophersys/eden` remains the separately-gated LSC (ADR-0002,
   Consequences); this ADR cleans only in-repo identifiers.

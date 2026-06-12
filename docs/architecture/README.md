@@ -7,11 +7,11 @@
 ## 1. Layering — where this set fits
 
 ```
-~/Documents/research/agentic-engineering/      WHY      — the substrate: Bender failure modes,
+docs/upstream/agentic-engineering/             WHY      — the substrate: Bender failure modes,
         │                                                 ecosystem graph, universal SDLC spine
         ▼
-~/Documents/Claude/Projects/Helios/            HOW-WE-  — build-system design: spec-driven system,
-        │   (to be migrated under Eden naming)  BUILD     agentcfg, agents.yaml, 12 invariants
+docs/upstream/build-system/                    HOW-WE-  — build-system design: spec-driven system,
+        │                                       BUILD     agentcfg, agents.yaml, 12 invariants
         ▼
 docs/architecture/  (THIS SET)                 WHAT     — the Eden platform: charter, decomposition,
         │                                                 process model, connectors, bootstrap
@@ -22,18 +22,20 @@ code (eden monorepo · gophersys/libs · photosphere · infrastructure)
 Lower layers never depend on higher ones. Where this set and the upstream corpus conflict, this
 set wins and must record the supersession as an ADR (the corpus is renamed/migrated lazily).
 
-**Transitional:** upstream corpus documents still say "Helios". Per ADR-0002 every document in
-this set says **Eden**; upstream docs are corrected as they are touched, never silently.
+**Transitional:** the upstream corpus now lives in-repo under `docs/upstream/` (ADR-0014), still
+Helios-named by design. Per ADR-0002 every document in *this* set says **Eden**; upstream docs are
+corrected on touch, never silently — corrections land in the canonical set, which supersedes
+upstream on conflict.
 
 ### Source registry (every shorthand used in this set)
 
 | Shorthand | Resolves to |
 |---|---|
-| corpus doc NN / corpus README | `~/Documents/research/agentic-engineering/NN-*.md` / its `README.md` |
+| corpus doc NN / corpus README | `docs/upstream/agentic-engineering/NN-*.md` / its `README.md` |
 | Bender | Adam Bender (Principal Engineer, Google), "Software Engineering at the Tipping Point" (2026); catalogued in corpus docs 01–03 |
-| build-system README | `~/Documents/Claude/Projects/Helios/README.md` — home of the 12 **build-system invariants I1–I12** |
-| spec-driven §N | `~/Documents/Claude/Projects/Helios/spec-driven-implementation-system.md` |
-| agentcfg / portable-agent-config | `~/Documents/Claude/Projects/Helios/agentcfg-architecture.md` / `portable-agent-config-2026-06.md` (upstream artifact names; the Eden library is `agentconfiguration`) |
+| build-system README | `docs/upstream/build-system/helios-corpus-readme.md` — home of the 12 **build-system invariants I1–I12** |
+| spec-driven §N | `docs/upstream/build-system/spec-driven-implementation-system.md` |
+| agentcfg / portable-agent-config | `docs/upstream/build-system/agentcfg-architecture.md` / `portable-agent-config-2026-06.md` (upstream artifact names; the Eden library is `agentconfiguration`) |
 | cell invariants I1–I10 | corpus doc 04 (the Cell schema invariants) |
 | 10 §N (library system) | [10-library-system.md](10-library-system.md) — absorbed the former root `/LIBRARY-SYSTEM.md` + `/LIBRARIES.md` (originals in `docs/attic/`, ADR-0010) |
 | photosphere ADR-NNNN | `gophersys/photosphere` `docs/adr/` (a different chain from this set's `adr/`) |
