@@ -23,10 +23,15 @@
 
 ## Current state (updated each milestone)
 
-- **Wave 3A** (in progress, workflow wf_f87fddaa-ba8): leaf libs scaffolded
-  (errors ✅green, dependencies ✅green, configuration ⚠️ test build break — see Next actions);
-  three new contracts drafted (workspaceprovider, gitrepository, orchestrator); go.work +
-  dependent libs (testing, secrets, observability) + verify phase still ahead.
+- **Wave 3A** ✅ COMPLETE + COMMITTED (2026-06-13): all six pattern libraries green
+  (unit + conformance, go vet + go test -race) — errors, dependencies, configuration, testing,
+  secrets, observability. Submodule commit f076942 on origin/main; eden pointer bumped; the three
+  new contracts (workspaceprovider, gitrepository, orchestrator) committed. Latent standards
+  violations remain (e.g. configuration imports configurationtest under the banned alias
+  `cfgtest`) — these are the conform target of 3A.5, not bugs.
+- **Wave 3A.5** (IN PROGRESS): build the ADR-0018 enforcement layer, run it against the 3A libs,
+  conform them. Toolchain installed (golangci-lint v2.12.2, gofumpt, govulncheck, gorelease,
+  staticcheck).
 - Done earlier: docs (00–12 + ADRs 0001–0017), document system + validator, frontend v0 (document
   workspace, Eden visual identity C21), agentsession contract, REQ-0001..0024.
 
