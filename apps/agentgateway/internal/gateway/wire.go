@@ -1,0 +1,305 @@
+package gateway
+
+import (
+	"time"
+
+	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/orchestrator"
+)
+
+// This file is the wire contract: the JSON request/response DTOs the SvelteKit UI
+// exchanges, and the per-kind SSE event projection. Everything here is a redaction-safe
+// projection of the library types — no credential value has a path into any field (the
+// agentsession Event taxonomy is redaction-eligible by construction, and the gateway never
+// holds a resolved secret).
+
+// ── REST request DTOs ────────────────────────────────────────────────────────.
+
+// createSessionRequest is the body of POST /sessions: the per-spawn bindings the chat
+// surface supplies. The credential is NOT here — it rides the gateway's configured
+// secrets.Reference, resolved server-side at Open (REQ-0021). RunID correlates the engine
+// Run; Prompt, when non-empty, is sent as the first turn so the chat starts working.
+type createSessionRequest struct {
+	OrganizationID  string            `json:"organizationId"`
+	ProjectID       string            `json:"projectId"`
+	TemplateName    string            `json:"templateName"`
+	TemplateVersion string            `json:"templateVersion"`
+	RunID           string            `json:"runId,omitempty"`
+	By              string            `json:"by,omitempty"`
+	Labels          map[string]string `json:"labels,omitempty"`
+	Prompt          string            `json:"prompt,omitempty"`
+}
+
+// controlRequest is the body of POST /sessions/{id}/control: the prompt/steer/abort verb
+// that takes effect mid-stream (REQ-0020 controls). Text is the message for prompt/steer;
+// empty for abort.
+type controlRequest struct {
+	Command string `json:"command"` // "prompt" | "steer" | "abort"
+	Text    string `json:"text,omitempty"`
+}
+
+// ── REST response DTOs ───────────────────────────────────────────────────────.
+
+// agentView is the JSON projection of an orchestrator.Agent for the session-list and the
+// get-one record (REQ-0022 list, REQ-0020 record). It carries the lifecycle status, the
+// tenancy, and the live token/cost ledger — NEVER a credential.
+type agentView struct {
+	ID        string     `json:"id"`
+	Org       string     `json:"organizationId"`
+	Project   string     `json:"projectId"`
+	Template  string     `json:"template"`
+	RunID     string     `json:"runId,omitempty"`
+	Status    string     `json:"status"`
+	Desired   string     `json:"desired"`
+	By        string     `json:"by,omitempty"`
+	Detail    string     `json:"detail,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	Ledger    ledgerView `json:"ledger"`
+}
+
+// listResponse is the body of GET /sessions: a page of agents plus the opaque next cursor
+// (REQ-0022 paginated session-list).
+type listResponse struct {
+	Sessions []agentView `json:"sessions"`
+	Next     string      `json:"next,omitempty"`
+}
+
+// createResponse is the body of POST /sessions: the assigned AgentID the client uses for
+// every subsequent route (the SSE stream, the control channel, the transcript).
+type createResponse struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+// controlResponse is the body of POST /sessions/{id}/control: the Seq the control was
+// admitted at, so the UI correlates the resulting events on the stream (Ack).
+type controlResponse struct {
+	AdmittedSeq uint64 `json:"admittedSeq"`
+}
+
+// transcriptResponse is the body of GET /sessions/{id}/transcript: the persisted Run's
+// full event list, replayed from the durable transcript and queryable AFTER the session
+// ends (REQ-0020 persisted Run, REQ-0023 reconstruct from persisted events).
+type transcriptResponse struct {
+	ID       string      `json:"id"`
+	Events   []eventView `json:"events"`
+	HeadSeq  uint64      `json:"headSeq"`
+	Complete bool        `json:"complete"` // true == the terminal event is present
+}
+
+// ── the SSE event projection (REQ-0024) ──────────────────────────────────────.
+
+// eventView is the JSON `data:` payload of one SSE frame — a redaction-safe projection of
+// an agentsession.Event. The SSE frame's `event:` field carries the kind token and `id:`
+// carries the monotonic Seq (REQ-0023), so the UI dispatches on the event type and tracks
+// its cursor without parsing the body. Exactly the populated sub-payload for the kind is
+// non-nil (a tagged union by convention), so each of the nine REQ-0024 event types renders
+// individually.
+type eventView struct {
+	SessionID  string          `json:"sessionId"`
+	Seq        uint64          `json:"seq"`
+	Kind       string          `json:"kind"`
+	Turn       int             `json:"turn,omitempty"`
+	TurnID     string          `json:"turnId,omitempty"`
+	Time       time.Time       `json:"time"`
+	State      *stateView      `json:"state,omitempty"`
+	Message    *messageView    `json:"message,omitempty"`
+	Tool       *toolView       `json:"tool,omitempty"`
+	Permission *permissionView `json:"permission,omitempty"`
+	Usage      *usageView      `json:"usage,omitempty"`
+	Terminal   *terminalView   `json:"terminal,omitempty"`
+	Extension  []byte          `json:"extension,omitempty"`
+}
+
+// stateView projects a session-state transition (the chat's connection/idle/working chrome).
+type stateView struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// messageView projects a message-start / thinking-delta / text-delta / message-end fragment.
+type messageView struct {
+	Role  string `json:"role,omitempty"`
+	Delta string `json:"delta,omitempty"`
+}
+
+// toolView projects a tool start / update / end (REQ-0024 tool activity). The grant linkage
+// and redacted digests carry the audit chain; never a raw secret-bearing argument.
+type toolView struct {
+	CallID        string `json:"callId,omitempty"`
+	Name          string `json:"name,omitempty"`
+	GrantID       string `json:"grantId,omitempty"`
+	ArgsSummary   string `json:"argsSummary,omitempty"`
+	PartialDigest string `json:"partialDigest,omitempty"`
+	Outcome       string `json:"outcome,omitempty"`
+	ResultDigest  string `json:"resultDigest,omitempty"`
+	DurationMs    int64  `json:"durationMs,omitempty"`
+	IsHostTool    bool   `json:"isHostTool,omitempty"`
+}
+
+// permissionView projects a permission request / resolved record (the human/policy gate).
+type permissionView struct {
+	RequestID string `json:"requestId"`
+	Tool      string `json:"tool,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+	Decision  string `json:"decision,omitempty"`
+	By        string `json:"by,omitempty"`
+}
+
+// usageView projects a token/cost tick — ALL FOUR token kinds + per-model attribution, live
+// (REQ-0024 token/cost meter). Cost is integer micro-units (no float drift).
+type usageView struct {
+	Model               string `json:"model,omitempty"`
+	Harness             string `json:"harness,omitempty"`
+	InputTokens         int64  `json:"inputTokens"`
+	OutputTokens        int64  `json:"outputTokens"`
+	CacheReadTokens     int64  `json:"cacheReadTokens"`
+	CacheCreationTokens int64  `json:"cacheCreationTokens"`
+	CostMicros          int64  `json:"costMicros"`
+	Cumulative          bool   `json:"cumulative"`
+}
+
+// ledgerView projects the authoritative terminal TokenLedger (the final meter the UI
+// reconciles against).
+type ledgerView struct {
+	usageView
+	Turns          int32            `json:"turns"`
+	ToolUses       int32            `json:"toolUses"`
+	WallTimeMs     int64            `json:"wallTimeMs"`
+	ToolUsesByName map[string]int32 `json:"toolUsesByName,omitempty"`
+}
+
+// terminalView projects a terminal event (result / failed / aborted) and its authoritative
+// ledger. The failure Detail is redacted (never a credential) by the library contract.
+type terminalView struct {
+	Outcome    string     `json:"outcome"`
+	ResultText string     `json:"resultText,omitempty"`
+	StopReason string     `json:"stopReason,omitempty"`
+	Reason     string     `json:"reason,omitempty"`
+	Detail     string     `json:"detail,omitempty"`
+	By         string     `json:"by,omitempty"`
+	Ledger     ledgerView `json:"ledger"`
+}
+
+// ── projection functions ─────────────────────────────────────────────────────.
+
+// toAgentView projects an orchestrator.Agent onto the wire DTO (no credential field
+// exists on the projection, so a leak is impossible by construction).
+//
+//nolint:gocritic // Agent is the contract's copyable record; the projector reads it by value.
+func toAgentView(agent orchestrator.Agent) agentView {
+	return agentView{
+		ID:        string(agent.ID),
+		Org:       agent.Tenant.OrganizationID,
+		Project:   agent.Tenant.ProjectID,
+		Template:  agent.Template.String(),
+		RunID:     agent.RunID,
+		Status:    agent.Status.String(),
+		Desired:   agent.Desired.String(),
+		By:        agent.By,
+		Detail:    agent.Detail,
+		CreatedAt: agent.CreatedAt,
+		UpdatedAt: agent.UpdatedAt,
+		Ledger:    toLedgerView(agent.Ledger),
+	}
+}
+
+// toEventView projects an agentsession.Event onto the SSE `data:` DTO, populating exactly
+// the sub-payload for the kind. It is the single normalization point between the library
+// taxonomy and the wire (one concept, one home).
+//
+//nolint:gocritic // Event is the contract's copyable value record; the projector reads it by value.
+func toEventView(event agentsession.Event) eventView {
+	view := eventView{
+		SessionID: event.SessionID,
+		Seq:       event.Seq,
+		Kind:      event.Kind.String(),
+		Turn:      event.Turn,
+		TurnID:    event.TurnID,
+		Time:      event.Time,
+		Extension: event.Extension,
+	}
+	if event.State != nil {
+		view.State = &stateView{From: event.State.From.String(), To: event.State.To.String()}
+	}
+	if event.Message != nil {
+		view.Message = &messageView{Role: event.Message.Role, Delta: event.Message.Delta}
+	}
+	if event.Tool != nil {
+		view.Tool = toToolView(event.Tool)
+	}
+	if event.Permission != nil {
+		view.Permission = &permissionView{
+			RequestID: event.Permission.RequestID,
+			Tool:      event.Permission.Tool,
+			Reason:    event.Permission.Reason,
+			Decision:  grantDecisionToken(event.Permission.Decision),
+			By:        event.Permission.By,
+		}
+	}
+	if event.Usage != nil {
+		view.Usage = toUsageView(*event.Usage)
+	}
+	if event.Terminal != nil {
+		view.Terminal = toTerminalView(event.Terminal)
+	}
+	return view
+}
+
+// toToolView projects a ToolPayload, rendering the outcome token only for an end event.
+func toToolView(tool *agentsession.ToolPayload) *toolView {
+	return &toolView{
+		CallID:        tool.CallID,
+		Name:          tool.Name,
+		GrantID:       tool.GrantID,
+		ArgsSummary:   tool.ArgsSummary,
+		PartialDigest: tool.PartialDigest,
+		Outcome:       toolOutcomeToken(tool.Outcome),
+		ResultDigest:  tool.ResultDigest,
+		DurationMs:    tool.Duration.Milliseconds(),
+		IsHostTool:    tool.IsHostTool,
+	}
+}
+
+// toUsageView projects a UsageMeter (all four token kinds + attribution).
+//
+//nolint:gocritic // UsageMeter is the contract's copyable value record; the projector reads it by value.
+func toUsageView(meter agentsession.UsageMeter) *usageView {
+	return &usageView{
+		Model:               meter.Model,
+		Harness:             meter.Harness,
+		InputTokens:         meter.InputTokens,
+		OutputTokens:        meter.OutputTokens,
+		CacheReadTokens:     meter.CacheReadTokens,
+		CacheCreationTokens: meter.CacheCreationTokens,
+		CostMicros:          meter.CostMicros,
+		Cumulative:          meter.Cumulative,
+	}
+}
+
+// toLedgerView projects the authoritative TokenLedger.
+//
+//nolint:gocritic // TokenLedger is the contract's copyable value record; the projector reads it by value.
+func toLedgerView(ledger agentsession.TokenLedger) ledgerView {
+	return ledgerView{
+		usageView:      *toUsageView(ledger.UsageMeter),
+		Turns:          ledger.Turns,
+		ToolUses:       ledger.ToolUses,
+		WallTimeMs:     ledger.WallTime.Milliseconds(),
+		ToolUsesByName: ledger.ToolUsesByName,
+	}
+}
+
+// toTerminalView projects a TerminalPayload + its ledger.
+func toTerminalView(terminal *agentsession.TerminalPayload) *terminalView {
+	return &terminalView{
+		Outcome:    turnOutcomeToken(terminal.Outcome),
+		ResultText: terminal.ResultText,
+		StopReason: terminal.StopReason,
+		Reason:     errorReasonToken(terminal.Reason),
+		Detail:     terminal.Detail,
+		By:         terminal.By,
+		Ledger:     toLedgerView(terminal.Ledger),
+	}
+}

@@ -79,7 +79,25 @@
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
 - **NEXT: Wave 3B cont.** — agentgateway backend service (IN PROGRESS) → SvelteKit chat UI → Playwright E2E
   (+ doc-13 branch hook + merge agents).
-  - **agentgateway (backend service) sub-wave IN PROGRESS** (workflow build-agentgateway, task wa97yv5b1 / run
+  - **agentgateway (backend service) sub-wave ✅ DONE + COMMITTED + PUSHED** (eden repo; an APP, no submodule
+    pointer change). Go HTTP/SSE backend-for-frontend in apps/agentgateway (module github.com/gophersys/eden/
+    apps/agentgateway) wrapping orchestrator.Manager + agentsession.Pool: REST POST/GET /sessions (+list/get/
+    stop/resume/control/transcript/healthz) + per-session SSE /sessions/{id}/events (event:<kind> id:<seq>
+    data:<json>, Last-Event-ID/?from-seq replay = same mechanism, per-session fan-out off the agentsession
+    Session, prompt-flush <1s, clean terminal end). Pure New(config,deps); credentials opaque secrets.Reference
+    only, NO .Resolve/.Use path, no wire DTO has a credential field, 5xx fixed generic body. Built by workflow
+    wa97yv5b1 (Opus, ~33min). Verify agent verdict PASS (all 8 properties true; 5 weakens — replay/fan-out/
+    ordering/control/credential — each broke the right test, the credential weaken made the canary scanner fire).
+    I VERIFIED MYSELF: full gate green (gofumpt, golangci 0 both alone w/ libs/.golangci.yml, vet both, race
+    both), integration 8/8 race-clean. FIXED the HNS-1 abbreviations the forbidigo token-list missed:
+    TemplateVer→TemplateVersion, the *Vw view-DTO suffix→*View (stateView/messageView/etc.) — gate still green.
+    OPEN ITEM (deferred to the frontend sub-wave, recorded honestly): cmd/agentgateway/main.go is a documented
+    bootstrap stub — the real composition root (wire the real orchestrator.Pool + agentsession.Pool-over-
+    claudeadapter + workspaceprovider + a real listener) needs the kernel composition wiring AND Mateo's
+    setup-token; a DEV-serve composition (fakes over a real listener, for the frontend to develop against)
+    builds with the frontend. The gateway HANDLER itself is fully wired + httptest-proven, so REQ-0020..0024 are
+    covered. No stragglers.
+  - **agentgateway (workflow ref)** — task wa97yv5b1 / run
     wf_04649f8c-759, Opus impl→adversarial-verify; does NOT commit). A Go HTTP/SSE backend-for-frontend in
     apps/agentgateway (eden repo, NOT the submodule; module github.com/gophersys/eden/apps/agentgateway) wrapping
     orchestrator.Manager + agentsession.Pool: REST spawn/list/get/stop/resume + transcript read, and per-session
