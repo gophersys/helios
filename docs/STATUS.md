@@ -126,3 +126,22 @@ When Wave 3A completes:
 - Render toolchain lives at `/tmp/eden-render/node_modules` (marked, mermaid, jsdom) — used by
   `docs/tools/*.mjs` via `NODE_PATH`. Consolidate into repo `node_modules` via root `yarn install`
   once safe (deferred while the frontend's install is in flight). Tracked so it's not forgotten.
+
+## workspaceprovider — consolidated blocker ledger (all 3 reviews, 2026-06-13)
+
+Lifecycle/exec/files/teardown plane: REAL + green + leak-free (k3d conformance 48s, docker+k3d+kind).
+Security/credential/OOM plane: FAKED — must fix before workspaceprovider is truly done:
+- B1 docker egress CapPartial declared, spec.Egress never read (faked capability) → impl real OR CapAbsent
+- B2 egress fail-closed conformance asserts only `if isFake` → make REAL on declared substrate, or honest SKIP for Absent
+- B3 idempotency: incompatible-spec re-Provision never yields ConflictError (findExisting does no spec compare)
+- B4 all-or-nothing rollback + resource-limit OOM conformance fake-only/skip on real substrates
+- B5 surface drift: Connection/RunDriver/Probe/Provisioner + New→*Provisioner not *Substrate (Substrate name
+  collision = genuine frozen-contract defect) → ratify as contract amendment
+- B6 MountSecret credential material DROPPED on both adapters (resolved.Mounts consumed by no one → empty file)
+- B7 k8s adapter ignores resolved.PullSecret (no dockerconfigjson, no ImagePullSecrets) → private pull can't auth;
+  adapters NOT substitutable on credential seam
+- B8 OOM RunStatus.Condition structurally never delivered on real path (Run=exec into hold container)
+Hardening wave wxgxfvuvx covers B1-B5. NEXT iteration must also fix B6/B7 (credentials = crown jewels, 07 §2 —
+really-implement, not deferrable) and decide B8 (honest CapAbsent + deferred, or restructure Run).
+DECISIVE RULE: every declared capability is really-implemented AND really-tested on a real substrate, OR
+declared CapAbsent + gap recorded + contract amended. No fake-passes, ever.
