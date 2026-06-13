@@ -1,0 +1,190 @@
+// Package testingtest holds the public FAKES for testing's own ports (Clock,
+// RandomSource) plus the *testing.T adapters. They live HERE, not in package
+// testing, so production code that imports the fakes does not pull in stdlib
+// "testing" (10 §6.1 <pattern>test convention). Per-pattern fakes (FakeSink, …)
+// live in THEIR own <pattern>test; this package holds only the two universal fakes
+// and the suite adapters.
+package testingtest
+
+import (
+	"context"
+	stdtesting "testing"
+	"time"
+
+	"github.com/gophersys/libs/go/dependencies"
+	testingpkg "github.com/gophersys/libs/go/testing"
+	"github.com/gophersys/libs/go/testing/internal/deterministic"
+)
+
+// FakeClock is virtual-time: it NEVER advances on its own. Tests drive time
+// explicitly via Advance, which is what makes timeout/retry/backoff/hibernate
+// logic deterministic. It implements dependencies.Clock exactly (Now + After);
+// Advance is the test-only affordance, not part of the port. Concurrency: every
+// method is goroutine-safe; Advance releases all After channels whose deadline it
+// crosses, in deadline order, before returning. Zero start
+// (NewFakeClock(time.Time{})) → the Unix epoch.
+//
+// FakeClock is a type ALIAS of the internal virtual-time engine so the public fake
+// and the Runner's vended Clock are the SAME concrete type sharing ONE frozen
+// timeline algorithm (contract open question 6). The alias is what makes the §5
+// affordance fakes.Clock.(*testingtest.FakeClock).Advance(...) succeed on a Clock
+// the core's Runner.Fakes() vends, with no import cycle (the engine is internal;
+// this alias re-exports it without exposing the internal package to consumers).
+type FakeClock = deterministic.Clock
+
+// NewFakeClock builds a virtual FakeClock starting at start (zero start → the Unix
+// epoch).
+func NewFakeClock(start time.Time) *FakeClock { return deterministic.NewClock(start) }
+
+var _ dependencies.Clock = (*FakeClock)(nil)
+
+// FakeRandomSource is a deterministic, reproducible byte stream from seed. NOT
+// crypto-secure — tests only; production binds crypto/rand. Concurrency: Read is
+// serialized; identical seed + identical Read call sequence ⇒ identical bytes,
+// forever (a maintained, version-pinned guarantee — open question 6).
+//
+// Like FakeClock, it is a type ALIAS of the internal engine so the public fake and
+// the Runner's vended RandomSource are the same concrete type over ONE frozen
+// byte-stream algorithm.
+type FakeRandomSource = deterministic.Random
+
+// NewFakeRandomSource builds a deterministic entropy stream from seed.
+func NewFakeRandomSource(seed uint64) *FakeRandomSource { return deterministic.NewRandom(seed) }
+
+var _ dependencies.RandomSource = (*FakeRandomSource)(nil)
+
+// ── Adapters from stdlib testing into the assertion-free core ───────────────
+
+// NewReport adapts *testing.T to testing.Report so a go test drives any Suite in
+// one line; the core stays stdlib-testing-free. Skipf maps to t.Skipf.
+func NewReport(t *stdtesting.T) testingpkg.Report { return tReport{t: t} }
+
+// tReport bridges the assertion-free Report onto *testing.T.
+type tReport struct{ t *stdtesting.T }
+
+func (r tReport) Errorf(format string, args ...any) { r.t.Helper(); r.t.Errorf(format, args...) }
+func (r tReport) Fatalf(format string, args ...any) { r.t.Helper(); r.t.Fatalf(format, args...) }
+func (r tReport) Skipf(format string, args ...any)  { r.t.Helper(); r.t.Skipf(format, args...) }
+
+// NewHarness builds a standalone testing.Harness for wiring fakes into a library's
+// own unit test outside RunSuite. Capabilities default to present.
+func NewHarness(t *stdtesting.T, opts ...HarnessOption) testingpkg.Harness {
+	t.Helper()
+	cfg := harnessConfig{epoch: time.Time{}, seed: 0, absentCaps: map[string]struct{}{}}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	h := &tHarness{
+		t:          t,
+		clock:      NewFakeClock(cfg.epoch),
+		random:     NewFakeRandomSource(cfg.seed),
+		absentCaps: cfg.absentCaps,
+		ctx:        context.Background(),
+	}
+	return h
+}
+
+// harnessConfig accumulates HarnessOption mutations.
+type harnessConfig struct {
+	epoch      time.Time
+	seed       uint64
+	absentCaps map[string]struct{}
+}
+
+// HarnessOption configures a standalone Harness built by NewHarness.
+type HarnessOption func(*harnessConfig)
+
+// WithSeed seeds the FakeRandomSource the Harness vends.
+func WithSeed(seed uint64) HarnessOption {
+	return func(c *harnessConfig) { c.seed = seed }
+}
+
+// WithEpoch anchors the FakeClock the Harness vends (zero → the Unix epoch).
+func WithEpoch(epoch time.Time) HarnessOption {
+	return func(c *harnessConfig) { c.epoch = epoch }
+}
+
+// WithoutCapability marks name as absent so Has(name) reports false — the seam a
+// capability-gated case uses to skip cleanly.
+func WithoutCapability(name string) HarnessOption {
+	return func(c *harnessConfig) { c.absentCaps[name] = struct{}{} }
+}
+
+// tHarness is the standalone Harness. Capabilities default present: Has reports
+// true unless WithoutCapability marked the name absent. Cleanup is registered on
+// t.Cleanup so it runs LIFO at the end of the test (the stdlib guarantee).
+type tHarness struct {
+	t          *stdtesting.T
+	clock      *FakeClock
+	random     *FakeRandomSource
+	absentCaps map[string]struct{}
+	ctx        context.Context
+}
+
+func (h *tHarness) Clock() testingpkg.Clock               { return h.clock }
+func (h *tHarness) RandomSource() testingpkg.RandomSource { return h.random }
+func (h *tHarness) Context() context.Context              { return h.ctx }
+
+// Has reports capability presence; defaults to present unless explicitly removed.
+func (h *tHarness) Has(capability string) bool {
+	_, absent := h.absentCaps[capability]
+	return !absent
+}
+
+// Cleanup registers fn on the underlying *testing.T (LIFO at test end).
+func (h *tHarness) Cleanup(fn func()) { h.t.Cleanup(fn) }
+
+// AssertResult fails t if any case in r failed or panicked — the bridge from a
+// structured Result back to go test's pass/fail. Skips do not fail t.
+func AssertResult(t *stdtesting.T, r testingpkg.Result) {
+	t.Helper()
+	for _, line := range resultReport(r) {
+		if line.fail {
+			t.Errorf("%s", line.text)
+		} else {
+			t.Logf("%s", line.text)
+		}
+	}
+}
+
+// reportLine is one rendered diagnostic from a Result: a failing case yields a
+// fail line, a skip yields an informational log line, a pass yields nothing.
+type reportLine struct {
+	fail bool
+	text string
+}
+
+// resultReport is the pure decision core of AssertResult, factored out so the
+// fail/skip routing is unit-testable WITHOUT failing a real *testing.T (a failing
+// subtest unavoidably fails its parent). AssertResult is the thin *testing.T
+// binding over this.
+func resultReport(r testingpkg.Result) []reportLine {
+	var lines []reportLine
+	for _, c := range r.Cases {
+		switch c.Outcome {
+		case testingpkg.Fail:
+			if c.Panic != "" {
+				lines = append(lines, reportLine{fail: true,
+					text: "conformance " + r.Suite + "/" + c.Name + " PANICKED: " + c.Panic})
+			} else {
+				lines = append(lines, reportLine{fail: true,
+					text: "conformance " + r.Suite + "/" + c.Name + " FAILED: " + joinMessages(c.Messages)})
+			}
+		case testingpkg.Skip:
+			lines = append(lines, reportLine{fail: false,
+				text: "conformance " + r.Suite + "/" + c.Name + " skipped: " + joinMessages(c.Messages)})
+		}
+	}
+	return lines
+}
+
+func joinMessages(msgs []string) string {
+	out := ""
+	for i, m := range msgs {
+		if i > 0 {
+			out += "; "
+		}
+		out += m
+	}
+	return out
+}

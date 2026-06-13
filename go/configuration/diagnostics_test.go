@@ -1,0 +1,148 @@
+package configuration_test
+
+import (
+	"testing"
+
+	cfg "github.com/gophersys/libs/go/configuration"
+)
+
+// --- Path ---
+
+func TestPath_Child(t *testing.T) {
+	var root cfg.Path // empty == root
+	got := root.Child("engine")
+	if got != "engine" {
+		t.Fatalf("root.Child(engine) = %q, want %q", got, "engine")
+	}
+	got = got.Child("models")
+	if got != "engine.models" {
+		t.Fatalf("Child chained = %q, want %q", got, "engine.models")
+	}
+}
+
+func TestPath_Index(t *testing.T) {
+	p := cfg.Path("engine.models").Index(0).Child("auth")
+	if p != "engine.models[0].auth" {
+		t.Fatalf("Index/Child chain = %q, want %q", p, "engine.models[0].auth")
+	}
+}
+
+func TestPath_ChildOnRootHasNoLeadingDot(t *testing.T) {
+	if got := cfg.Path("").Child("a"); got != "a" {
+		t.Fatalf("empty.Child(a) = %q, want %q (no leading dot)", got, "a")
+	}
+}
+
+// --- Diagnostics: zero value ---
+
+func TestDiagnostics_ZeroValueIsEmptyUsableSink(t *testing.T) {
+	var d cfg.Diagnostics
+	if d.HasError() {
+		t.Fatal("zero Diagnostics.HasError() = true, want false")
+	}
+	if got := d.All(); got != nil {
+		t.Fatalf("zero Diagnostics.All() = %v, want nil", got)
+	}
+}
+
+func TestDiagnostics_Append(t *testing.T) {
+	var d cfg.Diagnostics
+	d.Append(cfg.Diagnostic{Severity: cfg.SeverityWarning, Summary: "w"})
+	if d.HasError() {
+		t.Fatal("warning-only HasError() = true, want false")
+	}
+	d.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "e"})
+	if !d.HasError() {
+		t.Fatal("after error Append HasError() = false, want true")
+	}
+	if got := len(d.All()); got != 2 {
+		t.Fatalf("All() len = %d, want 2", got)
+	}
+}
+
+func TestDiagnostics_AppendVariadic(t *testing.T) {
+	var d cfg.Diagnostics
+	d.Append(
+		cfg.Diagnostic{Severity: cfg.SeverityWarning, Summary: "a"},
+		cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "b"},
+	)
+	if got := len(d.All()); got != 2 {
+		t.Fatalf("variadic Append len = %d, want 2", got)
+	}
+	if !d.HasError() {
+		t.Fatal("variadic Append HasError() = false, want true")
+	}
+}
+
+// All() returns a copy: mutating it must not affect the sink.
+func TestDiagnostics_AllReturnsCopy(t *testing.T) {
+	var d cfg.Diagnostics
+	d.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "x"})
+	got := d.All()
+	got[0].Summary = "MUTATED"
+	if d.All()[0].Summary != "x" {
+		t.Fatal("mutating All() result leaked back into the sink")
+	}
+	// Appending to the returned slice must not grow the sink either.
+	got = append(got, cfg.Diagnostic{Summary: "extra"}) //nolint:staticcheck
+	_ = got
+	if len(d.All()) != 1 {
+		t.Fatal("appending to All() result grew the sink")
+	}
+}
+
+// Diagnostics has value semantics on copy: copying the struct then appending to
+// the copy must not affect the original (Append is the only mutator, *D).
+func TestDiagnostics_ValueSemanticsOnCopy(t *testing.T) {
+	var d cfg.Diagnostics
+	d.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "orig"})
+	cp := d
+	cp.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "added"})
+	if len(d.All()) != 1 {
+		t.Fatalf("appending to a copy mutated original: original len = %d, want 1", len(d.All()))
+	}
+}
+
+// All() is ordered by At.Source then At.Position.
+func TestDiagnostics_AllOrderedBySourceThenPosition(t *testing.T) {
+	var d cfg.Diagnostics
+	d.Append(
+		cfg.Diagnostic{At: cfg.Position{Source: "b.yaml", Line: 1}, Summary: "b1"},
+		cfg.Diagnostic{At: cfg.Position{Source: "a.yaml", Line: 9}, Summary: "a9"},
+		cfg.Diagnostic{At: cfg.Position{Source: "a.yaml", Line: 2, Column: 5}, Summary: "a2c5"},
+		cfg.Diagnostic{At: cfg.Position{Source: "a.yaml", Line: 2, Column: 1}, Summary: "a2c1"},
+	)
+	got := d.All()
+	want := []string{"a2c1", "a2c5", "a9", "b1"}
+	if len(got) != len(want) {
+		t.Fatalf("All() len = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i].Summary != want[i] {
+			t.Fatalf("All()[%d].Summary = %q, want %q (order: %v)", i, got[i].Summary, want[i], summaries(got))
+		}
+	}
+}
+
+func summaries(ds []cfg.Diagnostic) []string {
+	out := make([]string, len(ds))
+	for i, d := range ds {
+		out[i] = d.Summary
+	}
+	return out
+}
+
+// Diagnostic is a comparable value type (the contract calls it comparable).
+func TestDiagnostic_IsComparable(t *testing.T) {
+	a := cfg.Diagnostic{Severity: cfg.SeverityError, Path: "x", At: cfg.Position{Source: "s", Line: 1}, Summary: "sum", Detail: "det"}
+	b := a
+	if a != b { //nolint:staticcheck // intentional comparability assertion
+		t.Fatal("identical Diagnostics compared unequal; type must be comparable")
+	}
+}
+
+func TestSeverity_Ordering(t *testing.T) {
+	if cfg.SeverityWarning >= cfg.SeverityError {
+		t.Fatalf("SeverityWarning (%d) must order before SeverityError (%d)", cfg.SeverityWarning, cfg.SeverityError)
+	}
+}
