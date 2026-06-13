@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+#
+# .githooks/pre-push — Eden client-side gate, the fuller suite (ADR-0018 Layer 1).
+#
+# pre-commit is the fast inner loop; pre-push runs the heavier checks once, over every
+# Go file changed in the commits being pushed:
+#   1. golangci-lint (full)  per touched module   (the complete curated linter set)
+#   2. hnslint               per touched libs/go/<lib>
+#   3. go test -race         per touched module    (the cost we defer out of the inner loop)
+#
+# Any failure blocks the push. Bypass (discouraged) with `git push --no-verify`; CI
+# re-runs the identical gate (10 §8).
+#
+# git invokes pre-push with `<remote> <url>` as $1 $2 and feeds
+#   `<local-ref> <local-sha> <remote-ref> <remote-sha>` lines on stdin.
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+# shellcheck source-path=SCRIPTDIR
+# shellcheck disable=SC1091
+source "$(git rev-parse --show-toplevel)/.githooks/lib/common.sh"
+
+Z40="0000000000000000000000000000000000000000"
+
+# Collect the union of changed Go files across every ref being pushed.
+declare -a CHANGED=()
+range=""
+range_base=""
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [[ -z "${local_sha:-}" ]] && continue
+  [[ "$local_sha" == "$Z40" ]] && continue          # branch deletion — nothing to check
+
+  if [[ "$remote_sha" == "$Z40" ]]; then
+    # New branch on the remote: diff against whatever it already has, else just this commit.
+    if range_base="$(git rev-list "$local_sha" --not --remotes 2>/dev/null | tail -1)" \
+       && [[ -n "$range_base" ]]; then
+      range="${range_base}^..${local_sha}"
+      git rev-parse --verify --quiet "${range_base}^" >/dev/null 2>&1 || range="${local_sha}"
+    else
+      range="$local_sha"
+    fi
+  else
+    range="${remote_sha}..${local_sha}"
+  fi
+
+  while IFS= read -r f; do [[ -n "$f" ]] && CHANGED+=("$f"); done \
+    < <(hook_changed_go_files_range "$range")
+done
+
+if [[ ${#CHANGED[@]} -eq 0 ]]; then
+  exit 0   # no Go changes in this push
+fi
+
+# Unique the file list.
+hook_read_lines CHANGED < <(printf '%s\n' "${CHANGED[@]}" | sort -u)
+hook_info "pre-push: ${#CHANGED[@]} changed Go file(s) across pushed commits"
+FAILED=0
+
+# --- 1+3. per-module: full lint + race tests -----------------------------------------
+hook_read_lines MODULES < <(printf '%s\n' "${CHANGED[@]}" | hook_unique_modules)
+if [[ ${#MODULES[@]} -gt 0 ]]; then
+  for md in "${MODULES[@]}"; do
+    rel="${md#"$REPO_ROOT"/}"
+    hook_info "golangci-lint (full) → $rel"
+    hook_golangci_module_full "$md" || { hook_fail "golangci-lint issues in $rel"; FAILED=1; }
+    hook_info "go test -race → $rel"
+    hook_gotest_module "$md" || { hook_fail "tests failed in $rel"; FAILED=1; }
+  done
+fi
+
+# --- 2. hnslint per touched lib -------------------------------------------------------
+hook_read_lines LIBS < <(printf '%s\n' "${CHANGED[@]}" | hook_touched_libs_go)
+if [[ ${#LIBS[@]} -gt 0 ]]; then
+  for lib in "${LIBS[@]}"; do
+    hook_info "hnslint → $lib"
+    hook_hnslint_lib "$lib" || FAILED=1
+  done
+fi
+
+if [[ $FAILED -ne 0 ]]; then
+  hook_fail "push blocked — fix the violations above, then push again."
+  hook_dim  "(emergency bypass: git push --no-verify — but CI runs the same gate)"
+  exit 1
+fi
+
+hook_ok "pre-push gate passed"
+exit 0

@@ -42,3 +42,17 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
 - `libs/`, `infrastructure/`, `.devcontainer/` are git submodules — separate repos, separate
   commits.
 - Nx Cloud is disabled in `nx.json` (ratified in ADR-0010); keep it that way.
+
+## Go enforcement (ADR-0018)
+
+- **Git hooks (one-time setup):** the tracked hooks live in `.githooks/`. Point git at them:
+  `git config core.hooksPath .githooks`. `pre-commit` runs gofumpt + golangci-lint (per touched
+  module) + hnslint (per touched `libs/go/<lib>`) on the staged Go; `pre-push` adds `go test -race`
+  per touched module. Bypass with `--no-verify` only in emergencies — CI re-runs the identical gate.
+- **AI authoring (Layer 2):** the `project-go` Claude Code plugin (`libs/plugins/project-go/`,
+  registered in `libs/.claude-plugin/marketplace.json`) injects `libs/.claude/rules/` at session
+  start, lints every `*.go` edit (PostToolUse), and gates `git commit`/`push` (PreToolUse). Install:
+  `claude plugin marketplace add ./libs && claude plugin install project-go@eden-libs`.
+- **`hnslint`** (structural HNS-1) is `tools/hnslint`; install with
+  `(cd tools/hnslint && GOWORK=off go install ./cmd/hnslint)`. The shared linter config is
+  `libs/.golangci.yml`.
