@@ -38,8 +38,16 @@
   active (core.hooksPath=.githooks); a staged `cfg:=3` is now blocked — verified.
 - **Notion frontend** ✅ COMPLETE + COMMITTED + PUSHED: apps/frontend rich block renderer + reading
   shell (outline/scrollspy, tier nav, breadcrumbs) on the Eden tokens + projection seam.
-- **NEXT: ADR-0017 review wave on the six libraries** (cohesion + true-coverage + adversarial),
-  then Wave 3B.
+- **ADR-0017 review wave** ✅ COMPLETE + COMMITTED (libs 89f90f3): found real value —
+  a JSON stack-overflow DoS blocker in configuration (now bounded at maxJSONDepth=256 + regression
+  test), plus coverage/correctness fixes in dependencies/testing/secrets/observability. Caught that
+  the review fixers themselves introduced regressions (errors contract drift CANCELED->CANCELLED →
+  reverted; testing/observability lint) — fixed before commit. All six green (golangci 0, race 0).
+  Note: golangci is non-deterministic across the shared workspace under parallelism — run the gate
+  sequentially/isolated (the hooks already do; CI lanes must too).
+- **NEXT: Wave 3B** — substrate adapters (workspaceprovider docker+k3d, real integration tests),
+  gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0, agent-session backend +
+  chat UI, Playwright E2E.
 - **New directives captured 2026-06-13** (intake C26/C27, REQ-0027/0028, doc 13, ADR-0019):
   - **Git workflow standard** (doc 13) — one workflow machine for docs/architecture/implementation;
     branch/commit grammar; worktrees; merge agents. TOOLING (branch-name hook + merge-agent role)
