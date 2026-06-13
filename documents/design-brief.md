@@ -22,6 +22,7 @@ data:
   design_system_reference: "artifact://design-system/eden-tokens-v0"
   token_hints:
     - "Visual identity LOCKED per intake C21 (2026-06-12-design-assets.pdf): palette Deep Forest #243D2C (primary surface) · Moss #5C7F5C (accent) · Sage #A8B89C (support) · Bone #F4F1E8 (background/text-on-dark) · Ink #1A1A1A (text-on-light); light-first."
+    - "🔶 Dark variant is DERIVED, not specified: the C21 identity is light-first with no dark palette; v0 derives dark mode from the same five tokens (Ink/Deep-Forest grounds, Bone text, Moss accent) behind prefers-color-scheme. Subject to veto/refinement."
     - "Typography locked, three families/three roles (C21): Fraunces (display), Inter (text), JetBrains Mono (code); scale per the tokens artifact (artifact://design-system/eden-tokens-v0, materialized at documents/design-system/tokens.json). Component/behavior layer remains OPEN (OD-1)."
     - "Density as the default: the engineer's views (PER-0002) carry information at high density; the founder's views (PER-0001) lift the non-technical signal out of that density without forking the tool."
     - "Diagrams are a primary type, not decoration: the architecture diagram is a working surface that doubles as a live production view (C10)."

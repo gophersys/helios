@@ -1,0 +1,6 @@
+# SvelteKit + Vite generated output and the embedded validator binary — never linted.
+.svelte-kit/
+build/
+.eden/
+node_modules/
+static/

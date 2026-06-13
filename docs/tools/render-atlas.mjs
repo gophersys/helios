@@ -414,29 +414,63 @@ const navHtml = NAV.map((n) =>
 
 // ── styles (reuses render-html.mjs's palette + variables) ───────────────────────
 const css = `
+/* Eden visual identity (documents/design-system/tokens.json, intake C21) — light-first,
+   dark variant derived from the SAME five locked colors:
+     Bone #F4F1E8 · Ink #1A1A1A · Deep Forest #243D2C · Moss #5C7F5C · Sage #A8B89C.
+   The epistemic-legend badges (✅🔶⚠️🧩) are differentiated along the Sage→Moss→Deep-Forest
+   depth axis rather than separate hues — the identity locks one accent. */
 :root{
-  --bg:#ffffff; --fg:#1d2129; --muted:#5b6472; --line:#e3e6ea; --accent:#2563eb;
-  --chipbg:#eef2f7; --codebg:#f5f6f8; --quote:#f7f8fa; --navbg:#fafbfc; --th:#f0f2f5;
-  --card:#ffffff; --cardhover:#f6f9ff;
-  --ok-bg:#e6f4ea; --ok-fg:#1f7a3d; --hyp-bg:#fff4e0; --hyp-fg:#9a6300;
-  --warn-bg:#fdeaea; --warn-fg:#b3261e; --design-bg:#f0eafb; --design-fg:#6c3fb0;
+  --color-bone:#f4f1e8; --color-ink:#1a1a1a; --color-deep-forest:#243d2c;
+  --color-moss:#5c7f5c; --color-sage:#a8b89c;
+  --color-background:var(--color-bone); --color-text:var(--color-ink);
+  --color-surface-primary:var(--color-deep-forest); --color-text-on-surface:var(--color-bone);
+  --color-accent:var(--color-moss); --color-support:var(--color-sage);
+  --font-display:'Fraunces',Georgia,serif;
+  --font-text:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-code:'JetBrains Mono',ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --bg:var(--color-bone); --fg:var(--color-ink);
+  --muted:color-mix(in srgb, var(--color-ink) 58%, var(--color-bone));
+  --line:color-mix(in srgb, var(--color-ink) 14%, var(--color-bone));
+  --accent:var(--color-moss);
+  --chipbg:color-mix(in srgb, var(--color-sage) 30%, var(--color-bone));
+  --codebg:color-mix(in srgb, var(--color-sage) 20%, var(--color-bone));
+  --quote:color-mix(in srgb, var(--color-sage) 16%, var(--color-bone));
+  --navbg:color-mix(in srgb, var(--color-sage) 12%, var(--color-bone));
+  --th:color-mix(in srgb, var(--color-sage) 24%, var(--color-bone));
+  --card:color-mix(in srgb, var(--color-bone) 92%, white); --cardhover:color-mix(in srgb, var(--color-sage) 16%, var(--color-bone));
+  /* legend badges: verified→Deep-Forest, hypothesis→Sage, corrected→Ink, design→Moss */
+  --ok-bg:color-mix(in srgb, var(--color-moss) 24%, var(--color-bone)); --ok-fg:var(--color-deep-forest);
+  --hyp-bg:color-mix(in srgb, var(--color-sage) 46%, var(--color-bone)); --hyp-fg:var(--color-deep-forest);
+  --warn-bg:color-mix(in srgb, var(--color-ink) 10%, var(--color-bone)); --warn-fg:color-mix(in srgb, var(--color-ink) 78%, var(--color-bone));
+  --design-bg:color-mix(in srgb, var(--color-moss) 16%, var(--color-bone)); --design-fg:var(--color-moss);
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#15171b; --fg:#e6e8ec; --muted:#9aa3b0; --line:#2a2e35; --accent:#7aa2ff;
-    --chipbg:#23272e; --codebg:#1e2126; --quote:#1b1e23; --navbg:#191c20; --th:#20242a;
-    --card:#1b1e23; --cardhover:#1f2530;
-    --ok-bg:#173524; --ok-fg:#76d39a; --hyp-bg:#3a2c12; --hyp-fg:#e8c07a;
-    --warn-bg:#3a1d1d; --warn-fg:#f0a3a0; --design-bg:#2c2440; --design-fg:#c7a9f0;
+    --color-background:var(--color-ink); --color-text:var(--color-bone);
+    --bg:var(--color-ink); --fg:var(--color-bone);
+    --muted:color-mix(in srgb, var(--color-bone) 56%, var(--color-ink));
+    --line:color-mix(in srgb, var(--color-bone) 16%, var(--color-ink));
+    --accent:color-mix(in srgb, var(--color-moss) 72%, var(--color-bone));
+    --chipbg:color-mix(in srgb, var(--color-deep-forest) 60%, var(--color-ink));
+    --codebg:color-mix(in srgb, var(--color-bone) 6%, var(--color-ink));
+    --quote:color-mix(in srgb, var(--color-deep-forest) 35%, var(--color-ink));
+    --navbg:color-mix(in srgb, var(--color-deep-forest) 22%, var(--color-ink));
+    --th:color-mix(in srgb, var(--color-deep-forest) 45%, var(--color-ink));
+    --card:color-mix(in srgb, var(--color-deep-forest) 18%, var(--color-ink)); --cardhover:color-mix(in srgb, var(--color-deep-forest) 30%, var(--color-ink));
+    --ok-bg:color-mix(in srgb, var(--color-moss) 32%, var(--color-ink)); --ok-fg:color-mix(in srgb, var(--color-sage) 78%, var(--color-bone));
+    --hyp-bg:color-mix(in srgb, var(--color-sage) 26%, var(--color-ink)); --hyp-fg:color-mix(in srgb, var(--color-sage) 82%, var(--color-bone));
+    --warn-bg:color-mix(in srgb, var(--color-bone) 12%, var(--color-ink)); --warn-fg:color-mix(in srgb, var(--color-bone) 70%, var(--color-ink));
+    --design-bg:color-mix(in srgb, var(--color-moss) 30%, var(--color-ink)); --design-fg:color-mix(in srgb, var(--color-moss) 65%, var(--color-bone));
   }
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
   margin:0; background:var(--bg); color:var(--fg);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:16px; line-height:1.65; display:flex;
+  font-family:var(--font-text);
+  font-size:18px; line-height:1.65; display:flex;
 }
+h1,h2,h3{font-family:var(--font-display)}
 nav{
   width:280px; min-width:280px; height:100vh; position:sticky; top:0; overflow-y:auto;
   background:var(--navbg); border-right:1px solid var(--line); padding:1.2rem .9rem 3rem;
@@ -450,7 +484,8 @@ nav a:hover{background:var(--chipbg)}
 nav .nchip{
   display:inline-block; min-width:2.1rem; text-align:center; margin-right:.55rem;
   background:var(--chipbg); color:var(--muted); border-radius:5px;
-  font-size:.66rem; font-weight:700; padding:.1rem .3rem; vertical-align:1px;
+  font-family:var(--font-code); font-size:.66rem; font-weight:600; letter-spacing:.04em;
+  padding:.1rem .3rem; vertical-align:1px;
 }
 nav .legend{margin:1.4rem .35rem 0; font-size:.72rem; color:var(--muted); line-height:1.9}
 nav .legend .badge{margin-right:.3rem}
@@ -462,13 +497,14 @@ h1{font-size:1.85rem; line-height:1.2; margin:.2rem 0 .3rem; letter-spacing:-.02
 section{border-top:3px solid var(--line); margin-top:2.8rem; padding-top:1.5rem; scroll-margin-top:1rem}
 section:first-of-type{border-top:none; margin-top:.6rem; padding-top:0}
 .sec-chip{
-  display:inline-block; background:var(--chipbg); color:var(--muted); font-weight:700;
-  font-size:.68rem; letter-spacing:.06em; border-radius:6px; padding:.16rem .5rem; margin-bottom:.5rem;
+  display:inline-block; background:var(--chipbg); color:var(--muted);
+  font-family:var(--font-code); font-weight:600; text-transform:uppercase;
+  font-size:.68rem; letter-spacing:.08em; border-radius:6px; padding:.16rem .5rem; margin-bottom:.5rem;
 }
 h2{font-size:1.4rem; margin:.1rem 0 .4rem; letter-spacing:-.015em}
 .sec-blurb{color:var(--muted); font-size:.92rem; margin:.1rem 0 1.2rem; max-width:80ch}
 a{color:var(--accent)}
-code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.84em; background:var(--codebg); border-radius:4px; padding:.1em .35em}
+code{font-family:var(--font-code); font-size:.84em; background:var(--codebg); border-radius:4px; padding:.1em .35em}
 
 /* breadcrumb (doc 12 §2) */
 .breadcrumb{font-size:.82rem; margin:0 0 1.2rem; display:flex; flex-wrap:wrap; align-items:center; gap:.1rem}
@@ -495,7 +531,7 @@ code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.84e
 }
 .card:hover{background:var(--cardhover); border-color:var(--accent)}
 .card-title{font-weight:650; font-size:.98rem; margin-bottom:.1rem}
-.card-meta{font-size:.74rem; color:var(--accent); margin-bottom:.45rem; font-family:"SF Mono",ui-monospace,Menlo,monospace}
+.card-meta{font-size:.74rem; color:var(--accent); margin-bottom:.45rem; font-family:var(--font-code)}
 .card-why{font-size:.84rem; color:var(--muted); line-height:1.5}
 
 /* tables */
@@ -519,7 +555,7 @@ table.altitude code{white-space:nowrap}
 .paths{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1rem}
 .path{border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; background:var(--card)}
 .path-head{display:flex; align-items:center; gap:.6rem; margin-bottom:.3rem}
-.path-num{display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%; background:var(--accent); color:#fff; font-weight:700; font-size:.8rem}
+.path-num{display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:50%; background:var(--accent); color:var(--color-text-on-surface); font-weight:700; font-size:.8rem}
 .path-title{font-weight:650; font-size:1rem}
 .path-blurb{font-size:.82rem; color:var(--muted); margin:.2rem 0 .7rem}
 .path-steps{margin:0; padding-left:1.3rem; font-size:.86rem}
@@ -573,6 +609,11 @@ const page = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Eden Atlas — unified consumption entry point</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Eden's three locked families (tokens.json). Online viewing gets exact fonts;
+     offline falls back to the per-role stacks in :root — the self-contained-file compromise. -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>${css}</style>
 </head>
 <body>

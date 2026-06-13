@@ -118,24 +118,53 @@ for (const d of DOCS) {
 }
 
 const css = `
+/* Eden visual identity (documents/design-system/tokens.json, intake C21) — light-first,
+   with a dark variant derived from the SAME five locked colors:
+     Bone #F4F1E8 · Ink #1A1A1A · Deep Forest #243D2C · Moss #5C7F5C · Sage #A8B89C.
+   Every working token below resolves to one of those five or a token-derived alpha. */
 :root{
-  --bg:#ffffff; --fg:#1d2129; --muted:#5b6472; --line:#e3e6ea; --accent:#2563eb;
-  --chipbg:#eef2f7; --codebg:#f5f6f8; --quote:#f7f8fa; --navbg:#fafbfc; --th:#f0f2f5;
+  --color-bone:#f4f1e8; --color-ink:#1a1a1a; --color-deep-forest:#243d2c;
+  --color-moss:#5c7f5c; --color-sage:#a8b89c;
+  --color-background:var(--color-bone); --color-text:var(--color-ink);
+  --color-surface-primary:var(--color-deep-forest); --color-text-on-surface:var(--color-bone);
+  --color-accent:var(--color-moss); --color-support:var(--color-sage);
+  --font-display:'Fraunces',Georgia,serif;
+  --font-text:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-code:'JetBrains Mono',ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --bg:var(--color-bone); --fg:var(--color-ink);
+  --muted:color-mix(in srgb, var(--color-ink) 58%, var(--color-bone));
+  --line:color-mix(in srgb, var(--color-ink) 14%, var(--color-bone));
+  --accent:var(--color-moss);
+  --chipbg:color-mix(in srgb, var(--color-sage) 30%, var(--color-bone));
+  --codebg:color-mix(in srgb, var(--color-sage) 20%, var(--color-bone));
+  --quote:color-mix(in srgb, var(--color-sage) 16%, var(--color-bone));
+  --navbg:color-mix(in srgb, var(--color-sage) 12%, var(--color-bone));
+  --th:color-mix(in srgb, var(--color-sage) 24%, var(--color-bone));
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#15171b; --fg:#e6e8ec; --muted:#9aa3b0; --line:#2a2e35; --accent:#7aa2ff;
-    --chipbg:#23272e; --codebg:#1e2126; --quote:#1b1e23; --navbg:#191c20; --th:#20242a;
+    /* Derived from the same five: Ink ground, Deep-Forest surfaces, Bone text, Moss accent. */
+    --color-background:var(--color-ink); --color-text:var(--color-bone);
+    --bg:var(--color-ink); --fg:var(--color-bone);
+    --muted:color-mix(in srgb, var(--color-bone) 56%, var(--color-ink));
+    --line:color-mix(in srgb, var(--color-bone) 16%, var(--color-ink));
+    --accent:color-mix(in srgb, var(--color-moss) 72%, var(--color-bone));
+    --chipbg:color-mix(in srgb, var(--color-deep-forest) 60%, var(--color-ink));
+    --codebg:color-mix(in srgb, var(--color-bone) 6%, var(--color-ink));
+    --quote:color-mix(in srgb, var(--color-deep-forest) 35%, var(--color-ink));
+    --navbg:color-mix(in srgb, var(--color-deep-forest) 22%, var(--color-ink));
+    --th:color-mix(in srgb, var(--color-deep-forest) 45%, var(--color-ink));
   }
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
   margin:0; background:var(--bg); color:var(--fg);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:16px; line-height:1.65;
+  font-family:var(--font-text);
+  font-size:18px; line-height:1.65;
   display:flex;
 }
+h1,h2,h3{font-family:var(--font-display)}
 nav{
   width:300px; min-width:300px; height:100vh; position:sticky; top:0; overflow-y:auto;
   background:var(--navbg); border-right:1px solid var(--line); padding:1.2rem .9rem 3rem;
@@ -149,7 +178,8 @@ nav a:hover{background:var(--chipbg)}
 nav .nchip{
   display:inline-block; min-width:2.1rem; text-align:center; margin-right:.5rem;
   background:var(--chipbg); color:var(--muted); border-radius:5px;
-  font-size:.66rem; font-weight:700; padding:.08rem .3rem; vertical-align:1px;
+  font-family:var(--font-code); font-size:.66rem; font-weight:600; letter-spacing:.04em;
+  padding:.08rem .3rem; vertical-align:1px;
 }
 nav li.nav-adr a{font-size:.79rem; color:var(--muted)}
 nav li ul{list-style:none; margin:0 0 .3rem 0; padding-left:2.75rem}
@@ -160,8 +190,9 @@ main{flex:1; min-width:0; padding:2.2rem 3rem 6rem; max-width:1000px}
 section.doc{border-top:3px solid var(--line); margin-top:3.2rem; padding-top:1.4rem}
 section.doc:first-of-type{border-top:none; margin-top:0; padding-top:0}
 .chip{
-  display:inline-block; background:var(--chipbg); color:var(--muted); font-weight:700;
-  font-size:.7rem; letter-spacing:.05em; border-radius:6px; padding:.18rem .55rem; margin-bottom:.4rem;
+  display:inline-block; background:var(--chipbg); color:var(--muted);
+  font-family:var(--font-code); font-weight:600; text-transform:uppercase;
+  font-size:.7rem; letter-spacing:.08em; border-radius:6px; padding:.18rem .55rem; margin-bottom:.4rem;
 }
 h1{font-size:1.7rem; line-height:1.25; margin:.2rem 0 1rem; letter-spacing:-.015em}
 h2{font-size:1.22rem; margin:2.2rem 0 .7rem; letter-spacing:-.01em; padding-top:.3rem}
@@ -174,7 +205,7 @@ blockquote{
 }
 blockquote p{margin:.25rem 0}
 code{
-  font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.84em;
+  font-family:var(--font-code); font-size:.84em;
   background:var(--codebg); border-radius:4px; padding:.1em .35em;
 }
 pre{
@@ -238,6 +269,11 @@ const page = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Eden Architecture — review build</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Eden's three locked families (tokens.json). Online viewing gets exact fonts;
+     offline falls back to the per-role stacks in :root — the self-contained-file compromise. -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>${css}</style>
 </head>
 <body>

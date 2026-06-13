@@ -385,33 +385,67 @@ const sidebar = TIERS.map((t) => {
 
 // ── styles (extends the render-html.mjs palette; adds status/tier chips) ──────
 const css = `
+/* Eden visual identity (documents/design-system/tokens.json, intake C21) — light-first,
+   dark variant derived from the SAME five locked colors:
+     Bone #F4F1E8 · Ink #1A1A1A · Deep Forest #243D2C · Moss #5C7F5C · Sage #A8B89C.
+   Status chips: draft→Sage · review→Moss · approved→Deep-Forest/Bone · superseded→Ink reduced. */
 :root{
-  --bg:#ffffff; --fg:#1d2129; --muted:#5b6472; --line:#e3e6ea; --accent:#2563eb;
-  --chipbg:#eef2f7; --codebg:#f5f6f8; --quote:#f7f8fa; --navbg:#fafbfc; --th:#f0f2f5;
-  --card:#fafbfc;
-  --st-draft:#b45309; --st-draft-bg:#fef3c7; --st-review:#7c3aed; --st-review-bg:#ede9fe;
-  --st-approved:#15803d; --st-approved-bg:#dcfce7; --st-superseded:#6b7280; --st-superseded-bg:#f1f3f5;
-  --tier-product:#2563eb; --tier-architecture:#0891b2; --tier-implementation:#9333ea;
-  --ok:#15803d; --bad:#b91c1c;
+  --color-bone:#f4f1e8; --color-ink:#1a1a1a; --color-deep-forest:#243d2c;
+  --color-moss:#5c7f5c; --color-sage:#a8b89c;
+  --color-background:var(--color-bone); --color-text:var(--color-ink);
+  --color-surface-primary:var(--color-deep-forest); --color-text-on-surface:var(--color-bone);
+  --color-accent:var(--color-moss); --color-support:var(--color-sage);
+  --font-display:'Fraunces',Georgia,serif;
+  --font-text:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-code:'JetBrains Mono',ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --bg:var(--color-bone); --fg:var(--color-ink);
+  --muted:color-mix(in srgb, var(--color-ink) 58%, var(--color-bone));
+  --line:color-mix(in srgb, var(--color-ink) 14%, var(--color-bone));
+  --accent:var(--color-moss);
+  --chipbg:color-mix(in srgb, var(--color-sage) 30%, var(--color-bone));
+  --codebg:color-mix(in srgb, var(--color-sage) 20%, var(--color-bone));
+  --quote:color-mix(in srgb, var(--color-sage) 16%, var(--color-bone));
+  --navbg:color-mix(in srgb, var(--color-sage) 12%, var(--color-bone));
+  --th:color-mix(in srgb, var(--color-sage) 24%, var(--color-bone));
+  --card:color-mix(in srgb, var(--color-sage) 12%, var(--color-bone));
+  /* status: draft→Sage, review→Moss, approved→Deep-Forest(Bone text), superseded→Ink reduced */
+  --st-draft:var(--color-deep-forest); --st-draft-bg:color-mix(in srgb, var(--color-sage) 50%, var(--color-bone));
+  --st-review:var(--color-deep-forest); --st-review-bg:color-mix(in srgb, var(--color-moss) 22%, var(--color-bone));
+  --st-approved:var(--color-bone); --st-approved-bg:var(--color-deep-forest);
+  --st-superseded:color-mix(in srgb, var(--color-ink) 55%, var(--color-bone)); --st-superseded-bg:color-mix(in srgb, var(--color-ink) 8%, var(--color-bone));
+  /* tiers differentiated along the Sage→Moss→Deep-Forest depth axis (no new hues) */
+  --tier-product:var(--color-deep-forest); --tier-architecture:var(--color-moss); --tier-implementation:color-mix(in srgb, var(--color-sage) 70%, var(--color-ink));
+  --ok:var(--color-deep-forest); --bad:color-mix(in srgb, var(--color-ink) 70%, var(--color-moss));
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#15171b; --fg:#e6e8ec; --muted:#9aa3b0; --line:#2a2e35; --accent:#7aa2ff;
-    --chipbg:#23272e; --codebg:#1e2126; --quote:#1b1e23; --navbg:#191c20; --th:#20242a;
-    --card:#181b20;
-    --st-draft:#fbbf24; --st-draft-bg:#3a2e12; --st-review:#c4b5fd; --st-review-bg:#2a2440;
-    --st-approved:#86efac; --st-approved-bg:#13301d; --st-superseded:#9ca3af; --st-superseded-bg:#23272e;
-    --tier-product:#7aa2ff; --tier-architecture:#3fc6dc; --tier-implementation:#c084fc;
-    --ok:#86efac; --bad:#fca5a5;
+    --color-background:var(--color-ink); --color-text:var(--color-bone);
+    --bg:var(--color-ink); --fg:var(--color-bone);
+    --muted:color-mix(in srgb, var(--color-bone) 56%, var(--color-ink));
+    --line:color-mix(in srgb, var(--color-bone) 16%, var(--color-ink));
+    --accent:color-mix(in srgb, var(--color-moss) 72%, var(--color-bone));
+    --chipbg:color-mix(in srgb, var(--color-deep-forest) 60%, var(--color-ink));
+    --codebg:color-mix(in srgb, var(--color-bone) 6%, var(--color-ink));
+    --quote:color-mix(in srgb, var(--color-deep-forest) 35%, var(--color-ink));
+    --navbg:color-mix(in srgb, var(--color-deep-forest) 22%, var(--color-ink));
+    --th:color-mix(in srgb, var(--color-deep-forest) 45%, var(--color-ink));
+    --card:color-mix(in srgb, var(--color-deep-forest) 18%, var(--color-ink));
+    --st-draft:color-mix(in srgb, var(--color-sage) 80%, var(--color-bone)); --st-draft-bg:color-mix(in srgb, var(--color-sage) 30%, var(--color-ink));
+    --st-review:color-mix(in srgb, var(--color-sage) 75%, var(--color-bone)); --st-review-bg:color-mix(in srgb, var(--color-moss) 38%, var(--color-ink));
+    --st-approved:var(--color-bone); --st-approved-bg:var(--color-deep-forest);
+    --st-superseded:color-mix(in srgb, var(--color-bone) 52%, var(--color-ink)); --st-superseded-bg:color-mix(in srgb, var(--color-bone) 8%, var(--color-ink));
+    --tier-product:color-mix(in srgb, var(--color-sage) 55%, var(--color-bone)); --tier-architecture:color-mix(in srgb, var(--color-moss) 60%, var(--color-bone)); --tier-implementation:var(--color-sage);
+    --ok:color-mix(in srgb, var(--color-sage) 70%, var(--color-bone)); --bad:color-mix(in srgb, var(--color-bone) 70%, var(--color-moss));
   }
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
   margin:0; background:var(--bg); color:var(--fg);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:16px; line-height:1.65; display:flex;
+  font-family:var(--font-text);
+  font-size:18px; line-height:1.65; display:flex;
 }
+h1,h2,h3{font-family:var(--font-display)}
 nav{
   width:300px; min-width:300px; height:100vh; position:sticky; top:0; overflow-y:auto;
   background:var(--navbg); border-right:1px solid var(--line); padding:1.2rem .9rem 3rem;
@@ -426,7 +460,7 @@ nav .nav-row{display:flex; align-items:center; justify-content:space-between; ga
 nav .nav-label{font-size:.86rem; font-weight:600}
 nav .nav-meta{display:flex; align-items:center; gap:.3rem; white-space:nowrap}
 nav .nav-v{font-size:.68rem; color:var(--muted)}
-nav .nav-id{display:block; font-size:.68rem; color:var(--muted); font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; margin-top:.1rem}
+nav .nav-id{display:block; font-size:.68rem; color:var(--muted); font-family:var(--font-code); margin-top:.1rem}
 nav .group{font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:1.1rem 0 .35rem .5rem}
 nav .ovlink a{font-weight:600}
 main{flex:1; min-width:0; padding:2.2rem 3rem 6rem; max-width:1040px}
@@ -435,7 +469,7 @@ section.doc{border-top:3px solid var(--line); margin-top:3rem; padding-top:1.3re
 section.doc:first-of-type{border-top:none; margin-top:0; padding-top:0}
 h1{font-size:1.7rem; line-height:1.25; margin:.2rem 0 1rem; letter-spacing:-.015em}
 h2{font-size:1.32rem; margin:.4rem 0 .8rem; letter-spacing:-.01em; display:flex; align-items:center; gap:.55rem; flex-wrap:wrap}
-.dtitle-id{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.72em; color:var(--muted); font-weight:500}
+.dtitle-id{font-family:var(--font-code); font-size:.72em; color:var(--muted); font-weight:500}
 h3{font-size:1.02rem; margin:1.6rem 0 .5rem}
 h3.dkey,h3.skey{font-size:.82rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:1.5rem 0 .5rem}
 h4{font-size:.8rem; margin:1rem 0 .35rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
@@ -443,12 +477,12 @@ p{margin:.7rem 0}
 a{color:var(--accent)}
 a.ref{text-decoration:none}
 a.ref code{background:var(--chipbg); color:var(--accent); border-radius:4px; padding:.08em .35em; font-size:.84em}
-a.ref:hover code{background:var(--accent); color:#fff}
+a.ref:hover code{background:var(--accent); color:var(--color-text-on-surface)}
 code.ref-ext{background:var(--codebg); color:var(--muted); border-radius:4px; padding:.08em .35em; font-size:.84em}
 .lead{color:var(--muted); font-size:.94rem; margin:.3rem 0 .9rem}
 .counts{margin:.4rem 0 1.4rem; font-size:.9rem}
 .ok-line{color:var(--ok)} .bad-line{color:var(--bad)}
-code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.84em; background:var(--codebg); border-radius:4px; padding:.1em .35em;}
+code{font-family:var(--font-code); font-size:.84em; background:var(--codebg); border-radius:4px; padding:.1em .35em;}
 pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:.9rem 1rem; overflow-x:auto; line-height:1.45; font-size:.8rem;}
 pre code{background:none; padding:0; font-size:1em}
 .tw{overflow-x:auto; margin:.7rem 0; border:1px solid var(--line); border-radius:8px}
@@ -464,7 +498,7 @@ ul.cl{margin:0; padding-left:1.1rem} ul.cl li{margin:.1rem 0}
 hr{border:none; border-top:1px solid var(--line); margin:2rem 0}
 strong{font-weight:650}
 .muted{color:var(--muted)}
-.chip{display:inline-block; background:var(--chipbg); color:var(--muted); font-weight:700; font-size:.66rem; letter-spacing:.05em; border-radius:6px; padding:.18rem .55rem; text-transform:uppercase}
+.chip{display:inline-block; background:var(--chipbg); color:var(--muted); font-family:var(--font-code); font-weight:600; font-size:.66rem; letter-spacing:.08em; border-radius:6px; padding:.18rem .55rem; text-transform:uppercase}
 .chip.tier-product{color:var(--tier-product)} .chip.tier-architecture{color:var(--tier-architecture)} .chip.tier-implementation{color:var(--tier-implementation)}
 .chip.status-draft{background:var(--st-draft-bg); color:var(--st-draft)}
 .chip.status-review{background:var(--st-review-bg); color:var(--st-review)}
@@ -525,6 +559,11 @@ const page = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(projectName)} — document set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Eden's three locked families (tokens.json). Online viewing gets exact fonts;
+     offline falls back to the per-role stacks in :root — the self-contained-file compromise. -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>${css}</style>
 </head>
 <body>
