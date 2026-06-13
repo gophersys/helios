@@ -45,7 +45,13 @@
   reverted; testing/observability lint) — fixed before commit. All six green (golangci 0, race 0).
   Note: golangci is non-deterministic across the shared workspace under parallelism — run the gate
   sequentially/isolated (the hooks already do; CI lanes must too).
-- **NEXT: Wave 3B** — substrate adapters (workspaceprovider docker+k3d, real integration tests),
+- **Wave 3B: workspaceprovider** ✅ DONE (libs bc017cc): F1 substrate port + docker + kubernetes
+  (k3d default, kind 2nd target) adapters; workspaceprovidertest conformance suite. REAL integration
+  tests spin actual containers + an ephemeral k3d cluster and pass leak-free (TestK3d_Conforms ~48s,
+  16 conformance cases, cluster auto-deleted). Took 3 sub-waves (substrate is hard; agents
+  over-reported each time — caught by my own gate runs). go.work now includes workspaceprovider
+  (gitignored — fresh clones/CI need `go work use ./libs/go/workspaceprovider`).
+- **NEXT: Wave 3B cont.** — substrate adapters (workspaceprovider docker+k3d, real integration tests),
   gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0, agent-session backend +
   chat UI, Playwright E2E.
 - **New directives captured 2026-06-13** (intake C26/C27, REQ-0027/0028, doc 13, ADR-0019):
