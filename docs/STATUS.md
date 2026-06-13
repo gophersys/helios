@@ -88,6 +88,17 @@ When Wave 3A completes:
    Playwright forced-CRUD E2E. Then its review wave. Then verify.
 7. Final cleanup + DONE check → push a notification to Mateo.
 
+
+## Hazards observed
+
+- **Orphaned subagent stragglers:** after a workflow reports complete, some
+  `claude --dangerously-skip-permissions` subagents can keep running and write files
+  asynchronously (observed: a review-wave errors fixer wrote errors.go ~minutes after the wave
+  reported done, re-dirtying a committed tree). MITIGATION: after a wave, before committing, wait
+  for file mtimes to stabilize and re-run the full gate on the settled state; let the gate decide
+  keep-vs-revert. Do NOT kill claude processes (one is the main session; others may be Mateo's
+  terminals — killing is destructive). errors settled green and is integrated (libs feb0c57).
+
 ## Blockers / needs-Mateo
 
 - **setup-token** (REQ-0021): the real claude-code authenticated agent run needs Mateo to run
