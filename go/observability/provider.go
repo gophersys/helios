@@ -2,7 +2,7 @@ package observability
 
 import "context"
 
-// ── Provider: the outbound port the hexagon depends on ──────────────────────
+// ── Provider: the outbound port the hexagon depends on ─────────────────────.
 
 // Provider is the single port a consumer holds in its Deps (accept this
 // interface; New returns the concrete impl). Exactly 5 methods — the negotiated

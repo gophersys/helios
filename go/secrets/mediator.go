@@ -2,20 +2,27 @@ package secrets
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/gophersys/libs/go/errors"
 )
+
+// errNoResolvers reports that New was called with an empty Deps.Resolvers map — a
+// composition-root wiring mistake (no adapter to route to). It is a sentinel so callers can
+// branch on it via errors.Is; it carries KindInvalid because the dependencies are malformed.
+var errNoResolvers = errors.New(errors.KindInvalid, "secrets.New: Deps.Resolvers requires at least one entry")
 
 // New is the constructor spine. PURE: no I/O, no clocks, no env reads. It validates
 // configuration and wires the (already-constructed) adapters from dependencies into the
 // routing Mediator. Adapters do the I/O, lazily, on Resolve. Returns the concrete *Mediator.
 func New(configuration Config, dependencies Deps) (*Mediator, error) {
 	if len(dependencies.Resolvers) == 0 {
-		return nil, fmt.Errorf("secrets.New: Deps.Resolvers requires at least one entry")
+		return nil, errNoResolvers
 	}
 	resolvers := make(map[string]Provider, len(dependencies.Resolvers))
 	for scheme, p := range dependencies.Resolvers {
 		if p == nil {
-			return nil, fmt.Errorf("secrets.New: Deps.Resolvers[%q] is nil", scheme)
+			return nil, errors.New(errors.KindInvalid, "secrets.New: a Deps.Resolvers entry is nil").
+				WithField("scheme", scheme)
 		}
 		resolvers[scheme] = p
 	}
@@ -66,10 +73,17 @@ func (m *Mediator) Resolve(ctx context.Context, ref Reference) (*Secret, error) 
 	adapter, ok := m.resolvers[scheme]
 	if !ok {
 		// No adapter bound for this scheme: the reference is unroutable, hence invalid for
-		// this composition.
-		return nil, fmt.Errorf("secrets: no adapter for scheme %q: %w", scheme, InvalidReferenceError{Ref: ref})
+		// this composition. The contract (secrets.md §4) requires AsType[InvalidReferenceError]
+		// here, so return the typed error directly; the unbound scheme is visible in ref.
+		return nil, InvalidReferenceError{Ref: ref}
 	}
-	return adapter.Resolve(ctx, ref)
+	// The Mediator is a pure router: it MUST return the adapter's already-typed secrets error
+	// unchanged so callers can branch on AsType[NotFoundError/DeniedError/...] (the conformance
+	// suite, secrets.md §4, asserts exactly this pass-through). Re-wrapping with %w would still
+	// satisfy AsType but bury the adapter's message under a redundant routing prefix; the
+	// contract names this method an implements-Provider passthrough, so wrapping is
+	// wrong-for-contract here.
+	return adapter.Resolve(ctx, ref) //nolint:wrapcheck // see comment: routing passthrough per secrets.md §4.
 }
 
 // compile-time: *Mediator is a Provider.

@@ -47,7 +47,7 @@ func (c *Clock) Now() time.Time {
 }
 
 // After returns a channel that fires when the fake timeline reaches now+d (driven by
-// Advance). It honors ctx cancellation: a cancelled ctx leaves the channel un-sent.
+// Advance). It honors ctx cancellation: a canceled ctx leaves the channel un-sent.
 func (c *Clock) After(ctx context.Context, d time.Duration) <-chan time.Time {
 	c.mu.Lock()
 	t := &timer{deadline: c.now.Add(d), ch: make(chan time.Time, 1)}
@@ -64,10 +64,10 @@ func (c *Clock) After(ctx context.Context, d time.Duration) <-chan time.Time {
 		return t.ch
 	}
 
-	// Bridge cancellation: if ctx is cancelled before the timer fires, never deliver a
+	// Bridge cancellation: if ctx is canceled before the timer fires, never deliver a
 	// tick. The returned channel mirrors t.ch on a real fire and stays un-sent on cancel.
 	// Cancellation takes priority: if Advance and cancel race, the cancel wins (the
-	// receiver's select unwinds via its own ctx.Done()), so a cancelled timer can never
+	// receiver's select unwinds via its own ctx.Done()), so a canceled timer can never
 	// deliver a stale tick.
 	out := make(chan time.Time, 1)
 	go func() {
@@ -134,10 +134,12 @@ func NewRandom(seed [32]byte) *Random {
 
 // Read fills p from the deterministic stream. It always fills p completely (the ChaCha8
 // stream never runs short) and returns a nil error.
+//
+//nolint:wrapcheck // contract §3: this fake mirrors the io.Reader-shaped RandomSource; rand.ChaCha8.Read never errors, and its return must stay io.Reader-comparable, so it passes through unwrapped.
 func (r *Random) Read(p []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.src.Read(p)
+	return r.src.Read(p) //nolint:wrapcheck // see method doc: io.Reader-shaped, passes through unwrapped.
 }
 
 // RecordingSink captures every emitted record for assertions. Records returns a snapshot
@@ -147,11 +149,13 @@ type RecordingSink struct {
 	records []any
 }
 
-// Emit appends record to the captured log. It honors ctx cancellation: a cancelled ctx
+// Emit appends record to the captured log. It honors ctx cancellation: a canceled ctx
 // drops the record (best-effort, like the real Sink) and returns ctx.Err().
+//
+//nolint:wrapcheck // contract §3: Emit returns ctx.Err() verbatim so callers can errors.Is it against context.Canceled/DeadlineExceeded; wrapping would deviate from the pinned return.
 func (s *RecordingSink) Emit(ctx context.Context, record any) error {
 	if err := ctx.Err(); err != nil {
-		return err
+		return err //nolint:wrapcheck // see method doc: ctx.Err() returned verbatim per contract §3.
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -170,7 +174,7 @@ func (s *RecordingSink) Records() []any {
 
 // Fakes returns a dependencies.Set with every universal port populated by a fake —
 // pinned to a fixed instant and seed — plus handles to each fake so a test can drive it.
-// The test analogue of dependencies.Resolve; callers override individual fields as
+// The test analog of dependencies.Resolve; callers override individual fields as
 // needed.
 func Fakes() (set dependencies.Set, clock *Clock, random *Random, sink *RecordingSink) {
 	clock = NewClock(time.Unix(0, 0).UTC())

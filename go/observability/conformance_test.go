@@ -12,5 +12,6 @@ import (
 // observabilitytest's own test, so adapter ≡ fake substitutability is proven
 // against one set of properties (08 §2).
 func TestConformance(t *testing.T) {
+	t.Parallel()
 	observabilitytest.Run(t, observability.New)
 }

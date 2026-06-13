@@ -4,14 +4,15 @@ import (
 	"context"
 	"testing"
 
-	cfg "github.com/gophersys/libs/go/configuration"
-	cfgtest "github.com/gophersys/libs/go/configuration/configurationtest"
+	"github.com/gophersys/libs/go/configuration"
+	"github.com/gophersys/libs/go/configuration/configurationtest"
 )
 
-func parse(t *testing.T, format cfg.Format, name, body string) (cfg.Document, cfg.Diagnostics) {
+//nolint:ireturn // configuration.Document is an interface fixed by contracts/configuration.md §2; this helper forwards the contract surface.
+func parse(t *testing.T, format configuration.Format, name, body string) (configuration.Document, configuration.Diagnostics) {
 	t.Helper()
-	src := cfgtest.Source{Files: map[string][]byte{name: []byte(body)}}
-	p, err := cfg.New(cfg.Config{Format: format}, cfg.Deps{Source: src})
+	src := configurationtest.Source{Files: map[string][]byte{name: []byte(body)}}
+	p, err := configuration.New(configuration.Config{Format: format}, configuration.Deps{Source: src})
 	if err != nil {
 		t.Fatalf("New(%s) err = %v", format, err)
 	}
@@ -22,10 +23,10 @@ func parse(t *testing.T, format cfg.Format, name, body string) (cfg.Document, cf
 	return doc, diags
 }
 
-// --- YAML subset ---
-
+// Section: YAML subset.
 func TestYAML_NestedMappingAndScalars(t *testing.T) {
-	doc, diags := parse(t, cfg.FormatYAML, "c.yaml",
+	t.Parallel()
+	doc, diags := parse(t, configuration.FormatYAML, "c.yaml",
 		"engine:\n  maxConcurrency: 8\n  name: \"primary\"\n  enabled: true\n  ratio: 1.5\n# trailing comment\n")
 	if diags.HasError() {
 		t.Fatalf("clean YAML had errors: %v", summaries(diags.All()))
@@ -51,30 +52,33 @@ func TestYAML_NestedMappingAndScalars(t *testing.T) {
 }
 
 func TestYAML_BlockSequenceIsDiagnostic(t *testing.T) {
-	_, diags := parse(t, cfg.FormatYAML, "s.yaml", "items:\n  - a\n  - b\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatYAML, "s.yaml", "items:\n  - a\n  - b\n")
 	if !diags.HasError() {
 		t.Fatal("unsupported YAML block sequence must be a SeverityError, not a panic")
 	}
 }
 
 func TestYAML_MalformedLineIsDiagnostic(t *testing.T) {
-	_, diags := parse(t, cfg.FormatYAML, "m.yaml", "no colon here\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatYAML, "m.yaml", "no colon here\n")
 	if !diags.HasError() {
 		t.Fatal("malformed YAML line must be a SeverityError")
 	}
 }
 
 func TestYAML_DuplicateKeyStrict(t *testing.T) {
-	_, diags := parse(t, cfg.FormatYAML, "d.yaml", "a: 1\na: 2\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatYAML, "d.yaml", "a: 1\na: 2\n")
 	if !diags.HasError() {
 		t.Fatal("duplicate YAML key must be SeverityError under strict default")
 	}
 }
 
-// --- TOML subset ---
-
+// Section: TOML subset.
 func TestTOML_TablesAndScalars(t *testing.T) {
-	doc, diags := parse(t, cfg.FormatTOML, "c.toml",
+	t.Parallel()
+	doc, diags := parse(t, configuration.FormatTOML, "c.toml",
 		"name = \"root\"\n[engine]\nmaxConcurrency = 8\nenabled = true\nratio = 2.5\n[engine.nested]\nkey = \"deep\"\n")
 	if diags.HasError() {
 		t.Fatalf("clean TOML had errors: %v", summaries(diags.All()))
@@ -97,30 +101,33 @@ func TestTOML_TablesAndScalars(t *testing.T) {
 }
 
 func TestTOML_ArrayOfTablesIsDiagnostic(t *testing.T) {
-	_, diags := parse(t, cfg.FormatTOML, "a.toml", "[[products]]\nname = \"x\"\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatTOML, "a.toml", "[[products]]\nname = \"x\"\n")
 	if !diags.HasError() {
 		t.Fatal("unsupported [[array-of-tables]] must be a SeverityError, not a panic")
 	}
 }
 
 func TestTOML_MalformedHeaderIsDiagnostic(t *testing.T) {
-	_, diags := parse(t, cfg.FormatTOML, "h.toml", "[unterminated\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatTOML, "h.toml", "[unterminated\n")
 	if !diags.HasError() {
 		t.Fatal("malformed TOML table header must be a SeverityError")
 	}
 }
 
 func TestTOML_DuplicateKeyStrict(t *testing.T) {
-	_, diags := parse(t, cfg.FormatTOML, "d.toml", "a = 1\na = 2\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatTOML, "d.toml", "a = 1\na = 2\n")
 	if !diags.HasError() {
 		t.Fatal("duplicate TOML key must be SeverityError under strict default")
 	}
 }
 
-// --- JSON arrays, floats, nulls ---
-
+// Section: JSON arrays, floats, nulls.
 func TestJSON_ArrayLenAndIndexedReads(t *testing.T) {
-	doc, diags := parse(t, cfg.FormatJSON, "a.json", `{"xs":[10,20,30]}`)
+	t.Parallel()
+	doc, diags := parse(t, configuration.FormatJSON, "a.json", `{"xs":[10,20,30]}`)
 	if diags.HasError() {
 		t.Fatalf("clean JSON had errors: %v", summaries(diags.All()))
 	}
@@ -130,7 +137,7 @@ func TestJSON_ArrayLenAndIndexedReads(t *testing.T) {
 		t.Fatalf("xs Len = (%d,%v), want (3,true)", n, ok)
 	}
 	for i, want := range []int64{10, 20, 30} {
-		ev, ok := doc.Lookup(cfg.Path("xs").Index(i))
+		ev, ok := doc.Lookup(configuration.Path("xs").Index(i))
 		if !ok {
 			t.Fatalf("Lookup(xs[%d]) ok == false", i)
 		}
@@ -142,7 +149,8 @@ func TestJSON_ArrayLenAndIndexedReads(t *testing.T) {
 }
 
 func TestJSON_FloatReadableAsIntWhenIntegral(t *testing.T) {
-	doc, _ := parse(t, cfg.FormatJSON, "f.json", `{"a":2.0,"b":2.5}`)
+	t.Parallel()
+	doc, _ := parse(t, configuration.FormatJSON, "f.json", `{"a":2.0,"b":2.5}`)
 	a, _ := doc.Lookup("a")
 	if n, d := a.Int(); d != nil || n != 2 {
 		t.Fatalf("integral float a.Int() = (%d,%v), want (2,nil)", n, d)
@@ -154,7 +162,8 @@ func TestJSON_FloatReadableAsIntWhenIntegral(t *testing.T) {
 }
 
 func TestJSON_NullIsAbsentLeaf(t *testing.T) {
-	doc, diags := parse(t, cfg.FormatJSON, "n.json", `{"a":null}`)
+	t.Parallel()
+	doc, diags := parse(t, configuration.FormatJSON, "n.json", `{"a":null}`)
 	if diags.HasError() {
 		t.Fatalf("null value should not error: %v", summaries(diags.All()))
 	}
@@ -169,19 +178,20 @@ func TestJSON_NullIsAbsentLeaf(t *testing.T) {
 }
 
 func TestJSON_TrailingDataIsDiagnostic(t *testing.T) {
-	_, diags := parse(t, cfg.FormatJSON, "t.json", `{"a":1} {"b":2}`)
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatJSON, "t.json", `{"a":1} {"b":2}`)
 	if !diags.HasError() {
 		t.Fatal("trailing top-level data must be a SeverityError")
 	}
 }
 
-// --- env malformed lines ---
-
+// Section: env malformed lines.
 func TestEnv_MalformedLineIsDiagnostic(t *testing.T) {
-	_, diags := parse(t, cfg.FormatEnv, "m.env", "GOOD=1\nNOEQUALS\n=emptykey\n")
+	t.Parallel()
+	_, diags := parse(t, configuration.FormatEnv, "m.env", "GOOD=1\nNOEQUALS\n=emptykey\n")
 	errs := 0
 	for _, d := range diags.All() {
-		if d.Severity == cfg.SeverityError {
+		if d.Severity == configuration.SeverityError {
 			errs++
 		}
 	}
@@ -191,7 +201,8 @@ func TestEnv_MalformedLineIsDiagnostic(t *testing.T) {
 }
 
 func TestEnv_TypedInference(t *testing.T) {
-	doc, _ := parse(t, cfg.FormatEnv, "i.env", "N=42\nB=true\nS=hello\n")
+	t.Parallel()
+	doc, _ := parse(t, configuration.FormatEnv, "i.env", "N=42\nB=true\nS=hello\n")
 	if v, _ := doc.Lookup("N"); func() int64 { n, _ := v.Int(); return n }() != 42 {
 		t.Fatal("env int inference failed")
 	}
@@ -203,16 +214,16 @@ func TestEnv_TypedInference(t *testing.T) {
 	}
 }
 
-// --- Merge type-conflict path ---
-
+// Section: Merge type-conflict path.
 func TestMerge_TypeConflictIsDiagnosticNotFatal(t *testing.T) {
-	src := cfgtest.Source{Files: map[string][]byte{
+	t.Parallel()
+	src := configurationtest.Source{Files: map[string][]byte{
 		"base.json":    []byte(`{"k":{"nested":1}}`),
 		"overlay.json": []byte(`{"k":"scalar"}`),
 	}}
-	p, _ := cfg.New(cfg.Config{Format: cfg.FormatJSON}, cfg.Deps{Source: src})
-	base, _, _ := p.Parse(context.Background(), "base.json")
-	overlay, _, _ := p.Parse(context.Background(), "overlay.json")
+	p := newParser(t, configuration.Config{Format: configuration.FormatJSON}, src)
+	base, _ := mustParse(t, p, "base.json")
+	overlay, _ := mustParse(t, p, "overlay.json")
 	merged, diags, err := p.Merge(context.Background(), base, overlay)
 	if err != nil {
 		t.Fatalf("Merge err = %v, want nil (type conflict is a Diagnostic)", err)
@@ -232,15 +243,13 @@ func TestMerge_TypeConflictIsDiagnosticNotFatal(t *testing.T) {
 }
 
 func TestMerge_AgainstZeroDocument(t *testing.T) {
-	src := cfgtest.Source{Files: map[string][]byte{"o.json": []byte(`{"k":1}`)}}
-	p, _ := cfg.New(cfg.Config{Format: cfg.FormatJSON}, cfg.Deps{Source: src})
-	overlay, _, _ := p.Parse(context.Background(), "o.json")
+	t.Parallel()
+	src := configurationtest.Source{Files: map[string][]byte{"o.json": []byte(`{"k":1}`)}}
+	p := newParser(t, configuration.Config{Format: configuration.FormatJSON}, src)
+	overlay, _ := mustParse(t, p, "o.json")
 	// base is an empty document.
-	base := cfgtest.Doc(map[string]any{})
-	merged, _, err := p.Merge(context.Background(), base, overlay)
-	if err != nil {
-		t.Fatalf("Merge err = %v", err)
-	}
+	base := configurationtest.Doc(map[string]any{})
+	merged := mustMerge(t, p, base, overlay)
 	if v, ok := merged.Lookup("k"); !ok {
 		t.Fatal("overlay key lost when merging over empty base")
 	} else if n, _ := v.Int(); n != 1 {

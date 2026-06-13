@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-// ── The constructor spine (10 §4) — PURE ────────────────────────────────────
+// ── The constructor spine (10 §4) — PURE ───────────────────────────────────.
 
 // Config is the immutable, fully-resolved input (the configuration pattern):
 // parsed at the edge and frozen. It holds NO ports and NO live handles.
@@ -92,6 +92,14 @@ type Clock interface{ Now() time.Time }
 // severity filtering + Field inheritance + span timing), concrete behind the
 // Provider interface. The first Export happens only when the engine/composition
 // root later calls Emit/Scope/Flush.
+//
+// The frozen contract (contracts/observability.md §2) fixes the spine as
+// New(Config, Deps) (Provider, error): callers accept the Provider port in their
+// Deps (accept-interface), so the constructor returns it. The concrete *provider
+// is deliberately unexported; the public surface may not change, so the ireturn
+// "return concrete" rule is declined here.
+//
+//nolint:ireturn // contract §2 spine returns the Provider port; surface is frozen.
 func New(configuration Config, dependencies Deps) (Provider, error) {
 	if configuration.ServiceName == "" {
 		return nil, &ConfigError{Field: "ServiceName", Message: "required"}

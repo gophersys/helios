@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// ---- Universal ports (each ≤5 methods; accept-interfaces-return-concrete) ----
+// ---- Universal ports (each ≤5 methods; accept-interfaces-return-concrete).
 
 // Clock is the universal source of "now" and of time-based waiting. No component may
 // call time.Now / time.After / time.Sleep directly; it asks the injected Clock, which
@@ -132,12 +132,25 @@ func (e *MissingPortError) Error() string { return "dependencies: missing port "
 // Each returns an adapter VALUE; the value's METHODS (not these constructors) touch the
 // environment, so calling them is pure. They are invoked by the composition root and
 // passed INTO a Set / a library's Deps — NEVER called inside a component's New.
+//
+// These three return the PORT INTERFACE rather than a concrete type by contract
+// (contracts/dependencies.md §2, frozen surface; rationale 5). The real adapters
+// systemClock/cryptoRandom/discardSink are deliberately UNEXPORTED so business code has
+// no public concrete type to bind against and must go through the injected port — that
+// unexported-ness is the load-bearing seam. Returning a concrete type here would force
+// exporting the adapter and break the contract. The ireturn "return concrete" rule is
+// therefore wrong-for-contract for exactly these three constructors; nolint is scoped to
+// each, with the contract as the cited authority.
 
 // RealClock returns a Clock backed by the operating-system wall clock and timers.
+//
+//nolint:ireturn // contract §2: returns the Clock port; the systemClock adapter is unexported by design (rationale 5).
 func RealClock() Clock { return systemClock{} }
 
 // RealRandom returns a RandomSource backed by entropy; a nil entropy reader means
 // crypto/rand.
+//
+//nolint:ireturn // contract §2: returns the RandomSource port; the cryptoRandom adapter is unexported by design (rationale 5).
 func RealRandom(entropy io.Reader) RandomSource {
 	if entropy == nil {
 		entropy = rand.Reader
@@ -147,6 +160,8 @@ func RealRandom(entropy io.Reader) RandomSource {
 
 // DiscardSink returns a Sink that drops every record — the safe default when a component
 // is wired without observability (tests, smoke binaries).
+//
+//nolint:ireturn // contract §2: returns the Sink port; the discardSink adapter is unexported by design (rationale 5).
 func DiscardSink() Sink { return discardSink{} }
 
 // systemClock, cryptoRandom, and discardSink are the real adapters, UNEXPORTED on
@@ -175,6 +190,12 @@ func (systemClock) After(ctx context.Context, d time.Duration) <-chan time.Time 
 
 type cryptoRandom struct{ entropy io.Reader }
 
+// Read mirrors io.Reader exactly (contract §2 RandomSource). The io.ReadFull error
+// (io.EOF / io.ErrUnexpectedEOF) is returned UNWRAPPED on purpose: an io.Reader caller
+// must be able to compare it to io.EOF, which wrapping would defeat — the io.Reader
+// contract is the cited authority over wrapcheck here.
+//
+//nolint:wrapcheck // contract §2: RandomSource is io.Reader-shaped; its sentinel errors must stay comparable, so they pass through unwrapped.
 func (c cryptoRandom) Read(p []byte) (int, error) { return io.ReadFull(c.entropy, p) }
 
 type discardSink struct{}

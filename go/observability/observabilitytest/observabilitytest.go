@@ -95,6 +95,11 @@ func (p *Provider) Emit(ctx context.Context, e observability.Event) { p.record(e
 // With returns a child Provider carrying inherited Fields, sharing the same
 // underlying log/clock but with an independent inherited-field slice. The parent
 // is unaffected.
+//
+// It returns the observability.Provider port because this fake implements that
+// interface and the frozen contract §2 declares With(...) Provider.
+//
+//nolint:ireturn // contract §2: With implements the Provider port; surface is frozen.
 func (p *Provider) With(fields ...observability.Field) observability.Provider {
 	child := *p
 	child.inherit = make([]observability.Field, 0, len(p.inherit)+len(fields))
@@ -107,10 +112,10 @@ func (p *Provider) With(fields ...observability.Field) observability.Provider {
 // tracks no trace IDs on Events); the close func stamps a duration from the bound
 // clock plus the Outcome and emits the span Event under this Provider's inherited
 // scope.
-func (p *Provider) Scope(ctx context.Context, name string, fields ...observability.Field) (context.Context, func(observability.Outcome)) {
+func (p *Provider) Scope(ctx context.Context, name string, fields ...observability.Field) (scoped context.Context, end func(observability.Outcome)) {
 	start := p.clock()
 	spanFields := append([]observability.Field(nil), fields...)
-	close := func(outcome observability.Outcome) {
+	end = func(outcome observability.Outcome) {
 		elapsed := p.clock().Sub(start)
 		all := append([]observability.Field(nil), spanFields...)
 		all = append(all, observability.Dur("duration", elapsed))
@@ -121,7 +126,7 @@ func (p *Provider) Scope(ctx context.Context, name string, fields ...observabili
 		}
 		p.record(observability.Event{Severity: observability.SeverityInfo, Name: name, Fields: all})
 	}
-	return ctx, close
+	return ctx, end
 }
 
 // Log emits an operator-facing leveled line as a Severity-N Event on the same

@@ -39,7 +39,7 @@ type Clock = dependencies.Clock
 // port); the canonical definition lives in dependencies.md.
 type RandomSource = dependencies.RandomSource
 
-// ── The conformance-suite construct (the reusable core) ─────────────────────
+// ── The conformance-suite construct (the reusable core) ───────────────────────.
 
 // Harness is handed to every Factory and Case. It vends the deterministic sources
 // a subject wires into its own Deps, plus capability gating so an adapter that
@@ -88,11 +88,11 @@ type Suite[S any] struct {
 	Name string
 	// Cases iterates the conformance assertions in a stable, caller-defined order
 	// (iter.Seq, Go 1.23+). Reusing range-over-func lets large suites stream cases
-	// without materialising a slice; a plain slice is yieldable via slices.Values.
+	// without materializing a slice; a plain slice is yieldable via slices.Values.
 	Cases iter.Seq[Case[S]]
 }
 
-// ── The constructor spine (pure) ────────────────────────────────────────────
+// ── The constructor spine (pure) ──────────────────────────────────────────────.
 
 // Config is the immutable, fully-resolved knob set for a conformance run and the
 // fakes the Runner vends. Zero value is valid and deterministic (rationale 4).
@@ -137,8 +137,10 @@ type CaseResult struct {
 // Outcome is the tri-state a gate reads: Skip ≠ Fail (02 §1 graceful degradation).
 type Outcome int
 
+// The conformance tri-state. Pass is the zero value (iota); a gate reads Skip ≠ Fail
+// so an adapter that legitimately lacks a capability is not treated as broken.
 const (
-	Pass Outcome = iota
-	Fail
-	Skip
+	Pass Outcome = iota // the case asserted no failure and did not skip
+	Fail                // the case recorded a failure or panicked
+	Skip                // the case skipped on an absent capability/precondition
 )

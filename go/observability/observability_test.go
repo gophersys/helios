@@ -10,9 +10,10 @@ import (
 	"github.com/gophersys/libs/go/observability"
 )
 
-// ── Enum zero-value / ordering guarantees (contract §2) ──────────────────────
+// ── Enum zero-value / ordering guarantees (contract §2) ─────────────────────.
 
 func TestPlaneZeroIsUnset(t *testing.T) {
+	t.Parallel()
 	var p observability.Plane
 	if p != observability.PlaneUnset {
 		t.Fatalf("zero Plane = %d, want PlaneUnset (%d)", p, observability.PlaneUnset)
@@ -20,6 +21,7 @@ func TestPlaneZeroIsUnset(t *testing.T) {
 }
 
 func TestPlaneOrdering(t *testing.T) {
+	t.Parallel()
 	// The order is the wire/telemetry contract: append-only, never reordered.
 	cases := []struct {
 		got  observability.Plane
@@ -38,6 +40,7 @@ func TestPlaneOrdering(t *testing.T) {
 }
 
 func TestSeverityZeroIsDebug(t *testing.T) {
+	t.Parallel()
 	var s observability.Severity
 	if s != observability.SeverityDebug {
 		t.Fatalf("zero Severity = %d, want SeverityDebug (%d)", s, observability.SeverityDebug)
@@ -45,6 +48,7 @@ func TestSeverityZeroIsDebug(t *testing.T) {
 }
 
 func TestSeverityOrdering(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		got  observability.Severity
 		want uint8
@@ -60,16 +64,17 @@ func TestSeverityOrdering(t *testing.T) {
 		}
 	}
 	// Severities must be totally ordered so MinSeverity filtering is a simple <.
-	if !(observability.SeverityDebug < observability.SeverityInfo &&
-		observability.SeverityInfo < observability.SeverityWarn &&
-		observability.SeverityWarn < observability.SeverityError) {
+	if observability.SeverityDebug >= observability.SeverityInfo ||
+		observability.SeverityInfo >= observability.SeverityWarn ||
+		observability.SeverityWarn >= observability.SeverityError {
 		t.Fatal("severity levels are not strictly increasing")
 	}
 }
 
-// ── Field constructors: the only doors onto the stream (contract §2) ─────────
+// ── Field constructors: the only doors onto the stream (contract §2) ────────.
 
 func TestStringField(t *testing.T) {
+	t.Parallel()
 	f := observability.String("phase", "implement")
 	if f.Key != "phase" {
 		t.Errorf("Key = %q, want %q", f.Key, "phase")
@@ -83,6 +88,7 @@ func TestStringField(t *testing.T) {
 }
 
 func TestInt64Field(t *testing.T) {
+	t.Parallel()
 	f := observability.Int64("tokens.in", 4096)
 	if f.Key != "tokens.in" {
 		t.Errorf("Key = %q, want %q", f.Key, "tokens.in")
@@ -93,6 +99,7 @@ func TestInt64Field(t *testing.T) {
 }
 
 func TestFloat64Field(t *testing.T) {
+	t.Parallel()
 	f := observability.Float64("ratio", 0.5)
 	if got := f.Value.TelemetryValue(); got != 0.5 {
 		t.Errorf("TelemetryValue() = %#v, want 0.5", got)
@@ -100,6 +107,7 @@ func TestFloat64Field(t *testing.T) {
 }
 
 func TestBoolField(t *testing.T) {
+	t.Parallel()
 	f := observability.Bool("gate.passed", true)
 	if f.Key != "gate.passed" {
 		t.Errorf("Key = %q, want %q", f.Key, "gate.passed")
@@ -110,6 +118,7 @@ func TestBoolField(t *testing.T) {
 }
 
 func TestDurField(t *testing.T) {
+	t.Parallel()
 	f := observability.Dur("elapsed", 250*time.Millisecond)
 	if got := f.Value.TelemetryValue(); got != 250*time.Millisecond {
 		t.Errorf("TelemetryValue() = %#v, want 250ms", got)
@@ -117,6 +126,7 @@ func TestDurField(t *testing.T) {
 }
 
 func TestErrFieldKeyIsError(t *testing.T) {
+	t.Parallel()
 	cause := stderrors.New("boom")
 	f := observability.Err(cause)
 	if f.Key != "error" {
@@ -132,6 +142,7 @@ func TestErrFieldKeyIsError(t *testing.T) {
 }
 
 func TestErrFieldNilCause(t *testing.T) {
+	t.Parallel()
 	// Err(nil) must not panic; it yields the "error" key with a benign value.
 	f := observability.Err(nil)
 	if f.Key != "error" {
@@ -150,6 +161,7 @@ type stubValuer struct{ v any }
 func (s stubValuer) TelemetryValue() any { return s.v }
 
 func TestAnyField(t *testing.T) {
+	t.Parallel()
 	f := observability.Any("token", stubValuer{v: "redacted-projection"})
 	if f.Key != "token" {
 		t.Errorf("Key = %q, want %q", f.Key, "token")
@@ -159,9 +171,10 @@ func TestAnyField(t *testing.T) {
 	}
 }
 
-// ── ConfigError (contract §2; Q7) ────────────────────────────────────────────
+// ── ConfigError (contract §2; Q7) ───────────────────────────────────────────.
 
 func TestConfigErrorFormat(t *testing.T) {
+	t.Parallel()
 	e := &observability.ConfigError{Field: "ServiceName", Message: "required"}
 	want := "ServiceName: required"
 	if e.Error() != want {
@@ -170,6 +183,7 @@ func TestConfigErrorFormat(t *testing.T) {
 }
 
 func TestConfigErrorUnwrapNilWhenNoCause(t *testing.T) {
+	t.Parallel()
 	// A ConfigError with no wrapped cause unwraps to nil (Unwrap is the %w seam
 	// the contract promises; New-produced validation errors carry no cause).
 	e := &observability.ConfigError{Field: "Exporter", Message: "nil"}
@@ -178,9 +192,10 @@ func TestConfigErrorUnwrapNilWhenNoCause(t *testing.T) {
 	}
 }
 
-// ── LedgerEvent (T6; contract §2 + §4) ───────────────────────────────────────
+// ── LedgerEvent (T6; contract §2 + §4) ──────────────────────────────────────.
 
 func TestLedgerEventShape(t *testing.T) {
+	t.Parallel()
 	now := time.Unix(1700000000, 0).UTC()
 	l := observability.Ledger{
 		RunID: "run-1", PhaseID: "implement", Model: "claude", Harness: "claudecode",
@@ -239,6 +254,7 @@ func TestLedgerEventShape(t *testing.T) {
 }
 
 func TestLedgerEventZeroTimeLeftZero(t *testing.T) {
+	t.Parallel()
 	// now == zero → the adapter stamps; LedgerEvent must leave Time zero.
 	e := observability.LedgerEvent(time.Time{}, observability.Ledger{RunID: "r"})
 	if !e.Time.IsZero() {
@@ -246,9 +262,10 @@ func TestLedgerEventZeroTimeLeftZero(t *testing.T) {
 	}
 }
 
-// ── New validation (contract §2 + §4 Purity of New) ──────────────────────────
+// ── New validation (contract §2 + §4 Purity of New) ─────────────────────────.
 
 func TestNewRejectsEmptyServiceName(t *testing.T) {
+	t.Parallel()
 	_, err := observability.New(
 		observability.Config{ServiceName: ""},
 		observability.Deps{Exporter: noopExporter{}, Clock: fixedClock{}},
@@ -266,6 +283,7 @@ func TestNewRejectsEmptyServiceName(t *testing.T) {
 }
 
 func TestNewRejectsNilExporter(t *testing.T) {
+	t.Parallel()
 	_, err := observability.New(
 		observability.Config{ServiceName: "svc"},
 		observability.Deps{Exporter: nil, Clock: fixedClock{}},
@@ -283,6 +301,7 @@ func TestNewRejectsNilExporter(t *testing.T) {
 }
 
 func TestNewRejectsNilClock(t *testing.T) {
+	t.Parallel()
 	// Scope cannot stamp duration without a Clock — New must reject a nil Clock.
 	_, err := observability.New(
 		observability.Config{ServiceName: "svc"},
@@ -301,6 +320,7 @@ func TestNewRejectsNilClock(t *testing.T) {
 }
 
 func TestNewValidReturnsUsableProvider(t *testing.T) {
+	t.Parallel()
 	p, err := observability.New(
 		observability.Config{ServiceName: "svc", DefaultPlane: observability.PlaneSelf},
 		observability.Deps{Exporter: noopExporter{}, Clock: fixedClock{}},
@@ -313,7 +333,7 @@ func TestNewValidReturnsUsableProvider(t *testing.T) {
 	}
 }
 
-// ── Test doubles local to this file ──────────────────────────────────────────
+// ── Test doubles local to this file ─────────────────────────────────────────.
 
 type noopExporter struct{}
 

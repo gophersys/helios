@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gophersys/libs/go/configuration/internal/tree"
@@ -11,26 +12,47 @@ import (
 // Config.MaxSourceBytes is 0 (a DoS/footgun guard at the parse edge).
 const defaultMaxSourceBytes = 16 << 20 // 16 MiB
 
+// ErrUnknownFormat is the sentinel for a Config naming a Format outside the
+// closed set. New returns it wrapped with the offending value via %w so a
+// caller can branch with errors.Is without string-matching.
+var ErrUnknownFormat = errors.New("configuration: unknown Format")
+
+// ErrInvalidMaxSourceBytes is the sentinel for a negative Config.MaxSourceBytes.
+// New returns it wrapped with the offending value via %w.
+var ErrInvalidMaxSourceBytes = errors.New("configuration: MaxSourceBytes must be >= 0")
+
 // New is the pure constructor spine. It validates Config, wires the Format
 // table and the Validator list into a ready Parser, and captures Deps. It
 // performs NO I/O, reads NO env, consults NO clock: the first byte is read
 // only when Parse is later called with a context. A malformed Config (e.g.
 // negative MaxSourceBytes, an unknown Format) is the only error path.
+//
+// The Parser return is an INTERFACE by the frozen contract
+// (contracts/configuration.md §2, signature verbatim): the fake Parser
+// (configurationtest.Parser) must be substitutable for the real one — the
+// conformance suite asserts it — so returning the unexported concrete *parser
+// is impossible without breaking the published surface (the cardinal sin, 10 §9).
+//
+//nolint:ireturn // Parser is an interface fixed by contracts/configuration.md §2; see doc above.
 func New(configuration Config, dependencies Deps) (Parser, error) {
 	if !isKnownFormat(configuration.Format) {
-		return nil, fmt.Errorf("configuration: unknown Format %q", configuration.Format)
+		// stdlib fmt.Errorf+%w wraps this package's OWN sentinel: configuration
+		// is the lowest layer and must NOT depend on the errors library
+		// (rationale 5; it is parsed before anything is wired). errors.Is reaches
+		// ErrUnknownFormat; that is the structured-inspection contract here.
+		return nil, fmt.Errorf("%w: %q", ErrUnknownFormat, configuration.Format) //nolint:wrapcheck // own sentinel via stdlib %w; no errors-library dep (rationale 5).
 	}
 	if configuration.MaxSourceBytes < 0 {
-		return nil, fmt.Errorf("configuration: MaxSourceBytes must be >= 0, got %d", configuration.MaxSourceBytes)
+		return nil, fmt.Errorf("%w, got %d", ErrInvalidMaxSourceBytes, configuration.MaxSourceBytes) //nolint:wrapcheck // own sentinel via stdlib %w; no errors-library dep (rationale 5).
 	}
-	cap := configuration.MaxSourceBytes
-	if cap == 0 {
-		cap = defaultMaxSourceBytes
+	maxBytes := configuration.MaxSourceBytes
+	if maxBytes == 0 {
+		maxBytes = defaultMaxSourceBytes
 	}
 	return &parser{
 		format:         configuration.Format,
 		allowUnknown:   configuration.AllowUnknownKeys,
-		maxSourceBytes: cap,
+		maxSourceBytes: maxBytes,
 		validators:     configuration.Validators,
 		source:         dependencies.Source,
 	}, nil
@@ -55,6 +77,11 @@ type parser struct {
 	source         Source
 }
 
+// Parse returns the Document INTERFACE by the frozen contract
+// (contracts/configuration.md §2): immutability is structural and the fake
+// shares this read surface; the signature is fixed by the Parser contract.
+//
+//nolint:ireturn // Document is an interface fixed by contracts/configuration.md §2; see doc above.
 func (p *parser) Parse(ctx context.Context, name string) (Document, Diagnostics, error) {
 	var diags Diagnostics
 
@@ -88,6 +115,11 @@ func (p *parser) Parse(ctx context.Context, name string) (Document, Diagnostics,
 	return doc, diags, nil
 }
 
+// Merge returns the Document INTERFACE by the frozen contract
+// (contracts/configuration.md §2), the same read surface Parse yields; the
+// signature is fixed by the Parser contract.
+//
+//nolint:ireturn // Document is an interface fixed by contracts/configuration.md §2; see doc above.
 func (p *parser) Merge(ctx context.Context, base, overlay Document) (Document, Diagnostics, error) {
 	var diags Diagnostics
 

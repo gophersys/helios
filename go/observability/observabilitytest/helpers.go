@@ -40,35 +40,59 @@ func containsCanary(v observability.Valuer, canary string) bool {
 	}
 }
 
+// asString / asInt64 / asDuration project a telemetry value to a concrete type,
+// returning the zero value on a type mismatch. They keep decodeLedger's per-field
+// dispatch a single assignment each (no nested type-assert branch), so the decoder
+// stays flat and the comma-ok bool is never silently discarded.
+func asString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
+}
+
+func asInt64(v any) int64 {
+	if n, ok := v.(int64); ok {
+		return n
+	}
+	return 0
+}
+
+func asDuration(v any) time.Duration {
+	if d, ok := v.(time.Duration); ok {
+		return d
+	}
+	return 0
+}
+
 // decodeLedger reconstructs a typed Ledger from a "cost.ledger" Event's Fields —
-// the inverse of LedgerEvent — so a budget test round-trips token/cost data.
+// the inverse of LedgerEvent — so a budget test round-trips token/cost data. A
+// field whose projection has an unexpected type contributes its zero value.
 func decodeLedger(e observability.Event) observability.Ledger {
 	var l observability.Ledger
 	for _, f := range e.Fields {
 		tv := f.Value.TelemetryValue()
 		switch f.Key {
 		case "run.id":
-			l.RunID, _ = tv.(string)
+			l.RunID = asString(tv)
 		case "phase.id":
-			l.PhaseID, _ = tv.(string)
+			l.PhaseID = asString(tv)
 		case "model":
-			l.Model, _ = tv.(string)
+			l.Model = asString(tv)
 		case "harness":
-			l.Harness, _ = tv.(string)
+			l.Harness = asString(tv)
 		case "tokens.in":
-			l.TokensIn, _ = tv.(int64)
+			l.TokensIn = asInt64(tv)
 		case "tokens.out":
-			l.TokensOut, _ = tv.(int64)
+			l.TokensOut = asInt64(tv)
 		case "cache.hits":
-			l.CacheHits, _ = tv.(int64)
+			l.CacheHits = asInt64(tv)
 		case "cost.micros":
-			l.CostMicros, _ = tv.(int64)
+			l.CostMicros = asInt64(tv)
 		case "retries":
-			if n, ok := tv.(int64); ok {
-				l.Retries = int32(n)
-			}
+			l.Retries = int32(asInt64(tv))
 		case "wall.time":
-			l.WallTime, _ = tv.(time.Duration)
+			l.WallTime = asDuration(tv)
 		}
 	}
 	return l

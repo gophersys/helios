@@ -100,7 +100,11 @@ func runCase[S any](r *Runner, c Case[S], factory Factory[S]) (cr CaseResult) {
 	subject, err := factory(h.runCtx, h)
 	if err != nil {
 		cr.Outcome = Fail
-		cr.Messages = append(rec.messages, fmt.Sprintf("factory: %v", err))
+		// Build the case's own message slice rather than extending the recorder's
+		// (the recorder ran no case body, so rec.messages is empty here); a fresh
+		// slice keeps the recorder's buffer separate from the CaseResult's.
+		cr.Messages = append(cr.Messages, rec.messages...)
+		cr.Messages = append(cr.Messages, fmt.Sprintf("factory: %v", err))
 		return cr
 	}
 

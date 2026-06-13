@@ -26,10 +26,11 @@ type state struct {
 
 // push appends a finished Record to the buffer. It performs NO exporter I/O — the
 // blocking wire call is quarantined to Flush — so Emit stays non-blocking even
-// behind a slow Exporter.
-func (s *state) push(r Record) {
+// behind a slow Exporter. The Record is taken by pointer (it is a heavy value) and
+// copied into the buffer under the lock.
+func (s *state) push(r *Record) {
 	s.mu.Lock()
-	s.buffer = append(s.buffer, r)
+	s.buffer = append(s.buffer, *r)
 	s.mu.Unlock()
 }
 
@@ -114,7 +115,7 @@ func (p *provider) emit(ctx context.Context, e Event) {
 		res[k] = v
 	}
 
-	p.state.push(Record{Event: e, Resource: res, TraceID: trace, SpanID: span})
+	p.state.push(&Record{Event: e, Resource: res, TraceID: trace, SpanID: span})
 }
 
 // Emit records one Event on the stream. Non-blocking, best-effort, no error.
@@ -122,6 +123,13 @@ func (p *provider) Emit(ctx context.Context, event Event) { p.emit(ctx, event) }
 
 // With returns a child Provider carrying inherited Fields. It allocates an
 // independent inherited-field slice and shares *state; the parent is unaffected.
+//
+// The frozen contract (contracts/observability.md §2) declares Provider.With(...)
+// Provider: this method implements the port interface, so it must return the
+// Provider type (a child node is itself a *provider behind it). The ireturn
+// "return concrete" rule is declined because the surface is frozen.
+//
+//nolint:ireturn // contract §2: With implements the Provider port; surface is frozen.
 func (p *provider) With(fields ...Field) Provider {
 	child := *p
 	child.inherit = make([]Field, 0, len(p.inherit)+len(fields))
@@ -134,7 +142,7 @@ func (p *provider) With(fields ...Field) Provider {
 // the close func stamps a duration computed from the injected Clock and the
 // Outcome, then emits the span Event. The span Event and Events emitted on the
 // returned ctx share TraceID/SpanID.
-func (p *provider) Scope(ctx context.Context, name string, fields ...Field) (context.Context, func(Outcome)) {
+func (p *provider) Scope(ctx context.Context, name string, fields ...Field) (scoped context.Context, end func(Outcome)) {
 	id := p.state.nextSpan()
 	trace := "trace-" + strconv.FormatUint(id, 10)
 	span := "span-" + strconv.FormatUint(id, 10)
@@ -145,9 +153,9 @@ func (p *provider) Scope(ctx context.Context, name string, fields ...Field) (con
 
 	start := p.state.clock.Now()
 	spanFields := append([]Field(nil), fields...)
-	ctx = context.WithValue(ctx, spanKey{}, spanValue{traceID: trace, spanID: span})
+	scoped = context.WithValue(ctx, spanKey{}, spanValue{traceID: trace, spanID: span})
 
-	closeFn := func(outcome Outcome) {
+	end = func(outcome Outcome) {
 		elapsed := child.state.clock.Now().Sub(start)
 		all := append([]Field(nil), spanFields...)
 		all = append(all, Dur("duration", elapsed))
@@ -156,9 +164,9 @@ func (p *provider) Scope(ctx context.Context, name string, fields ...Field) (con
 		} else {
 			all = append(all, Bool("ok", true))
 		}
-		child.emit(ctx, Event{Severity: SeverityInfo, Name: name, Fields: all})
+		child.emit(scoped, Event{Severity: SeverityInfo, Name: name, Fields: all})
 	}
-	return ctx, closeFn
+	return scoped, end
 }
 
 // Log emits an operator-facing leveled line as a Severity-N Event on the same
@@ -180,6 +188,13 @@ func (p *provider) Flush(ctx context.Context) error {
 		return nil
 	}
 	if err := p.state.exporter.Export(ctx, batch); err != nil {
+		// fmt.Errorf with %w is the correct, contract-mandated wrap (contract §2:
+		// "Flush wraps the Exporter's I/O cause with %w"). observability is a
+		// stdlib-only leaf (depguard) and cannot import the Eden errors model, so
+		// %w is the wrapping boundary here and the cause stays reachable via
+		// errors.Is/Unwrap. wrapcheck fires only because the shared config's custom
+		// ignore-sigs omits fmt.Errorf — there is no missing wrap to add.
+		//nolint:wrapcheck // %w via fmt.Errorf IS the wrap (contract §2 leaf lib).
 		return fmt.Errorf("observability: flush: %w", err)
 	}
 	return nil

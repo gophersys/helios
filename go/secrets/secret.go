@@ -51,6 +51,14 @@ func newSecret(plaintext []byte) *Secret {
 // produce genuine, un-printable Secrets without a public constructor or //go:linkname
 // (contract §3 minting note). The any return avoids an import cycle; secretstest type-asserts
 // it back to *Secret.
+//
+// init is the right and only mechanism here: the registration must run exactly once at package
+// load, before any importer of secretstest can reach mint.Hook(), and it wires an unexported
+// constructor (newSecret) that lives only in this package. There is no New() to hang it off —
+// secrets is a value library with no package-level component — so the gochecknoinits ban is
+// wrong-for-contract for this one registration seam (secrets.md §3 minting note).
+//
+//nolint:gochecknoinits // contract-mandated minting-seam registration (secrets.md §3); see comment.
 func init() {
 	mint.Register(func(plaintext []byte) any { return newSecret(plaintext) })
 }
@@ -94,7 +102,10 @@ func (s *Secret) GoString() string { return Redacted }
 // load-bearing override: fmt consults Formatter before Stringer/GoStringer, so this one method
 // closes every fmt verb at once.
 func (s *Secret) Format(f fmt.State, verb rune) {
-	_, _ = f.Write([]byte(Redacted))
+	// A write error to the fmt sink is unrecoverable here (Format has no error return and the
+	// fmt machinery itself discards sink errors), and there is nothing safe to fall back to —
+	// the whole point is that ONLY Redacted may ever reach the sink. Explicitly discard.
+	_, _ = f.Write([]byte(Redacted)) //nolint:errcheck // fmt.State.Write error is unrecoverable and unactionable in Format.
 }
 
 // MarshalText returns Redacted, so any encoding.TextMarshaler-aware encoder redacts.

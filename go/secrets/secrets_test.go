@@ -15,9 +15,10 @@ import (
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
 
-// ---- Reference: ParseReference / Ref / String / Scheme / IsZero ----
+// ---- Reference: ParseReference / Ref / String / Scheme / IsZero ----.
 
 func TestParseReferenceRoundTrips(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in     string
 		scheme string
@@ -29,6 +30,7 @@ func TestParseReferenceRoundTrips(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {
+			t.Parallel()
 			r, err := secrets.ParseReference(tc.in)
 			if err != nil {
 				t.Fatalf("ParseReference(%q) error = %v", tc.in, err)
@@ -55,6 +57,7 @@ func TestParseReferenceRoundTrips(t *testing.T) {
 }
 
 func TestParseReferenceRejectsMalformed(t *testing.T) {
+	t.Parallel()
 	// Empty string and whitespace-only cannot be a valid Reference under any scheme.
 	for _, in := range []string{"", "   ", "\t"} {
 		r, err := secrets.ParseReference(in)
@@ -71,6 +74,7 @@ func TestParseReferenceRejectsMalformed(t *testing.T) {
 }
 
 func TestZeroReference(t *testing.T) {
+	t.Parallel()
 	var z secrets.Reference
 	if !z.IsZero() {
 		t.Error("zero Reference IsZero() = false, want true")
@@ -84,6 +88,7 @@ func TestZeroReference(t *testing.T) {
 }
 
 func TestReferenceIsComparableMapKey(t *testing.T) {
+	t.Parallel()
 	// Reference must be usable as a map key (comparable).
 	m := map[secrets.Reference]int{}
 	m[secrets.Ref("a")] = 1
@@ -94,6 +99,7 @@ func TestReferenceIsComparableMapKey(t *testing.T) {
 }
 
 func TestRefConstructorBareName(t *testing.T) {
+	t.Parallel()
 	r := secrets.Ref("anthropic-api-key")
 	if r.IsZero() {
 		t.Fatal("Ref(valid name) produced zero reference")
@@ -107,6 +113,7 @@ func TestRefConstructorBareName(t *testing.T) {
 }
 
 func TestRefPanicsOnImpossibleName(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if recover() == nil {
 			t.Error("Ref(invalid) did not panic")
@@ -115,7 +122,7 @@ func TestRefPanicsOnImpossibleName(t *testing.T) {
 	_ = secrets.Ref("")
 }
 
-// ---- Secret: redaction is total ----
+// ---- Secret: redaction is total ----.
 
 // mintSecret builds a real *secrets.Secret via the test minting hook.
 func mintSecret(t *testing.T, plaintext string) *secrets.Secret {
@@ -124,15 +131,19 @@ func mintSecret(t *testing.T, plaintext string) *secrets.Secret {
 }
 
 func TestSecretRedactionTotal(t *testing.T) {
+	t.Parallel()
 	const plaintext = "sk-super-secret-value-1234567890"
 	sec := mintSecret(t, plaintext)
 
-	// Every stringification / marshaling path must equal Redacted and never leak.
+	// Every stringification / marshaling path must equal Redacted and never leak. The %s/%v
+	// cases deliberately route through fmt's verb machinery (not sec.String()) because the
+	// point of this test is to prove the Format override redacts those verbs; gocritic's
+	// redundantSprint suggestion would bypass the very code path under test.
 	renders := map[string]string{
 		"String":   sec.String(),
 		"GoString": sec.GoString(),
-		"%s":       fmt.Sprintf("%s", sec),
-		"%v":       fmt.Sprintf("%v", sec),
+		"%s":       fmt.Sprintf("%s", sec), //nolint:gocritic // exercises the Format verb path under test.
+		"%v":       fmt.Sprintf("%v", sec), //nolint:gocritic // exercises the Format verb path under test.
 		"%+v":      fmt.Sprintf("%+v", sec),
 		"%#v":      fmt.Sprintf("%#v", sec),
 		"%q":       fmt.Sprintf("%q", sec),
@@ -191,6 +202,7 @@ func TestSecretRedactionTotal(t *testing.T) {
 }
 
 func TestSecretSlogRedaction(t *testing.T) {
+	t.Parallel()
 	const plaintext = "slog-secret-abcdef"
 	sec := mintSecret(t, plaintext)
 
@@ -213,10 +225,12 @@ func TestSecretSlogRedaction(t *testing.T) {
 }
 
 func TestSecretImplementsSlogLogValuer(t *testing.T) {
+	t.Parallel()
 	var _ slog.LogValuer = (*secrets.Secret)(nil)
 }
 
 func TestSecretTelemetryValue(t *testing.T) {
+	t.Parallel()
 	sec := mintSecret(t, "telemetry-secret")
 	if got := sec.TelemetryValue(); got != secrets.Redacted {
 		t.Errorf("TelemetryValue() = %v, want Redacted", got)
@@ -227,9 +241,10 @@ func TestSecretTelemetryValue(t *testing.T) {
 	var _ valuer = sec
 }
 
-// ---- Secret: Use / Use1 / Zeroize ----
+// ---- Secret: Use / Use1 / Zeroize ----.
 
 func TestSecretUseExposesPlaintext(t *testing.T) {
+	t.Parallel()
 	const plaintext = "use-me-once"
 	sec := mintSecret(t, plaintext)
 
@@ -247,6 +262,7 @@ func TestSecretUseExposesPlaintext(t *testing.T) {
 }
 
 func TestSecretUseReturnsFnError(t *testing.T) {
+	t.Parallel()
 	sec := mintSecret(t, "x")
 	sentinel := fmt.Errorf("boom")
 	err := sec.Use(func([]byte) error { return sentinel })
@@ -256,6 +272,7 @@ func TestSecretUseReturnsFnError(t *testing.T) {
 }
 
 func TestZeroizeWipesAndUseFails(t *testing.T) {
+	t.Parallel()
 	const plaintext = "zeroize-me"
 	sec := mintSecret(t, plaintext)
 	sec.Zeroize()
@@ -273,6 +290,7 @@ func TestZeroizeWipesAndUseFails(t *testing.T) {
 }
 
 func TestZeroizeIsIdempotent(t *testing.T) {
+	t.Parallel()
 	sec := mintSecret(t, "idem")
 	sec.Zeroize()
 	// Second call must be a no-op and not panic.
@@ -283,13 +301,16 @@ func TestZeroizeIsIdempotent(t *testing.T) {
 }
 
 func TestUseDoesNotLeakSliceAfterReturn(t *testing.T) {
+	t.Parallel()
 	const plaintext = "retain-attempt"
 	sec := mintSecret(t, plaintext)
 	var retained []byte
-	_ = sec.Use(func(b []byte) error {
+	if err := sec.Use(func(b []byte) error {
 		retained = b // contract says fn must not retain; we verify Zeroize wipes it
 		return nil
-	})
+	}); err != nil {
+		t.Fatalf("Use error = %v", err)
+	}
 	sec.Zeroize()
 	if string(retained) == plaintext {
 		t.Error("Zeroize did not wipe the backing bytes that fn retained")
@@ -297,6 +318,7 @@ func TestUseDoesNotLeakSliceAfterReturn(t *testing.T) {
 }
 
 func TestUse1DerivesValue(t *testing.T) {
+	t.Parallel()
 	const plaintext = "derive-from-me"
 	sec := mintSecret(t, plaintext)
 	n, err := secrets.Use1(sec, func(b []byte) (int, error) {
@@ -311,6 +333,7 @@ func TestUse1DerivesValue(t *testing.T) {
 }
 
 func TestUse1AfterZeroize(t *testing.T) {
+	t.Parallel()
 	sec := mintSecret(t, "x")
 	sec.Zeroize()
 	v, err := secrets.Use1(sec, func(b []byte) (string, error) {
@@ -325,6 +348,7 @@ func TestUse1AfterZeroize(t *testing.T) {
 }
 
 func TestUse1PropagatesFnError(t *testing.T) {
+	t.Parallel()
 	sec := mintSecret(t, "x")
 	sentinel := fmt.Errorf("derive failed")
 	v, err := secrets.Use1(sec, func([]byte) (int, error) {
@@ -339,6 +363,7 @@ func TestUse1PropagatesFnError(t *testing.T) {
 }
 
 func TestUseReentrantReads(t *testing.T) {
+	t.Parallel()
 	const plaintext = "concurrent-read"
 	sec := mintSecret(t, plaintext)
 	var wg sync.WaitGroup
@@ -346,20 +371,23 @@ func TestUseReentrantReads(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = sec.Use(func(b []byte) error {
+			if err := sec.Use(func(b []byte) error {
 				if string(b) != plaintext {
 					t.Errorf("concurrent Use saw %q", b)
 				}
 				return nil
-			})
+			}); err != nil {
+				t.Errorf("concurrent Use error = %v", err)
+			}
 		}()
 	}
 	wg.Wait()
 }
 
-// ---- New / Mediator routing ----
+// ---- New / Mediator routing ----.
 
 func TestNewRequiresResolvers(t *testing.T) {
+	t.Parallel()
 	_, err := secrets.New(secrets.Config{}, secrets.Deps{})
 	if err == nil {
 		t.Fatal("New with no resolvers returned nil error")
@@ -371,6 +399,7 @@ func TestNewRequiresResolvers(t *testing.T) {
 }
 
 func TestNewReturnsConcreteMediator(t *testing.T) {
+	t.Parallel()
 	prov := secretstest.New(map[string]string{"k": "v"})
 	med, err := secrets.New(
 		secrets.Config{DefaultScheme: "test"},
@@ -379,13 +408,16 @@ func TestNewReturnsConcreteMediator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New error = %v", err)
 	}
-	// Return-concrete: New returns *secrets.Mediator.
-	var _ *secrets.Mediator = med
+	// Return-concrete: New returns *secrets.Mediator. The explicit type is the assertion (it
+	// proves New's static return type is the concrete *Mediator, contract §6.5); omitting it as
+	// QF1011 suggests would assert nothing.
+	var _ *secrets.Mediator = med //nolint:staticcheck // QF1011: the explicit type IS the return-concrete assertion.
 	// And it satisfies the Provider port.
 	var _ secrets.Provider = med
 }
 
 func TestMediatorRoutesByScheme(t *testing.T) {
+	t.Parallel()
 	vault := secretstest.New(map[string]string{"vault://db#password": "vault-pw"})
 	env := secretstest.New(map[string]string{"env://API": "env-key"})
 	med, err := secrets.New(
@@ -413,6 +445,7 @@ func TestMediatorRoutesByScheme(t *testing.T) {
 }
 
 func TestMediatorAppliesDefaultScheme(t *testing.T) {
+	t.Parallel()
 	// A schemeless reference routes through DefaultScheme.
 	vault := secretstest.New(map[string]string{"anthropic-api-key": "the-key"})
 	med, err := secrets.New(
@@ -430,11 +463,12 @@ func TestMediatorAppliesDefaultScheme(t *testing.T) {
 }
 
 func TestMediatorSchemelessNoDefaultIsInvalid(t *testing.T) {
+	t.Parallel()
 	// Empty DefaultScheme + schemeless reference => InvalidReferenceError.
-	any := secretstest.New(map[string]string{"x": "y"})
+	prov := secretstest.New(map[string]string{"x": "y"})
 	med, err := secrets.New(
 		secrets.Config{}, // DefaultScheme empty
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"": any, "vault": any}},
+		secrets.Deps{Resolvers: map[string]secrets.Provider{"": prov, "vault": prov}},
 	)
 	if err != nil {
 		t.Fatalf("New error = %v", err)
@@ -452,11 +486,9 @@ func TestMediatorSchemelessNoDefaultIsInvalid(t *testing.T) {
 }
 
 func TestMediatorZeroReferenceIsInvalid(t *testing.T) {
+	t.Parallel()
 	prov := secretstest.New(map[string]string{"x": "y"})
-	med, _ := secrets.New(
-		secrets.Config{DefaultScheme: "vault"},
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": prov}},
-	)
+	med := newVaultMediator(t, prov)
 	var zero secrets.Reference
 	sec, err := med.Resolve(context.Background(), zero)
 	if err == nil {
@@ -471,11 +503,9 @@ func TestMediatorZeroReferenceIsInvalid(t *testing.T) {
 }
 
 func TestMediatorUnknownSchemeIsInvalid(t *testing.T) {
+	t.Parallel()
 	prov := secretstest.New(map[string]string{"x": "y"})
-	med, _ := secrets.New(
-		secrets.Config{DefaultScheme: "vault"},
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": prov}},
-	)
+	med := newVaultMediator(t, prov)
 	// A scheme with no adapter bound.
 	sec, err := med.Resolve(context.Background(), secrets.Ref("keychain://thing"))
 	if err == nil {
@@ -490,11 +520,9 @@ func TestMediatorUnknownSchemeIsInvalid(t *testing.T) {
 }
 
 func TestMediatorPropagatesAdapterError(t *testing.T) {
+	t.Parallel()
 	prov := secretstest.New(nil)
-	med, _ := secrets.New(
-		secrets.Config{DefaultScheme: "vault"},
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": prov}},
-	)
+	med := newVaultMediator(t, prov)
 	// Unseeded name -> NotFoundError from the adapter, routed through the Mediator.
 	sec, err := med.Resolve(context.Background(), secrets.Ref("missing"))
 	if err == nil {
@@ -509,11 +537,9 @@ func TestMediatorPropagatesAdapterError(t *testing.T) {
 }
 
 func TestMediatorConcurrentResolve(t *testing.T) {
+	t.Parallel()
 	prov := secretstest.New(map[string]string{"vault://k": "v"})
-	med, _ := secrets.New(
-		secrets.Config{DefaultScheme: "vault"},
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": prov}},
-	)
+	med := newVaultMediator(t, prov)
 	ref := secrets.Ref("vault://k")
 	var wg sync.WaitGroup
 	for i := 0; i < 32; i++ {
@@ -526,20 +552,38 @@ func TestMediatorConcurrentResolve(t *testing.T) {
 				return
 			}
 			defer sec.Zeroize()
-			_ = sec.Use(func(b []byte) error {
+			if uerr := sec.Use(func(b []byte) error {
 				if string(b) != "v" {
 					t.Errorf("concurrent Resolve saw %q", b)
 				}
 				return nil
-			})
+			}); uerr != nil {
+				t.Errorf("concurrent Use error = %v", uerr)
+			}
 		}()
 	}
 	wg.Wait()
 }
 
-// ---- Error taxonomy ----
+// newVaultMediator builds a *secrets.Mediator with DefaultScheme "vault" routing to prov,
+// failing the test if New errors. It centralizes the construction the Mediator routing tests
+// share so each can focus on the behavior it asserts.
+func newVaultMediator(t *testing.T, prov secrets.Provider) *secrets.Mediator {
+	t.Helper()
+	med, err := secrets.New(
+		secrets.Config{DefaultScheme: "vault"},
+		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": prov}},
+	)
+	if err != nil {
+		t.Fatalf("secrets.New error = %v", err)
+	}
+	return med
+}
+
+// ---- Error taxonomy ----.
 
 func TestErrorTypesCarryReferenceNeverValue(t *testing.T) {
+	t.Parallel()
 	ref := secrets.Ref("vault://eden/secret#field")
 	const plaintext = "the-actual-secret"
 	cases := []error{
@@ -564,6 +608,7 @@ func TestErrorTypesCarryReferenceNeverValue(t *testing.T) {
 }
 
 func TestErrorTypesAreDistinctViaAsType(t *testing.T) {
+	t.Parallel()
 	ref := secrets.Ref("x")
 	wrapped := fmt.Errorf("context: %w", secrets.NotFoundError{Ref: ref})
 

@@ -48,9 +48,20 @@ func (r *Runner) newHarness() *suiteHarness {
 	}
 }
 
-func (h *suiteHarness) Clock() Clock               { return h.clock }
+// Clock and RandomSource return the port interfaces the Harness contract declares
+// (contract §2): the deterministic *deterministic.Clock/*deterministic.Random
+// adapters are internal by design, so the Harness vends them as their ports. The
+// ireturn "return concrete" rule is wrong-for-contract for exactly these two
+// methods — they implement the frozen Harness interface and cannot return the
+// unexported concrete type.
+
+//nolint:ireturn // contract §2: Harness.Clock() returns the Clock port; the *deterministic.Clock adapter is internal by design.
+func (h *suiteHarness) Clock() Clock { return h.clock }
+
+//nolint:ireturn // contract §2: Harness.RandomSource() returns the RandomSource port; the *deterministic.Random adapter is internal by design.
 func (h *suiteHarness) RandomSource() RandomSource { return h.random }
-func (h *suiteHarness) Context() context.Context   { return h.runCtx }
+
+func (h *suiteHarness) Context() context.Context { return h.runCtx }
 
 // Has reports whether capability is present for this run. Presence = membership in
 // the Runner's RequireCapabilities set (02 §1 CapabilityManifest gate).

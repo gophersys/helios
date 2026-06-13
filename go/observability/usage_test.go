@@ -59,6 +59,7 @@ func (secretRef) TelemetryValue() any { return "secrets.Secret(REDACTED)" }
 // TestUsageEngineRunPhase mirrors §5's Engine.runPhase: a run-scoped With, a
 // Scope span, a gate.decision Event, and a T6 cost.ledger — all on one stream.
 func TestUsageEngineRunPhase(t *testing.T) {
+	t.Parallel()
 	exp := &captureExporter{}
 	clock := &stepClock{now: time.Unix(1700000000, 0).UTC()}
 	obs, err := observability.New(
@@ -130,6 +131,7 @@ func TestUsageEngineRunPhase(t *testing.T) {
 // TestUsageSubordinateSinkLoggingRedacts mirrors §5's evidence.record: Log a
 // leveled line carrying a Secret as its redacted Valuer; the raw never ships.
 func TestUsageSubordinateSinkLoggingRedacts(t *testing.T) {
+	t.Parallel()
 	exp := &captureExporter{}
 	obs, err := observability.New(
 		observability.Config{ServiceName: "evidence", DefaultPlane: observability.PlaneAgent},
@@ -140,7 +142,8 @@ func TestUsageSubordinateSinkLoggingRedacts(t *testing.T) {
 	}
 
 	const rawToken = "ghp_realsecretvalue"
-	obs.Log(context.Background(), observability.SeverityInfo, "gate evidence emitted",
+	obs.Log(
+		context.Background(), observability.SeverityInfo, "gate evidence emitted",
 		observability.String("verdict", "pass"),
 		observability.Any("token", secretRef{raw: rawToken}),
 	)
@@ -160,6 +163,7 @@ func TestUsageSubordinateSinkLoggingRedacts(t *testing.T) {
 // TestUsageCompositionRootConfigError mirrors §5's main(): a bad Config yields a
 // *ConfigError inspectable via errors.As.
 func TestUsageCompositionRootConfigError(t *testing.T) {
+	t.Parallel()
 	_, err := observability.New(
 		observability.Config{ServiceName: ""},
 		observability.Deps{Exporter: &captureExporter{}, Clock: &stepClock{}},

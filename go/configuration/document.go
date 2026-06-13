@@ -31,6 +31,13 @@ type Document interface {
 // into one report instead of failing on the first. A nil *Diagnostic means
 // success. The zero Value is "absent": every conversion returns its type's
 // zero plus a *Diagnostic, and Field/Len report ok == false.
+//
+// The frozen contract (contracts/configuration.md §2) fixes Value at exactly
+// these six methods (At + the three total scalar conversions + Field + Len).
+// The contract is law; widening the 5-method ceiling here would change the
+// published surface, which is the cardinal sin (10 §9).
+//
+//nolint:interfacebloat // 6 methods fixed by contracts/configuration.md §2; see doc above.
 type Value interface {
 	// At is the source Position of this leaf, carried so a conversion failure
 	// surfaces "backend.yaml:14:7", not "bad int somewhere."
@@ -56,6 +63,13 @@ type document struct {
 // newDocument adapts an internal tree root into a Document. Used by the parser
 // and (via the internal package) the configurationtest fakes, so the real and
 // fake read surfaces are structurally identical.
+//
+// Document is an interface BY CONTRACT (contracts/configuration.md §2):
+// immutability is structural — no setter, no exported field — so the only way
+// to hand one out is behind the interface. Returning the concrete *document
+// would leak the unexported type and break the frozen surface.
+//
+//nolint:ireturn // Document is an interface fixed by contracts/configuration.md §2; see doc above.
 func newDocument(root *tree.Node, format Format, origin Position) Document {
 	if root == nil {
 		root = tree.Absent()
@@ -66,6 +80,12 @@ func newDocument(root *tree.Node, format Format, origin Position) Document {
 func (d *document) Format() Format   { return d.format }
 func (d *document) Origin() Position { return d.origin }
 
+// Lookup implements the contract's Document.Lookup verbatim. Value is an
+// interface BY CONTRACT (contracts/configuration.md §2): the fake supplies its
+// own view without exposing internal state, so the read surface must be the
+// abstract Value, not a concrete type.
+//
+//nolint:ireturn // Value is an interface fixed by contracts/configuration.md §2; see doc above.
 func (d *document) Lookup(p Path) (Value, bool) {
 	node, ok := resolve(d.root, string(p))
 	if !ok {
@@ -107,28 +127,34 @@ func splitPath(p string) []segment {
 		if part == "" {
 			continue
 		}
-		// A part may be "models[0][1]" etc.: peel the bracketed indices off.
-		name := part
-		if br := strings.IndexByte(part, '['); br >= 0 {
-			name = part[:br]
+		segs = appendPartSegments(segs, part)
+	}
+	return segs
+}
+
+// appendPartSegments splits one dotted part (e.g. "models[0][1]") into its key
+// segment followed by any bracketed index segments, appending them in order.
+func appendPartSegments(segs []segment, part string) []segment {
+	br := strings.IndexByte(part, '[')
+	name := part
+	if br >= 0 {
+		name = part[:br]
+	}
+	if name != "" {
+		segs = append(segs, segment{key: name, index: -1})
+	}
+	if br < 0 {
+		return segs
+	}
+	for rest := part[br:]; rest != "" && rest[0] == '['; {
+		end := strings.IndexByte(rest, ']')
+		if end < 0 {
+			break
 		}
-		if name != "" {
-			segs = append(segs, segment{key: name, index: -1})
+		if i, err := strconv.Atoi(rest[1:end]); err == nil {
+			segs = append(segs, segment{index: i})
 		}
-		rest := part
-		if br := strings.IndexByte(part, '['); br >= 0 {
-			rest = part[br:]
-			for len(rest) > 0 && rest[0] == '[' {
-				end := strings.IndexByte(rest, ']')
-				if end < 0 {
-					break
-				}
-				if i, err := strconv.Atoi(rest[1:end]); err == nil {
-					segs = append(segs, segment{index: i})
-				}
-				rest = rest[end+1:]
-			}
-		}
+		rest = rest[end+1:]
 	}
 	return segs
 }
@@ -157,8 +183,12 @@ func (v value) Int() (int64, *Diagnostic) {
 		if v.node.Float == float64(int64(v.node.Float)) {
 			return int64(v.node.Float), nil
 		}
+		return 0, v.mismatch("int")
+	case tree.KindAbsent, tree.KindString, tree.KindBool, tree.KindObject, tree.KindArray:
+		return 0, v.mismatch("int")
+	default:
+		return 0, v.mismatch("int")
 	}
-	return 0, v.mismatch("int")
 }
 
 func (v value) Bool() (bool, *Diagnostic) {
@@ -168,6 +198,11 @@ func (v value) Bool() (bool, *Diagnostic) {
 	return false, v.mismatch("bool")
 }
 
+// Field returns the same abstract Value so element/field walks stay behind the
+// read surface. Value is an interface BY CONTRACT (contracts/configuration.md
+// §2); the signature is fixed by the frozen contract.
+//
+//nolint:ireturn // Value is an interface fixed by contracts/configuration.md §2; see doc above.
 func (v value) Field(key string) (Value, bool) {
 	child, ok := v.node.Child(key)
 	if !ok {

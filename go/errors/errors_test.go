@@ -10,9 +10,9 @@ import (
 	"github.com/gophersys/libs/go/errors"
 )
 
-// --- Kind.String token stability (the wire/telemetry contract) ---------------
-
+// Kind.String token stability (the wire/telemetry contract).
 func TestKindStringTokens(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		kind errors.Kind
 		want string
@@ -37,6 +37,7 @@ func TestKindStringTokens(t *testing.T) {
 }
 
 func TestKindStringOutOfRange(t *testing.T) {
+	t.Parallel()
 	// Total: any out-of-range value renders "unknown".
 	for _, v := range []errors.Kind{11, 12, 100, 255} {
 		if got := v.String(); got != "unknown" {
@@ -46,6 +47,7 @@ func TestKindStringOutOfRange(t *testing.T) {
 }
 
 func TestKindZeroValueIsUnknown(t *testing.T) {
+	t.Parallel()
 	var z errors.Kind
 	if z != errors.KindUnknown {
 		t.Fatalf("zero Kind = %d, want KindUnknown (%d)", z, errors.KindUnknown)
@@ -55,9 +57,9 @@ func TestKindZeroValueIsUnknown(t *testing.T) {
 	}
 }
 
-// --- New ---------------------------------------------------------------------
-
+// New.
 func TestNew(t *testing.T) {
+	t.Parallel()
 	e := errors.New(errors.KindNotFound, "workspace not found")
 	if e == nil {
 		t.Fatal("New returned nil")
@@ -79,9 +81,9 @@ func TestNew(t *testing.T) {
 	}
 }
 
-// --- Wrap --------------------------------------------------------------------
-
+// Wrap.
 func TestWrapNilEliding(t *testing.T) {
+	t.Parallel()
 	for k := errors.KindUnknown; k <= errors.KindInternal; k++ {
 		if got := errors.Wrap(k, "annotate", nil); got != nil {
 			t.Errorf("Wrap(%v, _, nil) = %v, want nil", k, got)
@@ -90,6 +92,7 @@ func TestWrapNilEliding(t *testing.T) {
 }
 
 func TestWrapMessageRendersCause(t *testing.T) {
+	t.Parallel()
 	cause := stderrors.New("disk gone")
 	e := errors.Wrap(errors.KindUnavailable, "store read failed", cause)
 	want := "store read failed: disk gone"
@@ -99,6 +102,7 @@ func TestWrapMessageRendersCause(t *testing.T) {
 }
 
 func TestWrapEmptyMessageRendersOnlyCause(t *testing.T) {
+	t.Parallel()
 	cause := stderrors.New("disk gone")
 	e := errors.Wrap(errors.KindUnavailable, "", cause)
 	if e.Error() != "disk gone" {
@@ -107,17 +111,19 @@ func TestWrapEmptyMessageRendersOnlyCause(t *testing.T) {
 }
 
 func TestWrapPreservesChain(t *testing.T) {
+	t.Parallel()
 	sentinel := stderrors.New("sentinel cause")
 	e := errors.Wrap(errors.KindInternal, "outer", sentinel)
 	if !errors.Is(e, sentinel) {
 		t.Errorf("Is(wrapped, sentinel) = false, want true (chain not preserved)")
 	}
-	if e.Unwrap() != sentinel {
+	if !errors.Is(e.Unwrap(), sentinel) {
 		t.Errorf("Unwrap() = %v, want sentinel", e.Unwrap())
 	}
 }
 
 func TestWrapKindInheritance(t *testing.T) {
+	t.Parallel()
 	// cause carries a meaningful *Error Kind; Wrap with KindUnknown inherits it.
 	cause := errors.New(errors.KindNotFound, "inner not found")
 	e := errors.Wrap(errors.KindUnknown, "outer annotation", cause)
@@ -131,6 +137,7 @@ func TestWrapKindInheritance(t *testing.T) {
 }
 
 func TestWrapExplicitKindOverrides(t *testing.T) {
+	t.Parallel()
 	cause := errors.New(errors.KindNotFound, "inner not found")
 	e := errors.Wrap(errors.KindInternal, "outer", cause)
 	if got := errors.KindOf(e); got != errors.KindInternal {
@@ -139,6 +146,7 @@ func TestWrapExplicitKindOverrides(t *testing.T) {
 }
 
 func TestWrapKindInheritanceNonErrorCause(t *testing.T) {
+	t.Parallel()
 	// A foreign cause carries no *Error Kind: KindUnknown stays Unknown.
 	cause := stderrors.New("foreign")
 	e := errors.Wrap(errors.KindUnknown, "outer", cause)
@@ -147,9 +155,9 @@ func TestWrapKindInheritanceNonErrorCause(t *testing.T) {
 	}
 }
 
-// --- WithCode ----------------------------------------------------------------
-
+// WithCode.
 func TestWithCode(t *testing.T) {
+	t.Parallel()
 	base := errors.New(errors.KindExhausted, "budget exceeded")
 	derived := base.WithCode("workspace_quota_exceeded")
 	if derived.Code() != "workspace_quota_exceeded" {
@@ -164,9 +172,9 @@ func TestWithCode(t *testing.T) {
 	}
 }
 
-// --- WithField ---------------------------------------------------------------
-
+// WithField.
 func TestWithFieldScalar(t *testing.T) {
+	t.Parallel()
 	base := errors.New(errors.KindInvalid, "bad input")
 	derived := base.
 		WithField("workspace_id", "ws-123").
@@ -190,6 +198,7 @@ func TestWithFieldScalar(t *testing.T) {
 }
 
 func TestWithFieldCopyOnWrite(t *testing.T) {
+	t.Parallel()
 	base := errors.New(errors.KindInvalid, "bad input")
 	derived := base.WithField("k", "v")
 	if len(base.Fields()) != 0 {
@@ -209,6 +218,7 @@ func TestWithFieldCopyOnWrite(t *testing.T) {
 }
 
 func TestWithFieldNonScalarIsRedacted(t *testing.T) {
+	t.Parallel()
 	type secretStruct struct{ Password string }
 	base := errors.New(errors.KindInternal, "boom")
 
@@ -231,6 +241,7 @@ func TestWithFieldNonScalarIsRedacted(t *testing.T) {
 }
 
 func TestFieldsReturnsDefensiveCopy(t *testing.T) {
+	t.Parallel()
 	e := errors.New(errors.KindInvalid, "x").WithField("k", "v")
 	f := e.Fields()
 	f["k"] = "MUTATED"
@@ -245,6 +256,7 @@ func TestFieldsReturnsDefensiveCopy(t *testing.T) {
 }
 
 func TestFieldsNeverNilForUsability(t *testing.T) {
+	t.Parallel()
 	// A defensive copy of an empty/absent field set must be safe to range over.
 	e := errors.New(errors.KindInvalid, "x")
 	f := e.Fields()
@@ -253,26 +265,32 @@ func TestFieldsNeverNilForUsability(t *testing.T) {
 	}
 }
 
-// --- Immutability across the whole verb chain --------------------------------
-
+// Immutability across the whole verb chain.
 func TestImmutabilityOfReceiverAcrossVerbs(t *testing.T) {
+	t.Parallel()
 	base := errors.New(errors.KindNotFound, "base")
-	_ = base.WithCode("c").WithField("k", "v")
+	derived := base.WithCode("c").WithField("k", "v")
 	if base.Code() != "" || len(base.Fields()) != 0 || base.Kind() != errors.KindNotFound {
 		t.Errorf("base was mutated by derived chain: code=%q fields=%v kind=%v",
 			base.Code(), base.Fields(), base.Kind())
 	}
+	// The derived value carries the changes — confirming the chain diverged from
+	// the receiver rather than no-op'ing.
+	if derived.Code() != "c" || derived.Fields()["k"] != "v" {
+		t.Errorf("derived chain lost its changes: code=%q fields=%v", derived.Code(), derived.Fields())
+	}
 }
 
-// --- FromContext -------------------------------------------------------------
-
+// FromContext.
 func TestFromContextLive(t *testing.T) {
+	t.Parallel()
 	if e := errors.FromContext(context.Background()); e != nil {
 		t.Errorf("FromContext(live) = %v, want nil", e)
 	}
 }
 
 func TestFromContextCanceled(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	e := errors.FromContext(ctx)
@@ -285,6 +303,7 @@ func TestFromContextCanceled(t *testing.T) {
 }
 
 func TestFromContextDeadline(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 	defer cancel()
 	// Ensure the deadline has actually fired.
@@ -299,6 +318,7 @@ func TestFromContextDeadline(t *testing.T) {
 }
 
 func TestFromContextNonStandardErrMapsToUnknown(t *testing.T) {
+	t.Parallel()
 	// A context whose Err() is neither Canceled nor DeadlineExceeded maps to the
 	// default arm: a classified *Error with KindUnknown, preserving the cause.
 	odd := stderrors.New("custom ctx failure")
@@ -324,21 +344,23 @@ type errCtx struct {
 
 func (c errCtx) Err() error { return c.err }
 
-// --- KindOf ------------------------------------------------------------------
-
+// KindOf.
 func TestKindOfNil(t *testing.T) {
+	t.Parallel()
 	if got := errors.KindOf(nil); got != errors.KindUnknown {
 		t.Errorf("KindOf(nil) = %v, want KindUnknown", got)
 	}
 }
 
 func TestKindOfForeign(t *testing.T) {
+	t.Parallel()
 	if got := errors.KindOf(stderrors.New("foreign")); got != errors.KindUnknown {
 		t.Errorf("KindOf(foreign) = %v, want KindUnknown", got)
 	}
 }
 
 func TestKindOfFindsFirstErrorInChain(t *testing.T) {
+	t.Parallel()
 	inner := errors.New(errors.KindNotFound, "inner")
 	mid := stderrors.Join(stderrors.New("noise"), inner)
 	outer := stderrors.New("foreign top") // not in chain of mid
@@ -349,6 +371,7 @@ func TestKindOfFindsFirstErrorInChain(t *testing.T) {
 }
 
 func TestKindOfNeverPanics(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("KindOf panicked: %v", r)
@@ -360,9 +383,9 @@ func TestKindOfNeverPanics(t *testing.T) {
 	_ = errors.KindOf(typedNil)
 }
 
-// --- AsType / Is / Join re-exports -------------------------------------------
-
+// AsType / Is / Join re-exports.
 func TestAsTypeReExportEquivalence(t *testing.T) {
+	t.Parallel()
 	leaf := errors.New(errors.KindNotFound, "leaf")
 	chain := errors.Wrap(errors.KindInternal, "outer", leaf)
 
@@ -377,6 +400,7 @@ func TestAsTypeReExportEquivalence(t *testing.T) {
 }
 
 func TestAsTypeExtractsTypedCause(t *testing.T) {
+	t.Parallel()
 	leaf := errors.New(errors.KindNotFound, "leaf")
 	chain := errors.Wrap(errors.KindInternal, "outer", leaf)
 	got, ok := errors.AsType[*errors.Error](chain)
@@ -390,6 +414,7 @@ func TestAsTypeExtractsTypedCause(t *testing.T) {
 }
 
 func TestIsReExport(t *testing.T) {
+	t.Parallel()
 	sentinel := stderrors.New("sentinel")
 	chain := errors.Wrap(errors.KindUnavailable, "wrap", sentinel)
 	if !errors.Is(chain, sentinel) {
@@ -401,6 +426,7 @@ func TestIsReExport(t *testing.T) {
 }
 
 func TestJoinReExport(t *testing.T) {
+	t.Parallel()
 	a := errors.New(errors.KindNotFound, "a")
 	b := errors.New(errors.KindInvalid, "b")
 	joined := errors.Join(a, b)
@@ -415,9 +441,9 @@ func TestJoinReExport(t *testing.T) {
 	}
 }
 
-// --- Redaction safety on the production surface ------------------------------
-
+// Redaction safety on the production surface.
 func TestRenderNeverLeaksFieldValue(t *testing.T) {
+	t.Parallel()
 	const secret = "s3cr3t-token-value"
 	e := errors.New(errors.KindInternal, "operation failed").
 		WithField("token", secret)

@@ -19,15 +19,18 @@ type engineDeps struct {
 }
 
 // engineNew mirrors §5 Site 2: New stays PURE — it validates the narrowed ports,
-// binds no real adapter, reads no clock/env, and wraps MissingPortError with %w.
-func engineNew(deps engineDeps) (*engine, error) {
-	if deps.Clock == nil {
+// binds no real adapter, reads no clock/env, and wraps MissingPortError with %w. The
+// parameter is named `narrowed` (the full-naming rule 10 §5 forbids the abbreviation
+// `deps`; `dependencies` would shadow the package import, so this names what the value
+// IS — the narrowed port set).
+func engineNew(narrowed engineDeps) (*engine, error) {
+	if narrowed.Clock == nil {
 		return nil, fmt.Errorf("engine: %w", &dependencies.MissingPortError{Port: "Clock"})
 	}
-	if deps.Random == nil {
+	if narrowed.Random == nil {
 		return nil, fmt.Errorf("engine: %w", &dependencies.MissingPortError{Port: "RandomSource"})
 	}
-	return &engine{clock: deps.Clock, random: deps.Random}, nil
+	return &engine{clock: narrowed.Clock, random: narrowed.Random}, nil
 }
 
 type engine struct {
@@ -53,6 +56,7 @@ func (e *engine) runWithTimeout(ctx context.Context, work <-chan struct{}, d tim
 // §5 Site 3: deterministic by construction — drive the timeout via Advance, no
 // real waiting.
 func TestEngineTimeoutDeterministic(t *testing.T) {
+	t.Parallel()
 	set, clock, random, _ := dependenciestest.Fakes()
 	e, err := engineNew(engineDeps{Clock: set.Clock, Random: set.Random})
 	if err != nil {
@@ -80,6 +84,7 @@ func TestEngineTimeoutDeterministic(t *testing.T) {
 // §5 Site 1/2: a narrowing constructor surfaces a missing port structurally via
 // *MissingPortError (errors.As), not as a nil panic at first use.
 func TestEngineMissingPortStructural(t *testing.T) {
+	t.Parallel()
 	_, err := engineNew(engineDeps{ /* Clock nil */ Random: dependenciestest.NewRandom([32]byte{})})
 	if err == nil {
 		t.Fatal("expected a missing-port error")
@@ -96,6 +101,7 @@ func TestEngineMissingPortStructural(t *testing.T) {
 // §5 Site 1: a composition root NARROWS the resolved Set; Resolve fills any unset
 // port with its real adapter and the narrowed Deps validates.
 func TestCompositionRootNarrowing(t *testing.T) {
+	t.Parallel()
 	base := dependencies.Resolve(dependencies.Set{})
 	e, err := engineNew(engineDeps{Clock: base.Clock, Random: base.Random})
 	if err != nil {

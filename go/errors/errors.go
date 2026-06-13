@@ -29,6 +29,9 @@ import (
 // classification is visibly unclassified, not masquerading as KindInternal.
 type Kind uint8
 
+// The Kind enumerators. Append-only and never reordered or renamed once shipped:
+// the numeric order and the String() tokens are both part of the wire/telemetry
+// contract (see Kind and kindTokens).
 const (
 	KindUnknown         Kind = iota // unclassified; the edge maps it to INTERNAL/UNKNOWN
 	KindInvalid                     // malformed/invalid argument        -> INVALID_ARGUMENT
@@ -37,7 +40,7 @@ const (
 	KindExhausted                   // quota/budget/rate ceiling hit     -> RESOURCE_EXHAUSTED
 	KindUnavailable                 // transient; retry may succeed      -> UNAVAILABLE
 	KindDeadline                    // deadline exceeded (ctx)           -> DEADLINE_EXCEEDED
-	KindCanceled                    // operation canceled (ctx)          -> CANCELLED
+	KindCanceled                    // operation canceled (ctx)          -> CANCELED
 	KindUnauthenticated             // caller identity not established   -> UNAUTHENTICATED
 	KindPermission                  // caller not authorized             -> PERMISSION_DENIED
 	KindInternal                    // invariant we own broken; our bug  -> INTERNAL
@@ -221,7 +224,7 @@ func (e *Error) clone() *Error {
 	return &c
 }
 
-// --- Inspection (AsType-first, Go 1.26) + re-exported verbs ---------------
+// Inspection (AsType-first, Go 1.26) and re-exported verbs follow.
 
 // KindOf is the canonical, TOTAL classifier the rest of Eden calls (transport
 // boundary, engine Gate, retry logic). It reports the Kind of the first *Error
@@ -241,8 +244,15 @@ func KindOf(err error) Kind {
 // errors.As. Prefer this over Is for typed extraction.
 func AsType[E error](err error) (E, bool) { return stderrors.AsType[E](err) }
 
-// Is and Join are re-exported for sentinel comparison and aggregation (swarm /
-// fan-out FileLease verification, 02 §2). Is reports whether the chain matches a
-// target sentinel; for "does the chain carry Kind k", call KindOf(err) == k.
+// Is is re-exported for sentinel comparison so consumers never reach for stdlib
+// errors. It reports whether the chain matches a target sentinel; for "does the
+// chain carry Kind k", call KindOf(err) == k.
 func Is(err, target error) bool { return stderrors.Is(err, target) }
-func Join(errs ...error) error  { return stderrors.Join(errs...) }
+
+// Join is re-exported for error aggregation (swarm / fan-out FileLease
+// verification, 02 §2), keeping aggregation on the single errors import seam.
+// Contract §2 (Q6) freezes Join as a thin re-export of stderrors.Join; wrapping
+// its result would change the published surface and defeat the re-export.
+//
+//nolint:wrapcheck // see above: the frozen contract requires a thin re-export.
+func Join(errs ...error) error { return stderrors.Join(errs...) }

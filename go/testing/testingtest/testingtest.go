@@ -53,11 +53,16 @@ func NewFakeRandomSource(seed uint64) *FakeRandomSource { return deterministic.N
 
 var _ dependencies.RandomSource = (*FakeRandomSource)(nil)
 
-// ── Adapters from stdlib testing into the assertion-free core ───────────────
+// ── Adapters from stdlib testing into the assertion-free core ─────────────────.
 
 // NewReport adapts *testing.T to testing.Report so a go test drives any Suite in
 // one line; the core stays stdlib-testing-free. Skipf maps to t.Skipf.
-func NewReport(t *stdtesting.T) testingpkg.Report { return tReport{t: t} }
+//
+//nolint:ireturn // contract §3: NewReport returns the testing.Report port; the tReport adapter is unexported by design.
+func NewReport(t *stdtesting.T) testingpkg.Report {
+	t.Helper()
+	return tReport{t: t}
+}
 
 // tReport bridges the assertion-free Report onto *testing.T.
 type tReport struct{ t *stdtesting.T }
@@ -68,17 +73,19 @@ func (r tReport) Skipf(format string, args ...any)  { r.t.Helper(); r.t.Skipf(fo
 
 // NewHarness builds a standalone testing.Harness for wiring fakes into a library's
 // own unit test outside RunSuite. Capabilities default to present.
+//
+//nolint:ireturn // contract §3: NewHarness returns the testing.Harness port; the tHarness adapter is unexported by design.
 func NewHarness(t *stdtesting.T, opts ...HarnessOption) testingpkg.Harness {
 	t.Helper()
-	cfg := harnessConfig{epoch: time.Time{}, seed: 0, absentCaps: map[string]struct{}{}}
+	configuration := harnessConfig{epoch: time.Time{}, seed: 0, absentCaps: map[string]struct{}{}}
 	for _, opt := range opts {
-		opt(&cfg)
+		opt(&configuration)
 	}
 	h := &tHarness{
 		t:          t,
-		clock:      NewFakeClock(cfg.epoch),
-		random:     NewFakeRandomSource(cfg.seed),
-		absentCaps: cfg.absentCaps,
+		clock:      NewFakeClock(configuration.epoch),
+		random:     NewFakeRandomSource(configuration.seed),
+		absentCaps: configuration.absentCaps,
 		ctx:        context.Background(),
 	}
 	return h
@@ -121,9 +128,18 @@ type tHarness struct {
 	ctx        context.Context
 }
 
-func (h *tHarness) Clock() testingpkg.Clock               { return h.clock }
+// Clock and RandomSource return the port interfaces the Harness contract declares
+// (contract §2/§3): the *FakeClock/*FakeRandomSource adapters are concrete here, but
+// the Harness port vends them as their interfaces, so ireturn is wrong-for-contract
+// for these two methods (they implement the frozen Harness interface).
+
+//nolint:ireturn // contract §2/§3: Harness.Clock() returns the Clock port (the fake is vended as its interface).
+func (h *tHarness) Clock() testingpkg.Clock { return h.clock }
+
+//nolint:ireturn // contract §2/§3: Harness.RandomSource() returns the RandomSource port (the fake is vended as its interface).
 func (h *tHarness) RandomSource() testingpkg.RandomSource { return h.random }
-func (h *tHarness) Context() context.Context              { return h.ctx }
+
+func (h *tHarness) Context() context.Context { return h.ctx }
 
 // Has reports capability presence; defaults to present unless explicitly removed.
 func (h *tHarness) Has(capability string) bool {
@@ -161,18 +177,18 @@ type reportLine struct {
 func resultReport(r testingpkg.Result) []reportLine {
 	var lines []reportLine
 	for _, c := range r.Cases {
+		prefix := "conformance " + r.Suite + "/" + c.Name
 		switch c.Outcome {
 		case testingpkg.Fail:
 			if c.Panic != "" {
-				lines = append(lines, reportLine{fail: true,
-					text: "conformance " + r.Suite + "/" + c.Name + " PANICKED: " + c.Panic})
+				lines = append(lines, reportLine{fail: true, text: prefix + " PANICKED: " + c.Panic})
 			} else {
-				lines = append(lines, reportLine{fail: true,
-					text: "conformance " + r.Suite + "/" + c.Name + " FAILED: " + joinMessages(c.Messages)})
+				lines = append(lines, reportLine{fail: true, text: prefix + " FAILED: " + joinMessages(c.Messages)})
 			}
 		case testingpkg.Skip:
-			lines = append(lines, reportLine{fail: false,
-				text: "conformance " + r.Suite + "/" + c.Name + " skipped: " + joinMessages(c.Messages)})
+			lines = append(lines, reportLine{fail: false, text: prefix + " skipped: " + joinMessages(c.Messages)})
+		case testingpkg.Pass:
+			// A passing case produces no diagnostic line — nothing to report.
 		}
 	}
 	return lines

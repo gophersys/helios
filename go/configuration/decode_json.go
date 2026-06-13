@@ -3,11 +3,22 @@ package configuration
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/gophersys/libs/go/configuration/internal/tree"
 )
+
+// errUnexpectedJSONToken is the sentinel for a JSON token the decoder cannot
+// place (a stray delimiter or an unmodeled token type). It is wrapped with the
+// offending value via %w; it never escapes the package — decodeJSON converts it
+// into a SeverityError Diagnostic — but a static sentinel keeps the err113
+// "no dynamic errors" discipline intact on the internal decode path.
+var errUnexpectedJSONToken = errors.New("unexpected JSON token")
+
+// errJSONKeyNotString is the sentinel for an object key that is not a string.
+var errJSONKeyNotString = errors.New("object key is not a string")
 
 // decodeJSON decodes JSON into the internal tree with truthful per-token
 // positions and strict duplicate-key detection. It is total: malformed JSON is
@@ -32,7 +43,7 @@ func decodeJSON(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 		return root
 	}
 	// Reject trailing tokens (e.g. two top-level values) as malformed.
-	if _, err := dec.Token(); err != io.EOF {
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		diags.Append(Diagnostic{
 			Severity: SeverityError,
 			At:       posAtOffset(source, raw, lines, dec.InputOffset()),
@@ -52,7 +63,10 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 	startOff := dec.InputOffset()
 	tok, err := dec.Token()
 	if err != nil {
-		return nil, err
+		// Internal decode error: never escapes the package (decodeJSON converts
+		// it into a SeverityError Diagnostic). Wrapped with stdlib %w because
+		// configuration takes no errors-library dependency (rationale 5).
+		return nil, fmt.Errorf("read JSON token: %w", err) //nolint:wrapcheck // internal-only; stdlib %w, no errors-library dep (rationale 5).
 	}
 	pos := posAtOffset(source, raw, lines, startOff)
 
@@ -64,7 +78,7 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 		case '[':
 			return jsonArray(dec, source, raw, lines, pos, dupSev, diags)
 		default:
-			return nil, fmt.Errorf("unexpected %q", t)
+			return nil, fmt.Errorf("%w %q", errUnexpectedJSONToken, t) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
 		}
 	case string:
 		return tree.NewString(t, toTreePos(pos)), nil
@@ -78,7 +92,7 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 		n.Pos = toTreePos(pos)
 		return n, nil
 	default:
-		return nil, fmt.Errorf("unexpected token %T", tok)
+		return nil, fmt.Errorf("%w %T", errUnexpectedJSONToken, tok) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
 	}
 }
 
@@ -88,11 +102,11 @@ func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, po
 		keyOff := dec.InputOffset()
 		keyTok, err := dec.Token()
 		if err != nil {
-			return obj, err
+			return obj, fmt.Errorf("read JSON object key token: %w", err) //nolint:wrapcheck // internal-only; stdlib %w, no errors-library dep (rationale 5).
 		}
 		key, ok := keyTok.(string)
 		if !ok {
-			return obj, fmt.Errorf("object key is not a string")
+			return obj, errJSONKeyNotString
 		}
 		keyPos := posAtOffset(source, raw, lines, keyOff)
 		if obj.Has(key) {
@@ -114,7 +128,7 @@ func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, po
 	}
 	// consume closing '}'
 	if _, err := dec.Token(); err != nil {
-		return obj, err
+		return obj, fmt.Errorf("read JSON object close: %w", err) //nolint:wrapcheck // internal-only; stdlib %w, no errors-library dep (rationale 5).
 	}
 	return obj, nil
 }
@@ -129,7 +143,7 @@ func jsonArray(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos
 		elems = append(elems, el)
 	}
 	if _, err := dec.Token(); err != nil { // closing ']'
-		return tree.NewArray(elems, toTreePos(pos)), err
+		return tree.NewArray(elems, toTreePos(pos)), fmt.Errorf("read JSON array close: %w", err)
 	}
 	return tree.NewArray(elems, toTreePos(pos)), nil
 }

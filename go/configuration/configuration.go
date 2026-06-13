@@ -7,7 +7,7 @@
 // wired) and therefore does NOT depend on the errors library; its diagnostics
 // are self-contained value types.
 //
-// Module: github.com/gophersys/libs/go/configuration
+// Module: github.com/gophersys/libs/go/configuration.
 package configuration
 
 import "context"
@@ -18,6 +18,8 @@ import "context"
 // version (10 §4).
 type Format string
 
+// The closed set of source encodings the edge can decode. New rejects any
+// Format outside this set; new formats are added here additively (10 §4).
 const (
 	FormatJSON Format = "json"
 	FormatYAML Format = "yaml"
@@ -30,6 +32,8 @@ const (
 // failure mode this pattern needs to model; see Open Questions #6.)
 type Severity int
 
+// The Diagnostic severity levels, ordered least-to-most severe. A Document is
+// usable iff it carries no SeverityError finding.
 const (
 	SeverityWarning Severity = iota
 	SeverityError

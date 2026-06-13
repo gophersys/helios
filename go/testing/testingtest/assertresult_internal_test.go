@@ -11,6 +11,7 @@ import (
 )
 
 func TestResultReport_FailingCaseProducesFailLine(t *testing.T) {
+	t.Parallel()
 	r := testingpkg.Result{
 		Suite:  "secrets.SecretProvider",
 		Passed: 1,
@@ -33,6 +34,7 @@ func TestResultReport_FailingCaseProducesFailLine(t *testing.T) {
 }
 
 func TestResultReport_PanicCaseProducesPanicFailLine(t *testing.T) {
+	t.Parallel()
 	r := testingpkg.Result{
 		Suite:  "x",
 		Failed: 1,
@@ -48,6 +50,7 @@ func TestResultReport_PanicCaseProducesPanicFailLine(t *testing.T) {
 }
 
 func TestResultReport_SkipIsInformationalNotFail(t *testing.T) {
+	t.Parallel()
 	r := testingpkg.Result{
 		Suite:   "x",
 		Skipped: 1,
@@ -63,6 +66,7 @@ func TestResultReport_SkipIsInformationalNotFail(t *testing.T) {
 }
 
 func TestResultReport_AllPassYieldsNoLines(t *testing.T) {
+	t.Parallel()
 	r := testingpkg.Result{
 		Suite:  "x",
 		Passed: 3,

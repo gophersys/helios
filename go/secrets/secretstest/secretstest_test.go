@@ -11,6 +11,7 @@ import (
 )
 
 func TestZeroProviderResolvesNothing(t *testing.T) {
+	t.Parallel()
 	var p secretstest.Provider
 	sec, err := p.Resolve(context.Background(), secrets.Ref("anything"))
 	if err == nil {
@@ -25,46 +26,35 @@ func TestZeroProviderResolvesNothing(t *testing.T) {
 }
 
 func TestNewSeedsAndResolves(t *testing.T) {
+	t.Parallel()
 	p := secretstest.New(map[string]string{"api-key": "abc123"})
-	sec, err := p.Resolve(context.Background(), secrets.Ref("api-key"))
-	if err != nil {
-		t.Fatalf("Resolve error = %v", err)
-	}
+	sec := mustResolve(t, p, secrets.Ref("api-key"))
 	defer sec.Zeroize()
-	var got string
-	_ = sec.Use(func(b []byte) error { got = string(b); return nil })
-	if got != "abc123" {
+	if got := readSecret(t, sec); got != "abc123" {
 		t.Errorf("resolved plaintext = %q, want abc123", got)
 	}
 }
 
 func TestNewCopiesSeedBytes(t *testing.T) {
+	t.Parallel()
 	// New copies the seed so a caller cannot alias it. We can only observe this
 	// indirectly: independent Resolves must be unaffected by SUT-side Zeroize.
 	p := secretstest.New(map[string]string{"k": "v"})
-	s1, _ := p.Resolve(context.Background(), secrets.Ref("k"))
+	s1 := mustResolve(t, p, secrets.Ref("k"))
 	s1.Zeroize() // SUT-side wipe
-	s2, err := p.Resolve(context.Background(), secrets.Ref("k"))
-	if err != nil {
-		t.Fatalf("second Resolve error = %v", err)
-	}
+	s2 := mustResolve(t, p, secrets.Ref("k"))
 	defer s2.Zeroize()
-	var got string
-	_ = s2.Use(func(b []byte) error { got = string(b); return nil })
-	if got != "v" {
+	if got := readSecret(t, s2); got != "v" {
 		t.Errorf("second Resolve plaintext = %q, want v (seed corrupted by SUT Zeroize)", got)
 	}
 }
 
 func TestSetIsFluent(t *testing.T) {
+	t.Parallel()
 	p := secretstest.New(nil).Set("a", "1").Set("b", "2")
 	for name, want := range map[string]string{"a": "1", "b": "2"} {
-		sec, err := p.Resolve(context.Background(), secrets.Ref(name))
-		if err != nil {
-			t.Fatalf("Resolve(%q) error = %v", name, err)
-		}
-		var got string
-		_ = sec.Use(func(b []byte) error { got = string(b); return nil })
+		sec := mustResolve(t, p, secrets.Ref(name))
+		got := readSecret(t, sec)
 		sec.Zeroize()
 		if got != want {
 			t.Errorf("Resolve(%q) = %q, want %q", name, got, want)
@@ -73,6 +63,7 @@ func TestSetIsFluent(t *testing.T) {
 }
 
 func TestSetReturnsSameProvider(t *testing.T) {
+	t.Parallel()
 	p := secretstest.New(nil)
 	if p.Set("x", "y") != p {
 		t.Error("Set did not return the same *Provider (not fluent)")
@@ -80,6 +71,7 @@ func TestSetReturnsSameProvider(t *testing.T) {
 }
 
 func TestFailWithForcesError(t *testing.T) {
+	t.Parallel()
 	ref := secrets.Ref("denied-key")
 	p := secretstest.New(map[string]string{"denied-key": "value"}).
 		FailWith("denied-key", secrets.DeniedError{Ref: ref})
@@ -96,6 +88,7 @@ func TestFailWithForcesError(t *testing.T) {
 }
 
 func TestFailWithUnavailable(t *testing.T) {
+	t.Parallel()
 	ref := secrets.Ref("flaky")
 	p := secretstest.New(nil).FailWith("flaky", secrets.UnavailableError{Ref: ref})
 	_, err := p.Resolve(context.Background(), ref)
@@ -105,16 +98,16 @@ func TestFailWithUnavailable(t *testing.T) {
 }
 
 func TestResolvedLogRecordsRefsNeverValues(t *testing.T) {
+	t.Parallel()
 	p := secretstest.New(map[string]string{"k1": "secret-one", "k2": "secret-two"})
-	ctx := context.Background()
 	r1 := secrets.Ref("k1")
 	r2 := secrets.Ref("k2")
-	s1, _ := p.Resolve(ctx, r1)
-	s1.Zeroize()
-	s2, _ := p.Resolve(ctx, r2)
-	s2.Zeroize()
-	// A miss is also recorded (the request happened).
-	_, _ = p.Resolve(ctx, secrets.Ref("k3"))
+	mustResolve(t, p, r1).Zeroize()
+	mustResolve(t, p, r2).Zeroize()
+	// A miss is also recorded (the request happened); it must surface NotFoundError.
+	if _, err := p.Resolve(context.Background(), secrets.Ref("k3")); !is[secrets.NotFoundError](err) {
+		t.Errorf("miss did not return NotFoundError: %v", err)
+	}
 
 	if len(p.Resolved) != 3 {
 		t.Fatalf("Resolved log has %d entries, want 3: %v", len(p.Resolved), p.Resolved)
@@ -131,24 +124,20 @@ func TestResolvedLogRecordsRefsNeverValues(t *testing.T) {
 }
 
 func TestProviderIndependentSecrets(t *testing.T) {
+	t.Parallel()
 	// Two Resolves for the same ref return independent Secrets.
 	p := secretstest.New(map[string]string{"k": "v"})
-	ctx := context.Background()
-	s1, _ := p.Resolve(ctx, secrets.Ref("k"))
-	s2, _ := p.Resolve(ctx, secrets.Ref("k"))
+	s1 := mustResolve(t, p, secrets.Ref("k"))
+	s2 := mustResolve(t, p, secrets.Ref("k"))
 	s1.Zeroize()
-	var got string
-	err := s2.Use(func(b []byte) error { got = string(b); return nil })
-	if err != nil {
-		t.Fatalf("s2.Use after s1.Zeroize error = %v", err)
-	}
-	if got != "v" {
+	if got := readSecret(t, s2); got != "v" {
 		t.Errorf("zeroizing s1 corrupted s2: got %q, want v", got)
 	}
 	s2.Zeroize()
 }
 
 func TestMintSecretStandalone(t *testing.T) {
+	t.Parallel()
 	sec := secretstest.MintSecret([]byte("literal-bytes"))
 	if sec == nil {
 		t.Fatal("MintSecret returned nil")
@@ -157,22 +146,20 @@ func TestMintSecretStandalone(t *testing.T) {
 	if sec.String() != secrets.Redacted {
 		t.Errorf("MintSecret().String() = %q, want Redacted", sec.String())
 	}
-	var got string
-	_ = sec.Use(func(b []byte) error { got = string(b); return nil })
-	if got != "literal-bytes" {
+	if got := readSecret(t, sec); got != "literal-bytes" {
 		t.Errorf("MintSecret Use saw %q", got)
 	}
 }
 
 func TestMintSecretCopiesInput(t *testing.T) {
+	t.Parallel()
 	// Mutating the caller's slice after MintSecret must not change the secret.
 	in := []byte("mutable")
 	sec := secretstest.MintSecret(in)
 	for i := range in {
 		in[i] = 'X'
 	}
-	var got string
-	_ = sec.Use(func(b []byte) error { got = string(b); return nil })
+	got := readSecret(t, sec)
 	sec.Zeroize()
 	if got != "mutable" {
 		t.Errorf("MintSecret aliased the input slice: got %q, want mutable", got)
@@ -180,6 +167,7 @@ func TestMintSecretCopiesInput(t *testing.T) {
 }
 
 func TestAssertNotLeakedPasses(t *testing.T) {
+	t.Parallel()
 	rec := &recordingT{}
 	secretstest.AssertNotLeaked(rec, "clean log line with no secret", "super-secret")
 	if rec.failed {
@@ -188,6 +176,7 @@ func TestAssertNotLeakedPasses(t *testing.T) {
 }
 
 func TestAssertNotLeakedFails(t *testing.T) {
+	t.Parallel()
 	rec := &recordingT{}
 	secretstest.AssertNotLeaked(rec, "oops the value super-secret is here", "super-secret")
 	if !rec.failed {
@@ -212,6 +201,29 @@ func (r *recordingT) Errorf(format string, args ...any) {
 func is[E error](err error) bool {
 	_, ok := errors.AsType[E](err)
 	return ok
+}
+
+// readSecret reads sec's plaintext via the only legitimate path (Use), failing the test if Use
+// errors. It centralizes the Use-and-check the tests share so each call site is a one-liner that
+// still honors the checked-error contract.
+func readSecret(t *testing.T, sec *secrets.Secret) string {
+	t.Helper()
+	var got string
+	if err := sec.Use(func(b []byte) error { got = string(b); return nil }); err != nil {
+		t.Fatalf("sec.Use error = %v", err)
+	}
+	return got
+}
+
+// mustResolve resolves ref via p, failing the test on error. Used where the resolution is setup
+// for the assertion that follows, not the property under test.
+func mustResolve(t *testing.T, p *secretstest.Provider, ref secrets.Reference) *secrets.Secret {
+	t.Helper()
+	sec, err := p.Resolve(context.Background(), ref)
+	if err != nil {
+		t.Fatalf("Resolve(%s) error = %v", ref, err)
+	}
+	return sec
 }
 
 // Compile-time: *testing.T satisfies secretstest.TestingT.

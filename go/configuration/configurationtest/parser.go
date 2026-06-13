@@ -21,6 +21,12 @@ type Parser struct {
 // Parse returns the staged document/diagnostics for name. A staged ReadErr (or
 // an unstaged name) yields a *configuration.ParseError on the err channel,
 // mirroring the real Parser's "couldn't read" discipline.
+//
+// It returns the configuration.Document INTERFACE because the fake is a
+// configuration.Parser (contracts/configuration.md §2) and MUST match that
+// method signature exactly to be substitutable.
+//
+//nolint:ireturn // Document is an interface fixed by contracts/configuration.md §2; see doc above.
 func (p *Parser) Parse(_ context.Context, name string) (configuration.Document, configuration.Diagnostics, error) {
 	p.ParseCalls = append(p.ParseCalls, name)
 
@@ -34,7 +40,7 @@ func (p *Parser) Parse(_ context.Context, name string) (configuration.Document, 
 	if !staged {
 		return nil, configuration.Diagnostics{}, &configuration.ParseError{
 			Source: name,
-			Err:    errUnstaged{name: name},
+			Err:    unstagedError{name: name},
 		}
 	}
 
@@ -51,6 +57,12 @@ func (p *Parser) Parse(_ context.Context, name string) (configuration.Document, 
 // base. The fake operates at document granularity (overlay wins wholesale),
 // which is sufficient for tests that stage explicit Merge outcomes; the REAL
 // Parser is the one that does per-Path, position-preserving folding.
+//
+// It returns the configuration.Document INTERFACE because the fake must match
+// the configuration.Parser signature exactly to be substitutable
+// (contracts/configuration.md §2).
+//
+//nolint:ireturn // Document is an interface fixed by contracts/configuration.md §2; see doc above.
 func (p *Parser) Merge(_ context.Context, base, overlay configuration.Document) (configuration.Document, configuration.Diagnostics, error) {
 	if overlay != nil {
 		return overlay, configuration.Diagnostics{}, nil
@@ -58,10 +70,12 @@ func (p *Parser) Merge(_ context.Context, base, overlay configuration.Document) 
 	return base, configuration.Diagnostics{}, nil
 }
 
-// errUnstaged is the cause wrapped by a *ParseError for an unstaged name.
-type errUnstaged struct{ name string }
+// unstagedError is the cause wrapped by a *ParseError for an unstaged name.
+type unstagedError struct{ name string }
 
-func (e errUnstaged) Error() string { return "configurationtest: no document staged for " + e.name }
+func (e unstagedError) Error() string {
+	return "configurationtest: no document staged for " + e.name
+}
 
 // Source is a map-backed configuration.Source for driving the REAL Parser in
 // tests without touching the filesystem.
@@ -82,11 +96,11 @@ func (s Source) Read(_ context.Context, name string) ([]byte, error) {
 			return b, nil
 		}
 	}
-	return nil, errUnstaged{name: name}
+	return nil, unstagedError{name: name}
 }
 
-// Diags returns the diagnostics at or under a Path, so a test can assert
-// "exactly one SeverityError at engine.models[0].auth."
+// Diags returns the diagnostics at or under a Path, so a test can assert that
+// there is exactly one SeverityError at engine.models[0].auth.
 func Diags(d configuration.Diagnostics, under configuration.Path) []configuration.Diagnostic {
 	var out []configuration.Diagnostic
 	prefix := string(under)

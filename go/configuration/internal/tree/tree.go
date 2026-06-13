@@ -25,9 +25,11 @@ type Position struct {
 // Kind enumerates the resolved node shapes the IR models.
 type Kind int
 
+// The resolved node kinds. KindAbsent is the zero Node ("no value here") on
+// which conversions yield the type zero plus a mismatch signal and Field/Len
+// report not-ok; the remaining kinds are the scalar leaves and the two
+// containers, each mapping to one Value conversion or container accessor.
 const (
-	// KindAbsent is the zero Node: it models "no value here". Conversions on it
-	// yield the type zero plus a mismatch signal; Field/Len report not-ok.
 	KindAbsent Kind = iota
 	KindString
 	KindInt

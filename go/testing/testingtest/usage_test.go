@@ -45,7 +45,7 @@ func clockSuite() testingpkg.Suite[dependencies.Clock] {
 				select {
 				case v, ok := <-ch:
 					if ok {
-						report.Errorf("cancelled After delivered %v", v)
+						report.Errorf("canceled After delivered %v", v)
 					}
 				case <-time.After(100 * time.Millisecond):
 					// acceptable: never sent
@@ -68,6 +68,7 @@ func clockSuite() testingpkg.Suite[dependencies.Clock] {
 // §5 call site 1: a pattern library closes the fakes-drift loop — the SAME Suite
 // runs over BOTH the fake and the real adapter; passing both is the proof.
 func TestClock_FakeAndAdapter_Conform(t *testing.T) {
+	t.Parallel()
 	epoch := time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC)
 	r, err := testingpkg.New(testingpkg.Config{Seed: 1}, testingpkg.Deps{Epoch: epoch})
 	if err != nil {
@@ -90,6 +91,7 @@ func TestClock_FakeAndAdapter_Conform(t *testing.T) {
 // §5 in-library: driving virtual time in a consumer's own retry test — Advance
 // fires the timer with no wall-clock sleep.
 func TestRetry_FiresOnVirtualSchedule(t *testing.T) {
+	t.Parallel()
 	epoch := time.Unix(0, 0).UTC()
 	r, err := testingpkg.New(testingpkg.Config{Seed: 7}, testingpkg.Deps{Epoch: epoch})
 	if err != nil {
@@ -104,7 +106,15 @@ func TestRetry_FiresOnVirtualSchedule(t *testing.T) {
 		t.Fatal("timer fired before Advance")
 	default:
 	}
-	fakes.Clock.(*testingtest.FakeClock).Advance(30 * time.Second)
+	// The §5 affordance: recover the concrete *FakeClock from the vended Clock port
+	// to drive virtual time. Comma-ok form (not a bare assertion) so a wrong
+	// underlying type fails the test rather than panicking (errcheck
+	// check-type-assertions).
+	fc, ok := fakes.Clock.(*testingtest.FakeClock)
+	if !ok {
+		t.Fatalf("Runner.Fakes().Clock should be a *testingtest.FakeClock; got %T", fakes.Clock)
+	}
+	fc.Advance(30 * time.Second)
 	select {
 	case <-ch:
 		// fired on the virtual schedule
@@ -116,6 +126,7 @@ func TestRetry_FiresOnVirtualSchedule(t *testing.T) {
 // AssertResult bridges a real RunSuite Result back to go test in one line (the
 // adapter the contract promises). A clean run must keep t green.
 func TestAssertResult_RoundTrip(t *testing.T) {
+	t.Parallel()
 	r, err := testingpkg.New(testingpkg.Config{}, testingpkg.Deps{})
 	if err != nil {
 		t.Fatal(err)

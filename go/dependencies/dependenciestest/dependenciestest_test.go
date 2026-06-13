@@ -11,18 +11,20 @@ import (
 	"github.com/gophersys/libs/go/dependencies/dependenciestest"
 )
 
-// ---- Fakes satisfy the production ports (§3) ----
+// ---- Fakes satisfy the production ports (§3).
 
 func TestFakesSatisfyPorts(t *testing.T) {
+	t.Parallel()
 	var _ dependencies.Clock = dependenciestest.NewClock(time.Unix(0, 0).UTC())
 	var _ dependencies.RandomSource = dependenciestest.NewRandom([32]byte{})
 	var _ dependencies.Sink = &dependenciestest.RecordingSink{}
 }
 
-// ---- Clock fake (§3) ----
+// ---- Clock fake (§3).
 
 // Now is frozen until Advance is called; it starts at the chosen epoch.
 func TestFakeClockFrozenUntilAdvance(t *testing.T) {
+	t.Parallel()
 	start := time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC)
 	c := dependenciestest.NewClock(start)
 	if !c.Now().Equal(start) {
@@ -41,9 +43,10 @@ func TestFakeClockFrozenUntilAdvance(t *testing.T) {
 
 // Now is non-decreasing across Advance calls (monotonic property, §4).
 func TestFakeClockNonDecreasing(t *testing.T) {
+	t.Parallel()
 	c := dependenciestest.NewClock(time.Unix(0, 0).UTC())
 	prev := c.Now()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		c.Advance(time.Second)
 		now := c.Now()
 		if now.Before(prev) {
@@ -55,6 +58,7 @@ func TestFakeClockNonDecreasing(t *testing.T) {
 
 // After fires when Advance crosses the deadline (§3, §4).
 func TestFakeClockAfterFiresOnAdvance(t *testing.T) {
+	t.Parallel()
 	c := dependenciestest.NewClock(time.Unix(0, 0).UTC())
 	ch := c.After(context.Background(), 10*time.Second)
 	select {
@@ -77,28 +81,30 @@ func TestFakeClockAfterFiresOnAdvance(t *testing.T) {
 	}
 }
 
-// After honors ctx cancellation: a cancelled ctx leaves the channel un-sent (§4).
+// After honors ctx cancellation: a canceled ctx leaves the channel un-sent (§4).
 func TestFakeClockAfterRespectsCancellation(t *testing.T) {
+	t.Parallel()
 	c := dependenciestest.NewClock(time.Unix(0, 0).UTC())
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := c.After(ctx, 10*time.Second)
 	cancel()
-	// Even after crossing the deadline, a cancelled timer must not deliver a tick.
+	// Even after crossing the deadline, a canceled timer must not deliver a tick.
 	c.Advance(20 * time.Second)
 	select {
 	case v, ok := <-ch:
 		if ok {
-			t.Fatalf("cancelled After delivered %v; must be un-sent", v)
+			t.Fatalf("canceled After delivered %v; must be un-sent", v)
 		}
 	case <-time.After(200 * time.Millisecond):
 		// Acceptable: never sent.
 	}
 }
 
-// ---- Random fake (§3) ----
+// ---- Random fake (§3).
 
 // Random is deterministic and seedable: same seed -> same byte stream.
 func TestFakeRandomDeterministic(t *testing.T) {
+	t.Parallel()
 	seed := [32]byte{1, 2, 3}
 	a := dependenciestest.NewRandom(seed)
 	b := dependenciestest.NewRandom(seed)
@@ -116,12 +122,17 @@ func TestFakeRandomDeterministic(t *testing.T) {
 }
 
 func TestFakeRandomDifferentSeeds(t *testing.T) {
+	t.Parallel()
 	a := dependenciestest.NewRandom([32]byte{1})
 	b := dependenciestest.NewRandom([32]byte{2})
 	pa := make([]byte, 64)
 	pb := make([]byte, 64)
-	_, _ = a.Read(pa)
-	_, _ = b.Read(pb)
+	if _, err := a.Read(pa); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Read(pb); err != nil {
+		t.Fatal(err)
+	}
 	if bytes.Equal(pa, pb) {
 		t.Fatal("different seeds should (overwhelmingly) produce different streams")
 	}
@@ -129,6 +140,7 @@ func TestFakeRandomDifferentSeeds(t *testing.T) {
 
 // Random fills the buffer completely (full-read property, §4).
 func TestFakeRandomFullRead(t *testing.T) {
+	t.Parallel()
 	r := dependenciestest.NewRandom([32]byte{})
 	p := make([]byte, 100)
 	n, err := r.Read(p)
@@ -140,9 +152,10 @@ func TestFakeRandomFullRead(t *testing.T) {
 	}
 }
 
-// ---- RecordingSink fake (§3) ----
+// ---- RecordingSink fake (§3).
 
 func TestRecordingSinkCaptures(t *testing.T) {
+	t.Parallel()
 	var s dependenciestest.RecordingSink
 	if err := s.Emit(context.Background(), "a"); err != nil {
 		t.Fatal(err)
@@ -161,8 +174,11 @@ func TestRecordingSinkCaptures(t *testing.T) {
 
 // Records returns a snapshot copy: mutating it does not affect the sink.
 func TestRecordingSinkRecordsIsSnapshot(t *testing.T) {
+	t.Parallel()
 	var s dependenciestest.RecordingSink
-	_ = s.Emit(context.Background(), "x")
+	if err := s.Emit(context.Background(), "x"); err != nil {
+		t.Fatal(err)
+	}
 	recs := s.Records()
 	recs[0] = "mutated"
 	if got := s.Records(); got[0] != "x" {
@@ -172,17 +188,27 @@ func TestRecordingSinkRecordsIsSnapshot(t *testing.T) {
 
 // Records on an empty sink returns an empty (or nil) slice, never panics.
 func TestRecordingSinkEmpty(t *testing.T) {
+	t.Parallel()
 	var s dependenciestest.RecordingSink
 	if got := s.Records(); len(got) != 0 {
 		t.Fatalf("empty sink Records() len = %d, want 0", len(got))
 	}
 }
 
-// ---- Fakes() one-call helper (§3) ----
+// ---- Fakes() one-call helper (§3).
 
 func TestFakesHelper(t *testing.T) {
-	set, clock, random, sink := dependenciestest.Fakes()
+	t.Parallel()
+	t.Run("Populated", testFakesPopulated)
+	t.Run("SameObjects", testFakesSameObjects)
+	t.Run("PinnedAndDrivable", testFakesPinnedAndDrivable)
+	t.Run("SinkCapturesViaSet", testFakesSinkCapturesViaSet)
+}
 
+// testFakesPopulated checks Fakes() returns a complete, valid Set plus non-nil handles.
+func testFakesPopulated(t *testing.T) {
+	t.Parallel()
+	set, clock, random, sink := dependenciestest.Fakes()
 	if set.Clock == nil || set.Random == nil || set.Sink == nil {
 		t.Fatalf("Fakes() must return a fully-populated Set, got %+v", set)
 	}
@@ -192,9 +218,13 @@ func TestFakesHelper(t *testing.T) {
 	if clock == nil || random == nil || sink == nil {
 		t.Fatal("Fakes() must return non-nil handles to each fake")
 	}
+}
 
-	// The returned handles are the SAME objects wired into the Set, so a test can
-	// drive them (pinned to a fixed instant and seed).
+// testFakesSameObjects checks the returned handles are the SAME objects wired into the
+// Set, so a test can drive them (pinned to a fixed instant and seed).
+func testFakesSameObjects(t *testing.T) {
+	t.Parallel()
+	set, clock, random, sink := dependenciestest.Fakes()
 	if set.Clock != dependencies.Clock(clock) {
 		t.Error("Set.Clock is not the returned clock handle")
 	}
@@ -204,20 +234,29 @@ func TestFakesHelper(t *testing.T) {
 	if set.Sink != dependencies.Sink(sink) {
 		t.Error("Set.Sink is not the returned sink handle")
 	}
+}
 
-	// Pinned to a fixed instant: the fake clock starts at the Unix epoch.
+// testFakesPinnedAndDrivable checks the fake clock starts at the Unix epoch and that
+// driving the handle is observable through the Set (same object).
+func testFakesPinnedAndDrivable(t *testing.T) {
+	t.Parallel()
+	set, clock, _, _ := dependenciestest.Fakes()
 	if !clock.Now().Equal(time.Unix(0, 0).UTC()) {
 		t.Fatalf("Fakes() clock not pinned to Unix epoch, got %v", clock.Now())
 	}
-
-	// Driving the handle is observable through the Set (same object).
 	clock.Advance(time.Hour)
 	if !set.Clock.Now().Equal(time.Unix(0, 0).UTC().Add(time.Hour)) {
 		t.Fatal("advancing the returned clock handle is not visible via Set.Clock")
 	}
+}
 
-	// Sink handle captures via the Set.
-	_ = set.Sink.Emit(context.Background(), "via-set")
+// testFakesSinkCapturesViaSet checks emitting through Set.Sink is captured by the handle.
+func testFakesSinkCapturesViaSet(t *testing.T) {
+	t.Parallel()
+	set, _, _, sink := dependenciestest.Fakes()
+	if err := set.Sink.Emit(context.Background(), "via-set"); err != nil {
+		t.Fatalf("emit via Set failed: %v", err)
+	}
 	if recs := sink.Records(); len(recs) != 1 || recs[0] != "via-set" {
 		t.Fatalf("sink handle did not capture emit via Set, got %v", recs)
 	}
@@ -225,6 +264,7 @@ func TestFakesHelper(t *testing.T) {
 
 // Fakes() is deterministic: two calls produce the same pinned instant and seed.
 func TestFakesDeterministic(t *testing.T) {
+	t.Parallel()
 	_, c1, r1, _ := dependenciestest.Fakes()
 	_, c2, r2, _ := dependenciestest.Fakes()
 	if !c1.Now().Equal(c2.Now()) {
@@ -232,30 +272,39 @@ func TestFakesDeterministic(t *testing.T) {
 	}
 	p1 := make([]byte, 32)
 	p2 := make([]byte, 32)
-	_, _ = r1.Read(p1)
-	_, _ = r2.Read(p2)
+	if _, err := r1.Read(p1); err != nil {
+		t.Fatalf("r1.Read: %v", err)
+	}
+	if _, err := r2.Read(p2); err != nil {
+		t.Fatalf("r2.Read: %v", err)
+	}
 	if !bytes.Equal(p1, p2) {
 		t.Fatal("Fakes() randoms must start from the same pinned seed")
 	}
 }
 
-// ---- Concurrency safety of fakes (§3 "safe for concurrent use", §4) ----
+// ---- Concurrency safety of fakes (§3 "safe for concurrent use", §4).
 
 func TestFakesConcurrent(t *testing.T) {
+	t.Parallel()
 	c := dependenciestest.NewClock(time.Unix(0, 0).UTC())
 	r := dependenciestest.NewRandom([32]byte{})
 	var s dependenciestest.RecordingSink
 
 	var wg sync.WaitGroup
-	for i := 0; i < 32; i++ {
+	for range 32 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			_ = c.Now()
 			c.Advance(time.Millisecond)
 			p := make([]byte, 8)
-			_, _ = r.Read(p)
-			_ = s.Emit(context.Background(), "rec")
+			if _, err := r.Read(p); err != nil {
+				return // determinism asserted in TestFakeRandomFullRead
+			}
+			if err := s.Emit(context.Background(), "rec"); err != nil {
+				return // capture asserted below via the final count
+			}
 			_ = s.Records()
 		}()
 	}

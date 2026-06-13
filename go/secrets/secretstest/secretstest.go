@@ -93,7 +93,14 @@ func (p *Provider) Resolve(ctx context.Context, ref secrets.Reference) (*secrets
 // for unit tests of code that consumes a Secret directly. It is the only place outside an
 // adapter that can produce a Secret, and it produces a genuine un-printable one.
 func MintSecret(plaintext []byte) *secrets.Secret {
-	return mint.Hook()(plaintext).(*secrets.Secret)
+	// The hook is registered by the secrets package's init with a constructor that always
+	// returns *secrets.Secret; the comma-ok guard turns an impossible registration mismatch
+	// into a clear panic instead of errcheck's flagged single-value assertion.
+	sec, ok := mint.Hook()(plaintext).(*secrets.Secret)
+	if !ok {
+		panic("secretstest: minting hook returned a non-*secrets.Secret value")
+	}
+	return sec
 }
 
 // AssertNotLeaked fails t if value appears verbatim in haystack (a captured log buffer or

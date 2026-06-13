@@ -11,6 +11,7 @@ import (
 // against the canonical in-memory fake, proving the fake is a substitutable
 // Provider and that the Secret type holds the redaction line.
 func TestConformanceFake(t *testing.T) {
+	t.Parallel()
 	present := secrets.Ref("present-credential")
 	absent := secrets.Ref("absent-credential")
 	secretstest.RunProviderSuite(t, func() secrets.Provider {

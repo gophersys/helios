@@ -97,12 +97,11 @@ func decodeYAML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 func countIndent(line string) int {
 	n := 0
 	for _, r := range line {
-		if r == ' ' {
+		switch r {
+		case ' ', '\t':
 			n++
-		} else if r == '\t' {
-			n += 1
-		} else {
-			break
+		default:
+			return n
 		}
 	}
 	return n

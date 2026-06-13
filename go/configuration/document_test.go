@@ -4,19 +4,19 @@ import (
 	"sync"
 	"testing"
 
-	cfg "github.com/gophersys/libs/go/configuration"
-	cfgtest "github.com/gophersys/libs/go/configuration/configurationtest"
+	"github.com/gophersys/libs/go/configuration"
+	"github.com/gophersys/libs/go/configuration/configurationtest"
 )
 
-// --- Zero Document ---
-
+// Section: Zero Document.
 func TestZeroDocument_LookupMissesCleanly(t *testing.T) {
-	var doc cfg.Document // zero value of the interface is nil; the contract's
+	t.Parallel()
+	var doc configuration.Document // zero value of the interface is nil; the contract's
 	// "zero Document" refers to a constructed empty tree. The fake supplies it.
 	if doc != nil {
 		t.Skip("nil interface is not the zero-tree; covered by emptyDoc test")
 	}
-	empty := cfgtest.Doc(map[string]any{})
+	empty := configurationtest.Doc(map[string]any{})
 	if _, ok := empty.Lookup("anything"); ok {
 		t.Fatal("empty Document Lookup returned ok == true, want false")
 	}
@@ -28,10 +28,10 @@ func TestZeroDocument_LookupMissesCleanly(t *testing.T) {
 	}
 }
 
-// --- Lookup ---
-
+// Section: Lookup.
 func TestDocument_LookupScalar(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{
 		"engine": map[string]any{"maxConcurrency": 8},
 	})
 	v, ok := doc.Lookup("engine.maxConcurrency")
@@ -48,7 +48,8 @@ func TestDocument_LookupScalar(t *testing.T) {
 }
 
 func TestDocument_LookupMissReturnsFalse(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{"a": 1})
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{"a": 1})
 	if _, ok := doc.Lookup("a.b.c"); ok {
 		t.Fatal("Lookup of absent deep path ok == true, want false")
 	}
@@ -58,7 +59,8 @@ func TestDocument_LookupMissReturnsFalse(t *testing.T) {
 }
 
 func TestDocument_LookupIntoArray(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{
 		"engine": map[string]any{
 			"models": []any{
 				map[string]any{"auth": "tokenA"},
@@ -80,12 +82,14 @@ func TestDocument_LookupIntoArray(t *testing.T) {
 }
 
 func TestDocument_FormatAndOrigin(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{"a": 1},
-		cfgtest.WithFormat(cfg.FormatTOML),
-		cfgtest.WithOrigin("backend.toml"),
+	t.Parallel()
+	doc := configurationtest.Doc(
+		map[string]any{"a": 1},
+		configurationtest.WithFormat(configuration.FormatTOML),
+		configurationtest.WithOrigin("backend.toml"),
 	)
-	if doc.Format() != cfg.FormatTOML {
-		t.Fatalf("Format() = %q, want %q", doc.Format(), cfg.FormatTOML)
+	if doc.Format() != configuration.FormatTOML {
+		t.Fatalf("Format() = %q, want %q", doc.Format(), configuration.FormatTOML)
 	}
 	o := doc.Origin()
 	if o.Source != "backend.toml" {
@@ -96,10 +100,10 @@ func TestDocument_FormatAndOrigin(t *testing.T) {
 	}
 }
 
-// --- Value ---
-
+// Section: Value.
 func TestValue_FieldWalksObject(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{
 		"engine": map[string]any{"name": "primary"},
 	})
 	v, ok := doc.Lookup("engine")
@@ -120,7 +124,8 @@ func TestValue_FieldWalksObject(t *testing.T) {
 }
 
 func TestValue_Len(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{
 		"items": []any{1, 2, 3},
 	})
 	v, _ := doc.Lookup("items")
@@ -139,10 +144,12 @@ func TestValue_Len(t *testing.T) {
 }
 
 func TestValue_AtCarriesPosition(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{
-		"engine": map[string]any{"maxConcurrency": "oops"},
-	},
-		cfgtest.WithPosition("engine.maxConcurrency", cfg.Position{Source: "backend.yaml", Line: 14, Column: 7}),
+	t.Parallel()
+	doc := configurationtest.Doc(
+		map[string]any{
+			"engine": map[string]any{"maxConcurrency": "oops"},
+		},
+		configurationtest.WithPosition("engine.maxConcurrency", configuration.Position{Source: "backend.yaml", Line: 14, Column: 7}),
 	)
 	v, _ := doc.Lookup("engine.maxConcurrency")
 	at := v.At()
@@ -151,11 +158,12 @@ func TestValue_AtCarriesPosition(t *testing.T) {
 	}
 }
 
-// --- Total conversions: mismatch returns *Diagnostic stamped with At() ---
-
+// Section: Total conversions: mismatch returns *Diagnostic stamped with At().
 func TestValue_TotalConversion_IntMismatch(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{"x": "not-an-int"},
-		cfgtest.WithPosition("x", cfg.Position{Source: "s.yaml", Line: 3, Column: 2}),
+	t.Parallel()
+	doc := configurationtest.Doc(
+		map[string]any{"x": "not-an-int"},
+		configurationtest.WithPosition("x", configuration.Position{Source: "s.yaml", Line: 3, Column: 2}),
 	)
 	v, _ := doc.Lookup("x")
 	n, diag := v.Int()
@@ -168,13 +176,14 @@ func TestValue_TotalConversion_IntMismatch(t *testing.T) {
 	if diag.At.Line != 3 || diag.At.Source != "s.yaml" {
 		t.Fatalf("mismatch diag At = %+v, want s.yaml:3:_", diag.At)
 	}
-	if diag.Severity != cfg.SeverityError {
+	if diag.Severity != configuration.SeverityError {
 		t.Fatalf("mismatch diag Severity = %v, want SeverityError", diag.Severity)
 	}
 }
 
 func TestValue_TotalConversion_BoolMismatch(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{"x": 5})
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{"x": 5})
 	v, _ := doc.Lookup("x")
 	b, diag := v.Bool()
 	if diag == nil {
@@ -186,7 +195,8 @@ func TestValue_TotalConversion_BoolMismatch(t *testing.T) {
 }
 
 func TestValue_StringConversion_FromString(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{"x": "hello"})
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{"x": "hello"})
 	v, _ := doc.Lookup("x")
 	s, diag := v.String()
 	if diag != nil || s != "hello" {
@@ -195,7 +205,8 @@ func TestValue_StringConversion_FromString(t *testing.T) {
 }
 
 func TestValue_BoolConversion(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{"x": true})
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{"x": true})
 	v, _ := doc.Lookup("x")
 	b, diag := v.Bool()
 	if diag != nil || b != true {
@@ -203,15 +214,15 @@ func TestValue_BoolConversion(t *testing.T) {
 	}
 }
 
-// --- Zero Value safety ---
-
+// Section: Zero Value safety.
 func TestZeroValue_IsAbsent(t *testing.T) {
+	t.Parallel()
 	// A miss yields a zero Value; the contract: zero Value conversions return
 	// zero+*Diagnostic and Field/Len report ok == false. Obtain a zero value
 	// via the fake's miss-path: Field past the edge returns (nil-ish, false),
 	// but we exercise the documented zero Value semantics through an explicit
 	// absent node: Lookup of an object's missing field via Field.
-	doc := cfgtest.Doc(map[string]any{"obj": map[string]any{}})
+	doc := configurationtest.Doc(map[string]any{"obj": map[string]any{}})
 	parent, _ := doc.Lookup("obj")
 	v, ok := parent.Field("missing")
 	if ok {
@@ -237,10 +248,10 @@ func TestZeroValue_IsAbsent(t *testing.T) {
 	_ = v.At()
 }
 
-// --- Immutability / concurrency ---
-
+// Section: Immutability / concurrency.
 func TestDocument_ConcurrentLookupRaceFree(t *testing.T) {
-	doc := cfgtest.Doc(map[string]any{
+	t.Parallel()
+	doc := configurationtest.Doc(map[string]any{
 		"engine": map[string]any{
 			"models": []any{
 				map[string]any{"auth": "a"},

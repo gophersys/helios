@@ -28,6 +28,15 @@ var allKinds = []struct {
 	{errors.KindInternal, "internal"},
 }
 
+// Declared sentinel fixtures for the conformance suite. conformance.go is
+// production code in the fakes package (it exports RunConformance), so it is held
+// to the production error bar: a comparable fixture error is a named, declared
+// sentinel, never minted inline at the assertion site (the error-handling rule).
+var (
+	errForeign  = stderrors.New("conformance: foreign error")
+	errSentinel = stderrors.New("conformance: wrapped sentinel cause")
+)
+
 // RunConformance asserts the errors contract holds for the production verbs.
 func RunConformance(t *testing.T) {
 	t.Helper()
@@ -59,7 +68,7 @@ func conformanceKindTotality(t *testing.T) {
 	if got := errors.KindOf(nil); got != errors.KindUnknown {
 		t.Errorf("KindOf(nil) = %v, want KindUnknown", got)
 	}
-	if got := errors.KindOf(stderrors.New("foreign")); got != errors.KindUnknown {
+	if got := errors.KindOf(errForeign); got != errors.KindUnknown {
 		t.Errorf("KindOf(foreign) = %v, want KindUnknown", got)
 	}
 }
@@ -91,18 +100,17 @@ func conformanceWrapNilEliding(t *testing.T) {
 // Wrap chain preservation — AsType/Is reach an inner sentinel across a Wrap
 // boundary; the cause is never flattened into a string.
 func conformanceWrapChainPreservation(t *testing.T) {
-	sentinel := stderrors.New("sentinel")
-	chain := errors.Wrap(errors.KindInternal, "outer", sentinel)
-	if !errors.Is(chain, sentinel) {
+	chain := errors.Wrap(errors.KindInternal, "outer", errSentinel)
+	if !errors.Is(chain, errSentinel) {
 		t.Error("Is(chain, sentinel) = false; cause was flattened")
 	}
-	if got := chain.Unwrap(); got != sentinel {
+	if got := chain.Unwrap(); !errors.Is(got, errSentinel) {
 		t.Errorf("Unwrap() = %v, want sentinel", got)
 	}
 	// A typed inner *Error must be extractable.
 	innerTyped := errors.New(errors.KindNotFound, "inner")
 	chain2 := errors.Wrap(errors.KindInternal, "outer", innerTyped)
-	if _, ok := errors.AsType[*errors.Error](chain2); !ok {
+	if got, ok := errors.AsType[*errors.Error](chain2); !ok || got == nil {
 		t.Error("AsType[*Error] failed to reach a typed cause across Wrap")
 	}
 }
@@ -120,7 +128,7 @@ func conformanceKindInheritance(t *testing.T) {
 		t.Errorf("explicit KindOf = %v, want KindInternal", got)
 	}
 	// Foreign cause: nothing to inherit, stays Unknown.
-	foreign := errors.Wrap(errors.KindUnknown, "outer", stderrors.New("x"))
+	foreign := errors.Wrap(errors.KindUnknown, "outer", errForeign)
 	if got := errors.KindOf(foreign); got != errors.KindUnknown {
 		t.Errorf("foreign-cause KindOf = %v, want KindUnknown", got)
 	}

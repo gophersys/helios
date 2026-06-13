@@ -2,7 +2,7 @@ package observability
 
 import "time"
 
-// ── Event: the one structured record every plane emits ──────────────────────
+// ── Event: the one structured record every plane emits ──────────────────────.
 
 // Plane is the P9 telemetry plane an Event belongs to. It is STAMPED, never
 // inferred, so a single backend partitions Eden's own signal from agent and
@@ -11,6 +11,8 @@ import "time"
 // landing on plane (a).
 type Plane uint8
 
+// The P9 telemetry planes, append-only and ordered (the wire/telemetry contract);
+// PlaneUnset is the zero so an unstamped Event inherits Config.DefaultPlane.
 const (
 	PlaneUnset     Plane = iota // zero: inherit Config.DefaultPlane at Emit
 	PlaneSelf                   // (a) Eden's own runtime
@@ -25,6 +27,8 @@ const (
 // value is SeverityDebug so an unstamped Event is never silently dropped.
 type Severity uint8
 
+// The operator-facing severity levels, append-only and totally ordered so
+// MinSeverity filtering is a simple comparison; SeverityDebug is the zero.
 const (
 	SeverityDebug Severity = iota
 	SeverityInfo
@@ -68,7 +72,7 @@ type Valuer interface {
 	TelemetryValue() any
 }
 
-// ── Field constructors: the only doors onto the stream ──────────────────────
+// ── Field constructors: the only doors onto the stream ─────────────────────.
 
 // stringValue, int64Value, float64Value, boolValue, and durValue are the minimal
 // concrete Valuers wrapping a primitive. They are unexported so a Field value can
@@ -115,7 +119,7 @@ func Err(err error) Field {
 // the value's already-redacted projection onto the stream and nothing raw.
 func Any(key string, v Valuer) Field { return Field{Key: key, Value: v} }
 
-// ── T6: the token/cost ledger rides the stream as a typed Event ─────────────
+// ── T6: the token/cost ledger rides the stream as a typed Event ────────────.
 
 // Ledger is the token/cost accounting payload for a Run/phase (T6, 04 §6). It is
 // rendered to an ordinary "cost.ledger" Event on PlaneAgent by LedgerEvent, so
@@ -140,6 +144,13 @@ type Ledger struct {
 // LedgerEvent builds the canonical PlaneAgent "cost.ledger" Event at
 // SeverityInfo. now is supplied by the caller's injected Clock (the library reads
 // no clock); pass the zero time to let the adapter stamp.
+//
+// The frozen contract (contracts/observability.md §2) fixes this signature as
+// LedgerEvent(now time.Time, l Ledger) Event. Taking Ledger by value keeps the
+// call site a plain copyable value with no aliasing; the public surface may not
+// change to *Ledger, so the gocritic hugeParam suggestion is declined here.
+//
+//nolint:gocritic // contract §2 fixes l Ledger by value; surface is frozen.
 func LedgerEvent(now time.Time, l Ledger) Event {
 	return Event{
 		Time:     now,

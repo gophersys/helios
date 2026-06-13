@@ -49,6 +49,13 @@ func WithPosition(p configuration.Path, pos configuration.Position) DocOption {
 // The Document it returns is the SAME concrete type the real parser yields
 // (built through configuration's internal tree), so the fake and the adapter
 // share one read surface — the substitutability oracle (08 §2).
+//
+// It returns the configuration.Document INTERFACE by contract
+// (contracts/configuration.md §2): Doc is the public fake that hands callers the
+// frozen read surface, identical to what Parse produces — that interface IS the
+// deliverable of the testing pattern (10 §4).
+//
+//nolint:ireturn // Document is an interface fixed by contracts/configuration.md §2; see doc above.
 func Doc(treeMap map[string]any, opts ...DocOption) configuration.Document {
 	st := &docState{positions: map[configuration.Path]configuration.Position{}}
 	for _, o := range opts {

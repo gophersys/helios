@@ -15,6 +15,7 @@ package deterministic
 import (
 	"context"
 	"encoding/binary"
+	"io"
 	"math/rand/v2"
 	"sort"
 	"sync"
@@ -70,7 +71,7 @@ func (c *Clock) After(ctx context.Context, d time.Duration) <-chan time.Time {
 	c.mu.Lock()
 	deadline := c.now.Add(d)
 	// Already due (d <= 0 or a zero advance): deliver the deadline instant
-	// immediately, buffered so the send never blocks and a pre-cancelled ctx still
+	// immediately, buffered so the send never blocks and a pre-canceled ctx still
 	// wins (the channel is then left empty, never sent on).
 	if !deadline.After(c.now) {
 		c.mu.Unlock()
@@ -88,7 +89,7 @@ func (c *Clock) After(ctx context.Context, d time.Duration) <-chan time.Time {
 		// Best-effort prompt removal on cancellation so a blocking receiver unwinds;
 		// correctness does NOT depend on this goroutine winning the race with
 		// Advance — Advance re-checks ctx.Err() under the lock before sending, so a
-		// cancelled waiter is never delivered regardless of scheduling.
+		// canceled waiter is never delivered regardless of scheduling.
 		go func() {
 			<-ctx.Done()
 			c.cancel(w)
@@ -119,14 +120,14 @@ func (c *Clock) Advance(d time.Duration) {
 	target := c.now
 
 	// Partition: due (deadline <= target) vs pending, preserving pending order. A
-	// waiter whose ctx is already cancelled is dropped without delivery — checked
+	// waiter whose ctx is already canceled is dropped without delivery — checked
 	// HERE under the lock so cancellation is deterministic and never races the
 	// cancel goroutine.
 	var due []*waiter
 	var pending []*waiter
 	for _, w := range c.waiters {
 		if w.ctx != nil && w.ctx.Err() != nil {
-			continue // cancelled: drop, never send
+			continue // canceled: drop, never send
 		}
 		if !w.deadline.After(target) {
 			due = append(due, w)
@@ -173,8 +174,14 @@ func NewRandom(seed uint64) *Random {
 
 // Read fills p completely from the deterministic stream and never errors (the
 // io.ReadFull contract crypto/rand guarantees, so the fake interchanges with it).
+// It is read through io.ReadFull — the same fill-completely seam the real
+// crypto/rand-backed RandomSource adapter uses (dependencies.cryptoRandom) — so the
+// fake and the production source are byte-for-byte interchangeable and the
+// io.ReadFull error contract is surfaced verbatim, not flattened.
+//
+//nolint:wrapcheck // contract §3: RandomSource is io.Reader-shaped; io.ReadFull's sentinel errors must stay comparable so the fake interchanges with crypto/rand — wrapping would change their identity (mirrors dependencies.cryptoRandom.Read).
 func (r *Random) Read(p []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.src.Read(p)
+	return io.ReadFull(r.src, p)
 }

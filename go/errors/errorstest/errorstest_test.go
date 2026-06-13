@@ -9,6 +9,7 @@ import (
 )
 
 func TestLeaf(t *testing.T) {
+	t.Parallel()
 	e := errorstest.Leaf(errors.KindNotFound, "missing")
 	if e.Kind() != errors.KindNotFound {
 		t.Errorf("Leaf Kind = %v, want KindNotFound", e.Kind())
@@ -19,6 +20,7 @@ func TestLeaf(t *testing.T) {
 }
 
 func TestWrapping(t *testing.T) {
+	t.Parallel()
 	inner := errorstest.Leaf(errors.KindNotFound, "inner")
 	w := errorstest.Wrapping(errors.KindInternal, inner)
 	if w.Kind() != errors.KindInternal {
@@ -30,6 +32,7 @@ func TestWrapping(t *testing.T) {
 }
 
 func TestRequireKindPasses(t *testing.T) {
+	t.Parallel()
 	// Use a sub-test recorder: RequireKind on a matching Kind must not fail.
 	rt := &recordingTB{TB: t}
 	errorstest.RequireKind(rt, errors.New(errors.KindInvalid, "x"), errors.KindInvalid)
@@ -39,6 +42,7 @@ func TestRequireKindPasses(t *testing.T) {
 }
 
 func TestRequireKindFails(t *testing.T) {
+	t.Parallel()
 	rt := &recordingTB{TB: t, swallowFatal: true}
 	runGuarded(func() {
 		errorstest.RequireKind(rt, errors.New(errors.KindInvalid, "x"), errors.KindNotFound)
@@ -49,6 +53,7 @@ func TestRequireKindFails(t *testing.T) {
 }
 
 func TestRequireNoSecretPasses(t *testing.T) {
+	t.Parallel()
 	rt := &recordingTB{TB: t}
 	type creds struct{ Password string }
 	// Secret carried only as a non-scalar value collapses to the marker, so the
@@ -61,6 +66,7 @@ func TestRequireNoSecretPasses(t *testing.T) {
 }
 
 func TestRequireNoSecretCatchesLeakInMessage(t *testing.T) {
+	t.Parallel()
 	rt := &recordingTB{TB: t, swallowFatal: true}
 	// A caller who interpolates a secret into the message (anti-pattern) is caught.
 	e := errors.New(errors.KindInternal, "failed with token=leaked-value")
@@ -73,6 +79,7 @@ func TestRequireNoSecretCatchesLeakInMessage(t *testing.T) {
 }
 
 func TestRequireNoSecretWalksChain(t *testing.T) {
+	t.Parallel()
 	rt := &recordingTB{TB: t, swallowFatal: true}
 	inner := errors.New(errors.KindNotFound, "inner with leaked-value here")
 	outer := errors.Wrap(errors.KindInternal, "outer", inner)
@@ -85,6 +92,7 @@ func TestRequireNoSecretWalksChain(t *testing.T) {
 }
 
 func TestRequireNoSecretNilIsSafe(t *testing.T) {
+	t.Parallel()
 	rt := &recordingTB{TB: t}
 	errorstest.RequireNoSecret(rt, nil, "anything")
 	if rt.failed {
@@ -93,6 +101,7 @@ func TestRequireNoSecretNilIsSafe(t *testing.T) {
 }
 
 func TestAssertUnwrapsTo(t *testing.T) {
+	t.Parallel()
 	leaf := errors.New(errors.KindNotFound, "leaf")
 	chain := errors.Wrap(errors.KindInternal, "outer", leaf)
 	got := errorstest.AssertUnwrapsTo[*errors.Error](t, chain)
@@ -101,16 +110,20 @@ func TestAssertUnwrapsTo(t *testing.T) {
 	}
 }
 
-// absentErr is a typed error never placed in any chain under test.
-type absentErr struct{}
+// absentError is a typed error never placed in any chain under test.
+type absentError struct{}
 
-func (*absentErr) Error() string { return "absent" }
+func (*absentError) Error() string { return "absent" }
 
 func TestAssertUnwrapsToForeignChain(t *testing.T) {
+	t.Parallel()
 	rt := &recordingTB{TB: t, swallowFatal: true}
 	// Asserting a type that is not in the chain must fail the test.
 	runGuarded(func() {
-		errorstest.AssertUnwrapsTo[*absentErr](rt, errors.New(errors.KindNotFound, "x"))
+		// The return is deliberately unused: this negative case only verifies that
+		// AssertUnwrapsTo calls Fatalf for an absent target type.
+		//nolint:errcheck // see above: the extracted value is irrelevant on the fatal path.
+		errorstest.AssertUnwrapsTo[*absentError](rt, errors.New(errors.KindNotFound, "x"))
 	})
 	if !rt.failed {
 		t.Error("AssertUnwrapsTo did not fail for an absent target type")
@@ -144,11 +157,17 @@ var errFatalSentinel = stderrors.New("recordingTB fatal sentinel")
 
 // runGuarded invokes fn and recovers the sentinel panic raised by a swallowed
 // Fatalf, emulating runtime.Goexit's "abort this call, continue the test" shape.
+// Any non-sentinel panic is re-raised so real failures are never swallowed.
 func runGuarded(fn func()) {
 	defer func() {
-		if r := recover(); r != nil && r != errFatalSentinel {
-			panic(r)
+		r := recover()
+		if r == nil {
+			return
 		}
+		if err, ok := r.(error); ok && stderrors.Is(err, errFatalSentinel) {
+			return
+		}
+		panic(r)
 	}()
 	fn()
 }

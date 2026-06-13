@@ -3,13 +3,13 @@ package configuration_test
 import (
 	"testing"
 
-	cfg "github.com/gophersys/libs/go/configuration"
+	"github.com/gophersys/libs/go/configuration"
 )
 
-// --- Path ---
-
+// Section: Path.
 func TestPath_Child(t *testing.T) {
-	var root cfg.Path // empty == root
+	t.Parallel()
+	var root configuration.Path // empty == root
 	got := root.Child("engine")
 	if got != "engine" {
 		t.Fatalf("root.Child(engine) = %q, want %q", got, "engine")
@@ -21,22 +21,24 @@ func TestPath_Child(t *testing.T) {
 }
 
 func TestPath_Index(t *testing.T) {
-	p := cfg.Path("engine.models").Index(0).Child("auth")
+	t.Parallel()
+	p := configuration.Path("engine.models").Index(0).Child("auth")
 	if p != "engine.models[0].auth" {
 		t.Fatalf("Index/Child chain = %q, want %q", p, "engine.models[0].auth")
 	}
 }
 
 func TestPath_ChildOnRootHasNoLeadingDot(t *testing.T) {
-	if got := cfg.Path("").Child("a"); got != "a" {
+	t.Parallel()
+	if got := configuration.Path("").Child("a"); got != "a" {
 		t.Fatalf("empty.Child(a) = %q, want %q (no leading dot)", got, "a")
 	}
 }
 
-// --- Diagnostics: zero value ---
-
+// Section: Diagnostics: zero value.
 func TestDiagnostics_ZeroValueIsEmptyUsableSink(t *testing.T) {
-	var d cfg.Diagnostics
+	t.Parallel()
+	var d configuration.Diagnostics
 	if d.HasError() {
 		t.Fatal("zero Diagnostics.HasError() = true, want false")
 	}
@@ -46,12 +48,13 @@ func TestDiagnostics_ZeroValueIsEmptyUsableSink(t *testing.T) {
 }
 
 func TestDiagnostics_Append(t *testing.T) {
-	var d cfg.Diagnostics
-	d.Append(cfg.Diagnostic{Severity: cfg.SeverityWarning, Summary: "w"})
+	t.Parallel()
+	var d configuration.Diagnostics
+	d.Append(configuration.Diagnostic{Severity: configuration.SeverityWarning, Summary: "w"})
 	if d.HasError() {
 		t.Fatal("warning-only HasError() = true, want false")
 	}
-	d.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "e"})
+	d.Append(configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "e"})
 	if !d.HasError() {
 		t.Fatal("after error Append HasError() = false, want true")
 	}
@@ -61,10 +64,11 @@ func TestDiagnostics_Append(t *testing.T) {
 }
 
 func TestDiagnostics_AppendVariadic(t *testing.T) {
-	var d cfg.Diagnostics
+	t.Parallel()
+	var d configuration.Diagnostics
 	d.Append(
-		cfg.Diagnostic{Severity: cfg.SeverityWarning, Summary: "a"},
-		cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "b"},
+		configuration.Diagnostic{Severity: configuration.SeverityWarning, Summary: "a"},
+		configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "b"},
 	)
 	if got := len(d.All()); got != 2 {
 		t.Fatalf("variadic Append len = %d, want 2", got)
@@ -76,15 +80,16 @@ func TestDiagnostics_AppendVariadic(t *testing.T) {
 
 // All() returns a copy: mutating it must not affect the sink.
 func TestDiagnostics_AllReturnsCopy(t *testing.T) {
-	var d cfg.Diagnostics
-	d.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "x"})
+	t.Parallel()
+	var d configuration.Diagnostics
+	d.Append(configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "x"})
 	got := d.All()
 	got[0].Summary = "MUTATED"
 	if d.All()[0].Summary != "x" {
 		t.Fatal("mutating All() result leaked back into the sink")
 	}
 	// Appending to the returned slice must not grow the sink either.
-	got = append(got, cfg.Diagnostic{Summary: "extra"}) //nolint:staticcheck
+	got = append(got, configuration.Diagnostic{Summary: "extra"}) //nolint:staticcheck // SA4010: the appended-to slice is deliberately unused; this asserts the append cannot reach back into the sink.
 	_ = got
 	if len(d.All()) != 1 {
 		t.Fatal("appending to All() result grew the sink")
@@ -94,10 +99,11 @@ func TestDiagnostics_AllReturnsCopy(t *testing.T) {
 // Diagnostics has value semantics on copy: copying the struct then appending to
 // the copy must not affect the original (Append is the only mutator, *D).
 func TestDiagnostics_ValueSemanticsOnCopy(t *testing.T) {
-	var d cfg.Diagnostics
-	d.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "orig"})
+	t.Parallel()
+	var d configuration.Diagnostics
+	d.Append(configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "orig"})
 	cp := d
-	cp.Append(cfg.Diagnostic{Severity: cfg.SeverityError, Summary: "added"})
+	cp.Append(configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "added"})
 	if len(d.All()) != 1 {
 		t.Fatalf("appending to a copy mutated original: original len = %d, want 1", len(d.All()))
 	}
@@ -105,12 +111,13 @@ func TestDiagnostics_ValueSemanticsOnCopy(t *testing.T) {
 
 // All() is ordered by At.Source then At.Position.
 func TestDiagnostics_AllOrderedBySourceThenPosition(t *testing.T) {
-	var d cfg.Diagnostics
+	t.Parallel()
+	var d configuration.Diagnostics
 	d.Append(
-		cfg.Diagnostic{At: cfg.Position{Source: "b.yaml", Line: 1}, Summary: "b1"},
-		cfg.Diagnostic{At: cfg.Position{Source: "a.yaml", Line: 9}, Summary: "a9"},
-		cfg.Diagnostic{At: cfg.Position{Source: "a.yaml", Line: 2, Column: 5}, Summary: "a2c5"},
-		cfg.Diagnostic{At: cfg.Position{Source: "a.yaml", Line: 2, Column: 1}, Summary: "a2c1"},
+		configuration.Diagnostic{At: configuration.Position{Source: "b.yaml", Line: 1}, Summary: "b1"},
+		configuration.Diagnostic{At: configuration.Position{Source: "a.yaml", Line: 9}, Summary: "a9"},
+		configuration.Diagnostic{At: configuration.Position{Source: "a.yaml", Line: 2, Column: 5}, Summary: "a2c5"},
+		configuration.Diagnostic{At: configuration.Position{Source: "a.yaml", Line: 2, Column: 1}, Summary: "a2c1"},
 	)
 	got := d.All()
 	want := []string{"a2c1", "a2c5", "a9", "b1"}
@@ -124,7 +131,7 @@ func TestDiagnostics_AllOrderedBySourceThenPosition(t *testing.T) {
 	}
 }
 
-func summaries(ds []cfg.Diagnostic) []string {
+func summaries(ds []configuration.Diagnostic) []string {
 	out := make([]string, len(ds))
 	for i, d := range ds {
 		out[i] = d.Summary
@@ -134,7 +141,8 @@ func summaries(ds []cfg.Diagnostic) []string {
 
 // Diagnostic is a comparable value type (the contract calls it comparable).
 func TestDiagnostic_IsComparable(t *testing.T) {
-	a := cfg.Diagnostic{Severity: cfg.SeverityError, Path: "x", At: cfg.Position{Source: "s", Line: 1}, Summary: "sum", Detail: "det"}
+	t.Parallel()
+	a := configuration.Diagnostic{Severity: configuration.SeverityError, Path: "x", At: configuration.Position{Source: "s", Line: 1}, Summary: "sum", Detail: "det"}
 	b := a
 	if a != b { //nolint:staticcheck // intentional comparability assertion
 		t.Fatal("identical Diagnostics compared unequal; type must be comparable")
@@ -142,7 +150,8 @@ func TestDiagnostic_IsComparable(t *testing.T) {
 }
 
 func TestSeverity_Ordering(t *testing.T) {
-	if cfg.SeverityWarning >= cfg.SeverityError {
-		t.Fatalf("SeverityWarning (%d) must order before SeverityError (%d)", cfg.SeverityWarning, cfg.SeverityError)
+	t.Parallel()
+	if configuration.SeverityWarning >= configuration.SeverityError {
+		t.Fatalf("SeverityWarning (%d) must order before SeverityError (%d)", configuration.SeverityWarning, configuration.SeverityError)
 	}
 }

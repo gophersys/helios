@@ -14,19 +14,23 @@ import (
 // fake package's own Deps-aware double, proving the fake satisfies the same
 // substitutability properties the real adapter does (08 §2).
 func TestFakeConformance(t *testing.T) {
+	t.Parallel()
 	observabilitytest.RunFakeConformance(t)
 }
 
-// ── kernel-injection fake behavior (the *Provider obtained from New) ─────────
+// ── kernel-injection fake behavior (the *Provider obtained from New) ────────.
 
 func fixedClock() time.Time { return time.Unix(1700000000, 0).UTC() }
 
 func TestFakeRecordsEvents(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	ctx := context.Background()
 	p.Emit(ctx, observability.Event{Name: "phase.start", Plane: observability.PlaneAgent, Severity: observability.SeverityInfo})
-	p.Emit(ctx, observability.Event{Name: "gate.decision", Plane: observability.PlaneAgent, Severity: observability.SeverityInfo,
-		Fields: []observability.Field{observability.Bool("gate.passed", true)}})
+	p.Emit(ctx, observability.Event{
+		Name: "gate.decision", Plane: observability.PlaneAgent, Severity: observability.SeverityInfo,
+		Fields: []observability.Field{observability.Bool("gate.passed", true)},
+	})
 
 	events := p.Events()
 	if len(events) != 2 {
@@ -38,6 +42,7 @@ func TestFakeRecordsEvents(t *testing.T) {
 }
 
 func TestFakeFindByName(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	ctx := context.Background()
 	p.Emit(ctx, observability.Event{Name: "phase.start", Severity: observability.SeverityInfo})
@@ -56,6 +61,7 @@ func TestFakeFindByName(t *testing.T) {
 }
 
 func TestFakeDefaultPlaneOnUnset(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	// An Event emitted as PlaneUnset must land on the fake's default (PlaneSelf),
 	// never stay PlaneUnset.
@@ -67,11 +73,14 @@ func TestFakeDefaultPlaneOnUnset(t *testing.T) {
 }
 
 func TestFakeWithInheritanceAndParentUnaffected(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	ctx := context.Background()
 	child := p.With(observability.String("run.id", "r-1"))
-	child.Emit(ctx, observability.Event{Name: "child", Severity: observability.SeverityInfo,
-		Fields: []observability.Field{observability.String("phase", "implement")}})
+	child.Emit(ctx, observability.Event{
+		Name: "child", Severity: observability.SeverityInfo,
+		Fields: []observability.Field{observability.String("phase", "implement")},
+	})
 	p.Emit(ctx, observability.Event{Name: "parent", Severity: observability.SeverityInfo})
 
 	events := p.Events()
@@ -98,8 +107,9 @@ func TestFakeWithInheritanceAndParentUnaffected(t *testing.T) {
 }
 
 func TestFakeScopeStampsDuration(t *testing.T) {
+	t.Parallel()
 	// A step clock lets the close func compute a deterministic duration.
-	var now = time.Unix(1700000000, 0).UTC()
+	now := time.Unix(1700000000, 0).UTC()
 	clock := func() time.Time { return now }
 	p := observabilitytest.New(clock)
 	ctx := context.Background()
@@ -116,7 +126,9 @@ func TestFakeScopeStampsDuration(t *testing.T) {
 	for _, f := range span[0].Fields {
 		switch f.Key {
 		case "duration":
-			dur, _ = f.Value.TelemetryValue().(time.Duration)
+			if d, ok := f.Value.TelemetryValue().(time.Duration); ok {
+				dur = d
+			}
 		case "ok":
 			sawOK = true
 		}
@@ -130,6 +142,7 @@ func TestFakeScopeStampsDuration(t *testing.T) {
 }
 
 func TestFakeScopeRecordsOutcomeError(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	_, end := p.Scope(context.Background(), "phase.start")
 	end(observability.Outcome{Err: stderrors.New("phase failed")})
@@ -138,7 +151,9 @@ func TestFakeScopeRecordsOutcomeError(t *testing.T) {
 	var ok bool
 	for _, f := range span.Fields {
 		if f.Key == "ok" {
-			ok = f.Value.TelemetryValue().(bool)
+			if b, isBool := f.Value.TelemetryValue().(bool); isBool {
+				ok = b
+			}
 		}
 	}
 	if ok {
@@ -147,6 +162,7 @@ func TestFakeScopeRecordsOutcomeError(t *testing.T) {
 }
 
 func TestFakeLogIsAView(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	p.Log(context.Background(), observability.SeverityWarn, "disk low",
 		observability.String("mount", "/data"))
@@ -160,6 +176,7 @@ func TestFakeLogIsAView(t *testing.T) {
 }
 
 func TestFakeLedgersRoundTrip(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	led := observability.Ledger{
 		RunID: "run-7", PhaseID: "verify", Model: "claude", Harness: "claudecode",
@@ -178,24 +195,30 @@ func TestFakeLedgersRoundTrip(t *testing.T) {
 }
 
 func TestFakeAssertNoSecrets(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	const canary = "s3cr3t"
 	// A redacting Valuer never renders the canary → AssertNoSecrets holds.
-	p.Emit(context.Background(), observability.Event{Name: "e", Severity: observability.SeverityInfo,
-		Fields: []observability.Field{observability.Any("token", redacting{canary})}})
+	p.Emit(context.Background(), observability.Event{
+		Name: "e", Severity: observability.SeverityInfo,
+		Fields: []observability.Field{observability.Any("token", redacting{canary})},
+	})
 	if err := p.AssertNoSecrets(canary); err != nil {
 		t.Errorf("AssertNoSecrets failed on a redacting Valuer: %v", err)
 	}
 
 	// A leaking Valuer renders the canary → AssertNoSecrets reports it.
-	p.Emit(context.Background(), observability.Event{Name: "leak", Severity: observability.SeverityInfo,
-		Fields: []observability.Field{observability.Any("token", leaking{canary})}})
+	p.Emit(context.Background(), observability.Event{
+		Name: "leak", Severity: observability.SeverityInfo,
+		Fields: []observability.Field{observability.Any("token", leaking{canary})},
+	})
 	if err := p.AssertNoSecrets(canary); err == nil {
 		t.Error("AssertNoSecrets did not catch a leaking Valuer")
 	}
 }
 
 func TestFakeFlushNoError(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	if err := p.Flush(context.Background()); err != nil {
 		t.Errorf("fake Flush returned error: %v", err)
@@ -203,6 +226,7 @@ func TestFakeFlushNoError(t *testing.T) {
 }
 
 func TestFailingExporterReturnsErr(t *testing.T) {
+	t.Parallel()
 	want := stderrors.New("wire down")
 	exp := observabilitytest.FailingExporter{Err: want}
 	got := exp.Export(context.Background(), nil)
@@ -212,6 +236,7 @@ func TestFailingExporterReturnsErr(t *testing.T) {
 }
 
 func TestFakeConcurrentEmit(t *testing.T) {
+	t.Parallel()
 	p := observabilitytest.New(fixedClock)
 	const n = 200
 	done := make(chan struct{})

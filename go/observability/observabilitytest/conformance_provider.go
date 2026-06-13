@@ -17,31 +17,37 @@ import (
 // It returns a *ConfigError on the same validation failures the real New rejects
 // (empty ServiceName, nil Exporter, nil Clock), so the NewValidationErrors
 // property holds for the fake too.
-func newConformanceProvider(cfg observability.Config, deps observability.Deps) (observability.Provider, error) {
-	if cfg.ServiceName == "" {
+//
+// It returns the observability.Provider interface because the contract §4
+// conformance harness signature (func(Config, Deps) (Provider, error)) requires
+// it; this double is passed to Run exactly where the real New is.
+//
+//nolint:ireturn // contract §4 conformance harness signature returns Provider.
+func newConformanceProvider(configuration observability.Config, dependencies observability.Deps) (observability.Provider, error) {
+	if configuration.ServiceName == "" {
 		return nil, &observability.ConfigError{Field: "ServiceName", Message: "required"}
 	}
-	if deps.Exporter == nil {
+	if dependencies.Exporter == nil {
 		return nil, &observability.ConfigError{Field: "Exporter", Message: "required (non-nil)"}
 	}
-	if deps.Clock == nil {
+	if dependencies.Clock == nil {
 		return nil, &observability.ConfigError{Field: "Clock", Message: "required (non-nil)"}
 	}
 	resource := map[string]string{
-		"service.name":                cfg.ServiceName,
-		"service.version":             cfg.ServiceVersion,
-		"deployment.environment.name": cfg.Environment,
+		"service.name":                configuration.ServiceName,
+		"service.version":             configuration.ServiceVersion,
+		"deployment.environment.name": configuration.Environment,
 	}
-	for k, v := range cfg.ResourceAttrs {
+	for k, v := range configuration.ResourceAttrs {
 		resource[k] = v
 	}
 	shared := &confState{
-		exporter:    deps.Exporter,
-		clock:       deps.Clock,
-		minSeverity: cfg.MinSeverity,
+		exporter:    dependencies.Exporter,
+		clock:       dependencies.Clock,
+		minSeverity: configuration.MinSeverity,
 		resource:    resource,
 	}
-	defPlane := cfg.DefaultPlane
+	defPlane := configuration.DefaultPlane
 	if defPlane == observability.PlaneUnset {
 		defPlane = observability.PlaneSelf
 	}
@@ -68,11 +74,12 @@ func (s *confState) nextSpan() uint64 {
 }
 
 // buffer appends a finished Record off the hot path (no exporter I/O here — that
-// is quarantined to Flush, mirroring the real impl's non-blocking Emit).
-func (s *confState) push(r observability.Record) {
+// is quarantined to Flush, mirroring the real impl's non-blocking Emit). The
+// Record is taken by pointer (it is a heavy value) and copied under the lock.
+func (s *confState) push(r *observability.Record) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.buffer = append(s.buffer, r)
+	s.buffer = append(s.buffer, *r)
 }
 
 // confProvider is one node in the With/Scope tree: it carries inherited Fields and
@@ -111,11 +118,15 @@ func (p *confProvider) finish(ctx context.Context, e observability.Event) {
 	for k, v := range p.shared.resource {
 		res[k] = v
 	}
-	p.shared.push(observability.Record{Event: e, Resource: res, TraceID: trace, SpanID: span})
+	p.shared.push(&observability.Record{Event: e, Resource: res, TraceID: trace, SpanID: span})
 }
 
 func (p *confProvider) Emit(ctx context.Context, e observability.Event) { p.finish(ctx, e) }
 
+// With implements observability.Provider, so it returns the Provider port
+// (matching the production impl and the frozen contract §2).
+//
+//nolint:ireturn // contract §2: With implements the Provider port; surface is frozen.
 func (p *confProvider) With(fields ...observability.Field) observability.Provider {
 	child := *p
 	child.inherit = make([]observability.Field, 0, len(p.inherit)+len(fields))
@@ -124,7 +135,7 @@ func (p *confProvider) With(fields ...observability.Field) observability.Provide
 	return &child
 }
 
-func (p *confProvider) Scope(ctx context.Context, name string, fields ...observability.Field) (context.Context, func(observability.Outcome)) {
+func (p *confProvider) Scope(ctx context.Context, name string, fields ...observability.Field) (scoped context.Context, end func(observability.Outcome)) {
 	id := p.shared.nextSpan()
 	trace := "trace-" + itoa(id)
 	span := "span-" + itoa(id)
@@ -135,9 +146,9 @@ func (p *confProvider) Scope(ctx context.Context, name string, fields ...observa
 
 	start := p.shared.clock.Now()
 	spanFields := append([]observability.Field(nil), fields...)
-	ctx = context.WithValue(ctx, confCtxKey{}, confSpan{traceID: trace, spanID: span})
+	scoped = context.WithValue(ctx, confCtxKey{}, confSpan{traceID: trace, spanID: span})
 
-	close := func(outcome observability.Outcome) {
+	end = func(outcome observability.Outcome) {
 		elapsed := p.shared.clock.Now().Sub(start)
 		all := append([]observability.Field(nil), spanFields...)
 		all = append(all, observability.Dur("duration", elapsed))
@@ -146,9 +157,9 @@ func (p *confProvider) Scope(ctx context.Context, name string, fields ...observa
 		} else {
 			all = append(all, observability.Bool("ok", true))
 		}
-		child.finish(ctx, observability.Event{Severity: observability.SeverityInfo, Name: name, Fields: all})
+		child.finish(scoped, observability.Event{Severity: observability.SeverityInfo, Name: name, Fields: all})
 	}
-	return ctx, close
+	return scoped, end
 }
 
 func (p *confProvider) Log(ctx context.Context, sev observability.Severity, message string, fields ...observability.Field) {
