@@ -365,3 +365,45 @@ data:
       source:
         - run: founder-intake-01
           span: "C22"
+    - id: REQ-0022
+      statement: "WHEN many agent sessions run concurrently in a project THE SYSTEM SHALL support hundreds of simultaneous sessions and SHALL let a user navigate from the project down to any individual session's live chat and observe it in real time."
+      kind: quality
+      priority: P1
+      rationale: "A project may have hundreds of agents running at once (C24); the value of the chat surface depends on a user being able to drill into any one of them live. Scale and navigability are product requirements, not infrastructure afterthoughts."
+      acceptance:
+        - "The session-list surface remains responsive (interaction under 200ms) with at least several hundred concurrent sessions in a project."
+        - "A user navigates project -> running sessions -> a single chat and sees live events for that chat within one second of selecting it."
+        - "Subscribing to one session's stream does not require receiving the event traffic of the others (per-session fan-out)."
+      links:
+        realizes: [PER-0001, PER-0003]
+      source:
+        - run: founder-intake-01
+          span: "C24"
+    - id: REQ-0023
+      statement: "THE SYSTEM SHALL deliver agent telemetry as server-triggered, sequence-numbered events over a streamed connection, and SHALL make start, stop, and resume reliable for both the agent and the event stream itself — a client that disconnects and reconnects SHALL replay every event it missed with no loss and no duplication."
+      kind: functional
+      priority: P1
+      rationale: "Reliability of the data flow is as load-bearing as reliability of the agent (C24): hundreds of long-lived sessions mean disconnects are normal, so lossless resumable streaming is a correctness requirement. Server-triggered events (not client polling) are the scalable mechanism."
+      acceptance:
+        - "Each session event carries a monotonic sequence number; a reconnecting client requests events after its last-seen sequence and receives exactly the missing events in order."
+        - "Stopping an agent stops its stream cleanly; resuming an agent resumes the stream from the correct sequence; neither loses nor duplicates events."
+        - "A kill of the rendering client mid-session, followed by reopening the chat, reconstructs the full session state from persisted events."
+      links:
+        realizes: [PER-0001, PER-0003]
+      source:
+        - run: founder-intake-01
+          span: "C24"
+    - id: REQ-0024
+      statement: "THE SYSTEM SHALL capture and surface in the chat UI the full meaningful agent telemetry available from the harness — message content, thinking, tool usage, skill invocation, file modifications, branch operations, token usage by kind, cost, and model attribution — as first-class queryable data, not opaque log text."
+      kind: functional
+      priority: P1
+      rationale: "Observability depth is what makes the chat genuinely useful to both personas (C24): the founder reads the narrative, the engineer reads tool/file/branch/cost detail. Every datum the harness emits that is meaningful to display must be captured structured (the agentsession event taxonomy) and rendered, not flattened to text."
+      acceptance:
+        - "Each of message, thinking, tool start/end, skill invocation, file modification, branch operation, token usage, and cost appears as a distinct, individually-rendered event type in the chat surface."
+        - "The token/cost meter reflects all four token kinds (input, output, cache-read, cache-write) and per-model attribution live."
+        - "Every displayed datum traces to a persisted structured event (no display-only state)."
+      links:
+        realizes: [PER-0001, PER-0002]
+      source:
+        - run: founder-intake-01
+          span: "C24"

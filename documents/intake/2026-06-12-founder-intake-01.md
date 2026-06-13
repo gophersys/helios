@@ -130,3 +130,15 @@
   destroyed through the UI before exit; nested creation tested). Libraries written uniformly per
   scalable-Go best practices; a formalized staged workflow with interface agreement and TDD
   throughout.
+
+## Session 01f — quality bar and the chat scalability mandate (same day)
+
+- **C24** After each build wave, launch a wave of reviewers and architects to ensure a cohesive,
+  well-done library architecture and true test coverage — integration and end-to-end tests are
+  highly valued, not optional. The agent-chat UI is the key feature for the system working
+  long-term: observability, chat, thinking, and all available + meaningful data collection must
+  be nailed and displayable in the frontend. Communication is server-triggered events, nicely
+  displayed. The mechanism must be scalable and reliable in start/stop/resume for BOTH the agents
+  and the data flow itself — a user may have hundreds of agents running per project at any time,
+  and the UI must let them navigate down to any chat and watch it in real time. No shortcuts: all
+  functions and features implemented and tested, Google-level software, Go 1.26.
