@@ -30,6 +30,10 @@ __pycache__/
 # Rust
 target/
 
+# Go (ADR-0009 C: dev-only workspace override, never committed)
+go.work
+go.work.sum
+
 # Editor state
 .vscode/.history/
 .idea/
