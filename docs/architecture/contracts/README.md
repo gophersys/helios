@@ -1,6 +1,8 @@
 # contracts/ — WS1 contract negotiation drafts
 
-> Status: Drafts for negotiation · 2026-06-12 · These are **not frozen contracts.** They are the
+> Status: **Frozen as reconciled** (ADR-0016, 2026-06-12) — ballot rows remain overturnable by
+> Mateo; an overturn is a re-negotiation producing a contract revision, never a silent edit.
+> Originally: drafts for negotiation — They are the
 > 09 §4 step-1/2 artifacts for the six universal patterns: per pattern, a producer-side draft and
 > a consumer-side draft were authored independently and reconciled into one document, with
 > unresolved tensions recorded as open questions. Freezing happens at the contract-PR gate

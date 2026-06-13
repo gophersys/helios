@@ -115,3 +115,18 @@
   `setup-token` so a normal membership user (like Mateo) works from the start; configurable
   throughout. Prior art exists in Mateo's repositories (poc/agents auth/bridge work,
   poc/codingharness) and should be mined first.
+
+## Session 01e — the build wave (same day)
+
+- **C23** Build the Go library backend now, full TDD: secrets; sandbox libraries (docker AND
+  kubernetes) where agents run; git clone and all repository actions; the agent start/stop/resume
+  interface with agent configuration (skills, rules); full observability and data collection; a
+  basic orchestrator managing agent spawn-up; agent templates (custom configurations + custom
+  sandboxes). Frontend shows full chats, tool usage, skill invocation, file modification,
+  branches, costs, thinking. The setup-token secret flows through the frontend+backend
+  architecture. Go tests must spin up real containers and a local kubernetes cluster to test the
+  docker/kubernetes features fully. Deliver an initial set of Go test utilities for full backend
+  tests, plus Playwright forced-CRUD user-journey tests (objects created through the UI are
+  destroyed through the UI before exit; nested creation tested). Libraries written uniformly per
+  scalable-Go best practices; a formalized staged workflow with interface agreement and TDD
+  throughout.

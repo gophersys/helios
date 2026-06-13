@@ -130,3 +130,14 @@ flowchart TB
   B6 --> B7
   B0 --> B8
 ```
+
+## 9. The build waves (ADR-0016)
+
+Each wave: **negotiate** new contracts it needs (the §4 protocol) → **implement** frozen
+contracts TDD-first (tests authored from the contract before implementation; conformance suites
+mandatory; substrate adapters tested against real docker daemons and kind clusters, never mocks)
+→ **verify** adversarially → **Mateo reviews** between waves. Test infrastructure is a
+deliverable of the wave that needs it, not an afterthought. Wave ledger: 3A = leaf+dependent
+pattern implementations and the workspaceprovider/gitrepository/orchestrator negotiations; 3B =
+substrate adapters, git operations, orchestrator v0, the agent-session service, the chat
+surface, the Playwright forced-CRUD harness.
