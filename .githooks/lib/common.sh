@@ -129,16 +129,23 @@ hook_gofumpt_check() {
 # --fast-only: forbidigo (the HNS-1 banned-token gate) and the naming linters are NOT in the
 # fast set, so --fast-only silently disarms the teeth this gate exists to provide (C25). The
 # pattern libraries are small; the full set runs in ~1s.
-# hook_module_gowork <module-dir> — echo the GOWORK env for linting a module. libs/go/*
-# modules import unpublished siblings (v0.0.0) and need the dev go.work to resolve them;
-# every other first-party module (tools/*, poc/*, apps/*) resolves its own deps and is
-# BROKEN by a workspace that carries those unpublished cross-requires, so it lints with
-# GOWORK=off. This is the one rule that makes the gate correct across the monorepo.
+# hook_module_gowork <module-dir> — echo the GOWORK env for linting a module. A module that
+# requires the UNPUBLISHED workspace siblings (github.com/gophersys/libs/go/*, pinned at
+# v0.0.0 and resolved only via the dev go.work) can ONLY typecheck WITH the workspace; it is
+# linted by inheriting the active go.work. That set is libs/go/* AND any app/tool/poc that
+# imports a sibling lib (e.g. apps/agentgateway over orchestrator+agentsession). A module with
+# no such require is standalone and lints in release isolation (GOWORK=off) so its own
+# go.mod/go.sum stays honest. This is the one rule that makes the gate correct across the monorepo.
 hook_module_gowork() {
-  case "$1" in
-    */libs/go/*) printf '' ;;          # inherit the active workspace
-    *)           printf 'GOWORK=off' ;;
+  local dir="$1"
+  case "$dir" in
+    */libs/go/*) printf ''; return ;;  # always a workspace member
   esac
+  if [[ -f "$dir/go.mod" ]] && grep -q 'github.com/gophersys/libs/go/' "$dir/go.mod"; then
+    printf ''           # depends on unpublished workspace siblings -> inherit the go.work
+  else
+    printf 'GOWORK=off' # standalone module -> release isolation
+  fi
 }
 
 hook_golangci_module() {
