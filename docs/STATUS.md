@@ -77,9 +77,20 @@
   (5) exported surface adds Connection/RunDriver/Probe/Provisioner + New returns *Provisioner not
   *Substrate (a genuine frozen-contract defect: Substrate name collision) — ratify as a contract
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
-- **NEXT: Wave 3B cont.** — substrate adapters (workspaceprovider docker+k3d, real integration tests),
-  gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0, agent-session backend +
-  chat UI, Playwright E2E.
+- **NEXT: Wave 3B cont.** — gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0,
+  agent-session backend + chat UI, Playwright E2E.
+  - **gitrepository sub-wave IN PROGRESS** (launched via background workflow build-gitrepository, 2-phase
+    impl→adversarial-verify, Opus; task wrfc58xu8 / run wf_445c0182-2a8; do NOT run conflicting work in
+    libs/go/gitrepository while it runs — concurrent work in the same tree is what caused the straggler thrash). Contract docs/architecture/contracts/gitrepository.md (draft; amendments
+    surface as Qs like workspaceprovider Q13/Q14). Three ≤5-method interfaces: Provisioning (Clone/AddWorktree/
+    RemoveWorktree), Inspection (Status/Diff/Branches/Worktrees), Authoring (Stage/Commit-with-Author/Fetch/
+    Push). NO merge engine; fast-forward-only; NonFastForwardError/ConflictError = escalate-to-gate signals;
+    secrets.Reference resolved server-side (never logged, 07 §2); operates over a Workspace path. Lands in
+    libs/go/gitrepository/ + gitrepositorytest/; module github.com/gophersys/libs/go/gitrepository; needs
+    `go work use ./libs/go/gitrepository`. Real-substrate tests = REAL git + a real local bare remote for
+    Push/Fetch + real worktrees, behind //go:build integration. Under enforcement (golangci 0 alone, hnslint,
+    gofumpt, race). The workflow does NOT commit — I verify myself + commit after. WHEN it completes: run the
+    settled gate + integration MYSELF, weaken-to-confirm-non-vacuous, then commit to libs + bump eden pointer.
 - **New directives captured 2026-06-13** (intake C26/C27, REQ-0027/0028, doc 13, ADR-0019):
   - **Git workflow standard** (doc 13) — one workflow machine for docs/architecture/implementation;
     branch/commit grammar; worktrees; merge agents. TOOLING (branch-name hook + merge-agent role)
