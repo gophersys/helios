@@ -39,6 +39,10 @@ const (
 	orgLabel          = "eden.workspaceprovider/org"
 	projectLabel      = "eden.workspaceprovider/project"
 	workdirAnnotation = "eden.workspaceprovider/workdir"
+	// fingerprintAnnotation stores the library's spec fingerprint (a 64-char sha256 hex, over
+	// the 63-char kubernetes label-value ceiling) so List can fold it back into the
+	// Descriptor's Labels for the library's idempotency/conflict check.
+	fingerprintAnnotation = "eden.workspaceprovider/spec-fingerprint"
 )
 
 // workspaceContainer is the name of the single long-lived container in a workspace pod —

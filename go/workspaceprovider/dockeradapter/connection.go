@@ -60,9 +60,10 @@ func (c *connection) Run(ctx context.Context, spec workspaceprovider.RunSpec, re
 		return nil, classifyDockerError("exec attach (run)", err)
 	}
 	driver := &runDriver{
-		client: c.adapter.client,
-		execID: execResp.ID,
-		tty:    spec.TTY,
+		client:      c.adapter.client,
+		execID:      execResp.ID,
+		containerID: c.id,
+		tty:         spec.TTY,
 	}
 	driver.buffer = drainHijack(attach, spec.TTY)
 	return driver, nil
@@ -194,19 +195,26 @@ type statsSample struct {
 }
 
 // runDriver is the docker RunDriver: it inspects the exec for its terminal status and
-// replays the buffered output for Logs.
+// replays the buffered output for Logs. It carries the CONTAINER id (not just the exec id) so
+// it can read the container's cgroup OOMKilled flag — a memory-bomb exec'd into the holding
+// container trips the container's State.OOMKilled even though the exec's own exit code is
+// unreliable (verified against the real daemon), which is how the runaway-agent OOM signal
+// surfaces as RunKilled / ConditionOOMKilled.
 type runDriver struct {
-	client dockerClient
-	execID string
-	tty    bool
-	buffer []byte
+	client      dockerClient
+	execID      string
+	containerID string
+	tty         bool
+	buffer      []byte
 }
 
 // Static assertion: *runDriver satisfies workspaceprovider.RunDriver.
 var _ workspaceprovider.RunDriver = (*runDriver)(nil)
 
 // Status reports the workload's phase. The first call (after the attach drained to EOF, i.e.
-// the exec finished) inspects the real exit code and returns the terminal phase; ok=false.
+// the exec finished) inspects the real exit code and returns the terminal phase; ok=false. A
+// container whose cgroup OOM-killed the workload surfaces as RunKilled / ConditionOOMKilled
+// with the native reason in Detail (the runaway-agent signal, 02 §2).
 func (r *runDriver) Status(ctx context.Context) (workspaceprovider.RunStatus, bool) {
 	inspect, err := r.client.ContainerExecInspect(ctx, r.execID)
 	if err != nil {
@@ -214,6 +222,14 @@ func (r *runDriver) Status(ctx context.Context) (workspaceprovider.RunStatus, bo
 	}
 	if inspect.Running {
 		return workspaceprovider.RunStatus{Phase: workspaceprovider.RunRunning}, true
+	}
+	if r.workloadOOMKilled(ctx) {
+		return workspaceprovider.RunStatus{
+			Phase:     workspaceprovider.RunKilled,
+			Condition: workspaceprovider.ConditionOOMKilled,
+			ExitCode:  inspect.ExitCode,
+			Detail:    "OOMKilled",
+		}, false
 	}
 	phase := workspaceprovider.RunSucceeded
 	if inspect.ExitCode != 0 {
@@ -224,6 +240,21 @@ func (r *runDriver) Status(ctx context.Context) (workspaceprovider.RunStatus, bo
 		ExitCode: inspect.ExitCode,
 		Detail:   "docker exec exited",
 	}, false
+}
+
+// workloadOOMKilled reports whether the holding container's cgroup OOM-killed the workload
+// (the exec child). docker sets State.OOMKilled on the CONTAINER when any process in its
+// cgroup is OOM-killed, including an exec child, so this is the reliable signal even when the
+// exec's own exit code does not reflect the kill.
+func (r *runDriver) workloadOOMKilled(ctx context.Context) bool {
+	if r.containerID == "" {
+		return false
+	}
+	inspect, err := r.client.ContainerInspect(ctx, r.containerID)
+	if err != nil || inspect.State == nil {
+		return false
+	}
+	return inspect.State.OOMKilled
 }
 
 // Logs replays the workload's combined output buffered at attach time, from the cursor.

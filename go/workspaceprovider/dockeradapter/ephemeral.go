@@ -66,8 +66,10 @@ func (a *Adapter) prePull(ctx context.Context, ref string) error {
 	return nil
 }
 
-// reapNamespace force-removes every container this adapter's namespace authored — the
-// Cleanup that guarantees zero orphans. It also closes the docker client.
+// reapNamespace force-removes every container AND every per-workspace egress network this
+// adapter's namespace authored — the Cleanup that guarantees zero orphans (containers first,
+// then networks, since a still-attached container blocks network removal). It also closes
+// the docker client.
 func (a *Adapter) reapNamespace(ctx context.Context) error {
 	defer func() { _ = a.client.Close() }() //nolint:errcheck // closing the client after reaping has no actionable error.
 	args := filters.NewArgs()
@@ -83,6 +85,15 @@ func (a *Adapter) reapNamespace(ctx context.Context) error {
 	for i := range summaries {
 		if rmErr := a.client.ContainerRemove(ctx, summaries[i].ID, container.RemoveOptions{Force: true, RemoveVolumes: true}); rmErr != nil && !isNotFound(rmErr) {
 			reapErr = errors.Wrap(errors.KindUnavailable, "dockeradapter.reapNamespace: remove "+summaries[i].ID, rmErr)
+		}
+	}
+	networks, nerr := a.ownedEgressNetworks(ctx)
+	if nerr != nil {
+		return errors.Wrap(errors.KindUnavailable, "dockeradapter.reapNamespace: list networks", nerr)
+	}
+	for _, name := range networks {
+		if rmErr := a.removeEgressNetwork(ctx, name); rmErr != nil {
+			reapErr = errors.Wrap(errors.KindUnavailable, "dockeradapter.reapNamespace: remove network "+name, rmErr)
 		}
 	}
 	return reapErr

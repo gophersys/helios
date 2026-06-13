@@ -127,9 +127,15 @@ func (s *Provisioner) Provision(ctx context.Context, spec WorkspaceSpec) (Worksp
 	}
 	spec.Substrate = substrate
 
+	// Stamp the spec fingerprint into the labels the adapter persists, so a later
+	// same-Name Provision can decide COMPATIBLE (re-dial) vs INCOMPATIBLE (ConflictError)
+	// by comparing fingerprints read back from List (idempotency is LIBRARY-owned).
+	spec.Labels = withFingerprint(spec.Labels, specFingerprint(&spec))
+
 	// Idempotency: a re-Provision of an existing, compatible workspace returns its
 	// handle (the level-based reconcile contract). List the ownership domain by the
-	// tenancy keys + name and re-dial if it is already there.
+	// tenancy keys + name; an existing workspace with the SAME fingerprint is the
+	// idempotent hit (re-dial it); a DIFFERENT fingerprint is a ConflictError.
 	if existing, found, ierr := s.findExisting(ctx, adapter, &spec); ierr != nil {
 		return nil, ierr
 	} else if found {
@@ -228,8 +234,11 @@ func (s *Provisioner) route(selector Substrate) (Substrate, Adapter, error) {
 }
 
 // findExisting implements idempotency: it lists the ownership domain by the spec's
-// tenancy keys + name and re-dials the workspace if a compatible one already exists. An
-// existing-but-incompatible spec is a ConflictError.
+// tenancy keys + name and, on a same-Name match, compares the stored spec fingerprint to
+// the incoming spec's. A COMPATIBLE match (same fingerprint) re-dials the existing
+// workspace (the level-based reconcile contract); an INCOMPATIBLE match (different
+// fingerprint — a re-Provision with a changed Image/Resources/Egress/Mounts/Env) is a
+// ConflictError (Kind=Conflict), NEVER a silent return of the stale workspace.
 //
 //nolint:ireturn // findExisting returns the Workspace port (re-dialed) feeding Provision's frozen return.
 func (s *Provisioner) findExisting(ctx context.Context, adapter Adapter, spec *WorkspaceSpec) (Workspace, bool, error) {
@@ -238,15 +247,18 @@ func (s *Provisioner) findExisting(ctx context.Context, adapter Adapter, spec *W
 	if err != nil {
 		return nil, false, classify(err)
 	}
+	want := spec.Labels[SpecFingerprintLabel]
 	for i := range descriptors {
 		if descriptors[i].Name != spec.Name {
 			continue
 		}
-		// A workspace with this name exists in the tenancy. Re-dial it (idempotent
-		// reconcile). Incompatibility detection is delegated to the adapter's Create on
-		// the next call where the spec genuinely differs; here a same-name match is
-		// treated as the idempotent hit (the conformance suite drives the conflict path
-		// through the adapter, which owns native-object comparison).
+		// A workspace with this Name exists in the tenancy. Compare fingerprints: a
+		// changed Image/Resources/Egress/Mounts/Env is an INCOMPATIBLE re-Provision and
+		// must surface a ConflictError rather than silently returning the old workspace.
+		if got := descriptors[i].Labels[SpecFingerprintLabel]; got != "" && want != "" && got != want {
+			return nil, false, wrapKind(&ConflictError{Name: spec.Name})
+		}
+		// Compatible (or a legacy workspace without a recorded fingerprint): re-dial it.
 		ws, oerr := s.Open(ctx, descriptors[i].Handle)
 		if oerr != nil {
 			return nil, false, oerr
@@ -399,6 +411,18 @@ func defaultWorkDir(spec *WorkspaceSpec) string {
 		}
 	}
 	return "/workspace"
+}
+
+// withFingerprint returns a copy of labels with the spec fingerprint stamped under
+// SpecFingerprintLabel (so the original caller-supplied map is never mutated). The
+// adapter persists this label; List reads it back for the idempotency/conflict check.
+func withFingerprint(labels map[string]string, fingerprint string) map[string]string {
+	out := make(map[string]string, len(labels)+1)
+	for k, v := range labels {
+		out[k] = v
+	}
+	out[SpecFingerprintLabel] = fingerprint
+	return out
 }
 
 // tenancyLabels narrows a spec's Labels to the tenancy keys the Selector enforces (so a

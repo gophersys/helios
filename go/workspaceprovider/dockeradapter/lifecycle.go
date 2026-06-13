@@ -37,6 +37,14 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 		return workspaceprovider.HandleData{}, isolationErr
 	}
 
+	// Egress: install a genuine default-deny `--internal` network for a zero-egress
+	// (clean-room) workspace (the only egress isolation docker robustly enforces); declared
+	// egress runs on the bridge (the Partial gap the manifest declares — see network.go).
+	egressNet, eerr := a.ensureEgressNetwork(ctx, &spec)
+	if eerr != nil {
+		return workspaceprovider.HandleData{}, eerr
+	}
+
 	createResp, err := a.client.ContainerCreate(
 		ctx,
 		&container.Config{
@@ -51,16 +59,18 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 			Resources:  buildResources(spec.Resources),
 			AutoRemove: false,
 		},
-		nil, nil,
+		networkingFor(egressNet), nil,
 		a.containerName(spec.Name),
 	)
 	if err != nil {
+		_ = a.removeEgressNetwork(ctx, egressNet) //nolint:errcheck // best-effort rollback of the just-created egress network; the create error is the one returned.
 		return workspaceprovider.HandleData{}, classifyDockerError("create container", err)
 	}
 
 	if err := a.client.ContainerStart(ctx, createResp.ID, container.StartOptions{}); err != nil {
-		// Rollback: remove the just-created container so no orphan is left.
+		// Rollback: remove the just-created container (then its egress network) so no orphan is left.
 		_ = a.client.ContainerRemove(ctx, createResp.ID, container.RemoveOptions{Force: true}) //nolint:errcheck // best-effort rollback; the start error is the one returned.
+		_ = a.removeEgressNetwork(ctx, egressNet)                                              //nolint:errcheck // best-effort rollback; the start error is the one returned.
 		return workspaceprovider.HandleData{}, classifyDockerError("start container", err)
 	}
 
@@ -68,6 +78,7 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 	// the Files seam seeds into). A failure here is a partial-isolation failure: roll back.
 	if derr := a.ensureDirs(ctx, createResp.ID, ensureDirs); derr != nil {
 		_ = a.client.ContainerRemove(ctx, createResp.ID, container.RemoveOptions{Force: true, RemoveVolumes: true}) //nolint:errcheck // best-effort rollback; the ensureDirs error is the one returned.
+		_ = a.removeEgressNetwork(ctx, egressNet)                                                                   //nolint:errcheck // best-effort rollback; the ensureDirs error is the one returned.
 		return workspaceprovider.HandleData{}, derr
 	}
 
@@ -135,21 +146,22 @@ func (a *Adapter) List(ctx context.Context, selector workspaceprovider.Selector)
 	return out, nil
 }
 
-// Destroy removes the container (and its anonymous volumes) named by handle. IDEMPOTENT:
-// an already-gone container is nil, not an error.
+// Destroy removes the container (and its anonymous volumes) named by handle, then its
+// per-workspace egress network. IDEMPOTENT: an already-gone container/network is nil, not
+// an error. The container is removed FIRST (a still-attached container blocks network
+// removal), then the network — so no orphaned network is left.
 func (a *Adapter) Destroy(ctx context.Context, handle workspaceprovider.Handle) error {
 	id := containerID(handle)
 	if id == "" {
 		return nil
 	}
 	err := a.client.ContainerRemove(ctx, id, container.RemoveOptions{Force: true, RemoveVolumes: true})
-	if err != nil {
-		if isNotFound(err) {
-			return nil
-		}
+	if err != nil && !isNotFound(err) {
 		return classifyDockerError("remove container", err)
 	}
-	return nil
+	// removeEgressNetwork returns an already-Kinded (Unavailable) error on a hard failure, nil
+	// on success or an already-gone network (idempotent).
+	return a.removeEgressNetwork(ctx, egressNetworkName(handle.Namespace(), handle.Name()))
 }
 
 // ensureDirs creates the workspace's writable directories (workdir + inputs roots) via a

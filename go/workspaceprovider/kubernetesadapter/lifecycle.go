@@ -72,11 +72,19 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 // ConflictError (a non-idempotent collision — the library's findExisting handles the
 // idempotent re-Provision before Create is ever reached).
 func (a *Adapter) createNamespace(ctx context.Context, spec *workspaceprovider.WorkspaceSpec, namespace string) error {
+	annotations := map[string]string{workdirAnnotation: defaultWorkDir(spec)}
+	// The spec fingerprint is stored as an ANNOTATION (not a label): a sha256 hex digest is
+	// 64 chars, over the 63-char kubernetes label-value ceiling, and annotations have no such
+	// limit. List folds it back into the Descriptor's Labels so the library's idempotency/
+	// conflict check reads it uniformly across substrates.
+	if fp := spec.Labels[workspaceprovider.SpecFingerprintLabel]; fp != "" {
+		annotations[fingerprintAnnotation] = fp
+	}
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        namespace,
 			Labels:      a.ownerLabels(spec),
-			Annotations: map[string]string{workdirAnnotation: defaultWorkDir(spec)},
+			Annotations: annotations,
 		},
 	}
 	if _, err := a.client.CreateNamespace(ctx, ns); err != nil {
@@ -166,12 +174,16 @@ func (a *Adapter) List(ctx context.Context, selector workspaceprovider.Selector)
 		workDir := ns.Annotations[workdirAnnotation]
 		descSpec := descriptorSpec(ns.Labels)
 		handle := a.handleFor(&descSpec, ns.Name, workDir)
+		// Fold the fingerprint annotation back into the Descriptor's Labels so the library's
+		// idempotency/conflict check reads it uniformly with the docker adapter (which carries
+		// it as a native label).
+		descLabels := foldAnnotations(ns.Labels, ns.Annotations)
 		out = append(out, workspaceprovider.Descriptor{
 			Handle:    handle,
 			Name:      ns.Labels[nameLabel],
 			Substrate: workspaceprovider.SubstrateKubernetes,
 			State:     normalizeNamespaceState(ns),
-			Labels:    ns.Labels,
+			Labels:    descLabels,
 			CreatedAt: ns.CreationTimestamp.Time,
 		})
 	}
@@ -491,6 +503,21 @@ func descriptorSpec(labels map[string]string) workspaceprovider.WorkspaceSpec {
 			workspaceprovider.LabelProject:      labels[projectLabel],
 		},
 	}
+}
+
+// foldAnnotations returns the namespace's labels with the spec-fingerprint annotation folded
+// in under the library's SpecFingerprintLabel key, so a Descriptor carries the fingerprint in
+// Labels uniformly with the docker adapter (which persists it as a native label).
+func foldAnnotations(labels, annotations map[string]string) map[string]string {
+	if annotations[fingerprintAnnotation] == "" {
+		return labels
+	}
+	out := make(map[string]string, len(labels)+1)
+	for k, v := range labels {
+		out[k] = v
+	}
+	out[workspaceprovider.SpecFingerprintLabel] = annotations[fingerprintAnnotation]
+	return out
 }
 
 // normalizeNamespaceState maps a namespace's phase onto a workspaceprovider State for List

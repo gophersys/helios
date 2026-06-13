@@ -183,7 +183,7 @@ func TestDocker_ResourceLimitsBindOOM(t *testing.T) {
 
 	// Allocate ~512 MiB into a tmpfs-backed file inside the container to trip the cgroup.
 	run, rerr := ws.Run(ctx, workspaceprovider.RunSpec{
-		Command: []string{"sh", "-c", "dd if=/dev/zero of=/dev/shm/fill bs=1M count=512 2>/dev/null; cat /dev/shm/fill >/dev/null"},
+		Command: []string{"sh", "-c", "dd if=/dev/zero of=/dev/shm/fill bs=1M count=512 2>/dev/null; cat /dev/shm/fill >/dev/null; sleep 1"},
 	})
 	if rerr != nil {
 		t.Fatalf("Run: %v", rerr)
@@ -194,6 +194,61 @@ func TestDocker_ResourceLimitsBindOOM(t *testing.T) {
 	}
 	if final.Phase != workspaceprovider.RunKilled && final.Phase != workspaceprovider.RunFailed {
 		t.Errorf("an over-memory workload phase = %v, want Killed/Failed", final.Phase)
+	}
+	// Where the cgroup reports OOMKilled (the container's State.OOMKilled), the workload must
+	// surface RunKilled / ConditionOOMKilled with the native reason in Detail — the typed,
+	// branchable runaway-agent signal, not a generic failure.
+	if final.Condition == workspaceprovider.ConditionOOMKilled {
+		if final.Phase != workspaceprovider.RunKilled {
+			t.Errorf("an OOMKilled workload phase = %v, want RunKilled", final.Phase)
+		}
+		if final.Detail == "" {
+			t.Errorf("the native OOM reason must ride RunStatus.Detail, got empty")
+		}
+	}
+}
+
+// TestDocker_DefaultDenyEgress proves the docker adapter's CapEgressPolicy=CapPartial is
+// TRUTHFUL: a ZERO-egress workspace is attached to a per-workspace `--internal` network the
+// daemon enforces as genuine default-deny, so a real dial-out from inside it is BLOCKED — while
+// ordinary exec still works (the network isolation is egress-only, not an exec break). This is
+// the clean-room 07 §4 guarantee, asserted against the REAL daemon with no mock.
+//
+//nolint:paralleltest // serial by design: spins a real container on a dedicated `--internal` network.
+func TestDocker_DefaultDenyEgress(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+	prov := newProvider(t, adapter)
+
+	ws, err := prov.Provision(ctx, workspaceprovider.WorkspaceSpec{
+		Name:      "ws-egress",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     testImage,
+		Egress:    nil, // default-deny: the clean room dials out to NOTHING (07 §4)
+	})
+	if err != nil {
+		t.Fatalf("Provision (zero-egress): %v", err)
+	}
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), ws.Handle()) }) //nolint:errcheck // best-effort cleanup teardown; Teardown is idempotent and the harness re-scan asserts no orphan.
+
+	// Positive control: ordinary exec works (the isolation is egress-only).
+	ctrl, cerr := ws.Exec(ctx, workspaceprovider.ExecSpec{Command: []string{"sh", "-c", "command -v wget >/dev/null"}, Timeout: 20 * time.Second})
+	if cerr != nil {
+		t.Fatalf("egress positive control (exec): %v", cerr)
+	}
+	if ctrl.ExitCode != 0 {
+		t.Skip("test image has no wget to drive the dial-out probe")
+	}
+	// The real dial-out must be BLOCKED (non-zero exit: "bad address" / "Network is unreachable").
+	res, eerr := ws.Exec(ctx, workspaceprovider.ExecSpec{
+		Command: []string{"wget", "-T", "5", "-q", "-O", "/dev/null", "https://example.com"},
+		Timeout: 30 * time.Second,
+	})
+	if eerr != nil {
+		t.Fatalf("dial-out exec: %v", eerr)
+	}
+	if res.ExitCode == 0 {
+		t.Errorf("default-deny egress NOT enforced: wget to a public host succeeded from a zero-egress workspace")
 	}
 }
 

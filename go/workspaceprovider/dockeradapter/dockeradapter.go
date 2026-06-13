@@ -74,11 +74,20 @@ func New(configuration Config) (*Adapter, error) {
 
 // Manifest declares the docker substrate's capabilities (05 §3). docker has full bind
 // mounts, resource limits (cgroups), PTY exec, log streaming, and re-attach (a container
-// survives a control-plane restart); it has NO native NetworkPolicy CRD and NO
-// namespace-per-project quota plane, so CapEgressPolicy is CapPartial (the adapter records
-// egress intent but enforces only coarse network modes) and CapMultiTenant/
-// CapPersistentVolume/CapHibernate are CapAbsent — distro divergence recorded HONESTLY, the
-// engine flags rather than breaks (05 §3, C18).
+// survives a control-plane restart); CapMultiTenant/CapPersistentVolume/CapHibernate are
+// CapAbsent (no native quota plane / persistent-volume plane).
+//
+// CapEgressPolicy is CapPartial, and the Partial is TRUTHFUL, not a placeholder: a
+// zero-egress workspace is attached to a per-workspace `--internal` docker network, which
+// the daemon enforces as genuine DEFAULT-DENY (no NAT/forwarding → off-host dial-out is
+// "Network is unreachable") — the clean-room 07 §4 posture, verified against the REAL daemon
+// by the conformance suite's egress case. What docker CANNOT do via the daemon API is
+// default-deny + SELECTIVE allow (allow only api.anthropic.com): an `--internal` bridge is
+// all-or-nothing, so a workspace that DECLARES egress rules runs on the default bridge (its
+// declared hosts are reachable, but so is everything else). That residual gap is exactly what
+// CapPartial declares and the engine/UI flag (C18) — never silently claimed as enforced.
+// (kubernetesadapter keeps CapEgressPolicy=CapAbsent: k3d/kind ship flannel, which does not
+// enforce NetworkPolicy — the honest divergence the conformance case Skips on.)
 func (a *Adapter) Manifest() workspaceprovider.CapabilityManifest {
 	return workspaceprovider.CapabilityManifest{
 		Distro: "docker 29.x",
