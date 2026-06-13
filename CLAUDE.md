@@ -56,3 +56,27 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
 - **`hnslint`** (structural HNS-1) is `tools/hnslint`; install with
   `(cd tools/hnslint && GOWORK=off go install ./cmd/hnslint)`. The shared linter config is
   `libs/.golangci.yml`.
+
+## Library pipeline (ADR-0020)
+
+Extends — does not replace — the ADR-0018 enforcement above. **Implement every Go library
+phase-by-phase; never declare a library done before `bash ./ctl.sh phase-gate qa` is green.**
+
+- **Four phases, one gate each:** `bash ./ctl.sh phase-gate <architecture|implementation|testing|qa|all>`
+  per lib (verb bodies live once in `libs/go/_ctl/lib.sh`; each per-lib `ctl.sh` is a thin
+  dispatcher). Each gate must pass before the next; `phase-gate all` runs 1→4 short-circuiting.
+  "phase" = the SDLC step — never the environment "stage".
+- **TDD order is mandatory:** fake binding + conformance cases (red) BEFORE bodies (green). An
+  exported-surface break vs the frozen `<lib>/.apibaseline` is the cardinal sin (10 §9) and aborts
+  the gate.
+- **The 8-dimension test taxonomy** is wired as per-lib verbs: `property` (rapid), `leak` (goleak),
+  `lifecycle`, `load`, `integration` (REAL docker+k3d+kind — never mocked), `vuln`/`sast`/`secretscan`,
+  `bench-guard`, `maintainability`, `mutate`, `cover-floor` (per-package FLOOR: 80% leaf / 70%
+  substrate). In the devcontainer every tool is present, so an absent tool is a gate FAILURE, not
+  a skip.
+- **AI instrumentation:** the rules in `libs/.claude/rules/20-library-pipeline.md` (the four-phase
+  sequence + no-shortcuts + real-substrate rules) and `21-test-taxonomy.md` (the per-dimension Go
+  templates) are injected at SessionStart; `session-start.sh` is phase-aware; `pre-git-gate.sh`
+  enforces the full taxonomy before commit/push; and the **Stop hook** `stop-phase-check.sh` blocks
+  ending a turn while a touched lib's `phase-gate qa` is red.
+- Canonical spec: `docs/architecture/14-library-engineering-pipeline.md` (ADR-0020).

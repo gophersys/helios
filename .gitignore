@@ -54,3 +54,6 @@ Thumbs.db
 docs/architecture/eden-architecture.html
 docs/eden-atlas.html
 **/documents.html
+
+# local dev credentials — never committed
+.dev-secrets/

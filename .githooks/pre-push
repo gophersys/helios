@@ -61,7 +61,11 @@ hook_read_lines CHANGED < <(printf '%s\n' "${CHANGED[@]}" | sort -u)
 hook_info "pre-push: ${#CHANGED[@]} changed Go file(s) across pushed commits"
 FAILED=0
 
-# --- 1+3. per-module: full lint + race tests -----------------------------------------
+# --- 1+3. per-module: full lint + race tests + ADR-0020 heavy taxonomy ----------------
+# pre-push runs the heavier checks the inner loop defers: full lint, race tests, AND the
+# ADR-0020 push-class dimensions (govulncheck, leak, cover-floor, apidiff-no-break). Integration/
+# load/bench stay OUT (too slow/host-bound) — CI + `ctl.sh phase-gate` own them. Every new helper
+# WARNs (not fails) locally when its tool is absent; CI re-runs the identical gate (10 §8).
 hook_read_lines MODULES < <(printf '%s\n' "${CHANGED[@]}" | hook_unique_modules)
 if [[ ${#MODULES[@]} -gt 0 ]]; then
   for md in "${MODULES[@]}"; do
@@ -70,6 +74,14 @@ if [[ ${#MODULES[@]} -gt 0 ]]; then
     hook_golangci_module_full "$md" || { hook_fail "golangci-lint issues in $rel"; FAILED=1; }
     hook_info "go test -race → $rel"
     hook_gotest_module "$md" || { hook_fail "tests failed in $rel"; FAILED=1; }
+    hook_info "govulncheck → $rel"
+    hook_govulncheck_module "$md" || { hook_fail "vulnerable dependency in $rel"; FAILED=1; }
+    hook_info "leak (goleak) → $rel"
+    hook_leak_module "$md" || { hook_fail "goroutine/fd leak in $rel"; FAILED=1; }
+    hook_info "cover-floor → $rel"
+    hook_cover_floor_module "$md" || { hook_fail "coverage below floor in $rel"; FAILED=1; }
+    hook_info "apidiff (no break) → $rel"
+    hook_apidiff_module "$md" || { hook_fail "exported-surface break in $rel (the cardinal sin, 10 §9)"; FAILED=1; }
   done
 fi
 

@@ -124,6 +124,48 @@ function cmd_affected_check() {
   (cd "$REPO_ROOT" && nx_cmd affected -t lint,typecheck,test --base="$NX_BASE" --output-style=stream)
 }
 
+# cmd_affected_gate — the ADR-0020 full-taxonomy PR gate. Runs the eight test dimensions as Nx
+# targets over the affected projects. This runs INSIDE ghcr.io/gophersys/base (the on-pr.yml
+# container) where docker+k3d+kind+all linters are present, so integration/load/security run for
+# real and a missing tool is a HARD FAIL (each ctl.sh verb require_cmds its tool → exit 127).
+# Split lane membership lives in on-pr.yml (fast vs substrate jobs); this verb is the union a
+# single job can invoke.
+function cmd_affected_gate() {
+  if ! has_nx; then log_warn "nx not available; affected-gate is a no-op"; return 0; fi
+  (cd "$REPO_ROOT" && nx_cmd affected \
+     -t lint,typecheck,test,leak,lifecycle,integration,load,vuln,sast,secretscan,bench-guard,maintainability \
+     --base="$NX_BASE" --output-style=stream)
+}
+
+# cmd_affected_gate_fast — the minutes-long subset (no real-substrate lanes): lint/typecheck/test/
+# leak/maintainability/vuln/sast/secretscan. Used by the `fast` GitHub job.
+function cmd_affected_gate_fast() {
+  if ! has_nx; then log_warn "nx not available; affected-gate-fast is a no-op"; return 0; fi
+  (cd "$REPO_ROOT" && nx_cmd affected \
+     -t lint,typecheck,test,leak,maintainability,vuln,sast,secretscan \
+     --base="$NX_BASE" --output-style=stream)
+}
+
+# cmd_affected_gate_substrate — the careful-orchestration lanes on the real docker+k3d host:
+# integration/load/lifecycle. Used by the `substrate` GitHub job.
+function cmd_affected_gate_substrate() {
+  if ! has_nx; then log_warn "nx not available; affected-gate-substrate is a no-op"; return 0; fi
+  (cd "$REPO_ROOT" && nx_cmd affected \
+     -t integration,load,lifecycle,bench-guard \
+     --base="$NX_BASE" --output-style=stream)
+}
+
+# cmd_lib_gate <lib> — run the full per-lib SDLC sequence (phase-gate all: architecture →
+# implementation → testing → qa, short-circuiting on first failure) for one library.
+function cmd_lib_gate() {
+  local lib="${1:-}"
+  if [[ -z "$lib" ]]; then log_error "usage: lib-gate <lib>"; return 2; fi
+  local lib_dir="$REPO_ROOT/libs/go/$lib"
+  if [[ ! -f "$lib_dir/ctl.sh" ]]; then log_error "no such lib: libs/go/$lib"; return 2; fi
+  log_info "lib-gate: libs/go/$lib → phase-gate all (1→4)"
+  (cd "$lib_dir" && bash ./ctl.sh phase-gate all)
+}
+
 function cmd_release_check() {
   require_cmd git
   if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
@@ -161,6 +203,10 @@ Commands:
   affected-build  nx affected -t build (base=\${NX_BASE:-origin/main})
   affected-test   nx affected -t test
   affected-check  nx affected -t lint,typecheck,test (canonical PR gate)
+  affected-gate   nx affected -t <full ADR-0020 taxonomy> (lint..maintainability)
+  affected-gate-fast       the minutes subset (no real-substrate lanes)
+  affected-gate-substrate  integration/load/lifecycle on the real docker+k3d host
+  lib-gate <lib>  per-lib SDLC sequence: ctl.sh phase-gate all (1→4)
   release-check   preflight: clean, on main, up to date with origin
   help            Show this message
 EOF
@@ -178,6 +224,10 @@ function main() {
     affected-build)  cmd_affected_build  "$@" ;;
     affected-test)   cmd_affected_test   "$@" ;;
     affected-check)  cmd_affected_check  "$@" ;;
+    affected-gate)             cmd_affected_gate           "$@" ;;
+    affected-gate-fast)        cmd_affected_gate_fast      "$@" ;;
+    affected-gate-substrate)   cmd_affected_gate_substrate "$@" ;;
+    lib-gate)                  cmd_lib_gate                "$@" ;;
     release-check)   cmd_release_check   "$@" ;;
     help|"")         usage ;;
     *) log_error "unknown command: '$cmd'"; usage; exit 1 ;;

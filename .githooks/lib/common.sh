@@ -252,3 +252,73 @@ hook_gotest_module() {
   local gw; gw="$(hook_module_gowork "$module_dir")"
   ( cd "$module_dir" && env ${gw:+$gw} go test ./... -race -count=1 ) 1>&2
 }
+
+# ── ADR-0020 pre-push helpers ─────────────────────────────────────────────────────────────────
+# The heavier taxonomy checks belong in pre-push, not the fast inner loop. Each follows the
+# existing pattern: resolve the tool via hook_have, WARN-not-fail LOCALLY if it is absent (CI
+# re-runs the identical gate in the devcontainer where the tool is guaranteed present), and
+# return non-zero only on a REAL finding. Integration/load/bench stay OUT of the push hook
+# (too slow / host-bound) — they live in CI + the explicit `ctl.sh phase-gate` verb.
+
+# hook_govulncheck_module <module-dir> — govulncheck over one module (security dimension (f)).
+hook_govulncheck_module() {
+  local module_dir="$1" bin
+  if ! bin="$(hook_have govulncheck)"; then
+    hook_warn "govulncheck not found — vulnerabilities NOT scanned locally (CI will). install: golang.org/x/vuln/cmd/govulncheck"
+    return 0
+  fi
+  local gw; gw="$(hook_module_gowork "$module_dir")"
+  ( cd "$module_dir" && env ${gw:+$gw} "$bin" ./... ) 1>&2
+}
+
+# hook_leak_module <module-dir> — the leak lane (dimension (b)): the package goleak.VerifyTestMain
+# fails the run on any leaked goroutine/fd. Runs WITHOUT -race (the race lane already ran) so the
+# push hook does not pay the race cost twice.
+hook_leak_module() {
+  local module_dir="$1"
+  if ! hook_have go >/dev/null; then
+    hook_warn "go not found — leak lane NOT run locally."
+    return 0
+  fi
+  local gw; gw="$(hook_module_gowork "$module_dir")"
+  ( cd "$module_dir" && env ${gw:+$gw} go test ./... -count=1 -run '.*' ) 1>&2
+}
+
+# hook_cover_floor_module <module-dir> — per-PACKAGE coverage floor (ADR-0018). Reads the floor
+# from the module's owning libs/go/<lib> ctl.sh metadata (EDEN_COVERAGE_FLOOR) when present; a
+# `<lib>test` conformance-helper package is reported, not gated. Delegates to the per-lib
+# `ctl.sh cover-floor` when the module is a libs/go/<lib> root so the ONE definition is reused.
+hook_cover_floor_module() {
+  local module_dir="$1"
+  case "$module_dir" in
+    */libs/go/*)
+      local lib_root
+      lib_root="$(printf '%s' "$module_dir" | sed -E 's#^(.*/libs/go/[^/]+).*#\1#')"
+      if [[ -f "$lib_root/ctl.sh" ]]; then
+        ( cd "$lib_root" && bash ./ctl.sh cover-floor ) 1>&2
+        return $?
+      fi
+      ;;
+  esac
+  hook_dim "    (cover-floor: $module_dir is not a libs/go/<lib> root — skipped)"
+  return 0
+}
+
+# hook_apidiff_module <module-dir> — the no-break gate (the cardinal sin, 10 §9): diff the
+# exported surface against the frozen .apibaseline via the per-lib ctl.sh. A removed/changed
+# exported symbol fails; an additive change warns. Only runs for a libs/go/<lib> with a baseline.
+hook_apidiff_module() {
+  local module_dir="$1"
+  case "$module_dir" in
+    */libs/go/*)
+      local lib_root
+      lib_root="$(printf '%s' "$module_dir" | sed -E 's#^(.*/libs/go/[^/]+).*#\1#')"
+      if [[ -f "$lib_root/ctl.sh" && -f "$lib_root/.apibaseline" ]]; then
+        ( cd "$lib_root" && bash ./ctl.sh apidiff ) 1>&2
+        return $?
+      fi
+      hook_dim "    (apidiff: no .apibaseline at ${lib_root##*/} — record one at the architecture gate)"
+      ;;
+  esac
+  return 0
+}

@@ -1,10 +1,16 @@
 # 08 — Testing Strategy
 
-> Status: Draft · 2026-06-12 · Canonical home for: the three test layers, conformance suites,
+> Status: Draft · 2026-06-13 · Canonical home for: the three test layers, conformance suites,
 > evidence-quality instruments, agent evals, scale strategy.
 > The stance: testing is how Eden converts agent output into trustworthy systems — so the test
 > system is itself a product subsystem, with capacity planning and quality instruments, not a
 > convention (Bender mode 5: test-compute grows quadratically; plan for it now).
+> **Amended (ADR-0020):** the per-library realization of §1's platform-test row and §2's
+> conformance two-binding is the four-phase pipeline + 8-dimension test taxonomy in
+> [14-library-engineering-pipeline.md](14-library-engineering-pipeline.md). The conformance suite
+> now runs over **four bindings** — fake + REAL docker + k3d + kind — and the mutation/coverage
+> instruments of §3 are wired as the `mutate`/`cover-floor` gates. Cite 14/ADR-0020 for the
+> library mechanism; this doc owns the cross-layer strategy.
 
 ## 1. Three layers
 
@@ -21,6 +27,12 @@ library ships a **fake for every port plus a suite proving adapter ≡ fake subs
 (10 §4 `testing` pattern). Consequence: unit tests against fakes are trustworthy,
 because substitutability is itself tested — the standard mocking failure mode (fakes drifting
 from reality) is closed mechanically once the suite exists 🔶.
+
+> Realized (ADR-0020): the substitutability suite runs over **four bindings** — the fake AND the
+> REAL docker + k3d + kind substrates — executed, not asserted (doc 14 §2 dimension a/d). A
+> binding may Skip on a declared-absent capability but is never silently omitted; in CI (the
+> devcontainer) all substrates are present, so a real-substrate binding is REQUIRED. This is the
+> dimension-(a)/(d) row of the 8-dimension taxonomy.
 
 ## 3. Evidence-quality instruments (is the gate blind?)
 
