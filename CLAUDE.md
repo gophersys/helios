@@ -32,6 +32,8 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
   (ADR-0009 D). Do not modify PoC artifacts in place.
 - Generated artifacts (e.g. `docs/architecture/eden-architecture.html`) are never edited by
   hand — regenerate via `node docs/tools/render-html.mjs`.
+- **Subagents/workflows always run on the Opus model** (standing directive, 2026-06-12 — usage
+  economics; the main loop orchestrates, Opus executes).
 
 ## Workspace facts
 
