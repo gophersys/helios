@@ -39,7 +39,7 @@ integration with user-journey tests (C23).
 - Wave 3A (now): leaf-pattern implementations (errors, dependencies, configuration) + dependent
   patterns (testing, secrets, observability) + new contract negotiations (workspaceprovider,
   gitrepository, orchestrator).
-- Wave 3B (after 3A + review): sandbox adapters with real docker/kind tests, git operations,
+- Wave 3B (after 3A + review): sandbox adapters with real docker/k3d tests, git operations,
   orchestrator v0, the agent-session service, the chat surface, the Playwright harness.
 - Environment verified: docker 29.4.0, k3d (k3s-in-docker), and kind v0.32.0 present. **k3d is
   the default local cluster substrate** (Mateo's ruling: aligns the test path with future k3s
