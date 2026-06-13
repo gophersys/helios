@@ -82,6 +82,14 @@ func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
 func buildArguments(spec agentsession.Spec, route agentsession.Route) []string {
 	arguments := []string{
+		// -p/--print is MANDATORY, not optional: `claude --help` states that
+		// --input-format/--output-format stream-json "only work with --print". Without
+		// -p, claude starts its DEFAULT interactive session — it waits on a TTY/trust
+		// dialog and never emits the headless `system/init` event, so Open() blocks on the
+		// Ready handshake forever (the real-claude hang the fakes hid). With -p +
+		// stream-json, claude emits init on startup (→ StateReady) and stays open reading
+		// stdin user turns until EOF — exactly the Send(stdin turn)/Abort(close stdin) model.
+		"-p",
 		"--output-format", "stream-json",
 		"--verbose",
 		"--input-format", "stream-json",

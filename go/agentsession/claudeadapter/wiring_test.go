@@ -25,6 +25,10 @@ func TestBuildArguments_HeadlessFlagSet(t *testing.T) {
 	route := agentsession.Route{Harness: "claude-code", Model: "claude-fable-5"}
 	args := claudeadapter.BuildArgumentsForTest(spec, route)
 
+	// -p/--print is MANDATORY: --input-format/--output-format stream-json only work under
+	// --print; without it claude starts an interactive session and never emits the headless
+	// init, hanging Open() on the Ready handshake. Guard the regression here.
+	mustContain(t, args, "-p")
 	mustContain(t, args, "--output-format", "stream-json")
 	mustContain(t, args, "--input-format", "stream-json")
 	mustContain(t, args, "--verbose")

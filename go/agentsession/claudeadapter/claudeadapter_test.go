@@ -51,9 +51,16 @@ func TestNormalize_SampleStream(t *testing.T) {
 		counts[ev.Kind]++
 	}
 
-	// The init line is the Ready handshake (the success signal the library requires).
-	if !firstIsReady(events) {
-		t.Errorf("first normalized event must be the Initializing->Ready handshake, got %v", events[0].Kind)
+	// The init line is preserved as session-metadata Extension (NOT the Ready handshake):
+	// real claude defers system/init until the first stdin turn, so the conn signals Ready on
+	// spawn instead (processConn.scan) and the normalizer never emits a Ready transition.
+	if events[0].Kind != agentsession.EventExtension {
+		t.Errorf("first normalized event (the init line) must be a metadata Extension, got %v", events[0].Kind)
+	}
+	for i := range events {
+		if events[i].Kind == agentsession.EventSessionState && events[i].State != nil && events[i].State.To == agentsession.StateReady {
+			t.Errorf("the normalizer must NOT emit a Ready transition (Ready is conn-emitted on spawn); event %d did", i)
+		}
 	}
 	// The unknown rate_limit_event survived verbatim as EventExtension (forward-compat).
 	if counts[agentsession.EventExtension] < 1 {
@@ -95,14 +102,6 @@ func TestNormalize_MalformedLineNeverFatal(t *testing.T) {
 	if len(events) != 1 || events[0].Kind != agentsession.EventExtension {
 		t.Fatalf("a malformed line must yield one EventExtension, got %+v", events)
 	}
-}
-
-// firstIsReady reports whether the first event is the Ready handshake.
-func firstIsReady(events []agentsession.Event) bool {
-	return len(events) > 0 &&
-		events[0].Kind == agentsession.EventSessionState &&
-		events[0].State != nil &&
-		events[0].State.To == agentsession.StateReady
 }
 
 // assertExtensionVerbatim proves every EventExtension carries non-empty raw bytes.

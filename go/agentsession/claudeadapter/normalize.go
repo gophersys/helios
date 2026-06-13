@@ -102,17 +102,14 @@ func (n *normalizer) normalize(line []byte) []agentsession.Event {
 	}
 }
 
-// system maps the init line to the Ready handshake transition (the success signal the
-// library requires — its absence is the silent-bad-token trap). Non-init system lines
-// are preserved as Extension.
+// system preserves every system line (init included) as session METADATA Extension.
+// Readiness is NOT derived from `system/init`: real claude defers init until the first stdin
+// user turn, so it cannot be the Ready trigger — the adapter signals Ready on spawn instead
+// (processConn.scan). The init line still carries session_id/model/tools, kept losslessly as
+// an Extension so nothing is dropped.
 func (n *normalizer) system(envelope *streamLine, line []byte) []agentsession.Event {
-	if envelope.Subtype != "init" {
-		return []agentsession.Event{extension(line)}
-	}
-	return []agentsession.Event{{
-		Kind:  agentsession.EventSessionState,
-		State: &agentsession.StatePayload{From: agentsession.StateInitializing, To: agentsession.StateReady},
-	}}
+	_ = envelope
+	return []agentsession.Event{extension(line)}
 }
 
 // assistant maps an assistant line to message-start + per-block deltas + tool starts +

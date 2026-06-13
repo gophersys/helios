@@ -186,6 +186,20 @@ func (c *processConn) Close(_ context.Context) error {
 // silent-bad-token trap).
 func (c *processConn) scan() {
 	defer c.finish()
+	// Signal Ready as soon as the process is up. Real `claude` in stream-json INPUT mode does
+	// NOT emit `system/init` until it receives the first stdin user turn — but Open() blocks on
+	// the Ready handshake BEFORE any prompt is sent, so waiting for init deadlocks (the
+	// real-claude hang the fakes hid). The harness is ready to accept a turn the moment it is
+	// spawned with stdin open; claude's later `system/init` is session metadata (normalize.go
+	// maps it to Extension), not the readiness signal.
+	select {
+	case c.events <- agentsession.Event{
+		Kind:  agentsession.EventSessionState,
+		State: &agentsession.StatePayload{From: agentsession.StateInitializing, To: agentsession.StateReady},
+	}:
+	case <-c.done:
+		return
+	}
 	scanner := bufio.NewScanner(c.stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
 	for scanner.Scan() {
