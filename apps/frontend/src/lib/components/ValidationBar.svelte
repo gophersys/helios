@@ -30,7 +30,12 @@
     return diagnostic.documentId !== undefined && activeIdSet.has(diagnostic.documentId);
   }
 
-  const tone = $derived(violations.length > 0 ? 'warn' : coverage.length > 0 ? 'info' : 'ok');
+  // The banner tone: a violation is the only state that warrants the warn accent.
+  // T6 coverage gaps are a reported, non-blocking signal (the validate verb does
+  // not fail on them here), so a coverage-only corpus reads calm — 'ok' — not
+  // alarming (the task: "not alarming when only T6 coverage gaps"). A perfectly
+  // clean corpus is 'ok' too; the two differ only in the chips they show.
+  const tone = $derived(violations.length > 0 ? 'warn' : 'ok');
 </script>
 
 <div class="validation-bar validation-bar--{tone}">
@@ -101,14 +106,20 @@
 </div>
 
 <style>
+  /* A quiet inline banner, not an alert panel (doc 12 §5; the task: keep it quiet
+     when only T6 gaps). The 'ok' state is a hairline-bordered row that reads as
+     status, calm. Only a real violation ('warn') earns the Sage-warm ground and a
+     stronger left edge to draw the eye. */
   .validation-bar {
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    background: var(--panel-bg);
-    margin-bottom: 1.2rem;
+    background: transparent;
+    margin-bottom: 1.4rem;
   }
   .validation-bar--warn {
-    border-color: var(--chip-warn-fg);
+    border-color: color-mix(in srgb, var(--chip-warn-fg) 45%, var(--line));
+    border-left: 3px solid var(--chip-warn-fg);
+    background: color-mix(in srgb, var(--color-sage) 14%, var(--bg));
   }
 
   .validation-bar__summary {
@@ -118,7 +129,7 @@
     width: 100%;
     background: none;
     border: none;
-    padding: 0.7rem 0.9rem;
+    padding: 0.55rem 0.85rem;
     cursor: pointer;
     font: inherit;
     color: inherit;

@@ -13,6 +13,12 @@
 
   const workspace = $derived(data.workspace);
 
+  // The document-navigation rail collapses to a slim strip on demand (doc 12 §4
+  // "panels around the same project model" — Notion-sidebar calm). Client-only
+  // state; it does not change the URL, so a shared link still opens with the rail
+  // expanded.
+  let sidebarCollapsed = $state(false);
+
   // The selected document id from the URL, falling back to the first document in
   // the corpus (sidebar order). Reading from page.url keeps the panel in sync with
   // back/forward navigation without extra state.
@@ -58,29 +64,30 @@
     </div>
   </main>
 {:else}
-  <div class="workspace">
+  <div class="workspace" class:workspace--collapsed={sidebarCollapsed}>
     <aside class="workspace__sidebar">
-      <WorkspaceSidebar tiers={data.tiers} slug={workspace.slug} {activeId} />
+      <WorkspaceSidebar
+        tiers={data.tiers}
+        slug={workspace.slug}
+        title={workspace.title}
+        {activeId}
+        collapsed={sidebarCollapsed}
+        onToggle={() => (sidebarCollapsed = !sidebarCollapsed)}
+      />
     </aside>
 
     <main class="workspace__main">
-      <nav class="breadcrumb">
-        <a href="/">Projects</a>
-        <span class="breadcrumb__sep">/</span>
-        <a href={`/p/${workspace.slug}`}>{workspace.title}</a>
-        {#if activeDocument}
-          <span class="breadcrumb__sep">/</span>
-          <span class="breadcrumb__current">{activeDocument.meta.id}</span>
-        {/if}
-      </nav>
-
       {#if activeDocument}
         {#key activeDocument.meta.id}
-          <DocumentPanel
-            document={activeDocument}
-            backlinks={workspace.backlinks}
-            validation={workspace.validation}
-          />
+          <div class="workspace__doc">
+            <DocumentPanel
+              document={activeDocument}
+              backlinks={workspace.backlinks}
+              validation={workspace.validation}
+              projectSlug={workspace.slug}
+              projectTitle={workspace.title}
+            />
+          </div>
         {/key}
       {/if}
     </main>
@@ -93,6 +100,12 @@
     grid-template-columns: minmax(15rem, 18rem) 1fr;
     min-height: 100vh;
     align-items: start;
+    transition: grid-template-columns 0.2s ease;
+  }
+  /* Collapsed: the rail shrinks to a slim strip holding only its toggle + project
+     name, handing the width back to the reading column (doc 12 §4). */
+  .workspace--collapsed {
+    grid-template-columns: 3.25rem 1fr;
   }
   .workspace__sidebar {
     position: sticky;
@@ -100,12 +113,42 @@
     align-self: start;
     height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--navbg);
     border-right: 1px solid var(--line);
   }
   .workspace__main {
-    padding: 1.4rem 2rem 5rem;
+    padding: 1.6rem 2rem 5rem;
     min-width: 0;
+  }
+  /* The reading column is centered in the main area with comfortable margins; the
+     panel inside caps its own measure (doc 12 §5 comfortable body measure). */
+  .workspace__doc {
+    margin: 0 auto;
+    max-width: 78rem;
+  }
+  /* A quiet fade on document switch — smooth route/selection transition (the task),
+     respecting reduced-motion. Keyed by the document id via {#key} in the markup. */
+  .workspace__doc {
+    animation: doc-fade-in 0.22s ease both;
+  }
+  @keyframes doc-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .workspace {
+      transition: none;
+    }
+    .workspace__doc {
+      animation: none;
+    }
   }
 
   .breadcrumb {
@@ -125,12 +168,6 @@
   }
   .breadcrumb__sep {
     opacity: 0.5;
-  }
-  .breadcrumb__current {
-    color: var(--fg);
-    font-weight: 600;
-    font-family: var(--font-mono);
-    font-size: 0.92em;
   }
 
   .setup {
@@ -154,7 +191,8 @@
   }
 
   @media (max-width: 760px) {
-    .workspace {
+    .workspace,
+    .workspace--collapsed {
       grid-template-columns: 1fr;
     }
     .workspace__sidebar {
@@ -165,6 +203,9 @@
     }
     .workspace__main {
       padding: 1.4rem 1.2rem 4rem;
+    }
+    .workspace__doc {
+      max-width: none;
     }
   }
 </style>

@@ -8,12 +8,12 @@
   //   · the narrative sections as rendered markdown.
   // It computes the active document's id set (its own id + every item id in its
   // data) so the validation bar can flag the diagnostics that pertain to it.
+  import DocumentHeader from './DocumentHeader.svelte';
   import MetaCard from './MetaCard.svelte';
   import DataValue from './DataValue.svelte';
-  import MarkdownSection from './MarkdownSection.svelte';
+  import DocumentBody from './DocumentBody.svelte';
   import ValidationBar from './ValidationBar.svelte';
-  import StatusChip from './StatusChip.svelte';
-  import { documentTitle, isItemId } from '$lib/documentModel';
+  import { isItemId } from '$lib/documentModel';
   import type { Diagnostic, ProjectedDocument } from '$lib/server/validatorClient';
   import type { Backlink } from '../../routes/p/[slug]/+page.server';
 
@@ -21,6 +21,8 @@
     document,
     backlinks,
     validation,
+    projectSlug,
+    projectTitle,
   }: {
     document: ProjectedDocument;
     backlinks: Record<string, Backlink[]>;
@@ -30,10 +32,12 @@
       ok: boolean;
       violationsExit: boolean;
     };
+    projectSlug: string;
+    projectTitle: string;
   } = $props();
 
   const dataEntries = $derived(Object.entries(document.data ?? {}));
-  const sectionEntries = $derived(Object.entries(document.sections ?? {}));
+  const hasSections = $derived(Object.keys(document.sections ?? {}).length > 0);
 
   function blockLabel(key: string): string {
     const spaced = key.replace(/[_-]/g, ' ');
@@ -60,10 +64,20 @@
     return [...ids];
   });
 
-  const title = $derived(documentTitle(document.meta));
+  // The document carries typed links worth a labeled card (the link graph + its
+  // derived backlinks, doc 11 §3); the always-wanted identity line lives in the
+  // header instead. Show the MetaCard only when there are links to show, so a
+  // link-less document opens straight on its prose.
+  const hasLinks = $derived(
+    Object.values(document.meta.links ?? {}).some((value) =>
+      Array.isArray(value) ? value.length > 0 : typeof value === 'string' && value.length > 0,
+    ),
+  );
 </script>
 
 <article class="document-panel">
+  <DocumentHeader meta={document.meta} {projectSlug} {projectTitle} />
+
   <ValidationBar
     violations={validation.violations}
     coverage={validation.coverage}
@@ -72,15 +86,9 @@
     {activeIds}
   />
 
-  <header class="document-panel__head">
-    <p class="document-panel__type">{document.meta.type}</p>
-    <h2 class="document-panel__title">
-      {title}
-      <StatusChip status={document.meta.status} version={document.meta.version} />
-    </h2>
-  </header>
-
-  <MetaCard meta={document.meta} />
+  {#if hasLinks}
+    <MetaCard meta={document.meta} />
+  {/if}
 
   {#if dataEntries.length > 0}
     <section class="document-panel__data">
@@ -93,38 +101,28 @@
     </section>
   {/if}
 
-  {#if sectionEntries.length > 0}
+  {#if hasSections}
     <section class="document-panel__sections">
-      {#each sectionEntries as [key, markdown] (key)}
-        <MarkdownSection title={key} {markdown} />
-      {/each}
+      <DocumentBody sections={document.sections} />
     </section>
   {/if}
 </article>
 
 <style>
   .document-panel {
+    /* Wide enough to seat the reading column (capped at 72ch inside DocumentBody)
+       beside the sticky outline rail; the meta/data blocks above stay within a
+       comfortable measure via their own max-widths. */
+    max-width: 72rem;
+  }
+  /* The header, validation banner, meta card, and data blocks share a comfortable
+     measure narrower than the full panel (which widens only to seat the reading
+     column beside its outline rail). */
+  .document-panel :global(.document-header),
+  .document-panel :global(.validation-bar),
+  .document-panel__data,
+  .document-panel :global(.meta-card) {
     max-width: 60rem;
-  }
-  .document-panel__head {
-    margin-bottom: 1rem;
-  }
-  .document-panel__type {
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 0 0 0.3rem;
-  }
-  .document-panel__title {
-    font-size: 1.5rem;
-    letter-spacing: -0.015em;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    flex-wrap: wrap;
   }
   .document-panel__data {
     margin: 1.4rem 0;
