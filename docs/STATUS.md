@@ -37,16 +37,29 @@ When Wave 3A completes:
    known `configuration` break: `conformance_test.go` references undefined `cfgtest.Run` /
    `cfgtest.NewParser`; `cfgtest` is a banned abbreviation → must be `configurationtest`. Triage
    the verify agent's other deviations. Dispatch an Opus fixer for anything non-trivial.
+   (NOTE: a transient workspace build inconsistency was observed mid-wave — dependent libs'
+   go.mod requiring errors@v0.0.0 while being written; clears when 3A finishes; `GOWORK=off`
+   isolates. Confirm the whole workspace builds clean post-3A.)
 2. **Commit** — commit the six libraries into the `gophersys/libs` submodule, push it; bump the
    submodule pointer in eden; push eden (the three new contract drafts; go.work is gitignored).
-3. **Review wave** (ADR-0017, all agents Opus) — parallel lanes: architecture cohesion vs
-   contracts + 10 §6.1; true-coverage audit (flag mock-only/no-shortcut violations; list which
-   libs owe real docker/k3d integration tests); adversarial correctness. Fix findings.
-4. **Verify** green again; update this STATUS.
-5. **Wave 3B** — substrate adapters (docker + k3d, real integration tests), git operations,
-   orchestrator v0, agent-session backend service, chat UI, Playwright forced-CRUD E2E. Then its
-   review wave. Then verify.
-6. Final cleanup + DONE check → push a notification to Mateo.
+3. **Wave 3A.5 — ENFORCEMENT (ADR-0018, C25): build the enforcement layer before the review.**
+   Toolchain is already installed (golangci-lint, gofumpt, govulncheck, gorelease, staticcheck).
+   Build: the shared `libs/.golangci.yml` (curated strict config — interfacebloat=5, ireturn,
+   errcheck/wrapcheck/errorlint, forbidigo banned-token gate, depguard import boundaries, revive,
+   etc.); `tools/hnslint` (structural HNS-1 check); the breaking-change gate (gorelease); wire all
+   into each library's `ctl.sh` + a tracked `.githooks/` (pre-commit/pre-push) + `.ci/`; build the
+   `libs/plugins/project-go` Claude Code plugin (SessionStart contract+rules injection, PostToolUse
+   per-file lint, PreToolUse commit gate) + `libs/.claude/rules/`. Run it mechanically against the
+   3A libraries and **conform them** (this is where `cfgtest` and friends get caught for real).
+4. **Review wave** (ADR-0017, all agents Opus) — now consumes the linter output as its substrate:
+   architecture cohesion vs contracts + 10 §6.1; true-coverage audit (flag mock-only/no-shortcut
+   violations; list which libs owe real docker/k3d integration tests); adversarial correctness.
+   Fix findings.
+5. **Verify** green again (gates + enforcement clean); update this STATUS.
+6. **Wave 3B (develops UNDER enforcement from birth)** — substrate adapters (docker + k3d, real
+   integration tests), git operations, orchestrator v0, agent-session backend service, chat UI,
+   Playwright forced-CRUD E2E. Then its review wave. Then verify.
+7. Final cleanup + DONE check → push a notification to Mateo.
 
 ## Blockers / needs-Mateo
 

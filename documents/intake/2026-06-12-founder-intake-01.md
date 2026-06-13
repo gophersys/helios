@@ -142,3 +142,14 @@
   and the data flow itself — a user may have hundreds of agents running per project at any time,
   and the UI must let them navigate down to any chat and watch it in real time. No shortcuts: all
   functions and features implemented and tested, Google-level software, Go 1.26.
+
+## Session 01g — the libraries are the crown-jewel asset; enforce, don't just review (same day)
+
+- **C25** Worry: bad or stale code, non-standardization, poorly written code, poorly written
+  interfaces. The core libraries are everything — the core asset — and must be written to be
+  maintainable, fully AI-instrumented, and ENFORCED against the rules when being developed from
+  this repo. Implication (mine, Mateo's intent): review-after-the-fact is necessary but not
+  sufficient; the standard must be mechanically enforced at authoring time (inside the agent edit
+  loop) and at the commit/CI gate, so non-conformant code cannot enter. The `cfgtest` naming
+  break that slipped Wave 3A is the proof: prompt guidance alone is porous; deterministic linters
+  and authoring-time hooks are the teeth.

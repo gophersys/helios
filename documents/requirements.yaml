@@ -407,3 +407,31 @@ data:
       source:
         - run: founder-intake-01
           span: "C24"
+    - id: REQ-0025
+      statement: "WHEN any Go code is authored, committed, or built from this repository THE SYSTEM SHALL mechanically enforce the library standard — formatting, vet, the curated linter set (small interfaces at most 5 methods, accept-interfaces-return-concrete, wrapped errors, no swallowed errors, HNS-1 full naming with banned abbreviations forbidden, import boundaries), vulnerability scan, and exported-surface breaking-change detection — and SHALL block non-conformant code rather than rely on review to catch it."
+      kind: constraint
+      priority: P1
+      rationale: "The core libraries are the crown-jewel asset (C25); their maintainability and uniformity cannot depend on agent or human review alone. Deterministic gates make non-conformance impossible to commit; review is reserved for judgment that linters cannot express. Breaking a published interface is the cardinal sin (10 §9) and must be gated mechanically."
+      acceptance:
+        - "gofumpt, go vet, golangci-lint (the curated config), govulncheck, and an exported-API breaking-change check run as ctl.sh verbs, as pre-commit/pre-push hooks, and re-run in CI; a violation fails the gate."
+        - "Banned abbreviations (config, deps, k8s, util, common, mgmt, obsv, golang as identifiers) are rejected by the linter; the HNS-1 module/package/path structure is checked by a dedicated tool."
+        - "An import-boundary rule prevents leaf libraries from importing non-stdlib and prevents vendor SDKs outside adapter packages (P1/E1 enforced mechanically)."
+      links:
+        realizes: [PER-0002, PER-0003]
+      source:
+        - run: founder-intake-01
+          span: "C25"
+    - id: REQ-0026
+      statement: "WHEN an agent (or a human) develops Go code from this repository THE SYSTEM SHALL instrument the authoring loop so the standard is applied at edit time — the active contract and the naming/interface rules injected into context at session start, and the linter run on each edited file with findings fed back for self-correction before work proceeds."
+      kind: functional
+      priority: P1
+      rationale: "Fully-AI-instrumented development (C25) means the rules shape generation, not just gate it: catching a violation inside the edit loop is cheaper and more reliable than catching it at commit, and it is what makes agent-authored libraries conformant by construction (P7 knowledge-plus-enforcement; the self-hosting payoff of 10 §9)."
+      acceptance:
+        - "A SessionStart hook injects the active library's frozen contract plus the naming and interface rules into the agent's context."
+        - "A PostToolUse hook lints each edited Go file and returns findings to the agent for correction before the next step."
+        - "The same checks re-run at the commit/CI gate (defense in depth — authoring hooks are advisory, the server gate is authoritative)."
+      links:
+        realizes: [PER-0003]
+      source:
+        - run: founder-intake-01
+          span: "C25"
