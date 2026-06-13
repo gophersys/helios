@@ -77,8 +77,24 @@
   (5) exported surface adds Connection/RunDriver/Probe/Provisioner + New returns *Provisioner not
   *Substrate (a genuine frozen-contract defect: Substrate name collision) — ratify as a contract
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
-- **NEXT: Wave 3B cont.** — gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0,
-  agent-session backend + chat UI, Playwright E2E.
+- **NEXT: Wave 3B cont.** — agentsession (F4) → orchestrator v0 → chat UI → Playwright E2E
+  (+ doc-13 branch hook + merge agents).
+  - **BUILD-ORDER CORRECTION (2026-06-13):** the loop's stated order (orchestrator → agent-session) is
+    INFEASIBLE — orchestrator imports the agentsession package extensively (Spec×8, Session×4, Factory×3,
+    TokenLedger, State, Budget, Event, …) and cannot compile without it. So the dependency-correct order is
+    **agentsession (F4 library) FIRST → orchestrator (consumes agentsession + workspaceprovider) → chat UI
+    (consumes the agentsession Event stream + orchestrator) → Playwright E2E.** agentsession is also the
+    keystone the chat UI needs (the server-triggered Event stream). Building it first.
+  - **agentsession sub-wave IN PROGRESS** (workflow build-agentsession, task w1zqzprbj / run wf_16d84369-a55,
+    Opus impl→adversarial-verify). Builds: Session primitive (Open/Prompt/Steer/Abort/state/Close, one
+    primitive no mode-fork), the normalized Event taxonomy with MONOTONIC per-session Seq (the one mechanism
+    for Last-Event-ID reconnect / fresh-tab replay / FromSeq(0) fold / multi-client fan-out — race-clean),
+    tool-grant + host-tool + PermissionRequest/Decision, TokenLedger, credential/setup-token seam. A
+    DETERMINISTIC fake harness drives the full path end-to-end + the REAL claude-code adapter WIRED-but-GATED
+    on Mateo's setup-token (NOT minted, no live auth, never touch ~/.claude). On completion VERIFY MYSELF:
+    full gate + integration -race (concurrent multi-client tailing CLEAN), weaken Seq/replay/fan-out/Steer/
+    Abort/credential-leak/ledger to confirm non-vacuity, confirm real adapter gated-not-executed. Then commit
+    + push + bump eden pointer. Do NOT run conflicting work in libs/go/agentsession while it runs.
   - **gitrepository sub-wave ✅ DONE + COMMITTED + PUSHED** (libs f3cb2c1 on origin/main; eden pointer bumped).
     Built by workflow build-gitrepository (wrfc58xu8, Opus impl→adversarial-verify, ~53min). Three consumer
     ports under the 5-method ceiling — Provisioner (Clone/AddWorktree/RemoveWorktree), Inspector (Status/Diff/
