@@ -49,7 +49,7 @@ func decodeTOML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 			}
 			name := strings.TrimSpace(trimmed[1 : len(trimmed)-1])
 			pos := tree.Position{Source: source, Line: lineNo + 1, Column: 1}
-			cur = ensureTable(root, strings.Split(name, "."), pos)
+			cur = ensureTable(root, strings.Split(name, "."), pos, dupSev, diags)
 			continue
 		}
 
@@ -81,11 +81,28 @@ func decodeTOML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 }
 
 // ensureTable walks/creates the dotted table chain and returns the leaf table.
-func ensureTable(root *tree.Node, segs []string, pos tree.Position) *tree.Node {
+// A scalar already occupying a segment a table header needs as a container is a
+// strict-by-default finding (the silent clobber that loses `server = 1` when a
+// later `[server]` header appears is exactly the typo footgun this pattern
+// exists to catch), then the table replaces it so later keys still land.
+func ensureTable(root *tree.Node, segs []string, pos tree.Position, dupSev Severity, diags *Diagnostics) *tree.Node {
 	cur := root
-	for _, seg := range segs {
+	for i, seg := range segs {
 		seg = strings.TrimSpace(seg)
 		child, ok := cur.Child(seg)
+		if ok && child.Kind != tree.KindObject {
+			trimmed := make([]string, len(segs))
+			for j, s := range segs {
+				trimmed[j] = strings.TrimSpace(s)
+			}
+			diags.Append(Diagnostic{
+				Severity: dupSev,
+				Path:     Path("").Child(strings.Join(trimmed[:i+1], ".")),
+				At:       fromTreePos(pos),
+				Summary: fmt.Sprintf("key %q is set as a scalar but table header [%s] needs it as a table",
+					strings.Join(trimmed[:i+1], "."), strings.Join(trimmed, ".")),
+			})
+		}
 		if !ok || child.Kind != tree.KindObject {
 			child = tree.NewObject(pos)
 			cur.Set(seg, child)

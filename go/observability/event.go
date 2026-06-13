@@ -115,9 +115,25 @@ func Err(err error) Field {
 	return Field{Key: "error", Value: stringValue(err.Error())}
 }
 
+// nilValue is the substitute Valuer Any installs when handed a nil Valuer, so a
+// Field's Value is never a nil interface: every inspection path (decodeLedger, an
+// adapter's serialization loop) can call TelemetryValue without a nil deref. Its
+// projection is the empty string — a no-value attribute, never raw material.
+type nilValue struct{}
+
+func (nilValue) TelemetryValue() any { return "" }
+
 // Any is the door for a Secret and any other Valuer-satisfying type: it carries
-// the value's already-redacted projection onto the stream and nothing raw.
-func Any(key string, v Valuer) Field { return Field{Key: key, Value: v} }
+// the value's already-redacted projection onto the stream and nothing raw. A nil
+// Valuer is substituted with an empty no-value projection (misuse-resistance):
+// Any never lands a Field whose Value is a nil interface, so no downstream
+// inspector (decodeLedger, an Exporter walking Fields) can nil-deref it.
+func Any(key string, v Valuer) Field {
+	if v == nil {
+		return Field{Key: key, Value: nilValue{}}
+	}
+	return Field{Key: key, Value: v}
+}
 
 // ── T6: the token/cost ledger rides the stream as a typed Event ────────────.
 

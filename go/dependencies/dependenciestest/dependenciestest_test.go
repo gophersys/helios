@@ -81,6 +81,52 @@ func TestFakeClockAfterFiresOnAdvance(t *testing.T) {
 	}
 }
 
+// Advance releases EVERY crossed After channel in deadline order before returning,
+// even when the timers were registered out of insertion order (§3 "fire ... in deadline
+// order"; dependenciestest.go:24 "After channels fire when Advance crosses their
+// deadline"). This mirrors the sibling testingtest.TestFakeClock_AdvanceReleasesInDeadlineOrder
+// so the dependenciestest twin proves the same multi-timer guarantee.
+func TestFakeClockAdvanceReleasesInDeadlineOrder(t *testing.T) {
+	t.Parallel()
+	start := time.Unix(0, 0).UTC()
+	c := dependenciestest.NewClock(start)
+	// Register OUT of insertion order relative to their deadlines (30, 10, 20) so a
+	// straight insertion-order walk could not accidentally produce deadline order.
+	ch30 := c.After(context.Background(), 30*time.Second)
+	ch10 := c.After(context.Background(), 10*time.Second)
+	ch20 := c.After(context.Background(), 20*time.Second)
+
+	c.Advance(25 * time.Second) // crosses 10 and 20, not 30; returns after releasing both.
+
+	// Both crossed channels must be ready immediately (released before Advance returned),
+	// and each must carry ITS OWN deadline — the value that makes "deadline order"
+	// observable on a per-timer basis, not c.now.
+	for _, tc := range []struct {
+		name string
+		ch   <-chan time.Time
+		d    time.Duration
+	}{
+		{"ch10", ch10, 10 * time.Second},
+		{"ch20", ch20, 20 * time.Second},
+	} {
+		select {
+		case got := <-tc.ch:
+			if want := start.Add(tc.d); !got.Equal(want) {
+				t.Fatalf("%s delivered %v, want its deadline %v", tc.name, got, want)
+			}
+		default:
+			t.Fatalf("%s not released after Advance crossed its deadline", tc.name)
+		}
+	}
+
+	// The uncrossed timer must NOT have fired.
+	select {
+	case v := <-ch30:
+		t.Fatalf("ch30 fired with %v though Advance did not reach 30s", v)
+	default:
+	}
+}
+
 // After honors ctx cancellation: a canceled ctx leaves the channel un-sent (§4).
 func TestFakeClockAfterRespectsCancellation(t *testing.T) {
 	t.Parallel()

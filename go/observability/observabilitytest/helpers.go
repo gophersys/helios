@@ -1,16 +1,11 @@
 package observabilitytest
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gophersys/libs/go/observability"
 )
-
-// itoa renders a uint64 without importing fmt — keeps span/trace ID minting
-// allocation-light and the fake stdlib-only.
-func itoa(n uint64) string { return strconv.FormatUint(n, 10) }
 
 // leakError reports a Field whose telemetry projection rendered the secret canary.
 type leakError struct {
@@ -71,6 +66,13 @@ func asDuration(v any) time.Duration {
 func decodeLedger(e observability.Event) observability.Ledger {
 	var l observability.Ledger
 	for _, f := range e.Fields {
+		if f.Value == nil {
+			// A Field with a nil Valuer (e.g. a raw Field{Value: nil} literal that
+			// bypassed the Any constructor) carries no telemetry value; skip it
+			// rather than nil-deref, mirroring containsCanary's nil guard so the two
+			// inspection paths agree.
+			continue
+		}
 		tv := f.Value.TelemetryValue()
 		switch f.Key {
 		case "run.id":

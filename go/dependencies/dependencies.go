@@ -150,6 +150,16 @@ func RealClock() Clock { return systemClock{} }
 // RealRandom returns a RandomSource backed by entropy; a nil entropy reader means
 // crypto/rand.
 //
+// Concurrency: the default (nil) path is backed by crypto/rand.Reader, whose Read is
+// safe for concurrent use, so the returned RandomSource honors the §2 "safe for
+// concurrent use" guarantee out of the box (this is the adapter the composition root
+// binds via Resolve / RealRandom(nil), pinned by TestRealRandomDefaultPathConcurrent).
+// When a non-nil entropy reader is supplied, the returned port adds NO lock of its own
+// — concurrency-safety is inherited from that reader. A caller-supplied reader that is
+// itself not safe for concurrent Read (e.g. *bytes.Reader) therefore yields a
+// RandomSource that is NOT safe for concurrent use; the caller must supply a
+// concurrency-safe reader (or read from a single goroutine) to keep the §2 guarantee.
+//
 //nolint:ireturn // contract §2: returns the RandomSource port; the cryptoRandom adapter is unexported by design (rationale 5).
 func RealRandom(entropy io.Reader) RandomSource {
 	if entropy == nil {

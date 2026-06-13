@@ -384,6 +384,52 @@ func TestUseReentrantReads(t *testing.T) {
 	wg.Wait()
 }
 
+func TestUseRacesZeroizeOnSameSecret(t *testing.T) {
+	t.Parallel()
+	// The contract (secret.go:27, secrets.md §2) states Use is reentrant-safe for reads but
+	// Zeroize must not race with Use. The impl uses sync.RWMutex (Use=RLock, Zeroize=Lock).
+	// This test interleaves many concurrent Use calls with a Zeroize on the SAME minted
+	// Secret under -race: it must observe EITHER the intact plaintext OR a ZeroizedError, but
+	// NEVER a torn / partially-zeroed slice. If the RWMutex were weakened to a lock-free read
+	// of s.spent/s.plaintext, -race would flag the data race here and this assertion would
+	// catch the torn read.
+	const plaintext = "race-use-vs-zeroize"
+	sec := mintSecret(t, plaintext)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 64; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := sec.Use(func(b []byte) error {
+				// Use must see a consistent view: either the full plaintext (before Zeroize)
+				// or nothing (after Zeroize returns ZeroizedError, so fn is never called with
+				// a wiped slice). A torn read — partial/zeroed bytes while still "live" — is a
+				// contract violation.
+				if s := string(b); s != plaintext {
+					t.Errorf("Use observed a torn/zeroed slice: %q (want intact %q or ZeroizedError)", s, plaintext)
+				}
+				return nil
+			})
+			if err != nil && !is[secrets.ZeroizedError](err) {
+				t.Errorf("Use returned an unexpected error (not ZeroizedError): %v", err)
+			}
+		}()
+	}
+	// One concurrent Zeroize on the same Secret, interleaved with the readers above.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sec.Zeroize()
+	}()
+	wg.Wait()
+
+	// After all goroutines join, the Secret is spent and Use is permanently ZeroizedError.
+	if err := sec.Use(func([]byte) error { return nil }); !is[secrets.ZeroizedError](err) {
+		t.Errorf("Use after Zeroize completed error not AsType[ZeroizedError]: %v", err)
+	}
+}
+
 // ---- New / Mediator routing ----.
 
 func TestNewRequiresResolvers(t *testing.T) {
@@ -533,6 +579,45 @@ func TestMediatorPropagatesAdapterError(t *testing.T) {
 	}
 	if !is[secrets.NotFoundError](err) {
 		t.Errorf("error not AsType[NotFoundError]: %v", err)
+	}
+}
+
+func TestMediatorPropagatesDeniedError(t *testing.T) {
+	t.Parallel()
+	// The Mediator is a pure router (mediator.go:80): it MUST return the adapter's
+	// already-typed DeniedError unchanged so callers can branch on AsType[DeniedError].
+	ref := secrets.Ref("vault://locked#field")
+	prov := secretstest.New(nil).FailWith(ref.String(), secrets.DeniedError{Ref: ref})
+	med := newVaultMediator(t, prov)
+	sec, err := med.Resolve(context.Background(), ref)
+	if err == nil {
+		t.Fatal("Resolve(denied) returned nil error")
+	}
+	if sec != nil {
+		t.Error("Resolve(denied) returned non-nil Secret with an error")
+	}
+	if !is[secrets.DeniedError](err) {
+		t.Errorf("DeniedError did not pass through the Mediator unchanged: not AsType[DeniedError]: %v", err)
+	}
+}
+
+func TestMediatorPropagatesUnavailableError(t *testing.T) {
+	t.Parallel()
+	// Unavailable is the one retryable signal (contract §6 rationale 6): the Mediator must
+	// preserve it unchanged so the caller's retry-on-Unavailable branch still fires after
+	// routing. A Mediator that re-wrapped or swallowed it would defeat that branch.
+	ref := secrets.Ref("vault://flaky#field")
+	prov := secretstest.New(nil).FailWith(ref.String(), secrets.UnavailableError{Ref: ref})
+	med := newVaultMediator(t, prov)
+	sec, err := med.Resolve(context.Background(), ref)
+	if err == nil {
+		t.Fatal("Resolve(unavailable) returned nil error")
+	}
+	if sec != nil {
+		t.Error("Resolve(unavailable) returned non-nil Secret with an error")
+	}
+	if !is[secrets.UnavailableError](err) {
+		t.Errorf("UnavailableError did not pass through the Mediator unchanged: not AsType[UnavailableError]: %v", err)
 	}
 }
 

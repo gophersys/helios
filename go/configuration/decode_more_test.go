@@ -2,6 +2,7 @@ package configuration_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/gophersys/libs/go/configuration"
@@ -255,4 +256,153 @@ func TestMerge_AgainstZeroDocument(t *testing.T) {
 	} else if n, _ := v.Int(); n != 1 {
 		t.Fatalf("merged k = %d, want 1", n)
 	}
+}
+
+// Section: JSON nesting is bounded (the contract's "never a panic" guarantee).
+//
+// Deeply-nested JSON must NOT recurse into a Go stack overflow — a stack
+// overflow is a runtime FATAL that recover() cannot catch, so it would kill the
+// whole process on adversarial input under MaxSourceBytes. The decoder bounds
+// nesting and surfaces a SeverityError Diagnostic instead.
+func TestJSON_DeeplyNestedIsDiagnosticNotStackOverflow(t *testing.T) {
+	t.Parallel()
+	// Far beyond the depth bound but tiny in bytes: pure-recursion adversarial
+	// input. A wrong decoder would crash the test binary here, not fail it.
+	const depth = 5000
+	body := strings.Repeat("[", depth) + strings.Repeat("]", depth)
+	doc, diags := parse(t, configuration.FormatJSON, "deep.json", body)
+	if !diags.HasError() {
+		t.Fatal("deeply-nested JSON must produce a SeverityError diagnostic (depth bound), got none")
+	}
+	if doc == nil {
+		t.Fatal("deeply-nested JSON must still return a (partial) Document, not nil")
+	}
+	// The Document must remain usable: a Lookup miss must be clean, not a panic.
+	if _, ok := doc.Lookup("anything"); ok {
+		t.Fatal("Lookup into a depth-bounded partial doc returned ok == true")
+	}
+}
+
+// A large but shallow JSON document (well within the depth bound) parses
+// cleanly — the depth guard must not reject legitimate input.
+func TestJSON_WideShallowDocumentParsesCleanly(t *testing.T) {
+	t.Parallel()
+	var b strings.Builder
+	b.WriteByte('{')
+	for i := 0; i < 1000; i++ {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(`"k`)
+		b.WriteString(strings.Repeat("x", 1)) // distinct-ish keys
+		b.WriteString(itoa(i))
+		b.WriteString(`":`)
+		b.WriteString(itoa(i))
+	}
+	b.WriteByte('}')
+	_, diags := parse(t, configuration.FormatJSON, "wide.json", b.String())
+	if diags.HasError() {
+		t.Fatalf("wide shallow JSON wrongly flagged: %v", summaries(diags.All()))
+	}
+}
+
+// itoa is a tiny dependency-free int->string for the wide-doc fixture.
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	var buf [20]byte
+	pos := len(buf)
+	for i > 0 {
+		pos--
+		buf[pos] = byte('0' + i%10)
+		i /= 10
+	}
+	return string(buf[pos:])
+}
+
+// Section: strict-by-default intermediate-path / table conflicts.
+//
+// A scalar already occupying a path that a later dotted key (env) or table
+// header (TOML) needs as a container must be a SeverityError under the strict
+// default — silently clobbering it is exactly the typo footgun this pattern
+// exists to prevent, and the JSON duplicate-key path already diagnoses it.
+func TestEnv_ScalarThenDottedKeyConflictIsDiagnostic(t *testing.T) {
+	t.Parallel()
+	// LOG=info then LOG.LEVEL=debug: a real typo that silently lost LOG before.
+	_, diags := parse(t, configuration.FormatEnv, "c.env", "LOG=info\nLOG.LEVEL=debug\n")
+	if !diags.HasError() {
+		t.Fatal("env scalar-then-object intermediate conflict must be a SeverityError, got none")
+	}
+	if got := errorDiagAt(diags, "LOG"); got == nil {
+		t.Fatalf("expected a SeverityError at path LOG, got: %v", summaries(diags.All()))
+	}
+}
+
+func TestTOML_ScalarThenTableHeaderConflictIsDiagnostic(t *testing.T) {
+	t.Parallel()
+	// server = 1 then [server]: silently discarded server = 1 before.
+	_, diags := parse(t, configuration.FormatTOML, "c.toml", "server = 1\n[server]\nport = 8080\n")
+	if !diags.HasError() {
+		t.Fatal("TOML scalar-then-table intermediate conflict must be a SeverityError, got none")
+	}
+	if got := errorDiagAt(diags, "server"); got == nil {
+		t.Fatalf("expected a SeverityError at path server, got: %v", summaries(diags.All()))
+	}
+}
+
+// The intermediate conflict is wired to the strictness toggle, not hard-coded:
+// AllowUnknownKeys downgrades it from Error to Warning, like every other
+// strict-by-default finding.
+func TestEnv_IntermediateConflictDowngradedByAllowUnknownKeys(t *testing.T) {
+	t.Parallel()
+	src := configurationtest.Source{Files: map[string][]byte{
+		"c.env": []byte("LOG=info\nLOG.LEVEL=debug\n"),
+	}}
+	p := newParser(t, configuration.Config{Format: configuration.FormatEnv, AllowUnknownKeys: true}, src)
+	_, diags := mustParse(t, p, "c.env")
+	if diags.HasError() {
+		t.Fatal("AllowUnknownKeys must downgrade the intermediate conflict to a Warning, not Error")
+	}
+	warned := false
+	for _, d := range diags.All() {
+		if d.Severity == configuration.SeverityWarning && d.Path == "LOG" {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Fatalf("expected a Warning at LOG under AllowUnknownKeys, got: %v", summaries(diags.All()))
+	}
+}
+
+func TestTOML_IntermediateConflictDowngradedByAllowUnknownKeys(t *testing.T) {
+	t.Parallel()
+	src := configurationtest.Source{Files: map[string][]byte{
+		"c.toml": []byte("server = 1\n[server]\nport = 8080\n"),
+	}}
+	p := newParser(t, configuration.Config{Format: configuration.FormatTOML, AllowUnknownKeys: true}, src)
+	_, diags := mustParse(t, p, "c.toml")
+	if diags.HasError() {
+		t.Fatal("AllowUnknownKeys must downgrade the table-over-scalar conflict to a Warning, not Error")
+	}
+	warned := false
+	for _, d := range diags.All() {
+		if d.Severity == configuration.SeverityWarning && d.Path == "server" {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Fatalf("expected a Warning at server under AllowUnknownKeys, got: %v", summaries(diags.All()))
+	}
+}
+
+// errorDiagAt returns the first SeverityError diagnostic at exactly path, or nil.
+func errorDiagAt(diags configuration.Diagnostics, path configuration.Path) *configuration.Diagnostic {
+	for _, d := range diags.All() {
+		if d.Severity == configuration.SeverityError && d.Path == path {
+			dd := d
+			return &dd
+		}
+	}
+	return nil
 }

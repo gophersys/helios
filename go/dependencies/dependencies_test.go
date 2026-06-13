@@ -132,6 +132,34 @@ func TestRealRandomShortEntropyErrors(t *testing.T) {
 	}
 }
 
+// RealRandom(nil) — the default crypto/rand adapter the composition root binds via
+// Resolve / RealRandom(nil) — is safe for concurrent Read through the port (§2
+// RandomSource "must be safe for concurrent use"). Many goroutines hammer the SAME
+// returned RandomSource value (not one-per-goroutine), each filling its own buffer, so
+// the race detector exercises concurrent Read on a single shared adapter — the property
+// the documented default-path guarantee rests on.
+func TestRealRandomDefaultPathConcurrent(t *testing.T) {
+	t.Parallel()
+	r := dependencies.RealRandom(nil) // crypto/rand-backed; the bound default adapter
+	var wg sync.WaitGroup
+	for range 64 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p := make([]byte, 16)
+			n, err := r.Read(p)
+			if err != nil {
+				t.Errorf("concurrent Read error: %v", err)
+				return
+			}
+			if n != len(p) {
+				t.Errorf("concurrent Read short: got %d want %d", n, len(p))
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 // DiscardSink accepts and drops every record.
 func TestDiscardSinkEmit(t *testing.T) {
 	t.Parallel()

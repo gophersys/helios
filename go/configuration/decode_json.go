@@ -20,6 +20,21 @@ var errUnexpectedJSONToken = errors.New("unexpected JSON token")
 // errJSONKeyNotString is the sentinel for an object key that is not a string.
 var errJSONKeyNotString = errors.New("object key is not a string")
 
+// errJSONTooDeep is the sentinel for JSON nesting that exceeds maxJSONDepth. It
+// halts recursion BEFORE the Go stack overflows — a stack overflow is a runtime
+// FATAL (not a recoverable panic), so an unbounded recursive decoder would crash
+// the whole process on adversarial input that is still under MaxSourceBytes,
+// defeating both the "never a panic" guarantee and the MaxSourceBytes DoS guard.
+// decodeJSON converts it into a SeverityError Diagnostic; it never escapes.
+var errJSONTooDeep = errors.New("JSON nesting too deep")
+
+// maxJSONDepth bounds object/array nesting. Real configuration is shallow; a few
+// hundred levels is far beyond any legitimate document yet far below the depth
+// at which the Go stack overflows, so the bound is a Diagnostic the operator can
+// act on rather than a process-killing fatal error. It is intentionally well
+// under the ~10^4-frame overflow threshold to keep a comfortable margin.
+const maxJSONDepth = 256
+
 // decodeJSON decodes JSON into the internal tree with truthful per-token
 // positions and strict duplicate-key detection. It is total: malformed JSON is
 // reported as a SeverityError Diagnostic and yields an empty tree, never a
@@ -30,7 +45,7 @@ func decodeJSON(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 	dec.UseNumber()
 	lines := newLineMap(raw)
 
-	root, err := jsonValue(dec, source, raw, lines, dupSev, diags)
+	root, err := jsonValue(dec, source, raw, lines, dupSev, diags, 0)
 	if err != nil {
 		diags.Append(Diagnostic{
 			Severity: SeverityError,
@@ -58,8 +73,10 @@ func decodeJSON(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 
 // jsonValue reads exactly one JSON value from the decoder, recursing for
 // objects/arrays. The position stamped on each node is the byte offset where
-// that value's first token began.
-func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dupSev Severity, diags *Diagnostics) (*tree.Node, error) {
+// that value's first token began. depth is the current container nesting level;
+// it is bounded by maxJSONDepth so adversarial deep nesting becomes a Diagnostic
+// rather than a fatal stack overflow.
+func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dupSev Severity, diags *Diagnostics, depth int) (*tree.Node, error) {
 	startOff := dec.InputOffset()
 	tok, err := dec.Token()
 	if err != nil {
@@ -74,9 +91,15 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 	case json.Delim:
 		switch t {
 		case '{':
-			return jsonObject(dec, source, raw, lines, pos, dupSev, diags)
+			if depth >= maxJSONDepth {
+				return tree.NewObject(toTreePos(pos)), fmt.Errorf("%w (> %d)", errJSONTooDeep, maxJSONDepth) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
+			}
+			return jsonObject(dec, source, raw, lines, pos, dupSev, diags, depth+1)
 		case '[':
-			return jsonArray(dec, source, raw, lines, pos, dupSev, diags)
+			if depth >= maxJSONDepth {
+				return tree.NewArray(nil, toTreePos(pos)), fmt.Errorf("%w (> %d)", errJSONTooDeep, maxJSONDepth) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
+			}
+			return jsonArray(dec, source, raw, lines, pos, dupSev, diags, depth+1)
 		default:
 			return nil, fmt.Errorf("%w %q", errUnexpectedJSONToken, t) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
 		}
@@ -96,7 +119,7 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 	}
 }
 
-func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics) (*tree.Node, error) {
+func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics, depth int) (*tree.Node, error) {
 	obj := tree.NewObject(toTreePos(pos))
 	for dec.More() {
 		keyOff := dec.InputOffset()
@@ -120,7 +143,7 @@ func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, po
 				Summary:  fmt.Sprintf("duplicate key %q", key),
 			})
 		}
-		child, err := jsonValue(dec, source, raw, lines, dupSev, diags)
+		child, err := jsonValue(dec, source, raw, lines, dupSev, diags, depth)
 		if err != nil {
 			return obj, err
 		}
@@ -133,10 +156,10 @@ func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, po
 	return obj, nil
 }
 
-func jsonArray(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics) (*tree.Node, error) {
+func jsonArray(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics, depth int) (*tree.Node, error) {
 	var elems []*tree.Node
 	for dec.More() {
-		el, err := jsonValue(dec, source, raw, lines, dupSev, diags)
+		el, err := jsonValue(dec, source, raw, lines, dupSev, diags, depth)
 		if err != nil {
 			return tree.NewArray(elems, toTreePos(pos)), err
 		}

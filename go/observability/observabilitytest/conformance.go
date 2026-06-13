@@ -19,7 +19,8 @@ var errExporterWireDown = stderrors.New("exporter wire down")
 
 // providerFactory is the contract §4 conformance harness signature: a function
 // that builds an observability.Provider from a Config/Deps. The real New and the
-// fake's newConformanceProvider both satisfy it, so Run validates both identically.
+// public fake's newFakeFromDeps both satisfy it, so Run validates the real adapter
+// and the fake consumers inject identically.
 type providerFactory = func(observability.Config, observability.Deps) (observability.Provider, error)
 
 // recordingExporter captures every batch shipped through Export, so the
@@ -114,13 +115,16 @@ func baseConfig() observability.Config {
 	}
 }
 
-// RunFakeConformance runs the shared conformance suite (Run) against this
-// package's own Deps-aware double (newConformanceProvider). It is the fake side
-// of the adapter≡fake proof (08 §2): the real adapter's test calls Run with
-// observability.New, this calls Run with the fake — both must pass identically.
+// RunFakeConformance runs the shared conformance suite (Run) against the PUBLIC
+// fake (*Provider), built Exporter-backed from a Config/Deps via newFakeFromDeps.
+// It is the fake side of the adapter≡fake proof (08 §2): the real adapter's test
+// calls Run with observability.New, this calls Run with the same public *Provider
+// kernel tests inject — both must pass identically. There is no private double;
+// the subject the contract names (observabilitytest.Provider) is the subject
+// proven substitutable (closing the fakes-drift gap, ADR-0017 §1b).
 func RunFakeConformance(t *testing.T) {
 	t.Helper()
-	Run(t, newConformanceProvider)
+	Run(t, newFakeFromDeps)
 }
 
 // Run drives any observability.Provider produced by newProvider through the
@@ -150,6 +154,7 @@ func Run(t *testing.T, newProvider providerFactory) {
 		{"FlushIsSoleBlockingErrorCall", confFlushIsSoleBlockingErrorCall},
 		{"LedgerRidesTheStream", confLedgerRidesTheStream},
 		{"ZeroValueSafety", confZeroValueSafety},
+		{"ConcurrentUse", confConcurrentUse},
 	}
 	for _, prop := range properties {
 		t.Run(prop.name, func(t *testing.T) {
@@ -491,6 +496,88 @@ func confZeroValueSafety(t *testing.T, newProvider providerFactory) {
 	}
 	if recs[0].Event.Plane != observability.PlaneSelf {
 		t.Errorf("zero Event Plane = %v, want DefaultPlane PlaneSelf", recs[0].Event.Plane)
+	}
+}
+
+// confConcurrentUse: the package doc / contract §2 Concurrency clause promises a
+// Provider is safe for concurrent use from many goroutines — Emit, With, Scope,
+// and Log may be called concurrently. This property fans all four across N
+// goroutines on ONE Provider (under `go test -race`) and asserts that after Flush
+// every emitted Event landed exactly once — no Record lost to a data race and none
+// duplicated. It is the only property exercising the load-bearing telemetry path's
+// goroutine-safety guarantee, and it runs against BOTH the real adapter and the
+// fake (08 §2), so a locking bug in either is caught here rather than slipping past
+// a single-goroutine suite.
+func confConcurrentUse(t *testing.T, newProvider providerFactory) {
+	t.Helper()
+	exp := &recordingExporter{}
+	// A concurrency-safe clock keeps Scope's duration stamp race-free; the property
+	// under test is the Provider's own locking, not the clock's.
+	p := mustNew(t, newProvider, baseConfig(), observability.Deps{Exporter: exp, Clock: newStepClock()})
+
+	const (
+		workers          = 64
+		emitsPerWorker   = 8 // plain Emit
+		logsPerWorker    = 4 // Log (one Event each)
+		withEmitsPerWkr  = 4 // Emit through a With child
+		scopesPerWorker  = 2 // Scope open+close (one span Event each)
+		perWorkerRecords = emitsPerWorker + logsPerWorker + withEmitsPerWkr + scopesPerWorker
+	)
+	wantRecords := workers * perWorkerRecords
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := range workers {
+		go func(worker int) {
+			defer wg.Done()
+			ctx := context.Background()
+			tag := observability.Int64("worker", int64(worker))
+			for i := range emitsPerWorker {
+				p.Emit(ctx, observability.Event{
+					Name: "emit", Severity: observability.SeverityInfo,
+					Fields: []observability.Field{tag, observability.Int64("i", int64(i))},
+				})
+			}
+			for range logsPerWorker {
+				p.Log(ctx, observability.SeverityInfo, "log", tag)
+			}
+			child := p.With(tag)
+			for range withEmitsPerWkr {
+				child.Emit(ctx, observability.Event{Name: "with.emit", Severity: observability.SeverityInfo})
+			}
+			for range scopesPerWorker {
+				_, end := child.Scope(ctx, "span", tag)
+				end(observability.Outcome{})
+			}
+		}(w)
+	}
+	wg.Wait()
+
+	flush(t, p)
+
+	recs := exp.snapshot()
+	if len(recs) != wantRecords {
+		// A lost Record => a race dropped an append; a duplicated Record => double
+		// buffering. Either breaks the no-lost/no-duplicated guarantee.
+		t.Fatalf("after concurrent use Flush shipped %d Records, want %d (lost or duplicated under concurrency)", len(recs), wantRecords)
+	}
+
+	// Every (worker, name) contribution must be present the exact expected number of
+	// times — proves no Event was silently dropped AND none double-counted.
+	counts := map[string]int{}
+	for _, r := range recs {
+		counts[r.Event.Name]++
+	}
+	wantByName := map[string]int{
+		"emit":      workers * emitsPerWorker,
+		"log":       workers * logsPerWorker,
+		"with.emit": workers * withEmitsPerWkr,
+		"span":      workers * scopesPerWorker,
+	}
+	for name, want := range wantByName {
+		if got := counts[name]; got != want {
+			t.Errorf("Record %q count = %d, want %d (concurrency lost or duplicated Events of this kind)", name, got, want)
+		}
 	}
 }
 

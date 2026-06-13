@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gophersys/libs/go/testing/internal/deterministic"
@@ -76,11 +77,33 @@ func (h *suiteHarness) Cleanup(fn func()) {
 }
 
 // runCleanup runs registered cleanups in LIFO order and cancels the case context.
-func (h *suiteHarness) runCleanup() {
+// Each cleanup is invoked under its OWN recover so a panicking cleanup cannot
+// escape RunSuite (contract: RunSuite NEVER lets a panic escape — M2). The first
+// cleanup panic is returned, formatted, so runCase can fold it into the CaseResult;
+// remaining cleanups still run (a teardown is not abandoned because an earlier one
+// panicked). An empty string means no cleanup panicked.
+func (h *suiteHarness) runCleanup() string {
+	var firstPanic string
 	for i := len(h.cleanups) - 1; i >= 0; i-- {
-		h.cleanups[i]()
+		if p := runOneCleanup(h.cleanups[i]); p != "" && firstPanic == "" {
+			firstPanic = p
+		}
 	}
 	if h.cancel != nil {
 		h.cancel()
 	}
+	return firstPanic
+}
+
+// runOneCleanup invokes a single cleanup under recover, returning the formatted
+// panic value if it panicked (empty string otherwise). Isolating one cleanup per
+// recover is what lets the LIFO chain continue past a panicking entry.
+func runOneCleanup(fn func()) (recovered string) {
+	defer func() {
+		if p := recover(); p != nil {
+			recovered = fmt.Sprintf("cleanup panicked: %v", p)
+		}
+	}()
+	fn()
+	return ""
 }

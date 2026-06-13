@@ -68,6 +68,20 @@ func setEnvPath(root *tree.Node, segs []string, leaf *tree.Node, pos tree.Positi
 			return
 		}
 		child, ok := cur.Child(seg)
+		if ok && child.Kind != tree.KindObject {
+			// Strict-by-default: a non-object already occupies an intermediate
+			// segment that a dotted key needs as a container. Overwriting it
+			// silently is exactly the typo footgun this pattern exists to catch
+			// (e.g. LOG=info then LOG.LEVEL=debug loses LOG). Diagnose, then
+			// proceed — accumulate-all means later leaves still get placed.
+			diags.Append(Diagnostic{
+				Severity: dupSev,
+				Path:     envPath(segs[:i+1]),
+				At:       fromTreePos(pos),
+				Summary: fmt.Sprintf("key %q is set as a scalar but %q needs it as an object",
+					strings.Join(segs[:i+1], "."), strings.Join(segs, ".")),
+			})
+		}
 		if !ok || child.Kind != tree.KindObject {
 			child = tree.NewObject(pos)
 			cur.Set(seg, child)

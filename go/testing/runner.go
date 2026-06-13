@@ -85,7 +85,23 @@ func runCase[S any](r *Runner, c Case[S], factory Factory[S]) (cr CaseResult) {
 	cr.Name = c.Name
 	rec := newRecorder()
 	h := r.newHarness()
-	defer h.runCleanup()
+
+	// Cleanup containment (registered FIRST so it runs LAST, after the body-panic
+	// recover below has resolved cr): a Cleanup is part of the case's surface, so a
+	// panicking cleanup must NOT escape RunSuite either (contract: RunSuite NEVER
+	// lets a panic escape — M2). runCleanup recovers each cleanup; the first cleanup
+	// panic is folded into this CaseResult as a Fail so the run continues.
+	defer func() {
+		if p := h.runCleanup(); p != "" {
+			cr.Outcome = Fail
+			// Preserve a panic the case body already recorded; otherwise surface the
+			// cleanup panic (Panic field is the machine-readable signal the gate reads).
+			if cr.Panic == "" {
+				cr.Panic = p
+			}
+			cr.Messages = append(cr.Messages, p)
+		}
+	}()
 
 	// Panic containment: any panic — in the factory, the Run body, or a Fatalf's
 	// goexit-equivalent — is captured here, not allowed to escape RunSuite.

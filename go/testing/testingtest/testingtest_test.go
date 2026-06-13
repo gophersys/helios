@@ -6,6 +6,7 @@ package testingtest_test
 
 import (
 	"context"
+	"encoding/hex"
 	"sync"
 	"testing"
 	"time"
@@ -206,6 +207,38 @@ func TestFakeRandomSource_DeterministicFromSeed(t *testing.T) {
 	for i := range a {
 		if a[i] != b[i] {
 			t.Fatalf("same seed/sequence diverged at byte %d", i)
+		}
+	}
+}
+
+// TestFakeRandomSource_GoldenBytes is the ENFORCER the frozen invariant (OQ6) names:
+// it pins the exact byte sequence NewFakeRandomSource(seed).Read yields for fixed
+// seeds. Unlike the a==b determinism test above (which compares two live reads of the
+// same build and so cannot detect a PRNG swap — both reads change together), these
+// hardcoded golden bytes break loudly the instant the underlying ChaCha8/stream
+// algorithm changes, which is exactly the "golden tests pin it" mechanism the
+// contract requires for a change to register as breaking and be gated behind a new
+// constructor. Regenerating these constants to make the test pass is a CONTRACT
+// VIOLATION, not a fix.
+func TestFakeRandomSource_GoldenBytes(t *testing.T) {
+	t.Parallel()
+	// golden[seed] is the hex of the first 64 bytes of NewFakeRandomSource(seed).Read.
+	// Frozen at v1 (math/rand/v2 ChaCha8 over the seed-derived key in
+	// internal/deterministic.NewRandom). DO NOT edit to chase a failing run.
+	golden := map[uint64]string{
+		0: "43827e43a84d4d5bea58d922acf3538ef275a08c1d35fe54d94da8edcf1d2b0a" +
+			"2511b693f66c8d7c770552eaf2323312c4cf82306541b31a1f703f7ec395efd3",
+		7: "36b18d2eb039688b9bfc64b8a12d79ca0a7be29ed14609c9d999ddd520342f10" +
+			"64f78754147110d4f092f30ca86bc1037c319a0017fa7a7848e4e0eb3730d9d3",
+	}
+	for seed, want := range golden {
+		p := make([]byte, 64)
+		if _, err := testingtest.NewFakeRandomSource(seed).Read(p); err != nil {
+			t.Fatalf("Read(seed=%d): %v", seed, err)
+		}
+		if got := hex.EncodeToString(p); got != want {
+			t.Fatalf("seed %d: frozen byte stream changed (OQ6 BREAKING CHANGE)\n got: %s\nwant: %s",
+				seed, got, want)
 		}
 	}
 }

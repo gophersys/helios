@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/gophersys/libs/go/configuration"
+	"github.com/gophersys/libs/go/configuration/internal/docbuild"
 	"github.com/gophersys/libs/go/configuration/internal/tree"
 )
 
@@ -63,7 +64,20 @@ func Doc(treeMap map[string]any, opts ...DocOption) configuration.Document {
 	}
 	origin := tree.Position{Source: st.origin}
 	root := buildObject(treeMap, "", origin, st.positions)
-	return configuration.NewTestDocument(root, st.format, configuration.Position{Source: st.origin})
+	// Build through the internal docbuild seam (registered by configuration's
+	// init) so this fake returns the SAME concrete Document the real Parser
+	// yields, while keeping the public configuration surface exactly the frozen
+	// §2 set — no exported test-only constructor (see internal/docbuild).
+	built := docbuild.Build(root, string(st.format), tree.Position{Source: st.origin})
+	doc, ok := built.(configuration.Document)
+	if !ok {
+		// Unreachable: configuration's init registers a Build that returns a
+		// configuration.Document. A miss means the registration seam is broken —
+		// a programming error in this module, not runtime config data, so it is
+		// a hard failure rather than a swallowed nil that would mask the bug.
+		panic("configurationtest: docbuild.Build did not return a configuration.Document (seam not registered)")
+	}
+	return doc
 }
 
 // buildObject converts a Go map into an object node, recursing for nested maps

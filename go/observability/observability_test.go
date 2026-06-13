@@ -141,6 +141,68 @@ func TestErrFieldKeyIsError(t *testing.T) {
 	}
 }
 
+// secretFieldError models an *errors.Error that honors the errors-contract
+// no-secret-in-message rule: it carries the secret only as a redacted field, so
+// its Error() string never interpolates the raw value.
+type secretFieldError struct {
+	redactedField string
+}
+
+func (e secretFieldError) Error() string {
+	// The message names the field by its redacted projection, never the raw secret
+	// — exactly what an *errors.Error built via WithField produces.
+	return "auth failed (token=" + e.redactedField + ")"
+}
+
+// TestErrRedactionIsDelegatedToTheError pins the REAL guarantee behind the Err
+// constructor's "redaction-safe error string" wording: Err renders err.Error(),
+// which is leak-safe iff the error honors the errors-contract no-secret-in-message
+// rule. An error carrying a secret only as a redacted field never surfaces the raw
+// material through Err — this is the case the contract's secret-safety claim relies
+// on, and it was asserted by no test.
+func TestErrRedactionIsDelegatedToTheError(t *testing.T) {
+	t.Parallel()
+	const canary = "ghp_realsecretvalue"
+	safe := secretFieldError{redactedField: "secrets.Secret(REDACTED)"}
+	f := observability.Err(safe)
+
+	rendered, ok := f.Value.TelemetryValue().(string)
+	if !ok {
+		t.Fatalf("Err TelemetryValue() is not a string: %#v", f.Value.TelemetryValue())
+	}
+	if strings.Contains(rendered, canary) {
+		t.Errorf("Err over a no-secret-in-message error leaked the canary: %q", rendered)
+	}
+	if !strings.Contains(rendered, "secrets.Secret(REDACTED)") {
+		t.Errorf("Err did not render the error's redacted projection: %q", rendered)
+	}
+}
+
+// TestErrSurfacesAnInterpolatedSecret documents the boundary of the guarantee: Err
+// performs NO redaction itself — it is exactly stringValue(err.Error()). An error
+// that VIOLATES the no-secret-in-message rule by interpolating a raw secret into
+// its message (the classic fmt.Errorf("token=%s", secret)) DOES surface that secret
+// through Err. This is the negative case the "redaction-safe error string" wording
+// overstates; the safety is the error's contract, not Err's.
+func TestErrSurfacesAnInterpolatedSecret(t *testing.T) {
+	t.Parallel()
+	const canary = "ghp_realsecretvalue"
+	//nolint:err113 // a literal fmt.Errorf is the misuse this test deliberately models.
+	leaky := stderrors.New("token=" + canary) // models fmt.Errorf("token=%s", secret)
+	f := observability.Err(leaky)
+
+	rendered, ok := f.Value.TelemetryValue().(string)
+	if !ok {
+		t.Fatalf("Err TelemetryValue() is not a string: %#v", f.Value.TelemetryValue())
+	}
+	// Err does NOT redact: a secret interpolated into the message reaches the wire.
+	// This proves the "redaction-safe" wording on Err is delegated, not intrinsic —
+	// the safety lives with the error, not the constructor.
+	if !strings.Contains(rendered, canary) {
+		t.Errorf("Err unexpectedly redacted an interpolated secret (%q); Err performs no redaction by design", rendered)
+	}
+}
+
 func TestErrFieldNilCause(t *testing.T) {
 	t.Parallel()
 	// Err(nil) must not panic; it yields the "error" key with a benign value.
@@ -168,6 +230,26 @@ func TestAnyField(t *testing.T) {
 	}
 	if got := f.Value.TelemetryValue(); got != "redacted-projection" {
 		t.Errorf("TelemetryValue() = %#v, want %q", got, "redacted-projection")
+	}
+}
+
+func TestAnyNilValuerIsMisuseResistant(t *testing.T) {
+	t.Parallel()
+	// Any(key, nil) is a valid-looking misuse: without a guard it lands a
+	// Field{Value: nil} that nil-derefs every later inspection (decodeLedger, an
+	// Exporter walking Fields). The constructor must substitute a safe no-value
+	// Valuer so the Field is never a poison value.
+	f := observability.Any("tokens.in", nil)
+	if f.Key != "tokens.in" {
+		t.Errorf("Key = %q, want %q", f.Key, "tokens.in")
+	}
+	if f.Value == nil {
+		t.Fatal("Any(key, nil) produced a Field with a nil Valuer (poison value)")
+	}
+	// The substituted projection must be a benign no-value, never raw material,
+	// and inspectable without a panic.
+	if got := f.Value.TelemetryValue(); got != "" {
+		t.Errorf("Any(key, nil).TelemetryValue() = %#v, want \"\" (no-value)", got)
 	}
 }
 

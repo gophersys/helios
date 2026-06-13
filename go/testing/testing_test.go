@@ -12,6 +12,7 @@ package testing_test
 
 import (
 	"context"
+	"encoding/hex"
 	gotest "testing"
 	"time"
 
@@ -154,6 +155,36 @@ func TestFakes_DeterministicAcrossRunners(t *gotest.T) {
 	for i := range a {
 		if a[i] != b[i] {
 			t.Fatalf("same seed produced different bytes at %d across runners", i)
+		}
+	}
+}
+
+// TestFakes_GoldenBytes is the ENFORCER for the frozen determinism invariant (OQ6)
+// on the VENDED path: it pins the exact bytes Runner.Fakes().Random.Read yields for a
+// fixed Config.Seed. The a==b across-Runners test above proves within-build
+// reproducibility but cannot detect a PRNG algorithm swap (both reads move together);
+// this hardcoded golden does — any change to the underlying ChaCha8/stream algorithm
+// fails here loudly, which is the "golden tests pin it" mechanism the contract names
+// as what makes such a change breaking. These constants match the testingtest
+// FakeRandomSource golden because Fakes() vends the SAME internal engine for a given
+// seed. Regenerating them to pass is a CONTRACT VIOLATION, not a fix.
+func TestFakes_GoldenBytes(t *gotest.T) {
+	t.Parallel()
+	golden := map[uint64]string{
+		0: "43827e43a84d4d5bea58d922acf3538ef275a08c1d35fe54d94da8edcf1d2b0a" +
+			"2511b693f66c8d7c770552eaf2323312c4cf82306541b31a1f703f7ec395efd3",
+		7: "36b18d2eb039688b9bfc64b8a12d79ca0a7be29ed14609c9d999ddd520342f10" +
+			"64f78754147110d4f092f30ca86bc1037c319a0017fa7a7848e4e0eb3730d9d3",
+	}
+	for seed, want := range golden {
+		r := mustRunner(t, testingpkg.Config{Seed: seed}, testingpkg.Deps{})
+		p := make([]byte, 64)
+		if _, err := r.Fakes().Random.Read(p); err != nil {
+			t.Fatalf("Fakes().Random.Read(seed=%d): %v", seed, err)
+		}
+		if got := hex.EncodeToString(p); got != want {
+			t.Fatalf("seed %d: frozen vended-fake byte stream changed (OQ6 BREAKING CHANGE)\n got: %s\nwant: %s",
+				seed, got, want)
 		}
 	}
 }
@@ -415,6 +446,72 @@ func TestRunSuite_CleanupLIFO(t *gotest.T) {
 	testingpkg.RunSuite(r, suite, factory)
 	if len(order) != 3 || order[0] != 3 || order[1] != 2 || order[2] != 1 {
 		t.Fatalf("Cleanup must run LIFO after the case; got %v", order)
+	}
+}
+
+// TestRunSuite_CleanupPanicDoesNotEscape proves a panicking Cleanup is contained:
+// it is recorded on the case as a Fail with Panic populated, and the run continues
+// to the next case (contract §2 RunSuite: "It NEVER lets a panic escape"; a Cleanup
+// is registered by the case body and is part of the case's surface, M2). Before the
+// fix the cleanup ran AFTER the containment recover, so its panic propagated out of
+// RunSuite and aborted the whole run.
+func TestRunSuite_CleanupPanicDoesNotEscape(t *gotest.T) {
+	t.Parallel()
+	r := mustRunner(t, testingpkg.Config{}, testingpkg.Deps{})
+	factory := func(_ context.Context, _ testingpkg.Harness) (int, error) { return 0, nil }
+	cases := []testingpkg.Case[int]{
+		{Name: "bad-cleanup", Run: func(_ int, h testingpkg.Harness, _ testingpkg.Report) {
+			h.Cleanup(func() { panic("cleanup boom") })
+		}},
+		{Name: "after", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
+	}
+	suite := testingpkg.Suite[int]{Name: "cleanuppanic", Cases: seq(cases...)}
+	res := testingpkg.RunSuite(r, suite, factory) // must NOT panic out of RunSuite
+	if res.Failed != 1 {
+		t.Fatalf("a panicking cleanup must make its case 1 Fail; got %+v", res)
+	}
+	if res.Passed != 1 {
+		t.Fatalf("the case after a panicking cleanup must still run and pass; got Passed=%d", res.Passed)
+	}
+	var bad testingpkg.CaseResult
+	for _, c := range res.Cases {
+		if c.Name == "bad-cleanup" {
+			bad = c
+		}
+	}
+	if bad.Outcome != testingpkg.Fail {
+		t.Fatalf("cleanup-panicking case Outcome must be Fail; got %v", bad.Outcome)
+	}
+	if bad.Panic == "" {
+		t.Fatal("cleanup-panicking case must record the panic in CaseResult.Panic")
+	}
+}
+
+// TestRunSuite_CleanupPanicChainContinues proves the LIFO cleanup chain does not
+// abandon remaining teardowns when one cleanup panics: every registered cleanup runs
+// regardless, and a single panic still becomes one contained Fail (the panicking
+// cleanup is isolated under its own recover).
+func TestRunSuite_CleanupPanicChainContinues(t *gotest.T) {
+	t.Parallel()
+	r := mustRunner(t, testingpkg.Config{}, testingpkg.Deps{})
+	factory := func(_ context.Context, _ testingpkg.Harness) (int, error) { return 0, nil }
+	var order []int
+	cases := []testingpkg.Case[int]{
+		{Name: "registers", Run: func(_ int, h testingpkg.Harness, _ testingpkg.Report) {
+			h.Cleanup(func() { order = append(order, 1) })     // runs last (LIFO)
+			h.Cleanup(func() { panic("middle cleanup boom") }) // panics, contained
+			h.Cleanup(func() { order = append(order, 3) })     // runs first (LIFO)
+		}},
+	}
+	suite := testingpkg.Suite[int]{Name: "cleanupchain", Cases: seq(cases...)}
+	res := testingpkg.RunSuite(r, suite, factory)
+	// LIFO: the last-registered (append 3) runs first, then the panicking one is
+	// contained, then the first-registered (append 1) still runs.
+	if len(order) != 2 || order[0] != 3 || order[1] != 1 {
+		t.Fatalf("cleanups around a panicking one must still run LIFO; got %v", order)
+	}
+	if res.Failed != 1 {
+		t.Fatalf("a panicking cleanup in the chain must yield exactly 1 Fail; got %+v", res)
 	}
 }
 

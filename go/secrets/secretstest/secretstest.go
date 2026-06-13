@@ -19,6 +19,13 @@ import (
 type Provider struct {
 	// Resolved is an append-only log of the references asked for — refs only, never values —
 	// for "was this credential requested?" assertions.
+	//
+	// CONCURRENCY CAVEAT: Resolve appends to this exported slice under the Provider's internal
+	// lock, but reads of the field here go through no lock (the mutex is unexported). Reading
+	// Resolved while any goroutine may still be in Resolve is a data race (-race flags it).
+	// Quiesce all Resolve calls — join the goroutines under test — BEFORE inspecting Resolved.
+	// (The race-free fix, a `Resolved() []secrets.Reference` accessor returning a copy under
+	// lock, is a contract §3 surface change flagged for review; until then this caveat holds.)
 	Resolved []secrets.Reference
 
 	mu       sync.Mutex
