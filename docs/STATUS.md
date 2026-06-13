@@ -27,32 +27,43 @@ Mateo returned, gave the live claude setup-token + an OpenRouter key, and opened
 `~/.claude/plans/groovy-growing-puppy.md`. Locked decisions in memory `harness-platform-architecture`.
 Credentials gitignored at `.dev-secrets/{claude-oauth-token,openrouter-api-key}` (0600, env-only).
 
-PROGRESS:
-- ✅ **Real claude harness FIXED + verified + pushed** (libs 097a068, eden a2ca99f): running the real
-  `claude` + live token revealed the adapter hung on the Ready handshake (no `-p`; claude defers
-  `system/init` until the first stdin turn). Fix: pass `-p`; the conn signals Ready on spawn;
-  `system/init`→metadata Extension. `TestIntegration_LiveClaude_Gated` PASSES in 1.46s (was 5min hang).
-- 🔬 omp real schema captured: `--mode rpc` emits a `{"type":"ready"}` frame on startup (clean handshake);
-  OpenRouter + `openrouter/deepseek/deepseek-v4-flash` resolves.
+PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer, pointers bumped):
+- ✅ **Both real harnesses fixed + verified INSIDE the devcontainer**: claude 2.1.177 live test 1.9s,
+  omp 15.12.4 live test 4.0s (real OpenRouter/DeepSeek), race-clean. The claude `-p`/Ready-handshake fix
+  and the omp `--mode json` one-process-per-turn adapter both green.
+- ✅ **ADR-0020 process** (4-phase library SDLC + 8-dimension taxonomy + shared `_ctl/lib.sh` phase-gate +
+  project-go hooks + `errors` reference impl): libs 25b58c4, eden 4e46682.
+- ✅ **Devcontainer is THE substrate** (.devcontainer 52a1228, eden pointer bumped): base image carries the
+  full gate toolchain + bun + go1.26.4; new `ctl.sh up/exec/shell/down` lifecycle (repo→/workspace, docker
+  socket); post-create installs the pinned harnesses + hnslint. docker-out-of-docker verified. The spawned
+  agent pods will dogfood this same image family (Mateo, 2026-06-13). Publish CI's disk-OOM fixed.
+- ✅ **Harness versions pinned + gated** (ADR-0021; eden 98565de, libs 4f29a4e): `harnesses/versions.env`
+  is the one source of truth; post-create installs exact versions; `harness-conformance` re-proves a pin
+  against the real adapter; `harness-upgrade-check` opens the bump PR. (omp 15.10.0→15.12.4 already proved
+  conformant — the gate works.)
 
-RUNNING IN PARALLEL (neither commits; I verify+merge each; disjoint files):
-- **w2qasjizq** — the AI-instrumented dev/testing/QA process (8 dimensions: logic/resource/lifecycle/
-  real-host-integration[docker+k3s]/load/security[govulncheck+gosec]/perf[bench]/maintainability, each a
-  ctl.sh verb + gate + CI lane + AI-instrumentation, non-vacuously enforced). Edits the enforcement layer.
-- **wwncjbxr4** — the **omp adapter** (libs/go/agentsession/ompadapter), real omp/OpenRouter/DeepSeek-v4-flash
-  gated test. Confined to the new package.
+IN PROGRESS:
+- **agentsession retroactive sweep** (workflow w3932yla9): 3 gosec issues fixed by hand (+3 more found across
+  agentsessiontest/ompadapter, all fixed; tree gosec-clean); the ADR-0020 8-dimension overlay
+  (property/leak/lifecycle/load/canary/bench) being authored per-package by Opus agents, verified in-container.
+  After: incorporate the uncommitted ompadapter, record .apibaseline/.benchbaseline, `phase-gate all` green,
+  commit + push. This is the TEMPLATE for the per-lib sweep below.
 
 QUEUED (dependency-ordered, Mateo-directed):
-1. **Retroactive QA sweep + remediation** — after the dev/testing/QA process merges, re-audit EVERY existing
-   lib across all 8 dimensions + FIX findings. Shard PER-LIB (own workflow each), parallelize, merge.
-2. **Codex adapter** — after `codex` is installed in the devcontainer (Phase 0/3).
-3. The rest of the plan: NATS/JetStream PID-1 pod runtime + workspaceprovider Entrypoint (OD-15 opt-a);
-   orchestrator over real pods + stateless gateway; git-backed `agent-configs/`; strict sandbox; basic chat UI
-   + Playwright real E2E. Devcontainer-first; update AI docs.
+1. **Retroactive QA sweep + remediation** — apply the agentsession template to EVERY other existing lib
+   (configuration, dependencies, observability, secrets, gitrepository, workspaceprovider, orchestrator,
+   testing). Shard PER-LIB (own Opus workflow each), parallelize, verify-in-container + merge.
+2. **Milestone B architecture FIRST, then build** (Mateo 2026-06-13): study `MateoSegura/IOTEA-archive` (the
+   runtime lib spanning k8s+docker, deploy-local-vs-prod, the http-api) and produce diagrams + ADRs for
+   (a) secure per-agent secret provisioning (secrets lib → Vault), (b) deploy local/prod for docker+k8s,
+   (c) the api shape — BEFORE implementing. Then: Codex adapter; NATS/JetStream PID-1 pod runtime +
+   workspaceprovider Entrypoint; orchestrator over real pods + stateless gateway; git-backed `agent-configs/`;
+   strict sandbox; basic chat UI + Playwright real E2E. Devcontainer-first; update AI docs each.
 
-MATEO'S CLOSING DIRECTIVE: when everything is back, **ensure all committed + pushed**, then do **one full
-review of everything done** = a final cleanup + improvement pass. I drive all of this autonomously to that
-clean, reviewed, pushed end state; call Mateo only if stuck.
+MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
+final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
+only if stuck. NEW standing constraints (2026-06-13): work ONLY in the devcontainer (never the host);
+pinned harness versions; agent pods dogfood the devcontainer images.
 
 ## ⏸ (superseded) LOOP PAUSED — backend phase COMPLETE; two items genuinely require Mateo (2026-06-13)
 
