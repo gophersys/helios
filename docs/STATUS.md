@@ -85,7 +85,25 @@
     **agentsession (F4 library) FIRST → orchestrator (consumes agentsession + workspaceprovider) → chat UI
     (consumes the agentsession Event stream + orchestrator) → Playwright E2E.** agentsession is also the
     keystone the chat UI needs (the server-triggered Event stream). Building it first.
-  - **agentsession sub-wave IN PROGRESS** (workflow build-agentsession, task w1zqzprbj / run wf_16d84369-a55,
+  - **agentsession sub-wave ✅ DONE + COMMITTED + PUSHED** (libs f629479 on origin/main; eden pointer bumped).
+    The keystone F4 agent-abstraction: one Session primitive (Events/Control/Resolve/Close), the full 15-kind
+    normalized Event taxonomy with monotonic Seq==transcript-offset, replay-then-tail fan-out (Last-Event-ID
+    reconnect / FromSeq(0) replay / old-Run reload / engine fold = ONE race-clean mechanism; slow-subscriber
+    demote→catch-up, gap-free), tool grants + host-tool + first-decision-wins permission round-trip, TokenLedger
+    fold (integer micro-cost, no float drift), single-authority budget abort, and the setup-token credential
+    seam (opaque secrets.Reference → server-side Secret.Use → one scrubbed child-env entry, never argv/Spec/
+    Event/log/error/transcript). Deterministic fake harness end-to-end + real claude-code adapter WIRED but
+    GATED (stub-binary subprocess exercises the real spawn/scan/Close ladder; live auth gated on Mateo's
+    setup-token, never minted, ~/.claude untouched). Built by workflow w1zqzprbj (Opus, ~64min); its verify
+    agent ran 8 weaken/revert non-vacuity proofs. I VERIFIED MYSELF: full gate green (gofumpt, golangci 0
+    default+integration alone, hnslint, vet both, race both), race-clean 24-tailer fan-out, leak-free; my OWN
+    Seq+1 weaken broke SeqMonotonic + ReplayGapFree (reverted). FIXED the one honest residual the verify agent
+    flagged — the SilentBadToken conformance case was VACUOUS (used FailSpawnWith, bypassing the pump); added a
+    fake non-readying mode (SpawnNonReadying) so it drives the pump's genuine no-ready→AuthError synthesis,
+    proven non-vacuous by my own weaken. Additive-to-contract notes (non-breaking, in the commit msg):
+    ConfigError/RouteError beyond the 5 named errors; Event.Terminal()→IsTerminal() (Go field/method collision).
+    No stragglers (let-it-finish discipline held again).
+  - **agentsession sub-wave (workflow ref)** — task w1zqzprbj / run wf_16d84369-a55,
     Opus impl→adversarial-verify). Builds: Session primitive (Open/Prompt/Steer/Abort/state/Close, one
     primitive no mode-fork), the normalized Event taxonomy with MONOTONIC per-session Seq (the one mechanism
     for Last-Event-ID reconnect / fresh-tab replay / FromSeq(0) fold / multi-client fan-out — race-clean),
