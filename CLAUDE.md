@@ -43,6 +43,20 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
   commits.
 - Nx Cloud is disabled in `nx.json` (ratified in ADR-0010); keep it that way.
 
+## Devcontainer-first + harness versions
+
+- **Develop inside the devcontainer.** `.devcontainer/base` is THE dev + CI substrate and the
+  image spawned agent pods dogfood. Run work through it: `bash .devcontainer/base/ctl.sh up`
+  (starts a long-lived container, repo→`/workspace`, docker socket mounted, installs the pinned
+  harnesses + hnslint), then `ctl.sh exec -- <cmd>` / `ctl.sh shell`. The image carries the whole
+  ADR-0020 gate toolchain (gofumpt, golangci-lint, govulncheck, gosec, gremlins, benchstat,
+  hnslint, k3d, kind, nats, bun) — an absent tool is a gate failure, not a skip. Don't run the Go
+  gate/tests on the host; run them in the container.
+- **Harness versions are pinned (ADR-0021).** `claude`/`omp`/`codex` versions live only in
+  `harnesses/versions.env` — never install a harness "latest" implicitly. A pin bump is gated by
+  the `harness-conformance` CI job (real harness + provider); `harness-upgrade-check` opens the
+  bump PR. `bun`'s pin is the `BUN_VERSION` ARG in the base Dockerfile (baked, not in the manifest).
+
 ## Go enforcement (ADR-0018)
 
 - **Git hooks (one-time setup):** the tracked hooks live in `.githooks/`. Point git at them:
