@@ -45,7 +45,23 @@
   reverted; testing/observability lint) — fixed before commit. All six green (golangci 0, race 0).
   Note: golangci is non-deterministic across the shared workspace under parallelism — run the gate
   sequentially/isolated (the hooks already do; CI lanes must too).
-- **Wave 3B: workspaceprovider** ⚠️ LIFECYCLE PLANE DONE, SECURITY PLANE MUST-FIX (libs bc017cc): F1 substrate port + docker + kubernetes
+- **Wave 3B: workspaceprovider** ✅ DONE + COMMITTED + PUSHED (libs ed65211 on origin/main, eden pointer bumped):
+  F1 substrate port + docker + kubernetes(k3d/kind) adapters, FULL security/credential plane real + non-vacuously
+  tested. B1-B8 ALL resolved: B1/B2 real docker --internal default-deny + real dial-out conformance; B3 real
+  ConflictError; B4 real all-or-nothing + resource-limit; B5 contract amendment (§7 Q13 *Provisioner); B6
+  MountSecret real material on BOTH adapters (weaken-proven non-vacuous on docker+k3d); B7 k8s dockerconfigjson +
+  ImagePullSecrets, real registry:2+htpasswd end-to-end on docker AND k3d-in-cluster (docker positive case
+  de-vacuoused: purges the local tag so success truly exercises auth — weaken with a wrong password FAILS); B8
+  resource-limit binds on real cgroup (docker+k3d), OOM discriminator delivered on docker, honestly OD-15 on k8s.
+  Verified MYSELF on real substrates (never trusting agent green): docker suite green, kind suite green, k3d suite
+  green SERIALIZED. RELIABILITY FIX: TestK3d_Conforms/TestKind_Conforms now serial (no t.Parallel) — two real
+  clusters serving the full suite at once flaked the k3d serverlb ("connection refused"); serialized → both green.
+  The credential-wave workflow w3t0n08sj (62min, 2 agents) corroborated; its one material residual (docker B7
+  positive vacuousness) is FIXED; two minor robustness/process notes were truncated in its result and the
+  transcript was cleaned — revisit in the ADR-0017 review wave. NOTE: orphaned pre-compaction verification
+  subagents from this workflow thrashed the host + transiently weaken-edited credential.go (self-reverting) — all
+  drained without killing any claude PID; see the straggler section below.
+- **Wave 3B: workspaceprovider (historical)** — F1 substrate port + docker + kubernetes
   (k3d default, kind 2nd target) adapters; workspaceprovidertest conformance suite. REAL integration
   tests spin actual containers + an ephemeral k3d cluster and pass leak-free (TestK3d_Conforms ~48s,
   16 conformance cases, cluster auto-deleted). Took 3 sub-waves (substrate is hard; agents
@@ -127,10 +143,14 @@ When Wave 3A completes:
   `docs/tools/*.mjs` via `NODE_PATH`. Consolidate into repo `node_modules` via root `yarn install`
   once safe (deferred while the frontend's install is in flight). Tracked so it's not forgotten.
 
-## workspaceprovider — consolidated blocker ledger (all 3 reviews, 2026-06-13)
+## workspaceprovider — consolidated blocker ledger (all 3 reviews, 2026-06-13) — ✅ ALL RESOLVED (libs ed65211)
+
+RESOLUTION: every B1-B8 below is now really-implemented AND really-tested on a real substrate (or honestly
+declared CapAbsent + contract-amended). Verified independently on real docker/k3d/kind, non-vacuously (weaken
+probes), leak-free. Committed ed65211 + pushed; eden pointer bumped. The per-item history is kept for the record.
 
 Lifecycle/exec/files/teardown plane: REAL + green + leak-free (k3d conformance 48s, docker+k3d+kind).
-Security/credential/OOM plane: FAKED — must fix before workspaceprovider is truly done:
+Security/credential/OOM plane (was FAKED — NOW REAL):
 - B1 docker egress CapPartial declared, spec.Egress never read (faked capability) → impl real OR CapAbsent
 - B2 egress fail-closed conformance asserts only `if isFake` → make REAL on declared substrate, or honest SKIP for Absent
 - B3 idempotency: incompatible-spec re-Provision never yields ConflictError (findExisting does no spec compare)
@@ -145,3 +165,49 @@ Hardening wave wxgxfvuvx covers B1-B5. NEXT iteration must also fix B6/B7 (crede
 really-implement, not deferrable) and decide B8 (honest CapAbsent + deferred, or restructure Run).
 DECISIVE RULE: every declared capability is really-implemented AND really-tested on a real substrate, OR
 declared CapAbsent + gap recorded + contract amended. No fake-passes, ever.
+
+### B6/B7/B8 real-substrate verification (2026-06-13, this loop) — POSITIVE, one re-run pending
+
+Ran the settled gate WITH the workspace + the real integration suites myself (never trusting agent green):
+- Unit gate: gofumpt 0, go vet clean, `go test -race ./...` green; golangci-lint 0 issues (default tags AND
+  `--build-tags integration`).
+- **docker integration suite (`-tags integration ./dockeradapter/...`): FULLY GREEN.** B6
+  MountSecretMaterialReachesWorkspace, B1/B2 EgressDefaultDenyDeclaredAllow + TestDocker_DefaultDenyEgress,
+  B8 ResourceLimitsBind + TestDocker_ResourceLimitsBindOOM, B7 TestDocker_PrivateImagePullSecret all PASS
+  (TestDocker_Conforms 43s; TenancyIsolation honest-skips CapMultiTenant absent).
+- **B6 non-vacuity PROVEN**: weakened the docker adapter's MountSecret write to emit `WRONG-WEAKEN-PROBE`;
+  caseMountSecret correctly FAILED (`content = "WRONG-WEAKEN-PROBE", want the seeded secret value`); reverted.
+  The test reads adapter-written content — not a vacuous pass.
+- **B7 non-vacuous by construction**: WITH pull-secret → authenticated pull SUCCEEDS; WITHOUT → ImageError
+  (Kind=Invalid, *ImageError in chain), password never in the message. Real registry:2+htpasswd, real push/pull.
+- **kind integration suite: FULLY GREEN** — all 17 conformance cases incl. MountSecret, SecretMaterialNeverLeaks,
+  ResourceLimitsBind, TenancyIsolation, StateNormalization (TestKind_Conforms 53s).
+- **k3d**: TestK3d_ProvisionRunExecFilesTeardown PASS (19s); **TestK3d_PrivateImagePullSecret PASS (34s) — B7 real
+  on a real cluster** (dockerconfigjson Secret + ImagePullSecrets objects present; in-cluster authed pull works
+  WITH, ImageError WITHOUT); TestK3d_Conforms credential/security cases all PASS (MountSecret, SecretLeak,
+  ResourceLimitsBind, ManifestTruthfulness). ⚠️ ONLY the two NON-credential cases TenancyIsolation +
+  StateNormalization FAILED, with `dial tcp 0.0.0.0:5xxxx: connection refused` — the k3d apiserver/serverlb
+  went unreachable mid-run. ROOT CAUSE: host resource contention — K3d_Conforms and Kind_Conforms both carry
+  `t.Parallel()` so TWO real clusters ran the full 17-case suite concurrently, AND orphaned pre-compaction
+  stragglers were ALSO running docker-conformance loops at the same time (see below). The same two cases pass
+  on docker AND kind. NOT a code defect — a parallel-cluster reliability flake.
+- **TODO before DONE**: (a) re-run TestK3d_Conforms ALONE on a quiet host → expect green (confirms flake); 
+  (b) HARDEN: drop `t.Parallel()` from the two heavyweight cluster conformance tests (K3d_Conforms,
+  Kind_Conforms) so two real clusters never serve the full suite simultaneously — the brief values reliability
+  of the real-substrate lane; running two clusters in parallel on a laptop is inherently fragile.
+
+### STRAGGLER hazard hit HARD this loop (the documented orphaned-subagent problem, post-compaction variant)
+
+Multiple orphaned background processes from BEFORE the compaction survived as live OS processes that TaskList
+no longer tracks. Identified and handled WITHOUT killing any claude process or Mateo's terminals:
+- A finite `for run in 1 2 3; do go test ... TestDocker_Conforms; done` LEAK-CHECK loop (pid 13240, a child of
+  my own session) — repeatedly spun docker conformance. Finite; it exited on its own / I reaped its last
+  go-test children. Pure go test, no edits.
+- A B6 WEAKEN-VERIFY actor doing exactly the value=nil→test→revert non-vacuity cycle on credential.go. The
+  harness system-reminder caught it mid-cycle (line 108 transiently `value = nil // TEMP-WEAKEN`); it
+  SELF-REVERTED within seconds (verify-then-revert is well-behaved). credential.go confirmed CLEAN afterward.
+- These stragglers' container/cluster churn is what tipped the k3d conformance into the apiserver flake above.
+MITIGATION APPLIED: never kill claude PIDs (my session is pid 38821 under the VS Code terminal; confirmed via
+PPID); only reaped stray `go test`/`*.test` OS processes; left the vite preview server (pid 14072, port 4173)
+and `caffeinate` alone for Mateo. Running a whole-tree mtime-stability watch before committing (the playbook:
+wait for mtimes to settle, re-run the gate on the settled state, let the gate decide).

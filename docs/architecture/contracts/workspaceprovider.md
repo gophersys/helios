@@ -1,7 +1,11 @@
 # Contract draft — workspaceprovider
 
 > Status: Draft for negotiation — Wave 3A; freezes per the ADR-0016 process · 2026-06-12 ·
-> Reconciled from independent producer/consumer drafts (09 §4 step 2). The **F1 Infrastructure
+> Reconciled from independent producer/consumer drafts (09 §4 step 2). **⚠️ Post-freeze draft
+> amendment pending Mateo's ratification (§7 Q13):** the concrete Provider is `*Provisioner`
+> (not `*Substrate` — that name collides with `type Substrate string`), and the adapter's
+> workload-plane seam is an exported `Connection` port (+ `RunDriver`/`Probe`) — both additive
+> to the frozen consumer surface. The **F1 Infrastructure
 > (substrate) connector port** (05 §2, 10 §12, C23 "sandbox") — the substrate abstraction S2's
 > orchestrator provisions/tears down isolated workspaces over, runs workloads in, and
 > execs/mounts/dials-out from. Adapters: `docker` (the daemon) and `kubernetes` (any conformant
@@ -338,22 +342,68 @@ type Adapter interface {
 	Manifest() CapabilityManifest
 }
 
-// HandleData is the adapter's normalized result: the durable Handle plus the live
-// native connection the library wraps with the state machine, status normalization,
-// run/exec/file plumbing, and tenancy stamping. The library never reaches into the
-// native field. (Shape elided; it carries the adapter's native client + the assigned
-// Handle.)
+// HandleData is the adapter's normalized result: the durable Handle plus the live native
+// Connection the library wraps with the state machine, status normalization, run/exec/file
+// plumbing, and tenancy stamping. The library never reaches into the adapter's underlying
+// client — it drives the substrate ONLY through the Connection seam.
+//
+// ⚠️ DRAFT AMENDMENT (Q13): the original draft left the native field UNEXPORTED ("the
+// adapter's native client/conn"). In the implementation the workload-plane seam is an
+// EXPORTED port — Connection — exactly mirroring the SUBSTRATE-plane Adapter split (the same
+// Provider/Workspace split the §2 ports make). An Adapter.Create/Dial returns a Connection;
+// the library calls it for Run/Exec/Files/Probe. This is additive (a new exported port + two
+// small value/port types), not a change to the frozen Provider/Workspace/Run/Files/Adapter
+// surfaces. See §7 Q13.
 type HandleData struct {
-	Handle Handle
-	// unexported: the adapter's native client/conn the library drives Run/Exec/Files over.
+	Handle     Handle
+	Connection Connection // the live native driver the library drives Run/Exec/Files/Status over
+}
+
+// Connection is the live native handle an Adapter returns inside HandleData — the
+// WORKLOAD-plane counterpart of the SUBSTRATE-plane Adapter (the library owns sequencing/
+// idempotency/state-machine; the adapter owns the substrate call). Exactly 4 methods.
+type Connection interface {
+	// Run launches the primary workload with the resolved workload credential and returns a
+	// native RunDriver the library wraps as a Run.
+	Run(ctx context.Context, spec RunSpec, resolved Resolved) (RunDriver, error)
+	// Exec runs one command to completion and returns its raw result.
+	Exec(ctx context.Context, spec ExecSpec) (ExecResult, error)
+	// Files returns the native file accessor (Put/Get/List against the substrate).
+	Files() Files
+	// Probe reads the live substrate state the library normalizes into Status.
+	Probe(ctx context.Context) (Probe, error)
+}
+
+// RunDriver is the adapter-native in-flight workload the library wraps as a Run: Status
+// reports the latest native phase (RunKilled/ConditionOOMKilled for a cgroup OOM-kill); Logs
+// streams the native log buffer from a cursor. (Exactly 2 methods, mirroring Run.)
+type RunDriver interface {
+	Status(ctx context.Context) (RunStatus, bool)
+	Logs(ctx context.Context, from LogCursor) (io.ReadCloser, error)
+}
+
+// Probe is the adapter's raw lifecycle reading the library normalizes into Status: the native
+// state mapped to a State, the typed Conditions, the observed usage, and the native phase
+// string verbatim. The library — not the adapter — stamps Since from the injected Clock and
+// enforces the legal State transitions (10 §9).
+type Probe struct {
+	State      State
+	Conditions []Condition
+	Usage      ResourceUsage
+	Detail     string // adapter-native phase VERBATIM (CrashLoopBackOff, OOMKilled)
 }
 
 // ── The constructor spine (10 §4) — PURE ──────────────────────────────────────
 
 // New is the pure constructor spine: no I/O, no clock read, no env read, no daemon
 // dial, no apiserver call. It validates Config + Deps and returns the concrete
-// *Substrate. The first substrate I/O happens only at Provider.Provision/Open/List.
-func New(configuration Config, dependencies Deps) (*Substrate, error) { return nil, nil }
+// *Provisioner. The first substrate I/O happens only at Provider.Provision/Open/List.
+//
+// ⚠️ DRAFT AMENDMENT (Q13, pending Mateo's ratification): the original draft wrote
+// `New(...) (*Substrate, error)`, but `type Substrate string` (the substrate-selector,
+// below) already owns that name — a Go program cannot declare both. The concrete
+// Provider returned by New is therefore named *Provisioner. See §7 Q13.
+func New(configuration Config, dependencies Deps) (*Provisioner, error) { return nil, nil }
 
 // Config is the immutable, fully-resolved input (the configuration pattern: parsed at
 // the edge, frozen). It holds the substrate-routing default and the tenancy namespace;
@@ -390,18 +440,21 @@ type Deps struct {
 	Clock dependencies.Clock
 }
 
-// Substrate is the concrete Provider returned by New: it routes each Provision/Open/
-// List/Teardown to the Deps.Adapters entry for the spec's (or Config.Default's)
-// Substrate, resolves secrets.References server-side before handing control to the
-// adapter, assigns/validates Handles and stamps them with tenancy keys, wraps adapter
-// HandleData as Workspaces, and enforces the ownership-domain labelling. Safe for
-// concurrent use. Zero value unusable; construct via New.
-type Substrate struct{ /* unexported */ }
+// Provisioner is the concrete Provider returned by New (⚠️ DRAFT AMENDMENT Q13: the draft
+// called this *Substrate, which collides with `type Substrate string`; renamed to
+// *Provisioner). It routes each Provision/Open/List/Teardown to the Deps.Adapters entry
+// for the spec's (or Config.Default's) Substrate, resolves secrets.References server-side
+// before handing control to the adapter, assigns/validates Handles and stamps them with
+// tenancy keys, wraps adapter HandleData as Workspaces, and enforces the ownership-domain
+// labelling. It ALSO owns idempotency: it stamps a spec fingerprint into the persisted
+// labels at Provision so a same-Name re-Provision is COMPATIBLE (re-dial) or INCOMPATIBLE
+// (ConflictError). Safe for concurrent use. Zero value unusable; construct via New.
+type Provisioner struct{ /* unexported */ }
 
-func (s *Substrate) Provision(ctx context.Context, spec WorkspaceSpec) (Workspace, error) { return nil, nil }
-func (s *Substrate) Open(ctx context.Context, handle Handle) (Workspace, error)           { return nil, nil }
-func (s *Substrate) List(ctx context.Context, sel Selector) ([]Descriptor, error)         { return nil, nil }
-func (s *Substrate) Teardown(ctx context.Context, handle Handle) error                    { return nil }
+func (s *Provisioner) Provision(ctx context.Context, spec WorkspaceSpec) (Workspace, error) { return nil, nil }
+func (s *Provisioner) Open(ctx context.Context, handle Handle) (Workspace, error)           { return nil, nil }
+func (s *Provisioner) List(ctx context.Context, sel Selector) ([]Descriptor, error)         { return nil, nil }
+func (s *Provisioner) Teardown(ctx context.Context, handle Handle) error                    { return nil }
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 
@@ -1164,3 +1217,5 @@ func TestOrchestrator_ProvisionsOnRealK3d(t *testing.T) {
 | Q10 | **On `agentsession` (frozen)** — confirm the boundary stays exact and bidirectionally cited: `agentsession.Spec.Workspace` is a path string this port produces; `agentsession.Close` never calls `Teardown`; the egress endpoints `agentsession` "declares" (Route+Grants) are folded by the orchestrator into `WorkspaceSpec.Egress`. | `agentsession.Adapter.Spawn` runs in a workspace this port provisioned via `Open`; `Close` never tears down; `Teardown` is the sole teardown. No `agentsession` change requested. | The coupling is the `Spec.Workspace` *path string* only (no type import either way); the orchestrator reads `Route`/`Grants` and derives egress (`agentsession` needs no `workspaceprovider` import). | 🧩 **Confirmed — no overlap, no `agentsession` change.** The seam is a single path string (`Workspace().WorkDir()` → `agentsession.Spec.Workspace`); neither port imports the other. agentsession.md §1 already states this from its side ("never creates a container… `Close` never tears down the pod"); this contract asserts the matching obligation. Egress-derivation (`Route`+`Grants` → `[]EgressRule`) is **orchestrator-owned**, not substrate-owned and not session-owned — flagged for the orchestrator negotiation (Q11). |
 | Q11 | **On the orchestrator contract (to be negotiated, Wave 3A/3B)** — the orchestrator is the primary consumer; it persists `Handle` as the only durable per-workspace state, calls `Open` on restart, and owns the egress-derivation policy. | (Flagged for that negotiation: this port is the level-based primitive; the loop is S2's.) | The orchestrator negotiation must accept `workspaceprovider.Provider` as an injected port and own the `Route`+`Grants` → `[]EgressRule` policy (orchestrator-owned, not substrate-owned). | 🧩 **Flagged forward, not decided here.** The orchestrator negotiation (a later Wave-3A/3B contract) accepts `workspaceprovider.Provider` as an injected port, persists `Handle`, drives the reconcile loop over `Provision`/`Open`/`List`/`Teardown`, and owns egress-derivation. This contract deliberately exposes only the primitives; recorded so the orchestrator negotiation inherits the obligation rather than this port growing a loop. |
 | Q12 | **On `secrets`/`errors`/`dependencies`/`testing` (frozen)** — confirm composition with no change, and confirm the real-substrate harnesses sit *beside* the `testing` construct without pulling a substrate dependency into `testing`. | Depends on `secrets.Provider.Resolve` + un-printable `*secrets.Secret`; error set maps onto the existing `Kind` taxonomy with no new `Kind`; suite built on the `testing` construct. Flags that `EphemeralContainer`/`K3dCluster`/`KindCluster` sit beside, not inside, `testing`. | Same composition; the harnesses may depend on `dependenciestest`/`secretstest` (test-only edge) for the fake `Deps`; `IsolationError → KindPermission` flagged for the transport boundary's exhaustive switch. | 🧩 **Aligned to the frozen siblings; no change requested of any.** `secrets.Reference`/`Secret`/`Provider.Resolve` consumed verbatim. Every error maps to an existing `Kind` (no new `Kind`): `QuotaExceededError→KindExhausted`, `SubstrateUnavailableError→KindUnavailable`, `NotFoundError→KindNotFound`, `ConflictError→KindConflict`, `IsolationError→KindPermission`, `DeadlineError→KindDeadline`, the rest →`KindInvalid` — the transport boundary's exhaustive `switch errors.KindOf` covers them (the boundary owns the table, 10 §9). The suite uses `testing.Suite[Adapter]`/`RunSuite`; the real-substrate harnesses (`EphemeralContainer`/`K3dCluster`/`KindCluster`) live in `workspaceprovidertest`, **not** `testing`, so `testing` stays substrate-agnostic — `workspaceprovidertest` owns substrate spin-up and may depend on `dependenciestest`/`secretstest` at the test-only edge. |
+| Q14 | **⚠️ POST-FREEZE DRAFT AMENDMENT — credential-injection realization + the OOM-condition surfacing gap on the exec-into-hold Run model (raised in implementation; Mateo ratifies).** Three credential/resource findings surfaced while making the seam REALLY-implemented + really-tested against real substrates (the cardinal rule). **(B6) `MountSecret` injection is now really-implemented on both adapters** (it previously dropped the material into an empty tmpfs/emptyDir): the library resolves the `MountSecret` ref server-side into `Resolved.Mounts[Target]`; the **docker** adapter mounts a genuine tmpfs at the Target's parent and writes the resolved bytes AS the Target with mode `0600` via an in-container `sh -c 'umask 077; cat > "$1"'` exec (docker's `CopyToContainer` cannot write through a tmpfs mount, so the value rides exec STDIN — never the argv/label/log); the **kubernetes** adapter creates an `Opaque` `corev1.Secret` and projects it as a read-only `secret` volume (`defaultMode 0400`) whose single key is mounted AS the Target. Both yield the same observable — reading the Target returns the secret VALUE — proven by the new `caseMountSecret` conformance case on real docker AND real k3d. **(B7) the pull-secret seam is now substitutable across adapters:** the **kubernetes** adapter (which previously ignored `Resolved.PullSecret`) creates a `kubernetes.io/dockerconfigjson` `corev1.Secret` and sets `Pod.Spec.ImagePullSecrets`, matching the docker adapter's `registryAuth`; both present a fixed username (`eden`) so the resolved secret carries only the PASSWORD. Proven against a REAL `registry:2`+htpasswd registry on both substrates (provision succeeds WITH the pull-secret, fails with `ImageError` carrying the ref-never-the-value WITHOUT it). | (n/a — defects surfaced during the implementation against real substrates, not in either original draft.) | (n/a.) | 🧩 **Amended in draft (pending Mateo's ratification).** B6/B7 are now really-implemented + really-tested on real docker and real k3d (no empty-file fakes — the cardinal rule). **B8 — the OOM-CONDITION discriminator on the kubernetes real Run path is an HONEST, documented limitation (not delivered, by design of the exec-into-hold model):** because a `Run` is an exec INTO a long-lived hold pod (so the workload is the exec'd CHILD, not the hold container), the cgroup OOM-kill of the workload attaches the `OOMKilled` *reason* to the child, not to the pod's container status the adapter can read — so the kubernetes real Run path surfaces a memory-bomb as a **SIGKILL exit (137) → `RunPhase=RunKilled`** (the REAL enforcement: the limit binds, the kernel kills the over-memory workload, `Phase=Killed`), but NOT the `ConditionOOMKilled` discriminator. The **docker** adapter DOES deliver `ConditionOOMKilled` on the real Run path (it reads the holding container's cgroup `State.OOMKilled`, which docker sets for any process in the container's cgroup including an exec child). `ConditionOOMKilled` stays in the contract and the fake (the runaway-agent budget signal, 02 §2); `caseResourceLimits` asserts the REAL enforcement (the limit binds; OOM→`RunKilled`/`RunFailed`, never `Succeeded`) on real docker AND real k3d, and asserts the `ConditionOOMKilled` shape only where a substrate genuinely surfaces it (docker). The residual kubernetes OOM-discriminator gap is recorded as **OD-15** (future work: a workload-controller/Job Run model, or a pod-watch that reads the child's cgroup memory.events, would surface the discriminator without the exec-into-hold compromise). | 
+| Q13 | **⚠️ POST-FREEZE DRAFT AMENDMENT — `*Substrate` name collision + the exported workload-plane seam (raised in implementation; Mateo ratifies).** The frozen §2 wrote `New(...) (*Substrate, error)` with `type Substrate struct{}` as the concrete Provider, but §2 ALSO declares `type Substrate string` (the substrate-selector). Go cannot declare one identifier as both a struct and a string — the frozen §2 does not compile as written. Separately, §2 left the adapter's workload-plane handle as an UNEXPORTED field on `HandleData`, but the implementation needs an exported port there (the library drives Run/Exec/Files/Probe through it). | (n/a — defect surfaced during the TDD implementation, not in either original draft.) | (n/a.) | 🧩 **Amended in draft (pending Mateo's ratification): (1) the concrete Provider returned by `New` is `*Provisioner`, not `*Substrate` — `type Substrate string` keeps the selector name (it is the public, consumer-facing routing value); the concrete type is renamed since "the thing that provisions" reads truer than "the substrate" anyway, and the collision is otherwise unresolvable. (2) `HandleData.Connection` is an EXPORTED `Connection` port (4 methods: `Run`/`Exec`/`Files`/`Probe`), with `RunDriver` (2 methods) and the `Probe` value type — the WORKLOAD-plane counterpart of the SUBSTRATE-plane `Adapter`, exactly the Provider/Workspace split applied one level down. Both are ADDITIVE to the frozen consumer surface (no change to `Provider`/`Workspace`/`Run`/`Files`/`Adapter`/the error set/the value types); a consumer that holds `Provider`/`Workspace` is unaffected. Recorded here so the rename + the export are a visible, ratifiable amendment rather than a silent divergence between the frozen spec and the landed code (ADR-0016 §1: an overturn/edit is a negotiation, never silent).** Also recorded under this row: the LIBRARY now owns idempotency-by-fingerprint (it stamps `SpecFingerprintLabel` so a same-Name re-Provision is COMPATIBLE→re-dial or INCOMPATIBLE→`ConflictError`), and `CapEgressPolicy` is declared `CapPartial` on docker (genuine `--internal` default-deny for a zero-egress workspace; selective-allow is the Partial gap) and `CapAbsent` on k3d/kind (flannel does not enforce NetworkPolicy) — see OD-14. |
