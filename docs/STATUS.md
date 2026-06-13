@@ -29,9 +29,17 @@
   new contracts (workspaceprovider, gitrepository, orchestrator) committed. Latent standards
   violations remain (e.g. configuration imports configurationtest under the banned alias
   `cfgtest`) — these are the conform target of 3A.5, not bugs.
-- **Wave 3A.5** (IN PROGRESS, workflow wsvagl7rh): build the ADR-0018 enforcement layer
-  (.githooks/, tools/hnslint/, libs/.golangci.yml, libs/plugins/project-go), run it against the
-  3A libs, conform them. Do NOT commit .githooks/tools/hnslint/libs until this verifies.
+- **Wave 3A.5** ✅ COMPLETE + COMMITTED + PUSHED (2026-06-13): enforcement layer built and the six
+  libs conformed (golangci-lint 0 issues, hnslint clean, govulncheck clean, gofumpt clean, go test
+  -race green). libs submodule 7daeeeb on origin/main; eden ce4a158 (hooks + hnslint + pointer).
+  Three real gate bugs were caught by dogfooding the hook on its own commit and fixed: golangci
+  --fast-only disarmed forbidigo (now full set); testdata fixtures were being linted (now skipped);
+  standalone modules broke under the workspace (libs/go/* use go.work, others GOWORK=off). Hooks
+  active (core.hooksPath=.githooks); a staged `cfg:=3` is now blocked — verified.
+- **Notion frontend** ✅ COMPLETE + COMMITTED + PUSHED: apps/frontend rich block renderer + reading
+  shell (outline/scrollspy, tier nav, breadcrumbs) on the Eden tokens + projection seam.
+- **NEXT: ADR-0017 review wave on the six libraries** (cohesion + true-coverage + adversarial),
+  then Wave 3B.
 - **New directives captured 2026-06-13** (intake C26/C27, REQ-0027/0028, doc 13, ADR-0019):
   - **Git workflow standard** (doc 13) — one workflow machine for docs/architecture/implementation;
     branch/commit grammar; worktrees; merge agents. TOOLING (branch-name hook + merge-agent role)
