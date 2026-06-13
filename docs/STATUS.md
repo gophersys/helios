@@ -45,12 +45,22 @@
   reverted; testing/observability lint) — fixed before commit. All six green (golangci 0, race 0).
   Note: golangci is non-deterministic across the shared workspace under parallelism — run the gate
   sequentially/isolated (the hooks already do; CI lanes must too).
-- **Wave 3B: workspaceprovider** ✅ DONE (libs bc017cc): F1 substrate port + docker + kubernetes
+- **Wave 3B: workspaceprovider** ⚠️ LIFECYCLE PLANE DONE, SECURITY PLANE MUST-FIX (libs bc017cc): F1 substrate port + docker + kubernetes
   (k3d default, kind 2nd target) adapters; workspaceprovidertest conformance suite. REAL integration
   tests spin actual containers + an ephemeral k3d cluster and pass leak-free (TestK3d_Conforms ~48s,
   16 conformance cases, cluster auto-deleted). Took 3 sub-waves (substrate is hard; agents
   over-reported each time — caught by my own gate runs). go.work now includes workspaceprovider
   (gitignored — fresh clones/CI need `go work use ./libs/go/workspaceprovider`).
+  ⚠️ The original wave's review (completed 98min late, after I committed bc017cc) found BLOCKERS the
+  green gates missed: (1) docker adapter declares CapEgressPolicy=CapPartial but ignores spec.Egress
+  entirely — faked security capability, untruthful manifest; (2) the egress fail-closed conformance
+  case asserts only behind `if isFake` (cases.go ~365-395) — the default-deny security property
+  (07 §3) is real-tested by NOTHING but the fake on docker/k3d/kind (a smoke); (3) idempotency drops
+  the incompatible-spec→ConflictError half (substrate.go findExisting + cases.go caseIdempotency);
+  (4) all-or-nothing rollback + resource-limit OOM conformance are fake-only/skip on real substrates;
+  (5) exported surface adds Connection/RunDriver/Probe/Provisioner + New returns *Provisioner not
+  *Substrate (a genuine frozen-contract defect: Substrate name collision) — ratify as a contract
+  amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
 - **NEXT: Wave 3B cont.** — substrate adapters (workspaceprovider docker+k3d, real integration tests),
   gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0, agent-session backend +
   chat UI, Playwright E2E.
