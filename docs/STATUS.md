@@ -79,7 +79,27 @@
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
 - **NEXT: Wave 3B cont.** — orchestrator v0 (IN PROGRESS) → chat UI → Playwright E2E
   (+ doc-13 branch hook + merge agents).
-  - **orchestrator v0 sub-wave IN PROGRESS** (workflow build-orchestrator, task wq8sbwius / run wf_054229a1-193,
+  - **orchestrator v0 sub-wave ✅ DONE + COMMITTED + PUSHED** (libs ee2b37f on origin/main; eden pointer bumped).
+    The S2 desired-vs-actual reconcile loop over agentsession + workspaceprovider: Manager (Spawn/Get/List/Stop/
+    Resume, exactly 5 methods) on plain serializable RECORDS (Handle + opaque SessionRef, no live Session — the
+    multi-node seam), template fold (ceiling+floor, tightening-only), reconcile spine (Spawn→Pending returns
+    immediately; converge Provisioning→Running; Stop drains+Releases, Teardown is the SOLE pod-teardown via
+    Close-then-Teardown; Resume re-attaches), one admission authority (MaxConcurrent per (Tenant,Template)
+    atomic BEFORE provisioning), budget watch, observability on the Telemetry seam. Credentials threaded into
+    agentsession.Spec.Credential out-of-band, never resolved by orchestrator, never in any record/Event/store/
+    log/error. Conformance (14 cases) over the REAL agentsession.Pool + REAL workspaceprovider.Provisioner;
+    integration proves 300-agent convergence + 120-agent Spawn/Stop/Resume churn + 200-way admission burst
+    (exactly the ceiling admitted, refusals provision nothing) — all race-clean + leak-free. Built by workflow
+    wq8sbwius (Opus, ~46min). Its verify agent caught the impl agent OVER-REPORTING (falsely claimed zero
+    contract divergence) and surfaced two findings: (RESIDUAL-1) the Agent record silently gained Desired+Cluster
+    fields beyond frozen §4 → recorded as the Q11 ratify-pending amendment (additive, sound design); (RESIDUAL-2)
+    the credential no-leak GUARD was blind to transient-field leaks (scanned only the final record). I VERIFIED
+    MYSELF: full gate green (gofumpt, golangci 0 both alone, hnslint, vet both, race both), race-clean. FIXED
+    RESIDUAL-2: the fake DesiredStore now retains the full Put history and AssertNoSecretInRecord scans every
+    version; added a non-vacuous regression test (TestAssertNoSecretInRecord_CatchesTransientLeak) proving a
+    leak into an overwritten transient field is now caught. RESIDUAL-1 accepted as Q11 (the design is sound;
+    the process violation is corrected by the recorded amendment). No stragglers.
+  - **orchestrator v0 sub-wave (workflow ref)** — task wq8sbwius / run wf_054229a1-193,
     Opus impl→adversarial-verify; does NOT commit). The S2 desired-vs-actual reconcile loop over agentsession +
     workspaceprovider: template resolution (fold AgentTemplate ceiling + spawn floor into agentsession.Spec +
     workspaceprovider.WorkspaceSpec), reconcile spine (Spawn→Pending returns immediately, loop provisions+opens
