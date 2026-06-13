@@ -77,8 +77,19 @@
   (5) exported surface adds Connection/RunDriver/Probe/Provisioner + New returns *Provisioner not
   *Substrate (a genuine frozen-contract defect: Substrate name collision) — ratify as a contract
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
-- **NEXT: Wave 3B cont.** — agentsession (F4) → orchestrator v0 → chat UI → Playwright E2E
+- **NEXT: Wave 3B cont.** — orchestrator v0 (IN PROGRESS) → chat UI → Playwright E2E
   (+ doc-13 branch hook + merge agents).
+  - **orchestrator v0 sub-wave IN PROGRESS** (workflow build-orchestrator, task wq8sbwius / run wf_054229a1-193,
+    Opus impl→adversarial-verify; does NOT commit). The S2 desired-vs-actual reconcile loop over agentsession +
+    workspaceprovider: template resolution (fold AgentTemplate ceiling + spawn floor into agentsession.Spec +
+    workspaceprovider.WorkspaceSpec), reconcile spine (Spawn→Pending returns immediately, loop provisions+opens
+    +drives; Stop drains+Releases the pod which is the SOLE teardown path; Resume re-attaches; Get/List read
+    RECORDS not handles = the multi-node seam), MaxConcurrent admission BEFORE provisioning, budget watch,
+    observability on PlaneAgent. Credentials: thread the opaque secrets.Reference into agentsession.Spec.Credential,
+    NEVER resolve it. Real integration drives the REAL agentsession (fake harness) + workspaceprovider ports,
+    race-clean concurrent reconcile, leak-free. On completion VERIFY MYSELF (gate + integration -race + weaken
+    admission-before-provision / exactly-once-release / budget-stop / returns-immediately / credential-leak), then
+    commit + push + bump eden pointer. Do NOT run conflicting work in libs/go/orchestrator while it runs.
   - **BUILD-ORDER CORRECTION (2026-06-13):** the loop's stated order (orchestrator → agent-session) is
     INFEASIBLE — orchestrator imports the agentsession package extensively (Spec×8, Session×4, Factory×3,
     TokenLedger, State, Budget, Event, …) and cannot compile without it. So the dependency-correct order is
