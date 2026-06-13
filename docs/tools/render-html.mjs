@@ -47,6 +47,7 @@ const DOCS = [
   { id: 'd-10-library-system', file: '10-library-system.md', nav: 'Library system', chip: '10' },
   { id: 'd-11-project-document-system', file: '11-project-document-system.md', nav: 'Project document system', chip: '11' },
   { id: 'd-12-presentation-layer', file: '12-presentation-layer.md', nav: 'Presentation layer', chip: '12' },
+  { id: 'd-13-versioning-and-git-workflow', file: '13-versioning-and-git-workflow.md', nav: 'Versioning & git workflow', chip: '13' },
   { id: 'd-open-decisions', file: 'open-decisions.md', nav: 'Open decisions', chip: 'OD' },
   { id: 'd-adr-0001', file: 'adr/0001-record-architecture-decisions.md', nav: 'Record architecture decisions', chip: 'ADR-0001', adr: true },
   { id: 'd-adr-0002', file: 'adr/0002-rename-helios-to-eden.md', nav: 'Rename Helios → Eden', chip: 'ADR-0002', adr: true },
@@ -62,6 +63,11 @@ const DOCS = [
   { id: 'd-adr-0012', file: 'adr/0012-compute-posture.md', nav: 'Hosted-default compute', chip: 'ADR-0012', adr: true },
   { id: 'd-adr-0013', file: 'adr/0013-scm-integration-modes.md', nav: 'SCM integration modes', chip: 'ADR-0013', adr: true },
   { id: 'd-adr-0014', file: 'adr/0014-upstream-consolidation.md', nav: 'Upstream consolidation', chip: 'ADR-0014', adr: true },
+  { id: 'd-adr-0015', file: 'adr/0015-product-first-build-order.md', nav: 'Product-first build order', chip: 'ADR-0015', adr: true },
+  { id: 'd-adr-0016', file: 'adr/0016-ws1-freeze-and-build-waves.md', nav: 'WS1 freeze & build waves', chip: 'ADR-0016', adr: true },
+  { id: 'd-adr-0017', file: 'adr/0017-quality-bar-and-post-wave-review.md', nav: 'Quality bar & post-wave review', chip: 'ADR-0017', adr: true },
+  { id: 'd-adr-0018', file: 'adr/0018-go-enforcement-and-ai-instrumentation.md', nav: 'Go enforcement & AI instrumentation', chip: 'ADR-0018', adr: true },
+  { id: 'd-adr-0019', file: 'adr/0019-unified-git-workflow-and-merge-agents.md', nav: 'Unified git workflow & merge agents', chip: 'ADR-0019', adr: true },
 ];
 
 marked.use({ gfm: true });

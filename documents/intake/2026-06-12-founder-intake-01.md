@@ -153,3 +153,16 @@
   loop) and at the commit/CI gate, so non-conformant code cannot enter. The `cfgtest` naming
   break that slipped Wave 3A is the proof: prompt guidance alone is porous; deterministic linters
   and authoring-time hooks are the teeth.
+
+## Session 01h — unified git versioning/workflow standard + Notion-grade document rendering (2026-06-13)
+
+- **C26** As the libraries finish, build the git versioning strategy with clear standards:
+  naming conventions, worktrees, and workflows. Include MERGE AGENTS that fix errors, run testing
+  and gates, and merge. Build it scalably so that for the docs everything is version-controlled,
+  and the SAME system applies to the architecture and implementation processes as the platform
+  scales. (Intent: one artifact-agnostic git workflow machine — branch/worktree/commit/gate/merge
+  — parameterized by artifact class, agent-driven, uniform across docs/architecture/implementation.)
+- **C27** The frontend must render the generated markdown documents in a phenomenal Notion-like
+  style — per-project data, beautifully readable by the user. (Sharpens the document-workspace v0
+  into a Notion-grade reading experience in the Eden design language, still consuming the
+  projection seam.)

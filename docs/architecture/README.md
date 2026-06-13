@@ -60,6 +60,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 10 | [Library system](10-library-system.md) | Patterns, HNS-1 naming, environment≠platform axes, lifecycle, manifest | Draft |
 | 11 | [Project document system](11-project-document-system.md) | Document tiers, id/link grammar, envelope, traceability, enforcement | Draft |
 | 12 | [Presentation layer](12-presentation-layer.md) | Visual-first thesis, view altitudes A0–A4, diagram-as-projection, navigation/IA | Draft |
+| 13 | [Versioning & git workflow](13-versioning-and-git-workflow.md) | One workflow machine for all artifact classes; branch/commit grammar; worktrees; merge agents; per-class versioning | Draft |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
 | — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
@@ -103,6 +104,7 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Environment ≠ Platform axes (hard rule, detection, default map) | 10 §2 |
 | Bender failure modes 1–15 (compact in-repo list) | 03 §1 |
 | Document tiers, id/link grammar, envelope, traceability rules T1–T7 | 11 |
+| Git workflow machine, branch/commit grammar, worktrees, merge agents, per-class versioning | 13 |
 | Presentation thesis, view-altitude model A0–A4, diagram-as-projection contract, navigation/IA | 12 |
 | Engine altitudes (product/component recursion depth) | 04 §3 |
 

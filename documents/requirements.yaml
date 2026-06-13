@@ -435,3 +435,31 @@ data:
       source:
         - run: founder-intake-01
           span: "C25"
+    - id: REQ-0027
+      statement: "THE SYSTEM SHALL govern every versioned artifact — documents, architecture, and implementation — with one git workflow machine (a branch and commit naming standard, worktree-isolated work, gates appropriate to the artifact class, and merge), and SHALL provide merge agents that drive a branch to green (resolving mechanical errors, test failures, and gate findings) and merge it, escalating only what they may not decide."
+      kind: functional
+      priority: P1
+      rationale: "Uniformity is what makes the flow scale (C26): the same branch/worktree/gate/merge machine for a doc edit, an architecture change, and a library implementation means one mental model and one toolchain at any scale, with per-class gates as the only variation. Merge agents remove the human from mechanical green-making while keeping humans at the rulings that matter (P13)."
+      acceptance:
+        - "Branch and commit naming follow the published grammar (doc 13); a hook rejects non-conforming branch/commit names."
+        - "Concurrent work is worktree-isolated with disjoint file leases; the same flow drives a documents change and an implementation change, differing only in which gates run."
+        - "A merge agent takes a branch, runs its class's gates, fixes mechanical failures to green within budget, and merges; it never alters a frozen contract or an approved artifact, escalating those instead."
+      links:
+        realizes: [PER-0003, PER-0001]
+      source:
+        - run: founder-intake-01
+          span: "C26"
+    - id: REQ-0028
+      statement: "WHEN a user views a project's documents THE SYSTEM SHALL render the generated markdown in a Notion-grade reading experience — typographic hierarchy, rich blocks (headings, callouts, tables, code with highlighting, quotes, diagrams), a document outline, and per-project navigation — in the Eden design language, consuming the document projection."
+      kind: functional
+      priority: P1
+      rationale: "Document reading is the product's primary surface for the founder persona (C10/C27); a phenomenal, readable rendering is what makes the generated artifacts consumable rather than raw files. Rendering from the projection (not the file) keeps the UI contract stable (ADR-0011)."
+      acceptance:
+        - "Markdown sections render with full typographic hierarchy and rich blocks (callouts, tables, fenced code with syntax highlighting, blockquotes, mermaid diagrams) in the Eden tokens."
+        - "Each document shows an outline/table-of-contents and the project's document set is navigable per-project; reading is comfortable at body measure."
+        - "Rendering consumes the validator's JSON projection; the file remains only the authoring format."
+      links:
+        realizes: [PER-0001, PER-0002]
+      source:
+        - run: founder-intake-01
+          span: "C27"

@@ -29,9 +29,15 @@
   new contracts (workspaceprovider, gitrepository, orchestrator) committed. Latent standards
   violations remain (e.g. configuration imports configurationtest under the banned alias
   `cfgtest`) — these are the conform target of 3A.5, not bugs.
-- **Wave 3A.5** (IN PROGRESS): build the ADR-0018 enforcement layer, run it against the 3A libs,
-  conform them. Toolchain installed (golangci-lint v2.12.2, gofumpt, govulncheck, gorelease,
-  staticcheck).
+- **Wave 3A.5** (IN PROGRESS, workflow wsvagl7rh): build the ADR-0018 enforcement layer
+  (.githooks/, tools/hnslint/, libs/.golangci.yml, libs/plugins/project-go), run it against the
+  3A libs, conform them. Do NOT commit .githooks/tools/hnslint/libs until this verifies.
+- **New directives captured 2026-06-13** (intake C26/C27, REQ-0027/0028, doc 13, ADR-0019):
+  - **Git workflow standard** (doc 13) — one workflow machine for docs/architecture/implementation;
+    branch/commit grammar; worktrees; merge agents. TOOLING (branch-name hook + merge-agent role)
+    builds in Wave 3B/3C; the standard is binding now.
+  - **Notion-grade frontend** (REQ-0028) — launching in parallel now (apps/frontend only; no
+    collision with 3A.5).
 - Done earlier: docs (00–12 + ADRs 0001–0017), document system + validator, frontend v0 (document
   workspace, Eden visual identity C21), agentsession contract, REQ-0001..0024.
 
