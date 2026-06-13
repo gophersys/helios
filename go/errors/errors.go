@@ -33,17 +33,18 @@ type Kind uint8
 // the numeric order and the String() tokens are both part of the wire/telemetry
 // contract (see Kind and kindTokens).
 const (
-	KindUnknown         Kind = iota // unclassified; the edge maps it to INTERNAL/UNKNOWN
-	KindInvalid                     // malformed/invalid argument        -> INVALID_ARGUMENT
-	KindNotFound                    // named resource does not exist     -> NOT_FOUND
-	KindConflict                    // state/version/uniqueness conflict -> ALREADY_EXISTS / ABORTED
-	KindExhausted                   // quota/budget/rate ceiling hit     -> RESOURCE_EXHAUSTED
-	KindUnavailable                 // transient; retry may succeed      -> UNAVAILABLE
-	KindDeadline                    // deadline exceeded (ctx)           -> DEADLINE_EXCEEDED
-	KindCanceled                    // operation canceled (ctx)          -> CANCELED
-	KindUnauthenticated             // caller identity not established   -> UNAUTHENTICATED
-	KindPermission                  // caller not authorized             -> PERMISSION_DENIED
-	KindInternal                    // invariant we own broken; our bug  -> INTERNAL
+	KindUnknown     Kind = iota // unclassified; the edge maps it to INTERNAL/UNKNOWN
+	KindInvalid                 // malformed/invalid argument        -> INVALID_ARGUMENT
+	KindNotFound                // named resource does not exist     -> NOT_FOUND
+	KindConflict                // state/version/uniqueness conflict -> ALREADY_EXISTS / ABORTED
+	KindExhausted               // quota/budget/rate ceiling hit     -> RESOURCE_EXHAUSTED
+	KindUnavailable             // transient; retry may succeed      -> UNAVAILABLE
+	KindDeadline                // deadline exceeded (ctx)           -> DEADLINE_EXCEEDED
+	//nolint:misspell // "CANCELLED" (double-L) is the canonical google.rpc.Code enumerator the contract freezes (errors.md Â§2); the US-locale misspell linter wrongly flags the British spelling. The Go identifier and String() token stay "Canceled"/"canceled".
+	KindCanceled        // operation canceled (ctx)          -> CANCELLED
+	KindUnauthenticated // caller identity not established   -> UNAUTHENTICATED
+	KindPermission      // caller not authorized             -> PERMISSION_DENIED
+	KindInternal        // invariant we own broken; our bug  -> INTERNAL
 )
 
 // kindTokens holds the stable lower-kebab token for each Kind, indexed by the
@@ -90,7 +91,16 @@ type Error struct {
 
 // Error implements error. It renders the operator-safe message and, if a cause
 // is present, ": <cause>". The message is never a secret value.
+//
+// Nil-safe: a nil *Error renders "<nil>" instead of panicking. Wrap/FromContext
+// return the concrete *Error and elide to a (typed) nil, so a caller that boxes
+// that nil into an error interface (the typed-nil footgun documented on Wrap)
+// must not crash if it nonetheless reaches a render site. All accessors below are
+// nil-safe for the same reason.
 func (e *Error) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
 	if e.cause == nil {
 		return e.message
 	}
@@ -101,26 +111,40 @@ func (e *Error) Error() string {
 }
 
 // Unwrap exposes the wrapped cause for errors.Is / errors.AsType / errors.Join.
+// Nil-safe: a nil *Error unwraps to nil.
 func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.cause
 }
 
 // Kind returns THIS node's classification (KindUnknown if unset). The top-level
-// KindOf walks the chain; prefer it at inspection sites.
+// KindOf walks the chain; prefer it at inspection sites. Nil-safe: a nil *Error
+// reports KindUnknown.
 func (e *Error) Kind() Kind {
+	if e == nil {
+		return KindUnknown
+	}
 	return e.kind
 }
 
 // Code returns the optional fine-grained machine token ("" if unset), e.g.
 // "workspace_quota_exceeded". It is finer than Kind and is NOT what the transport
-// boundary switches on.
+// boundary switches on. Nil-safe: a nil *Error reports "".
 func (e *Error) Code() string {
+	if e == nil {
+		return ""
+	}
 	return e.code
 }
 
 // Fields returns a defensive copy of the redaction-safe structured context
-// (never the internal map).
+// (never the internal map). Nil-safe: a nil *Error reports an empty (non-nil) map.
 func (e *Error) Fields() map[string]any {
+	if e == nil {
+		return map[string]any{}
+	}
 	out := make(map[string]any, len(e.fields))
 	for k, v := range e.fields {
 		out[k] = v
@@ -146,6 +170,21 @@ func New(kind Kind, message string) *Error {
 // returns read linearly. If the caller passes KindUnknown and the cause already
 // carries an *Error Kind, the cause's Kind is INHERITED (no clobbering a
 // meaningful classification with Unknown). Pure.
+//
+// TYPED-NIL FOOTGUN: Wrap returns the concrete *Error (accept interfaces, return
+// concrete â 10 Â§9), so its nil for a nil cause is a TYPED nil. Do NOT write
+//
+//	func f() error { return errors.Wrap(k, m, maybeNilCause) } // WRONG on success
+//
+// because a (*Error)(nil) boxed into the error interface is NOT interface-nil, so
+// the caller's "if err != nil" fires on success. Guard the cause first:
+//
+//	if cause != nil { return errors.Wrap(k, m, cause) }
+//	return nil
+//
+// KindOf and every accessor are nil-receiver-safe (a leaked typed nil never
+// panics), but the interface-comparison hazard is intrinsic to the concrete
+// return type the frozen contract mandates.
 func Wrap(kind Kind, message string, cause error) *Error {
 	if cause == nil {
 		return nil
@@ -203,6 +242,13 @@ func safeScalar(value any) any {
 // FromContext maps a canceled/expired context to the right Kind
 // (KindCanceled / KindDeadline) from ctx.Err(), else returns nil. Pure given
 // ctx.Err().
+//
+// TYPED-NIL FOOTGUN: like Wrap, FromContext returns the concrete *Error, so its
+// nil for a live ctx is a TYPED nil. Do NOT return it directly through an error
+// signature on a live ctx â the boxed (*Error)(nil) is not interface-nil and the
+// caller's "if err != nil" fires. Use the guarded idiom (see Â§5 usage):
+//
+//	if err := errors.FromContext(ctx); err != nil { return err }
 func FromContext(ctx context.Context) *Error {
 	switch err := ctx.Err(); {
 	case err == nil:
@@ -219,7 +265,13 @@ func FromContext(ctx context.Context) *Error {
 // clone returns a shallow copy of the receiver. The fields map is shared by
 // reference until a mutating verb copies it (copy-on-write), so derivations that
 // do not touch fields stay allocation-light while never mutating the source.
+// Nil-safe: deriving from a nil *Error yields a fresh zero-value *Error (a
+// KindUnknown leaf) rather than dereferencing nil, so WithCode/WithField on a
+// leaked typed nil never panic.
 func (e *Error) clone() *Error {
+	if e == nil {
+		return &Error{}
+	}
 	c := *e
 	return &c
 }

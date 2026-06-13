@@ -3,6 +3,7 @@ package errorstest
 import (
 	"context"
 	stderrors "errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -49,6 +50,8 @@ func RunConformance(t *testing.T) {
 	t.Run("RedactionSafety", conformanceRedactionSafety)
 	t.Run("ContextMapping", conformanceContextMapping)
 	t.Run("AsTypeReExportEquivalence", conformanceAsTypeEquivalence)
+	t.Run("TypedNilHazard", conformanceTypedNilHazard)
+	t.Run("NilReceiverSafety", conformanceNilReceiverSafety)
 }
 
 // Kind totality — KindOf returns a defined Kind for every *Error, KindUnknown for
@@ -214,6 +217,66 @@ func conformanceAsTypeEquivalence(t *testing.T) {
 	if aok != bok || a != b {
 		t.Errorf("AsType disagreement: re-export=(%p,%v) stdlib=(%p,%v)", a, aok, b, bok)
 	}
+}
+
+// Typed-nil hazard â Wrap/FromContext return the concrete *Error and elide to a
+// TYPED nil; boxed into an error it is NOT interface-nil, yet KindOf still
+// classifies it KindUnknown and never panics. Asserted via reflection so the
+// check is dynamic (a true interface-nil yields an invalid reflect.Value; a typed
+// nil yields a valid Value whose underlying pointer IsNil).
+func conformanceTypedNilHazard(t *testing.T) {
+	thruIface := wrapEliding(nil)
+	rv := reflect.ValueOf(thruIface)
+	if !rv.IsValid() {
+		t.Fatal("Wrap(_, _, nil) boxed into error is interface-nil; the *Error " +
+			"return type changed - amend the contract and this conformance case")
+	}
+	if rv.Kind() != reflect.Pointer || !rv.IsNil() {
+		t.Fatalf("boxed typed nil: kind=%v, want a nil *Error pointer", rv.Kind())
+	}
+	if got := errors.KindOf(thruIface); got != errors.KindUnknown {
+		t.Errorf("KindOf(typed-nil) = %v, want KindUnknown", got)
+	}
+}
+
+// Nil-receiver safety â no accessor or derivation verb panics on a nil *Error: a
+// leaked typed nil renders "<nil>", unwraps to nil, and reports KindUnknown / "" /
+// empty fields, while WithCode/WithField yield a fresh leaf.
+func conformanceNilReceiverSafety(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("nil *Error method panicked: %v", r)
+		}
+	}()
+	var n *errors.Error
+	if got := n.Error(); got != "<nil>" {
+		t.Errorf("nil.Error() = %q, want %q", got, "<nil>")
+	}
+	if got := n.Unwrap(); got != nil {
+		t.Errorf("nil.Unwrap() = %v, want nil", got)
+	}
+	if got := n.Kind(); got != errors.KindUnknown {
+		t.Errorf("nil.Kind() = %v, want KindUnknown", got)
+	}
+	if got := n.Code(); got != "" {
+		t.Errorf("nil.Code() = %q, want empty", got)
+	}
+	if got := n.Fields(); got == nil || len(got) != 0 {
+		t.Errorf("nil.Fields() = %v, want non-nil empty map", got)
+	}
+	if d := n.WithCode("c"); d == nil || d.Code() != "c" {
+		t.Errorf("nil.WithCode(c) = %v, want a fresh *Error with code c", d)
+	}
+	if d := n.WithField("k", "v"); d == nil || d.Fields()["k"] != "v" {
+		t.Errorf("nil.WithField(k,v) = %v, want a fresh *Error carrying k=v", d)
+	}
+}
+
+// wrapEliding reproduces the typed-nil footgun: it returns errors.Wrap's concrete
+// *Error through an error signature, so a nil cause yields a boxed (typed) nil
+// that is NOT interface-nil.
+func wrapEliding(cause error) error {
+	return errors.Wrap(errors.KindUnavailable, "eliding wrap", cause)
 }
 
 func kindOrNil(e *errors.Error) any {

@@ -3,6 +3,7 @@ package errors_test
 import (
 	"context"
 	stderrors "errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -438,6 +439,103 @@ func TestJoinReExport(t *testing.T) {
 	}
 	if errors.Join(nil, nil) != nil {
 		t.Error("Join(nil, nil) should be nil")
+	}
+}
+
+// Typed-nil footgun + nil-receiver hardening.
+//
+// Wrap/FromContext return the concrete *Error and elide to a TYPED nil. Two
+// behaviors are pinned here:
+//  1. The interface-comparison hazard is REAL and documented: a (*Error)(nil)
+//     boxed into an error is NOT interface-nil. We assert it so any future change
+//     to the *Error return type (which requires a frozen-contract amendment) is a
+//     conscious, test-visible decision rather than a silent break.
+//  2. The hardening: a leaked typed nil never PANICS at any accessor or
+//     derivation site, and KindOf classifies it as KindUnknown.
+func TestWrapTypedNilReturnedThroughErrorInterface(t *testing.T) {
+	t.Parallel()
+	// The natural-but-wrong idiom: returning Wrap directly through an error sig.
+	err := returnsWrapThroughErrorInterface(nil)
+	// Documented hazard: this is a TYPED nil, so the interface is non-nil even
+	// though the success path was taken. Asserted via reflection (a true
+	// interface-nil yields an invalid reflect.Value; a typed nil yields a valid
+	// Value whose underlying pointer IsNil), which also keeps the assertion
+	// dynamic so it does not fight staticcheck's never-true-comparison proof.
+	rv := reflect.ValueOf(err)
+	if !rv.IsValid() {
+		t.Fatal("Wrap(_, _, nil) boxed into error is interface-nil; if Wrap now " +
+			"returns error, update the contract and this test")
+	}
+	if rv.Kind() != reflect.Pointer || !rv.IsNil() {
+		t.Fatalf("boxed value: kind=%v, want a nil *Error pointer", rv.Kind())
+	}
+	// KindOf must treat the leaked typed nil as Unknown, never panic.
+	if got := errors.KindOf(err); got != errors.KindUnknown {
+		t.Errorf("KindOf(typed-nil) = %v, want KindUnknown", got)
+	}
+	// The hardening: rendering and accessing the leaked typed nil must not panic.
+	var typedNil *errors.Error
+	assertNoPanicOnNilError(t, typedNil)
+}
+
+func TestFromContextTypedNilReturnedThroughErrorInterface(t *testing.T) {
+	t.Parallel()
+	err := returnsFromContextThroughErrorInterface(context.Background()) // live ctx
+	rv := reflect.ValueOf(err)
+	if !rv.IsValid() {
+		t.Fatal("FromContext(live) boxed into error is interface-nil; if it now " +
+			"returns error, update the contract and this test")
+	}
+	if rv.Kind() != reflect.Pointer || !rv.IsNil() {
+		t.Fatalf("boxed value: kind=%v, want a nil *Error pointer", rv.Kind())
+	}
+	if got := errors.KindOf(err); got != errors.KindUnknown {
+		t.Errorf("KindOf(FromContext typed-nil) = %v, want KindUnknown", got)
+	}
+}
+
+// returnsWrapThroughErrorInterface reproduces the typed-nil footgun: it returns
+// errors.Wrap's concrete *Error through an error signature, so a nil cause boxes a
+// (typed) nil that is NOT interface-nil.
+func returnsWrapThroughErrorInterface(cause error) error {
+	return errors.Wrap(errors.KindUnavailable, "do thing", cause)
+}
+
+// returnsFromContextThroughErrorInterface boxes FromContext's concrete *Error into
+// an error, reproducing the same hazard for a live context.
+func returnsFromContextThroughErrorInterface(ctx context.Context) error {
+	return errors.FromContext(ctx)
+}
+
+// assertNoPanicOnNilError exercises every accessor + derivation verb on a nil
+// *Error and asserts the nil-safe contract (no panic, well-defined zero results).
+func assertNoPanicOnNilError(t *testing.T, n *errors.Error) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("nil *Error method panicked: %v", r)
+		}
+	}()
+	if got := n.Error(); got != "<nil>" {
+		t.Errorf("nil.Error() = %q, want %q", got, "<nil>")
+	}
+	if got := n.Unwrap(); got != nil {
+		t.Errorf("nil.Unwrap() = %v, want nil", got)
+	}
+	if got := n.Kind(); got != errors.KindUnknown {
+		t.Errorf("nil.Kind() = %v, want KindUnknown", got)
+	}
+	if got := n.Code(); got != "" {
+		t.Errorf("nil.Code() = %q, want empty", got)
+	}
+	if got := n.Fields(); got == nil || len(got) != 0 {
+		t.Errorf("nil.Fields() = %v, want non-nil empty map", got)
+	}
+	if d := n.WithCode("c"); d == nil || d.Code() != "c" {
+		t.Errorf("nil.WithCode(c) = %v, want a fresh *Error with code c", d)
+	}
+	if d := n.WithField("k", "v"); d == nil || d.Fields()["k"] != "v" {
+		t.Errorf("nil.WithField(k,v) = %v, want a fresh *Error carrying k=v", d)
 	}
 }
 
