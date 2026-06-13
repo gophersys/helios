@@ -70,3 +70,65 @@ pg_emit_context() {
     printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}' "$event" "$esc"
   fi
 }
+
+# ── ADR-0020 phase-aware helpers (shared by session-start.sh + stop-phase-check.sh) ───────────
+
+# pg_repo_root — the MONOREPO root. The plugin lives in the libs submodule, so prefer the git
+# superproject working tree (the monorepo), else the project dir, else the submodule toplevel.
+pg_repo_root() {
+  local pd sp
+  pd="$(pg_project_dir)"
+  sp="$(git -C "$pd" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
+  if [[ -n "$sp" ]]; then printf '%s' "$sp"; return; fi
+  git -C "$pd" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$pd"
+}
+
+# pg_touched_libs — the unique set of libs/go/<lib> slugs touched by the agent's edits this
+# turn. The libs/ tree is a git SUBMODULE, so the dirty Go files appear in the submodule's own
+# status as `go/<lib>/...`, not in the superproject as `libs/go/<lib>/...`. We therefore read
+# BOTH: the superproject (paths prefixed `libs/go/`) and the libs submodule (paths `go/`).
+# Source order also includes the active contract's lib ($EDEN_ACTIVE_CONTRACT basename).
+pg_touched_libs() {
+  local root libs_root; root="$(pg_repo_root)"; libs_root="$root/libs"
+  {
+    # superproject dirty Go files: libs/go/<lib>/...
+    git -C "$root" status --porcelain 2>/dev/null \
+      | awk '{print $NF}' \
+      | sed -nE 's#^libs/go/([^/]+)/.*\.go$#\1#p'
+    # libs-submodule dirty Go files: go/<lib>/...
+    if [[ -d "$libs_root/go" ]]; then
+      git -C "$libs_root" status --porcelain 2>/dev/null \
+        | awk '{print $NF}' \
+        | sed -nE 's#^go/([^/]+)/.*\.go$#\1#p'
+    fi
+    # the active contract's lib, if set
+    if [[ -n "${EDEN_ACTIVE_CONTRACT:-}" ]]; then
+      basename "${EDEN_ACTIVE_CONTRACT%.md}"
+    fi
+  } | sort -u | sed '/^$/d'
+}
+
+# pg_phase_probe <lib> — read-only detection of the CURRENT SDLC phase of a lib by probing which
+# gates pass, cheapest-first. Prints one of: architecture | implementation | testing | qa | done.
+# NEVER mutates state; bounded by `go build` only (no test runs) so it is fast and side-effect free.
+pg_phase_probe() {
+  local lib="$1" root lib_dir
+  root="$(pg_repo_root)"; lib_dir="$root/libs/go/$lib"
+  [[ -d "$lib_dir" ]] || { printf 'unknown'; return; }
+  # architecture: does the skeleton compile and is the apibaseline recorded?
+  if ! ( cd "$lib_dir" && go build ./... >/dev/null 2>&1 ); then
+    printf 'architecture'; return
+  fi
+  if [[ ! -f "$lib_dir/.apibaseline" ]]; then
+    printf 'architecture'; return
+  fi
+  # implementation: does the unit + fake conformance suite pass (no race, fast)?
+  if ! ( cd "$lib_dir" && go test ./... -count=1 >/dev/null 2>&1 ); then
+    printf 'implementation'; return
+  fi
+  # testing: is a benchbaseline recorded (the testing phase produces it)?
+  if [[ ! -d "$lib_dir/.benchbaseline" ]]; then
+    printf 'testing'; return
+  fi
+  printf 'qa'
+}

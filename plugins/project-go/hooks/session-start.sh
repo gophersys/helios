@@ -69,5 +69,30 @@ else
   fi
 fi
 
+# --- ADR-0020 phase-aware guidance (read-only probe; turns static rules into "you are here") ---
+# If an active lib is detected (the active contract's lib, or a libs/go/<lib> with dirty Go),
+# probe which SDLC phase it is at and tell the agent the NEXT gate to run. Pure read-only; the
+# probe only ever runs `go build`/fast `go test`, never mutates, and the hook still exits 0.
+ACTIVE_LIBS="$(pg_touched_libs 2>/dev/null || true)"
+if [[ -n "$ACTIVE_LIBS" ]]; then
+  out+=$'\n---\n# ADR-0020 pipeline — you are here\n\n'
+  out+=$'Implement each library in four phases (architecture → implementation → testing → qa); '
+  out+=$'each phase has a mechanical gate `bash ./ctl.sh phase-gate <phase>` that MUST pass '
+  out+=$'before the next. You may NOT declare a library done before `phase-gate qa` is GREEN '
+  out+=$'(the Stop hook enforces this). Detected active library(ies):\n\n'
+  while IFS= read -r lib; do
+    [[ -n "$lib" ]] || continue
+    phase="$(pg_phase_probe "$lib" 2>/dev/null || printf 'unknown')"
+    case "$phase" in
+      architecture)   nextgate='phase-gate architecture (freeze the contract, compile the skeleton, record .apibaseline)';;
+      implementation) nextgate='phase-gate implementation (write fake + conformance RED first, then bodies GREEN — TDD)';;
+      testing)        nextgate='phase-gate testing (wire the 8 dimensions: property/leak/lifecycle/load/integration/vuln/sast/secretscan/bench-guard/cover-floor)';;
+      qa)             nextgate='phase-gate qa (maintainability + mutate + no-shortcuts + evidence) — then it is done';;
+      *)              nextgate='phase-gate all (run the full sequence)';;
+    esac
+    out+="  - libs/go/${lib}: at phase **${phase}** → next gate: \`bash ./ctl.sh ${nextgate}\`"$'\n'
+  done <<< "$ACTIVE_LIBS"
+fi
+
 pg_emit_context "SessionStart" "$out"
 exit 0

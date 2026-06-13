@@ -43,16 +43,35 @@ cd "$PROJECT_DIR" 2>/dev/null || exit 0
 GATE="commit"
 case "$CMD" in *git*push*) GATE="push" ;; esac
 
-# Collect the Go files in scope, identically to the .githooks.
-go_files=""
-if [[ "$GATE" == "commit" ]]; then
-  go_files="$(git diff --cached --name-only --diff-filter=ACM -- '*.go' 2>/dev/null || true)"
-else
-  upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
-  if [[ -n "$upstream" ]]; then
-    go_files="$(git diff --name-only --diff-filter=ACM "${upstream}..HEAD" -- '*.go' 2>/dev/null || true)"
+# Collect the Go files in scope, identically to the .githooks. CRITICAL: the library code lives in
+# the `libs/` git SUBMODULE — a `git commit`/`git push` for library work runs INSIDE the submodule,
+# whose staged Go files do NOT appear in the superproject's `git diff --cached`. So we gate BOTH the
+# superproject tree (paths `libs/go/<lib>/…`) AND the libs submodule tree (paths `go/<lib>/…`,
+# re-prefixed to `libs/go/<lib>/…` so the per-lib resolution below is uniform). Without this the
+# gate is blind to exactly the commits it most needs to catch.
+_scope_go_files() {                  # _scope_go_files <repo-dir> <path-prefix>
+  local repo="$1" prefix="$2"
+  [[ -d "$repo/.git" || -f "$repo/.git" ]] || return 0
+  local files
+  if [[ "$GATE" == "commit" ]]; then
+    files="$(git -C "$repo" diff --cached --name-only --diff-filter=ACM -- '*.go' 2>/dev/null || true)"
+  else
+    local up
+    up="$(git -C "$repo" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+    [[ -n "$up" ]] && files="$(git -C "$repo" diff --name-only --diff-filter=ACM "${up}..HEAD" -- '*.go' 2>/dev/null || true)"
   fi
-fi
+  printf '%s\n' "$files" | while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    printf '%s%s\n' "$prefix" "$f"
+  done
+}
+
+go_files="$(
+  {
+    _scope_go_files "$PROJECT_DIR" ''                  # superproject: paths already libs/go/<lib>/…
+    _scope_go_files "$PROJECT_DIR/libs" 'libs/'        # submodule: go/<lib>/… → libs/go/<lib>/…
+  } | sort -u | sed '/^$/d'
+)"
 
 [[ -z "$go_files" ]] && exit 0   # no Go in scope — nothing to gate
 
@@ -89,14 +108,46 @@ if gcl_bin="$(pg_have golangci-lint)"; then
 fi
 
 # hnslint per touched lib
+touched_libs="$(printf '%s\n' "$go_files" | sed -nE 's#^(libs/go/[^/]+)/.*#\1#p' | sort -u)"
 if hns_bin="$(pg_have hnslint)"; then
-  libs="$(printf '%s\n' "$go_files" | sed -nE 's#^(libs/go/[^/]+)/.*#\1#p' | sort -u)"
   while IFS= read -r lib; do
     [[ -n "$lib" ]] || continue
     hnsout="$("$hns_bin" "$PROJECT_DIR/$lib" 2>&1 || true)"
     [[ -n "$hnsout" ]] && findings+="hnslint (HNS-1, $lib):"$'\n'"$hnsout"$'\n'
-  done <<< "$libs"
+  done <<< "$touched_libs"
 fi
+
+# --- ADR-0020 taxonomy gate: leak + vuln + secretscan + cover-floor + apidiff per touched lib ---
+# The git gate enforces the FULL taxonomy for the touched libs, so a commit/push the agent
+# attempts is denied unless every dimension passes — the agent gets the per-dimension findings
+# inline and self-corrects. Heavy host-bound lanes (integration/load/bench) stay OUT (CI + the
+# phase-gate verb own them). Each delegates to the per-lib ctl.sh so the ONE definition is reused.
+while IFS= read -r lib; do
+  [[ -n "$lib" ]] || continue
+  lib_dir="$PROJECT_DIR/$lib"
+  [[ -f "$lib_dir/ctl.sh" ]] || continue
+  # govulncheck
+  if pg_have govulncheck >/dev/null; then
+    vout="$( ( cd "$lib_dir" && bash ./ctl.sh vuln ) 2>&1 || true )"
+    printf '%s' "$vout" | grep -qiE 'No vulnerabilities found|vuln: OK' || findings+="vuln ($lib):"$'\n'"$vout"$'\n'
+  fi
+  # leak
+  lout="$( ( cd "$lib_dir" && bash ./ctl.sh leak ) 2>&1 || true )"
+  printf '%s' "$lout" | grep -qiE 'leak: OK' || findings+="leak ($lib):"$'\n'"$(printf '%s' "$lout" | tail -8)"$'\n'
+  # secretscan
+  if pg_have gitleaks >/dev/null; then
+    sout="$( ( cd "$lib_dir" && bash ./ctl.sh secretscan ) 2>&1 || true )"
+    printf '%s' "$sout" | grep -qiE 'secretscan: OK' || findings+="secretscan ($lib):"$'\n'"$(printf '%s' "$sout" | tail -6)"$'\n'
+  fi
+  # cover-floor
+  cout="$( ( cd "$lib_dir" && bash ./ctl.sh cover-floor ) 2>&1 || true )"
+  printf '%s' "$cout" | grep -qiE 'cover-floor: every production package|cover-floor: .* >= ' || findings+="cover-floor ($lib):"$'\n'"$(printf '%s' "$cout" | grep -E '< floor|FAIL|error' | tail -6)"$'\n'
+  # apidiff (no break) — only if a baseline exists
+  if [[ -f "$lib_dir/.apibaseline" ]]; then
+    aout="$( ( cd "$lib_dir" && bash ./ctl.sh apidiff ) 2>&1 || true )"
+    printf '%s' "$aout" | grep -qiE 'apidiff: (exported surface matches|no break)' || findings+="apidiff BREAK ($lib) — the cardinal sin (10 §9):"$'\n'"$(printf '%s' "$aout" | grep -E '^\s+-|BREAK' | tail -8)"$'\n'
+  fi
+done <<< "$touched_libs"
 
 if [[ -z "$findings" ]]; then
   exit 0   # gate clean — allow the git command

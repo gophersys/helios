@@ -45,6 +45,12 @@ linters:
     # --- Import boundaries: hexagonal leaf libraries (P1/E1, 10 §6.1) -------
     - depguard         # leaf libs import stdlib + sibling pattern libs only.
 
+    # --- Security / SAST (ADR-0020 §f) --------------------------------------
+    - gosec            # SAST: ride the existing lint lane (the `ctl.sh sast` verb runs the
+                       #       standalone gosec too; here it is also part of `lint` so a
+                       #       high/medium finding blocks the inner loop). Curated-set
+                       #       discipline preserved: gosec is the one SAST linter, annotated.
+
     # --- Correctness + naming + doc-comment discipline ----------------------
     - revive           # exported-symbol doc comments, naming, receiver consistency.
     - staticcheck      # the staticcheck corpus (also subsumes gosimple in v2).
@@ -163,11 +169,32 @@ linters:
       # a contract later names a specific dependency, add it to `allow` with a
       # comment citing the contract; do not open the gate wholesale.
       rules:
+        # Production code: the strict boundary. Scoped to NON-test Go so the
+        # test-taxonomy rule below can permit the sanctioned test-only tools without
+        # widening the production allow-list.
         libs:
+          files:
+            - '!$test'
           list-mode: lax        # stdlib is allowed by default; only deny third-party.
           allow:
             - $gostd
             - github.com/gophersys/libs/go
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: 'use the Eden errors model (github.com/gophersys/libs/go/errors), not pkg/errors.'
+        # Test code: the production boundary PLUS the ADR-0020 test-taxonomy tools, which are
+        # test-only by construction (they never enter a production import graph) and are pinned
+        # in each lib's go.mod test-require block. The set is closed and annotated — not a
+        # wholesale opening: only the eight-dimension mechanisms are listed.
+        test-taxonomy:
+          files:
+            - '$test'
+          list-mode: lax
+          allow:
+            - $gostd
+            - github.com/gophersys/libs/go
+            - go.uber.org/goleak          # (b) resource-leak detection (goleak.VerifyTestMain).
+            - pgregory.net/rapid          # (a) property-based testing (rapid suites).
           deny:
             - pkg: github.com/pkg/errors
               desc: 'use the Eden errors model (github.com/gophersys/libs/go/errors), not pkg/errors.'

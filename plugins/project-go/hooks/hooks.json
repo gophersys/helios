@@ -36,6 +36,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-phase-check.sh\"",
+            "timeout": 180
+          }
+        ]
+      }
     ]
   }
 }
