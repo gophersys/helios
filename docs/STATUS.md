@@ -21,7 +21,40 @@
 6. Working tree clean; HTMLs regenerated; no scratch; servers killed; libs submodule pushed +
    pointer bumped; eden pushed.
 
-## ⏸ LOOP PAUSED — backend phase COMPLETE; two items genuinely require Mateo (2026-06-13)
+## ▶ ACTIVE PROGRAM (2026-06-13 cont.) — multi-harness agent platform, devcontainer-first, REAL tests no mocks
+
+Mateo returned, gave the live claude setup-token + an OpenRouter key, and opened a big program. Plan:
+`~/.claude/plans/groovy-growing-puppy.md`. Locked decisions in memory `harness-platform-architecture`.
+Credentials gitignored at `.dev-secrets/{claude-oauth-token,openrouter-api-key}` (0600, env-only).
+
+PROGRESS:
+- ✅ **Real claude harness FIXED + verified + pushed** (libs 097a068, eden a2ca99f): running the real
+  `claude` + live token revealed the adapter hung on the Ready handshake (no `-p`; claude defers
+  `system/init` until the first stdin turn). Fix: pass `-p`; the conn signals Ready on spawn;
+  `system/init`→metadata Extension. `TestIntegration_LiveClaude_Gated` PASSES in 1.46s (was 5min hang).
+- 🔬 omp real schema captured: `--mode rpc` emits a `{"type":"ready"}` frame on startup (clean handshake);
+  OpenRouter + `openrouter/deepseek/deepseek-v4-flash` resolves.
+
+RUNNING IN PARALLEL (neither commits; I verify+merge each; disjoint files):
+- **w2qasjizq** — the AI-instrumented dev/testing/QA process (8 dimensions: logic/resource/lifecycle/
+  real-host-integration[docker+k3s]/load/security[govulncheck+gosec]/perf[bench]/maintainability, each a
+  ctl.sh verb + gate + CI lane + AI-instrumentation, non-vacuously enforced). Edits the enforcement layer.
+- **wwncjbxr4** — the **omp adapter** (libs/go/agentsession/ompadapter), real omp/OpenRouter/DeepSeek-v4-flash
+  gated test. Confined to the new package.
+
+QUEUED (dependency-ordered, Mateo-directed):
+1. **Retroactive QA sweep + remediation** — after the dev/testing/QA process merges, re-audit EVERY existing
+   lib across all 8 dimensions + FIX findings. Shard PER-LIB (own workflow each), parallelize, merge.
+2. **Codex adapter** — after `codex` is installed in the devcontainer (Phase 0/3).
+3. The rest of the plan: NATS/JetStream PID-1 pod runtime + workspaceprovider Entrypoint (OD-15 opt-a);
+   orchestrator over real pods + stateless gateway; git-backed `agent-configs/`; strict sandbox; basic chat UI
+   + Playwright real E2E. Devcontainer-first; update AI docs.
+
+MATEO'S CLOSING DIRECTIVE: when everything is back, **ensure all committed + pushed**, then do **one full
+review of everything done** = a final cleanup + improvement pass. I drive all of this autonomously to that
+clean, reviewed, pushed end state; call Mateo only if stuck.
+
+## ⏸ (superseded) LOOP PAUSED — backend phase COMPLETE; two items genuinely require Mateo (2026-06-13)
 
 The autonomous loop drove the **entire backend to done, verified, and pushed**, then paused — it has
 exhausted the unambiguous work. The two remaining items both require Mateo and cannot be done
