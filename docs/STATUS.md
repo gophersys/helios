@@ -108,6 +108,15 @@
     checks, leak-free. On completion VERIFY MYSELF (gate + integration -race + weaken replay/fan-out/seq/control/
     credential), then commit + push (eden repo; no submodule pointer change — it is an app, not a lib). Do NOT run
     conflicting work in apps/agentgateway while it runs.
+  - **doc-13 git tooling ✅ DONE** (while awaiting Mateo's chat-UI direction): (1) the branch-name pre-push
+    hook — `hook_check_branch_name` in `.githooks/lib/common.sh`, wired into `.githooks/pre-push`, validating
+    the doc-13 §2 grammar `<class>/<slug>[/run-<id>]`; BLOCKS off-grammar AGENT branches (/run-<id> suffix),
+    only WARNS for off-grammar human branches (so `init/seed` is never blocked — §9 Q3 default). Regression-
+    tested by `.githooks/lib/branchname_test.sh` (16 cases, shellcheck-clean; the test caught a real grammar
+    bug — release/eden-v0.2.0 needs dots in the slug — now fixed). (2) the `merge-agent` role —
+    `.claude/agents/merge-agent.md` (Opus): clean worktree → full class gate → fix-mechanical-to-green-within-
+    budget → ff-only merge through gates → remove worktree, escalate-never-decide on frozen contracts/approved
+    artifacts/human-ruling gates/real bugs/budget. doc-13 §2/§6 now point to the landed artifacts.
   - **NATURAL CHECKPOINT after agentgateway:** surface to Mateo before the VISUAL SvelteKit chat UI — the chat
     surface is the keystone feature he wants to see/shape (visual identity C21, UX); his eyes matter most there.
     The backend service is un-ambiguous (REQ-0020..0024) so it proceeds autonomously; the frontend should get his

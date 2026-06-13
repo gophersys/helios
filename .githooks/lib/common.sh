@@ -148,6 +148,30 @@ hook_module_gowork() {
   fi
 }
 
+# hook_check_branch_name <branch> — validate a branch against the doc-13 §2 grammar:
+#   branch := <class>/<slug>[/run-<id>]
+#   class  := docs|arch|impl|infra|fix|release|ws<N>
+#   slug   := word("-"word)*   (HNS-1 word grammar, 10 §5; tolerant of REQ/SPEC id refs)
+# Per doc-13 §2 + the §2 Q3 default ("warns for humans, blocks for agent branches"): a branch
+# carrying the /run-<id> AGENT-SUFFIX that is off-grammar BLOCKS the push (an agent must conform);
+# a human ad-hoc branch that is off-grammar only WARNS (so pre-existing human branches such as
+# init/seed are never blocked). A grammar-valid branch passes silently. A detached HEAD is skipped.
+hook_check_branch_name() {
+  local branch="$1"
+  [[ -z "$branch" || "$branch" == "HEAD" ]] && return 0
+  # slug words tolerate dots so a release version rides the slug (release/eden-v0.2.0).
+  local grammar='^(docs|arch|impl|infra|fix|release|ws[0-9]+)/[A-Za-z0-9.]+(-[A-Za-z0-9.]+)*(/run-[A-Za-z0-9]+)?$'
+  if [[ "$branch" =~ $grammar ]]; then
+    return 0
+  fi
+  if [[ "$branch" == */run-* ]]; then
+    hook_fail "branch '$branch' violates the doc-13 grammar <class>/<slug>[/run-<id>] (class ∈ docs|arch|impl|infra|fix|release|ws<N>) — an AGENT branch must conform (doc-13 §2). Rename the branch, then push."
+    exit 1
+  fi
+  hook_warn "branch '$branch' is off the doc-13 grammar <class>/<slug> (class ∈ docs|arch|impl|infra|fix|release|ws<N>) — allowed for human work; agent branches (/run-<id>) are blocked (doc-13 §2 Q3)."
+  return 0
+}
+
 hook_golangci_module() {
   local module_dir="$1" bin gw
   if ! bin="$(hook_have golangci-lint)"; then

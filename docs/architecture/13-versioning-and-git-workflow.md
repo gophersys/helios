@@ -43,7 +43,11 @@ agent-suffix := run-<run-id-short>   (set when an agent owns the branch; omitted
 | `release/` | a versioned release cut | `release/eden-v0.2.0` |
 | `ws<N>/` | swarm member of workstream N (09 §3) | `ws3/observability` |
 
-A pre-push hook (the enforcement layer, ADR-0018) rejects branches outside this grammar.
+A pre-push hook (the enforcement layer, ADR-0018) validates branches against this grammar —
+**landed** as `hook_check_branch_name` in `.githooks/lib/common.sh`, wired into `.githooks/pre-push`,
+regression-tested by `.githooks/lib/branchname_test.sh`. Per §9 Q3's default it **blocks** an
+off-grammar **agent** branch (one carrying the `/run-<id>` suffix) and only **warns** for an
+off-grammar human ad-hoc branch (so pre-existing human branches are never blocked).
 
 ## 3. Worktree conventions
 
@@ -90,6 +94,10 @@ a clean merge:
 Merge agents are deterministic-where-possible and bounded: they are the scalable answer to "10×
 review" (Bender mode 4) without becoming a load-bearing token engine (P8) — the *gates* are
 deterministic machinery; the agent only does the mechanical green-making the gates score.
+
+The role is **landed** as the `merge-agent` Claude Code agent definition (`.claude/agents/merge-agent.md`,
+Opus): it encodes the §6 mandate (clean worktree → full class gate → fix-mechanical-to-green-within-budget
+→ fast-forward-only merge through the gates → remove worktree) and the escalate-never-decide boundary.
 
 ## 7. Versioning, per artifact class (one synthesis)
 
