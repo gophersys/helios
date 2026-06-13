@@ -8,7 +8,6 @@
 | # | Decision | Options (recommendation first) | Needed by |
 |---|---|---|---|
 | OD-1 | **Svelte behavior layer** for photosphere re-founding | Bits UI (headless, Svelte 5-native) · Melt UI builders · hand-rolled on Svelte 5 runes. Needs a data pass of photosphere-ADR-0004 rigor (a11y matrix, maintenance, LLM legibility) before ruling. | WS4 spike |
-| OD-2 | **Svelte app framework**: SvelteKit vs Vite SPA (Tauri wraps the same bundle either way) | SvelteKit (routing/SSR story, ecosystem default) vs SPA (simpler Tauri parity). | M3 frontend skeleton |
 | OD-3 | **Client state/query layers** post-React: replaces the zustand/jotai/xstate/TanStack-Query choices of the former `/LIBRARIES.md` (now 10 §12) | Svelte 5 runes + TanStack Svelte Query; XState's Svelte adapter only if machine-mirroring of backend lifecycle survives review. | M3 |
 | OD-4 | **CI executor v1 shape**: own runner on docker/kubernetes from day 1, or wrap an existing runner behind the executor port first | own runner (contract purity, content-aware caching) vs wrap (speed). | L2 |
 | OD-13 | **Fleet deployment architecture** (C17): per-customer isolated environments, gated rollouts of one change across N deployments, fleet-wide observability — D4 modeling + orchestrator design | needs architecture work before the production milestone; rides ADR-0012's posture. | post-spine |
@@ -36,3 +35,4 @@
 | RD-11 | Compute posture | hosted-default central multi-tenant cluster (an ordinary F1 adapter, metered); clients are control surfaces; local k3d/kind = just another cluster; BYO encouraged | 0012 |
 | RD-12 | SCM integration (formerly OD-5) | eden-authority default · byo-authority advanced (org metadata only) · per-project enforcement {enforced via host app \| advisory} with permanently visible guarantees | 0013 |
 | RD-13 | Upstream corpus (formerly OD-8) | copied verbatim into `docs/upstream/` as a fifth document class; all citations repointed in-repo; root README becomes the human front door | 0014 |
+| RD-14 | Build order + app framework (formerly OD-2) | product-first: apps/frontend (SvelteKit + Svelte 5) hosting the document workspace is the spine; architecture is pulled by product need; ladder unchanged as proof framework | 0015 |
