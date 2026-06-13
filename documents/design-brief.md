@@ -14,14 +14,15 @@ meta:
   links:
     realizes: []
     supersedes: null
-    informs: []
+    informs: ["artifact://design-system/eden-tokens-v0"]
   source:
     - run: founder-intake-01
       span: "C10, C11"
 data:
-  design_system_reference: null
+  design_system_reference: "artifact://design-system/eden-tokens-v0"
   token_hints:
-    - "🔶 Visual language deliberately OPEN pending photosphere's re-founding (OD-1): palette, type scale, and density are not yet fixed; the brief commits to the experience, not the surface treatment."
+    - "Visual identity LOCKED per intake C21 (2026-06-12-design-assets.pdf): palette Deep Forest #243D2C (primary surface) · Moss #5C7F5C (accent) · Sage #A8B89C (support) · Bone #F4F1E8 (background/text-on-dark) · Ink #1A1A1A (text-on-light); light-first."
+    - "Typography locked, three families/three roles (C21): Fraunces (display), Inter (text), JetBrains Mono (code); scale per the tokens artifact (artifact://design-system/eden-tokens-v0, materialized at documents/design-system/tokens.json). Component/behavior layer remains OPEN (OD-1)."
     - "Density as the default: the engineer's views (PER-0002) carry information at high density; the founder's views (PER-0001) lift the non-technical signal out of that density without forking the tool."
     - "Diagrams are a primary type, not decoration: the architecture diagram is a working surface that doubles as a live production view (C10)."
 ---
@@ -88,6 +89,6 @@ teaches the way to do things — so the working surfaces can stay dense and quie
 - **🔶 Visual language is deliberately OPEN, pending photosphere's re-founding (OD-1).** Palette, type scale, and
   surface treatment are not committed in v1; this brief fixes the *experience* (Ableton-thesis
   density, dual-altitude audience, first-class documents and diagrams) and leaves the *look* to that
-  research. `data.design_system_reference` is `null` because photosphere's re-founding is still in
+  research. `data.design_system_reference` now points at the v0 tokens artifact (intake C21); photosphere absorbs it as its seed theme when re-founded (OD-1). Earlier draft note, superseded in place while in
   flight (OD-1: the Svelte behavior layer for photosphere is an open ruling); the F6 artifact this
   brief will inform does not yet exist, so no `informs` edge is asserted (doc 11 §2, §4).

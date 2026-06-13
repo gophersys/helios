@@ -93,3 +93,13 @@
 - **C20** The first end-to-end demo is the founder PoC journey: wizard conversation → documents
   → generated system → cheap PoC deployed on a cluster → observable in the dashboard. Self-build
   continues underneath as the build method (the ladder), not the demo.
+
+## Session 01c — design assets (same day)
+
+- **C21** Visual identity provided as `2026-06-12-design-assets.pdf` (this directory): palette —
+  Deep Forest `#243D2C` (primary surface) · Moss `#5C7F5C` (signature accent) · Sage `#A8B89C`
+  (soft support) · Bone `#F4F1E8` (background / text on dark) · Ink `#1A1A1A` (text on light);
+  typography — "Three families. Three roles. Locked.": Fraunces (display: 96/Black, 64/SemiBold,
+  H1 40/SemiBold, H2 28/Regular), Inter (text: lead 24, body 18, caption 14/Medium, micro
+  12/SemiBold letterspaced), JetBrains Mono (code: 16/Regular). Directive: all Eden surfaces
+  follow these colors, theme, and fonts.
