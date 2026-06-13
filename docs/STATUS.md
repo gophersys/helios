@@ -91,12 +91,21 @@
     I VERIFIED MYSELF: full gate green (gofumpt, golangci 0 both alone w/ libs/.golangci.yml, vet both, race
     both), integration 8/8 race-clean. FIXED the HNS-1 abbreviations the forbidigo token-list missed:
     TemplateVer→TemplateVersion, the *Vw view-DTO suffix→*View (stateView/messageView/etc.) — gate still green.
-    OPEN ITEM (deferred to the frontend sub-wave, recorded honestly): cmd/agentgateway/main.go is a documented
-    bootstrap stub — the real composition root (wire the real orchestrator.Pool + agentsession.Pool-over-
-    claudeadapter + workspaceprovider + a real listener) needs the kernel composition wiring AND Mateo's
-    setup-token; a DEV-serve composition (fakes over a real listener, for the frontend to develop against)
-    builds with the frontend. The gateway HANDLER itself is fully wired + httptest-proven, so REQ-0020..0024 are
-    covered. No stragglers.
+    The gateway HANDLER itself is fully wired + httptest-proven, so REQ-0020..0024 are covered.
+  - **agentgateway DEV-SERVE ✅ DONE** (workflow w3jufpfyt, single Opus agent): apps/agentgateway/internal/
+    devserve/ (BuildDevGateway wires orchestratortest.Manager + a REAL agentsession.Pool over the agentsessiontest
+    scripted harness + secretstest fake setup-token + a real Transcript + fixed Clock) and cmd/agentgateway-dev/
+    main.go (a real net.Listener + graceful shutdown). `GOWORK=… go run ./cmd/agentgateway-dev` (default
+    127.0.0.1:8080) serves the FULL gateway over fakes — no real setup-token. Production cmd/agentgateway is
+    UNTOUCHED + imports NO test fakes (verified). Smoke test TestSmokeDevGatewayHappyPath green. I VERIFIED
+    MYSELF: full gate green, and I ACTUALLY RAN the binary (127.0.0.1:18099): /healthz 200, POST /sessions →
+    agent-1, GET /sessions lists it, SSE id:1..14 full taxonomy (session-state/message-start/thinking/text×2/
+    tool-start/tool-end/usage/message-end/result), graceful shutdown. OPEN ITEMS for the frontend sub-wave
+    (recorded, not blockers): dev CORS (likely moot if the SvelteKit dev server Vite-proxies the gateway);
+    template-name discovery (dev seeds implementer-go@1.0.0; exposed via DefaultCreateTemplate() + startup log);
+    a 0.0.0.0 bind option for devcontainers (already supported via EDEN_DEV_ADDRESS). Real-composition-root
+    (production main over real Pools + claudeadapter + listener) still needs the kernel wiring + Mateo's
+    setup-token. No stragglers.
   - **agentgateway (workflow ref)** — task wa97yv5b1 / run
     wf_04649f8c-759, Opus impl→adversarial-verify; does NOT commit). A Go HTTP/SSE backend-for-frontend in
     apps/agentgateway (eden repo, NOT the submodule; module github.com/gophersys/eden/apps/agentgateway) wrapping
