@@ -21,6 +21,33 @@
 6. Working tree clean; HTMLs regenerated; no scratch; servers killed; libs submodule pushed +
    pointer bumped; eden pushed.
 
+## ⏸ LOOP PAUSED — backend phase COMPLETE; two items genuinely require Mateo (2026-06-13)
+
+The autonomous loop drove the **entire backend to done, verified, and pushed**, then paused — it has
+exhausted the unambiguous work. The two remaining items both require Mateo and cannot be done
+autonomously without overriding his explicit wishes:
+
+1. **The visual chat UI direction** (the keystone). I asked twice (terminal + mobile push + a message
+   with three concrete directions: Claude-faithful / observability-dense / session-fleet) and committed
+   to NOT building it blind — it is the feature he wants to shape (look/feel/UX, Eden identity C21). The
+   backend it needs is 100% ready and RUNNABLE: `GOWORK=/Users/mateo/helios/go.work go run
+   ./libs/../apps/agentgateway/cmd/agentgateway-dev` (default 127.0.0.1:8080) serves the full REST + SSE
+   surface over fakes — no real auth needed. When Mateo gives direction, build the SvelteKit chat UI in
+   apps/frontend against that gateway, then Playwright forced-CRUD E2E.
+2. **The real `claude setup-token`** (REQ-0021). The real claude-code authenticated run is wired
+   (libs/go/agentsession/claudeadapter) but GATED — it needs Mateo to run `claude setup-token` once. I
+   must not mint it or touch ~/.claude.
+
+DONE this run (all on origin/main; eden pushed): 4 backend libs (workspaceprovider ed65211, gitrepository
+f3cb2c1, agentsession f629479, orchestrator ee2b37f), agentgateway HTTP/SSE service + dev-serve (eden
+29d97d7), the pre-commit-hook workspace fix (191e64b), and the doc-13 branch-name hook + merge-agent role
+(b3d8de8). Each lib built TDD under enforcement by an Opus workflow, then INDEPENDENTLY re-verified by the
+manager loop (full gate + real integration + my own weaken-to-confirm-non-vacuity); I caught + fixed real
+issues the subagents missed (two vacuous conformance guards, a credential-leak blind spot, an over-reported
+contract divergence, HNS-1 abbreviations, the hook gap). Working tree clean; both repos synced; vite preview
+:4173 left running for Mateo; render toolchain at /tmp/eden-render (consolidation deferred — not safe while
+vite is live). TO RESUME: reply with chat-UI direction (and/or run `claude setup-token`), or re-fire /loop.
+
 ## Current state (updated each milestone)
 
 - **Wave 3A** ✅ COMPLETE + COMMITTED (2026-06-13): all six pattern libraries green
