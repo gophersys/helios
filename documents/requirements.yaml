@@ -337,3 +337,31 @@ data:
       source:
         - run: founder-intake-01
           span: "C12"
+    - id: REQ-0020
+      statement: "WHEN a user opens an agent session THE SYSTEM SHALL run the agent in an isolated container or pod on the backend and render the session in the client in real time — streaming message deltas, tool activity, and a live token/cost meter — with prompt, steer, and abort controls, persisting the session as a Run with its full Transcript."
+      kind: functional
+      priority: P1
+      rationale: "The chat surface is the human-machine bridge of the product-design process (C22); rendering a backend-isolated agent in real time at the quality of the Claude app is the experience bar. Isolation is a security requirement (07 §3), not an implementation detail."
+      acceptance:
+        - "An agent session executes in a container the client has no direct access to; the client receives events over a streamed connection."
+        - "Message deltas, tool start/end, and token usage (all four token kinds) appear in the client within one second of emission."
+        - "Prompt, steer, and abort each take effect mid-session; the transcript and token ledger persist and are queryable after the session ends."
+      links:
+        realizes: [PER-0001, PER-0003]
+      source:
+        - run: founder-intake-01
+          span: "C22"
+    - id: REQ-0021
+      statement: "WHEN a user on a Claude membership configures Eden THE SYSTEM SHALL accept a one-time setup-token credential, hold it server-side only, and use it for all agent sessions — with the harness and model configurable per phase (product design defaults to Claude Code with the Fable 5 model)."
+      kind: constraint
+      priority: P1
+      rationale: "Membership users must work from the start without API-key billing (C22); credentials never reach the browser (07 §2); harness/model selection per phase is the agent abstraction layer's reason to exist (05 F4, ADR-0008)."
+      acceptance:
+        - "A fresh user completes agent setup with only a membership and a setup-token; no API key is required."
+        - "The credential is absent from every client payload, transcript, and log (redaction verified)."
+        - "Per-phase harness/model configuration is data, not code; changing the product-design model requires no rebuild."
+      links:
+        realizes: [PER-0001, PER-0002]
+      source:
+        - run: founder-intake-01
+          span: "C22"

@@ -103,3 +103,15 @@
   H1 40/SemiBold, H2 28/Regular), Inter (text: lead 24, body 18, caption 14/Medium, micro
   12/SemiBold letterspaced), JetBrains Mono (code: 16/Regular). Directive: all Eden surfaces
   follow these colors, theme, and fonts.
+
+## Session 01d — agent sessions and the chat surface (same day)
+
+- **C22** The chat interface pulls the agent layer: agents run in isolated pods/containers on the
+  backend and render in real time in a fully fledged chat surface comparable to the Claude app.
+  The agent abstraction layer selects the right agent for the right phase; product design uses
+  Claude Code with the Fable 5 model. Step 1 is defining the agentic interface: the
+  instrumentation expected from underlying harnesses (event stream, token/cost metering), the
+  tools they are equipped with, and the session controls. Credentials: wrap Claude via
+  `setup-token` so a normal membership user (like Mateo) works from the start; configurable
+  throughout. Prior art exists in Mateo's repositories (poc/agents auth/bridge work,
+  poc/codingharness) and should be mined first.
