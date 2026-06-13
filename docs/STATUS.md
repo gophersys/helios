@@ -77,8 +77,23 @@
   (5) exported surface adds Connection/RunDriver/Probe/Provisioner + New returns *Provisioner not
   *Substrate (a genuine frozen-contract defect: Substrate name collision) — ratify as a contract
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
-- **NEXT: Wave 3B cont.** — orchestrator v0 (IN PROGRESS) → chat UI → Playwright E2E
+- **NEXT: Wave 3B cont.** — agentgateway backend service (IN PROGRESS) → SvelteKit chat UI → Playwright E2E
   (+ doc-13 branch hook + merge agents).
+  - **agentgateway (backend service) sub-wave IN PROGRESS** (workflow build-agentgateway, task wa97yv5b1 / run
+    wf_04649f8c-759, Opus impl→adversarial-verify; does NOT commit). A Go HTTP/SSE backend-for-frontend in
+    apps/agentgateway (eden repo, NOT the submodule; module github.com/gophersys/eden/apps/agentgateway) wrapping
+    orchestrator.Manager + agentsession.Pool: REST spawn/list/get/stop/resume + transcript read, and per-session
+    SSE event streams honoring Last-Event-ID/?from-seq (the REQ-0023 replay = same mechanism), individually-typed
+    events (REQ-0024), per-session fan-out (REQ-0022), credentials resolved server-side and NEVER to the browser
+    (REQ-0021). Tested via httptest + the agentsessiontest fake harness end-to-end + orchestratortest fakes;
+    integration -race with concurrent SSE clients + reconnect-replay + fan-out-isolation + credential-canary
+    checks, leak-free. On completion VERIFY MYSELF (gate + integration -race + weaken replay/fan-out/seq/control/
+    credential), then commit + push (eden repo; no submodule pointer change — it is an app, not a lib). Do NOT run
+    conflicting work in apps/agentgateway while it runs.
+  - **NATURAL CHECKPOINT after agentgateway:** surface to Mateo before the VISUAL SvelteKit chat UI — the chat
+    surface is the keystone feature he wants to see/shape (visual identity C21, UX); his eyes matter most there.
+    The backend service is un-ambiguous (REQ-0020..0024) so it proceeds autonomously; the frontend should get his
+    input on direction first.
   - **orchestrator v0 sub-wave ✅ DONE + COMMITTED + PUSHED** (libs ee2b37f on origin/main; eden pointer bumped).
     The S2 desired-vs-actual reconcile loop over agentsession + workspaceprovider: Manager (Spawn/Get/List/Stop/
     Resume, exactly 5 methods) on plain serializable RECORDS (Handle + opaque SessionRef, no live Session — the
