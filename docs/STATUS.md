@@ -79,9 +79,23 @@
   amendment. A security-hardening fix wave is addressing 1-4; 5 needs a contract amendment.
 - **NEXT: Wave 3B cont.** — gitrepository ops + doc-13 branch hook + merge agents, orchestrator v0,
   agent-session backend + chat UI, Playwright E2E.
-  - **gitrepository sub-wave IN PROGRESS** (launched via background workflow build-gitrepository, 2-phase
-    impl→adversarial-verify, Opus; task wrfc58xu8 / run wf_445c0182-2a8; do NOT run conflicting work in
-    libs/go/gitrepository while it runs — concurrent work in the same tree is what caused the straggler thrash). Contract docs/architecture/contracts/gitrepository.md (draft; amendments
+  - **gitrepository sub-wave ✅ DONE + COMMITTED + PUSHED** (libs f3cb2c1 on origin/main; eden pointer bumped).
+    Built by workflow build-gitrepository (wrfc58xu8, Opus impl→adversarial-verify, ~53min). Three consumer
+    ports under the 5-method ceiling — Provisioner (Clone/AddWorktree/RemoveWorktree), Inspector (Status/Diff/
+    Branches/Worktrees), Author (Stage/Commit-with-Identity/Fetch/Push) — over a pure New(Config,Deps) spine +
+    a 5-method Backend vendor seam. Structurally NEVER a merge engine (no Merge/Rebase/CherryPick/Pull/Reset/
+    Force verb, no PushOptions.Force); Pull = Fetch + ff-only Push → NonFastForwardError(both tips). Commit
+    stamps Author identity (ActorAgent → Eden-Run/Session/Phase trailers; human → none). Credentials ride a
+    secrets.Reference resolved at the op into a per-op 0600 credential-helper script via Secret.Use — never
+    argv/URL/config/log/Error. Default SystemGit backend shells real git 2.50.1; gitrepositorytest = in-memory
+    fake + ONE 13-property conformance suite BOTH backends pass + real integration over actual git + real
+    worktrees + a real local bare remote. The workflow's verify agent ran 7 weaken/revert non-vacuity proofs.
+    I VERIFIED MYSELF on the settled tree: all 7 gates green (gofumpt, golangci 0 default+integration alone,
+    hnslint, vet both, race, integration -race on real git), leak-free (cred temp dirs before=after=0), and my
+    OWN weaken on the crown-jewel ff-only-push property (injected --force) made BOTH the conformance + real-
+    bare-remote tests FAIL ("divergent Push must be NonFastForwardError, got nil") — reverted, green again.
+    Contract compiled as written (no §7 amendment). Removed the empty internal/ dir. No stragglers this time
+    (let the workflow finish before verifying — the lesson held). Contract docs/architecture/contracts/gitrepository.md (draft; amendments
     surface as Qs like workspaceprovider Q13/Q14). Three ≤5-method interfaces: Provisioning (Clone/AddWorktree/
     RemoveWorktree), Inspection (Status/Diff/Branches/Worktrees), Authoring (Stage/Commit-with-Author/Fetch/
     Push). NO merge engine; fast-forward-only; NonFastForwardError/ConflictError = escalate-to-gate signals;
