@@ -56,12 +56,23 @@ terraform version
 k9s version --short
 go version
 node --version
+bun --version
 python3 --version
 uv --version
 rustc --version
 cargo --version
 nats --version
 yq --version
+echo "--- ADR-0020 gate toolchain (Kubernetes substrates + Go gate tools) ---"
+k3d version
+kind version
+gofumpt --version
+golangci-lint --version
+govulncheck -version
+gosec --version
+gremlins --version
+benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
+gitleaks version
 EOF
 
 # Flutter adds flutter + adb checks on top of the base smoke.

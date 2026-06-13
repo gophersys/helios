@@ -4,6 +4,7 @@
   "remoteUser": "dev",
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "postCreateCommand": "bash .devcontainer/base/ctl.sh post-create",
   "customizations": {
     "vscode": {
       "settings": {

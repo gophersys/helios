@@ -45,12 +45,18 @@ ARG NVM_VERSION=0.40.4                                                 # latest 
 ARG NODE_VERSION=24.15.0                                               # latest LTS as of 2026-04-19 (Krypton)
 ARG NPM_VERSION=11.3.0                                                 # latest LTS as of 2026-04-19
 
+# Bun — the JavaScript runtime the Oh My Pi (`omp`) harness requires (its CLI shebang is
+# `#!/usr/bin/env bun`, engines.bun >= 1.3.14). Baked into the base image because spawned
+# agent pods dogfood this same image family and must run `omp` without a network install.
+ARG BUN_VERSION=1.3.14                                                 # latest stable as of 2026-06-13
+
 # Python — apt-provided 3.12 + uv for user-space package mgmt.
 ARG PYTHON_PACKAGE=python3.12                                          # latest LTS as of 2026-04-19
 ARG UV_VERSION=0.11.7                                                  # latest LTS as of 2026-04-19
 
-# Go — official tarball.
-ARG GO_VERSION=1.26.2                                                  # latest LTS as of 2026-04-19
+# Go — official tarball. Matches the workspace `go.work` toolchain directive so the agent-pod
+# image bakes it rather than auto-downloading the toolchain on first `go` invocation per pod.
+ARG GO_VERSION=1.26.4                                                  # latest LTS as of 2026-06-13
 
 # Rust — rustup channel, not a pinned version.
 ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19
@@ -72,6 +78,23 @@ ARG AWS_CLI_VERSION=2.34.32                                            # latest 
 
 # Dev QA.
 ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
+
+# Local Kubernetes substrates for the ADR-0020 host-leveraging integration/load lanes.
+ARG K3D_VERSION=5.9.0                                                  # latest LTS as of 2026-06-13
+ARG KIND_VERSION=0.32.0                                                # latest LTS as of 2026-06-13
+
+# Go gate tools (ADR-0018 + ADR-0020), installed via `go install ...@vX.Y.Z`. Pinned by ARG so
+# the no-hardcoded-version-in-RUN rule holds and a bump is a one-line edit. These make every
+# gate dimension runnable inside the image, so an absent tool is impossible (FAIL-NOT-SKIP).
+ARG GOFUMPT_VERSION=0.10.0                                             # latest LTS as of 2026-06-13
+ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
+ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
+ARG GOSEC_VERSION=2.22.5                                               # latest LTS as of 2026-06-13
+ARG GREMLINS_VERSION=0.5.0                                             # latest LTS as of 2026-06-13
+# golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
+# so it does not trip the no-hardcoded-version-in-RUN grep) — refreshed when the toolchain bumps.
+ARG BENCHSTAT_REF=latest                                               # x/perf is untagged; track @latest
+ARG GITLEAKS_VERSION=8.30.1                                            # latest LTS as of 2026-06-13
 
 # Non-root dev user identity.
 ARG USERNAME=dev
@@ -242,6 +265,20 @@ RUN case "${TARGETPLATFORM}" in \
  && rm /tmp/go.tgz
 # NOTE: no go version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
+# Go gate tools (ADR-0018 + ADR-0020). Installed as the dev user into ${GOPATH}/bin so every
+# `ctl.sh` gate verb resolves its tool and an absent tool is impossible (FAIL-NOT-SKIP). Pinned
+# by ARG (no hardcoded version in the RUN line). GOFLAGS=-mod=mod + GOWORK=off install in
+# isolation. golangci-lint v2 is installed from its module so the version matches libs/.golangci.yml.
+USER ${USERNAME}
+RUN GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
+ && GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
+ && GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" \
+ && GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" \
+ && GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
+ && GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}"
+# NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+USER root
+
 # Rust — rustup pinned to the declared channel. `rustup-init -y` is idempotent.
 ENV CARGO_HOME=/home/${USERNAME}/.cargo \
     RUSTUP_HOME=/home/${USERNAME}/.rustup \
@@ -297,6 +334,39 @@ RUN case "${TARGETPLATFORM}" in \
  && mv /tmp/k9s /usr/local/bin/k9s \
  && rm /tmp/k9s.tgz
 # NOTE: no k9s version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# k3d — the default local Kubernetes substrate for the ADR-0020 integration/load lanes
+# (k3s-in-docker; single static binary, TARGETPLATFORM-aware).
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=amd64 ;; \
+      linux/arm64) ARCH=arm64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/k3d-io/k3d/releases/download/v${K3D_VERSION}/k3d-linux-${ARCH}" -o /usr/local/bin/k3d \
+ && chmod +x /usr/local/bin/k3d
+# NOTE: no k3d version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# kind — the second Kubernetes substrate target (Kubernetes-in-docker; static binary).
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=amd64 ;; \
+      linux/arm64) ARCH=arm64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-${ARCH}" -o /usr/local/bin/kind \
+ && chmod +x /usr/local/bin/kind
+# NOTE: no kind version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# gitleaks — the secret-scan tool for the ADR-0020 security dimension (single binary release).
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=x64 ;; \
+      linux/arm64) ARCH=arm64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/gitleaks.tgz \
+ && tar -C /tmp -xzf /tmp/gitleaks.tgz gitleaks \
+ && mv /tmp/gitleaks /usr/local/bin/gitleaks \
+ && rm /tmp/gitleaks.tgz
+# NOTE: no gitleaks version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 RUN case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
@@ -359,6 +429,21 @@ RUN case "${TARGETPLATFORM}" in \
  && mv "/tmp/nats/nats-${NATS_VERSION}-linux-${ARCH}/nats" /usr/local/bin/nats \
  && rm -rf /tmp/nats /tmp/nats.zip
 # NOTE: no nats --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# Bun — JavaScript runtime for the Oh My Pi (`omp`) harness. Single static binary zip,
+# TARGETPLATFORM-aware (linux x64 / aarch64). Installed to /usr/local/bin so it is on PATH
+# for every shell and user (the dev user's npm-global `omp` shebang resolves `bun` here).
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=x64 ;; \
+      linux/arm64) ARCH=aarch64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${ARCH}.zip" -o /tmp/bun.zip \
+ && unzip -q /tmp/bun.zip -d /tmp/bun \
+ && mv "/tmp/bun/bun-linux-${ARCH}/bun" /usr/local/bin/bun \
+ && chmod +x /usr/local/bin/bun \
+ && rm -rf /tmp/bun /tmp/bun.zip
+# NOTE: no bun --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # Docker Engine CLI + compose plugin from the official apt repo. The CLI is
 # all we ship — dev boxes mount the host socket.
