@@ -14,9 +14,14 @@ package dockeradapter_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gophersys/libs/go/dependencies/dependenciestest"
+	"github.com/gophersys/libs/go/errors"
+	"github.com/gophersys/libs/go/secrets"
+	"github.com/gophersys/libs/go/secrets/secretstest"
 	edentesting "github.com/gophersys/libs/go/testing"
 	"github.com/gophersys/libs/go/workspaceprovider"
 	"github.com/gophersys/libs/go/workspaceprovider/dockeradapter"
@@ -252,6 +257,91 @@ func TestDocker_DefaultDenyEgress(t *testing.T) {
 	}
 }
 
+// TestDocker_PrivateImagePullSecret proves the B7 pull-secret seam END TO END against a REAL
+// authenticated registry: it spins a registry:2 with htpasswd auth, pushes a tiny PRIVATE image
+// into it, then asserts (a) provisioning WITH the resolved pull-secret SUCCEEDS (the daemon
+// authenticated the pull) and (b) provisioning the SAME image WITHOUT the pull-secret FAILS with
+// an ImageError carrying the ref, NEVER the value (07 §2 / contract §2: "a denied pull-secret
+// yields ImageError"). No mock: a real registry, a real authenticated pull. SKIPS when
+// docker/htpasswd is unavailable.
+//
+//nolint:paralleltest // serial by design: spins a real registry container + real authenticated pulls.
+func TestDocker_PrivateImagePullSecret(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+
+	registry, rerr := workspaceprovidertest.NewLocalRegistry(ctx, testImage)
+	if rerr != nil {
+		t.Skipf("local authenticated registry unavailable, skipping pull-secret test: %v", rerr)
+	}
+	t.Cleanup(registry.Delete)
+
+	const pullSecretRef = "private-registry-password"
+	prov := newProviderWithSecrets(t, adapter, map[string]string{pullSecretRef: registry.Password})
+
+	// Non-vacuity for the POSITIVE case: NewLocalRegistry `docker tag`ged the private ref into the
+	// daemon before pushing, so it is already present locally. The adapter's pullImage short-circuits
+	// on a present image — which would make the WITH-secret Provision below succeed WITHOUT ever
+	// exercising auth (a fake pass: it would pass with a wrong secret too). Purge the local tag FIRST
+	// so the authenticated pull must hit the registry; a success then PROVES the pull-secret worked.
+	owner, isOwner := adapter.(*dockeradapter.Adapter)
+	if isOwner {
+		if rerr := owner.RemoveImageForTest(ctx, registry.HostReference()); rerr != nil {
+			t.Fatalf("purge locally-cached private ref before the authenticated pull: %v", rerr)
+		}
+	}
+
+	// (a) WITH the pull-secret: the REAL authenticated pull (no local cache) SUCCEEDS and the
+	// workspace is Ready.
+	withSecret := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-private-ok",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     registry.HostReference(),
+		ImagePull: secretsRef(pullSecretRef),
+	}
+	ws, err := prov.Provision(ctx, withSecret)
+	if err != nil {
+		t.Fatalf("Provision of a private image WITH the pull-secret must succeed, got: %v", err)
+	}
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), ws.Handle()) }) //nolint:errcheck // best-effort cleanup; Teardown is idempotent and the harness re-scan asserts no orphan.
+	if st, serr := ws.Status(ctx); serr != nil {
+		t.Errorf("Status after authenticated pull: %v", serr)
+	} else if st.State != workspaceprovider.StateReady && st.State != workspaceprovider.StateRunning {
+		t.Errorf("Status.State = %v, want Ready/Running after the authenticated pull", st.State)
+	}
+
+	// Remove the just-pulled image again so the WITHOUT-secret pull must hit the authed registry
+	// (otherwise the daemon would serve the just-pulled layer and mask the denial).
+	if isOwner {
+		_ = owner.RemoveImageForTest(ctx, registry.HostReference()) //nolint:errcheck // best-effort cache purge; the assertion below still holds if the layer lingers (the registry denies the manifest fetch).
+	}
+
+	// (b) WITHOUT the pull-secret: the unauthenticated pull is DENIED → ImageError, and the error
+	// carries the ref/image, NEVER the password.
+	withoutSecret := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-private-denied",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     registry.HostReference(),
+	}
+	denied, derr := prov.Provision(ctx, withoutSecret)
+	if denied != nil {
+		t.Errorf("Provision of a private image WITHOUT the pull-secret returned a non-nil Workspace (must fail)")
+		_ = prov.Teardown(context.WithoutCancel(ctx), denied.Handle()) //nolint:errcheck // best-effort cleanup of an unexpected workspace.
+	}
+	if derr == nil {
+		t.Fatalf("Provision of a private image WITHOUT the pull-secret must fail with ImageError, got nil")
+	}
+	if errors.KindOf(derr) != errors.KindInvalid {
+		t.Errorf("denied private pull Kind = %v, want Invalid (ImageError)", errors.KindOf(derr))
+	}
+	if imgErr, ok := errors.AsType[*workspaceprovider.ImageError](derr); !ok || imgErr == nil {
+		t.Errorf("denied private pull: want *ImageError in the chain, got %v", derr)
+	}
+	if strings.Contains(derr.Error(), registry.Password) {
+		t.Errorf("the pull-secret password leaked into the ImageError message")
+	}
+}
+
 // ── small integration helpers ─────────────────────────────────────────────────.
 
 func newProvider(t *testing.T, adapter workspaceprovider.Adapter) *workspaceprovider.Provisioner {
@@ -269,6 +359,28 @@ func newProvider(t *testing.T, adapter workspaceprovider.Adapter) *workspaceprov
 	}
 	return prov
 }
+
+// newProviderWithSecrets wires a Provisioner over the real docker adapter with a secrets.Provider
+// seeded from seed (so a pull-secret reference resolves to its password server-side).
+func newProviderWithSecrets(t *testing.T, adapter workspaceprovider.Adapter, seed map[string]string) *workspaceprovider.Provisioner {
+	t.Helper()
+	set, _, _, _ := dependenciestest.Fakes()
+	prov, err := workspaceprovider.New(
+		workspaceprovider.Config{Default: workspaceprovider.SubstrateDocker},
+		workspaceprovider.Deps{
+			Adapters: map[workspaceprovider.Substrate]workspaceprovider.Adapter{workspaceprovider.SubstrateDocker: adapter},
+			Secrets:  secretstest.New(seed),
+			Clock:    set.Clock,
+		},
+	)
+	if err != nil {
+		t.Fatalf("New provider over real docker adapter (seeded secrets): %v", err)
+	}
+	return prov
+}
+
+// secretsRef is the loggable reference a seeded pull-secret resolves under.
+func secretsRef(name string) secrets.Reference { return secrets.Ref(name) }
 
 func drainRun(ctx context.Context, run workspaceprovider.Run) workspaceprovider.RunStatus {
 	var last workspaceprovider.RunStatus

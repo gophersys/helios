@@ -17,9 +17,12 @@ package kubernetesadapter_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gophersys/libs/go/errors"
+	"github.com/gophersys/libs/go/secrets"
 	edentesting "github.com/gophersys/libs/go/testing"
 	"github.com/gophersys/libs/go/workspaceprovider"
 	"github.com/gophersys/libs/go/workspaceprovider/kubernetesadapter"
@@ -35,8 +38,16 @@ const testImage = "busybox:1.36"
 // k3d cluster (ADR-0016 §4: the same suite the in-memory fake and the docker adapter pass, now
 // against an actual cluster). The K3dCluster harness `k3d cluster delete`s the cluster on
 // t.Cleanup. This is the k3d binding of the four (fake + docker + k3d + kind).
+//
+// SERIAL BY DESIGN (no t.Parallel): a real cluster conformance is heavy (a full 17-case suite
+// against a k3d cluster). Running it in PARALLEL with TestKind_Conforms stood up TWO real clusters
+// serving the suite at once, and the contention tipped the k3d serverlb into "connection refused"
+// mid-run (apiserver unreachable) — a real-substrate reliability flake, not a code defect (the same
+// cases pass on docker AND kind). One heavyweight cluster conformance at a time keeps the integration
+// lane reliable; the ~50s a serial second cluster costs is worth it.
+//
+//nolint:paralleltest // serial by design — see the doc comment above (two real clusters at once flaked the k3d serverlb).
 func TestK3d_Conforms(t *testing.T) {
-	t.Parallel()
 	adapter := workspaceprovidertest.K3dCluster(t, workspaceprovidertest.WithImages(testImage))
 	workspaceprovidertest.RunProviderSuite(t, func(_ context.Context, _ edentesting.Harness) (workspaceprovider.Adapter, error) {
 		return adapter, nil
@@ -48,8 +59,13 @@ func TestK3d_Conforms(t *testing.T) {
 // kind is the EMPIRICAL distro-transparency proof — one adapter, two distros, identical code
 // path, divergence visible ONLY as declared CapStatus (ADR-0012). The KindCluster harness
 // `kind delete cluster`s it on t.Cleanup. SKIPS when kind/docker is unavailable.
+//
+// SERIAL BY DESIGN (no t.Parallel), like TestK3d_Conforms: the two heavyweight cluster conformances
+// must not stand up two real clusters serving the full suite at once — that contention caused a k3d
+// apiserver "connection refused" flake. One cluster at a time keeps the lane reliable.
+//
+//nolint:paralleltest // serial by design — see TestK3d_Conforms (two real clusters at once flaked the k3d serverlb).
 func TestKind_Conforms(t *testing.T) {
-	t.Parallel()
 	adapter := workspaceprovidertest.KindCluster(t, workspaceprovidertest.WithImages(testImage))
 	workspaceprovidertest.RunProviderSuite(t, func(_ context.Context, _ edentesting.Harness) (workspaceprovider.Adapter, error) {
 		return adapter, nil
@@ -171,5 +187,78 @@ func TestK3d_ProvisionRunExecFilesTeardown(t *testing.T) {
 		} else if owned != 0 {
 			t.Errorf("Teardown left %d orphaned namespace(s)", owned)
 		}
+	}
+}
+
+// TestK3d_PrivateImagePullSecret proves the B7 fix on a REAL cluster against a REAL authenticated
+// registry: it spins a registry:2 with htpasswd auth, pushes a tiny PRIVATE image, JOINS the k3d
+// node containers to the registry's docker network (so an in-cluster pod can reach it), then
+// asserts (a) provisioning WITH the resolved pull-secret SUCCEEDS — the kubelet authenticated the
+// pull via the dockerconfigjson Secret the adapter created and the Pod.Spec.ImagePullSecrets it
+// wired — and the Secret type + ImagePullSecrets objects ARE present on the cluster; and (b)
+// provisioning the SAME private image WITHOUT a pull-secret FAILS with an ImageError carrying the
+// ref, never the value. No mock. SKIPS when k3d/docker/htpasswd is unavailable.
+//
+//nolint:gocognit,cyclop,paralleltest // a deliberate linear real-cluster + real-registry end-to-end walk; serial by design.
+func TestK3d_PrivateImagePullSecret(t *testing.T) {
+	adapter, registry := workspaceprovidertest.K3dClusterWithRegistry(t, testImage, workspaceprovidertest.WithImages(testImage))
+	ctx := t.Context()
+
+	const pullSecretRef = "private-registry-password"
+	prov := newProviderWithSecrets(t, adapter, map[string]string{pullSecretRef: registry.Password})
+
+	// (a) WITH the pull-secret: the authenticated in-cluster pull SUCCEEDS and the pod is Ready.
+	withSecret := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-private-ok",
+		Substrate: workspaceprovider.SubstrateKubernetes,
+		Image:     registry.ClusterReference(),
+		ImagePull: secrets.Ref(pullSecretRef),
+	}
+	ws, err := prov.Provision(ctx, withSecret)
+	if err != nil {
+		t.Fatalf("Provision of a private image WITH the pull-secret must succeed, got: %v", err)
+	}
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), ws.Handle()) }) //nolint:errcheck // best-effort cleanup; Teardown is idempotent and the harness reaps the cluster regardless.
+
+	// Assert the dockerconfigjson Secret + ImagePullSecrets objects ARE on the cluster (the B7
+	// fix's concrete artifacts — substitutable with the docker adapter's registryAuth).
+	if owner, ok := adapter.(*kubernetesadapter.Adapter); ok {
+		pullSecrets, psErr := owner.ImagePullSecretsForTest(ctx, ws.Handle())
+		if psErr != nil {
+			t.Errorf("read Pod.Spec.ImagePullSecrets: %v", psErr)
+		} else if len(pullSecrets) == 0 {
+			t.Errorf("the pod has no ImagePullSecrets (B7: the kubernetes adapter did not wire the pull-secret)")
+		}
+		secretType, stErr := owner.PullSecretTypeForTest(ctx, ws.Handle())
+		if stErr != nil {
+			t.Errorf("read pull-secret type: %v", stErr)
+		} else if secretType != "kubernetes.io/dockerconfigjson" {
+			t.Errorf("pull-secret type = %q, want kubernetes.io/dockerconfigjson", secretType)
+		}
+	}
+
+	// (b) WITHOUT the pull-secret: the unauthenticated in-cluster pull is DENIED → ImageError, and
+	// the error carries the ref/image, NEVER the password.
+	withoutSecret := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-private-denied",
+		Substrate: workspaceprovider.SubstrateKubernetes,
+		Image:     registry.ClusterReference(),
+	}
+	denied, derr := prov.Provision(ctx, withoutSecret)
+	if denied != nil {
+		t.Errorf("Provision of a private image WITHOUT the pull-secret returned a non-nil Workspace (must fail)")
+		_ = prov.Teardown(context.WithoutCancel(ctx), denied.Handle()) //nolint:errcheck // best-effort cleanup of an unexpected workspace.
+	}
+	if derr == nil {
+		t.Fatalf("Provision of a private image WITHOUT the pull-secret must fail with ImageError, got nil")
+	}
+	if errors.KindOf(derr) != errors.KindInvalid {
+		t.Errorf("denied private pull Kind = %v, want Invalid (ImageError)", errors.KindOf(derr))
+	}
+	if imgErr, ok := errors.AsType[*workspaceprovider.ImageError](derr); !ok || imgErr == nil {
+		t.Errorf("denied private pull: want *ImageError in the chain, got %v", derr)
+	}
+	if strings.Contains(derr.Error(), registry.Password) {
+		t.Errorf("the pull-secret password leaked into the ImageError message")
 	}
 }

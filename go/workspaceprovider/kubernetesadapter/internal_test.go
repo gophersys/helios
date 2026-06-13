@@ -30,7 +30,8 @@ import (
 type fakeClient struct {
 	mu           sync.Mutex
 	namespaces   map[string]*corev1.Namespace
-	pods         map[string]*corev1.Pod // key: namespace/name
+	pods         map[string]*corev1.Pod    // key: namespace/name
+	secrets      map[string]*corev1.Secret // key: namespace/name
 	policies     map[string]*networkingv1.NetworkPolicy
 	createNSErr  error
 	createPodErr error
@@ -41,6 +42,7 @@ func newFakeClient() *fakeClient {
 	return &fakeClient{
 		namespaces: map[string]*corev1.Namespace{},
 		pods:       map[string]*corev1.Pod{},
+		secrets:    map[string]*corev1.Secret{},
 		policies:   map[string]*networkingv1.NetworkPolicy{},
 	}
 }
@@ -128,6 +130,24 @@ func (f *fakeClient) GetPod(_ context.Context, namespace, name string) (*corev1.
 
 func (f *fakeClient) PodLogs(_ context.Context, _, _ string, _ *corev1.PodLogOptions) (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("")), nil
+}
+
+func (f *fakeClient) CreateSecret(_ context.Context, namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cp := secret.DeepCopy()
+	f.secrets[podKey(namespace, secret.Name)] = cp
+	return cp, nil
+}
+
+func (f *fakeClient) GetSecret(_ context.Context, namespace, name string) (*corev1.Secret, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	secret, ok := f.secrets[podKey(namespace, name)]
+	if !ok {
+		return nil, apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, name)
+	}
+	return secret.DeepCopy(), nil
 }
 
 func (f *fakeClient) CreateNetworkPolicy(_ context.Context, namespace string, policy *networkingv1.NetworkPolicy) (*networkingv1.NetworkPolicy, error) {
@@ -302,7 +322,7 @@ func TestBuildVolumesMapsMountKinds(t *testing.T) {
 			{Kind: workspaceprovider.MountTmpfs, Target: "/scratch"},
 		},
 	}
-	volumes, mounts, err := buildVolumes(&spec)
+	volumes, mounts, err := buildVolumes(&spec, podCredentials{mountSecretNames: map[string]string{}})
 	if err != nil {
 		t.Fatalf("buildVolumes: %v", err)
 	}
@@ -330,7 +350,7 @@ func TestBuildVolumesMapsMountKinds(t *testing.T) {
 func TestBuildVolumesRejectsPersistentVolume(t *testing.T) {
 	t.Parallel()
 	spec := workspaceprovider.WorkspaceSpec{Mounts: []workspaceprovider.Mount{{Kind: workspaceprovider.MountVolume, Target: "/data"}}}
-	_, _, err := buildVolumes(&spec)
+	_, _, err := buildVolumes(&spec, podCredentials{mountSecretNames: map[string]string{}})
 	if err == nil {
 		t.Fatalf("MountVolume must be an IsolationError on this path")
 	}

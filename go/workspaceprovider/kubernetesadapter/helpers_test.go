@@ -33,6 +33,25 @@ func newProvider(t *testing.T, adapter workspaceprovider.Adapter) *workspaceprov
 	return prov
 }
 
+// newProviderWithSecrets wires a Provisioner over the kubernetes adapter with a secrets.Provider
+// seeded from seed (so a pull-secret reference resolves to its password server-side, B7).
+func newProviderWithSecrets(t *testing.T, adapter workspaceprovider.Adapter, seed map[string]string) *workspaceprovider.Provisioner {
+	t.Helper()
+	set, _, _, _ := dependenciestest.Fakes()
+	prov, err := workspaceprovider.New(
+		workspaceprovider.Config{Default: workspaceprovider.SubstrateKubernetes},
+		workspaceprovider.Deps{
+			Adapters: map[workspaceprovider.Substrate]workspaceprovider.Adapter{workspaceprovider.SubstrateKubernetes: adapter},
+			Secrets:  secretstest.New(seed),
+			Clock:    set.Clock,
+		},
+	)
+	if err != nil {
+		t.Fatalf("New provider over real kubernetes adapter (seeded secrets): %v", err)
+	}
+	return prov
+}
+
 // secretsForTest returns a fake secrets.Provider for integration wiring (no real vault).
 func secretsForTest() *secretstest.Provider { return secretstest.New(nil) }
 

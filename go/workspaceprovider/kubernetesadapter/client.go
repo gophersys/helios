@@ -33,6 +33,14 @@ type kubernetesClient interface {
 	GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error)
 	PodLogs(ctx context.Context, namespace, name string, opts *corev1.PodLogOptions) (io.ReadCloser, error)
 
+	// CreateSecret creates a corev1.Secret (a MountSecret's resolved material, or the
+	// dockerconfigjson pull-secret) in the workspace namespace. The value rides the Secret
+	// object the apiserver stores encrypted-at-rest; it never enters the pod spec or a log.
+	CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret) (*corev1.Secret, error)
+	// GetSecret reads a Secret's metadata/type back (test-support assertions; the value is not
+	// read by the adapter).
+	GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error)
+
 	CreateNetworkPolicy(ctx context.Context, namespace string, policy *networkingv1.NetworkPolicy) (*networkingv1.NetworkPolicy, error)
 
 	// Exec runs a command in a pod's container over the SPDY exec plane, streaming
@@ -101,6 +109,14 @@ func (c clientWrapper) GetPod(ctx context.Context, namespace, name string) (*cor
 
 func (c clientWrapper) PodLogs(ctx context.Context, namespace, name string, opts *corev1.PodLogOptions) (io.ReadCloser, error) {
 	return c.clientset.CoreV1().Pods(namespace).GetLogs(name, opts).Stream(ctx) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
+}
+
+func (c clientWrapper) CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
+	return c.clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{}) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
+}
+
+func (c clientWrapper) GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+	return c.clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{}) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
 }
 
 func (c clientWrapper) CreateNetworkPolicy(ctx context.Context, namespace string, policy *networkingv1.NetworkPolicy) (*networkingv1.NetworkPolicy, error) {

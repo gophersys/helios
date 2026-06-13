@@ -84,6 +84,18 @@ func EphemeralContainer(t *testing.T, opts ...HarnessOption) workspaceprovider.A
 //nolint:ireturn // the C23 harness vends the workspaceprovider.Adapter port (docker/k3d/kind interchangeably); returning the port IS the contract.
 func K3dCluster(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter {
 	t.Helper()
+	adapter, _ := K3dClusterNamed(t, opts...)
+	return adapter
+}
+
+// K3dClusterNamed is K3dCluster plus the cluster's name (so a test that must reach the cluster's
+// node containers — e.g. joining a private registry's docker network for an in-cluster
+// authenticated pull, B7 — can identify them via ClusterNodes(name)). The name is empty when the
+// harness Skipped.
+//
+//nolint:ireturn // the C23 harness vends the workspaceprovider.Adapter port; returning the port IS the contract.
+func K3dClusterNamed(t *testing.T, opts ...HarnessOption) (adapter workspaceprovider.Adapter, clusterName string) {
+	t.Helper()
 	configuration := resolveOptions(opts...)
 	if !k3dAvailable() {
 		t.Skip("k3d or docker unavailable, skipping real-cluster conformance (the k3d binding needs both)")
@@ -92,7 +104,43 @@ func K3dCluster(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter {
 	if err != nil {
 		t.Skipf("k3d cluster create unavailable, skipping: %v", err)
 	}
-	return bindCluster(t, cluster, configuration)
+	return bindCluster(t, cluster, configuration), cluster.Name
+}
+
+// K3dClusterWithRegistry is the B7 (pull-secret) harness: it stands up an ephemeral k3d cluster
+// configured to reach a freshly-spun PRIVATE authenticated registry over HTTP (a registries.yaml
+// endpoint, NO baked-in auth — credentials come from the Pod's ImagePullSecret, the B7 fix under
+// test), joins the cluster's nodes to the registry network, pre-pushes a private image, and
+// returns the kubernetesadapter bound to the cluster plus the live registry. Both the cluster and
+// the registry are reaped on t.Cleanup. It SKIPS when k3d/docker/htpasswd is unavailable. baseImage
+// is the public image the private one is derived FROM.
+//
+//nolint:ireturn // the harness vends the workspaceprovider.Adapter port; returning the port IS the contract.
+func K3dClusterWithRegistry(t *testing.T, baseImage string, opts ...HarnessOption) (workspaceprovider.Adapter, *LocalRegistry) {
+	t.Helper()
+	configuration := resolveOptions(opts...)
+	if !k3dAvailable() {
+		t.Skip("k3d or docker unavailable, skipping pull-secret conformance (needs both)")
+	}
+
+	registry, rerr := NewLocalRegistry(t.Context(), baseImage)
+	if rerr != nil {
+		t.Skipf("local authenticated registry unavailable, skipping pull-secret test: %v", rerr)
+	}
+	t.Cleanup(registry.Delete)
+
+	registriesYAML, werr := registry.WriteRegistriesYAML()
+	if werr != nil {
+		t.Skipf("write k3d registries.yaml: %v", werr)
+	}
+	cluster, cerr := createK3dCluster(t.Context(), configuration.prePullImages, "--registry-config", registriesYAML)
+	if cerr != nil {
+		t.Skipf("k3d cluster create (with registry) unavailable, skipping: %v", cerr)
+	}
+
+	// Join the cluster nodes to the registry network so the container hostname resolves in-cluster.
+	registry.JoinCluster(t.Context(), ClusterNodes(t.Context(), cluster.Name))
+	return bindCluster(t, cluster, configuration), registry
 }
 
 // KindCluster is the SECOND conformance target (kind v0.32.0, ADR-0016 §4): identical shape

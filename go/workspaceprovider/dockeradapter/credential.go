@@ -59,14 +59,83 @@ func (c *connection) injectCredential(ctx context.Context, spec workspaceprovide
 	}
 }
 
+// writeMountSecrets writes each resolved MountSecret's material into its tmpfs Target as a
+// restrictive-mode file, so a workload reading the Target gets the secret VALUE (not an empty
+// file). The mount is already a genuine tmpfs (buildMounts), so the bytes never hit an image
+// layer (07 §2). The value is read via Secret.Use (the sole read path) and copied into the
+// container through the tar plane; it is NEVER logged, labeled, or returned. The library
+// Zeroizes the resolved Secret after Create returns. An empty resolved map is a no-op.
+//
+//nolint:gocritic // resolved mirrors the frozen Resolved seam; spec is pointer-passed for its Mounts.
+func (a *Adapter) writeMountSecrets(ctx context.Context, containerID string, spec *workspaceprovider.WorkspaceSpec, resolved workspaceprovider.Resolved) error {
+	if len(resolved.Mounts) == 0 {
+		return nil
+	}
+	conn := a.connection(containerID, workspaceprovider.Handle{})
+	for i := range spec.Mounts {
+		mount := spec.Mounts[i]
+		if mount.Kind != workspaceprovider.MountSecret {
+			continue
+		}
+		secret := resolved.Mounts[mount.Target]
+		if secret == nil {
+			// The library validated a MountSecret carries a non-zero Ref and resolved it into
+			// resolved.Mounts; a missing entry means the credential could not be placed.
+			return &workspaceprovider.IsolationError{Detail: "resolved MountSecret material missing for target " + mount.Target}
+		}
+		if werr := writeSecretFile(ctx, conn, mount.Target, secret); werr != nil {
+			return &workspaceprovider.IsolationError{Detail: "write MountSecret material to " + mount.Target}
+		}
+	}
+	return nil
+}
+
+// writeSecretFile streams a resolved Secret's bytes onto the workspace's tmpfs Target via an
+// exec that reads STDIN and writes the file with a restrictive umask — `sh -c 'umask 077; cat >
+// "$1"' sh <target>`. The exec runs INSIDE the container, so it writes through the tmpfs mount
+// (docker's CopyToContainer cannot — a tmpfs masks the container-layer copy plane). The command
+// argv carries only the path (loggable); the secret VALUE rides stdin and never appears in the
+// exec record, a label, or a log. The value is read via Secret.Use (the sole read path) and the
+// local copy wiped immediately after; the library Zeroizes the resolved Secret after Create.
+func writeSecretFile(ctx context.Context, conn *connection, target string, secret *secrets.Secret) error {
+	var value []byte
+	if uerr := secret.Use(func(plaintext []byte) error {
+		value = append(value[:0], plaintext...)
+		return nil
+	}); uerr != nil {
+		return errors.Wrap(errors.KindPermission, "dockeradapter: read MountSecret for injection", uerr)
+	}
+	res, eerr := conn.Exec(ctx, workspaceprovider.ExecSpec{
+		// umask 077 makes the created file 0600 (owner read/write only); $1 is the path, fed as
+		// an arg so it is never a shell-injection surface and the secret never rides the argv.
+		Command: []string{"sh", "-c", "umask 077; cat > \"$1\"", "sh", target},
+		Stdin:   bytes.NewReader(value),
+	})
+	for i := range value {
+		value[i] = 0 // best-effort wipe of the local copy
+	}
+	if eerr != nil {
+		return errors.Wrap(errors.KindInternal, "dockeradapter: write MountSecret to tmpfs", eerr)
+	}
+	if res.ExitCode != 0 {
+		return errors.New(errors.KindInternal, "dockeradapter: MountSecret write exited non-zero")
+	}
+	return nil
+}
+
+// registryUsername is the fixed username both adapters present for a basic-auth registry pull,
+// so a resolved pull-secret carries only the PASSWORD (the secret) and the two substrates
+// authenticate identically against the same registry (the substitutability the conformance
+// suite proves). The kubernetesadapter's dockerconfigjson uses the same username.
+const registryUsername = "eden"
+
 // registryAuth builds docker's base64-encoded X-Registry-Auth header value from the
-// resolved pull-secret. The secret value is read via Secret.Use (the sole read path); it
-// is expected to be a registry auth token (the "identitytoken"/"password" forms docker
-// accepts). The value never leaves this function except as the opaque header docker
-// requires.
+// resolved pull-secret. The secret value is read via Secret.Use (the sole read path) and used
+// as the registry PASSWORD under the fixed registryUsername (basic auth). The value never
+// leaves this function except as the opaque header docker requires.
 func registryAuth(pullSecret *secrets.Secret) (string, error) {
 	header, err := secrets.Use1(pullSecret, func(plaintext []byte) (string, error) {
-		authConfig := registry.AuthConfig{Password: string(plaintext)}
+		authConfig := registry.AuthConfig{Username: registryUsername, Password: string(plaintext)}
 		encoded, merr := json.Marshal(authConfig)
 		if merr != nil {
 			return "", errors.Wrap(errors.KindInternal, "dockeradapter: marshal registry auth", merr)

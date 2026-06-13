@@ -91,6 +91,34 @@ func (a *Adapter) ownerSelector(extra map[string]string) string {
 	return a.labelSelector(workspaceprovider.Selector{Labels: extra})
 }
 
+// ImagePullSecretsForTest returns the workspace pod's configured ImagePullSecret names (the
+// dockerconfigjson references) for the workspace the handle names — the B7 assertion that the
+// kubernetes adapter actually wired Pod.Spec.ImagePullSecrets. Test-support only.
+func (a *Adapter) ImagePullSecretsForTest(ctx context.Context, handle workspaceprovider.Handle) ([]string, error) {
+	namespace := handleNamespace(handle)
+	pod, err := a.client.GetPod(ctx, namespace, workspacePodName)
+	if err != nil {
+		return nil, classifyAPIError("get pod for pull-secret assertion", err)
+	}
+	names := make([]string, 0, len(pod.Spec.ImagePullSecrets))
+	for i := range pod.Spec.ImagePullSecrets {
+		names = append(names, pod.Spec.ImagePullSecrets[i].Name)
+	}
+	return names, nil
+}
+
+// PullSecretTypeForTest returns the kubernetes Secret type of the workspace's pull-secret object
+// (kubernetes.io/dockerconfigjson when the B7 fix wired it), so a test asserts the Secret is the
+// right type WITHOUT reading its value. Test-support only.
+func (a *Adapter) PullSecretTypeForTest(ctx context.Context, handle workspaceprovider.Handle) (string, error) {
+	namespace := handleNamespace(handle)
+	secret, err := a.client.GetSecret(ctx, namespace, pullSecretObjectName)
+	if err != nil {
+		return "", classifyAPIError("get pull-secret for assertion", err)
+	}
+	return string(secret.Type), nil
+}
+
 // metav1ListOptions builds a metav1.ListOptions from a label selector string.
 func metav1ListOptions(selector string) metav1.ListOptions {
 	return metav1.ListOptions{LabelSelector: selector}

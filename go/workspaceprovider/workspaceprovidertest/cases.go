@@ -41,6 +41,7 @@ func providerCases() []edentesting.Case[workspaceprovider.Adapter] {
 		{Name: "TeardownIsIdempotentAndReclaiming", Run: caseTeardownIdempotent},
 		{Name: "EgressDefaultDenyDeclaredAllow", Run: caseEgress},
 		{Name: "ResourceLimitsBind", Run: caseResourceLimits},
+		{Name: "MountSecretMaterialReachesWorkspace", Run: caseMountSecret},
 		{Name: "SecretMaterialNeverLeaks", Run: caseNoSecretLeak},
 		{Name: "ManifestTruthfulness", Run: caseManifestTruthful},
 		{Name: "TenancyIsolation", Run: caseTenancyIsolation},
@@ -615,6 +616,77 @@ func assertOOMKilledShape(final workspaceprovider.RunStatus, report edentesting.
 	}
 	if final.Detail == "" {
 		report.Errorf("the native OOM reason must ride RunStatus.Detail, got empty")
+	}
+}
+
+// mountSecretTarget is the in-workspace path a MountSecret's resolved material is written to.
+const mountSecretTarget = "/run/eden/secrets/mounted-token"
+
+// caseMountSecret proves the MountSecret credential seam END TO END on a REAL substrate: a
+// workspace declares a MountSecret whose secrets.Reference resolves (server-side, by the
+// library) to the seeded canary; the adapter must WRITE that resolved material into the
+// workspace at the mount Target with restrictive mode, so an exec reading the Target INSIDE the
+// workspace returns the secret VALUE — while the value still appears in NO Handle/Status/spec/
+// log (07 §2, the no-leak guarantee runnable). This is the B6 fix's executable proof: the
+// docker adapter writes a 0600 tmpfs file; the kubernetes adapter mounts a 0400 secret volume;
+// both yield the same observable — `cat <target>` == the secret. It runs FOR REAL on docker AND
+// k3d (and against the in-memory fake, which models the same write).
+func caseMountSecret(adapter workspaceprovider.Adapter, h edentesting.Harness, report edentesting.Report) {
+	ctx := h.Context()
+	prov, _ := providerOver(adapter)
+	spec := baseSpec("ws-mount-secret")
+	spec.Mounts = append(spec.Mounts, workspaceprovider.Mount{
+		Kind:   workspaceprovider.MountSecret,
+		Target: mountSecretTarget,
+		Ref:    pullSecretRef(), // resolves to SeededCanary, server-side, by the library
+	})
+
+	ws, err := prov.Provision(ctx, spec)
+	if err != nil {
+		report.Fatalf("Provision with MountSecret: %v", err)
+		return
+	}
+	defer cleanup(ctx, prov, ws.Handle())
+
+	// Read the mounted secret from INSIDE the workspace: it must equal the seeded value (the
+	// resolved material actually reached the workspace — not an empty file).
+	var out bytes.Buffer
+	res, eerr := ws.Exec(ctx, workspaceprovider.ExecSpec{
+		Command: []string{"cat", mountSecretTarget},
+		Stdout:  &out,
+		Timeout: 30 * time.Second,
+	})
+	if eerr != nil {
+		report.Fatalf("Exec(cat mount-secret): %v", eerr)
+		return
+	}
+	if res.ExitCode != 0 {
+		report.Errorf("reading the MountSecret target exited %d (the material did not reach the workspace)", res.ExitCode)
+		return
+	}
+	got := strings.TrimRight(out.String(), "\n")
+	if got != SeededCanary {
+		report.Errorf("MountSecret content = %q, want the seeded secret value (the resolved material was dropped)", got)
+	}
+
+	// The value must NOT have leaked into the loggable surfaces (07 §2): the Handle, the Status
+	// detail, or any List Descriptor. (The exec STDOUT above is the workload reading its own
+	// credential at point of use — that is the legitimate read path, not a leak.)
+	if strings.Contains(ws.Handle().String(), SeededCanary) {
+		report.Errorf("the mounted secret leaked into the Handle")
+	}
+	if st, serr := ws.Status(ctx); serr != nil {
+		report.Errorf("Status: %v", serr)
+	} else if strings.Contains(st.Detail, SeededCanary) {
+		report.Errorf("the mounted secret leaked into Status.Detail")
+	}
+	for _, desc := range listLabels(ctx, prov, spec.Labels, report) {
+		if strings.Contains(desc.Handle.String(), SeededCanary) {
+			report.Errorf("the mounted secret leaked into a Descriptor")
+		}
+	}
+	if fake, ok := adapter.(*Adapter); ok {
+		fake.AssertNoSecretMaterial(reportAsTestingT{report}, SeededCanary)
 	}
 }
 

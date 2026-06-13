@@ -99,6 +99,18 @@ func (a *Adapter) reapNamespace(ctx context.Context) error {
 	return reapErr
 }
 
+// RemoveImageForTest force-removes a locally-cached image so the next pull must hit the registry
+// (the B7 pull-secret test purges the just-pulled private image before the WITHOUT-secret pull,
+// so the daemon cannot serve the cached layer and mask the denial). It also clears the
+// pre-pulled marker. Test-support only.
+func (a *Adapter) RemoveImageForTest(ctx context.Context, ref string) error {
+	delete(a.prePulled, ref)
+	if _, err := a.client.ImageRemove(ctx, ref, image.RemoveOptions{Force: true, PruneChildren: true}); err != nil {
+		return classifyDockerError("remove image", err)
+	}
+	return nil
+}
+
 // CountOwned reports how many containers this adapter's namespace currently owns — the
 // harness's orphan re-scan asserts this is zero after Teardown (the C23 leak check).
 func (a *Adapter) CountOwned(ctx context.Context) (int, error) {

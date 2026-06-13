@@ -140,8 +140,35 @@ func (a *Adapter) Create(_ context.Context, spec workspaceprovider.WorkspaceSpec
 			ws.readOnly[spec.Mounts[i].Target] = true
 		}
 	}
+	// Model the credential seam: write each resolved MountSecret's VALUE into the in-memory FS
+	// at its Target (mirroring the real adapters, which write a 0600 file / mount a 0400 secret
+	// volume). The value is read via Secret.Use (the sole read path) and stored ONLY as the
+	// file's bytes — never echoed into a recorded Spec/Handle/ref (the no-leak scan covers
+	// those), so caseMountSecret can `cat` the Target and the no-leak assertion still holds.
+	a.writeMountSecrets(ws, &spec, resolved)
 	a.state[handle.String()] = ws
 	return workspaceprovider.HandleData{Handle: handle, Connection: a.connFor(ws)}, nil
+}
+
+// writeMountSecrets stores each resolved MountSecret's value at its Target in the in-memory FS,
+// reading the value via Secret.Use (the sole read path). It models the real adapters' write of
+// the secret material into the workspace at the mount Target.
+//
+//nolint:gocritic // resolved mirrors the frozen Resolved seam; spec is pointer-passed for its Mounts.
+func (a *Adapter) writeMountSecrets(ws *fakeWorkspace, spec *workspaceprovider.WorkspaceSpec, resolved workspaceprovider.Resolved) {
+	for i := range spec.Mounts {
+		if spec.Mounts[i].Kind != workspaceprovider.MountSecret {
+			continue
+		}
+		secret := resolved.Mounts[spec.Mounts[i].Target]
+		if secret == nil {
+			continue
+		}
+		_ = secret.Use(func(plaintext []byte) error { //nolint:errcheck // the fake stores a copy; Use only fails on a zeroized secret, which the library never hands here.
+			ws.files[spec.Mounts[i].Target] = append([]byte(nil), plaintext...)
+			return nil
+		})
+	}
 }
 
 // Dial re-attaches to an existing in-memory workspace. NotFoundError if gone.
@@ -369,6 +396,14 @@ func (c *fakeConnection) Run(_ context.Context, spec workspaceprovider.RunSpec, 
 //
 //nolint:gocritic // contract §2 fixes Connection.Exec's spec by value; the port surface is frozen.
 func (c *fakeConnection) Exec(_ context.Context, spec workspaceprovider.ExecSpec) (workspaceprovider.ExecResult, error) {
+	// Model `cat <path>` by returning the in-memory file content, so a case that reads a
+	// MountSecret-injected file (caseMountSecret) gets the real value on the fake too.
+	if out, exit, ok := c.modelCat(spec.Command); ok {
+		if spec.Stdout != nil {
+			_, _ = spec.Stdout.Write(out) //nolint:errcheck // caller-owned sink; bytes also ride ExecResult.Stdout.
+		}
+		return workspaceprovider.ExecResult{ExitCode: exit, Stdout: out, Detail: "fake cat"}, nil
+	}
 	out := []byte(strings.Join(spec.Command, " ") + "\n")
 	if spec.Stdout != nil {
 		_, _ = spec.Stdout.Write(out) //nolint:errcheck // caller-owned sink; bytes also ride ExecResult.Stdout.
@@ -378,6 +413,37 @@ func (c *fakeConnection) Exec(_ context.Context, spec workspaceprovider.ExecSpec
 		exit = 1
 	}
 	return workspaceprovider.ExecResult{ExitCode: exit, Stdout: out, Detail: "fake exec"}, nil
+}
+
+// modelCat models `cat <path>` (and `sh -c "cat <path>"`) against the in-memory FS: it returns
+// the file's bytes + exit 0 when present, empty + exit 1 when absent, and ok=false when the
+// command is not a cat (so Exec falls through to its echo model).
+func (c *fakeConnection) modelCat(command []string) (out []byte, exit int, ok bool) {
+	path := catTarget(command)
+	if path == "" {
+		return nil, 0, false
+	}
+	c.adapter.mu.Lock()
+	defer c.adapter.mu.Unlock()
+	data, present := c.ws.files[path]
+	if !present {
+		return nil, 1, true
+	}
+	return append([]byte(nil), data...), 0, true
+}
+
+// catTarget extracts the path argument of a `cat <path>` (direct or wrapped in `sh -c`), else "".
+func catTarget(command []string) string {
+	if len(command) == 2 && command[0] == "cat" {
+		return command[1]
+	}
+	if len(command) == 3 && command[0] == "sh" && command[1] == "-c" {
+		fields := strings.Fields(command[2])
+		if len(fields) == 2 && fields[0] == "cat" {
+			return fields[1]
+		}
+	}
+	return ""
 }
 
 // Files returns the in-memory file accessor.

@@ -58,7 +58,7 @@ func uniqueClusterName(tool string) string {
 // are needed for workspace pods) so the boot is fast, --wait blocks until the server is Ready,
 // and the kubeconfig lands in an ISOLATED file (NOT the default ~/.kube/config). The requested
 // images are pre-imported so per-test pod provisions are fast and offline-safe.
-func createK3dCluster(ctx context.Context, images []string) (*ephemeralCluster, error) {
+func createK3dCluster(ctx context.Context, images []string, extraArgs ...string) (*ephemeralCluster, error) {
 	name := uniqueClusterName("k3d")
 	kubeconfig, err := tempKubeconfig(name)
 	if err != nil {
@@ -68,9 +68,8 @@ func createK3dCluster(ctx context.Context, images []string) (*ephemeralCluster, 
 
 	createCtx, cancel := context.WithTimeout(ctx, clusterTimeout)
 	defer cancel()
-	if out, cerr := runCommand(
-		createCtx,
-		"k3d", "cluster", "create", name,
+	args := append([]string{
+		"cluster", "create", name,
 		"--no-lb",
 		"--wait",
 		"--timeout", clusterTimeout.String(),
@@ -78,7 +77,8 @@ func createK3dCluster(ctx context.Context, images []string) (*ephemeralCluster, 
 		"--kubeconfig-switch-context=false",
 		"--k3s-arg", "--disable=traefik@server:0",
 		"--k3s-arg", "--disable=metrics-server@server:0",
-	); cerr != nil {
+	}, extraArgs...)
+	if out, cerr := runCommand(createCtx, "k3d", args...); cerr != nil {
 		_ = cleanup() //nolint:errcheck // best-effort rollback of a partial create; the create error is the one returned.
 		return nil, errors.Wrap(errors.KindUnavailable, "k3d cluster create: "+out, cerr)
 	}

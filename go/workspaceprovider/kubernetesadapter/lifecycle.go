@@ -49,7 +49,18 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 		return rollback(perr)
 	}
 
-	pod, berr := buildPod(&spec, a.ownerLabels(&spec), workDir)
+	// Materialize the credential seam (07 §2) as native kubernetes Secrets BEFORE the pod:
+	// each MountSecret's resolved bytes become a corev1.Secret mounted at its Target (a secret
+	// volume, defaultMode 0400), and a resolved pull-secret becomes a dockerconfigjson Secret
+	// referenced via Pod.Spec.ImagePullSecrets. The library resolved the values server-side and
+	// Zeroizes them after Create; they ride the apiserver-stored Secret object, never the pod
+	// spec or a log. A failure here is fail-closed: roll back the namespace.
+	creds, serr := a.createSecrets(ctx, &spec, namespace, resolved)
+	if serr != nil {
+		return rollback(serr)
+	}
+
+	pod, berr := buildPod(&spec, a.ownerLabels(&spec), workDir, creds)
 	if berr != nil {
 		return rollback(berr)
 	}
@@ -297,11 +308,25 @@ func podContainersReady(pod *corev1.Pod) bool {
 	return true
 }
 
+// podCredentials carries the native kubernetes Secret references the library-resolved
+// credentials materialized into (createSecrets), so buildPod/buildVolumes mount them WITHOUT
+// ever seeing the plaintext: mountSecretNames maps a MountSecret Target to the corev1.Secret
+// name backing it, and pullSecretName is the dockerconfigjson Secret for the private-image pull
+// (empty when the image is public). The values live only in the apiserver-stored Secret
+// objects; this struct carries names, never bytes.
+type podCredentials struct {
+	mountSecretNames map[string]string
+	pullSecretName   string
+}
+
 // buildPod constructs the workspace pod: a single hold container with the spec's image, the
-// mounts mapped to volumes, the resource limits, and the non-secret env. A MountVolume the
-// distro cannot honor for the declared isolation is an IsolationError (fail-closed).
-func buildPod(spec *workspaceprovider.WorkspaceSpec, labels map[string]string, workDir string) (*corev1.Pod, error) {
-	volumes, mounts, ierr := buildVolumes(spec)
+// mounts mapped to volumes, the resource limits, the non-secret env, the MountSecret volumes,
+// and (for a private image) the ImagePullSecrets. A MountVolume the distro cannot honor for the
+// declared isolation is an IsolationError (fail-closed).
+//
+//nolint:gocritic // podCredentials is a small value struct threaded once per Create; copying it is not a path.
+func buildPod(spec *workspaceprovider.WorkspaceSpec, labels map[string]string, workDir string, creds podCredentials) (*corev1.Pod, error) {
+	volumes, mounts, ierr := buildVolumes(spec, creds)
 	if ierr != nil {
 		return nil, ierr
 	}
@@ -328,16 +353,21 @@ func buildPod(spec *workspaceprovider.WorkspaceSpec, labels map[string]string, w
 			Volumes: volumes,
 		},
 	}
+	if creds.pullSecretName != "" {
+		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: creds.pullSecretName}}
+	}
 	return pod, nil
 }
 
-// buildVolumes maps the spec's Mounts onto pod volumes + volume mounts. Bind/Inputs/Tmpfs/
-// Secret become emptyDir volumes (the workspace's writable workdir, the read-only inputs
-// root the LIBRARY guards, the in-memory scratch — a Memory-medium emptyDir for tmpfs so a
-// credential vehicle never persists, 07 §2). A MountVolume is unsupported on the default
-// distro path (CapPersistentVolume is Partial — a named PVC needs a StorageClass this
-// adapter does not provision here) and is an IsolationError.
-func buildVolumes(spec *workspaceprovider.WorkspaceSpec) ([]corev1.Volume, []corev1.VolumeMount, error) {
+// buildVolumes maps the spec's Mounts onto pod volumes + volume mounts. Bind/Inputs become
+// writable emptyDir volumes (the workspace's workdir + the read-only inputs root the LIBRARY
+// guards); Tmpfs becomes a Memory-medium emptyDir; a MountSecret becomes a genuine SECRET
+// volume (defaultMode 0400) projecting the resolved corev1.Secret's value file AT the Target —
+// so reading the Target returns the secret VALUE (07 §2). A MountVolume is unsupported on the
+// default distro path (CapPersistentVolume is Partial) and is an IsolationError.
+//
+//nolint:gocritic,gocyclo,cyclop // podCredentials is a small value struct; the per-kind dispatch is a flat 1:1 mount mapping.
+func buildVolumes(spec *workspaceprovider.WorkspaceSpec, creds podCredentials) ([]corev1.Volume, []corev1.VolumeMount, error) {
 	var volumes []corev1.Volume
 	var mounts []corev1.VolumeMount
 	seen := map[string]bool{}
@@ -351,11 +381,28 @@ func buildVolumes(spec *workspaceprovider.WorkspaceSpec) ([]corev1.Volume, []cor
 			// substrate (07 §4), not by the volume's mount mode (which would block the seed).
 			volumes = append(volumes, corev1.Volume{Name: volName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
 			mounts = append(mounts, corev1.VolumeMount{Name: volName, MountPath: m.Target})
-		case workspaceprovider.MountTmpfs, workspaceprovider.MountSecret:
-			// An in-memory scratch / credential vehicle: a Memory-medium emptyDir so it never
-			// hits a writable layer that survives the pod (07 §2).
+		case workspaceprovider.MountTmpfs:
+			// An in-memory scratch: a Memory-medium emptyDir so it never hits a writable layer
+			// that survives the pod (07 §2).
 			volumes = append(volumes, corev1.Volume{Name: volName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}}})
 			mounts = append(mounts, corev1.VolumeMount{Name: volName, MountPath: m.Target})
+		case workspaceprovider.MountSecret:
+			// A credential vehicle: project the resolved corev1.Secret as a read-only secret
+			// volume (defaultMode 0400, owner-read-only — kubernetes secret volumes are
+			// tmpfs-backed, so the value never persists past the pod, 07 §2). The volume is
+			// mounted at the Target's PARENT and the single value key is projected AS the
+			// Target's basename, so reading the Target returns the secret VALUE.
+			secretName := creds.mountSecretNames[m.Target]
+			if secretName == "" {
+				return nil, nil, &workspaceprovider.IsolationError{Detail: "resolved MountSecret material missing for target " + m.Target}
+			}
+			mode := int32(secretFileMode)
+			volumes = append(volumes, corev1.Volume{Name: volName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+				SecretName:  secretName,
+				DefaultMode: &mode,
+				Items:       []corev1.KeyToPath{{Key: secretValueKey, Path: secretBaseName(m.Target)}},
+			}}})
+			mounts = append(mounts, corev1.VolumeMount{Name: volName, MountPath: secretMountDir(m.Target), ReadOnly: true})
 		case workspaceprovider.MountVolume:
 			return nil, nil, &workspaceprovider.IsolationError{Detail: "this kubernetes adapter declares CapPersistentVolume partial; a named MountVolume (PVC) requires a provisioned StorageClass and is unsupported on this path"}
 		default:

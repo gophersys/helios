@@ -202,18 +202,39 @@ func (r *runDriver) finish(output []byte, code int) {
 	})
 }
 
+// sigkillExitCode is a process killed by SIGKILL (128+9) — the exit code the kubelet/runtime
+// reports when the workload's memory cgroup OOM-kills it (the limit binds; the kernel kills the
+// over-memory workload). The exec-into-hold model means the OOM REASON ("OOMKilled") attaches to
+// the exec'd child, not the long-lived hold container, so the real Run path surfaces the kill as
+// a SIGKILL exit → RunKilled (real ENFORCEMENT, faithful), but NOT the ConditionOOMKilled
+// discriminator (a documented limitation — contract §7 amendment + OD-15).
+const sigkillExitCode = 137
+
 // Status blocks until the workload's exec finishes (or ctx fires), then returns the terminal
-// phase with the real exit code; ok=false at terminal/cancellation.
+// phase with the real exit code; ok=false at terminal/cancellation. A SIGKILL exit (137 — the
+// kernel killing an over-memory workload, the real cgroup enforcement) is RunKilled, not a
+// generic RunFailed, so caseResourceLimits observes the real enforcement on k8s; a non-zero
+// non-kill exit is RunFailed; zero is RunSucceeded.
 func (r *runDriver) Status(ctx context.Context) (workspaceprovider.RunStatus, bool) {
 	select {
 	case <-r.done:
-		phase := workspaceprovider.RunSucceeded
-		if r.code != 0 {
-			phase = workspaceprovider.RunFailed
-		}
-		return workspaceprovider.RunStatus{Phase: phase, ExitCode: r.code, Detail: "kubernetes exec exited"}, false
+		return workspaceprovider.RunStatus{Phase: phaseForExit(r.code), ExitCode: r.code, Detail: "kubernetes exec exited"}, false
 	case <-ctx.Done():
 		return workspaceprovider.RunStatus{Phase: workspaceprovider.RunRunning}, false
+	}
+}
+
+// phaseForExit maps a workload exit code onto a terminal RunPhase: 0 is Succeeded, a SIGKILL
+// (137 — an OOM-kill or a forced kill) is RunKilled (the workload was aborted, not a clean
+// failure), and any other non-zero is RunFailed.
+func phaseForExit(code int) workspaceprovider.RunPhase {
+	switch code {
+	case 0:
+		return workspaceprovider.RunSucceeded
+	case sigkillExitCode:
+		return workspaceprovider.RunKilled
+	default:
+		return workspaceprovider.RunFailed
 	}
 }
 

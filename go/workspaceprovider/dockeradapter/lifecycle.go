@@ -3,6 +3,7 @@ package dockeradapter
 import (
 	"context"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -80,6 +81,19 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 		_ = a.client.ContainerRemove(ctx, createResp.ID, container.RemoveOptions{Force: true, RemoveVolumes: true}) //nolint:errcheck // best-effort rollback; the ensureDirs error is the one returned.
 		_ = a.removeEgressNetwork(ctx, egressNet)                                                                   //nolint:errcheck // best-effort rollback; the ensureDirs error is the one returned.
 		return workspaceprovider.HandleData{}, derr
+	}
+
+	// Write each resolved MountSecret's material into its tmpfs Target as a 0600 file (the
+	// credential seam, 07 §2). The library resolved the secret server-side and hands it in
+	// `resolved.Mounts` keyed by Target; the adapter INJECTS it (writes via the container's
+	// tar plane onto the in-memory tmpfs the mount already attached) and NEVER echoes it to a
+	// log/label/manifest. The value is read via Secret.Use (the sole read path) and Zeroized by
+	// the library after Create returns. A failure to place declared credential material is a
+	// fail-closed IsolationError: roll back rather than return a workspace missing its secret.
+	if serr := a.writeMountSecrets(ctx, createResp.ID, &spec, resolved); serr != nil {
+		_ = a.client.ContainerRemove(ctx, createResp.ID, container.RemoveOptions{Force: true, RemoveVolumes: true}) //nolint:errcheck // best-effort rollback; the secret-write error is the one returned.
+		_ = a.removeEgressNetwork(ctx, egressNet)                                                                   //nolint:errcheck // best-effort rollback; the secret-write error is the one returned.
+		return workspaceprovider.HandleData{}, serr
 	}
 
 	handle := a.handleFor(&spec, workDir)
@@ -247,11 +261,16 @@ func buildMounts(spec *workspaceprovider.WorkspaceSpec) ([]mount.Mount, []string
 			// marks read-only at the Files seam (07 §4). It is NOT a tmpfs (which would mask
 			// the seed) and NOT a docker-read-only mount (which would block the seed itself).
 			ensureDirs = append(ensureDirs, m.Target)
-		case workspaceprovider.MountTmpfs, workspaceprovider.MountSecret:
-			// An in-memory scratch / credential vehicle: a genuine tmpfs so it never hits
-			// an image layer (07 §2). The resolved secret material is written by the
-			// connection at Run time.
+		case workspaceprovider.MountTmpfs:
+			// An in-memory scratch: a genuine tmpfs so it never hits an image layer (07 §2).
 			mounts = append(mounts, mount.Mount{Type: mount.TypeTmpfs, Target: m.Target})
+		case workspaceprovider.MountSecret:
+			// A credential vehicle: mount a genuine tmpfs at the Target's PARENT directory so
+			// the resolved secret material can be WRITTEN as a 0600 file AT the Target (a file,
+			// not a directory) — reading the Target then returns the secret VALUE. The tmpfs
+			// guarantees the bytes never hit an image layer (07 §2); writeMountSecrets places
+			// the value after start, the library Zeroizes it after Create.
+			mounts = append(mounts, mount.Mount{Type: mount.TypeTmpfs, Target: secretMountDir(m.Target)})
 		case workspaceprovider.MountVolume:
 			return nil, nil, &workspaceprovider.IsolationError{Detail: "docker substrate declares CapPersistentVolume absent; MountVolume is unsupported"}
 		default:
@@ -284,6 +303,17 @@ func envList(env []workspaceprovider.EnvVar) []string {
 		out = append(out, e.Name+"="+e.Value)
 	}
 	return out
+}
+
+// secretMountDir is the directory a MountSecret's tmpfs is mounted at: the Target's parent, so
+// the resolved secret can be written as a file AT the Target inside an in-memory mount. A
+// Target with no parent (a bare "/file") mounts the tmpfs at "/", which still backs the file.
+func secretMountDir(target string) string {
+	dir := path.Dir(strings.TrimRight(target, "/"))
+	if dir == "" || dir == "." {
+		return "/"
+	}
+	return dir
 }
 
 // defaultWorkDir picks the harness workdir: the first Bind/Inputs mount target, else
