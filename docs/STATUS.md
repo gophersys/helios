@@ -64,9 +64,15 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   deterministic allocs/bytes). Agents also fixed real prod bugs (observability `Exporter` cohesion break +
   G115; gitrepository G204/G306). All 6 re-verified GREEN with the fixed gate.
 
+- ✅ **workspaceprovider DONE — phase-gate all GREEN** (libs 0d3cb95; eden contract freeze + pointer): the
+  full taxonomy over the REAL docker + k3d/kind substrate (all reaped, CountOwned==0). The real-substrate
+  test caught a genuine prod bug — VehicleFile credential injection was silently broken (tmpfs can't take a
+  CopyToContainer write) → rerouted via exec+stdin, proven on real docker — plus 3 gosec G115 hardenings.
+  Engine: cohesion exemption generalized to suffix families (...Config/Adapter/Options, libs 09c8cf9).
+
 QUEUED (dependency-ordered, Mateo-directed):
-1. **Retroactive QA sweep — Batch 2**: workspaceprovider + orchestrator (real docker/k3d/kind) — SERIALIZE
-   (one at a time, own Opus workflow each), verify-in-container + commit each.
+1. **Retroactive QA sweep — Batch 2 final**: orchestrator (real docker/k3d/kind) — the LAST lib; same
+   single-agent sweep, verify-in-container + commit. Then all 11 Go libs are ADR-0020 gate-green.
 2. **Milestone B architecture FIRST, then build** (Mateo 2026-06-13): study `MateoSegura/IOTEA-archive` (the
    runtime lib spanning k8s+docker, deploy-local-vs-prod, the http-api) and produce diagrams + ADRs for
    (a) secure per-agent secret provisioning (secrets lib → Vault), (b) deploy local/prod for docker+k8s,

@@ -1,20 +1,21 @@
-# Contract draft — workspaceprovider
+# Contract — workspaceprovider
 
-> Status: Draft for negotiation — Wave 3A; freezes per the ADR-0016 process · 2026-06-12 ·
-> Reconciled from independent producer/consumer drafts (09 §4 step 2). **⚠️ Post-freeze draft
-> amendment pending Mateo's ratification (§7 Q13):** the concrete Provider is `*Provisioner`
-> (not `*Substrate` — that name collides with `type Substrate string`), and the adapter's
-> workload-plane seam is an exported `Connection` port (+ `RunDriver`/`Probe`) — both additive
-> to the frozen consumer surface. The **F1 Infrastructure
-> (substrate) connector port** (05 §2, 10 §12, C23 "sandbox") — the substrate abstraction S2's
-> orchestrator provisions/tears down isolated workspaces over, runs workloads in, and
-> execs/mounts/dials-out from. Adapters: `docker` (the daemon) and `kubernetes` (any conformant
-> distro; **k3d** the default local/test substrate, **kind** the second conformance target, ADR-0016).
-> It composes with the frozen `secrets`/`errors`/`dependencies`/`testing` patterns and sits
-> **beneath** the frozen `agentsession` contract: it produces the workspace whose path
-> `agentsession.Spec.Workspace` names; `agentsession.Close` never tears down the pod (02 §1) — *this*
-> port does. Freezes at the contract-PR gate after Mateo's review; the frozen contract lands in
-> `libs/go/workspaceprovider/` and this draft moves to the attic.
+> Status: Frozen (ADR-0016) · 2026-06-13 · Reconciled from independent producer/consumer drafts
+> (09 §4 step 2) and frozen with the library built: the exported surface is mechanically recorded
+> at `libs/go/workspaceprovider/.apibaseline` (the freeze made mechanical, ADR-0020) and the
+> docker + kubernetes (k3d default, kind second) adapters + the ADR-0020 8-dimension test taxonomy
+> are green. The ratified amendment (§7 Q13) is now part of the frozen surface: the concrete
+> Provider is `*Provisioner` (not `*Substrate` — that name collides with `type Substrate string`),
+> and the adapter's workload-plane seam is an exported `Connection` port (+ `RunDriver`/`Probe`).
+> The **F1 Infrastructure (substrate) connector port** (05 §2, 10 §12, C23 "sandbox") — the
+> substrate abstraction S2's orchestrator provisions/tears down isolated workspaces over, runs
+> workloads in, and execs/mounts/dials-out from. Adapters: `docker` (the daemon) and `kubernetes`
+> (any conformant distro; **k3d** the default local/test substrate, **kind** the second conformance
+> target, ADR-0016). It composes with the frozen `secrets`/`errors`/`dependencies`/`testing`
+> patterns and sits **beneath** the frozen `agentsession` contract: it produces the workspace whose
+> path `agentsession.Spec.Workspace` names; `agentsession.Close` never tears down the pod (02 §1) —
+> *this* port does. A breaking change to the surface requires a contract revision (ADR-0016 §1) +
+> re-recording the `.apibaseline` — the cardinal sin otherwise (10 §9).
 
 ## 1. Scope
 
