@@ -195,14 +195,31 @@ EACH independently re-verified by me before commit (every build agent left ≥1 
 mid-gate, B3 a workspace-breaking go.mod replace conflict, B5 gosec-nolint vetting, B8 a real async-harness
 context bug). Run it: `bash deploy/ctl.sh demo` → http://127.0.0.1:5173/chat.
 
-REMAINING (post-demo, NOT demo-blocking):
-- **B6** git-backed `agent-configs/` + strict-by-default sandbox (the config-as-code + per-tool-grant layer) —
-  deferred as hardening; the demo runs without it.
+✅ **FINAL REVIEW DONE (Opus, 2026-06-14)** — verdict: **SAFE to hand Mateo.** secretAudit **PASS** (no real
+credential in any committed file/log/persisted surface — gitignore coverage live-verified, vault-seed.sh
+`set +x` names-only, vaultadapter mints un-printable secrets + reference-only typed errors, servicespec never
+inlines a secret), cohesion + HNS-1 **PASS** (zero `helios`, no duplicate contract types), **zero CRITICAL**.
+Applied the two cheap cleanups it flagged: pinned `nats:latest`→`nats:2.14.2` (matches the libs' embedded
+server), and this note: **the demo gateway (path b / `agentgateway-live`) is INTENTIONALLY auth-free +
+loopback-only** (127.0.0.1) — a deliberate dev convenience, not an oversight; the PRODUCTION stateless gateway
+(path a) is behind the edenhttp dev-JWT + grants.
+
+REMAINING (post-demo, NOT demo-blocking — the review's path-(a) backlog, top two MUST NOT be forgotten):
+- 🔺 **HIGH (path-a blocker #1):** the B7 frontend posts `{command:…}` no-auth to `/control`; the production
+  stateless gateway expects `{verb:…}` behind the JWT. The UI works against the live/dev gateway but is
+  silently INCOMPATIBLE with the stateless gateway → unify the control DTO (`verb`) + have the frontend mint/
+  attach a dev-JWT + add a contract test driving the SAME client against the stateless gateway.
+- 🔺 **HIGH (path-a #2):** `agentruntime/runtime.go` logs+continues on a failed events `PublishEvent` → that Seq
+  never reaches JetStream, so the gateway's "gap-free replay" can gap. Retry/backoff or fail the run on a
+  persistent events-publish failure (heartbeat-publish failures stay tolerable).
+- **B6** git-backed `agent-configs/` + strict-by-default sandbox (config-as-code + per-tool grants) — hardening.
 - **Full distributed path (a)** — build/load the agent-runtime + gateway CONTAINER IMAGES + run the
   orchestrator-spawns-PID-1-pod / stateless-NATS→SSE-gateway compose + a k3d `helm install` (the chart renders;
-  apply is the follow-up). The live demo uses the single-process path (b); the distributed path is scaffolded.
+  apply is the follow-up). The live demo uses single-process path (b); the distributed path is scaffolded.
+  The record-plane ledger (`GET /sessions/{id}`) doesn't mirror the live SSE ledger (cosmetic for the demo).
 - **omp live-in-pod** unverified (omp not in the current devcontainer image; adapter wired + key seeded).
-- **Codex** PARKED (no OpenAI key). The k8s namespace 63-char truncation hardening (RD-15 note).
+- **Lower:** dev-JWT `exp==0` never expires (edenhttp — dev-only); SSE reader has no max-reconnect cap;
+  **Codex** PARKED (no OpenAI key); the k8s namespace 63-char truncation hardening (RD-15 note).
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
