@@ -127,13 +127,30 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   pattern), then ran `phase-gate all` myself GREEN on REAL nats-server+JetStream (embedded AND a real container,
   never mocked) + a real agentsession subprocess, race+leak clean, and smoked the app (/live 200, graceful
   exit-0 on SIGTERM).
+- ✅ **B4: thin orchestrator over REAL pods DONE — phase-gate all GREEN** (libs c695a9a; eden pointer + contract
+  doc): binds the Milestone-B substrate behind the EXISTING orchestrator ports (ADR-0022 #4, no surface break —
+  `.apibaseline` unchanged). Real Probe via the B2 `Supervisor.Supervised` (the HARD lifecycle, not the
+  in-memory liveTable/heartbeats); real **Postgres DesiredStore** (pgx) so desired survives node recycle; real
+  Pool over real workspaceprovider (docker+k3d) + Postgres + NATS, Stop/Kill records durable intent FIRST then
+  publishes to `agent.<id>.control` (OTel on every msg); provisions an Entrypoint workload-pod (agent-runtime
+  PID-1). Production: additive `SandboxSpec.Entrypoint` + `driveResume` now re-provisions a gone workspace on
+  re-adopt (idempotent on Name). **Independently re-verified by me** — reviewed the flagged `driveResume`
+  reconcile change (correct survive-recycle) + the additive field, confirmed `.apibaseline` unchanged, ran
+  `phase-gate all` GREEN myself on REAL docker(N=3)+k3d(N=2)+Postgres+NATS (spawn→recycle→suspend→resume→
+  stop→kill, load N=5 -race, CountOwned==0, weaken-to-confirm non-vacuous), and confirmed all apps still build.
+  Real adapters live in the integration/load lane so the orchestrator core stays pgx/nats-free.
+  - ⚠️ **Carried forward (flagged, not blocking):** (a) **B8 handoff** — the gate uses a busybox Entrypoint;
+    the full demo still needs the real agent-runtime CONTAINER IMAGE built + the in-pod sidecar consuming the
+    `agent.<id>.control` verbs the orchestrator now publishes + a token-gated real-claude/omp-in-pod arm.
+    (b) `kubernetesadapter` namespace derivation truncates to 63 chars dropping the per-agent discriminator on
+    long names — latent collision risk; a hash-suffix is the future hardening (prod ownership prefixes are short).
 
 QUEUED (Milestone B build order, ADR-0022 — each its own gated Opus workflow → verify-in-container → commit):
 1. Codex adapter PARKED (no OpenAI key yet) · ~~secrets Vault backend~~ ✅ B1 · ~~supervising provider +
-   Entrypoint~~ ✅ B2 · ~~NATS/JetStream + PID-1 agent-runtime~~ ✅ B3 → **NEXT: thin orchestrator over real
-   pods** (owns DesiredStore + reconciles; Probes the provider's supervised Status) → stateless gateway
-   (NATS→SSE) + edenhttp → git-backed agent-configs/ + strict sandbox → Svelte 5 chat UI + Playwright real E2E
-   → deploy local/prod. Real tests, no mocks; devcontainer-first.
+   Entrypoint~~ ✅ B2 · ~~NATS/JetStream + PID-1 agent-runtime~~ ✅ B3 · ~~thin orchestrator over real pods~~
+   ✅ B4 → **NEXT: stateless NATS→SSE gateway + edenhttp** (GET /sessions/{id}/events = JetStream replay bridge;
+   REST POST control → agent.<id>.control; behind dev-JWT) → git-backed agent-configs/ + strict sandbox →
+   Svelte 5 chat UI + Playwright real E2E → deploy local/prod. Real tests, no mocks; devcontainer-first.
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
