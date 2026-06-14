@@ -48,7 +48,7 @@ IFS=$'\n\t'
 # submodule toplevel (standalone clone) only if there is no superproject.
 _eden_monorepo_root() {
   local sp
-  sp="$(cd "$PROJECT_ROOT" && git rev-parse --show-superproject-working-tree 2>/dev/null || true)"
+  sp="$(cd "$PROJECT_ROOT" && git rev-parse --show-superproject-working-tree 2>/dev/null)" || true
   if [[ -n "$sp" ]]; then printf '%s' "$sp"; return; fi
   cd "$PROJECT_ROOT" && git rev-parse --show-toplevel 2>/dev/null
 }
@@ -154,7 +154,17 @@ cmd_lint() {
 # (b)+(a) coverage helper: run the unit suite once with an atomic per-package profile.
 _cover_profile() {
   local profile="$1"
-  go_in_lib test ./... -covermode=atomic -coverprofile="$profile" -count=1
+  # Coverage reflects the WHOLE deterministic test suite, not just the fast untagged lane:
+  #   - `-tags lifecycle load` builds in the dimension lanes; an adapter's subprocess (spawn/scan/
+  #     Close) and concurrency paths are reachable ONLY through them. Stub-harness based, so hermetic.
+  #   - `-coverpkg=./...` attributes CROSS-PACKAGE coverage: the conformance two-binding suite (the
+  #     PRIMARY contract test, ADR-0020 §a/d) lives in the `<lib>test` package and exercises the
+  #     root contract heavily; without -coverpkg that coverage is invisible and the floor wildly
+  #     undercounts. With it, each package's number reflects "exercised by the lib's whole suite".
+  # Both overridable; EDEN_LOAD_N is bounded for the cover run.
+  local cover_tags="${EDEN_COVER_TAGS:-lifecycle load}"
+  ( cd "$PROJECT_ROOT" && env EDEN_LOAD_N="${EDEN_COVER_LOAD_N:-50}" \
+      go test -tags "$cover_tags" -coverpkg=./... ./... -covermode=atomic -coverprofile="$profile" -count=1 )
 }
 
 cmd_cover() {
@@ -207,8 +217,11 @@ cmd_lifecycle() {
 cmd_integration() {
   require_cmd go
   # The substrate tools the contract names for this lib (default docker; substrate libs add k3d kind).
-  # shellcheck disable=SC2086
-  require_cmd $EDEN_INTEGRATION_CMDS
+  # Split on spaces EXPLICITLY: the script's IFS excludes space, so an unquoted expansion would not
+  # word-split a multi-tool EDEN_INTEGRATION_CMDS — it would pass "go docker k3d kind" as one arg.
+  local -a integration_cmds
+  IFS=' ' read -r -a integration_cmds <<< "$EDEN_INTEGRATION_CMDS"
+  require_cmd "${integration_cmds[@]}"
   log_info "integration: go test -tags integration ./... -count=1 (REAL ${EDEN_INTEGRATION_CMDS})"
   go_in_lib test -tags integration ./... -count=1
   log_success "integration: OK"
@@ -286,21 +299,38 @@ cmd_bench_guard() {
   local report; report="$("$(have_cmd benchstat)" "$baseline" "$head" 2>&1)"
   printf '%s\n' "$report"
   rm -f "$head"
-  local threshold="${EDEN_BENCH_REGRESSION_PCT:-10}"
-  # Extract every "+<num>%" delta and fail if any exceeds the threshold. The geomean row is also a
-  # "+<num>%" delta, so an aggregate regression is caught even if a single row is borderline.
-  local worst
-  worst="$(
-    printf '%s\n' "$report" \
-      | grep -oE '\+[0-9]+(\.[0-9]+)?%' \
-      | tr -d '+%' \
-      | sort -nr | head -1
+  # Gate the DETERMINISTIC metrics (allocs/op, B/op) TIGHTLY — an allocation/byte regression is a
+  # real algorithmic change the code controls. Wall-time (sec/op) is ENVIRONMENTAL on shared dev /
+  # CI hardware (run-to-run jitter routinely exceeds 10% for ns-scale hot paths), so it gates at a
+  # WIDE tolerance: a true CPU regression is large; jitter is not. Both overridable. benchstat
+  # prints one table per metric; we track the current metric from its column-header line and check
+  # each "+N%" delta against the floor for ITS metric (the geomean row is included per metric).
+  local alloc_threshold="${EDEN_BENCH_REGRESSION_PCT:-10}"
+  local time_threshold="${EDEN_BENCH_REGRESSION_PCT_TIME:-50}"
+  local verdict
+  verdict="$(
+    printf '%s\n' "$report" | awk -v at="$alloc_threshold" -v tt="$time_threshold" '
+      /sec\/op/    { metric="time";  next }
+      /allocs\/op/ { metric="alloc"; next }
+      /B\/op/      { metric="alloc"; next }
+      {
+        if (match($0, /\+[0-9]+(\.[0-9]+)?%/)) {
+          v = substr($0, RSTART + 1, RLENGTH - 2) + 0
+          if (metric == "time")       { if (v > wt) wt = v }
+          else if (metric == "alloc") { if (v > wa) wa = v }
+        }
+      }
+      END {
+        if (wa + 0 > at + 0)      printf "allocation/bytes regressed +%.2f%% > +%s%% (a real algorithmic change)", wa, at
+        else if (wt + 0 > tt + 0) printf "wall-time regressed +%.2f%% > +%s%% (CPU/environmental; raise EDEN_BENCH_REGRESSION_PCT_TIME if a noisy host)", wt, tt
+      }
+    '
   )"
-  if [[ -n "$worst" ]] && awk -v w="$worst" -v t="$threshold" 'BEGIN{exit !(w+0 > t+0)}'; then
-    log_error "bench-guard: a hot path regressed +${worst}% > +${threshold}% vs baseline (re-baseline in this PR if deliberate)"
+  if [[ -n "$verdict" ]]; then
+    log_error "bench-guard: ${verdict} vs baseline (re-baseline in this PR if deliberate)"
     exit 1
   fi
-  log_success "bench-guard: within +${threshold}% envelope"
+  log_success "bench-guard: within envelope (allocs/bytes +${alloc_threshold}%, wall-time +${time_threshold}%)"
 }
 
 # cmd_bench_record — refresh the baseline (an explicit, reviewed action — NOT part of the gate).
@@ -354,12 +384,19 @@ _cohesion_scan() {
   # API packages is a duplicated bug surface. A `<lib>test` conformance-helper package and an
   # `internal/` package are NOT the public surface — a fixture or an implementation type may
   # legitimately reuse a name there — so they are excluded from the duplicate-definition scan.
+  # Idiomatic per-component type names the host-language convention sanctions are EXEMPT from the
+  # duplicate-definition flag — HNS-1 rule 11's narrow exemption ("a Go type named Config or Deps
+  # is fine"). These are construction/wiring/port-implementation types each component legitimately
+  # re-declares (the New(Config, Deps) spine; one Adapter per adapter package), NOT shared CONTRACT
+  # types. The contract types (Session, Event, Spec, Stream, ...) are NOT exempt — they keep one home.
+  local cohesion_exempt='Config|Deps|Adapter|Options|Option'
   dup="$(
     grep -rnE '^type [A-Z][A-Za-z0-9]* (struct|interface)\b' "$PROJECT_ROOT" \
       --include='*.go' --exclude='*_test.go' 2>/dev/null \
     | grep -vE "/(${EDEN_LIB_NAME}test|internal)/" \
-    | awk -F: '{
+    | awk -v exempt="^(${cohesion_exempt})\$" -F: '{
         name=$3; sub(/^type /,"",name); sub(/ .*/,"",name);
+        if (name ~ exempt) next;   # idiomatic per-component type — exempt (HNS-1 rule 11)
         file=$1; np=split(file, fp, "/"); dir="";
         for (i=1; i<np; i++) dir = (i==1 ? fp[i] : dir "/" fp[i]);
         if (seen[name] != "" && seen[name] != dir) print name" (in "seen[name]" and "dir")";
@@ -407,7 +444,7 @@ cmd_mutate() {
   local out
   out="$( cd "$PROJECT_ROOT" && env GOWORK=off RAPID_CHECKS="$rapid_checks" "$gremlins_bin" unleash \
             --timeout-coefficient="$coeff" \
-            --exclude-files "${EDEN_LIB_NAME}test/.*\.go$" 2>&1 || true )"
+            --exclude-files "${EDEN_LIB_NAME}test/.*\.go$" 2>&1 )" || true   # capture output even on non-zero gremlins exit; empty out is caught as a blind gate below
   printf '%s\n' "$out" | grep -E 'Killed:|efficacy|Mutator cov|TIMED OUT|LIVED' | tail -25 >&2
   local killed lived efficacy
   killed="$(printf '%s\n' "$out"  | grep -oiE 'Killed: [0-9]+' | grep -oE '[0-9]+' | head -1)"
@@ -448,6 +485,11 @@ cmd_cover_floor() {
     kind="production"
     case "$pkg" in
       "${EDEN_LIB_NAME}test"|*"/${EDEN_LIB_NAME}test"|*test) kind="helper" ;;
+      # A stub-harness is a test-only `package main` the integration/lifecycle/load lanes exec as a
+      # real SUBPROCESS; `go test -cover` cannot capture subprocess coverage, so it reads 0% even
+      # though it is heavily exercised. It is test infrastructure (proven by being RUN), not a
+      # production load path — reported, never gated.
+      */internal/stubharness|*/stubharness) kind="helper" ;;
     esac
     if [[ "$kind" == "helper" ]]; then
       log_info "  $(printf '%-55s %6s%%  (helper — reported, not gated)' "$pkg" "$pct")"
@@ -481,17 +523,20 @@ _per_package_coverage() {
   awk '
     NR==1 && $1 ~ /^mode:/ { next }
     {
-      # $1 = <importpath>/<file>.go:<sl>.<sc>,<el>.<ec>
-      loc=$1;
+      # $1 = <importpath>/<file>.go:<sl>.<sc>,<el>.<ec> — the coverage BLOCK key.
+      block=$1;
+      loc=block;
       ci=index(loc, ".go:");            # cut at the ":line.col" suffix
       if (ci>0) loc=substr(loc, 1, ci+2);   # keep "...<file>.go"
       # dirname: strip the final "/<file>.go" to get the package import path.
       n=split(loc, parts, "/");
       pkg="";
       for (i=1; i<n; i++) pkg = (i==1 ? parts[i] : pkg "/" parts[i]);
-      nstmt=$2; count=$3;
-      total[pkg]+=nstmt;
-      if (count+0 > 0) covered[pkg]+=nstmt;
+      # UNION across test binaries: with -coverpkg the SAME block appears once per package whose
+      # test binary ran, so count each block`s statements ONCE toward the total, and as covered if
+      # ANY binary executed it. (For a plain single-binary profile each block appears once anyway.)
+      if (!(block in seenblock)) { total[pkg]+=$2; seenblock[block]=1; }
+      if ($3+0 > 0 && !(block in hitblock)) { covered[pkg]+=$2; hitblock[block]=1; }
     }
     END {
       for (p in total) {
