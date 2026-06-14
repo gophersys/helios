@@ -156,6 +156,10 @@ func (c Capability) String() string {
 		return "reattach"
 	case CapHibernate:
 		return "hibernate"
+	case CapSupervise:
+		return "supervise"
+	case CapWorkloadPod:
+		return "workload-pod"
 	default:
 		return "unknown"
 	}

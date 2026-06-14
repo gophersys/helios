@@ -22,6 +22,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 // fakeClient is an in-memory kubernetesClient: it models namespaces + pods so the lifecycle
@@ -36,6 +37,8 @@ type fakeClient struct {
 	createNSErr  error
 	createPodErr error
 	execHook     func(ExecRequest) error
+	watchErr     error
+	lastWatch    *watch.FakeWatcher
 }
 
 func newFakeClient() *fakeClient {
@@ -164,6 +167,30 @@ func (f *fakeClient) Exec(_ context.Context, request ExecRequest) error {
 		return f.execHook(request)
 	}
 	return nil
+}
+
+// WatchPods returns a FakeWatcher the test drives by Adding pod objects (the supervision white-box
+// path). It records the last watcher so a test can push synthetic pod transitions and assert the
+// adapter normalizes them; ctx cancellation Stops it.
+//
+//nolint:ireturn // implements the kubernetesClient seam: WatchPods MUST return watch.Interface (client-go's watch type).
+func (f *fakeClient) WatchPods(ctx context.Context, _ string) (watch.Interface, error) {
+	f.mu.Lock()
+	if f.watchErr != nil {
+		err := f.watchErr
+		f.mu.Unlock()
+		return nil, err
+	}
+	fw := watch.NewFake()
+	f.lastWatch = fw
+	f.mu.Unlock()
+	// Stop the watcher when ctx is canceled so the adapter's runWatch loop drains and the test's
+	// goleak check stays clean.
+	go func() {
+		<-ctx.Done()
+		fw.Stop()
+	}()
+	return fw, nil
 }
 
 // parseSelector parses a "k=v,k2=v2" label selector into a map.

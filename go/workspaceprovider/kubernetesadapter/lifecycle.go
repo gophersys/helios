@@ -336,15 +336,16 @@ func buildPod(spec *workspaceprovider.WorkspaceSpec, labels map[string]string, w
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   workspacePodName,
-			Labels: labels,
+			Name:        workspacePodName,
+			Labels:      labels,
+			Annotations: map[string]string{workdirAnnotation: workDir},
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy: corev1.RestartPolicyNever,
 			Containers: []corev1.Container{{
 				Name:         workspaceContainer,
 				Image:        spec.Image,
-				Command:      holdCommand,
+				Command:      containerCommand(spec),
 				WorkingDir:   workDir,
 				Env:          envVars(spec.Env),
 				VolumeMounts: mounts,

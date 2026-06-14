@@ -101,6 +101,13 @@ func (a *Adapter) Manifest() workspaceprovider.CapabilityManifest {
 			workspaceprovider.CapPersistentVolume: workspaceprovider.CapAbsent,
 			workspaceprovider.CapMultiTenant:      workspaceprovider.CapAbsent,
 			workspaceprovider.CapHibernate:        workspaceprovider.CapAbsent,
+			// CapSupervise: the docker daemon's global event stream (filtered by the ownership
+			// label) is the supervision watch the library normalizes into Events (ADR-0022 §4).
+			workspaceprovider.CapSupervise: workspaceprovider.CapFull,
+			// CapWorkloadPod: a spec.Entrypoint makes the container's MAIN process the workload
+			// (PID-1); docker's cgroup State.OOMKilled + exit code then reflect the workload
+			// directly (the OD-15-a workload-owned model), verified on the real daemon.
+			workspaceprovider.CapWorkloadPod: workspaceprovider.CapFull,
 		},
 	}
 }

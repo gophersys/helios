@@ -19,6 +19,19 @@ import (
 // (Connection.Run) and one-shot commands (Exec) are docker-execs INTO this container.
 var holdCommand = []string{"sleep", "infinity"}
 
+// containerCommand picks the container's main process: the spec's Entrypoint when set (the
+// workload-pod capability — the container's MAIN process IS the workload, PID-1, so docker's
+// native liveness/restart/OOM observe the real workload), else the long-lived hold command (the
+// exec-into-hold model — the workload is a docker-exec INTO this container). Selecting the
+// Entrypoint here is what makes the docker container's cgroup State.OOMKilled and exit code reflect
+// the WORKLOAD directly (ADR-0022 §4, OD-15-a).
+func containerCommand(spec *workspaceprovider.WorkspaceSpec) []string {
+	if len(spec.Entrypoint) > 0 {
+		return spec.Entrypoint
+	}
+	return holdCommand
+}
+
 // Create provisions the native docker objects for a workspace: it pulls the image (with
 // the resolved pull-secret if present), creates a labeled container with the spec's
 // mounts/resource-limits/env, and starts it. ROLLBACK is the adapter's obligation: a
@@ -50,7 +63,7 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 		ctx,
 		&container.Config{
 			Image:      spec.Image,
-			Cmd:        holdCommand,
+			Cmd:        containerCommand(&spec),
 			Labels:     a.ownerLabels(&spec, workDir),
 			Env:        envList(spec.Env),
 			WorkingDir: workDir,

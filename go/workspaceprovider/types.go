@@ -35,6 +35,21 @@ type WorkspaceSpec struct {
 	Labels           map[string]string // ownership-domain + tenancy tags (Organization/Project, 07 §6); queryable via Selector
 	Env              []EnvVar          // NON-secret environment for the workspace; secret env goes via a MountSecret, never here
 	ProvisionTimeout time.Duration     // bounds the Ready handshake; 0 == ctx bounds it
+
+	// Entrypoint is the WORKLOAD-POD capability (ADR-0022 §4, OD-15 option-a): when non-empty,
+	// the container's MAIN process IS the workload (PID-1) on docker AND kubernetes, rather than
+	// the long-lived "sleep infinity" hold container the library otherwise execs Run/Exec into.
+	// PID-1 means native liveness/restart/OOM, and on kubernetes the kubelet's OOMKilled
+	// container-status REASON attaches to the readable workspace container — so the
+	// ConditionOOMKilled discriminator now surfaces natively on the kubernetes Run path (closing
+	// the OD-15 / §7 Q14 gap). Empty (the default) keeps the exec-into-hold model verbatim, so
+	// every existing consumer is unaffected: the Entrypoint path is ADDITIVE and spec-selected. A
+	// workspace whose Entrypoint exits Provisions Ready only while it is Running (it is the
+	// workload, so its lifecycle IS the workspace's); a Run into an Entrypoint workspace targets
+	// the SAME primary workload (the contract's one-primary-workload rule holds either way). The
+	// argv is data; a credential the entrypoint needs rides RunSpec on the Run that adopts it, or
+	// a MountSecret, never here.
+	Entrypoint []string
 }
 
 // Mount is one mount, as data. Source semantics depend on Kind; the adapter maps it to
@@ -206,6 +221,59 @@ const (
 	ConditionEgressDenied  // a dial-out to a non-allowlisted host was blocked (07 §3 evidence)
 )
 
+// Event is ONE platform-neutral supervision event — the normalized form of a docker action
+// (start/die/stop/destroy/oom) or a kubernetes pod-phase transition (Pending→Running→
+// Succeeded/Failed, Deleted), as produced by the supervising provider's global label-filtered
+// watch (ADR-0022 §4). It reuses the EXISTING State/Condition vocabulary (never a parallel one):
+// the normalized lifecycle State the substrate transitioned INTO, the typed Conditions that
+// fired (ConditionOOMKilled on a memory-bomb, ConditionEvicted on node pressure), the native
+// reason verbatim in Detail, and the workspace Handle the event is FOR. The orchestrator Probes
+// the supervised Status (docker/k8s API = the hard lifecycle) and consumes this stream to react
+// without polling each workspace. An Event NEVER carries a secret (Handle is loggable-by-contract;
+// Detail is a native phase string, redaction-eligible).
+type Event struct {
+	Handle    Handle    // the supervised workspace this event is for (loggable; never a secret)
+	Kind      EventKind // the coarse normalized transition (started/stopped/failed/removed)
+	State     State     // the normalized lifecycle State the substrate transitioned INTO
+	Condition Condition // the typed branchable condition that fired (ConditionOOMKilled etc.), or ConditionReady
+	Detail    string    // adapter-native phase/reason VERBATIM (die exit 137, OOMKilled, Evicted) — diagnostics, never normalized
+	At        time.Time // when the event was observed (Clock-stamped by the library)
+}
+
+// EventKind is the coarse normalized supervision transition — the platform-neutral collapse of
+// docker actions and kubernetes pod phases into ONE closed set (mirrors IOTEA's runtime.Event,
+// adapted to Eden's State/Condition vocabulary). Closed, additive-only (10 §9). The fine-grained
+// lifecycle detail rides Event.State / Event.Condition / Event.Detail; EventKind is the branchable
+// "what happened" the supervision loop and the orchestrator switch on.
+type EventKind uint8
+
+// The normalized supervision event kinds.
+const (
+	EventStarted  EventKind = iota // the workload/pod entered Running (docker start / k8s PodRunning) — healthy
+	EventStopping                  // graceful stop in progress (docker stop, SIGTERM)
+	EventStopped                   // terminated cleanly (docker die exit 0 / k8s PodSucceeded)
+	EventFailed                    // crashed / exited non-zero / OOM-killed (docker die!=0 or oom / k8s PodFailed) — Condition carries the discriminator
+	EventRemoved                   // the native object was deleted from the substrate (docker destroy / k8s pod Deleted) — the workspace is Gone
+)
+
+// String renders the EventKind for logs/diagnostics (loggable; never a secret).
+func (k EventKind) String() string {
+	switch k {
+	case EventStarted:
+		return "started"
+	case EventStopping:
+		return "stopping"
+	case EventStopped:
+		return "stopped"
+	case EventFailed:
+		return "failed"
+	case EventRemoved:
+		return "removed"
+	default:
+		return "unknown"
+	}
+}
+
 // RunStatus is one workload's status (Run.Status transitions).
 type RunStatus struct {
 	Phase     RunPhase
@@ -301,6 +369,8 @@ const (
 	CapMultiTenant                        // namespace-per-project isolation + quotas (the central cluster, 07 §6)
 	CapReattach                           // Provider.Open re-dial survives a control-plane restart
 	CapHibernate                          // pause/resume without teardown (policy idle/hibernate, 10 §12) — deferred verb, Q4
+	CapSupervise                          // a global label-filtered watch (docker events / k8s pod-watch) → the normalized Event stream (ADR-0022 §4, §7 Q15)
+	CapWorkloadPod                        // the Entrypoint capability: the container's MAIN process IS the workload (PID-1); on k8s this surfaces the native OOM-discriminator (ADR-0022 §4, §7 Q16, OD-15-a)
 )
 
 // CapStatus is the declared support level for a Capability.

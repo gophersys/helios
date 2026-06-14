@@ -2,6 +2,7 @@
     const CapAbsent CapStatus = iota ...
     const CapExecPTY Capability = iota ...
     const ConditionReady Condition = iota ...
+    const EventStarted EventKind = iota ...
     const MountBind MountKind = iota ...
     const RunPending RunPhase = iota ...
     const StateProvisioning State = iota ...
@@ -25,6 +26,8 @@ type Deps struct{ ... }
 type Descriptor struct{ ... }
 type EgressRule struct{ ... }
 type EnvVar struct{ ... }
+type Event struct{ ... }
+type EventKind uint8
 type ExecResult struct{ ... }
 type ExecSpec struct{ ... }
 type FileEntry struct{ ... }
@@ -58,7 +61,10 @@ type State uint8
 type Status struct{ ... }
 type Substrate string
 type SubstrateUnavailableError struct{ ... }
+type Supervisor interface{ ... }
 type UnsupportedError struct{ ... }
+type WatchEvent struct{ ... }
+type Watcher interface{ ... }
 type Workspace interface{ ... }
 type WorkspaceSpec struct{ ... }
 ## github.com/gophersys/libs/go/workspaceprovider/dockeradapter

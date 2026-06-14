@@ -85,6 +85,46 @@ type Provider interface {
 	Teardown(ctx context.Context, handle Handle) error
 }
 
+// Supervisor is the SUPERVISION plane the orchestrator Probes (ADR-0022 §4): it absorbs
+// IOTEA's manager.Manager shape — a global label-filtered watch (docker events on the docker
+// adapter, a k8s pod-watch on the kubernetes adapter) NORMALIZED into ONE platform-neutral
+// Event/Status space, plus reconcile-from-reality (list-by-label re-adoption on restart, so
+// the supervised set is rebuilt from the LIVE substrate, never in-memory-only truth). The
+// orchestrator THINS: it owns desired-state and reconciles, but reads the supervised Status
+// here (the docker/k8s API = the HARD lifecycle) rather than raw heartbeats. The concrete
+// *Provisioner implements this IN ADDITION to Provider; a consumer that only provisions holds
+// Provider, a consumer that supervises holds Supervisor. Exactly 3 methods — under the ≤5
+// ceiling, split from Provider along the real seam (provision vs supervise).
+type Supervisor interface {
+	// Supervise starts the global label-filtered watch over selector's ownership domain and
+	// returns a stream of NORMALIZED Events (docker actions + k8s pod phases → the existing
+	// State/Condition vocabulary). It FIRST reconciles-from-reality (list-by-label re-adoption
+	// so a control-plane restart rebuilds the supervised set from the live substrate, then
+	// watches for changes). The stream closes when ctx is canceled (the sole shutdown); a slow
+	// reader slows its own read, never the watch (bounded buffering, the agentsession
+	// backpressure ruling applied to events). Safe to call once per Supervisor; a second call
+	// returns a second independent stream. UnsupportedError if no routable adapter declares
+	// CapSupervise. The orchestrator ranges this to react to drift without polling each
+	// workspace.
+	Supervise(ctx context.Context, selector Selector) (<-chan Event, error)
+
+	// Supervised reports the live supervised Status for ONE workspace by handle, read from the
+	// substrate (reconcile-from-reality — never an in-memory cache that can lie across a
+	// restart). It is the queryable Status the orchestrator Probes (NATS = the soft control
+	// signal; THIS = the hard lifecycle). NotFoundError if the workspace is gone. Equivalent to
+	// Open(handle).Status(ctx) but without materializing a Workspace handle — a cheap supervised
+	// read.
+	Supervised(ctx context.Context, handle Handle) (Status, error)
+
+	// Reconcile rebuilds the supervised set from the LIVE substrate: it lists the ownership
+	// domain by selector (the same scan List performs) so a stateless restart re-adopts exactly
+	// what Eden authored, with each Descriptor's current normalized State. It is the
+	// reconcile-from-reality primitive Supervise calls at startup, exposed so the orchestrator's
+	// reconcile loop can force a re-adoption on demand (a drift sweep). Cross-tenant listing is
+	// impossible by construction (the tenancy keys are part of the selector, 07 §6).
+	Reconcile(ctx context.Context, selector Selector) ([]Descriptor, error)
+}
+
 // Workspace is ONE provisioned, isolated environment — the 02 §1 Workspace entity: an
 // agent pod, a remote-VS-Code session host, a CI-runner sandbox, or a clean-room
 // exercise environment (07 §4). The path the harness runs in is WorkDir(), exactly
@@ -220,6 +260,39 @@ type Adapter interface {
 	// divergence is recorded (e.g. a distro without NetworkPolicy CRDs declares
 	// CapEgressPolicy absent and the engine flags, not breaks).
 	Manifest() CapabilityManifest
+}
+
+// Watcher is the OPTIONAL adapter-level supervision seam (ADR-0022 §4): the global
+// label-filtered watch over a substrate (docker events on the docker adapter, a k8s pod-watch
+// on the kubernetes adapter) plus the raw native event the library normalizes into the
+// platform-neutral Event. An Adapter that declares CapSupervise also implements Watcher; the
+// library type-asserts for it (an Adapter that does not is supervised by a polling fallback the
+// library owns, so Supervise still works — degraded, not broken). It is NOT counted in the
+// 5-method Adapter ceiling: it is a SEPARATE optional port the supervising provider type-asserts
+// for, exactly as the workload-plane Connection sits beside the substrate-plane Adapter (the same
+// split one level down). Exactly 1 method.
+type Watcher interface {
+	// Watch starts the substrate's global label-filtered watch over selector's ownership domain
+	// and streams RAW native events (a WatchEvent per docker action / per pod-phase transition).
+	// The library normalizes each into a platform-neutral Event and stamps At from the injected
+	// Clock. It FIRST emits a synthetic WatchEvent per already-existing object (reconcile-from-
+	// reality: list-by-label re-adoption), then streams live changes. The stream closes when ctx
+	// is canceled. A transient watch fault is recovered internally (reconnect with backoff), so
+	// the channel stays open across a substrate blip — the orchestrator never sees a silent gap.
+	Watch(ctx context.Context, selector Selector) (<-chan WatchEvent, error)
+}
+
+// WatchEvent is the adapter's RAW supervision reading the library normalizes into Event: the
+// affected workspace Handle, the native action/phase string, the lifecycle State it implies, the
+// typed Conditions it carries, and the native reason verbatim. The library — not the adapter —
+// maps Action→EventKind, stamps At from the Clock, and emits the platform-neutral Event (so the
+// normalization table lives in ONE place, the library, never per-adapter).
+type WatchEvent struct {
+	Handle     Handle      // the workspace this raw event is for (the adapter derived it from the native object's labels)
+	Action     string      // the native action/phase VERBATIM ("start", "die", "destroy", "oom"; "Running", "Failed", "Deleted")
+	State      State       // the normalized lifecycle State the adapter read off the native object
+	Conditions []Condition // the typed conditions the adapter read (ConditionOOMKilled off a cgroup/container-status, ConditionEvicted)
+	Detail     string      // the native reason VERBATIM (exit code, OOMKilled, Evicted) — diagnostics, never normalized
 }
 
 // Connection is the live native handle an Adapter returns inside HandleData: the

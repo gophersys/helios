@@ -48,5 +48,7 @@ func fullCapabilities() []workspaceprovider.Capability {
 		workspaceprovider.CapLogStream,
 		workspaceprovider.CapMultiTenant,
 		workspaceprovider.CapReattach,
+		workspaceprovider.CapSupervise,
+		workspaceprovider.CapWorkloadPod,
 	}
 }

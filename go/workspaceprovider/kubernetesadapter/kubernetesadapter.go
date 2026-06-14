@@ -54,6 +54,20 @@ const workspaceContainer = "workspace"
 // (Connection.Run) and one-shot commands (Exec) are kubectl-execs INTO this container.
 var holdCommand = []string{"sleep", "infinity"}
 
+// containerCommand picks the workspace pod container's main process: the spec's Entrypoint when
+// set (the workload-pod capability — the container's MAIN process IS the workload, PID-1, so the
+// kubelet observes the real workload's liveness/restart/OOM and attaches the OOMKilled
+// container-status REASON to THIS readable container — closing the OD-15 / §7 Q14 kubernetes
+// OOM-discriminator gap, ADR-0022 §4), else the long-lived hold command (the exec-into-hold model,
+// where a Run is a kubectl-exec INTO this container and the OOM reason attaches to the exec child,
+// not the readable container — the documented Q14 limitation).
+func containerCommand(spec *workspaceprovider.WorkspaceSpec) []string {
+	if len(spec.Entrypoint) > 0 {
+		return spec.Entrypoint
+	}
+	return holdCommand
+}
+
 // Config is the kubernetes adapter's immutable construction input (the configuration
 // pattern). It is parsed at the edge and frozen; New builds the client but dials NO
 // apiserver. The central/local/BYO posture sets Kubeconfig at the composition root — the
@@ -166,6 +180,14 @@ func (a *Adapter) Manifest() workspaceprovider.CapabilityManifest {
 			workspaceprovider.CapPersistentVolume: workspaceprovider.CapPartial,
 			workspaceprovider.CapEgressPolicy:     workspaceprovider.CapAbsent,
 			workspaceprovider.CapHibernate:        workspaceprovider.CapAbsent,
+			// CapSupervise: a label-filtered k8s pod-watch over the ownership domain is the
+			// supervision watch the library normalizes into Events (ADR-0022 §4).
+			workspaceprovider.CapSupervise: workspaceprovider.CapFull,
+			// CapWorkloadPod: a spec.Entrypoint makes the pod container's MAIN process the
+			// workload (PID-1), so the kubelet attaches the OOMKilled container-status REASON to
+			// the readable workspace container — surfacing the ConditionOOMKilled discriminator
+			// NATIVELY on the kubernetes Run path, closing the OD-15 / §7 Q14 gap.
+			workspaceprovider.CapWorkloadPod: workspaceprovider.CapFull,
 		},
 	}
 }

@@ -183,6 +183,8 @@ func declaredCapabilityNames(manifest workspaceprovider.CapabilityManifest) []st
 		workspaceprovider.CapMultiTenant,
 		workspaceprovider.CapReattach,
 		workspaceprovider.CapHibernate,
+		workspaceprovider.CapSupervise,
+		workspaceprovider.CapWorkloadPod,
 	}
 	var names []string
 	for _, c := range all {

@@ -56,6 +56,7 @@ type Adapter struct {
 	failNext   error
 	oomNext    bool
 	deniedHost map[string]bool
+	watchSinks []chan workspaceprovider.WatchEvent // live Watch streams (supervision conformance)
 }
 
 // fakeWorkspace is the in-memory native object the fake Adapter models.
@@ -66,6 +67,7 @@ type fakeWorkspace struct {
 	files     map[string][]byte
 	readOnly  map[string]bool // path prefix -> read-only (MountInputs)
 	running   bool
+	oomKilled bool // the workload-pod (Entrypoint) OOM-kill the supervised Probe surfaces (OD-15-a)
 }
 
 // Static assertions: *Adapter is a workspaceprovider.Adapter; *fakeWorkspace's connection
@@ -106,6 +108,8 @@ func defaultCaps() []workspaceprovider.Capability {
 		workspaceprovider.CapLogStream,
 		workspaceprovider.CapMultiTenant,
 		workspaceprovider.CapReattach,
+		workspaceprovider.CapSupervise,
+		workspaceprovider.CapWorkloadPod,
 	}
 }
 
@@ -247,6 +251,18 @@ func (a *Adapter) DenyEgressTo(host string) *Adapter {
 	defer a.mu.Unlock()
 	a.deniedHost[host] = true
 	return a
+}
+
+// MarkOOMKilled flags the workspace named by handle as OOM-killed so its supervised Probe surfaces
+// ConditionOOMKilled (the workload-pod / Entrypoint discriminator the OD-15-a model delivers — on
+// the fake the kill attaches to the readable workspace, mirroring the kubelet's reason on a real
+// Entrypoint pod). A no-op for an unknown handle.
+func (a *Adapter) MarkOOMKilled(handle workspaceprovider.Handle) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if ws, ok := a.state[handle.String()]; ok {
+		ws.oomKilled = true
+	}
 }
 
 // AssertNoSecretMaterial fails t if canary (a seeded credential plaintext) appears in ANY
@@ -461,6 +477,13 @@ func (c *fakeConnection) Probe(_ context.Context) (workspaceprovider.Probe, erro
 	probe := workspaceprovider.Probe{State: workspaceprovider.StateReady, Detail: "fake ready"}
 	if c.ws.running {
 		probe.State = workspaceprovider.StateRunning
+	}
+	if c.ws.oomKilled {
+		// The workload-pod (Entrypoint) OOM-kill attaches to the readable workspace container —
+		// the supervised Probe surfaces the discriminator natively (OD-15-a).
+		probe.State = workspaceprovider.StateDegraded
+		probe.Detail = "OOMKilled"
+		probe.Conditions = append(probe.Conditions, workspaceprovider.ConditionOOMKilled)
 	}
 	for i := range c.ws.spec.Egress {
 		if c.adapter.deniedHost[c.ws.spec.Egress[i].Host] {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -42,6 +43,11 @@ type dockerClient interface {
 
 	CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options container.CopyToContainerOptions) error
 	CopyFromContainer(ctx context.Context, containerID, srcPath string) (io.ReadCloser, container.PathStat, error)
+
+	// Events streams the daemon's global event log (filtered by the supervision label) — the
+	// docker half of the supervising provider's watch (ADR-0022 §4). The caller closes the
+	// stream by canceling ctx.
+	Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error)
 
 	Ping(ctx context.Context) (types.Ping, error)
 	Close() error

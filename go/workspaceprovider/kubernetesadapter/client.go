@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -46,6 +47,12 @@ type kubernetesClient interface {
 	// Exec runs a command in a pod's container over the SPDY exec plane, streaming
 	// stdin/stdout/stderr. It is the kubectl-exec primitive Run/Exec/Files (tar) ride on.
 	Exec(ctx context.Context, request ExecRequest) error
+
+	// WatchPods opens a CROSS-namespace label-filtered pod watch (the kubernetes half of the
+	// supervising provider's watch, ADR-0022 §4) — Eden uses namespace-per-workspace, so a
+	// supervising provider watches Pods("") by the ownership label across every workspace
+	// namespace. The caller Stops the watch by canceling ctx.
+	WatchPods(ctx context.Context, labelSelector string) (watch.Interface, error)
 }
 
 // ExecRequest is the bounded input to a pod exec: which pod/container, the command, the
@@ -152,4 +159,12 @@ func (c clientWrapper) Exec(ctx context.Context, request ExecRequest) error {
 		Stderr: request.Stderr,
 		Tty:    request.TTY,
 	})
+}
+
+// WatchPods opens a cross-namespace label-filtered pod watch (the supervision watch's kubernetes
+// half). Pods("") watches every namespace, scoped by the ownership label selector.
+//
+//nolint:ireturn // bounded SDK seam: watch.Interface is client-go's own watch return type the adapter drives; returning the port is the seam, exactly like Exec/Files.
+func (c clientWrapper) WatchPods(ctx context.Context, labelSelector string) (watch.Interface, error) {
+	return c.clientset.CoreV1().Pods("").Watch(ctx, metav1.ListOptions{LabelSelector: labelSelector}) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
 }

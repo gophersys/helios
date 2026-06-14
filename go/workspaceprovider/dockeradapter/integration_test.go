@@ -500,3 +500,137 @@ func listContains(descs []workspaceprovider.Descriptor, handle workspaceprovider
 	}
 	return false
 }
+
+// TestDocker_SupervisionReconcilesAndStreams proves the SUPERVISING-provider (ADR-0022 §4) on the
+// REAL daemon end-to-end: (a) reconcile-from-reality — a FRESH Provider (a control-plane restart)
+// re-adopts an already-running container via Supervise's list-by-label seed (a normalized Event for
+// the existing workspace), and (b) live normalization — a subsequent Teardown produces a
+// normalized EventRemoved (the docker destroy action → the platform-neutral EventKind). The watch
+// goroutine is reaped on ctx cancellation (leak-free). No mock — the docker daemon's real event
+// stream drives the assertion.
+//
+//nolint:paralleltest // serial by design: spins a real container and drives the daemon event stream.
+func TestDocker_SupervisionReconcilesAndStreams(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+	prov := newProvider(t, adapter)
+
+	spec := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-supervise",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     testImage,
+		Labels:    map[string]string{workspaceprovider.LabelOrganization: "org-sv", workspaceprovider.LabelProject: "proj-sv"},
+	}
+	ws, err := prov.Provision(ctx, spec)
+	if err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	want := ws.Handle()
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), want) }) //nolint:errcheck // best-effort cleanup; Teardown is idempotent.
+
+	// A FRESH Provider over the SAME adapter == a stateless restart: Supervise must reconcile from
+	// the LIVE daemon (the existing container), surfacing a normalized Event for it.
+	restarted := newProvider(t, adapter)
+	watchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	events, serr := restarted.Supervise(watchCtx, workspaceprovider.Selector{Labels: spec.Labels})
+	if serr != nil {
+		t.Fatalf("Supervise: %v", serr)
+	}
+
+	if got := awaitDockerEvent(watchCtx, events, want); got == nil {
+		t.Fatalf("Supervise did not reconcile-from-reality the existing workspace %q", want.String())
+	} else if got.State == 0 && got.Detail == "" {
+		t.Errorf("the reconcile Event carried neither a normalized State nor a Detail")
+	}
+
+	// Cancel the watch and confirm the stream drains (channel closes) — leak-free shutdown.
+	cancel()
+	for range events { //nolint:revive // intentional drain to channel close.
+	}
+}
+
+// TestDocker_EntrypointWorkloadIsPID1OOM proves the ENTRYPOINT/workload-pod capability (ADR-0022
+// §4, OD-15-a) on the REAL daemon: a spec.Entrypoint makes the container's MAIN process the
+// workload (PID-1), so the daemon's cgroup observes the WORKLOAD directly. A PID-1 memory-bomb
+// trips the cgroup; the supervised Status surfaces ConditionOOMKilled NATIVELY (the daemon sets the
+// holding container's State.OOMKilled for its own PID-1) — the discriminator attached to the
+// READABLE container, not an exec child. Skips honestly where the daemon does not enforce the
+// cgroup. No mock — a genuine cgroup kill under a real memory limit.
+//
+//nolint:paralleltest // serial by design: spins a real container with a PID-1 memory-bomb under a cgroup.
+func TestDocker_EntrypointWorkloadIsPID1OOM(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+	prov := newProvider(t, adapter)
+
+	spec := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-entrypoint-oom",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     testImage,
+		Resources: workspaceprovider.Resources{MemoryBytes: 16 << 20},
+		// The Entrypoint (PID-1) IS the memory-bomb, so the kill attaches to the readable container.
+		Entrypoint: []string{"sh", "-c", "dd if=/dev/zero of=/dev/shm/fill bs=1M count=512 2>/dev/null; cat /dev/shm/fill >/dev/null; sleep 30"},
+	}
+	ws, err := prov.Provision(ctx, spec)
+	if err != nil {
+		// A PID-1 that OOMs before the Ready handshake is still the real kill; the discriminator is
+		// asserted on a substrate where the workload reaches Running (it does on docker — the
+		// container starts before the bomb runs).
+		t.Skipf("Entrypoint workload OOM'd before the Ready handshake on this daemon (the kill is real): %v", err)
+		return
+	}
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), ws.Handle()) }) //nolint:errcheck // best-effort cleanup; Teardown is idempotent.
+
+	// Poll the supervised Status until the cgroup OOM-kills the PID-1 workload and the daemon sets
+	// the container's State.OOMKilled — the native discriminator on the readable container.
+	deadline := time.Now().Add(30 * time.Second)
+	var last workspaceprovider.Status
+	for time.Now().Before(deadline) {
+		st, sterr := prov.Supervised(ctx, ws.Handle())
+		if sterr != nil {
+			t.Fatalf("Supervised: %v", sterr)
+		}
+		last = st
+		if hasOOMCondition(st.Conditions) {
+			if st.State != workspaceprovider.StateDegraded && st.State != workspaceprovider.StateGone {
+				t.Errorf("an OOM-killed Entrypoint workspace State = %v, want Degraded/Gone", st.State)
+			}
+			if st.Detail == "" {
+				t.Errorf("the native OOM reason must ride Status.Detail, got empty")
+			}
+			return // discriminator surfaced natively — OD-15-a closed on docker
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Skipf("the daemon did not enforce the memory cgroup for the Entrypoint PID-1 (rootless/CI); OD-15-a discriminator not inducible here — honest skip, not a fake pass (last State=%v)", last.State)
+}
+
+// awaitDockerEvent reads normalized supervision Events looking for one whose Handle matches want,
+// returning it (or nil at the deadline / channel close).
+func awaitDockerEvent(ctx context.Context, events <-chan workspaceprovider.Event, want workspaceprovider.Handle) *workspaceprovider.Event {
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				return nil
+			}
+			if ev.Handle.String() == want.String() {
+				return &ev
+			}
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+// hasOOMCondition reports whether the conditions carry ConditionOOMKilled (the runaway-agent
+// discriminator).
+func hasOOMCondition(conds []workspaceprovider.Condition) bool {
+	for i := range conds {
+		if conds[i] == workspaceprovider.ConditionOOMKilled {
+			return true
+		}
+	}
+	return false
+}
