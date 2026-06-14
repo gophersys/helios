@@ -122,6 +122,12 @@ type Deps struct {
 
 	// Logger is the redaction-safe structured-log seam; optional (a nil logger is a no-op).
 	Logger Logger
+
+	// Proposer is the create-flow wizard's AI-propose seam: it turns the user's initial prompt
+	// into a ProductConfig (POST /product/propose). It is OPTIONAL — when nil the propose route is
+	// a 503 (a composition that does not offer the wizard). The live root binds it to ONE real
+	// claude/omp turn; the dev root binds it to a deterministic prompt-derived fake.
+	Proposer Proposer
 }
 
 // Gateway is the concrete http.Handler builder New returns (return-concrete). It holds

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/errors"
@@ -81,9 +82,11 @@ func (g *Gateway) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	// to every SSE subscriber). It runs under the DETACHED sessionCtx — the turn outlives this
 	// request, so the real async harness keeps streaming after the 201 is written. A control
 	// fault here is non-fatal to creation — the session is live and the client may prompt via
-	// the control channel.
-	if request.Prompt != "" {
-		if _, perr := session.Control(sessionCtx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: request.Prompt}); perr != nil {
+	// the control channel. When the wizard supplied a ProductConfig, its synthesized preamble is
+	// prepended so the build agent opens with the full product spec in view (a session IS a product).
+	openingPrompt := g.openingPrompt(&request)
+	if openingPrompt != "" {
+		if _, perr := session.Control(sessionCtx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: openingPrompt}); perr != nil {
 			g.logError("gateway: opening prompt failed", "agent", string(agent.ID), "kind", errors.KindOf(perr).String())
 		}
 	}
@@ -152,6 +155,55 @@ func (g *Gateway) handleResumeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g.writeJSON(w, http.StatusOK, map[string]string{"status": "resuming"})
+}
+
+// openingPrompt builds the first-turn text the gateway prompts the live session with. When the
+// wizard supplied a ProductConfig, it normalizes it and PREPENDS a synthesized preamble (the
+// product spec the build agent opens with) to the user's prompt; otherwise it is the prompt
+// verbatim (the existing path, unchanged). An empty result means no opening turn is sent.
+func (g *Gateway) openingPrompt(request *createSessionRequest) string {
+	if request.Product == nil {
+		return request.Prompt
+	}
+	preamble := productPreamble(NormalizeProductConfig(*request.Product))
+	if request.Prompt == "" {
+		return preamble
+	}
+	return preamble + "\n\n" + request.Prompt
+}
+
+// productPreamble synthesizes the agent's initial-context line from a normalized ProductConfig:
+// "Build <productName> (<kind>): <summary>. Stack <...>. Services <...>. Run phases <...>." It is
+// the single point a ProductConfig becomes the build agent's opening context (one concept, one
+// home). It carries NO credential (ProductConfig has no secret field).
+//
+//nolint:gocritic // ProductConfig is the copyable wire DTO; the synthesizer reads it by value.
+func productPreamble(configuration ProductConfig) string {
+	var builder strings.Builder
+	builder.WriteString("Build ")
+	builder.WriteString(configuration.ProductName)
+	builder.WriteString(" (")
+	builder.WriteString(configuration.ProductKind)
+	builder.WriteString("): ")
+	builder.WriteString(configuration.Summary)
+
+	stack := append(append([]string{}, configuration.Stack.Languages...), configuration.Stack.Frameworks...)
+	if len(stack) > 0 {
+		builder.WriteString(" Stack ")
+		builder.WriteString(strings.Join(stack, ", "))
+		builder.WriteString(".")
+	}
+	if len(configuration.Services) > 0 {
+		builder.WriteString(" Services ")
+		builder.WriteString(strings.Join(configuration.Services, ", "))
+		builder.WriteString(".")
+	}
+	if len(configuration.SDLCPhases) > 0 {
+		builder.WriteString(" Run phases ")
+		builder.WriteString(strings.Join(configuration.SDLCPhases, ", "))
+		builder.WriteString(".")
+	}
+	return builder.String()
 }
 
 // spawnRequest folds a create request into an orchestrator.SpawnRequest, threading the

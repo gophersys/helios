@@ -21,17 +21,45 @@ async function openChat(page: Page): Promise<void> {
   await expect(page.getByTestId('gateway-health')).toHaveText('gateway up');
 }
 
-/** Create a session of the given harness with an opening prompt, then wait for it to open. */
+/** Drive the PRODUCT WIZARD end-to-end to launch a session of the given harness from a prompt.
+ *  A "session" IS a product Eden builds: the wizard proposes a ProductConfig from the prompt
+ *  (POST /product/propose — the dev-serve's deterministic fake, so this is stable), the steps are
+ *  editable, and REVIEW → Launch creates the session (POST /sessions carrying the product) and
+ *  opens the chat view. This exercises DEFINE → STACK → CAPABILITIES (pick the harness) → PROCESS
+ *  → SAFETY → REVIEW → Launch — the full create flow over the real propose + create REST. */
 async function createSession(page: Page, harness: 'claude' | 'omp', prompt: string): Promise<void> {
+  // ── open the wizard (DEFINE) ───────────────────────────────────────────────.
   await page.getByTestId('new-session').click();
-  await expect(page.getByTestId('create-modal')).toBeVisible();
-  const harnessOption = page.getByTestId(`harness-${harness}`);
-  await harnessOption.click();
-  await expect(harnessOption).toHaveAttribute('aria-checked', 'true');
-  await page.getByTestId('create-prompt').fill(prompt);
-  await page.getByTestId('create-submit').click();
-  await expect(page.getByTestId('create-modal')).toBeHidden();
-  // The chat view is open and bound to the chosen harness.
+  await expect(page.getByTestId('product-wizard')).toBeVisible();
+  await page.getByTestId('wizard-prompt').fill(prompt);
+
+  // ── DEFINE → scope the product (real POST /product/propose) → STACK ─────────.
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'stack');
+
+  // STACK → CAPABILITIES.
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'capabilities');
+
+  // CAPABILITIES — pick the harness (single-select pill).
+  const harnessPill = page.getByTestId(`wizard-harness-${harness}`);
+  await harnessPill.click();
+  await expect(harnessPill).toHaveAttribute('aria-checked', 'true');
+
+  // CAPABILITIES → PROCESS → SAFETY → REVIEW.
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'process');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'safety');
+  await page.getByTestId('wizard-next').click();
+  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'review');
+  await expect(page.getByTestId('review-harness')).toContainText(harness);
+
+  // REVIEW → Launch (POST /sessions with the product config) → open the chat view.
+  await page.getByTestId('wizard-launch').click();
+  await expect(page.getByTestId('product-wizard')).toBeHidden();
+
+  // The chat view is open and bound to the chosen harness label.
   await expect(page.getByTestId('active-harness')).toHaveText(harness);
 }
 

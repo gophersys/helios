@@ -8,9 +8,11 @@ import type {
   AgentView,
   ControlResponse,
   CreateResponse,
+  Envelope,
   ErrorBody,
   Harness,
   ListResponse,
+  ProductConfig,
   TranscriptResponse,
 } from './types';
 
@@ -74,14 +76,29 @@ export class GatewayClient {
     }
   }
 
+  /** POST /product/propose — the create-flow wizard's first step: from the user's initial prompt,
+   *  Eden AI-PROPOSES a ProductConfig the user then edits. In the LIVE gateway this runs ONE real
+   *  harness turn instructed to return ProductConfig JSON; in the dev-serve it is a deterministic,
+   *  prompt-derived fake (so the E2E is stable). The route returns the uniform Eden envelope
+   *  ({data, errors, kind}); this unwraps `.data` — a complete, normalized, wizard-ready config. */
+  async propose(prompt: string): Promise<ProductConfig> {
+    const envelope = await this.requestJSON<Envelope<ProductConfig>>('POST', '/product/propose', {
+      prompt,
+    });
+    return envelope.data;
+  }
+
   /** POST /sessions — create a session. The harness is recorded as a label (the dev-serve picks
    *  the live harness from its routing table). When `prompt` is supplied the gateway sends it as
    *  the opening turn; the chat surface creates WITHOUT a prompt and drives the first turn via
-   *  the control channel, so the live stream is observed from a clean `ready` state. */
+   *  the control channel, so the live stream is observed from a clean `ready` state. When the
+   *  create-flow wizard supplies a `product` ProductConfig, it rides alongside: the gateway folds
+   *  it into the build agent's initial-context preamble (a "session" IS a PRODUCT Eden builds). */
   async createSession(options: {
     harness: Harness;
     prompt?: string;
     runId?: string;
+    product?: ProductConfig;
   }): Promise<CreateResponse> {
     const body: Record<string, unknown> = {
       organizationId: this.tenancy.organizationId,
@@ -93,6 +110,7 @@ export class GatewayClient {
     };
     if (options.prompt) body.prompt = options.prompt;
     if (options.runId) body.runId = options.runId;
+    if (options.product) body.product = options.product;
     return this.requestJSON<CreateResponse>('POST', '/sessions', body);
   }
 

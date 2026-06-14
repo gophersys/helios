@@ -175,3 +175,98 @@ export interface ErrorBody {
  *  harness, so this is recorded as a label (and surfaced in the UI) — the gateway picks the
  *  live harness from its routing table, not from the create body. */
 export type Harness = 'claude' | 'omp';
+
+// ── the product-config contract (the create-flow wizard) ──────────────────────.
+//
+// A "session" IS a PRODUCT Eden builds via its 10-phase SDLC. The create flow is a wizard that,
+// FROM the initial prompt, AI-PROPOSES a ProductConfig (POST /product/propose) the user then
+// edits, before it rides POST /sessions as the optional `product` field. These shapes are a
+// faithful TypeScript mirror of the Go DTOs in apps/agentgateway/internal/gateway/product.go —
+// one concept, one home. No field carries a credential (the setup-token rides the gateway's
+// opaque secrets.Reference, never this DTO).
+
+/** The product artifact kind (mirrors gateway.ProductKind*). An unrecognized kind normalizes to
+ *  `service` (the Eden default build target) server-side. */
+export type ProductKind = 'service' | 'library' | 'application' | 'cli' | 'ui' | 'other';
+
+/** The closed ProductKind set, in wizard display order. */
+export const PRODUCT_KINDS: readonly ProductKind[] = [
+  'service',
+  'library',
+  'application',
+  'cli',
+  'ui',
+  'other',
+];
+
+/** The harness the build agent runs on (mirrors gateway.Harness*). Wider than the chat-label
+ *  `Harness` type: the product capability accepts `codex` too. */
+export type ProductHarness = 'claude' | 'omp' | 'codex';
+
+/** The closed product-harness set, in wizard display order. */
+export const PRODUCT_HARNESSES: readonly ProductHarness[] = ['claude', 'omp', 'codex'];
+
+/** The sandbox egress posture (mirrors gateway.Posture*). Strict == default-deny, the safe
+ *  posture for an unattended build agent. */
+export type SandboxPosture = 'strict' | 'relaxed';
+
+/** The language/framework selection of a ProductConfig (Eden defaults: Go 1.26 backend, Svelte 5
+ *  UI). */
+export interface ProductStack {
+  languages: string[];
+  frameworks: string[];
+}
+
+/** The agent capability binding of a ProductConfig: the harness+model the build runs on, the
+ *  standing tool grants, and the injected skills/rules. No field is a secret. */
+export interface ProductCapabilities {
+  harness: ProductHarness;
+  model: string;
+  toolGrants: string[];
+  skills: string[];
+  rules: string[];
+}
+
+/** The egress posture of a ProductConfig build agent. */
+export interface ProductSandbox {
+  posture: SandboxPosture;
+  egressAllow: string[];
+}
+
+/** ProductConfig is the product specification the create-flow wizard edits: what Eden will
+ *  build, with which stack/services/capabilities, and which SDLC phases to run. It is the exact
+ *  JSON the gateway exchanges (gateway.ProductConfig). */
+export interface ProductConfig {
+  productName: string;
+  productKind: ProductKind;
+  summary: string;
+  stack: ProductStack;
+  services: string[];
+  capabilities: ProductCapabilities;
+  sdlcPhases: string[];
+  sandbox: ProductSandbox;
+}
+
+/** The full 10-phase SDLC pipeline the wizard's PROCESS step multi-selects from. The default
+ *  proposal runs the four-phase library core (architecture..qa — gateway.DefaultSDLCPhases). */
+export const SDLC_PHASES: readonly string[] = [
+  'architecture',
+  'implementation',
+  'testing',
+  'qa',
+  'integration',
+  'security',
+  'performance',
+  'documentation',
+  'release',
+  'operations',
+];
+
+/** The uniform Eden response envelope ({data, errors, kind}) the product-config surface returns
+ *  (edenhttp.Envelope). The chat REST routes return bare JSON; only POST /product/propose is
+ *  enveloped, so the propose client unwraps `.data`. */
+export interface Envelope<T> {
+  data: T;
+  errors: string[];
+  kind: string;
+}

@@ -136,14 +136,17 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 	// the live harness runs in-process via the Pool above).
 	manager := orchestratortest.New(orchestratortest.WithTemplate(orchestratortest.DefaultTemplate()))
 
+	// The standing grant the live gateway opens both the chat session AND the propose session
+	// under: a conservative read-only Read (the demo agent may Read but not Write/Bash without an
+	// explicit per-call permission, 07 §3) — keeps an unattended live agent safe.
+	grants := []agentsession.ToolGrant{{ID: "grant-read", Tool: "Read", ReadOnly: true}}
+
 	gw, err := gateway.New(
 		gateway.Config{
 			Credential: secrets.Ref(configuration.CredentialReference),
 			Routing:    liveRouteKey(),
 			Workspace:  configuration.Workspace,
-			// A conservative read-only standing grant: the demo agent may Read but not Write/Bash
-			// without an explicit per-call permission (07 §3). Keeps an unattended live agent safe.
-			Grants: []agentsession.ToolGrant{{ID: "grant-read", Tool: "Read", ReadOnly: true}},
+			Grants:     grants,
 		},
 		gateway.Deps{
 			Manager:    manager,
@@ -151,6 +154,20 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 			Transcript: runLog,
 			Clock:      clock,
 			Logger:     configuration.Logger,
+			// The create-flow wizard's propose seam: ONE real harness turn (claude-code | omp)
+			// instructed to return ONLY ProductConfig JSON, opened on the SAME live Pool the chat
+			// streams off (the harness under the Vault-resolved credential). A parse failure falls
+			// back to the gateway's sane defaults; only an Open/stream fault surfaces as an error.
+			Proposer: &harnessProposer{
+				sessions: pool,
+				spec: agentsession.Spec{
+					Workspace:  configuration.Workspace,
+					Routing:    liveRouteKey(),
+					Grants:     grants,
+					Credential: secrets.Ref(configuration.CredentialReference),
+				},
+				logger: configuration.Logger,
+			},
 		},
 	)
 	if err != nil {

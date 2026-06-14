@@ -1,23 +1,28 @@
 <script lang="ts">
-  // The chat slice — the live UI that tests the whole agentgateway backend over REAL REST + SSE
-  // (apps/agentgateway). Left rail: the project-scoped session list (GET /sessions) + a create
-  // form picking the harness (claude | omp) and an opening prompt. Right: the chat view — the
-  // conversation streamed live via the per-session SSE stream (GET /sessions/{id}/events),
-  // rendering EVERY event-taxonomy kind distinctly (assistant text, foldable thinking, tool
-  // start/update/end, permission round-trips, a live usage/cost meter), with the prompt / steer /
-  // abort control verbs (POST .../control), stop/resume (POST .../stop|resume), and gap-free SSE
-  // reconnect via Last-Event-ID. The gateway picks the live harness from its routing table; the
-  // claude/omp choice is recorded as a label and surfaced here (the dev-serve routes both to its
-  // deterministic fake harness — from the UI's side the HTTP/SSE is 100% real).
+  // The chat slice — the live UI over the agentgateway backend (REAL REST + SSE). A "session" IS a
+  // PRODUCT Eden builds via its 10-phase SDLC, so creation is the multi-step PRODUCT WIZARD
+  // (ProductWizard.svelte): it AI-PROPOSES a ProductConfig from the prompt (POST /product/propose),
+  // the user edits stack / capabilities / process / safety, and the assembled config rides
+  // POST /sessions (the `product` field) which the gateway folds into the build agent's initial
+  // context. Left rail: the project-scoped session list (GET /sessions) + the New product button.
+  // Right: the chat view — the conversation streamed live via the per-session SSE stream
+  // (GET /sessions/{id}/events), rendering EVERY event-taxonomy kind distinctly (assistant text,
+  // foldable thinking, tool start/update/end, permission round-trips, a live usage/cost meter),
+  // with the prompt / steer / abort control verbs (POST .../control), stop/resume
+  // (POST .../stop|resume), and gap-free SSE reconnect via Last-Event-ID. The gateway picks the
+  // live harness from its routing table; the claude/omp choice is recorded as a label and surfaced
+  // here (the dev-serve routes both to its deterministic fake harness — from the UI's side the
+  // HTTP/SSE is 100% real).
   import { onDestroy } from 'svelte';
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
   import { ChatSession } from '$lib/gateway/session.svelte';
-  import type { AgentView, Harness } from '$lib/gateway/types';
+  import type { AgentView, Harness, ProductConfig, ProductHarness } from '$lib/gateway/types';
   import UsageMeter from '$lib/chat/UsageMeter.svelte';
   import ToolCard from '$lib/chat/ToolCard.svelte';
   import PermissionCard from '$lib/chat/PermissionCard.svelte';
   import MessageBubble from '$lib/chat/MessageBubble.svelte';
+  import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
 
@@ -26,12 +31,36 @@
   let listError = $state<string | null>(null);
   let healthy = $state<boolean | null>(null);
 
-  // ── create-form state ────────────────────────────────────────────────────────.
-  let showCreate = $state(false);
-  let createHarness = $state<Harness>('claude');
-  let createPrompt = $state('Write a short note and say hello.');
-  let creating = $state(false);
-  let createError = $state<string | null>(null);
+  // ── product-wizard state ─────────────────────────────────────────────────────.
+  // The create flow is the multi-step PRODUCT wizard (a "session" IS a product Eden builds). It
+  // proposes a ProductConfig from the prompt, the user edits it, then it rides POST /sessions.
+  let showWizard = $state(false);
+
+  /** Map the product harness onto the chat label set: the chat view + ChatSession know claude|omp
+   *  (the SSE/control seam is harness-agnostic). `codex` is folded to a claude-tone label for the
+   *  chrome only — the FULL product.capabilities.harness still rides the create body to the
+   *  gateway, which honors it. */
+  function chatHarness(harness: ProductHarness): Harness {
+    return harness === 'omp' ? 'omp' : 'claude';
+  }
+
+  /** REVIEW → Launch: create the session carrying the edited ProductConfig, then open the chat
+   *  view streaming the real agent. The session is created WITHOUT an opening prompt so it starts
+   *  in `ready`; the synthesized first turn is then driven through the control channel, so the
+   *  user bubble renders and the full event stream is observed from a clean state. */
+  async function launchProduct(payload: {
+    product: ProductConfig;
+    harness: ProductHarness;
+    prompt: string;
+  }): Promise<void> {
+    const harness = chatHarness(payload.harness);
+    const created = await client.createSession({ harness, product: payload.product });
+    await refreshList();
+    showWizard = false;
+    await attach(created.id, harness);
+    const opening = payload.prompt.trim();
+    if (opening && active) await active.send(opening);
+  }
 
   // ── open-session state ───────────────────────────────────────────────────────.
   let active = $state<ChatSession | null>(null);
@@ -81,31 +110,6 @@
     active = session;
     activeHarness = harness;
     session.open();
-  }
-
-  async function submitCreate(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    creating = true;
-    createError = null;
-    try {
-      // Create WITHOUT an opening prompt so the live session starts in `ready`; the opening
-      // prompt is then driven through the control channel, so the chat surface observes the
-      // full event stream from a clean state (and the user bubble renders).
-      const created = await client.createSession({ harness: createHarness });
-      await refreshList();
-      showCreate = false;
-      await attach(created.id, createHarness);
-      // Drive the first turn through the control channel (the real prompt path).
-      const opening = createPrompt.trim();
-      if (opening && active) {
-        await active.send(opening);
-      }
-    } catch (cause) {
-      createError =
-        cause instanceof GatewayError ? `${cause.kind}: ${cause.message}` : String(cause);
-    } finally {
-      creating = false;
-    }
   }
 
   async function sendComposer(event: SubmitEvent): Promise<void> {
@@ -183,9 +187,9 @@
     <button
       class="btn btn--accent rail__new"
       data-testid="new-session"
-      onclick={() => (showCreate = true)}
+      onclick={() => (showWizard = true)}
     >
-      ＋ New session
+      ＋ New product
     </button>
 
     {#if listError}
@@ -220,13 +224,13 @@
   <main class="view">
     {#if !active}
       <div class="empty" data-testid="empty-state">
-        <h2>Live agent chat</h2>
+        <h2>Build a product with Eden</h2>
         <p>
-          A working surface over the agent gateway — create a session, send a prompt, and watch the
-          backend stream every event: assistant text, reasoning, tool calls, permissions, and a live
-          token/cost meter.
+          Every session is a product Eden builds through its 10-phase SDLC. Start a new product —
+          describe what you're building, edit the configuration Eden proposes, then watch the agent
+          stream every event live: architecture, implementation, tool calls, and a token/cost meter.
         </p>
-        <button class="btn btn--accent" onclick={() => (showCreate = true)}>＋ New session</button>
+        <button class="btn btn--accent" onclick={() => (showWizard = true)}>＋ New product</button>
       </div>
     {:else}
       <header class="view__head">
@@ -305,86 +309,13 @@
     {/if}
   </main>
 
-  <!-- ── create modal ─────────────────────────────────────────────────────── -->
-  {#if showCreate}
-    <div
-      class="modal__scrim"
-      role="presentation"
-      onclick={() => (showCreate = false)}
-      onkeydown={(event) => {
-        if (event.key === 'Escape') showCreate = false;
-      }}
-    >
-      <div
-        class="modal panel"
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        aria-label="Create session"
-        data-testid="create-modal"
-        onclick={(event) => event.stopPropagation()}
-        onkeydown={(event) => event.stopPropagation()}
-      >
-        <h2>New session</h2>
-        <form onsubmit={submitCreate}>
-          <fieldset class="harness">
-            <legend>Harness</legend>
-            <div class="harness__group" role="radiogroup" aria-label="Harness">
-              <button
-                type="button"
-                class="harness__opt"
-                class:harness__opt--on={createHarness === 'claude'}
-                role="radio"
-                aria-checked={createHarness === 'claude'}
-                data-testid="harness-claude"
-                onclick={() => (createHarness = 'claude')}
-              >
-                <span class="harness__name">claude</span>
-                <span class="harness__hint">Claude Code</span>
-              </button>
-              <button
-                type="button"
-                class="harness__opt"
-                class:harness__opt--on={createHarness === 'omp'}
-                role="radio"
-                aria-checked={createHarness === 'omp'}
-                data-testid="harness-omp"
-                onclick={() => (createHarness = 'omp')}
-              >
-                <span class="harness__name">omp</span>
-                <span class="harness__hint">OpenRouter / omp</span>
-              </button>
-            </div>
-          </fieldset>
-
-          <label class="field">
-            <span class="field__label">Opening prompt</span>
-            <textarea
-              class="field__input"
-              data-testid="create-prompt"
-              rows="3"
-              bind:value={createPrompt}
-            ></textarea>
-          </label>
-
-          {#if createError}
-            <p class="modal__error" data-testid="create-error">{createError}</p>
-          {/if}
-
-          <div class="modal__actions">
-            <button type="button" class="btn" onclick={() => (showCreate = false)}>Cancel</button>
-            <button
-              type="submit"
-              class="btn btn--accent"
-              data-testid="create-submit"
-              disabled={creating}
-            >
-              {creating ? 'Creating…' : 'Create & open'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+  <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
+  {#if showWizard}
+    <ProductWizard
+      propose={(prompt) => client.propose(prompt)}
+      onlaunch={launchProduct}
+      oncancel={() => (showWizard = false)}
+    />
   {/if}
 </div>
 
@@ -669,105 +600,6 @@
   .btn--danger {
     border-color: var(--chip-warn-fg);
     color: var(--chip-warn-fg);
-  }
-
-  /* ── modal ── */
-  .modal__scrim {
-    position: fixed;
-    inset: 0;
-    background: color-mix(in srgb, var(--color-ink) 55%, transparent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    z-index: 10;
-  }
-  .modal {
-    width: min(480px, 100%);
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .modal h2 {
-    margin: 0;
-  }
-  .modal form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .harness {
-    border: none;
-    margin: 0;
-    padding: 0;
-  }
-  .harness legend {
-    font-size: var(--type-micro);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-    margin-bottom: 0.4rem;
-    padding: 0;
-  }
-  .harness__group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.6rem;
-  }
-  .harness__opt {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    border: 1px solid var(--panel-line);
-    border-radius: var(--radius);
-    padding: 0.6rem 0.8rem;
-    cursor: pointer;
-    background: var(--panel-bg);
-    color: inherit;
-    font: inherit;
-    text-align: left;
-  }
-  .harness__opt--on {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-  }
-  .harness__name {
-    font-family: var(--font-code);
-    font-weight: 650;
-  }
-  .harness__hint {
-    font-size: var(--type-micro);
-    color: var(--muted);
-  }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .field__label {
-    font-size: var(--type-micro);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-  }
-  .field__input {
-    font: inherit;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid var(--panel-line);
-    border-radius: var(--radius);
-    background: var(--panel-bg);
-    color: var(--fg);
-    resize: vertical;
-  }
-  .modal__error {
-    color: var(--chip-warn-fg);
-    font-size: 0.88rem;
-    margin: 0;
-  }
-  .modal__actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
   }
 
   @media (max-width: 760px) {

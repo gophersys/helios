@@ -28,6 +28,14 @@ type createSessionRequest struct {
 	By              string            `json:"by,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
 	Prompt          string            `json:"prompt,omitempty"`
+
+	// Product is the OPTIONAL ProductConfig the create-flow wizard proposed (POST /product/propose)
+	// and the user then edited. When present, the gateway normalizes it and folds it into the
+	// agent's initial-context preamble prepended to Prompt, so the build agent opens with the full
+	// product spec in view (a "session" IS a PRODUCT Eden builds). Per-dimension backend honoring is
+	// incremental, but the spec is carried + visible. Absent == the existing harness+prompt path,
+	// unchanged.
+	Product *ProductConfig `json:"product,omitempty"`
 }
 
 // controlRequest is the body of POST /sessions/{id}/control: the prompt/steer/abort verb

@@ -134,6 +134,9 @@ func BuildDevGateway(configuration Config) (*gateway.Gateway, error) {
 			Transcript: transcript,
 			Clock:      clock,
 			Logger:     configuration.Logger,
+			// The create-flow wizard's propose seam: a DETERMINISTIC, prompt-derived fake (no model
+			// call) so POST /product/propose is stable for the Playwright E2E.
+			Proposer: fakeProposer{},
 		},
 	)
 	if err != nil {

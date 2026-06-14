@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/gophersys/libs/go/edenhttp"
 	"github.com/gophersys/libs/go/errors"
 )
 
@@ -88,6 +89,26 @@ func (g *Gateway) writeError(w http.ResponseWriter, err error) {
 	// The envelope is two known-safe strings; an encode fault here is unrecoverable (the
 	// header is already sent) and is intentionally ignored.
 	_ = json.NewEncoder(w).Encode(errorBody{Kind: kind.String(), Message: message}) //nolint:errcheck,errchkjson // header already committed; the body is two redaction-safe strings.
+}
+
+// writeData writes a success edenhttp.Envelope ({data, errors:[], kind:""}) wrapping data with the
+// given status. It is the envelope path for the product-config surface (POST /product/propose),
+// reusing the canonical edenhttp envelope so the wizard branches on the ONE Eden response shape
+// (one concept, one home). The body NEVER carries a credential — ProductConfig has no secret field.
+func (g *Gateway) writeData(w http.ResponseWriter, status int, data any) {
+	edenhttp.WriteData(w, status, data)
+}
+
+// writeEnvelopeError classifies err by its Eden Kind and writes the uniform edenhttp error Envelope
+// ({data:null, errors:[message], kind}). It is the envelope-shaped error path for the product-config
+// surface; the client receives the stable Kind token and the operator-safe message only (a 5xx
+// returns a fixed generic message). A 5xx is logged server-side (the errors library is secret-free).
+func (g *Gateway) writeEnvelopeError(w http.ResponseWriter, err error) {
+	kind := errors.KindOf(err)
+	if statusForKind(kind) >= http.StatusInternalServerError {
+		g.logError("gateway: request failed", "kind", kind.String(), "message", err.Error())
+	}
+	edenhttp.WriteError(w, err)
 }
 
 // safeMessage returns the operator-safe client message. For a 5xx it returns a fixed,

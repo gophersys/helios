@@ -19,10 +19,12 @@ import (
 //	POST   /sessions/{id}/control            prompt | steer | abort   -> REQ-0020 mid-stream
 //	GET    /sessions/{id}/events             SSE stream (Last-Event-ID / ?from-seq=) -> REQ-0023/0024
 //	GET    /sessions/{id}/transcript         persisted Run, queryable after end -> REQ-0020/0023
+//	POST   /product/propose                  AI-propose a ProductConfig from the prompt (wizard step 1)
 //	GET    /healthz                          liveness
 func (g *Gateway) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("POST /product/propose", g.handleProductPropose)
 	mux.HandleFunc("POST /sessions", g.handleCreateSession)
 	mux.HandleFunc("GET /sessions", g.handleListSessions)
 	mux.HandleFunc("GET /sessions/{id}", g.handleGetSession)
