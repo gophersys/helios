@@ -183,11 +183,21 @@ demo_up() {
   log "starting the SvelteKit chat UI (vite via bun) on port ${FRONTEND_PORT} ..."
   # The base devcontainer is bun-only (no node/yarn); the frontend's ctl.sh runs `bun x vite dev`.
   # The vite proxy forwards /gateway → the live gateway (EDEN_GATEWAY_TARGET), same-origin (no CORS).
+  # vite binds 0.0.0.0 (NOT 127.0.0.1): the demo runs INSIDE the devcontainer, and the published-port
+  # proxy sidecar (start_demo_proxy, below) reaches it over the devcontainer's bridge IP — a service
+  # bound to the container's own loopback would be unreachable from that sidecar. The gateway stays
+  # loopback-only (the vite proxy reaches it in-container); only the UI port is host-exposed.
   ${launcher} env \
       EDEN_GATEWAY_TARGET="http://${GATEWAY_ADDRESS}" \
-      bash -c "cd '${REPO_ROOT}/apps/frontend' && exec bash ./ctl.sh dev --port '${FRONTEND_PORT}' --host 127.0.0.1 --strictPort" \
+      bash -c "cd '${REPO_ROOT}/apps/frontend' && exec bash ./ctl.sh dev --port '${FRONTEND_PORT}' --host 0.0.0.0 --strictPort" \
       >"${STATE_DIR}/frontend.log" 2>&1 &
   echo $! > "${STATE_DIR}/frontend.pid"
+
+  # Publish the UI to the Mac host. The devcontainer itself publishes NO host ports, so a Mac browser
+  # can only reach a PUBLISHED port. Once vite answers in-container, start a published-port proxy
+  # sidecar (alpine/socat) over docker-out-of-docker: -p publishes FRONTEND_PORT to the Mac host
+  # through Docker Desktop, forwarding to the devcontainer's bridge IP where vite now listens.
+  start_demo_proxy
 
   log ""
   log "  ============================================================"
@@ -211,8 +221,69 @@ wait_gateway() {
   warn "gateway did not answer /healthz in time; check ${STATE_DIR}/gateway.log"
 }
 
+# DEMO_PROXY_NAME is the published-port proxy sidecar that bridges the Mac host to the in-container
+# vite dev server. It is unique to the demo, so demo_down reaps it by this fixed name.
+DEMO_PROXY_NAME="eden-demo-proxy"
+
+# start_demo_proxy publishes the in-container vite UI to the Mac host. The demo runs INSIDE the
+# devcontainer, which publishes no host ports of its own, so a Mac browser cannot reach a service
+# bound only on the container. The proven fix: once vite answers in-container, start an alpine/socat
+# sidecar over docker-out-of-docker whose -p publishes FRONTEND_PORT to 127.0.0.1 on the Mac host
+# (through Docker Desktop) and forwards it to the devcontainer's bridge IP (`hostname -i`) where vite
+# listens on 0.0.0.0. On the bare host (no devcontainer) vite is already reachable at 127.0.0.1, so
+# the sidecar is skipped. Idempotent: any prior sidecar is reaped first.
+start_demo_proxy() {
+  command -v docker >/dev/null 2>&1 || { warn "docker absent; skipping the host-reachability proxy"; return 0; }
+  # Only needed inside the devcontainer (bridge-network container over docker-out-of-docker); on the
+  # bare host vite's 0.0.0.0 bind is already reachable at 127.0.0.1.
+  if [ ! -f /.dockerenv ]; then return 0; fi
+
+  local bridge_ip
+  bridge_ip="$(hostname -i 2>/dev/null | awk '{print $1}')"
+  if [ -z "${bridge_ip}" ]; then
+    warn "could not determine the devcontainer bridge IP; the UI may be reachable only in-container"
+    return 0
+  fi
+
+  wait_frontend || warn "vite did not answer in time; starting the proxy anyway (it forks per-connection)"
+
+  log "publishing the UI to the Mac host via ${DEMO_PROXY_NAME} (127.0.0.1:${FRONTEND_PORT} -> ${bridge_ip}:${FRONTEND_PORT}) ..."
+  docker rm -f "${DEMO_PROXY_NAME}" >/dev/null 2>&1 || true
+  if docker run -d --rm --name "${DEMO_PROXY_NAME}" \
+      -p "127.0.0.1:${FRONTEND_PORT}:${FRONTEND_PORT}" \
+      alpine/socat "TCP-LISTEN:${FRONTEND_PORT},fork,reuseaddr" "TCP:${bridge_ip}:${FRONTEND_PORT}" \
+      >/dev/null 2>&1; then
+    log "  ${DEMO_PROXY_NAME}: publishing 127.0.0.1:${FRONTEND_PORT} to the Mac host"
+  else
+    warn "failed to start ${DEMO_PROXY_NAME}; the UI is reachable in-container but maybe not from the Mac host"
+  fi
+}
+
+# wait_frontend blocks until the in-container vite dev server answers on the devcontainer bridge IP
+# (so the published-port sidecar has a live upstream to forward to). A non-2xx/3xx still proves the
+# listener is up — we are probing liveness, not asserting a status.
+wait_frontend() {
+  local bridge_ip
+  bridge_ip="$(hostname -i 2>/dev/null | awk '{print $1}')"
+  [ -n "${bridge_ip}" ] || return 1
+  log "waiting for vite to answer in-container (http://${bridge_ip}:${FRONTEND_PORT}) ..."
+  for _ in $(seq 1 60); do
+    if curl -s -o /dev/null "http://${bridge_ip}:${FRONTEND_PORT}/" 2>/dev/null; then
+      log "  vite: up"
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 demo_down() {
-  log "reaping the demo (frontend + gateway + any live harness children) ..."
+  log "reaping the demo (proxy + frontend + gateway + any live harness children) ..."
+  # Reap the published-port proxy sidecar FIRST so the Mac host port is released immediately (it is
+  # a docker-out-of-docker container, not a process group, so the pidfile reap below never sees it).
+  if command -v docker >/dev/null 2>&1; then
+    docker rm -f "${DEMO_PROXY_NAME}" >/dev/null 2>&1 || true
+  fi
   for p in frontend gateway; do
     local pidfile="${STATE_DIR}/${p}.pid"
     if [ -f "${pidfile}" ]; then
