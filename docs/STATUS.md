@@ -54,10 +54,19 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   union-correct extraction so the conformance two-binding suite's coverage of the root contract counts
   (root 80.2%); 2x SC2015. **These unblock the per-lib sweep for every other substrate lib.**
 
+- ✅ **Retroactive QA sweep Batch 1 DONE** (libs e45701d; eden contract freezes + pointer bump): 6 libs
+  (configuration, dependencies, observability, secrets, testing, gitrepository) swept to `phase-gate all`
+  GREEN via a 6-agent Opus workflow, then **independently re-verified by me** with a corrected gate. The
+  re-verify caught that the agents' green leaned on EPHEMERAL gremlins workarounds (image pinned gremlins
+  v0.5.0 lacks `unleash --exclude-files`) → fixed 3 more central gate bugs: gremlins pin → 0.6.0
+  (.devcontainer 5f6d33f), a real cmd_lint blind-gate (golangci/vet failures slipping through
+  `maintainability` — reproduced + fixed + verified), bench-guard wall-time → advisory (gate hard only on
+  deterministic allocs/bytes). Agents also fixed real prod bugs (observability `Exporter` cohesion break +
+  G115; gitrepository G204/G306). All 6 re-verified GREEN with the fixed gate.
+
 QUEUED (dependency-ordered, Mateo-directed):
-1. **Retroactive QA sweep + remediation** — apply the agentsession template to EVERY other existing lib
-   (configuration, dependencies, observability, secrets, gitrepository, workspaceprovider, orchestrator,
-   testing). Shard PER-LIB (own Opus workflow each), parallelize, verify-in-container + merge.
+1. **Retroactive QA sweep — Batch 2**: workspaceprovider + orchestrator (real docker/k3d/kind) — SERIALIZE
+   (one at a time, own Opus workflow each), verify-in-container + commit each.
 2. **Milestone B architecture FIRST, then build** (Mateo 2026-06-13): study `MateoSegura/IOTEA-archive` (the
    runtime lib spanning k8s+docker, deploy-local-vs-prod, the http-api) and produce diagrams + ADRs for
    (a) secure per-agent secret provisioning (secrets lib → Vault), (b) deploy local/prod for docker+k8s,

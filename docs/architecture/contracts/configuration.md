@@ -1,6 +1,13 @@
-# Contract draft — configuration
+# Contract — configuration
 
-> Status: Draft for negotiation (WS1, not frozen) · 2026-06-12 · Reconciled from independent producer/consumer drafts (09 §4). Freezes at the contract-PR gate after review.
+> Status: Frozen (ADR-0016) · 2026-06-13 · Reconciled from independent producer/consumer drafts
+> (09 §4 step 2) and frozen with the library built: the exported surface is mechanically recorded
+> at `libs/go/configuration/.apibaseline` (the freeze made mechanical, ADR-0020) and the real
+> Parser + the configurationtest fakes pass the conformance two-binding plus the ADR-0020
+> 8-dimension test taxonomy green. The **universal input-IR pattern** (10 §4): raw bytes parsed
+> ONCE at the edge into an immutable, fully-resolved `Document`. A breaking change to the surface
+> requires a contract revision (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin
+> otherwise (10 §9).
 
 ## 1. Scope
 

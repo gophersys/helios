@@ -1,6 +1,14 @@
-# Contract draft — testing
+# Contract — testing
 
-> Status: Draft for negotiation (WS1, not frozen) · 2026-06-12 · Reconciled from independent producer/consumer drafts (09 §4). Freezes at the contract-PR gate after review.
+> Status: Frozen (ADR-0016) · 2026-06-13 · Reconciled from independent producer/consumer drafts
+> (09 §4) and frozen with the library built: the exported surface is mechanically recorded at
+> `libs/go/testing/.apibaseline` (the freeze made mechanical, ADR-0020) and the ADR-0020
+> 8-dimension test taxonomy is green (`bash ./ctl.sh phase-gate all`). The **meta-pattern** (10
+> §4): the canonical fakes of the two universal deterministic ports (`Clock`, `RandomSource` —
+> interfaces owned by `dependencies`, 10 §4) plus the reusable conformance-suite construct and the
+> `LifecycleProbe`/`AssertLifecycle` lifecycle-conformance driver. A breaking change to the surface
+> requires a contract revision (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin
+> otherwise (10 §9).
 
 ## 1. Scope
 

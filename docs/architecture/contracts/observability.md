@@ -1,6 +1,6 @@
-# Contract draft — observability
+# Contract — observability
 
-> Status: Draft for negotiation (WS1, not frozen) · 2026-06-12 · Reconciled from independent producer/consumer drafts (09 §4). Freezes at the contract-PR gate after review.
+> Status: Frozen (ADR-0016) · 2026-06-13 · Reconciled from independent producer/consumer drafts (09 §4) and frozen with the library built: the exported surface is mechanically recorded at `libs/go/observability/.apibaseline` (the freeze made mechanical, ADR-0020), the slogadapter Exporter seam is conformance-tested, and the ADR-0020 8-dimension test taxonomy is green. A breaking change to the surface requires a contract revision (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin otherwise (10 §9).
 
 ## 1. Scope
 
