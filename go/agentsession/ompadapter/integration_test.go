@@ -18,8 +18,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -217,28 +215,10 @@ func TestIntegration_LiveOmp_Gated(t *testing.T) {
 		terminal.Kind, terminal.Terminal.ResultText, ledger.InputTokens, ledger.OutputTokens, ledger.CostMicros)
 }
 
-// liveOpenRouterKey resolves the OpenRouter key for the gated live arm: the OPENROUTER_API_KEY
-// env first, else the gitignored dev-secret at the repo root (0600). It NEVER logs the value.
+// liveOpenRouterKey resolves the OpenRouter key for the gated live arm from the OPENROUTER_API_KEY
+// env var. The standard .env convention (ADR-0022) loads it from the gitignored .env.development
+// into the process env; `deploy local` additionally seeds it into the real Vault. It NEVER logs
+// the value; an empty result SKIPS the live arm.
 func liveOpenRouterKey() string {
-	if v := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")); v != "" {
-		return v
-	}
-	if path := devSecretPath(); path != "" {
-		if data, err := os.ReadFile(path); err == nil { //nolint:gosec // path is a fixed repo-relative dev-secret location, not user input.
-			return strings.TrimSpace(string(data))
-		}
-	}
-	return ""
-}
-
-// devSecretPath locates the gitignored dev-secret relative to this test file (the libs
-// submodule lives under the helios repo root at libs/go/agentsession/ompadapter).
-func devSecretPath() string {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		return ""
-	}
-	// ompadapter -> agentsession -> go -> libs -> <repo root>
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", ".."))
-	return filepath.Join(repoRoot, ".dev-secrets", "openrouter-api-key")
+	return strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
 }
