@@ -397,7 +397,11 @@ _cohesion_scan() {
   # is fine"). These are construction/wiring/port-implementation types each component legitimately
   # re-declares (the New(Config, Deps) spine; one Adapter per adapter package), NOT shared CONTRACT
   # types. The contract types (Session, Event, Spec, Stream, ...) are NOT exempt — they keep one home.
-  local cohesion_exempt='Config|Deps|Adapter|Options|Option'
+  # Suffix families, not just bare names: a per-component construction type idiomatically carries a
+  # qualifier (EphemeralConfig, DaemonConfig, DockerAdapter, RunOptions) — these are still the
+  # Config/Adapter/Options construction vocabulary HNS-1 rule 11 exempts, not duplicated contract
+  # types (the real contracts — Session, Event, Spec, Workspace, Provider — do not end in these).
+  local cohesion_exempt='[A-Za-z]*Config|Deps|[A-Za-z]*Adapter|[A-Za-z]*Options?'
   dup="$(
     grep -rnE '^type [A-Z][A-Za-z0-9]* (struct|interface)\b' "$PROJECT_ROOT" \
       --include='*.go' --exclude='*_test.go' 2>/dev/null \
