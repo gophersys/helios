@@ -100,11 +100,24 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   actually RED on vuln (go-jose v4.1.1 → bumped to v4.1.4, clears GO-2026-4945) + cover-floor (raised to
   87.9%); both fixed and the full gate re-run GREEN in-container before commit. Also retired the last
   `.dev-secrets` reference (ompadapter live key → env-only, libs 2431ec4), completing the .env migration.
+- ✅ **B2: workspaceprovider FAT provider + Entrypoint DONE — phase-gate all GREEN** (libs f422eaa; eden
+  pointer + contract re-freeze): an ADDITIVE contract revision (ADR-0022 #4, no break — apidiff additive-only)
+  extending the frozen workspaceprovider. §7 Q15 supervision — new `Supervisor` port (Supervise/Supervised/
+  Reconcile) on `*Provisioner`, a label-filtered docker-events / k8s pod-watch normalized into ONE `Event`
+  space (reusing State/Condition), reconcile-from-reality (list-by-label re-adoption after a fresh-Provider
+  restart), optional `Watcher` adapter seam + `CapSupervise`; Supervised Status read from the LIVE substrate
+  (what the thin orchestrator will Probe). §7 Q16 Entrypoint/workload-pod (closes OD-15→RD-15 opt-a) — one
+  new `WorkspaceSpec.Entrypoint []string`: the container's MAIN process IS the workload (PID-1) on docker AND
+  k8s; empty = Q14 exec-into-hold verbatim (existing consumers unaffected); `ConditionOOMKilled` now surfaces
+  natively (`CapWorkloadPod`). **Independently re-verified by me** (the agent ended mid-gate without a clean
+  report): ran the full `phase-gate all` myself in-container GREEN on real docker + k3d (the OOM proof is
+  no-skip on docker; honest-skip on k3d where the node doesn't enforce the cgroup), reviewed the additive
+  `.apibaseline` + §7 Q15/Q16 + RD-15, and completed the contract re-freeze. Watch goroutine leak-free.
 
 QUEUED (Milestone B build order, ADR-0022 — each its own gated Opus workflow → verify-in-container → commit):
-1. Codex adapter PARKED (no OpenAI key yet) · ~~secrets Vault backend~~ ✅ B1 → **NEXT: the supervising
-   ("fat") provider + Entrypoint** (workspaceprovider contract revision) → NATS/JetStream + the PID-1
-   agent-runtime sidecar → thin orchestrator over real pods → stateless gateway (NATS→SSE) + edenhttp →
+1. Codex adapter PARKED (no OpenAI key yet) · ~~secrets Vault backend~~ ✅ B1 · ~~supervising provider +
+   Entrypoint~~ ✅ B2 → **NEXT: NATS/JetStream + the PID-1 agent-runtime sidecar** → thin orchestrator over
+   real pods (Probes the supervised Status) → stateless gateway (NATS→SSE) + edenhttp →
    git-backed agent-configs/ + strict sandbox → Svelte 5 chat UI + Playwright real E2E → deploy local/prod.
    Real tests, no mocks; devcontainer-first.
 
