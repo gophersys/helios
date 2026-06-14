@@ -8,11 +8,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EphemeralConfig configures a kubernetes Adapter bound to a (test-owned) cluster under a
+// EphemeralClusterConfig configures a kubernetes Adapter bound to a (test-owned) cluster under a
 // dedicated ownership-domain namespace prefix, so the Cleanup reaps exactly what this run
 // created. Kubeconfig/Context select the cluster (an ephemeral k3d/kind one in the test
 // harness); LabelNamespace scopes the namespaces; Distro is the truthful manifest identity.
-type EphemeralConfig struct {
+type EphemeralClusterConfig struct {
 	Kubeconfig     string
 	Context        string
 	LabelNamespace string
@@ -26,7 +26,7 @@ type EphemeralConfig struct {
 // forced-teardown discipline — it runs on failure too, and reaps a UNIQUE namespace prefix so
 // parallel/abandoned runs never collide). The CLUSTER lifecycle (create/delete) is the
 // harness's job, not the adapter's; this only reaps the adapter's own namespaces.
-func NewEphemeral(ctx context.Context, configuration EphemeralConfig) (*Adapter, func() error, error) {
+func NewEphemeral(ctx context.Context, configuration EphemeralClusterConfig) (*Adapter, func() error, error) {
 	adapter, err := New(Config{
 		Kubeconfig:     configuration.Kubeconfig,
 		Context:        configuration.Context,

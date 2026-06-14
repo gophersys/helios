@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -183,8 +184,19 @@ func (c *connection) usage(ctx context.Context) workspaceprovider.ResourceUsage 
 		return workspaceprovider.ResourceUsage{}
 	}
 	return workspaceprovider.ResourceUsage{
-		MemoryBytes: int64(sample.MemoryStats.Usage),
+		MemoryBytes: clampInt64(sample.MemoryStats.Usage),
 	}
+}
+
+// clampInt64 converts a uint64 memory-usage reading from the daemon's stats JSON to the int64 the
+// usage snapshot carries, clamping at the int64 ceiling rather than wrapping negative. The
+// conversion is on the F1 usage-metering load path (the meter folds MemoryBytes into UsageRecord),
+// so an absurd/overflowing reading must saturate, never become a negative byte count.
+func clampInt64(v uint64) int64 {
+	if v > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(v)
 }
 
 // statsSample is the minimal slice of docker's stats JSON the usage snapshot reads.
@@ -257,11 +269,14 @@ func (r *runDriver) workloadOOMKilled(ctx context.Context) bool {
 	return inspect.State.OOMKilled
 }
 
-// Logs replays the workload's combined output buffered at attach time, from the cursor.
+// Logs replays the workload's combined output buffered at attach time, from the cursor. The
+// cursor is a uint64; it is bounds-checked AS a uint64 against the buffer length BEFORE the int
+// conversion, so a cursor past the buffer (or one that would overflow int) clamps to the end
+// rather than wrapping into a negative index (a real bounds check on the log-replay load path).
 func (r *runDriver) Logs(_ context.Context, from workspaceprovider.LogCursor) (io.ReadCloser, error) {
-	start := int(from)
-	if start < 0 || start > len(r.buffer) {
-		start = len(r.buffer)
+	start := len(r.buffer)
+	if uint64(from) < uint64(len(r.buffer)) {
+		start = int(from) // #nosec G115 -- guarded: from < len(buffer) (an int), so the value provably fits in int; gosec cannot follow the uint64 guard.
 	}
 	return io.NopCloser(bytes.NewReader(r.buffer[start:])), nil
 }

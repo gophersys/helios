@@ -248,9 +248,12 @@ func (r *runDriver) Logs(ctx context.Context, from workspaceprovider.LogCursor) 
 	case <-ctx.Done():
 		return nil, &workspaceprovider.DeadlineError{Op: "Run.Logs"}
 	}
-	start := int(from)
-	if start < 0 || start > len(r.buffer) {
-		start = len(r.buffer)
+	// The cursor is a uint64; bounds-check it AS a uint64 against the buffer length BEFORE the int
+	// conversion, so a cursor past the buffer (or one that would overflow int) clamps to the end
+	// rather than wrapping into a negative index (a real bounds check on the log-replay load path).
+	start := len(r.buffer)
+	if uint64(from) < uint64(len(r.buffer)) {
+		start = int(from) // #nosec G115 -- guarded: from < len(buffer) (an int), so the value provably fits in int; gosec cannot follow the uint64 guard.
 	}
 	return io.NopCloser(bytes.NewReader(r.buffer[start:])), nil
 }

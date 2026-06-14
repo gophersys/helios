@@ -250,7 +250,7 @@ func randomSuffix() string {
 // runCmd runs bin with args, returning combined output + any error (a thin sibling of cluster.go's
 // runCommand kept here so the registry harness is self-contained).
 func runCmd(ctx context.Context, bin string, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
+	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput() // #nosec G204 -- a test harness driving the docker/htpasswd CLIs is exec-by-design; bin/args are fixed harness-internal command literals, never consumer input.
 	if err != nil {
 		return string(out), errors.Wrap(errors.KindUnavailable, "run "+bin, err)
 	}
@@ -260,7 +260,7 @@ func runCmd(ctx context.Context, bin string, args ...string) (string, error) {
 // runCmdStdin runs bin with args feeding stdin on stdin (for `docker login --password-stdin`, so
 // the password never rides the argv/process list).
 func runCmdStdin(ctx context.Context, stdin, bin string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd := exec.CommandContext(ctx, bin, args...) // #nosec G204 -- a test harness driving `docker login --password-stdin` is exec-by-design; bin/args are fixed harness-internal command literals, never consumer input.
 	cmd.Stdin = strings.NewReader(stdin)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

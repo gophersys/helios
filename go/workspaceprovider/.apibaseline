@@ -1,0 +1,100 @@
+## github.com/gophersys/libs/go/workspaceprovider
+    const CapAbsent CapStatus = iota ...
+    const CapExecPTY Capability = iota ...
+    const ConditionReady Condition = iota ...
+    const MountBind MountKind = iota ...
+    const RunPending RunPhase = iota ...
+    const StateProvisioning State = iota ...
+    const SubstrateDocker Substrate = "docker" ...
+    const VehicleEnv CredentialVehicle = iota ...
+    func New(configuration Config, dependencies Deps) (*Provisioner, error)
+    func ParseHandle(s string) (Handle, error)
+const LabelOrganization = "eden.org" ...
+const SpecFingerprintLabel = "eden.workspaceprovider/spec-fingerprint"
+type Adapter interface{ ... }
+type CapStatus uint8
+type Capability uint8
+type CapabilityManifest struct{ ... }
+type Condition uint8
+type Config struct{ ... }
+type ConflictError struct{ ... }
+type Connection interface{ ... }
+type CredentialVehicle uint8
+type DeadlineError struct{ ... }
+type Deps struct{ ... }
+type Descriptor struct{ ... }
+type EgressRule struct{ ... }
+type EnvVar struct{ ... }
+type ExecResult struct{ ... }
+type ExecSpec struct{ ... }
+type FileEntry struct{ ... }
+type FileMode uint32
+type Files interface{ ... }
+type Handle struct{ ... }
+type HandleData struct{ ... }
+type ImageError struct{ ... }
+type InvalidHandleError struct{ ... }
+type InvalidSpecError struct{ ... }
+type IsolationError struct{ ... }
+type LogCursor uint64
+type Mount struct{ ... }
+type MountKind uint8
+type NotFoundError struct{ ... }
+type NotReadyError struct{ ... }
+type Probe struct{ ... }
+type Provider interface{ ... }
+type Provisioner struct{ ... }
+type QuotaExceededError struct{ ... }
+type Resolved struct{ ... }
+type ResourceUsage struct{ ... }
+type Resources struct{ ... }
+type Run interface{ ... }
+type RunDriver interface{ ... }
+type RunPhase uint8
+type RunSpec struct{ ... }
+type RunStatus struct{ ... }
+type Selector struct{ ... }
+type State uint8
+type Status struct{ ... }
+type Substrate string
+type SubstrateUnavailableError struct{ ... }
+type UnsupportedError struct{ ... }
+type Workspace interface{ ... }
+type WorkspaceSpec struct{ ... }
+## github.com/gophersys/libs/go/workspaceprovider/dockeradapter
+    func New(configuration Config) (*Adapter, error)
+    func NewEphemeral(ctx context.Context, configuration EphemeralDaemonConfig) (*Adapter, func() error, error)
+func IsDaemonUnavailable(err error) bool
+func SanitizeNamespace(s string) string
+type Adapter struct{ ... }
+type Config struct{ ... }
+type EphemeralDaemonConfig struct{ ... }
+## github.com/gophersys/libs/go/workspaceprovider/kubernetesadapter
+    func New(configuration Config) (*Adapter, error)
+    func NewEphemeral(ctx context.Context, configuration EphemeralClusterConfig) (*Adapter, func() error, error)
+func IsClusterUnavailable(err error) bool
+func SanitizeName(s string) string
+type Adapter struct{ ... }
+type Config struct{ ... }
+type EphemeralClusterConfig struct{ ... }
+type ExecRequest struct{ ... }
+## github.com/gophersys/libs/go/workspaceprovider/workspaceprovidertest
+    func K3dClusterWithRegistry(t *testing.T, baseImage string, opts ...HarnessOption) (workspaceprovider.Adapter, *LocalRegistry)
+    func KeepOnFailure() HarnessOption
+    func NewAdapter(caps ...workspaceprovider.Capability) *Adapter
+    func NewLocalRegistry(ctx context.Context, baseImage string) (*LocalRegistry, error)
+    func WithImages(refs ...string) HarnessOption
+    func WithPerTest() HarnessOption
+const SeededCanary = "S3CR3T-canary-do-not-leak"
+func ClusterNodes(ctx context.Context, clusterName string) []string
+func EphemeralContainer(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter
+func FakeProvider(seed map[string]string) workspaceprovider.Provider
+func K3dCluster(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter
+func K3dClusterNamed(t *testing.T, opts ...HarnessOption) (adapter workspaceprovider.Adapter, clusterName string)
+func KindCluster(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter
+func ProviderSuite() edentesting.Suite[workspaceprovider.Adapter]
+func RunProviderSuite(t *testing.T, ...)
+type Adapter struct{ ... }
+type HarnessOption func(*harnessConfig)
+type LocalRegistry struct{ ... }
+type TestingT interface{ ... }

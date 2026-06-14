@@ -18,12 +18,12 @@ import (
 
 // credentialEnvVar is the env var name a VehicleEnv workload credential is placed under on the
 // CHILD process only (the harness reads it). It mirrors the agentsession / docker-adapter seam.
-const credentialEnvVar = "EDEN_WORKLOAD_CREDENTIAL"
+const credentialEnvVar = "EDEN_WORKLOAD_CREDENTIAL" // #nosec G101 -- the NAME of an env var, not a credential value; the value is resolved server-side and never appears here.
 
 // credentialFilePath is the tmpfs path a VehicleFile workload credential is written to (the
 // workload reads it). It lives on a Memory-medium emptyDir so it never persists past the pod
 // (07 §2).
-const credentialFilePath = "/run/eden/credential"
+const credentialFilePath = "/run/eden/credential" // #nosec G101 -- a filesystem PATH, not a credential value; the value is written here at the injection site only.
 
 // secretValueKey is the single data key every MountSecret corev1.Secret stores its value under;
 // the secret volume projects this key AS the Target's basename so reading the Target returns the

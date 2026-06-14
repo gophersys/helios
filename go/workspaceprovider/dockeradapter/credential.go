@@ -14,11 +14,11 @@ import (
 
 // credentialEnvVar is the env var name a VehicleEnv workload credential is placed under on
 // the CHILD process only (the harness reads it). It mirrors the agentsession seam.
-const credentialEnvVar = "EDEN_WORKLOAD_CREDENTIAL"
+const credentialEnvVar = "EDEN_WORKLOAD_CREDENTIAL" // #nosec G101 -- the NAME of an env var, not a credential value; the value is resolved server-side and never appears here.
 
 // credentialFilePath is the tmpfs path a VehicleFile workload credential is written to (the
 // workload reads it). It lives on a tmpfs mount so it never hits an image layer (07 §2).
-const credentialFilePath = "/run/eden/credential"
+const credentialFilePath = "/run/eden/credential" // #nosec G101 -- a filesystem PATH, not a credential value; the value is written here at the injection site only.
 
 // injectCredential places the resolved workload credential where the workload reads it,
 // per the spec's Vehicle, at the injection site ONLY. For VehicleEnv it returns the
@@ -28,26 +28,22 @@ const credentialFilePath = "/run/eden/credential"
 //
 //nolint:gocritic // resolved is heavy but mirrors the frozen Resolved seam; spec is read once for its Vehicle.
 func (c *connection) injectCredential(ctx context.Context, spec workspaceprovider.RunSpec, resolved workspaceprovider.Resolved) ([]string, error) {
+	// noEnv is the explicit "no env entry to add" result the no-credential and VehicleFile paths
+	// return — the credential reaches the workload via a tmpfs file there, NOT the child env.
+	var noEnv []string
 	if resolved.Workload == nil {
-		return nil, nil
+		return noEnv, nil
 	}
 	switch spec.Vehicle {
 	case workspaceprovider.VehicleFile:
-		var value []byte
-		if uerr := resolved.Workload.Use(func(plaintext []byte) error {
-			value = append(value[:0], plaintext...)
-			return nil
-		}); uerr != nil {
-			return nil, &workspaceprovider.IsolationError{Handle: c.handle, Detail: "resolve workload credential for file vehicle"}
+		// The credential file lives on a tmpfs (07 §2: it never hits an image layer). docker's
+		// CopyToContainer (the Files.Put plane) CANNOT write into a tmpfs — a tmpfs masks the
+		// container-layer copy plane — so the value is streamed in via the SAME in-container
+		// exec+stdin mechanism MountSecret uses (writeSecretFile), not Files.Put.
+		if ferr := writeSecretFile(ctx, c, credentialFilePath, resolved.Workload); ferr != nil {
+			return noEnv, &workspaceprovider.IsolationError{Handle: c.handle, Detail: "write workload credential to tmpfs"}
 		}
-		ferr := c.Files().Put(ctx, credentialFilePath, bytes.NewReader(value), 0o600)
-		for i := range value {
-			value[i] = 0 // best-effort wipe of the local copy
-		}
-		if ferr != nil {
-			return nil, &workspaceprovider.IsolationError{Handle: c.handle, Detail: "write workload credential to tmpfs"}
-		}
-		return nil, nil
+		return noEnv, nil
 	default: // VehicleEnv
 		entry, uerr := secrets.Use1(resolved.Workload, func(plaintext []byte) (string, error) {
 			return credentialEnvVar + "=" + string(plaintext), nil
@@ -136,7 +132,7 @@ const registryUsername = "eden"
 func registryAuth(pullSecret *secrets.Secret) (string, error) {
 	header, err := secrets.Use1(pullSecret, func(plaintext []byte) (string, error) {
 		authConfig := registry.AuthConfig{Username: registryUsername, Password: string(plaintext)}
-		encoded, merr := json.Marshal(authConfig)
+		encoded, merr := json.Marshal(authConfig) // #nosec G117 -- registry.AuthConfig is the docker SDK's REQUIRED pull-secret carrier; the password is read only via the secret seam and immediately base64-encoded into the opaque X-Registry-Auth header docker demands, never logged or persisted.
 		if merr != nil {
 			return "", errors.Wrap(errors.KindInternal, "dockeradapter: marshal registry auth", merr)
 		}

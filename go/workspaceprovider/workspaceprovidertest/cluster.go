@@ -193,7 +193,7 @@ func removeKubeconfig(kubeconfig string) {
 
 // runCommand runs bin with args, returning the combined output (for diagnostics) and any error.
 func runCommand(ctx context.Context, bin string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd := exec.CommandContext(ctx, bin, args...) // #nosec G204 -- a test harness that drives the k3d/kind/docker CLIs is exec-by-design; bin/args are fixed harness-internal command literals, never consumer input.
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return string(out), errors.Wrap(errors.KindUnavailable, "run "+bin, err)

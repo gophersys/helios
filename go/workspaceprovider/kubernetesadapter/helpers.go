@@ -20,6 +20,10 @@ const httpsPort = 443
 // resolve its allowed hosts.
 const dnsPort = 53
 
+// maxPort is the 16-bit TCP/UDP port ceiling; port32 bounds a consumer-supplied port against it
+// before the int32 conversion (a real bounds check on the NetworkPolicy build load path).
+const maxPort = 65535
+
 // volumeName derives a deterministic, RFC-1123-valid volume name from a mount target + index.
 // The index disambiguates two mounts that sanitize to the same label (e.g. "/a/b" and "/a-b").
 func volumeName(target string, index int) string {
@@ -31,9 +35,15 @@ func volumeName(target string, index int) string {
 	return strings.Trim(base, "-") + suffix
 }
 
-// port32 renders a port number as the intstr.IntOrString a NetworkPolicyPort carries.
+// port32 renders a port number as the intstr.IntOrString a NetworkPolicyPort carries. A port
+// arrives from the consumer-supplied EgressRule.Ports (a load path), so the conversion is guarded
+// by a real bounds check: an out-of-range value (negative or > the 16-bit TCP/UDP port ceiling)
+// is clamped to 0 rather than silently wrapping into a bogus int32 port.
 func port32(p int) intstr.IntOrString {
-	return intstr.FromInt32(int32(p)) //nolint:gosec // a port is 0..65535, well within int32.
+	if p < 0 || p > maxPort {
+		p = 0
+	}
+	return intstr.FromInt32(int32(p)) // #nosec G115 -- guarded: p is clamped to 0..maxPort (65535) above, well within int32; gosec cannot follow the clamp.
 }
 
 // dnsEgressRule is the always-on DNS allow (TCP+UDP 53) every egress NetworkPolicy carries so a

@@ -19,7 +19,14 @@ EDEN_LIB_LEAF="false"
 EDEN_COVERAGE_FLOOR="70"
 EDEN_HOT_PATHS="."
 EDEN_INTEGRATION_CMDS="go docker k3d kind"
+# The docker/kubernetes adapters' real logic (Create/Run/Exec/Files/credential injection) is
+# exercised ONLY through the REAL-substrate `//go:build integration` lane, so the per-package
+# coverage floor MUST measure that lane too — otherwise the adapter packages undercount to ~5%.
+# This is the engine's sanctioned per-lib override (cmd_cover reads EDEN_COVER_TAGS); a substrate
+# lib needs `integration` in the cover tag set.
+EDEN_COVER_TAGS="lifecycle load integration"
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
+export EDEN_COVER_TAGS
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091

@@ -11,11 +11,11 @@ import (
 	"github.com/gophersys/libs/go/workspaceprovider"
 )
 
-// EphemeralConfig configures the throwaway, isolated docker context the real-substrate test
+// EphemeralDaemonConfig configures the throwaway, isolated docker context the real-substrate test
 // harness spins. LabelNamespace scopes a dedicated ownership domain so the Cleanup reaps
 // exactly what this run created (and nothing a parallel run did); PrePullImages warms the
 // image cache so per-test provisions are fast and offline-safe.
-type EphemeralConfig struct {
+type EphemeralDaemonConfig struct {
 	LabelNamespace string
 	PrePullImages  []string
 }
@@ -26,7 +26,7 @@ type EphemeralConfig struct {
 // requested images, and returns the Adapter plus a cleanup that force-removes every
 // container the namespace authored (the C23 forced-teardown discipline — it runs on
 // failure too, deletes on a unique namespace so parallel/abandoned runs never collide).
-func NewEphemeral(ctx context.Context, configuration EphemeralConfig) (*Adapter, func() error, error) {
+func NewEphemeral(ctx context.Context, configuration EphemeralDaemonConfig) (*Adapter, func() error, error) {
 	adapter, err := New(Config{LabelNamespace: configuration.LabelNamespace})
 	if err != nil {
 		return nil, nil, err

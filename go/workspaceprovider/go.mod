@@ -8,10 +8,17 @@ require (
 	github.com/gophersys/libs/go/secrets v0.0.0
 	github.com/gophersys/libs/go/testing v0.0.0
 	github.com/opencontainers/image-spec v1.1.1
+	golang.org/x/sync v0.21.0
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
+	pgregory.net/rapid v1.3.0
 )
+
+// Test-only dependencies (the ADR-0020 test-taxonomy block): goleak (dimension b, leak),
+// rapid (dimension a, property), and golang.org/x/sync/errgroup (dimension e, load). depguard's
+// `test-taxonomy` rule permits these in *_test.go only.
+require go.uber.org/goleak v1.3.0
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -39,7 +46,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/spdystream v0.5.0 // indirect
+	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

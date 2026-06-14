@@ -342,6 +342,105 @@ func TestDocker_PrivateImagePullSecret(t *testing.T) {
 	}
 }
 
+// TestDocker_CredentialInjectionSeam drives the Run credential seam (injectCredential) END TO END
+// against a REAL container, over BOTH vehicles: a VehicleFile credential written to a tmpfs path
+// and a VehicleEnv credential placed on the workload's child env. It asserts the workload can READ
+// each injected value (the seam works) AND that neither value surfaces in a Status or the loggable
+// Handle (07 §2: the value lives only at the injection site). No mock — a real daemon, a real
+// tmpfs, real execs. (The MountSecret half of the seam is covered by the conformance
+// caseMountSecret over this same real adapter.)
+//
+//nolint:gocognit,cyclop,paralleltest // a deliberate linear real-substrate walk over the credential seam; serial by design (spins a real container).
+func TestDocker_CredentialInjectionSeam(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+
+	const (
+		fileCredRef   = "vault://eden/file#cred"
+		envCredRef    = "vault://eden/env#cred"
+		fileCredValue = "FILE-CRED-VALUE-do-not-leak"
+		envCredValue  = "ENV-CRED-VALUE-do-not-leak"
+	)
+	prov := newProviderWithSecrets(t, adapter, map[string]string{
+		fileCredRef: fileCredValue,
+		envCredRef:  envCredValue,
+	})
+
+	ws, err := prov.Provision(ctx, workspaceprovider.WorkspaceSpec{
+		Name:      "ws-cred-seam",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     testImage,
+		Mounts: []workspaceprovider.Mount{
+			{Kind: workspaceprovider.MountBind, Target: "/workspace"},
+			// A tmpfs at /run/eden so the VehicleFile credential path (/run/eden/credential) is writable.
+			{Kind: workspaceprovider.MountTmpfs, Target: "/run/eden"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), ws.Handle()) }) //nolint:errcheck // best-effort cleanup; Teardown is idempotent and the harness re-scan asserts no orphan.
+
+	// VehicleFile: a Run credential is written to the tmpfs credential path; the workload copies it
+	// to a bind-mounted file the test reads back (the credential tmpfs file is the injection site).
+	fileRun, frerr := ws.Run(ctx, workspaceprovider.RunSpec{
+		Command:    []string{"sh", "-c", "cat /run/eden/credential > /workspace/file-cred.txt"},
+		Credential: secrets.Ref(fileCredRef),
+		Vehicle:    workspaceprovider.VehicleFile,
+	})
+	if frerr != nil {
+		t.Fatalf("Run (VehicleFile): %v", frerr)
+	}
+	if final := drainRun(ctx, fileRun); final.Phase != workspaceprovider.RunSucceeded {
+		t.Errorf("VehicleFile run phase = %v, want Succeeded (the credential file must exist)", final.Phase)
+	}
+	assertWorkspaceFileEquals(ctx, t, ws, "/workspace/file-cred.txt", fileCredValue)
+
+	// VehicleEnv: a Run credential is placed on the workload's CHILD env; the workload writes it
+	// out to a bind-mounted file so the test can read it back (the env is on the child only).
+	envRun, ererr := ws.Run(ctx, workspaceprovider.RunSpec{
+		Command:    []string{"sh", "-c", "printf %s \"$EDEN_WORKLOAD_CREDENTIAL\" > /workspace/env-cred.txt"},
+		Credential: secrets.Ref(envCredRef),
+		Vehicle:    workspaceprovider.VehicleEnv,
+	})
+	if ererr != nil {
+		t.Fatalf("Run (VehicleEnv): %v", ererr)
+	}
+	if final := drainRun(ctx, envRun); final.Phase != workspaceprovider.RunSucceeded {
+		t.Errorf("VehicleEnv run phase = %v, want Succeeded", final.Phase)
+	}
+	assertWorkspaceFileEquals(ctx, t, ws, "/workspace/env-cred.txt", envCredValue)
+
+	// Neither injected value may surface in a Status or the loggable Handle.
+	st, serr := ws.Status(ctx)
+	if serr != nil {
+		t.Fatalf("Status: %v", serr)
+	}
+	for _, needle := range []string{fileCredValue, envCredValue} {
+		if strings.Contains(st.Detail, needle) || strings.Contains(ws.Handle().String(), needle) {
+			t.Errorf("an injected credential value leaked into Status/Handle: %q", needle)
+		}
+	}
+}
+
+// assertWorkspaceFileEquals reads path out of the workspace and asserts its trimmed content == want.
+func assertWorkspaceFileEquals(ctx context.Context, t *testing.T, ws workspaceprovider.Workspace, path, want string) {
+	t.Helper()
+	rc, gerr := ws.Files().Get(ctx, path)
+	if gerr != nil {
+		t.Errorf("Files.Get(%s): %v", path, gerr)
+		return
+	}
+	got, raerr := readAll(rc)
+	if raerr != nil {
+		t.Errorf("read %s: %v", path, raerr)
+		return
+	}
+	if strings.TrimSpace(string(got)) != want {
+		t.Errorf("%s content = %q, want %q", path, strings.TrimSpace(string(got)), want)
+	}
+}
+
 // ── small integration helpers ─────────────────────────────────────────────────.
 
 func newProvider(t *testing.T, adapter workspaceprovider.Adapter) *workspaceprovider.Provisioner {

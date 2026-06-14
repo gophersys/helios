@@ -52,7 +52,7 @@ func EphemeralContainer(t *testing.T, opts ...HarnessOption) workspaceprovider.A
 	t.Helper()
 	configuration := resolveOptions(opts...)
 
-	adapter, cleanup, err := dockeradapter.NewEphemeral(t.Context(), dockeradapter.EphemeralConfig{
+	adapter, cleanup, err := dockeradapter.NewEphemeral(t.Context(), dockeradapter.EphemeralDaemonConfig{
 		LabelNamespace: uniqueNamespace(t),
 		PrePullImages:  configuration.prePullImages,
 	})
@@ -182,7 +182,7 @@ func bindCluster(t *testing.T, cluster *ephemeralCluster, configuration harnessC
 		}
 	})
 
-	adapter, reap, err := kubernetesadapter.NewEphemeral(t.Context(), kubernetesadapter.EphemeralConfig{
+	adapter, reap, err := kubernetesadapter.NewEphemeral(t.Context(), kubernetesadapter.EphemeralClusterConfig{
 		Kubeconfig:     cluster.Kubeconfig,
 		LabelNamespace: uniqueClusterNamespace(t),
 		Distro:         cluster.Distro,
