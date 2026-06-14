@@ -79,13 +79,19 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   (libs a36ce85); re-review/drop when docker/docker ships a fix or Eden adopts moby/moby/v2. **TASK #4
   (retroactive QA sweep) COMPLETE. → Mateo to ratify the CVE acceptance.**
 
-QUEUED (dependency-ordered, Mateo-directed):
-1. **Milestone B architecture FIRST, then build** (Mateo 2026-06-13): study `MateoSegura/IOTEA-archive` (the
-   runtime lib spanning k8s+docker, deploy-local-vs-prod, the http-api) and produce diagrams + ADRs for
-   (a) secure per-agent secret provisioning (secrets lib → Vault), (b) deploy local/prod for docker+k8s,
-   (c) the api shape — BEFORE implementing. Then: Codex adapter; NATS/JetStream PID-1 pod runtime +
-   workspaceprovider Entrypoint; orchestrator over real pods + stateless gateway; git-backed `agent-configs/`;
-   strict sandbox; basic chat UI + Playwright real E2E. Devcontainer-first; update AI docs each.
+- ✅ **Milestone B architecture RATIFIED — ADR-0022** (after the IOTEA-archive study, 4 Opus research agents):
+  (1) secrets→Vault NOW, ephemeral per-session role, **REAL Vault locally** (official image, no custom build,
+  not -dev); (2) deploy two-axis compose-local/helm-prod, supporting stack (NATS+Postgres+Vault) out-of-band,
+  one typed ServiceSpec→both; (3) http-api = stateless NATS→SSE bridge + REST-POST control (edenhttp lib,
+  IOTEA 6-stage pipeline); (4) **FAT provider** — workspaceprovider absorbs supervision + lifecycle-event-
+  normalization + the Entrypoint/workload-pod capability (a contract revision; resolves OD-15 opt-a),
+  orchestrator thins. IOTEA cloned at /Users/mateo/iotea-archive.
+
+QUEUED (Milestone B build order, ADR-0022 — each its own gated Opus workflow → verify-in-container → commit):
+1. Codex adapter (codex in the base image) → secrets Vault backend → the supervising provider + Entrypoint
+   (workspaceprovider contract revision) → NATS/JetStream + the PID-1 agent-runtime sidecar → thin orchestrator
+   over real pods → stateless gateway (NATS→SSE) + edenhttp → git-backed agent-configs/ + strict sandbox →
+   Svelte 5 chat UI + Playwright real E2E → deploy local/prod. Real tests, no mocks; devcontainer-first.
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
