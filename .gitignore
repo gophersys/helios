@@ -4,6 +4,10 @@ node_modules/
 .yarn/cache/
 .yarn/*.log
 .pnp.*
+# yarn 4 is the workspace package manager (yarn.lock is canonical); a root bun.lock is a
+# container-side artifact of `bun install` materializing the frontend's linux-arm64 native
+# bindings — environment-specific, never committed.
+bun.lock
 
 # Nx
 .nx/cache/

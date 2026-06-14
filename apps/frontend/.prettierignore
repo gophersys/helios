@@ -4,3 +4,6 @@ build/
 .eden/
 node_modules/
 static/
+# Playwright run artifacts (results, traces, HTML report) — generated, never linted.
+test-results/
+playwright-report/

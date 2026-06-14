@@ -19,11 +19,12 @@ REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel 2>/dev/null || ech
 VALIDATOR_SOURCE="$REPO_ROOT/tools/documentvalidator"
 VALIDATOR_BINARY="$PROJECT_ROOT/.eden/documentvalidator"
 
-# The package-manager invocation, held as an array so the multi-word default
-# ("corepack yarn") survives the restricted IFS above. Yarn 4 is pinned via the
-# root package.json packageManager field and resolved through corepack; override
-# with EDEN_YARN (whitespace-separated) where the corepack shim is elsewhere.
-IFS=' ' read -r -a YARN <<<"${EDEN_YARN:-corepack yarn}"
+# The package-manager / runner invocation, held as an array so the multi-word default
+# survives the restricted IFS above. The base devcontainer is bun-only (no node/yarn/
+# corepack on PATH), so the default runner is `bun x` — it executes the workspace-local
+# vite / svelte-kit / svelte-check / playwright binaries directly. Override with EDEN_YARN
+# (whitespace-separated) on a host that resolves the toolchain through corepack yarn instead.
+IFS=' ' read -r -a YARN <<<"${EDEN_YARN:-bun x}"
 # A space-joined rendering for log lines (the global IFS above would otherwise join
 # array elements with a newline). The array itself is what gets executed.
 printf -v YARN_DISPLAY '%s ' "${YARN[@]}"
@@ -95,6 +96,22 @@ function cmd_typecheck() {
   log_success "typecheck: OK"
 }
 
+# check is the alias the library gate (ADR-0020) and package.json `check` script use for the
+# svelte-check / tsc pass — same body as typecheck.
+function cmd_check() { cmd_typecheck "$@"; }
+
+# e2e runs the Playwright forced-CRUD suite against a REAL agentgateway dev-serve. The runner
+# (tests/e2e/run.sh) builds + boots the dev-serve on a free port, serves the production build via
+# vite preview on a free port, points the UI at the dev-serve, drives the browser, and tears both
+# down. No mocked fetch/SSE — the HTTP/SSE the UI exercises is 100% real (the dev-serve's harness
+# is the deterministic fake, which is the gateway's concern). Browsers are installed on first run.
+function cmd_e2e() {
+  require_cmd bun
+  log_info "e2e: Playwright forced-CRUD against a real dev-serve"
+  (cd "$PROJECT_ROOT" && bash tests/e2e/run.sh "$@")
+  log_success "e2e: OK"
+}
+
 # -------- usage --------
 function usage() {
   cat <<EOF
@@ -106,6 +123,8 @@ Commands:
   preview      Serve the production build locally
   lint         Check formatting with prettier
   typecheck    Sync SvelteKit types and run svelte-check (TypeScript strict)
+  check        Alias of typecheck (the ADR-0020 gate / package.json check)
+  e2e          Playwright forced-CRUD E2E against a real agentgateway dev-serve
   help         Show this message
 EOF
 }
@@ -120,6 +139,8 @@ function main() {
     preview)   cmd_preview   "$@" ;;
     lint)      cmd_lint      "$@" ;;
     typecheck) cmd_typecheck "$@" ;;
+    check)     cmd_check     "$@" ;;
+    e2e)       cmd_e2e       "$@" ;;
     help|"")   usage ;;
     *)         log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac
