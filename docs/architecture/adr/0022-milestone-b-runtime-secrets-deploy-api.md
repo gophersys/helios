@@ -45,6 +45,12 @@ Postgres + Vault) is stood up **OUT-OF-BAND** by a `ctl.sh`/helm step — the pl
 (orchestrator/agents) assumes it exists; the orchestrator does NOT reconcile the platform's own
 substrate. A single typed Go **`ServiceSpec`** renders to BOTH compose and Helm (one source of
 truth, no hand-maintained drift). Agent pods dogfood the `.devcontainer` base image family.
+**Dev credentials load via the standard `.env` convention** (Mateo, 2026-06-13): a committed
+`.env.example` (+ `.env.<environment>.example`) template carries placeholders only; the real
+`.env.<environment>` (e.g. `.env.development`) is gitignored and NEVER committed. `deploy local`
+loads `.env.development` into the process env AND seeds the local Vault from it (IOTEA-style: log
+in to the just-started Vault, `kv put` each value under the agent's path) — so harness credentials
+reach the spawned agents through Vault, not loose files. (Replaced the earlier `.dev-secrets/` dir.)
 
 ### 3. http-api = stateless NATS→SSE bridge + REST-POST control
 

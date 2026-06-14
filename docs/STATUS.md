@@ -25,7 +25,9 @@
 
 Mateo returned, gave the live claude setup-token + an OpenRouter key, and opened a big program. Plan:
 `~/.claude/plans/groovy-growing-puppy.md`. Locked decisions in memory `harness-platform-architecture`.
-Credentials gitignored at `.dev-secrets/{claude-oauth-token,openrouter-api-key}` (0600, env-only).
+Credentials live in gitignored `.env.development` (the `.env.example`/`.env.<environment>` standard; real
+values NEVER committed); `deploy local` loads them + seeds the local REAL Vault IOTEA-style. (Migrated off
+the old `.dev-secrets/` dir, 2026-06-13.)
 
 PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer, pointers bumped):
 - ✅ **Both real harnesses fixed + verified INSIDE the devcontainer**: claude 2.1.177 live test 1.9s,

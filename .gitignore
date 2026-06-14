@@ -42,10 +42,13 @@ go.work.sum
 .DS_Store
 Thumbs.db
 
-# Secrets — never commit
+# Secrets — NEVER commit a real env file. Only the .example templates (placeholders, no values)
+# are tracked. `.env`, `.env.development`, `.env.production`, `.env.*.local`, etc. all hold real
+# values and are ignored; the `!` lines re-include the committed templates.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Claude Code harness state
 .claude/scheduled_tasks.lock
@@ -54,6 +57,3 @@ Thumbs.db
 docs/architecture/eden-architecture.html
 docs/eden-atlas.html
 **/documents.html
-
-# local dev credentials — never committed
-.dev-secrets/
