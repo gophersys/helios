@@ -70,10 +70,17 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   CopyToContainer write) → rerouted via exec+stdin, proven on real docker — plus 3 gosec G115 hardenings.
   Engine: cohesion exemption generalized to suffix families (...Config/Adapter/Options, libs 09c8cf9).
 
+- ✅ **orchestrator DONE — ALL 11 Go libs are ADR-0020 phase-gate-all GREEN** (libs d5d11c3; eden contract
+  freeze + pointer). orchestrator's port-based reconciler swept (real-pod-over-real-harness is Milestone B,
+  correctly not fabricated; production .go untouched). Verification surfaced 2 reachable+UNFIXABLE
+  docker/docker CVEs (GO-2026-4887 AuthZ-plugin-bypass, GO-2026-4883 plugin-privilege off-by-one; Fixed:
+  N/A) affecting the docker-using libs — NOT exploitable in Eden's controlled docker-client provisioning
+  (no authz/legacy plugins). The vuln gate is now DETERMINISTIC with a documented accepted-risk allowlist
+  (libs a36ce85); re-review/drop when docker/docker ships a fix or Eden adopts moby/moby/v2. **TASK #4
+  (retroactive QA sweep) COMPLETE. → Mateo to ratify the CVE acceptance.**
+
 QUEUED (dependency-ordered, Mateo-directed):
-1. **Retroactive QA sweep — Batch 2 final**: orchestrator (real docker/k3d/kind) — the LAST lib; same
-   single-agent sweep, verify-in-container + commit. Then all 11 Go libs are ADR-0020 gate-green.
-2. **Milestone B architecture FIRST, then build** (Mateo 2026-06-13): study `MateoSegura/IOTEA-archive` (the
+1. **Milestone B architecture FIRST, then build** (Mateo 2026-06-13): study `MateoSegura/IOTEA-archive` (the
    runtime lib spanning k8s+docker, deploy-local-vs-prod, the http-api) and produce diagrams + ADRs for
    (a) secure per-agent secret provisioning (secrets lib → Vault), (b) deploy local/prod for docker+k8s,
    (c) the api shape — BEFORE implementing. Then: Codex adapter; NATS/JetStream PID-1 pod runtime +
