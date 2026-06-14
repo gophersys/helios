@@ -113,13 +113,27 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   report): ran the full `phase-gate all` myself in-container GREEN on real docker + k3d (the OOM proof is
   no-skip on docker; honest-skip on k3d where the node doesn't enforce the cgroup), reviewed the additive
   `.apibaseline` + §7 Q15/Q16 + RD-15, and completed the contract re-freeze. Watch goroutine leak-free.
+- ✅ **B3: PID-1 agent-runtime sidecar + NATS/JetStream bus DONE — phase-gate all GREEN** (libs 3399d04; new
+  `apps/agent-runtime` + frozen `agentruntime.md` contract; eden pointer): a NEW lib `libs/go/agentruntime`
+  runs the harness as the container's PID-1 — pure `New(Config, Deps)` over consumer ports (Bus/Observer/Clock);
+  the Run loop is a graceful-shutdown state machine (Open→pump agentsession events→publish sequenced to
+  JetStream `agent.<id>.events`→subscribe `agent.<id>.control` prompt/steer/abort/stop/kill→`agent.<id>.health`
+  heartbeats→drain→OTel flush→typed reason); active-agent registry backs kill; `/live`+`/health/{id}` probes.
+  Typed 3-subject protocol, OTel carrier on every msg, JetStream MsgId==Seq (gap-free replay — the surface B5
+  consumes). `natsbus` is the only nats.go import; `otelobserver` bridges observability. `apps/agent-runtime`
+  is the thin PID-1 main (the workspaceprovider Entrypoint runs it). **Independently re-verified by me** — the
+  agent reported green but had left a workspace-breaking go.mod conflict (module-level `replace` blocks in the
+  new go.mods clashing with the go.work-centralized replaces); I removed them (matching the agentgateway/secrets
+  pattern), then ran `phase-gate all` myself GREEN on REAL nats-server+JetStream (embedded AND a real container,
+  never mocked) + a real agentsession subprocess, race+leak clean, and smoked the app (/live 200, graceful
+  exit-0 on SIGTERM).
 
 QUEUED (Milestone B build order, ADR-0022 — each its own gated Opus workflow → verify-in-container → commit):
 1. Codex adapter PARKED (no OpenAI key yet) · ~~secrets Vault backend~~ ✅ B1 · ~~supervising provider +
-   Entrypoint~~ ✅ B2 → **NEXT: NATS/JetStream + the PID-1 agent-runtime sidecar** → thin orchestrator over
-   real pods (Probes the supervised Status) → stateless gateway (NATS→SSE) + edenhttp →
-   git-backed agent-configs/ + strict sandbox → Svelte 5 chat UI + Playwright real E2E → deploy local/prod.
-   Real tests, no mocks; devcontainer-first.
+   Entrypoint~~ ✅ B2 · ~~NATS/JetStream + PID-1 agent-runtime~~ ✅ B3 → **NEXT: thin orchestrator over real
+   pods** (owns DesiredStore + reconciles; Probes the provider's supervised Status) → stateless gateway
+   (NATS→SSE) + edenhttp → git-backed agent-configs/ + strict sandbox → Svelte 5 chat UI + Playwright real E2E
+   → deploy local/prod. Real tests, no mocks; devcontainer-first.
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
