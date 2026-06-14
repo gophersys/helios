@@ -1,0 +1,73 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/observability
+BenchmarkNew-8           	 1000000	      1068 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1085964	      1095 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1282102	      1076 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	  973212	      1122 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1242554	      1007 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1000000	      1081 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1256809	      1019 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	  981360	      1114 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1263345	       991.4 ns/op	     496 B/op	       4 allocs/op
+BenchmarkNew-8           	 1000000	      1054 ns/op	     496 B/op	       4 allocs/op
+BenchmarkEmit-8          	  884974	      1204 ns/op	     930 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1000000	      1034 ns/op	     994 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1000000	      1030 ns/op	     994 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1503138	       945.2 ns/op	    1021 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1394452	       877.5 ns/op	     927 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1650854	       866.0 ns/op	     960 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1715665	       632.3 ns/op	     937 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1948740	       587.1 ns/op	     997 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1487335	       676.8 ns/op	    1029 B/op	       2 allocs/op
+BenchmarkEmit-8          	 1667828	       639.0 ns/op	     954 B/op	       2 allocs/op
+BenchmarkWith-8          	 6430644	       177.1 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2814040	       476.4 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2951635	       410.0 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2854576	       483.9 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2662857	       443.4 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2719885	       414.9 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2912066	       432.9 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2760424	       434.1 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2829574	       427.4 ns/op	     128 B/op	       3 allocs/op
+BenchmarkWith-8          	 2713588	       418.0 ns/op	     128 B/op	       3 allocs/op
+BenchmarkScope-8         	  554414	      1977 ns/op	    1530 B/op	      15 allocs/op
+BenchmarkScope-8         	  965496	      2064 ns/op	    1608 B/op	      15 allocs/op
+BenchmarkScope-8         	  895154	      1666 ns/op	    1514 B/op	      15 allocs/op
+BenchmarkScope-8         	  753519	      1915 ns/op	    1483 B/op	      15 allocs/op
+BenchmarkScope-8         	 1000000	      1858 ns/op	    1585 B/op	      15 allocs/op
+BenchmarkScope-8         	  923870	      1914 ns/op	    1495 B/op	      15 allocs/op
+BenchmarkScope-8         	  774530	      1946 ns/op	    1605 B/op	      15 allocs/op
+BenchmarkScope-8         	 1000000	      1817 ns/op	    1585 B/op	      15 allocs/op
+BenchmarkScope-8         	  844683	      2510 ns/op	    1549 B/op	      15 allocs/op
+BenchmarkScope-8         	  918613	      1818 ns/op	    1499 B/op	      15 allocs/op
+BenchmarkLedgerEvent-8   	 3019608	       542.3 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1110 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1122 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1214 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1206 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1208 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1212 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1256 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1320 ns/op	     416 B/op	       9 allocs/op
+BenchmarkLedgerEvent-8   	 1000000	      1236 ns/op	     416 B/op	       9 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/observability	68.841s
+PASS
+ok  	github.com/gophersys/libs/go/observability/observabilitytest	0.014s
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/observability/slogadapter
+BenchmarkExport-8   	  327978	      5171 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  265418	      5006 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  319479	      4686 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  249224	      5817 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  235076	      4716 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  301928	      4298 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  305970	      4447 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  286584	      4172 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  339093	      4149 ns/op	     656 B/op	       5 allocs/op
+BenchmarkExport-8   	  289562	      4289 ns/op	     656 B/op	       5 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/observability/slogadapter	13.694s
+ity/slogadapter	13.260s

@@ -76,11 +76,11 @@ func NewRealRepo(t TestingT, seed RepoSeed) (dir string, repository *gitreposito
 		}
 		for path, content := range sc.Files {
 			full := filepath.Join(dir, path)
-			if mkErr := os.MkdirAll(filepath.Dir(full), 0o755); mkErr != nil {
+			if mkErr := os.MkdirAll(filepath.Dir(full), 0o750); mkErr != nil {
 				t.Errorf("NewRealRepo: mkdir %s: %v", filepath.Dir(full), mkErr)
 				return dir, nil
 			}
-			if wErr := os.WriteFile(full, []byte(content), 0o644); wErr != nil { //nolint:gosec // seed fixtures are test data, 0644 is intentional.
+			if wErr := os.WriteFile(full, []byte(content), 0o600); wErr != nil {
 				t.Errorf("NewRealRepo: write %s: %v", full, wErr)
 				return dir, nil
 			}

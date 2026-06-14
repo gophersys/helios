@@ -1,0 +1,78 @@
+## github.com/gophersys/libs/go/gitrepository
+    const ActorHuman ActorKind = iota ...
+    const AuthorStage AuthorKind = iota ...
+    const ChangeAdded ChangeKind = iota ...
+    const DiffWorkingVsHead DiffMode = iota ...
+    const InspectStatus InspectKind = iota ...
+    const ProvisionClone ProvisionKind = iota ...
+    const TransferFetch TransferKind = iota ...
+    func CommitIDFromHex(hex string) CommitID
+    func New(configuration Config, dependencies Deps) (*Repository, error)
+    func ParseBranchName(s string) (BranchName, error)
+    func SystemGit() Backend
+func WrapError(err error) error
+type ActorKind uint8
+type AlreadyExistsError struct{ ... }
+type AuthError struct{ ... }
+type Author interface{ ... }
+type AuthorKind uint8
+type AuthorOp struct{ ... }
+type AuthorResult struct{ ... }
+type AuthorTrailer struct{ ... }
+type Backend interface{ ... }
+type Branch struct{ ... }
+type BranchName struct{ ... }
+type BranchOptions struct{ ... }
+type Capabilities struct{ ... }
+type ChangeKind uint8
+type Clock interface{ ... }
+type CloneOptions struct{ ... }
+type CommitID struct{ ... }
+type CommitOptions struct{ ... }
+type Config struct{ ... }
+type ConflictError struct{ ... }
+type DeniedError struct{ ... }
+type Deps struct{ ... }
+type Diff struct{ ... }
+type DiffMode uint8
+type DiffOptions struct{ ... }
+type DirtyWorktreeError struct{ ... }
+type FetchOptions struct{ ... }
+type FileChange struct{ ... }
+type FileDiff struct{ ... }
+type Hunk struct{ ... }
+type Identity struct{ ... }
+type InspectKind uint8
+type InspectOp struct{ ... }
+type InspectResult struct{ ... }
+type Inspector interface{ ... }
+type InvalidRefError struct{ ... }
+type NonFastForwardError struct{ ... }
+type NotFoundError struct{ ... }
+type NothingToCommitError struct{}
+type ProvisionKind uint8
+type ProvisionOp struct{ ... }
+type ProvisionResult struct{ ... }
+type Provisioner interface{ ... }
+type PushOptions struct{ ... }
+type PushResult struct{ ... }
+type Ref struct{ ... }
+type RemoveOptions struct{ ... }
+type Repository struct{ ... }
+type StageOptions struct{ ... }
+type Status struct{ ... }
+type TransferKind uint8
+type TransferOp struct{ ... }
+type TransferResult struct{ ... }
+type UnavailableError struct{ ... }
+type WorktreeInfo struct{ ... }
+type WorktreeOptions struct{ ... }
+## github.com/gophersys/libs/go/gitrepository/gitrepositorytest
+    func New() *Backend
+const SeededCanary = "S3CR3T-canary-do-not-leak"
+func NewRealRepo(t TestingT, seed RepoSeed) (dir string, repository *gitrepository.Repository)
+func Run(t *testing.T, newBackend func() gitrepository.Backend)
+type Backend struct{ ... }
+type RepoSeed struct{ ... }
+type SeedCommit struct{ ... }
+type TestingT interface{ ... }

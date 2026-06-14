@@ -1,0 +1,19 @@
+## github.com/gophersys/libs/go/dependencies
+    func DiscardSink() Sink
+    func RealClock() Clock
+    func RealRandom(entropy io.Reader) RandomSource
+    func Resolve(s Set) Set
+func Validate(s Set) error
+type Clock interface{ ... }
+type MissingPortError struct{ ... }
+type RandomSource interface{ ... }
+type Set struct{ ... }
+type Sink interface{ ... }
+## github.com/gophersys/libs/go/dependencies/dependenciestest
+    func NewClock(start time.Time) *Clock
+    func NewRandom(seed [32]byte) *Random
+func Fakes() (set dependencies.Set, clock *Clock, random *Random, sink *RecordingSink)
+func RunPortSuite(t *testing.T, newSet func() dependencies.Set)
+type Clock struct{ ... }
+type Random struct{ ... }
+type RecordingSink struct{ ... }

@@ -24,38 +24,42 @@ import (
 )
 
 // Compile-time proof the adapter implements the outbound Exporter port.
-var _ observability.Exporter = (*Exporter)(nil)
+var _ observability.Exporter = (*Adapter)(nil)
 
-// Exporter ships each observability.Record as one slog Record on the bound
-// *slog.Logger. It holds no mutable state of its own — slog.Handler owns the
-// write synchronization — so it is safe for concurrent Export.
-type Exporter struct {
+// Adapter ships each observability.Record as one slog Record on the bound
+// *slog.Logger. It implements the observability.Exporter port (the lower seam);
+// the concrete type is named per the adapter role — one Adapter per adapter
+// package — rather than re-declaring the port name `Exporter`, keeping the port a
+// single home (one concept, one home — 10 §9). It holds no mutable state of its
+// own — slog.Handler owns the write synchronization — so it is safe for concurrent
+// Export.
+type Adapter struct {
 	logger *slog.Logger
 }
 
-// New returns a collector-less Exporter writing JSON lines to w (typically
+// New returns a collector-less Adapter writing JSON lines to w (typically
 // os.Stdout at the composition root). A nil w is treated as io.Discard so a
 // mis-wired root drops telemetry rather than panicking — telemetry failure must
 // never enter business logic (contract §2 Errors).
-func New(w io.Writer) *Exporter {
+func New(w io.Writer) *Adapter {
 	if w == nil {
 		w = io.Discard
 	}
-	return &Exporter{logger: slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+	return &Adapter{logger: slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
 		// The library already filtered below Config.MinSeverity at Emit; the adapter
 		// must not re-drop, so it admits every level it is handed.
 		Level: slog.LevelDebug,
 	}))}
 }
 
-// NewWithLogger returns an Exporter that ships onto an existing *slog.Logger, for
+// NewWithLogger returns an Adapter that ships onto an existing *slog.Logger, for
 // a root that already owns a configured handler. A nil logger falls back to the
 // default text logger so Export never nil-derefs.
-func NewWithLogger(logger *slog.Logger) *Exporter {
+func NewWithLogger(logger *slog.Logger) *Adapter {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Exporter{logger: logger}
+	return &Adapter{logger: logger}
 }
 
 // Export ships a batch of resource-stamped, already-redacted Records. It is driven
@@ -63,7 +67,7 @@ func NewWithLogger(logger *slog.Logger) *Exporter {
 // shutdown deadline unwinds the write loop. It returns no error in normal
 // operation — a *slog.Logger does not surface a per-record write error — but
 // respects ctx cancellation, the one failure a batch write can observe here.
-func (e *Exporter) Export(ctx context.Context, records []observability.Record) error {
+func (e *Adapter) Export(ctx context.Context, records []observability.Record) error {
 	for i := range records {
 		if err := ctx.Err(); err != nil {
 			//nolint:wrapcheck // %w via fmt is unavailable in this stdlib-only leaf; ctx.Err is already typed and inspectable via errors.Is.
@@ -77,7 +81,7 @@ func (e *Exporter) Export(ctx context.Context, records []observability.Record) e
 // ship renders one Record as a single slog line: the leveled message, then the
 // resource attributes, the trace/span correlation, the P9 plane, and every Event
 // Field carried as its already-redacted TelemetryValue projection.
-func (e *Exporter) ship(ctx context.Context, r *observability.Record) {
+func (e *Adapter) ship(ctx context.Context, r *observability.Record) {
 	attrs := make([]slog.Attr, 0, len(r.Resource)+len(r.Event.Fields)+4)
 
 	attrs = append(

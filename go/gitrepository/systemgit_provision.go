@@ -193,7 +193,10 @@ func credentialHelper(cred *secrets.Secret) (args []string, cleanup func(), err 
 		"  printf 'username=eden\\n'\n" +
 		"  printf 'password=%s\\n' \"$(cat " + shellQuote(tokenPath) + ")\"\n" +
 		"fi\n"
-	if wErr := os.WriteFile(helperPath, []byte(script), 0o700); wErr != nil { //nolint:gosec // an executable credential helper must be mode 0700; it lives in a per-op temp dir reaped on cleanup.
+	// An executable credential helper MUST be mode 0700 (git invokes it); it lives in a per-op
+	// temp dir reaped on cleanup, never world-readable.
+	wErr := os.WriteFile(helperPath, []byte(script), 0o700) // #nosec G306 -- executable credential helper requires 0700; per-op temp dir, reaped on cleanup.
+	if wErr != nil {
 		cleanup()
 		return nil, func() {}, errors.Wrap(errors.KindInternal, "gitrepository: write credential helper", wErr)
 	}

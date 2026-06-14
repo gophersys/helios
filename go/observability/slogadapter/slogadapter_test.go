@@ -49,7 +49,7 @@ func (t *slogTee) Export(ctx context.Context, records []observability.Record) er
 	// Render through the real adapter for its rendering side effect; the suite's
 	// inner Exporter owns the pass/fail (including the forced Flush error), so the
 	// sink's nop-writer result is deliberately not the contract value here.
-	//nolint:errcheck // the sink writes to a nop-writer; its result is not the contract value.
+	//nolint:errcheck,gosec // G104: the sink writes to a nop-writer for its rendering side effect only; its result is deliberately not the contract value (the suite's inner Exporter owns pass/fail).
 	t.sink.Export(ctx, records)
 	//nolint:wrapcheck // delegating to the suite's Exporter; its error is the contract's, surfaced as-is.
 	return t.inner.Export(ctx, records)

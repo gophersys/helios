@@ -47,7 +47,7 @@ func (g *systemGit) Capabilities() Capabilities {
 // confined to the child process (07 §2). stdin, when non-nil, is fed to the process (the
 // commit-message path).
 func (g *systemGit) run(ctx context.Context, dir string, env []string, stdin []byte, args ...string) ([]byte, error) {
-	command := exec.CommandContext(ctx, g.binary, args...) //nolint:gosec // args are library-shaped and ref-validated (refname.go); never raw user input on argv.
+	command := exec.CommandContext(ctx, g.binary, args...) // #nosec G204 -- inherent exec adapter: binary is the configured git; args are library-shaped and ref-validated (refname.go), never raw user input on argv, never a shell.
 	command.Dir = dir
 	command.Env = append(baseEnv(), env...)
 	if stdin != nil {

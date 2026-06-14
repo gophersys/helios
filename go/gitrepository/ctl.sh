@@ -19,7 +19,14 @@ EDEN_LIB_LEAF="false"
 EDEN_COVERAGE_FLOOR="70"
 EDEN_HOT_PATHS="."
 EDEN_INTEGRATION_CMDS="go git"
-export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
+# The real system-git Backend (clone/fetch/push, diff/status parsers, stderr classification) is
+# exercised by the `integration`-tagged suite against REAL git — and git is ALWAYS present in the
+# devcontainer (no docker/k3d needed, unlike substrate libs). So the coverage profile MUST build
+# the integration lane too, or the cover-floor wildly undercounts the backend that the integration
+# suite genuinely proves. The default is "lifecycle load"; this lib adds "integration" because its
+# substrate is hermetic.
+EDEN_COVER_TAGS="lifecycle load integration"
+export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS EDEN_COVER_TAGS
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091

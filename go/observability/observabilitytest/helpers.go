@@ -1,6 +1,7 @@
 package observabilitytest
 
 import (
+	"math"
 	"strings"
 	"time"
 
@@ -53,6 +54,24 @@ func asInt64(v any) int64 {
 	return 0
 }
 
+// asInt32 projects a telemetry value to an int32, BOUNDS-CHECKING the int64→int32
+// narrowing rather than relying on a silent wrap. Ledger.Retries is an int32 stored
+// on the stream as Int64("retries", int64(l.Retries)), so a faithful round-trip is
+// always in range; a value outside [MinInt32, MaxInt32] (only reachable from a
+// hand-built poison Field) is clamped to the boundary, never wrapped. This is the
+// real fix for the G115 narrowing finding — a guard, not a #nosec.
+func asInt32(v any) int32 {
+	n := asInt64(v)
+	switch {
+	case n > math.MaxInt32:
+		return math.MaxInt32
+	case n < math.MinInt32:
+		return math.MinInt32
+	default:
+		return int32(n)
+	}
+}
+
 func asDuration(v any) time.Duration {
 	if d, ok := v.(time.Duration); ok {
 		return d
@@ -92,7 +111,7 @@ func decodeLedger(e observability.Event) observability.Ledger {
 		case "cost.micros":
 			l.CostMicros = asInt64(tv)
 		case "retries":
-			l.Retries = int32(asInt64(tv))
+			l.Retries = asInt32(tv)
 		case "wall.time":
 			l.WallTime = asDuration(tv)
 		}
