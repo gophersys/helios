@@ -15,11 +15,27 @@ export PROJECT_ROOT
 
 # -------- per-lib metadata (ADR-0020) --------
 EDEN_LIB_NAME="secrets"
-EDEN_LIB_LEAF="true"
-EDEN_COVERAGE_FLOOR="80"
+# The lib gained a REAL-substrate adapter (vaultadapter, ADR-0022 #1): its Vault backend resolves
+# against a REAL hashicorp/vault container, proven by the //go:build integration lane — exactly the
+# posture workspaceprovider adopted when it gained the docker adapter. So leaf=false: a substrate
+# adapter's real behaviour is proven by integration (real Vault), NOT by mutation (gremlins runs the
+# UNIT suite GOWORK=off, which cannot reach the real vault/api transport — every such mutant would
+# vacuously LIVE). The pure value types (Reference/Secret/Mediator) stay heavily covered by the
+# property (1000 rapid checks), canary, conformance, and unit lanes that still run on every gate.
+EDEN_LIB_LEAF="false"
+# 70% floor matches the substrate-adapter posture (workspaceprovider): the adapter's real logic
+# (login/token-file/KV read) is exercised through the integration lane, included in the cover tags.
+EDEN_COVERAGE_FLOOR="70"
 EDEN_HOT_PATHS="."
-EDEN_INTEGRATION_CMDS="go"
+# The Vault backend's real behaviour is leveraged through a REAL docker-run hashicorp/vault container
+# (docker-out-of-docker); the integration lane requires the docker CLI.
+EDEN_INTEGRATION_CMDS="go docker"
+# The vaultadapter's parse/token/KV/mint real logic is exercised ONLY through the REAL-substrate
+# //go:build integration lane, so the per-package coverage floor MUST measure that lane too (else the
+# adapter package undercounts to its fake-only unit number). The engine's sanctioned per-lib override.
+EDEN_COVER_TAGS="lifecycle load integration"
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
+export EDEN_COVER_TAGS
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091
