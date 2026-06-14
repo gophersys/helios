@@ -89,11 +89,24 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   normalization + the Entrypoint/workload-pod capability (a contract revision; resolves OD-15 opt-a),
   orchestrator thins. IOTEA cloned at /Users/mateo/iotea-archive.
 
+- ✅ **B1: secrets Vault backend DONE — phase-gate all GREEN** (libs 2431ec4; eden pointer bumped): a new
+  `secrets/vaultadapter` resolves `vault://<mount>/<path>#<key>` from a REAL HashiCorp Vault KV v2 mount,
+  behind the EXISTING Mediator/Provider port (NO contract revision; secrets.md stays Frozen, .apibaseline
+  additive). Dual-mode bootstrap (ADR-0022 #1): ModeUserpass (local) / ModeTokenFile (prod K8s-SA sidecar),
+  chosen by Config not a caller fork. The REAL-Vault integration lane boots the official hashicorp/vault
+  container (server mode + one-shot init/unseal, NOT -dev) over docker-out-of-docker and round-trips a canary
+  byte-for-byte, no leak; 403→Denied/404→NotFound typed errors proven against real Vault. secrets is now a
+  substrate lib (leaf=false, floor=70). **Independently re-verified by me** — the agent's first green was
+  actually RED on vuln (go-jose v4.1.1 → bumped to v4.1.4, clears GO-2026-4945) + cover-floor (raised to
+  87.9%); both fixed and the full gate re-run GREEN in-container before commit. Also retired the last
+  `.dev-secrets` reference (ompadapter live key → env-only, libs 2431ec4), completing the .env migration.
+
 QUEUED (Milestone B build order, ADR-0022 — each its own gated Opus workflow → verify-in-container → commit):
-1. Codex adapter (codex in the base image) → secrets Vault backend → the supervising provider + Entrypoint
-   (workspaceprovider contract revision) → NATS/JetStream + the PID-1 agent-runtime sidecar → thin orchestrator
-   over real pods → stateless gateway (NATS→SSE) + edenhttp → git-backed agent-configs/ + strict sandbox →
-   Svelte 5 chat UI + Playwright real E2E → deploy local/prod. Real tests, no mocks; devcontainer-first.
+1. Codex adapter PARKED (no OpenAI key yet) · ~~secrets Vault backend~~ ✅ B1 → **NEXT: the supervising
+   ("fat") provider + Entrypoint** (workspaceprovider contract revision) → NATS/JetStream + the PID-1
+   agent-runtime sidecar → thin orchestrator over real pods → stateless gateway (NATS→SSE) + edenhttp →
+   git-backed agent-configs/ + strict sandbox → Svelte 5 chat UI + Playwright real E2E → deploy local/prod.
+   Real tests, no mocks; devcontainer-first.
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
