@@ -224,15 +224,42 @@ func (p *Pool) driveResume(ctx context.Context, ports ReconcilePorts, agent *Age
 		return p.failAndTeardown(ctx, ports, agent, "no session factory bound for resume")
 	}
 
-	// A workspace that survived the drop is re-dialed via Open; one that is gone is
-	// re-provisioned. At v0 the fake keeps the workspace, so Open(Handle) re-dials.
+	// A workspace that survived the drop is re-dialed via Open; one that is GONE (a node
+	// recycle reclaimed the pod) is RE-PROVISIONED, so a re-adopt across a real recycle
+	// restores a live sandbox before the session re-attaches. Provision is idempotent on Name
+	// within a tenancy, so a still-live workspace re-adopts rather than duplicates.
 	workDir := agent.Workspace.WorkDir()
 	if workDir == "" {
 		workDir = defaultWorkDir
 	}
+	reattached := false
 	if !agent.Workspace.IsZero() && ports.Workspaces != nil {
 		if ws, err := ports.Workspaces.Open(ctx, agent.Workspace); err == nil {
 			workDir = ws.Handle().WorkDir()
+			reattached = true
+		}
+	}
+	if !reattached && ports.Workspaces != nil {
+		// The pod is gone (Open failed): re-provision from the same folded spec (idempotent on
+		// Name) so a re-adopt across a real recycle restores a live workspace. A ConflictError
+		// means the workspace actually still EXISTS (a transient Open miss against a pod still
+		// settling) — re-dial it rather than fail; the spec is unchanged, so this is the same
+		// workspace re-adopted, never a duplicate. Any other provisioning fault marks Failed.
+		spec := toWorkspaceSpec(agent, &inputs.template)
+		workspace, err := ports.Workspaces.Provision(ctx, spec)
+		switch {
+		case err == nil:
+			p.ensureLive().putWorkspace(agent.ID, workspace)
+			agent.Workspace = workspace.Handle()
+			workDir = workspace.Handle().WorkDir()
+		case asType[*ConflictError](err) || errors.KindOf(err) == errors.KindConflict:
+			// The workspace exists and is settling — keep the recorded handle and re-open the
+			// session over it (a retried pass converges once the pod is Ready).
+			if ws, oerr := ports.Workspaces.Open(ctx, agent.Workspace); oerr == nil {
+				workDir = ws.Handle().WorkDir()
+			}
+		default:
+			return p.failProvision(ctx, ports, agent, err)
 		}
 	}
 

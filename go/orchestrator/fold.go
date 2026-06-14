@@ -37,6 +37,7 @@ func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.Wo
 		Egress:           egressToProvider(template.Sandbox.EgressAllow),
 		Labels:           labels,
 		Env:              envToProvider(template.Sandbox.Env),
+		Entrypoint:       entrypointToProvider(template.Sandbox.Entrypoint),
 		ProvisionTimeout: 0, // ctx (bounded by ProvisionTimeout in reconcile) governs the wait
 	}
 	if mount, ok := repoMount(template.Sandbox.WorkdirRepo); ok {
@@ -123,6 +124,17 @@ func repoMount(repo RepoMount) (workspaceprovider.Mount, bool) {
 		Target: defaultWorkDir,
 		Source: repo.URL,
 	}, true
+}
+
+// entrypointToProvider carries the template's workload-pod Entrypoint (ADR-0022 §4,
+// OD-15-a) verbatim onto the frozen WorkspaceSpec.Entrypoint. An empty Entrypoint yields nil
+// (a classic Ready-then-Run workspace — the existing behavior); a non-empty one makes the
+// workspace's PID-1 the workload, so the supervised pod IS the session.
+func entrypointToProvider(entrypoint []string) []string {
+	if len(entrypoint) == 0 {
+		return nil
+	}
+	return append([]string(nil), entrypoint...)
 }
 
 // workspaceName derives the deterministic, tenancy-scoped workspace name from the

@@ -122,6 +122,14 @@ type SandboxSpec struct {
 	EgressAllow []string          // explicit egress endpoints beyond model-provider + granted tools (default-deny, 07 §3)
 	Env         map[string]string // non-secret child-process env (NEVER a credential — that is the secrets seam)
 	WorkdirRepo RepoMount         // optional repo to clone into the workspace (gitrepository's concern; passed through)
+
+	// Entrypoint is the WORKLOAD-POD command (ADR-0022 §4, OD-15-a): when non-empty the
+	// workspace's MAIN process IS the workload (the agent-runtime sidecar as PID-1), so the
+	// supervised pod's lifecycle natively IS the session's — the orchestrator Probes the
+	// provider's supervised Status rather than raw heartbeats. It folds verbatim into
+	// workspaceprovider.WorkspaceSpec.Entrypoint. Empty == a classic Ready-then-Run workspace
+	// (the existing behavior — additive, spec-selected). The orchestrator never interprets it.
+	Entrypoint []string
 }
 
 // Substrate is the template-author's F1 adapter declaration (ADR-0012: kubernetes is
