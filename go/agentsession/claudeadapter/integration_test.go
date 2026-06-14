@@ -199,6 +199,7 @@ func buildStub(t *testing.T) string {
 		binary += ".exe"
 	}
 	source := stubSourceDir(t)
+	// #nosec G204 -- fixed `go build` of the in-repo stub; binary/source are test-derived paths, not user input.
 	build := exec.Command("go", "build", "-o", binary, ".")
 	build.Dir = source
 	build.Env = os.Environ()

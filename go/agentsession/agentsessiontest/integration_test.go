@@ -41,7 +41,7 @@ func TestIntegration_ManyConcurrentTailers_FanoutReplayRaceClean(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			// Mix the resume cursors and read pace to exercise every path concurrently.
-			cursor := agentsession.FromSeq(uint64(idx % 4))
+			cursor := agentsession.FromSeq(uint64(idx % 4)) // #nosec G115 -- idx%4 is 0..3, always non-negative
 			slow := idx%3 == 0
 			stream := session.Events(context.Background(), cursor)
 			results[idx] = drainSeqsPaced(context.Background(), stream, slow)

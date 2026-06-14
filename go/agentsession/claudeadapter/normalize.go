@@ -9,6 +9,7 @@ package claudeadapter
 
 import (
 	"encoding/json"
+	"math"
 
 	"github.com/gophersys/libs/go/agentsession"
 )
@@ -222,8 +223,8 @@ func (n *normalizer) result(envelope *streamLine) agentsession.Event {
 	if envelope.TotalCostUSD != nil {
 		ledger.CostMicros = usdToMicros(*envelope.TotalCostUSD)
 	}
-	if envelope.NumTurns != nil {
-		ledger.Turns = int32(*envelope.NumTurns)
+	if n := envelope.NumTurns; n != nil && *n >= 0 && *n <= math.MaxInt32 {
+		ledger.Turns = int32(*n) // bounds-checked above (a turn count never approaches 2^31)
 	}
 	if envelope.DurationMillis != nil {
 		ledger.WallTime = millisToDuration(*envelope.DurationMillis)

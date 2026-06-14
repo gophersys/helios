@@ -40,7 +40,7 @@ func (m *memTranscript) Append(_ context.Context, event agentsession.Event) (uin
 //nolint:ireturn // contract §2: Transcript.ReadFrom returns the Stream port (the frozen replay seam).
 func (m *memTranscript) ReadFrom(_ context.Context, sessionID string, from agentsession.Cursor) (agentsession.Stream, error) {
 	stored := m.events[sessionID]
-	start := int(from)
+	start := int(from) // #nosec G115 -- from is a bounded replay cursor; an out-of-range wrap is clamped by the start<0 guard below
 	if start < 0 {
 		start = 0
 	}

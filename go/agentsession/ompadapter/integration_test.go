@@ -1,0 +1,244 @@
+//go:build integration
+
+// Package ompadapter_test's integration arm exercises the REAL os/exec subprocess lifecycle
+// and the REAL omp json parser on an ACTUAL process — a trivial scripted stub binary
+// (internal/stubharness), NOT omp — so the spawn/scan/Close ladder is proven on a genuine
+// process WITHOUT a live OpenRouter call. The credential is a FAKE secret (a canary), threaded
+// through Secret.Use exactly as production does, asserted never to leak. A SEPARATE, GATED test
+// (TestIntegration_LiveOmp_Gated) drives the REAL `omp` binary + OpenRouter + DeepSeek-v4-flash
+// only when the OpenRouter key env is supplied — it is SKIPPED otherwise and never logs/embeds
+// the key.
+//
+//	go test -tags integration ./ompadapter/... -race
+//
+// Everything is reaped on t.Cleanup.
+package ompadapter_test
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
+	"github.com/gophersys/libs/go/agentsession/ompadapter"
+	"github.com/gophersys/libs/go/secrets"
+)
+
+// The shared REAL-subprocess scaffolding (fakeCanary, vaultReference, buildStub, newPool,
+// newPoolWithKey, drainTerminal, readyObserved, kindObserved, integrationClock) lives in
+// harness_helpers_test.go, compiled for this lane and the lifecycle/load lanes alike.
+
+// TestIntegration_StubBinary_RealSubprocessLifecycle spawns the REAL os/exec stub process
+// through the omp adapter's genuine Spawn path, drives Open -> Prompt -> drain to terminal, and
+// asserts: the Ready handshake reached the library, the assistant thinking/text + tool
+// start/update/end frames parsed, the unknown rate_limit_event survived as Extension through a
+// real pipe, the terminal carried the four-token ledger with the cost converted with no float
+// drift, Seq is monotonic, and the credential canary never leaked. Reaped on Cleanup.
+func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
+	t.Parallel()
+	stub := buildStub(t)
+
+	adapter := ompadapter.NewWithConfig(ompadapter.Config{Binary: stub})
+	pool := newPool(t, adapter)
+
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace:  t.TempDir(),
+		Routing:    agentsession.RouteKey{Role: "assistant"},
+		Grants:     []agentsession.ToolGrant{{ID: "g-read", Tool: "read", ReadOnly: true}},
+		Credential: secrets.Ref(vaultReference),
+	})
+	if err != nil {
+		t.Fatalf("Open over the stub subprocess: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
+
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "read the file"}); err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+
+	events := drainTerminal(t, session)
+	if len(events) == 0 {
+		t.Fatal("the stub subprocess produced no events")
+	}
+	assertSubprocessKinds(t, events)
+	assertSubprocessTerminalLedger(t, events[len(events)-1])
+	assertSubprocessSeqAndNoLeak(t, events)
+}
+
+// assertSubprocessKinds proves the real subprocess stream parsed into the expected kinds.
+func assertSubprocessKinds(t *testing.T, events []agentsession.Event) {
+	t.Helper()
+	if !readyObserved(events) {
+		t.Errorf("the omp adapter did not produce the Ready handshake")
+	}
+	if !kindObserved(events, agentsession.EventExtension) {
+		t.Errorf("the rate_limit_event must survive as Extension through a real subprocess")
+	}
+	if !kindObserved(events, agentsession.EventThinkingDelta) {
+		t.Errorf("the omp thinking_delta did not parse into EventThinkingDelta")
+	}
+	if !kindObserved(events, agentsession.EventTextDelta) {
+		t.Errorf("the omp text_delta did not parse into EventTextDelta")
+	}
+	if !kindObserved(events, agentsession.EventToolStart) || !kindObserved(events, agentsession.EventToolUpdate) || !kindObserved(events, agentsession.EventToolEnd) {
+		t.Errorf("the omp tool_execution frames did not parse into ToolStart/Update/End")
+	}
+	if !kindObserved(events, agentsession.EventUsage) {
+		t.Errorf("the omp usage block did not parse into EventUsage")
+	}
+}
+
+// assertSubprocessTerminalLedger proves the terminal carries the four-token ledger and the
+// cost converted with no float drift (0.0123 USD -> 12300 micros).
+func assertSubprocessTerminalLedger(t *testing.T, terminal agentsession.Event) { //nolint:gocritic // Event is the contract's copyable value record (§2); this test helper takes it by value.
+	t.Helper()
+	if !terminal.IsTerminal() || terminal.Terminal == nil {
+		t.Fatalf("the real subprocess did not end on a terminal carrying a ledger")
+	}
+	ledger := terminal.Terminal.Ledger
+	if ledger.InputTokens == 0 || ledger.OutputTokens == 0 || ledger.CacheReadTokens == 0 || ledger.CacheCreationTokens == 0 {
+		t.Errorf("terminal ledger missing token kinds: %+v", ledger)
+	}
+	if ledger.CostMicros != 12300 {
+		t.Errorf("CostMicros = %d, want 12300 (0.0123 USD)", ledger.CostMicros)
+	}
+	if ledger.Harness != "omp" {
+		t.Errorf("ledger harness = %q, want omp", ledger.Harness)
+	}
+}
+
+// assertSubprocessSeqAndNoLeak proves Seq is monotonic + gap-free and the credential canary
+// never leaked onto the real-subprocess stream.
+func assertSubprocessSeqAndNoLeak(t *testing.T, events []agentsession.Event) {
+	t.Helper()
+	var prev uint64
+	for i := range events {
+		if events[i].Seq != prev+1 {
+			t.Fatalf("event %d Seq = %d, want %d", i, events[i].Seq, prev+1)
+		}
+		prev = events[i].Seq
+	}
+	for i := range events {
+		agentsessiontest.AssertNoSecretInEvent(t, events[i], fakeCanary)
+	}
+}
+
+// TestIntegration_StubBinary_CloseReapsBetweenTurns proves the Close ladder reaps the conn
+// without a hang even when Close is called before any Prompt (no in-flight process), and is
+// idempotent.
+func TestIntegration_StubBinary_CloseReapsBetweenTurns(t *testing.T) {
+	t.Parallel()
+	stub := buildStub(t)
+	adapter := ompadapter.NewWithConfig(ompadapter.Config{Binary: stub})
+	pool := newPool(t, adapter)
+
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace:  t.TempDir(),
+		Routing:    agentsession.RouteKey{Role: "assistant"},
+		Credential: secrets.Ref(vaultReference),
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := session.Close(ctx); err != nil {
+		t.Errorf("Close errored: %v", err)
+	}
+	if err := session.Close(context.Background()); err != nil {
+		t.Errorf("second Close must be idempotent: %v", err)
+	}
+}
+
+// TestIntegration_LiveOmp_Gated drives the REAL `omp` binary end-to-end against OpenRouter +
+// DeepSeek-v4-flash — but ONLY when the OpenRouter key is readable from the env or the
+// gitignored dev-secret. It is SKIPPED otherwise. It threads the key through the SAME injection
+// path (Secret.Use -> child env under OPENROUTER_API_KEY, with inherited copies scrubbed),
+// drives Open -> Prompt "Reply with exactly: ok" -> drain to a REAL terminal, and asserts the
+// terminal carries a non-empty ledger AND the key appears in NO event. The key is NEVER logged.
+func TestIntegration_LiveOmp_Gated(t *testing.T) {
+	t.Parallel()
+	key := liveOpenRouterKey()
+	if key == "" {
+		t.Skip("OPENROUTER_API_KEY not set and no dev-secret readable: the live omp run is gated and skipped")
+	}
+	if _, err := exec.LookPath("omp"); err != nil {
+		t.Skip("omp binary not on PATH: skipping the live arm")
+	}
+
+	pool := newPoolWithKey(t, ompadapter.New(), key, "openrouter/deepseek/deepseek-v4-flash")
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace:  t.TempDir(),
+		Routing:    agentsession.RouteKey{Role: "assistant"},
+		Credential: secrets.Ref(vaultReference),
+	})
+	if err != nil {
+		t.Fatalf("live Open: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
+
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
+		t.Fatalf("live Prompt: %v", err)
+	}
+	events := drainTerminal(t, session)
+	if len(events) == 0 {
+		t.Fatal("live omp session produced no events")
+	}
+	terminal := events[len(events)-1]
+	if !terminal.IsTerminal() || terminal.Terminal == nil {
+		t.Fatalf("live omp session did not reach a terminal carrying a ledger; last = %s", terminal.Kind)
+	}
+	if terminal.Kind != agentsession.EventResult {
+		t.Fatalf("live terminal Kind = %s (Detail %q); want result — check OpenRouter credit/route",
+			terminal.Kind, terminal.Terminal.Detail)
+	}
+	ledger := terminal.Terminal.Ledger
+	if ledger.InputTokens == 0 && ledger.OutputTokens == 0 {
+		t.Errorf("live terminal ledger is empty: %+v", ledger)
+	}
+	if ledger.Harness != "omp" {
+		t.Errorf("live ledger harness = %q, want omp", ledger.Harness)
+	}
+	if !readyObserved(events) {
+		t.Errorf("live omp did not produce the Ready handshake")
+	}
+	// The OpenRouter key must appear in NO event field (redaction by construction, on the real
+	// stream). The key is never passed to t.Log / Errorf below.
+	for i := range events {
+		agentsessiontest.AssertNoSecretInEvent(t, events[i], key)
+	}
+	t.Logf("live omp terminal: kind=%s result=%q tokens(in/out)=%d/%d costMicros=%d",
+		terminal.Kind, terminal.Terminal.ResultText, ledger.InputTokens, ledger.OutputTokens, ledger.CostMicros)
+}
+
+// liveOpenRouterKey resolves the OpenRouter key for the gated live arm: the OPENROUTER_API_KEY
+// env first, else the gitignored dev-secret at the repo root (0600). It NEVER logs the value.
+func liveOpenRouterKey() string {
+	if v := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")); v != "" {
+		return v
+	}
+	if path := devSecretPath(); path != "" {
+		if data, err := os.ReadFile(path); err == nil { //nolint:gosec // path is a fixed repo-relative dev-secret location, not user input.
+			return strings.TrimSpace(string(data))
+		}
+	}
+	return ""
+}
+
+// devSecretPath locates the gitignored dev-secret relative to this test file (the libs
+// submodule lives under the helios repo root at libs/go/agentsession/ompadapter).
+func devSecretPath() string {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return ""
+	}
+	// ompadapter -> agentsession -> go -> libs -> <repo root>
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", ".."))
+	return filepath.Join(repoRoot, ".dev-secrets", "openrouter-api-key")
+}

@@ -71,7 +71,8 @@ func assertSeqMonotonic(t *testing.T, newAdapter func() *Adapter) {
 	}
 	// Seq == transcript offset: the stored count equals the head Seq.
 	sessionID := events[0].SessionID
-	if got := uint64(h.transcript.Len(sessionID)); got != prev {
+	got := uint64(h.transcript.Len(sessionID)) // #nosec G115 -- Len() is a non-negative event count
+	if got != prev {
 		t.Errorf("transcript stored %d events but head Seq is %d (Seq != transcript offset)", got, prev)
 	}
 	// Tool Start/Update/End correlate by CallID.

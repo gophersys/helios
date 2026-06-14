@@ -18,7 +18,7 @@ const SeededCanary = "S3CR3T-setup-token-do-not-leak"
 
 // credentialRef is the secrets.Reference the seeded canary resolves under (loggable;
 // the value never rides it).
-const credentialRef = "vault://eden/anthropic#setup-token"
+const credentialRef = "vault://eden/anthropic#setup-token" // #nosec G101 -- a secrets.Reference URI (loggable), not a secret value
 
 // assistantRoute is the RouteKey/Route pair the harness binds (an interactive
 // AssistantSession over the fake harness).

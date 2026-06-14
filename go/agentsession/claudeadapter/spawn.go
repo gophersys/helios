@@ -31,7 +31,7 @@ const maxLineBytes = 4 << 20
 //nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable input and Spawn returns the HarnessConn port — the frozen lower seam.
 func (a *Adapter) Spawn(ctx context.Context, spec agentsession.Spec, route agentsession.Route, cred agentsession.InjectedCredential) (agentsession.HarnessConn, error) {
 	arguments := buildArguments(spec, route)
-	command := exec.CommandContext(ctx, a.binary, arguments...) //nolint:gosec // binary is Eden-configured; args are Eden-resolved (allowlist/route), never raw user input
+	command := exec.CommandContext(ctx, a.binary, arguments...) // #nosec G204 -- binary is Eden-configured; args are Eden-resolved (allowlist/route), never raw user input
 	command.Dir = spec.Workspace
 
 	env, err := injectEnvironment(os.Environ(), cred)

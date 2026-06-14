@@ -68,7 +68,7 @@ func TestBuildArguments_PolicyDeciderUsesDefaultPermissionMode(t *testing.T) {
 // real Secret or process.
 func TestChildEnvironment_InjectsTokenAndScrubsPrecedenceKeys(t *testing.T) {
 	t.Parallel()
-	const token = "oauth-token-XYZ"
+	const token = "oauth-token-XYZ" // #nosec G101 -- a fake test fixture token, not a real credential
 	base := []string{
 		"PATH=/usr/bin",
 		"HOME=/home/eden",

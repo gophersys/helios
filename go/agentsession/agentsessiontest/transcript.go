@@ -52,7 +52,7 @@ func (t *Transcript) Append(_ context.Context, event agentsession.Event) (uint64
 func (t *Transcript) ReadFrom(_ context.Context, sessionID string, from agentsession.Cursor) (agentsession.Stream, error) {
 	t.mu.Lock()
 	stored := t.bySessio[sessionID]
-	start := int(from) // from is the last-seen Seq; replay begins at from+1 == index `from`
+	start := int(from) // #nosec G115 -- from is a bounded replay cursor (the last-seen Seq); replay begins at index `from`, and an out-of-range wrap is clamped by the start<0 guard below
 	if start < 0 {
 		start = 0
 	}

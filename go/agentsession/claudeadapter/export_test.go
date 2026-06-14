@@ -30,3 +30,15 @@ func BuildArgumentsForTest(spec agentsession.Spec, route agentsession.Route) []s
 func ChildEnvironmentForTest(base []string, envName, token string) []string {
 	return childEnvironment(base, envName, token)
 }
+
+// ConnProcessPIDForTest exposes the OS process id the conn's subprocess was started with,
+// so the lifecycle probe can verify the REAL child is reaped after Close (CountOwned via
+// signal-0 liveness). It returns (0, false) for a conn type that is not the os/exec-backed
+// processConn. Compiled only in tests.
+func ConnProcessPIDForTest(conn agentsession.HarnessConn) (int, bool) {
+	pc, ok := conn.(*processConn)
+	if !ok || pc.command == nil || pc.command.Process == nil {
+		return 0, false
+	}
+	return pc.command.Process.Pid, true
+}

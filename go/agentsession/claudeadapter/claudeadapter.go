@@ -10,7 +10,7 @@ import (
 // credentialEnvName is the child-process env var the Claude Code CLI reads its OAuth /
 // setup-token from. The library hands the adapter an InjectedCredential naming this var;
 // the value crosses into the CHILD env ONLY, never Eden's env, never a log.
-const credentialEnvName = "CLAUDE_CODE_OAUTH_TOKEN"
+const credentialEnvName = "CLAUDE_CODE_OAUTH_TOKEN" // #nosec G101 -- the NAME of the env var the CLI reads, not a secret value
 
 // claudeBinary is the CLI name, resolved from PATH at spawn.
 const claudeBinary = "claude"

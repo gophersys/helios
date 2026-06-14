@@ -1,0 +1,100 @@
+## github.com/gophersys/libs/go/agentsession
+    const CapAbsent CapStatus = iota ...
+    const CapSteer Capability = iota ...
+    const CommandPrompt CommandKind = iota ...
+    const EventSessionState EventKind = iota ...
+    const GrantPending GrantDecision = iota ...
+    const ReasonUnknown ErrorReason = iota ...
+    const StateInitializing State = iota ...
+    const ToolOutcomeOK ToolOutcome = iota ...
+    const TurnCompleted TurnOutcome = iota ...
+    const VehicleEnv CredentialVehicle = iota ...
+    func FromSeq(seq uint64) Cursor
+    func NewLedgerFold() *LedgerFold
+func New(configuration Config, dependencies Deps) (*Pool, error)
+type Ack struct{ ... }
+type Adapter interface{ ... }
+type AuthError struct{ ... }
+type Budget struct{ ... }
+type CapStatus uint8
+type Capability uint8
+type CapabilityManifest struct{ ... }
+type Clock interface{ ... }
+type Command struct{ ... }
+type CommandKind uint8
+type Config struct{ ... }
+type ConfigError struct{ ... }
+type CredentialVehicle uint8
+type Cursor uint64
+type Decision struct{ ... }
+type Deps struct{ ... }
+type ErrorReason uint8
+type Event struct{ ... }
+type EventKind uint8
+type Factory interface{ ... }
+type GrantDecision uint8
+type HarnessConn interface{ ... }
+type HostTool struct{ ... }
+type InjectedCredential struct{ ... }
+type LedgerFold struct{ ... }
+type MessagePayload struct{ ... }
+type PermissionPayload struct{ ... }
+type PermissionRequest struct{ ... }
+type Pool struct{ ... }
+type Route struct{ ... }
+type RouteError struct{ ... }
+type RouteKey struct{ ... }
+type Session interface{ ... }
+type SpawnError struct{ ... }
+type Spec struct{ ... }
+type State uint8
+type StateError struct{ ... }
+type StatePayload struct{ ... }
+type Stream interface{ ... }
+type TerminalPayload struct{ ... }
+type TokenLedger struct{ ... }
+type ToolGrant struct{ ... }
+type ToolOutcome uint8
+type ToolPayload struct{ ... }
+type Transcript interface{ ... }
+type TurnOutcome uint8
+type UnknownPermissionError struct{ ... }
+type UnsupportedError struct{ ... }
+type UsageMeter struct{ ... }
+## github.com/gophersys/libs/go/agentsession/agentsessiontest
+    func New(script ...agentsession.Event) *Adapter
+    func NewTranscript() *Transcript
+const SeededCanary = "S3CR3T-setup-token-do-not-leak"
+func AssertNoSecretInEvent(t TestingT, event agentsession.Event, canary string)
+func AssertNoSecretInStream(t TestingT, events []agentsession.Event, canary string)
+func CanonicalScript() []agentsession.Event
+func Extension(raw []byte) agentsession.Event
+func MessageEnd() agentsession.Event
+func MessageStart(role string) agentsession.Event
+func OpenForIntegration(t *testing.T, adapter *Adapter, with func(*agentsession.Spec)) agentsession.Session
+func PermissionRequest(requestID, tool, reason string) agentsession.Event
+func PermissionResolved(requestID string, decision agentsession.GrantDecision, by string) agentsession.Event
+func ReadyEvent() agentsession.Event
+func Result(ledger agentsession.TokenLedger, resultText, stopReason string) agentsession.Event
+func Run(t *testing.T, newAdapter func() *Adapter)
+func TextDelta(delta string) agentsession.Event
+func ThinkingDelta(delta string) agentsession.Event
+func ToolEnd(callID string, outcome agentsession.ToolOutcome, resultDigest string, ...) agentsession.Event
+func ToolStart(callID, name, argsSummary string) agentsession.Event
+func ToolUpdate(callID, partialDigest string) agentsession.Event
+func Usage(meter agentsession.UsageMeter) agentsession.Event
+type Adapter struct{ ... }
+type TestingT interface{ ... }
+type Transcript struct{ ... }
+## github.com/gophersys/libs/go/agentsession/claudeadapter
+    func New() *Adapter
+    func NewWithConfig(configuration Config) *Adapter
+type Adapter struct{ ... }
+type Config struct{ ... }
+## github.com/gophersys/libs/go/agentsession/claudeadapter/internal/stubharness
+## github.com/gophersys/libs/go/agentsession/ompadapter
+    func New() *Adapter
+    func NewWithConfig(configuration Config) *Adapter
+type Adapter struct{ ... }
+type Config struct{ ... }
+## github.com/gophersys/libs/go/agentsession/ompadapter/internal/stubharness
