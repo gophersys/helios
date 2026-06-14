@@ -1,0 +1,76 @@
+## github.com/gophersys/libs/go/orchestrator
+    const DesiredRunning Desired = iota ...
+    const ObsSpawnAdmitted ObservabilityKind = iota ...
+    const StatusPending Status = iota ...
+    const SubstrateKubernetes Substrate = iota ...
+    func New(configuration Config, dependencies Deps) (*Pool, error)
+type Actual struct{ ... }
+type Agent struct{ ... }
+type AgentEvent struct{ ... }
+type AgentID string
+type AgentStream interface{ ... }
+type AgentTemplate struct{ ... }
+type Clock interface{ ... }
+type ClusterRef struct{ ... }
+type Config struct{ ... }
+type ConfigError struct{ ... }
+type ConflictError struct{ ... }
+type Deps struct{ ... }
+type Desired uint8
+type DesiredStore interface{ ... }
+type Filter struct{ ... }
+type InvalidRequestError struct{ ... }
+type LimitError struct{ ... }
+type Limits struct{ ... }
+type Manager interface{ ... }
+type NotFoundError struct{ ... }
+type ObservabilityEvent struct{ ... }
+type ObservabilityKind uint8
+type Page struct{ ... }
+type Pool struct{ ... }
+type Probe interface{ ... }
+type ProvisionError struct{ ... }
+type ReapReport struct{ ... }
+type ReconcilePorts struct{ ... }
+type ReconcileReport struct{ ... }
+type Reconciler interface{ ... }
+type RepoMount struct{ ... }
+type ResourceEnvelope struct{ ... }
+type RuleRef struct{ ... }
+type SandboxSpec struct{ ... }
+type SessionRef string
+type SkillRef struct{ ... }
+type SpawnRequest struct{ ... }
+type Status uint8
+type Substrate uint8
+type Telemetry interface{ ... }
+type TemplateNotFoundError struct{ ... }
+type TemplateRef struct{ ... }
+type TemplateStore interface{ ... }
+type Tenancy struct{ ... }
+type UnsupportedError struct{ ... }
+type Watcher interface{ ... }
+## github.com/gophersys/libs/go/orchestrator/orchestratortest
+    func New(options ...Option) *Manager
+    func NewClock() *Clock
+    func NewDesiredStore() *DesiredStore
+    func NewProbe() *Probe
+    func NewTemplateStore(seed ...orchestrator.AgentTemplate) *TemplateStore
+    func WithMaxConcurrent(n int) Option
+    func WithScript(templateName string, script ...agentsession.Event) Option
+    func WithTemplate(template orchestrator.AgentTemplate) Option
+    func WithWorkspaces(provider workspaceprovider.Provider) Option
+const SeededCanary = "S3CR3T-orchestrator-token-do-not-leak"
+const SeededCredentialRef = "vault://eden/anthropic#orchestrator-token"
+func BudgetTemplate() orchestrator.AgentTemplate
+func DefaultTemplate() orchestrator.AgentTemplate
+func RunManagerSuite(t *testing.T, newManager func() (orchestrator.Manager, Harness))
+type Clock struct{ ... }
+type DesiredStore struct{ ... }
+type Harness struct{ ... }
+type Manager struct{ ... }
+type Option func(*settings)
+type Probe struct{ ... }
+type Telemetry struct{ ... }
+type TemplateStore struct{ ... }
+type TestingT interface{ ... }

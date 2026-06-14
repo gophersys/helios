@@ -19,7 +19,15 @@ EDEN_LIB_LEAF="false"
 EDEN_COVERAGE_FLOOR="70"
 EDEN_HOT_PATHS="."
 EDEN_INTEGRATION_CMDS="go docker k3d kind"
+# The reconcile spine's concurrency/convergence/admission/release invariants are exercised most
+# heavily by the tagged dimension lanes (lifecycle's Pool double-close + drain, load's fan-out
+# Spawn/Stop race, integration's many-agent concurrent churn over the REAL agentsession +
+# workspaceprovider seams), so the per-package coverage floor MUST measure those lanes too — the
+# same substrate-lib override workspaceprovider uses (cmd_cover reads EDEN_COVER_TAGS). Raise
+# tests, never lower the floor.
+EDEN_COVER_TAGS="lifecycle load integration"
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
+export EDEN_COVER_TAGS
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091

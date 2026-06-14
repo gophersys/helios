@@ -22,7 +22,7 @@ const SeededCanary = "S3CR3T-orchestrator-token-do-not-leak"
 // SeededCredentialRef is the loggable secrets.Reference the seeded canary resolves under
 // (the VALUE never rides it). A consumer wiring its own SpawnRequest against the harness
 // uses this so agentsession.Open can resolve the credential server-side.
-const SeededCredentialRef = "vault://eden/anthropic#orchestrator-token"
+const SeededCredentialRef = "vault://eden/anthropic#orchestrator-token" // #nosec G101 -- a secrets.Reference URI (loggable), not a secret value; the canary it resolves to lives server-side
 
 // credentialRef is the internal alias for the seeded reference.
 const credentialRef = SeededCredentialRef
@@ -339,6 +339,19 @@ func (m *Manager) Clock() *Clock { return m.clock }
 
 // Workspaces exposes the frozen-seam fake Adapter so a test asserts provision/teardown.
 func (m *Manager) Workspaces() *workspaceprovidertest.Adapter { return m.workspaces }
+
+// Provider exposes the real workspaceprovider.Provider the reconcile loop binds, so a test
+// can drive Reconcile with the Pool's DEFAULT in-process Probe (omitting Probe from
+// ReconcilePorts) and still supply the workspace/session seams.
+//
+//nolint:ireturn // returns the frozen workspaceprovider.Provider port the reconcile loop binds.
+func (m *Manager) Provider() workspaceprovider.Provider { return m.provider }
+
+// Sessions exposes the real agentsession.Factory the reconcile loop binds, paired with
+// Provider for the default-Probe drive path.
+//
+//nolint:ireturn // returns the frozen agentsession.Factory port the reconcile loop binds.
+func (m *Manager) Sessions() agentsession.Factory { return m.sessions }
 
 // Store exposes the in-memory DesiredStore for record-shape assertions.
 func (m *Manager) Store() *DesiredStore { return m.store }
