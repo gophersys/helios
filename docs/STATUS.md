@@ -42,12 +42,17 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
   against the real adapter; `harness-upgrade-check` opens the bump PR. (omp 15.10.0→15.12.4 already proved
   conformant — the gate works.)
 
-IN PROGRESS:
-- **agentsession retroactive sweep** (workflow w3932yla9): 3 gosec issues fixed by hand (+3 more found across
-  agentsessiontest/ompadapter, all fixed; tree gosec-clean); the ADR-0020 8-dimension overlay
-  (property/leak/lifecycle/load/canary/bench) being authored per-package by Opus agents, verified in-container.
-  After: incorporate the uncommitted ompadapter, record .apibaseline/.benchbaseline, `phase-gate all` green,
-  commit + push. This is the TEMPLATE for the per-lib sweep below.
+- ✅ **agentsession is DONE — `phase-gate all` GREEN** (libs 656e615, eden pointer bumped): the omp adapter +
+  the full ADR-0020 8-dimension taxonomy (property/leak/lifecycle/load/canary/bench across root+claudeadapter+
+  ompadapter), gosec-clean, contract frozen, .apibaseline+.benchbaseline recorded. Verified in-container
+  against the REAL claude + omp harnesses. This is the TEMPLATE for the per-lib sweep below.
+- ✅ **Shared phase-gate engine HARDENED** (libs 983047d): the first full `phase-gate all` on a multi-tool
+  substrate lib surfaced + I fixed several latent gate bugs (the process workflow had only run a leaf lib's
+  implementation gate): cohesion over-reach on idiomatic Config/Adapter; the integration tool-check IFS
+  word-split (broke every multi-tool substrate lib); bench-guard now gates allocs/bytes tight + wall-time
+  loose (env noise); cover-floor excludes stub-harness binaries, runs tag-aware, and uses -coverpkg + a
+  union-correct extraction so the conformance two-binding suite's coverage of the root contract counts
+  (root 80.2%); 2x SC2015. **These unblock the per-lib sweep for every other substrate lib.**
 
 QUEUED (dependency-ordered, Mateo-directed):
 1. **Retroactive QA sweep + remediation** — apply the agentsession template to EVERY other existing lib

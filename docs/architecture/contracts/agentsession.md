@@ -1,12 +1,14 @@
-# Contract draft — agentsession
+# Contract — agentsession
 
-> Status: Draft for negotiation (WS1, not frozen) · 2026-06-12 · Reconciled from independent
-> producer/consumer drafts (09 §4 step 2). The **F4 connector family's session interface** — the
-> agent abstraction layer (C22, ADR-0008). This is a **connector contract** (05 §2 family F4: the
-> `execute(spec, context, tools, schema) → artifact + transcript + token ledger` verb made
-> interactive and resumable), **not** a 10 §4 library pattern. Freezes at the contract-PR gate
-> after review; the frozen contract lands in `libs/go/agentsession/` and `libs/protocols`, and this
-> draft moves to the attic.
+> Status: Frozen (ADR-0016) · 2026-06-13 · Reconciled from independent producer/consumer drafts
+> (09 §4 step 2) and frozen with the library built: the exported surface is mechanically recorded
+> at `libs/go/agentsession/.apibaseline` (the freeze made mechanical, ADR-0020) and the claude/omp
+> adapters + the ADR-0020 8-dimension test taxonomy are green. The **F4 connector family's session
+> interface** — the agent abstraction layer (C22, ADR-0008). This is a **connector contract**
+> (05 §2 family F4: the `execute(spec, context, tools, schema) → artifact + transcript + token
+> ledger` verb made interactive and resumable), **not** a 10 §4 library pattern. A breaking change
+> to the surface requires a contract revision (ADR-0016 §1) + re-recording the `.apibaseline` —
+> the cardinal sin otherwise (10 §9).
 
 ## 1. Scope
 
