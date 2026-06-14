@@ -160,8 +160,8 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
     `{"verb":"prompt|steer|abort|stop|kill","text":"…"}` (or `POST /sessions/{id}/{verb}` `{"text":"…"}`;
     grant `sessions:control`). Uniform `{data,errors,kind}`; dev JWT signed with `EDEN_GATEWAY_JWT_SECRET`.
 
-- ✅ **B8: `deploy local` + the LIVE REAL-AGENT demo DONE — verified end-to-end** (eden; NOT committed by the
-  agent per directive): the ONE-COMMAND path is `bash deploy/ctl.sh demo` → open `http://127.0.0.1:5173/chat`
+- ✅ **B8: `deploy local` + the LIVE REAL-AGENT demo DONE — verified end-to-end + committed** (eden 30038f0,
+  after my secret-hygiene re-verification): the ONE-COMMAND path is `bash deploy/ctl.sh demo` → open `http://127.0.0.1:5173/chat`
   → chat a REAL claude agent whose credential resolves through the REAL local Vault (seeded from
   `.env.development`). VERIFIED MYSELF in-container: a real `claude` turn streams the full taxonomy
   (session-state→message-start→text-delta→usage→message-end→**result "pong"** with the live ledger
@@ -189,14 +189,20 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
     in the current devcontainer image, so the live arm was verified on **claude** only; the omp adapter is
     wired and seeded (openrouter-api-key in Vault) but unverified live until the image carries omp.
 
-QUEUED (Milestone B build order — DEMO-CRITICAL PATH PRIORITIZED: B7 UI + B8 deploy next; B6 configs/sandbox
-deferred as post-demo hardening since it is not demo-blocking. Each its own gated Opus build → verify → commit):
-1. ✅ B1 · ✅ B2 · ✅ B3 · ✅ B4 · ✅ B5 → **NEXT: B7 Svelte 5 chat UI** (full chat slice over the B5 gateway
-   surface: session list → create [claude/omp] → chat a REAL agent → render the full Event taxonomy
-   [message/thinking/tool/permission/usage+cost] → steer+abort+reconnect; Playwright real E2E) → **B8 deploy
-   local** (compose: NATS+Postgres+Vault out-of-band, agent-runtime image, Vault seeded from `.env.development`,
-   the orchestrator+gateway wired) → then B6 (git-backed agent-configs/ + strict sandbox). Real tests, no mocks.
-   Codex adapter PARKED (no OpenAI key). The full live agent (image-in-pod + real harness) converges at B8.
+🎉 **DEMO-CRITICAL PATH COMPLETE — the live UI chats a REAL agent.** ✅ B1 · ✅ B2 · ✅ B3 · ✅ B4 · ✅ B5 ·
+✅ B7 (chat UI) · ✅ B8 (deploy local + live demo). Seven Milestone-B pieces shipped overnight 2026-06-13→14,
+EACH independently re-verified by me before commit (every build agent left ≥1 real defect I caught: B2 ended
+mid-gate, B3 a workspace-breaking go.mod replace conflict, B5 gosec-nolint vetting, B8 a real async-harness
+context bug). Run it: `bash deploy/ctl.sh demo` → http://127.0.0.1:5173/chat.
+
+REMAINING (post-demo, NOT demo-blocking):
+- **B6** git-backed `agent-configs/` + strict-by-default sandbox (the config-as-code + per-tool-grant layer) —
+  deferred as hardening; the demo runs without it.
+- **Full distributed path (a)** — build/load the agent-runtime + gateway CONTAINER IMAGES + run the
+  orchestrator-spawns-PID-1-pod / stateless-NATS→SSE-gateway compose + a k3d `helm install` (the chart renders;
+  apply is the follow-up). The live demo uses the single-process path (b); the distributed path is scaffolded.
+- **omp live-in-pod** unverified (omp not in the current devcontainer image; adapter wired + key seeded).
+- **Codex** PARKED (no OpenAI key). The k8s namespace 63-char truncation hardening (RD-15 note).
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo
