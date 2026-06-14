@@ -1,0 +1,29 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/agentruntime
+BenchmarkNew-8             	 4479890	       285.8 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4443469	       273.7 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4106806	       284.1 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4817275	       259.5 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4513563	       286.5 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 3974058	       293.0 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4009483	       300.3 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4192338	       288.4 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4066477	       295.8 ns/op	     384 B/op	       3 allocs/op
+BenchmarkNew-8             	 4106486	       289.3 ns/op	     384 B/op	       3 allocs/op
+BenchmarkSubjectRender-8   	22643307	        46.65 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	23718696	        47.14 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	25908202	        48.24 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	23091836	        48.57 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	25817995	        50.17 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	25068502	        50.48 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	23032777	        49.08 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	20476170	        53.60 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	25666549	        48.57 ns/op	      32 B/op	       1 allocs/op
+BenchmarkSubjectRender-8   	25334805	        48.64 ns/op	      32 B/op	       1 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/agentruntime	24.007s
+?   	github.com/gophersys/libs/go/agentruntime/agentruntimetest	[no test files]
+PASS
+ok  	github.com/gophersys/libs/go/agentruntime/natsbus	0.003s
+?   	github.com/gophersys/libs/go/agentruntime/otelobserver	[no test files]
