@@ -41,11 +41,15 @@ import (
 // opened session's Spec. The seeded secretstest provider resolves it to a FAKE setup-token
 // server-side, so the live plane exercises the credential seam without the real, gated
 // claude setup-token. The resolved value never reaches the browser (REQ-0021).
+//
+//nolint:gosec // G101: an opaque vault REFERENCE (path), not a credential value — loggable by design.
 const CredentialReference = "vault://eden/development#setup-token"
 
 // fakeSetupToken is the FAKE setup-token the seeded provider resolves CredentialReference to.
 // It is intentionally not a real credential: the dev gateway never authenticates to anything
 // (the scripted adapter has no upstream). The value still never leaves the harness seam.
+//
+//nolint:gosec // G101: a deliberately FAKE dev token (never a real credential) for the fake harness.
 const fakeSetupToken = "DEV-FAKE-setup-token-not-a-real-credential"
 
 // devHarnessName is the adapter key the dev Route binds, matched in the Pool's Adapters map.

@@ -144,13 +144,30 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
     `agent.<id>.control` verbs the orchestrator now publishes + a token-gated real-claude/omp-in-pod arm.
     (b) `kubernetesadapter` namespace derivation truncates to 63 chars dropping the per-agent discriminator on
     long names — latent collision risk; a hash-suffix is the future hardening (prod ownership prefixes are short).
+- ✅ **B5: edenhttp + stateless NATS→SSE gateway DONE — phase-gate all GREEN** (libs 73014f4; agentgateway
+  reworked + frozen `edenhttp.md`; eden pointer): NEW lib `libs/go/edenhttp` — the IOTEA 6-stage pipeline
+  (parse→validate→authorize→execute→respond→action) + uniform `{data,errors,kind}` envelope + an SSE writer +
+  the `natssse` JetStream→SSE bridge (replay by Seq, reconnect gap-free) + a stdlib-only HMAC-SHA256 dev-JWT
+  verifier (alg-pinned, constant-time) + the `namespace:action` grant grammar. `apps/agentgateway` reworked:
+  the production path is now the **stateless** bridge (`internal/stateless` + `internal/natscontrol`); the
+  in-process Pool dev-serve stays for fakes. **Independently re-verified by me** — confirmed the gosec-G101
+  nolints annotate only vault REFERENCES + a fake dev token (not real secrets), all apps build, edenhttp
+  `phase-gate all` GREEN, and ran the agentgateway real-NATS end-to-end myself: 6/6 PASS (SSE streams by-Seq
+  with JWT, reconnect resumes gap-free, 401 unauth, 403 under-granted, control publishes to NATS, verb routes).
+  - 🎯 **UI handoff (the surface B7 calls; `Authorization: Bearer <dev-JWT>` on all but `/healthz`):**
+    `GET /sessions/{id}/events` → SSE (`event:`=agentsession EventKind, `id:`=Seq, `data:`=EventEnvelope JSON;
+    reconnect via `Last-Event-ID`/`?from-seq`; grant `sessions:read`). `POST /sessions/{id}/control` body
+    `{"verb":"prompt|steer|abort|stop|kill","text":"…"}` (or `POST /sessions/{id}/{verb}` `{"text":"…"}`;
+    grant `sessions:control`). Uniform `{data,errors,kind}`; dev JWT signed with `EDEN_GATEWAY_JWT_SECRET`.
 
-QUEUED (Milestone B build order, ADR-0022 — each its own gated Opus workflow → verify-in-container → commit):
-1. Codex adapter PARKED (no OpenAI key yet) · ~~secrets Vault backend~~ ✅ B1 · ~~supervising provider +
-   Entrypoint~~ ✅ B2 · ~~NATS/JetStream + PID-1 agent-runtime~~ ✅ B3 · ~~thin orchestrator over real pods~~
-   ✅ B4 → **NEXT: stateless NATS→SSE gateway + edenhttp** (GET /sessions/{id}/events = JetStream replay bridge;
-   REST POST control → agent.<id>.control; behind dev-JWT) → git-backed agent-configs/ + strict sandbox →
-   Svelte 5 chat UI + Playwright real E2E → deploy local/prod. Real tests, no mocks; devcontainer-first.
+QUEUED (Milestone B build order — DEMO-CRITICAL PATH PRIORITIZED: B7 UI + B8 deploy next; B6 configs/sandbox
+deferred as post-demo hardening since it is not demo-blocking. Each its own gated Opus build → verify → commit):
+1. ✅ B1 · ✅ B2 · ✅ B3 · ✅ B4 · ✅ B5 → **NEXT: B7 Svelte 5 chat UI** (full chat slice over the B5 gateway
+   surface: session list → create [claude/omp] → chat a REAL agent → render the full Event taxonomy
+   [message/thinking/tool/permission/usage+cost] → steer+abort+reconnect; Playwright real E2E) → **B8 deploy
+   local** (compose: NATS+Postgres+Vault out-of-band, agent-runtime image, Vault seeded from `.env.development`,
+   the orchestrator+gateway wired) → then B6 (git-backed agent-configs/ + strict sandbox). Real tests, no mocks.
+   Codex adapter PARKED (no OpenAI key). The full live agent (image-in-pod + real harness) converges at B8.
 
 MATEO'S CLOSING DIRECTIVE: ensure all committed + pushed, then **one full review of everything done** = a
 final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pushed end state; call Mateo

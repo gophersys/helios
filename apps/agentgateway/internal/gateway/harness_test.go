@@ -27,6 +27,8 @@ import (
 // credentialRef is the loggable secrets.Reference the gateway threads into every Spec; the
 // seeded secretstest provider resolves it to the agentsessiontest canary server-side. The
 // VALUE (agentsessiontest.SeededCanary) must never reach a response/SSE/log.
+//
+//nolint:gosec // G101: an opaque vault REFERENCE (path), not a credential value — loggable by design.
 const credentialRef = "vault://eden/anthropic#setup-token"
 
 // fixedClock is a deterministic gateway.Clock / agentsession.Clock so the harness is
