@@ -1,0 +1,89 @@
+# Eden Milestone-B local supporting stack (ADR-0022 #2): the platform substrate stood up
+# OUT-OF-BAND — real Vault (server mode, NOT -dev), NATS/JetStream, Postgres. The platform
+# (gateway/agent-runtime/orchestrator) assumes these exist; it does NOT reconcile them.
+#
+#   * Vault is the REAL `hashicorp/vault` image in SERVER mode with a file storage backend and a
+#     thin one-shot init/unseal bootstrap (vault-seed.sh), per ADR-0022 #1 ("i want the real
+#     thing") — NOT the in-memory `-dev` server, NOT a bespoke self-unsealing image.
+#   * NATS runs with JetStream enabled (the durable event bus the agent-runtime publishes to and
+#     the stateless gateway bridges to SSE).
+#   * Postgres is the orchestrator's durable DesiredStore (the production-path B4 substrate).
+#
+# This is the `deploy/<plane>/local` (= compose) half of the two-axis layout; `deploy/<plane>/
+# production` is the Helm chart rendered from the same typed ServiceSpec (one source of truth).
+#
+# Bring up:  bash deploy/ctl.sh local up      (loads .env.development, seeds Vault from it)
+# Tear down: bash deploy/ctl.sh local down
+
+name: eden-local
+
+services:
+  vault:
+    image: hashicorp/vault:1.18
+    container_name: eden-vault
+    # server mode (NOT -dev): real auth, real path-scoped policies, real persistence. The config is
+    # passed INLINE via VAULT_LOCAL_CONFIG (the official image writes it to /vault/config/local.json
+    # and the default entrypoint `vault server` reads it) so there is NO host bind-mount of a config
+    # file — which is what lets the stack come up identically from the host AND from inside the
+    # devcontainer over docker-out-of-docker (a `./vault.hcl` bind path is unknown to the host daemon
+    # when the compose is invoked from /workspace). The canonical config also lives at vault.hcl for
+    # reference + the production parity story; this inline copy is the single runtime source locally.
+    command: ["server"]
+    environment:
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_API_ADDR: "http://127.0.0.1:8200"
+      SKIP_SETCAP: "true" # the entrypoint skips the setcap step it cannot perform as non-root
+      VAULT_LOCAL_CONFIG: >-
+        {"disable_mlock": true,
+         "storage": {"file": {"path": "/vault/file"}},
+         "listener": {"tcp": {"address": "0.0.0.0:8200", "tls_disable": true}},
+         "api_addr": "http://127.0.0.1:8200", "ui": false}
+    ports:
+      - "127.0.0.1:8200:8200"
+    # Run as the image's vault user (uid 100) so the file-storage dir it owns (/vault/file) is
+    # writable — the default root start otherwise hits a persist-keyring permission error.
+    user: "100:1000"
+    volumes:
+      - eden-vault-data:/vault/file
+    healthcheck:
+      # 200 (unsealed) or 501/503 (uninitialized/sealed) all mean the API is UP. The seed step
+      # performs init/unseal; here we only need the listener answering.
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8200/v1/sys/health?standbyok=true&sealedcode=200&uninitcode=200"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:latest
+    container_name: eden-nats
+    # JetStream on, with a store dir so streams survive a restart.
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "127.0.0.1:4222:4222" # client
+      - "127.0.0.1:8222:8222" # monitoring
+    volumes:
+      - eden-nats-data:/data
+    # NOTE: the nats image is distroless (no shell/wget), so the readiness check is done from the
+    # host against the monitoring endpoint (deploy/ctl.sh wait_nats), not an in-container healthcheck.
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: eden-postgres
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-eden}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-eden}"
+      POSTGRES_DB: "${POSTGRES_DB:-eden}"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - eden-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eden} -d ${POSTGRES_DB:-eden}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  eden-vault-data:
+  eden-nats-data:
+  eden-postgres-data:

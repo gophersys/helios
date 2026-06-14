@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -37,7 +38,11 @@ func (g *Gateway) handleControl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ack, err := session.Control(r.Context(), command)
+	// The control verb's RESULTING TURN streams asynchronously to every SSE subscriber and so
+	// OUTLIVES this request; admit it under a context DETACHED from the request (context.
+	// WithoutCancel) so a real async harness keeps streaming after this POST returns its Ack —
+	// the same request-lifetime decoupling handleCreateSession applies to the opening prompt.
+	ack, err := session.Control(context.WithoutCancel(r.Context()), command)
 	if err != nil {
 		g.writeError(w, err)
 		return

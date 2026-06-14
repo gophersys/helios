@@ -54,6 +54,10 @@ Thumbs.db
 !.env.example
 !.env.*.example
 
+# Deploy local state — the Vault init output (unseal key + root token) + the demo process pids/logs.
+# Operator-only, machine-local, NEVER committed (it holds the Vault root token).
+deploy/plane/local/.state/
+
 # Claude Code harness state
 .claude/scheduled_tasks.lock
 

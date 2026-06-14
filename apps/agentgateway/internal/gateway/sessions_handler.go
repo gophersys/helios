@@ -40,6 +40,16 @@ func (g *Gateway) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	// The LIVE session OUTLIVES this request: it is registered and tailed by later SSE/control
+	// requests, and reaped by Stop/shutdown — NOT by this POST returning. So Open + the opening
+	// Control run under a context DETACHED from the request (context.WithoutCancel): otherwise,
+	// when this handler returns (right after writing the 201), r.Context() cancels and tears down
+	// the just-spawned harness mid-turn — the failure a real (async) claude harness hits that the
+	// synchronous fake harness hid (it emits its whole turn before the handler returns). The
+	// session's lifecycle context is the registry's; admission/record reads still use the request
+	// ctx so a client disconnect aborts the cheap record work.
+	sessionCtx := context.WithoutCancel(ctx)
+
 	// Record the desired intent (admission + limits + tenancy). The Manager's already
 	// wrapped, typed error (LimitError/TemplateNotFoundError/InvalidRequestError) flows to
 	// the client classified by Kind — never a credential (the ref is opaque).
@@ -52,7 +62,7 @@ func (g *Gateway) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	// Open the LIVE session the gateway tails and controls. The credential rides the Spec
 	// as an opaque reference; agentsession.Open resolves it server-side. On a failure the
 	// recorded intent is rolled back via Stop so no orphan record lingers.
-	session, err := g.dependencies.Sessions.Open(ctx, g.openSpec(agent.ID))
+	session, err := g.dependencies.Sessions.Open(sessionCtx, g.openSpec(agent.ID))
 	if err != nil {
 		_ = g.dependencies.Manager.Stop(context.WithoutCancel(ctx), agent.ID, request.By) //nolint:errcheck // best-effort rollback; the Open error is the actionable outcome surfaced below.
 		g.writeError(w, err)
@@ -62,16 +72,18 @@ func (g *Gateway) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	// Ready event, Seq 1, is appended synchronously during Open's handshake). This is the
 	// key the post-mortem transcript route reads by, so the persisted Run is queryable even
 	// after the live session is reaped (REQ-0020).
-	sessionID := peekSessionID(ctx, session)
+	sessionID := peekSessionID(sessionCtx, session)
 	if displaced := g.registry.register(agent.ID, sessionID, session); displaced != nil {
 		_ = displaced.Close(context.WithoutCancel(ctx)) //nolint:errcheck // reap a prior handle for the same id (re-create); best-effort.
 	}
 
 	// Send the opening prompt so the harness starts its first turn (the events then stream
-	// to every SSE subscriber). A control fault here is non-fatal to creation — the session
-	// is live and the client may prompt via the control channel.
+	// to every SSE subscriber). It runs under the DETACHED sessionCtx — the turn outlives this
+	// request, so the real async harness keeps streaming after the 201 is written. A control
+	// fault here is non-fatal to creation — the session is live and the client may prompt via
+	// the control channel.
 	if request.Prompt != "" {
-		if _, perr := session.Control(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: request.Prompt}); perr != nil {
+		if _, perr := session.Control(sessionCtx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: request.Prompt}); perr != nil {
 			g.logError("gateway: opening prompt failed", "agent", string(agent.ID), "kind", errors.KindOf(perr).String())
 		}
 	}

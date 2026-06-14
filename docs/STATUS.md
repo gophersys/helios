@@ -160,6 +160,35 @@ PROGRESS (foundation, all committed + pushed across eden + libs + .devcontainer,
     `{"verb":"prompt|steer|abort|stop|kill","text":"…"}` (or `POST /sessions/{id}/{verb}` `{"text":"…"}`;
     grant `sessions:control`). Uniform `{data,errors,kind}`; dev JWT signed with `EDEN_GATEWAY_JWT_SECRET`.
 
+- ✅ **B8: `deploy local` + the LIVE REAL-AGENT demo DONE — verified end-to-end** (eden; NOT committed by the
+  agent per directive): the ONE-COMMAND path is `bash deploy/ctl.sh demo` → open `http://127.0.0.1:5173/chat`
+  → chat a REAL claude agent whose credential resolves through the REAL local Vault (seeded from
+  `.env.development`). VERIFIED MYSELF in-container: a real `claude` turn streams the full taxonomy
+  (session-state→message-start→text-delta→usage→message-end→**result "pong"** with the live ledger
+  costMicros) to the B7 UI THROUGH the vite same-origin proxy; secret-safe (no value in any log/committed
+  file; `kv get` returns a 108-byte value WITHOUT printing it). **Chosen path (b) single-process** (ADR-0022
+  #2 dev-local convenience): a new `apps/agentgateway/cmd/agentgateway-live` + `internal/liveserve` wires the
+  full `internal/gateway` over a REAL `agentsession.Pool` (claude/omp adapters, in-process subprocess — no
+  pod) + the secrets Mediator over the REAL `hashicorp/vault` (ModeUserpass, seeded). The DISTRIBUTED path
+  (a) is scaffolded: `deploy/plane/{local=compose,production=helm}`, ONE typed Go `ServiceSpec`
+  (`deploy/servicespec`) rendering to BOTH a compose overlay AND a Helm chart (image-tag-as-environment-
+  contract), the supporting-stack compose (Vault server-mode+NATS/JetStream+Postgres, out-of-band), a
+  secret-safe Vault-seed step (`deploy/plane/local/vault-seed.sh`, NEVER echoes a value), and Dockerfiles for
+  agent-runtime (dogfoods the `.devcontainer` base) + gateway.
+  - ⚠️ **Real bug found+fixed (the B7 surfaceGap / B4 b8Handoff edge):** `internal/gateway`'s
+    `handleCreateSession`/`handleControl` opened/prompted the live session with the REQUEST context — fine for
+    the synchronous FAKE harness (it emits its whole turn before the POST returns) but it tore down a REAL
+    async claude mid-turn ("harness stream ended without a terminal event") the instant the 201 was written.
+    Fixed: the session + its turns run under `context.WithoutCancel` (lifecycle owned by the registry +
+    Serve shutdown, not the request). The fake-harness gateway/devserve suites still pass.
+  - 🔲 **REMAINING for full path (a):** build+load the agent-runtime/gateway CONTAINER IMAGES and run the
+    distributed compose (orchestrator spawns the PID-1 pod, gateway is the stateless NATS→SSE bridge); a k3d
+    `helm install` of the rendered chart (the chart renders; a full apply is the follow-up). The record-plane
+    ledger (`GET /sessions/{id}`) is the orchestratortest in-memory plane and does not mirror the live SSE
+    ledger — cosmetic for the demo (the UI renders the live `result`), real for path (a). omp is NOT installed
+    in the current devcontainer image, so the live arm was verified on **claude** only; the omp adapter is
+    wired and seeded (openrouter-api-key in Vault) but unverified live until the image carries omp.
+
 QUEUED (Milestone B build order — DEMO-CRITICAL PATH PRIORITIZED: B7 UI + B8 deploy next; B6 configs/sandbox
 deferred as post-demo hardening since it is not demo-blocking. Each its own gated Opus build → verify → commit):
 1. ✅ B1 · ✅ B2 · ✅ B3 · ✅ B4 · ✅ B5 → **NEXT: B7 Svelte 5 chat UI** (full chat slice over the B5 gateway
