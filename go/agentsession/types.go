@@ -191,6 +191,7 @@ const (
 	EventFailed                              // TERMINAL: an error moved the session to StateFailed; carries the ledger + typed reason
 	EventAborted                             // TERMINAL: an Abort took the session to a stop; carries the ledger + By
 	EventExtension                           // a harness event with no normalized kind — preserved VERBATIM, NEVER dropped
+	EventThinkingProgress                    // a pre-message reasoning HEARTBEAT (no content yet): a running estimated thinking-token count, for a live "thinking…" status indicator
 )
 
 // eventKindTokens holds the stable lower-kebab token for each EventKind, indexed
@@ -211,6 +212,7 @@ var eventKindTokens = [...]string{
 	EventFailed:             "failed",
 	EventAborted:            "aborted",
 	EventExtension:          "extension",
+	EventThinkingProgress:   "thinking-progress",
 }
 
 // String returns the stable lower-kebab token (e.g. "tool-start"). Total: returns
@@ -238,7 +240,7 @@ type Event struct {
 	// Exactly one is populated per Kind (nil otherwise). Pointers so a zero Event is
 	// valid and an unknown Kind (Extension) carries no normalized payload.
 	State      *StatePayload      // EventSessionState
-	Message    *MessagePayload    // EventMessageStart/ThinkingDelta/TextDelta/MessageEnd
+	Message    *MessagePayload    // EventMessageStart/ThinkingDelta/TextDelta/MessageEnd/ThinkingProgress (Tokens)
 	Tool       *ToolPayload       // EventToolStart/ToolUpdate/ToolEnd
 	Permission *PermissionPayload // EventPermissionRequest/PermissionResolved
 	Usage      *UsageMeter        // EventUsage (the running prefix of the terminal ledger)
@@ -271,6 +273,10 @@ type StatePayload struct {
 type MessagePayload struct {
 	Role  string // "assistant" | "system"
 	Delta string // the incremental fragment
+	// Tokens is the running ESTIMATED reasoning-token count carried by EventThinkingProgress
+	// (a pre-message heartbeat). Zero for every message/thinking/text delta. It is an estimate
+	// for a live "thinking…" status indicator, NOT a billed usage figure (that is EventUsage).
+	Tokens int
 }
 
 // ToolPayload carries a tool invocation's start (EventToolStart), partial

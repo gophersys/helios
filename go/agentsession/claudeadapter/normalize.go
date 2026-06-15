@@ -33,6 +33,11 @@ type streamLine struct {
 	RequestID string          `json:"request_id"`
 	Request   *controlRequest `json:"request"`
 
+	// thinking-progress field: `system/thinking_tokens` lines carry the running estimated
+	// reasoning-token count (a pre-message heartbeat while the model thinks before emitting any
+	// content) — surfaced as EventThinkingProgress so the UI can show a live "thinking…" status.
+	EstimatedTokens *int `json:"estimated_tokens"`
+
 	// result-line fields (the authoritative terminal aggregate).
 	IsError        *bool    `json:"is_error"`
 	NumTurns       *int     `json:"num_turns"`
@@ -201,7 +206,20 @@ func (n *normalizer) takeInput(requestID string) (json.RawMessage, bool) {
 // (processConn.scan). The init line still carries session_id/model/tools, kept losslessly as
 // an Extension so nothing is dropped.
 func (n *normalizer) system(envelope *streamLine, line []byte) []agentsession.Event {
-	_ = envelope
+	// `system/thinking_tokens` is the model's pre-message reasoning HEARTBEAT: it carries the
+	// running estimated thinking-token count while the model thinks before emitting any assistant
+	// content (a long build prompt can stay here for minutes). Surface it as EventThinkingProgress
+	// so the chat shows a live "thinking…" status instead of a dead screen; the raw line still
+	// rides along as the Extension so nothing is dropped.
+	if envelope.Subtype == "thinking_tokens" && envelope.EstimatedTokens != nil {
+		raw := make([]byte, len(line))
+		copy(raw, line)
+		return []agentsession.Event{{
+			Kind:      agentsession.EventThinkingProgress,
+			Message:   &agentsession.MessagePayload{Role: "assistant", Tokens: *envelope.EstimatedTokens},
+			Extension: raw,
+		}}
+	}
 	return []agentsession.Event{extension(line)}
 }
 

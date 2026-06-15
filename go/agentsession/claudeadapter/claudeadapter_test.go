@@ -106,6 +106,41 @@ func TestNormalize_MalformedLineNeverFatal(t *testing.T) {
 	}
 }
 
+// TestNormalize_ThinkingTokensBecomesProgress proves a `system/thinking_tokens` heartbeat is
+// surfaced as EventThinkingProgress carrying the running estimated token count (the live
+// "thinking…" status signal) — NOT dropped into the opaque Extension bucket the UI is blind to
+// (the dead-screen-during-a-long-think bug). The raw line still rides along as the Extension.
+func TestNormalize_ThinkingTokensBecomesProgress(t *testing.T) {
+	t.Parallel()
+	line := []byte(`{"type":"system","subtype":"thinking_tokens","estimated_tokens":142,"estimated_tokens_delta":26}`)
+	events := normalizeLine(t, line)
+	if len(events) != 1 {
+		t.Fatalf("a thinking_tokens line must yield exactly one event, got %d: %+v", len(events), events)
+	}
+	ev := events[0]
+	if ev.Kind != agentsession.EventThinkingProgress {
+		t.Fatalf("thinking_tokens must become EventThinkingProgress, got %v", ev.Kind)
+	}
+	if ev.Message == nil || ev.Message.Tokens != 142 {
+		t.Fatalf("EventThinkingProgress must carry the estimated token count 142, got %+v", ev.Message)
+	}
+	if !bytes.Equal(ev.Extension, line) {
+		t.Errorf("the raw thinking_tokens line must ride along as the Extension (never dropped)")
+	}
+}
+
+// TestNormalize_OtherSystemLineStaysExtension proves the thinking_tokens mapping is NARROW: a
+// different system subtype (init) is still preserved as a metadata Extension, so the change did
+// not start swallowing other system lines.
+func TestNormalize_OtherSystemLineStaysExtension(t *testing.T) {
+	t.Parallel()
+	line := []byte(`{"type":"system","subtype":"init","session_id":"x","tools":["Read"]}`)
+	events := normalizeLine(t, line)
+	if len(events) != 1 || events[0].Kind != agentsession.EventExtension {
+		t.Fatalf("a non-thinking_tokens system line must stay an Extension, got %+v", events)
+	}
+}
+
 // assertExtensionVerbatim proves every EventExtension carries non-empty raw bytes.
 func assertExtensionVerbatim(t *testing.T, events []agentsession.Event) {
 	t.Helper()

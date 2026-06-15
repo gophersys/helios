@@ -83,7 +83,7 @@ func TestBuildArguments_SystemHintsAppended(t *testing.T) {
 // Secret or process.
 func TestChildEnvironment_InjectsKeyAndScrubsCredentialKeys(t *testing.T) {
 	t.Parallel()
-	const key = "sk-or-v1-INJECTED"
+	const key = "sk-or-v1-INJECTED" //gitleaks:allow // deliberate FAKE OpenRouter key (the literal word INJECTED) — a test fixture, never a real secret.
 	base := []string{
 		"PATH=/usr/bin",
 		"HOME=/home/eden",

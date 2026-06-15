@@ -87,6 +87,7 @@ func Result(ledger agentsession.TokenLedger, resultText, stopReason string) agen
 func RunAdapterSuite(t *testing.T, newAdapter func() *Adapter)
 func TextDelta(delta string) agentsession.Event
 func ThinkingDelta(delta string) agentsession.Event
+func ThinkingProgress(tokens int) agentsession.Event
 func ToolEnd(callID string, outcome agentsession.ToolOutcome, resultDigest string, ...) agentsession.Event
 func ToolStart(callID, name, argsSummary string) agentsession.Event
 func ToolUpdate(callID, partialDigest string) agentsession.Event

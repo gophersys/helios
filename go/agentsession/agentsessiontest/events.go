@@ -51,6 +51,17 @@ func TextDelta(delta string) agentsession.Event {
 	}
 }
 
+// ThinkingProgress builds a pre-message reasoning HEARTBEAT carrying the running estimated
+// thinking-token count (no content yet) — the signal a UI shows as a live "thinking…" status
+// while the model reasons before emitting any assistant text.
+func ThinkingProgress(tokens int) agentsession.Event {
+	return agentsession.Event{
+		Kind:    agentsession.EventThinkingProgress,
+		Time:    fixedEmitTime,
+		Message: &agentsession.MessagePayload{Role: "assistant", Tokens: tokens},
+	}
+}
+
 // ThinkingDelta builds a reasoning/thinking fragment.
 func ThinkingDelta(delta string) agentsession.Event {
 	return agentsession.Event{
