@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "The design-system token engine: OKLCH generative theming + the WCAG/APCA contrast gate as a hard constraint, the type/spacing/breakpoint/motion/density scales, the DTCG token model, and the generateTheme(seed) pipeline (docs/research/05-design-foundations.md, ADR-0024). Framework-agnostic data + a generator; pure and dependency-free. MATH IS SOURCE OF TRUTH.",
+  "description": "The design-system token engine: OKLCH generative theming + the WCAG/APCA contrast gate as a hard constraint, the type/spacing/breakpoint/motion/density scales, the DTCG token model, and the generateTheme(seed) pipeline (docs/research/05-design-foundations.md, ADR-0024). Framework-agnostic data + a generator; pure, citing @eden/scale for the modular-scale generator. MATH IS SOURCE OF TRUTH.",
   "type": "module",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,5 +16,8 @@
   "files": [
     "dist"
   ],
-  "sideEffects": false
+  "sideEffects": false,
+  "dependencies": {
+    "@eden/scale": "workspace:*"
+  }
 }

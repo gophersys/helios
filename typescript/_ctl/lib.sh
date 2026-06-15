@@ -18,9 +18,9 @@
 #   - require_cmd the tool a verb needs, so a MISSING tool exits 127 (FAIL-NOT-SKIP, ADR-0024:
 #     "absent tool = FAIL not skip"). In the devcontainer every tool is present, so an absence
 #     here is a real gate failure, never a silent skip.
-#   - tools run THROUGH BUN (`bun x <tool>`): the devcontainer's JS runtime is bun, and the
-#     node_modules/.bin shebangs are `#!/usr/bin/env node` which there is NO node binary to
-#     satisfy. `bun x` shims a node-compatible runtime, so every verb invokes tools via `bun x`.
+#   - tools run THROUGH BUN (`bun x <tool>`): the devcontainer's JS runtime is bun, so every verb
+#     invokes tools via `bun x`. The LONE exception is the mutation lane (cmd_mutate), which runs
+#     StrykerJS under the baked node (nvm) — see that verb's header for why.
 #
 # shellcheck shell=bash
 
@@ -33,11 +33,17 @@ IFS=$'\n\t'
 # EDEN_LIB_LEAF       — "true" for a pure leaf lib (no real substrate), "false" for substrate.
 # EDEN_COVERAGE_FLOOR — per-package coverage FLOOR as an integer percent (80 leaf / 70 substrate).
 # EDEN_HAS_SVELTE     — "true" if the lib ships *.svelte (wires svelte-check + the a11y lane).
+# EDEN_MUTATION_FLOOR — the StrykerJS mutation-score FLOOR as an integer percent (the gremlins ≥0.75
+#                       analog). 75 mirrors the Go leaf floor; a substrate/large-surface lib records
+#                       a lower CURRENT baseline that RATCHETS toward 75 (the bench-baseline model:
+#                       record the floor, never regress below it). A survived mutant on covered code
+#                       is a real test gap — strengthen the test to kill it (ADR-0024 / rule 21).
 : "${EDEN_LIB_NAME:=}"
 : "${EDEN_LIB_SCOPE:=@eden}"
 : "${EDEN_LIB_LEAF:=true}"
 : "${EDEN_COVERAGE_FLOOR:=80}"
 : "${EDEN_HAS_SVELTE:=false}"
+: "${EDEN_MUTATION_FLOOR:=75}"
 
 # PROJECT_ROOT is the per-lib directory; the sourcing ctl.sh exports it.
 : "${PROJECT_ROOT:?lib.sh: PROJECT_ROOT must be set by the sourcing per-lib ctl.sh}"
@@ -193,12 +199,13 @@ cmd_cover_floor() {
   log_success "cover-floor: OK"
 }
 
-# ── (maintainability bundle) strict lint + typecheck + format + name lint ─────────────────────
+# ── (maintainability bundle) strict lint + typecheck + format + name lint + cohesion ──────────
 cmd_maintainability() {
-  log_info "maintainability: typecheck + strict eslint (incl. HNS-1 name lint) + prettier check"
+  log_info "maintainability: typecheck + strict eslint (incl. HNS-1 name lint) + prettier check + cohesion"
   cmd_typecheck
   cmd_lint
   cmd_format
+  cmd_cohesion
   log_success "maintainability: OK"
 }
 
@@ -300,6 +307,115 @@ cmd_design_correctness() {
   log_success "design-correctness: OK"
 }
 
+# ── (cohesion) DEAD-EXPORT + CROSS-LIB MATH DUPLICATION — one concept, one home (10 §9) ──────────
+# The TS analog of the Go pipeline's `_cohesion_scan` + the two cross-lib duplication detectors. The
+# TS track previously had NO cohesion dimension (audit: "a TS lib can re-derive another TS lib's
+# entire generator and stay phase-gate-all GREEN"; "a fully dead exported type cluster sails through
+# green"). The scan (a TS-compiler-API tool — `_ctl/cohesion-scan.mjs`, no new tooling dep) FAILS on:
+#   (A) a non-index exported symbol reachable from NOWHERE (not on the barrel, no importer across the
+#       TS libs) — the scale-dead-end / dead-contract class; and
+#   (B) an exported math const/function in a downstream lib that DUPLICATES one already exported by a
+#       foundation lib (@eden/scale) without CITING it — the theme-reimplements-scale class.
+# Importer counting is necessarily whole-workspace, so the scan reads ALL libs but only FAILS on
+# findings owned by THIS lib (`--lib ${EDEN_LIB_NAME}`), keeping the gate per-lib.
+cmd_cohesion() {
+  require_bun
+  local scan="${EDEN_TS_WORKSPACE}/_ctl/cohesion-scan.mjs"
+  if [[ ! -f "$scan" ]]; then
+    log_error "missing cohesion scanner: ${scan}"
+    exit 127
+  fi
+  log_info "cohesion: dead-export + cross-lib math-duplication scan (one concept, one home — 10 §9)"
+  ( cd "$EDEN_TS_WORKSPACE" && bun "$scan" --lib "$EDEN_LIB_NAME" )
+  log_success "cohesion: OK"
+}
+
+# ── (mutation) StrykerJS MUTATION LANE — the gremlins ≥0.75 analog (ADR-0024 Stage-3) ────────────
+# A survived mutant on covered code is a real test gap (rule 21 §h). StrykerJS mutates the lib's
+# non-test src and re-runs the vitest suite per mutant; the run FAILS if the mutation score dips
+# below ${EDEN_MUTATION_FLOOR}% (Stryker's `break` threshold). 75 mirrors the Go leaf floor; a
+# substrate/large-surface lib records a lower CURRENT baseline that ratchets toward 75.
+#
+# RUNTIME — the ONE verb that runs under node, not bun. The mutation lane is a DEV-GATE, not the
+# runtime: StrykerJS forks worker processes and drives vitest under worker_threads, which the
+# devcontainer's bun does not fully implement. So `mutate` runs StrykerJS under the BAKED node
+# (installed via nvm — NODE_VERSION 24.x), the one dev-gate tool that uses node; the @eden runtime
+# and every OTHER verb still dogfood bun. We activate the nvm node inside the verb and invoke
+# Stryker the ordinary node way (`node node_modules/@stryker-mutator/core/bin/stryker.js`). Under
+# real node, peer-dep resolution Just Works, so the vitest-runner plugin is named by its plain
+# specifier `@stryker-mutator/vitest-runner` (Stryker resolves it via normal node_modules) — no
+# `.bun` store path, no bun-compat patches, no captureStackTrace shim.
+#
+# We use Stryker's DEFAULT sandbox EXCEPT we keep `inPlace:true`: each lib's vitest.config.ts
+# imports `../vitest.config.base.js` (a path that escapes the lib dir up to the workspace root),
+# and Stryker's sandbox copies only the lib subtree, so a sandbox copy cannot resolve that parent
+# import. `inPlace` mutates the real files in a clean git tree and Stryker restores them after each
+# mutant; the gate also clears `.stryker-tmp` on exit.
+cmd_mutate() {
+  require_tool stryker @stryker-mutator/core
+  require_tool vitest vitest
+
+  # Activate the baked node (nvm). This is the ONE verb that runs under node, not bun — see header.
+  # FAIL-NOT-SKIP: if node is unavailable, exit 127 (the gate records REQUIRED-BUT-ABSENT).
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  # shellcheck disable=SC1091
+  if [[ -s "${NVM_DIR}/nvm.sh" ]]; then . "${NVM_DIR}/nvm.sh"; nvm use --silent node >/dev/null 2>&1 || nvm use --silent 24 >/dev/null 2>&1 || true; fi
+  if ! command -v node >/dev/null 2>&1; then
+    log_error "missing required runtime: node (the mutation lane runs StrykerJS under the baked nvm node)"
+    log_dim   "  ADR-0024 FAIL-NOT-SKIP: node is baked via nvm in ghcr.io/gophersys/base (NODE_VERSION 24.x)."
+    exit 127
+  fi
+  log_dim "mutate: StrykerJS under node $(node --version) (the dev-gate node; the runtime stays bun)"
+
+  local ws="$EDEN_TS_WORKSPACE"
+  local core_bin="${ws}/node_modules/@stryker-mutator/core/bin/stryker.js"
+  if [[ ! -f "$core_bin" ]]; then log_error "missing Stryker core bin: ${core_bin}"; exit 127; fi
+
+  # The mutate target set: every non-test src module except the pure re-export barrel index.ts.
+  # (Mirrors the cover-floor include/exclude — the barrel has no logic to mutate.)
+  local mutate_json
+  if [[ -f "${PROJECT_ROOT}/src/index.ts" ]] && [[ "$(find "${PROJECT_ROOT}/src" -maxdepth 1 -name '*.ts' ! -name '*.test.ts' ! -name '*.spec.ts' | wc -l | tr -d ' ')" == "1" ]]; then
+    # single-module leaf (e.g. scale): all logic lives in index.ts, so mutate it.
+    mutate_json='["src/index.ts"]'
+  else
+    mutate_json='["src/**/*.ts","!src/index.ts","!src/**/*.test.ts","!src/**/*.property.test.ts","!src/**/*.design.test.ts","!src/**/*.spec.ts"]'
+  fi
+
+  # Normal node_modules resolution: the vitest-runner plugin is named by its plain specifier and
+  # Stryker resolves it (with its peer @stryker-mutator/api co-resolved) through node — no store path.
+  local cfg; cfg="$(mktemp -t "${EDEN_LIB_NAME}-stryker.XXXXXX.json")"
+  cat > "$cfg" <<JSON
+{
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": { "configFile": "vitest.config.ts" },
+  "mutate": ${mutate_json},
+  "reporters": ["clear-text"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 4,
+  "checkers": [],
+  "inPlace": true,
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "thresholds": { "high": 90, "low": 80, "break": ${EDEN_MUTATION_FLOOR} }
+}
+JSON
+
+  log_info "mutate: StrykerJS over ${EDEN_LIB_SCOPE}/${EDEN_LIB_NAME} src (break FLOOR ${EDEN_MUTATION_FLOOR}% — the gremlins ≥0.75 analog)"
+  local rc=0
+  ( cd "$PROJECT_ROOT" && node "$core_bin" run "$cfg" ) || rc=$?
+
+  rm -f "$cfg"
+  rm -rf "${PROJECT_ROOT}/.stryker-tmp"
+
+  if [[ $rc -ne 0 ]]; then
+    log_error "mutate: mutation score below FLOOR ${EDEN_MUTATION_FLOOR}% (or the run failed) — a survived mutant on covered code is a real test gap (rule 21 §h). Strengthen the test to kill it."
+    return 1
+  fi
+  log_success "mutate: OK (mutation score ≥ ${EDEN_MUTATION_FLOOR}%)"
+}
+
 # ── the SDLC phase-gate sequencer (ADR-0024 — mirrors libs/go/_ctl/lib.sh) ────────────────────
 # `phase-gate <architecture|implementation|testing|qa|all>` — the mechanical gate per SDLC phase.
 # Each gate runs EVERY dimension, prints a per-dimension PASS/FAIL/REQUIRED-BUT-ABSENT table, and
@@ -394,14 +510,19 @@ phase_testing() {
   _gate_summary
 }
 
-# PHASE 4 — QA: cross-cutting gates + no-shortcuts + the frozen-surface evidence.
+# PHASE 4 — QA: cross-cutting gates + no-shortcuts + cohesion + mutation + the frozen-surface
+# evidence. The mutation lane (StrykerJS) + the cohesion scan (dead-export + cross-lib math
+# duplication) are the Stage-3 ENFORCE teeth — the gremlins-≥0.75 + one-concept-one-home analogs the
+# TS track previously lacked (mirrors the Go qa gate's `mutate` + `maintainability` cohesion).
 phase_qa() {
   _gate_reset
-  log_info "PHASE 4 — QUALITY ASSURANCE (cross-cutting gates + adversarial review)"
-  _gate_run "maintainability (strict lint + typecheck + name lint + format)" cmd_maintainability
+  log_info "PHASE 4 — QUALITY ASSURANCE (cross-cutting gates + cohesion + mutation + adversarial review)"
+  _gate_run "maintainability (strict lint + typecheck + name lint + format + cohesion)" cmd_maintainability
+  _gate_run "cohesion (dead-export + cross-lib math-duplication — one concept, one home)" cmd_cohesion
   _gate_run "design-correctness (the ninth dimension)" cmd_design_correctness
   _gate_run "no-shortcuts grep (ADR-0017)" _gate_no_shortcuts
   _gate_run "cover-floor (per-package FLOOR)" cmd_cover_floor
+  _gate_run "mutate (StrykerJS — break FLOOR ${EDEN_MUTATION_FLOOR}%, the gremlins ≥0.75 analog)" cmd_mutate
   _gate_run "apidiff: no break vs .apibaseline" cmd_apidiff
   _gate_run "evidence bundle present (.apibaseline frozen surface)" _gate_evidence_bundle
   _gate_summary
@@ -471,8 +592,10 @@ Authoring verbs:
 
 ADR-0024 test-taxonomy verbs:
   property           fast-check invariant suites
-  cover-floor        per-package coverage FLOOR (vitest v8)
-  maintainability    typecheck + strict eslint + format check
+  cover-floor        per-package coverage FLOOR
+  maintainability    typecheck + strict eslint + format check + cohesion
+  cohesion           dead-export + cross-lib math-duplication scan (one concept, one home)
+  mutate             StrykerJS mutation lane (break FLOOR ${EDEN_MUTATION_FLOOR}% — the gremlins ≥0.75 analog)
   design-correctness the ninth dimension — math-is-source-of-truth (provenance + design lane)
   apidiff            diff the exported .d.ts surface vs the frozen .apibaseline (cardinal sin)
   apidiff-record     record the frozen surface (architecture gate / contract revision)
@@ -496,6 +619,8 @@ lib_main() {
     property)            cmd_property            "$@" ;;
     cover-floor)         cmd_cover_floor         "$@" ;;
     maintainability)     cmd_maintainability     "$@" ;;
+    cohesion)            cmd_cohesion            "$@" ;;
+    mutate)              cmd_mutate              "$@" ;;
     design-correctness)  cmd_design_correctness  "$@" ;;
     apidiff)             cmd_apidiff             "$@" ;;
     apidiff-record)      cmd_apidiff_record      "$@" ;;

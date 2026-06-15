@@ -1,26 +1,47 @@
 /**
  * Typography scale — type sizes, line-height, tracking, and fluid clamp (research §B.1).
  *
- * The type scale is a GEOMETRIC progression `size(i) = base · ratio^i` (the same generator as
- * `@eden/scale`, re-derived here so `@eden/theme` stays a dependency-free leaf — one concept, the
- * scale formula, is cited not re-invented). Line-height FALLS with size and RISES with measure
- * (Formula in B1-C), with the WCAG 1.4.12 hard floor that BODY line-height survives ≥1.5×.
- * Tracking crosses zero (positive small, negative display). Fluid type is the clamp() of B1-B, and
- * MUST keep a rem term (WCAG 1.4.4 — zoom must enlarge text).
+ * The type scale is a GEOMETRIC progression `size(i) = base · ratio^i`. That generator and its
+ * ratio/base seeds live ONCE in the sibling foundation lib `@eden/scale` (`stepAt`,
+ * `DEFAULT_BASE_PX`, `DEFAULT_TYPE_RATIO`); `@eden/theme` DEPENDS ON and CITES it rather than
+ * re-deriving the formula or the ratio table (one concept, one home — 10 §9). Line-height FALLS
+ * with size and RISES with measure (Formula in B1-C), with the WCAG 1.4.12 hard floor that BODY
+ * line-height survives ≥1.5×. Tracking crosses zero (positive small, negative display). Fluid type
+ * is the clamp() of B1-B, and MUST keep a rem term (WCAG 1.4.4 — zoom must enlarge text).
  *
  * MATH IS SOURCE OF TRUTH (ADR-0024 §7): C21's hand-picked irregular sizes are RE-DERIVED through
- * this geometric generator (D2 / OD-17-c21), never pinned.
+ * `@eden/scale`'s geometric generator (D2 / OD-17-c21), never pinned.
  */
+import { stepAt, DEFAULT_BASE_PX, DEFAULT_TYPE_RATIO as SCALE_TYPE_RATIO } from '@eden/scale';
 
-/** The shared 16px origin for the type and spacing scales (research §B.1 / §B.2). */
-export const BASE_SIZE_PX = 16;
+/**
+ * The shared 16px origin for the type and spacing scales (research §B.1 / §B.2). The value is
+ * `@eden/scale`'s `DEFAULT_BASE_PX` — cited here, not re-declared (one concept, one home). Its
+ * literal `16` type is preserved (the frozen published contract); a change to the scale origin is
+ * a deliberate, gated edit there, surfaced by this lib's apidiff.
+ */
+export const BASE_SIZE_PX = DEFAULT_BASE_PX;
 
 /**
  * The default type ratio: the MINOR THIRD, 1.20 (research §B.1 Table B1-A, "the research default
  * for general UI/web"). OD-17-type-ratio resolved-as-default: 1.20 for general UI (1.25 marketing,
- * φ=1.618 opt-in only — never privileged, golden-ratio-as-beauty is research ⚠️ myth).
+ * φ=1.618 opt-in only — never privileged, golden-ratio-as-beauty is research ⚠️ myth). The value
+ * equals `@eden/scale`'s `DEFAULT_TYPE_RATIO` (= `INTERVAL_RATIO['minor-third']`). The `1.2` literal
+ * is the frozen published contract (kept as the source of the type so the surface does not move);
+ * a module-load assertion below CITES scale and FAILS LOUDLY if the two ever drift apart — so the
+ * ratio table still lives once in scale, and theme's copy can never silently diverge from it.
  */
 export const DEFAULT_TYPE_RATIO = 1.2;
+
+// CITE @eden/scale: the type ratio's single home is scale's INTERVAL_RATIO table. We keep the `1.2`
+// literal here only to pin the frozen public type, and assert at module load that it still equals
+// the cited value — a drift in scale's minor-third default fails here, never passes silently.
+if ((DEFAULT_TYPE_RATIO as number) !== SCALE_TYPE_RATIO) {
+  throw new Error(
+    `@eden/theme DEFAULT_TYPE_RATIO (${String(DEFAULT_TYPE_RATIO)}) drifted from ` +
+      `@eden/scale DEFAULT_TYPE_RATIO (${String(SCALE_TYPE_RATIO)}) — the minor-third ratio must cite scale.`,
+  );
+}
 
 /** WCAG 1.4.12 hard floor: body line-height must survive a user override to ≥1.5× (research B1-C). */
 export const BODY_LINE_HEIGHT_FLOOR = 1.5;
@@ -38,9 +59,18 @@ const TRACK_MAX_EM = 0.05;
 
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
 
-/** The geometric type-scale generator `size(i) = base · ratio^i` (research §B.1). */
-export function typeSizePx(index: number, base = BASE_SIZE_PX, ratio = DEFAULT_TYPE_RATIO): number {
-  return base * ratio ** index;
+/**
+ * The geometric type-scale generator `size(i) = base · ratio^i` (research §B.1). Delegates to
+ * `@eden/scale`'s `stepAt` — the single home of the modular-scale formula — so `@eden/theme` cites
+ * the generator instead of re-deriving it (one concept, one home — 10 §9). The produced sizes are
+ * bit-identical to the cited formula (the design-correctness ladder is asserted unchanged).
+ */
+export function typeSizePx(
+  index: number,
+  base: number = BASE_SIZE_PX,
+  ratio: number = DEFAULT_TYPE_RATIO,
+): number {
+  return stepAt({ base, ratio }, index);
 }
 
 /**

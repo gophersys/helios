@@ -6,3 +6,10 @@ node_modules/
 *.tsbuildinfo
 **/.tsbuildinfo
 .nx/
+
+# StrykerJS mutation lane (`ctl.sh mutate`) scratch — the per-lib temp dir + report (always removed
+# on exit; ignored defensively so an interrupted run never stages scratch). The lane runs StrykerJS
+# under the baked node (nvm); there is no committed patch/shim to exempt.
+**/.stryker-tmp/
+**/stryker.log
+**/reports/mutation/

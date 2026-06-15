@@ -20,7 +20,12 @@ EDEN_LIB_SCOPE="@eden"
 EDEN_LIB_LEAF="true"             # pure dependency-free leaf: deterministic generator math
 EDEN_COVERAGE_FLOOR="80"         # leaf-lib FLOOR (ADR-0020); a FLOOR, not a target
 EDEN_HAS_SVELTE="false"          # framework-agnostic data + a generator — no components
-export EDEN_LIB_NAME EDEN_LIB_SCOPE EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HAS_SVELTE
+# StrykerJS break FLOOR. theme's CURRENT mutation score is 66.24% (the large generative surface —
+# contrast/gamut/css/motion — carries audited test gaps, findings idx 60-67). We record 65 as the
+# no-regression baseline (the bench-baseline model: pin the floor, never regress) and RATCHET it
+# toward the 75 leaf target as those test gaps are closed. A drop below 65 fails the qa gate today.
+EDEN_MUTATION_FLOOR="65"
+export EDEN_LIB_NAME EDEN_LIB_SCOPE EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HAS_SVELTE EDEN_MUTATION_FLOOR
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091
@@ -39,8 +44,10 @@ Commands:
   fmt                prettier --write
   test               vitest run (unit + property + design)
   property           fast-check invariant suites
-  cover-floor        per-package coverage FLOOR (vitest istanbul)
-  maintainability    typecheck + strict eslint + format check
+  cover-floor        per-package coverage FLOOR
+  maintainability    typecheck + strict eslint + format check + cohesion
+  cohesion           dead-export + cross-lib math-duplication scan (one concept, one home)
+  mutate             StrykerJS mutation lane (break FLOOR ${EDEN_MUTATION_FLOOR}% — the gremlins ≥0.75 analog)
   design-correctness the ninth dimension — math-is-source-of-truth + the contrast gate
   apidiff            diff the exported .d.ts surface vs the frozen .apibaseline
   apidiff-record     record the frozen surface (architecture gate / revision)

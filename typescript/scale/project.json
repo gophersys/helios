@@ -50,6 +50,16 @@
       "options": { "command": "bash ./ctl.sh maintainability", "cwd": "{projectRoot}" },
       "cache": false
     },
+    "cohesion": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh cohesion", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "mutate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh mutate", "cwd": "{projectRoot}" },
+      "cache": false
+    },
     "design-correctness": {
       "executor": "nx:run-commands",
       "options": { "command": "bash ./ctl.sh design-correctness", "cwd": "{projectRoot}" },

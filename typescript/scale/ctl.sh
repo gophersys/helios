@@ -20,7 +20,8 @@ EDEN_LIB_SCOPE="@eden"
 EDEN_LIB_LEAF="true"             # pure dependency-free leaf utility
 EDEN_COVERAGE_FLOOR="80"         # leaf-lib FLOOR (ADR-0020); a FLOOR, not a target
 EDEN_HAS_SVELTE="false"          # no components — pure math, so no svelte-check / a11y lane
-export EDEN_LIB_NAME EDEN_LIB_SCOPE EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HAS_SVELTE
+EDEN_MUTATION_FLOOR="75"         # StrykerJS break FLOOR — the gremlins ≥0.75 leaf floor (scale: 77.78%)
+export EDEN_LIB_NAME EDEN_LIB_SCOPE EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HAS_SVELTE EDEN_MUTATION_FLOOR
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091
@@ -39,8 +40,10 @@ Commands:
   fmt                prettier --write
   test               vitest run (unit + property + design)
   property           fast-check invariant suites
-  cover-floor        per-package coverage FLOOR (vitest v8)
-  maintainability    typecheck + strict eslint + format check
+  cover-floor        per-package coverage FLOOR
+  maintainability    typecheck + strict eslint + format check + cohesion
+  cohesion           dead-export + cross-lib math-duplication scan (one concept, one home)
+  mutate             StrykerJS mutation lane (break FLOOR ${EDEN_MUTATION_FLOOR}% — the gremlins ≥0.75 analog)
   design-correctness the ninth dimension — math-is-source-of-truth
   apidiff            diff the exported .d.ts surface vs the frozen .apibaseline
   apidiff-record     record the frozen surface (architecture gate / revision)
