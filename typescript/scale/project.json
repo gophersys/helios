@@ -1,0 +1,74 @@
+{
+  "name": "scale",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/typescript/scale/src",
+  "tags": ["scope:libs", "type:typescript", "eden:leaf", "eden:coverage-floor=80"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh build", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh typecheck", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh lint", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh format", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "fmt": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh fmt", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh test", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "property": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh property", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "cover-floor": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh cover-floor", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "maintainability": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh maintainability", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "design-correctness": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh design-correctness", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "apidiff": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh apidiff", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "apidiff-record": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh apidiff-record", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "phase-gate": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh phase-gate all", "cwd": "{projectRoot}" },
+      "cache": false
+    }
+  }
+}

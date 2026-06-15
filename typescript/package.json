@@ -1,0 +1,27 @@
+{
+  "name": "@eden/typescript-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Workspace-level home of the TypeScript/Svelte library-engineering pipeline (ADR-0024): the shared tooling config (tsconfig base, eslint flat config, prettier, vitest) plus the dev-dependency toolchain every @eden/* library gates against. The ADR-0020 analog for the UI track. Tooling runs through bun (the devcontainer's JS runtime); see _ctl/lib.sh.",
+  "type": "module",
+  "workspaces": [
+    "*"
+  ],
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "@vitest/coverage-istanbul": "3.2.4",
+    "eslint": "9.39.0",
+    "typescript-eslint": "8.46.4",
+    "@eslint/js": "9.39.0",
+    "globals": "16.5.0",
+    "prettier": "3.8.1",
+    "svelte": "5.43.5",
+    "svelte-check": "4.4.2",
+    "eslint-plugin-svelte": "3.12.5",
+    "prettier-plugin-svelte": "3.4.0",
+    "fast-check": "4.5.0",
+    "@fast-check/vitest": "0.2.2"
+  }
+}

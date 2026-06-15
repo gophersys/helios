@@ -1,0 +1,8 @@
+# libs/typescript workspace (ADR-0024) — never commit build artifacts, coverage, deps.
+node_modules/
+**/dist/
+**/coverage/
+**/.svelte-kit/
+*.tsbuildinfo
+**/.tsbuildinfo
+.nx/
