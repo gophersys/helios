@@ -81,6 +81,16 @@ func Check(dir string) []Diagnostic {
 
 	diags = append(diags, checkPackageNames(dir, slug, pkgs)...)
 
+	// Rule 5 (banned exported identifiers): no exported type/field/func/method may
+	// be a bare banned token, and no declared type name may be a full-spelled spine
+	// outlier (Configuration/Dependencies) — the surface forbidigo cannot see on a
+	// capitalized identifier (10 §5; founder ruling 2026-06-15).
+	diags = append(diags, checkExportedIdentifiers(dir)...)
+
+	// Rule 6 (conformance-suite entrypoint): a <lib>test package that drives a
+	// conformance suite exposes exactly one Run<Role>Suite entrypoint (08 §2).
+	diags = append(diags, checkConformanceEntrypoint(dir, slug)...)
+
 	return sortDiagnostics(diags)
 }
 
