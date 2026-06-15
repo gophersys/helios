@@ -416,7 +416,30 @@
 </div>
 
 <style>
+  /* ── token bridge ─────────────────────────────────────────────────────────.
+     The wizard subtree (this component + PillGroup + ChipInput) was authored against a local
+     token vocabulary (--accent, --muted, --panel-*, --fg, --radius, --color-bone/ink, --type-micro,
+     --chip-warn-*, --navbg/--chipbg) that the generated @eden/theme substrate does NOT emit — it
+     emits --color-*, --space-*, --font-size-*, plus the +layout --eden-app-* aliases. Left unbridged,
+     every accent control rendered with no background and transparent text (--accent/--color-bone
+     undefined), inputs/borders were unstyled, and micro-labels collapsed to the inherited size — the
+     create-flow centerpiece was invisible. Bridge each local token to a GENERATED role token here, at
+     the wizard root, so the whole subtree inherits a math-sourced value (one hue source, no literals). */
   .scrim {
+    --accent: var(--color-primary);
+    --color-bone: var(--color-on-primary);
+    --color-ink: var(--color-on-surface);
+    --fg: var(--color-on-surface);
+    --muted: var(--eden-app-muted);
+    --panel-bg: var(--color-surface);
+    --panel-line: var(--color-outline);
+    --radius: var(--eden-app-radius, var(--space-2, 8px));
+    --type-micro: var(--font-size-caption, 12px);
+    --chip-warn-fg: var(--color-warning);
+    --chip-warn-bg: color-mix(in oklab, var(--color-warning) 14%, var(--color-surface));
+    --navbg: color-mix(in oklab, var(--color-on-surface) 6%, var(--color-surface));
+    --chipbg: var(--navbg);
+
     position: fixed;
     inset: 0;
     background: color-mix(in srgb, var(--color-ink) 55%, transparent);
@@ -425,6 +448,15 @@
     justify-content: center;
     padding: 1.5rem;
     z-index: 10;
+  }
+  /* The `.wizard panel` surface (the dialog card). `.panel` was a bare, undefined class — give it the
+     generated surface (token-driven) so the wizard reads as a raised panel, not a transparent box. */
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-line);
+    border-radius: calc(var(--radius) * 1.5);
+    padding: 1.25rem;
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--color-on-surface) 18%, transparent);
   }
   .wizard {
     width: min(640px, 100%);

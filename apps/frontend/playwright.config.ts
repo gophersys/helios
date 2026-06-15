@@ -24,5 +24,16 @@ export default defineConfig({
     trace: 'retain-on-failure',
     headless: true,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Chromium is the default lane; WebKit is added so the design-math / a11y dimension is asserted on
+  // BOTH engines (the create-product E2E audits the wizard cross-engine). The runner exports
+  // E2E_BROWSERS=chromium,webkit; default to chromium so the suite stays fast when run standalone.
+  projects: (process.env.E2E_BROWSERS ?? 'chromium')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) =>
+      name === 'webkit'
+        ? { name: 'webkit', use: { ...devices['Desktop Safari'] } }
+        : { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    ),
 });
