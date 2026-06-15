@@ -48,18 +48,21 @@ type Adapter struct {
 	binary string
 }
 
-// New returns the omp adapter (the ADR-0008 omp lane) configured to spawn the default "omp"
-// binary. It is PURE: no env, no process, no secret.
-func New() *Adapter { return NewWithConfig(Config{}) }
-
-// NewWithConfig returns the omp adapter with an explicit Config (the integration seam for
-// the stub binary). PURE.
-func NewWithConfig(configuration Config) *Adapter {
+// New returns the omp adapter (the ADR-0008 omp lane) on the canonical constructor spine
+// New(configuration[, dependencies]) (*T, error). This adapter needs no dependencies (it
+// injects no ports), so the spine collapses to the single configuration argument; the zero
+// Config selects the default "omp" binary, so New(Config{}) is the default entry and
+// New(Config{Binary: stub}) is the integration seam for a stub binary. It is PURE: no env,
+// no process, no secret. The error return is part of the spine; New never fails today, so
+// it returns nil, but the shape is uniform with every other New.
+//
+//nolint:gocritic,unparam // contract: Config is the frozen copyable configuration (taken by value); the (*Adapter, error) return is the canonical New spine shape even though this pure constructor cannot fail today.
+func New(configuration Config) (*Adapter, error) {
 	binary := configuration.Binary
 	if binary == "" {
 		binary = ompBinary
 	}
-	return &Adapter{binary: binary}
+	return &Adapter{binary: binary}, nil
 }
 
 // Manifest declares the capabilities `omp` supports, as measured in the live spike.

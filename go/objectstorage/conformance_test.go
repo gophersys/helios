@@ -22,13 +22,17 @@ const conformanceBucket = "eden-objectstorage-conformance"
 func TestConformanceFakeBacked(t *testing.T) {
 	t.Parallel()
 	objectstoragetest.RunStoreSuite(t, func() objectstorage.ObjectStore {
+		// The fake is constructed WITH the canary credential (the in-memory analog of the secret key
+		// the real adapter resolves), and the SAME value is threaded as the suite's redaction needle —
+		// so the presign-redaction assertion is LIVE on the fake binding: it hunts for the exact value
+		// the fake holds, not a stale constant.
 		objectStore, err := objectstorage.New(
 			objectstorage.Config{},
-			objectstorage.Deps{Backend: objectstoragetest.NewBackend()},
+			objectstorage.Deps{Backend: objectstoragetest.NewBackendWithCredential(objectstoragetest.SeededCredentialCanary)},
 		)
 		if err != nil {
 			t.Fatalf("objectstorage.New error = %v", err)
 		}
 		return objectStore
-	}, conformanceBucket)
+	}, conformanceBucket, objectstoragetest.SeededCredentialCanary)
 }

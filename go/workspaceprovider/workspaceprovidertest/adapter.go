@@ -57,6 +57,7 @@ type Adapter struct {
 	oomNext    bool
 	deniedHost map[string]bool
 	watchSinks []chan workspaceprovider.WatchEvent // live Watch streams (supervision conformance)
+	failWatch  error                               // when set, Watch errors immediately (the partial-failure-reap test)
 }
 
 // fakeWorkspace is the in-memory native object the fake Adapter models.
@@ -68,6 +69,12 @@ type fakeWorkspace struct {
 	readOnly  map[string]bool // path prefix -> read-only (MountInputs)
 	running   bool
 	oomKilled bool // the workload-pod (Entrypoint) OOM-kill the supervised Probe surfaces (OD-15-a)
+
+	// forcedStates is a scripted sequence of native States the Probe returns one-per-call (the
+	// LAST entry sticks once exhausted). It lets a conformance case drive the workspace through an
+	// ILLEGAL transition (e.g. Gone -> Ready) so the LIBRARY's State-machine guard is exercised —
+	// the doc-claimed legal-transition invariant turned into an executed test (finding #5).
+	forcedStates []workspaceprovider.State
 }
 
 // Static assertions: *Adapter is a workspaceprovider.Adapter; *fakeWorkspace's connection
@@ -233,6 +240,17 @@ func (a *Adapter) FailProvisionWith(err error) *Adapter {
 	return a
 }
 
+// FailWatchWith makes every Watch return err (starting no goroutine), so a Provider fanned over a
+// HEALTHY adapter + this one exercises the library's partial-failure reap: the healthy adapter's
+// already-started watcher must be canceled, not leaked (finding #6). Stays set (a watch fault is
+// persistent until cleared).
+func (a *Adapter) FailWatchWith(err error) *Adapter {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.failWatch = err
+	return a
+}
+
 // OOMKillRun makes the next Run terminate as RunKilled / ConditionOOMKilled (the
 // after-delay is modeled as "at the terminal transition"), so a consumer drives the
 // runaway-agent path without a real substrate. The delay argument is accepted for
@@ -262,6 +280,19 @@ func (a *Adapter) MarkOOMKilled(handle workspaceprovider.Handle) {
 	defer a.mu.Unlock()
 	if ws, ok := a.state[handle.String()]; ok {
 		ws.oomKilled = true
+	}
+}
+
+// ForceStateSequence scripts the native States the workspace's Probe returns, one per Status call
+// (the last entry sticks once the sequence is exhausted). It exists so a conformance/unit test can
+// drive the workspace through an ILLEGAL transition (e.g. Ready then Gone then Ready — a move OUT of
+// terminal Gone) and assert the LIBRARY's State-machine guard rejects it, turning the documented
+// legal-transition invariant into an executed test (finding #5). A no-op for an unknown handle.
+func (a *Adapter) ForceStateSequence(handle workspaceprovider.Handle, states ...workspaceprovider.State) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if ws, ok := a.state[handle.String()]; ok {
+		ws.forcedStates = append([]workspaceprovider.State(nil), states...)
 	}
 }
 
@@ -474,6 +505,16 @@ func (c *fakeConnection) Files() workspaceprovider.Files {
 func (c *fakeConnection) Probe(_ context.Context) (workspaceprovider.Probe, error) {
 	c.adapter.mu.Lock()
 	defer c.adapter.mu.Unlock()
+	// A scripted state sequence (ForceStateSequence) overrides the modeled lifecycle so a test can
+	// drive an ILLEGAL transition past the library's State-machine guard. The next entry is consumed
+	// per Probe; the last entry sticks once the sequence is exhausted.
+	if len(c.ws.forcedStates) > 0 {
+		next := c.ws.forcedStates[0]
+		if len(c.ws.forcedStates) > 1 {
+			c.ws.forcedStates = c.ws.forcedStates[1:]
+		}
+		return workspaceprovider.Probe{State: next, Detail: "fake forced state " + next.String()}, nil
+	}
 	probe := workspaceprovider.Probe{State: workspaceprovider.StateReady, Detail: "fake ready"}
 	if c.ws.running {
 		probe.State = workspaceprovider.StateRunning

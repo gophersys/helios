@@ -69,9 +69,13 @@ func TestIntegration_RealMinioConformance(t *testing.T) {
 	requireDocker(t)
 	m := startRealMinio(t)
 
+	// secretCanary is threaded as the suite's redaction needle: the REAL secret key the adapter
+	// resolved through the secretstest fake. The suite's presign assertion now hunts for the value
+	// the real system was actually seeded with (not a stale constant), so the redaction property is
+	// LIVE on the real binding — the audit's "vacuous needle" fix.
 	objectstoragetest.RunStoreSuite(t, func() objectstorage.ObjectStore {
 		return newRealStore(t, m)
-	}, m.bucket)
+	}, m.bucket, secretCanary)
 }
 
 // TestIntegration_RealMinioRoundTripByteForByte is the load-bearing real-MinIO proof: it Puts a
@@ -123,13 +127,15 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Presign against real MinIO: %v", err)
 	}
+	// One redaction home: the presign surface's secret-key absence is proven by the shared
+	// RunStoreSuite assertion above (threaded with secretCanary). Here we additionally assert the
+	// secret never surfaces through the ObjectInfo rendering — a surface the suite does not cover —
+	// via the SAME AssertNoCredentialLeak helper, so the needle is the value the system resolved.
 	for surface, rendered := range map[string]string{
 		"ObjectInfo": getInfo.Ref.String() + getInfo.ETag + getInfo.ContentType,
 		"presign":    signed.String(),
 	} {
-		if strings.Contains(rendered, secretCanary) {
-			t.Fatalf("REAL-MinIO SECRET key leaked through %s: %q", surface, rendered)
-		}
+		objectstoragetest.AssertNoCredentialLeak(t, "real-minio-"+surface, rendered, secretCanary)
 	}
 	// The presigned URL DOES carry the access-key ID in its SigV4 credential scope (a public
 	// identifier) — assert that, so the distinction (secret-never, identifier-maybe) is documented

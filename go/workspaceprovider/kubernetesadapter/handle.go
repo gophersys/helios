@@ -1,8 +1,6 @@
 package kubernetesadapter
 
 import (
-	"strings"
-
 	"github.com/gophersys/libs/go/workspaceprovider"
 )
 
@@ -19,7 +17,8 @@ const workspacePodName = "workspace"
 // by (namespace, workspacePodName), so Dial/Destroy re-derive the address from the Handle's
 // Namespace() alone — stable across a control-plane restart (CapReattach).
 func (a *Adapter) handleFor(spec *workspaceprovider.WorkspaceSpec, namespace, workDir string) workspaceprovider.Handle {
-	raw := string(workspaceprovider.SubstrateKubernetes) + "://" + joinSegments(
+	raw := workspaceprovider.EncodeHandle(
+		workspaceprovider.SubstrateKubernetes,
 		namespace,
 		spec.Labels[workspaceprovider.LabelOrganization],
 		spec.Labels[workspaceprovider.LabelProject],
@@ -45,36 +44,4 @@ func handleNamespace(handle workspaceprovider.Handle) string {
 		return ""
 	}
 	return handle.Namespace()
-}
-
-// joinSegments percent-encodes and joins the canonical Handle path segments. It mirrors the
-// library's internal encoding (only "/" and "%" are escaped) so ParseHandle round-trips a
-// workdir like "/workspace" exactly.
-func joinSegments(segments ...string) string {
-	encoded := make([]string, len(segments))
-	for i, s := range segments {
-		encoded[i] = encodeSegment(s)
-	}
-	return strings.Join(encoded, "/")
-}
-
-// encodeSegment escapes "/" and "%" so a segment is safe inside the "/"-joined canonical Handle
-// form (it mirrors the library's encodeSegment so the round-trip is exact).
-func encodeSegment(s string) string {
-	if !strings.ContainsAny(s, "/%") {
-		return s
-	}
-	var b strings.Builder
-	b.Grow(len(s) + 2)
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '%':
-			b.WriteString("%25")
-		case '/':
-			b.WriteString("%2F")
-		default:
-			b.WriteByte(s[i])
-		}
-	}
-	return b.String()
 }

@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -423,6 +424,107 @@ func TestDocker_CredentialInjectionSeam(t *testing.T) {
 	}
 }
 
+// dockerCanary is the seeded redaction needle for the REAL-injection no-leak scan: a credential
+// plaintext the secrets provider resolves server-side, which must appear in NO surfaced artifact at
+// the REAL injection site — not the hold container's persisted Env (ContainerInspect.Config.Env),
+// not a supervised Event.Detail, not Run.Logs, not the loggable Handle/Status. The library carries
+// only the loggable Reference; the value lives ONLY on the transient exec child / tmpfs file.
+const (
+	dockerCanary    = "SEEDED-CANARY-dockeradapter-realinject-d34db33f-do-not-leak" // #nosec G101 -- a test redaction needle, the whole point is to prove it NEVER surfaces.
+	dockerCanaryRef = "vault://eden/anthropic#docker-canary"                        // #nosec G101 -- a loggable secrets.Reference URI, not a value.
+)
+
+// TestDocker_CanaryNeverLeaksAtRealInjectionSite extends the redaction no-leak scan to the REAL
+// docker injection surface (finding #4: the canary scan previously ran ONLY over the in-memory
+// fake). It provisions a workspace whose Run credential resolves to the seeded canary (VehicleEnv —
+// the env-injection path), drives the workload + supervision, then asserts the canary appears in
+// NONE of: the hold container's persisted Config.Env (the value rides the TRANSIENT exec child, not
+// the long-lived container's env), the streamed Run.Logs, any supervised Event.Detail, the Handle,
+// or the Status. WEAKEN-TO-CONFIRM: place the credential on the hold container's Config.Env at
+// Create (instead of the transient exec) and ContainerInspect would surface it — this fails.
+//
+//nolint:gocognit,cyclop,paralleltest // a deliberate linear real-substrate walk over the credential no-leak surface; serial by design (spins a real container + supervision stream).
+func TestDocker_CanaryNeverLeaksAtRealInjectionSite(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+	prov := newProviderWithSecrets(t, adapter, map[string]string{dockerCanaryRef: dockerCanary})
+
+	spec := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-canary-real",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     testImage,
+		Mounts:    []workspaceprovider.Mount{{Kind: workspaceprovider.MountBind, Target: "/workspace"}},
+		Labels:    map[string]string{workspaceprovider.LabelOrganization: "org-cr", workspaceprovider.LabelProject: "proj-cr"},
+	}
+	ws, err := prov.Provision(ctx, spec)
+	if err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	t.Cleanup(func() { _ = prov.Teardown(context.WithoutCancel(ctx), ws.Handle()) }) //nolint:errcheck // best-effort cleanup; Teardown is idempotent.
+
+	// A Run whose credential resolves to the canary (VehicleEnv): the value reaches the workload's
+	// CHILD env only, never the hold container's persisted Env.
+	run, rerr := ws.Run(ctx, workspaceprovider.RunSpec{
+		Command:    []string{"sh", "-c", "printf %s \"$EDEN_WORKLOAD_CREDENTIAL\" > /workspace/cred.txt; echo ran"},
+		Credential: secrets.Ref(dockerCanaryRef),
+		Vehicle:    workspaceprovider.VehicleEnv,
+	})
+	if rerr != nil {
+		t.Fatalf("Run: %v", rerr)
+	}
+	if final := drainRun(ctx, run); final.Phase != workspaceprovider.RunSucceeded {
+		t.Errorf("canary run phase = %v, want Succeeded", final.Phase)
+	}
+	// The workload could READ its own credential (the legitimate point-of-use), but it must NOT
+	// surface in Run.Logs (the raw stdout the library streams).
+	if rc, lerr := run.Logs(ctx, 0); lerr == nil {
+		data, _ := readAll(rc) //nolint:errcheck // EOF terminates the read; the bytes are the result.
+		if strings.Contains(string(data), dockerCanary) {
+			t.Errorf("canary leaked into Run.Logs")
+		}
+	}
+
+	// The DECISIVE real-injection assertion: the hold container's persisted Env (what
+	// ContainerInspect returns) must NOT carry the canary — the value rode the transient exec child.
+	owner, ok := adapter.(*dockeradapter.Adapter)
+	if !ok {
+		t.Fatalf("expected the dockeradapter.Adapter to expose ContainerEnvForTest")
+	}
+	env, eerr := owner.ContainerEnvForTest(ctx, ws.Handle())
+	if eerr != nil {
+		t.Fatalf("inspect container env: %v", eerr)
+	}
+	for _, e := range env {
+		if strings.Contains(e, dockerCanary) {
+			t.Errorf("canary leaked into the hold container's persisted Config.Env: %q", e)
+		}
+	}
+
+	// Status + Handle must be canary-free.
+	if st, serr := ws.Status(ctx); serr != nil {
+		t.Errorf("Status: %v", serr)
+	} else if strings.Contains(st.Detail, dockerCanary) {
+		t.Errorf("canary leaked into Status.Detail")
+	}
+	if strings.Contains(ws.Handle().String(), dockerCanary) {
+		t.Errorf("canary leaked into the Handle")
+	}
+
+	// Supervision: no normalized Event.Detail for this workspace may carry the canary.
+	watchCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	events, serr := prov.Supervise(watchCtx, workspaceprovider.Selector{Labels: spec.Labels})
+	if serr != nil {
+		t.Fatalf("Supervise: %v", serr)
+	}
+	if ev := awaitDockerEvent(watchCtx, events, ws.Handle()); ev != nil && strings.Contains(ev.Detail, dockerCanary) {
+		t.Errorf("canary leaked into a supervised Event.Detail: %q", ev.Detail)
+	}
+	cancel()
+	for range events { //nolint:revive // intentional drain to channel close.
+	}
+}
+
 // assertWorkspaceFileEquals reads path out of the workspace and asserts its trimmed content == want.
 func assertWorkspaceFileEquals(ctx context.Context, t *testing.T, ws workspaceprovider.Workspace, path, want string) {
 	t.Helper()
@@ -604,6 +706,83 @@ func TestDocker_EntrypointWorkloadIsPID1OOM(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	t.Skipf("the daemon did not enforce the memory cgroup for the Entrypoint PID-1 (rootless/CI); OD-15-a discriminator not inducible here — honest skip, not a fake pass (last State=%v)", last.State)
+}
+
+// TestDocker_ConcurrentSameNameProvisionConverges proves the per-Name SINGLEFLIGHT (the library's
+// Provision keyed lock) closes the check-then-create TOCTOU on the REAL daemon: N goroutines
+// Provision the SAME Name in the SAME tenancy at once and must converge on exactly ONE container —
+// no orphan, no duplicate. WEAKEN-TO-CONFIRM: remove the s.provision.lock from Provision and the
+// concurrent goroutines all miss findExisting then all ContainerCreate, leaving multiple owned
+// containers (CountOwned > 1) — this fails. The in-memory fake's single mutex hid this race; here
+// it is proven against a live daemon (ADR-0016 §2). All survivors are reaped on cleanup.
+//
+//nolint:paralleltest // serial by design: spins real containers under a same-name race; a parallel sibling would contend on the daemon.
+func TestDocker_ConcurrentSameNameProvisionConverges(t *testing.T) {
+	ctx := t.Context()
+	adapter := workspaceprovidertest.EphemeralContainer(t, workspaceprovidertest.WithImages(testImage))
+	prov := newProvider(t, adapter)
+
+	spec := workspaceprovider.WorkspaceSpec{
+		Name:      "ws-singleflight",
+		Substrate: workspaceprovider.SubstrateDocker,
+		Image:     testImage,
+		Mounts:    []workspaceprovider.Mount{{Kind: workspaceprovider.MountBind, Target: "/workspace"}},
+		Labels:    map[string]string{workspaceprovider.LabelOrganization: "org-sf", workspaceprovider.LabelProject: "proj-sf"},
+	}
+	t.Cleanup(func() {
+		// Reap the converged workspace(s): list the ownership domain and tear each down (idempotent).
+		descs, lerr := prov.List(context.WithoutCancel(ctx), workspaceprovider.Selector{Labels: spec.Labels})
+		if lerr != nil {
+			return
+		}
+		for i := range descs {
+			_ = prov.Teardown(context.WithoutCancel(ctx), descs[i].Handle) //nolint:errcheck // best-effort reap on cleanup.
+		}
+	})
+
+	const n = 12
+	var wg sync.WaitGroup
+	handles := make([]string, n)
+	errs := make([]error, n)
+	wg.Add(n)
+	for i := range n {
+		go func() {
+			defer wg.Done()
+			ws, err := prov.Provision(ctx, spec)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			handles[i] = ws.Handle().String()
+		}()
+	}
+	wg.Wait()
+
+	distinct := map[string]struct{}{}
+	for i := range n {
+		if errs[i] != nil {
+			t.Errorf("concurrent same-Name Provision #%d faulted: %v", i, errs[i])
+			continue
+		}
+		distinct[handles[i]] = struct{}{}
+	}
+	if len(distinct) != 1 {
+		t.Errorf("concurrent same-Name Provisions produced %d distinct handles; want exactly 1 (idempotent on Name)", len(distinct))
+	}
+
+	// The decisive no-orphan assertion: the daemon holds exactly ONE container for this workspace
+	// (the singleflight prevented the duplicate Create the TOCTOU race would have caused).
+	owner, ok := adapter.(*dockeradapter.Adapter)
+	if !ok {
+		t.Fatalf("expected the dockeradapter.Adapter to expose CountOwned")
+	}
+	owned, cerr := owner.CountOwned(ctx)
+	if cerr != nil {
+		t.Fatalf("CountOwned: %v", cerr)
+	}
+	if owned != 1 {
+		t.Errorf("concurrent same-Name Provision left %d owned containers; want exactly 1 (the singleflight must collapse the race to one Create)", owned)
+	}
 }
 
 // awaitDockerEvent reads normalized supervision Events looking for one whose Handle matches want,

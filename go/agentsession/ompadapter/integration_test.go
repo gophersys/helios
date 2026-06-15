@@ -42,7 +42,7 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 	t.Parallel()
 	stub := buildStub(t)
 
-	adapter := ompadapter.NewWithConfig(ompadapter.Config{Binary: stub})
+	adapter := ompadapter.MustNewForTest(t, ompadapter.Config{Binary: stub})
 	pool := newPool(t, adapter)
 
 	session, err := pool.Open(context.Background(), agentsession.Spec{
@@ -133,7 +133,7 @@ func assertSubprocessSeqAndNoLeak(t *testing.T, events []agentsession.Event) {
 func TestIntegration_StubBinary_CloseReapsBetweenTurns(t *testing.T) {
 	t.Parallel()
 	stub := buildStub(t)
-	adapter := ompadapter.NewWithConfig(ompadapter.Config{Binary: stub})
+	adapter := ompadapter.MustNewForTest(t, ompadapter.Config{Binary: stub})
 	pool := newPool(t, adapter)
 
 	session, err := pool.Open(context.Background(), agentsession.Spec{
@@ -170,7 +170,7 @@ func TestIntegration_LiveOmp_Gated(t *testing.T) {
 		t.Skip("omp binary not on PATH: skipping the live arm")
 	}
 
-	pool := newPoolWithKey(t, ompadapter.New(), key, "openrouter/deepseek/deepseek-v4-flash")
+	pool := newPoolWithKey(t, ompadapter.MustNewForTest(t, ompadapter.Config{}), key, "openrouter/deepseek/deepseek-v4-flash")
 	session, err := pool.Open(context.Background(), agentsession.Spec{
 		Workspace:  t.TempDir(),
 		Routing:    agentsession.RouteKey{Role: "assistant"},

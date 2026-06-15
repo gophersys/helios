@@ -56,7 +56,10 @@ func TestLifecycle_ProcessConnDoubleCloseAndReaped(t *testing.T) {
 
 	testingpkg.AssertLifecycle(context.Background(), harness, report,
 		func(ctx context.Context, _ testingpkg.Harness) (testingpkg.LifecycleProbe, func(), error) {
-			adapter := claudeadapter.NewWithConfig(claudeadapter.Config{Binary: stub})
+			adapter, err := claudeadapter.New(claudeadapter.Config{Binary: stub})
+			if err != nil {
+				return nil, nil, err
+			}
 			conn, err := adapter.Spawn(
 				ctx,
 				agentsession.Spec{Workspace: t.TempDir(), Routing: agentsession.RouteKey{Role: "assistant"}},

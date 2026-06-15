@@ -33,6 +33,7 @@ func RunAdapterSuite(t *testing.T, newAdapter func() *Adapter) {
 	t.Run("PermissionRoundTripPolicy", func(t *testing.T) { assertPermissionPolicy(t, newAdapter) })
 	t.Run("PermissionRoundTripHumanIdempotent", func(t *testing.T) { assertPermissionHuman(t, newAdapter) })
 	t.Run("SteerObservableMidStream", func(t *testing.T) { assertSteerObservable(t, newAdapter) })
+	t.Run("TurnOrdinalIncrements", func(t *testing.T) { assertTurnOrdinalIncrements(t, newAdapter) })
 	t.Run("CapabilityHonesty", func(t *testing.T) { assertCapabilityHonesty(t, newAdapter) })
 	t.Run("CredentialSeamHolds", func(t *testing.T) { assertCredentialSeam(t, newAdapter) })
 	t.Run("SilentBadTokenConvertsToAuthError", func(t *testing.T) { assertSilentBadToken(t, newAdapter) })

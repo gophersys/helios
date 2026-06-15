@@ -44,6 +44,24 @@ func newHandle(substrate Substrate, namespace, organization, project, name, work
 	return Handle{raw: string(substrate) + schemeSeparator + strings.Join(segments, "/")}
 }
 
+// EncodeHandle renders the canonical Handle STRING from its parts using the library's single
+// segment encoder — the exported seam an Adapter cites instead of re-spelling the percent-encoding
+// and "/"-join (one concept, one home — 10 §9: the docker and kubernetes adapters' handleFor build
+// the same canonical form, so the escaping lives ONCE here, not duplicated per adapter). The
+// returned string round-trips through ParseHandle exactly. It is the string twin of the library's
+// internal newHandle: an adapter produces the canonical string with this, then ParseHandle
+// validates it back into a Handle (so the adapter never constructs a Handle out-of-band).
+func EncodeHandle(substrate Substrate, namespace, organization, project, name, workDir string) string {
+	segments := []string{
+		encodeSegment(namespace),
+		encodeSegment(organization),
+		encodeSegment(project),
+		encodeSegment(name),
+		encodeSegment(workDir),
+	}
+	return string(substrate) + schemeSeparator + strings.Join(segments, "/")
+}
+
 // ParseHandle reconstructs a Handle from its persisted canonical form. PURE;
 // shape-validated; InvalidHandleError (Kind=Invalid) on malformed input. The
 // orchestrator stores Handle.String() and re-hydrates with this across restarts.

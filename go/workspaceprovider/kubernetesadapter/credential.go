@@ -5,13 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"path"
 	"strconv"
 	"strings"
 
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/pathmount"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -181,21 +181,13 @@ func registryHost(image string) string {
 	return "https://index.docker.io/v1/"
 }
 
-// secretMountDir is the directory a MountSecret's secret volume mounts at: the Target's parent,
-// so the projected value file lands AT the Target. A Target with no parent mounts at "/".
-func secretMountDir(target string) string {
-	dir := path.Dir(strings.TrimRight(target, "/"))
-	if dir == "" || dir == "." {
-		return "/"
-	}
-	return dir
-}
+// secretMountDir is the directory a MountSecret's secret volume mounts at, via the shared pathmount
+// derivation (one concept, one home — identical to the docker adapter's tmpfs parent derivation).
+func secretMountDir(target string) string { return pathmount.SecretMountDir(target) }
 
-// secretBaseName is the file name a MountSecret's value is projected as inside its volume (the
-// Target's basename), so the value appears exactly at the Target.
-func secretBaseName(target string) string {
-	return path.Base(strings.TrimRight(target, "/"))
-}
+// secretBaseName is the file name a MountSecret's value is projected as inside its volume, via the
+// shared pathmount derivation (the Target's basename).
+func secretBaseName(target string) string { return pathmount.SecretBaseName(target) }
 
 // injectCredential places the resolved workload credential where the workload reads it, per the
 // spec's Vehicle, at the injection site ONLY, and returns the command the Run exec should run.

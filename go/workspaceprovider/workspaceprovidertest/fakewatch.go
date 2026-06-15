@@ -17,6 +17,17 @@ var _ workspaceprovider.Watcher = (*Adapter)(nil)
 // shape — list-by-label re-adoption first, live transitions after — so the library's normalize/
 // fan-in path is exercised deterministically without a substrate.
 func (a *Adapter) Watch(ctx context.Context, selector workspaceprovider.Selector) (<-chan workspaceprovider.WatchEvent, error) {
+	a.mu.Lock()
+	if a.failWatch != nil {
+		err := a.failWatch
+		a.mu.Unlock()
+		// A failing Watch starts NO goroutine and returns no channel — exactly what the library's
+		// Supervise sees from a faulty adapter, so the partial-failure reap (cancel-on-error) is
+		// exercised: an earlier healthy adapter's started watcher must be reaped, not leaked.
+		return nil, err
+	}
+	a.mu.Unlock()
+
 	out := make(chan workspaceprovider.WatchEvent, 64)
 
 	a.mu.Lock()

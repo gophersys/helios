@@ -17,7 +17,7 @@ import (
 // and host tools are absent, resume/thinking/permission/native-budget are full.
 func TestManifest_DeclaresHeadlessCapabilities(t *testing.T) {
 	t.Parallel()
-	manifest := claudeadapter.New().Manifest()
+	manifest := claudeadapter.MustNewForTest(t, claudeadapter.Config{}).Manifest()
 	want := map[agentsession.Capability]agentsession.CapStatus{
 		agentsession.CapSteer:              agentsession.CapPartial,
 		agentsession.CapResume:             agentsession.CapFull,

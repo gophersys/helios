@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/pathmount"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -632,13 +633,8 @@ func imageOf(pod *corev1.Pod) string {
 	return ""
 }
 
-// defaultWorkDir picks the harness workdir: the first Bind/Inputs mount target, else
-// "/workspace".
+// defaultWorkDir picks the harness workdir via the shared pathmount derivation (one concept, one
+// home — identical to the docker adapter and the library's stampHandle workdir resolution).
 func defaultWorkDir(spec *workspaceprovider.WorkspaceSpec) string {
-	for i := range spec.Mounts {
-		if spec.Mounts[i].Kind == workspaceprovider.MountBind || spec.Mounts[i].Kind == workspaceprovider.MountInputs {
-			return spec.Mounts[i].Target
-		}
-	}
-	return "/workspace"
+	return pathmount.DefaultWorkDir(spec)
 }

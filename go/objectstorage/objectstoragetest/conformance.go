@@ -11,21 +11,29 @@ import (
 	"github.com/gophersys/libs/go/objectstorage"
 )
 
-// SeededCredentialCanary is a fake credential value seeded into the test harness so the suite can
-// assert it appears in NO surfaced artifact (error, ObjectInfo, presigned URL, log). It is
-// high-entropy + self-labeling so a real leak would be unambiguous. It is NEVER a real credential
-// and NEVER the payload — it is the redaction needle the canary assertions hunt for.
+// SeededCredentialCanary is the credential the FAKE binding seeds into its Backend (via
+// NewBackendWithCredential) and threads into RunStoreSuite as the redaction needle. The fake HOLDS
+// it so the presign-redaction assertion is LIVE on the fake binding (a planted leak is catchable),
+// yet the fake never emits it raw. It is high-entropy + self-labeling so a real leak would be
+// unambiguous; it is NEVER a real credential and NEVER the payload. The REAL binding seeds a
+// DIFFERENT value (its container's root secret key) and threads THAT as the needle — each binding's
+// assertion hunts for the value that binding actually resolved (the audit's "wrong needle" fix).
 const SeededCredentialCanary = "OBJSTORE-CANARY-akia-d34db33f-do-not-leak" // #nosec G101 -- a deliberate non-credential redaction NEEDLE, not a hardcoded secret.
 
 // RunStoreSuite asserts the ObjectStore port contract against a freshly-constructed store.
 // newStore returns an ObjectStore bound to an EMPTY backend; bucket names the (existing) bucket
-// the suite Puts/Gets/Lists in. Each property is a self-contained subtest that builds its own
-// store, so the subtests are independent and run in parallel.
+// the suite Puts/Gets/Lists in. seededCredential is the EXACT credential the store under test was
+// constructed with (the fake binding's SeededCredentialCanary; the real binding's container secret
+// key) — the redaction needle the presign assertion proves is absent. Threading it as a SUITE
+// PARAMETER (rather than scanning for a hard-coded constant) is what makes the leak assertion
+// non-vacuous on BOTH bindings: the suite hunts for the value each binding truly resolved. Each
+// property is a self-contained subtest that builds its own store, so the subtests are independent
+// and run in parallel.
 //
 // This is the SINGLE suite both bindings run: the in-memory fake here (conformance_test.go) and
 // the REAL MinIO-backed *Client in the integration lane (minioadapter/integration_test.go). The
 // fake weakens only the byte source, never the contract (ADR-0016 §2).
-func RunStoreSuite(t *testing.T, newStore func() objectstorage.ObjectStore, bucket string) {
+func RunStoreSuite(t *testing.T, newStore func() objectstorage.ObjectStore, bucket, seededCredential string) {
 	t.Helper()
 	t.Run("PutGetRoundTripsByteForByte", func(t *testing.T) {
 		t.Parallel()
@@ -49,7 +57,7 @@ func RunStoreSuite(t *testing.T, newStore func() objectstorage.ObjectStore, buck
 	})
 	t.Run("PresignProducesCredentialFreeURL", func(t *testing.T) {
 		t.Parallel()
-		assertPresignCredentialFree(t, newStore(), bucket)
+		assertPresignCredentialFree(t, newStore(), bucket, seededCredential)
 	})
 	t.Run("NeverReaderAndErrorBothNonNil", func(t *testing.T) {
 		t.Parallel()
@@ -200,9 +208,11 @@ func assertListByPrefix(t *testing.T, objectStore objectstorage.ObjectStore, buc
 	}
 }
 
-// assertPresignCredentialFree: Presign returns a URL whose every component is free of the seeded
-// credential canary (the redaction half of the contract for the presign surface).
-func assertPresignCredentialFree(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
+// assertPresignCredentialFree: Presign returns a URL whose every component is free of the EXACT
+// seededCredential the store under test was constructed with (the redaction half of the contract
+// for the presign surface). The needle is the suite parameter — the value THIS binding actually
+// resolved — so the assertion is live on both the fake and the real-MinIO binding.
+func assertPresignCredentialFree(t *testing.T, objectStore objectstorage.ObjectStore, bucket, seededCredential string) {
 	t.Helper()
 	r := ref(t, bucket, "conformance/presign.bin")
 	signed, err := objectStore.Presign(context.Background(), r, objectstorage.PresignOptions{
@@ -219,7 +229,7 @@ func assertPresignCredentialFree(t *testing.T, objectStore objectstorage.ObjectS
 	if !contains(rendered, r.Key()) {
 		t.Errorf("presigned URL %q does not address the object key %q", rendered, r.Key())
 	}
-	AssertNoCredentialLeak(t, "presigned-url", rendered)
+	AssertNoCredentialLeak(t, "presigned-url", rendered, seededCredential)
 }
 
 // assertNeverBothNonNil: Get never returns a non-nil reader together with a non-nil error.

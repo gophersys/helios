@@ -45,7 +45,7 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 	t.Parallel()
 	stub := buildStub(t)
 
-	adapter := claudeadapter.NewWithConfig(claudeadapter.Config{Binary: stub})
+	adapter := claudeadapter.MustNewForTest(t, claudeadapter.Config{Binary: stub})
 	pool := newPool(t, adapter)
 
 	session, err := pool.Open(context.Background(), agentsession.Spec{
@@ -126,7 +126,7 @@ func assertSubprocessSeqAndNoLeak(t *testing.T, events []agentsession.Event) {
 func TestIntegration_StubBinary_AbortClosesProcess(t *testing.T) {
 	t.Parallel()
 	stub := buildStub(t)
-	adapter := claudeadapter.NewWithConfig(claudeadapter.Config{Binary: stub})
+	adapter := claudeadapter.MustNewForTest(t, claudeadapter.Config{Binary: stub})
 	pool := newPool(t, adapter)
 
 	session, err := pool.Open(context.Background(), agentsession.Spec{
@@ -165,7 +165,7 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 		t.Skip("claude binary not on PATH: skipping the live arm")
 	}
 
-	pool := newPoolWithToken(t, claudeadapter.New(), token)
+	pool := newPoolWithToken(t, claudeadapter.MustNewForTest(t, claudeadapter.Config{}), token)
 	session, err := pool.Open(context.Background(), agentsession.Spec{
 		Workspace:  t.TempDir(),
 		Routing:    agentsession.RouteKey{Role: "assistant"},

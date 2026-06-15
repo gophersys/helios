@@ -8,12 +8,15 @@ type TestingT interface {
 	Errorf(format string, args ...any)
 }
 
-// AssertNoCredentialLeak fails t if the seeded credential canary appears verbatim in a surfaced
-// artifact (a presigned URL, an error message, an ObjectInfo rendering, a captured log) — giving
-// the credential-redaction guarantee a runnable assertion. The canary is SeededCredentialCanary.
-func AssertNoCredentialLeak(t TestingT, surface, rendered string) {
+// AssertNoCredentialLeak fails t if credential appears verbatim in a surfaced artifact (a presigned
+// URL, an error message, an ObjectInfo rendering, a captured log) — giving the credential-redaction
+// guarantee a runnable assertion. credential is the EXACT value the store under test was seeded
+// with (the suite threads it as a parameter — the fake binding's SeededCredentialCanary, the real
+// binding's container secret key), so the needle is never stale: it always matches the credential
+// the system actually resolved. An empty credential is a no-op (nothing to leak).
+func AssertNoCredentialLeak(t TestingT, surface, rendered, credential string) {
 	t.Helper()
-	if strings.Contains(rendered, SeededCredentialCanary) {
-		t.Errorf("credential canary leaked through %s: %q", surface, rendered)
+	if credential != "" && strings.Contains(rendered, credential) {
+		t.Errorf("credential leaked through %s: %q", surface, rendered)
 	}
 }

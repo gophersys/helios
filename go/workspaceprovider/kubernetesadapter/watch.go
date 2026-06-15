@@ -3,21 +3,12 @@ package kubernetesadapter
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/watchloop"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
-
-// watchReconnectDelay bounds the backoff before re-establishing the pod watch after a transient
-// fault / a closed watch channel, so the supervision channel stays open across an apiserver blip
-// (the orchestrator never sees a silent gap — IOTEA's listenForK8sEvents reconnect, adapted).
-const watchReconnectDelay = time.Second
-
-// watchBuffer bounds the raw watch channel so a burst of pod transitions does not block the watch
-// goroutine; the library's normalize fan-in applies the real backpressure.
-const watchBuffer = 64
 
 // Static assertion: *Adapter implements the OPTIONAL workspaceprovider.Watcher seam (it declares
 // CapSupervise). The library type-asserts for this to drive Supervise's kubernetes half.
@@ -31,7 +22,7 @@ var _ workspaceprovider.Watcher = (*Adapter)(nil)
 // reason into a raw WatchEvent the LIBRARY maps onto the platform-neutral Event. A closed/faulted
 // watch reconnects with backoff. The stream closes when ctx is canceled.
 func (a *Adapter) Watch(ctx context.Context, selector workspaceprovider.Selector) (<-chan workspaceprovider.WatchEvent, error) {
-	out := make(chan workspaceprovider.WatchEvent, watchBuffer)
+	out := make(chan workspaceprovider.WatchEvent, watchloop.Buffer)
 	seed, err := a.List(ctx, selector)
 	if err != nil {
 		close(out)
@@ -54,7 +45,7 @@ func (a *Adapter) runWatch(ctx context.Context, selector workspaceprovider.Selec
 			State:  seed[i].State,
 			Detail: "reconcile-from-reality (existing pod)",
 		}
-		if !sendWatch(ctx, out, ev) {
+		if !watchloop.Send(ctx, out, ev) {
 			return
 		}
 	}
@@ -64,7 +55,7 @@ func (a *Adapter) runWatch(ctx context.Context, selector workspaceprovider.Selec
 	for {
 		w, err := a.client.WatchPods(ctx, labelSelector)
 		if err != nil {
-			if !sleepWatchK8s(ctx, watchReconnectDelay) {
+			if !watchloop.Sleep(ctx, watchloop.ReconnectDelay) {
 				return
 			}
 			continue
@@ -75,7 +66,7 @@ func (a *Adapter) runWatch(ctx context.Context, selector workspaceprovider.Selec
 		}
 		w.Stop()
 		// The watch channel closed (apiserver bookmark/timeout): reconnect after a backoff.
-		if !sleepWatchK8s(ctx, watchReconnectDelay) {
+		if !watchloop.Sleep(ctx, watchloop.ReconnectDelay) {
 			return
 		}
 	}
@@ -100,7 +91,7 @@ func (a *Adapter) drainPodWatch(ctx context.Context, w watch.Interface, out chan
 			if !emit {
 				continue
 			}
-			if !sendWatch(ctx, out, ev) {
+			if !watchloop.Send(ctx, out, ev) {
 				return false
 			}
 		}
@@ -159,29 +150,4 @@ func (a *Adapter) watchEventFrom(eventType watch.EventType, pod *corev1.Pod) (wo
 		Conditions: probe.Conditions,
 		Detail:     probe.Detail,
 	}, true
-}
-
-// sendWatch forwards ev onto out, honoring ctx so a canceled watch never blocks on a full buffer
-// with no reader (leak-free).
-//
-//nolint:gocritic // hugeParam: ev is the value forwarded onto the channel (a channel send copies regardless); passing it by value is the natural seam.
-func sendWatch(ctx context.Context, out chan<- workspaceprovider.WatchEvent, ev workspaceprovider.WatchEvent) bool {
-	select {
-	case out <- ev:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-// sleepWatchK8s sleeps for d or returns false when ctx is canceled (the reconnect backoff).
-func sleepWatchK8s(ctx context.Context, d time.Duration) bool {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
 }

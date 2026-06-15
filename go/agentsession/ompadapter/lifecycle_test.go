@@ -53,7 +53,10 @@ type ompSessionProbe struct {
 func newOmpSessionProbe(t *testing.T, stub string) libtesting.LifecycleFactory {
 	t.Helper()
 	return func(ctx context.Context, _ libtesting.Harness) (libtesting.LifecycleProbe, func(), error) {
-		adapter := ompadapter.NewWithConfig(ompadapter.Config{Binary: stub})
+		adapter, err := ompadapter.New(ompadapter.Config{Binary: stub})
+		if err != nil {
+			return nil, nil, err
+		}
 		pool := newPool(t, adapter)
 		session, err := pool.Open(ctx, agentsession.Spec{
 			Workspace:  t.TempDir(),

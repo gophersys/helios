@@ -125,3 +125,19 @@ func (a *Adapter) CountOwned(ctx context.Context) (int, error) {
 	}
 	return len(summaries), nil
 }
+
+// ContainerEnvForTest returns the hold container's PERSISTED environment (ContainerInspect's
+// Config.Env) for the workspace named by handle. The real-injection canary scan (finding #4) asserts
+// a VehicleEnv workload credential never lands here — the value rides the TRANSIENT exec child, not
+// the long-lived container's env — so a leak into Config.Env is a redaction failure. Test-support
+// only.
+func (a *Adapter) ContainerEnvForTest(ctx context.Context, handle workspaceprovider.Handle) ([]string, error) {
+	inspect, err := a.client.ContainerInspect(ctx, containerID(handle))
+	if err != nil {
+		return nil, classifyDockerError("inspect container env", err)
+	}
+	if inspect.Config == nil {
+		return nil, nil
+	}
+	return inspect.Config.Env, nil
+}

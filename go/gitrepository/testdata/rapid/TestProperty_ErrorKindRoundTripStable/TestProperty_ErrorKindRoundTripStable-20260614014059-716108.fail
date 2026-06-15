@@ -1,7 +1,0 @@
-# 2026/06/14 01:40:59.409201 [TestProperty_ErrorKindRoundTripStable] [rapid] draw typedError: 7
-# 2026/06/14 01:40:59.409205 [TestProperty_ErrorKindRoundTripStable] KindOf(WrapError(*gitrepository.AuthError)) = invalid, want unauthenticated
-# 
-v0.4.8#3246374269761634180
-0x0
-0x6b74f03291620
-0x7

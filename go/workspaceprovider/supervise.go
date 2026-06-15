@@ -27,21 +27,39 @@ func (s *Provisioner) Supervise(ctx context.Context, selector Selector) (<-chan 
 		return nil, wrapKind(&UnsupportedError{Cap: CapSupervise})
 	}
 
+	// Derive a cancelable context for the started watchers so a PARTIAL failure (a later adapter's
+	// Watch errors after earlier ones launched their goroutines) does not LEAK the started watchers:
+	// without this, the started watches run on the caller's ctx, which is not canceled on the error
+	// return — their goroutines outlive the failed Supervise. On any Watch error we cancel watchCtx,
+	// reaping every already-started watcher (the goleak dimension proves zero residual goroutines on
+	// the partial-failure path), then return. On success watchCtx is bound to the caller's ctx via
+	// the propagation goroutine below, so canceling the caller's ctx still closes the stream (the
+	// sole shutdown).
+	watchCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+
 	// Start every routable adapter's watch, then fan their raw streams into one merged channel the
 	// normalize goroutine drains. Reconcile-from-reality is the adapter's obligation: each Watch
 	// emits a synthetic WatchEvent per existing object before live changes (list-by-label
 	// re-adoption), so a restart rebuilds the supervised set from the LIVE substrate.
 	raws := make([]<-chan WatchEvent, 0, len(watchers))
 	for _, w := range watchers {
-		raw, err := w.Watch(ctx, selector)
+		raw, err := w.Watch(watchCtx, selector)
 		if err != nil {
+			cancel() // reap the watchers already started on watchCtx before this one failed.
 			return nil, classify(err)
 		}
 		raws = append(raws, raw)
 	}
 
+	// Propagate the caller's cancellation onto watchCtx so canceling the caller's ctx still shuts
+	// the supervision down (the sole shutdown), now that the watchers run on the derived ctx.
+	go func() {
+		<-ctx.Done()
+		cancel()
+	}()
+
 	out := make(chan Event, eventBuffer)
-	go s.fanIn(ctx, mergeWatch(ctx, raws), out)
+	go s.fanIn(watchCtx, mergeWatch(watchCtx, raws), out)
 	return out, nil
 }
 

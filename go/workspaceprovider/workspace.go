@@ -28,6 +28,12 @@ type workspace struct {
 	// empty on an Open re-dial (the clean-room flow provisions fresh, never re-dials).
 	readOnlyTargets []string
 
+	// states enforces the documented legal State-transition set (types.go State doc) on every
+	// Status read: the library — not the adapter — owns the machine, so a substrate Probe that
+	// reads an impossible transition (a move OUT of terminal Gone, an edge not in the graph)
+	// surfaces an IllegalStateTransitionError rather than corrupting the observed lifecycle.
+	states *stateMachine
+
 	mu      sync.Mutex
 	running bool // a primary workload is live (the 1-sandbox-per-execution gate, 07 §3)
 }
@@ -127,12 +133,20 @@ func (f *classifyingFiles) List(ctx context.Context, path string) ([]FileEntry, 
 }
 
 // Status normalizes the adapter's raw Probe into a Status: the library stamps Since from
-// the injected Clock (so New stays pure and the fake is deterministic) and carries the
-// native phase verbatim in Detail without leaking it into the State/Condition enums.
+// the injected Clock (so New stays pure and the fake is deterministic), enforces the legal
+// State-transition machine (rejecting an impossible transition the substrate reported), and
+// carries the native phase verbatim in Detail without leaking it into the State/Condition enums.
 func (w *workspace) Status(ctx context.Context) (Status, error) {
 	probe, err := w.conn.Probe(ctx)
 	if err != nil {
 		return Status{}, classify(err)
+	}
+	if w.states != nil && !w.states.observe(probe.State) {
+		// The substrate Probe read a State the library's machine forbids transitioning INTO from
+		// the last-observed State (a move out of terminal Gone, or an edge not in the documented
+		// graph). The library owns the machine, so this is rejected rather than reported as a
+		// corrupt lifecycle read.
+		return Status{}, wrapKind(&IllegalStateTransitionError{Handle: w.handle, From: w.states.last(), To: probe.State})
 	}
 	return Status{
 		State:      probe.State,

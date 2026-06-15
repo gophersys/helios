@@ -67,6 +67,17 @@ type Provisioner struct {
 	adapters         map[Substrate]Adapter
 	secrets          secrets.Provider
 	clock            dependencies.Clock
+
+	// provision serializes concurrent same-Name Provisions within a tenancy (a per-key
+	// singleflight). The library's idempotency is level-based — re-Provisioning an existing,
+	// compatible workspace re-dials its handle — but the check-then-create across findExisting →
+	// Create has a TOCTOU race on a REAL substrate (two goroutines both miss findExisting, then
+	// both Create, orphaning one container/namespace; the in-memory fake's single mutex hid this).
+	// Keying a lock by (substrate, tenancy, Name) makes concurrent same-Name provisions serialize:
+	// the winner Creates, the loser re-runs findExisting and re-dials the winner — converging to ONE
+	// workspace with no orphan on docker AND kubernetes (the real concurrent-Provision conformance
+	// case proves it). Different-Name provisions never contend (distinct keys).
+	provision keyedMutex
 }
 
 // Static assertion: the concrete *Provisioner satisfies the Provider port.
@@ -132,6 +143,14 @@ func (s *Provisioner) Provision(ctx context.Context, spec WorkspaceSpec) (Worksp
 	// by comparing fingerprints read back from List (idempotency is LIBRARY-owned).
 	spec.Labels = withFingerprint(spec.Labels, specFingerprint(&spec))
 
+	// Serialize concurrent same-Name provisions within this tenancy (the per-Name singleflight):
+	// without it, two goroutines both miss findExisting then both Create — orphaning a workspace on
+	// a real substrate (the fake's single mutex hid the race). Under the key lock the winner
+	// Creates and the loser re-runs findExisting → re-dials the winner. Different-Name provisions
+	// use distinct keys and never contend.
+	unlock := s.provision.lock(provisionKey(substrate, &spec))
+	defer unlock()
+
 	// Idempotency: a re-Provision of an existing, compatible workspace returns its
 	// handle (the level-based reconcile contract). List the ownership domain by the
 	// tenancy keys + name; an existing workspace with the SAME fingerprint is the
@@ -154,6 +173,14 @@ func (s *Provisioner) Provision(ctx context.Context, spec WorkspaceSpec) (Worksp
 	}
 	handle := s.stampHandle(data.Handle, substrate, &spec)
 	return s.wrap(handle, data.Connection, readOnlyTargets(&spec)), nil
+}
+
+// provisionKey is the per-Name singleflight key: the substrate + tenancy (org/project) + Name, so a
+// same-Name provision contends ONLY with another provision of the SAME workspace in the SAME
+// tenancy on the SAME substrate (a cross-tenant or different-Name provision never blocks). It uses
+// NUL separators so distinct field boundaries cannot collide.
+func provisionKey(substrate Substrate, spec *WorkspaceSpec) string {
+	return string(substrate) + "\x00" + spec.Labels[LabelOrganization] + "\x00" + spec.Labels[LabelProject] + "\x00" + spec.Name
 }
 
 // Open re-attaches to an already-provisioned workspace by Handle. PURELY a re-dial.
@@ -367,6 +394,7 @@ func (s *Provisioner) wrap(handle Handle, conn Connection, readOnly []string) *w
 		clock:           s.clock,
 		secrets:         s.secrets,
 		readOnlyTargets: readOnly,
+		states:          &stateMachine{},
 	}
 }
 
@@ -464,7 +492,7 @@ func classifyTyped(err error) errors.Kind { //nolint:cyclop // a flat one-type-p
 		return errors.KindInvalid
 	case errors.IsType[*NotFoundError](err):
 		return errors.KindNotFound
-	case errors.IsType[*ConflictError](err):
+	case errors.IsType[*ConflictError](err), errors.IsType[*IllegalStateTransitionError](err):
 		return errors.KindConflict
 	case errors.IsType[*QuotaExceededError](err):
 		return errors.KindExhausted

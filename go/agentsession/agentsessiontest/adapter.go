@@ -43,6 +43,10 @@ type Adapter struct {
 	// steerReactions is the extra script emitted after a Steer frame whose text matches
 	// the key (so a test pins an observable mid-stream steer effect).
 	steerReactions map[string][]agentsession.Event
+	// promptReactions is the extra script emitted after a FOLLOW-UP Prompt frame whose
+	// text matches the key — a deterministic second-turn body so a multi-turn test drives
+	// the AwaitingInput->Running edge and asserts the per-turn ordinal advances.
+	promptReactions map[string][]agentsession.Event
 }
 
 // New returns a scripted fake whose next Spawn emits the given events in order. By
@@ -50,10 +54,11 @@ type Adapter struct {
 // full surface; use WithManifest to test graceful degradation.
 func New(script ...agentsession.Event) *Adapter {
 	return &Adapter{
-		script:         script,
-		capabilities:   fullManifest(),
-		reactions:      make(map[string][]agentsession.Event),
-		steerReactions: make(map[string][]agentsession.Event),
+		script:          script,
+		capabilities:    fullManifest(),
+		reactions:       make(map[string][]agentsession.Event),
+		steerReactions:  make(map[string][]agentsession.Event),
+		promptReactions: make(map[string][]agentsession.Event),
 	}
 }
 
@@ -81,6 +86,18 @@ func (a *Adapter) OnSteer(trigger string, events ...agentsession.Event) *Adapter
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.steerReactions[trigger] = events
+	return a
+}
+
+// OnPrompt pins the events the fake emits after a FOLLOW-UP Prompt frame whose text
+// equals trigger — the deterministic second-turn body. The leading script is the first
+// turn (ending at MessageEnd -> AwaitingInput without a terminal); the follow-up prompt
+// drives the AwaitingInput->Running edge and replays these events, so a multi-turn test
+// observes a real second turn and asserts the per-turn ordinal/TurnID advances. Fluent.
+func (a *Adapter) OnPrompt(trigger string, events ...agentsession.Event) *Adapter {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.promptReactions[trigger] = events
 	return a
 }
 
@@ -142,6 +159,7 @@ func (a *Adapter) Spawn(_ context.Context, spec agentsession.Spec, _ agentsessio
 	copy(script, a.script)
 	reactions := cloneReactions(a.reactions)
 	steerReactions := cloneReactions(a.steerReactions)
+	promptReactions := cloneReactions(a.promptReactions)
 	nonReadying := a.nonReadying
 	a.mu.Unlock()
 
@@ -151,7 +169,7 @@ func (a *Adapter) Spawn(_ context.Context, spec agentsession.Spec, _ agentsessio
 	// no path into the script, the Commands, or any emitted Event.
 	_ = cred
 
-	conn := newFakeConn(script, reactions, steerReactions, a.recordCommand)
+	conn := newFakeConn(script, reactions, steerReactions, promptReactions, a.recordCommand)
 	conn.nonReadying = nonReadying
 	conn.start()
 	return conn, nil

@@ -1,6 +1,24 @@
 package ompadapter
 
-import "github.com/gophersys/libs/go/agentsession"
+import (
+	"testing"
+
+	"github.com/gophersys/libs/go/agentsession"
+)
+
+// MustNewForTest builds the adapter on the canonical New(configuration) (*Adapter, error)
+// spine and fails the test on a (today impossible) construction error, so a black-box test
+// drives the real constructor without repeating the error check at every call site.
+//
+//nolint:gocritic // Config is the frozen copyable configuration; the test mirrors the by-value seam.
+func MustNewForTest(t *testing.T, configuration Config) *Adapter {
+	t.Helper()
+	adapter, err := New(configuration)
+	if err != nil {
+		t.Fatalf("ompadapter.New: %v", err)
+	}
+	return adapter
+}
 
 // NormalizeLineForTest exposes the unexported omp json normalizer (a FRESH one per call) to
 // the single-line black-box tests (unknown/malformed type handling). It is compiled only in

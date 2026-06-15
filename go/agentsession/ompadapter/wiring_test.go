@@ -117,7 +117,7 @@ func TestChildEnvironment_InjectsKeyAndScrubsCredentialKeys(t *testing.T) {
 // capabilities: Steer/Resume/ThinkingEvents/PartialToolResults full, NativeBudget absent.
 func TestManifest_DeclaresRealOmpCapabilities(t *testing.T) {
 	t.Parallel()
-	m := ompadapter.New().Manifest()
+	m := ompadapter.MustNewForTest(t, ompadapter.Config{}).Manifest()
 	full := []agentsession.Capability{
 		agentsession.CapSteer, agentsession.CapResume,
 		agentsession.CapThinkingEvents, agentsession.CapPartialToolResults,

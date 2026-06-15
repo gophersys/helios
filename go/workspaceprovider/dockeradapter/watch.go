@@ -3,17 +3,12 @@ package dockeradapter
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/watchloop"
 )
-
-// watchReconnectDelay bounds the backoff before re-establishing the daemon event stream after a
-// transient fault, so the supervision channel stays open across a daemon blip (the orchestrator
-// never sees a silent gap — IOTEA's listenForDockerEvents reconnect, adapted).
-const watchReconnectDelay = time.Second
 
 // Static assertion: *Adapter implements the OPTIONAL workspaceprovider.Watcher seam (it declares
 // CapSupervise). The library type-asserts for this to drive Supervise's docker half.
@@ -27,7 +22,7 @@ var _ workspaceprovider.Watcher = (*Adapter)(nil)
 // the platform-neutral Event. A transient stream fault reconnects with backoff (the channel stays
 // open). The stream closes when ctx is canceled.
 func (a *Adapter) Watch(ctx context.Context, selector workspaceprovider.Selector) (<-chan workspaceprovider.WatchEvent, error) {
-	out := make(chan workspaceprovider.WatchEvent, watchBuffer)
+	out := make(chan workspaceprovider.WatchEvent, watchloop.Buffer)
 	// Reconcile-from-reality up front: a List by the same ownership labels seeds the supervised
 	// set from the live daemon BEFORE any live event, so a restart re-adopts what Eden authored.
 	seed, err := a.List(ctx, selector)
@@ -38,10 +33,6 @@ func (a *Adapter) Watch(ctx context.Context, selector workspaceprovider.Selector
 	go a.runWatch(ctx, selector, seed, out)
 	return out, nil
 }
-
-// watchBuffer bounds the raw watch channel so a momentary burst of daemon events does not block
-// the event goroutine; the library's normalize fan-in applies the real backpressure.
-const watchBuffer = 64
 
 // runWatch emits the reconcile-from-reality seed, then loops the daemon event stream (reconnecting
 // on a transient fault) until ctx is canceled, forwarding a raw WatchEvent per container action.
@@ -56,7 +47,7 @@ func (a *Adapter) runWatch(ctx context.Context, selector workspaceprovider.Selec
 			State:  seed[i].State,
 			Detail: "reconcile-from-reality (existing container)",
 		}
-		if !send(ctx, out, ev) {
+		if !watchloop.Send(ctx, out, ev) {
 			return
 		}
 	}
@@ -68,7 +59,7 @@ func (a *Adapter) runWatch(ctx context.Context, selector workspaceprovider.Selec
 			return
 		}
 		// A non-nil error closed the stream: back off and reconnect (unless ctx is done).
-		if !sleepWatch(ctx, watchReconnectDelay) {
+		if !watchloop.Sleep(ctx, watchloop.ReconnectDelay) {
 			return
 		}
 	}
@@ -90,7 +81,7 @@ func (a *Adapter) drainEvents(ctx context.Context, ch <-chan events.Message, err
 			if !ok {
 				continue
 			}
-			if !send(ctx, out, ev) {
+			if !watchloop.Send(ctx, out, ev) {
 				return false
 			}
 		}
@@ -189,30 +180,5 @@ func watchActionState(action events.Action) workspaceprovider.State {
 		return workspaceprovider.StateDegraded
 	default:
 		return workspaceprovider.StateReady
-	}
-}
-
-// send forwards ev onto out, honoring ctx so a canceled watch never blocks on a full buffer with
-// no reader (leak-free).
-//
-//nolint:gocritic // hugeParam: ev is the value forwarded onto the channel (a channel send copies regardless); passing it by value is the natural seam.
-func send(ctx context.Context, out chan<- workspaceprovider.WatchEvent, ev workspaceprovider.WatchEvent) bool {
-	select {
-	case out <- ev:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-// sleepWatch sleeps for d or returns false when ctx is canceled (the reconnect backoff).
-func sleepWatch(ctx context.Context, d time.Duration) bool {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
 	}
 }

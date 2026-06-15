@@ -84,7 +84,10 @@ func TestLoad_ConcurrentTurnsRaceCleanAllReaped(t *testing.T) {
 // runOneLoadTurn runs one full turn end-to-end over its own session and reaps it. It returns a
 // non-nil error to fail the whole group fast on any race/regression, and never logs the canary.
 func runOneLoadTurn(ctx context.Context, stub string) error {
-	adapter := ompadapter.NewWithConfig(ompadapter.Config{Binary: stub})
+	adapter, err := ompadapter.New(ompadapter.Config{Binary: stub})
+	if err != nil {
+		return err
+	}
 	pool, err := agentsession.New(
 		agentsession.Config{Routing: map[agentsession.RouteKey]agentsession.Route{
 			{Role: "assistant"}: {Harness: "omp", Model: "stub-deepseek"},

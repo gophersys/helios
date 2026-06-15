@@ -1,15 +1,17 @@
 package kubernetesadapter
 
 import (
-	"archive/tar"
 	"bytes"
 	"context"
+	stderrors "errors"
 	"io"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/tarfile"
 )
 
 // files is the kubernetes file seam. Put/Get use a tar-over-exec plane (Put pipes a one-entry
@@ -32,15 +34,18 @@ var _ workspaceprovider.Files = (*files)(nil)
 func (f *files) Put(ctx context.Context, p string, content io.Reader, mode workspaceprovider.FileMode) error {
 	data, err := io.ReadAll(content)
 	if err != nil {
-		return &workspaceprovider.NotReadyError{Handle: f.handle, State: workspaceprovider.StateReady, Op: "Files.Put(read source)"}
+		// A failure to READ the caller's source is wrapped WITH its io cause and classified
+		// KindInvalid (bad input from the caller's reader) — not a synthetic NotReadyError that
+		// drops the cause (the errors contract: preserve the chain via %w, the right Kind).
+		return errors.Wrap(errors.KindInvalid, "kubernetesadapter: Files.Put read content source", err)
 	}
 	dir, base := path.Split(strings.TrimRight(p, "/"))
 	if dir == "" {
 		dir = "/"
 	}
-	archive, terr := tarOneFile(base, data, mode)
+	archive, terr := tarfile.One(base, data, int64(mode))
 	if terr != nil {
-		return &workspaceprovider.NotReadyError{Handle: f.handle, State: workspaceprovider.StateReady, Op: "Files.Put(tar)"}
+		return errors.Wrap(errors.KindInternal, "kubernetesadapter: Files.Put encode tar", terr)
 	}
 	// Ensure the destination directory exists; a failure here surfaces as the extract failure
 	// below with a clearer signal, so the mkdir result is best-effort.
@@ -70,9 +75,15 @@ func (f *files) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	if res.ExitCode != 0 {
 		return nil, &workspaceprovider.NotFoundError{Handle: f.handle, Path: p}
 	}
-	data, uerr := untarSingle(&out)
-	if uerr != nil {
+	data, uerr := tarfile.Single(&out)
+	// An EMPTY archive (the path produced no regular file) is "not found"; a CORRUPT tar (a
+	// malformed header / truncated body from a damaged stream) is NOT collapsed into NotFound — it
+	// surfaces as a faithful internal error wrapping the corruption cause, rather than masking it.
+	if stderrors.Is(uerr, tarfile.ErrEmpty) {
 		return nil, &workspaceprovider.NotFoundError{Handle: f.handle, Path: p}
+	}
+	if uerr != nil {
+		return nil, errors.Wrap(errors.KindInternal, "kubernetesadapter: Files.Get untar "+strconv.Quote(p), uerr)
 	}
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
@@ -113,47 +124,4 @@ func (f *files) exec(ctx context.Context, command []string, stdin io.Reader) (wo
 // execTo runs a command in the pod capturing stdout into out (the Get/List read paths).
 func (f *files) execTo(ctx context.Context, command []string, out io.Writer) (workspaceprovider.ExecResult, error) {
 	return f.conn.Exec(ctx, workspaceprovider.ExecSpec{Command: command, Stdout: out})
-}
-
-// tarOneFile builds a single-entry tar archive (name -> data) with the given mode, ready to be
-// piped into `tar -x`.
-func tarOneFile(name string, data []byte, mode workspaceprovider.FileMode) (io.Reader, error) {
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-	if err := tw.WriteHeader(&tar.Header{
-		Name: name,
-		Mode: int64(mode),
-		Size: int64(len(data)),
-	}); err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "kubernetesadapter: write tar header", err)
-	}
-	if _, err := tw.Write(data); err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "kubernetesadapter: write tar body", err)
-	}
-	if err := tw.Close(); err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "kubernetesadapter: close tar writer", err)
-	}
-	return &buf, nil
-}
-
-// untarSingle reads the first regular file from a tar stream and returns its bytes (the `tar -c`
-// response is a tar of the requested path).
-func untarSingle(r io.Reader) ([]byte, error) {
-	tr := tar.NewReader(r)
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			return nil, io.EOF
-		}
-		if err != nil {
-			return nil, errors.Wrap(errors.KindInternal, "kubernetesadapter: read tar header", err)
-		}
-		if header.Typeflag == tar.TypeReg {
-			data, rerr := io.ReadAll(tr)
-			if rerr != nil {
-				return nil, errors.Wrap(errors.KindInternal, "kubernetesadapter: read tar entry", rerr)
-			}
-			return data, nil
-		}
-	}
 }

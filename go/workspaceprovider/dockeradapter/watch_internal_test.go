@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/watchloop"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -253,17 +254,18 @@ func TestDrainEventsForwardsThenReconnectsOnError(t *testing.T) {
 	}
 }
 
-// TestSleepWatchHonorsCtx proves the reconnect backoff returns true after the delay elapses and
-// false immediately when ctx is already canceled (so a canceled watch never sleeps out the backoff).
+// TestSleepWatchHonorsCtx proves the SHARED reconnect backoff (internal/watchloop.Sleep, now cited
+// by both adapters) returns true after the delay elapses and false immediately when ctx is already
+// canceled (so a canceled watch never sleeps out the backoff).
 func TestSleepWatchHonorsCtx(t *testing.T) {
 	t.Parallel()
-	if !sleepWatch(context.Background(), time.Millisecond) {
-		t.Errorf("sleepWatch must return true after the delay elapses")
+	if !watchloop.Sleep(context.Background(), time.Millisecond) {
+		t.Errorf("watchloop.Sleep must return true after the delay elapses")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if sleepWatch(ctx, time.Hour) {
-		t.Errorf("sleepWatch must return false immediately on a canceled ctx")
+	if watchloop.Sleep(ctx, time.Hour) {
+		t.Errorf("watchloop.Sleep must return false immediately on a canceled ctx")
 	}
 }
 

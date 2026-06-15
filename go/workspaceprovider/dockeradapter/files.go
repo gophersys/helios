@@ -1,16 +1,18 @@
 package dockeradapter
 
 import (
-	"archive/tar"
 	"bytes"
 	"context"
+	stderrors "errors"
 	"io"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/tarfile"
 )
 
 // files is the docker file seam. Put/Get use docker's tar-over-copy plane
@@ -27,19 +29,23 @@ type files struct {
 var _ workspaceprovider.Files = (*files)(nil)
 
 // Put writes content to p inside the container by streaming a one-entry tar to the parent
-// directory (docker's CopyToContainer API). The unix mode is honored.
+// directory (docker's CopyToContainer API). The unix mode is honored. A failure to READ the
+// caller's content source is returned WRAPPING the real io cause with KindInvalid (bad input from
+// the caller's reader) — not a synthetic, cause-dropping NotReadyError that masks the underlying
+// read failure (07 §4 / the errors contract: preserve the chain via %w, classify by the right
+// Kind).
 func (f *files) Put(ctx context.Context, p string, content io.Reader, mode workspaceprovider.FileMode) error {
 	data, err := io.ReadAll(content)
 	if err != nil {
-		return &workspaceprovider.NotReadyError{Handle: f.handle, State: workspaceprovider.StateReady, Op: "Files.Put(read source)"}
+		return errors.Wrap(errors.KindInvalid, "dockeradapter: Files.Put read content source", err)
 	}
 	dir, base := path.Split(strings.TrimRight(p, "/"))
 	if dir == "" {
 		dir = "/"
 	}
-	archive, terr := tarOneFile(base, data, mode)
+	archive, terr := tarfile.One(base, data, int64(mode))
 	if terr != nil {
-		return &workspaceprovider.NotReadyError{Handle: f.handle, State: workspaceprovider.StateReady, Op: "Files.Put(tar)"}
+		return errors.Wrap(errors.KindInternal, "dockeradapter: Files.Put encode tar", terr)
 	}
 	if cerr := f.adapter.client.CopyToContainer(ctx, f.id, dir, archive, container.CopyToContainerOptions{}); cerr != nil {
 		if isNotFound(cerr) {
@@ -51,7 +57,11 @@ func (f *files) Put(ctx context.Context, p string, content io.Reader, mode works
 }
 
 // Get reads p back out by untarring docker's CopyFromContainer stream and returning the
-// single file's bytes. NotFoundError if the path does not exist.
+// single file's bytes. An ABSENT path is a NotFoundError; an EMPTY archive (tarfile.ErrEmpty) is
+// also NotFound. A CORRUPT tar stream (a malformed header / truncated body) is NOT collapsed into
+// NotFound — it is returned WRAPPING the corruption cause with KindInternal, so a real
+// stream-corruption surfaces as a faithful internal error rather than masquerading as "not found"
+// (the errors contract: the right Kind, the cause preserved via %w).
 func (f *files) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	rc, _, err := f.adapter.client.CopyFromContainer(ctx, f.id, p)
 	if err != nil {
@@ -61,9 +71,12 @@ func (f *files) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 		return nil, classifyDockerError("copy from container", err)
 	}
 	defer func() { _ = rc.Close() }() //nolint:errcheck // closing a fully-read tar stream has no actionable error.
-	data, uerr := untarSingle(rc)
-	if uerr != nil {
+	data, uerr := tarfile.Single(rc)
+	if stderrors.Is(uerr, tarfile.ErrEmpty) {
 		return nil, &workspaceprovider.NotFoundError{Handle: f.handle, Path: p}
+	}
+	if uerr != nil {
+		return nil, errors.Wrap(errors.KindInternal, "dockeradapter: Files.Get untar "+strconv.Quote(p), uerr)
 	}
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
@@ -97,47 +110,4 @@ func (f *files) List(ctx context.Context, p string) ([]workspaceprovider.FileEnt
 		})
 	}
 	return entries, nil
-}
-
-// tarOneFile builds a single-entry tar archive (name -> data) with the given mode, ready
-// for CopyToContainer.
-func tarOneFile(name string, data []byte, mode workspaceprovider.FileMode) (io.Reader, error) {
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-	if err := tw.WriteHeader(&tar.Header{
-		Name: name,
-		Mode: int64(mode),
-		Size: int64(len(data)),
-	}); err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "dockeradapter: write tar header", err)
-	}
-	if _, err := tw.Write(data); err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "dockeradapter: write tar body", err)
-	}
-	if err := tw.Close(); err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "dockeradapter: close tar writer", err)
-	}
-	return &buf, nil
-}
-
-// untarSingle reads the first regular file from a tar stream and returns its bytes (the
-// CopyFromContainer response is a tar of the requested path).
-func untarSingle(r io.Reader) ([]byte, error) {
-	tr := tar.NewReader(r)
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			return nil, io.EOF
-		}
-		if err != nil {
-			return nil, errors.Wrap(errors.KindInternal, "dockeradapter: read tar header", err)
-		}
-		if header.Typeflag == tar.TypeReg {
-			data, rerr := io.ReadAll(tr)
-			if rerr != nil {
-				return nil, errors.Wrap(errors.KindInternal, "dockeradapter: read tar entry", rerr)
-			}
-			return data, nil
-		}
-	}
 }

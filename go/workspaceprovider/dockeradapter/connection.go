@@ -7,12 +7,15 @@ import (
 	"io"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/limitedbuffer"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/logcursor"
 )
 
 // connection is the docker workspaceprovider.Connection: Run/Exec/Files/Probe over one
@@ -36,7 +39,13 @@ func (a *Adapter) connection(id string, handle workspaceprovider.Handle) *connec
 // model: the container is the workspace, the exec is the workload). The resolved workload
 // credential is injected per the spec's Vehicle at the injection site only — env on the
 // child for VehicleEnv, a tmpfs file for VehicleFile — never logged, never in the spec. It
-// returns a RunDriver the library wraps as a Run.
+// returns a RunDriver the library wraps as a Run ONCE THE WORKLOAD IS LAUNCHED — it does NOT
+// block until the workload exits (the contract's "returns once the process is launched, not
+// once it exits", workspaceprovider.go Workspace.Run). The attach stream is drained into a
+// bounded buffer by a GOROUTINE so Logs/Status observe the live workload while Run returns
+// immediately; this makes the docker Run timing IDENTICAL to the kubernetes adapter (both
+// launch async — connection.go's runDriver{done} on each substrate), which the conformance
+// caseRunReturnsBeforeWorkloadExits asserts on both bindings.
 //
 //nolint:gocritic,ireturn // contract §2: Run takes spec/resolved by value AND returns the RunDriver port; the surface is frozen.
 func (c *connection) Run(ctx context.Context, spec workspaceprovider.RunSpec, resolved workspaceprovider.Resolved) (workspaceprovider.RunDriver, error) {
@@ -65,8 +74,17 @@ func (c *connection) Run(ctx context.Context, spec workspaceprovider.RunSpec, re
 		execID:      execResp.ID,
 		containerID: c.id,
 		tty:         spec.TTY,
+		buffer:      limitedbuffer.New(0),
+		done:        make(chan struct{}),
 	}
-	driver.buffer = drainHijack(attach, spec.TTY)
+	// Drain the hijacked stream into the bounded buffer in a GOROUTINE: io.Copy/StdCopy reads
+	// until the stream EOFs (the workload's process exit), so doing it synchronously here would
+	// block Run until the workload exits — the divergence-from-k8s bug. Draining async lets Run
+	// return the instant the workload is launched; the buffer is live for Logs and `done` signals
+	// Status the drain finished (the workload reached terminal). context.WithoutCancel detaches
+	// the drain from the Run call's ctx so a returned Run keeps buffering (its lifecycle is bounded
+	// by the workload's own exit / Teardown).
+	go driver.drain(attach, spec.TTY)
 	return driver, nil
 }
 
@@ -109,8 +127,12 @@ func (c *connection) Exec(ctx context.Context, spec workspaceprovider.ExecSpec) 
 		}()
 	}
 
-	var stdout, stderr bytes.Buffer
-	if derr := demux(attach.Reader, &stdout, &stderr, spec.TTY); derr != nil && ctx.Err() != nil {
+	// Capture stdout/stderr into BOUNDED buffers (limitedbuffer): ExecResult is documented bounded
+	// (types.go ExecResult), but a plain bytes.Buffer fed by external process output is unbounded —
+	// a chatty command would OOM the control plane. A workload that needs unbounded output uses
+	// Run.Logs streaming (the contract's escape hatch). Truncation is surfaced in Detail.
+	stdout, stderr := limitedbuffer.New(0), limitedbuffer.New(0)
+	if derr := demux(attach.Reader, stdout, stderr, spec.TTY); derr != nil && ctx.Err() != nil {
 		return workspaceprovider.ExecResult{}, &workspaceprovider.DeadlineError{Op: "Exec"}
 	}
 	// Writing to the caller's sinks is best-effort: a sink write error is the CALLER's
@@ -133,8 +155,18 @@ func (c *connection) Exec(ctx context.Context, spec workspaceprovider.ExecSpec) 
 		ExitCode: inspect.ExitCode,
 		Stdout:   stdout.Bytes(),
 		Stderr:   stderr.Bytes(),
-		Detail:   "docker exec",
+		Detail:   execDetail("docker exec", stdout.Truncated() || stderr.Truncated()),
 	}, nil
+}
+
+// execDetail tags the exec diagnostic with a truncation note when the bounded buffer dropped
+// output, so a consumer reading ExecResult.Detail learns the bytes are bounded, not whole (the
+// large-output case the contract routes to Run.Logs).
+func execDetail(base string, truncated bool) string {
+	if truncated {
+		return base + " (output truncated at bound)"
+	}
+	return base
 }
 
 // Files returns the docker file seam (CopyToContainer/CopyFromContainer over a tar stream).
@@ -211,29 +243,73 @@ type statsSample struct {
 // it can read the container's cgroup OOMKilled flag — a memory-bomb exec'd into the holding
 // container trips the container's State.OOMKilled even though the exec's own exit code is
 // unreliable (verified against the real daemon), which is how the runaway-agent OOM signal
-// surfaces as RunKilled / ConditionOOMKilled.
+// surfaces as RunKilled / ConditionOOMKilled. The attach stream is drained ASYNCHRONOUSLY (Run
+// launches drain in a goroutine, mirroring the kubernetes adapter's async Run): `done` closes
+// when the drain finishes (the workload exited), so Status reports RunRunning while live and the
+// terminal phase after — and Logs replays the bounded buffer the drain fills concurrently.
 type runDriver struct {
 	client      dockerClient
 	execID      string
 	containerID string
 	tty         bool
-	buffer      []byte
+	buffer      *limitedbuffer.Buffer
+	done        chan struct{}
+	once        sync.Once
 }
 
 // Static assertion: *runDriver satisfies workspaceprovider.RunDriver.
 var _ workspaceprovider.RunDriver = (*runDriver)(nil)
 
-// Status reports the workload's phase. The first call (after the attach drained to EOF, i.e.
-// the exec finished) inspects the real exit code and returns the terminal phase; ok=false. A
-// container whose cgroup OOM-killed the workload surfaces as RunKilled / ConditionOOMKilled
-// with the native reason in Detail (the runaway-agent signal, 02 §2).
+// drain reads the hijacked exec output into the bounded buffer until the stream EOFs (the
+// workload's process exit), then signals done so Status/Logs observe the terminal workload. It
+// runs in the goroutine Run launches, which is what makes Run non-blocking (Run returns the
+// instant the workload is launched, not when it exits — the contract parity with kubernetes).
+func (r *runDriver) drain(attach types.HijackedResponse, tty bool) {
+	defer attach.Close()
+	// A demux error means the stream closed early; the buffered prefix is still the workload's
+	// real output and rides Run.Logs (the exit code rides Run.Status via the exec inspect).
+	_ = demux(attach.Reader, r.buffer, r.buffer, tty) //nolint:errcheck // partial output is still valid; the exit code is the authority.
+	r.finish()
+}
+
+// finish closes done exactly once (idempotent across a re-drain or a double signal).
+func (r *runDriver) finish() {
+	r.once.Do(func() { close(r.done) })
+}
+
+// Status reports the workload's phase. While the exec is RUNNING it returns RunRunning, ok=true
+// (the live-workload observation the async Run enables); once the drain has finished (the exec
+// exited) it inspects the real exit code and returns the terminal phase, ok=false. A container
+// whose cgroup OOM-killed the workload surfaces as RunKilled / ConditionOOMKilled with the native
+// reason in Detail (the runaway-agent signal, 02 §2). ctx cancellation returns RunRunning,ok=false
+// (mirrors the kubernetes adapter's select-on-done/ctx shape).
 func (r *runDriver) Status(ctx context.Context) (workspaceprovider.RunStatus, bool) {
+	select {
+	case <-r.done:
+		// The drain finished (the workload exited): fall through to the terminal exit-code read.
+	case <-ctx.Done():
+		return workspaceprovider.RunStatus{Phase: workspaceprovider.RunRunning}, false
+	default:
+		// The drain has not finished: confirm the exec is still live before reporting Running, so a
+		// drain about to finish does not falsely hang the caller.
+		inspect, err := r.client.ContainerExecInspect(ctx, r.execID)
+		if err != nil {
+			return workspaceprovider.RunStatus{Phase: workspaceprovider.RunFailed, Detail: "exec inspect failed"}, false
+		}
+		if inspect.Running {
+			return workspaceprovider.RunStatus{Phase: workspaceprovider.RunRunning}, true
+		}
+		// The exec exited but the drain goroutine has not yet closed done; wait for it (bounded by
+		// the stream EOF the exit caused) so the terminal read sees the full buffer.
+		select {
+		case <-r.done:
+		case <-ctx.Done():
+			return workspaceprovider.RunStatus{Phase: workspaceprovider.RunRunning}, false
+		}
+	}
 	inspect, err := r.client.ContainerExecInspect(ctx, r.execID)
 	if err != nil {
 		return workspaceprovider.RunStatus{Phase: workspaceprovider.RunFailed, Detail: "exec inspect failed"}, false
-	}
-	if inspect.Running {
-		return workspaceprovider.RunStatus{Phase: workspaceprovider.RunRunning}, true
 	}
 	if r.workloadOOMKilled(ctx) {
 		return workspaceprovider.RunStatus{
@@ -269,28 +345,18 @@ func (r *runDriver) workloadOOMKilled(ctx context.Context) bool {
 	return inspect.State.OOMKilled
 }
 
-// Logs replays the workload's combined output buffered at attach time, from the cursor. The
-// cursor is a uint64; it is bounds-checked AS a uint64 against the buffer length BEFORE the int
-// conversion, so a cursor past the buffer (or one that would overflow int) clamps to the end
-// rather than wrapping into a negative index (a real bounds check on the log-replay load path).
-func (r *runDriver) Logs(_ context.Context, from workspaceprovider.LogCursor) (io.ReadCloser, error) {
-	start := len(r.buffer)
-	if uint64(from) < uint64(len(r.buffer)) {
-		start = int(from) // #nosec G115 -- guarded: from < len(buffer) (an int), so the value provably fits in int; gosec cannot follow the uint64 guard.
+// Logs replays the workload's combined output from the cursor, bounded by the shared logcursor
+// replay slice (the cursor is uint64-guarded against the buffer length before the int conversion).
+// It WAITS for the drain to finish so the full bounded buffer is available — mirroring the
+// kubernetes adapter's buffer-then-replay model (CapLogStream is honored by replaying the captured
+// stream from a cursor). ctx cancellation drops THIS reader only (a DeadlineError).
+func (r *runDriver) Logs(ctx context.Context, from workspaceprovider.LogCursor) (io.ReadCloser, error) {
+	select {
+	case <-r.done:
+	case <-ctx.Done():
+		return nil, &workspaceprovider.DeadlineError{Op: "Run.Logs"}
 	}
-	return io.NopCloser(bytes.NewReader(r.buffer[start:])), nil
-}
-
-// drainHijack reads the attached exec's multiplexed output into a buffer (so Run.Logs can
-// replay it from a cursor). It demuxes the docker stream framing unless a TTY (raw) was
-// requested.
-func drainHijack(attach types.HijackedResponse, tty bool) []byte {
-	defer attach.Close()
-	var combined bytes.Buffer
-	// A demux error here means the stream closed early; the buffered prefix is still the
-	// workload's real output and rides Run.Logs (the exit code rides Run.Status).
-	_ = demux(attach.Reader, &combined, &combined, tty) //nolint:errcheck // partial output is still valid; the exit code is the authority.
-	return combined.Bytes()
+	return io.NopCloser(bytes.NewReader(logcursor.Replay(r.buffer.Bytes(), from))), nil
 }
 
 // demux splits docker's multiplexed stdout/stderr stream into the two writers, or copies

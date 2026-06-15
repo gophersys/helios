@@ -23,10 +23,11 @@ type fakeConn struct {
 	commands chan agentsession.Command
 	stop     chan struct{}
 
-	script         []agentsession.Event
-	reactions      map[string][]agentsession.Event
-	steerReactions map[string][]agentsession.Event
-	record         func(agentsession.Command)
+	script          []agentsession.Event
+	reactions       map[string][]agentsession.Event
+	steerReactions  map[string][]agentsession.Event
+	promptReactions map[string][]agentsession.Event
+	record          func(agentsession.Command)
 
 	// nonReadying makes the driver exit BEFORE the Ready handshake (the silent-bad-token
 	// shape): finish() then closes the event channel with no Ready event ever emitted, so
@@ -42,18 +43,19 @@ type fakeConn struct {
 // command recorder.
 func newFakeConn(
 	script []agentsession.Event,
-	reactions, steerReactions map[string][]agentsession.Event,
+	reactions, steerReactions, promptReactions map[string][]agentsession.Event,
 	record func(agentsession.Command),
 ) *fakeConn {
 	return &fakeConn{
-		events:         make(chan agentsession.Event),
-		commands:       make(chan agentsession.Command),
-		stop:           make(chan struct{}),
-		done:           make(chan struct{}),
-		script:         script,
-		reactions:      reactions,
-		steerReactions: steerReactions,
-		record:         record,
+		events:          make(chan agentsession.Event),
+		commands:        make(chan agentsession.Command),
+		stop:            make(chan struct{}),
+		done:            make(chan struct{}),
+		script:          script,
+		reactions:       reactions,
+		steerReactions:  steerReactions,
+		promptReactions: promptReactions,
+		record:          record,
 	}
 }
 
@@ -215,7 +217,12 @@ func (c *fakeConn) applyControl(command agentsession.Command) (ended, terminal b
 		}
 		return c.injectReaction(c.steerReactions[command.Text])
 	case agentsession.CommandPrompt:
-		return false, false // a follow-up prompt continues the same script body
+		if reaction, ok := c.promptReactions[command.Text]; ok {
+			// A pinned follow-up prompt injects a deterministic second-turn body so a
+			// multi-turn test drives the real AwaitingInput->Running edge.
+			return c.injectReaction(reaction)
+		}
+		return false, false // an unpinned follow-up prompt continues the same script body
 	default:
 		return false, false
 	}

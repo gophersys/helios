@@ -3,7 +3,6 @@ package dockeradapter
 import (
 	"context"
 	"io"
-	"path"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/pathmount"
 )
 
 // holdCommand keeps the workspace container alive as a long-lived "infra" process the
@@ -283,7 +283,7 @@ func buildMounts(spec *workspaceprovider.WorkspaceSpec) ([]mount.Mount, []string
 			// not a directory) — reading the Target then returns the secret VALUE. The tmpfs
 			// guarantees the bytes never hit an image layer (07 §2); writeMountSecrets places
 			// the value after start, the library Zeroizes it after Create.
-			mounts = append(mounts, mount.Mount{Type: mount.TypeTmpfs, Target: secretMountDir(m.Target)})
+			mounts = append(mounts, mount.Mount{Type: mount.TypeTmpfs, Target: pathmount.SecretMountDir(m.Target)})
 		case workspaceprovider.MountVolume:
 			return nil, nil, &workspaceprovider.IsolationError{Detail: "docker substrate declares CapPersistentVolume absent; MountVolume is unsupported"}
 		default:
@@ -318,26 +318,10 @@ func envList(env []workspaceprovider.EnvVar) []string {
 	return out
 }
 
-// secretMountDir is the directory a MountSecret's tmpfs is mounted at: the Target's parent, so
-// the resolved secret can be written as a file AT the Target inside an in-memory mount. A
-// Target with no parent (a bare "/file") mounts the tmpfs at "/", which still backs the file.
-func secretMountDir(target string) string {
-	dir := path.Dir(strings.TrimRight(target, "/"))
-	if dir == "" || dir == "." {
-		return "/"
-	}
-	return dir
-}
-
-// defaultWorkDir picks the harness workdir: the first Bind/Inputs mount target, else
-// "/workspace".
+// defaultWorkDir picks the harness workdir via the shared pathmount derivation (one concept, one
+// home — the docker and kubernetes adapters and the library all resolve the workdir identically).
 func defaultWorkDir(spec *workspaceprovider.WorkspaceSpec) string {
-	for i := range spec.Mounts {
-		if spec.Mounts[i].Kind == workspaceprovider.MountBind || spec.Mounts[i].Kind == workspaceprovider.MountInputs {
-			return spec.Mounts[i].Target
-		}
-	}
-	return "/workspace"
+	return pathmount.DefaultWorkDir(spec)
 }
 
 // descriptorSpec reconstructs the minimal spec a List entry needs to re-derive a Handle

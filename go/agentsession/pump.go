@@ -60,7 +60,15 @@ func (s *session) handle(raw Event) []Event {
 	var emitted []Event
 
 	if next, ok := s.nextState(raw); ok {
-		emitted = append(emitted, s.emit(s.stateEvent(s.priorState(), next)))
+		prior := s.priorState()
+		// A new prompt starts a new turn: the AwaitingInput->Running edge (a follow-up
+		// prompt after a completed turn). The turn ordinal must advance BEFORE the
+		// transition event is emitted so the new turn's first event already carries the
+		// incremented Turn/TurnID. The first Ready->Running keeps Turn 0 (batch: 0; chat:
+		// increments per message); AwaitingPermission->Running is a mid-turn continuation,
+		// not a new turn, so it does not advance.
+		s.advanceTurnOnPrompt(prior, next)
+		emitted = append(emitted, s.emit(s.stateEvent(prior, next)))
 		s.setState(next)
 	}
 
@@ -376,6 +384,19 @@ func (s *session) priorState() State {
 func (s *session) setState(next State) {
 	s.mu.Lock()
 	s.state = next
+	s.mu.Unlock()
+}
+
+// advanceTurnOnPrompt increments the turn ordinal when a new prompt begins a new turn:
+// the AwaitingInput->Running edge. The first turn (Ready->Running) stays at 0; a
+// mid-turn continuation (AwaitingPermission->Running) keeps the current turn. It is
+// called from the pump goroutine before the transition event is stamped.
+func (s *session) advanceTurnOnPrompt(prior, next State) {
+	if next != StateRunning || prior != StateAwaitingInput {
+		return
+	}
+	s.mu.Lock()
+	s.turn++
 	s.mu.Unlock()
 }
 

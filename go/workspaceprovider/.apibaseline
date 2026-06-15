@@ -12,6 +12,7 @@
     func ParseHandle(s string) (Handle, error)
 const LabelOrganization = "eden.org" ...
 const SpecFingerprintLabel = "eden.workspaceprovider/spec-fingerprint"
+func EncodeHandle(substrate Substrate, namespace, organization, project, name, workDir string) string
 type Adapter interface{ ... }
 type CapStatus uint8
 type Capability uint8
@@ -35,6 +36,7 @@ type FileMode uint32
 type Files interface{ ... }
 type Handle struct{ ... }
 type HandleData struct{ ... }
+type IllegalStateTransitionError struct{ ... }
 type ImageError struct{ ... }
 type InvalidHandleError struct{ ... }
 type InvalidSpecError struct{ ... }
@@ -75,6 +77,25 @@ func SanitizeNamespace(s string) string
 type Adapter struct{ ... }
 type Config struct{ ... }
 type EphemeralDaemonConfig struct{ ... }
+## github.com/gophersys/libs/go/workspaceprovider/internal/limitedbuffer
+    func New(limit int) *Buffer
+const DefaultCap = 4 << 20
+type Buffer struct{ ... }
+## github.com/gophersys/libs/go/workspaceprovider/internal/logcursor
+func Replay(buffer []byte, from workspaceprovider.LogCursor) []byte
+## github.com/gophersys/libs/go/workspaceprovider/internal/pathmount
+func DefaultWorkDir(spec *workspaceprovider.WorkspaceSpec) string
+func SecretBaseName(target string) string
+func SecretMountDir(target string) string
+## github.com/gophersys/libs/go/workspaceprovider/internal/tarfile
+func One(name string, data []byte, mode int64) (io.Reader, error)
+func Single(r io.Reader) ([]byte, error)
+var ErrEmpty = stderrors.New("tarfile: empty archive (no regular file)")
+## github.com/gophersys/libs/go/workspaceprovider/internal/watchloop
+const Buffer = 64
+const ReconnectDelay = time.Second
+func Send(ctx context.Context, out chan<- workspaceprovider.WatchEvent, ...) bool
+func Sleep(ctx context.Context, d time.Duration) bool
 ## github.com/gophersys/libs/go/workspaceprovider/kubernetesadapter
     func New(configuration Config) (*Adapter, error)
     func NewEphemeral(ctx context.Context, configuration EphemeralClusterConfig) (*Adapter, func() error, error)

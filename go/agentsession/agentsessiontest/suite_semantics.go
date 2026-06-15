@@ -179,6 +179,180 @@ func assertSteerObservable(t *testing.T, _ func() *Adapter) {
 	}
 }
 
+// assertTurnOrdinalIncrements proves the per-turn ordinal is live, not dead-on-write: a
+// two-prompt chat carries Turn 0 on the first turn and Turn 1 on the second, with a
+// distinct TurnID per turn. The first turn's body ends at MessageEnd (-> AwaitingInput)
+// with no terminal; the follow-up prompt drives the AwaitingInput->Running edge whose
+// transition advances the ordinal BEFORE the second turn's events are stamped. Without
+// the increment every event would carry Turn 0 and an identical TurnID (the dead field).
+func assertTurnOrdinalIncrements(t *testing.T, _ func() *Adapter) {
+	t.Helper()
+	const followUp = "and now run the tests"
+	adapter := New(
+		// First turn: a message that ends WITHOUT a terminal, parking the session in
+		// AwaitingInput so a follow-up prompt opens a genuine second turn.
+		MessageStart("assistant"),
+		TextDelta("first-turn answer"),
+		MessageEnd(),
+	).OnPrompt(
+		followUp,
+		// Second turn: a fresh message body and the clean terminal.
+		MessageStart("assistant"),
+		TextDelta("second-turn answer"),
+		Usage(usageMeter()),
+		MessageEnd(),
+		Result(fullLedger(), "done", "end_turn"),
+	)
+	h := newHarness(t, adapter)
+	session := h.open(t, nil)
+
+	// Drive two prompts over one live stream. The first parks at AwaitingInput; a second
+	// drainer (below) reads the whole stream to its terminal, so every event of both turns
+	// is collected in Seq order.
+	stream := session.Events(context.Background(), agentsession.FromSeq(0))
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "go"}); err != nil {
+		t.Fatalf("first Prompt: %v", err)
+	}
+	// Read up to the AwaitingInput park so the follow-up prompt is sent in the right phase,
+	// then fire the second prompt and drain the remainder to the terminal.
+	firstHalf := readThroughState(t, stream, agentsession.StateAwaitingInput)
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: followUp}); err != nil {
+		t.Fatalf("follow-up Prompt: %v", err)
+	}
+	secondHalf := readToTerminal(t, stream)
+	all := make([]agentsession.Event, 0, len(firstHalf)+len(secondHalf))
+	all = append(all, firstHalf...)
+	all = append(all, secondHalf...)
+
+	// Partition the full stream into turns at each transition INTO Running: the first such
+	// edge (Ready->Running) opens turn ordinal 0, the second (AwaitingInput->Running) opens
+	// ordinal 1. Each turn's events must all carry that single ordinal and a single TurnID.
+	turns := partitionByRunningEdge(all)
+	if len(turns) != 2 {
+		t.Fatalf("expected 2 turns partitioned at the Running edges, got %d (turns=%v)", len(turns), turnOrdinalsOf(turns))
+	}
+
+	firstOrdinals, firstIDs := turnSetFor(turns[0])
+	secondOrdinals, secondIDs := turnSetFor(turns[1])
+
+	// The first turn carries Turn 0; the second carries Turn 1 — the increment is live.
+	assertSingleTurnOrdinal(t, "first turn", firstOrdinals, 0)
+	assertSingleTurnOrdinal(t, "second turn", secondOrdinals, 1)
+
+	// The TurnID is distinct across turns (the correlation id is not frozen-at-zero).
+	if len(firstIDs) == 0 || len(secondIDs) == 0 {
+		t.Fatalf("a turn carried no TurnID (firstIDs=%v secondIDs=%v)", firstIDs, secondIDs)
+	}
+	for id := range secondIDs {
+		if firstIDs[id] {
+			t.Errorf("TurnID %q is shared across turns; the TurnID is frozen-at-zero (dead turn field)", id)
+		}
+	}
+}
+
+// readThroughState reads a stream up to and including the first transition INTO want,
+// returning the events read. It bounds the read so a regression fails fast.
+func readThroughState(t *testing.T, stream agentsession.Stream, want agentsession.State) []agentsession.Event {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	var events []agentsession.Event
+	for {
+		event, ok := stream.Next(ctx)
+		if !ok {
+			t.Fatalf("stream ended before reaching state %v", want)
+		}
+		events = append(events, event)
+		if event.Kind == agentsession.EventSessionState && event.State != nil && event.State.To == want {
+			return events
+		}
+	}
+}
+
+// readToTerminal reads a stream to its terminal, returning the events read.
+func readToTerminal(t *testing.T, stream agentsession.Stream) []agentsession.Event {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	var events []agentsession.Event
+	for {
+		event, ok := stream.Next(ctx)
+		if !ok {
+			t.Fatal("stream ended before a terminal event")
+		}
+		events = append(events, event)
+		if event.IsTerminal() {
+			return events
+		}
+	}
+}
+
+// partitionByRunningEdge splits the event stream into one slice per turn, cutting at each
+// transition INTO StateRunning (the start of a turn). Events before the first Running edge
+// (the Initializing->Ready handshake) join the first turn.
+func partitionByRunningEdge(events []agentsession.Event) [][]agentsession.Event {
+	var turns [][]agentsession.Event
+	var current []agentsession.Event
+	started := false
+	for i := range events {
+		ev := &events[i]
+		isRunningEdge := ev.Kind == agentsession.EventSessionState && ev.State != nil && ev.State.To == agentsession.StateRunning
+		if isRunningEdge && started {
+			turns = append(turns, current)
+			current = nil
+		}
+		started = started || isRunningEdge
+		current = append(current, *ev)
+	}
+	if len(current) > 0 {
+		turns = append(turns, current)
+	}
+	return turns
+}
+
+// turnSetFor projects the distinct Turn ordinals and TurnIDs carried by a turn's events.
+// Every emitted event carries the turn ordinal/TurnID it was stamped under, so a healthy
+// turn yields exactly one ordinal and one TurnID.
+func turnSetFor(events []agentsession.Event) (ordinals map[int]bool, ids map[string]bool) {
+	ordinals = make(map[int]bool)
+	ids = make(map[string]bool)
+	for i := range events {
+		ev := &events[i]
+		ordinals[ev.Turn] = true
+		if ev.TurnID != "" {
+			ids[ev.TurnID] = true
+		}
+	}
+	return ordinals, ids
+}
+
+// assertSingleTurnOrdinal proves every event in a turn carries the same expected ordinal.
+func assertSingleTurnOrdinal(t *testing.T, label string, ordinals map[int]bool, want int) {
+	t.Helper()
+	if len(ordinals) != 1 || !ordinals[want] {
+		t.Errorf("%s: events carry Turn ordinals %v, want exactly {%d} (turn ordinal dead-on-write?)", label, ordinalKeys(ordinals), want)
+	}
+}
+
+// ordinalKeys renders an ordinal set for diagnostics.
+func ordinalKeys(ordinals map[int]bool) []int {
+	out := make([]int, 0, len(ordinals))
+	for k := range ordinals {
+		out = append(out, k)
+	}
+	return out
+}
+
+// turnOrdinalsOf renders the per-turn ordinal sets for diagnostics.
+func turnOrdinalsOf(turns [][]agentsession.Event) [][]int {
+	out := make([][]int, len(turns))
+	for i := range turns {
+		ord, _ := turnSetFor(turns[i])
+		out[i] = ordinalKeys(ord)
+	}
+	return out
+}
+
 // assertCapabilityHonesty proves a verb whose Capability the manifest declares CapAbsent
 // returns UnsupportedError, and a declared-CapFull verb works.
 func assertCapabilityHonesty(t *testing.T, _ func() *Adapter) {

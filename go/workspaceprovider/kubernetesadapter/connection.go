@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"github.com/gophersys/libs/go/workspaceprovider"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/limitedbuffer"
+	"github.com/gophersys/libs/go/workspaceprovider/internal/logcursor"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	executil "k8s.io/client-go/util/exec"
@@ -49,18 +51,20 @@ func (c *connection) Run(ctx context.Context, spec workspaceprovider.RunSpec, re
 	}
 	driver := &runDriver{done: make(chan struct{})}
 	// Run the workload exec asynchronously: Run returns once the process is LAUNCHED (not once
-	// it exits), exactly like the docker adapter. The buffered output + terminal status are
-	// read by Run.Logs / Run.Status. context.WithoutCancel detaches the workload from the Run
-	// call's ctx so a returned Run keeps executing (its lifecycle is bounded by Teardown).
+	// it exits), exactly like the docker adapter. The combined output is captured into a BOUNDED
+	// buffer (limitedbuffer) — a chatty workload cannot grow it without limit; large output uses
+	// Run.Logs streaming. The buffered output + terminal status are read by Run.Logs / Run.Status.
+	// context.WithoutCancel detaches the workload from the Run call's ctx so a returned Run keeps
+	// executing (its lifecycle is bounded by Teardown).
+	combined := limitedbuffer.New(0)
 	go func() {
-		var combined syncBuffer
 		err := c.adapter.client.Exec(context.WithoutCancel(ctx), ExecRequest{
 			Namespace: c.namespace,
 			Pod:       c.pod,
 			Container: workspaceContainer,
 			Command:   command,
-			Stdout:    &combined,
-			Stderr:    &combined,
+			Stdout:    combined,
+			Stderr:    combined,
 			TTY:       spec.TTY,
 		})
 		driver.finish(combined.Bytes(), exitCodeOf(err))
@@ -78,15 +82,18 @@ func (c *connection) Exec(ctx context.Context, spec workspaceprovider.ExecSpec) 
 		ctx, cancel = context.WithTimeout(ctx, spec.Timeout)
 		defer cancel()
 	}
-	var stdout, stderr bytes.Buffer
+	// Bound the captured stdout/stderr (limitedbuffer): ExecResult is documented bounded, so a
+	// chatty command cannot OOM the control plane; large output uses Run.Logs streaming. Truncation
+	// rides Detail.
+	stdout, stderr := limitedbuffer.New(0), limitedbuffer.New(0)
 	err := c.adapter.client.Exec(ctx, ExecRequest{
 		Namespace: c.namespace,
 		Pod:       c.pod,
 		Container: workspaceContainer,
 		Command:   spec.Command,
 		Stdin:     spec.Stdin,
-		Stdout:    &stdout,
-		Stderr:    &stderr,
+		Stdout:    stdout,
+		Stderr:    stderr,
 		TTY:       spec.TTY,
 	})
 	exitCode, fatal := classifyExec(err)
@@ -108,8 +115,18 @@ func (c *connection) Exec(ctx context.Context, spec workspaceprovider.ExecSpec) 
 		ExitCode: exitCode,
 		Stdout:   stdout.Bytes(),
 		Stderr:   stderr.Bytes(),
-		Detail:   "kubernetes exec",
+		Detail:   execDetail("kubernetes exec", stdout.Truncated() || stderr.Truncated()),
 	}, nil
+}
+
+// execDetail tags the exec diagnostic with a truncation note when the bounded buffer dropped
+// output, so a consumer reading ExecResult.Detail learns the bytes are bounded, not whole (the
+// large-output case the contract routes to Run.Logs).
+func execDetail(base string, truncated bool) string {
+	if truncated {
+		return base + " (output truncated at bound)"
+	}
+	return base
 }
 
 // Files returns the kubernetes file seam (tar-over-exec: Put streams a tar into `tar -x`, Get
@@ -248,14 +265,10 @@ func (r *runDriver) Logs(ctx context.Context, from workspaceprovider.LogCursor) 
 	case <-ctx.Done():
 		return nil, &workspaceprovider.DeadlineError{Op: "Run.Logs"}
 	}
-	// The cursor is a uint64; bounds-check it AS a uint64 against the buffer length BEFORE the int
-	// conversion, so a cursor past the buffer (or one that would overflow int) clamps to the end
-	// rather than wrapping into a negative index (a real bounds check on the log-replay load path).
-	start := len(r.buffer)
-	if uint64(from) < uint64(len(r.buffer)) {
-		start = int(from) // #nosec G115 -- guarded: from < len(buffer) (an int), so the value provably fits in int; gosec cannot follow the uint64 guard.
-	}
-	return io.NopCloser(bytes.NewReader(r.buffer[start:])), nil
+	// Replay the bounded buffer from the cursor via the shared logcursor slice (the cursor is
+	// uint64-guarded against the buffer length before the int conversion — a real bounds check on
+	// the log-replay load path, now in one home for both adapters).
+	return io.NopCloser(bytes.NewReader(logcursor.Replay(r.buffer, from))), nil
 }
 
 // classifyExec splits an exec error into (exitCode, fatal): a CodeExitError/ExitError is the
@@ -285,25 +298,4 @@ func exitCodeOf(err error) int {
 		return 1
 	}
 	return code
-}
-
-// syncBuffer is a goroutine-safe bytes.Buffer: the Run exec writes from its own goroutine while
-// Run.Logs may read concurrently, so the buffer guards its writes with a mutex (the race
-// detector flags an unguarded bytes.Buffer shared across goroutines).
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (s *syncBuffer) Write(p []byte) (int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	n, _ := s.buf.Write(p) // bytes.Buffer.Write never returns a non-nil error (it only grows).
-	return n, nil
-}
-
-func (s *syncBuffer) Bytes() []byte {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return append([]byte(nil), s.buf.Bytes()...)
 }

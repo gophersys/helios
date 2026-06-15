@@ -123,7 +123,10 @@ func TestLoad_ConcurrentSpawnNormalizeCloseRaceClean(t *testing.T) {
 // stream reached a terminal AFTER the Ready handshake and the credential canary never leaked
 // onto any event, then Closes and joins the drainer (proving the process is reaped).
 func oneCycle(ctx context.Context, stub string, i int) error {
-	adapter := claudeadapter.NewWithConfig(claudeadapter.Config{Binary: stub})
+	adapter, err := claudeadapter.New(claudeadapter.Config{Binary: stub})
+	if err != nil {
+		return err
+	}
 	conn, err := adapter.Spawn(
 		ctx,
 		agentsession.Spec{Workspace: os.TempDir(), Routing: agentsession.RouteKey{Role: "assistant"}},

@@ -87,14 +87,12 @@ type Adapter struct{ ... }
 type TestingT interface{ ... }
 type Transcript struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/claudeadapter
-    func New() *Adapter
-    func NewWithConfig(configuration Config) *Adapter
+    func New(configuration Config) (*Adapter, error)
 type Adapter struct{ ... }
 type Config struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/claudeadapter/internal/stubharness
 ## github.com/gophersys/libs/go/agentsession/ompadapter
-    func New() *Adapter
-    func NewWithConfig(configuration Config) *Adapter
+    func New(configuration Config) (*Adapter, error)
 type Adapter struct{ ... }
 type Config struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/ompadapter/internal/stubharness

@@ -108,9 +108,10 @@ func (e *UnavailableError) Error() string {
 	return "gitrepository: remote " + strconv.Quote(e.Remote) + " unavailable"
 }
 
-// Each error exposes Kind() mapping it to the errors.md taxonomy (the transport boundary's
-// switch target, 10 §9), so KindOf(err) classifies without string matching (contract §2 Kind
-// table).
+// Each error exposes Kind() mapping it to the errors.md taxonomy (10 §9). This method is the
+// SINGLE home for the type→Kind mapping: kindOf below reads it through the kindCarrier seam
+// rather than re-deriving a parallel switch, so KindOf(err) classifies without string
+// matching (contract §2 Kind table) and the mapping cannot drift between two declarations.
 
 // Kind reports the stable errors.Kind for an InvalidRefError.
 func (e *InvalidRefError) Kind() errors.Kind { return errors.KindInvalid }
@@ -154,34 +155,28 @@ func WrapError(err error) error {
 	return errors.Wrap(kindOf(err), err.Error(), err)
 }
 
-// kindOf is the TOTAL classifier mapping each gitrepository error type to its stable
-// errors.Kind (contract §2 Kind table). Every type maps; an unknown error is KindUnknown.
-// This is the single table the library wraps with (wrapKind), so the transport boundary
-// reads errors.KindOf without a gitrepository-specific switch.
+// kindCarrier is the classification seam: a typed error that carries its own stable
+// errors.Kind via the Kind() method declared above. Every gitrepository error type
+// implements it (the data IS its classification, contract §2 Kind table), so kindOf reads
+// the carrier instead of re-deriving a parallel table — ONE home for the Kind mapping.
+type kindCarrier interface{ Kind() errors.Kind }
+
+// kindOf is the TOTAL classifier the library wraps with (wrapKind), so the transport
+// boundary reads errors.KindOf without a gitrepository-specific table. It reads the
+// error's OWN Kind() method (the single source of truth, defined per type above); a
+// non-carrier error is KindUnknown.
 //
-// The switch is on the CONCRETE leaf type ON PURPOSE: kindOf is only ever called by
-// wrapKind on a freshly-minted, UNWRAPPED gitrepository error the library is about to
-// wrap; classification of an already-WRAPPED chain is errors.KindOf (which walks the
-// chain). A type switch is the right tool for the unwrapped-leaf case.
+// kindOf is only ever called by wrapKind/WrapError on a freshly-minted, UNWRAPPED
+// gitrepository error the library is about to wrap; classification of an already-WRAPPED
+// chain is errors.KindOf (which walks the chain). Reading the carrier on the unwrapped
+// leaf keeps the Kind declared ONCE — there is no second switch to drift from the methods.
 //
 //nolint:errorlint // kindOf classifies an unwrapped leaf the library just minted; the wrapped-chain path is errors.KindOf via errors.AsType.
 func kindOf(err error) errors.Kind {
-	switch err.(type) {
-	case *InvalidRefError:
-		return errors.KindInvalid
-	case *NotFoundError:
-		return errors.KindNotFound
-	case *AlreadyExistsError, *NothingToCommitError, *NonFastForwardError, *ConflictError, *DirtyWorktreeError:
-		return errors.KindConflict
-	case *AuthError:
-		return errors.KindUnauthenticated
-	case *DeniedError:
-		return errors.KindPermission
-	case *UnavailableError:
-		return errors.KindUnavailable
-	default:
-		return errors.KindUnknown
+	if carrier, ok := err.(kindCarrier); ok {
+		return carrier.Kind()
 	}
+	return errors.KindUnknown
 }
 
 // wrapKind wraps a typed gitrepository error with its stable errors.Kind so the transport

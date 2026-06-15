@@ -79,6 +79,19 @@ type (
 
 	// InvalidHandleError reports a malformed/zero Handle. Kind=Invalid.
 	InvalidHandleError struct{ Raw string }
+
+	// IllegalStateTransitionError reports an adapter Probe that read a State the library's
+	// State machine forbids transitioning INTO from the last-observed State (a move OUT of the
+	// terminal Gone, or any edge not in the documented graph Provisioning → Ready → {Degraded →
+	// Ready | Evicted} → Gone). The library — not the adapter — owns the legal-transition set
+	// (types.go State doc), so a substrate reporting an impossible transition surfaces here
+	// rather than corrupting the observed lifecycle. Kind=Conflict (the observed state conflicts
+	// with the enforced machine; the reconcile loop branches on it like any other drift signal).
+	IllegalStateTransitionError struct {
+		Handle Handle
+		From   State
+		To     State
+	}
 )
 
 // Error renders an operator-safe message; none of these ever interpolates a secret
@@ -135,6 +148,11 @@ func (e *InvalidHandleError) Error() string {
 	return "workspaceprovider: malformed handle " + strconv.Quote(e.Raw)
 }
 
+func (e *IllegalStateTransitionError) Error() string {
+	return "workspaceprovider: illegal State transition " + e.From.String() + " -> " + e.To.String() +
+		" (workspace " + strconv.Quote(e.Handle.String()) + ")"
+}
+
 // String renders a Capability for diagnostics (used by UnsupportedError).
 func (c Capability) String() string {
 	switch c {
@@ -182,7 +200,7 @@ func kindOf(err error) errors.Kind {
 		return errors.KindInvalid
 	case *NotFoundError:
 		return errors.KindNotFound
-	case *ConflictError:
+	case *ConflictError, *IllegalStateTransitionError:
 		return errors.KindConflict
 	case *QuotaExceededError:
 		return errors.KindExhausted

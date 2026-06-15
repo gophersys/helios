@@ -3,7 +3,9 @@ package minioadapter_test
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -14,6 +16,39 @@ import (
 	"github.com/gophersys/libs/go/objectstorage/minioadapter"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
+
+// nonListerS3 implements the 5-method minioadapter.S3 seam but NOT the required streaming-List
+// extension (lister) — so New must reject it at construction with a KindInvalid. It exists ONLY to
+// make the lister type-assertion in New reachable and correct: a wiring fault is a construction-time
+// KindInvalid, never an off-taxonomy per-call error. It is never a production shape (the real
+// *minio.Client and the unit fakeS3 both implement ListObjects).
+type nonListerS3 struct{}
+
+//nolint:gocritic // hugeParam: the options param type is fixed by the minioadapter.S3 interface seam; a fake must match it by value.
+func (nonListerS3) PutObject(context.Context, string, string, io.Reader, int64, minio.PutObjectOptions) (minio.UploadInfo, error) {
+	return minio.UploadInfo{}, nil
+}
+
+//nolint:gocritic // hugeParam: fixed by the S3 seam.
+func (nonListerS3) GetObject(context.Context, string, string, minio.GetObjectOptions) (*minio.Object, error) {
+	return nil, nil //nolint:nilnil // unreachable stub: New rejects this client before any method runs.
+}
+
+//nolint:gocritic // hugeParam: fixed by the S3 seam.
+func (nonListerS3) StatObject(context.Context, string, string, minio.StatObjectOptions) (minio.ObjectInfo, error) {
+	return minio.ObjectInfo{}, nil
+}
+
+//nolint:gocritic // hugeParam: fixed by the S3 seam.
+func (nonListerS3) RemoveObject(context.Context, string, string, minio.RemoveObjectOptions) error {
+	return nil
+}
+
+func (nonListerS3) PresignHeader(context.Context, string, string, string, time.Duration, url.Values, http.Header) (*url.URL, error) {
+	return nil, nil //nolint:nilnil // unreachable stub: New rejects this client before any method runs.
+}
+
+var _ minioadapter.S3 = nonListerS3{}
 
 func mustRef(t *testing.T, bucket, key string) objectstorage.ObjectRef {
 	t.Helper()
@@ -71,6 +106,29 @@ func TestNew_PropagatesCredentialResolutionFailure(t *testing.T) {
 	}
 	if errors.KindOf(err) != errors.KindNotFound {
 		t.Errorf("credential-resolution failure Kind = %v, want KindNotFound (preserved from secrets)", errors.KindOf(err))
+	}
+}
+
+// TestNew_RejectsS3WithoutListerSeam proves the lister requirement is enforced at CONSTRUCTION: an
+// S3 client that implements the 5-method seam but not the streaming-List extension is a wiring fault,
+// surfaced by New as a KindInvalid — never as an off-taxonomy KindInternal on a later ListObjects
+// call. This is the test that makes the New-time assertion branch reachable and correct (the dead
+// per-call defensive branch it replaced could never be hit, since the real client and the unit fake
+// both implement ListObjects).
+func TestNew_RejectsS3WithoutListerSeam(t *testing.T) {
+	t.Parallel()
+	_, err := minioadapter.New(
+		minioadapter.Config{Endpoint: "127.0.0.1:9000", AccessKeyRef: accessRef, SecretKeyRef: secretRef},
+		minioadapter.Deps{
+			Secrets:   seededSecrets(),
+			NewClient: func(string, *minio.Options) (minioadapter.S3, error) { return nonListerS3{}, nil },
+		},
+	)
+	if err == nil {
+		t.Fatal("New should reject an S3 client that does not implement the streaming-List seam")
+	}
+	if errors.KindOf(err) != errors.KindInvalid {
+		t.Errorf("New(non-lister S3) Kind = %v, want KindInvalid (a construction-time wiring fault)", errors.KindOf(err))
 	}
 }
 

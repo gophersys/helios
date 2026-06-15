@@ -88,19 +88,23 @@ type S3 interface {
 	PresignHeader(ctx context.Context, method, bucket, object string, expiry time.Duration, query url.Values, header http.Header) (*url.URL, error)
 }
 
-// lister is the OPTIONAL extension a real S3 client also satisfies: a streaming List. It is a
+// lister is the REQUIRED streaming-List extension every injected S3 must also satisfy. It is a
 // SEPARATE interface (kept off the 5-method S3 seam) because List has a channel shape the other
-// five do not; the adapter type-asserts the injected S3 to it. Both the real wrapper and the unit
-// fake implement it.
+// five do not. New type-asserts the injected S3 to it ONCE, at construction — a client that does
+// not implement it is a wiring fault surfaced as a construction-time KindInvalid (the sanctioned
+// place for a wiring mistake), never an off-taxonomy per-call error. Both the real *minio.Client
+// and the unit fake implement it.
 type lister interface {
 	ListObjects(ctx context.Context, bucket string, options minio.ListObjectsOptions) <-chan minio.ObjectInfo
 }
 
 // Adapter is the concrete objectstorage.Backend returned by New. It holds the resolved S3 client
-// and the endpoint metadata; the credential is NOT a field (it was consumed at construction).
-// Safe for concurrent use (the SDK client is). Zero value is not usable; construct via New.
+// (and that same client viewed through the required lister seam, asserted once at construction);
+// the credential is NOT a field (it was consumed at construction). Safe for concurrent use (the
+// SDK client is). Zero value is not usable; construct via New.
 type Adapter struct {
-	client S3
+	client     S3
+	listClient lister
 }
 
 // New is the constructor spine (10 §9). It validates Config + Deps, RESOLVES the credential
@@ -138,7 +142,15 @@ func New(configuration Config, dependencies Deps) (*Adapter, error) {
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInvalid, "minioadapter.New: constructing the S3 client", err)
 	}
-	return &Adapter{client: client}, nil
+	listClient, ok := client.(lister)
+	if !ok {
+		// A wiring fault (the injected S3 cannot stream a List) — surface it at CONSTRUCTION as a
+		// KindInvalid, the sanctioned place for a wiring mistake, so no Backend method ever has to
+		// return an off-taxonomy per-call error for a defect that is structural, not operational.
+		return nil, errors.Wrap(errors.KindInvalid,
+			"minioadapter.New: the S3 client does not implement the required streaming-List seam", errInvalidConfig)
+	}
+	return &Adapter{client: client, listClient: listClient}, nil
 }
 
 // resolveCredentials resolves the access/secret-key references and builds a static-V4 credential
@@ -235,13 +247,11 @@ func (a *Adapter) PresignObject(ctx context.Context, ref objectstorage.ObjectRef
 
 // ListObjects returns the metadata of every object in bucket whose key starts with prefix. It
 // drains the SDK's streaming channel, surfacing a per-item error (a missing bucket → NotFound).
+// The lister seam was asserted once in New, so this method never re-checks it (no off-taxonomy
+// per-call error): a.listClient is always non-nil on a constructed Adapter.
 func (a *Adapter) ListObjects(ctx context.Context, bucket, prefix string) ([]objectstorage.ObjectInfo, error) {
-	channelLister, ok := a.client.(lister)
-	if !ok {
-		return nil, errors.New(errors.KindInternal, "minioadapter: injected S3 client does not support List")
-	}
 	var infos []objectstorage.ObjectInfo
-	for item := range channelLister.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+	for item := range a.listClient.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if item.Err != nil {
 			return nil, mapS3Error(objectstorage.ObjectRef{}, item.Err)
 		}

@@ -33,7 +33,7 @@ func TestCanary_CredentialNeverLeaksThroughStream(t *testing.T) {
 	t.Parallel()
 	stub := buildCanaryStub(t)
 
-	adapter := claudeadapter.NewWithConfig(claudeadapter.Config{Binary: stub})
+	adapter := claudeadapter.MustNewForTest(t, claudeadapter.Config{Binary: stub})
 	conn, err := adapter.Spawn(
 		context.Background(),
 		agentsession.Spec{Workspace: t.TempDir(), Routing: agentsession.RouteKey{Role: "assistant"}},

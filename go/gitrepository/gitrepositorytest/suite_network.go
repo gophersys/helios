@@ -2,7 +2,10 @@ package gitrepositorytest
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gophersys/libs/go/errors"
@@ -133,10 +136,14 @@ func assertCredentialNeverLeaksImpl(t *testing.T, newBackend func() gitrepositor
 		}
 	}
 
-	// For the in-memory arm, the canary value must NOT appear in any recorded op projection.
-	if fake, ok := backend.(*Backend); ok {
-		fake.AssertCredentialNeverInArgs(t, SeededCanary)
-	}
+	// The confinement guarantee is BINDING-AGNOSTIC (07 §2): the resolved credential must reach
+	// git ONLY through the per-op credential-helper seam and never persist anywhere a later read
+	// could surface it. For the in-memory fake that means the recorded op-argument projection (its
+	// argv/env/dir surface) is canary-free; for the REAL system-git backend it means the REAL
+	// on-disk artifacts the push wrote — the .git store (config, remotes, packed-refs, logs/reflogs,
+	// FETCH_HEAD/ORIG_HEAD) AND the bare remote it pushed to — carry no trace of the value. Scanning
+	// only the fake left the real binding's on-disk confinement UNPROVEN.
+	assertCredentialNeverPersisted(t, backend, fix.root, remoteURL, SeededCanary)
 
 	// A bad credential reference (one the provider rejects) yields an authentication failure
 	// carrying the ref, never the value. The provider fails the bad ref; the library wraps it as
@@ -159,6 +166,61 @@ func assertCredentialNeverLeaksImpl(t *testing.T, newBackend func() gitrepositor
 	}
 }
 
+// assertCredentialNeverPersisted is the binding-agnostic confinement assertion. For the
+// in-memory fake it asserts the canary is in NO recorded op-argument projection. For a REAL
+// backend it walks the actual on-disk artifacts the push produced — the local repository's
+// .git store under root AND the bare remote the push targeted (a filesystem path) — and fails
+// if the seeded credential value appears in ANY of their bytes. A real-git credential helper
+// confines the token to a per-op temp dir reaped on cleanup, so a leak into config, a remote
+// URL, packed-refs, a reflog, or FETCH_HEAD is exactly the persistence this catches.
+func assertCredentialNeverPersisted(t *testing.T, backend gitrepository.Backend, root, remoteURL, canary string) {
+	t.Helper()
+	if canary == "" {
+		return
+	}
+	if fake, ok := backend.(*Backend); ok {
+		fake.AssertCredentialNeverInArgs(t, canary)
+		return
+	}
+	// Real backend: the local repo's .git store and the bare remote are both on disk.
+	scanTreeForCanary(t, filepath.Join(root, ".git"), canary)
+	if remoteURL != "" && !strings.Contains(remoteURL, "://") {
+		// remoteURL is a filesystem path to the bare remote (initBareRemote); scan it too so a
+		// credential that rode the wire and landed in the remote's store is also caught.
+		scanTreeForCanary(t, remoteURL, canary)
+	}
+}
+
+// scanTreeForCanary walks every regular file under dir and fails t if the canary value appears
+// in any file's bytes. It is read-only; symlinks are not followed (git's store has none that
+// matter here). A missing dir is a no-op (a binding may not have produced it).
+func scanTreeForCanary(t *testing.T, dir, canary string) {
+	t.Helper()
+	if _, err := os.Stat(dir); err != nil {
+		return
+	}
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return errors.Wrap(errors.KindInternal, "walk git artifact tree", walkErr)
+		}
+		if d.IsDir() || !d.Type().IsRegular() {
+			return nil
+		}
+		data, readErr := os.ReadFile(path) //nolint:gosec // path is a test-owned temp .git artifact, never user input.
+		if readErr != nil {
+			// A read failure on a test-owned temp artifact is a harness fault, not a leak signal.
+			t.Fatalf("reading git artifact %s for credential scan: %v", path, readErr)
+		}
+		if strings.Contains(string(data), canary) {
+			t.Errorf("credential canary leaked: %q appears in on-disk git artifact %s", canary, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("scanning %s for credential leak: %v", dir, err)
+	}
+}
+
 // buildRepository constructs a *Repository over backend with the given provider — used by the
 // bad-credential arm.
 func buildRepository(t *testing.T, backend gitrepository.Backend, root string, remotes map[string]string, provider secrets.Provider) *gitrepository.Repository {
@@ -174,14 +236,4 @@ func buildRepository(t *testing.T, backend gitrepository.Backend, root string, r
 }
 
 // containsCanary reports whether s contains the seeded canary value.
-func containsCanary(s string) bool { return s != "" && indexOf(s, SeededCanary) >= 0 }
-
-// indexOf is a tiny substring search (avoids importing strings in this small helper file).
-func indexOf(haystack, needle string) int {
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return i
-		}
-	}
-	return -1
-}
+func containsCanary(s string) bool { return s != "" && strings.Contains(s, SeededCanary) }
