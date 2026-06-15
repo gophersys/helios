@@ -85,7 +85,7 @@ func assertRemoveWorktree(t *testing.T, newBackend func() gitrepository.Backend)
 	// Dirty it; a non-Force remove must be DirtyWorktreeError.
 	fix.putWorking(path, "dirty.txt", "uncommitted\n")
 	err := fix.repository.RemoveWorktree(ctx, path, gitrepository.RemoveOptions{})
-	if !asType[*gitrepository.DirtyWorktreeError](err) {
+	if !errors.IsType[*gitrepository.DirtyWorktreeError](err) {
 		t.Errorf("dirty RemoveWorktree without Force must be DirtyWorktreeError, got %v (%T)", err, err)
 	}
 
@@ -230,7 +230,7 @@ func assertTypedErrors(t *testing.T, newBackend func() gitrepository.Backend) {
 
 	// Unknown revision in a DiffCommits → NotFoundError.
 	_, err := fix.repository.Diff(ctx, gitrepository.DiffOptions{Mode: gitrepository.DiffCommits, From: "main", To: "doesnotexist", MaxBytes: 1 << 20})
-	if !asType[*gitrepository.NotFoundError](err) {
+	if !errors.IsType[*gitrepository.NotFoundError](err) {
 		t.Errorf("Diff over an unknown revision must be NotFoundError, got %v (%T)", err, err)
 	}
 	assertKind(t, err, errors.KindNotFound, "Diff(unknown revision)")
@@ -243,7 +243,7 @@ func assertTypedErrors(t *testing.T, newBackend func() gitrepository.Backend) {
 	}
 	path2 := filepath.Join(fix.root, "wt2")
 	_, dupErr := fix.repository.AddWorktree(ctx, gitrepository.WorktreeOptions{Path: path2, Branch: branch, Start: "main"})
-	if !asType[*gitrepository.AlreadyExistsError](dupErr) {
+	if !errors.IsType[*gitrepository.AlreadyExistsError](dupErr) {
 		t.Errorf("AddWorktree over an existing branch must be AlreadyExistsError, got %v (%T)", dupErr, dupErr)
 	}
 	assertKind(t, dupErr, errors.KindConflict, "AddWorktree(existing branch)")

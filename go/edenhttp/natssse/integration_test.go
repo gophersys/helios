@@ -42,9 +42,6 @@ import (
 // agentID is the canonical agent the integration arms publish + bridge for.
 const agentID agentruntime.AgentID = "agent-itest-1"
 
-// streamName is the JetStream stream the bridge binds (the agentruntime/natsbus well-known name).
-const streamName = "EDEN_AGENT_EVENTS"
-
 // itestClock is a fixed clock for the bridge's heartbeat scheduling (no heartbeat fires within these
 // fast arms; the events arrive well under the cadence).
 type itestClock struct{}
@@ -129,7 +126,7 @@ func TestIntegration_EmbeddedNATS_HeartbeatOnQuietStream(t *testing.T) {
 	// fetch (no wall-clock sleep), and a 1ms heartbeat interval guarantees a keepalive on the gap.
 	clock := &advancingClock{now: atomicTime{value: time.Unix(0, 0)}, step: time.Second}
 	bridge, err := natssse.New(
-		natssse.Config{Stream: streamName, HeartbeatInterval: time.Millisecond},
+		natssse.Config{Stream: agentruntime.EventsStreamName, HeartbeatInterval: time.Millisecond},
 		natssse.Deps{JetStream: jetStream, Clock: clock},
 	)
 	if err != nil {
@@ -199,7 +196,7 @@ func TestIntegration_EmbeddedNATS_ClientDisconnectReaps(t *testing.T) {
 	publishOne(t, jetStream, 2, false)
 
 	bridge, err := natssse.New(
-		natssse.Config{Stream: streamName, HeartbeatInterval: time.Hour},
+		natssse.Config{Stream: agentruntime.EventsStreamName, HeartbeatInterval: time.Hour},
 		natssse.Deps{JetStream: jetStream, Clock: itestClock{}},
 	)
 	if err != nil {
@@ -313,7 +310,7 @@ type sseEvent struct {
 func runBridgeToEnd(t *testing.T, jetStream nats.JetStreamContext, lastSeq uint64) []sseEvent {
 	t.Helper()
 	bridge, err := natssse.New(
-		natssse.Config{Stream: streamName, HeartbeatInterval: time.Hour},
+		natssse.Config{Stream: agentruntime.EventsStreamName, HeartbeatInterval: time.Hour},
 		natssse.Deps{JetStream: jetStream, Clock: itestClock{}},
 	)
 	if err != nil {
@@ -433,7 +430,7 @@ func publishCanonicalStream(t *testing.T, jetStream nats.JetStreamContext, count
 func ensureStream(t *testing.T, jetStream nats.JetStreamContext) {
 	t.Helper()
 	_, err := jetStream.AddStream(&nats.StreamConfig{
-		Name:     streamName,
+		Name:     agentruntime.EventsStreamName,
 		Subjects: []string{"agent.*.events"},
 		Storage:  nats.FileStorage,
 	})

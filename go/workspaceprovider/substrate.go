@@ -458,32 +458,26 @@ func classify(err error) error {
 // type, else KindUnknown.
 func classifyTyped(err error) errors.Kind { //nolint:cyclop // a flat one-type-per-arm dispatch over the closed error set; splitting it would obscure the 1:1 mapping.
 	switch {
-	case asType[*InvalidSpecError](err), asType[*ImageError](err),
-		asType[*NotReadyError](err), asType[*UnsupportedError](err),
-		asType[*InvalidHandleError](err):
+	case errors.IsType[*InvalidSpecError](err), errors.IsType[*ImageError](err),
+		errors.IsType[*NotReadyError](err), errors.IsType[*UnsupportedError](err),
+		errors.IsType[*InvalidHandleError](err):
 		return errors.KindInvalid
-	case asType[*NotFoundError](err):
+	case errors.IsType[*NotFoundError](err):
 		return errors.KindNotFound
-	case asType[*ConflictError](err):
+	case errors.IsType[*ConflictError](err):
 		return errors.KindConflict
-	case asType[*QuotaExceededError](err):
+	case errors.IsType[*QuotaExceededError](err):
 		return errors.KindExhausted
-	case asType[*IsolationError](err):
+	case errors.IsType[*IsolationError](err):
 		return errors.KindPermission
-	case asType[*SubstrateUnavailableError](err):
+	case errors.IsType[*SubstrateUnavailableError](err):
 		return errors.KindUnavailable
-	case asType[*DeadlineError](err):
+	case errors.IsType[*DeadlineError](err):
 		return errors.KindDeadline
 	default:
 		// A foreign error may already carry an Eden Kind (e.g. a secrets error) — inherit it.
 		return errors.KindOf(err)
 	}
-}
-
-// asType is a boolean convenience over errors.AsType for the classify dispatch.
-func asType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // classifySecret maps a secrets resolution failure into the workspaceprovider error

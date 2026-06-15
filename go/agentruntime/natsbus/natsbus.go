@@ -29,8 +29,10 @@ import (
 )
 
 // StreamName is the JetStream stream that captures every agent's event subject (agent.*.events). One
-// stream, subject-filtered per agent, so a gateway consumer binds a durable per-agent.
-const StreamName = "EDEN_AGENT_EVENTS"
+// stream, subject-filtered per agent, so a gateway consumer binds a durable per-agent. It CITES the
+// protocol owner (agentruntime.EventsStreamName) — the stream-name wire contract has one home; this
+// is the kept producer-side alias, never a re-spelled literal (one concept, one home).
+const StreamName = agentruntime.EventsStreamName
 
 // eventSubjectWildcard is the stream's captured subject set (every agent's events).
 const eventSubjectWildcard = "agent.*.events"

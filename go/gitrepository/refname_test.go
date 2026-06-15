@@ -57,17 +57,10 @@ func TestParseBranchName_RejectsInjection(t *testing.T) {
 		if errors.KindOf(err) != errors.KindInvalid {
 			t.Errorf("ParseBranchName(%q) error must be KindInvalid, got %v", name, errors.KindOf(err))
 		}
-		if !is[*gitrepository.InvalidRefError](err) {
+		if !errors.IsType[*gitrepository.InvalidRefError](err) {
 			t.Errorf("ParseBranchName(%q) error must be *InvalidRefError, got %T", name, err)
 		}
 	}
-}
-
-// is reports whether err's chain carries a *E (the Go 1.26 single-arg AsType form), keeping
-// the typed-error checks free of an unchecked discard.
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // TestCommitID_Zero proves the zero CommitID is the invalid/unborn commit.

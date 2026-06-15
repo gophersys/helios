@@ -14,6 +14,7 @@ type Sink interface{ ... }
     func NewRandom(seed [32]byte) *Random
 func Fakes() (set dependencies.Set, clock *Clock, random *Random, sink *RecordingSink)
 func RunPortSuite(t *testing.T, newSet func() dependencies.Set)
+func UnixEpoch() time.Time
 type Clock struct{ ... }
 type Random struct{ ... }
 type RecordingSink struct{ ... }

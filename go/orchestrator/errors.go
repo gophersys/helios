@@ -134,11 +134,3 @@ func wrapKind(err error) error {
 	}
 	return errors.Wrap(kindOf(err), err.Error(), err)
 }
-
-// asType is a boolean convenience over errors.AsType for the verb dispatch (does the
-// chain carry a *E?), so a caller branches on presence without binding an unused typed
-// value (which errcheck would flag as a discarded error return).
-func asType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
-}

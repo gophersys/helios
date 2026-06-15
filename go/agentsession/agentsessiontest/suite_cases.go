@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/errors"
 )
 
 // assertLifecycleLegality proves only the §2 transitions occur, that the stream begins
@@ -46,7 +47,7 @@ func assertLifecycleLegality(t *testing.T, newAdapter func() *Adapter) {
 		t.Fatalf("drain to terminal: %v", err)
 	}
 	_, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandAbort})
-	if !asType[agentsession.StateError](err) {
+	if !errors.IsType[agentsession.StateError](err) {
 		t.Errorf("Abort on a terminal session must be StateError, got %v (%T)", err, err)
 	}
 }

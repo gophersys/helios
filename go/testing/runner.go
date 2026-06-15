@@ -3,7 +3,8 @@ package testing
 import (
 	"fmt"
 
-	"github.com/gophersys/libs/go/testing/internal/deterministic"
+	"github.com/gophersys/libs/go/dependencies/dependenciestest"
+	"github.com/gophersys/libs/go/testing/internal/seedkey"
 )
 
 // Runner vends deterministic fakes and executes Suites. It is concrete (accept
@@ -40,8 +41,8 @@ func New(configuration Config, dependencies Deps) (*Runner, error) {
 // own Deps outside a suite run (e.g. a library's own unit test). Returned concrete.
 func (r *Runner) Fakes() Fakes {
 	return Fakes{
-		Clock:  deterministic.NewClock(r.epoch.at),
-		Random: deterministic.NewRandom(r.seed),
+		Clock:  dependenciestest.NewClock(r.epoch.at),
+		Random: dependenciestest.NewRandom(seedkey.Derive(r.seed)),
 	}
 }
 

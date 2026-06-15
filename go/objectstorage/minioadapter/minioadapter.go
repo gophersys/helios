@@ -174,23 +174,17 @@ func resolveCredentials(ctx context.Context, provider secrets.Provider, configur
 // its own taxonomy). A non-secrets cause falls through to the errors-library classification.
 func kindOfSecretsError(err error) errors.Kind {
 	switch {
-	case secretsIs[secrets.InvalidReferenceError](err):
+	case errors.IsType[secrets.InvalidReferenceError](err):
 		return errors.KindInvalid
-	case secretsIs[secrets.NotFoundError](err):
+	case errors.IsType[secrets.NotFoundError](err):
 		return errors.KindNotFound
-	case secretsIs[secrets.DeniedError](err):
+	case errors.IsType[secrets.DeniedError](err):
 		return errors.KindPermission
-	case secretsIs[secrets.UnavailableError](err):
+	case errors.IsType[secrets.UnavailableError](err):
 		return errors.KindUnavailable
 	default:
 		return errors.KindOf(err)
 	}
-}
-
-// secretsIs reports whether err's chain carries a value of type E (errors.AsType[E]).
-func secretsIs[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // PutObject streams size bytes of body into ref and returns the stored ObjectInfo.

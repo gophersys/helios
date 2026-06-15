@@ -1,6 +1,7 @@
 package errors_test
 
 import (
+	stderrors "errors"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -58,6 +59,41 @@ func TestProperty_WrapInheritsKind(t *testing.T) {
 		// The chain is preserved: the cause is reachable via Is.
 		if !errors.Is(wrapped, cause) {
 			rt.Fatalf("Wrap lost the cause chain — errors.Is(wrapped, cause) is false")
+		}
+	})
+}
+
+// TestProperty_IsTypeAgreesWithAsType asserts the IsType/AsType agreement invariant
+// over the whole Kind space and varied chain shapes: for any error, IsType[*Error]
+// equals the ok of AsType[*Error]. Foreign-only and nil chains exercise the false
+// branch; *Error chains exercise the true branch (ADR-0020 §a, rapid).
+func TestProperty_IsTypeAgreesWithAsType(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		var err error
+		switch rapid.IntRange(0, 2).Draw(rt, "shape") {
+		case 0:
+			// nil error.
+		case 1:
+			// foreign (non-*Error) chain.
+			err = stderrors.New(rapid.StringMatching(`[a-z ]{0,20}`).Draw(rt, "foreign"))
+		default:
+			// *Error chain with a drawn Kind, optionally wrapping a foreign cause.
+			k := allKinds[rapid.IntRange(0, len(allKinds)-1).Draw(rt, "kind")]
+			msg := rapid.StringMatching(`[a-z ]{0,20}`).Draw(rt, "message")
+			if rapid.Bool().Draw(rt, "wrapped") {
+				err = errors.Wrap(k, msg, stderrors.New("cause"))
+			} else {
+				err = errors.New(k, msg)
+			}
+		}
+		as, ok := errors.AsType[*errors.Error](err)
+		if got := errors.IsType[*errors.Error](err); got != ok {
+			rt.Fatalf("IsType[*Error] = %v, AsType ok = %v — must agree", got, ok)
+		}
+		// The extracted value rides AsType's ok: present iff ok.
+		if (as != nil) != ok {
+			rt.Fatalf("AsType value/ok disagree: value=%p ok=%v", as, ok)
 		}
 	})
 }

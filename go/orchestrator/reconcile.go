@@ -252,7 +252,7 @@ func (p *Pool) driveResume(ctx context.Context, ports ReconcilePorts, agent *Age
 			p.ensureLive().putWorkspace(agent.ID, workspace)
 			agent.Workspace = workspace.Handle()
 			workDir = workspace.Handle().WorkDir()
-		case asType[*ConflictError](err) || errors.KindOf(err) == errors.KindConflict:
+		case errors.IsType[*ConflictError](err) || errors.KindOf(err) == errors.KindConflict:
 			// The workspace exists and is settling — keep the recorded handle and re-open the
 			// session over it (a retried pass converges once the pod is Ready).
 			if ws, oerr := ports.Workspaces.Open(ctx, agent.Workspace); oerr == nil {

@@ -67,7 +67,7 @@ func TestParseReferenceRejectsMalformed(t *testing.T) {
 		if !r.IsZero() {
 			t.Errorf("ParseReference(%q) returned non-zero ref on error: %v", in, r)
 		}
-		if !is[secrets.InvalidReferenceError](err) {
+		if !errors.IsType[secrets.InvalidReferenceError](err) {
 			t.Errorf("ParseReference(%q) error not AsType[InvalidReferenceError]: %v", in, err)
 		}
 	}
@@ -284,7 +284,7 @@ func TestZeroizeWipesAndUseFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("Use after Zeroize returned nil error")
 	}
-	if !is[secrets.ZeroizedError](err) {
+	if !errors.IsType[secrets.ZeroizedError](err) {
 		t.Errorf("Use-after-Zeroize error not AsType[ZeroizedError]: %v", err)
 	}
 }
@@ -339,7 +339,7 @@ func TestUse1AfterZeroize(t *testing.T) {
 	v, err := secrets.Use1(sec, func(b []byte) (string, error) {
 		return string(b), nil
 	})
-	if !is[secrets.ZeroizedError](err) {
+	if !errors.IsType[secrets.ZeroizedError](err) {
 		t.Errorf("Use1 after Zeroize error not AsType[ZeroizedError]: %v", err)
 	}
 	if v != "" {
@@ -411,7 +411,7 @@ func TestUseRacesZeroizeOnSameSecret(t *testing.T) {
 				}
 				return nil
 			})
-			if err != nil && !is[secrets.ZeroizedError](err) {
+			if err != nil && !errors.IsType[secrets.ZeroizedError](err) {
 				t.Errorf("Use returned an unexpected error (not ZeroizedError): %v", err)
 			}
 		}()
@@ -425,7 +425,7 @@ func TestUseRacesZeroizeOnSameSecret(t *testing.T) {
 	wg.Wait()
 
 	// After all goroutines join, the Secret is spent and Use is permanently ZeroizedError.
-	if err := sec.Use(func([]byte) error { return nil }); !is[secrets.ZeroizedError](err) {
+	if err := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](err) {
 		t.Errorf("Use after Zeroize completed error not AsType[ZeroizedError]: %v", err)
 	}
 }
@@ -526,7 +526,7 @@ func TestMediatorSchemelessNoDefaultIsInvalid(t *testing.T) {
 	if sec != nil {
 		t.Error("Resolve returned non-nil Secret with an error")
 	}
-	if !is[secrets.InvalidReferenceError](err) {
+	if !errors.IsType[secrets.InvalidReferenceError](err) {
 		t.Errorf("error not AsType[InvalidReferenceError]: %v", err)
 	}
 }
@@ -543,7 +543,7 @@ func TestMediatorZeroReferenceIsInvalid(t *testing.T) {
 	if sec != nil {
 		t.Error("Resolve(zero ref) returned non-nil Secret with an error")
 	}
-	if !is[secrets.InvalidReferenceError](err) {
+	if !errors.IsType[secrets.InvalidReferenceError](err) {
 		t.Errorf("error not AsType[InvalidReferenceError]: %v", err)
 	}
 }
@@ -560,7 +560,7 @@ func TestMediatorUnknownSchemeIsInvalid(t *testing.T) {
 	if sec != nil {
 		t.Error("Resolve(unbound scheme) returned non-nil Secret with an error")
 	}
-	if !is[secrets.InvalidReferenceError](err) {
+	if !errors.IsType[secrets.InvalidReferenceError](err) {
 		t.Errorf("error not AsType[InvalidReferenceError]: %v", err)
 	}
 }
@@ -577,7 +577,7 @@ func TestMediatorPropagatesAdapterError(t *testing.T) {
 	if sec != nil {
 		t.Error("Resolve(missing) returned non-nil Secret with an error")
 	}
-	if !is[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("error not AsType[NotFoundError]: %v", err)
 	}
 }
@@ -596,7 +596,7 @@ func TestMediatorPropagatesDeniedError(t *testing.T) {
 	if sec != nil {
 		t.Error("Resolve(denied) returned non-nil Secret with an error")
 	}
-	if !is[secrets.DeniedError](err) {
+	if !errors.IsType[secrets.DeniedError](err) {
 		t.Errorf("DeniedError did not pass through the Mediator unchanged: not AsType[DeniedError]: %v", err)
 	}
 }
@@ -616,7 +616,7 @@ func TestMediatorPropagatesUnavailableError(t *testing.T) {
 	if sec != nil {
 		t.Error("Resolve(unavailable) returned non-nil Secret with an error")
 	}
-	if !is[secrets.UnavailableError](err) {
+	if !errors.IsType[secrets.UnavailableError](err) {
 		t.Errorf("UnavailableError did not pass through the Mediator unchanged: not AsType[UnavailableError]: %v", err)
 	}
 }
@@ -697,10 +697,10 @@ func TestErrorTypesAreDistinctViaAsType(t *testing.T) {
 	ref := secrets.Ref("x")
 	wrapped := fmt.Errorf("context: %w", secrets.NotFoundError{Ref: ref})
 
-	if !is[secrets.NotFoundError](wrapped) {
+	if !errors.IsType[secrets.NotFoundError](wrapped) {
 		t.Error("AsType[NotFoundError] failed through %w wrap")
 	}
-	if is[secrets.DeniedError](wrapped) {
+	if errors.IsType[secrets.DeniedError](wrapped) {
 		t.Error("AsType[DeniedError] matched a NotFoundError")
 	}
 }
@@ -721,11 +721,4 @@ func mustUse(t *testing.T, sec *secrets.Secret, want string) {
 	if err != nil {
 		t.Fatalf("Use error = %v", err)
 	}
-}
-
-// is reports whether err's chain carries a value of type E, via the errors library's one-arg
-// generic errors.AsType[E](err) (E, bool).
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }

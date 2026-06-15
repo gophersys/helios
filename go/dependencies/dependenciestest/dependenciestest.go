@@ -3,6 +3,16 @@
 // library's test wires THESE shared fakes — never ad-hoc local ones — so "fake ≡ real"
 // is provable by the single shared conformance suite (§4). Fakes ship WITH the frozen
 // contract (09 §4), before any consumer implements.
+//
+// This package is the LEAF home of the virtual-time and seeded-entropy ENGINE: Clock
+// and Random are THE single definition of the timeline algorithm and the byte-stream
+// algorithm for the whole library graph (one concept, one home — 10 §9). It sits below
+// every consumer (it imports only dependencies), so a downstream <pattern>test fake
+// ALIASES these types instead of re-implementing the algorithm — there is exactly one
+// timeline, one byte stream, and one bug surface, asserted identical by the shared
+// RunPortSuite running over the single fake. The timeline and byte stream are a FROZEN
+// invariant: identical start/seed + identical call sequence ⇒ identical output forever;
+// a change is breaking and may only ship behind a new constructor.
 package dependenciestest
 
 import (
@@ -21,9 +31,10 @@ var (
 	_ dependencies.Sink         = (*RecordingSink)(nil)
 )
 
-// Clock is a manually-advanced fake clock. Now is frozen until Advance is called; After
-// channels fire when Advance crosses their deadline. Use NewClock for a chosen epoch.
-// Safe for concurrent use.
+// Clock is a manually-advanced fake clock — the single virtual-time engine. Now is
+// frozen until Advance is called; After channels fire when Advance crosses their
+// deadline. Use NewClock for a chosen epoch (a zero start anchors at UnixEpoch). Safe
+// for concurrent use.
 type Clock struct {
 	mu      sync.Mutex
 	now     time.Time
@@ -36,8 +47,23 @@ type timer struct {
 	fired    bool
 }
 
-// NewClock returns a fake Clock frozen at start.
-func NewClock(start time.Time) *Clock { return &Clock{now: start} }
+// UnixEpoch is the fixed, reproducible anchor a zero start maps to — never time.Now.
+// Stored in UTC so the wire/telemetry representation is stable across hosts. It is the
+// single named home of the engine's default instant; a zero-start fake begins here.
+func UnixEpoch() time.Time { return time.Unix(0, 0).UTC() }
+
+// normalizeStart maps the zero time.Time to UnixEpoch; any other instant is kept
+// verbatim. This is the single place the zero-start rule is enforced, so every entry
+// point onto the engine (NewClock, Fakes) anchors a zero start identically.
+func normalizeStart(start time.Time) time.Time {
+	if start.IsZero() {
+		return UnixEpoch()
+	}
+	return start
+}
+
+// NewClock returns a fake Clock frozen at start; a zero start anchors at UnixEpoch.
+func NewClock(start time.Time) *Clock { return &Clock{now: normalizeStart(start)} }
 
 // Now returns the current frozen instant. It does not advance on its own.
 func (c *Clock) Now() time.Time {
@@ -51,10 +77,14 @@ func (c *Clock) Now() time.Time {
 func (c *Clock) After(ctx context.Context, d time.Duration) <-chan time.Time {
 	c.mu.Lock()
 	t := &timer{deadline: c.now.Add(d), ch: make(chan time.Time, 1)}
-	// A non-positive duration is already due relative to the current instant.
+	// A non-positive duration is already due relative to the current instant. Deliver
+	// the DEADLINE instant (now+d), exactly as the Advance path delivers t.deadline —
+	// "After channels fire when Advance crosses their deadline", so an already-due
+	// timer carries its own deadline, not the current instant. This keeps the engine's
+	// fired-value invariant uniform across the due-on-After and due-on-Advance paths.
 	if !t.deadline.After(c.now) {
 		t.fired = true
-		t.ch <- c.now
+		t.ch <- t.deadline
 	} else {
 		c.pending = append(c.pending, t)
 	}
@@ -121,7 +151,10 @@ func (c *Clock) Advance(d time.Duration) {
 }
 
 // Random is a deterministic, seedable entropy source (math/rand/v2.ChaCha8 under the
-// hood) so randomized code paths are reproducible. Safe for concurrent use.
+// hood) so randomized code paths are reproducible — the single byte-stream engine. NOT
+// crypto-secure: tests only; production binds crypto/rand. Identical seed + identical
+// Read sequence ⇒ identical bytes, forever (the frozen invariant). Safe for concurrent
+// use.
 type Random struct {
 	mu  sync.Mutex
 	src *rand.ChaCha8
@@ -177,7 +210,7 @@ func (s *RecordingSink) Records() []any {
 // The test analog of dependencies.Resolve; callers override individual fields as
 // needed.
 func Fakes() (set dependencies.Set, clock *Clock, random *Random, sink *RecordingSink) {
-	clock = NewClock(time.Unix(0, 0).UTC())
+	clock = NewClock(UnixEpoch())
 	random = NewRandom([32]byte{})
 	sink = &RecordingSink{}
 	return dependencies.Set{Clock: clock, Random: random, Sink: sink}, clock, random, sink

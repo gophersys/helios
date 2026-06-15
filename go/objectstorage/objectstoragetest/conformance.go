@@ -123,7 +123,7 @@ func assertAbsentNotFound(t *testing.T, store objectstorage.ObjectStore, bucket 
 	if reader != nil {
 		t.Error("Get(absent) returned a non-nil reader with an error")
 	}
-	if !isType[objectstorage.NotFoundError](err) {
+	if !errors.IsType[objectstorage.NotFoundError](err) {
 		t.Errorf("Get(absent) error not AsType[NotFoundError]: %v", err)
 	}
 	if errors.KindOf(err) != errors.KindNotFound {
@@ -150,7 +150,7 @@ func assertDeleteIdempotent(t *testing.T, store objectstorage.ObjectStore, bucke
 	if err := store.Delete(ctx, r); err != nil {
 		t.Errorf("second Delete error = %v, want nil (idempotent)", err)
 	}
-	if _, _, err := store.Get(ctx, r); !isType[objectstorage.NotFoundError](err) {
+	if _, _, err := store.Get(ctx, r); !errors.IsType[objectstorage.NotFoundError](err) {
 		t.Errorf("Get after Delete error = %v, want NotFoundError", err)
 	}
 }
@@ -159,10 +159,10 @@ func assertDeleteIdempotent(t *testing.T, store objectstorage.ObjectStore, bucke
 func assertInvalidRef(t *testing.T, store objectstorage.ObjectStore) {
 	t.Helper()
 	ctx := context.Background()
-	if _, _, err := store.Get(ctx, objectstorage.ObjectRef{}); !isType[objectstorage.InvalidError](err) {
+	if _, _, err := store.Get(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Get(zero ref) error = %v, want InvalidError", err)
 	}
-	if err := store.Delete(ctx, objectstorage.ObjectRef{}); !isType[objectstorage.InvalidError](err) {
+	if err := store.Delete(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Delete(zero ref) error = %v, want InvalidError", err)
 	}
 }
@@ -248,12 +248,6 @@ func assertErrorCarriesRef(t *testing.T, store objectstorage.ObjectStore, bucket
 	if contains(err.Error(), string(SeededPayload)) {
 		t.Errorf("error %q leaked the payload", err.Error())
 	}
-}
-
-// isType reports whether err's chain carries a value of type E (errors.AsType[E]).
-func isType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // contains reports whether needle occurs in haystack (a non-empty-needle strings.Contains).

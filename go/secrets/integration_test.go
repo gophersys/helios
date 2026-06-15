@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
@@ -88,7 +89,7 @@ func TestIntegration_RealRoutingAcrossSchemes(t *testing.T) {
 	}
 
 	// An unbound scheme is unroutable → typed InvalidReferenceError, never a panic or a wrong route.
-	if _, rerr := med.Resolve(ctx, secrets.Ref("keychain://thing")); !is[secrets.InvalidReferenceError](rerr) {
+	if _, rerr := med.Resolve(ctx, secrets.Ref("keychain://thing")); !errors.IsType[secrets.InvalidReferenceError](rerr) {
 		t.Errorf("Resolve(unbound scheme) error not AsType[InvalidReferenceError]: %v", rerr)
 	}
 }

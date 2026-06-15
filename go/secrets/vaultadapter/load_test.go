@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/goleak"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 )
 
@@ -63,7 +64,7 @@ func TestLoad_ConcurrentResolveRaceClean(t *testing.T) {
 				t.Errorf("worker %d: Use saw %q, want %q (independence violated under fan-out)", i, got, value)
 			}
 			sec.Zeroize()
-			if zerr := sec.Use(func([]byte) error { return nil }); !is[secrets.ZeroizedError](zerr) {
+			if zerr := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](zerr) {
 				t.Errorf("worker %d: Use after Zeroize not ZeroizedError: %v", i, zerr)
 			}
 		}(i)

@@ -110,12 +110,12 @@ func assertPermissionHuman(t *testing.T, _ func() *Adapter) {
 	}
 	// First-decision-wins: a second Resolve loses with UnknownPermissionError.
 	_, second := session.Resolve(context.Background(), "req-1", agentsession.Decision{Allow: false, By: "user-99"})
-	if !asType[agentsession.UnknownPermissionError](second) {
+	if !errors.IsType[agentsession.UnknownPermissionError](second) {
 		t.Errorf("second Resolve must be UnknownPermissionError, got %v (%T)", second, second)
 	}
 	// Resolving an unknown id is UnknownPermissionError too.
 	_, unknown := session.Resolve(context.Background(), "nope", agentsession.Decision{Allow: true, By: "user-42"})
-	if !asType[agentsession.UnknownPermissionError](unknown) {
+	if !errors.IsType[agentsession.UnknownPermissionError](unknown) {
 		t.Errorf("Resolve of an unknown id must be UnknownPermissionError, got %v (%T)", unknown, unknown)
 	}
 
@@ -197,7 +197,7 @@ func assertCapabilityHonesty(t *testing.T, _ func() *Adapter) {
 	}
 	// Steer is declared absent: UnsupportedError regardless of phase.
 	_, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandSteer, Text: "x"})
-	if !asType[agentsession.UnsupportedError](err) {
+	if !errors.IsType[agentsession.UnsupportedError](err) {
 		t.Errorf("Steer with CapSteer absent must be UnsupportedError, got %v (%T)", err, err)
 	}
 	assertKind(t, err, errors.KindInvalid, "UnsupportedError")

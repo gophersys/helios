@@ -8,6 +8,7 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
@@ -132,7 +133,7 @@ func TestCanary_NeverSurfacesThroughError(t *testing.T) {
 	if openErr == nil {
 		t.Fatalf("a non-readying harness must fail Open (silent-bad-token trap)")
 	}
-	if !isType[agentsession.AuthError](openErr) {
+	if !errors.IsType[agentsession.AuthError](openErr) {
 		t.Fatalf("want AuthError, got %v (%T)", openErr, openErr)
 	}
 	if strings.Contains(openErr.Error(), canarySecret) {

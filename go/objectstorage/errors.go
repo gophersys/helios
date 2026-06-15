@@ -76,22 +76,15 @@ func quoteRef(r ObjectRef) string {
 // is not an *errors.Error: the store wraps with this Kind so errors.KindOf is correct end-to-end.
 func kindOfTaxonomy(err error) errors.Kind {
 	switch {
-	case isType[InvalidError](err):
+	case errors.IsType[InvalidError](err):
 		return errors.KindInvalid
-	case isType[NotFoundError](err):
+	case errors.IsType[NotFoundError](err):
 		return errors.KindNotFound
-	case isType[DeniedError](err):
+	case errors.IsType[DeniedError](err):
 		return errors.KindPermission
-	case isType[UnavailableError](err):
+	case errors.IsType[UnavailableError](err):
 		return errors.KindUnavailable
 	default:
 		return errors.KindUnknown
 	}
-}
-
-// isType reports whether err's chain carries a value of type E via errors.AsType[E]. The taxonomy
-// is inspected by TYPE, never by string (the errors contract).
-func isType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }

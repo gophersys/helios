@@ -41,13 +41,6 @@ func Run(t *testing.T, newAdapter func() *Adapter) {
 	t.Run("CloseIdempotent", func(t *testing.T) { assertCloseIdempotent(t, newAdapter) })
 }
 
-// asType reports whether err's chain carries a *E (the Go 1.26 single-arg AsType form),
-// keeping every suite call site on one typed-error idiom.
-func asType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
-}
-
 // assertKind asserts err classifies to the expected errors.Kind.
 func assertKind(t *testing.T, err error, want errors.Kind, description string) {
 	t.Helper()

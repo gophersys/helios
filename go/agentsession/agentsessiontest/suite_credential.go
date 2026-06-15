@@ -61,7 +61,7 @@ func assertSilentBadToken(t *testing.T, _ func() *Adapter) {
 	adapter := New().SpawnNonReadying()
 	h := newHarness(t, adapter)
 	_, err := h.pool.Open(context.Background(), h.spec())
-	if !asType[agentsession.AuthError](err) {
+	if !errors.IsType[agentsession.AuthError](err) {
 		t.Fatalf("a harness that never confirms readiness must convert to AuthError, got %v (%T)", err, err)
 	}
 	assertKind(t, err, errors.KindUnauthenticated, "AuthError")
@@ -130,14 +130,14 @@ func assertTypedErrors(t *testing.T, _ func() *Adapter) {
 		Routing:    agentsession.RouteKey{Role: "nonexistent"},
 		Credential: secretsRef(),
 	})
-	if !asType[agentsession.RouteError](err) {
+	if !errors.IsType[agentsession.RouteError](err) {
 		t.Errorf("Open with an unknown route must be RouteError, got %v (%T)", err, err)
 	}
 	assertKind(t, err, errors.KindInvalid, "RouteError")
 
 	// New with no adapters -> ConfigError(invalid).
 	_, newErr := agentsession.New(agentsession.Config{}, agentsession.Deps{})
-	if !asType[agentsession.ConfigError](newErr) {
+	if !errors.IsType[agentsession.ConfigError](newErr) {
 		t.Errorf("New with no adapters must be ConfigError, got %v (%T)", newErr, newErr)
 	}
 	assertKind(t, newErr, errors.KindInvalid, "ConfigError")

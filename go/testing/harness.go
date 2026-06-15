@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gophersys/libs/go/testing/internal/deterministic"
+	"github.com/gophersys/libs/go/dependencies/dependenciestest"
+	"github.com/gophersys/libs/go/testing/internal/seedkey"
 )
 
 // epochAnchor is the injected, host-free start instant for vended fakes. Stored as
@@ -21,8 +22,8 @@ type timeoutPolicy struct{ d time.Duration }
 // RequireCapabilities set, owns LIFO Cleanup, and exposes the run Context (with the
 // per-case timeout applied). A new suiteHarness is built per case for isolation.
 type suiteHarness struct {
-	clock    *deterministic.Clock
-	random   *deterministic.Random
+	clock    *dependenciestest.Clock
+	random   *dependenciestest.Random
 	caps     map[string]struct{}
 	runCtx   context.Context
 	cancel   context.CancelFunc
@@ -41,8 +42,8 @@ func (r *Runner) newHarness() *suiteHarness {
 		ctx, cancel = context.WithTimeout(ctx, r.caseTimeout.d)
 	}
 	return &suiteHarness{
-		clock:  deterministic.NewClock(r.epoch.at),
-		random: deterministic.NewRandom(r.seed),
+		clock:  dependenciestest.NewClock(r.epoch.at),
+		random: dependenciestest.NewRandom(seedkey.Derive(r.seed)),
 		caps:   r.requireCaps,
 		runCtx: ctx,
 		cancel: cancel,
@@ -50,16 +51,16 @@ func (r *Runner) newHarness() *suiteHarness {
 }
 
 // Clock and RandomSource return the port interfaces the Harness contract declares
-// (contract §2): the deterministic *deterministic.Clock/*deterministic.Random
-// adapters are internal by design, so the Harness vends them as their ports. The
+// (contract §2): the deterministic *dependenciestest.Clock/*dependenciestest.Random
+// fakes are the single shared engine, so the Harness vends them as their ports. The
 // ireturn "return concrete" rule is wrong-for-contract for exactly these two
-// methods — they implement the frozen Harness interface and cannot return the
-// unexported concrete type.
+// methods — they implement the frozen Harness interface and vend the concrete fake
+// as its interface.
 
-//nolint:ireturn // contract §2: Harness.Clock() returns the Clock port; the *deterministic.Clock adapter is internal by design.
+//nolint:ireturn // contract §2: Harness.Clock() returns the Clock port; the *dependenciestest.Clock fake is vended as its interface.
 func (h *suiteHarness) Clock() Clock { return h.clock }
 
-//nolint:ireturn // contract §2: Harness.RandomSource() returns the RandomSource port; the *deterministic.Random adapter is internal by design.
+//nolint:ireturn // contract §2: Harness.RandomSource() returns the RandomSource port; the *dependenciestest.Random fake is vended as its interface.
 func (h *suiteHarness) RandomSource() RandomSource { return h.random }
 
 func (h *suiteHarness) Context() context.Context { return h.runCtx }

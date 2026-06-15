@@ -1,6 +1,9 @@
 package observability
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // ── Event: the one structured record every plane emits ──────────────────────.
 
@@ -116,7 +119,7 @@ func Err(err error) Field {
 }
 
 // nilValue is the substitute Valuer Any installs when handed a nil Valuer, so a
-// Field's Value is never a nil interface: every inspection path (decodeLedger, an
+// Field's Value is never a nil interface: every inspection path (LedgerFrom, an
 // adapter's serialization loop) can call TelemetryValue without a nil deref. Its
 // projection is the empty string — a no-value attribute, never raw material.
 type nilValue struct{}
@@ -127,7 +130,7 @@ func (nilValue) TelemetryValue() any { return "" }
 // the value's already-redacted projection onto the stream and nothing raw. A nil
 // Valuer is substituted with an empty no-value projection (misuse-resistance):
 // Any never lands a Field whose Value is a nil interface, so no downstream
-// inspector (decodeLedger, an Exporter walking Fields) can nil-deref it.
+// inspector (LedgerFrom, an Exporter walking Fields) can nil-deref it.
 func Any(key string, v Valuer) Field {
 	if v == nil {
 		return Field{Key: key, Value: nilValue{}}
@@ -157,6 +160,27 @@ type Ledger struct {
 	WallTime   time.Duration
 }
 
+// LedgerName is the stable, low-cardinality Event.Name of the T6 token/cost
+// ledger Event — the single name LedgerEvent stamps and LedgerFrom matches on, so
+// the encoder and its inverse agree on the record's identity in one place.
+const LedgerName = "cost.ledger"
+
+// The cost.ledger field keys, declared ONCE so LedgerEvent (encoder) and
+// LedgerFrom (decoder) project the same Ledger schema without two key lists
+// drifting apart. They are the wire/telemetry contract for the T6 record.
+const (
+	ledgerKeyRunID      = "run.id"
+	ledgerKeyPhaseID    = "phase.id"
+	ledgerKeyModel      = "model"
+	ledgerKeyHarness    = "harness"
+	ledgerKeyTokensIn   = "tokens.in"
+	ledgerKeyTokensOut  = "tokens.out"
+	ledgerKeyCacheHits  = "cache.hits"
+	ledgerKeyCostMicros = "cost.micros"
+	ledgerKeyRetries    = "retries"
+	ledgerKeyWallTime   = "wall.time"
+)
+
 // LedgerEvent builds the canonical PlaneAgent "cost.ledger" Event at
 // SeverityInfo. now is supplied by the caller's injected Clock (the library reads
 // no clock); pass the zero time to let the adapter stamp.
@@ -172,18 +196,108 @@ func LedgerEvent(now time.Time, l Ledger) Event {
 		Time:     now,
 		Plane:    PlaneAgent,
 		Severity: SeverityInfo,
-		Name:     "cost.ledger",
+		Name:     LedgerName,
 		Fields: []Field{
-			String("run.id", l.RunID),
-			String("phase.id", l.PhaseID),
-			String("model", l.Model),
-			String("harness", l.Harness),
-			Int64("tokens.in", l.TokensIn),
-			Int64("tokens.out", l.TokensOut),
-			Int64("cache.hits", l.CacheHits),
-			Int64("cost.micros", l.CostMicros),
-			Int64("retries", int64(l.Retries)),
-			Dur("wall.time", l.WallTime),
+			String(ledgerKeyRunID, l.RunID),
+			String(ledgerKeyPhaseID, l.PhaseID),
+			String(ledgerKeyModel, l.Model),
+			String(ledgerKeyHarness, l.Harness),
+			Int64(ledgerKeyTokensIn, l.TokensIn),
+			Int64(ledgerKeyTokensOut, l.TokensOut),
+			Int64(ledgerKeyCacheHits, l.CacheHits),
+			Int64(ledgerKeyCostMicros, l.CostMicros),
+			Int64(ledgerKeyRetries, int64(l.Retries)),
+			Dur(ledgerKeyWallTime, l.WallTime),
 		},
 	}
+}
+
+// LedgerFrom is the public inverse of LedgerEvent: it reconstructs a typed Ledger
+// from a "cost.ledger" Event's Fields, so a budget meter or FinOps reader (S9)
+// round-trips token/cost data off the stream without re-deriving the field schema.
+// It is the one decoder for the T6 record — the conformance fake and the property
+// tests call it rather than each maintaining a private copy.
+//
+// The bool reports whether e is a cost.ledger Event (e.Name == LedgerName); for any
+// other Event it returns the zero Ledger and false. A field whose telemetry
+// projection has an unexpected type contributes its zero value (a hand-built poison
+// Field cannot panic the decoder), and a Field carrying a nil Valuer is skipped
+// rather than nil-dereferenced, mirroring the Any constructor's nil substitution.
+//
+//nolint:gocritic // Ledger returned by value to match LedgerEvent's by-value contract.
+func LedgerFrom(e Event) (Ledger, bool) {
+	if e.Name != LedgerName {
+		return Ledger{}, false
+	}
+	var l Ledger
+	for _, f := range e.Fields {
+		if f.Value == nil {
+			continue
+		}
+		tv := f.Value.TelemetryValue()
+		switch f.Key {
+		case ledgerKeyRunID:
+			l.RunID = ledgerString(tv)
+		case ledgerKeyPhaseID:
+			l.PhaseID = ledgerString(tv)
+		case ledgerKeyModel:
+			l.Model = ledgerString(tv)
+		case ledgerKeyHarness:
+			l.Harness = ledgerString(tv)
+		case ledgerKeyTokensIn:
+			l.TokensIn = ledgerInt64(tv)
+		case ledgerKeyTokensOut:
+			l.TokensOut = ledgerInt64(tv)
+		case ledgerKeyCacheHits:
+			l.CacheHits = ledgerInt64(tv)
+		case ledgerKeyCostMicros:
+			l.CostMicros = ledgerInt64(tv)
+		case ledgerKeyRetries:
+			l.Retries = ledgerInt32(tv)
+		case ledgerKeyWallTime:
+			l.WallTime = ledgerDuration(tv)
+		}
+	}
+	return l, true
+}
+
+// ledgerString / ledgerInt64 / ledgerInt32 / ledgerDuration project a telemetry
+// value to a concrete Ledger field type, returning the zero value on a type
+// mismatch so LedgerFrom never panics on a hand-built poison Field.
+func ledgerString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
+}
+
+func ledgerInt64(v any) int64 {
+	if n, ok := v.(int64); ok {
+		return n
+	}
+	return 0
+}
+
+// ledgerInt32 BOUNDS-CHECKS the int64→int32 narrowing rather than relying on a
+// silent wrap. Ledger.Retries is an int32 stored on the stream as
+// Int64(ledgerKeyRetries, int64(l.Retries)), so a faithful round-trip is always in
+// range; a value outside [MinInt32, MaxInt32] (only reachable from a hand-built
+// poison Field) is clamped to the boundary, never wrapped — a guard, not a #nosec.
+func ledgerInt32(v any) int32 {
+	n := ledgerInt64(v)
+	switch {
+	case n > math.MaxInt32:
+		return math.MaxInt32
+	case n < math.MinInt32:
+		return math.MinInt32
+	default:
+		return int32(n)
+	}
+}
+
+func ledgerDuration(v any) time.Duration {
+	if d, ok := v.(time.Duration); ok {
+		return d
+	}
+	return 0
 }

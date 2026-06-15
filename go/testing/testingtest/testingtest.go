@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/gophersys/libs/go/dependencies"
+	"github.com/gophersys/libs/go/dependencies/dependenciestest"
 	testingpkg "github.com/gophersys/libs/go/testing"
-	"github.com/gophersys/libs/go/testing/internal/deterministic"
+	"github.com/gophersys/libs/go/testing/internal/seedkey"
 )
 
 // FakeClock is virtual-time: it NEVER advances on its own. Tests drive time
@@ -24,17 +25,20 @@ import (
 // crosses, in deadline order, before returning. Zero start
 // (NewFakeClock(time.Time{})) → the Unix epoch.
 //
-// FakeClock is a type ALIAS of the internal virtual-time engine so the public fake
-// and the Runner's vended Clock are the SAME concrete type sharing ONE frozen
-// timeline algorithm (contract open question 6). The alias is what makes the §5
-// affordance fakes.Clock.(*testingtest.FakeClock).Advance(...) succeed on a Clock
-// the core's Runner.Fakes() vends, with no import cycle (the engine is internal;
-// this alias re-exports it without exposing the internal package to consumers).
-type FakeClock = deterministic.Clock
+// FakeClock is a type ALIAS of the canonical virtual-time engine in the leaf
+// dependenciestest package (one concept, one home — 10 §9): the public fake, the
+// Runner's vended Clock, and every other <pattern>test fake are the SAME concrete
+// type over the ONE frozen timeline algorithm (contract open question 6). Aliasing
+// the leaf engine — rather than re-implementing a sibling — is what guarantees a
+// single timeline, a single bug surface, and makes the §5 affordance
+// fakes.Clock.(*testingtest.FakeClock).Advance(...) succeed on a Clock the core's
+// Runner.Fakes() vends, with no import cycle (testing already imports dependencies).
+type FakeClock = dependenciestest.Clock
 
 // NewFakeClock builds a virtual FakeClock starting at start (zero start → the Unix
-// epoch).
-func NewFakeClock(start time.Time) *FakeClock { return deterministic.NewClock(start) }
+// epoch). It is the testing-side spelling of dependenciestest.NewClock — the single
+// constructor onto the shared timeline engine.
+func NewFakeClock(start time.Time) *FakeClock { return dependenciestest.NewClock(start) }
 
 var _ dependencies.Clock = (*FakeClock)(nil)
 
@@ -43,13 +47,21 @@ var _ dependencies.Clock = (*FakeClock)(nil)
 // serialized; identical seed + identical Read call sequence ⇒ identical bytes,
 // forever (a maintained, version-pinned guarantee — open question 6).
 //
-// Like FakeClock, it is a type ALIAS of the internal engine so the public fake and
-// the Runner's vended RandomSource are the same concrete type over ONE frozen
-// byte-stream algorithm.
-type FakeRandomSource = deterministic.Random
+// Like FakeClock, it is a type ALIAS of the canonical leaf engine
+// (dependenciestest.Random) so the public fake and the Runner's vended RandomSource
+// are the same concrete type over the ONE frozen byte-stream algorithm — there is a
+// single ChaCha8 stream and a single bug surface for the whole library graph.
+type FakeRandomSource = dependenciestest.Random
 
-// NewFakeRandomSource builds a deterministic entropy stream from seed.
-func NewFakeRandomSource(seed uint64) *FakeRandomSource { return deterministic.NewRandom(seed) }
+// NewFakeRandomSource builds a deterministic entropy stream from a uint64 seed. The
+// leaf engine is keyed by a [32]byte; seedkey.Derive is the single, frozen function
+// (shared with the Runner-vended path) that spreads the uint64 seed across that key
+// so the seed→stream mapping stays a pure, version-pinned function (open question 6).
+// The exact bytes are pinned by TestFakeRandomSource_GoldenBytes; changing the
+// derivation is a BREAKING change that may only ship behind a new constructor.
+func NewFakeRandomSource(seed uint64) *FakeRandomSource {
+	return dependenciestest.NewRandom(seedkey.Derive(seed))
+}
 
 var _ dependencies.RandomSource = (*FakeRandomSource)(nil)
 

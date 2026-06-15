@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/objectstorage"
 	"github.com/gophersys/libs/go/objectstorage/minioadapter"
 	"github.com/gophersys/libs/go/objectstorage/objectstoragetest"
@@ -140,7 +141,7 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 	if err := store.Delete(ctx, ref); err != nil {
 		t.Errorf("Delete against real MinIO: %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, ref); !is[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := store.Get(ctx, ref); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get after Delete = %v, want NotFoundError from real MinIO", gerr)
 	}
 }
@@ -160,7 +161,7 @@ func TestIntegration_RealMinioTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRef error = %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, missing); !is[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := store.Get(ctx, missing); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get(absent) against real MinIO = %v, want NotFoundError", gerr)
 	}
 
@@ -168,7 +169,7 @@ func TestIntegration_RealMinioTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRef error = %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, absentBucket); !is[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := store.Get(ctx, absentBucket); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get(absent bucket) against real MinIO = %v, want NotFoundError", gerr)
 	}
 }

@@ -16,13 +16,6 @@ import (
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 )
 
-// is reports whether err's chain carries a value of type E (errors.AsType[E]). The whole error
-// taxonomy is inspected by TYPE, never by string (the errors contract, secrets.md §6.6).
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
-}
-
 // fakeTransport is an in-memory vaultadapter.Transport for the UNIT lane: it exercises the
 // adapter's parse → token → KV-unwrap → mint mapping WITHOUT a Vault daemon. The REAL-Vault proof
 // is the integration lane (//go:build integration), never this fake (ADR-0016 §2). It records the
@@ -249,7 +242,7 @@ func TestResolve_TokenFileModeEmptyTokenIsUnavailable(t *testing.T) {
 		t.Fatalf("New error = %v", err)
 	}
 	_, rerr := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/a#k"))
-	if !is[secrets.UnavailableError](rerr) {
+	if !errors.IsType[secrets.UnavailableError](rerr) {
 		t.Errorf("empty token-file Resolve error = %v, want UnavailableError", rerr)
 	}
 }
@@ -268,7 +261,7 @@ func TestResolve_MalformedReferenceIsInvalid(t *testing.T) {
 		"vault://eden//#k",    // empty path after trim
 	} {
 		_, err := adapter.Resolve(context.Background(), secrets.Ref(raw))
-		if !is[secrets.InvalidReferenceError](err) {
+		if !errors.IsType[secrets.InvalidReferenceError](err) {
 			t.Errorf("Resolve(%q) error = %v, want InvalidReferenceError", raw, err)
 		}
 	}
@@ -278,7 +271,7 @@ func TestResolve_ZeroReferenceIsInvalid(t *testing.T) {
 	t.Parallel()
 	adapter := newUserpassAdapter(t, &fakeTransport{})
 	_, err := adapter.Resolve(context.Background(), secrets.Reference{})
-	if !is[secrets.InvalidReferenceError](err) {
+	if !errors.IsType[secrets.InvalidReferenceError](err) {
 		t.Errorf("Resolve(zero ref) error = %v, want InvalidReferenceError", err)
 	}
 }
@@ -289,7 +282,7 @@ func TestResolve_MissingSecretIsNotFound(t *testing.T) {
 	t.Parallel()
 	adapter := newUserpassAdapter(t, &fakeTransport{kv: map[string]map[string]any{}})
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/missing#k"))
-	if !is[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("Resolve(missing) error = %v, want NotFoundError", err)
 	}
 }
@@ -301,7 +294,7 @@ func TestResolve_MissingFieldIsNotFound(t *testing.T) {
 	}}
 	adapter := newUserpassAdapter(t, transport)
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#absent"))
-	if !is[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("Resolve(missing field) error = %v, want NotFoundError", err)
 	}
 }
@@ -313,7 +306,7 @@ func TestResolve_NonStringFieldIsNotFound(t *testing.T) {
 	}}
 	adapter := newUserpassAdapter(t, transport)
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#k"))
-	if !is[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("Resolve(non-string field) error = %v, want NotFoundError", err)
 	}
 }
@@ -325,7 +318,7 @@ func TestResolve_ForbiddenIsDenied(t *testing.T) {
 	transport := &fakeTransport{readErr: &vaultapi.ResponseError{StatusCode: http.StatusForbidden}}
 	adapter := newUserpassAdapter(t, transport)
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#k"))
-	if !is[secrets.DeniedError](err) {
+	if !errors.IsType[secrets.DeniedError](err) {
 		t.Errorf("Resolve(403) error = %v, want DeniedError", err)
 	}
 }
@@ -335,7 +328,7 @@ func TestResolve_Response404IsNotFound(t *testing.T) {
 	transport := &fakeTransport{readErr: &vaultapi.ResponseError{StatusCode: http.StatusNotFound}}
 	adapter := newUserpassAdapter(t, transport)
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#k"))
-	if !is[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("Resolve(404) error = %v, want NotFoundError", err)
 	}
 }
@@ -345,7 +338,7 @@ func TestResolve_ServerErrorIsUnavailable(t *testing.T) {
 	transport := &fakeTransport{readErr: &vaultapi.ResponseError{StatusCode: http.StatusBadGateway}}
 	adapter := newUserpassAdapter(t, transport)
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#k"))
-	if !is[secrets.UnavailableError](err) {
+	if !errors.IsType[secrets.UnavailableError](err) {
 		t.Errorf("Resolve(502) error = %v, want UnavailableError", err)
 	}
 }
@@ -355,7 +348,7 @@ func TestResolve_DialErrorIsUnavailable(t *testing.T) {
 	transport := &fakeTransport{readErr: errors.New(errors.KindUnavailable, "connection refused")}
 	adapter := newUserpassAdapter(t, transport)
 	_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#k"))
-	if !is[secrets.UnavailableError](err) {
+	if !errors.IsType[secrets.UnavailableError](err) {
 		t.Errorf("Resolve(dial error) error = %v, want UnavailableError", err)
 	}
 }
@@ -366,7 +359,7 @@ func TestResolve_LoginFailureIsMappedAndSticky(t *testing.T) {
 	adapter := newUserpassAdapter(t, transport)
 	for range 3 {
 		_, err := adapter.Resolve(context.Background(), secrets.Ref("vault://eden/p#k"))
-		if !is[secrets.DeniedError](err) {
+		if !errors.IsType[secrets.DeniedError](err) {
 			t.Errorf("Resolve after login-403 error = %v, want DeniedError", err)
 		}
 	}

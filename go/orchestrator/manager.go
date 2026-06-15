@@ -24,7 +24,7 @@ func (p *Pool) Spawn(ctx context.Context, request SpawnRequest) (Agent, error) {
 	if err != nil {
 		// Resolve returns a wrapped, classified TemplateNotFoundError; surface it as-is when
 		// it carries our type (re-wrapping would double-classify), else synthesize ours.
-		if asType[*TemplateNotFoundError](err) {
+		if errors.IsType[*TemplateNotFoundError](err) {
 			return Agent{}, err //nolint:wrapcheck // the TemplateStore already returns a wrapped, classified TemplateNotFoundError; re-wrapping double-classifies.
 		}
 		return Agent{}, errors.Wrap(errors.KindNotFound, "orchestrator: resolve template",
@@ -100,7 +100,7 @@ func (p *Pool) Spawn(ctx context.Context, request SpawnRequest) (Agent, error) {
 func (p *Pool) Get(ctx context.Context, id AgentID) (Agent, error) {
 	agent, err := p.dependencies.Desired.Get(ctx, id)
 	if err != nil {
-		if asType[*NotFoundError](err) {
+		if errors.IsType[*NotFoundError](err) {
 			return Agent{}, err //nolint:wrapcheck // the DesiredStore already returns a wrapped, classified NotFoundError; re-wrapping double-classifies.
 		}
 		return Agent{}, errors.Wrap(errors.KindNotFound, "orchestrator: get agent", &NotFoundError{ID: id})
@@ -131,7 +131,7 @@ func (p *Pool) Stop(ctx context.Context, id AgentID, by string) error {
 
 	agent, err := p.dependencies.Desired.Get(ctx, id)
 	if err != nil {
-		if asType[*NotFoundError](err) {
+		if errors.IsType[*NotFoundError](err) {
 			return err //nolint:wrapcheck // the DesiredStore already returns a wrapped, classified NotFoundError; re-wrapping double-classifies.
 		}
 		return errors.Wrap(errors.KindNotFound, "orchestrator: stop agent", &NotFoundError{ID: id})
@@ -162,7 +162,7 @@ func (p *Pool) Resume(ctx context.Context, id AgentID, by string) error {
 
 	agent, err := p.dependencies.Desired.Get(ctx, id)
 	if err != nil {
-		if asType[*NotFoundError](err) {
+		if errors.IsType[*NotFoundError](err) {
 			return err //nolint:wrapcheck // the DesiredStore already returns a wrapped, classified NotFoundError; re-wrapping double-classifies.
 		}
 		return errors.Wrap(errors.KindNotFound, "orchestrator: resume agent", &NotFoundError{ID: id})

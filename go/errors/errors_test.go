@@ -414,6 +414,37 @@ func TestAsTypeExtractsTypedCause(t *testing.T) {
 	}
 }
 
+// IsType is the boolean form of AsType: it must agree with AsType's ok on every
+// input — a present typed cause, a foreign error, and a nil error.
+func TestIsTypeAgreesWithAsType(t *testing.T) {
+	t.Parallel()
+	leaf := errors.New(errors.KindNotFound, "leaf")
+	chain := errors.Wrap(errors.KindInternal, "outer", leaf)
+	foreign := stderrors.New("foreign")
+
+	cases := []struct {
+		name string
+		err  error
+	}{
+		{"typed cause present", chain},
+		{"foreign error", foreign},
+		{"nil error", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			as, ok := errors.AsType[*errors.Error](tc.err)
+			if got := errors.IsType[*errors.Error](tc.err); got != ok {
+				t.Errorf("IsType[*Error](%v) = %v, AsType ok = %v — must agree", tc.err, got, ok)
+			}
+			// The extracted value rides AsType's ok: present iff ok.
+			if (as != nil) != ok {
+				t.Errorf("AsType value/ok disagree: value=%p ok=%v", as, ok)
+			}
+		})
+	}
+}
+
 func TestIsReExport(t *testing.T) {
 	t.Parallel()
 	sentinel := stderrors.New("sentinel")

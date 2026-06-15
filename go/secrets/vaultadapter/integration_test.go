@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 )
@@ -138,13 +139,13 @@ func TestIntegration_RealVaultTypedErrors(t *testing.T) {
 	ctx := context.Background()
 
 	// A well-formed reference to a secret that does not exist → NotFoundError (real Vault 404).
-	if _, nerr := adapter.Resolve(ctx, secrets.Ref("vault://eden/connectors/absent#token")); !is[secrets.NotFoundError](nerr) {
+	if _, nerr := adapter.Resolve(ctx, secrets.Ref("vault://eden/connectors/absent#token")); !errors.IsType[secrets.NotFoundError](nerr) {
 		t.Errorf("Resolve(absent) error = %v, want NotFoundError", nerr)
 	}
 
 	// A path OUTSIDE the eden/data/* policy grant → DeniedError (real Vault 403). The least-privilege
 	// userpass identity has read on eden/data/* only; "other/data/*" is denied.
-	if _, derr := adapter.Resolve(ctx, secrets.Ref("vault://other/forbidden#token")); !is[secrets.DeniedError](derr) {
+	if _, derr := adapter.Resolve(ctx, secrets.Ref("vault://other/forbidden#token")); !errors.IsType[secrets.DeniedError](derr) {
 		t.Errorf("Resolve(out-of-policy path) error = %v, want DeniedError", derr)
 	}
 }

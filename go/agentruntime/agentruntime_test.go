@@ -102,20 +102,12 @@ func assertConfigError(t *testing.T, err error) {
 	if err == nil {
 		t.Fatal("expected a ConfigError, got nil")
 	}
-	if !is[*agentruntime.ConfigError](err) {
+	if !errors.IsType[*agentruntime.ConfigError](err) {
 		t.Errorf("error is not a *ConfigError: %v", err)
 	}
 	if got := errors.KindOf(err); got != errors.KindInvalid {
 		t.Errorf("ConfigError Kind = %v, want %v", got, errors.KindInvalid)
 	}
-}
-
-// is reports whether err's chain carries a value of type E (errors.AsType[E]). The generic E keeps
-// errcheck's type-assertion gate satisfied (a concrete AsType discards an error-typed value) and the
-// whole taxonomy is inspected by TYPE, never by string (the errors contract).
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // TestControlVerb_String proves the verb token round-trip is stable (the wire vocabulary is part of

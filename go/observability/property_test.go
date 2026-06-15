@@ -3,7 +3,6 @@ package observability_test
 import (
 	"context"
 	stderrors "errors"
-	"math"
 	"strings"
 	"testing"
 	"time"
@@ -257,21 +256,11 @@ func TestProperty_LedgerEventRoundTrips(t *testing.T) {
 		}
 		e := observability.LedgerEvent(time.Time{}, want)
 
-		byKey := map[string]any{}
-		for _, f := range e.Fields {
-			byKey[f.Key] = f.Value.TelemetryValue()
-		}
-		got := observability.Ledger{
-			RunID:      asString(byKey["run.id"]),
-			PhaseID:    asString(byKey["phase.id"]),
-			Model:      asString(byKey["model"]),
-			Harness:    asString(byKey["harness"]),
-			TokensIn:   asInt64(byKey["tokens.in"]),
-			TokensOut:  asInt64(byKey["tokens.out"]),
-			CacheHits:  asInt64(byKey["cache.hits"]),
-			CostMicros: asInt64(byKey["cost.micros"]),
-			Retries:    asInt32(byKey["retries"]),
-			WallTime:   asDuration(byKey["wall.time"]),
+		// LedgerFrom is the one public inverse of LedgerEvent; the round-trip must
+		// recover every field and recognize the Event as a cost.ledger record.
+		got, ok := observability.LedgerFrom(e)
+		if !ok {
+			rt.Fatalf("LedgerFrom did not recognize a LedgerEvent as a cost.ledger Event")
 		}
 		if got != want {
 			rt.Fatalf("Ledger round-trip drifted:\n got %+v\nwant %+v", got, want)
@@ -475,42 +464,6 @@ func (e *propExporter) snapshot() []observability.Record { return e.records }
 type propClock struct{}
 
 func (propClock) Now() time.Time { return time.Unix(1700000000, 0).UTC() }
-
-func asString(v any) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return ""
-}
-
-func asInt64(v any) int64 {
-	if n, ok := v.(int64); ok {
-		return n
-	}
-	return 0
-}
-
-// asInt32 narrows a telemetry value to int32 with an explicit bounds check (no silent
-// wrap) — the int32 Retries field is stored as an int64 on the stream, so the round-trip
-// is always in range; an out-of-range value is clamped, mirroring the production decoder.
-func asInt32(v any) int32 {
-	n := asInt64(v)
-	switch {
-	case n > math.MaxInt32:
-		return math.MaxInt32
-	case n < math.MinInt32:
-		return math.MinInt32
-	default:
-		return int32(n)
-	}
-}
-
-func asDuration(v any) time.Duration {
-	if d, ok := v.(time.Duration); ok {
-		return d
-	}
-	return 0
-}
 
 func itoa(i int) string {
 	if i == 0 {

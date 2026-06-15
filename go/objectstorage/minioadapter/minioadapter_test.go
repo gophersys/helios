@@ -11,17 +11,10 @@ import (
 
 	minio "github.com/minio/minio-go/v7"
 
-	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/objectstorage/minioadapter"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
-
-// is reports whether err's chain carries a value of type E (errors.AsType[E]).
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
-}
 
 // the credential references the adapter resolves at construction; the secretstest fake seeds them.
 var (

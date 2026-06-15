@@ -241,11 +241,14 @@ func (p *Provider) Find(name string) []observability.Event {
 }
 
 // Ledgers decodes the T6 "cost.ledger" Events back into typed Ledgers so a budget
-// test asserts tokens/retries/cost directly.
+// test asserts tokens/retries/cost directly. It delegates to observability.LedgerFrom
+// — the one public inverse of LedgerEvent — rather than re-deriving the field schema.
 func (p *Provider) Ledgers() []observability.Ledger {
 	var out []observability.Ledger
-	for _, e := range p.Find("cost.ledger") {
-		out = append(out, decodeLedger(e))
+	for _, e := range p.Find(observability.LedgerName) {
+		if l, ok := observability.LedgerFrom(e); ok {
+			out = append(out, l)
+		}
 	}
 	return out
 }

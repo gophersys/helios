@@ -223,8 +223,9 @@ func TestFakeRandomSource_DeterministicFromSeed(t *testing.T) {
 func TestFakeRandomSource_GoldenBytes(t *testing.T) {
 	t.Parallel()
 	// golden[seed] is the hex of the first 64 bytes of NewFakeRandomSource(seed).Read.
-	// Frozen at v1 (math/rand/v2 ChaCha8 over the seed-derived key in
-	// internal/deterministic.NewRandom). DO NOT edit to chase a failing run.
+	// Frozen at v1 (math/rand/v2 ChaCha8 over the seed-derived key from
+	// internal/seedkey.Derive, fed to dependenciestest.NewRandom). DO NOT edit to
+	// chase a failing run.
 	golden := map[uint64]string{
 		0: "43827e43a84d4d5bea58d922acf3538ef275a08c1d35fe54d94da8edcf1d2b0a" +
 			"2511b693f66c8d7c770552eaf2323312c4cf82306541b31a1f703f7ec395efd3",

@@ -8,6 +8,7 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
@@ -89,7 +90,7 @@ func TestProperty_WhitespaceIsAlwaysRejected(t *testing.T) {
 		if err == nil {
 			rt.Fatalf("ParseReference(%q) accepted a whitespace-bearing reference", in)
 		}
-		if !is[secrets.InvalidReferenceError](err) {
+		if !errors.IsType[secrets.InvalidReferenceError](err) {
 			rt.Fatalf("ParseReference(%q) error not AsType[InvalidReferenceError]: %v", in, err)
 		}
 		if !r.IsZero() {
@@ -176,7 +177,7 @@ func TestProperty_UseExposesExactlyTheMintedBytes(t *testing.T) {
 		}
 
 		sec.Zeroize()
-		if err := sec.Use(func([]byte) error { return nil }); !is[secrets.ZeroizedError](err) {
+		if err := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](err) {
 			rt.Fatalf("Use after Zeroize error not AsType[ZeroizedError]: %v", err)
 		}
 	})

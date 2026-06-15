@@ -149,16 +149,9 @@ func TestOpen_MissingCredentialRef_AuthError(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	_, openErr := pool.Open(context.Background(), agentsession.Spec{Routing: agentsession.RouteKey{Role: "assistant"}})
-	if !isType[agentsession.AuthError](openErr) {
+	if !errors.IsType[agentsession.AuthError](openErr) {
 		t.Fatalf("a zero credential reference must be AuthError, got %v (%T)", openErr, openErr)
 	}
-}
-
-// isType reports whether err's chain carries a *E (the single typed-error inspection
-// idiom, keeping the blank-position discard in ONE place).
-func isType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // TestNew_RejectsMissingDependencies proves the pure constructor validates Deps.
@@ -177,7 +170,7 @@ func TestNew_RejectsMissingDependencies(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := agentsession.New(agentsession.Config{}, testCase.dependencies)
-			if !isType[agentsession.ConfigError](err) {
+			if !errors.IsType[agentsession.ConfigError](err) {
 				t.Fatalf("New(%s) must be ConfigError, got %v (%T)", testCase.name, err, err)
 			}
 			if errors.KindOf(err) != errors.KindInvalid {

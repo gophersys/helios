@@ -109,7 +109,7 @@ func assertNeverBothNonNil(t *testing.T, newProvider func() secrets.Provider, pr
 func assertTypedNotFound(t *testing.T, newProvider func() secrets.Provider, absent secrets.Reference) {
 	t.Helper()
 	_, err := newProvider().Resolve(context.Background(), absent)
-	if !isType[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("Resolve(absent) error not AsType[NotFoundError]: %v", err)
 	}
 }
@@ -125,7 +125,7 @@ func assertInvalidOnZeroReference(t *testing.T, newProvider func() secrets.Provi
 	if sec != nil {
 		t.Error("Resolve(zero ref) returned non-nil *Secret with an error")
 	}
-	if !isType[secrets.InvalidReferenceError](err) {
+	if !errors.IsType[secrets.InvalidReferenceError](err) {
 		t.Errorf("Resolve(zero ref) error not AsType[InvalidReferenceError]: %v", err)
 	}
 }
@@ -135,11 +135,11 @@ func assertInvalidOnZeroReference(t *testing.T, newProvider func() secrets.Provi
 func assertForcedDeniedAndUnavailable(t *testing.T, present secrets.Reference) {
 	t.Helper()
 	den := fmt.Errorf("backend: %w", secrets.DeniedError{Ref: present})
-	if !isType[secrets.DeniedError](den) {
+	if !errors.IsType[secrets.DeniedError](den) {
 		t.Errorf("DeniedError not AsType-matchable through %%w: %v", den)
 	}
 	una := fmt.Errorf("backend: %w", secrets.UnavailableError{Ref: present})
-	if !isType[secrets.UnavailableError](una) {
+	if !errors.IsType[secrets.UnavailableError](una) {
 		t.Errorf("UnavailableError not AsType-matchable through %%w: %v", una)
 	}
 }
@@ -175,7 +175,7 @@ func assertUseIsTheOnlyReadPath(t *testing.T, newProvider func() secrets.Provide
 		t.Errorf("Use saw %q, want %q", got, SeededPlaintext)
 	}
 	sec.Zeroize()
-	if zerr := sec.Use(func([]byte) error { return nil }); !isType[secrets.ZeroizedError](zerr) {
+	if zerr := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](zerr) {
 		t.Errorf("Use after Zeroize error not AsType[ZeroizedError]: %v", zerr)
 	}
 }
@@ -232,7 +232,7 @@ func assertZeroizeIsIdempotent(t *testing.T, newProvider func() secrets.Provider
 	}
 	sec.Zeroize()
 	sec.Zeroize() // second call must be a no-op (no panic).
-	if zerr := sec.Use(func([]byte) error { return nil }); !isType[secrets.ZeroizedError](zerr) {
+	if zerr := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](zerr) {
 		t.Errorf("Use after double Zeroize error not AsType[ZeroizedError]: %v", zerr)
 	}
 }
@@ -274,12 +274,4 @@ func assertReferenceRoundTrips(t *testing.T, present secrets.Reference) {
 	if !zero.IsZero() {
 		t.Error("zero Reference IsZero() = false")
 	}
-}
-
-// isType reports whether err's chain carries a value of type E, via the errors library's
-// one-arg generic errors.AsType[E](err) (E, bool). A readability wrapper so the suite reads as
-// a branch-on-kind check without a blank-identifier discard at every call site.
-func isType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }

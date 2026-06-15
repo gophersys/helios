@@ -4,6 +4,7 @@
     const VerbPrompt ControlVerb = iota ...
     func New(configuration Config, dependencies Deps) (*Runtime, error)
 const DefaultHeartbeat = 5 * time.Second ...
+const EventsStreamName = "EDEN_AGENT_EVENTS"
 func ControlSubject(id AgentID) string
 func EventsSubject(id AgentID) string
 func HealthSubject(id AgentID) string
@@ -22,9 +23,24 @@ type OTelContext map[string]string
 type Observer interface{ ... }
 type Runtime struct{ ... }
 type TerminationReason uint8
+## github.com/gophersys/libs/go/agentruntime/agentruntimetest
+    func NewFakeBus() *FakeBus
+    func NewFakeObserver() *FakeObserver
+const AgentID agentruntime.AgentID = "agent-test-1"
+const SeededCanary = "ARTM-S3CR3T-setup-token-do-not-leak"
+const TraceParent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+func CanonicalScript() []agentsession.Event
+func Config(with func(*agentruntime.Config)) agentruntime.Config
+func NewRuntime(t *testing.T, with func(*agentruntime.Config), script ...agentsession.Event) (*agentruntime.Runtime, *FakeBus, *FakeObserver)
+func NewSessions(t *testing.T, script ...agentsession.Event) agentsession.Factory
+func NewSessionsNoT(script ...agentsession.Event) agentsession.Factory
+func Spec() agentsession.Spec
+type FakeBus struct{ ... }
+type FakeObserver struct{ ... }
+type FixedClock struct{}
 ## github.com/gophersys/libs/go/agentruntime/natsbus
     func New(configuration Config, dependencies Deps) (*Adapter, error)
-const StreamName = "EDEN_AGENT_EVENTS"
+const StreamName = agentruntime.EventsStreamName
 type Adapter struct{ ... }
 type Config struct{ ... }
 type Deps struct{ ... }

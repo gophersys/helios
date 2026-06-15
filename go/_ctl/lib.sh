@@ -401,6 +401,10 @@ cmd_maintainability() {
   # 4. cohesion scan — one concept, one home: no exported port/type DEFINED in >1 package.
   log_info "maintainability: cohesion scan (one concept, one home)"
   _cohesion_scan
+  # 5. CROSS-LIB duplicate-wrapper scan — no local boolean wrapper re-derives errors.IsType.
+  _xlib_duplicate_wrapper_scan
+  # 6. CROSS-LIB wire-literal scan — no protocol literal hard-coded in >1 lib (cite agentruntime).
+  _xlib_wire_literal_scan
   log_success "maintainability: OK"
 }
 
@@ -455,6 +459,96 @@ _cohesion_scan() {
     exit 1
   fi
   log_info "  cohesion: no duplicate type definitions"
+}
+
+# _go_libs_root — the libs/go tree (the directory that holds every per-lib dir AND `_ctl`). It is
+# this file's own parent (this script lives at libs/go/_ctl/lib.sh), resolved from BASH_SOURCE so
+# the two cross-lib scans below see the WHOLE language subtree regardless of which lib's ctl.sh
+# sourced us. PROJECT_ROOT is one lib; the cross-lib detectors are tree-scoped, by design.
+_go_libs_root() {
+  local self_dir
+  self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # …/libs/go/_ctl
+  printf '%s' "$(dirname "$self_dir")"                       # …/libs/go
+}
+
+# _lib_of_path <path-under-libs/go> — the owning top-level lib slug (first path component after the
+# libs/go root). e.g. "orchestrator/errors.go" → "orchestrator"; "agentruntime/natsbus/x.go" →
+# "agentruntime". Used to count DISTINCT owning libs for the duplication verdicts.
+_lib_of_path() {
+  local rel="${1#./}"
+  printf '%s' "${rel%%/*}"
+}
+
+# _xlib_duplicate_wrapper_scan — CROSS-LIB DUPLICATE-WRAPPER detector (ADR-0020 §h, meta-loop).
+# `errors.IsType[E]` is the ONE home for the typed-inspect boolean (`_, ok := AsType[E]; return ok`).
+# Any OTHER lib that re-derives that boolean form locally — a `func …[E error](err error) bool`
+# whose body is `_, ok := errors.AsType[E](err); return ok`, or any value-DISCARDING
+# `_, ok := errors.AsType[…]` standing in for the boolean — is a duplicated helper that MUST cite
+# errors.IsType instead (audit finding: the `isType`/`asType` wrapper copy-pasted across libs).
+# The discriminator is the BLANK value position `_, ok :=`: a legitimate inline use BINDS the typed
+# value (`authErr, ok := errors.AsType[…]`), which this scan deliberately does NOT flag. The errors
+# lib itself is the home and is excluded. TESTS ARE IN SCOPE (the reinforcement is not skipped for
+# test code): a `*_test.go` or shipped `<lib>test` site that re-spells the value-discarding boolean
+# must also cite errors.IsType — a test that needs the typed value still BINDS it and is not flagged.
+_xlib_duplicate_wrapper_scan() {
+  local root hits
+  root="$(_go_libs_root)"
+  log_info "maintainability: cross-lib duplicate-wrapper scan (cite errors.IsType — one boolean home; tests in scope)"
+  hits="$(
+    grep -rnE '_,[[:space:]]*ok[[:space:]]*:=[[:space:]]*errors\.AsType\[' "$root" \
+      --include='*.go' 2>/dev/null \
+    | grep -v "$root/errors/" || true
+  )"
+  if [[ -n "$hits" ]]; then
+    log_error "duplicate-wrapper: a local boolean wrapper over errors.AsType[E] re-derives errors.IsType — cite it, do not re-spell (one concept, one home — 10 §9):"
+    printf '%s\n' "$hits" | sed "s#^$root/#    libs/go/#" >&2
+    log_dim   "    fix: replace the local wrapper body with errors.IsType[E](err); the typed-inspect boolean lives once in libs/go/errors."
+    exit 1
+  fi
+  log_info "  duplicate-wrapper: no local errors.AsType boolean wrappers (errors.IsType is the one home)"
+}
+
+# _xlib_wire_literal_scan — WIRE-LITERAL detector (ADR-0020 §h, meta-loop). A wire contract shared
+# by a producer and a consumer lib — the JetStream stream name (EDEN_AGENT_EVENTS) and the agent
+# subject formats (agent.<id>.events|control|health and the agent.*.<…> wildcards) — lives ONCE in
+# the protocol-owning lib (agentruntime) and is CITED, never re-spelled as a string literal. This
+# fails if any such known protocol literal appears in a string in MORE THAN ONE top-level lib's
+# PRODUCTION code (audit finding: the stream name duplicated in producer natsbus + consumer natssse).
+# Scope is production (`*_test.go` excluded): a black-box test MAY pin an expected wire value as a
+# literal assertion — that is how a drift is caught — so a test literal is not a duplication smell.
+_xlib_wire_literal_scan() {
+  local root pat libs n
+  root="$(_go_libs_root)"
+  log_info "maintainability: cross-lib wire-literal scan (cite the agentruntime protocol const — one wire home)"
+  # The known protocol literals; each is an ERE fragment matched INSIDE a Go string literal. A
+  # `%s`-format subject and its `*`-wildcard form are both the same wire contract, listed explicitly.
+  local -a wire_patterns=(
+    'EDEN_AGENT_EVENTS'
+    'agent\.%s\.events' 'agent\.%s\.control' 'agent\.%s\.health'
+    'agent\.\*\.events' 'agent\.\*\.control' 'agent\.\*\.health'
+  )
+  local failed=0
+  for pat in "${wire_patterns[@]}"; do
+    # DISTINCT owning libs whose PRODUCTION code carries this literal inside a "…" string.
+    libs="$(
+      grep -rlnE "\"[^\"]*${pat}[^\"]*\"" "$root" \
+        --include='*.go' --exclude='*_test.go' 2>/dev/null \
+      | sed "s#^$root/##" \
+      | while IFS= read -r rel; do _lib_of_path "$rel"; printf '\n'; done \
+      | grep -v '^$' | sort -u || true
+    )"
+    n="$(printf '%s\n' "$libs" | grep -c . || true)"
+    if [[ "${n:-0}" -gt 1 ]]; then
+      log_error "wire-literal: protocol literal matching /${pat}/ is hard-coded in >1 lib — cite the agentruntime protocol const (one wire home — 10 §9):"
+      printf '%s\n' "$libs" | sed 's/^/    lib: /' >&2
+      failed=1
+    fi
+  done
+  if [[ $failed -ne 0 ]]; then
+    log_dim "    fix: import github.com/gophersys/libs/go/agentruntime and cite EventsStreamName / EventsSubject / ControlSubject / HealthSubject; the wire contract lives once in the protocol owner."
+    exit 1
+  fi
+  log_info "  wire-literal: no protocol literal duplicated across libs (agentruntime owns the wire contract)"
 }
 
 # cmd_mutate — gremlins mutation score on leaf libs (test power, 08 §3). Advisory until baselined

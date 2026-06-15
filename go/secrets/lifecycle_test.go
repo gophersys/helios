@@ -10,6 +10,7 @@ import (
 
 	libtesting "github.com/gophersys/libs/go/testing"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
@@ -86,7 +87,7 @@ func (p *secretProbe) CountOwned(context.Context) (int, error) {
 	})
 	if err != nil {
 		// After Zeroize, Use returns ZeroizedError — no readable bytes are owned.
-		if is[secrets.ZeroizedError](err) {
+		if errors.IsType[secrets.ZeroizedError](err) {
 			return 0, nil
 		}
 		return 0, err

@@ -244,7 +244,7 @@ func assertCommitRequiresIdentity(t *testing.T, newBackend func() gitrepository.
 	}
 	_, err = repository.Commit(context.Background(), root, "msg", gitrepository.Identity{}, gitrepository.CommitOptions{})
 	assertKind(t, err, errors.KindInvalid, "Commit with a zero Identity")
-	if !asType[*gitrepository.InvalidRefError](err) {
+	if !errors.IsType[*gitrepository.InvalidRefError](err) {
 		t.Errorf("Commit zero-Identity error must be InvalidRefError, got %T", err)
 	}
 }
@@ -257,17 +257,10 @@ func assertNothingToCommit(t *testing.T, newBackend func() gitrepository.Backend
 	_, err := fix.repository.Commit(context.Background(), fix.root, "nothing",
 		gitrepository.Identity{Name: "A", Email: "a@b.dev", Kind: gitrepository.ActorHuman},
 		gitrepository.CommitOptions{})
-	if !asType[*gitrepository.NothingToCommitError](err) {
+	if !errors.IsType[*gitrepository.NothingToCommitError](err) {
 		t.Errorf("empty-index Commit must be NothingToCommitError, got %v (%T)", err, err)
 	}
 	assertKind(t, err, errors.KindConflict, "NothingToCommit")
-}
-
-// asType reports whether err's chain carries a *E (the Go 1.26 single-arg AsType form). It is
-// the suite's typed-error inspection seam, keeping every call site on one idiom.
-func asType[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // assertKind asserts err classifies to the expected errors.Kind.

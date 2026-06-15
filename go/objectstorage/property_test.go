@@ -8,6 +8,7 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/objectstorage"
 	"github.com/gophersys/libs/go/objectstorage/objectstoragetest"
 )
@@ -106,7 +107,7 @@ func TestProperty_TraversingKeyIsAlwaysInvalid(t *testing.T) {
 		suffix := drawKey(rt)
 		traversing := prefix + "/../" + suffix
 		_, err := objectstorage.NewRef(bucket, traversing)
-		if !is[objectstorage.InvalidError](err) {
+		if !errors.IsType[objectstorage.InvalidError](err) {
 			rt.Fatalf("NewRef(%q,%q) accepted a traversing key (or wrong error): %v", bucket, traversing, err)
 		}
 	})

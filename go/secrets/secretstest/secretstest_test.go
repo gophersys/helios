@@ -20,7 +20,7 @@ func TestZeroProviderResolvesNothing(t *testing.T) {
 	if sec != nil {
 		t.Error("zero Provider returned non-nil Secret with an error")
 	}
-	if !is[secrets.NotFoundError](err) {
+	if !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("zero Provider error not AsType[NotFoundError]: %v", err)
 	}
 }
@@ -82,7 +82,7 @@ func TestFailWithForcesError(t *testing.T) {
 	if sec != nil {
 		t.Error("forced-error Resolve returned non-nil Secret")
 	}
-	if !is[secrets.DeniedError](err) {
+	if !errors.IsType[secrets.DeniedError](err) {
 		t.Errorf("forced error not AsType[DeniedError]: %v", err)
 	}
 }
@@ -92,7 +92,7 @@ func TestFailWithUnavailable(t *testing.T) {
 	ref := secrets.Ref("flaky")
 	p := secretstest.New(nil).FailWith("flaky", secrets.UnavailableError{Ref: ref})
 	_, err := p.Resolve(context.Background(), ref)
-	if !is[secrets.UnavailableError](err) {
+	if !errors.IsType[secrets.UnavailableError](err) {
 		t.Errorf("forced error not AsType[UnavailableError]: %v", err)
 	}
 }
@@ -105,7 +105,7 @@ func TestResolvedLogRecordsRefsNeverValues(t *testing.T) {
 	mustResolve(t, p, r1).Zeroize()
 	mustResolve(t, p, r2).Zeroize()
 	// A miss is also recorded (the request happened); it must surface NotFoundError.
-	if _, err := p.Resolve(context.Background(), secrets.Ref("k3")); !is[secrets.NotFoundError](err) {
+	if _, err := p.Resolve(context.Background(), secrets.Ref("k3")); !errors.IsType[secrets.NotFoundError](err) {
 		t.Errorf("miss did not return NotFoundError: %v", err)
 	}
 
@@ -194,13 +194,6 @@ func (r *recordingT) Helper() {}
 func (r *recordingT) Errorf(format string, args ...any) {
 	r.failed = true
 	r.lastMsg = format
-}
-
-// is reports whether err's chain carries a value of type E, via the errors library's one-arg
-// generic errors.AsType[E](err) (E, bool).
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
 }
 
 // readSecret reads sec's plaintext via the only legitimate path (Use), failing the test if Use

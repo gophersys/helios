@@ -8,8 +8,10 @@
     func Float64(key string, value float64) Field
     func Int64(key string, value int64) Field
     func LedgerEvent(now time.Time, l Ledger) Event
+    func LedgerFrom(e Event) (Ledger, bool)
     func New(configuration Config, dependencies Deps) (Provider, error)
     func String(key, value string) Field
+const LedgerName = "cost.ledger"
 type Clock interface{ ... }
 type Config struct{ ... }
 type ConfigError struct{ ... }

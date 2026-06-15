@@ -236,7 +236,7 @@ func TestAnyField(t *testing.T) {
 func TestAnyNilValuerIsMisuseResistant(t *testing.T) {
 	t.Parallel()
 	// Any(key, nil) is a valid-looking misuse: without a guard it lands a
-	// Field{Value: nil} that nil-derefs every later inspection (decodeLedger, an
+	// Field{Value: nil} that nil-derefs every later inspection (LedgerFrom, an
 	// Exporter walking Fields). The constructor must substitute a safe no-value
 	// Valuer so the Field is never a poison value.
 	f := observability.Any("tokens.in", nil)

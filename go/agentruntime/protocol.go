@@ -22,6 +22,14 @@ const (
 	subjectHealthFormat  = "agent.%s.health"
 )
 
+// EventsStreamName is the durable JetStream stream that captures every agent's event subject
+// (agent.*.events) — one stream, subject-filtered per agent, so a gateway consumer binds a durable
+// per-agent and replays by Seq. It is the ONE home for the stream-name wire contract: the natsbus
+// producer and any consumer (the B5 NATS→SSE bridge) cite this constant, never re-spell the literal
+// (one concept, one home). It sits beside EventsSubject/ControlSubject/HealthSubject because it is
+// the same minimal reactive protocol the sidecar speaks (ADR-0022 #4).
+const EventsStreamName = "EDEN_AGENT_EVENTS"
+
 // EventsSubject renders the events subject for an agent (agent.<id>.events). It is the ONE home for
 // the subject grammar — the natsbus adapter and any consumer cite these, never re-spell the format.
 func EventsSubject(id AgentID) string { return fmt.Sprintf(subjectEventsFormat, id) }

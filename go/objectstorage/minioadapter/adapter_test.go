@@ -32,7 +32,7 @@ func TestNew_RejectsMissingEndpoint(t *testing.T) {
 		minioadapter.Config{AccessKeyRef: accessRef, SecretKeyRef: secretRef},
 		minioadapter.Deps{Secrets: seededSecrets()},
 	)
-	if !is[error](err) || errors.KindOf(err) != errors.KindInvalid {
+	if !errors.IsType[error](err) || errors.KindOf(err) != errors.KindInvalid {
 		t.Errorf("New(no endpoint) = %v, want KindInvalid", err)
 	}
 }
@@ -114,7 +114,7 @@ func TestAdapter_GetAbsentIsNotFound(t *testing.T) {
 		t.Fatalf("New error = %v", err)
 	}
 	_, _, gerr := adapter.GetObject(context.Background(), mustRef(t, "eden", "absent.bin"))
-	if !is[objectstorage.NotFoundError](gerr) {
+	if !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("GetObject(absent) = %v, want NotFoundError", gerr)
 	}
 }
@@ -175,10 +175,10 @@ func TestAdapter_MapsStatusToTaxonomy(t *testing.T) {
 	ctx := context.Background()
 	r := mustRef(t, "eden", "k.bin")
 	cases := map[int]func(error) bool{
-		http.StatusForbidden:           is[objectstorage.DeniedError],
-		http.StatusNotFound:            is[objectstorage.NotFoundError],
-		http.StatusBadRequest:          is[objectstorage.InvalidError],
-		http.StatusInternalServerError: is[objectstorage.UnavailableError],
+		http.StatusForbidden:           errors.IsType[objectstorage.DeniedError],
+		http.StatusNotFound:            errors.IsType[objectstorage.NotFoundError],
+		http.StatusBadRequest:          errors.IsType[objectstorage.InvalidError],
+		http.StatusInternalServerError: errors.IsType[objectstorage.UnavailableError],
 	}
 	for status, want := range cases {
 		client := newFakeS3()
@@ -203,7 +203,7 @@ func TestAdapter_DialErrorIsUnavailable(t *testing.T) {
 		t.Fatalf("New error = %v", err)
 	}
 	_, _, gerr := adapter.GetObject(context.Background(), mustRef(t, "eden", "k.bin"))
-	if !is[objectstorage.UnavailableError](gerr) {
+	if !errors.IsType[objectstorage.UnavailableError](gerr) {
 		t.Errorf("dial error mapped to %v, want UnavailableError", gerr)
 	}
 }

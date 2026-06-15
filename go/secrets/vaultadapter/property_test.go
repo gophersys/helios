@@ -7,6 +7,7 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 )
@@ -92,7 +93,7 @@ func TestProperty_UnseededReferenceIsAlwaysNotFound(t *testing.T) {
 		if sec != nil {
 			rt.Fatalf("Resolve(%q) returned a non-nil Secret for an unseeded reference", ref)
 		}
-		if !is[secrets.NotFoundError](err) {
+		if !errors.IsType[secrets.NotFoundError](err) {
 			rt.Fatalf("Resolve(%q) error = %v, want NotFoundError", ref, err)
 		}
 	})

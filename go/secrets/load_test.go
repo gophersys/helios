@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/goleak"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
@@ -74,7 +75,7 @@ func TestLoad_ConcurrentResolveUseZeroizeRaceClean(t *testing.T) {
 			sec.Zeroize()
 			// After this worker's Zeroize, ITS Secret is spent — but a sibling's Secret must be
 			// unaffected (independence); we don't touch siblings here.
-			if zerr := sec.Use(func([]byte) error { return nil }); !is[secrets.ZeroizedError](zerr) {
+			if zerr := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](zerr) {
 				t.Errorf("worker %d: Use after Zeroize not ZeroizedError: %v", i, zerr)
 			}
 		}(i)
@@ -107,7 +108,7 @@ func TestLoad_ConcurrentUseVsZeroizeOnSharedSecretRaceClean(t *testing.T) {
 				}
 				return nil
 			})
-			if err != nil && !is[secrets.ZeroizedError](err) {
+			if err != nil && !errors.IsType[secrets.ZeroizedError](err) {
 				t.Errorf("worker %d: Use returned an unexpected error (not ZeroizedError): %v", i, err)
 			}
 		}(i)
@@ -119,7 +120,7 @@ func TestLoad_ConcurrentUseVsZeroizeOnSharedSecretRaceClean(t *testing.T) {
 	wg.Wait()
 
 	// After the readers and the wiper join, the Secret is permanently spent.
-	if err := sec.Use(func([]byte) error { return nil }); !is[secrets.ZeroizedError](err) {
+	if err := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](err) {
 		t.Errorf("Use after the load completed not ZeroizedError: %v", err)
 	}
 }

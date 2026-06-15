@@ -14,13 +14,6 @@ import (
 	"github.com/gophersys/libs/go/objectstorage/objectstoragetest"
 )
 
-// is reports whether err's chain carries a value of type E (errors.AsType[E]). The taxonomy is
-// inspected by TYPE, never by string (the errors contract).
-func is[E error](err error) bool {
-	_, ok := errors.AsType[E](err)
-	return ok
-}
-
 // newFakeStore builds a concrete *Store over a fresh in-memory fake Backend (return concrete —
 // 10 §9; the *Store is an ObjectStore by its method set).
 func newFakeStore(t *testing.T) *objectstorage.Store {
@@ -65,7 +58,7 @@ func TestNewRef_RejectsMalformed(t *testing.T) {
 	}
 	for name, bk := range cases {
 		_, err := objectstorage.NewRef(bk[0], bk[1])
-		if !is[objectstorage.InvalidError](err) {
+		if !errors.IsType[objectstorage.InvalidError](err) {
 			t.Errorf("%s: NewRef(%q,%q) error = %v, want InvalidError", name, bk[0], bk[1], err)
 		}
 	}
@@ -81,7 +74,7 @@ func TestParseRef_RoundTripsAndRejects(t *testing.T) {
 		t.Errorf("ParseRef round-trip = %q", r.String())
 	}
 	for _, bad := range []string{"", "nobucketslash", "/leadingslash", "trailingslash/"} {
-		if _, perr := objectstorage.ParseRef(bad); !is[objectstorage.InvalidError](perr) {
+		if _, perr := objectstorage.ParseRef(bad); !errors.IsType[objectstorage.InvalidError](perr) {
 			t.Errorf("ParseRef(%q) error = %v, want InvalidError", bad, perr)
 		}
 	}
@@ -148,7 +141,7 @@ func TestStore_PutGetDeleteHappyPath(t *testing.T) {
 	if err := store.Delete(ctx, r); err != nil {
 		t.Errorf("Delete error = %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, r); !is[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := store.Get(ctx, r); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get after Delete = %v, want NotFoundError", gerr)
 	}
 }
@@ -159,22 +152,22 @@ func TestStore_RejectsInvalidAtBoundary(t *testing.T) {
 	ctx := context.Background()
 	r := mustRef(t, "b", "k")
 
-	if _, err := store.Put(ctx, objectstorage.ObjectRef{}, bytes.NewReader(nil), objectstorage.PutOptions{}); !is[objectstorage.InvalidError](err) {
+	if _, err := store.Put(ctx, objectstorage.ObjectRef{}, bytes.NewReader(nil), objectstorage.PutOptions{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Put(zero ref) = %v, want InvalidError", err)
 	}
-	if _, err := store.Put(ctx, r, bytes.NewReader(nil), objectstorage.PutOptions{Size: -1}); !is[objectstorage.InvalidError](err) {
+	if _, err := store.Put(ctx, r, bytes.NewReader(nil), objectstorage.PutOptions{Size: -1}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Put(negative size) = %v, want InvalidError", err)
 	}
-	if _, err := store.Put(ctx, r, nil, objectstorage.PutOptions{}); !is[objectstorage.InvalidError](err) {
+	if _, err := store.Put(ctx, r, nil, objectstorage.PutOptions{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Put(nil body) = %v, want InvalidError", err)
 	}
-	if _, _, err := store.Get(ctx, objectstorage.ObjectRef{}); !is[objectstorage.InvalidError](err) {
+	if _, _, err := store.Get(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Get(zero ref) = %v, want InvalidError", err)
 	}
-	if err := store.Delete(ctx, objectstorage.ObjectRef{}); !is[objectstorage.InvalidError](err) {
+	if err := store.Delete(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Delete(zero ref) = %v, want InvalidError", err)
 	}
-	if _, err := store.List(ctx, "", ""); !is[objectstorage.InvalidError](err) {
+	if _, err := store.List(ctx, "", ""); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("List(blank bucket) = %v, want InvalidError", err)
 	}
 }
@@ -185,10 +178,10 @@ func TestStore_PresignValidatesExpiry(t *testing.T) {
 	ctx := context.Background()
 	r := mustRef(t, "b", "k")
 
-	if _, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 0}); !is[objectstorage.InvalidError](err) {
+	if _, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 0}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Presign(zero expiry) = %v, want InvalidError", err)
 	}
-	if _, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 100 * 24 * time.Hour}); !is[objectstorage.InvalidError](err) {
+	if _, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 100 * 24 * time.Hour}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Presign(over-cap expiry) = %v, want InvalidError", err)
 	}
 	signed, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodPut, Expiry: 10 * time.Minute})
@@ -216,7 +209,7 @@ func TestStore_WrapsBackendErrorWithKind(t *testing.T) {
 	if errors.KindOf(gerr) != errors.KindUnavailable {
 		t.Errorf("Get error Kind = %v, want KindUnavailable (wrapped from the Backend)", errors.KindOf(gerr))
 	}
-	if !is[objectstorage.UnavailableError](gerr) {
+	if !errors.IsType[objectstorage.UnavailableError](gerr) {
 		t.Errorf("wrapped error not AsType[UnavailableError]: %v", gerr)
 	}
 	if !strings.Contains(gerr.Error(), r.String()) {

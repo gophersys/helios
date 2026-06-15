@@ -63,7 +63,7 @@ func TestProperty_ParseBranchNameRejectsInjection(t *testing.T) {
 		if errors.KindOf(err) != errors.KindInvalid {
 			rt.Fatalf("ParseBranchName(%q) error must be KindInvalid, got %v", bad, errors.KindOf(err))
 		}
-		if !is[*gitrepository.InvalidRefError](err) {
+		if !errors.IsType[*gitrepository.InvalidRefError](err) {
 			rt.Fatalf("ParseBranchName(%q) error must be *InvalidRefError, got %T", bad, err)
 		}
 	})

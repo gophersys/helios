@@ -219,9 +219,9 @@ func TestFakeAssertNoSecrets(t *testing.T) {
 
 func TestFakeLedgersSurvivesNilValuerField(t *testing.T) {
 	t.Parallel()
-	// A cost.ledger Event carrying Any("tokens.in", nil) used to nil-deref in
-	// decodeLedger (helpers.go) when Ledgers() walked its Fields. Any() now
-	// substitutes a no-value Valuer and decodeLedger guards a nil Value, so the
+	// A cost.ledger Event carrying Any("tokens.in", nil) used to nil-deref the
+	// ledger decoder when Ledgers() walked its Fields. Any() now substitutes a
+	// no-value Valuer and observability.LedgerFrom guards a nil Value, so the
 	// inspection path can no longer crash on a poison Field.
 	p := observabilitytest.New(fixedClock)
 	p.Emit(context.Background(), observability.Event{

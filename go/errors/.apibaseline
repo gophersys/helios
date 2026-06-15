@@ -6,6 +6,7 @@
     func Wrap(kind Kind, message string, cause error) *Error
 func AsType[E error](err error) (E, bool)
 func Is(err, target error) bool
+func IsType[E error](err error) bool
 func Join(errs ...error) error
 type Error struct{ ... }
 type Kind uint8

@@ -10,6 +10,7 @@ import (
 
 	libtesting "github.com/gophersys/libs/go/testing"
 
+	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 )
@@ -96,7 +97,7 @@ func (p *vaultSecretProbe) CountOwned(context.Context) (int, error) {
 	var n int
 	err := p.secret.Use(func(b []byte) error { n = len(b); return nil })
 	if err != nil {
-		if is[secrets.ZeroizedError](err) {
+		if errors.IsType[secrets.ZeroizedError](err) {
 			return 0, nil
 		}
 		return 0, err

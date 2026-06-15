@@ -19,12 +19,8 @@ type Report interface{ ... }
 type Result struct{ ... }
 type Runner struct{ ... }
 type Suite[S any] struct{ ... }
-## github.com/gophersys/libs/go/testing/internal/deterministic
-    func NewClock(start time.Time) *Clock
-    func NewRandom(seed uint64) *Random
-func UnixEpoch() time.Time
-type Clock struct{ ... }
-type Random struct{ ... }
+## github.com/gophersys/libs/go/testing/internal/seedkey
+func Derive(seed uint64) [32]byte
 ## github.com/gophersys/libs/go/testing/testingtest
     func NewFakeClock(start time.Time) *FakeClock
     func NewFakeRandomSource(seed uint64) *FakeRandomSource
@@ -34,6 +30,6 @@ type Random struct{ ... }
 func AssertResult(t *stdtesting.T, r testingpkg.Result)
 func NewHarness(t *stdtesting.T, opts ...HarnessOption) testingpkg.Harness
 func NewReport(t *stdtesting.T) testingpkg.Report
-type FakeClock = deterministic.Clock
-type FakeRandomSource = deterministic.Random
+type FakeClock = dependenciestest.Clock
+type FakeRandomSource = dependenciestest.Random
 type HarnessOption func(*harnessConfig)

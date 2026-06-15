@@ -41,6 +41,20 @@ func TestFakeClockFrozenUntilAdvance(t *testing.T) {
 	}
 }
 
+// A zero start anchors at UnixEpoch — never time.Now — so the leaf engine and any
+// downstream <pattern>test fake that aliases it share one reproducible default instant
+// (mirrors the sibling testingtest.TestFakeClock_ZeroStartIsUnixEpoch on the alias side).
+func TestFakeClockZeroStartIsUnixEpoch(t *testing.T) {
+	t.Parallel()
+	c := dependenciestest.NewClock(time.Time{})
+	if want := dependenciestest.UnixEpoch(); !c.Now().Equal(want) {
+		t.Fatalf("NewClock(zero).Now() = %v, want UnixEpoch %v", c.Now(), want)
+	}
+	if want := time.Unix(0, 0).UTC(); !dependenciestest.UnixEpoch().Equal(want) {
+		t.Fatalf("UnixEpoch() = %v, want %v", dependenciestest.UnixEpoch(), want)
+	}
+}
+
 // Now is non-decreasing across Advance calls (monotonic property, §4).
 func TestFakeClockNonDecreasing(t *testing.T) {
 	t.Parallel()

@@ -296,6 +296,13 @@ func KindOf(err error) Kind {
 // errors.As. Prefer this over Is for typed extraction.
 func AsType[E error](err error) (E, bool) { return stderrors.AsType[E](err) }
 
+// IsType reports whether err's chain carries an error of type E. It is the
+// boolean form of AsType for the common "is there one?" inspection where the
+// extracted value is not needed — one home for the typed-inspect boolean, so a
+// caller never re-derives `_, ok := AsType[E](err)` inline. By construction it
+// agrees with AsType: IsType[E](err) == ok of AsType[E](err).
+func IsType[E error](err error) bool { _, ok := AsType[E](err); return ok }
+
 // Is is re-exported for sentinel comparison so consumers never reach for stdlib
 // errors. It reports whether the chain matches a target sentinel; for "does the
 // chain carry Kind k", call KindOf(err) == k.

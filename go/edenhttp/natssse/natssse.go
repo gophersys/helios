@@ -33,17 +33,11 @@ import (
 // quiet stream. It is the bridge's liveness tick, independent of the SSE heartbeat cadence.
 const fetchTimeout = 1 * time.Second
 
-// defaultEventsStream is the JetStream stream the agentruntime sidecar publishes agent events to
-// (agentruntime/natsbus.StreamName). It is cited here as a literal rather than imported, so natssse
-// does NOT pull the natsbus adapter (and its nats production import) into its own graph — the
-// subject grammar's home is agentruntime; this is only the durable stream's well-known name.
-const defaultEventsStream = "EDEN_AGENT_EVENTS"
-
 // Config is the bridge's immutable input. It names the JetStream stream the per-agent events subject
 // belongs to (defaulted to the agentruntime stream) and the SSE heartbeat cadence. It reads NO env.
 // (Idiomatic Go type name; HNS-1 rule 11 exempt.)
 type Config struct {
-	// Stream is the JetStream stream capturing agent.*.events; empty == agentruntime/natsbus.StreamName.
+	// Stream is the JetStream stream capturing agent.*.events; empty == agentruntime.EventsStreamName.
 	Stream string
 	// HeartbeatInterval is the SSE keepalive cadence; 0 == edenhttp.DefaultHeartbeatInterval.
 	HeartbeatInterval time.Duration
@@ -85,7 +79,11 @@ func New(configuration Config, dependencies Deps) (*Bridge, error) {
 	}
 	stream := configuration.Stream
 	if stream == "" {
-		stream = defaultEventsStream
+		// The durable stream's well-known name has one home: the agentruntime protocol owner
+		// (cited, never re-spelled). Citing the root protocol package — which natssse already
+		// imports — does NOT pull the natsbus adapter (and its nats production import) into the
+		// graph; only the stream-name wire contract is shared (one concept, one home).
+		stream = agentruntime.EventsStreamName
 	}
 	interval := configuration.HeartbeatInterval
 	if interval <= 0 {
