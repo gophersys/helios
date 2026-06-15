@@ -46,8 +46,11 @@ func (p *Pool) Start(ctx context.Context) error {
 }
 
 // loop ticks Reconcile at interval until stop is signaled or ctx is canceled, closing
-// done on exit. A pass error is non-fatal to the loop (the next tick retries); a per-agent
-// fault is recorded on that agent inside Reconcile.
+// done on exit. When Config.RetentionWindow is set, each tick also reaps terminal agents
+// whose UpdatedAt is older than the window (now - RetentionWindow is the cutoff), so the
+// declared retention policy is actually honored by the running loop rather than waiting on
+// an out-of-band caller. A pass error is non-fatal to the loop (the next tick retries); a
+// per-agent fault is recorded on that agent inside Reconcile.
 func (p *Pool) loop(ctx context.Context, interval time.Duration, stop, done chan struct{}) {
 	defer close(done)
 	ticker := time.NewTicker(interval)
@@ -60,6 +63,9 @@ func (p *Pool) loop(ctx context.Context, interval time.Duration, stop, done chan
 			return
 		case <-ticker.C:
 			_, _ = p.Reconcile(ctx, ReconcilePorts{}) //nolint:errcheck // a pass error is non-fatal; the next tick retries (loop stays live).
+			if window := p.configuration.RetentionWindow; window > 0 {
+				_, _ = p.Reap(ctx, p.now().Add(-window)) //nolint:errcheck // retention is best-effort on the loop cadence; a reap fault retries next tick.
+			}
 		}
 	}
 }
@@ -89,20 +95,39 @@ func (p *Pool) Close(ctx context.Context) error {
 		}
 	}
 
-	// Record a Stopping intent for every non-terminal agent, then drive one final pass so
-	// the drain+release happens (the pod reap is reconcile's job, never Close's directly).
+	// Record a Stopping intent for every non-terminal agent, then drive final passes so the
+	// drain+release happens (the pod reap is reconcile's job, never Close's directly). The
+	// stop is two-phase (live → Stopping → Stopped), so Close drives passes until the fleet
+	// quiesces (no transition) or a bound is hit — each agent needs at most one Stopping and
+	// one drain step, so a small bound past the active count converges. A residual non-terminal
+	// agent (a teardown fault) is left for a later operator pass; idempotent Teardown converges.
 	if err := p.recordCloseIntents(ctx); err != nil {
 		return err
 	}
-	_, _ = p.Reconcile(ctx, ReconcilePorts{}) //nolint:errcheck // a final-pass error is non-fatal; idempotent Teardown converges on a later (operator) pass.
+	p.drainToQuiescent(ctx)
 
 	// End every live Watch subscriber.
 	p.closeWatchers()
 	return nil
 }
 
+// drainToQuiescent drives final reconcile passes until no agent transitions (the fleet is
+// drained: every agent reached Stopped/Failed or is wedged on a transient fault) or a bound
+// is hit. The two-phase stop needs two steps per agent (→ Stopping, → Stopped); the bound is
+// generous past that so a healthy fleet always reaches terminal within Close. A residual
+// non-terminal agent is left for a later operator pass (idempotent Teardown converges).
+func (p *Pool) drainToQuiescent(ctx context.Context) {
+	const maxDrainPasses = 16
+	for range maxDrainPasses {
+		report, err := p.Reconcile(ctx, ReconcilePorts{})
+		if err != nil || report.Transitioned == 0 {
+			return // a pass error is non-fatal (a later operator pass retries); 0 transitions == quiesced
+		}
+	}
+}
+
 // recordCloseIntents marks every non-terminal agent the Pool owns as DesiredStopped, so
-// the final reconcile pass drains and releases it.
+// the final reconcile passes drain and release it.
 func (p *Pool) recordCloseIntents(ctx context.Context) error {
 	page, err := p.dependencies.Desired.List(ctx, Filter{OnlyActive: true, Limit: 0})
 	if err != nil {

@@ -405,6 +405,12 @@ cmd_maintainability() {
   _xlib_duplicate_wrapper_scan
   # 6. CROSS-LIB wire-literal scan — no protocol literal hard-coded in >1 lib (cite agentruntime).
   _xlib_wire_literal_scan
+  # 7. CONFIG-DEAD-STATE — every documented Config/Actual field is READ by non-test code (no dead knob).
+  _state_consumed_scan
+  # 8. CAPABILITY-WIRED — every member of a closed, EMITTED wire-taxonomy is published in non-test code.
+  _enum_liveness_scan
+  # 9. FAULT-PATH-COVERAGE — WARNING: a pkg whose fault arms are only reached under //go:build integration.
+  _fault_path_unit_warn
   log_success "maintainability: OK"
 }
 
@@ -549,6 +555,224 @@ _xlib_wire_literal_scan() {
     exit 1
   fi
   log_info "  wire-literal: no protocol literal duplicated across libs (agentruntime owns the wire contract)"
+}
+
+# ── Stage-6 ENFORCE — three "half-wired contract" detectors (ADR-0020 §h, the meta-loop) ──────
+# The classes below are the ones every prior layer was blind to: an EXPORTED struct field or an
+# enum constant is invisible to `unused`/staticcheck (exported), counts as "covered" once it is
+# merely ASSIGNED (cover-floor measures lines executed, not values READ), and survives mutation
+# silently on a leaf=false lib (gremlins off). Each detector is a tree-aware grep over Go source.
+# All three honor an explicit `//eden:reserved` opt-out doc tag on the field/const for a member
+# deliberately reserved in a closed, append-only taxonomy (10 §9) — the escape is documented, not
+# silent. The opt-out must sit on (or in the doc block immediately above) the declaration.
+
+# _eden_field_reserved <go-file> <field-or-const-name> — true if the declaration of <name> in
+# <go-file> carries an `//eden:reserved` tag, either as a trailing line comment on the decl line
+# or anywhere in the contiguous `//`-doc block immediately preceding it. Pure awk; no false-positive
+# across an intervening blank line (a reserved tag must belong to THIS declaration's own block).
+_eden_field_reserved() {
+  local file="$1" name="$2"
+  awk -v target="$name" '
+    /^[[:space:]]*\/\// { doc = doc $0 "\n"; next }   # accumulate a contiguous doc block
+    {
+      # A declaration line for the target: a struct field `Name <type>`, or a const `Name ... = `
+      # / `Name <Type> = iota`. Anchor on the identifier as the first non-space token.
+      line=$0; tok=line; sub(/^[[:space:]]+/,"",tok); sub(/[[:space:]].*$/,"",tok);
+      if (tok == target) {
+        if (doc ~ /eden:reserved/ || line ~ /eden:reserved/) { found=1 }
+        exit
+      }
+      doc=""                                          # blank or unrelated line resets the block
+    }
+    END { exit(found ? 0 : 1) }
+  ' "$file"
+}
+
+# _state_consumed_scan — CONFIG-DEAD-STATE detector (ADR-0020 §h, meta-loop). A documented,
+# load-bearing EXPORTED field of a contract VALUE struct (Config / Actual) that is READ by no
+# non-test production code in the lib is dead state — a knob that does nothing, or a field that is
+# only ever WRITTEN, never branched on (the orchestrator ProvisionTimeout/RetentionWindow +
+# Actual.SessionState class). For each exported field of a `type Config struct` / `type Actual
+# struct` in this lib, assert at least one non-test READ site exists. A "read" is any occurrence of
+# the field identifier in non-test production code OTHER THAN its own declaration line and its own
+# pure-assignment LHS (`x.Field =`/`Field:` composite-literal key) — i.e. the value is consumed in a
+# comparison, a return, an argument, or an RHS. Zero reads FAILS; an `//eden:reserved` field opts out.
+_state_consumed_scan() {
+  log_info "maintainability: config/actual dead-state scan (every documented knob is consumed — 10 §9)"
+  local failed=0 struct file fields name decl_line
+  # The contract value-structs whose fields feed decisions: Config (the resolved knobs) and Actual
+  # (the observed world-state). These are the structs the audit flagged for write-only dead fields.
+  for struct in Config Actual; do
+    # The file that declares `type <struct> struct` in this lib's PUBLIC surface (root pkg / adapters;
+    # never a *test.go or <lib>test fixture — a fixture field need not be consumed by production).
+    while IFS= read -r file; do
+      [[ -z "$file" ]] && continue
+      # Extract the field block: lines between `type <struct> struct {` and the closing `}`.
+      fields="$(
+        awk -v s="$struct" '
+          $0 ~ "^type " s " struct {" { inblock=1; next }
+          inblock && /^}/ { inblock=0 }
+          inblock { print }
+        ' "$file"
+      )"
+      # Each exported field: the first token is an Uppercase identifier (skip embeds/blank/comment).
+      while IFS= read -r decl_line; do
+        name="$(printf '%s' "$decl_line" | sed -E 's/^[[:space:]]+//; s/[[:space:]].*$//')"
+        [[ "$name" =~ ^[A-Z][A-Za-z0-9]*$ ]] || continue
+        if _eden_field_reserved "$file" "$name"; then
+          log_dim "    state: ${struct}.${name} is //eden:reserved (consumption check skipped)"
+          continue
+        fi
+        # READ sites — POSITIVELY: a SELECTOR access `.<Field>` (the field reached through a value:
+        # `p.configuration.ProvisionTimeout`, `actual.SessionState`, `configuration.Region`) that is
+        # NOT the LHS of a write (`.<Field> =`, excluding `==`) and not inside a `//` comment. This
+        # is exactly the finding's own proposal (grep `configuration.<Field>`/`p.configuration.<Field>`)
+        # and correctly counts a `Field: configuration.Field` line — which is a struct-KEY write AND a
+        # selector READ of the value — as a read (the earlier composite-key exclusion wrongly dropped
+        # it). The struct's own `<Field> <type>` declaration carries no leading `.`, so it never counts.
+        local reads
+        reads="$(
+          grep -rnE "\.${name}\b" "$PROJECT_ROOT" --include='*.go' --exclude='*_test.go' 2>/dev/null \
+            | grep -vE "\.${name}[[:space:]]*=[^=]" \
+            | grep -vE "^[^:]*:[0-9]+:[[:space:]]*//" \
+            || true
+        )"
+        if [[ -z "$reads" ]]; then
+          log_error "config-dead-state: ${struct}.${name} is declared + documented but READ by no non-test code in this lib — a knob that does nothing (one concept, one home — 10 §9)"
+          log_dim   "    fix: wire ${struct}.${name} into a decision/return, OR delete it, OR tag the declaration //eden:reserved if it is a deliberately-reserved member of a closed taxonomy."
+          failed=1
+        fi
+      done <<< "$fields"
+    done < <(grep -rlE "^type ${struct} struct \{" "$PROJECT_ROOT" --include='*.go' --exclude='*_test.go' 2>/dev/null || true)
+  done
+  if [[ $failed -ne 0 ]]; then exit 1; fi
+  log_info "  config-dead-state: every Config/Actual field is consumed (no write-only dead state)"
+}
+
+# _enum_liveness_scan — CAPABILITY-WIRED detector (ADR-0020 §h, meta-loop). A closed, append-only
+# taxonomy that is EMITTED ON THE WIRE (a HealthPhase published in a heartbeat, a lifecycle phase
+# enum) advertises exactly the set of states the observer may see. A declared member that is never
+# PASSED to a publish/emit call in non-test code is a half-wired state — it advertises a transition
+# that never happens (the agentruntime PhaseStarting/PhaseDraining class). For each non-zero const
+# of an enum type whose doc says "Closed taxonomy" AND "emitted"/"on the wire", assert the const
+# identifier appears as an ARGUMENT in non-test production code (a publish/emit call site, i.e. used
+# as a value, not merely in its own decl/String table). Declared-but-never-emitted FAILS; an
+# `//eden:reserved` const opts out (a data-only member the taxonomy keeps but does not yet emit).
+_enum_liveness_scan() {
+  log_info "maintainability: enum-liveness scan (every advertised wire-taxonomy member is emitted — 10 §9)"
+  local failed=0 file enumtype consts name
+  # Find each enum TYPE whose doc block declares it a CLOSED, EMITTED taxonomy. The agentruntime
+  # HealthPhase doc says exactly: "Closed taxonomy, append-only" + the heartbeat is emitted on the
+  # wire. We match a `type X <uintN>` whose preceding doc mentions both "Closed taxonomy" and an
+  # emission word (emitted|on the wire|heartbeat|publish) — a deliberately narrow trigger so a plain
+  # internal enum (not wire-advertised) is NOT swept in.
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    # Every enum type in this file whose doc qualifies (name on the `type X uintN` line).
+    while IFS= read -r enumtype; do
+      [[ -z "$enumtype" ]] && continue
+      # The const identifiers of this enum: a `const (` block whose entries are typed `<enumtype>`
+      # (the first entry carries `Name <enumtype> = iota`; the rest inherit). Collect every
+      # Uppercase const declared in a block that names <enumtype>.
+      consts="$(
+        awk -v et="$enumtype" '
+          /^const \(/ { inblock=1; group="" ; next }
+          inblock && /^\)/ { inblock=0; next }
+          inblock {
+            if ($0 ~ et) group="yes"
+            if (group=="yes") {
+              line=$0; tok=line; sub(/^[[:space:]]+/,"",tok); sub(/[[:space:]].*$/,"",tok);
+              if (tok ~ /^[A-Z][A-Za-z0-9]*$/) print tok
+            }
+          }
+        ' "$file"
+      )"
+      while IFS= read -r name; do
+        [[ -z "$name" ]] && continue
+        if _eden_field_reserved "$file" "$name"; then
+          log_dim "    enum: ${name} is //eden:reserved (emission check skipped)"
+          continue
+        fi
+        # WIRED: the const must appear in a LIVE position in non-test production code — POSITIVELY,
+        # not by exclusion. A closed taxonomy member is wired iff the lib either EMITS it (it is the
+        # producer) or DISPATCHES it (it is the consumer). Three live shapes count:
+        #   (a) a CALL ARGUMENT — `(`/`, ` before, `)`/`,` after (`publishHealth(ctx, PhaseStarting)`):
+        #       the produce side, the PhaseStarting/PhaseDraining emission the finding is about;
+        #   (b) the RHS of an ASSIGNMENT to a variable later published (`phase = PhaseDraining`);
+        #   (c) a SWITCH ARM `case <Member>:` — the consume side: a member with a handler IS wired
+        #       (the agentruntime ControlVerb taxonomy is received+dispatched here, not emitted).
+        # A positive match EXCLUDES the noise "any occurrence" let slip: the `Name <type> = iota`
+        # decl, the `Name: "token"` table key, and the table-INDEX read `healthPhaseTokens[Phase…]`
+        # (preceded by `[`) — none of which produce OR dispatch the member.
+        local emits
+        emits="$(
+          grep -rnE "[(,][[:space:]]*${name}[[:space:]]*[,)]|(:?=)[[:space:]]*${name}[[:space:]]*$|case[[:space:]]+${name}[[:space:]]*:" \
+            "$PROJECT_ROOT" --include='*.go' --exclude='*_test.go' 2>/dev/null \
+            | grep -vE "^[^:]*:[0-9]+:[[:space:]]*//" \
+            || true
+        )"
+        if [[ -z "$emits" ]]; then
+          log_error "capability-wired: ${enumtype}.${name} is a declared member of a CLOSED, EMITTED taxonomy but is never published/emitted in non-test code — a half-wired state (one concept, one home — 10 §9)"
+          log_dim   "    fix: emit ${name} on the path it advertises, OR drop it from the emitted set, OR tag the declaration //eden:reserved if the taxonomy reserves it as data-only."
+          failed=1
+        fi
+      done <<< "$consts"
+    done < <(
+      awk '
+        /^[[:space:]]*\/\// { doc = doc $0 "\n"; next }
+        /^type [A-Z][A-Za-z0-9]* (uint8|uint16|uint32|uint64|int|int8|int16|int32|int64)( |$)/ {
+          if (doc ~ /[Cc]losed taxonomy/ && doc ~ /emitted|on the wire|heartbeat|publish/) {
+            t=$2; print t
+          }
+          doc=""; next
+        }
+        { doc="" }
+      ' "$file"
+    )
+  done < <(grep -rlE '[Cc]losed taxonomy' "$PROJECT_ROOT" --include='*.go' --exclude='*_test.go' 2>/dev/null || true)
+  if [[ $failed -ne 0 ]]; then exit 1; fi
+  log_info "  capability-wired: every advertised wire-taxonomy member is emitted in non-test code"
+}
+
+# _fault_path_unit_warn — FAULT-PATH-COVERAGE detector (ADR-0020 §h, meta-loop). A WARNING, not a
+# hard FAIL (it is a heuristic over build tags + test selectors that would be false-positive-prone
+# as a gate — see rule 21). A lib whose error-returning branches are exercised ONLY under a
+# `//go:build integration` test, with no fast unit test reaching them, hides its fault arms behind a
+# substrate that the cover-floor (computed WITH the integration tag) counts as covered — the natssse
+# class. Heuristic: a production package that constructs typed errors (errors.Wrap/errors.New) AND
+# whose ONLY *_test.go files carry `//go:build integration` (no plain unit test file in the package)
+# is reported as a maintainability WARNING so a human wires a fast fault arm. It never fails the gate.
+_fault_path_unit_warn() {
+  log_info "maintainability: fault-path-coverage scan (error arms must have a fast unit test — WARNING)"
+  local pkgdir prod_errs unit_tests integ_tests warned=0
+  # Each package directory under this lib that has production Go (exclude <lib>test fixtures + internal
+  # is in scope: an internal pkg with error arms still needs a unit test).
+  while IFS= read -r pkgdir; do
+    [[ -z "$pkgdir" ]] && continue
+    # Does production code in this package construct a distinct typed error?
+    prod_errs="$(grep -lE 'errors\.(Wrap|New)\(' "$pkgdir"/*.go 2>/dev/null | grep -vE '_test\.go$' || true)"
+    [[ -z "$prod_errs" ]] && continue
+    # A "unit" test file in this package = a *_test.go WITHOUT a `//go:build integration` (or load)
+    # constraint. An "integration" test file carries the tag.
+    unit_tests=0; integ_tests=0
+    while IFS= read -r tf; do
+      [[ -z "$tf" ]] && continue
+      if head -5 "$tf" 2>/dev/null | grep -qE '^//go:build (integration|load)'; then
+        integ_tests=$((integ_tests+1))
+      else
+        unit_tests=$((unit_tests+1))
+      fi
+    done < <(ls "$pkgdir"/*_test.go 2>/dev/null || true)
+    # The smell: error arms exist, integration tests exist, but NO fast unit test file in the package.
+    if [[ $integ_tests -gt 0 && $unit_tests -eq 0 ]]; then
+      log_warn "  fault-path-coverage: ${pkgdir#"$PROJECT_ROOT"/} constructs typed errors but has ONLY integration-tagged tests — its fault arms may be covered only under the integration build tag (cover-floor counts them as covered). Add a fast unit fault arm (the natssse class)."
+      warned=1
+    fi
+  done < <(find "$PROJECT_ROOT" -type d -not -path '*/.*' 2>/dev/null | grep -vE "/(${EDEN_LIB_NAME}test)(/|$)" || true)
+  if [[ $warned -eq 0 ]]; then
+    log_info "  fault-path-coverage: every package with error arms has a fast unit test (no integration-only fault class)"
+  fi
+  return 0
 }
 
 # cmd_mutate — gremlins mutation score on leaf libs (test power, 08 §3). Advisory until baselined

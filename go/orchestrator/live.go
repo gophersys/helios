@@ -71,6 +71,14 @@ func (t *liveTable) drop(id AgentID) {
 // observe reports the in-process actual for the requested ids (the default v0 Probe). An
 // id with a live session reports SessionLive/WorkspaceLive true; an id with no live
 // handle reports both false (the not-yet-provisioned or dropped-actual path).
+//
+// It does NOT fabricate SessionState: the in-process side table holds the Session HANDLE but
+// the agentsession.Session interface exposes the inner agent-loop state only by tailing
+// Events, which a per-pass Probe does not do. So SessionState is left at its zero value
+// (the documented "not observed by this Probe" sentinel) rather than a hardcoded StateRunning
+// the table cannot actually vouch for. A Probe that DOES observe the inner state (a multi-node
+// cluster-query Probe, or one wired to the transcript) populates it, and driveRunning's
+// unrecoverable-inner-state branch then acts on the truthful value.
 func (t *liveTable) observe(_ context.Context, ids []AgentID) (map[AgentID]Actual, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -81,7 +89,6 @@ func (t *liveTable) observe(_ context.Context, ids []AgentID) (map[AgentID]Actua
 		if present {
 			actual.WorkspaceLive = handle.workspace != nil
 			actual.SessionLive = handle.session != nil
-			actual.SessionState = agentsession.StateRunning
 		}
 		out[id] = actual
 	}

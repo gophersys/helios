@@ -57,6 +57,9 @@ type Watcher interface{ ... }
     func NewProbe() *Probe
     func NewTemplateStore(seed ...orchestrator.AgentTemplate) *TemplateStore
     func WithMaxConcurrent(n int) Option
+    func WithProvisionTimeout(d time.Duration) Option
+    func WithReconcileInterval(d time.Duration) Option
+    func WithRetentionWindow(d time.Duration) Option
     func WithScript(templateName string, script ...agentsession.Event) Option
     func WithTemplate(template orchestrator.AgentTemplate) Option
     func WithWorkspaces(provider workspaceprovider.Provider) Option

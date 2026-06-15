@@ -19,6 +19,19 @@ type Harness struct {
 	Probe      *Probe
 	Telemetry  *Telemetry
 	Clock      *Clock
+
+	// RecycleNode tears the agent's workspace down OUT-OF-BAND (a node-recycle / preemption),
+	// so the NEXT driveResume Open misses and re-provisions. Returns (recycled, err). Both
+	// bindings supply it (the fake Manager and the RealHarness).
+	RecycleNode func(context.Context, orchestrator.AgentID) (bool, error)
+
+	// FailNextResumeOpens arms the next n driveResume Open calls to transiently miss (the pod
+	// is still settling), so a case drives the re-provision / conflict-readopt branch WITHOUT
+	// tearing the workspace down. ConflictNextProvision arms the next Provision to surface a
+	// settling ConflictError. Nil on bindings that cannot script the seam (the case Skips).
+	FailNextResumeOpens     func(n int)
+	ConflictNextProvision   func()
+	ReprovisionsObservedFor func() int // genuine re-provisions (Create) the scripted seam saw
 }
 
 // RunManagerSuite asserts the port contract against a freshly-constructed Manager wired
@@ -41,6 +54,9 @@ func RunManagerSuite(t *testing.T, newManager func() (orchestrator.Manager, Harn
 		{"BudgetAuthorityStopsRunaway", caseBudgetAuthority},
 		{"StopDrainsThenReleasesOnce", caseStopReleasesOnce},
 		{"ResumeReattaches", caseResumeReattaches},
+		{"ResumeReprovisionsWhenPodGone", caseResumeReprovisionsWhenPodGone},
+		{"ResumeConflictReadopts", caseResumeConflictReadopts},
+		{"UnrecoverableInnerStateFails", caseUnrecoverableInnerStateFails},
 		{"GetListReadRecords", caseGetListReadRecords},
 		{"CredentialSeamNeverLeaks", caseCredentialSeam},
 		{"ObservabilityCompleteness", caseObservabilityCompleteness},
@@ -172,11 +188,13 @@ func caseLimitBeforeProvisioning(t *testing.T, manager orchestrator.Manager, har
 		t.Fatalf("ObsLimitRejected emitted %d times, want 1", harness.Telemetry.CountKind(orchestrator.ObsLimitRejected))
 	}
 
-	// Stop one agent → a slot frees → the next Spawn is admitted.
+	// Stop one agent → a slot frees → the next Spawn is admitted. The two-phase stop needs two
+	// passes (→ Stopping, → Stopped) before the agent is terminal and the slot frees.
 	if err := manager.Stop(ctx, a1.ID, "operator"); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
-	mustReconcile(t, harness) // drain the stopped agent so it is terminal (frees the slot)
+	mustReconcile(t, harness) // → Stopping
+	mustReconcile(t, harness) // Stopping → Stopped (terminal; frees the slot)
 	if _, err := manager.Spawn(ctx, request()); err != nil {
 		t.Fatalf("Spawn after a slot freed: %v", err)
 	}
@@ -195,7 +213,11 @@ func caseWorkspaceNoLeak(t *testing.T, manager orchestrator.Manager, harness Har
 	if err := manager.Stop(ctx, agent.ID, "operator"); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
-	mustReconcile(t, harness) // Stopping → Stopped (Close-then-Teardown)
+	// Two-phase stop: pass 1 records the Running → Stopping waypoint; pass 2 drains+tears down
+	// (Stopping → Stopped, Close-then-Teardown).
+	mustReconcile(t, harness)
+	assertStatus(t, manager, agent.ID, orchestrator.StatusStopping)
+	mustReconcile(t, harness)
 	assertStatus(t, manager, agent.ID, orchestrator.StatusStopped)
 
 	if len(harness.Workspaces.Destroyed) != 1 {
@@ -247,12 +269,23 @@ func caseBudgetAuthority(t *testing.T, manager orchestrator.Manager, harness Har
 		},
 	})
 
-	// One pass detects the runaway and drives a Stop (Running → Stopped, with the workspace
-	// torn down). A budget stop is a single bounded transition.
+	// Pass 1 detects the runaway and records the real Running → Stopping waypoint; the
+	// ObsBudgetExceeded event's To (Stopping) now MATCHES the committed transition. Pass 2
+	// drains+tears down (Stopping → Stopped).
+	mustReconcile(t, harness)
+	stopping := mustGet(t, manager, agent.ID)
+	if stopping.Status != orchestrator.StatusStopping {
+		t.Fatalf("after budget cross (pass 1) status = %v, want Stopping (the declared waypoint)", stopping.Status)
+	}
+	// The budget verdict and the committed transition must AGREE: the ObsBudgetExceeded
+	// event's To equals the record's actual destination this step (both Stopping), never the
+	// observability/record disagreement the over-promise hid.
+	assertBudgetEventMatchesRecord(t, harness, orchestrator.StatusStopping)
+
 	mustReconcile(t, harness)
 	stopped := mustGet(t, manager, agent.ID)
 	if stopped.Status != orchestrator.StatusStopped {
-		t.Fatalf("after budget cross status = %v, want Stopped", stopped.Status)
+		t.Fatalf("after budget drain (pass 2) status = %v, want Stopped", stopped.Status)
 	}
 	if stopped.Detail == "" || !containsBudgetReason(stopped.Detail) {
 		t.Fatalf("terminal record detail = %q, want a budget reason", stopped.Detail)
@@ -279,8 +312,10 @@ func caseStopReleasesOnce(t *testing.T, manager orchestrator.Manager, harness Ha
 	if err := manager.Stop(ctx, agent.ID, "operator"); err != nil {
 		t.Fatalf("idempotent Stop: %v", err)
 	}
+	mustReconcile(t, harness) // → Stopping (waypoint)
+	mustReconcile(t, harness) // Stopping → Stopped (the single Teardown)
+	// Two further passes on the terminal agent do not tear down again.
 	mustReconcile(t, harness)
-	// A further pass on the terminal agent does not tear down again.
 	mustReconcile(t, harness)
 
 	if len(harness.Workspaces.Destroyed) != 1 {
@@ -316,6 +351,151 @@ func caseResumeReattaches(t *testing.T, manager orchestrator.Manager, harness Ha
 	harness.Probe.Set(agent.ID, orchestrator.Actual{WorkspaceLive: true, SessionLive: true})
 	mustReconcile(t, harness)
 	assertStatus(t, manager, agent.ID, orchestrator.StatusRunning)
+}
+
+// caseResumeReprovisionsWhenPodGone drives the multi-node headline: a node-recycle reclaims
+// the pod (the recorded workspace is GONE), so driveResume's Open misses and the agent is
+// RE-PROVISIONED from the same folded spec — a re-adopt across a real recycle restores a live
+// sandbox before the session re-attaches. It asserts exactly ONE new provision under the SAME
+// deterministic Name (re-adopt, never a duplicate) and that the agent reaches Running.
+func caseResumeReprovisionsWhenPodGone(t *testing.T, manager orchestrator.Manager, harness Harness) {
+	t.Helper()
+	if harness.RecycleNode == nil {
+		t.Skip("binding cannot recycle a node out-of-band (no RecycleNode seam)")
+	}
+	ctx := context.Background()
+	agent := mustSpawn(t, manager)
+	harness.Probe.SetDefault(orchestrator.Actual{WorkspaceLive: true, SessionLive: true})
+	driveToRunning(t, manager, harness, agent.ID)
+
+	running := mustGet(t, manager, agent.ID)
+	originalName := workspaceNameOf(running.Workspace)
+	provisionedBefore := len(harness.Workspaces.Provisioned)
+
+	// A node-recycle reclaims the pod OUT-OF-BAND: the recorded workspace is gone.
+	recycled, err := harness.RecycleNode(ctx, agent.ID)
+	if err != nil {
+		t.Fatalf("RecycleNode: %v", err)
+	}
+	if !recycled {
+		t.Fatalf("RecycleNode reported no live workspace to recycle (agent never had one)")
+	}
+
+	// The dropped actual moves Running → Suspended; Resume records the re-attach intent.
+	harness.Probe.Set(agent.ID, orchestrator.Actual{WorkspaceLive: false, SessionLive: false})
+	mustReconcile(t, harness)
+	assertStatus(t, manager, agent.ID, orchestrator.StatusSuspended)
+	if err := manager.Resume(ctx, agent.ID, "operator"); err != nil {
+		t.Fatalf("Resume: %v", err)
+	}
+	assertStatus(t, manager, agent.ID, orchestrator.StatusResuming)
+
+	// The actual recovers; reconcile RE-PROVISIONS (Open missed) and re-attaches.
+	harness.Probe.Set(agent.ID, orchestrator.Actual{WorkspaceLive: true, SessionLive: true})
+	mustReconcile(t, harness)
+	assertStatus(t, manager, agent.ID, orchestrator.StatusRunning)
+
+	// Exactly ONE new provision, under the SAME deterministic Name (re-adopt, not duplicate).
+	reattached := mustGet(t, manager, agent.ID)
+	if got := workspaceNameOf(reattached.Workspace); got != originalName {
+		t.Fatalf("re-provisioned workspace Name = %q, want the SAME %q (re-adopt, not a new identity)", got, originalName)
+	}
+	if got := len(harness.Workspaces.Provisioned) - provisionedBefore; got != 1 {
+		t.Fatalf("re-provision created %d new workspaces, want exactly 1 (re-adopt across the recycle)", got)
+	}
+	for i := provisionedBefore; i < len(harness.Workspaces.Provisioned); i++ {
+		if harness.Workspaces.Provisioned[i].Name != originalName {
+			t.Fatalf("re-provision used Name %q, want %q (idempotent on Name)", harness.Workspaces.Provisioned[i].Name, originalName)
+		}
+	}
+}
+
+// caseResumeConflictReadopts drives driveResume's ConflictError sub-branch: the recorded
+// workspace's pod is still SETTLING after a recycle, so the first Open transiently misses
+// (re-provision) and the re-Provision returns a settling ConflictError — meaning the workspace
+// actually still EXISTS. The orchestrator must re-Open the existing handle (re-adopt) rather
+// than fail or duplicate-provision, reaching Running over the existing workspace.
+func caseResumeConflictReadopts(t *testing.T, manager orchestrator.Manager, harness Harness) {
+	t.Helper()
+	if harness.FailNextResumeOpens == nil || harness.ConflictNextProvision == nil {
+		t.Skip("binding cannot script the Open-miss / Provision-conflict seam")
+	}
+	ctx := context.Background()
+	agent := mustSpawn(t, manager)
+	harness.Probe.SetDefault(orchestrator.Actual{WorkspaceLive: true, SessionLive: true})
+	driveToRunning(t, manager, harness, agent.ID)
+	running := mustGet(t, manager, agent.ID)
+	originalName := workspaceNameOf(running.Workspace)
+	provisionedBefore := len(harness.Workspaces.Provisioned)
+
+	// Drop the actual → Suspended → Resume (Resuming). The workspace is NOT torn down: the pod
+	// is settling, so driveResume's first Open misses transiently and the re-Provision conflicts.
+	harness.Probe.Set(agent.ID, orchestrator.Actual{WorkspaceLive: false, SessionLive: false})
+	mustReconcile(t, harness)
+	assertStatus(t, manager, agent.ID, orchestrator.StatusSuspended)
+	if err := manager.Resume(ctx, agent.ID, "operator"); err != nil {
+		t.Fatalf("Resume: %v", err)
+	}
+	assertStatus(t, manager, agent.ID, orchestrator.StatusResuming)
+
+	// Arm the settling sequence: the first driveResume Open misses (→ re-provision), the
+	// re-Provision returns a ConflictError (the workspace EXISTS), then the conflict-branch
+	// re-Open of the recorded handle succeeds (the second Open is unarmed → re-adopts).
+	harness.FailNextResumeOpens(1)
+	harness.ConflictNextProvision()
+	harness.Probe.Set(agent.ID, orchestrator.Actual{WorkspaceLive: true, SessionLive: true})
+	mustReconcile(t, harness)
+
+	// The conflict-readopt converges to Running over the EXISTING workspace — no duplicate
+	// provision created a new sandbox (the conflict short-circuits Create).
+	reattached := mustGet(t, manager, agent.ID)
+	if reattached.Status != orchestrator.StatusRunning {
+		t.Fatalf("after conflict-readopt status = %v, want Running (re-adopt over the existing handle, detail %q)", reattached.Status, reattached.Detail)
+	}
+	if got := workspaceNameOf(reattached.Workspace); got != originalName {
+		t.Fatalf("conflict-readopt workspace Name = %q, want the SAME %q (re-adopt, never a new identity)", got, originalName)
+	}
+	if got := len(harness.Workspaces.Destroyed); got != 0 {
+		t.Fatalf("conflict-readopt tore down %d workspaces, want 0 (the existing pod is re-adopted, not reaped)", got)
+	}
+	// The conflict short-circuits Create: no NEW workspace object was provisioned this pass.
+	if got := len(harness.Workspaces.Provisioned) - provisionedBefore; got != 0 {
+		t.Fatalf("conflict-readopt created %d new workspaces, want 0 (the conflict means the workspace already exists)", got)
+	}
+}
+
+// caseUnrecoverableInnerStateFails asserts driveRunning CONSUMES the observed
+// Actual.SessionState: a live agent whose probe reports a terminal inner FAULT
+// (agentsession.StateFailed) is driven to terminal Failed (the inner loop is unrecoverable,
+// NOT a re-attachable Suspended) and its workspace is released. This is the real decision that
+// reads the field — without it the agent would mis-route to Suspended and fruitlessly Resume.
+func caseUnrecoverableInnerStateFails(t *testing.T, manager orchestrator.Manager, harness Harness) {
+	t.Helper()
+	agent := mustSpawn(t, manager)
+	harness.Probe.SetDefault(orchestrator.Actual{WorkspaceLive: true, SessionLive: true})
+	driveToRunning(t, manager, harness, agent.ID)
+
+	// The probe reports the live session entered an UNRECOVERABLE inner state (a transport/auth
+	// fault, not a graceful completion). The actual is otherwise still "live" — so the only
+	// thing that can move the agent to Failed is the SessionState branch.
+	harness.Probe.Set(agent.ID, orchestrator.Actual{
+		WorkspaceLive: true, SessionLive: true,
+		SessionState: agentsession.StateFailed,
+	})
+	mustReconcile(t, harness)
+
+	failed := mustGet(t, manager, agent.ID)
+	if failed.Status != orchestrator.StatusFailed {
+		t.Fatalf("after an unrecoverable inner state status = %v, want Failed (the SessionState fault branch, detail %q)", failed.Status, failed.Detail)
+	}
+	if failed.Detail == "" {
+		t.Fatalf("Failed record carries no detail (want the inner-state reason)")
+	}
+	// The fault path releases the workspace (no orphaned pod on an inner-loop fault).
+	if len(harness.Workspaces.Destroyed) != 1 {
+		t.Fatalf("inner-state fault tore down %d workspaces, want exactly 1 (fail-and-teardown)", len(harness.Workspaces.Destroyed))
+	}
+	assertNoOrphans(t, manager)
 }
 
 // caseGetListReadRecords asserts Get/List read the reconciled record (and List filters).
@@ -366,10 +546,12 @@ func caseCredentialSeam(t *testing.T, manager orchestrator.Manager, harness Harn
 	}
 
 	// The record carries the loggable ref's downstream, never the value. Drive a full
-	// stop so the credential has flowed through Open and the record is finalized.
+	// stop so the credential has flowed through Open and the record is finalized (two-phase
+	// stop: → Stopping, → Stopped).
 	if err := manager.Stop(context.Background(), agent.ID, "operator"); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
+	mustReconcile(t, harness)
 	mustReconcile(t, harness)
 
 	assertNoSecretInRecord(t, manager, SeededCanary)

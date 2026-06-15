@@ -5,6 +5,7 @@
 package edenhttptest
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -76,37 +77,57 @@ func MintTokenFor(subject string, expiresAt time.Time, grantStrings ...string) s
 	return token
 }
 
-// RecordingLogger is a concurrency-safe edenhttp.Logger that records every line, so a suite asserts
-// a redaction-safe log was emitted (and that no token value reached it). Safe for the parallel
-// middleware/load suites.
+// RecordingLogger is a concurrency-safe edenhttp.Logger that records every line — the message AND
+// its structured key/value fields — so a suite asserts a redaction-safe log was emitted (and that no
+// token value reached ANY logged field, not just the message). Retaining the fields is what makes the
+// canary scan non-vacuous: a needle planted in a field is now in the recorded line, where the canary
+// property catches it. Safe for the parallel middleware/load suites.
 type RecordingLogger struct {
 	mu    sync.Mutex
 	infos []string
 	errs  []string
 }
 
-// Info records an info line's message.
-func (l *RecordingLogger) Info(message string, _ ...any) {
+// Info records an info line: the message followed by its key/value fields, so a field value is part of
+// the recorded line (a redaction canary scans the WHOLE line, not just the message).
+func (l *RecordingLogger) Info(message string, fields ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.infos = append(l.infos, message)
+	l.infos = append(l.infos, renderLine(message, fields))
 }
 
-// Error records an error line's message.
-func (l *RecordingLogger) Error(message string, _ ...any) {
+// Error records an error line: the message followed by its key/value fields (same field-retaining
+// contract as Info, so an error-path field leak is also caught).
+func (l *RecordingLogger) Error(message string, fields ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.errs = append(l.errs, message)
+	l.errs = append(l.errs, renderLine(message, fields))
 }
 
-// Infos returns a copy of the recorded info messages.
+// renderLine renders one log line as the message plus every structured field value, so the recorded
+// string carries the field VALUES a redaction canary must scan. It is intentionally lossy on
+// formatting (it is not a real log encoder) but lossless on the value bytes that matter for redaction:
+// a token leaked through any field appears verbatim in the rendered line.
+func renderLine(message string, fields []any) string {
+	if len(fields) == 0 {
+		return message
+	}
+	parts := make([]any, 0, len(fields)+1)
+	parts = append(parts, message)
+	parts = append(parts, fields...)
+	return fmt.Sprint(parts...)
+}
+
+// Infos returns a copy of the recorded info lines (message + field values), so a canary scan covers
+// the field values, not just the message.
 func (l *RecordingLogger) Infos() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return append([]string(nil), l.infos...)
 }
 
-// Errors returns a copy of the recorded error messages.
+// Errors returns a copy of the recorded error lines (message + field values), so a canary scan covers
+// the field values, not just the message.
 func (l *RecordingLogger) Errors() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()

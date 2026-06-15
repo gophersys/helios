@@ -45,7 +45,9 @@ type Manager struct {
 	telemetry    *Telemetry
 	clock        *Clock
 	workspaces   *workspaceprovidertest.Adapter
-	provider     workspaceprovider.Provider
+	provider     workspaceprovider.Provider // the scripted decorator the reconcile loop binds (wraps the real provider)
+	inner        workspaceprovider.Provider // the undecorated real provider (used to provision orphans directly in a test)
+	scripted     *scriptedProvider          // the arm point for driveResume recovery-branch faults
 	sessions     agentsession.Factory
 	secrets      *secretstest.Provider
 }
@@ -53,11 +55,14 @@ type Manager struct {
 // settings is the accumulated Option state (an unexported value bag — not the public
 // orchestrator.Config; HNS-1 forbids "config" as a name).
 type settings struct {
-	templates     []orchestrator.AgentTemplate
-	scripts       map[string][]agentsession.Event
-	maxConcurrent int
-	workspaces    workspaceprovider.Provider
-	wsAdapter     *workspaceprovidertest.Adapter
+	templates         []orchestrator.AgentTemplate
+	scripts           map[string][]agentsession.Event
+	maxConcurrent     int
+	workspaces        workspaceprovider.Provider
+	wsAdapter         *workspaceprovidertest.Adapter
+	provisionTimeout  time.Duration // 0 == the harness default (90s)
+	retentionWindow   time.Duration // 0 == the harness default (24h)
+	reconcileInterval time.Duration // 0 == the library default (Start's loop tick)
 }
 
 // Option configures New.
@@ -85,6 +90,24 @@ func WithScript(templateName string, script ...agentsession.Event) Option {
 // WithMaxConcurrent sets the per-(Tenant,Template) admission ceiling (to test LimitError).
 func WithMaxConcurrent(n int) Option {
 	return func(s *settings) { s.maxConcurrent = n }
+}
+
+// WithProvisionTimeout overrides Config.ProvisionTimeout (the bound on a Provision call), so a
+// test proves a hung provision trips the deadline and marks the agent Failed.
+func WithProvisionTimeout(d time.Duration) Option {
+	return func(s *settings) { s.provisionTimeout = d }
+}
+
+// WithRetentionWindow overrides Config.RetentionWindow (how long terminal agents are kept
+// before the Start loop reaps them), so a test proves the window is honored on the loop cadence.
+func WithRetentionWindow(d time.Duration) Option {
+	return func(s *settings) { s.retentionWindow = d }
+}
+
+// WithReconcileInterval overrides Config.ReconcileInterval (the Start loop's tick), so a test
+// that exercises the loop cadence (retention) ticks fast and deterministically.
+func WithReconcileInterval(d time.Duration) Option {
+	return func(s *settings) { s.reconcileInterval = d }
 }
 
 // WithWorkspaces wires a specific workspaceprovider.Provider the reconcile loop provisions
@@ -124,12 +147,27 @@ func New(options ...Option) *Manager {
 		provider = buildWorkspaces(wsAdapter, secretsProvider)
 	}
 
+	// Wrap the real provider in the scripted decorator the reconcile loop binds, so a
+	// conformance case can arm the driveResume recovery-branch faults (Open-miss, conflict)
+	// against the SAME frozen seam. Unarmed, it passes straight through.
+	scripted := newScriptedProvider(provider)
+
+	provisionTimeout := configured.provisionTimeout
+	if provisionTimeout == 0 {
+		provisionTimeout = 90 * time.Second
+	}
+	retentionWindow := configured.retentionWindow
+	if retentionWindow == 0 {
+		retentionWindow = 24 * time.Hour
+	}
+
 	pool, err := orchestrator.New(
 		orchestrator.Config{
 			DefaultMaxConcurrent: configured.maxConcurrent,
 			DefaultCluster:       orchestrator.ClusterRef{ID: "local-k3d"},
-			ProvisionTimeout:     90 * time.Second,
-			RetentionWindow:      24 * time.Hour,
+			ProvisionTimeout:     provisionTimeout,
+			RetentionWindow:      retentionWindow,
+			ReconcileInterval:    configured.reconcileInterval,
 		},
 		orchestrator.Deps{
 			Desired:    desiredStore,
@@ -137,7 +175,7 @@ func New(options ...Option) *Manager {
 			Secrets:    secretsProvider,
 			Telemetry:  telemetry,
 			Clock:      clock,
-			Workspaces: provider,
+			Workspaces: scripted,
 			Sessions:   sessions,
 			Probe:      probe,
 		},
@@ -154,7 +192,9 @@ func New(options ...Option) *Manager {
 		telemetry:    telemetry,
 		clock:        clock,
 		workspaces:   wsAdapter,
-		provider:     provider,
+		provider:     scripted,
+		inner:        provider,
+		scripted:     scripted,
 		sessions:     sessions,
 		secrets:      secretsProvider,
 	}
@@ -325,6 +365,23 @@ func (m *Manager) Advance(d time.Duration) *Manager {
 	return m
 }
 
+// RecycleNode tears the agent's workspace down OUT-OF-BAND (the provider Teardown the
+// orchestrator did NOT request) — a deterministic model of a real node-recycle / preemption
+// that reclaims the pod under a live agent. It reads the handle off the desired record (the
+// durable state that survives the recycle) and releases it through the bound provider, so the
+// NEXT driveResume Open misses and re-provisions. Mirrors RealHarness.RecycleNode so the same
+// conformance case drives both bindings. Returns false when the agent has no live workspace.
+func (m *Manager) RecycleNode(ctx context.Context, id orchestrator.AgentID) (bool, error) {
+	agent, err := m.desiredStore.Get(ctx, id)
+	if err != nil || agent.Workspace.IsZero() {
+		return false, nil //nolint:nilerr // no live workspace to recycle is not an error here.
+	}
+	if terr := m.provider.Teardown(ctx, agent.Workspace); terr != nil {
+		return false, terr //nolint:wrapcheck // the provider's typed error passes through for the test to assert.
+	}
+	return true, nil
+}
+
 // Pool exposes the underlying *orchestrator.Pool for lifecycle (Start/Close) in tests.
 func (m *Manager) Pool() *orchestrator.Pool { return m.pool }
 
@@ -340,9 +397,10 @@ func (m *Manager) Clock() *Clock { return m.clock }
 // Workspaces exposes the frozen-seam fake Adapter so a test asserts provision/teardown.
 func (m *Manager) Workspaces() *workspaceprovidertest.Adapter { return m.workspaces }
 
-// Provider exposes the real workspaceprovider.Provider the reconcile loop binds, so a test
-// can drive Reconcile with the Pool's DEFAULT in-process Probe (omitting Probe from
-// ReconcilePorts) and still supply the workspace/session seams.
+// Provider exposes the workspaceprovider.Provider the reconcile loop binds (the scripted
+// decorator over the real provider), so a test can drive Reconcile with the Pool's DEFAULT
+// in-process Probe (omitting Probe from ReconcilePorts) and still supply the workspace/session
+// seams. Unarmed it is a pure pass-through to the real provider.
 //
 //nolint:ireturn // returns the frozen workspaceprovider.Provider port the reconcile loop binds.
 func (m *Manager) Provider() workspaceprovider.Provider { return m.provider }
@@ -352,6 +410,25 @@ func (m *Manager) Provider() workspaceprovider.Provider { return m.provider }
 //
 //nolint:ireturn // returns the frozen agentsession.Factory port the reconcile loop binds.
 func (m *Manager) Sessions() agentsession.Factory { return m.sessions }
+
+// FailNextResumeOpens arms the next n Open calls on the bound provider to transiently miss
+// (the recorded handle's pod still settling), so driveResume falls through to re-provision.
+func (m *Manager) FailNextResumeOpens(n int) { m.scripted.FailNextOpens(n, nil) }
+
+// ConflictNextProvision arms the next Provision to surface a settling ConflictError so
+// driveResume takes the conflict-readopt branch.
+func (m *Manager) ConflictNextProvision() { m.scripted.ConflictNextProvision() }
+
+// ReprovisionsObserved returns how many genuine re-provisions (Create) the scripted seam saw
+// (excluding the armed-conflict short-circuit), so a case asserts exactly one re-adopt.
+func (m *Manager) ReprovisionsObserved() int { return m.scripted.Provisions() }
+
+// BlockProvision makes every Provision hang until its ctx is canceled (a hung provider), so a
+// test proves Config.ProvisionTimeout bounds the call and marks the agent Failed. Fluent.
+func (m *Manager) BlockProvision() *Manager {
+	m.scripted.BlockProvision()
+	return m
+}
 
 // DesiredStore exposes the in-memory desired-state store for record-shape assertions.
 func (m *Manager) DesiredStore() *DesiredStore { return m.desiredStore }

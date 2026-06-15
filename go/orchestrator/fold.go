@@ -38,7 +38,7 @@ func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.Wo
 		Labels:           labels,
 		Env:              envToProvider(template.Sandbox.Env),
 		Entrypoint:       entrypointToProvider(template.Sandbox.Entrypoint),
-		ProvisionTimeout: 0, // ctx (bounded by ProvisionTimeout in reconcile) governs the wait
+		ProvisionTimeout: 0, // not the per-spec deadline: reconcile bounds the Provision CALL via Config.ProvisionTimeout (provisionContext), so the ctx governs the wait
 	}
 	if mount, ok := repoMount(template.Sandbox.WorkdirRepo); ok {
 		spec.Mounts = append(spec.Mounts, mount)

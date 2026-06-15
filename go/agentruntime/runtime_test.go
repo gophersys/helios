@@ -92,6 +92,71 @@ func TestRun_PublishesHeartbeats(t *testing.T) {
 	}
 }
 
+// TestRun_PublishesFullPhaseProgression proves every member of the closed HealthPhase taxonomy is
+// actually emitted on the wire across one lifecycle, IN ORDER: PhaseStarting (the sidecar attached,
+// before the first event) → PhaseRunning (the steady state) → PhaseDraining (the shutdown drain
+// window the orchestrator observes) → PhaseStopped (terminal). The earlier half-wiring published
+// neither Starting (the loop led with Running) nor Draining (the heartbeat goroutine returned the
+// instant agentCtx canceled, so its in-ticker draining branch never fired) — this asserts the
+// declared taxonomy advertises no unreachable state.
+func TestRun_PublishesFullPhaseProgression(t *testing.T) {
+	t.Parallel()
+	runtime, bus, _ := agentruntimetest.NewRuntime(t, interactiveFast)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	wait := runFor(ctx, t, runtime)
+
+	<-bus.Subscribed()
+	waitForHeartbeats(t, bus, 1) // the run loop is live (Starting+Running already published) before STOP
+	bus.Inject(agentruntime.ControlMessage{AgentID: agentruntimetest.AgentID, Verb: agentruntime.VerbStop})
+	if reason := wait(); reason != agentruntime.TerminationControlStop {
+		t.Fatalf("reason = %s, want control-stop", reason)
+	}
+
+	beats := bus.Heartbeats()
+	phases := make([]agentruntime.HealthPhase, len(beats))
+	for i, beat := range beats {
+		phases[i] = beat.Phase
+	}
+	// Each advertised phase must appear, and the FIRST occurrence of each must respect the lifecycle
+	// order Starting < Running < Draining < Stopped (intervening Running ticks are allowed).
+	wantOrder := []agentruntime.HealthPhase{
+		agentruntime.PhaseStarting,
+		agentruntime.PhaseRunning,
+		agentruntime.PhaseDraining,
+		agentruntime.PhaseStopped,
+	}
+	assertPhaseProgression(t, phases, wantOrder)
+	// PhaseStopped is the terminal, published exactly once and last.
+	if last := phases[len(phases)-1]; last != agentruntime.PhaseStopped {
+		t.Errorf("final phase = %s, want stopped", last)
+	}
+}
+
+// assertPhaseProgression checks that each phase in want first appears in phases in strictly
+// increasing index order (the closed taxonomy is fully emitted AND ordered). A missing phase is the
+// half-wired-liveness regression; an out-of-order first occurrence is a mis-sequenced state machine.
+func assertPhaseProgression(t *testing.T, phases, want []agentruntime.HealthPhase) {
+	t.Helper()
+	prevIndex := -1
+	for _, phase := range want {
+		index := -1
+		for i, got := range phases {
+			if got == phase {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			t.Fatalf("phase %s was never published (the closed taxonomy advertises an unreachable state); published: %v", phase, phases)
+		}
+		if index <= prevIndex {
+			t.Fatalf("phase %s first appeared at index %d, not after the previous phase (index %d); published: %v", phase, index, prevIndex, phases)
+		}
+		prevIndex = index
+	}
+}
+
 // TestRun_ControlPromptRoundTrip proves the orchestrator→sidecar control round-trip: with NO seed
 // prompt the scripted harness is idle (only Ready), so a PROMPT verb published to agent.<id>.control
 // is what unblocks its scripted body — a reply text-delta reaching agent.<id>.events PROVES the verb

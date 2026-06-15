@@ -10,8 +10,11 @@
 //
 // JSON is the wire codec (the message protocol is small, evolvable, and human-debuggable with the
 // `nats` CLI; the agentsession.Event it carries marshals cleanly). New is PURE over an already-dialed
-// *nats.Conn + JetStreamContext (the composition root dials; the adapter never reads env), so the
-// connection lifecycle is the caller's — the sidecar owns its conn and reaps it on shutdown.
+// *nats.Conn + JetStreamContext (the composition root dials; the adapter never reads env, does no
+// I/O — the New(configuration, dependencies) spine invariant, rule 10), so the connection lifecycle
+// is the caller's — the sidecar owns its conn and reaps it on shutdown. Stream provisioning is the
+// explicit, separate EnsureStream(ctx) step the composition root calls once at startup (the one
+// place the adapter touches the network before a publish), keeping the constructor side-effect-free.
 //
 // Module boundary: natsbus is a SUB-package of agentruntime (same module) so the contract types
 // (EventEnvelope/Heartbeat/ControlMessage) are cited, never redefined (one concept, one home).
@@ -37,23 +40,19 @@ const StreamName = agentruntime.EventsStreamName
 // eventSubjectWildcard is the stream's captured subject set (every agent's events).
 const eventSubjectWildcard = "agent.*.events"
 
-// Config is the adapter's immutable input. It names the JetStream stream (defaulted) and whether the
-// adapter should ensure the stream exists at construction. It reads NO env. (Idiomatic Go type name;
-// HNS-1 rule 11 exempt.)
+// Config is the adapter's immutable input. It names the JetStream stream (defaulted). It reads NO
+// env and drives NO I/O — whether the events stream is provisioned is a runtime decision the
+// composition root makes by calling EnsureStream(ctx), not a constructor flag (the New spine is
+// pure). (Idiomatic Go type name; HNS-1 rule 11 exempt.)
 type Config struct {
 	// Stream is the JetStream stream name; empty == StreamName.
 	Stream string
-
-	// EnsureStream, when true, creates-or-updates the events stream at New (idempotent). The sidecar
-	// sets this so a fresh nats-server is usable without an out-of-band provisioning step; a
-	// deployment that provisions the stream out-of-band (ADR-0022 #2 supporting-stack) leaves it false.
-	EnsureStream bool
 }
 
 // Deps injects the already-dialed NATS handles (accept the concrete *nats.Conn / JetStreamContext —
-// they are the vendor SDK's own types, used only inside this adapter). New performs at most one
-// synchronous AddStream when EnsureStream is set; it dials nothing. (Idiomatic Go type name; HNS-1
-// rule 11 exempt.)
+// they are the vendor SDK's own types, used only inside this adapter). New dials nothing and does no
+// I/O on these handles — the only construction-time stream provisioning is the explicit EnsureStream
+// call. (Idiomatic Go type name; HNS-1 rule 11 exempt.)
 type Deps struct {
 	Conn      *nats.Conn
 	JetStream nats.JetStreamContext
@@ -68,9 +67,10 @@ type Adapter struct {
 	stream    string
 }
 
-// New constructs the adapter over dialed handles. PURE except an optional idempotent AddStream when
-// Config.EnsureStream is set (the one sanctioned provisioning call). A nil Conn/JetStream is a
-// construction error (KindInvalid).
+// New constructs the adapter over dialed handles. It is PURE: it validates the handles and wires the
+// resolved stream name — no I/O, no dial, no AddStream (the New(configuration, dependencies) spine
+// invariant, rule 10). Stream provisioning is the explicit EnsureStream(ctx) step the caller runs
+// once at startup. A nil Conn/JetStream is a construction error (KindInvalid).
 func New(configuration Config, dependencies Deps) (*Adapter, error) {
 	if dependencies.Conn == nil {
 		return nil, errors.New(errors.KindInvalid, "natsbus: Deps.Conn is required")
@@ -82,30 +82,28 @@ func New(configuration Config, dependencies Deps) (*Adapter, error) {
 	if stream == "" {
 		stream = StreamName
 	}
-	adapter := &Adapter{conn: dependencies.Conn, jetStream: dependencies.JetStream, stream: stream}
-	if configuration.EnsureStream {
-		if err := adapter.ensureStream(); err != nil {
-			return nil, err
-		}
-	}
-	return adapter, nil
+	return &Adapter{conn: dependencies.Conn, jetStream: dependencies.JetStream, stream: stream}, nil
 }
 
-// ensureStream creates-or-updates the durable events stream capturing agent.*.events. Idempotent: an
-// already-existing stream with the same subject set is a no-op (AddStream returns the existing one or
-// a name-in-use error the adapter tolerates).
-func (a *Adapter) ensureStream() error {
+// EnsureStream creates-or-updates the durable events stream capturing agent.*.events, the one
+// network side effect the composition root invokes once at startup so a fresh nats-server is usable
+// without an out-of-band provisioning step (a deployment that provisions the stream out-of-band,
+// ADR-0022 #2 supporting-stack, simply does not call it). It is the explicit provisioning step moved
+// OUT of New to keep the constructor pure (rule 10). Idempotent: an already-existing stream with the
+// same subject set is a no-op (AddStream surfaces a name-in-use the adapter tolerates). The ctx
+// bounds the AddStream/StreamInfo round-trips so a dead server fails fast.
+func (a *Adapter) EnsureStream(ctx context.Context) error {
 	_, err := a.jetStream.AddStream(&nats.StreamConfig{
 		Name:      a.stream,
 		Subjects:  []string{eventSubjectWildcard},
 		Storage:   nats.FileStorage,
 		Retention: nats.LimitsPolicy,
 		Discard:   nats.DiscardOld,
-	})
+	}, nats.Context(ctx))
 	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		// A re-create with the same subjects on an existing stream surfaces as name-in-use; tolerate
 		// it (idempotent provisioning). Any other error is a real provisioning fault.
-		if _, infoErr := a.jetStream.StreamInfo(a.stream); infoErr != nil {
+		if _, infoErr := a.jetStream.StreamInfo(a.stream, nats.Context(ctx)); infoErr != nil {
 			return errors.Wrap(errors.KindUnavailable, "natsbus: ensure events stream", err)
 		}
 	}

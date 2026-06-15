@@ -8,6 +8,7 @@ import (
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/orchestrator"
 	"github.com/gophersys/libs/go/secrets"
+	"github.com/gophersys/libs/go/workspaceprovider"
 )
 
 // The canonical template refs the suite spawns against. The default template runs the
@@ -153,4 +154,46 @@ func assertNoSecretInRecord(t *testing.T, manager orchestrator.Manager, canary s
 // containsBudgetReason reports whether a terminal detail names a budget stop.
 func containsBudgetReason(detail string) bool {
 	return strings.Contains(strings.ToLower(detail), "budget")
+}
+
+// workspaceNameOf extracts the deterministic workspace Name from a record's Handle (the
+// Provision idempotency key), so a re-provision case asserts the SAME Name was re-adopted
+// rather than a duplicate identity minted.
+func workspaceNameOf(handle workspaceprovider.Handle) string { return handle.Name() }
+
+// assertBudgetEventMatchesRecord asserts the emitted ObsBudgetExceeded event's To field
+// equals wantTo — the "event == committed transition" invariant: the budget verdict and the
+// recorded transition must AGREE (both Stopping), never the observability/record disagreement
+// the over-promise hid (the event used to claim To:Stopping while the record went straight to
+// Stopped). It also cross-checks that an ObsTransition committing the same agent's transition
+// carries the same To.
+func assertBudgetEventMatchesRecord(t *testing.T, harness Harness, wantTo orchestrator.Status) {
+	t.Helper()
+	events := harness.Telemetry.Snapshot()
+	var budget *orchestrator.ObservabilityEvent
+	for i := range events {
+		if events[i].Kind == orchestrator.ObsBudgetExceeded {
+			budget = &events[i]
+		}
+	}
+	if budget == nil {
+		t.Fatalf("no ObsBudgetExceeded event emitted (want one with To=%v)", wantTo)
+	}
+	if budget.To != wantTo {
+		t.Fatalf("ObsBudgetExceeded To = %v, want %v (the event must match the committed transition)", budget.To, wantTo)
+	}
+	// The committed transition this step must agree with the event: find the ObsTransition for
+	// the same agent whose To equals the event's To and whose From matches.
+	matched := false
+	for i := range events {
+		e := events[i]
+		if e.Kind == orchestrator.ObsTransition && e.AgentID == budget.AgentID && e.To == budget.To && e.From == budget.From {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		t.Fatalf("ObsBudgetExceeded (%v→%v) has no matching committed ObsTransition for %s — event/record disagree",
+			budget.From, budget.To, budget.AgentID)
+	}
 }

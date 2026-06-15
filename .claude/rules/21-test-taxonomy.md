@@ -115,3 +115,48 @@ scan is blind to. Both FAIL the gate; the fix is to CITE the one home, never to 
   than one top-level lib's PRODUCTION code (`*_test.go` excluded — a black-box test MAY pin an
   expected wire value as a literal assertion, which is how a drift is caught). **Import
   `agentruntime` and cite the const/subject helper**; never re-spell the literal.
+
+### Three half-wired-contract detectors (Stage-6 ENFORCE — the meta-loop teeth)
+
+The classes below are the ones EVERY prior layer was blind to: an EXPORTED struct field or an enum
+constant is invisible to `unused`/staticcheck (the symbol is exported), counts as "covered" the
+moment it is merely ASSIGNED (cover-floor measures lines executed, not values READ), and survives
+mutation silently on a `leaf=false` lib (gremlins is off). The `maintainability` verb runs three
+detectors (in `libs/go/_ctl/lib.sh`: `_state_consumed_scan`, `_enum_liveness_scan`,
+`_fault_path_unit_warn`). The first two FAIL the gate; the third is a WARNING (see below). All three
+honor an explicit **`//eden:reserved`** doc tag on the declaration as an opt-out for a member
+deliberately reserved in a closed, append-only taxonomy (10 §9) — the escape is documented, not silent.
+
+- **CONFIG-DEAD-STATE** (`_state_consumed_scan`, FAIL). Every exported field of a contract VALUE
+  struct (`type Config struct` / `type Actual struct`) MUST be READ by non-test production code in
+  the lib. "Read" = a SELECTOR access `.<Field>` (e.g. `p.configuration.ProvisionTimeout`,
+  `actual.SessionState`, `configuration.Region`) that is NOT a write (`.<Field> =`) and not a
+  comment — exactly the consume signal the audit named (orchestrator `Config.ProvisionTimeout` /
+  `RetentionWindow` were resolved knobs the spine never read; `Actual.SessionState` was populated by
+  every Probe but branched on by no decision). A field with zero selector reads is a knob that does
+  nothing → FAIL. **Fix:** wire the field into a decision/return, DELETE it, or tag the declaration
+  `//eden:reserved`. (A `Field: configuration.Field` line is both a struct-KEY write AND a selector
+  READ of the value — it counts as a read; do not exclude it.)
+- **CAPABILITY-WIRED** (`_enum_liveness_scan`, FAIL). An enum TYPE whose doc declares it a **closed,
+  EMITTED** taxonomy (the doc contains "Closed taxonomy" AND an emission word
+  `emitted`/`on the wire`/`heartbeat`/`publish` — e.g. agentruntime `HealthPhase`) advertises exactly
+  the set of states an observer may see. Every non-zero const member MUST appear in a LIVE position
+  in non-test production code: a CALL ARGUMENT (`publishHealth(ctx, PhaseStarting)` — the PRODUCE
+  side), an ASSIGNMENT RHS to a published variable (`phase = PhaseDraining`), OR a SWITCH ARM
+  `case <Member>:` (the CONSUME side — a received-and-dispatched verb like `ControlVerb.VerbPrompt`
+  is wired by its handler, not by an emit). A member in NONE of those positions is a half-wired state
+  that advertises a transition that never happens (`PhaseStarting` was never published, the
+  `PhaseDraining` beat was unreachable) → FAIL. **Fix:** emit/dispatch the member on the path it
+  advertises, drop it from the emitted set, or tag the declaration `//eden:reserved`. The decl
+  `Name <type> = iota`, the token-table key `Name: "tok"`, and the table-INDEX read
+  `tokens[Name]` are NOT live positions (they only name the member).
+- **FAULT-PATH-COVERAGE** (`_fault_path_unit_warn`, **WARNING — not a hard FAIL**). A package that
+  constructs typed errors (`errors.Wrap`/`errors.New`) but whose ONLY `*_test.go` files carry
+  `//go:build integration` (no fast unit test in the package) has its fault arms reachable only under
+  the integration build tag — and cover-floor for a substrate lib is computed WITH that tag, so the
+  happy-path integration lines clear the floor while the error branches stay unexercised at the unit
+  level (the natssse class: `forward` decode-fault, `openConsumer` fault, `onFetchGap` transport
+  fault). This is a **reported WARNING with a precise per-package message, never a gate FAIL** — the
+  build-tag/test-file heuristic is too false-positive-prone to block (a package may legitimately be
+  integration-only). It nudges a human to add a fast unit fault arm (table tests over the pure
+  branches via the `export_test.go` white-box seam — mock-free, no substrate). The gate stays green.

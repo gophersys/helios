@@ -6,6 +6,7 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/errors"
+	"github.com/gophersys/libs/go/workspaceprovider"
 )
 
 // Reconcile performs ONE bounded, idempotent, convergent pass: read DESIRED records,
@@ -69,7 +70,14 @@ func (p *Pool) step(ctx context.Context, ports ReconcilePorts, agent Agent, actu
 	}
 
 	switch {
+	case agent.Status == StatusStopping:
+		// The Stopping waypoint was recorded on a prior step; this pass drains the session and
+		// releases the workspace, driving Stopping → Stopped (the reap half of the two-phase stop).
+		return p.driveStoppingDrain(ctx, ports, &agent)
 	case agent.Desired == DesiredStopped && !agent.Status.Terminal():
+		// A Stop (or a budget/Close intent) on a live agent: record the real Stopping waypoint
+		// first (Running → Stopping), so the declared lifecycle state is actually entered and
+		// telemetry/record agree. The next pass drains it (driveStoppingDrain above).
 		return p.driveStopping(ctx, ports, &agent)
 	case agent.Status == StatusPending:
 		return p.driveProvision(ctx, ports, &agent)
@@ -103,9 +111,13 @@ func (p *Pool) driveProvision(ctx context.Context, ports ReconcilePorts, agent *
 	}
 
 	spec := toWorkspaceSpec(agent, &inputs.template)
-	workspace, err := ports.Workspaces.Provision(ctx, spec)
+	provisionCtx, cancel := p.provisionContext(ctx)
+	defer cancel()
+	workspace, err := ports.Workspaces.Provision(provisionCtx, spec)
 	if err != nil {
-		// Defend against a partial workspace even though Provision is all-or-nothing.
+		// Defend against a partial workspace even though Provision is all-or-nothing. A hung
+		// provision trips provisionCtx's deadline (ProvisionTimeout) and surfaces here as a
+		// KindDeadline/Canceled fault → the agent is marked Failed rather than wedged forever.
 		return p.failProvision(ctx, ports, agent, err)
 	}
 	p.ensureLive().putWorkspace(agent.ID, workspace)
@@ -115,6 +127,18 @@ func (p *Pool) driveProvision(ctx context.Context, ports ReconcilePorts, agent *
 	agent.Workspace = workspace.Handle()
 	agent.Detail = "workspace provisioned"
 	return p.commit(ctx, agent, from, "workspace provisioned", ObsTransition, false)
+}
+
+// provisionContext bounds a single Provision call by Config.ProvisionTimeout when it is
+// set (>0), so a hung workspaceprovider.Provision trips the deadline and the agent is
+// marked Failed rather than wedged in Provisioning forever. A zero ProvisionTimeout means
+// "unbounded here" — the parent ctx (the loop's, or the caller's) is the only bound. The
+// returned cancel is ALWAYS non-nil and must be called.
+func (p *Pool) provisionContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if p.configuration.ProvisionTimeout > 0 {
+		return context.WithTimeout(ctx, p.configuration.ProvisionTimeout)
+	}
+	return ctx, func() {}
 }
 
 // driveOpen opens the agentsession in the provisioned workspace and moves the agent to
@@ -156,8 +180,9 @@ func (p *Pool) driveOpen(ctx context.Context, ports ReconcilePorts, agent *Agent
 
 // driveRunning watches a live agent: fold the observed ledger onto the orchestration
 // stream, enforce the per-session budget (the authoritative stop even when no consumer
-// tails), and detect a dropped actual (→ Suspended). It performs at most one transition
-// per pass.
+// tails), branch on the observed inner SessionState (an unrecoverable inner fault → Failed,
+// NOT a re-attachable Suspended), and detect a dropped actual (→ Suspended). It performs at
+// most one transition per pass.
 func (p *Pool) driveRunning(ctx context.Context, ports ReconcilePorts, agent *Agent, actual *Actual) (AgentEvent, bool, bool) {
 	// Budget authority: a crossed ledger forces a Stop (records DesiredStopped + a budget
 	// reason). The harness-native cap is folded into Spec.Budget; this is the watchdog so
@@ -166,11 +191,27 @@ func (p *Pool) driveRunning(ctx context.Context, ports ReconcilePorts, agent *Ag
 		agent.Desired = DesiredStopped
 		agent.Ledger = actual.Ledger
 		agent.Detail = "budget exceeded"
+		// Emit the budget verdict, then record the real Running → Stopping waypoint (the next
+		// pass drains it). The event's To now MATCHES the committed transition (both Stopping),
+		// so observability and the record never disagree.
 		p.emit(ctx, ObservabilityEvent{
 			AgentID: agent.ID, Tenant: agent.Tenant, Kind: ObsBudgetExceeded,
 			From: StatusRunning, To: StatusStopping, Ledger: actual.Ledger, Detail: "budget exceeded",
 		})
 		return p.driveStopping(ctx, ports, agent)
+	}
+
+	// Inner-state authority: a session observed in an UNRECOVERABLE terminal inner state
+	// (StateFailed / StateAborted — the harness loop hit a transport/auth/abort fault, not a
+	// graceful StateCompleted) is NOT re-attachable, so it drives Failed-and-teardown rather
+	// than the Suspended (re-attach) path below. This is the production decision that READS
+	// the observed Actual.SessionState — without it a crashed inner loop would masquerade as a
+	// transient drop and the orchestrator would fruitlessly try to Resume an unrecoverable
+	// session. StateCompleted (graceful) is NOT a fault here: it falls through to the
+	// dropped-actual check (a completed session whose actual then drops is reaped normally).
+	if isUnrecoverableInnerState(actual.SessionState) {
+		agent.Ledger = actual.Ledger
+		return p.failAndTeardown(ctx, ports, agent, "session entered unrecoverable inner state: "+actual.SessionState.String())
 	}
 
 	// A dropped actual (workspace gone or session dead) while desired is still running →
@@ -246,7 +287,9 @@ func (p *Pool) driveResume(ctx context.Context, ports ReconcilePorts, agent *Age
 		// settling) — re-dial it rather than fail; the spec is unchanged, so this is the same
 		// workspace re-adopted, never a duplicate. Any other provisioning fault marks Failed.
 		spec := toWorkspaceSpec(agent, &inputs.template)
-		workspace, err := ports.Workspaces.Provision(ctx, spec)
+		provisionCtx, cancel := p.provisionContext(ctx)
+		workspace, err := ports.Workspaces.Provision(provisionCtx, spec)
+		cancel()
 		switch {
 		case err == nil:
 			p.ensureLive().putWorkspace(agent.ID, workspace)
@@ -277,11 +320,27 @@ func (p *Pool) driveResume(ctx context.Context, ports ReconcilePorts, agent *Age
 	return p.commit(ctx, agent, from, "session re-attached", ObsTransition, false)
 }
 
-// driveStopping drains the session (Close reaps the harness, never the pod) and RELEASES
-// the workspace (Teardown is the sole pod-reaper), then moves the agent to Stopped.
-// Close-then-Teardown is the drain-then-reap order. Both are idempotent, so a retried
-// pass converges.
-func (p *Pool) driveStopping(ctx context.Context, ports ReconcilePorts, agent *Agent) (AgentEvent, bool, bool) {
+// driveStopping records the real Stopping waypoint for a live agent whose desired is
+// Stopped: it commits <live-status> → Stopping (the first half of the two-phase stop), so
+// the declared lifecycle state is actually entered and a Watcher/telemetry sees the drain
+// window open BEFORE the pod is reaped. The drain+release itself runs on the next pass
+// (driveStoppingDrain), keeping the contract's at-most-one-transition-per-agent-per-pass.
+func (p *Pool) driveStopping(ctx context.Context, _ ReconcilePorts, agent *Agent) (AgentEvent, bool, bool) {
+	from := agent.Status
+	detail := "stopping: draining session"
+	if budgetExceeded(agent.Limits.Budget, agent.Ledger) {
+		detail = "stopping: budget exceeded"
+	}
+	agent.Status = StatusStopping
+	agent.Detail = detail
+	return p.commit(ctx, agent, from, detail, ObsTransition, false)
+}
+
+// driveStoppingDrain drains the session (Close reaps the harness, never the pod) and
+// RELEASES the workspace (Teardown is the sole pod-reaper), then moves an agent already at
+// Stopping to Stopped. Close-then-Teardown is the drain-then-reap order. Both are
+// idempotent, so a retried pass converges.
+func (p *Pool) driveStoppingDrain(ctx context.Context, ports ReconcilePorts, agent *Agent) (AgentEvent, bool, bool) {
 	from := agent.Status
 	detail := "stopped gracefully"
 	if budgetExceeded(agent.Limits.Budget, agent.Ledger) {
@@ -297,7 +356,7 @@ func (p *Pool) driveStopping(ctx context.Context, ports ReconcilePorts, agent *A
 	}
 	if !agent.Workspace.IsZero() && ports.Workspaces != nil {
 		// Teardown is idempotent (absent == nil), so a retried pass converges; a transient
-		// fault keeps the agent non-terminal so a later pass retries — never a leak.
+		// fault keeps the agent at Stopping so a later pass retries — never a leak.
 		if err := ports.Workspaces.Teardown(ctx, agent.Workspace); err != nil {
 			return AgentEvent{}, false, false
 		}
@@ -363,7 +422,14 @@ func (p *Pool) commit(ctx context.Context, agent *Agent, from Status, reason str
 }
 
 // Reap garbage-collects terminal agents older than before: it releases any lingering
-// workspace lease and drops the desired record's fold material. Idempotent.
+// workspace lease (a terminal agent whose Teardown never ran — a Failed agent the
+// fault path left holding a partial pod, or a record whose final drain pass never
+// landed) and drops the desired record's fold material. Teardown is idempotent (absent
+// == nil), so an already-released workspace costs one no-op call and never double-reaps.
+// A teardown fault keeps the agent (it is NOT counted reaped and its record/inputs are
+// retained) so a later pass retries — never a silent leak. Reap uses the Deps-default
+// Workspaces seam (Start's loop cadence binding); when none is bound it reaps the record
+// material only. Idempotent.
 func (p *Pool) Reap(ctx context.Context, before time.Time) (ReapReport, error) {
 	page, err := p.dependencies.Desired.List(ctx, Filter{Limit: 0})
 	if err != nil {
@@ -375,10 +441,46 @@ func (p *Pool) Reap(ctx context.Context, before time.Time) (ReapReport, error) {
 		if !agent.Status.Terminal() || !agent.UpdatedAt.Before(before) {
 			continue
 		}
+		// Skip a terminal agent that has nothing left to release — zero workspace handle AND
+		// no lingering fold/live material. This makes the report COUNT idempotent: once an agent
+		// is reaped (its handle zeroed, its fold material dropped), a later Reap pass no-ops it
+		// rather than re-counting it. The DesiredStore has no delete; archival of the terminal
+		// record itself is the store's policy (a Postgres store moves it to an archive table).
+		_, hasInputs := p.lookupSpawnInputs(agent.ID)
+		_, hasLive := p.ensureLive().get(agent.ID)
+		if agent.Workspace.IsZero() && !hasInputs && !hasLive {
+			continue
+		}
+		// Release any lingering workspace lease before dropping the fold material, so a
+		// terminal agent whose Teardown never ran does not leave an orphaned pod the record
+		// GC would otherwise silently abandon. A teardown fault is retryable: keep the agent
+		// (record + inputs) so a later Reap pass converges, never a leak.
+		if !agent.Workspace.IsZero() && p.dependencies.Workspaces != nil {
+			if terr := p.dependencies.Workspaces.Teardown(ctx, agent.Workspace); terr != nil {
+				continue
+			}
+			// Mark the lease released on the record (zero the handle) so a later Reap pass does
+			// NOT re-Teardown it — Teardown runs AT MOST ONCE per reaped agent (idempotent in
+			// effect, not just in the adapter).
+			agent.Workspace = workspaceprovider.Handle{}
+			if perr := p.dependencies.Desired.Put(ctx, agent); perr != nil {
+				continue // a record write fault retries on a later pass; nothing leaked (workspace gone)
+			}
+		}
+		p.ensureLive().drop(agent.ID)
 		p.forgetSpawnInputs(agent.ID)
 		report.Reaped++
 	}
 	return report, nil
+}
+
+// isUnrecoverableInnerState reports whether an observed agentsession.State is a terminal
+// inner FAULT (Failed/Aborted) the orchestrator must surface as a terminal Failed agent
+// rather than a re-attachable Suspended one. A graceful StateCompleted is NOT a fault (the
+// session finished cleanly); the zero state (StateInitializing) is "not yet observed" and is
+// never treated as a fault here.
+func isUnrecoverableInnerState(state agentsession.State) bool {
+	return state == agentsession.StateFailed || state == agentsession.StateAborted
 }
 
 // budgetExceeded reports whether the observed ledger crossed any non-zero budget ceiling

@@ -21,11 +21,15 @@ func TestConformance_V0Pool(t *testing.T) {
 			orchestratortest.WithMaxConcurrent(2),
 		)
 		return manager, orchestratortest.Harness{
-			Reconcile:  manager.Reconcile,
-			Workspaces: manager.Workspaces(),
-			Probe:      manager.Probe(),
-			Telemetry:  manager.Telemetry(),
-			Clock:      manager.Clock(),
+			Reconcile:               manager.Reconcile,
+			Workspaces:              manager.Workspaces(),
+			Probe:                   manager.Probe(),
+			Telemetry:               manager.Telemetry(),
+			Clock:                   manager.Clock(),
+			RecycleNode:             manager.RecycleNode,
+			FailNextResumeOpens:     manager.FailNextResumeOpens,
+			ConflictNextProvision:   manager.ConflictNextProvision,
+			ReprovisionsObservedFor: manager.ReprovisionsObserved,
 		}
 	})
 }

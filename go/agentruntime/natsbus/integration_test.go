@@ -222,9 +222,12 @@ func newRealBus(t *testing.T, url string) (*agentruntime.Runtime, *natsbus.Adapt
 	t.Helper()
 	conn, jetStream := dialJetStream(t, url)
 	t.Cleanup(conn.Close)
-	bus, err := natsbus.New(natsbus.Config{EnsureStream: true}, natsbus.Deps{Conn: conn, JetStream: jetStream})
+	bus, err := natsbus.New(natsbus.Config{}, natsbus.Deps{Conn: conn, JetStream: jetStream})
 	if err != nil {
 		t.Fatalf("construct natsbus adapter: %v", err)
+	}
+	if ensureErr := bus.EnsureStream(context.Background()); ensureErr != nil {
+		t.Fatalf("ensure events stream: %v", ensureErr)
 	}
 	runtime, err := agentruntime.New(
 		agentruntime.Config{

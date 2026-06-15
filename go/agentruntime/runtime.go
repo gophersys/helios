@@ -86,6 +86,12 @@ func (l *runLoop) drive(shutdownCtx context.Context) (TerminationReason, error) 
 
 	reason := l.pump() // blocks until the stream terminates or a trigger cancels agentCtx
 
+	// Publish the explicit PhaseDraining beat BEFORE the cancel: the heartbeat goroutine returns the
+	// instant agentCtx cancels (so it cannot emit a drain beat itself once we cancel below), yet the
+	// orchestrator must observe the drain window. This beat rides the still-live agentCtx so the OTel
+	// carrier parents the drain to the run span; PhaseStopped (below) rides the detached shutdownCtx.
+	l.publishHealth(l.agentCtx, PhaseDraining)
+
 	// Termination: stop the workers (cancel the agent ctx if not already), then drain+close the
 	// session under a bounded ctx, then flush OTel. Cancel first so the control sub + heartbeat unwind.
 	l.cancel()
@@ -204,11 +210,16 @@ func (l *runLoop) seedInitialPrompt() {
 }
 
 // runHeartbeat publishes a Heartbeat at the configured cadence until the agent ctx is canceled. It is
-// joined by drive via the WaitGroup. The first beat fires immediately so the orchestrator sees the
-// sidecar alive without waiting a full interval.
+// joined by drive via the WaitGroup. It leads the closed phase progression on the wire: an immediate
+// PhaseStarting beat (the orchestrator sees the sidecar attached the moment the run loop comes up,
+// before the first event has pumped), then PhaseRunning (the steady state), then a PhaseRunning beat
+// every interval until cancel. The terminal PhaseDraining→PhaseStopped pair is published by drive on
+// the shutdown path (the heartbeat goroutine returns the instant agentCtx cancels). Every advertised
+// HealthPhase is thus emitted on some path across the lifecycle.
 func (l *runLoop) runHeartbeat(workers *sync.WaitGroup) {
 	defer workers.Done()
 	r := l.runtime
+	l.publishHealth(l.agentCtx, PhaseStarting)
 	l.publishHealth(l.agentCtx, PhaseRunning)
 	ticker := time.NewTicker(r.heartbeatInterval())
 	defer ticker.Stop()
@@ -228,7 +239,8 @@ func (l *runLoop) runHeartbeat(workers *sync.WaitGroup) {
 
 // publishHealth publishes one heartbeat with the loop's current LastSeq + SessionState + the OTel
 // carrier. A publish error is logged, never dropped (a heartbeat is best-effort liveness, but a
-// silent failure would hide a dead bus). PhaseStopped is published with a detached ctx by drive.
+// silent failure would hide a dead bus). The terminal PhaseDraining (live agentCtx) and PhaseStopped
+// (detached shutdownCtx, agentCtx already canceled) beats are published by drive on the shutdown path.
 func (l *runLoop) publishHealth(ctx context.Context, phase HealthPhase) {
 	r := l.runtime
 	// #nosec G115 -- sessionState only ever holds a uint8 agentsession.State widened to uint32 by recordAndPublish; the narrowing back is lossless by construction (the value is bounded to the State enum).
