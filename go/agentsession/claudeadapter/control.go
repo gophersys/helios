@@ -83,6 +83,7 @@ type parsedPermissionAnswer struct {
 	requestID string
 	allow     bool
 	by        string
+	rationale string // the OPTIONAL audit Rationale appended after the 0x1f separator (empty when absent)
 }
 
 // permissionAnswerPrefix tags the internal permission-answer frame. It MUST equal the
@@ -91,10 +92,17 @@ type parsedPermissionAnswer struct {
 // test (TestPermissionAnswerPrefix_MatchesLibrary) pins them equal so a drift fails the gate.
 const permissionAnswerPrefix = "eden:permission:"
 
+// rationaleSeparator MUST equal the library's agentsession.rationaleSeparator (the 0x1f unit
+// separator). It delimits the OPTIONAL audit Rationale the library appends to the answer
+// frame; it is unexported in the library, so a black-box test pins them equal (drift fails).
+const rationaleSeparator = "\x1f"
+
 // parsePermissionAnswer decodes the internal eden:permission frame. ok=false for any text that
 // is not a permission answer (a genuine Steer interjection), so Send falls through to the
-// ordinary user-turn path for those. The frame is id:verdict:by; by may itself contain ':'
-// (a "policy:name" identity), so only the first two separators are structural.
+// ordinary user-turn path for those. The frame is id:verdict:by[\x1frationale]; by may itself
+// contain ':' (a "policy:name" identity), so only the first two ':' separators are structural,
+// and the OPTIONAL audit rationale rides after a 0x1f separator that By can never contain (a
+// frame without it parses byte-identically to the pre-ratification id:verdict:by).
 func parsePermissionAnswer(text string) (parsedPermissionAnswer, bool) {
 	if !strings.HasPrefix(text, permissionAnswerPrefix) {
 		return parsedPermissionAnswer{}, false
@@ -104,23 +112,32 @@ func parsePermissionAnswer(text string) (parsedPermissionAnswer, bool) {
 	if !ok {
 		return parsedPermissionAnswer{}, false
 	}
-	verdict, by, ok := strings.Cut(afterID, ":")
+	verdict, byAndRationale, ok := strings.Cut(afterID, ":")
 	if !ok {
 		return parsedPermissionAnswer{}, false
 	}
 	if verdict != "allow" && verdict != "deny" {
 		return parsedPermissionAnswer{}, false
 	}
-	return parsedPermissionAnswer{requestID: requestID, allow: verdict == "allow", by: by}, true
+	// Split the optional audit rationale off the By identity (the 0x1f separator never
+	// appears in a By, so this is unambiguous; absent separator -> the whole tail is By).
+	by, rationale, _ := strings.Cut(byAndRationale, rationaleSeparator)
+	return parsedPermissionAnswer{requestID: requestID, allow: verdict == "allow", by: by, rationale: rationale}, true
 }
 
 // denyMessage renders the operator-safe deny message sent to the model on a refused tool. It
-// names the deciding identity but carries no secret (by is a user id or "policy:<name>").
-func denyMessage(by string) string {
-	if by == "" {
-		return "denied by Eden permission policy"
+// names the deciding identity and, when present, the audit rationale (the founder model's
+// advisor reasoning) so the model learns WHY — but carries no secret (by is a user id or
+// "policy:<name>"; rationale is bounded, redacted text).
+func denyMessage(by, rationale string) string {
+	msg := "denied by Eden permission policy"
+	if by != "" {
+		msg += " (" + by + ")"
 	}
-	return "denied by Eden permission policy (" + by + ")"
+	if rationale != "" {
+		msg += ": " + rationale
+	}
+	return msg
 }
 
 // hostToolNames projects the SDK-MCP server set Eden advertises. It is a single server

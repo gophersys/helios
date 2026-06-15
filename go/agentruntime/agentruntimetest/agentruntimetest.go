@@ -198,6 +198,16 @@ func (o *FakeObserver) LastExtracted() agentruntime.OTelContext {
 	return o.lastSeen
 }
 
+// Logs returns a copy of every line recorded via Logf, in order — the audit-trail assertion seam
+// (e.g. proving an advisor permission decision + rationale was explainably logged). Race-safe.
+func (o *FakeObserver) Logs() []string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	out := make([]string, len(o.logs))
+	copy(out, o.logs)
+	return out
+}
+
 // fakeCarrierKey is the private context key the fake observer round-trips a carrier under.
 type fakeCarrierKey struct{}
 

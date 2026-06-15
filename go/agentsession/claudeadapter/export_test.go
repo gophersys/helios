@@ -66,6 +66,17 @@ func ParsePermissionAnswerForTest(text string) (requestID string, allow bool, by
 	return answer.requestID, answer.allow, answer.by, ok
 }
 
+// ParsePermissionAnswerRationaleForTest exposes the OPTIONAL audit rationale decoded off the
+// 0x1f-separated frame, so the additive ratified-model field is provable without a process.
+func ParsePermissionAnswerRationaleForTest(text string) (by, rationale string, ok bool) {
+	answer, ok := parsePermissionAnswer(text)
+	return answer.by, answer.rationale, ok
+}
+
+// RationaleSeparatorForTest exposes the adapter's internal rationale separator so a black-box
+// test pins it equal to the library's agentsession.rationaleSeparator (the one-home invariant).
+func RationaleSeparatorForTest() string { return rationaleSeparator }
+
 // PermissionDecisionFrameForTest renders the can_use_tool control_response a resolved decision
 // produces on the wire, given the original input the ask carried — the exact bytes Send writes
 // on stdin. It threads through the normalizer's stash exactly as the live conn does: the input
@@ -74,7 +85,7 @@ func PermissionDecisionFrameForTest(requestID string, allow bool, by string, ori
 	n := newNormalizer()
 	n.rememberInput(requestID, originalInput)
 	stashed, _ := n.takeInput(requestID)
-	result := permissionResult(allow, denyMessage(by), stashed)
+	result := permissionResult(allow, denyMessage(by, ""), stashed)
 	return controlResponseFrame(requestID, result)
 }
 

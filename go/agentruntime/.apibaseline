@@ -3,11 +3,16 @@
     const TerminationUnknown TerminationReason = iota ...
     const VerbPrompt ControlVerb = iota ...
     func New(configuration Config, dependencies Deps) (*Runtime, error)
+    func NewAdvisor(configuration AdvisorConfig, dependencies AdvisorDeps) (*Advisor, error)
+const DefaultAdvisorWallClock = 60 * time.Second ...
 const DefaultHeartbeat = 5 * time.Second ...
 const EventsStreamName = "EDEN_AGENT_EVENTS"
 func ControlSubject(id AgentID) string
 func EventsSubject(id AgentID) string
 func HealthSubject(id AgentID) string
+type Advisor struct{ ... }
+type AdvisorConfig struct{ ... }
+type AdvisorDeps struct{ ... }
 type AgentID string
 type Bus interface{ ... }
 type Clock interface{ ... }

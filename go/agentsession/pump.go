@@ -3,6 +3,7 @@ package agentsession
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/gophersys/libs/go/errors"
 )
@@ -71,6 +72,8 @@ func (s *session) handle(raw Event) []Event {
 		emitted = append(emitted, s.emit(s.stateEvent(prior, next)))
 		s.setState(next)
 	}
+
+	s.captureRecent(raw)
 
 	switch raw.Kind {
 	case EventToolStart:
@@ -228,9 +231,21 @@ func (s *session) isHostTool(name string) bool {
 	return false
 }
 
-// handlePermissionRequest publishes the request event, then drives the round-trip: if
-// Spec.OnPermission is set it resolves synchronously (policy) and forwards the decision;
-// otherwise it records the request for an out-of-band Resolve (the chat human path).
+// handlePermissionRequest publishes the request event, then drives the RATIFIED
+// resolution chain (founder model, 2026-06-15). Grants are auto-allowed first (the
+// session's dynamically-widened grant set, so a ScopeSession allow is not re-asked); an
+// out-of-grant request then takes the per-session chain:
+//
+//	OnPermission set (clean-room engine policy): resolve synchronously (the TRUSTED
+//	    clean-room decider — set by the engine, not influenced by agent prose — so it is
+//	    NOT risk-clamped; "no regression" for the existing batch path).
+//	ResolveAutonomousAdvisor:  consult the advisor directly (no human wait), CLAMPED.
+//	ResolveChatHumanThenAdvisor: record for the human Resolve, arm the timeout timer that
+//	    falls back to the CLAMPED advisor, then default-deny.
+//
+// The terminal fallback is ALWAYS default-deny. The risk-class clamp is applied to the
+// ADVISOR's verdict (clampAdvise=true) so the advisor — whose authority is bounded by the
+// data-derived risk class, never the agent's prose — can never auto-allow a high-risk tool.
 //
 //nolint:gocritic // Event is the contract's immutable copyable record (§2); the pump processes it by value and clones-on-modify before fan-out.
 func (s *session) handlePermissionRequest(raw Event) []Event {
@@ -245,26 +260,128 @@ func (s *session) handlePermissionRequest(raw Event) []Event {
 		Tool:      raw.Permission.Tool,
 		Reason:    raw.Permission.Reason,
 	}
+	scopes := scopesFor(raw.Permission)
 
-	if s.spec.OnPermission == nil {
-		s.recordPending(request)
+	// Grants check FIRST: a tool already in the session grant set (including a prior
+	// ScopeSession widening) is auto-allowed without a prompt or an advisor consult. A
+	// grant is already an authorized allowlist entry, so it is not re-clamped.
+	if s.toolGranted(request.Tool, scopes) {
+		s.decide(request.RequestID, request.Tool, scopes, Decision{Allow: true, By: "grant:session", Scope: ScopeOnce}, clampOff)
 		return emitted
 	}
 
-	decision := s.spec.OnPermission(request)
-	if err := s.forwardDecision(context.Background(), request.RequestID, decision); err != nil {
-		// A transport failure forwarding the decision is surfaced as a Failed terminal by
-		// the pump on the next channel close; here we record nothing further.
-		_ = err
+	switch {
+	case s.spec.OnPermission != nil:
+		// The trusted clean-room synchronous policy (the engine's auto-resolver): forwarded
+		// without the risk clamp so the existing batch behavior is unchanged (no regression).
+		s.decide(request.RequestID, request.Tool, scopes, s.spec.OnPermission(request), clampOff)
+	case s.spec.PermissionResolution == ResolveAutonomousAdvisor:
+		// Unattended: no human is present, so consult the advisor directly (or default-deny
+		// when none is injected). CLAMPED — the advisor can never cross the high-risk wall.
+		s.decide(request.RequestID, request.Tool, scopes, s.adviseOrDeny(request, scopes), clampOn)
+	default:
+		// ResolveChatHumanThenAdvisor: surface for the human Resolve and arm the timeout
+		// that falls back to the CLAMPED advisor, then default-deny.
+		s.recordPending(request, scopes)
 	}
 	return emitted
 }
 
-// recordPending registers an out-of-grant request awaiting an out-of-band Resolve.
-func (s *session) recordPending(request PermissionRequest) {
+// captureRecent feeds the bounded advisor-snippet ring from streamed text/tool activity
+// so the advisor's AdviceContext reflects what led to a request. Only redacted, bounded
+// summaries ride here (deltas / tool arg summaries) — never a raw secret.
+//
+//nolint:gocritic // Event is the contract's immutable copyable record (§2); the pump reads it by value.
+func (s *session) captureRecent(raw Event) {
+	switch raw.Kind {
+	case EventTextDelta, EventThinkingDelta:
+		if raw.Message != nil {
+			s.recordRecentDelta(raw.Message.Delta)
+		}
+	case EventToolStart:
+		if raw.Tool != nil {
+			s.recordRecentDelta(raw.Tool.Name + " " + raw.Tool.ArgsSummary)
+		}
+	default:
+	}
+}
+
+// recordPending registers an out-of-grant request awaiting a human Resolve and arms the
+// per-session timeout: on expiry it falls back to the advisor (then default-deny) UNLESS a
+// human Resolve already won the race. The timer fires on a background goroutine; the
+// first-decision-wins guard in decide makes a human-Resolve/timeout race deterministic.
+func (s *session) recordPending(request PermissionRequest, scopes []string) {
+	entry := &pendingPermission{request: request, scopes: scopes}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.pending[request.RequestID] = &pendingPermission{request: request}
+	if s.closed {
+		return
+	}
+	s.pending[request.RequestID] = entry
+	// Arm the timeout under the lock so entry.timer is published before any reader (Resolve)
+	// or the callback can observe it; AfterFunc only SCHEDULES here (the callback runs on its
+	// own goroutine after the window and acquires s.mu itself, so this is deadlock-free).
+	entry.timer = time.AfterFunc(s.permissionTimeout(), func() {
+		s.onPermissionTimeout(request, scopes)
+	})
+}
+
+// onPermissionTimeout is the chat-chain fallback: the human did not Resolve within the
+// window, so consult the advisor (then default-deny). It claims the pending entry under the
+// first-decision-wins guard; if a human Resolve already claimed it, this is a no-op.
+func (s *session) onPermissionTimeout(request PermissionRequest, scopes []string) {
+	s.mu.Lock()
+	entry, ok := s.pending[request.RequestID]
+	if !ok || entry.resolved {
+		s.mu.Unlock()
+		return
+	}
+	entry.resolved = true
+	s.mu.Unlock()
+	// The chat timeout fell back to the advisor: CLAMPED (the advisor can never cross the
+	// high-risk wall even on the timeout path).
+	s.decide(request.RequestID, request.Tool, scopes, s.adviseOrDeny(request, scopes), clampOn)
+}
+
+// adviseOrDeny consults the injected advisor for an out-of-grant request, falling back to
+// the safe default-deny when no advisor is injected (degrade path) or the advisor errors /
+// its ctx is exceeded (a slow or failing advisor is a deny, never an indefinite block).
+// The returned Decision is still subject to the clamp in decide.
+func (s *session) adviseOrDeny(request PermissionRequest, scopes []string) Decision {
+	if s.advisor == nil {
+		if s.spec.OnPermission != nil {
+			return s.spec.OnPermission(request)
+		}
+		return Decision{Allow: false, By: "policy:default-deny", Rationale: "no advisor injected; default-deny"}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.permissionTimeout())
+	defer cancel()
+	decision, err := s.advisor.Advise(ctx, request, s.adviceContext(request, scopes))
+	if err != nil {
+		return Decision{Allow: false, By: "policy:default-deny", Rationale: "advisor error; default-deny"}
+	}
+	return decision
+}
+
+// adviceContext assembles the bundle handed to the advisor: the session goal/role/phase,
+// a COPY of the current grant set, a bounded recent-transcript snippet, the security
+// posture, and the per-request risk class — all WITHOUT any secret value (07 §2). The Risk
+// is the same data-derived class the clamp enforces, handed to the advisor for
+// transparency so it can self-escalate (but the wall is enforced in decide, not trusted).
+func (s *session) adviceContext(request PermissionRequest, scopes []string) AdviceContext {
+	s.mu.Lock()
+	grants := cloneGrants(s.sessionGrants)
+	transcript := joinRecent(s.recentDeltas)
+	s.mu.Unlock()
+	return AdviceContext{
+		SessionGoal:      s.spec.SystemHints,
+		Role:             s.spec.Routing.Role,
+		Phase:            s.spec.Routing.Phase,
+		Grants:           grants,
+		RecentTranscript: transcript,
+		SecurityPosture:  securityPosture(s.spec),
+		Risk:             riskClass(request.Tool, scopes),
+	}
 }
 
 // watchBudget enforces the single budget authority: when a cumulative EventUsage cost

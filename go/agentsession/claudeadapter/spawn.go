@@ -195,7 +195,7 @@ func (c *processConn) writeUserTurn(text string) error {
 // writeMu. The original input is consumed exactly once here.
 func (c *processConn) writePermissionDecision(answer parsedPermissionAnswer) error {
 	originalInput, _ := c.normalizer.takeInput(answer.requestID)
-	result := permissionResult(answer.allow, denyMessage(answer.by), originalInput)
+	result := permissionResult(answer.allow, denyMessage(answer.by, answer.rationale), originalInput)
 	line, err := controlResponseFrame(answer.requestID, result)
 	if err != nil {
 		return err

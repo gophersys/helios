@@ -167,6 +167,36 @@ func TestParsePermissionAnswer_Roundtrip(t *testing.T) {
 	}
 }
 
+// TestParsePermissionAnswer_Rationale proves the ADDITIVE audit-rationale decode: a frame
+// with the optional 0x1f-separated rationale splits the By identity from the rationale
+// (the By identity stays intact, even a colon-bearing "policy:risk-clamp"), while a frame
+// WITHOUT the separator parses byte-identically to the pre-ratification id:verdict:by (no
+// rationale, By is the whole tail). This is the non-breaking-frame guarantee.
+func TestParsePermissionAnswer_Rationale(t *testing.T) {
+	t.Parallel()
+	sep := claudeadapter.RationaleSeparatorForTest()
+	// A clamped deny carries By="policy:risk-clamp" + a rationale; both decode intact.
+	by, rationale, ok := claudeadapter.ParsePermissionAnswerRationaleForTest("eden:permission:req-1:deny:policy:risk-clamp" + sep + "high-risk tool: overridden")
+	if !ok || by != "policy:risk-clamp" || rationale != "high-risk tool: overridden" {
+		t.Errorf("rationale frame = (%q,%q,%v), want (policy:risk-clamp, high-risk tool: overridden, true)", by, rationale, ok)
+	}
+	// A frame with NO rationale: By is the whole tail, rationale empty (back-compat).
+	by, rationale, ok = claudeadapter.ParsePermissionAnswerRationaleForTest("eden:permission:req-2:allow:user-7")
+	if !ok || by != "user-7" || rationale != "" {
+		t.Errorf("no-rationale frame = (%q,%q,%v), want (user-7, \"\", true)", by, rationale, ok)
+	}
+}
+
+// TestRationaleSeparator_MatchesLibrary pins the one-home invariant for the audit-rationale
+// separator: the adapter's separator equals the library's (a drift would corrupt the By
+// identity by mis-splitting the frame). The library uses the ASCII unit separator (0x1f).
+func TestRationaleSeparator_MatchesLibrary(t *testing.T) {
+	t.Parallel()
+	if got := claudeadapter.RationaleSeparatorForTest(); got != "\x1f" {
+		t.Fatalf("adapter rationale separator = %q, want 0x1f (library drift)", got)
+	}
+}
+
 // TestBuildArguments_PermissionPromptToolStdio proves the LOAD-BEARING flag: when OnPermission
 // drives the round-trip (default mode), the args carry --permission-prompt-tool stdio (without
 // which real claude bypasses the gate and auto-allows), and acceptEdits mode does NOT carry it.

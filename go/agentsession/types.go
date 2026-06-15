@@ -107,14 +107,59 @@ const (
 
 // Decision answers a PermissionRequest. The decider is the caller (human or
 // policy); the By stamp is the audit identity (07 §7): a user id or "policy:<name>".
+// In the ratified permission model (founder, 2026-06-15) a Decision may also be
+// returned by the PermissionAdvisor port, in which case By is "advisor:<name>" and
+// Rationale carries the audit-logged reasoning.
 type Decision struct {
 	Allow bool
 	// Remember widens the standing grant for THIS session only — never persisted to
 	// the credential profile (that is a governed act, not a chat click); scope is the
 	// exact tool+pattern the agent asked for ("allow Bash(go test ./...)", not "allow
-	// Bash").
+	// Bash"). RETAINED for the frozen surface; the canonical widening trigger is now
+	// Scope == ScopeSession (a ScopeSession allow implies Remember). A true Remember is
+	// honored identically (session widening) for back-compat.
 	Remember bool
-	By       string // identity stamp for audit
+	By       string // identity stamp for audit ("user:<id>" | "policy:<name>" | "advisor:<name>")
+
+	// Scope bounds how long an allow holds. ScopeOnce (the zero value) authorizes THIS
+	// request only — the same tool is re-asked next time. ScopeSession dynamically
+	// widens THIS running session's in-memory grant set so the exact tool is NOT
+	// re-asked for the remainder of the session (NEVER persisted to the config-as-code
+	// grants — that is a governed act, not a chat click). Scope is meaningful only on an
+	// allow; a deny is always terminal-for-this-request regardless of Scope.
+	Scope DecisionScope
+
+	// Rationale is the audit-logged reasoning behind the decision. The PermissionAdvisor
+	// MUST populate it (the advisor's verdict is only as trustworthy as its audited
+	// reasoning); a human/policy decision MAY leave it empty. It is bounded, redacted
+	// text — NEVER a secret value (it rides EventPermissionResolved and the transcript).
+	Rationale string
+}
+
+// DecisionScope bounds how long a permission allow holds within a session. Append-only
+// (10 §9): never reordered or renamed. The zero value (ScopeOnce) is the safe default —
+// a Decision built without naming a Scope authorizes one request only.
+type DecisionScope uint8
+
+// The decision scopes.
+const (
+	ScopeOnce    DecisionScope = iota // authorize THIS request only; the same tool is re-asked next time (the safe default)
+	ScopeSession                      // widen this running session's in-memory grant set so the exact tool is not re-asked this session (never persisted)
+)
+
+// decisionScopeTokens holds the stable lower-kebab token for each DecisionScope.
+var decisionScopeTokens = [...]string{
+	ScopeOnce:    "once",
+	ScopeSession: "session",
+}
+
+// String returns the stable lower-kebab token (e.g. "session"). Total: returns "once"
+// for any out-of-range value.
+func (s DecisionScope) String() string {
+	if int(s) < len(decisionScopeTokens) {
+		return decisionScopeTokens[s]
+	}
+	return decisionScopeTokens[ScopeOnce]
 }
 
 // Ack is the sequence number a control/resolve was admitted at, so a UI can

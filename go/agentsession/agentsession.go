@@ -104,8 +104,22 @@ type Spec struct {
 	// consumer never calls Session.Resolve. When NIL (the chat), requests surface as
 	// EventPermissionRequest events for an out-of-band human Resolve. nil with no
 	// Resolve ever arriving leaves the request pending until ctx/Close — so a batch
-	// session MUST set it. Default-deny is the safe policy.
+	// session MUST set it. Default-deny is the safe policy. It REMAINS the degrade path:
+	// when no PermissionAdvisor is injected the resolution chain falls back to this.
 	OnPermission func(PermissionRequest) Decision
+
+	// PermissionResolution selects the per-session out-of-grant chain (the ratified
+	// model). The zero value (ResolveChatHumanThenAdvisor) is the safe human-first chain.
+	// ResolveAutonomousAdvisor consults the injected advisor directly (no human wait) for
+	// an unattended session. Either way the terminal fallback is default-deny, and with no
+	// advisor injected the chain degrades to OnPermission/default-deny (no regression).
+	PermissionResolution PermissionResolution
+
+	// PermissionTimeout bounds the human-Resolve wait in the chat chain before the
+	// resolution falls back to the advisor (then default-deny). Zero == the safe default
+	// (defaultPermissionTimeout). It is meaningful only for ResolveChatHumanThenAdvisor;
+	// the autonomous chain consults the advisor immediately.
+	PermissionTimeout time.Duration
 }
 
 // RouteKey is the opaque key agentconfiguration resolves to a concrete (harness,
@@ -184,6 +198,15 @@ type Deps struct {
 	// Clock stamps Event.Time when an adapter supplies none; keeps New pure and the
 	// fake deterministic.
 	Clock Clock
+
+	// Advisor is the OPTIONAL reasoning port for the ratified permission model: the
+	// out-of-grant resolution chain consults it (on a chat timeout, or directly when
+	// autonomous) before the default-deny terminal. It is injected, never constructed
+	// here — agentsession CALLS it and stays pure (it does NOT spawn agents; the impl in
+	// the runtime does). When nil the chain degrades to OnPermission/default-deny with no
+	// regression. The advisor's verdict is CLAMPED by the risk class in agentsession, so
+	// it can never auto-allow a high-risk tool regardless of the advisor impl.
+	Advisor PermissionAdvisor
 }
 
 // Transcript is the durable, append-only replay log seam (the 02 §2 / P9 object,

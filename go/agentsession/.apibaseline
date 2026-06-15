@@ -5,6 +5,9 @@
     const EventSessionState EventKind = iota ...
     const GrantPending GrantDecision = iota ...
     const ReasonUnknown ErrorReason = iota ...
+    const ResolveChatHumanThenAdvisor PermissionResolution = iota ...
+    const RiskHigh RiskLevel = iota ...
+    const ScopeOnce DecisionScope = iota ...
     const StateInitializing State = iota ...
     const ToolOutcomeOK ToolOutcome = iota ...
     const TurnCompleted TurnOutcome = iota ...
@@ -14,6 +17,7 @@
 func New(configuration Config, dependencies Deps) (*Pool, error)
 type Ack struct{ ... }
 type Adapter interface{ ... }
+type AdviceContext struct{ ... }
 type AuthError struct{ ... }
 type Budget struct{ ... }
 type CapStatus uint8
@@ -27,6 +31,7 @@ type ConfigError struct{ ... }
 type CredentialVehicle uint8
 type Cursor uint64
 type Decision struct{ ... }
+type DecisionScope uint8
 type Deps struct{ ... }
 type ErrorReason uint8
 type Event struct{ ... }
@@ -38,9 +43,12 @@ type HostTool struct{ ... }
 type InjectedCredential struct{ ... }
 type LedgerFold struct{ ... }
 type MessagePayload struct{ ... }
+type PermissionAdvisor interface{ ... }
 type PermissionPayload struct{ ... }
 type PermissionRequest struct{ ... }
+type PermissionResolution uint8
 type Pool struct{ ... }
+type RiskLevel uint8
 type Route struct{ ... }
 type RouteError struct{ ... }
 type RouteKey struct{ ... }

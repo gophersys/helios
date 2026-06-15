@@ -3,6 +3,7 @@ package agentsession
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/gophersys/libs/go/errors"
 )
@@ -22,26 +23,32 @@ type session struct {
 	transcript  Transcript
 	clock       Clock
 	manifest    CapabilityManifest
+	advisor     PermissionAdvisor // the ratified-model reasoning port (nil == degrade to OnPermission/default-deny)
 	broadcaster *broadcaster
 
-	mu        sync.Mutex // guards state, seq, turn, pending permissions, closed
-	state     State
-	seq       uint64 // mirror of the last assigned Seq (authoritative is the Transcript)
-	turn      int
-	pending   map[string]*pendingPermission // RequestID -> awaiting resolution (OnPermission nil path)
-	budgetHit bool
-	closed    bool
+	mu            sync.Mutex // guards state, seq, turn, pending permissions, the session grant set, closed
+	state         State
+	seq           uint64 // mirror of the last assigned Seq (authoritative is the Transcript)
+	turn          int
+	pending       map[string]*pendingPermission // RequestID -> awaiting resolution (the human-Resolve path)
+	sessionGrants []ToolGrant                   // the in-memory grant set: Spec.Grants + ScopeSession widenings (07 §3; never persisted)
+	recentDeltas  []string                      // a bounded ring of recent text/tool deltas for the advisor's AdviceContext
+	budgetHit     bool
+	closed        bool
 
 	sendMu   sync.Mutex    // serializes control frames onto the transport (one writer at a time)
 	pumpDone chan struct{} // closed when the pump goroutine exits
 }
 
-// pendingPermission is an out-of-grant request awaiting an out-of-band Resolve (the
-// chat's human round-trip). resolved guards first-decision-wins under multi-client
-// races; the pump forwards the winning Decision to the harness.
+// pendingPermission is an out-of-grant request awaiting a decision: a human out-of-band
+// Resolve (the chat round-trip) OR the timeout->advisor fallback. resolved guards
+// first-decision-wins under multi-client races (a human Resolve and the timeout timer
+// firing); whichever sets resolved first owns the decision and the pump forwards it.
 type pendingPermission struct {
 	request  PermissionRequest
-	resolved bool
+	scopes   []string    // the tool's requested sub-scopes (drives the risk class for the clamp)
+	resolved bool        // first decision (human Resolve or timeout fallback) wins
+	timer    *time.Timer // the chat-chain human-Resolve timeout; nil for the autonomous/policy paths
 }
 
 // compile-time assertion: *session is the Session port.
@@ -56,18 +63,20 @@ var _ Session = (*session)(nil)
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
 func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps) (*session, error) {
 	s := &session{
-		id:          sessionID(spec, route),
-		spec:        spec,
-		route:       route,
-		conn:        conn,
-		credential:  cred,
-		transcript:  dependencies.Transcript,
-		clock:       dependencies.Clock,
-		manifest:    adapterManifest(dependencies, route.Harness),
-		broadcaster: newBroadcaster(),
-		state:       StateInitializing,
-		pending:     make(map[string]*pendingPermission),
-		pumpDone:    make(chan struct{}),
+		id:            sessionID(spec, route),
+		spec:          spec,
+		route:         route,
+		conn:          conn,
+		credential:    cred,
+		transcript:    dependencies.Transcript,
+		clock:         dependencies.Clock,
+		manifest:      adapterManifest(dependencies, route.Harness),
+		advisor:       dependencies.Advisor,
+		broadcaster:   newBroadcaster(),
+		state:         StateInitializing,
+		pending:       make(map[string]*pendingPermission),
+		sessionGrants: cloneGrants(spec.Grants),
+		pumpDone:      make(chan struct{}),
 	}
 
 	ready := make(chan error, 1)
@@ -124,10 +133,18 @@ func (s *session) Resolve(ctx context.Context, requestID string, decision Decisi
 		return Ack{}, errors.Wrap(errors.KindNotFound, "agentsession: resolve permission",
 			UnknownPermissionError{RequestID: requestID})
 	}
-	entry.resolved = true
+	entry.resolved = true // first-decision-wins: the human beat the timeout->advisor fallback
+	tool := entry.request.Tool
+	scopes := entry.scopes
+	timer := entry.timer
 	s.mu.Unlock()
+	if timer != nil {
+		timer.Stop() // a human won the race; cancel the advisor fallback
+	}
 
-	if err := s.forwardDecision(ctx, requestID, decision); err != nil {
+	// A human is the authority the high-risk wall escalates TO, so a human Resolve does NOT
+	// pass through the risk-class clamp; it DOES honor ScopeSession widening.
+	if err := s.resolveHuman(ctx, requestID, tool, scopes, decision); err != nil {
 		return Ack{}, err
 	}
 	return Ack{Seq: s.currentSeq()}, nil
@@ -144,6 +161,13 @@ func (s *session) Close(ctx context.Context) error {
 		return nil
 	}
 	s.closed = true
+	// Stop any armed permission-timeout timers so the advisor-fallback goroutines do not
+	// outlive the session (the goleak guarantee).
+	for _, entry := range s.pending {
+		if entry.timer != nil {
+			entry.timer.Stop()
+		}
+	}
 	s.mu.Unlock()
 
 	err := s.conn.Close(ctx)
@@ -209,6 +233,132 @@ func (s *session) forwardDecision(ctx context.Context, requestID string, decisio
 		return errors.Wrap(errors.KindUnavailable, "agentsession: forward decision", err)
 	}
 	return nil
+}
+
+// clampMode selects whether decide applies the risk-class wall. The advisor (and its
+// timeout fallback) is clampOn; the trusted clean-room OnPermission policy and a
+// session-grant auto-allow are clampOff (already-authorized / engine-trusted deciders).
+type clampMode bool
+
+const (
+	clampOn  clampMode = true  // the advisor path — bound the verdict by the risk class
+	clampOff clampMode = false // a trusted/already-granted decider — forward verbatim
+)
+
+// decide is the SINGLE chokepoint every non-human verdict (the OnPermission policy, the
+// advisor, the timeout fallback, a session-grant auto-allow) funnels through: when clamp is
+// clampOn it applies the RISK-CLASS WALL, then on a surviving allow with ScopeSession widens
+// the session grant set, then forwards the decision to the harness. Because the clamp lives
+// HERE in agentsession — not in the advisor — the high-risk wall holds for ANY advisor impl:
+// an injected advisor that returns allow on a high-risk tool is overridden to deny. A human
+// Resolve is the one path that does NOT pass through this chokepoint (a human is the authority
+// the wall escalates TO); it routes through resolveHuman.
+//
+//nolint:gocritic // Decision is the contract's copyable value record (§2); decide takes it by value and re-stamps a clamped copy.
+func (s *session) decide(requestID, tool string, scopes []string, decision Decision, clamp clampMode) {
+	final := decision
+	if clamp == clampOn {
+		final = clampToRisk(tool, scopes, decision)
+	}
+	if final.Allow && (final.Scope == ScopeSession || final.Remember) {
+		s.widenGrant(requestID, tool, scopes)
+	}
+	if err := s.forwardDecision(context.Background(), requestID, final); err != nil {
+		// A transport failure forwarding the decision is surfaced as a Failed terminal by
+		// the pump at the next channel close; nothing further to record here.
+		_ = err
+	}
+}
+
+// clampToRisk is the prompt-injection WALL: it bounds the advisor's verdict by the risk
+// class derived from the request's tool+scope DATA (never the agent's prose). On RiskHigh
+// the advisor may NEVER auto-allow — an allow is OVERRIDDEN to deny (the Rationale records
+// the override). RiskLow/RiskMedium allows pass through unchanged. A deny always passes
+// through. The tool name is the request's recorded tool (the trustworthy class key), so a
+// forged scope in the returned Decision cannot lower the class. It is a PURE function (no
+// receiver) so the wall is trivially testable in isolation.
+//
+//nolint:gocritic // Decision is the contract's copyable value record (§2); the clamp returns a re-stamped copy.
+func clampToRisk(tool string, scopes []string, decision Decision) Decision {
+	if !decision.Allow {
+		return decision
+	}
+	if riskClass(tool, scopes) != RiskHigh {
+		return decision
+	}
+	// HIGH-risk + an attempted allow: override to deny. The advisor cannot cross the wall;
+	// the only authority that could is a human (the chat human-Resolve path, which does not
+	// pass through this clamp).
+	return Decision{
+		Allow:     false,
+		By:        "policy:risk-clamp",
+		Scope:     ScopeOnce,
+		Rationale: "high-risk tool: the advisor may not auto-allow (overridden to deny by the risk-class wall); original=" + decision.By,
+	}
+}
+
+// resolveHuman applies a HUMAN Session.Resolve decision: it does NOT pass through the
+// risk-class clamp (a human IS the authority the wall escalates to), but it DOES honor
+// ScopeSession widening so a human "allow for the session" stops the re-ask. It forwards
+// the human's verdict verbatim.
+//
+//nolint:gocritic // Decision is the contract's copyable value record (§2); resolveHuman takes it by value.
+func (s *session) resolveHuman(ctx context.Context, requestID, tool string, scopes []string, decision Decision) error {
+	if decision.Allow && (decision.Scope == ScopeSession || decision.Remember) {
+		s.widenGrant(requestID, tool, scopes)
+	}
+	return s.forwardDecision(ctx, requestID, decision)
+}
+
+// widenGrant adds the request's tool+scopes to the session's in-memory grant set so the
+// SAME tool is not re-asked this session (the ScopeSession semantics). It NEVER persists
+// to the config-as-code Spec.Grants. A widening for a DIFFERENT tool still escalates.
+func (s *session) widenGrant(requestID, tool string, scopes []string) {
+	if tool == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if grantCovers(s.sessionGrants, tool, scopes) {
+		return
+	}
+	s.sessionGrants = append(s.sessionGrants, ToolGrant{
+		ID:     "session-widen-" + requestID,
+		Tool:   tool,
+		Scopes: append([]string(nil), scopes...),
+	})
+}
+
+// toolGranted reports whether a tool+scopes is covered by the CURRENT session grant set
+// (Spec.Grants + any ScopeSession widenings). It is the grants-check-first gate the
+// resolution chain runs before any prompt/advisor consult.
+func (s *session) toolGranted(tool string, scopes []string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return grantCovers(s.sessionGrants, tool, scopes)
+}
+
+// permissionTimeout is the human-Resolve window (chat chain) and the advisor reasoning
+// bound, defaulting to defaultPermissionTimeout when Spec.PermissionTimeout is unset.
+func (s *session) permissionTimeout() time.Duration {
+	if s.spec.PermissionTimeout > 0 {
+		return s.spec.PermissionTimeout
+	}
+	return defaultPermissionTimeout
+}
+
+// recordRecentDelta appends a bounded recent text/tool delta to the advisor snippet ring
+// (kept small and redacted; never a secret). Called from the pump goroutine.
+func (s *session) recordRecentDelta(delta string) {
+	if delta == "" {
+		return
+	}
+	s.mu.Lock()
+	s.recentDeltas = append(s.recentDeltas, delta)
+	if len(s.recentDeltas) > recentDeltaWindow {
+		s.recentDeltas = s.recentDeltas[len(s.recentDeltas)-recentDeltaWindow:]
+	}
+	s.mu.Unlock()
 }
 
 // currentSeq reports the last assigned Seq under the lock.

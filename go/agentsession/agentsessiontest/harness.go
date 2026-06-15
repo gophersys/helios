@@ -44,8 +44,17 @@ type harness struct {
 }
 
 // newHarness constructs a fresh Pool over the given fake adapter, a seeded provider, and
-// a fresh in-memory transcript. The adapter declares CapFull by default.
+// a fresh in-memory transcript, with NO PermissionAdvisor injected. The adapter declares
+// CapFull by default.
 func newHarness(t *testing.T, adapter *Adapter) *harness {
+	t.Helper()
+	return newHarnessWithAdvisor(t, adapter, nil)
+}
+
+// newHarnessWithAdvisor is newHarness with an injected agentsession.PermissionAdvisor (the
+// ratified-model reasoning port). A nil advisor degrades to the OnPermission/default-deny
+// chain exactly as before — the no-regression path.
+func newHarnessWithAdvisor(t *testing.T, adapter *Adapter, advisor agentsession.PermissionAdvisor) *harness {
 	t.Helper()
 	provider := secretstest.New(map[string]string{credentialRef: SeededCanary})
 	transcript := NewTranscript()
@@ -56,6 +65,7 @@ func newHarness(t *testing.T, adapter *Adapter) *harness {
 			Secrets:    provider,
 			Transcript: transcript,
 			Clock:      fixedClock{},
+			Advisor:    advisor,
 		},
 	)
 	if err != nil {
