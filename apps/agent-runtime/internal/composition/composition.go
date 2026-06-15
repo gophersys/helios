@@ -193,12 +193,20 @@ func buildSessionFactory(environment *Environment, _ observability.Provider) (ag
 	routing := map[agentsession.RouteKey]agentsession.Route{
 		{Role: "assistant"}: {Harness: harness, Model: environment.Model},
 	}
+	claudeAdapter, err := claudeadapter.New(claudeadapter.Config{})
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build claude adapter", err)
+	}
+	ompAdapter, err := ompadapter.New(ompadapter.Config{})
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build omp adapter", err)
+	}
 	pool, err := agentsession.New(
 		agentsession.Config{Routing: routing},
 		agentsession.Deps{
 			Adapters: map[string]agentsession.Adapter{
-				"claude-code": claudeadapter.New(),
-				"omp":         ompadapter.New(),
+				"claude-code": claudeAdapter,
+				"omp":         ompAdapter,
 			},
 			Secrets:    provider,
 			Transcript: newTranscript(),

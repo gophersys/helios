@@ -111,6 +111,14 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 
 	// The live plane: a REAL agentsession.Pool whose Adapter is the REAL harness CLI (claude-code |
 	// omp), the Vault-backed secrets provider, the shared in-memory Transcript, and the system clock.
+	claudeAdapter, err := claudeadapter.New(claudeadapter.Config{})
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "liveserve: build claude adapter", err)
+	}
+	ompAdapter, err := ompadapter.New(ompadapter.Config{})
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "liveserve: build omp adapter", err)
+	}
 	pool, err := agentsession.New(
 		agentsession.Config{
 			Routing: map[agentsession.RouteKey]agentsession.Route{
@@ -119,8 +127,8 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 		},
 		agentsession.Deps{
 			Adapters: map[string]agentsession.Adapter{
-				"claude-code": claudeadapter.New(),
-				"omp":         ompadapter.New(),
+				"claude-code": claudeAdapter,
+				"omp":         ompAdapter,
 			},
 			Secrets:    provider,
 			Transcript: runLog,
