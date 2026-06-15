@@ -9,19 +9,24 @@ export declare const C21_SURFACE: Readonly<{
 export declare const CHROMA_ENVELOPE: readonly number[];
 export declare const DEFAULT_DENSITY: Readonly<Record<'agent' | 'application' | 'marketing', DensityTier>>;
 export declare const DEFAULT_TYPE_RATIO = 1.2;
+export declare const DENSITY_MODES: readonly DensityMode[];
+export declare const DENSITY_MODE_TIER: Readonly<Record<DensityMode, DensityTier>>;
 export declare const DENSITY_STEP: Readonly<Record<DensityTier, number>>;
 export declare const DURATION_LADDER: {
 export declare const EASING: Readonly<Record<string, CubicBezier>>;
 export declare const EMPHASIZED_SPLINE_PATH = "M 0,0 C 0.05,0 0.133333,0.06 0.166666,0.4 C 0.208333,0.82 0.25,1 1,1";
+export declare const EXPERT_DENSITY_MODE: DensityMode;
 export declare const LIGHTNESS_LADDER: readonly number[];
 export declare const PROSE_MEASURE_CH = 66;
 export declare const RAMP_STEPS: readonly [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+export declare const RECOMMENDED_DENSITY_MODE: DensityMode;
 export declare const SHADOW_ALPHA0: {
 export declare const SPRING_PRESETS: {
 export declare const TARGET_FLOOR_PX: {
 export declare const Z_INDEX: {
 export declare function apcaLc(textColor: Srgb8, backgroundColor: Srgb8): number;
 export declare function densify(base: BaseGeometry, tier: DensityTier, context?: TargetContext): DensifiedGeometry;
+export declare function densityTierForMode(mode: DensityMode): DensityTier;
 export declare function emphasizedLinearFallback(samples?: number): string;
 export declare function fluidType(minSizePx: number, maxSizePx: number, range: FluidRange): FluidType;
 export declare function formatHex({ r8, g8, b8 }: Srgb8): string;
@@ -95,6 +100,7 @@ export interface TypographyToken {
 export interface TypographyValue {
 export type ContentClass = 'normal-text' | 'large-text' | 'ui-component';
 export type CubicBezier = readonly [number, number, number, number];
+export type DensityMode = 'relaxed' | 'standard' | 'dense';
 export type DensityTier = 'spacious' | 'comfortable' | 'compact' | 'condensed';
 export type DurationToken = keyof typeof DURATION_LADDER;
 export type RampStep = (typeof RAMP_STEPS)[number];
@@ -105,7 +111,7 @@ export type WcagLevel = 'AA' | 'AAA';
 export { DENSITY_STEP, DEFAULT_DENSITY };
 export { gamutMapOkLch } from './gamut.js';
 export { oklchToCss, themeToCssVariables } from './css.js';
-export { type DensityTier, type TargetContext, type BaseGeometry, type DensifiedGeometry, DENSITY_STEP, DEFAULT_DENSITY, snap4, densify, } from './density.js';
+export { type DensityTier, type DensityMode, type TargetContext, type BaseGeometry, type DensifiedGeometry, DENSITY_STEP, DEFAULT_DENSITY, DENSITY_MODES, RECOMMENDED_DENSITY_MODE, EXPERT_DENSITY_MODE, DENSITY_MODE_TIER, densityTierForMode, snap4, densify, } from './density.js';
 export { type DurationToken, type CubicBezier, type Spring, type ShadowLayer, DURATION_LADDER, EASING, EMPHASIZED_SPLINE_PATH, SHADOW_ALPHA0, SPRING_PRESETS, Z_INDEX, emphasizedLinearFallback, spring, layeredShadow, } from './motion.js';
 export { type FluidRange, type FluidType, BASE_SIZE_PX, DEFAULT_TYPE_RATIO, BODY_LINE_HEIGHT_FLOOR, typeSizePx, lineHeight, trackingEm, fluidType, } from './typography.js';
 export { type FontFamilies, type BrandHues, type ThemeSeed, C21_SEED, C21_SURFACE, } from './seed.js';
@@ -280,6 +286,7 @@ readonly success: RoleColor;
 readonly suggestedForeground: OkLch;
 readonly surface: RoleColor;
 readonly target: number;
+readonly targetContext?: TargetContext;
 readonly targetRatio: number;
 readonly tertiary: ColorRamp;
 readonly tertiary?: string;

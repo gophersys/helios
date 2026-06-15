@@ -36,6 +36,7 @@ import {
   densify,
   type DensityTier,
   type DensifiedGeometry,
+  type TargetContext,
 } from './density.js';
 import {
   DURATION_LADDER,
@@ -141,6 +142,12 @@ export interface GenerateOptions {
   readonly density?: DensityTier;
   /** The WCAG conformance level the contrast gate holds text to (default `AA`). */
   readonly level?: WcagLevel;
+  /**
+   * The hit-target context selecting the tap-area floor (default `touch` → 44px AAA, founder
+   * ruling). The floor clamps the DECOUPLED hit target, never the visual box (research §B.6 I1/I2),
+   * so a theme is touch-safe at any density. Pass `pointer` for a mouse-only surface (24px AA).
+   */
+  readonly targetContext?: TargetContext;
 }
 
 // ── role tone assignments (research Table B3-E, M3 baseline light/dark) ────────────────────────
@@ -324,6 +331,11 @@ export function generateTheme(seed: ThemeSeed, options: GenerateOptions = {}): T
   const mode: ThemeMode = options.mode ?? 'light';
   const density: DensityTier = options.density ?? 'comfortable';
   const level: WcagLevel = options.level ?? 'AA';
+  // Touch is the DEFAULT hit-target context (founder ruling, OD-17): the 44px AAA floor clamps the
+  // (decoupled) tap area so a generated theme is touch-safe by construction, even at the densest
+  // mode — the visual box still shrinks, only the hit target holds. Callers on a pointer-only
+  // surface may pass `targetContext: 'pointer'` to drop to the 24px WCAG-AA desktop minimum.
+  const targetContext: TargetContext = options.targetContext ?? 'touch';
 
   // 1. COLOR — Tier-1 primitive ramps from the seed hues (research §B.3). Pin the seed identity.
   const primarySeed = hexToOkLch(seed.hues.primary);
@@ -350,6 +362,7 @@ export function generateTheme(seed: ThemeSeed, options: GenerateOptions = {}): T
   const controlGeometry = densify(
     { componentHeightPx: 40, insetPx: 12, gapPx: 16, fontSizePx: 14, iconSizePx: 20 },
     density,
+    targetContext,
   );
 
   // 6. MOTION + ELEVATION (research §B.5).

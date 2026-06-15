@@ -34,6 +34,14 @@ import {
   srgbTo8,
   okLchToSrgb,
   parseHex,
+  // density modes (the user-facing three-step density control; OD-17-c21)
+  DENSITY_MODES,
+  RECOMMENDED_DENSITY_MODE,
+  EXPERT_DENSITY_MODE,
+  DENSITY_MODE_TIER,
+  densityTierForMode,
+  DENSITY_STEP,
+  DEFAULT_DENSITY,
 } from './index.js';
 
 describe('design-correctness: the color math is the verbatim research matrices (B3-A)', () => {
@@ -222,5 +230,49 @@ describe('design-correctness: the CONTRAST GATE is satisfied by construction (th
     expect(ratio).toBeGreaterThanOrEqual(7); // AAA normal text
     // APCA agrees it is a strong dark-on-light pair.
     expect(apcaLc(parseHex(C21_SURFACE.ink), parseHex(C21_SURFACE.paper))).toBeGreaterThan(90);
+  });
+});
+
+describe('design-correctness: the three-step density mode keeps EVERY mode accessible (B6, OD-17-c21)', () => {
+  it('offers exactly three modes, ordered loosest → densest, with the middle recommended', () => {
+    expect(DENSITY_MODES).toEqual(['relaxed', 'standard', 'dense']);
+    // the recommended mode is literally the MIDDLE of the ordered control (founder: "middle recommended").
+    expect(RECOMMENDED_DENSITY_MODE).toBe(DENSITY_MODES[1]);
+    // the density STEP is strictly monotonic decreasing across the modes — "dense" is genuinely denser.
+    const steps = DENSITY_MODES.map((m) => DENSITY_STEP[DENSITY_MODE_TIER[m]]);
+    expect(steps[0]!).toBeGreaterThan(steps[1]!);
+    expect(steps[1]!).toBeGreaterThan(steps[2]!);
+  });
+
+  it('the expert/Eden mode is the agent default tier — the two rulings agree (no drift)', () => {
+    // founder: "high density for expert users, directly applicable to Eden itself". Eden's agent
+    // surfaces already default to `compact` (OD-17-density-default) — the expert mode must resolve there.
+    expect(densityTierForMode(EXPERT_DENSITY_MODE)).toBe(DEFAULT_DENSITY.agent);
+  });
+
+  it('the 44px TOUCH floor holds the hit target in ALL three modes — even the densest (the hard a11y constraint)', () => {
+    // default targetContext is `touch` (44px AAA floor). The visual box shrinks with density; the
+    // DECOUPLED hit target must never fall below 44 — accessible by construction at any density.
+    for (const mode of DENSITY_MODES) {
+      const t = generateTheme(C21_SEED, { density: densityTierForMode(mode) });
+      expect(t.controlGeometry.hitTargetPx).toBeGreaterThanOrEqual(44);
+      // I7: the font size is INVARIANT under density — density never scales type.
+      expect(t.controlGeometry.fontSizePx).toBe(14);
+      // the visual geometry stays on the 4px grid in every mode (snap4).
+      expect(t.controlGeometry.componentHeightPx % 4).toBe(0);
+      expect(t.controlGeometry.insetPx % 4).toBe(0);
+    }
+  });
+
+  it('WEAKEN-TO-CONFIRM: a pointer-only context drops the densest hit target BELOW 44 (the touch default does real work)', () => {
+    // The touch default is non-vacuous: with pointer (24px floor) the dense visual box (32px) yields a
+    // 32px hit target — below 44. Proves the touch default is what guarantees the AAA tap area, not luck.
+    const dense = densityTierForMode(EXPERT_DENSITY_MODE);
+    const touch = generateTheme(C21_SEED, { density: dense }); // default targetContext = touch
+    const pointer = generateTheme(C21_SEED, { density: dense, targetContext: 'pointer' });
+    expect(touch.controlGeometry.hitTargetPx).toBeGreaterThanOrEqual(44);
+    expect(pointer.controlGeometry.hitTargetPx).toBeLessThan(44);
+    // …and the VISUAL box is identical either way — only the decoupled hit target differs (I1/I2).
+    expect(pointer.controlGeometry.componentHeightPx).toBe(touch.controlGeometry.componentHeightPx);
   });
 });

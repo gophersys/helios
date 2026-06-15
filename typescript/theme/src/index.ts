@@ -95,11 +95,17 @@ export {
 // ── density & adaptivity (research §B.6) ──────────────────────────────────────────────────────
 export {
   type DensityTier,
+  type DensityMode,
   type TargetContext,
   type BaseGeometry,
   type DensifiedGeometry,
   DENSITY_STEP,
   DEFAULT_DENSITY,
+  DENSITY_MODES,
+  RECOMMENDED_DENSITY_MODE,
+  EXPERT_DENSITY_MODE,
+  DENSITY_MODE_TIER,
+  densityTierForMode,
   snap4,
   densify,
 } from './density.js';
