@@ -109,6 +109,7 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Library engineering pipeline (four phases) + the 8-dimension test taxonomy + phase gates | 14 (ADR-0020) |
 | Application template system (the submodule, 5-files-per-route, sqlc/pgx, OpenAPI-first, two codegen axes, libs-assembly, .claude enforcement) | 16 (ADR-0023) |
 | TypeScript/Svelte library-engineering pipeline (the `libs/typescript/` `@eden/*` set, the UI test-taxonomy recast + design-correctness dimension, the Bits-UI-primary behavior layer); the design system re-homed in-repo | ADR-0024 (amends ADR-0005); the `@eden/theme` math foundation = `docs/research/05-design-foundations.md` |
+| Agent permission system (grants → human → advisor → default-deny; `Decision.Scope` once\|session; the `PermissionAdvisor` port + the data-derived risk-class wall; the native control-channel protocol obligation per adapter) | ADR-0025 (realizes the `agentsession` permission round-trip on the live path) |
 | Workstreams, interface negotiation protocol, milestones | 09 |
 | Evidence interface, Spec envelope, harness senses | upstream spec-driven (cited via 02) |
 | Cell parameter vector D1–D5, **cell invariants I1–I10**, topology selector | upstream corpus doc 04 |
