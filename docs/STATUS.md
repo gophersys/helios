@@ -226,6 +226,41 @@ final cleanup + improvement pass. Drive autonomously to that clean, reviewed, pu
 only if stuck. NEW standing constraints (2026-06-13): work ONLY in the devcontainer (never the host);
 pinned harness versions; agent pods dogfood the devcontainer images.
 
+## ▶ POST-DEMO PROGRAM (2026-06-14) — application-templates + the UI foundation (single orchestrator)
+
+After the live demo, Mateo opened two new tracks and **consolidated to one orchestrator** (the parallel
+UI/TypeScript agent handed off — handoff doc `docs/architecture/handoff-ui-libs.md`, eden 455b1fd).
+Strategy (Mateo agreed): **DEPTH-FIRST on ONE working vertical** (http-gateway backend ⇄ OpenAPI ⇄ a real
+UI) before scaling breadth; **integration seam = OpenAPI** (the backend emits, the UI generates its client).
+
+- ✅ **application-templates repo created** (4th submodule sibling to `libs`) — production-grade Eden app
+  templates so Eden builds standard SaaS backends and builds itself. ADR-0023 + doc-16 (eden bd59599):
+  sqlc/pgx, OpenAPI-first, **5-files-per-route**, two codegen axes (persistence + clients), `.claude`
+  enforcement at both repo and per-template level.
+- ✅ **http-gateway template — Wave 0 + Wave 1 DONE, phase-gate all GREEN on REAL Postgres** (application-
+  templates 8e3da50 + bfd46e4; eden pointer ae616eb + RD-17 OpenAPI go-first). A COMPLETE running backend:
+  `cmd/gateway` composition root, `internal/api/v1/resource/{create,get,list,update,removal}` (5-file CRUD),
+  sqlc/pgx persistence, `contract/openapi.yaml` go-first-emit, oapi-codegen Go client. `TestIntegration_
+  ResourceCRUD` drives full CRUD through the generated client against real `postgres:16-alpine` + 401/403
+  authz, weaken-to-confirm, 0 orphans. Independently re-verified (GATE_EXIT=0).
+- ✅ **objectstorage gated lib DONE — phase-gate all GREEN on REAL MinIO** (libs b2f7445): `ObjectStore`
+  port (Put/Get/Delete/Presign/List — exactly 5), MinIO adapter, typed errors. Real-substrate finding: an
+  S3 presigned URL embeds the access-key ID (public) but never the secret.
+- ✅ **UI Foundation Wave A DONE — `phase-gate all` GREEN, independently re-verified** (libs 517ac0a; eden
+  pointer bumped). ADR-0024 (TS/Svelte library pipeline, eden 2dd6d0e) + research/05 (the design math).
+  `libs/typescript/_ctl/lib.sh` mirrors the Go ADR-0020 pipeline (`bun x` tooling, istanbul coverage, apidiff
+  cardinal-sin gate, HNS-1 name lint) + the **ninth dimension: design-correctness** — mechanical UI-math QA.
+  `@eden/scale` (modular-scale generator, 16 tests 96% cov) + `@eden/theme` (token engine: OKLCH color
+  science, WCAG+APCA contrast gate, ramp/typography/spacing/density/motion, DTCG export, C21 seed,
+  `generateTheme`; 86 tests incl. **20 design-correctness assertions** bound to research/05; 99.71% cov).
+  UI-math thoroughness PROVEN to Mateo's bar: contrast weaken-to-confirm (a forced 2.224:1 pair fails the
+  design verb non-vacuously) + a self-checking contrast audit (a lying stored audit fails the gate).
+  - 🔲 **OPEN for Mateo (surfacing now):** `OD-17-c21` type-ratio — the engine re-derives the type ladder as
+    `16·1.20^i` (display-large 39.81) vs C21's hand-picked `48`. Ratio `1.25` reproduces the research B1
+    ladder (10/13/16/20/25/31/39/49) and is a one-line seed change (`C21_SEED.typeRatio`). Founder call.
+  - 🔲 **Wave A follow-up:** `generate.ts` density uses the 'pointer' floor (24px) not the 44px touch floor
+    for agent surfaces — refine before the primitives consume it.
+
 ## ⏸ (superseded) LOOP PAUSED — backend phase COMPLETE; two items genuinely require Mateo (2026-06-13)
 
 The autonomous loop drove the **entire backend to done, verified, and pushed**, then paused — it has
