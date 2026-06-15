@@ -255,11 +255,14 @@ UI) before scaling breadth; **integration seam = OpenAPI** (the backend emits, t
   `generateTheme`; 86 tests incl. **20 design-correctness assertions** bound to research/05; 99.71% cov).
   UI-math thoroughness PROVEN to Mateo's bar: contrast weaken-to-confirm (a forced 2.224:1 pair fails the
   design verb non-vacuously) + a self-checking contrast audit (a lying stored audit fails the gate).
-  - 🔲 **OPEN for Mateo (surfacing now):** `OD-17-c21` type-ratio — the engine re-derives the type ladder as
-    `16·1.20^i` (display-large 39.81) vs C21's hand-picked `48`. Ratio `1.25` reproduces the research B1
-    ladder (10/13/16/20/25/31/39/49) and is a one-line seed change (`C21_SEED.typeRatio`). Founder call.
-  - 🔲 **Wave A follow-up:** `generate.ts` density uses the 'pointer' floor (24px) not the 44px touch floor
-    for agent surfaces — refine before the primitives consume it.
+  - ✅ **RESOLVED (founder ruling 2026-06-14, RD-18):** `OD-17-c21` + `OD-17-type-ratio` + `OD-17-density-default`.
+    Density — not heading-drama — is the user-facing richness axis. `@eden/theme` now ships a **three-step
+    `DensityMode`** (`relaxed`/`standard`/`dense`; middle recommended; `dense`=expert, "directly applicable to
+    Eden itself") resolving to engine tiers consistent with `DEFAULT_DENSITY`. The type ratio stays **1.20**
+    (re-derived sizes, no hand-set 48; the 5 colors + 3 fonts stay immutable seeds). (libs b7ff809.)
+  - ✅ **RESOLVED:** the touch-floor — `generateTheme`'s `targetContext` now **defaults to `touch` (44px AAA)**;
+    the decoupled hit target clamps to 44 at any density (visual box still shrinks), proven by a
+    design-correctness weaken-to-confirm (pointer drops the densest below 44). 24 design assertions, gate GREEN.
 
 ## ⏸ (superseded) LOOP PAUSED — backend phase COMPLETE; two items genuinely require Mateo (2026-06-13)
 
