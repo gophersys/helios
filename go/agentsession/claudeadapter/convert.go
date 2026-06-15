@@ -1,6 +1,7 @@
 package claudeadapter
 
 import (
+	"encoding/json"
 	"math"
 	"time"
 
@@ -61,6 +62,21 @@ func reasonFromSubtype(subtype string) agentsession.ErrorReason {
 	default:
 		return agentsession.ReasonHarnessError
 	}
+}
+
+// decisionReasonText renders the can_use_tool decision_reason (why the harness escalated the
+// tool to a prompt) as a bounded, redacted string. The field is opaque JSON — a bare string
+// when the CLI sends one, otherwise the compact JSON of the reason object — bounded by the
+// same digest cap as a tool arg so a verbose reason never bloats the Event.
+func decisionReasonText(reason json.RawMessage) string {
+	if len(reason) == 0 {
+		return ""
+	}
+	var asString string
+	if err := json.Unmarshal(reason, &asString); err == nil {
+		return defaultDigester([]byte(asString))
+	}
+	return defaultDigester(reason)
 }
 
 // subtypeDetail returns a redacted, operator-safe detail string for a failure subtype

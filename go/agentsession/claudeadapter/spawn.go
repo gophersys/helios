@@ -57,7 +57,7 @@ func (a *Adapter) Spawn(ctx context.Context, spec agentsession.Spec, route agent
 			agentsession.SpawnError{Harness: harnessName})
 	}
 
-	conn := newProcessConn(command, stdin, stdout)
+	conn := newProcessConn(command, stdin, stdout, spec.HostTools)
 	conn.start()
 	return conn, nil
 }
@@ -102,6 +102,9 @@ type processConn struct {
 	normalizer *normalizer
 	events     chan agentsession.Event
 
+	hostTools   *hostToolRouter // services mcp_message host-tool drives over the control channel
+	hostServers []string        // the SDK-MCP servers advertised at the initialize handshake
+
 	writeMu   sync.Mutex
 	closeOnce sync.Once
 	doneOnce  sync.Once
@@ -121,15 +124,18 @@ type (
 	}
 )
 
-// newProcessConn builds a conn over a started command and its pipes.
-func newProcessConn(command *exec.Cmd, stdin writeCloser, stdout readCloser) *processConn {
+// newProcessConn builds a conn over a started command and its pipes, with the host-tool
+// router and SDK-MCP server set derived from the spec's HostTools.
+func newProcessConn(command *exec.Cmd, stdin writeCloser, stdout readCloser, hostTools []agentsession.HostTool) *processConn {
 	return &processConn{
-		command:    command,
-		stdin:      stdin,
-		stdout:     stdout,
-		normalizer: newNormalizer(),
-		events:     make(chan agentsession.Event),
-		done:       make(chan struct{}),
+		command:     command,
+		stdin:       stdin,
+		stdout:      stdout,
+		normalizer:  newNormalizer(),
+		events:      make(chan agentsession.Event),
+		hostTools:   newHostToolRouter(hostTools),
+		hostServers: hostToolNames(hostTools),
+		done:        make(chan struct{}),
 	}
 }
 
@@ -153,18 +159,63 @@ func (c *processConn) Send(ctx context.Context, command agentsession.Command) er
 		// End the turn: close stdin so the headless CLI stops reading input.
 		_ = c.stdin.Close() //nolint:errcheck // best-effort turn cancel; an already-closed stdin is the desired state.
 		return nil
-	case agentsession.CommandPrompt, agentsession.CommandSteer:
-		line, err := userTurn(command.Text)
-		if err != nil {
-			return err
+	case agentsession.CommandSteer:
+		// A Steer frame may be a permission ANSWER (the library's forwardDecision sends the
+		// resolved decision as a CommandSteer carrying the internal eden:permission frame). If
+		// so, TRANSLATE it to the can_use_tool control_response on the wire — the whole fix:
+		// the decision rides the out-of-band control channel, NOT a {"type":"user"} stdin turn
+		// the model would read as conversation. A genuine Steer interjection falls through.
+		if answer, ok := parsePermissionAnswer(command.Text); ok {
+			return c.writePermissionDecision(answer)
 		}
-		if _, werr := c.stdin.Write(line); werr != nil {
-			return errors.Wrap(errors.KindUnavailable, "claudeadapter: write stdin", werr)
-		}
-		return nil
+		return c.writeUserTurn(command.Text)
+	case agentsession.CommandPrompt:
+		return c.writeUserTurn(command.Text)
 	default:
 		return errors.New(errors.KindInvalid, "claudeadapter: unknown control kind")
 	}
+}
+
+// writeUserTurn renders text as a stream-json user message and writes it on stdin. Caller
+// holds writeMu.
+func (c *processConn) writeUserTurn(text string) error {
+	line, err := userTurn(text)
+	if err != nil {
+		return err
+	}
+	if _, werr := c.stdin.Write(line); werr != nil {
+		return errors.Wrap(errors.KindUnavailable, "claudeadapter: write stdin", werr)
+	}
+	return nil
+}
+
+// writePermissionDecision writes the can_use_tool control_response for a resolved decision,
+// correlated by request id. An allow echoes the original input (stashed by the normalizer when
+// the ask arrived) as updatedInput; a deny carries the operator-safe message. Caller holds
+// writeMu. The original input is consumed exactly once here.
+func (c *processConn) writePermissionDecision(answer parsedPermissionAnswer) error {
+	originalInput, _ := c.normalizer.takeInput(answer.requestID)
+	result := permissionResult(answer.allow, denyMessage(answer.by), originalInput)
+	line, err := controlResponseFrame(answer.requestID, result)
+	if err != nil {
+		return err
+	}
+	if _, werr := c.stdin.Write(line); werr != nil {
+		return errors.Wrap(errors.KindUnavailable, "claudeadapter: write permission decision", werr)
+	}
+	return nil
+}
+
+// writeControl writes a pre-rendered control frame (the initialize handshake, or an
+// mcp_message control_response) on stdin under writeMu. It is the conn-internal control writer,
+// serialized against Send's user/decision writes.
+func (c *processConn) writeControl(frame []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	if _, err := c.stdin.Write(frame); err != nil {
+		return errors.Wrap(errors.KindUnavailable, "claudeadapter: write control frame", err)
+	}
+	return nil
 }
 
 // Close runs the graceful ladder: close stdin (signal end of input), then wait for the
@@ -200,10 +251,31 @@ func (c *processConn) scan() {
 	case <-c.done:
 		return
 	}
+	// Send the host's initialize control_request: it advertises the SDK-MCP servers (when host
+	// tools are registered) so claude drives them over mcp_message, and primes the control
+	// channel. A write failure here is best-effort — the conn still scans; the conversation
+	// path does not depend on the ack.
+	if frame, err := initializeFrame("eden-init-1", c.hostServers); err == nil {
+		_ = c.writeControl(frame) //nolint:errcheck // best-effort handshake; the conversation stream does not depend on the ack.
+	}
 	scanner := bufio.NewScanner(c.stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
 	for scanner.Scan() {
 		line := scanner.Bytes()
+		// Service host-tool mcp_message control_requests inline (they are not conversation):
+		// the router answers tools/list+tools/call into the HostTool.Handler and the conn
+		// writes the control_response. serviced==true means the line was a host-tool drive; any
+		// EventToolUpdate it produced is fanned out, and the line is not normalized.
+		if events, serviced := c.serviceControl(line); serviced {
+			for i := range events {
+				select {
+				case c.events <- events[i]:
+				case <-c.done:
+					return
+				}
+			}
+			continue
+		}
 		events := c.normalizer.normalize(line)
 		for i := range events {
 			select {
@@ -214,6 +286,28 @@ func (c *processConn) scan() {
 		}
 	}
 	_ = c.command.Wait() //nolint:errcheck // the process exit status is not the contract; the terminal Event (or its absence) is.
+}
+
+// serviceControl intercepts an mcp_message control_request line — the host-tool half of the
+// control channel — services it via the host-tool router, and writes the control_response.
+// serviced=false means the line is NOT a host-tool drive (a conversation line, a permission
+// can_use_tool ask, or a control ack); the caller normalizes it. The returned events are the
+// host-tool EventToolUpdates to fan out.
+func (c *processConn) serviceControl(line []byte) (events []agentsession.Event, serviced bool) {
+	var envelope streamLine
+	if err := json.Unmarshal(line, &envelope); err != nil {
+		return nil, false
+	}
+	if envelope.Type != "control_request" || envelope.Request == nil || envelope.Request.Subtype != "mcp_message" {
+		return nil, false
+	}
+	response, toolEvents, ok := c.hostTools.route(context.Background(), envelope.Request.JSONRPC)
+	if ok {
+		if frame, err := controlResponseFrame(envelope.RequestID, map[string]any{"mcp_response": response}); err == nil {
+			_ = c.writeControl(frame) //nolint:errcheck // best-effort host-tool answer; a transport drop ends the stream and synthesizes a Failed terminal.
+		}
+	}
+	return toolEvents, true
 }
 
 // finish closes the events channel and signals done exactly once.

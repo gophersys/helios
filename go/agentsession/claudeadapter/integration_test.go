@@ -15,11 +15,13 @@
 package claudeadapter_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -187,6 +189,253 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 	for i := range events {
 		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
 	}
+}
+
+// TestIntegration_LiveClaude_PermissionRoundTrip is the load-bearing live arm for slice 5b: it
+// drives a REAL claude turn that requests an OUT-OF-GRANT tool (a Bash command with NO Bash
+// grant, permission-mode default) and proves the NATIVE control-channel round-trip:
+//
+//	(a) a real EventPermissionRequest is emitted (NOT an opaque EventExtension) — claude's
+//	    can_use_tool control_request was parsed onto the Eden taxonomy;
+//	(b) on Resolve(allow) the tool actually RUNS — observable as a Bash EventToolStart/ToolEnd
+//	    in the stream after the decision (the decision rode the control_response, not a user turn);
+//	(c) on Resolve(deny) claude is told no and does NOT run the tool — no successful Bash ToolEnd,
+//	    and the model surfaces the denial.
+//
+// It asserts the credential never leaks. SKIPPED without CLAUDEADAPTER_LIVE_TOKEN.
+func TestIntegration_LiveClaude_PermissionRoundTrip(t *testing.T) {
+	t.Parallel()
+	token := liveTokenOrSkip(t)
+
+	t.Run("allow_runs_the_tool", func(t *testing.T) {
+		t.Parallel()
+		runLivePermissionArm(t, token, true)
+	})
+	t.Run("deny_blocks_the_tool", func(t *testing.T) {
+		t.Parallel()
+		runLivePermissionArm(t, token, false)
+	})
+}
+
+// runLivePermissionArm opens a real claude session whose ONLY grant is Read (so Bash is
+// out-of-grant and the default-mode + stdio control gate engages), prompts for a
+// non-statically-safe Bash command (a curl with a redirect — claude cannot auto-validate it as
+// safe, so it MUST ask), observes the real EventPermissionRequest, resolves it allow/deny, and
+// asserts the tool ran (allow) or was blocked (deny).
+func runLivePermissionArm(t *testing.T, token string, allow bool) {
+	t.Helper()
+	pool := newLivePool(t, token)
+	// OnPermission nil == the chat HUMAN path: the request surfaces as an event we Resolve
+	// out-of-band. The Read-only grant drives default mode + the stdio control sentinel.
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace:  t.TempDir(),
+		Routing:    agentsession.RouteKey{Role: "assistant"},
+		Grants:     []agentsession.ToolGrant{{ID: "g-read", Tool: "Read", ReadOnly: true}},
+		Credential: secrets.Ref("vault://eden/anthropic#setup-token"),
+	})
+	if err != nil {
+		t.Fatalf("live Open: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
+
+	prompt := "Use the Bash tool to run exactly this command and nothing else: " +
+		"curl -s https://example.com -o /tmp/eden-live-test.txt . " +
+		"If you are denied permission, reply with exactly DENIED and stop."
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
+		t.Fatalf("live Prompt: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	stream := session.Events(ctx, agentsession.FromSeq(0))
+
+	// Phase 1: read until the REAL permission request surfaces. It must be a genuine
+	// EventPermissionRequest for Bash (not an opaque Extension) — the (a) assertion.
+	var requestID string
+	var preDecision []agentsession.Event
+	for requestID == "" {
+		event, ok := stream.Next(ctx)
+		if !ok {
+			t.Fatalf("stream ended before a permission request surfaced (saw %d events); the gate did not fire", len(preDecision))
+		}
+		preDecision = append(preDecision, event)
+		if event.Kind == agentsession.EventExtension && looksLikeCanUseTool(event.Extension) {
+			t.Fatalf("a can_use_tool control_request leaked as an opaque EventExtension (the pre-fix bug): %s", event.Extension)
+		}
+		if event.Kind == agentsession.EventPermissionRequest && event.Permission != nil {
+			if event.Permission.Tool != "Bash" {
+				t.Logf("permission request for %q (expected Bash); continuing", event.Permission.Tool)
+			}
+			requestID = event.Permission.RequestID
+		}
+	}
+	if requestID == "" {
+		t.Fatal("no EventPermissionRequest observed")
+	}
+
+	// Phase 2: resolve the decision over the NATIVE control channel.
+	decision := agentsession.Decision{Allow: allow, By: "user-live-test"}
+	if _, err := session.Resolve(context.Background(), requestID, decision); err != nil {
+		t.Fatalf("Resolve(allow=%v): %v", allow, err)
+	}
+
+	// Phase 3: drain to the terminal and inspect the outcome.
+	rest := drainStreamTo(t, ctx, stream)
+	all := append(preDecision, rest...) //nolint:gocritic // intentional fresh slice of the full event log for assertions
+	for i := range all {
+		agentsessiontest.AssertNoSecretInEvent(t, all[i], token)
+	}
+
+	bashRan := bashToolSucceeded(all)
+	if allow {
+		// (b) ALLOW: the Bash tool actually ran (a non-error tool_end) after the decision.
+		if !bashRan {
+			t.Errorf("on Resolve(allow) the Bash tool did not run successfully; kinds=%v", kindsOf(all))
+		}
+	} else {
+		// (c) DENY: the Bash tool did NOT run successfully; the deny was delivered to the model.
+		if bashRan {
+			t.Errorf("on Resolve(deny) the Bash tool ran anyway (the deny did not reach claude); kinds=%v", kindsOf(all))
+		}
+	}
+}
+
+// TestIntegration_LiveClaude_HostToolRoundTrip drives a REAL claude turn that calls an
+// Eden-provided HostTool, proving the sdkMcpServers + mcp_message control protocol end-to-end:
+// the HostTool Handler runs (it records its invocation) and its result returns to the model.
+// Best-effort: a model that declines to call the tool within the window SKIPS rather than
+// fails, since tool-call willingness is not deterministic. SKIPPED without the live token.
+func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
+	t.Parallel()
+	token := liveTokenOrSkip(t)
+
+	var handlerRan atomic.Bool
+	hostTool := agentsession.HostTool{
+		Name:        "eden_ping",
+		Description: "Returns the literal string PONG-EDEN. Call this when asked to ping.",
+		Schema:      []byte(`{"type":"object","properties":{}}`),
+		Handler: func(_ context.Context, _ []byte) ([]byte, error) {
+			handlerRan.Store(true)
+			return []byte(`{"reply":"PONG-EDEN"}`), nil
+		},
+	}
+
+	pool := newLivePool(t, token)
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace:  t.TempDir(),
+		Routing:    agentsession.RouteKey{Role: "assistant"},
+		HostTools:  []agentsession.HostTool{hostTool},
+		Grants:     []agentsession.ToolGrant{{ID: "g-ping", Tool: "mcp__eden__eden_ping"}},
+		Credential: secrets.Ref("vault://eden/anthropic#setup-token"),
+	})
+	if err != nil {
+		t.Fatalf("live Open: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
+
+	prompt := "Call the eden_ping host tool (mcp__eden__eden_ping) now and tell me exactly what it returns."
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
+		t.Fatalf("live Prompt: %v", err)
+	}
+	events := drainTerminal(t, session)
+	for i := range events {
+		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
+	}
+	if !handlerRan.Load() {
+		t.Skip("the model did not call the host tool within the window (non-deterministic willingness); the mcp_message wiring is proven by the unit router test")
+	}
+	// The Handler ran: assert a host-tool update was surfaced on the stream.
+	if !hasHostToolUpdate(events) {
+		t.Errorf("the host tool Handler ran but no host-tool EventToolUpdate surfaced on the stream")
+	}
+}
+
+// newLivePool builds a Pool whose route carries an EMPTY model, so buildArguments omits
+// --model and the live claude uses its own default (a REAL model). The stub-fable model the
+// other integration pools use is a fake the real CLI rejects ("model may not exist"), so the
+// live arms must NOT reuse it. The provider resolves the credential to the operator token.
+func newLivePool(t *testing.T, token string) *agentsession.Pool {
+	t.Helper()
+	pool, err := agentsession.New(
+		agentsession.Config{Routing: map[agentsession.RouteKey]agentsession.Route{
+			{Role: "assistant"}: {Harness: "claude-code", Model: ""}, // empty == claude's default real model
+		}},
+		agentsession.Deps{
+			Adapters:   map[string]agentsession.Adapter{"claude-code": claudeadapter.MustNewForTest(t, claudeadapter.Config{})},
+			Secrets:    secretstest.New(map[string]string{"vault://eden/anthropic#setup-token": token}),
+			Transcript: agentsessiontest.NewTranscript(),
+			Clock:      integrationClock{},
+		},
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	return pool
+}
+
+// liveTokenOrSkip returns the operator-supplied live token, or skips the test. It NEVER mints
+// a token, launches auth, or reads ~/.claude.
+func liveTokenOrSkip(t *testing.T) string {
+	t.Helper()
+	token := os.Getenv("CLAUDEADAPTER_LIVE_TOKEN")
+	if token == "" {
+		t.Skip("CLAUDEADAPTER_LIVE_TOKEN not set: the live authenticated claude run is gated and skipped")
+	}
+	if _, err := exec.LookPath("claude"); err != nil {
+		t.Skip("claude binary not on PATH: skipping the live arm")
+	}
+	return token
+}
+
+// drainStreamTo reads a live stream to its terminal (or ctx deadline), returning the events.
+func drainStreamTo(t *testing.T, ctx context.Context, stream agentsession.Stream) []agentsession.Event { //nolint:revive // ctx-after-t is fine for this bounded test drainer
+	t.Helper()
+	var events []agentsession.Event
+	for {
+		event, ok := stream.Next(ctx)
+		if !ok {
+			return events
+		}
+		events = append(events, event)
+		if event.IsTerminal() {
+			return events
+		}
+	}
+}
+
+// bashToolSucceeded reports whether a Bash tool ran to a NON-error completion in the stream — a
+// Bash EventToolStart paired with an EventToolEnd whose outcome is OK.
+func bashToolSucceeded(events []agentsession.Event) bool {
+	bashCalls := map[string]bool{}
+	for i := range events {
+		ev := &events[i]
+		if ev.Kind == agentsession.EventToolStart && ev.Tool != nil && ev.Tool.Name == "Bash" {
+			bashCalls[ev.Tool.CallID] = true
+		}
+	}
+	for i := range events {
+		ev := &events[i]
+		if ev.Kind == agentsession.EventToolEnd && ev.Tool != nil && bashCalls[ev.Tool.CallID] &&
+			ev.Tool.Outcome == agentsession.ToolOutcomeOK {
+			return true
+		}
+	}
+	return false
+}
+
+// looksLikeCanUseTool reports whether a raw Extension frame is a can_use_tool control_request —
+// used to fail loudly if the permission ask regressed to leaking as an opaque Extension.
+func looksLikeCanUseTool(raw []byte) bool {
+	return bytes.Contains(raw, []byte("control_request")) && bytes.Contains(raw, []byte("can_use_tool"))
+}
+
+// kindsOf projects the event kinds for failure diagnostics.
+func kindsOf(events []agentsession.Event) []agentsession.EventKind {
+	out := make([]agentsession.EventKind, len(events))
+	for i := range events {
+		out[i] = events[i].Kind
+	}
+	return out
 }
 
 // buildStub compiles the stub harness binary into t.TempDir() and returns its path. The

@@ -61,14 +61,27 @@ func New(configuration Config) (*Adapter, error) {
 // Manifest declares the capabilities the headless `claude` CLI supports. Steer is
 // CapPartial: headless Claude queues guidance for the next turn rather than true
 // mid-turn interjection (the §7 Q7 distinction). Resume is full (--resume); thinking
-// events, the permission prompt, and the native budget cap are full; partial tool
-// results are absent (no OMP-style streaming).
+// events, the permission prompt, and the native budget cap are full; partial tool results
+// are absent (no OMP-style streaming).
+//
+// Host tools are CapPartial: the stdio control-channel SDK-MCP-server protocol is wired —
+// the conn advertises sdkMcpServers at the initialize handshake and services the
+// mcp_message JSON-RPC (initialize/tools/list/tools/call) into the HostTool.Handler, all
+// unit-proven over captured frames (hosttool.go + control_test.go). But against the pinned
+// claude v2.1.177 the in-process MCP handshake does not complete end-to-end headlessly: the
+// CLI runs the MCP initialize + notifications/initialized then stalls before tools/list, so
+// the model never actually invokes a host tool in a live run (the live arm SKIPS on this).
+// It is declared CapPartial — wired and conformance-incomplete — NOT CapFull, so the
+// manifest stays truthful (05 §3): a consumer gates the UI off rather than trusting a path
+// the live substrate does not yet honor. Promoting to CapFull is a later slice once the
+// handshake-completion gap is resolved (the SDK sends more at initialize than the minimal
+// sdkMcpServers list this slice advertises).
 func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 	return agentsession.CapabilityManifest{Capabilities: map[agentsession.Capability]agentsession.CapStatus{
 		agentsession.CapSteer:              agentsession.CapPartial,
 		agentsession.CapResume:             agentsession.CapFull,
 		agentsession.CapThinkingEvents:     agentsession.CapFull,
-		agentsession.CapHostTools:          agentsession.CapAbsent,
+		agentsession.CapHostTools:          agentsession.CapPartial,
 		agentsession.CapNativeBudget:       agentsession.CapFull,
 		agentsession.CapPermissionPrompt:   agentsession.CapFull,
 		agentsession.CapPartialToolResults: agentsession.CapAbsent,
@@ -104,7 +117,19 @@ func buildArguments(spec agentsession.Spec, route agentsession.Route) []string {
 		arguments = append(arguments, "--allowedTools")
 		arguments = append(arguments, allowed...)
 	}
-	arguments = append(arguments, "--permission-mode", permissionMode(spec))
+	mode := permissionMode(spec)
+	arguments = append(arguments, "--permission-mode", mode)
+	if mode == "default" {
+		// --permission-prompt-tool stdio is LOAD-BEARING: it is the sentinel that tells the
+		// headless CLI to route an out-of-grant tool over the stdio CONTROL channel as a
+		// can_use_tool control_request (the host answers with a control_response), instead of
+		// falling back to its local rule resolver — which, headless with no TTY, silently
+		// auto-allows. Verified against real claude v2.1.177: WITHOUT this flag the prompt
+		// never fires and the gate is bypassed; WITH it the can_use_tool round-trip works. It
+		// is mutually exclusive with a canUseTool callback (the CLI rejects both), so it is set
+		// ONLY in default mode (the OnPermission / round-trip path), never under acceptEdits.
+		arguments = append(arguments, "--permission-prompt-tool", "stdio")
+	}
 	if spec.Budget.MaxCostMicros > 0 {
 		arguments = append(arguments, "--max-budget-usd", microsToUSDArg(spec.Budget.MaxCostMicros))
 	}
@@ -137,15 +162,18 @@ func allowedTools(grants []agentsession.ToolGrant) []string {
 	return patterns
 }
 
-// permissionMode chooses the CLI --permission-mode. When the Spec drives the permission
-// round-trip (OnPermission set OR standing grants present) the adapter uses "default" so
-// out-of-grant tools raise a prompt the library round-trips; otherwise "acceptEdits" lets
-// granted file edits proceed without a prompt. It NEVER uses
-// --dangerously-skip-permissions (the gate is the contract).
+// permissionMode chooses the CLI --permission-mode. The session drives the permission
+// round-trip whenever it carries a decider — an OnPermission policy (batch/clean-room) OR a
+// standing allowlist the chat human resolves around out-of-band (Grants present, OnPermission
+// nil). In BOTH cases the adapter uses "default" so an out-of-grant tool raises a can_use_tool
+// prompt the library round-trips (paired with --permission-prompt-tool stdio in buildArguments,
+// which routes that prompt over the control channel). With neither a policy nor grants there is
+// no gate to honor, so "acceptEdits" lets granted file edits proceed without a prompt. It NEVER
+// uses --dangerously-skip-permissions (the gate is the contract).
 //
 //nolint:gocritic // contract §2/§3: Spec is the frozen copyable session input; the fake Adapter mirrors the port's by-value seam.
 func permissionMode(spec agentsession.Spec) string {
-	if spec.OnPermission != nil {
+	if spec.OnPermission != nil || len(spec.Grants) > 0 {
 		return "default"
 	}
 	return "acceptEdits"

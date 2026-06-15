@@ -34,7 +34,11 @@ func TestBuildArguments_HeadlessFlagSet(t *testing.T) {
 	mustContain(t, args, "--verbose")
 	mustContain(t, args, "--model", "claude-fable-5")
 	mustContain(t, args, "--allowedTools", "Write", "Bash(go *)", "Bash(ls *)")
-	mustContain(t, args, "--permission-mode", "acceptEdits") // OnPermission nil -> acceptEdits
+	// Standing Grants present (even with OnPermission nil) drive the round-trip: default mode +
+	// the stdio control-channel sentinel, so an out-of-grant tool surfaces a can_use_tool prompt
+	// the chat human resolves out-of-band.
+	mustContain(t, args, "--permission-mode", "default")
+	mustContain(t, args, "--permission-prompt-tool", "stdio")
 	mustContain(t, args, "--max-budget-usd", "2.500000")
 	mustContain(t, args, "--max-turns", "8")
 	mustContain(t, args, "--resume", "sess-abc")

@@ -13,8 +13,10 @@ import (
 )
 
 // TestManifest_DeclaresHeadlessCapabilities proves the adapter's manifest is the honest
-// headless-Claude shape: Steer is CapPartial (queue-for-next-turn), partial tool results
-// and host tools are absent, resume/thinking/permission/native-budget are full.
+// headless-Claude shape: Steer is CapPartial (queue-for-next-turn), partial tool results are
+// absent, host tools are CapPartial (the stdio control-channel SDK-MCP-server protocol is
+// wired and unit-proven, but the live in-process MCP handshake does not complete end-to-end on
+// the pinned claude — see Manifest doc), and resume/thinking/permission/native-budget are full.
 func TestManifest_DeclaresHeadlessCapabilities(t *testing.T) {
 	t.Parallel()
 	manifest := claudeadapter.MustNewForTest(t, claudeadapter.Config{}).Manifest()
@@ -22,7 +24,7 @@ func TestManifest_DeclaresHeadlessCapabilities(t *testing.T) {
 		agentsession.CapSteer:              agentsession.CapPartial,
 		agentsession.CapResume:             agentsession.CapFull,
 		agentsession.CapThinkingEvents:     agentsession.CapFull,
-		agentsession.CapHostTools:          agentsession.CapAbsent,
+		agentsession.CapHostTools:          agentsession.CapPartial,
 		agentsession.CapNativeBudget:       agentsession.CapFull,
 		agentsession.CapPermissionPrompt:   agentsession.CapFull,
 		agentsession.CapPartialToolResults: agentsession.CapAbsent,

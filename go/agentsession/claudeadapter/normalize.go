@@ -10,6 +10,7 @@ package claudeadapter
 import (
 	"encoding/json"
 	"math"
+	"sync"
 
 	"github.com/gophersys/libs/go/agentsession"
 )
@@ -25,6 +26,13 @@ type streamLine struct {
 	Subtype string          `json:"subtype"`
 	Message json.RawMessage `json:"message"`
 
+	// control-channel fields (the out-of-band protocol, separate from the conversation:
+	// type == control_request | control_response | control_cancel_request | keep_alive).
+	// A control_request carries a request_id correlating the host's control_response, and a
+	// nested request whose subtype selects the control verb (can_use_tool, mcp_message, ...).
+	RequestID string          `json:"request_id"`
+	Request   *controlRequest `json:"request"`
+
 	// result-line fields (the authoritative terminal aggregate).
 	IsError        *bool    `json:"is_error"`
 	NumTurns       *int     `json:"num_turns"`
@@ -33,6 +41,20 @@ type streamLine struct {
 	ResultText     string   `json:"result"`
 	StopReason     string   `json:"stop_reason"`
 	Usage          *usage   `json:"usage"`
+}
+
+// controlRequest is the nested request body on a control_request line. The subtype selects
+// the verb: "can_use_tool" is the permission ask (the out-of-grant gate); "mcp_message" is
+// the host-tool JSON-RPC drive (initialize/tools/list/tools/call); "initialize" is claude's
+// own handshake ack. Only the fields Eden services are modeled; the rest survive verbatim on
+// the control path (never as a conversation Extension).
+type controlRequest struct {
+	Subtype        string          `json:"subtype"`
+	ToolName       string          `json:"tool_name"`       // can_use_tool: the tool the model wants
+	Input          json.RawMessage `json:"input"`           // can_use_tool: the args it wants to run with
+	DecisionReason json.RawMessage `json:"decision_reason"` // can_use_tool: why the harness escalated (opaque)
+	ServerName     string          `json:"server_name"`     // mcp_message: the SDK MCP server the JSON-RPC targets
+	JSONRPC        json.RawMessage `json:"message"`         // mcp_message: the JSON-RPC envelope to route to the host tool
 }
 
 // usage is the four-token accounting shared by per-message assistant events and the
@@ -74,10 +96,19 @@ type contentBlock struct {
 type normalizer struct {
 	model  string // the model attribution (learned from the first assistant/init line)
 	digest digester
+
+	// pendingMu guards pendingInputs, written by the scan goroutine (a can_use_tool ask
+	// records the original input) and read+deleted by Send (the control_response echoes it
+	// as updatedInput). The raw input never enters an Event — it is held here, off-stream,
+	// so the wire frame can default updatedInput to the original input the spec demands.
+	pendingMu     sync.Mutex
+	pendingInputs map[string]json.RawMessage
 }
 
 // newNormalizer builds a normalizer with a bounded-digest redactor.
-func newNormalizer() *normalizer { return &normalizer{digest: defaultDigester} }
+func newNormalizer() *normalizer {
+	return &normalizer{digest: defaultDigester, pendingInputs: make(map[string]json.RawMessage)}
+}
 
 // normalize maps one stream-json line to zero or more Events. A line that does not
 // parse, or whose type Eden does not model, becomes an EventExtension carrying the raw
@@ -97,10 +128,71 @@ func (n *normalizer) normalize(line []byte) []agentsession.Event {
 		return n.user(&envelope)
 	case "result":
 		return []agentsession.Event{n.result(&envelope)}
+	case "control_request":
+		return n.controlRequest(&envelope, line)
+	case "control_response", "control_cancel_request", "keep_alive":
+		// Out-of-band control-channel frames that are NOT conversation: claude's ack of the
+		// host's control_request (e.g. the initialize response carrying its slash-command list),
+		// a cancel, or a keep-alive heartbeat. They are dropped from the normalized conversation
+		// stream rather than surfacing as opaque Extensions (the init-ack-leak the live test
+		// exposed) — they carry no Eden Event.
+		return nil
 	default:
 		// An unmodeled type (e.g. rate_limit_event) survives verbatim.
 		return []agentsession.Event{extension(line)}
 	}
+}
+
+// controlRequest maps an out-of-band control_request line. A "can_use_tool" subtype is the
+// out-of-grant PERMISSION ask: it becomes an EventPermissionRequest (RequestID, Tool, Input,
+// Reason) the library round-trips, and the original input is stashed so the eventual
+// control_response can echo it as updatedInput (the protocol default). Other subtypes
+// (initialize ack, mcp_message host-tool drive) are serviced on the control path by the conn,
+// NOT mapped to a conversation event here — so they are dropped from the conversation stream
+// rather than surfacing as an opaque EventExtension (the bug this case fixes).
+func (n *normalizer) controlRequest(envelope *streamLine, line []byte) []agentsession.Event {
+	if envelope.Request == nil {
+		return []agentsession.Event{extension(line)}
+	}
+	if envelope.Request.Subtype != "can_use_tool" {
+		// initialize/mcp_message ride the control path (the conn services them); they are not
+		// conversation events. Nothing is emitted onto the normalized stream.
+		return nil
+	}
+	n.rememberInput(envelope.RequestID, envelope.Request.Input)
+	return []agentsession.Event{{
+		Kind: agentsession.EventPermissionRequest,
+		Permission: &agentsession.PermissionPayload{
+			RequestID: envelope.RequestID,
+			Tool:      envelope.Request.ToolName,
+			Reason:    decisionReasonText(envelope.Request.DecisionReason),
+		},
+	}}
+}
+
+// rememberInput stashes the raw input a can_use_tool ask carried, keyed by request id, so the
+// control_response can default updatedInput to it (claude rejects an allow that omits a valid
+// updatedInput — ZodError invalid_union). The input is held here, never copied onto an Event.
+func (n *normalizer) rememberInput(requestID string, input json.RawMessage) {
+	if requestID == "" {
+		return
+	}
+	clone := append(json.RawMessage(nil), input...)
+	n.pendingMu.Lock()
+	n.pendingInputs[requestID] = clone
+	n.pendingMu.Unlock()
+}
+
+// takeInput returns and removes the stashed input for a request id (ok=false when unknown).
+// It is consumed exactly once, by Send, when it writes the control_response.
+func (n *normalizer) takeInput(requestID string) (json.RawMessage, bool) {
+	n.pendingMu.Lock()
+	defer n.pendingMu.Unlock()
+	input, ok := n.pendingInputs[requestID]
+	if ok {
+		delete(n.pendingInputs, requestID)
+	}
+	return input, ok
 }
 
 // system preserves every system line (init included) as session METADATA Extension.

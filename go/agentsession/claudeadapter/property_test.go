@@ -213,6 +213,13 @@ func TestProperty_BuildArgumentsInvariants(t *testing.T) {
 		if mode != "default" && mode != "acceptEdits" {
 			rt.Fatalf("permission-mode must be default|acceptEdits, got %q", mode)
 		}
+		// The control-channel sentinel is paired EXACTLY with default mode: present iff the
+		// session drives the round-trip (default), absent under acceptEdits — never the reverse
+		// (a stdio flag without default, or a default without stdio, both bypass the gate).
+		hasStdio := pairValue(args, "--permission-prompt-tool") == "stdio"
+		if (mode == "default") != hasStdio {
+			rt.Fatalf("--permission-prompt-tool stdio must be present iff mode==default; mode=%q stdio=%v args=%v", mode, hasStdio, args)
+		}
 		if got := countAfterFlag(args, "--allowedTools"); got != wantPatterns {
 			rt.Fatalf("allowedTools pattern count = %d, want %d (args %v)", got, wantPatterns, args)
 		}
