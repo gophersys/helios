@@ -184,7 +184,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 func buildSecretsProvider(configuration *Config) (secrets.Provider, error) {
 	adapter, err := vaultadapter.New(
 		vaultadapter.Config{Address: configuration.VaultAddress, Mode: vaultadapter.ModeUserpass},
-		vaultadapter.Dependencies{Username: configuration.VaultUsername, Password: configuration.VaultPassword},
+		vaultadapter.Deps{Username: configuration.VaultUsername, Password: configuration.VaultPassword},
 	)
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "liveserve: build vault backend", err)

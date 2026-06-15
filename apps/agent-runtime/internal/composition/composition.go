@@ -225,12 +225,12 @@ func buildSecretsProvider() (secrets.Provider, error) {
 	if os.Getenv("EDEN_VAULT_MODE") == "token-file" {
 		adapter, err = vaultadapter.New(
 			vaultadapter.Config{Address: address, Mode: vaultadapter.ModeTokenFile, TokenFilePath: os.Getenv("EDEN_VAULT_TOKEN_FILE")},
-			vaultadapter.Dependencies{},
+			vaultadapter.Deps{},
 		)
 	} else {
 		adapter, err = vaultadapter.New(
 			vaultadapter.Config{Address: address, Mode: vaultadapter.ModeUserpass},
-			vaultadapter.Dependencies{Username: os.Getenv("VAULT_USERNAME"), Password: os.Getenv("VAULT_PASSWORD")},
+			vaultadapter.Deps{Username: os.Getenv("VAULT_USERNAME"), Password: os.Getenv("VAULT_PASSWORD")},
 		)
 	}
 	if err != nil {
