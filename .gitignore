@@ -65,3 +65,4 @@ deploy/plane/local/.state/
 docs/architecture/eden-architecture.html
 docs/eden-atlas.html
 **/documents.html
+.audit/
