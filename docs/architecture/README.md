@@ -68,9 +68,17 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
 
 The former root planning docs (`/LIBRARIES.md`, `/LIBRARY-SYSTEM.md`) are absorbed into doc 10
-(ADR-0010); originals preserved in `docs/attic/`. `docs/research/00–03` remain as point-in-time
+(ADR-0010); originals preserved in `docs/attic/`. `docs/research/00–05` remain as point-in-time
 research notes (see `docs/research/README.md`). Doc 10 sits last in the reading order but is
 migrated *foundational* material — when working on libraries, read 10 §1–§5 alongside 01–02.
+
+The **TypeScript/Svelte UI track** does not (yet) have its own numbered `NN-` spec; it lives as
+**ADR-0024** (the TS/Svelte library-engineering pipeline + the design system re-homed in-repo,
+amending ADR-0005; resolves OD-1) plus its empirical foundation, the research note
+[`docs/research/05-design-foundations.md`](../research/05-design-foundations.md) (the
+`@eden/theme` proportion/color/contrast/motion/density math). Read both when working on
+`libs/typescript/`. *(The canonical `NN-` series currently skips 15; the next unused slots are 15
+and 17 — the UI track was homed in the ADR + research-note classes instead, per ADR-0010.)*
 
 ## 3. Epistemic legend (mandatory on claims — build-system invariant I12)
 
@@ -100,6 +108,7 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Test layers, mutation/spec-determinacy instruments | 08 |
 | Library engineering pipeline (four phases) + the 8-dimension test taxonomy + phase gates | 14 (ADR-0020) |
 | Application template system (the submodule, 5-files-per-route, sqlc/pgx, OpenAPI-first, two codegen axes, libs-assembly, .claude enforcement) | 16 (ADR-0023) |
+| TypeScript/Svelte library-engineering pipeline (the `libs/typescript/` `@eden/*` set, the UI test-taxonomy recast + design-correctness dimension, the Bits-UI-primary behavior layer); the design system re-homed in-repo | ADR-0024 (amends ADR-0005); the `@eden/theme` math foundation = `docs/research/05-design-foundations.md` |
 | Workstreams, interface negotiation protocol, milestones | 09 |
 | Evidence interface, Spec envelope, harness senses | upstream spec-driven (cited via 02) |
 | Cell parameter vector D1–D5, **cell invariants I1–I10**, topology selector | upstream corpus doc 04 |
