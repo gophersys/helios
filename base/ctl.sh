@@ -248,7 +248,12 @@ function cmd_up() {
   else
     log_info "creating devcontainer '${CONTAINER_NAME}' from ${IMAGE_REF}"
     log_info "  workspace: ${WORKSPACE_HOST} -> /workspace"
+    # --init injects tini as PID 1 so orphaned children (the harness/gateway/vite/test processes
+    # this container spawns and detaches) are REAPED. Without it PID 1 is `sleep infinity`, which
+    # never wait()s, so defunct zombies accumulate for the container's whole lifetime — the same
+    # reap obligation the agent-pod runtime sidecar owns as PID 1, applied to the dev substrate.
     docker run -d --name "$CONTAINER_NAME" \
+      --init \
       --hostname "$CONTAINER_NAME" \
       -v "${WORKSPACE_HOST}:/workspace" \
       -v /var/run/docker.sock:/var/run/docker.sock \
