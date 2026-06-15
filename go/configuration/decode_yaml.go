@@ -22,12 +22,16 @@ import (
 // non-breaking decoder upgrade later (10 §4).
 func decodeYAML(source string, raw []byte, dupSev Severity, diags *Diagnostics) *tree.Node {
 	root := tree.NewObject(tree.Position{Source: source})
-	// indentStack tracks (indentWidth, node) frames; root is depth -1.
+	// indentStack tracks (indentWidth, node, path) frames; root is depth -1 with
+	// the empty (root) Path. Each frame carries the FULL resolved-tree Path of its
+	// node so a nested duplicate-key Diagnostic reports its complete dotted path
+	// (parent.path.Child(key)), not a root-relative bare key.
 	type frame struct {
 		indent int
 		node   *tree.Node
+		path   Path
 	}
-	stack := []frame{{indent: -1, node: root}}
+	stack := []frame{{indent: -1, node: root, path: ""}}
 
 	for lineNo, line := range strings.Split(string(raw), "\n") {
 		raw := line
@@ -65,17 +69,19 @@ func decodeYAML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 		for len(stack) > 1 && indent <= stack[len(stack)-1].indent {
 			stack = stack[:len(stack)-1]
 		}
-		parent := stack[len(stack)-1].node
+		parentFrame := stack[len(stack)-1]
+		parent := parentFrame.node
 
 		key := strings.TrimSpace(content[:colon])
 		valStr := strings.TrimSpace(content[colon+1:])
 		key = unquoteYAML(key)
 		pos := tree.Position{Source: source, Line: lineNo + 1, Column: indent + 1}
+		keyPath := parentFrame.path.Child(key)
 
 		if parent.Has(key) {
 			diags.Append(Diagnostic{
 				Severity: dupSev,
-				Path:     Path("").Child(key),
+				Path:     keyPath,
 				At:       fromTreePos(pos),
 				Summary:  fmt.Sprintf("duplicate key %q", key),
 			})
@@ -85,7 +91,7 @@ func decodeYAML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 			// A nested mapping opens here.
 			child := tree.NewObject(pos)
 			parent.Set(key, child)
-			stack = append(stack, frame{indent: indent, node: child})
+			stack = append(stack, frame{indent: indent, node: child, path: keyPath})
 			continue
 		}
 		valPos := tree.Position{Source: source, Line: lineNo + 1, Column: indent + colon + 2}
@@ -132,19 +138,14 @@ func indexUnquotedHash(s string) int {
 }
 
 func unquoteYAML(s string) string {
-	if len(s) >= 2 {
-		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
+	return stripSurroundingQuotes(s)
 }
 
 // inferYAMLScalar types a YAML scalar: quoted => string; true/false => bool;
 // integer => int; float => float; else string.
 func inferYAMLScalar(s string, pos tree.Position) *tree.Node {
-	if len(s) >= 2 && ((s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'')) {
-		return tree.NewString(s[1:len(s)-1], pos)
+	if stripped := stripSurroundingQuotes(s); stripped != s {
+		return tree.NewString(stripped, pos)
 	}
 	switch s {
 	case "true", "True", "yes", "on":

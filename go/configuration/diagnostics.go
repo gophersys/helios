@@ -9,24 +9,40 @@ import (
 // reports. It has value semantics on copy; Append is the only mutator. The
 // zero Diagnostics is an empty, usable sink: HasError() is false, All() is nil.
 type Diagnostics struct {
-	// unexported slice; never an exported mutable field (immutability of a
-	// reported set is structural).
+	// owner is a self-referential copy-detection sentinel (the strings.Builder
+	// idiom). It points at the Diagnostics that exclusively owns findings'
+	// backing array. A struct value copy does NOT update it, so a copied
+	// Diagnostics observes owner != &copy and clones-on-write before its first
+	// in-place append — that is what preserves value semantics on copy WITHOUT a
+	// clone on every Append (the prior implementation cloned the whole backing
+	// slice each call, making an accumulate-all parse O(n^2)). The pointer is
+	// never dereferenced; only its identity is compared. nil before first Append.
+	owner    *Diagnostics
 	findings []Diagnostic
 }
 
 // Append adds findings to the sink.
 //
-// Value semantics on copy are preserved by never aliasing the caller's backing
-// array: a fresh slice is grown so that appending to a copy of a Diagnostics
-// cannot reach back into the original (and vice versa).
+// Growth is amortized O(1) within a single owner: an ordinary append reuses
+// spare capacity instead of re-cloning the whole backing array on every call.
+// Value semantics on copy are preserved by the copy-detection sentinel: the
+// FIRST append after a struct copy (owner no longer points at this receiver)
+// clones the backing slice into a fresh array this receiver exclusively owns, so
+// a copy and its original never write into shared storage. All() additionally
+// returns a clone, so an externally retained slice is never aliased either.
 func (d *Diagnostics) Append(findings ...Diagnostic) {
 	if len(findings) == 0 {
 		return
 	}
-	next := make([]Diagnostic, 0, len(d.findings)+len(findings))
-	next = append(next, d.findings...)
-	next = append(next, findings...)
-	d.findings = next
+	if d.owner != d {
+		// First append, or first append after a value copy: take exclusive
+		// ownership of an independent backing array. slices.Clone gives a fresh
+		// array (nil findings clones to nil, then append allocates), so a sibling
+		// copy that still references the old array is never mutated.
+		d.findings = slices.Clone(d.findings)
+		d.owner = d
+	}
+	d.findings = append(d.findings, findings...)
 }
 
 // HasError reports whether any appended finding is SeverityError.

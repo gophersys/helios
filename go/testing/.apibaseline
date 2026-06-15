@@ -28,6 +28,7 @@ func Derive(seed uint64) [32]byte
     func WithSeed(seed uint64) HarnessOption
     func WithoutCapability(name string) HarnessOption
 func AssertResult(t *stdtesting.T, r testingpkg.Result)
+func CaseSeq[S any](cases ...testingpkg.Case[S]) iter.Seq[testingpkg.Case[S]]
 func NewHarness(t *stdtesting.T, opts ...HarnessOption) testingpkg.Harness
 func NewReport(t *stdtesting.T) testingpkg.Report
 type FakeClock = dependenciestest.Clock

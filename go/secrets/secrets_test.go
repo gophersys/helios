@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
@@ -359,6 +361,101 @@ func TestUse1PropagatesFnError(t *testing.T) {
 	}
 	if v != 0 {
 		t.Errorf("Use1 on fn error returned %d, want zero value", v)
+	}
+}
+
+// TestUseZeroizeBlocksUntilUseReturns pins the lock mechanism behind Use's documented re-entrancy
+// contract (secret.go): Use holds the read lock across fn, and Zeroize takes the write lock, so the
+// two are mutually exclusive. A Zeroize that begins while a Use is in flight cannot proceed until
+// that Use returns. This mutual exclusion is exactly WHY a same-goroutine Zeroize FROM INSIDE fn
+// self-deadlocks (one goroutine cannot be both holding the read lock in Use and acquiring the write
+// lock in Zeroize) — the hazard the contract documents and forbids. We prove the mechanism with two
+// goroutines (so it is fully reapable — no stranded goroutine for goleak to flag): the in-flight Use
+// parks on a channel, a second goroutine calls Zeroize and records WHEN it returned, and we assert
+// Zeroize did not complete until after Use released the lock.
+//
+// WEAKEN-TO-CONFIRM: change Use to release the read lock before/around invoking fn (the rejected
+// "snapshot then unlock" design). Then Zeroize would NOT block behind the in-flight Use — it would
+// complete while fn is still parked — and the ordering assertion below FAILS. (That same weakening
+// would also let TestUseRacesZeroizeOnSameSecret observe a torn read; together they pin the
+// lock-held-across-callback design, which is why the same-goroutine deadlock is documented, not
+// "fixed" by releasing the lock.)
+func TestUseZeroizeBlocksUntilUseReturns(t *testing.T) {
+	t.Parallel()
+	sec := secretstest.MintSecret([]byte("zeroize-blocks-on-inflight-use"))
+
+	inUse := make(chan struct{})   // closed once fn is executing inside Use (the lock is held)
+	release := make(chan struct{}) // closed by the test to let fn (and thus Use) return
+	var useReturned atomic.Bool
+
+	go func() {
+		if err := sec.Use(func([]byte) error {
+			close(inUse)
+			<-release // park here while holding the read lock
+			return nil
+		}); err != nil {
+			t.Errorf("in-flight Use returned an unexpected error: %v", err)
+		}
+		useReturned.Store(true)
+	}()
+
+	<-inUse // Use is now in flight, holding the read lock
+
+	zeroizeReturned := make(chan struct{})
+	go func() {
+		sec.Zeroize() // must block until the in-flight Use releases the read lock
+		close(zeroizeReturned)
+	}()
+
+	// Give the Zeroize goroutine time to attempt the write lock; it must NOT complete while Use
+	// still holds the read lock.
+	select {
+	case <-zeroizeReturned:
+		t.Fatal("Zeroize completed while a Use was still in flight; the write lock must wait for " +
+			"the in-flight read lock to release (the mutual exclusion that makes inner-Zeroize deadlock)")
+	case <-time.After(100 * time.Millisecond):
+		// Expected: Zeroize is parked on Lock() behind the held RLock.
+	}
+	if useReturned.Load() {
+		t.Fatal("the in-flight Use returned before release; the test setup is wrong")
+	}
+
+	close(release) // let Use return, freeing the read lock
+
+	select {
+	case <-zeroizeReturned:
+		// Good: once the read lock is freed, the waiting Zeroize proceeds and returns.
+	case <-time.After(2 * time.Second):
+		t.Fatal("Zeroize did not complete after the in-flight Use released the read lock")
+	}
+
+	// The Secret is now spent — proving the (formerly blocked) Zeroize actually ran.
+	if err := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](err) {
+		t.Errorf("after the blocked Zeroize completed, Use error = %v, want ZeroizedError", err)
+	}
+}
+
+// TestUseThenZeroizeAfterReturnIsSafe is the POSITIVE half of the re-entrancy contract: the
+// sanctioned `defer sec.Zeroize()` idiom — Zeroize AFTER Use returns, never inside fn — works
+// cleanly, with no deadlock, and leaves the Secret spent.
+func TestUseThenZeroizeAfterReturnIsSafe(t *testing.T) {
+	t.Parallel()
+	const plaintext = "use-then-zeroize"
+	sec := secretstest.MintSecret([]byte(plaintext))
+
+	var seen string
+	// The idiomatic shape: use the value, then Zeroize once Use has returned.
+	func() {
+		defer sec.Zeroize()
+		if err := sec.Use(func(b []byte) error { seen = string(b); return nil }); err != nil {
+			t.Fatalf("Use error = %v", err)
+		}
+	}()
+	if seen != plaintext {
+		t.Errorf("Use saw %q, want %q", seen, plaintext)
+	}
+	if err := sec.Use(func([]byte) error { return nil }); !errors.IsType[secrets.ZeroizedError](err) {
+		t.Errorf("after defer-Zeroize, Use error = %v, want ZeroizedError", err)
 	}
 }
 

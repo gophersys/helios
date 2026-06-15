@@ -18,7 +18,7 @@ EDEN_LIB_NAME="configuration"
 EDEN_LIB_LEAF="true"
 EDEN_COVERAGE_FLOOR="80"
 EDEN_HOT_PATHS="."
-EDEN_INTEGRATION_CMDS="go"
+EDEN_INTEGRATION_CMDS="go"        # a parse-time leaf has no container substrate; its real edge is os.ReadFile
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
 
 # shellcheck source=../_ctl/lib.sh
@@ -40,7 +40,7 @@ Commands:
   property         pgregory.net/rapid property suites
   leak             goleak — zero leaked goroutines/fds
   lifecycle        construct-use-double-close-teardown conformance
-  integration      REAL docker + k3s/k3d (+ kind) substrate suite
+  integration      REAL filesystem edge (os.ReadFile) — no container substrate (EDEN_INTEGRATION_CMDS=go)
   load             fan-out concurrency, race-clean under N
   vuln             govulncheck — 0 applicable vulnerabilities
   sast             gosec — 0 high/medium findings

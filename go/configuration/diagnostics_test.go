@@ -109,6 +109,57 @@ func TestDiagnostics_ValueSemanticsOnCopy(t *testing.T) {
 	}
 }
 
+// Value-semantics-on-copy must hold EVEN when the original carries spare backing
+// capacity at copy time — the only case a naive in-place append can corrupt a
+// sibling. The amortized Append (which keeps spare capacity to stay O(1)) must
+// still clone-on-write across a copy so the copy's append cannot overwrite a slot
+// the original would later fill, and the original's own next append cannot stomp
+// the copy.
+//
+// Weaken-to-confirm: replace Append's body with a bare
+// `d.findings = append(d.findings, findings...)` (drop the owner-sentinel
+// clone-on-write). The original here is grown to a capacity strictly greater than
+// its length, so cp aliases the original's spare slot; cp.Append then writes
+// "cp-added" into that shared slot, and d.Append("orig-added") overwrites it (or
+// vice versa) — the cross-check below then fails. The single-element original in
+// TestDiagnostics_ValueSemanticsOnCopy cannot catch this (cap==len after its
+// first append), which is exactly why this case exists.
+func TestDiagnostics_ValueSemanticsOnCopyWithSpareCapacity(t *testing.T) {
+	t.Parallel()
+	var d configuration.Diagnostics
+	// Append several so the amortized backing array grows past its length,
+	// leaving spare capacity that a copy could otherwise alias.
+	for i := range 6 {
+		d.Append(configuration.Diagnostic{Severity: configuration.SeverityWarning, Summary: "base", Detail: string(rune('a' + i))})
+	}
+	cp := d
+
+	cp.Append(configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "cp-added"})
+	d.Append(configuration.Diagnostic{Severity: configuration.SeverityError, Summary: "orig-added"})
+
+	// The original must NOT see the copy's appended finding, and vice versa.
+	for _, dg := range d.All() {
+		if dg.Summary == "cp-added" {
+			t.Fatal("original observed the copy's appended finding: backing array was aliased")
+		}
+	}
+	for _, dg := range cp.All() {
+		if dg.Summary == "orig-added" {
+			t.Fatal("copy observed the original's appended finding: backing array was aliased")
+		}
+	}
+	// Each chain saw exactly its own added finding (6 base + 1).
+	if got := len(d.All()); got != 7 {
+		t.Fatalf("original len = %d, want 7", got)
+	}
+	if got := len(cp.All()); got != 7 {
+		t.Fatalf("copy len = %d, want 7", got)
+	}
+	if !d.HasError() {
+		t.Fatal("original must carry its own orig-added SeverityError")
+	}
+}
+
 // All() is ordered by At.Source then At.Position.
 func TestDiagnostics_AllOrderedBySourceThenPosition(t *testing.T) {
 	t.Parallel()

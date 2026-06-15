@@ -98,8 +98,15 @@ func envPath(segs []string) Path {
 	return p
 }
 
-// inferLeaf types an env value: int, bool, else string.
+// inferLeaf types an env value: a matched surrounding quote pair forces a string
+// (quotes are stripped and no further inference runs, exactly as YAML/TOML treat
+// a quoted scalar — `KEY="8"` is the string "8", never the int 8); an unquoted
+// value infers int, bool, else string. The shared stripSurroundingQuotes helper
+// keeps env's quote rule identical to the other decoders (one concept, one home).
 func inferLeaf(val string, pos tree.Position) *tree.Node {
+	if stripped := stripSurroundingQuotes(val); stripped != val {
+		return tree.NewString(stripped, pos)
+	}
 	if val == "true" || val == "false" {
 		return tree.NewBool(val == "true", pos)
 	}

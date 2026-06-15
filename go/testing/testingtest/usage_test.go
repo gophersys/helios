@@ -54,14 +54,8 @@ func clockSuite() testingpkg.Suite[dependencies.Clock] {
 		},
 	}
 	return testingpkg.Suite[dependencies.Clock]{
-		Name: "dependencies.Clock",
-		Cases: func(yield func(testingpkg.Case[dependencies.Clock]) bool) {
-			for _, c := range cases {
-				if !yield(c) {
-					return
-				}
-			}
-		},
+		Name:  "dependencies.Clock",
+		Cases: testingtest.CaseSeq(cases...),
 	}
 }
 

@@ -406,3 +406,96 @@ func errorDiagAt(diags configuration.Diagnostics, path configuration.Path) *conf
 	}
 	return nil
 }
+
+// Section: nested duplicate-key Path is the FULL dotted path (not a bare key).
+//
+// A duplicate key nested under a parent object/table must report its complete
+// resolved-tree Path so an operator can find the offending location. Before the
+// fix the JSON/YAML/TOML decoders stamped a root-relative bare key (e.g. "name"),
+// losing the "engine." parent.
+//
+// Weaken-to-confirm: revert decode_json.go's jsonObject to `Path: prefix.Child(key)`
+// back to `Path("").Child(key)` (the deleted pathForKeyAt form) — the json subtest
+// then sees Path "name" and fails. Likewise reverting decode_yaml.go's keyPath to
+// `Path("").Child(key)` or decode_toml.go's `curPath.Child(key)` to
+// `Path("").Child(key)` fails the yaml/toml subtests. The env decoder already
+// built a full path (envPath), so its subtest pins that it stays full.
+func TestNestedDuplicateKeyReportsFullPath(t *testing.T) {
+	t.Parallel()
+	const wantPath = configuration.Path("engine.name")
+	cases := []struct {
+		format configuration.Format
+		name   string
+		body   string
+	}{
+		{configuration.FormatJSON, "n.json", `{"engine":{"name":1,"name":2}}`},
+		{configuration.FormatYAML, "n.yaml", "engine:\n  name: 1\n  name: 2\n"},
+		{configuration.FormatTOML, "n.toml", "[engine]\nname = 1\nname = 2\n"},
+		{configuration.FormatEnv, "n.env", "engine.name=1\nengine.name=2\n"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.format), func(t *testing.T) {
+			t.Parallel()
+			_, diags := parse(t, tc.format, tc.name, tc.body)
+			if errorDiagAt(diags, wantPath) == nil {
+				t.Fatalf("%s: no duplicate-key SeverityError at full Path %q; got %v",
+					tc.format, wantPath, summaries(diags.All()))
+			}
+			// And it must NOT have emitted the parent-losing bare-key Path.
+			if errorDiagAt(diags, configuration.Path("name")) != nil {
+				t.Fatalf("%s: duplicate-key Path is the bare key \"name\", parent lost", tc.format)
+			}
+		})
+	}
+}
+
+// Section: env strips a matched surrounding quote pair, like YAML and TOML.
+//
+// Before the fix the env decoder took a quoted value verbatim ("8" stayed the
+// string `"8"` with quotes) while YAML/TOML stripped, a silent cross-decoder
+// divergence. The shared stripSurroundingQuotes helper unifies them.
+//
+// Weaken-to-confirm: in decode_env.go's inferLeaf, delete the
+// `stripSurroundingQuotes` branch — `KEY="prod"` then resolves to the string
+// `"prod"` (quotes intact) and this test fails on the value comparison; a quoted
+// numeric like `N="8"` would also wrongly stay a string of `"8"` rather than the
+// quote-stripped string "8".
+func TestEnv_StripsSurroundingQuotes(t *testing.T) {
+	t.Parallel()
+	doc, diags := parse(t, configuration.FormatEnv, "q.env",
+		"NAME=\"prod\"\nALT='dev'\nNUM=\"8\"\nBARE=raw\n")
+	if diags.HasError() {
+		t.Fatalf("clean quoted env had errors: %v", summaries(diags.All()))
+	}
+	// Double-quoted: quotes stripped, value is the inner string.
+	if v, _ := doc.Lookup("NAME"); mustString(t, v) != "prod" {
+		t.Fatalf("NAME = %q, want prod (double quotes stripped)", mustString(t, v))
+	}
+	// Single-quoted: same rule.
+	if v, _ := doc.Lookup("ALT"); mustString(t, v) != "dev" {
+		t.Fatalf("ALT = %q, want dev (single quotes stripped)", mustString(t, v))
+	}
+	// A quoted numeric stays a STRING (a quoted scalar is never re-inferred),
+	// matching YAML/TOML — the value is "8", not the int 8 and not `"8"`.
+	v, _ := doc.Lookup("NUM")
+	if s := mustString(t, v); s != "8" {
+		t.Fatalf("NUM = %q, want \"8\" (quoted scalar is a string, quotes stripped)", s)
+	}
+	if _, d := v.Int(); d == nil {
+		t.Fatal("NUM was quoted so it must be a string, not an int")
+	}
+	// An unquoted value is untouched.
+	if v, _ := doc.Lookup("BARE"); mustString(t, v) != "raw" {
+		t.Fatalf("BARE = %q, want raw (unquoted, verbatim)", mustString(t, v))
+	}
+}
+
+// mustString reads a Value as a string or fails the test.
+func mustString(t *testing.T, v configuration.Value) string {
+	t.Helper()
+	s, d := v.String()
+	if d != nil {
+		t.Fatalf("String() returned a mismatch Diagnostic: %+v", d)
+	}
+	return s
+}

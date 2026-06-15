@@ -8,6 +8,8 @@ package testingtest
 
 import (
 	"context"
+	"iter"
+	"slices"
 	stdtesting "testing"
 	"time"
 
@@ -64,6 +66,16 @@ func NewFakeRandomSource(seed uint64) *FakeRandomSource {
 }
 
 var _ dependencies.RandomSource = (*FakeRandomSource)(nil)
+
+// CaseSeq is the one home for "a slice of Cases → the iter.Seq[Case[S]] a Suite
+// expects" (one concept, one home — 10 §9). Every consuming library's suite — and
+// testing's own unit/property/bench/load tests — builds Suite.Cases through this
+// single helper instead of re-rolling a local slice-to-yield closure. It is a thin
+// type-specialized re-export of slices.Values, so the iteration semantics are the
+// stdlib's, not a hand-written copy.
+func CaseSeq[S any](cases ...testingpkg.Case[S]) iter.Seq[testingpkg.Case[S]] {
+	return slices.Values(cases)
+}
 
 // ── Adapters from stdlib testing into the assertion-free core ─────────────────.
 

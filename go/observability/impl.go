@@ -109,13 +109,11 @@ func (p *provider) emit(ctx context.Context, e Event) {
 		trace, span = sv.traceID, sv.spanID
 	}
 
-	// Resource is copied per Record so an adapter can never mutate the shared map.
-	res := make(map[string]string, len(p.state.resource))
-	for k, v := range p.state.resource {
-		res[k] = v
-	}
-
-	p.state.push(&Record{Event: e, Resource: res, TraceID: trace, SpanID: span})
+	// The resource map is SHARED BY REFERENCE on the Record (read-only by contract —
+	// see Record.Resource): it is built once in New and never mutated after, so the
+	// hot path stamps the pointer rather than deep-copying the map per Emit. Dropping
+	// the per-event allocation keeps Emit off the heap on the system's hottest path.
+	p.state.push(&Record{Event: e, Resource: p.state.resource, TraceID: trace, SpanID: span})
 }
 
 // Emit records one Event on the stream. Non-blocking, best-effort, no error.

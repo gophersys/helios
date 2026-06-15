@@ -27,20 +27,43 @@ func TestCanary_NeverLeaksThroughError(t *testing.T) {
 		WithCode("permission_denied").
 		WithField("subject", secret) // non-scalar → "[unredactable]"
 
-	surfaces := []string{
-		err.Error(),
-	}
-	for _, s := range surfaces {
-		if strings.Contains(s, seededCanary) {
-			t.Fatalf("canary leaked into a surfaced artifact: %q", s)
-		}
+	if strings.Contains(err.Error(), seededCanary) {
+		t.Fatalf("canary leaked into a surfaced artifact: %q", err.Error())
 	}
 
-	// A scalar field is legitimately stored; assert the redaction marker is present so we know
-	// the non-scalar path actually redacted rather than dropping silently.
-	rendered := err.Error()
-	if strings.Contains(rendered, seededCanary) {
-		t.Fatalf("canary present in rendered error: %q", rendered)
+	// The non-scalar field must be MARKED redacted, not silently dropped: assert the
+	// "[unredactable]" marker is present in Fields(). A regression that drops the field
+	// (instead of marking it) hides a leak vector — this distinguishes the two.
+	if got := err.Fields()["subject"]; got != "[unredactable]" {
+		t.Fatalf("non-scalar field not marked redacted: Fields()[subject] = %v, want %q",
+			got, "[unredactable]")
+	}
+}
+
+// TestCanary_ScalarFieldBoundary pins the documented real leak vector (finding errors/canary
+// idx 20): a secret passed as a *legitimate scalar string* field is stored VERBATIM by design,
+// so redacting scalar secrets is the CALLER's responsibility — not the model's. The boundary is
+// test-pinned (not implicit) so a future change to scalar handling is a deliberate, visible one:
+//   - the scalar IS present in Fields() (the model stores safe scalars verbatim), and
+//   - the scalar is still NOT surfaced through Error() (fields are never part of the rendering),
+//
+// proving the operator-safe surface stays canary-free even when a scalar field carries a secret.
+func TestCanary_ScalarFieldBoundary(t *testing.T) {
+	t.Parallel()
+
+	err := errors.New(errors.KindPermission, "access denied").
+		WithField("subject", seededCanary) // scalar string → stored verbatim, caller's responsibility
+
+	// Boundary half 1: the model stores a safe scalar verbatim (it does NOT redact scalars).
+	if got := err.Fields()["subject"]; got != seededCanary {
+		t.Fatalf("scalar field not stored verbatim: Fields()[subject] = %v, want %q",
+			got, seededCanary)
+	}
+
+	// Boundary half 2: even so, the operator-safe rendering never embeds the field value —
+	// Error() surfaces only message+cause, so a scalar field secret cannot leak through it.
+	if strings.Contains(err.Error(), seededCanary) {
+		t.Fatalf("scalar field secret leaked into Error(): %q", err.Error())
 	}
 }
 

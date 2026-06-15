@@ -6,11 +6,11 @@ import (
 	"github.com/gophersys/libs/go/errors"
 )
 
-// The sinks below prevent the compiler from optimizing the benchmarked construction away and
-// keep the error return value consumed (errcheck's check-blank forbids `_ = errors.New(...)`).
-// the result dead and elide the work being measured; `any` keeps them off the errname sentinel path.
+// The package-level sinks below keep the benchmarked construction observable so the compiler
+// cannot prove the result dead and elide the work being measured (errcheck's check-blank also
+// forbids `_ = errors.New(...)`); an `any` sink keeps them off the errname sentinel path.
 //
-//nolint:gochecknoglobals // benchmark sinks must be package-level so the compiler cannot prove
+//nolint:gochecknoglobals // benchmark sinks must be package-level so the compiler cannot elide the measured work.
 var (
 	sinkValue any
 	sinkKind  errors.Kind

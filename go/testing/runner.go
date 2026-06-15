@@ -10,7 +10,8 @@ import (
 // Runner vends deterministic fakes and executes Suites. It is concrete (accept
 // interfaces, return concrete). New is the pattern spine: PURE — no I/O, no clock
 // read, no env read; it only fixes the deterministic starting state in Config/Deps.
-// Errors are wrapped with %w and inspected via errors.AsType.
+// New cannot fail: it returns (*Runner, error) only to honor the spine signature;
+// the error is always nil. This library surfaces no error model of its own.
 type Runner struct {
 	epoch       epochAnchor // injected start instant for vended fakes
 	seed        uint64      // deterministic RandomSource seed

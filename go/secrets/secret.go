@@ -65,8 +65,18 @@ func init() {
 
 // Use grants fn the only legitimate window onto the plaintext. The slice passed to fn is
 // valid ONLY for the duration of the call and is read-only by contract; fn must not retain it.
-// Use returns fn's error, or a wrapped error (errors.AsType[ZeroizedError]) if the secret was
-// already wiped. This is the sole read path — there is no Bytes().
+// Use returns fn's error, or a typed ZeroizedError (inspectable via errors.AsType[ZeroizedError])
+// if the secret was already wiped. This is the sole read path — there is no Bytes().
+//
+// RE-ENTRANCY CONTRACT (load-bearing): Use holds the read lock for the WHOLE duration of fn so a
+// concurrent Zeroize can never tear the plaintext slice out from under fn (Zeroize takes the
+// write lock; the two are mutually exclusive). The cost of that guarantee is that fn MUST NOT,
+// on the same goroutine, call this Secret's Zeroize — nor re-enter Use in a way that closes the
+// secret — because sync.RWMutex is NOT re-entrant: a write Lock attempted while this goroutine
+// already holds the read lock self-deadlocks (the goroutine blocks forever). Reentrant *reads*
+// (a nested Use) are fine. The idiom is `defer sec.Zeroize()` at the point of use — Zeroize AFTER
+// Use returns, never inside fn. This re-entrancy contract is proven by
+// TestUseZeroizeBlocksUntilUseReturns and TestUseThenZeroizeAfterReturnIsSafe in secrets_test.go.
 func (s *Secret) Use(fn func(plaintext []byte) error) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -77,8 +87,13 @@ func (s *Secret) Use(fn func(plaintext []byte) error) error {
 }
 
 // Zeroize best-effort wipes the backing bytes and marks the secret spent. Idempotent. The
-// idiom is `defer sec.Zeroize()` at point of use. After Zeroize, Use returns a wrapped
+// idiom is `defer sec.Zeroize()` at point of use. After Zeroize, Use returns a typed
 // ZeroizedError. Mandatory on embedded (10 §4); advisory-but-wired here.
+//
+// Zeroize takes the write lock, so it MUST NOT be called from inside a Use callback on the same
+// goroutine — that self-deadlocks (see Use's re-entrancy contract). Call it only after Use has
+// returned (the `defer sec.Zeroize()` idiom). A concurrent Zeroize from ANOTHER goroutine is
+// serialized against in-flight Use reads and never tears the slice.
 func (s *Secret) Zeroize() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

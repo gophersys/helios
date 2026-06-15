@@ -44,7 +44,7 @@ source "$PROJECT_ROOT/../_ctl/lib.sh"
 # -------- usage (drift-check anchor for libs/ctl.sh::cmd_validate) --------
 function usage() {
   cat <<EOF
-Usage: ./ctl.sh <command> [args...]   (secrets — leaf=true, coverage-floor=${EDEN_COVERAGE_FLOOR}%)
+Usage: ./ctl.sh <command> [args...]   (secrets — leaf=${EDEN_LIB_LEAF}, coverage-floor=${EDEN_COVERAGE_FLOOR}%)
 
 Commands:
   build            Compile the library (go build ./...)

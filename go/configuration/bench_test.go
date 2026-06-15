@@ -101,6 +101,32 @@ func BenchmarkMerge(b *testing.B) {
 	sink = merged
 }
 
+// appendManyN is the scale at which BenchmarkAppendMany accumulates findings one at a time. It is
+// large enough that a quadratic Append (clone-the-whole-backing-array per call) shows up as
+// O(n^2) allocs in the benchstat baseline, so bench-guard pins the accumulate-all complexity:
+// amortized append is ~n allocs/op, a re-clone-per-call regression is ~n^2.
+const appendManyN = 10000
+
+// BenchmarkAppendMany measures the accumulate-all hot path: a parse/validation pass appends every
+// finding into one Diagnostics sink one Append at a time. Append must be amortized O(1) growth
+// (ordinary append into spare capacity), not an O(n) clone of the whole backing slice on every
+// call — the latter makes the whole accumulation O(n^2). Recorded in .benchbaseline so a
+// regression-to-quadratic trips the allocs/op ceiling (ADR-0020 §g; the configuration performance
+// finding). The single Diagnostic is hoisted so only the append growth is measured.
+func BenchmarkAppendMany(b *testing.B) {
+	one := configuration.Diagnostic{Severity: configuration.SeverityError, Path: "k", Summary: "dup"}
+	var d configuration.Diagnostics
+	b.ReportAllocs()
+	for b.Loop() {
+		var acc configuration.Diagnostics
+		for range appendManyN {
+			acc.Append(one)
+		}
+		d = acc
+	}
+	sink = d.All()
+}
+
 // BenchmarkConvertMismatch measures the total-conversion failure path (the diagnostic-building
 // spine a validation pass exercises heavily). sinkBool keeps the bool result live.
 func BenchmarkConvertMismatch(b *testing.B) {

@@ -45,7 +45,7 @@ func decodeJSON(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 	dec.UseNumber()
 	lines := newLineMap(raw)
 
-	root, err := jsonValue(dec, source, raw, lines, dupSev, diags, 0)
+	root, err := jsonValue(dec, source, raw, lines, dupSev, diags, "", 0)
 	if err != nil {
 		diags.Append(Diagnostic{
 			Severity: SeverityError,
@@ -73,10 +73,13 @@ func decodeJSON(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 
 // jsonValue reads exactly one JSON value from the decoder, recursing for
 // objects/arrays. The position stamped on each node is the byte offset where
-// that value's first token began. depth is the current container nesting level;
-// it is bounded by maxJSONDepth so adversarial deep nesting becomes a Diagnostic
-// rather than a fatal stack overflow.
-func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dupSev Severity, diags *Diagnostics, depth int) (*tree.Node, error) {
+// that value's first token began. prefix is the FULL resolved-tree Path of this
+// value (extended with .Child(key)/.Index(i) on descent) so a nested
+// duplicate-key Diagnostic reports its complete dotted path, not a root-relative
+// bare key. depth is the current container nesting level; it is bounded by
+// maxJSONDepth so adversarial deep nesting becomes a Diagnostic rather than a
+// fatal stack overflow.
+func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dupSev Severity, diags *Diagnostics, prefix Path, depth int) (*tree.Node, error) {
 	startOff := dec.InputOffset()
 	tok, err := dec.Token()
 	if err != nil {
@@ -94,12 +97,12 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 			if depth >= maxJSONDepth {
 				return tree.NewObject(toTreePos(pos)), fmt.Errorf("%w (> %d)", errJSONTooDeep, maxJSONDepth) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
 			}
-			return jsonObject(dec, source, raw, lines, pos, dupSev, diags, depth+1)
+			return jsonObject(dec, source, raw, lines, pos, dupSev, diags, prefix, depth+1)
 		case '[':
 			if depth >= maxJSONDepth {
 				return tree.NewArray(nil, toTreePos(pos)), fmt.Errorf("%w (> %d)", errJSONTooDeep, maxJSONDepth) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
 			}
-			return jsonArray(dec, source, raw, lines, pos, dupSev, diags, depth+1)
+			return jsonArray(dec, source, raw, lines, pos, dupSev, diags, prefix, depth+1)
 		default:
 			return nil, fmt.Errorf("%w %q", errUnexpectedJSONToken, t) //nolint:wrapcheck // internal-only; wraps own sentinel via stdlib %w (rationale 5).
 		}
@@ -119,7 +122,7 @@ func jsonValue(dec *json.Decoder, source string, raw []byte, lines *lineMap, dup
 	}
 }
 
-func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics, depth int) (*tree.Node, error) {
+func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics, prefix Path, depth int) (*tree.Node, error) {
 	obj := tree.NewObject(toTreePos(pos))
 	for dec.More() {
 		keyOff := dec.InputOffset()
@@ -132,18 +135,21 @@ func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, po
 			return obj, errJSONKeyNotString
 		}
 		keyPos := posAtOffset(source, raw, lines, keyOff)
+		childPath := prefix.Child(key)
 		if obj.Has(key) {
 			// Strict-by-default: a duplicate key is a finding (the silent
 			// last-wins of encoding/json is exactly the typo footgun this
-			// pattern exists to catch).
+			// pattern exists to catch). The Path is the FULL dotted path to the
+			// offending key (prefix.Child(key)), so a nested duplicate names its
+			// parent chain, not just the bare leaf key.
 			diags.Append(Diagnostic{
 				Severity: dupSev,
-				Path:     pathForKeyAt(obj, key, pos),
+				Path:     childPath,
 				At:       keyPos,
 				Summary:  fmt.Sprintf("duplicate key %q", key),
 			})
 		}
-		child, err := jsonValue(dec, source, raw, lines, dupSev, diags, depth)
+		child, err := jsonValue(dec, source, raw, lines, dupSev, diags, childPath, depth)
 		if err != nil {
 			return obj, err
 		}
@@ -156,10 +162,10 @@ func jsonObject(dec *json.Decoder, source string, raw []byte, lines *lineMap, po
 	return obj, nil
 }
 
-func jsonArray(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics, depth int) (*tree.Node, error) {
+func jsonArray(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos Position, dupSev Severity, diags *Diagnostics, prefix Path, depth int) (*tree.Node, error) {
 	var elems []*tree.Node
 	for dec.More() {
-		el, err := jsonValue(dec, source, raw, lines, dupSev, diags, depth)
+		el, err := jsonValue(dec, source, raw, lines, dupSev, diags, prefix.Index(len(elems)), depth)
 		if err != nil {
 			return tree.NewArray(elems, toTreePos(pos)), err
 		}
@@ -169,13 +175,6 @@ func jsonArray(dec *json.Decoder, source string, raw []byte, lines *lineMap, pos
 		return tree.NewArray(elems, toTreePos(pos)), fmt.Errorf("read JSON array close: %w", err)
 	}
 	return tree.NewArray(elems, toTreePos(pos)), nil
-}
-
-// pathForKeyAt is a best-effort Path for a duplicate-key diagnostic. The object
-// position is known but not its full path; the key alone is the operator-facing
-// signal, so the Path is the bare key (root-relative).
-func pathForKeyAt(_ *tree.Node, key string, _ Position) Path {
-	return Path("").Child(key)
 }
 
 // numberNode classifies a JSON number as int or float.

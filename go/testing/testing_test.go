@@ -4,10 +4,11 @@
 //
 // This file is a black-box test (package testing_test, testpackage discipline): it
 // exercises the constructor spine and RunSuite through the exported surface only,
-// with stub subjects, without the testingtest fakes (those have their own suite).
-// It imports the package under test under the alias `testingpkg` and stdlib
-// `testing` under `gotest`, because the package under test is itself named
-// `testing`.
+// with stub subjects, without the testingtest FAKES — Suite.Cases is built through
+// the shared testingtest.CaseSeq helper (the one home for slice→iter.Seq[Case]; 10
+// §9), but no FakeClock/FakeRandomSource is wired (those have their own suite). It
+// imports the package under test under the alias `testingpkg` and stdlib `testing`
+// under `gotest`, because the package under test is itself named `testing`.
 package testing_test
 
 import (
@@ -18,18 +19,8 @@ import (
 
 	"github.com/gophersys/libs/go/dependencies"
 	testingpkg "github.com/gophersys/libs/go/testing"
+	"github.com/gophersys/libs/go/testing/testingtest"
 )
-
-// seq turns a slice of cases into the iter.Seq the Suite expects.
-func seq[S any](cases ...testingpkg.Case[S]) func(yield func(testingpkg.Case[S]) bool) {
-	return func(yield func(testingpkg.Case[S]) bool) {
-		for _, c := range cases {
-			if !yield(c) {
-				return
-			}
-		}
-	}
-}
 
 // mustRunner builds a Runner from the given Config/Deps or fails the test. The
 // parameters are named cfgIn/depsIn (not the spine's configuration/dependencies) to
@@ -230,7 +221,7 @@ func TestRunSuite_PerCaseIsolation_FactoryOncePerCase(t *gotest.T) {
 		{Name: "b", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
 		{Name: "c", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
 	}
-	suite := testingpkg.Suite[int]{Name: "iso", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "iso", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if built != 3 {
 		t.Fatalf("factory should be invoked once per case (3); got %d", built)
@@ -255,7 +246,7 @@ func TestRunSuite_DeterministicOrdering(t *gotest.T) {
 			Run:  func(_ string, _ testingpkg.Harness, _ testingpkg.Report) { order = append(order, n) },
 		})
 	}
-	suite := testingpkg.Suite[string]{Name: "ord", Cases: seq(cases...)}
+	suite := testingpkg.Suite[string]{Name: "ord", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	for i, n := range names {
 		if order[i] != n {
@@ -277,7 +268,7 @@ func TestRunSuite_PanicContainment(t *gotest.T) {
 		{Name: "boom", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) { panic("kaboom") }},
 		{Name: "after", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
 	}
-	suite := testingpkg.Suite[int]{Name: "panic", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "panic", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory) // must not panic out of RunSuite
 	if res.Failed != 1 {
 		t.Fatalf("panicking case should be 1 Fail; got Failed=%d (%+v)", res.Failed, res)
@@ -311,7 +302,7 @@ func TestRunSuite_FactoryErrorIsFailedCase(t *gotest.T) {
 	cases := []testingpkg.Case[int]{
 		{Name: "wiring", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) { ran = true }},
 	}
-	suite := testingpkg.Suite[int]{Name: "factoryerr", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "factoryerr", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if res.Failed != 1 {
 		t.Fatalf("factory error should yield 1 Fail; got %+v", res)
@@ -345,7 +336,7 @@ func TestRunSuite_CapabilityGating_SkipNotFail(t *gotest.T) {
 			}
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "cap", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "cap", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if res.Skipped != 1 {
 		t.Fatalf("absent-capability case must be 1 Skip; got %+v", res)
@@ -369,7 +360,7 @@ func TestRunSuite_ErrorfMakesCaseFail(t *gotest.T) {
 			report.Errorf("assertion failed: %d != %d", 1, 2)
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "errf", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "errf", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if res.Failed != 1 {
 		t.Fatalf("Errorf must make the case Fail; got %+v", res)
@@ -393,7 +384,7 @@ func TestRunSuite_FatalfAbortsOnlyThisCase(t *gotest.T) {
 		}},
 		{Name: "next", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
 	}
-	suite := testingpkg.Suite[int]{Name: "fatalf", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "fatalf", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if reachedAfterFatal {
 		t.Fatal("code after Fatalf executed; Fatalf must abort the case body")
@@ -418,7 +409,7 @@ func TestRunSuite_FailFast(t *gotest.T) {
 		{Name: "fail", Run: func(_ int, _ testingpkg.Harness, report testingpkg.Report) { report.Errorf("boom") }},
 		{Name: "never", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) { thirdRan = true }},
 	}
-	suite := testingpkg.Suite[int]{Name: "ff", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "ff", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if thirdRan {
 		t.Fatal("FailFast must stop after the first failing case")
@@ -442,7 +433,7 @@ func TestRunSuite_CleanupLIFO(t *gotest.T) {
 			h.Cleanup(func() { order = append(order, 3) })
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "cleanup", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "cleanup", Cases: testingtest.CaseSeq(cases...)}
 	testingpkg.RunSuite(r, suite, factory)
 	if len(order) != 3 || order[0] != 3 || order[1] != 2 || order[2] != 1 {
 		t.Fatalf("Cleanup must run LIFO after the case; got %v", order)
@@ -465,7 +456,7 @@ func TestRunSuite_CleanupPanicDoesNotEscape(t *gotest.T) {
 		}},
 		{Name: "after", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
 	}
-	suite := testingpkg.Suite[int]{Name: "cleanuppanic", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "cleanuppanic", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory) // must NOT panic out of RunSuite
 	if res.Failed != 1 {
 		t.Fatalf("a panicking cleanup must make its case 1 Fail; got %+v", res)
@@ -503,7 +494,7 @@ func TestRunSuite_CleanupPanicChainContinues(t *gotest.T) {
 			h.Cleanup(func() { order = append(order, 3) })     // runs first (LIFO)
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "cleanupchain", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "cleanupchain", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	// LIFO: the last-registered (append 3) runs first, then the panicking one is
 	// contained, then the first-registered (append 1) still runs.
@@ -529,7 +520,7 @@ func TestRunSuite_HarnessClockIsDeterministic(t *gotest.T) {
 			}
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "detclock", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "detclock", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if res.Failed != 0 {
 		t.Fatalf("Harness clock should be deterministic at epoch; %+v", res.Cases)
@@ -554,7 +545,7 @@ func TestRunSuite_HarnessContextNonNil(t *gotest.T) {
 			}
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "ctx", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "ctx", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if res.Failed != 0 {
 		t.Fatalf("Harness.Context must be non-nil; %+v", res)
@@ -576,7 +567,7 @@ func TestRunSuite_CaseTimeoutDeadlinePropagates(t *gotest.T) {
 			}
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "timeout", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "timeout", Cases: testingtest.CaseSeq(cases...)}
 	testingpkg.RunSuite(r, suite, factory)
 	if !hadDeadline {
 		t.Fatal("CaseTimeout should give the case a context with a deadline")
@@ -594,7 +585,7 @@ func TestRunSuite_StructuredResult(t *gotest.T) {
 		{Name: "f1", Run: func(_ int, _ testingpkg.Harness, report testingpkg.Report) { report.Errorf("x") }},
 		{Name: "s1", Run: func(_ int, _ testingpkg.Harness, report testingpkg.Report) { report.Skipf("y") }},
 	}
-	suite := testingpkg.Suite[int]{Name: "myport", Cases: seq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "myport", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 	if res.Suite != "myport" {
 		t.Fatalf("Result.Suite mismatch: %q", res.Suite)
@@ -651,7 +642,7 @@ func TestRunSuite_RerunsAreIdentical(t *gotest.T) {
 				}
 			}},
 		}
-		suite := testingpkg.Suite[[]byte]{Name: "rerun", Cases: seq(cases...)}
+		suite := testingpkg.Suite[[]byte]{Name: "rerun", Cases: testingtest.CaseSeq(cases...)}
 		return testingpkg.RunSuite(r, suite, factory)
 	}
 	a, b := run(), run()

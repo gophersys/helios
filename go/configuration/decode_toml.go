@@ -21,6 +21,10 @@ import (
 func decodeTOML(source string, raw []byte, dupSev Severity, diags *Diagnostics) *tree.Node {
 	root := tree.NewObject(tree.Position{Source: source})
 	cur := root
+	// curPath is the FULL resolved-tree Path of cur (the active [table]); root is
+	// the empty Path. A key/value pair under the active table reports its
+	// duplicate at curPath.Child(key), not a root-relative bare key.
+	var curPath Path
 
 	for lineNo, line := range strings.Split(string(raw), "\n") {
 		content := stripTOMLComment(line)
@@ -49,7 +53,7 @@ func decodeTOML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 			}
 			name := strings.TrimSpace(trimmed[1 : len(trimmed)-1])
 			pos := tree.Position{Source: source, Line: lineNo + 1, Column: 1}
-			cur = ensureTable(root, strings.Split(name, "."), pos, dupSev, diags)
+			cur, curPath = ensureTable(root, strings.Split(name, "."), pos, dupSev, diags)
 			continue
 		}
 
@@ -70,7 +74,7 @@ func decodeTOML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 		if cur.Has(key) {
 			diags.Append(Diagnostic{
 				Severity: dupSev,
-				Path:     Path("").Child(key),
+				Path:     curPath.Child(key),
 				At:       fromTreePos(pos),
 				Summary:  fmt.Sprintf("duplicate key %q", key),
 			})
@@ -80,24 +84,28 @@ func decodeTOML(source string, raw []byte, dupSev Severity, diags *Diagnostics) 
 	return root
 }
 
-// ensureTable walks/creates the dotted table chain and returns the leaf table.
-// A scalar already occupying a segment a table header needs as a container is a
-// strict-by-default finding (the silent clobber that loses `server = 1` when a
-// later `[server]` header appears is exactly the typo footgun this pattern
-// exists to catch), then the table replaces it so later keys still land.
-func ensureTable(root *tree.Node, segs []string, pos tree.Position, dupSev Severity, diags *Diagnostics) *tree.Node {
+// ensureTable walks/creates the dotted table chain and returns the leaf table
+// along with its FULL resolved-tree Path (so a key under it reports its complete
+// dotted path). A scalar already occupying a segment a table header needs as a
+// container is a strict-by-default finding (the silent clobber that loses
+// `server = 1` when a later `[server]` header appears is exactly the typo
+// footgun this pattern exists to catch), then the table replaces it so later
+// keys still land. That finding is stamped with the full path to the offending
+// segment (built segment-by-segment via Path.Child), not a single composite key.
+func ensureTable(root *tree.Node, segs []string, pos tree.Position, dupSev Severity, diags *Diagnostics) (*tree.Node, Path) {
 	cur := root
-	for i, seg := range segs {
-		seg = strings.TrimSpace(seg)
+	var curPath Path
+	trimmed := make([]string, len(segs))
+	for j, s := range segs {
+		trimmed[j] = strings.TrimSpace(s)
+	}
+	for i, seg := range trimmed {
+		segPath := curPath.Child(seg)
 		child, ok := cur.Child(seg)
 		if ok && child.Kind != tree.KindObject {
-			trimmed := make([]string, len(segs))
-			for j, s := range segs {
-				trimmed[j] = strings.TrimSpace(s)
-			}
 			diags.Append(Diagnostic{
 				Severity: dupSev,
-				Path:     Path("").Child(strings.Join(trimmed[:i+1], ".")),
+				Path:     segPath,
 				At:       fromTreePos(pos),
 				Summary: fmt.Sprintf("key %q is set as a scalar but table header [%s] needs it as a table",
 					strings.Join(trimmed[:i+1], "."), strings.Join(trimmed, ".")),
@@ -108,8 +116,9 @@ func ensureTable(root *tree.Node, segs []string, pos tree.Position, dupSev Sever
 			cur.Set(seg, child)
 		}
 		cur = child
+		curPath = segPath
 	}
-	return cur
+	return cur, curPath
 }
 
 func stripTOMLComment(line string) string {
@@ -135,8 +144,8 @@ func stripTOMLComment(line string) string {
 }
 
 func inferTOMLScalar(s string, pos tree.Position) *tree.Node {
-	if len(s) >= 2 && ((s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'')) {
-		return tree.NewString(s[1:len(s)-1], pos)
+	if stripped := stripSurroundingQuotes(s); stripped != s {
+		return tree.NewString(stripped, pos)
 	}
 	switch s {
 	case "true":

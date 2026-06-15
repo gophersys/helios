@@ -8,6 +8,7 @@ import (
 	"pgregory.net/rapid"
 
 	testingpkg "github.com/gophersys/libs/go/testing"
+	"github.com/gophersys/libs/go/testing/testingtest"
 )
 
 // The `property` ctl.sh verb runs `go test` with RAPID_CHECKS set in the process
@@ -16,17 +17,6 @@ import (
 // and RunSuite's outcome-accounting invariant across the whole input space, not just the
 // hand-picked points the unit suite covers. (The package under test is named `testing`, so
 // the stdlib import is aliased `gotest`.)
-
-// propSeq turns a slice of cases into the iter.Seq the Suite expects.
-func propSeq[S any](cases ...testingpkg.Case[S]) func(yield func(testingpkg.Case[S]) bool) {
-	return func(yield func(testingpkg.Case[S]) bool) {
-		for _, c := range cases {
-			if !yield(c) {
-				return
-			}
-		}
-	}
-}
 
 // TestProperty_FakesDeterministicFromSeed asserts the frozen determinism invariant (OQ6)
 // over the WHOLE seed space: for ANY seed, two Runners built from the same Config.Seed vend
@@ -117,7 +107,7 @@ func TestProperty_RunSuiteAccountingIsExact(t *gotest.T) {
 			}
 		}
 		factory := func(_ context.Context, _ testingpkg.Harness) (int, error) { return 0, nil }
-		suite := testingpkg.Suite[int]{Name: "acct", Cases: propSeq(cases...)}
+		suite := testingpkg.Suite[int]{Name: "acct", Cases: testingtest.CaseSeq(cases...)}
 		res := testingpkg.RunSuite(r, suite, factory)
 		if res.Passed != wantPass || res.Failed != wantFail || res.Skipped != wantSkip {
 			rt.Fatalf("accounting drift: got P%d F%d S%d want P%d F%d S%d (n=%d)",
@@ -170,7 +160,7 @@ func TestProperty_FailFastStopsAtFirstFailure(t *gotest.T) {
 		}
 		cases, firstFail := failFastCases(kinds)
 		factory := func(_ context.Context, _ testingpkg.Harness) (int, error) { return 0, nil }
-		res := testingpkg.RunSuite(r, testingpkg.Suite[int]{Name: "ff", Cases: propSeq(cases...)}, factory)
+		res := testingpkg.RunSuite(r, testingpkg.Suite[int]{Name: "ff", Cases: testingtest.CaseSeq(cases...)}, factory)
 		if firstFail == -1 {
 			// No failure at all: every case runs, none fail.
 			if res.Failed != 0 || len(res.Cases) != len(kinds) {

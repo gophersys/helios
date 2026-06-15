@@ -74,9 +74,16 @@ type Exporter interface {
 // Record is the resource-stamped, correlation-stamped Event the Exporter ships.
 // The library produces it; adapters translate it to OTLP or stdout. It is a plain
 // value, safe to copy.
+//
+// Resource is SHARED, READ-ONLY: the same immutable resource map (built once in New,
+// never mutated thereafter) is referenced by every Record the Provider emits, so the
+// hot path stamps a pointer instead of deep-copying the map per Emit. An adapter MUST
+// only READ Resource (range/lookup) — it MUST NOT write, delete, or clear a key. A
+// mutation would corrupt every other Record sharing the map; copy first if you need a
+// mutable view.
 type Record struct {
 	Event    Event
-	Resource map[string]string // ServiceName, ServiceVersion, deployment.environment.name, ResourceAttrs
+	Resource map[string]string // SHARED + READ-ONLY (see above): service.name, service.version, deployment.environment.name, ResourceAttrs
 	TraceID  string            // "" when no active span
 	SpanID   string            // "" when no active span
 }

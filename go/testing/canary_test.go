@@ -7,6 +7,7 @@ import (
 	gotest "testing"
 
 	testingpkg "github.com/gophersys/libs/go/testing"
+	"github.com/gophersys/libs/go/testing/testingtest"
 )
 
 // seededCanary is the redaction needle (ADR-0020 dimension (f), generalising the house
@@ -37,7 +38,7 @@ func TestCanary_PassingCaseLeaksNoContent(t *gotest.T) {
 			_ = h.Has(seededCanary) // the case OBSERVES the canary-named capability but records nothing
 		}},
 	}
-	suite := testingpkg.Suite[int]{Name: "canarysuite", Cases: propSeq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "canarysuite", Cases: testingtest.CaseSeq(cases...)}
 	res := testingpkg.RunSuite(r, suite, factory)
 
 	if res.Failed != 0 {

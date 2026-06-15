@@ -117,8 +117,14 @@ type Adapter struct {
 	configuration Config
 	transport     Transport
 	username      string
-	password      string
 	readTokenFile func(path string) ([]byte, error)
+
+	// passwordSecret holds the ModeUserpass bootstrap credential as a genuine, un-printable
+	// *secrets.Secret rather than a resident plaintext string, so the password never sits in a
+	// loggable/marshalable adapter field. It is consumed by exactly one userpass login (inside
+	// bootstrapOnce) and Zeroized the instant that login attempt completes — after which it holds
+	// no plaintext for the rest of the adapter's lifetime. Nil for ModeTokenFile (no password).
+	passwordSecret *secrets.Secret
 
 	// bootstrapOnce guards the userpass login so concurrent first-Resolves perform exactly one
 	// login. bootstrapErr records a sticky login failure so every caller sees the same typed error.
@@ -149,12 +155,19 @@ func New(configuration Config, dependencies Deps) (*Adapter, error) {
 		readTokenFile = osReadFile
 	}
 
+	// passwordSecret is minted only for the userpass path and is the adapter's sole hold on the
+	// bootstrap password — a transient, un-printable Secret consumed-then-Zeroized at login, never a
+	// resident plaintext field. New stays pure: minting copies the bytes the caller passed in; it
+	// performs no I/O.
+	var passwordSecret *secrets.Secret
+
 	switch configuration.Mode {
 	case ModeUserpass:
 		if strings.TrimSpace(dependencies.Username) == "" || dependencies.Password == "" {
 			return nil, errors.Wrap(errors.KindInvalid,
 				"vaultadapter.New: ModeUserpass requires Deps.Username and Deps.Password", errInvalidConfig)
 		}
+		passwordSecret = mintSecret([]byte(dependencies.Password))
 	case ModeTokenFile:
 		if strings.TrimSpace(configuration.TokenFilePath) == "" {
 			return nil, errors.Wrap(errors.KindInvalid,
@@ -166,11 +179,11 @@ func New(configuration Config, dependencies Deps) (*Adapter, error) {
 	}
 
 	return &Adapter{
-		configuration: configuration,
-		transport:     transport,
-		username:      dependencies.Username,
-		password:      dependencies.Password,
-		readTokenFile: readTokenFile,
+		configuration:  configuration,
+		transport:      transport,
+		username:       dependencies.Username,
+		passwordSecret: passwordSecret,
+		readTokenFile:  readTokenFile,
 	}, nil
 }
 
@@ -237,10 +250,17 @@ func (a *Adapter) ensureToken(ctx context.Context, ref secrets.Reference) error 
 		return nil
 	case ModeUserpass:
 		a.bootstrapOnce.Do(func() {
+			// The password is read transiently from its Secret ONLY to build this one login request,
+			// then Zeroized — it is never retained as plaintext past the bootstrap. The login is the
+			// sole consumer, so wiping it the moment the attempt completes (success OR failure; the
+			// once-guard never retries) leaves no plaintext resident for the adapter's lifetime.
+			defer a.passwordSecret.Zeroize()
 			loginPath := fmt.Sprintf(userpassLoginPathFormat, a.username)
-			token, err := a.transport.Login(ctx, loginPath, map[string]any{"password": a.password})
-			if err != nil {
-				a.bootstrapErr = mapTransportError(ref, err)
+			token, useErr := secrets.Use1(a.passwordSecret, func(password []byte) (string, error) {
+				return a.transport.Login(ctx, loginPath, map[string]any{"password": string(password)})
+			})
+			if useErr != nil {
+				a.bootstrapErr = mapTransportError(ref, useErr)
 				return
 			}
 			if strings.TrimSpace(token) == "" {
@@ -285,7 +305,3 @@ func kvDataFields(responseData map[string]any) (map[string]any, bool) {
 
 // compile-time: *Adapter is a secrets.Provider.
 var _ secrets.Provider = (*Adapter)(nil)
-
-// compile-time: the scheme constant matches what a "vault://" Reference reports, so a wiring drift
-// (binding this adapter under a different scheme key) is the composition root's explicit choice.
-var _ = scheme

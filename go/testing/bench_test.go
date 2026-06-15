@@ -59,7 +59,7 @@ func BenchmarkRunSuite(b *gotest.B) {
 		{Name: "a", Run: func(_ int, _ testingpkg.Harness, _ testingpkg.Report) {}},
 		{Name: "b", Run: func(_ int, h testingpkg.Harness, _ testingpkg.Report) { _ = h.Clock().Now() }},
 	}
-	suite := testingpkg.Suite[int]{Name: "bench", Cases: benchSeq(cases...)}
+	suite := testingpkg.Suite[int]{Name: "bench", Cases: testingtest.CaseSeq(cases...)}
 	b.ReportAllocs()
 	for b.Loop() {
 		sink = testingpkg.RunSuite(r, suite, factory)
@@ -89,16 +89,5 @@ func BenchmarkFakeClockAdvance(b *gotest.B) {
 		ch := clock.After(context.Background(), time.Second)
 		clock.Advance(time.Second)
 		sink = <-ch
-	}
-}
-
-// benchSeq turns a slice of cases into the iter.Seq the Suite expects.
-func benchSeq[S any](cases ...testingpkg.Case[S]) func(yield func(testingpkg.Case[S]) bool) {
-	return func(yield func(testingpkg.Case[S]) bool) {
-		for _, c := range cases {
-			if !yield(c) {
-				return
-			}
-		}
 	}
 }

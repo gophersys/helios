@@ -53,6 +53,113 @@ func RunParserSuite(t *testing.T, newParser parserFactory) {
 	t.Run("TotalConversions", func(t *testing.T) { assertTotalConversions(t, newParser) })
 	t.Run("ZeroValueSafety", func(t *testing.T) { assertZeroValueSafety(t) })
 	t.Run("MergeSemantics", func(t *testing.T) { assertMergeSemantics(t, newParser) })
+	t.Run("NestedDuplicatePathIsFull", func(t *testing.T) { assertNestedDuplicatePathIsFull(t, newParser) })
+	t.Run("CrossFormatValueEquivalence", func(t *testing.T) { assertCrossFormatValueEquivalence(t, newParser) })
+}
+
+// formatFixture pins one logical configuration expressed in each of the four
+// Formats, so a single conformance property can assert decoder uniformity
+// (a contract no single-format two-binding can see — it only proves fake≡real
+// for ONE Format at a time, never format-A≡format-B for the same value).
+type formatFixture struct {
+	format configuration.Format
+	name   string
+	body   string
+}
+
+// assertNestedDuplicatePathIsFull pins the cross-decoder Path contract: a
+// duplicate key NESTED under a parent must be reported at its FULL dotted Path
+// (engine.name), never a root-relative bare key (name). Every Format's decoder
+// is held to it, so a decoder that emits a parent-losing Path fails the suite.
+func assertNestedDuplicatePathIsFull(t *testing.T, newParser parserFactory) {
+	t.Helper()
+	const wantPath = configuration.Path("engine.name")
+	fixtures := []formatFixture{
+		{configuration.FormatJSON, "dup.json", `{"engine":{"name":1,"name":2}}`},
+		{configuration.FormatYAML, "dup.yaml", "engine:\n  name: 1\n  name: 2\n"},
+		{configuration.FormatTOML, "dup.toml", "[engine]\nname = 1\nname = 2\n"},
+		{configuration.FormatEnv, "dup.env", "engine.name=1\nengine.name=2\n"},
+	}
+	for _, fx := range fixtures {
+		t.Run(string(fx.format), func(t *testing.T) {
+			src := Source{Files: map[string][]byte{fx.name: []byte(fx.body)}}
+			p, err := newParser(configuration.Config{Format: fx.format}, configuration.Deps{Source: src})
+			if err != nil {
+				t.Fatalf("New(%s) err = %v, want nil", fx.format, err)
+			}
+			_, diags, err := p.Parse(context.Background(), fx.name)
+			if err != nil {
+				t.Fatalf("Parse(%s) err = %v, want nil", fx.format, err)
+			}
+			var dup *configuration.Diagnostic
+			for _, dg := range diags.All() {
+				if dg.Severity == configuration.SeverityError && dg.Path == wantPath {
+					d := dg
+					dup = &d
+					break
+				}
+			}
+			if dup == nil {
+				t.Fatalf("%s: no duplicate-key SeverityError at full Path %q; got %+v",
+					fx.format, wantPath, pathsOf(diags))
+			}
+		})
+	}
+}
+
+// assertCrossFormatValueEquivalence pins decoder uniformity: the SAME logical
+// value at the SAME Path, expressed in each Format (including a surrounding
+// quote pair), must resolve to the SAME string Value across all four decoders.
+// This is the only layer that can catch a per-decoder value divergence such as
+// env taking a quoted value verbatim while YAML/TOML strip the quotes.
+func assertCrossFormatValueEquivalence(t *testing.T, newParser parserFactory) {
+	t.Helper()
+	const wantValue = "prod"
+	const path = configuration.Path("engine.name")
+	fixtures := []formatFixture{
+		{configuration.FormatJSON, "eq.json", `{"engine":{"name":"prod"}}`},
+		{configuration.FormatYAML, "eq.yaml", "engine:\n  name: \"prod\"\n"},
+		{configuration.FormatTOML, "eq.toml", "[engine]\nname = \"prod\"\n"},
+		{configuration.FormatEnv, "eq.env", "engine.name=\"prod\"\n"},
+	}
+	for _, fx := range fixtures {
+		t.Run(string(fx.format), func(t *testing.T) {
+			src := Source{Files: map[string][]byte{fx.name: []byte(fx.body)}}
+			p, err := newParser(configuration.Config{Format: fx.format}, configuration.Deps{Source: src})
+			if err != nil {
+				t.Fatalf("New(%s) err = %v, want nil", fx.format, err)
+			}
+			doc, diags, err := p.Parse(context.Background(), fx.name)
+			if err != nil {
+				t.Fatalf("Parse(%s) err = %v, want nil", fx.format, err)
+			}
+			if diags.HasError() {
+				t.Fatalf("%s: clean fixture produced a SeverityError: %+v", fx.format, pathsOf(diags))
+			}
+			v, ok := doc.Lookup(path)
+			if !ok {
+				t.Fatalf("%s: Lookup(%q) ok == false", fx.format, path)
+			}
+			got, d := v.String()
+			if d != nil {
+				t.Fatalf("%s: String() at %q returned a mismatch Diagnostic %+v, want a string", fx.format, path, d)
+			}
+			if got != wantValue {
+				t.Fatalf("%s: %q resolved to %q, want %q (decoders diverged — a quoted scalar must strip identically)",
+					fx.format, path, got, wantValue)
+			}
+		})
+	}
+}
+
+// pathsOf renders the Paths of every finding for a readable assertion failure.
+func pathsOf(d configuration.Diagnostics) []configuration.Path {
+	all := d.All()
+	out := make([]configuration.Path, 0, len(all))
+	for _, dg := range all {
+		out = append(out, dg.Path)
+	}
+	return out
 }
 
 // parserFactory is the constructor shape every conformance property drives.

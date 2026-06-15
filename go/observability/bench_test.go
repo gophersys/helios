@@ -59,8 +59,9 @@ func BenchmarkNew(b *testing.B) {
 }
 
 // BenchmarkEmit measures the hottest path: one Event onto the stream (severity filter +
-// plane stamp + resource copy + buffered append under the lock). Every component emit
-// pays this.
+// plane stamp + resource stamp-by-reference + buffered append under the lock). Every
+// component emit pays this; the resource map is shared by reference (Record.Resource is
+// SHARED + READ-ONLY), so no per-Emit map copy is allocated.
 func BenchmarkEmit(b *testing.B) {
 	p := newBenchProvider(b)
 	ctx := context.Background()

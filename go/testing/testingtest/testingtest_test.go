@@ -7,6 +7,7 @@ package testingtest_test
 import (
 	"context"
 	"encoding/hex"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -407,5 +408,81 @@ func TestAssertResult_PassAndSkipDoNotFail(t *testing.T) {
 	})
 	if !ok {
 		t.Fatal("AssertResult failed t on a pass+skip-only Result")
+	}
+}
+
+// ── CaseSeq (the one home for slice→iter.Seq[Case]) ───────────────────────────.
+
+// CaseSeq yields exactly the cases it was given, in the given order, and no others.
+// This is the completeness+ordering half of the helper that every consuming suite
+// relies on to build Suite.Cases.
+func TestCaseSeq_YieldsAllCasesInOrder(t *testing.T) {
+	t.Parallel()
+	cases := []testingpkg.Case[int]{
+		{Name: "first"},
+		{Name: "second"},
+		{Name: "third"},
+	}
+	var got []string
+	for c := range testingtest.CaseSeq(cases...) {
+		got = append(got, c.Name)
+	}
+	want := []string{"first", "second", "third"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("CaseSeq order/completeness drift: got %v want %v", got, want)
+	}
+}
+
+// CaseSeq is a true iter.Seq: it HONORS early termination — when the consumer's
+// yield returns false (a `break` in a range-over-func), iteration stops and the
+// remaining cases are NOT produced. A naive `for { yield(c) }` that ignored yield's
+// bool return would over-yield past the break; this is what makes CaseSeq a correct
+// drop-in for the hand-rolled `if !yield(c) { return }` closures it replaced.
+//
+// Weaken-to-confirm: re-implement CaseSeq as
+//
+//	func CaseSeq[S any](cs ...Case[S]) iter.Seq[Case[S]] {
+//	    return func(yield func(Case[S]) bool) { for _, c := range cs { yield(c) } }
+//	}
+//
+// (dropping the `if !yield(c) { return }` guard, i.e. the slices.Values contract)
+// and this test FAILS: it observes all three names instead of stopping after the
+// first. The order test alone would still pass, so this guards the load-bearing half.
+func TestCaseSeq_HonorsEarlyStop(t *testing.T) {
+	t.Parallel()
+	cases := []testingpkg.Case[int]{
+		{Name: "first"},
+		{Name: "second"},
+		{Name: "third"},
+	}
+	var seen []string
+	for c := range testingtest.CaseSeq(cases...) {
+		seen = append(seen, c.Name)
+		break // stop after the first case — yield returns false
+	}
+	if len(seen) != 1 || seen[0] != "first" {
+		t.Fatalf("CaseSeq did not honor early stop: produced %v, want only [first]", seen)
+	}
+}
+
+// CaseSeq composes with RunSuite end-to-end: a Suite whose Cases is built by CaseSeq
+// runs every case exactly once (the integration the four deleted local helpers used
+// to prove). This pins CaseSeq as a behavior-preserving replacement for them.
+func TestCaseSeq_DrivesRunSuiteOverEveryCase(t *testing.T) {
+	t.Parallel()
+	r, err := testingpkg.New(testingpkg.Config{}, testingpkg.Deps{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []testingpkg.Case[int]{
+		{Name: "a", Run: func(int, testingpkg.Harness, testingpkg.Report) {}},
+		{Name: "b", Run: func(int, testingpkg.Harness, testingpkg.Report) {}},
+		{Name: "c", Run: func(int, testingpkg.Harness, testingpkg.Report) {}},
+	}
+	suite := testingpkg.Suite[int]{Name: "caseseq", Cases: testingtest.CaseSeq(cases...)}
+	factory := func(context.Context, testingpkg.Harness) (int, error) { return 0, nil }
+	res := testingpkg.RunSuite(r, suite, factory)
+	if res.Passed != 3 || res.Failed != 0 || res.Skipped != 0 {
+		t.Fatalf("CaseSeq-built suite did not run all 3 cases once: %dp %df %ds", res.Passed, res.Failed, res.Skipped)
 	}
 }

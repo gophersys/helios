@@ -364,10 +364,15 @@ func TestKindOfFindsFirstErrorInChain(t *testing.T) {
 	t.Parallel()
 	inner := errors.New(errors.KindNotFound, "inner")
 	mid := stderrors.Join(stderrors.New("noise"), inner)
-	outer := stderrors.New("foreign top") // not in chain of mid
-	_ = outer
 	if got := errors.KindOf(mid); got != errors.KindNotFound {
 		t.Errorf("KindOf(join with NotFound) = %v, want KindNotFound", got)
+	}
+
+	// A foreign error OUTSIDE mid's chain carries no Kind: KindOf must not borrow a
+	// classification from an unrelated sibling tree (the walk is chain-scoped, not global).
+	outer := stderrors.New("foreign top") // not in the chain of mid
+	if got := errors.KindOf(outer); got != errors.KindUnknown {
+		t.Errorf("KindOf(foreign outside chain) = %v, want KindUnknown", got)
 	}
 }
 

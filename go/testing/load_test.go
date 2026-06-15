@@ -27,17 +27,6 @@ func loadN() int {
 	return 500
 }
 
-// loadSeq turns a slice of cases into the iter.Seq the Suite expects.
-func loadSeq[S any](cases ...testingpkg.Case[S]) func(yield func(testingpkg.Case[S]) bool) {
-	return func(yield func(testingpkg.Case[S]) bool) {
-		for _, c := range cases {
-			if !yield(c) {
-				return
-			}
-		}
-	}
-}
-
 // TestLoad_ConcurrentRunSuiteRaceClean fans out N goroutines that each build a fresh Runner
 // and execute a Suite concurrently. RunSuite builds an independent per-case Harness (fresh
 // Clock/RandomSource) for isolation, so N concurrent runs must produce identical, race-free
@@ -67,7 +56,7 @@ func TestLoad_ConcurrentRunSuiteRaceClean(t *gotest.T) {
 			}
 		}},
 	}
-	suite := testingpkg.Suite[[]byte]{Name: "loadsuite", Cases: loadSeq(cases...)}
+	suite := testingpkg.Suite[[]byte]{Name: "loadsuite", Cases: testingtest.CaseSeq(cases...)}
 
 	// Every worker builds an INDEPENDENT Runner from the SAME deterministic Config/Deps: the
 	// invariant under test is that N concurrent RunSuite executions over independent Runners are
