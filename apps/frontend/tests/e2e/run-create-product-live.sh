@@ -50,26 +50,51 @@ if ! curl -fsS -o /dev/null --max-time 3 "${VAULT_ADDR}/v1/sys/health" 2>/dev/nu
   skip "Vault is not reachable at ${VAULT_ADDR}"
 fi
 
-# ── seed the token into Vault at the credential reference path (token piped, never echoed) ──
+# ── ensure the credential RESOLVES at the reference path (this runner never WRITES it) ──
+# The local Vault's agent userpass policy (eden-agent) is READ-ONLY by design — it grants `read` on
+# eden/data/development and nothing else (deploy/plane/local/vault-seed.sh §7). So this runner cannot
+# (and must not) write the secret via userpass: a POST 403s. The credential is OWNED by the Vault
+# lifecycle — `deploy/ctl.sh local up|seed` seeds it from .env.development using the root token. Here
+# we only VERIFY the ref resolves via the SAME userpass read path agentgateway-live uses server-side;
+# if it is absent we delegate the seed to deploy/ctl.sh (root path) and re-verify — never writing via
+# the read-only userpass token. No credential value is logged at any step.
 # Parse vault://<mount>/<path>#<key> -> mount, kv path, field.
 REF_BODY="${EDEN_CREDENTIAL_REF#vault://}"
 REF_PATH="${REF_BODY%%#*}"
 REF_KEY="${REF_BODY##*#}"
 VAULT_MOUNT="${REF_PATH%%/*}"
 VAULT_KV_PATH="${REF_PATH#*/}"
-log "authenticating to Vault to seed the credential at ${EDEN_CREDENTIAL_REF} (token value never logged)"
-VAULT_TOKEN="$(curl -fsS --max-time 5 \
-  --request POST "${VAULT_ADDR}/v1/auth/userpass/login/${VAULT_USERNAME:-eden}" \
-  --data "{\"password\":\"${VAULT_PASSWORD}\"}" 2>/dev/null | grep -o '"client_token":"[^"]*"' | cut -d'"' -f4)" || true
-[[ -n "$VAULT_TOKEN" ]] || skip "could not authenticate to Vault (userpass)"
-# Write the KV-v2 secret; the token rides the request body only.
-SEED_STATUS="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
-  --header "X-Vault-Token: ${VAULT_TOKEN}" \
-  --request POST "${VAULT_ADDR}/v1/${VAULT_MOUNT}/data/${VAULT_KV_PATH}" \
-  --data "{\"data\":{\"${REF_KEY}\":\"${LIVE_TOKEN}\"}}" 2>/dev/null)" || true
+
+userpass_token() {
+  curl -fsS --max-time 5 \
+    --request POST "${VAULT_ADDR}/v1/auth/userpass/login/${VAULT_USERNAME:-eden}" \
+    --data "{\"password\":\"${VAULT_PASSWORD}\"}" 2>/dev/null \
+    | grep -o '"client_token":"[^"]*"' | cut -d'"' -f4
+}
+# credential_present "$tok" -> 0 iff the KV field NAME is present (checks the name only, never the value).
+credential_present() {
+  curl -fsS --max-time 5 --header "X-Vault-Token: $1" \
+    "${VAULT_ADDR}/v1/${VAULT_MOUNT}/data/${VAULT_KV_PATH}" 2>/dev/null \
+    | grep -q "\"${REF_KEY}\""
+}
+
+log "verifying ${EDEN_CREDENTIAL_REF} resolves via userpass '${VAULT_USERNAME:-eden}' (read-only; the gateway uses the same path) ..."
+VAULT_TOKEN="$(userpass_token)" || true
+[[ -n "$VAULT_TOKEN" ]] || skip "could not authenticate to Vault (userpass ${VAULT_USERNAME:-eden})"
+
+if credential_present "$VAULT_TOKEN"; then
+  log "credential already present at ${EDEN_CREDENTIAL_REF}; agentgateway-live will resolve it server-side"
+else
+  log "credential absent; delegating the seed to 'deploy/ctl.sh local seed' (root path, reads .env.development) ..."
+  unset VAULT_TOKEN
+  ( cd "$REPO_ROOT" && VAULT_PASSWORD="$VAULT_PASSWORD" bash deploy/ctl.sh local seed >/dev/null 2>&1 ) \
+    || skip "deploy/ctl.sh local seed failed (could not seed the credential)"
+  VAULT_TOKEN="$(userpass_token)" || true
+  { [[ -n "$VAULT_TOKEN" ]] && credential_present "$VAULT_TOKEN"; } \
+    || skip "credential still absent after seeding via deploy/ctl.sh"
+  log "credential seeded via deploy/ctl.sh; agentgateway-live will resolve it server-side"
+fi
 unset LIVE_TOKEN VAULT_TOKEN
-[[ "$SEED_STATUS" =~ ^2 ]] || skip "failed to seed the credential into Vault (status ${SEED_STATUS})"
-log "credential seeded into Vault; agentgateway-live will resolve it server-side"
 
 DEV_PID=""; PREVIEW_PID=""
 cleanup() {

@@ -596,6 +596,10 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
   test('real propose returns a sane config; the real agent streams its first response', async ({
     page,
   }) => {
+    // A real claude turn (propose + a live agent starting work) takes far longer than the suite
+    // default — and longer than this test's own inner waits. Give it a real budget so the test
+    // never guillotines its own assertions (the 60s-default-vs-90s-wait bug this arm first hit).
+    test.setTimeout(240_000);
     await openChat(page);
     await page.getByTestId('new-session').first().click();
     await expect(page.getByTestId('product-wizard')).toBeVisible();
@@ -641,10 +645,22 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
     await page.getByTestId('wizard-launch').click();
     await expect(page.getByTestId('product-wizard')).toBeHidden({ timeout: 60_000 });
 
-    // The REAL agent streams its first response over the live SSE stream.
+    // The REAL agent begins its turn over the live SSE stream. A real implementer agent's FIRST
+    // emitted event kind is non-deterministic — it may lead with a thinking block, a tool call, an
+    // out-of-grant permission request, or plain assistant text. So we wait for ANY of those to
+    // render (not assistant-text specifically): every one of them proves the live FE⇄gateway⇄claude
+    // stream is alive and the real agent is doing real work. (The simple-prompt path is exercised
+    // exactly — `Hello from Eden.` — by tests/e2e/run-create-product-live.sh's transcript probe.)
     await expect(page.getByTestId('active-harness')).toHaveText('claude');
-    const firstAssistant = page.getByTestId('assistant-text').first();
-    await expect(firstAssistant).not.toBeEmpty({ timeout: 90_000 });
+    const firstActivity = page
+      .getByTestId('assistant-text')
+      .or(page.getByTestId('thinking-block'))
+      .or(page.getByTestId('tool-call'))
+      .or(page.getByTestId('permission-card'))
+      .first();
+    await expect(firstActivity, 'the real agent must stream a first response').toBeVisible({
+      timeout: 120_000,
+    });
 
     // If the live agent asks for an out-of-grant tool, the permission card is interactive (Allow it).
     const card = page.getByTestId('permission-card');
