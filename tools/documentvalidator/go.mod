@@ -3,11 +3,12 @@ module github.com/gophersys/eden/tools/documentvalidator
 go 1.26
 
 require (
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
+	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	golang.org/x/text v0.37.0 // indirect

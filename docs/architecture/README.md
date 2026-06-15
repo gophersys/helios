@@ -62,6 +62,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 12 | [Presentation layer](12-presentation-layer.md) | Visual-first thesis, view altitudes A0–A4, diagram-as-projection, navigation/IA | Draft |
 | 13 | [Versioning & git workflow](13-versioning-and-git-workflow.md) | One workflow machine for all artifact classes; branch/commit grammar; worktrees; merge agents; per-class versioning | Draft |
 | 14 | [Library engineering pipeline](14-library-engineering-pipeline.md) | The four-phase library SDLC + the 8-dimension test taxonomy + per-phase gates | Draft |
+| 16 | [Application template system](16-application-template-system.md) | The application-templates submodule; sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
 | — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
@@ -98,6 +99,7 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Threat model, credential & sandbox rules | 07 |
 | Test layers, mutation/spec-determinacy instruments | 08 |
 | Library engineering pipeline (four phases) + the 8-dimension test taxonomy + phase gates | 14 (ADR-0020) |
+| Application template system (the submodule, 5-files-per-route, sqlc/pgx, OpenAPI-first, two codegen axes, libs-assembly, .claude enforcement) | 16 (ADR-0023) |
 | Workstreams, interface negotiation protocol, milestones | 09 |
 | Evidence interface, Spec envelope, harness senses | upstream spec-driven (cited via 02) |
 | Cell parameter vector D1–D5, **cell invariants I1–I10**, topology selector | upstream corpus doc 04 |
