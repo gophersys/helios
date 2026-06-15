@@ -71,7 +71,7 @@ type WorktreeOptions struct{ ... }
     func New() *Backend
 const SeededCanary = "S3CR3T-canary-do-not-leak"
 func NewRealRepo(t TestingT, seed RepoSeed) (dir string, repository *gitrepository.Repository)
-func Run(t *testing.T, newBackend func() gitrepository.Backend)
+func RunBackendSuite(t *testing.T, newBackend func() gitrepository.Backend)
 type Backend struct{ ... }
 type RepoSeed struct{ ... }
 type SeedCommit struct{ ... }

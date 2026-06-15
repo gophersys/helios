@@ -47,7 +47,7 @@ type Mode uint8
 
 const (
 	// ModeUserpass is the LOCAL path: exchange a userpass username/password for a token via
-	// auth/userpass/login/<user>. The credential pair is injected through Dependencies.
+	// auth/userpass/login/<user>. The credential pair is injected through Deps.
 	ModeUserpass Mode = iota
 	// ModeTokenFile is the PRODUCTION path: read a Vault token from TokenFilePath (the K8s-SA
 	// sidecar output), re-reading it before each Resolve so a sidecar refresh is honored.
@@ -73,10 +73,10 @@ type Config struct {
 	Namespace string
 }
 
-// Dependencies is the injected hexagon: the userpass credential (ModeUserpass) and the seams a
+// Deps is the injected hexagon: the userpass credential (ModeUserpass) and the seams a
 // test substitutes (the Vault transport and the token-file reader). Accepting interfaces here is
 // the accept-interfaces rule; New returns the concrete *Adapter.
-type Dependencies struct {
+type Deps struct {
 	// Username / Password are the userpass credential (ModeUserpass only). Password is a
 	// *secrets.Reference resolved through an already-wired Provider so the bootstrap credential
 	// is itself never an inline literal — but for the bootstrap-from-env LOCAL path it is the raw
@@ -111,7 +111,7 @@ type Transport interface {
 }
 
 // Adapter is the concrete secrets.Provider returned by New. It holds the immutable Config, the
-// injected Dependencies, and a once-guarded bootstrap so the userpass login happens exactly once
+// injected Deps, and a once-guarded bootstrap so the userpass login happens exactly once
 // across concurrent Resolves. Safe for concurrent use. Zero value is not usable; construct via New.
 type Adapter struct {
 	configuration Config
@@ -130,7 +130,7 @@ type Adapter struct {
 // validates the configuration + dependencies for the chosen Mode, defaults the optional seams to
 // their real implementations, and returns the concrete *Adapter. The login / token-file read /
 // KV read all happen lazily on Resolve.
-func New(configuration Config, dependencies Dependencies) (*Adapter, error) {
+func New(configuration Config, dependencies Deps) (*Adapter, error) {
 	if strings.TrimSpace(configuration.Address) == "" {
 		return nil, errors.Wrap(errors.KindInvalid, "vaultadapter.New: Config.Address is required", errInvalidConfig)
 	}
@@ -153,7 +153,7 @@ func New(configuration Config, dependencies Dependencies) (*Adapter, error) {
 	case ModeUserpass:
 		if strings.TrimSpace(dependencies.Username) == "" || dependencies.Password == "" {
 			return nil, errors.Wrap(errors.KindInvalid,
-				"vaultadapter.New: ModeUserpass requires Dependencies.Username and Dependencies.Password", errInvalidConfig)
+				"vaultadapter.New: ModeUserpass requires Deps.Username and Deps.Password", errInvalidConfig)
 		}
 	case ModeTokenFile:
 		if strings.TrimSpace(configuration.TokenFilePath) == "" {

@@ -30,7 +30,7 @@ var allKinds = []struct {
 }
 
 // Declared sentinel fixtures for the conformance suite. conformance.go is
-// production code in the fakes package (it exports RunConformance), so it is held
+// production code in the fakes package (it exports RunErrorsSuite), so it is held
 // to the production error bar: a comparable fixture error is a named, declared
 // sentinel, never minted inline at the assertion site (the error-handling rule).
 var (
@@ -38,8 +38,8 @@ var (
 	errSentinel = stderrors.New("conformance: wrapped sentinel cause")
 )
 
-// RunConformance asserts the errors contract holds for the production verbs.
-func RunConformance(t *testing.T) {
+// RunErrorsSuite asserts the errors contract holds for the production verbs.
+func RunErrorsSuite(t *testing.T) {
 	t.Helper()
 	t.Run("KindTotality", conformanceKindTotality)
 	t.Run("KindTokenStability", conformanceKindTokenStability)

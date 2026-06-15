@@ -19,13 +19,13 @@ const SeededCanary = "S3CR3T-canary-do-not-leak"
 // canaryRef is the secrets.Reference the seeded canary resolves under.
 const canaryRef = "vault://eden/git#token"
 
-// Run drives any gitrepository.Backend through the substitutability properties (contract §4).
-// The unit arm runs the in-memory fake; the live arm (//go:build integration) runs the SAME
-// Run against the real system-git Backend. newBackend builds a FRESH Backend per case so cases
-// never share mutable model state.
+// RunBackendSuite drives any gitrepository.Backend through the substitutability properties
+// (contract §4). The unit arm runs the in-memory fake; the live arm (//go:build integration) runs
+// the SAME suite against the real system-git Backend. newBackend builds a FRESH Backend per case
+// so cases never share mutable model state.
 //
-//nolint:thelper // Run IS the suite entrypoint; subtests carry t directly.
-func Run(t *testing.T, newBackend func() gitrepository.Backend) {
+//nolint:thelper // RunBackendSuite IS the suite entrypoint; subtests carry t directly.
+func RunBackendSuite(t *testing.T, newBackend func() gitrepository.Backend) {
 	t.Run("NeverAMergeEngine", func(t *testing.T) { assertNeverMergeEngine(t) })
 	t.Run("PureSpineNoIO", func(t *testing.T) { assertPureSpine(t, newBackend) })
 	t.Run("ValueRoundTrips", func(t *testing.T) { assertValueRoundTrips(t) })

@@ -13,8 +13,8 @@
 // Module: github.com/gophersys/libs/go/objectstorage
 //
 // Concurrency: ObjectRef / ObjectInfo / PutOptions / PresignOptions are immutable values, safe
-// to share. A *Store is safe for concurrent use by multiple goroutines iff its injected Backend
-// is (the real minioadapter Backend is). Zero value: a Store is not usable; construct via New.
+// to share. A *Client is safe for concurrent use by multiple goroutines iff its injected Backend
+// is (the real minioadapter Backend is). Zero value: a Client is not usable; construct via New.
 package objectstorage
 
 import (
@@ -175,7 +175,7 @@ func (m PresignMethod) String() string {
 
 // ObjectStore is the five-method consumer port — the library's load-bearing surface, at the
 // 5-method ceiling (10 §9). It is consumer-defined: it expresses exactly the blob operations a
-// caller needs, not a mirror of the S3 SDK. Accept this interface; return the concrete *Store.
+// caller needs, not a mirror of the S3 SDK. Accept this interface; return the concrete *Client.
 // Implementations MUST be safe for concurrent use by multiple goroutines.
 type ObjectStore interface {
 	// Put streams body (exactly options.Size bytes) into the object at ref and returns the stored
@@ -200,14 +200,14 @@ type ObjectStore interface {
 	List(ctx context.Context, bucket, prefix string) ([]ObjectInfo, error)
 }
 
-// Backend is the narrow adapter seam (≤5 methods, 10 §9) the root *Store delegates to and an
+// Backend is the narrow adapter seam (≤5 methods, 10 §9) the root *Client delegates to and an
 // adapter (minioadapter) implements over the real SDK. It is consumer-defined here — the shape of
 // THIS store's need — not a mirror of minio-go. A test substitutes an in-memory fake Backend to
 // exercise the store's validation/mapping logic without a daemon; the REAL-MinIO proof is the
 // //go:build integration lane (ADR-0016 §2), never this fake.
 //
 // A Backend returns the SAME typed taxonomy the port surfaces (InvalidError / NotFoundError /
-// DeniedError / UnavailableError), so *Store passes a Backend error through unchanged — the
+// DeniedError / UnavailableError), so *Client passes a Backend error through unchanged — the
 // mapping from an S3 status to the taxonomy is the adapter's job, in one place.
 type Backend interface {
 	// PutObject streams exactly size bytes of body into ref, returning the stored ObjectInfo.
@@ -223,7 +223,7 @@ type Backend interface {
 }
 
 // Config is the immutable, fully-resolved construction input (the configuration pattern). It is
-// SDK-free and credential-free: the root Store needs no endpoint or credential of its own — those
+// SDK-free and credential-free: the root Client needs no endpoint or credential of its own — those
 // live in the adapter's Config. This Config carries only the port-level policy knobs.
 type Config struct {
 	// MaxPresignExpiry caps the Expiry a caller may request on Presign (0 selects the default of
@@ -232,8 +232,8 @@ type Config struct {
 	MaxPresignExpiry time.Duration
 }
 
-// Deps is the injected hexagon: the Backend the Store delegates to. Accepting the interface here
-// is the accept-interfaces rule; New returns the concrete *Store. The Backend is REQUIRED.
+// Deps is the injected hexagon: the Backend the Client delegates to. Accepting the interface here
+// is the accept-interfaces rule; New returns the concrete *Client. The Backend is REQUIRED.
 type Deps struct {
 	// Backend is the object-store adapter (minioadapter in production, a fake in tests). Required.
 	Backend Backend
@@ -247,18 +247,18 @@ const defaultMaxPresignExpiry = 7 * 24 * time.Hour
 // the composition root can branch via errors.Is; it carries KindInvalid because Deps is malformed.
 var errInvalidConfig = errors.New(errors.KindInvalid, "objectstorage.New: invalid dependencies")
 
-// Store is the concrete ObjectStore returned by New. It holds the immutable Config and the
+// Client is the concrete ObjectStore returned by New. It holds the immutable Config and the
 // injected Backend, validating each ref + options at the port boundary before delegating. Safe
 // for concurrent use iff the Backend is. Zero value is not usable; construct via New.
-type Store struct {
+type Client struct {
 	maxPresignExpiry time.Duration
 	backend          Backend
 }
 
 // New is the constructor spine (10 §9). PURE: no I/O, no env reads, no clock, no daemon dial. It
-// validates Deps, defaults the Config knobs, and returns the concrete *Store. The first network
-// call is the first ObjectStore method on the returned Store.
-func New(configuration Config, dependencies Deps) (*Store, error) {
+// validates Deps, defaults the Config knobs, and returns the concrete *Client. The first network
+// call is the first ObjectStore method on the returned Client.
+func New(configuration Config, dependencies Deps) (*Client, error) {
 	if dependencies.Backend == nil {
 		return nil, errors.Wrap(errors.KindInvalid, "objectstorage.New: Deps.Backend is required", errInvalidConfig)
 	}
@@ -266,12 +266,12 @@ func New(configuration Config, dependencies Deps) (*Store, error) {
 	if maxExpiry <= 0 {
 		maxExpiry = defaultMaxPresignExpiry
 	}
-	return &Store{maxPresignExpiry: maxExpiry, backend: dependencies.Backend}, nil
+	return &Client{maxPresignExpiry: maxExpiry, backend: dependencies.Backend}, nil
 }
 
 // Put validates ref + options and streams the body through the Backend, returning the stored
 // ObjectInfo. A zero ref or a negative Size is rejected with an InvalidError before any I/O.
-func (s *Store) Put(ctx context.Context, ref ObjectRef, body io.Reader, options PutOptions) (ObjectInfo, error) {
+func (s *Client) Put(ctx context.Context, ref ObjectRef, body io.Reader, options PutOptions) (ObjectInfo, error) {
 	if err := validateRef(ref); err != nil {
 		return ObjectInfo{}, err
 	}
@@ -290,7 +290,7 @@ func (s *Store) Put(ctx context.Context, ref ObjectRef, body io.Reader, options 
 
 // Get validates ref and opens the object through the Backend. The caller owns and must Close the
 // returned ReadCloser. It never returns a non-nil ReadCloser together with a non-nil error.
-func (s *Store) Get(ctx context.Context, ref ObjectRef) (io.ReadCloser, ObjectInfo, error) {
+func (s *Client) Get(ctx context.Context, ref ObjectRef) (io.ReadCloser, ObjectInfo, error) {
 	if err := validateRef(ref); err != nil {
 		return nil, ObjectInfo{}, err
 	}
@@ -303,7 +303,7 @@ func (s *Store) Get(ctx context.Context, ref ObjectRef) (io.ReadCloser, ObjectIn
 
 // Delete validates ref and removes the object through the Backend. Deleting an absent object is
 // not an error (idempotent), so a retried teardown is safe.
-func (s *Store) Delete(ctx context.Context, ref ObjectRef) error {
+func (s *Client) Delete(ctx context.Context, ref ObjectRef) error {
 	if err := validateRef(ref); err != nil {
 		return err
 	}
@@ -315,7 +315,7 @@ func (s *Store) Delete(ctx context.Context, ref ObjectRef) error {
 
 // Presign validates ref + options (Expiry must be in (0, MaxPresignExpiry]) and returns a signed,
 // credential-free URL through the Backend.
-func (s *Store) Presign(ctx context.Context, ref ObjectRef, options PresignOptions) (*url.URL, error) {
+func (s *Client) Presign(ctx context.Context, ref ObjectRef, options PresignOptions) (*url.URL, error) {
 	if err := validateRef(ref); err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (s *Store) Presign(ctx context.Context, ref ObjectRef, options PresignOptio
 // List validates the bucket and returns the metadata of every object whose key starts with
 // prefix. A blank bucket is an InvalidError; a non-existent bucket surfaces the Backend's
 // NotFoundError.
-func (s *Store) List(ctx context.Context, bucket, prefix string) ([]ObjectInfo, error) {
+func (s *Client) List(ctx context.Context, bucket, prefix string) ([]ObjectInfo, error) {
 	if !validBucket(bucket) {
 		return nil, InvalidError{Ref: ObjectRef{bucket: bucket}, Reason: "bucket"}
 	}
@@ -353,5 +353,5 @@ func validateRef(ref ObjectRef) error {
 	return nil
 }
 
-// compile-time: *Store is an ObjectStore (accept interfaces, return concrete — 10 §9).
-var _ ObjectStore = (*Store)(nil)
+// compile-time: *Client is an ObjectStore (accept interfaces, return concrete — 10 §9).
+var _ ObjectStore = (*Client)(nil)

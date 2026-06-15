@@ -103,7 +103,7 @@ func runSuiteGit(t *testing.T, dir string, args ...string) {
 
 // pushOptions builds a PushOptions for a remote+branch with the canary credential reference.
 func pushOptions(remote string, branch gitrepository.BranchName) gitrepository.PushOptions {
-	return gitrepository.PushOptions{Remote: remote, LocalRef: branch, Auth: secrets.Ref(canaryRef)}
+	return gitrepository.PushOptions{Remote: remote, LocalRef: branch, Credential: secrets.Ref(canaryRef)}
 }
 
 // assertCredentialNeverLeaksImpl proves the credential resolves via Deps.Secrets exactly when a
@@ -145,9 +145,9 @@ func assertCredentialNeverLeaksImpl(t *testing.T, newBackend func() gitrepositor
 	badProvider := secretstest.New(nil).FailWith(badRef, secrets.NotFoundError{Ref: secrets.Ref(badRef)})
 	badRepo := buildRepository(t, backend, fix.root, map[string]string{"origin": remoteURL}, badProvider)
 	_, err := badRepo.Fetch(ctx, gitrepository.FetchOptions{
-		Remote: "origin",
-		Refs:   []gitrepository.Ref{{Remote: "origin", Branch: branch}},
-		Auth:   secrets.Ref(badRef),
+		Remote:     "origin",
+		Refs:       []gitrepository.Ref{{Remote: "origin", Branch: branch}},
+		Credential: secrets.Ref(badRef),
 	})
 	if err == nil {
 		t.Errorf("Fetch with a rejected credential reference must fail")

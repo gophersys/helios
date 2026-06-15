@@ -15,7 +15,7 @@ import (
 // substitutability properties the real adapter does (08 §2).
 func TestFakeConformance(t *testing.T) {
 	t.Parallel()
-	observabilitytest.RunFakeConformance(t)
+	observabilitytest.RunProviderSuiteWithFake(t)
 }
 
 // ── kernel-injection fake behavior (the *Provider obtained from New) ────────.

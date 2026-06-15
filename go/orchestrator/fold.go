@@ -115,14 +115,14 @@ func envToProvider(env map[string]string) []workspaceprovider.EnvVar {
 // repoMount maps an optional RepoMount onto a frozen Bind mount (the clone is
 // gitrepository's concern, threaded through workspaceprovider). The zero RepoMount means
 // "empty workspace" and yields no mount.
-func repoMount(repo RepoMount) (workspaceprovider.Mount, bool) {
-	if repo.URL == "" {
+func repoMount(repository RepoMount) (workspaceprovider.Mount, bool) {
+	if repository.URL == "" {
 		return workspaceprovider.Mount{}, false
 	}
 	return workspaceprovider.Mount{
 		Kind:   workspaceprovider.MountBind,
 		Target: defaultWorkDir,
-		Source: repo.URL,
+		Source: repository.URL,
 	}, true
 }
 

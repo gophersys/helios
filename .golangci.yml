@@ -149,6 +149,29 @@ linters:
           msg: 'HNS-1 (10 §5): write "observability", never "o11y".'
         - pattern: '\bgolang\b'
           msg: 'HNS-1 (10 §5): write "go", never "golang".'
+        # 1:1 MIRROR of hnslint's structural banned-token set, completing the pair
+        # so the two enforcers agree on the SAME token set (the founder ruling,
+        # 2026-06-15). These are the lowercase identifier/alias forms — exactly the
+        # `Config`/`Deps`-style entries above: a word-boundary lowercase pattern
+        # that catches the banned token used AS A NAME (a local/field/alias) while
+        # the idiomatic CAPITALIZED identifier is left to hnslint's
+        # banned-exported-identifier check (which distinguishes a bare `Store` from
+        # a meaningful compound `ObjectStore`, and bans the spine-type outliers
+        # `Configuration`/`Dependencies`). Lowercase anchoring also spares the
+        # stdlib `atomic.Store` method (capitalized) and a third-party `secret.Auth`
+        # selector — neither is a lowercase Eden name.
+        - pattern: '\bauth\b'
+          msg: 'HNS-1 (10 §5): write "identity", never "auth" as a name.'
+        - pattern: '\bdb\b'
+          msg: 'HNS-1 (10 §5): write "persistence", never "db" as a name.'
+        - pattern: '\brepo\b'
+          msg: 'HNS-1 (10 §5): write "repository"/"persistence", never "repo" as a name.'
+        - pattern: '\bstore\b'
+          msg: 'HNS-1 (10 §5): write "persistence" or a meaningful compound (objectStore/desiredStore), never a bare "store" as a name.'
+        - pattern: '\bts\b'
+          msg: 'HNS-1 (10 §5): write "typescript", never "ts" as a name.'
+        - pattern: '\bcore\b'
+          msg: 'HNS-1 (10 §5): "core" is banned outright — name the actual pattern.'
         - pattern: '\butil\b'
           msg: 'HNS-1 (10 §5): "util" is banned outright — name the actual pattern.'
         - pattern: '\butils\b'

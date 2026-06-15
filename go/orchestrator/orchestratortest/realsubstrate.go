@@ -39,13 +39,13 @@ import (
 // orchestrator THINNED (it owns desired-state and Probes the supervised Status, never raw
 // heartbeats). No mock of any of those substrates.
 type RealHarness struct {
-	pool     *orchestrator.Pool
-	store    *PostgresStore
-	provider *workspaceprovider.Provisioner
-	sessions agentsession.Factory
-	probe    *SupervisedProbe
-	control  *nats.Conn
-	clock    *Clock
+	pool          *orchestrator.Pool
+	postgresStore *PostgresStore
+	provider      *workspaceprovider.Provisioner
+	sessions      agentsession.Factory
+	probe         *SupervisedProbe
+	control       *nats.Conn
+	clock         *Clock
 }
 
 // RealConfig is the resolved input for a RealHarness (the entrypoint command the workload
@@ -74,11 +74,11 @@ func NewRealHarness(t *testing.T, adapter workspaceprovider.Adapter, substrate o
 	provider := newRealProvider(t, adapter, substrate, secretsProvider)
 
 	dsn := startPostgres(t)
-	store, err := NewPostgresStore(ctx, dsn)
+	postgresStore, err := NewPostgresStore(ctx, dsn)
 	if err != nil {
 		t.Fatalf("connect real postgres DesiredStore: %v", err)
 	}
-	t.Cleanup(store.Close)
+	t.Cleanup(postgresStore.Close)
 
 	natsURL := startEmbeddedNATS(t)
 	control, err := nats.Connect(natsURL, nats.Timeout(5*time.Second))
@@ -87,7 +87,7 @@ func NewRealHarness(t *testing.T, adapter workspaceprovider.Adapter, substrate o
 	}
 	t.Cleanup(control.Close)
 
-	probe := NewSupervisedProbe(provider, &storeResolver{store: store})
+	probe := NewSupervisedProbe(provider, &storeResolver{postgresStore: postgresStore})
 	sessions := buildRealSessions(secretsProvider)
 	clock := NewClock()
 
@@ -99,7 +99,7 @@ func NewRealHarness(t *testing.T, adapter workspaceprovider.Adapter, substrate o
 			RetentionWindow:      24 * time.Hour,
 		},
 		orchestrator.Deps{
-			Desired:    store,
+			Desired:    postgresStore,
 			Templates:  NewTemplateStore(realTemplate(&configuration)),
 			Secrets:    secretsProvider,
 			Telemetry:  &Telemetry{},
@@ -114,13 +114,13 @@ func NewRealHarness(t *testing.T, adapter workspaceprovider.Adapter, substrate o
 	}
 
 	return &RealHarness{
-		pool:     pool,
-		store:    store,
-		provider: provider,
-		sessions: sessions,
-		probe:    probe,
-		control:  control,
-		clock:    clock,
+		pool:          pool,
+		postgresStore: postgresStore,
+		provider:      provider,
+		sessions:      sessions,
+		probe:         probe,
+		control:       control,
+		clock:         clock,
 	}
 }
 
@@ -133,9 +133,9 @@ func (h *RealHarness) Pool() *orchestrator.Pool { return h.pool }
 //nolint:ireturn // returns the frozen workspaceprovider.Supervisor port the probe reads.
 func (h *RealHarness) Supervisor() workspaceprovider.Supervisor { return h.provider }
 
-// Store exposes the real Postgres DesiredStore (so a test asserts the persisted record shape /
-// the no-leak history).
-func (h *RealHarness) Store() *PostgresStore { return h.store }
+// DesiredStore exposes the real Postgres desired-state store (so a test asserts the persisted
+// record shape / the no-leak history).
+func (h *RealHarness) DesiredStore() *PostgresStore { return h.postgresStore }
 
 // Reconcile drives ONE deterministic reconcile pass over the REAL ports (no goroutine), so a
 // test asserts exact transitions against the live substrate.
@@ -212,7 +212,7 @@ func (h *RealHarness) Advance(d time.Duration) { h.clock.Advance(d) }
 // Resume re-provisions and re-attaches. It reads the handle off the REAL Postgres record (the
 // durable state that survives the recycle). Returns false when the agent has no live workspace.
 func (h *RealHarness) RecycleNode(ctx context.Context, id orchestrator.AgentID) (bool, error) {
-	agent, err := h.store.Get(ctx, id)
+	agent, err := h.postgresStore.Get(ctx, id)
 	if err != nil || agent.Workspace.IsZero() {
 		return false, nil //nolint:nilerr // no live workspace to recycle is not an error here.
 	}
@@ -263,12 +263,12 @@ func (h *RealHarness) Resume(ctx context.Context, id orchestrator.AgentID, by st
 // real Postgres DesiredStore — the SupervisedProbe's HandleResolver. It reads the SAME durable
 // record the orchestrator wrote, so the probe's supervised read is keyed off persisted state
 // (the multi-node, stateless-restart property).
-type storeResolver struct{ store *PostgresStore }
+type storeResolver struct{ postgresStore *PostgresStore }
 
 // HandleFor reads the agent's record and returns its workspace Handle + ledger; ok=false when
 // the record is absent or has no workspace yet (Pending).
 func (r *storeResolver) HandleFor(ctx context.Context, id orchestrator.AgentID) (workspaceprovider.Handle, agentsession.TokenLedger, bool) {
-	agent, err := r.store.Get(ctx, id)
+	agent, err := r.postgresStore.Get(ctx, id)
 	if err != nil || agent.Workspace.IsZero() {
 		return workspaceprovider.Handle{}, agentsession.TokenLedger{}, false
 	}

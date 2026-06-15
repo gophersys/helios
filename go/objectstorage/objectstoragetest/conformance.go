@@ -23,7 +23,7 @@ const SeededCredentialCanary = "OBJSTORE-CANARY-akia-d34db33f-do-not-leak" // #n
 // store, so the subtests are independent and run in parallel.
 //
 // This is the SINGLE suite both bindings run: the in-memory fake here (conformance_test.go) and
-// the REAL MinIO-backed *Store in the integration lane (minioadapter/integration_test.go). The
+// the REAL MinIO-backed *Client in the integration lane (minioadapter/integration_test.go). The
 // fake weakens only the byte source, never the contract (ADR-0016 §2).
 func RunStoreSuite(t *testing.T, newStore func() objectstorage.ObjectStore, bucket string) {
 	t.Helper()
@@ -73,12 +73,12 @@ func ref(t *testing.T, bucket, key string) objectstorage.ObjectRef {
 
 // assertRoundTrip: Put then Get returns the SAME bytes byte-for-byte, and the ObjectInfo size and
 // ETag agree across the two calls (the load-bearing round-trip property).
-func assertRoundTrip(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertRoundTrip(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
 	ctx := context.Background()
 	r := ref(t, bucket, "conformance/round-trip.bin")
 
-	putInfo, err := store.Put(ctx, r, bytes.NewReader(SeededPayload), objectstorage.PutOptions{
+	putInfo, err := objectStore.Put(ctx, r, bytes.NewReader(SeededPayload), objectstorage.PutOptions{
 		ContentType: "application/octet-stream",
 		Size:        int64(len(SeededPayload)),
 	})
@@ -89,7 +89,7 @@ func assertRoundTrip(t *testing.T, store objectstorage.ObjectStore, bucket strin
 		t.Errorf("Put ObjectInfo.Size = %d, want %d", putInfo.Size, len(SeededPayload))
 	}
 
-	reader, getInfo, err := store.Get(ctx, r)
+	reader, getInfo, err := objectStore.Get(ctx, r)
 	if err != nil {
 		t.Fatalf("Get error = %v", err)
 	}
@@ -111,15 +111,15 @@ func assertRoundTrip(t *testing.T, store objectstorage.ObjectStore, bucket strin
 	if putInfo.ETag != "" && getInfo.ETag != putInfo.ETag {
 		t.Errorf("ETag drift: Put %q != Get %q", putInfo.ETag, getInfo.ETag)
 	}
-	if err := store.Delete(ctx, r); err != nil {
+	if err := objectStore.Delete(ctx, r); err != nil {
 		t.Errorf("cleanup Delete error = %v", err)
 	}
 }
 
 // assertAbsentNotFound: Get on a never-Put object yields AsType[NotFoundError] and a nil reader.
-func assertAbsentNotFound(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertAbsentNotFound(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
-	reader, _, err := store.Get(context.Background(), ref(t, bucket, "conformance/never-put.bin"))
+	reader, _, err := objectStore.Get(context.Background(), ref(t, bucket, "conformance/never-put.bin"))
 	if reader != nil {
 		t.Error("Get(absent) returned a non-nil reader with an error")
 	}
@@ -133,60 +133,60 @@ func assertAbsentNotFound(t *testing.T, store objectstorage.ObjectStore, bucket 
 
 // assertDeleteIdempotent: deleting an absent object is not an error, and a Put→Delete→Get yields
 // NotFound (the object is gone).
-func assertDeleteIdempotent(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertDeleteIdempotent(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
 	ctx := context.Background()
 	r := ref(t, bucket, "conformance/idempotent-delete.bin")
 
-	if err := store.Delete(ctx, r); err != nil {
+	if err := objectStore.Delete(ctx, r); err != nil {
 		t.Errorf("Delete(absent) error = %v, want nil (idempotent)", err)
 	}
-	if _, err := store.Put(ctx, r, bytes.NewReader(SeededPayload), objectstorage.PutOptions{Size: int64(len(SeededPayload))}); err != nil {
+	if _, err := objectStore.Put(ctx, r, bytes.NewReader(SeededPayload), objectstorage.PutOptions{Size: int64(len(SeededPayload))}); err != nil {
 		t.Fatalf("Put error = %v", err)
 	}
-	if err := store.Delete(ctx, r); err != nil {
+	if err := objectStore.Delete(ctx, r); err != nil {
 		t.Errorf("Delete(present) error = %v", err)
 	}
-	if err := store.Delete(ctx, r); err != nil {
+	if err := objectStore.Delete(ctx, r); err != nil {
 		t.Errorf("second Delete error = %v, want nil (idempotent)", err)
 	}
-	if _, _, err := store.Get(ctx, r); !errors.IsType[objectstorage.NotFoundError](err) {
+	if _, _, err := objectStore.Get(ctx, r); !errors.IsType[objectstorage.NotFoundError](err) {
 		t.Errorf("Get after Delete error = %v, want NotFoundError", err)
 	}
 }
 
 // assertInvalidRef: the zero ObjectRef and a Put with a negative size yield AsType[InvalidError].
-func assertInvalidRef(t *testing.T, store objectstorage.ObjectStore) {
+func assertInvalidRef(t *testing.T, objectStore objectstorage.ObjectStore) {
 	t.Helper()
 	ctx := context.Background()
-	if _, _, err := store.Get(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, _, err := objectStore.Get(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Get(zero ref) error = %v, want InvalidError", err)
 	}
-	if err := store.Delete(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
+	if err := objectStore.Delete(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Delete(zero ref) error = %v, want InvalidError", err)
 	}
 }
 
 // assertListByPrefix: Put several objects under a common prefix, then List by that prefix and
 // assert exactly the matching keys come back (sorted, payload-free metadata).
-func assertListByPrefix(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertListByPrefix(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
 	ctx := context.Background()
 	keys := []string{"list/a.bin", "list/b.bin", "other/c.bin"}
 	for _, k := range keys {
-		if _, err := store.Put(ctx, ref(t, bucket, k), bytes.NewReader(SeededPayload), objectstorage.PutOptions{Size: int64(len(SeededPayload))}); err != nil {
+		if _, err := objectStore.Put(ctx, ref(t, bucket, k), bytes.NewReader(SeededPayload), objectstorage.PutOptions{Size: int64(len(SeededPayload))}); err != nil {
 			t.Fatalf("Put(%q) error = %v", k, err)
 		}
 	}
 	defer func() {
 		for _, k := range keys {
-			if derr := store.Delete(ctx, ref(t, bucket, k)); derr != nil {
+			if derr := objectStore.Delete(ctx, ref(t, bucket, k)); derr != nil {
 				t.Errorf("cleanup Delete(%q) error = %v", k, derr)
 			}
 		}
 	}()
 
-	infos, err := store.List(ctx, bucket, "list/")
+	infos, err := objectStore.List(ctx, bucket, "list/")
 	if err != nil {
 		t.Fatalf("List error = %v", err)
 	}
@@ -202,10 +202,10 @@ func assertListByPrefix(t *testing.T, store objectstorage.ObjectStore, bucket st
 
 // assertPresignCredentialFree: Presign returns a URL whose every component is free of the seeded
 // credential canary (the redaction half of the contract for the presign surface).
-func assertPresignCredentialFree(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertPresignCredentialFree(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
 	r := ref(t, bucket, "conformance/presign.bin")
-	signed, err := store.Presign(context.Background(), r, objectstorage.PresignOptions{
+	signed, err := objectStore.Presign(context.Background(), r, objectstorage.PresignOptions{
 		Method: objectstorage.MethodGet,
 		Expiry: 600_000_000_000, // 10 minutes, in nanoseconds
 	})
@@ -223,9 +223,9 @@ func assertPresignCredentialFree(t *testing.T, store objectstorage.ObjectStore, 
 }
 
 // assertNeverBothNonNil: Get never returns a non-nil reader together with a non-nil error.
-func assertNeverBothNonNil(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertNeverBothNonNil(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
-	reader, _, err := store.Get(context.Background(), ref(t, bucket, "conformance/never-both.bin"))
+	reader, _, err := objectStore.Get(context.Background(), ref(t, bucket, "conformance/never-both.bin"))
 	if reader != nil && err != nil {
 		t.Errorf("Get returned a non-nil reader AND a non-nil error: %v", err)
 		if cerr := reader.Close(); cerr != nil {
@@ -235,10 +235,10 @@ func assertNeverBothNonNil(t *testing.T, store objectstorage.ObjectStore, bucket
 }
 
 // assertErrorCarriesRef: an error carries the ObjectRef's loggable form and never the payload.
-func assertErrorCarriesRef(t *testing.T, store objectstorage.ObjectStore, bucket string) {
+func assertErrorCarriesRef(t *testing.T, objectStore objectstorage.ObjectStore, bucket string) {
 	t.Helper()
 	r := ref(t, bucket, "conformance/error-ref.bin")
-	_, _, err := store.Get(context.Background(), r)
+	_, _, err := objectStore.Get(context.Background(), r)
 	if err == nil {
 		t.Fatal("Get(absent) returned nil error")
 	}

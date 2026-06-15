@@ -24,19 +24,19 @@ func TestAssertNoSecretInRecord_CatchesTransientLeak(t *testing.T) {
 	const canary = "S3CR3T-transient-leak-canary-do-not-leak"
 	manager := orchestratortest.New()
 	ctx := context.Background()
-	store := manager.Store()
+	desiredStore := manager.DesiredStore()
 
 	// A transient version leaks the canary into Detail...
-	if err := store.Put(ctx, orchestrator.Agent{ID: "agent-x", Status: orchestrator.StatusPending, Detail: canary}); err != nil {
+	if err := desiredStore.Put(ctx, orchestrator.Agent{ID: "agent-x", Status: orchestrator.StatusPending, Detail: canary}); err != nil {
 		t.Fatalf("seed transient leak: %v", err)
 	}
 	// ...then a later transition overwrites it with a CLEAN record (the final List() is clean).
-	if err := store.Put(ctx, orchestrator.Agent{ID: "agent-x", Status: orchestrator.StatusFailed, Detail: "clean"}); err != nil {
+	if err := desiredStore.Put(ctx, orchestrator.Agent{ID: "agent-x", Status: orchestrator.StatusFailed, Detail: "clean"}); err != nil {
 		t.Fatalf("seed clean overwrite: %v", err)
 	}
 
 	// Sanity: the FINAL record is clean — a List()-only guard would MISS the leak.
-	final, err := store.Get(ctx, "agent-x")
+	final, err := desiredStore.Get(ctx, "agent-x")
 	if err != nil {
 		t.Fatalf("get final: %v", err)
 	}

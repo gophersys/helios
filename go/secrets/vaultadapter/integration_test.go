@@ -58,7 +58,7 @@ func TestIntegration_RealVaultUserpassRoundTrip(t *testing.T) {
 
 	adapter, err := vaultadapter.New(
 		vaultadapter.Config{Address: v.address, Mode: vaultadapter.ModeUserpass},
-		vaultadapter.Dependencies{Username: v.username, Password: v.password},
+		vaultadapter.Deps{Username: v.username, Password: v.password},
 	)
 	if err != nil {
 		t.Fatalf("vaultadapter.New(ModeUserpass) against real Vault: %v", err)
@@ -97,7 +97,7 @@ func TestIntegration_RealVaultTokenFileRoundTrip(t *testing.T) {
 	tokenFile := writeTokenFile(t, v.userToken)
 	adapter, err := vaultadapter.New(
 		vaultadapter.Config{Address: v.address, Mode: vaultadapter.ModeTokenFile, TokenFilePath: tokenFile},
-		vaultadapter.Dependencies{},
+		vaultadapter.Deps{},
 	)
 	if err != nil {
 		t.Fatalf("vaultadapter.New(ModeTokenFile) against real Vault: %v", err)
@@ -131,7 +131,7 @@ func TestIntegration_RealVaultTypedErrors(t *testing.T) {
 
 	adapter, err := vaultadapter.New(
 		vaultadapter.Config{Address: v.address, Mode: vaultadapter.ModeUserpass},
-		vaultadapter.Dependencies{Username: v.username, Password: v.password},
+		vaultadapter.Deps{Username: v.username, Password: v.password},
 	)
 	if err != nil {
 		t.Fatalf("New: %v", err)

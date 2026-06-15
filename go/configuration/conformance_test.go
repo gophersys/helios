@@ -10,11 +10,11 @@ import (
 // The real adapter must pass the substitutability conformance suite.
 func TestConformance_RealParser(t *testing.T) {
 	t.Parallel()
-	configurationtest.Run(t, configuration.New)
+	configurationtest.RunParserSuite(t, configuration.New)
 }
 
 // The scripted fake Parser must pass the SAME suite (08 §2: adapter ≡ fake).
 func TestConformance_FakeParser(t *testing.T) {
 	t.Parallel()
-	configurationtest.Run(t, configurationtest.NewParser)
+	configurationtest.RunParserSuite(t, configurationtest.NewParser)
 }

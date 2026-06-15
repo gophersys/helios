@@ -30,7 +30,7 @@ var errDeviceFailure = errors.New("device error")
 //
 // It returns the configuration.Parser INTERFACE by contract
 // (contracts/configuration.md §2): this adapter exists precisely to feed a
-// Parser into Run, and it forwards configuration.New's error verbatim so the
+// Parser into RunParserSuite, and it forwards configuration.New's error verbatim so the
 // conformance suite observes the real constructor's error channel unaltered
 // (wrapping it here would hide the *ParseError discipline under test).
 //
@@ -39,10 +39,10 @@ func NewParser(c configuration.Config, d configuration.Deps) (configuration.Pars
 	return configuration.New(c, d)
 }
 
-// Run drives any configuration.Parser produced by newParser through the
-// substitutability properties. The real adapter and configurationtest.Parser
+// RunParserSuite drives any configuration.Parser produced by newParser through
+// the substitutability properties. The real adapter and configurationtest.Parser
 // must both pass identically (08 §2).
-func Run(t *testing.T, newParser parserFactory) {
+func RunParserSuite(t *testing.T, newParser parserFactory) {
 	t.Helper()
 	t.Run("PurityOfNew", func(t *testing.T) { assertPurityOfNew(t, newParser) })
 	t.Run("MalformedConfigIsTheOnlyNewError", func(t *testing.T) { assertMalformedConfigIsOnlyNewError(t, newParser) })

@@ -14,15 +14,15 @@ import (
 	"github.com/gophersys/libs/go/objectstorage/objectstoragetest"
 )
 
-// newFakeStore builds a concrete *Store over a fresh in-memory fake Backend (return concrete —
-// 10 §9; the *Store is an ObjectStore by its method set).
-func newFakeStore(t *testing.T) *objectstorage.Store {
+// newFakeStore builds a concrete *Client over a fresh in-memory fake Backend (return concrete —
+// 10 §9; the *Client is an ObjectStore by its method set).
+func newFakeStore(t *testing.T) *objectstorage.Client {
 	t.Helper()
-	store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
+	objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
 	if err != nil {
 		t.Fatalf("objectstorage.New error = %v", err)
 	}
-	return store
+	return objectStore
 }
 
 // ── ObjectRef construction + validation ─────────────────────────────────────────────────────────.
@@ -104,16 +104,16 @@ func TestNew_RejectsNilBackend(t *testing.T) {
 	}
 }
 
-// ── Store delegation + boundary validation ──────────────────────────────────────────────────────.
+// ── Client delegation + boundary validation ────────────────────────────────────────────────────.
 
 func TestStore_PutGetDeleteHappyPath(t *testing.T) {
 	t.Parallel()
-	store := newFakeStore(t)
+	objectStore := newFakeStore(t)
 	ctx := context.Background()
 	r := mustRef(t, "b", "k/obj.bin")
 	payload := []byte("hello-objectstorage")
 
-	info, err := store.Put(ctx, r, bytes.NewReader(payload), objectstorage.PutOptions{ContentType: "text/plain", Size: int64(len(payload))})
+	info, err := objectStore.Put(ctx, r, bytes.NewReader(payload), objectstorage.PutOptions{ContentType: "text/plain", Size: int64(len(payload))})
 	if err != nil {
 		t.Fatalf("Put error = %v", err)
 	}
@@ -121,7 +121,7 @@ func TestStore_PutGetDeleteHappyPath(t *testing.T) {
 		t.Errorf("Put info = %+v, unexpected", info)
 	}
 
-	reader, getInfo, err := store.Get(ctx, r)
+	reader, getInfo, err := objectStore.Get(ctx, r)
 	if err != nil {
 		t.Fatalf("Get error = %v", err)
 	}
@@ -138,53 +138,53 @@ func TestStore_PutGetDeleteHappyPath(t *testing.T) {
 	if getInfo.ETag != info.ETag {
 		t.Errorf("ETag drift %q vs %q", getInfo.ETag, info.ETag)
 	}
-	if err := store.Delete(ctx, r); err != nil {
+	if err := objectStore.Delete(ctx, r); err != nil {
 		t.Errorf("Delete error = %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, r); !errors.IsType[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := objectStore.Get(ctx, r); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get after Delete = %v, want NotFoundError", gerr)
 	}
 }
 
 func TestStore_RejectsInvalidAtBoundary(t *testing.T) {
 	t.Parallel()
-	store := newFakeStore(t)
+	objectStore := newFakeStore(t)
 	ctx := context.Background()
 	r := mustRef(t, "b", "k")
 
-	if _, err := store.Put(ctx, objectstorage.ObjectRef{}, bytes.NewReader(nil), objectstorage.PutOptions{}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, err := objectStore.Put(ctx, objectstorage.ObjectRef{}, bytes.NewReader(nil), objectstorage.PutOptions{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Put(zero ref) = %v, want InvalidError", err)
 	}
-	if _, err := store.Put(ctx, r, bytes.NewReader(nil), objectstorage.PutOptions{Size: -1}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, err := objectStore.Put(ctx, r, bytes.NewReader(nil), objectstorage.PutOptions{Size: -1}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Put(negative size) = %v, want InvalidError", err)
 	}
-	if _, err := store.Put(ctx, r, nil, objectstorage.PutOptions{}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, err := objectStore.Put(ctx, r, nil, objectstorage.PutOptions{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Put(nil body) = %v, want InvalidError", err)
 	}
-	if _, _, err := store.Get(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, _, err := objectStore.Get(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Get(zero ref) = %v, want InvalidError", err)
 	}
-	if err := store.Delete(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
+	if err := objectStore.Delete(ctx, objectstorage.ObjectRef{}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Delete(zero ref) = %v, want InvalidError", err)
 	}
-	if _, err := store.List(ctx, "", ""); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, err := objectStore.List(ctx, "", ""); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("List(blank bucket) = %v, want InvalidError", err)
 	}
 }
 
 func TestStore_PresignValidatesExpiry(t *testing.T) {
 	t.Parallel()
-	store := newFakeStore(t)
+	objectStore := newFakeStore(t)
 	ctx := context.Background()
 	r := mustRef(t, "b", "k")
 
-	if _, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 0}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, err := objectStore.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 0}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Presign(zero expiry) = %v, want InvalidError", err)
 	}
-	if _, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 100 * 24 * time.Hour}); !errors.IsType[objectstorage.InvalidError](err) {
+	if _, err := objectStore.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 100 * 24 * time.Hour}); !errors.IsType[objectstorage.InvalidError](err) {
 		t.Errorf("Presign(over-cap expiry) = %v, want InvalidError", err)
 	}
-	signed, err := store.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodPut, Expiry: 10 * time.Minute})
+	signed, err := objectStore.Presign(ctx, r, objectstorage.PresignOptions{Method: objectstorage.MethodPut, Expiry: 10 * time.Minute})
 	if err != nil {
 		t.Fatalf("Presign(valid) error = %v", err)
 	}
@@ -200,12 +200,12 @@ func TestStore_PresignValidatesExpiry(t *testing.T) {
 // matching errors.Kind so a consumer's errors.KindOf branches correctly through the wrap.
 func TestStore_WrapsBackendErrorWithKind(t *testing.T) {
 	t.Parallel()
-	store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: &failingBackend{}})
+	objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: &failingBackend{}})
 	if err != nil {
 		t.Fatalf("New error = %v", err)
 	}
 	r := mustRef(t, "b", "k")
-	_, _, gerr := store.Get(context.Background(), r)
+	_, _, gerr := objectStore.Get(context.Background(), r)
 	if errors.KindOf(gerr) != errors.KindUnavailable {
 		t.Errorf("Get error Kind = %v, want KindUnavailable (wrapped from the Backend)", errors.KindOf(gerr))
 	}

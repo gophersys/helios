@@ -19,7 +19,7 @@ import (
 
 // TestLifecycle_GetReaderDoubleCloseIdempotent is the full-object-lifecycle conformance (ADR-0020
 // dimension (c)) for the handle the store VENDS: the io.ReadCloser returned by Get. The probe maps
-// the LifecycleProbe port onto a reader opened by a real fake-backed *Store.Get, so the drive
+// the LifecycleProbe port onto a reader opened by a real fake-backed *Client.Get, so the drive
 // exercises Put → Get: construct (open) → use (read the bytes) → first Close → SECOND Close is a
 // no-op (double-close idempotent) → CountOwned()==0 (the reader is released). The orphan-goroutine
 // half is goleak.VerifyNone. Tagged //go:build lifecycle so the heavy probe stays out of the fast
@@ -34,7 +34,7 @@ func TestLifecycle_GetReaderDoubleCloseIdempotent(t *testing.T) {
 	libtesting.AssertLifecycle(context.Background(), harness, report, newReaderProbe)
 }
 
-// readerProbe binds a *Store.Get reader to the LifecycleProbe port. It tracks open/closed state so
+// readerProbe binds a *Client.Get reader to the LifecycleProbe port. It tracks open/closed state so
 // CountOwned reports 1 while the reader is live and 0 after Close, and so a second Close is a clean
 // no-op (the double-close invariant the io.ReadCloser must satisfy).
 type readerProbe struct {
@@ -43,13 +43,13 @@ type readerProbe struct {
 	closed bool
 }
 
-// newReaderProbe Puts the seeded payload through a real fake-backed *Store, then Gets it back and
+// newReaderProbe Puts the seeded payload through a real fake-backed *Client, then Gets it back and
 // binds the resulting reader to the lifecycle port — the construction half: the store's
 // validate→Put→Get path runs for real, then the driver exercises the handle.
 //
 //nolint:ireturn // contract: LifecycleFactory returns the LifecycleProbe port (the frozen seam).
 func newReaderProbe(ctx context.Context, _ libtesting.Harness) (libtesting.LifecycleProbe, func(), error) {
-	store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
+	objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
 	if err != nil {
 		return nil, func() {}, err
 	}
@@ -58,10 +58,10 @@ func newReaderProbe(ctx context.Context, _ libtesting.Harness) (libtesting.Lifec
 		return nil, func() {}, err
 	}
 	payload := objectstoragetest.SeededPayload
-	if _, err := store.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); err != nil {
+	if _, err := objectStore.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); err != nil {
 		return nil, func() {}, err
 	}
-	reader, _, err := store.Get(ctx, ref)
+	reader, _, err := objectStore.Get(ctx, ref)
 	if err != nil {
 		return nil, func() {}, err
 	}

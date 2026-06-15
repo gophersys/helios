@@ -126,7 +126,7 @@ func newAdapterTB(tb fatalReporter, transport vaultadapter.Transport) *vaultadap
 	tb.Helper()
 	adapter, err := vaultadapter.New(
 		vaultadapter.Config{Address: "http://127.0.0.1:8200", Mode: vaultadapter.ModeUserpass},
-		vaultadapter.Dependencies{Username: "eden", Password: "passw0rd", Transport: transport},
+		vaultadapter.Deps{Username: "eden", Password: "passw0rd", Transport: transport},
 	)
 	if err != nil {
 		tb.Fatalf("vaultadapter.New(ModeUserpass) error = %v", err)

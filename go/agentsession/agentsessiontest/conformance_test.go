@@ -13,7 +13,7 @@ import (
 // Two bindings, one suite (ADR-0016).
 func TestFake_Conforms(t *testing.T) {
 	t.Parallel()
-	agentsessiontest.Run(t, func() *agentsessiontest.Adapter {
+	agentsessiontest.RunAdapterSuite(t, func() *agentsessiontest.Adapter {
 		return agentsessiontest.New(agentsessiontest.CanonicalScript()...)
 	})
 }

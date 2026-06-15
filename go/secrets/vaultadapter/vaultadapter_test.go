@@ -91,7 +91,7 @@ func TestNew_RejectsMissingAddress(t *testing.T) {
 	t.Parallel()
 	_, err := vaultadapter.New(
 		vaultadapter.Config{Mode: vaultadapter.ModeUserpass},
-		vaultadapter.Dependencies{Username: "u", Password: "p", Transport: &fakeTransport{}},
+		vaultadapter.Deps{Username: "u", Password: "p", Transport: &fakeTransport{}},
 	)
 	if err == nil {
 		t.Fatal("New with no Address should error")
@@ -103,7 +103,7 @@ func TestNew_RejectsMissingAddress(t *testing.T) {
 
 func TestNew_RejectsUserpassWithoutCredential(t *testing.T) {
 	t.Parallel()
-	for name, dependencies := range map[string]vaultadapter.Dependencies{
+	for name, dependencies := range map[string]vaultadapter.Deps{
 		"no username": {Password: "p", Transport: &fakeTransport{}},
 		"no password": {Username: "u", Transport: &fakeTransport{}},
 	} {
@@ -120,7 +120,7 @@ func TestNew_RejectsTokenFileModeWithoutPath(t *testing.T) {
 	t.Parallel()
 	_, err := vaultadapter.New(
 		vaultadapter.Config{Address: "http://x:8200", Mode: vaultadapter.ModeTokenFile},
-		vaultadapter.Dependencies{Transport: &fakeTransport{}},
+		vaultadapter.Deps{Transport: &fakeTransport{}},
 	)
 	if err == nil {
 		t.Fatal("ModeTokenFile with no TokenFilePath should error")
@@ -195,7 +195,7 @@ func TestResolve_TokenFileModeReadsTokenEachResolve(t *testing.T) {
 			Mode:          vaultadapter.ModeTokenFile,
 			TokenFilePath: "/vault/secrets/token",
 		},
-		vaultadapter.Dependencies{
+		vaultadapter.Deps{
 			Transport: transport,
 			ReadTokenFile: func(path string) ([]byte, error) {
 				reads++
@@ -233,7 +233,7 @@ func TestResolve_TokenFileModeEmptyTokenIsUnavailable(t *testing.T) {
 	t.Parallel()
 	adapter, err := vaultadapter.New(
 		vaultadapter.Config{Address: "http://x:8200", Mode: vaultadapter.ModeTokenFile, TokenFilePath: "/t"},
-		vaultadapter.Dependencies{
+		vaultadapter.Deps{
 			Transport:     &fakeTransport{},
 			ReadTokenFile: func(string) ([]byte, error) { return []byte("   \n"), nil },
 		},

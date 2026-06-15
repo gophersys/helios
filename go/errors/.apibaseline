@@ -15,5 +15,5 @@ func AssertUnwrapsTo[E error](tb testing.TB, err error) E
 func Leaf(kind errors.Kind, message string) *errors.Error
 func RequireKind(tb testing.TB, err error, want errors.Kind)
 func RequireNoSecret(tb testing.TB, err error, needles ...string)
-func RunConformance(t *testing.T)
+func RunErrorsSuite(t *testing.T)
 func Wrapping(outer errors.Kind, inner error) *errors.Error

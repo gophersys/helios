@@ -59,7 +59,7 @@ type realMinio struct {
 }
 
 // TestIntegration_RealMinioConformance runs THE exported ObjectStore conformance suite (the REAL
-// binding of the two-binding suite, 08 §2) against a *objectstorage.Store wired to a minioadapter
+// binding of the two-binding suite, 08 §2) against a *objectstorage.Client wired to a minioadapter
 // over a REAL MinIO container. The SAME RunStoreSuite that the fake passes (conformance_test.go in
 // the root) must pass here — round-trip byte-for-byte, typed NotFound/Invalid, idempotent delete,
 // list-by-prefix, credential-free presign — over real S3 I/O. No mock anywhere on this path.
@@ -83,7 +83,7 @@ func TestIntegration_RealMinioConformance(t *testing.T) {
 func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 	requireDocker(t)
 	m := startRealMinio(t)
-	store := newRealStore(t, m)
+	objectStore := newRealStore(t, m)
 	ctx := context.Background()
 
 	ref, err := objectstorage.NewRef(m.bucket, "integration/round-trip.bin")
@@ -92,7 +92,7 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 	}
 	payload := bytes.Repeat([]byte("byte-for-byte-real-minio-payload\n"), 4096) // ~132 KiB, multi-part-ish
 
-	info, err := store.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{
+	info, err := objectStore.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{
 		ContentType: "application/octet-stream",
 		Size:        int64(len(payload)),
 	})
@@ -103,7 +103,7 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 		t.Errorf("Put ObjectInfo.Size = %d, want %d", info.Size, len(payload))
 	}
 
-	reader, getInfo, err := store.Get(ctx, ref)
+	reader, getInfo, err := objectStore.Get(ctx, ref)
 	if err != nil {
 		t.Fatalf("Get against real MinIO: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 	// presigned URL — a presign carries only the derived X-Amz-Signature, never the secret. (The
 	// access-key ID is a public SigV4 identifier and legitimately appears in the credential scope;
 	// that is asserted SEPARATELY below, the distinction the integration lane surfaced empirically.)
-	signed, err := store.Presign(ctx, ref, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 10 * time.Minute})
+	signed, err := objectStore.Presign(ctx, ref, objectstorage.PresignOptions{Method: objectstorage.MethodGet, Expiry: 10 * time.Minute})
 	if err != nil {
 		t.Fatalf("Presign against real MinIO: %v", err)
 	}
@@ -138,10 +138,10 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 		t.Errorf("presigned URL %q does not carry the access-key ID in its SigV4 credential scope (unexpected for real MinIO)", signed.String())
 	}
 
-	if err := store.Delete(ctx, ref); err != nil {
+	if err := objectStore.Delete(ctx, ref); err != nil {
 		t.Errorf("Delete against real MinIO: %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, ref); !errors.IsType[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := objectStore.Get(ctx, ref); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get after Delete = %v, want NotFoundError from real MinIO", gerr)
 	}
 }
@@ -154,14 +154,14 @@ func TestIntegration_RealMinioRoundTripByteForByte(t *testing.T) {
 func TestIntegration_RealMinioTypedErrors(t *testing.T) {
 	requireDocker(t)
 	m := startRealMinio(t)
-	store := newRealStore(t, m)
+	objectStore := newRealStore(t, m)
 	ctx := context.Background()
 
 	missing, err := objectstorage.NewRef(m.bucket, "integration/never-put.bin")
 	if err != nil {
 		t.Fatalf("NewRef error = %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, missing); !errors.IsType[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := objectStore.Get(ctx, missing); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get(absent) against real MinIO = %v, want NotFoundError", gerr)
 	}
 
@@ -169,14 +169,14 @@ func TestIntegration_RealMinioTypedErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRef error = %v", err)
 	}
-	if _, _, gerr := store.Get(ctx, absentBucket); !errors.IsType[objectstorage.NotFoundError](gerr) {
+	if _, _, gerr := objectStore.Get(ctx, absentBucket); !errors.IsType[objectstorage.NotFoundError](gerr) {
 		t.Errorf("Get(absent bucket) against real MinIO = %v, want NotFoundError", gerr)
 	}
 }
 
 // ── real-MinIO harness (official image, server mode, bucket bootstrap, reaped) ──────────────────.
 
-// newRealStore builds a *objectstorage.Store over a minioadapter pointed at the real container, with
+// newRealStore builds a *objectstorage.Client over a minioadapter pointed at the real container, with
 // the root credential seeded into a secretstest fake (so the adapter's resolve→Use→static path runs
 // for real). The credential is the canary, proving it is resolved yet never re-surfaced.
 //
@@ -194,11 +194,11 @@ func newRealStore(t *testing.T, m realMinio) objectstorage.ObjectStore {
 	if err != nil {
 		t.Fatalf("minioadapter.New against real MinIO: %v", err)
 	}
-	store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: adapter})
+	objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: adapter})
 	if err != nil {
 		t.Fatalf("objectstorage.New: %v", err)
 	}
-	return store
+	return objectStore
 }
 
 // startRealMinio boots the official MinIO image with the canary root credential, waits for health,

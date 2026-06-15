@@ -38,16 +38,16 @@ const fakeHarnessKey = "fake"
 // stub. WithScript sets the agentsession.Event sequence a launched session emits so a
 // test drives ready/usage/terminal deterministically.
 type Manager struct {
-	pool       *orchestrator.Pool
-	store      *DesiredStore
-	templates  *TemplateStore
-	probe      *Probe
-	telemetry  *Telemetry
-	clock      *Clock
-	workspaces *workspaceprovidertest.Adapter
-	provider   workspaceprovider.Provider
-	sessions   agentsession.Factory
-	secrets    *secretstest.Provider
+	pool         *orchestrator.Pool
+	desiredStore *DesiredStore
+	templates    *TemplateStore
+	probe        *Probe
+	telemetry    *Telemetry
+	clock        *Clock
+	workspaces   *workspaceprovidertest.Adapter
+	provider     workspaceprovider.Provider
+	sessions     agentsession.Factory
+	secrets      *secretstest.Provider
 }
 
 // settings is the accumulated Option state (an unexported value bag — not the public
@@ -106,7 +106,7 @@ func New(options ...Option) *Manager {
 	}
 
 	clock := NewClock()
-	store := NewDesiredStore()
+	desiredStore := NewDesiredStore()
 	templates := NewTemplateStore(configured.templates...)
 	probe := NewProbe()
 	telemetry := &Telemetry{}
@@ -132,7 +132,7 @@ func New(options ...Option) *Manager {
 			RetentionWindow:      24 * time.Hour,
 		},
 		orchestrator.Deps{
-			Desired:    store,
+			Desired:    desiredStore,
 			Templates:  templates,
 			Secrets:    secretsProvider,
 			Telemetry:  telemetry,
@@ -147,16 +147,16 @@ func New(options ...Option) *Manager {
 	}
 
 	return &Manager{
-		pool:       pool,
-		store:      store,
-		templates:  templates,
-		probe:      probe,
-		telemetry:  telemetry,
-		clock:      clock,
-		workspaces: wsAdapter,
-		provider:   provider,
-		sessions:   sessions,
-		secrets:    secretsProvider,
+		pool:         pool,
+		desiredStore: desiredStore,
+		templates:    templates,
+		probe:        probe,
+		telemetry:    telemetry,
+		clock:        clock,
+		workspaces:   wsAdapter,
+		provider:     provider,
+		sessions:     sessions,
+		secrets:      secretsProvider,
 	}
 }
 
@@ -353,8 +353,8 @@ func (m *Manager) Provider() workspaceprovider.Provider { return m.provider }
 //nolint:ireturn // returns the frozen agentsession.Factory port the reconcile loop binds.
 func (m *Manager) Sessions() agentsession.Factory { return m.sessions }
 
-// Store exposes the in-memory DesiredStore for record-shape assertions.
-func (m *Manager) Store() *DesiredStore { return m.store }
+// DesiredStore exposes the in-memory desired-state store for record-shape assertions.
+func (m *Manager) DesiredStore() *DesiredStore { return m.desiredStore }
 
 // compile-time assertions: *Manager satisfies the orchestrator ports.
 var (
@@ -375,7 +375,7 @@ func (m *Manager) AssertNoOrphans(t TestingT) {
 		destroyed[h.String()] = true
 	}
 	// Every provisioned workspace with a corresponding terminal agent must be destroyed.
-	live, err := m.store.List(context.Background(), orchestrator.Filter{Limit: 0})
+	live, err := m.desiredStore.List(context.Background(), orchestrator.Filter{Limit: 0})
 	if err != nil {
 		t.Errorf("orchestratortest: AssertNoOrphans list: %v", err)
 		return
@@ -400,7 +400,7 @@ func (m *Manager) AssertNoSecretInRecord(t TestingT, canary string) {
 	// Scan EVERY record version ever written (the full Put history), not just the final
 	// List() — a leak into a transient field (Detail/By) that a later transition overwrites
 	// would otherwise escape a guard that reads only the latest record per agent.
-	versions := m.store.AllVersions()
+	versions := m.desiredStore.AllVersions()
 	for i := range versions {
 		if recordContainsCanary(&versions[i], canary) {
 			t.Errorf("orchestratortest: secret leaked into an Agent record version %s: canary %q present",

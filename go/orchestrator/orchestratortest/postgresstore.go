@@ -42,12 +42,12 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 	if err != nil {
 		return nil, errors.Wrap(errors.KindUnavailable, "orchestratortest: connect postgres", err)
 	}
-	store := &PostgresStore{pool: pool}
-	if err := store.ensureSchema(ctx); err != nil {
+	postgresStore := &PostgresStore{pool: pool}
+	if err := postgresStore.ensureSchema(ctx); err != nil {
 		pool.Close()
 		return nil, err
 	}
-	return store, nil
+	return postgresStore, nil
 }
 
 // Close releases the connection pool (idempotent; a second Close is a no-op on a closed

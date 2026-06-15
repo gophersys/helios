@@ -10,8 +10,8 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 )
 
-// Run drives any agentsession.Adapter through the substitutability properties
-// (contract §4). The unit arm runs the scripted fake; a real adapter runs the SAME Run
+// RunAdapterSuite drives any agentsession.Adapter through the substitutability properties
+// (contract §4). The unit arm runs the scripted fake; a real adapter runs the SAME suite
 // against a recorded/replayed harness stream. newAdapter builds a FRESH Adapter per
 // case so cases never share mutable script/received state.
 //
@@ -21,8 +21,8 @@ import (
 // attribution, grant linkage, the two-decider permission round-trip, capability honesty,
 // the credential seam, budget abort (one authority), and secret-safety by construction.
 //
-//nolint:thelper // Run IS the suite entrypoint; subtests carry t directly.
-func Run(t *testing.T, newAdapter func() *Adapter) {
+//nolint:thelper // RunAdapterSuite IS the suite entrypoint; subtests carry t directly.
+func RunAdapterSuite(t *testing.T, newAdapter func() *Adapter) {
 	t.Run("LifecycleLegality", func(t *testing.T) { assertLifecycleLegality(t, newAdapter) })
 	t.Run("SeqMonotonicEqualsTranscriptOffset", func(t *testing.T) { assertSeqMonotonic(t, newAdapter) })
 	t.Run("ReplayEqualsTailGapFree", func(t *testing.T) { assertReplayEqualsTail(t, newAdapter) })

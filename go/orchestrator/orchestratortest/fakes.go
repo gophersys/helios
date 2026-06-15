@@ -172,11 +172,11 @@ type TemplateStore struct {
 // NewTemplateStore constructs a TemplateStore seeded with the given templates (keyed by
 // their Ref).
 func NewTemplateStore(seed ...orchestrator.AgentTemplate) *TemplateStore {
-	store := &TemplateStore{byKey: make(map[string]orchestrator.AgentTemplate)}
+	templateStore := &TemplateStore{byKey: make(map[string]orchestrator.AgentTemplate)}
 	for i := range seed {
-		store.byKey[refKey(seed[i].Ref)] = seed[i]
+		templateStore.byKey[refKey(seed[i].Ref)] = seed[i]
 	}
-	return store
+	return templateStore
 }
 
 // Add seeds (or overrides) one template. Fluent.

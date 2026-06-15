@@ -53,8 +53,8 @@ import (
 // provision the pod/directory (S2's job, 02 §1). Exactly 3 methods.
 type Provisioner interface {
 	// Clone materializes the remote into dir from a CloneOptions (Depth/Branch/Filter/
-	// Sparse/Auth). dir must already exist (S2 provisioned it). The opaque Auth Reference
-	// is resolved server-side via the secrets port and fed to git through the
+	// Sparse/Credential). dir must already exist (S2 provisioned it). The opaque Credential
+	// Reference is resolved server-side via the secrets port and fed to git through the
 	// credential-helper seam — the value never enters argv, the URL, a log, or the on-disk
 	// remote config (07 §2). Returns the opened *Repository at the cloned HEAD.
 	Clone(ctx context.Context, remote, dir string, options CloneOptions) (*Repository, error)
@@ -121,13 +121,13 @@ type Author interface {
 	Commit(ctx context.Context, worktree, message string, author Identity, options CommitOptions) (CommitID, error)
 
 	// Fetch updates remote-tracking refs for the named remote WITHOUT touching the working
-	// tree or local branches (the no-merge half of the old "pull"). Auth via the opaque
+	// tree or local branches (the no-merge half of the old "pull"). Credential via the opaque
 	// secrets.Reference, over the credential-helper seam. Returns the fetched tips.
 	Fetch(ctx context.Context, options FetchOptions) (map[Ref]CommitID, error)
 
 	// Push publishes a local branch tip to a remote Ref. It is FAST-FORWARD-ONLY by
 	// contract: a non-ff update returns NonFastForwardError (carrying both tips) and the
-	// caller escalates to a gate (E3), never force-pushing — there is NO Force field. Auth
+	// caller escalates to a gate (E3), never force-pushing — there is NO Force field. Credential
 	// via the secrets seam; DeniedError when the host (or a byo-authority branch-protection
 	// rule, ADR-0013) rejects the ref. Returns the new tip.
 	Push(ctx context.Context, options PushOptions) (PushResult, error)
@@ -165,7 +165,7 @@ type Deps struct {
 	// operation against a path. Required.
 	Backend Backend
 
-	// Secrets resolves an operation's opaque Auth Reference to a short-lived Secret at the
+	// Secrets resolves an operation's opaque Credential Reference to a short-lived Secret at the
 	// moment of Clone/Fetch/Push — server-side — so the value reaches git via the
 	// credential-helper seam and NEVER enters args, logs, Config, or any Error (07 §2).
 	// Required for any networked operation.
@@ -303,7 +303,7 @@ func (r *Repository) resolveRemote(name string) (string, error) {
 	return url, nil
 }
 
-// resolveCredential resolves an opaque Auth Reference to a short-lived Secret at the moment
+// resolveCredential resolves an opaque Credential Reference to a short-lived Secret at the moment
 // of a network op — server-side, so the value reaches git only via the credential-helper
 // seam (07 §2). A zero Reference is a public/local op (no credential). It returns a nil
 // Secret for the public case, never (nil, nil) ambiguity for a real reference.

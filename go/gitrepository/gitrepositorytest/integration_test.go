@@ -32,7 +32,7 @@ import (
 // is the proof shape the brief asks for — the system-git binding of the two (fake + real git).
 func TestSystemGit_Conforms(t *testing.T) {
 	t.Parallel()
-	gitrepositorytest.Run(t, gitrepository.SystemGit)
+	gitrepositorytest.RunBackendSuite(t, gitrepository.SystemGit)
 }
 
 // TestSystemGit_NewRealRepo_StageCommitWithAuthor drives the FULL author plane against a REAL

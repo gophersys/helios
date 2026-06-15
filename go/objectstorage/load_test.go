@@ -30,7 +30,7 @@ func loadN() int {
 }
 
 // TestLoad_ConcurrentPutGetDeleteRaceClean fans out N goroutines that each Put a distinct object,
-// Get it back byte-for-byte, then Delete it, through a SHARED *Store over the concurrency-safe fake
+// Get it back byte-for-byte, then Delete it, through a SHARED *Client over the concurrency-safe fake
 // Backend. Proven under -race at fan-out; goleak.VerifyNone asserts the goroutine high-water returns
 // to baseline (no reaper goroutine leaked per operation) and every object is reaped (the store is
 // empty of the fanned-out keys afterward).
@@ -39,7 +39,7 @@ func loadN() int {
 func TestLoad_ConcurrentPutGetDeleteRaceClean(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
+	objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
 	if err != nil {
 		t.Fatalf("New error = %v", err)
 	}
@@ -57,11 +57,11 @@ func TestLoad_ConcurrentPutGetDeleteRaceClean(t *testing.T) {
 				t.Errorf("worker %d: NewRef error = %v", i, rerr)
 				return
 			}
-			if _, perr := store.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); perr != nil {
+			if _, perr := objectStore.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); perr != nil {
 				t.Errorf("worker %d: Put error = %v", i, perr)
 				return
 			}
-			reader, _, gerr := store.Get(ctx, ref)
+			reader, _, gerr := objectStore.Get(ctx, ref)
 			if gerr != nil {
 				t.Errorf("worker %d: Get error = %v", i, gerr)
 				return
@@ -72,7 +72,7 @@ func TestLoad_ConcurrentPutGetDeleteRaceClean(t *testing.T) {
 				t.Errorf("worker %d: round-trip drift under fan-out", i)
 				return
 			}
-			if derr := store.Delete(ctx, ref); derr != nil {
+			if derr := objectStore.Delete(ctx, ref); derr != nil {
 				t.Errorf("worker %d: Delete error = %v", i, derr)
 			}
 		}(i)
@@ -80,7 +80,7 @@ func TestLoad_ConcurrentPutGetDeleteRaceClean(t *testing.T) {
 	reaped.Wait()
 
 	// Every fanned-out object was Deleted: a List of the load prefix returns nothing (all reaped).
-	remaining, lerr := store.List(ctx, "eden", "load/")
+	remaining, lerr := objectStore.List(ctx, "eden", "load/")
 	if lerr != nil {
 		t.Fatalf("List error = %v", lerr)
 	}

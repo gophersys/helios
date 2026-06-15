@@ -222,11 +222,11 @@ func (a *Adapter) pullImage(ctx context.Context, spec *workspaceprovider.Workspa
 	}
 	opts := image.PullOptions{}
 	if resolved.PullSecret != nil {
-		auth, aerr := registryAuth(resolved.PullSecret)
+		registryCredential, aerr := registryAuth(resolved.PullSecret)
 		if aerr != nil {
 			return &workspaceprovider.ImageError{Image: spec.Image, Ref: spec.ImagePull}
 		}
-		opts.RegistryAuth = auth
+		opts.RegistryAuth = registryCredential
 	}
 	rc, err := a.client.ImagePull(ctx, spec.Image, opts)
 	if err != nil {

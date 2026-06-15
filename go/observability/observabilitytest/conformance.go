@@ -19,8 +19,8 @@ var errExporterWireDown = stderrors.New("exporter wire down")
 
 // providerFactory is the contract §4 conformance harness signature: a function
 // that builds an observability.Provider from a Config/Deps. The real New and the
-// public fake's newFakeFromDeps both satisfy it, so Run validates the real adapter
-// and the fake consumers inject identically.
+// public fake's newFakeFromDeps both satisfy it, so RunProviderSuite validates the
+// real adapter and the fake consumers inject identically.
 type providerFactory = func(observability.Config, observability.Deps) (observability.Provider, error)
 
 // recordingExporter captures every batch shipped through Export, so the
@@ -115,27 +115,30 @@ func baseConfig() observability.Config {
 	}
 }
 
-// RunFakeConformance runs the shared conformance suite (Run) against the PUBLIC
-// fake (*Provider), built Exporter-backed from a Config/Deps via newFakeFromDeps.
-// It is the fake side of the adapter≡fake proof (08 §2): the real adapter's test
-// calls Run with observability.New, this calls Run with the same public *Provider
-// kernel tests inject — both must pass identically. There is no private double;
-// the subject the contract names (observabilitytest.Provider) is the subject
-// proven substitutable (closing the fakes-drift gap, ADR-0017 §1b).
-func RunFakeConformance(t *testing.T) {
+// RunProviderSuiteWithFake runs the shared conformance suite (RunProviderSuite)
+// against the PUBLIC fake (*Provider), built Exporter-backed from a Config/Deps
+// via newFakeFromDeps. It is the fake side of the adapter≡fake proof (08 §2): the
+// real adapter's test calls RunProviderSuite with observability.New, this calls it
+// with the same public *Provider kernel tests inject — both must pass identically.
+// There is no private double; the subject the contract names
+// (observabilitytest.Provider) is the subject proven substitutable (closing the
+// fakes-drift gap, ADR-0017 §1b). It exists as its own entrypoint because
+// newFakeFromDeps is package-private, so an external caller cannot pass the fake
+// factory to RunProviderSuite directly — this binds it.
+func RunProviderSuiteWithFake(t *testing.T) {
 	t.Helper()
-	Run(t, newFakeFromDeps)
+	RunProviderSuite(t, newFakeFromDeps)
 }
 
-// Run drives any observability.Provider produced by newProvider through the
-// substitutability properties (contract §4). The real adapter and
+// RunProviderSuite drives any observability.Provider produced by newProvider
+// through the substitutability properties (contract §4). The real adapter and
 // observabilitytest.Provider must both pass identically. Each property lives in
 // its own helper so this dispatcher stays flat and every property is named and
 // independently runnable.
-func Run(t *testing.T, newProvider providerFactory) {
+func RunProviderSuite(t *testing.T, newProvider providerFactory) {
 	t.Helper()
 	if newProvider == nil {
-		t.Fatal("Run: newProvider must not be nil")
+		t.Fatal("RunProviderSuite: newProvider must not be nil")
 	}
 	properties := []struct {
 		name string

@@ -58,13 +58,13 @@ func TestProperty_RefRoundTrips(t *testing.T) {
 }
 
 // TestProperty_AnyPayloadRoundTripsByteForByte asserts that for ANY byte payload of any length in
-// range, Put then Get through a fake-backed *Store returns EXACTLY those bytes — the byte-for-byte
+// range, Put then Get through a fake-backed *Client returns EXACTLY those bytes — the byte-for-byte
 // round-trip property over the whole payload space (the load-bearing object-store invariant). The
-// value flows through the real *Store validation/delegation code, not a mock of the contract.
+// value flows through the real *Client validation/delegation code, not a mock of the contract.
 func TestProperty_AnyPayloadRoundTripsByteForByte(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
-		store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
+		objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
 		if err != nil {
 			rt.Fatalf("New error = %v", err)
 		}
@@ -76,10 +76,10 @@ func TestProperty_AnyPayloadRoundTripsByteForByte(t *testing.T) {
 			rt.Fatalf("NewRef error = %v", err)
 		}
 		ctx := context.Background()
-		if _, perr := store.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); perr != nil {
+		if _, perr := objectStore.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); perr != nil {
 			rt.Fatalf("Put error = %v", perr)
 		}
-		reader, _, gerr := store.Get(ctx, ref)
+		reader, _, gerr := objectStore.Get(ctx, ref)
 		if gerr != nil {
 			rt.Fatalf("Get error = %v", gerr)
 		}

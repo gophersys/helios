@@ -22,7 +22,7 @@ import (
 // test-only stub (the finding's gap).
 func TestSlogAdapterPassesProviderConformance(t *testing.T) {
 	t.Parallel()
-	observabilitytest.Run(t, func(c observability.Config, d observability.Deps) (observability.Provider, error) {
+	observabilitytest.RunProviderSuite(t, func(c observability.Config, d observability.Deps) (observability.Provider, error) {
 		// The suite hands its own Exporter in d.Exporter (a recordingExporter, a
 		// panicExporter for purity, or a FailingExporter for the Flush-error path).
 		// Wrap whatever it provides so the real slog rendering runs on top of it,

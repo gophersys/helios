@@ -140,7 +140,7 @@ func auditTrailers(identity *Identity) []AuthorTrailer {
 }
 
 // Fetch updates remote-tracking refs for the named remote WITHOUT touching the working tree
-// or local branches. Auth via the opaque secrets.Reference, resolved at the operation.
+// or local branches. Credential via the opaque secrets.Reference, resolved at the operation.
 func (r *Repository) Fetch(ctx context.Context, options FetchOptions) (map[Ref]CommitID, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (r *Repository) Fetch(ctx context.Context, options FetchOptions) (map[Ref]C
 		}
 	}
 
-	credential, err := r.resolveCredential(ctx, options.Auth, options.Remote)
+	credential, err := r.resolveCredential(ctx, options.Credential, options.Remote)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (r *Repository) Push(ctx context.Context, options PushOptions) (PushResult,
 		dest = options.LocalRef
 	}
 
-	credential, err := r.resolveCredential(ctx, options.Auth, options.Remote)
+	credential, err := r.resolveCredential(ctx, options.Credential, options.Remote)
 	if err != nil {
 		return PushResult{}, err
 	}

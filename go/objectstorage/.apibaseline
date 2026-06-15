@@ -1,9 +1,10 @@
 ## github.com/gophersys/libs/go/objectstorage
     const MethodGet PresignMethod = iota ...
-    func New(configuration Config, dependencies Deps) (*Store, error)
+    func New(configuration Config, dependencies Deps) (*Client, error)
     func NewRef(bucket, key string) (ObjectRef, error)
     func ParseRef(s string) (ObjectRef, error)
 type Backend interface{ ... }
+type Client struct{ ... }
 type Config struct{ ... }
 type DeniedError struct{ ... }
 type Deps struct{ ... }
@@ -15,7 +16,6 @@ type ObjectStore interface{ ... }
 type PresignMethod uint8
 type PresignOptions struct{ ... }
 type PutOptions struct{ ... }
-type Store struct{ ... }
 type UnavailableError struct{ ... }
 ## github.com/gophersys/libs/go/objectstorage/minioadapter
     func New(configuration Config, dependencies Deps) (*Adapter, error)

@@ -2,7 +2,7 @@
 // two-binding conformance suite, so consumers never hand-roll a fake that drifts from the
 // ObjectStore contract. The fake weakens the SOURCE of bytes (an in-memory map instead of a real
 // S3 daemon), never the contract: the SAME RunStoreSuite runs over the fake here and over the
-// REAL MinIO-backed *Store in the integration lane (ADR-0016 §2).
+// REAL MinIO-backed *Client in the integration lane (ADR-0016 §2).
 package objectstoragetest
 
 import (

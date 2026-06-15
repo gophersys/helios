@@ -25,7 +25,7 @@ var ErrUnknownFormat = errors.New("configuration: unknown Format")
 func Diags(d configuration.Diagnostics, under configuration.Path) []configuration.Diagnostic
 func Doc(treeMap map[string]any, opts ...DocOption) configuration.Document
 func NewParser(c configuration.Config, d configuration.Deps) (configuration.Parser, error)
-func Run(t *testing.T, newParser parserFactory)
+func RunParserSuite(t *testing.T, newParser parserFactory)
 type DocOption func(*docState)
 type Parser struct{ ... }
 type Source struct{ ... }

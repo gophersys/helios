@@ -9,7 +9,8 @@
 // Module: github.com/gophersys/libs/go/observability/slogadapter (go 1.26)
 //
 // Substitutability: New returns an observability.Exporter that the conformance
-// suite (observabilitytest.Run) drives exactly as it drives the in-memory fake, so
+// suite (observabilitytest.RunProviderSuite) drives exactly as it drives the
+// in-memory fake, so
 // the Exporter seam has one REAL, conformance-tested adapter (ADR-0017 §1b / §4 —
 // no mock-only coverage of the real-substrate feature).
 package slogadapter

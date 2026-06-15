@@ -157,9 +157,9 @@ type ResourceEnvelope struct {
 // orchestrator: it is handed to workspaceprovider (which owns the gitrepository clone).
 // The zero value means "empty workspace".
 type RepoMount struct {
-	URL  string            // clone URL (mirror/eden-authority/byo per ADR-0013); resolved by gitrepository
-	Ref  string            // branch/tag/sha; "" == default branch
-	Auth secrets.Reference // OPAQUE clone credential; resolved server-side, never the value
+	URL        string            // clone URL (mirror/eden-authority/byo per ADR-0013); resolved by gitrepository
+	Ref        string            // branch/tag/sha; "" == default branch
+	Credential secrets.Reference // OPAQUE clone credential; resolved server-side, never the value
 }
 
 // Limits bounds a template's launches. MaxConcurrent is a CLASS ceiling shared by all

@@ -139,8 +139,8 @@ type CloneOptions struct {
 	Filter string
 	// Sparse is the sparse-checkout path set; nil means the full tree.
 	Sparse []string
-	// Auth is the OPAQUE credential reference, resolved at the operation, never on argv/URL/log.
-	Auth secrets.Reference
+	// Credential is the OPAQUE credential reference, resolved at the operation, never on argv/URL/log.
+	Credential secrets.Reference
 	// RemoteName is the local name for the origin remote, e.g. "eden" or "origin".
 	RemoteName string
 }
@@ -219,8 +219,8 @@ type FetchOptions struct {
 	Remote string
 	// Refs are the refs to update; nil means all configured for the remote.
 	Refs []Ref
-	// Auth is the OPAQUE read-only credential for the drift-observation path.
-	Auth secrets.Reference
+	// Credential is the OPAQUE read-only credential for the drift-observation path.
+	Credential secrets.Reference
 	// Prune removes deleted remote refs.
 	Prune bool
 }
@@ -235,8 +235,8 @@ type PushOptions struct {
 	LocalRef BranchName
 	// DestRef is the remote branch; the zero value means the same as LocalRef.
 	DestRef BranchName
-	// Auth is the OPAQUE credential, resolved at the push.
-	Auth secrets.Reference
+	// Credential is the OPAQUE credential, resolved at the push.
+	Credential secrets.Reference
 }
 
 // ChangeKind classifies one path's working-tree state.

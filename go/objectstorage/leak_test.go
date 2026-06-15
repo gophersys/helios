@@ -8,7 +8,7 @@ import (
 
 // TestMain installs goleak.VerifyTestMain so the resource-leak lane (`ctl.sh leak`, ADR-0020
 // dimension (b)) FAILS the objectstorage package on ANY goroutine left running after the suite.
-// The root package is a pure, SDK-free port: a *Store is a stateless router over its Backend, an
+// The root package is a pure, SDK-free port: a *Client is a stateless router over its Backend, an
 // ObjectRef is an immutable value, and the in-memory fake Backend is a mutex-guarded map — none
 // spawn a background goroutine. So the only ignore is the well-known benign runtime poller root;
 // the gate's threshold is ZERO leaked goroutines/fds. A regression that, say, launched a reaper

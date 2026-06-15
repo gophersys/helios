@@ -36,11 +36,11 @@ func BenchmarkNewRef(b *testing.B) {
 	sinkRef = r
 }
 
-// BenchmarkPutGetRoundTrip measures the *Store hot path over the fake backend: validate → Put →
+// BenchmarkPutGetRoundTrip measures the *Client hot path over the fake backend: validate → Put →
 // validate → Get → drain. It isolates the store's CPU/alloc cost (the fake is in-memory) from real
 // network latency, so the bench-guard tracks the ADAPTER-LAYER cost a consumer pays.
 func BenchmarkPutGetRoundTrip(b *testing.B) {
-	store, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
+	objectStore, err := objectstorage.New(objectstorage.Config{}, objectstorage.Deps{Backend: objectstoragetest.NewBackend()})
 	if err != nil {
 		b.Fatalf("New error = %v", err)
 	}
@@ -52,10 +52,10 @@ func BenchmarkPutGetRoundTrip(b *testing.B) {
 	ctx := context.Background()
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, perr := store.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); perr != nil {
+		if _, perr := objectStore.Put(ctx, ref, bytes.NewReader(payload), objectstorage.PutOptions{Size: int64(len(payload))}); perr != nil {
 			b.Fatalf("Put error = %v", perr)
 		}
-		reader, _, gerr := store.Get(ctx, ref)
+		reader, _, gerr := objectStore.Get(ctx, ref)
 		if gerr != nil {
 			b.Fatalf("Get error = %v", gerr)
 		}
@@ -66,5 +66,5 @@ func BenchmarkPutGetRoundTrip(b *testing.B) {
 			b.Fatalf("Close error = %v", cerr)
 		}
 	}
-	sink = store
+	sink = objectStore
 }

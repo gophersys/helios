@@ -76,7 +76,7 @@ func PermissionRequest(requestID, tool, reason string) agentsession.Event
 func PermissionResolved(requestID string, decision agentsession.GrantDecision, by string) agentsession.Event
 func ReadyEvent() agentsession.Event
 func Result(ledger agentsession.TokenLedger, resultText, stopReason string) agentsession.Event
-func Run(t *testing.T, newAdapter func() *Adapter)
+func RunAdapterSuite(t *testing.T, newAdapter func() *Adapter)
 func TextDelta(delta string) agentsession.Event
 func ThinkingDelta(delta string) agentsession.Event
 func ToolEnd(callID string, outcome agentsession.ToolOutcome, resultDigest string, ...) agentsession.Event

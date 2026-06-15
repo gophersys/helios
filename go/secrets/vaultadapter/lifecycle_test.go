@@ -20,7 +20,7 @@ import (
 func newAdapterErr(transport vaultadapter.Transport) (*vaultadapter.Adapter, error) {
 	return vaultadapter.New(
 		vaultadapter.Config{Address: "http://127.0.0.1:8200", Mode: vaultadapter.ModeUserpass},
-		vaultadapter.Dependencies{Username: "eden", Password: "passw0rd", Transport: transport},
+		vaultadapter.Deps{Username: "eden", Password: "passw0rd", Transport: transport},
 	)
 }
 

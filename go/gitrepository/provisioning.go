@@ -7,7 +7,7 @@ import (
 )
 
 // Clone materializes the remote into dir. The library validates the destination and clone
-// knobs, resolves the opaque Auth Reference to a short-lived Secret server-side (confined to
+// knobs, resolves the opaque Credential Reference to a short-lived Secret server-side (confined to
 // the credential-helper seam), hands the Backend a normalized ProvisionOp + the Secret, and
 // returns a *Repository rooted at the clone destination.
 //
@@ -21,7 +21,7 @@ func (r *Repository) Clone(ctx context.Context, remote, dir string, options Clon
 		return nil, err
 	}
 
-	credential, err := r.resolveCredential(ctx, options.Auth, remoteName)
+	credential, err := r.resolveCredential(ctx, options.Credential, remoteName)
 	if err != nil {
 		return nil, err
 	}

@@ -30,7 +30,7 @@ type canaryClock struct{}
 
 func (canaryClock) Now() time.Time { return time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC) }
 
-// TestCanary_CredentialNeverReachesOperationArgs drives a REAL Push whose Auth resolves to the
+// TestCanary_CredentialNeverReachesOperationArgs drives a REAL Push whose Credential resolves to the
 // seeded canary through the in-memory Backend, which records a projection of every op's argument
 // surface (the fields that would become argv/env/dir on a real backend). The credential rides a
 // separate *secrets.Secret confined to Secret.Use, so it must NEVER appear among those recorded
@@ -61,9 +61,9 @@ func TestCanary_CredentialNeverReachesOperationArgs(t *testing.T) {
 	// Push WITH the canary credential — the library resolves it server-side and confines it to
 	// the credential-helper seam; the value must not surface in the op's recorded arg projection.
 	result, err := repository.Push(ctx, gitrepository.PushOptions{
-		Remote:   "origin",
-		LocalRef: branch,
-		Auth:     secrets.Ref(canaryCredRef),
+		Remote:     "origin",
+		LocalRef:   branch,
+		Credential: secrets.Ref(canaryCredRef),
 	})
 	if err != nil {
 		t.Fatalf("Push (with credential): %v", err)
@@ -111,9 +111,9 @@ func TestCanary_NeverSurfacesThroughAuthError(t *testing.T) {
 	}
 
 	_, pushErr := repository.Push(ctx, gitrepository.PushOptions{
-		Remote:   "origin",
-		LocalRef: branch,
-		Auth:     secrets.Ref(canaryCredRef), // resolvable nowhere in this provider
+		Remote:     "origin",
+		LocalRef:   branch,
+		Credential: secrets.Ref(canaryCredRef), // resolvable nowhere in this provider
 	})
 	if pushErr == nil {
 		t.Fatalf("Push over an unresolvable credential must fail (silent-bad-token trap)")

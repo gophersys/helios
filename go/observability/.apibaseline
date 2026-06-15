@@ -28,8 +28,8 @@ type Severity uint8
 type Valuer interface{ ... }
 ## github.com/gophersys/libs/go/observability/observabilitytest
     func New(clock func() time.Time) *Provider
-func Run(t *testing.T, newProvider providerFactory)
-func RunFakeConformance(t *testing.T)
+func RunProviderSuite(t *testing.T, newProvider providerFactory)
+func RunProviderSuiteWithFake(t *testing.T)
 type FailingExporter struct{ ... }
 type Provider struct{ ... }
 ## github.com/gophersys/libs/go/observability/slogadapter

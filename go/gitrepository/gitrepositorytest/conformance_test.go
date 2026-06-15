@@ -12,7 +12,7 @@ import (
 // integration test (//go:build integration). Two bindings, one suite (ADR-0016).
 func TestFake_Conforms(t *testing.T) {
 	t.Parallel()
-	gitrepositorytest.Run(t, func() gitrepository.Backend {
+	gitrepositorytest.RunBackendSuite(t, func() gitrepository.Backend {
 		return gitrepositorytest.New()
 	})
 }
