@@ -17,6 +17,7 @@ import (
 //	POST   /sessions/{id}/stop               stop (record terminal intent)
 //	POST   /sessions/{id}/resume             resume (re-attach from seq)
 //	POST   /sessions/{id}/control            prompt | steer | abort   -> REQ-0020 mid-stream
+//	POST   /sessions/{id}/permissions/{requestId}  resolve a pending permission (allow|deny + scope) -> ADR-0025
 //	GET    /sessions/{id}/events             SSE stream (Last-Event-ID / ?from-seq=) -> REQ-0023/0024
 //	GET    /sessions/{id}/transcript         persisted Run, queryable after end -> REQ-0020/0023
 //	POST   /product/propose                  AI-propose a ProductConfig from the prompt (wizard step 1)
@@ -31,6 +32,7 @@ func (g *Gateway) routes() *http.ServeMux {
 	mux.HandleFunc("POST /sessions/{id}/stop", g.handleStopSession)
 	mux.HandleFunc("POST /sessions/{id}/resume", g.handleResumeSession)
 	mux.HandleFunc("POST /sessions/{id}/control", g.handleControl)
+	mux.HandleFunc("POST /sessions/{id}/permissions/{requestId}", g.handleResolvePermission)
 	mux.HandleFunc("GET /sessions/{id}/events", g.handleEvents)
 	mux.HandleFunc("GET /sessions/{id}/transcript", g.handleTranscript)
 	mux.HandleFunc("GET /healthz", g.handleHealth)

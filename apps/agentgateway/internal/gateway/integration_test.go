@@ -17,6 +17,7 @@ package gateway_test
 
 import (
 	"context"
+	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
@@ -30,6 +31,97 @@ import (
 
 // integrationDeadline bounds every streaming wait so a wedged stream fails fast.
 const integrationDeadline = 10 * time.Second
+
+// TestIntegrationPermissionResolveRoundTrip proves the ADR-0025 permission-resolve path
+// end-to-end against the REAL agentsession.Pool (not a fake session): the scripted harness
+// emits an out-of-grant EventPermissionRequest mid-turn, the client POSTs the human's verdict
+// to /sessions/{id}/permissions/{requestId}, the gateway forwards it to the live session's
+// Resolve method, and the resulting EventPermissionResolved + the pinned terminal stream back
+// on the SSE tail. This is the live-plane proof the unit test's fake session cannot give: the
+// REAL session's pending-request bookkeeping and forward-to-harness path are exercised.
+func TestIntegrationPermissionResolveRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	const requestID = "perm-1"
+	// The scripted turn: an assistant message, then an out-of-grant request for a tool the
+	// session has no standing grant for. The session then WAITS for the resolve; the pinned
+	// OnPermissionAnswer reaction (the resolved record + a clean Result) fires once the gateway
+	// forwards the human's decision.
+	adapter := agentsessiontest.New(
+		agentsessiontest.MessageStart("assistant"),
+		agentsessiontest.TextDelta("I need to delete a file"),
+		agentsessiontest.PermissionRequest(requestID, "Bash(rm -rf ./build)", "clean the build directory"),
+	).OnPermissionAnswer(
+		requestID,
+		agentsessiontest.PermissionResolved(requestID, agentsession.GrantAllowed, "human:founder"),
+		agentsessiontest.Result(
+			agentsession.TokenLedger{UsageMeter: agentsession.UsageMeter{Harness: "fake", Cumulative: true}, Turns: 1},
+			"done", "end_turn",
+		),
+	)
+
+	h := newHarnessWithAdapter(t, adapter)
+	id := h.createSession(t, "clean up")
+
+	ctx, cancel := context.WithTimeout(context.Background(), integrationDeadline)
+	defer cancel()
+	reader := newSSEReader(h.openSSE(ctx, t, id, "", ""))
+	defer reader.close()
+
+	// Read up to the permission-request frame the agent emitted (the human/policy gate).
+	requestFrame := readUntilKind(t, reader, "permission-request")
+	requestData := decodeData(t, requestFrame.Data)
+	permission, ok := requestData["permission"].(map[string]any)
+	if !ok || permission["requestId"] != requestID {
+		t.Fatalf("permission-request frame missing requestId %q: %v", requestID, requestData)
+	}
+
+	// POST the human's allow-for-session verdict to the resolve route (the path the chat
+	// surface's PermissionRequest card calls).
+	status, body := h.postJSON(t, "/sessions/"+id+"/permissions/"+requestID,
+		map[string]any{"verdict": "allow", "scope": "session", "by": "founder"})
+	if status != http.StatusOK {
+		t.Fatalf("resolve: status %d (%v)", status, body)
+	}
+	if _, ok := body["admittedSeq"]; !ok {
+		t.Fatalf("resolve: missing admittedSeq (%v)", body)
+	}
+
+	// The resolve drove Session.Resolve (NOT a control Command): the scripted adapter recorded
+	// the forwarded answer as a steer-shaped frame (the library's forwardDecision shape), so a
+	// CommandSteer is present — and crucially NOT a prompt/abort.
+	assertReceivedCommand(t, h.adapter, agentsession.CommandSteer)
+
+	// The resolved record + the pinned terminal now stream on the SAME tail.
+	resolvedFrame := readUntilKind(t, reader, "permission-resolved")
+	resolvedData := decodeData(t, resolvedFrame.Data)
+	resolved, ok := resolvedData["permission"].(map[string]any)
+	if !ok || resolved["requestId"] != requestID {
+		t.Fatalf("permission-resolved frame missing requestId %q: %v", requestID, resolvedData)
+	}
+
+	rest := reader.drainToTerminal(t)
+	if len(rest) == 0 || !isTerminalKind(rest[len(rest)-1].Event) {
+		t.Fatalf("stream did not reach a terminal after the resolve: %v", kinds(rest))
+	}
+}
+
+// readUntilKind reads frames until one of the given kind, failing if the stream ends first.
+func readUntilKind(t *testing.T, reader *sseReader, kind string) sseFrame {
+	t.Helper()
+	for {
+		frame, ok := reader.next(t)
+		if !ok {
+			t.Fatalf("stream ended before a %q frame", kind)
+		}
+		if frame.Event == kind {
+			return frame
+		}
+		if isTerminalKind(frame.Event) {
+			t.Fatalf("stream reached terminal %q before a %q frame", frame.Event, kind)
+		}
+	}
+}
 
 // TestIntegrationConcurrentFanOut proves REQ-0022 per-session fan-out under concurrency: N
 // concurrent SSE clients on ONE session each receive the FULL ordered taxonomy from their

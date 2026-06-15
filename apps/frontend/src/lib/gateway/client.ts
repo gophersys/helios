@@ -12,7 +12,10 @@ import type {
   ErrorBody,
   Harness,
   ListResponse,
+  PermissionScope,
+  PermissionVerdict,
   ProductConfig,
+  ResolveResponse,
   TranscriptResponse,
 } from './types';
 
@@ -143,6 +146,26 @@ export class GatewayClient {
   /** POST /sessions/{id}/control verb=abort — cancel the in-flight turn. */
   async abort(id: string): Promise<ControlResponse> {
     return this.control(id, { command: 'abort' });
+  }
+
+  /** POST /sessions/{id}/permissions/{requestId} — answer a pending out-of-grant permission
+   *  the SSE stream surfaced (ADR-0025). `verdict` is allow|deny; `scope` bounds an allow to
+   *  this request only ("once", the default) or the running session ("session"). This is a
+   *  Resolve, NOT a control verb: it calls the live session's distinct Resolve method, and the
+   *  resulting EventPermissionResolved arrives on the stream (the returned `admittedSeq`
+   *  correlates it). An unknown/already-resolved requestId is a 404 (GatewayError kind
+   *  "not-found"); a verdict the policy wall refuses is a 403 (kind "permission"). */
+  async resolve(
+    sessionId: string,
+    requestId: string,
+    verdict: PermissionVerdict,
+    scope: PermissionScope = 'once',
+  ): Promise<ResolveResponse> {
+    return this.requestJSON<ResolveResponse>(
+      'POST',
+      `/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}`,
+      { verdict, scope },
+    );
   }
 
   /** POST /sessions/{id}/stop — record the terminal stop intent and reap the live session. */

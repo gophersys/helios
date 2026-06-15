@@ -11,11 +11,13 @@
 //
 //   - Manager: orchestratortest.Manager — a real orchestrator.Pool over in-memory fakes,
 //     seeded with a default AgentTemplate so Spawn succeeds (the record plane).
-//   - Sessions: a REAL agentsession.Pool whose Adapter is the agentsessiontest scripted
-//     harness emitting a realistic demo turn (message + thinking + text deltas, a granted
-//     tool start/end, a four-token usage tick, a clean terminal Result), with a secretstest
-//     provider seeded so the fake setup-token reference resolves server-side, a real
-//     in-memory Transcript, and a fixed Clock (the live plane).
+//   - Sessions: a REAL agentsession.Pool whose Adapter is the verdict-aware dev harness
+//     (permission_adapter.go) — it streams the canonical demo turn (message + thinking + text
+//     deltas, a granted tool start/end, a four-token usage tick, a clean terminal Result) for an
+//     ordinary prompt, and the LIVE permission round-trip (ADR-0025: an out-of-grant request,
+//     then Allow-proceeds / Deny-blocks) for the permission-demo prompt — with a secretstest
+//     provider seeded so the fake setup-token reference resolves server-side, a real in-memory
+//     Transcript, and a fixed Clock (the live plane).
 //   - Transcript: the SAME real in-memory Transcript the Pool appends to, so a post-mortem
 //     transcript read still serves the full ordered Run.
 //   - Clock: a fixed, deterministic dev clock.
@@ -93,10 +95,13 @@ type Config struct {
 func BuildDevGateway(configuration Config) (*gateway.Gateway, error) {
 	clock := devClock{}
 
-	// The live plane: a REAL agentsession.Pool whose Adapter is the scripted demo harness, a
-	// seeded secrets provider resolving the fake setup-token server-side, and a real in-memory
-	// Transcript the Pool appends to (so the transcript route reconstructs the full Run).
-	adapter := agentsessiontest.New(DemoScript()...)
+	// The live plane: a REAL agentsession.Pool whose Adapter is the verdict-aware dev harness
+	// (permission_adapter.go) — it streams the canonical demo turn for an ordinary prompt and the
+	// LIVE permission round-trip (ADR-0025) for the permission-demo prompt, so the frontend
+	// exercises both the forced-CRUD taxonomy AND the Allow-proceeds / Deny-blocks gate over real
+	// REST+SSE. A seeded secrets provider resolves the fake setup-token server-side, and a real
+	// in-memory Transcript the Pool appends to (so the transcript route reconstructs the full Run).
+	adapter := newPermissionAdapter()
 	provider := secretstest.New(map[string]string{CredentialReference: fakeSetupToken})
 	transcript := agentsessiontest.NewTranscript()
 
@@ -158,13 +163,4 @@ func DefaultCreateTemplate() (name, version string) {
 // opens its OWN session on the live plane.
 func devRouteKey() agentsession.RouteKey {
 	return agentsession.RouteKey{Role: "assistant"}
-}
-
-// DemoScript is the realistic demo turn the scripted dev adapter streams after the create
-// request's first prompt: an assistant message with a thinking block and streamed text
-// deltas, a granted tool start/end, a four-token usage tick, and a clean terminal Result
-// carrying the authoritative ledger. It is the agentsessiontest canonical full-taxonomy run,
-// so the dev frontend renders every REQ-0024 event type against a working backend.
-func DemoScript() []agentsession.Event {
-	return agentsessiontest.CanonicalScript()
 }

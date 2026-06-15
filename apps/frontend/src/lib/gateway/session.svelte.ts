@@ -8,7 +8,15 @@
 
 import { GatewayClient, GatewayError } from './client';
 import { subscribeEvents, type Subscription, type SseStatus } from './sse';
-import type { EventView, Harness, LedgerView, SessionState, UsageView } from './types';
+import type {
+  EventView,
+  Harness,
+  LedgerView,
+  PermissionScope,
+  PermissionVerdict,
+  SessionState,
+  UsageView,
+} from './types';
 
 /** A single rendered turn-entry in the conversation timeline. The tagged `role` drives which
  *  chat component renders it; the fields are accreted from the streamed events. */
@@ -39,13 +47,19 @@ export interface ToolEntry {
   durationMs?: number;
 }
 
-/** A permission round-trip entry correlated across request / resolved by requestId. */
+/** A permission round-trip entry correlated across request / resolved by requestId. `decision` is
+ *  the gateway's resolution token (`pending` until resolved, then `allowed`/`denied`); `resolving`
+ *  is the optimistic in-flight flag set the instant the human clicks (so the card disables its
+ *  actions before the `permission-resolved` event lands); `rationale` is the advisor's audit
+ *  reasoning when the policy (not the human) decided. */
 export interface PermissionEntry {
   requestId: string;
   tool?: string;
   reason?: string;
   decision: string;
   by?: string;
+  rationale?: string;
+  resolving: boolean;
 }
 
 /** The live token/cost meter the usage ticks update and the terminal ledger reconciles. */
@@ -305,25 +319,73 @@ export class ChatSession {
   private permission(event: EventView): void {
     const permission = event.permission;
     if (!permission?.requestId) return;
+    const resolved = event.kind === 'permission-resolved';
+    const index = this.permissionIndex.get(permission.requestId);
+    if (index != null) {
+      const entry = this.entries[index];
+      if (entry.role === 'permission') {
+        // Merge the resolved record onto the live request: the decision token lands, the optimistic
+        // `resolving` flag clears, and any advisor rationale is surfaced. Only overwrite the request
+        // fields (tool/reason) when the incoming event actually carries them.
+        this.entries[index] = {
+          ...entry,
+          permission: {
+            ...entry.permission,
+            tool: permission.tool ?? entry.permission.tool,
+            reason: permission.reason ?? entry.permission.reason,
+            decision: permission.decision ?? entry.permission.decision,
+            by: permission.by ?? entry.permission.by,
+            rationale: permission.rationale ?? entry.permission.rationale,
+            resolving: resolved ? false : entry.permission.resolving,
+          },
+        };
+        this.entries = [...this.entries];
+        return;
+      }
+    }
     const next: PermissionEntry = {
       requestId: permission.requestId,
       tool: permission.tool,
       reason: permission.reason,
       decision: permission.decision ?? 'pending',
       by: permission.by,
+      rationale: permission.rationale,
+      resolving: false,
     };
-    const index = this.permissionIndex.get(permission.requestId);
-    if (index != null) {
-      const entry = this.entries[index];
-      if (entry.role === 'permission') {
-        this.entries[index] = { ...entry, permission: { ...entry.permission, ...next } };
-        this.entries = [...this.entries];
-        return;
-      }
-    }
     const id = this.nextId('p');
     this.entries = [...this.entries, { id, role: 'permission', permission: next }];
     this.permissionIndex.set(permission.requestId, this.entries.length - 1);
+  }
+
+  /** resolve answers a pending out-of-grant permission request (ADR-0025). It marks the card
+   *  `resolving` optimistically (so its actions disable the instant the human clicks), POSTs the
+   *  verdict to the gateway's Resolve endpoint (NOT a prompt/steer/abort control verb), and lets the
+   *  resulting `permission-resolved` SSE event flip the decision token + clear `resolving`. A typed
+   *  gateway fault (404 already-resolved/unknown, 403 policy-refused, 400 invalid) is surfaced as a
+   *  notice and the optimistic flag is rolled back so the human can retry. */
+  async resolve(
+    requestId: string,
+    verdict: PermissionVerdict,
+    scope: PermissionScope,
+  ): Promise<void> {
+    this.markResolving(requestId, true);
+    try {
+      await this.client.resolve(this.id, requestId, verdict, scope);
+      this.error = null;
+    } catch (cause) {
+      this.markResolving(requestId, false);
+      this.surface(cause, 'resolve');
+    }
+  }
+
+  /** markResolving toggles the optimistic in-flight flag on a permission entry by requestId. */
+  private markResolving(requestId: string, resolving: boolean): void {
+    const index = this.permissionIndex.get(requestId);
+    if (index == null) return;
+    const entry = this.entries[index];
+    if (entry.role !== 'permission') return;
+    this.entries[index] = { ...entry, permission: { ...entry.permission, resolving } };
+    this.entries = [...this.entries];
   }
 
   private applyUsage(usage: UsageView): void {

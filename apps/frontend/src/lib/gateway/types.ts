@@ -67,13 +67,17 @@ export interface ToolView {
   isHostTool?: boolean;
 }
 
-/** A permission request / resolved record (the human/policy gate). */
+/** A permission request / resolved record (the human/policy gate). `decision` is the resolution
+ *  token the gateway stamps — `pending` (the request), `allowed`, or `denied`. `rationale`, when
+ *  present, is the autonomous advisor's audit-logged reasoning (ADR-0025) — surfaced on the card so
+ *  a human can see WHY the policy decided; it is never a secret value. */
 export interface PermissionView {
   requestId: string;
   tool?: string;
   reason?: string;
   decision?: string;
   by?: string;
+  rationale?: string;
 }
 
 /** A token/cost tick — all four token kinds + per-model attribution. Cost is integer micros. */
@@ -154,6 +158,19 @@ export interface CreateResponse {
 
 /** POST /sessions/{id}/control — the Seq the verb was admitted at (the Ack). */
 export interface ControlResponse {
+  admittedSeq: number;
+}
+
+/** A permission verdict — the human's answer to a pending EventPermissionRequest (ADR-0025). */
+export type PermissionVerdict = 'allow' | 'deny';
+
+/** A permission scope — "once" authorizes this request only (the safe default); "session"
+ *  widens the running session's grant set so the exact tool is not re-asked (never persisted). */
+export type PermissionScope = 'once' | 'session';
+
+/** POST /sessions/{id}/permissions/{requestId} — the Seq the resulting EventPermissionResolved
+ *  was admitted at, so the UI correlates the resolution on the stream (the same Ack shape). */
+export interface ResolveResponse {
   admittedSeq: number;
 }
 

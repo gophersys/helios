@@ -46,6 +46,19 @@ type controlRequest struct {
 	Text    string `json:"text,omitempty"`
 }
 
+// resolveRequest is the body of POST /sessions/{id}/permissions/{requestId}: the human's
+// answer to a pending out-of-grant EventPermissionRequest (ADR-0025). The RequestID is the
+// PATH wildcard, NOT a body field — the body carries only the decision. Verdict is the
+// allow/deny verb; Scope bounds an allow to this request only ("once") or the running
+// session ("session", never persisted); By is the OPTIONAL principal that gets stamped
+// "human:<by>" on the audited Decision (defaulting to "human:anonymous"). This is a Resolve,
+// NOT a control Command — it calls the session's distinct Resolve method.
+type resolveRequest struct {
+	Verdict string `json:"verdict"`         // "allow" | "deny"
+	Scope   string `json:"scope,omitempty"` // "once" (default) | "session"
+	By      string `json:"by,omitempty"`    // the deciding principal; stamped "human:<by>" for audit
+}
+
 // ── REST response DTOs ───────────────────────────────────────────────────────.
 
 // agentView is the JSON projection of an orchestrator.Agent for the session-list and the
@@ -83,6 +96,13 @@ type createResponse struct {
 // controlResponse is the body of POST /sessions/{id}/control: the Seq the control was
 // admitted at, so the UI correlates the resulting events on the stream (Ack).
 type controlResponse struct {
+	AdmittedSeq uint64 `json:"admittedSeq"`
+}
+
+// resolveResponse is the body of POST /sessions/{id}/permissions/{requestId}: the Seq the
+// resulting EventPermissionResolved was admitted at, so the UI correlates the resolution on
+// the stream (the same Ack shape the control verbs return).
+type resolveResponse struct {
 	AdmittedSeq uint64 `json:"admittedSeq"`
 }
 

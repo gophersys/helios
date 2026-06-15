@@ -1,30 +1,30 @@
 <script lang="ts">
-  // The chat slice — the live UI over the agentgateway backend (REAL REST + SSE). A "session" IS a
-  // PRODUCT Eden builds via its 10-phase SDLC, so creation is the multi-step PRODUCT WIZARD
-  // (ProductWizard.svelte): it AI-PROPOSES a ProductConfig from the prompt (POST /product/propose),
-  // the user edits stack / capabilities / process / safety, and the assembled config rides
-  // POST /sessions (the `product` field) which the gateway folds into the build agent's initial
-  // context. Left rail: the project-scoped session list (GET /sessions) + the New product button.
-  // Right: the chat view — the conversation streamed live via the per-session SSE stream
-  // (GET /sessions/{id}/events), rendering EVERY event-taxonomy kind distinctly (assistant text,
-  // foldable thinking, tool start/update/end, permission round-trips, a live usage/cost meter),
-  // with the prompt / steer / abort control verbs (POST .../control), stop/resume
-  // (POST .../stop|resume), and gap-free SSE reconnect via Last-Event-ID. The gateway picks the
-  // live harness from its routing table; the claude/omp choice is recorded as a label and surfaced
-  // here (the dev-serve routes both to its deterministic fake harness — from the UI's side the
-  // HTTP/SSE is 100% real).
+  // The chat slice — the demo centerpiece, rebuilt on the Eden design system (@eden/primitives +
+  // @eden/theme, ADR-0024) and wired to the LIVE agent + permission flow (ADR-0025). It talks to the
+  // agentgateway backend over REAL REST + SSE: a "session" IS a PRODUCT Eden builds via its 10-phase
+  // SDLC, so creation is the multi-step PRODUCT WIZARD. The right pane streams the conversation via
+  // the per-session SSE stream, rendering the agent event taxonomy with the primitives — Message
+  // (user/assistant bubbles), StreamingText (the live token stream), ThinkingBlock (reasoning),
+  // ToolCall (tool events), UsageMeter (the live cost/token meter), and the INTERACTIVE
+  // PermissionRequest card (the human-in-the-loop gate). A permission decision flows
+  // GatewayClient.resolve(...) -> session.Resolve -> the native control_response, so the agent
+  // proceeds or is blocked, and the resolved state reflects on the card. The prompt/steer/abort
+  // control verbs, the session list, and the SSE/Last-Event-ID reconnect (B7) are preserved.
   import { onDestroy } from 'svelte';
+  import { Button, Input, Message } from '@eden/primitives';
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
   import { ChatSession } from '$lib/gateway/session.svelte';
   import type { AgentView, Harness, ProductConfig, ProductHarness } from '$lib/gateway/types';
-  import UsageMeter from '$lib/chat/UsageMeter.svelte';
-  import ToolCard from '$lib/chat/ToolCard.svelte';
-  import PermissionCard from '$lib/chat/PermissionCard.svelte';
-  import MessageBubble from '$lib/chat/MessageBubble.svelte';
+  import { edenTheme } from '$lib/theme/edenTheme';
+  import ChatMessage from '$lib/chat/ChatMessage.svelte';
+  import ChatTool from '$lib/chat/ChatTool.svelte';
+  import ChatPermission from '$lib/chat/ChatPermission.svelte';
+  import ChatUsageMeter from '$lib/chat/ChatUsageMeter.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
+  const theme = edenTheme;
 
   // ── session-list state ───────────────────────────────────────────────────────.
   let sessions = $state<AgentView[]>([]);
@@ -32,22 +32,17 @@
   let healthy = $state<boolean | null>(null);
 
   // ── product-wizard state ─────────────────────────────────────────────────────.
-  // The create flow is the multi-step PRODUCT wizard (a "session" IS a product Eden builds). It
-  // proposes a ProductConfig from the prompt, the user edits it, then it rides POST /sessions.
   let showWizard = $state(false);
 
-  /** Map the product harness onto the chat label set: the chat view + ChatSession know claude|omp
-   *  (the SSE/control seam is harness-agnostic). `codex` is folded to a claude-tone label for the
-   *  chrome only — the FULL product.capabilities.harness still rides the create body to the
-   *  gateway, which honors it. */
+  /** Map the product harness onto the chat label set (the SSE/control seam is harness-agnostic;
+   *  `codex` folds to a claude-tone label for the chrome only — the full product still rides). */
   function chatHarness(harness: ProductHarness): Harness {
     return harness === 'omp' ? 'omp' : 'claude';
   }
 
-  /** REVIEW → Launch: create the session carrying the edited ProductConfig, then open the chat
-   *  view streaming the real agent. The session is created WITHOUT an opening prompt so it starts
-   *  in `ready`; the synthesized first turn is then driven through the control channel, so the
-   *  user bubble renders and the full event stream is observed from a clean state. */
+  /** REVIEW → Launch: create the session carrying the edited ProductConfig, then open the chat view
+   *  streaming the real agent. Created WITHOUT an opening prompt so it starts in `ready`; the first
+   *  turn is then driven through the control channel so the user bubble renders from a clean state. */
   async function launchProduct(payload: {
     product: ProductConfig;
     harness: ProductHarness;
@@ -112,12 +107,30 @@
     session.open();
   }
 
-  async function sendComposer(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  async function sendComposer(): Promise<void> {
     const text = composer.trim();
     if (!text || !active) return;
     composer = '';
     await active.send(text);
+  }
+
+  function onComposerKey(event: KeyboardEvent): void {
+    // Enter sends; Shift+Enter would insert a newline (the input is single-line, so this is plain Enter).
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void sendComposer();
+    }
+  }
+
+  // The dev-plane permission-demo sentinel (mirrors devserve.permissionDemoSentinel). Sending a
+  // prompt carrying it drives the agent to request an OUT-OF-GRANT tool, so the demo can exercise
+  // the live permission round-trip on demand. The LIVE gateway ignores it (a real agent asks for a
+  // tool on its own when it needs one) — this affordance is the dev-plane trigger for the gate.
+  const PERMISSION_DEMO_PROMPT = 'eden:demo:permission — clean the build directory';
+
+  async function requestOutOfGrantTool(): Promise<void> {
+    if (!active) return;
+    await active.send(PERMISSION_DEMO_PROMPT);
   }
 
   async function steer(): Promise<void> {
@@ -136,7 +149,6 @@
     try {
       await client.stop(id);
     } catch (cause) {
-      // Surface but proceed — a stop on an already-terminal session is a no-op success.
       listError = cause instanceof GatewayError ? `${cause.kind}: ${cause.message}` : String(cause);
     }
     active.close();
@@ -184,13 +196,9 @@
       </span>
     </header>
 
-    <button
-      class="btn btn--accent rail__new"
-      data-testid="new-session"
-      onclick={() => (showWizard = true)}
-    >
-      ＋ New product
-    </button>
+    <div class="rail__new" data-testid="new-session">
+      <Button variant="primary" {theme} onclick={() => (showWizard = true)}>＋ New product</Button>
+    </div>
 
     {#if listError}
       <p class="rail__error">{listError}</p>
@@ -228,9 +236,13 @@
         <p>
           Every session is a product Eden builds through its 10-phase SDLC. Start a new product —
           describe what you're building, edit the configuration Eden proposes, then watch the agent
-          stream every event live: architecture, implementation, tool calls, and a token/cost meter.
+          stream every event live: reasoning, tool calls, permission gates, and a token/cost meter.
         </p>
-        <button class="btn btn--accent" onclick={() => (showWizard = true)}>＋ New product</button>
+        <div class="empty__cta">
+          <Button variant="primary" {theme} onclick={() => (showWizard = true)}
+            >＋ New product</Button
+          >
+        </div>
       </div>
     {:else}
       <header class="view__head">
@@ -243,47 +255,76 @@
           </span>
         </div>
         <div class="view__controls">
-          <button class="btn" data-testid="steer" onclick={steer} disabled={active.terminal}
-            >steer</button
-          >
-          <button class="btn" data-testid="abort" onclick={abort} disabled={active.terminal}
-            >abort</button
-          >
-          <button class="btn" data-testid="resume" onclick={resumeSession}>resume</button>
-          <button class="btn btn--danger" data-testid="stop" onclick={stopSession}>stop</button>
+          <span class="control" data-testid="request-tool">
+            <Button
+              variant="secondary"
+              {theme}
+              disabled={active.terminal}
+              onclick={requestOutOfGrantTool}>request tool</Button
+            >
+          </span>
+          <span class="control" data-testid="steer">
+            <Button variant="ghost" {theme} disabled={active.terminal} onclick={steer}>steer</Button
+            >
+          </span>
+          <span class="control" data-testid="abort">
+            <Button variant="ghost" {theme} disabled={active.terminal} onclick={abort}>abort</Button
+            >
+          </span>
+          <span class="control" data-testid="resume">
+            <Button variant="ghost" {theme} onclick={resumeSession}>resume</Button>
+          </span>
+          <span class="control" data-testid="stop">
+            <Button variant="danger" {theme} onclick={stopSession}>stop</Button>
+          </span>
         </div>
       </header>
 
       <div class="view__body">
         <div class="transcript" bind:this={scroller} data-testid="transcript">
-          {#each active.entries as entry (entry.id)}
-            {#if entry.role === 'user'}
-              <div class="bubble bubble--user" data-testid="user-message">
-                <div class="bubble__role bubble__role--user">you</div>
-                <div class="bubble__text">{entry.text}</div>
-              </div>
-            {:else if entry.role === 'assistant'}
-              <MessageBubble
-                text={entry.text}
-                thinking={entry.thinking}
-                streaming={entry.streaming}
-              />
-            {:else if entry.role === 'tool'}
-              <ToolCard tool={entry.tool} />
-            {:else if entry.role === 'permission'}
-              <PermissionCard permission={entry.permission} />
-            {:else if entry.role === 'notice'}
-              <div class="notice notice--{entry.tone}" data-testid="notice">{entry.text}</div>
-            {:else if entry.role === 'terminal'}
-              <div class="terminal" data-testid="terminal-banner" data-outcome={entry.outcome}>
-                <span class="chip chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
-                  {entry.outcome}
-                </span>
-                {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}
-                {#if entry.reason}<span class="chip chip--warn">{entry.reason}</span>{/if}
-              </div>
-            {/if}
-          {/each}
+          <ul class="turns" role="list">
+            {#each active.entries as entry (entry.id)}
+              {#if entry.role === 'user'}
+                <li class="turn turn--user" data-testid="user-message">
+                  <Message role="user" {theme}>{entry.text}</Message>
+                </li>
+              {:else if entry.role === 'assistant'}
+                <li class="turn">
+                  <ChatMessage
+                    text={entry.text}
+                    thinking={entry.thinking}
+                    streaming={entry.streaming}
+                    {theme}
+                  />
+                </li>
+              {:else if entry.role === 'tool'}
+                <li class="turn"><ChatTool tool={entry.tool} {theme} /></li>
+              {:else if entry.role === 'permission'}
+                <li class="turn">
+                  <ChatPermission
+                    permission={entry.permission}
+                    {theme}
+                    onresolve={(requestId, verdict, scope) =>
+                      active?.resolve(requestId, verdict, scope)}
+                  />
+                </li>
+              {:else if entry.role === 'notice'}
+                <li class="turn">
+                  <div class="notice notice--{entry.tone}" data-testid="notice">{entry.text}</div>
+                </li>
+              {:else if entry.role === 'terminal'}
+                <li class="turn">
+                  <div class="terminal" data-testid="terminal-banner" data-outcome={entry.outcome}>
+                    <span class="chip chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
+                      {entry.outcome}
+                    </span>
+                    {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}
+                    {#if entry.reason}<span class="chip chip--warn">{entry.reason}</span>{/if}
+                  </div>
+                </li>
+              {/if}
+            {/each}
+          </ul>
           {#if active.entries.length === 0}
             <p class="transcript__waiting" data-testid="transcript-waiting">
               Waiting for the first events…
@@ -292,20 +333,24 @@
         </div>
 
         <aside class="meterrail">
-          <UsageMeter meter={active.meter} />
+          <ChatUsageMeter meter={active.meter} {theme} />
         </aside>
       </div>
 
-      <form class="composer" onsubmit={sendComposer}>
-        <input
-          class="composer__input"
-          data-testid="composer-input"
-          placeholder="Send a prompt…"
-          bind:value={composer}
-          autocomplete="off"
-        />
-        <button class="btn btn--accent" data-testid="composer-send" type="submit">Send</button>
-      </form>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="composer" data-testid="composer-input" onkeydown={onComposerKey}>
+        <div class="composer__input">
+          <Input
+            bind:value={composer}
+            placeholder="Send a prompt…"
+            aria-label="Send a prompt"
+            {theme}
+          />
+        </div>
+        <span class="control" data-testid="composer-send">
+          <Button variant="primary" {theme} onclick={sendComposer}>Send</Button>
+        </span>
+      </div>
     {/if}
   </main>
 
@@ -329,39 +374,42 @@
 
   /* ── rail ── */
   .rail {
-    background: var(--navbg);
-    border-right: 1px solid var(--line);
-    padding: 1.2rem 1rem;
+    background: var(--eden-app-rail-bg);
+    border-inline-end: 1px solid var(--eden-app-line);
+    padding: var(--space-5, 20px) var(--space-4, 16px);
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: var(--space-3, 12px);
     overflow-y: auto;
   }
   .rail__head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.6rem;
+    gap: var(--space-2, 8px);
   }
   .eyebrow {
     font-family: var(--font-code);
-    font-size: var(--type-micro);
+    font-size: var(--font-size-caption, 12px);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
-    margin: 0 0 0.25rem;
+    color: var(--eden-app-muted);
+    margin: 0 0 var(--space-1, 4px);
   }
   .rail__title {
-    font-size: 1.5rem;
+    font-size: var(--font-size-title, 23px);
     margin: 0;
   }
   .rail__new {
-    width: 100%;
+    display: flex;
+  }
+  .rail__new :global(button) {
+    inline-size: 100%;
   }
   .rail__error {
-    color: var(--chip-warn-fg);
-    font-size: 0.85rem;
+    color: var(--color-error);
+    font-size: var(--font-size-label, 13px);
     margin: 0;
   }
   .rail__list {
@@ -370,52 +418,52 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-2, 8px);
   }
   .rail__empty {
-    color: var(--muted);
-    font-size: 0.9rem;
-    padding: 0.5rem 0;
+    color: var(--eden-app-muted);
+    font-size: var(--font-size-label, 13px);
+    padding: var(--space-2, 8px) 0;
   }
   .session {
-    width: 100%;
-    text-align: left;
-    background: var(--panel-bg);
-    border: 1px solid var(--panel-line);
-    border-radius: var(--radius);
-    padding: 0.6rem 0.7rem;
+    inline-size: 100%;
+    text-align: start;
+    background: var(--eden-app-panel-bg);
+    border: 1px solid var(--eden-app-panel-line);
+    border-radius: var(--eden-app-radius, 8px);
+    padding: var(--space-3, 12px);
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: var(--space-1, 4px);
     transition:
-      border-color 0.12s ease,
-      transform 0.12s ease;
+      border-color var(--duration-short-3, 150ms) var(--ease-standard, ease),
+      transform var(--duration-short-3, 150ms) var(--ease-standard, ease);
     color: inherit;
     font: inherit;
   }
   .session:hover {
-    border-color: var(--accent);
+    border-color: var(--eden-app-accent);
     transform: translateY(-1px);
   }
   .session--active {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
+    border-color: var(--eden-app-accent);
+    box-shadow: 0 0 0 1px var(--eden-app-accent);
   }
   .session__id {
     font-family: var(--font-code);
     font-weight: 650;
-    font-size: 0.92rem;
+    font-size: var(--font-size-label, 13px);
   }
   .session__meta {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: var(--space-2, 8px);
     flex-wrap: wrap;
   }
   .session__template {
-    font-size: var(--type-micro);
-    color: var(--muted);
+    font-size: var(--font-size-caption, 12px);
+    color: var(--eden-app-muted);
     font-family: var(--font-code);
   }
 
@@ -428,121 +476,117 @@
   }
   .empty {
     margin: auto;
-    max-width: 46ch;
+    max-width: 52ch;
     text-align: center;
-    padding: 2rem;
+    padding: var(--space-8, 32px);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--space-4, 16px);
     align-items: center;
   }
   .empty p {
-    color: var(--muted);
+    color: var(--eden-app-muted);
+  }
+  .empty__cta {
+    display: flex;
   }
   .view__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.4rem;
-    border-bottom: 1px solid var(--line);
+    gap: var(--space-4, 16px);
+    padding: var(--space-4, 16px) var(--space-6, 24px);
+    border-block-end: 1px solid var(--eden-app-line);
     flex-wrap: wrap;
   }
   .view__id {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2, 8px);
     flex-wrap: wrap;
   }
   .view__id h2 {
     margin: 0;
     font-family: var(--font-code);
-    font-size: 1.1rem;
+    font-size: var(--font-size-body-large, 19px);
   }
   .view__controls {
     display: flex;
-    gap: 0.4rem;
+    align-items: center;
+    gap: var(--space-2, 8px);
     flex-wrap: wrap;
+  }
+  /* A `control` is a thin inline wrapper carrying a stable data-testid over an @eden/primitives
+     Button: a testid click lands on the Button it contains, and `toBeDisabled()` reads the inner
+     native <button> (bits-ui forwards the disabled attribute). The visible affordance is the Button. */
+  .control {
+    display: inline-flex;
   }
   .view__body {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 280px;
+    grid-template-columns: 1fr 300px;
     min-height: 0;
     overflow: hidden;
   }
   .transcript {
     overflow-y: auto;
-    padding: 1.4rem;
+    padding: var(--space-6, 24px);
+  }
+  .turns {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: var(--space-4, 16px);
+  }
+  .turn {
+    display: flex;
+    flex-direction: column;
+  }
+  .turn--user {
+    align-items: flex-end;
+  }
+  .turn--user :global(.eden-message) {
+    max-inline-size: 70ch;
   }
   .transcript__waiting {
-    color: var(--muted);
+    color: var(--eden-app-muted);
     font-style: italic;
   }
   .meterrail {
-    border-left: 1px solid var(--line);
-    padding: 1.2rem 1rem;
+    border-inline-start: 1px solid var(--eden-app-line);
+    padding: var(--space-5, 20px) var(--space-4, 16px);
     overflow-y: auto;
-    background: var(--navbg);
-  }
-
-  /* ── bubbles ── */
-  .bubble {
-    border-radius: var(--radius);
-    padding: 0.75rem 1rem;
-    max-width: 78ch;
-  }
-  .bubble--user {
-    align-self: flex-end;
-    background: var(--color-surface-primary);
-    color: var(--color-text-on-surface);
-    border: 1px solid var(--color-surface-primary);
-  }
-  .bubble__role {
-    font-family: var(--font-code);
-    font-size: var(--type-micro);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin-bottom: 0.35rem;
-  }
-  .bubble__role--user {
-    color: var(--color-support);
-  }
-  .bubble__text {
-    line-height: 1.55;
-    white-space: pre-wrap;
-    word-break: break-word;
+    background: var(--eden-app-rail-bg);
   }
 
   .notice {
-    border-radius: var(--radius);
-    padding: 0.5rem 0.8rem;
-    font-size: 0.9rem;
-    border: 1px dashed var(--line);
+    border-radius: var(--eden-app-radius, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    font-size: var(--font-size-label, 13px);
+    border: 1px dashed var(--eden-app-line);
     max-width: 78ch;
   }
   .notice--warn {
-    border-color: var(--chip-warn-fg);
-    color: var(--chip-warn-fg);
-    background: var(--chip-warn-bg);
+    border-color: var(--color-error);
+    color: var(--color-error);
+    background: color-mix(in oklab, var(--color-error) 8%, var(--color-surface));
   }
   .notice--info {
-    color: var(--muted);
+    color: var(--eden-app-muted);
   }
 
   .terminal {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: var(--space-3, 12px);
     flex-wrap: wrap;
-    padding: 0.6rem 0.9rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--chipbg);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border: 1px solid var(--eden-app-line);
+    border-radius: var(--eden-app-radius, 8px);
+    background: var(--eden-app-panel-bg);
     max-width: 78ch;
   }
   .terminal__text {
@@ -552,54 +596,50 @@
   /* ── composer ── */
   .composer {
     display: flex;
-    gap: 0.6rem;
-    padding: 1rem 1.4rem;
-    border-top: 1px solid var(--line);
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-4, 16px) var(--space-6, 24px);
+    border-block-start: 1px solid var(--eden-app-line);
   }
   .composer__input {
     flex: 1;
-    padding: 0.7rem 0.9rem;
-    border: 1px solid var(--panel-line);
-    border-radius: var(--radius);
-    font: inherit;
-    background: var(--panel-bg);
-    color: var(--fg);
   }
-  .composer__input:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+  .composer__input :global(input) {
+    inline-size: 100%;
   }
 
-  /* ── buttons ── */
-  .btn {
-    font: inherit;
-    font-size: 0.9rem;
+  /* ── chips (app-chrome micro-labels, token-driven off the generated roles) ── */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    background: color-mix(in oklab, var(--color-secondary) 22%, var(--color-surface));
+    color: var(--color-on-surface);
+    font-family: var(--font-code);
+    font-size: var(--font-size-caption, 12px);
     font-weight: 600;
-    padding: 0.5rem 0.9rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--panel-line);
-    background: var(--panel-bg);
-    color: var(--fg);
-    cursor: pointer;
-    transition:
-      border-color 0.12s ease,
-      background 0.12s ease;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.18rem 0.6rem;
+    line-height: 1.4;
+    white-space: nowrap;
   }
-  .btn:hover {
-    border-color: var(--accent);
+  .chip--info {
+    background: color-mix(in oklab, var(--color-info) 16%, var(--color-surface));
+    color: var(--color-info);
   }
-  .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .chip--ok {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
   }
-  .btn--accent {
-    background: var(--accent);
-    color: var(--color-bone);
-    border-color: var(--accent);
+  .chip--warn {
+    background: color-mix(in oklab, var(--color-warning) 22%, var(--color-surface));
+    color: var(--color-warning);
   }
-  .btn--danger {
-    border-color: var(--chip-warn-fg);
-    color: var(--chip-warn-fg);
+  .chip--muted {
+    background: color-mix(in oklab, var(--color-on-surface) 8%, var(--color-surface));
+    color: var(--eden-app-muted);
   }
 
   @media (max-width: 760px) {
@@ -613,8 +653,8 @@
       grid-template-columns: 1fr;
     }
     .meterrail {
-      border-left: none;
-      border-top: 1px solid var(--line);
+      border-inline-start: none;
+      border-block-start: 1px solid var(--eden-app-line);
     }
   }
 </style>

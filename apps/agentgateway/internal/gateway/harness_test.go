@@ -93,8 +93,15 @@ type harness struct {
 // server/session is reaped on t.Cleanup (no leak).
 func newHarness(t *testing.T, script ...agentsession.Event) *harness {
 	t.Helper()
+	return newHarnessWithAdapter(t, agentsessiontest.New(script...))
+}
 
-	adapter := agentsessiontest.New(script...)
+// newHarnessWithAdapter builds a gateway over a PREPARED scripted adapter (so a test can pin
+// reactions — e.g. OnPermissionAnswer — before the session opens) and serves it. It is the
+// variant the permission round-trip uses; newHarness is the bare-script convenience over it.
+func newHarnessWithAdapter(t *testing.T, adapter *agentsessiontest.Adapter) *harness {
+	t.Helper()
+
 	provider := secretstest.New(map[string]string{credentialRef: agentsessiontest.SeededCanary})
 	transcript := agentsessiontest.NewTranscript()
 

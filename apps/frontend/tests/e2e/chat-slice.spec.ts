@@ -103,9 +103,11 @@ test.describe('chat slice — forced CRUD against a real dev-serve', () => {
 
     // ── CONTROL (steer/abort) ────────────────────────────────────────────────.
     // The single-turn fake script is terminal, so steer is a no-op-disabled control; assert the
-    // control buttons reflect the terminal state (steer/abort disabled once terminal).
-    await expect(page.getByTestId('steer')).toBeDisabled();
-    await expect(page.getByTestId('abort')).toBeDisabled();
+    // control buttons reflect the terminal state (steer/abort disabled once terminal). The testid
+    // tags the wrapper around the @eden/primitives Button; the disabled attribute is on the inner
+    // native <button> (bits-ui forwards it), so the assertion targets the button role.
+    await expect(page.getByTestId('steer').getByRole('button')).toBeDisabled();
+    await expect(page.getByTestId('abort').getByRole('button')).toBeDisabled();
 
     // ── STOP (delete) ────────────────────────────────────────────────────────.
     const stoppedId = await page

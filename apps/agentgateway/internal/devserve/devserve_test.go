@@ -91,7 +91,8 @@ func TestSmokeDevGatewayHappyPath(t *testing.T) {
 
 // assertOrderedDemoFrames proves the SSE stream delivered the realistic demo taxonomy: a
 // monotonic id (seq) cursor, the message/thinking/tool/usage kinds, and a clean terminal
-// result. The exact kinds come from devserve.DemoScript (the agentsessiontest canonical run).
+// result. The exact kinds come from the dev adapter's canonical body (the agentsessiontest
+// canonical full-taxonomy run, streamed for an ordinary prompt).
 func assertOrderedDemoFrames(t *testing.T, frames []sseFrame) {
 	t.Helper()
 	if len(frames) < 4 {
