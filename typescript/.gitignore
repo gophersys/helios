@@ -9,7 +9,16 @@ node_modules/
 
 # StrykerJS mutation lane (`ctl.sh mutate`) scratch — the per-lib temp dir + report (always removed
 # on exit; ignored defensively so an interrupted run never stages scratch). The lane runs StrykerJS
-# under the baked node (nvm); there is no committed patch/shim to exempt.
+# under the baked node (nvm); there is no committed patch/shim to exempt. The `stryker-setup-*.js`
+# files are the vitest-runner per-worker setup files StrykerJS 9.x leaves in the project root under
+# inPlace (stryker-js#5305) — the mutate verb reaps them; ignored so an interrupted run never stages.
 **/.stryker-tmp/
 **/stryker.log
 **/reports/mutation/
+**/stryker-setup-*.js
+
+# The a11y-evidence Playwright lane (`ctl.sh a11y`) artifacts — the vite-built harness app + the
+# Playwright run report. Regenerated on every run; never committed (the EVIDENCE is a11y-evidence/).
+**/tests-a11y/dist/
+**/test-results/
+**/playwright-report/

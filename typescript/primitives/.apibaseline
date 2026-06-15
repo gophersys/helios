@@ -1,0 +1,337 @@
+'aria-describedby'?: string;
+'aria-label'?: string;
+args?: string;
+author?: string;
+bg: OkLch;
+budget: number;
+children: Snippet;
+control: Snippet<[FieldControlProps]>;
+cost?: string;
+declare const Button: import("svelte").Component<ButtonProps, {}, "">;
+declare const CommandPalette: import("svelte").Component<CommandPaletteProps, {}, "value" | "open">;
+declare const Dialog: import("svelte").Component<DialogProps, {}, "open">;
+declare const DropdownMenu: import("svelte").Component<DropdownMenuProps, {}, "open">;
+declare const Field: import("svelte").Component<FieldProps, {}, "">;
+declare const IconButton: import("svelte").Component<IconButtonProps, {}, "">;
+declare const Input: import("svelte").Component<InputProps, {}, "value">;
+declare const Message: import("svelte").Component<MessageProps, {}, "">;
+declare const PermissionRequest: import("svelte").Component<PermissionRequestProps, {}, "">;
+declare const Popover: import("svelte").Component<PopoverProps, {}, "open">;
+declare const StreamingText: import("svelte").Component<StreamingTextProps, {}, "">;
+declare const Textarea: import("svelte").Component<TextareaProps, {}, "value">;
+declare const ThinkingBlock: import("svelte").Component<ThinkingBlockProps, {}, "">;
+declare const ToolCall: import("svelte").Component<ToolCallProps, {}, "">;
+declare const Tooltip: import("svelte").Component<TooltipProps, {}, "open">;
+declare const UsageMeter: import("svelte").Component<UsageMeterProps, {}, "">;
+delayDuration?: number;
+description?: string;
+disabled?: boolean;
+emptyMessage?: string;
+error?: string;
+export declare function accentSurface(theme: Theme): SurfacePair;
+export declare function appendChunk(accumulated: string, chunk: string): {
+export declare function barWidthPercent(fraction: number): string;
+export declare function buttonStyleVars(tokens: ButtonTokens): string;
+export declare function commandContrast(fg: OkLch, bg: OkLch): number;
+export declare function commandPaletteStyleVars(tokens: CommandPaletteTokens): string;
+export declare function defaultButtonTheme(options?: GenerateOptions): Theme;
+export declare function defaultCommandPaletteTheme(options?: GenerateOptions): Theme;
+export declare function defaultOverlayTheme(options?: GenerateOptions): Theme;
+export declare function deriveButtonTokens(variant: ButtonVariant, theme: Theme): ButtonTokens;
+export declare function deriveCommandPaletteTokens(theme: Theme): CommandPaletteTokens;
+export declare function deriveFieldTokens(theme: Theme): FieldTokens;
+export declare function deriveIconButtonTokens(variant: ButtonVariant, theme: Theme): IconButtonTokens;
+export declare function deriveInputTokens(theme: Theme): InputTokens;
+export declare function deriveMessageTokens(role: MessageRole, theme: Theme): MessageTokens;
+export declare function deriveOverlayTokens(layer: OverlayLayer, theme: Theme): OverlayTokens;
+export declare function derivePermissionRequestTokens(theme: Theme): PermissionRequestTokens;
+export declare function deriveStreamingTextTokens(theme: Theme): StreamingTextTokens;
+export declare function deriveThinkingBlockTokens(theme: Theme): ThinkingBlockTokens;
+export declare function deriveToolCallTokens(status: ToolCallStatus, theme: Theme): ToolCallTokens;
+export declare function deriveUsageMeterTokens(tier: UsageTier, theme: Theme): UsageMeterTokens;
+export declare function fieldStyleVars(tokens: FieldTokens): string;
+export declare function hitTargetPx(theme: Theme): number;
+export declare function iconButtonStyleVars(tokens: IconButtonTokens): string;
+export declare function inputStyleVars(tokens: InputTokens): string;
+export declare function messageStyleVars(tokens: MessageTokens): string;
+export declare function overlayStyleVars(tokens: OverlayTokens): string;
+export declare function permissionHeadingPairOklch(theme: Theme): {
+export declare function permissionRequestStyleVars(tokens: PermissionRequestTokens): string;
+export declare function proportion(theme: Theme, role: string): ProportionPick;
+export declare function proseSurface(theme: Theme): SurfacePair;
+export declare function quietSurface(theme: Theme): SurfacePair;
+export declare function rampPx(theme: Theme): readonly number[];
+export declare function space(theme: Theme, index: number): number;
+export declare function stateSurface(state: StateRole, theme: Theme): SurfacePair;
+export declare function streamProgress(visibleChars: number, expectedTotal: number): number;
+export declare function streamingTextStyleVars(tokens: StreamingTextTokens): string;
+export declare function styleVars(prefix: string, entries: readonly StyleEntry[]): string;
+export declare function thinkingBlockStyleVars(tokens: ThinkingBlockTokens): string;
+export declare function toolCallStyleVars(tokens: ToolCallTokens): string;
+export declare function usageFraction(used: number, budget: number): number;
+export declare function usageMeterStyleVars(tokens: UsageMeterTokens): string;
+export declare function usageTier(fraction: number): UsageTier;
+export default Button;
+export default CommandPalette;
+export default Dialog;
+export default DropdownMenu;
+export default Field;
+export default IconButton;
+export default Input;
+export default Message;
+export default PermissionRequest;
+export default Popover;
+export default StreamingText;
+export default Textarea;
+export default ThinkingBlock;
+export default ToolCall;
+export default Tooltip;
+export default UsageMeter;
+export interface ButtonTokens {
+export interface CommandPaletteGroup {
+export interface CommandPaletteItem {
+export interface CommandPaletteTokens {
+export interface DropdownMenuItem {
+export interface FieldTokens {
+export interface IconButtonTokens {
+export interface InputTokens {
+export interface MessageTokens {
+export interface OverlayTokens {
+export interface PermissionRequestTokens {
+export interface ProportionPick {
+export interface StreamingTextTokens {
+export interface SurfacePair {
+export interface ThinkingBlockTokens {
+export interface ToolCallTokens {
+export interface UsageMeterTokens {
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type MessageRole = 'user' | 'assistant';
+export type OverlayLayer = 'dropdown' | 'modal' | 'tooltip';
+export type StateRole = 'error' | 'success' | 'warning' | 'info';
+export type StyleEntry = readonly [suffix: string, value: string | number];
+export type ToolCallStatus = 'running' | 'success' | 'error';
+export type UsageTier = 'under' | 'near' | 'over';
+export type { CommandPaletteItem, CommandPaletteGroup } from './model.js';
+export type { DropdownMenuItem } from './types.js';
+export type { ThemeSeed };
+export { Button, deriveButtonTokens, buttonStyleVars, defaultButtonTheme, type ButtonVariant, type ButtonTokens, type ThemeSeed, } from './button/index.js';
+export { CommandPalette, deriveCommandPaletteTokens, commandPaletteStyleVars, defaultCommandPaletteTheme, commandContrast, type CommandPaletteItem, type CommandPaletteGroup, type CommandPaletteTokens, } from './command-palette/index.js';
+export { Dialog } from './dialog/index.js';
+export { DropdownMenu, type DropdownMenuItem } from './dropdown-menu/index.js';
+export { Field, deriveFieldTokens, fieldStyleVars, type FieldTokens } from './field/index.js';
+export { IconButton, deriveIconButtonTokens, iconButtonStyleVars, type IconButtonTokens, } from './icon-button/index.js';
+export { Input, Textarea, deriveInputTokens, inputStyleVars, type InputTokens, } from './input/index.js';
+export { Message, deriveMessageTokens, messageStyleVars, type MessageRole, type MessageTokens, } from './message/index.js';
+export { PermissionRequest, derivePermissionRequestTokens, permissionRequestStyleVars, permissionHeadingPairOklch, type PermissionRequestTokens, } from './permission-request/index.js';
+export { Popover } from './popover/index.js';
+export { StreamingText, deriveStreamingTextTokens, streamingTextStyleVars, appendChunk, streamProgress, type StreamingTextTokens, } from './streaming-text/index.js';
+export { ThinkingBlock, deriveThinkingBlockTokens, thinkingBlockStyleVars, type ThinkingBlockTokens, } from './thinking-block/index.js';
+export { ToolCall, deriveToolCallTokens, toolCallStyleVars, type ToolCallStatus, type ToolCallTokens, } from './tool-call/index.js';
+export { Tooltip } from './tooltip/index.js';
+export { UsageMeter, deriveUsageMeterTokens, usageMeterStyleVars, usageFraction, usageTier, barWidthPercent, type UsageTier, type UsageMeterTokens, } from './usage-meter/index.js';
+export { default as Button } from './button.svelte';
+export { default as CommandPalette } from './command-palette.svelte';
+export { default as Dialog } from './dialog.svelte';
+export { default as DropdownMenu } from './dropdown-menu.svelte';
+export { default as Field } from './field.svelte';
+export { default as IconButton } from './icon-button.svelte';
+export { default as Input } from './input.svelte';
+export { default as Message } from './message.svelte';
+export { default as PermissionRequest } from './permission-request.svelte';
+export { default as Popover } from './popover.svelte';
+export { default as StreamingText } from './streaming-text.svelte';
+export { default as Textarea } from './textarea.svelte';
+export { default as ThinkingBlock } from './thinking-block.svelte';
+export { default as ToolCall } from './tool-call.svelte';
+export { default as Tooltip } from './tooltip.svelte';
+export { default as UsageMeter } from './usage-meter.svelte';
+export { deriveButtonTokens, buttonStyleVars, defaultButtonTheme, type ButtonVariant, type ButtonTokens, type ThemeSeed, } from './tokens.js';
+export { deriveCommandPaletteTokens, commandPaletteStyleVars, defaultCommandPaletteTheme, commandContrast, type CommandPaletteTokens, type ThemeSeed, } from './tokens.js';
+export { deriveFieldTokens, fieldStyleVars, type FieldTokens } from './tokens.js';
+export { deriveIconButtonTokens, iconButtonStyleVars, type IconButtonTokens } from './tokens.js';
+export { deriveInputTokens, inputStyleVars, type InputTokens } from './tokens.js';
+export { deriveMessageTokens, messageStyleVars, type MessageRole, type MessageTokens, } from './tokens.js';
+export { deriveOverlayTokens, overlayStyleVars, defaultOverlayTheme, type OverlayLayer, type OverlayTokens, } from './overlay/index.js';
+export { deriveOverlayTokens, overlayStyleVars, defaultOverlayTheme, type OverlayLayer, type OverlayTokens, } from './tokens.js';
+export { derivePermissionRequestTokens, permissionRequestStyleVars, permissionHeadingPairOklch, type PermissionRequestTokens, } from './tokens.js';
+export { deriveStreamingTextTokens, streamingTextStyleVars, appendChunk, streamProgress, type StreamingTextTokens, } from './tokens.js';
+export { deriveThinkingBlockTokens, thinkingBlockStyleVars, type ThinkingBlockTokens, } from './tokens.js';
+export { deriveToolCallTokens, toolCallStyleVars, type ToolCallStatus, type ToolCallTokens, } from './tokens.js';
+export { deriveUsageMeterTokens, usageMeterStyleVars, usageFraction, usageTier, barWidthPercent, type UsageTier, type UsageMeterTokens, } from './tokens.js';
+export { proseSurface, accentSurface, quietSurface, stateSurface, proportion, rampPx, space, hitTargetPx, styleVars, type SurfacePair, type StateRole, type ProportionPick, type StyleEntry, } from './chat-surface/index.js';
+export { proseSurface, accentSurface, quietSurface, stateSurface, proportion, rampPx, space, hitTargetPx, styleVars, type SurfacePair, type StateRole, type ProportionPick, type StyleEntry, } from './tokens.js';
+fg: OkLch;
+groups: readonly CommandPaletteGroup[];
+id?: string;
+interface ButtonProps {
+interface CommandPaletteProps {
+interface DialogProps {
+interface DropdownMenuProps {
+interface FieldControlProps {
+interface FieldProps {
+interface IconButtonProps {
+interface InputProps {
+interface MessageProps {
+interface PermissionRequestProps {
+interface PopoverProps {
+interface StreamingTextProps {
+interface TextareaProps {
+interface ThinkingBlockProps {
+interface ToolCallProps {
+interface TooltipProps {
+interface UsageMeterProps {
+invalid?: boolean;
+itemPrefix?: Snippet<[CommandPaletteItem]>;
+items: readonly DropdownMenuItem[];
+label: string;
+label?: string;
+onDecision?: (decision: PermissionDecision) => void;
+onOpenChange?: (open: boolean) => void;
+onSelect?: (value: string) => void;
+onclick?: (event: MouseEvent) => void;
+oninput?: (event: Event) => void;
+open?: boolean;
+placeholder?: string;
+readonly actionGapPx: number;
+readonly background: string;
+readonly backgroundOklch: OkLch;
+readonly bodyFontFamily: string;
+readonly bodyLineHeightPx: number;
+readonly bodySizePx: number;
+readonly border: string;
+readonly borderInvalid: string;
+readonly borderInvalidOklch: OkLch;
+readonly borderOklch: OkLch;
+readonly captionSizePx: number;
+readonly caret: string;
+readonly caretWidthPx: number;
+readonly codeFontFamily: string;
+readonly codeLineHeightPx: number;
+readonly codeSizePx: number;
+readonly describedby: string | undefined;
+readonly disabled?: boolean;
+readonly elevationShadow: string;
+readonly error: string;
+readonly errorOklch: OkLch;
+readonly fill: string;
+readonly fillOklch: OkLch;
+readonly fontFamily: string;
+readonly fontSizePx: number;
+readonly foreground: string;
+readonly foregroundOklch: OkLch;
+readonly gapPx: number;
+readonly groupHeadingForeground: string;
+readonly groupHeadingForegroundOklch: OkLch;
+readonly heading: string;
+readonly headingColor: string;
+readonly headingFontFamily: string;
+readonly headingFontSizePx: number;
+readonly headingLineHeightPx: number;
+readonly headingOklch: OkLch;
+readonly headingSizePx: number;
+readonly heightPx: number;
+readonly hitTargetPx: number;
+readonly iconSizePx: number;
+readonly id: string;
+readonly inputBackground: string;
+readonly inputBackgroundOklch: OkLch;
+readonly inputForeground: string;
+readonly inputForegroundOklch: OkLch;
+readonly inputHeightPx: number;
+readonly inputPlaceholder: string;
+readonly invalid: boolean;
+readonly itemForeground: string;
+readonly itemForegroundOklch: OkLch;
+readonly itemHeightPx: number;
+readonly itemPaddingInlinePx: number;
+readonly itemSelectedBackground: string;
+readonly itemSelectedBackgroundOklch: OkLch;
+readonly itemSelectedForeground: string;
+readonly itemSelectedForegroundOklch: OkLch;
+readonly items: readonly CommandPaletteItem[];
+readonly keywords?: readonly string[];
+readonly label: string;
+readonly labelFontFamily: string;
+readonly labelFontSizePx: number;
+readonly labelLineHeightPx: number;
+readonly labelOklch: OkLch;
+readonly lineHeightPx: number;
+readonly listMaxHeightPx: number;
+readonly onSelect: () => void;
+readonly onSurface: string;
+readonly onSurfaceOklch: OkLch;
+readonly outline: string;
+readonly overlay: string;
+readonly overlayAlpha: number;
+readonly paddingBlockPx: number;
+readonly paddingInlinePx: number;
+readonly paddingPx: number;
+readonly panelBackground: string;
+readonly panelBorder: string;
+readonly panelPaddingPx: number;
+readonly panelRadiusPx: number;
+readonly placeholder: string;
+readonly placeholderOklch: OkLch;
+readonly proseFontFamily: string;
+readonly proseLineHeightPx: number;
+readonly proseSizePx: number;
+readonly radiusPx: number;
+readonly readoutFontFamily: string;
+readonly readoutLineHeightPx: number;
+readonly readoutSizePx: number;
+readonly scrim: string;
+readonly separator: string;
+readonly sizePx: number;
+readonly statusColor: string;
+readonly statusOklch: OkLch;
+readonly summaryFontFamily: string;
+readonly summaryLineHeightPx: number;
+readonly summarySizePx: number;
+readonly surface: string;
+readonly surfaceOklch: OkLch;
+readonly text: string;
+readonly titleFontFamily: string;
+readonly titleLineHeightPx: number;
+readonly titleSizePx: number;
+readonly track: string;
+readonly trackHeightPx: number;
+readonly value: string;
+readonly visibleChars: number;
+readonly zIndex: number;
+readonly zIndexModal: number;
+reason?: string;
+role?: MessageRole;
+rows?: number;
+status?: ToolCallStatus;
+streaming?: boolean;
+summary?: string;
+text?: string;
+theme?: Theme;
+title: string;
+tool: string;
+trigger: Snippet;
+type Button = ReturnType<typeof Button>;
+type CommandPalette = ReturnType<typeof CommandPalette>;
+type Dialog = ReturnType<typeof Dialog>;
+type DropdownMenu = ReturnType<typeof DropdownMenu>;
+type Field = ReturnType<typeof Field>;
+type IconButton = ReturnType<typeof IconButton>;
+type Input = ReturnType<typeof Input>;
+type Message = ReturnType<typeof Message>;
+type PermissionDecision = 'allow-once' | 'allow-session' | 'deny';
+type PermissionRequest = ReturnType<typeof PermissionRequest>;
+type Popover = ReturnType<typeof Popover>;
+type StreamingText = ReturnType<typeof StreamingText>;
+type Textarea = ReturnType<typeof Textarea>;
+type ThinkingBlock = ReturnType<typeof ThinkingBlock>;
+type ToolCall = ReturnType<typeof ToolCall>;
+type Tooltip = ReturnType<typeof Tooltip>;
+type UsageMeter = ReturnType<typeof UsageMeter>;
+type?: 'button' | 'submit' | 'reset';
+type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'number';
+unit?: string;
+used: number;
+value?: string;
+variant?: ButtonVariant;
+}
+};

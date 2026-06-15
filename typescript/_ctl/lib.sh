@@ -114,7 +114,21 @@ bunx() { ( cd "$PROJECT_ROOT" && bun x "$@" ); }
 
 # cmd_build — type-emit the library (tsc --build / emit declarations). The build IS the
 # typecheck-with-emit: a leaf utility library's artifact is its .js + .d.ts surface.
+#
+# A COMPONENT lib (EDEN_HAS_SVELTE=true) ships *.svelte, which tsc cannot compile or emit a .d.ts
+# for. Its artifact is produced by `svelte-package` (svelte2tsx): it compiles every *.svelte to a
+# runtime module + a generated *.svelte.d.ts AND emits the .ts surface to dist/ — the same .js +
+# .d.ts artifact shape, so the downstream apidiff/exports contract is identical. A pure-TS lib stays
+# on tsc (the fast, dependency-free path).
 cmd_build() {
+  if [[ "$EDEN_HAS_SVELTE" == "true" ]]; then
+    require_tool svelte-package @sveltejs/package
+    require_tool svelte-check svelte-check
+    log_info "build: svelte-package (compile *.svelte + emit .js + generated *.svelte.d.ts → dist)"
+    bunx svelte-package --input ./src --output ./dist --tsconfig ./tsconfig.json
+    log_success "build: OK"
+    return 0
+  fi
   require_tool tsc typescript
   log_info "build: tsc -p tsconfig.json (emit .js + .d.ts)"
   bunx tsc -p tsconfig.json
@@ -216,14 +230,30 @@ cmd_maintainability() {
 _emit_api_surface() {
   # Emit .d.ts only, concatenate the PUBLIC declaration surface into a normalized snapshot
   # (sorted, comment/whitespace-stripped) so the diff is order-stable and noise-free.
-  require_tool tsc typescript
+  #
+  # A COMPONENT lib (EDEN_HAS_SVELTE=true) has *.svelte in its surface, which tsc cannot emit a
+  # .d.ts for — so its frozen surface is produced by `svelte-package` (the generated *.svelte.d.ts +
+  # the .ts declarations) into a temp dir. The downstream normalization is identical: the cardinal
+  # sin (a prop/event/exported-signature break) shows up as a diff in exactly the same way.
   local tmp; tmp="$(mktemp -d -t "${EDEN_LIB_NAME}-api.XXXXXX")"
-  ( cd "$PROJECT_ROOT" && bun x tsc -p tsconfig.json \
-      --declaration --emitDeclarationOnly --outDir "$tmp" --declarationMap false --sourceMap false ) >/dev/null
+  if [[ "$EDEN_HAS_SVELTE" == "true" ]]; then
+    require_tool svelte-package @sveltejs/package
+    ( cd "$PROJECT_ROOT" && bun x svelte-package --input ./src --output "$tmp" --tsconfig ./tsconfig.json ) >/dev/null 2>&1
+  else
+    require_tool tsc typescript
+    ( cd "$PROJECT_ROOT" && bun x tsc -p tsconfig.json \
+        --declaration --emitDeclarationOnly --outDir "$tmp" --declarationMap false --sourceMap false ) >/dev/null
+  fi
   # Normalize to the DECLARATION SURFACE ONLY (the real cardinal-sin signal): strip JSDoc block
   # comments (/** … */ and the ` * …` continuation lines), line comments, blank lines, import
   # lines, the sourceMappingURL pragma; collapse whitespace; sort for order-stability.
-  find "$tmp" -name '*.d.ts' -print0 \
+  #
+  # TEST declaration files (*.test.d.ts / *.spec.d.ts / *.property.test.d.ts / *.design.test.d.ts)
+  # are EXCLUDED: a test file is never part of the frozen public surface. (For a pure-TS lib tsc
+  # already keeps them out of the declaration emit; svelte-package copies the whole src subtree, so
+  # the exclusion is required to keep the baseline to the real published API for a component lib.)
+  find "$tmp" -name '*.d.ts' \
+    ! -name '*.test.d.ts' ! -name '*.spec.d.ts' -print0 \
     | sort -z \
     | xargs -0 cat \
     | grep -vE '^\s*$|^\s*//|^//#|^\s*/?\*|^\s*/\*\*|^import |^export \{\}' \
@@ -307,6 +337,51 @@ cmd_design_correctness() {
   log_success "design-correctness: OK"
 }
 
+# ── (a11y) THE A11Y-EVIDENCE LANE — axe on REAL Chromium AND WebKit + keyboard (RD-16/ADR-0004) ──
+# The browser-level layer of the three-layer a11y stack a COMPONENT lib (EDEN_HAS_SVELTE=true) owes
+# per component pattern: (1) axe-core on the REAL Chromium AND WebKit engines via Playwright (both
+# are installed in the devcontainer at ~/.cache/ms-playwright), (2) Playwright keyboard assertions
+# (Tab-order / activation / focus-ring), and (3) a noted SR matrix recorded in a version-pinned
+# a11y-evidence/<component>.md. This verb drives layers (1)+(2) — the spec lives in
+# tests-a11y/specs/*.spec.ts and asserts axe-clean + keyboard-operable + token-driven color THROUGH
+# the portal, the same proven RD-16/OD-1 pattern that cleared axe with Eden tokens on both engines.
+#
+# It is wired into phase-gate qa as a BLOCKER for component libs (and skipped — NOT failed — for a
+# pure-math leaf that ships no *.svelte, which has no component a11y surface). FAIL-NOT-SKIP for the
+# tooling: a missing Playwright/axe install in the devcontainer is exit 127, never a silent pass.
+cmd_a11y() {
+  if [[ "$EDEN_HAS_SVELTE" != "true" ]]; then
+    log_success "a11y: no *.svelte components in this lib — no browser a11y surface (not applicable)"
+    return 0
+  fi
+  require_tool playwright @playwright/test
+  require_bun
+  # axe-core is loaded by the spec (require.resolve('axe-core/axe.min.js')); prove it is installed.
+  if [[ ! -e "${EDEN_TS_WORKSPACE}/node_modules/axe-core/axe.min.js" ]]; then
+    log_error "missing required tool: axe-core (the a11y engine the Playwright spec injects)"
+    log_dim   "  ADR-0024 FAIL-NOT-SKIP: install at the workspace: (cd ${EDEN_TS_WORKSPACE} && bun install)"
+    exit 127
+  fi
+  # The real-browser binaries must be present (the devcontainer bakes them). FAIL-NOT-SKIP: an
+  # absent engine is a gate failure, not a skip — a11y evidence is only evidence if it really ran.
+  if [[ ! -d "${HOME}/.cache/ms-playwright" ]]; then
+    log_error "missing Playwright browsers (~/.cache/ms-playwright) — Chromium+WebKit are required"
+    log_dim   "  install (dev has nopasswd sudo): sudo bun x playwright install-deps webkit chromium && bun x playwright install webkit chromium"
+    exit 127
+  fi
+  local cfg="${PROJECT_ROOT}/tests-a11y/playwright.config.ts"
+  if [[ ! -f "$cfg" ]]; then
+    log_error "component lib has no a11y harness: ${cfg} (the axe+keyboard evidence is REQUIRED)"
+    exit 1
+  fi
+  # Build the harness app first (vite) so `vite preview` (the playwright webServer) has a dist.
+  log_info "a11y: building the evidence harness (vite) then running axe on Chromium AND WebKit"
+  ( cd "${PROJECT_ROOT}/tests-a11y" && bun x vite build --config vite.config.ts ) >/dev/null
+  # Run the Playwright suite over BOTH projects (chromium + webkit) — the config pins them.
+  ( cd "${PROJECT_ROOT}/tests-a11y" && bun x playwright test --config playwright.config.ts )
+  log_success "a11y: OK (axe clean on Chromium + WebKit; keyboard operable)"
+}
+
 # ── (cohesion) DEAD-EXPORT + CROSS-LIB MATH DUPLICATION — one concept, one home (10 §9) ──────────
 # The TS analog of the Go pipeline's `_cohesion_scan` + the two cross-lib duplication detectors. The
 # TS track previously had NO cohesion dimension (audit: "a TS lib can re-derive another TS lib's
@@ -371,14 +446,22 @@ cmd_mutate() {
   local core_bin="${ws}/node_modules/@stryker-mutator/core/bin/stryker.js"
   if [[ ! -f "$core_bin" ]]; then log_error "missing Stryker core bin: ${core_bin}"; exit 127; fi
 
-  # The mutate target set: every non-test src module except the pure re-export barrel index.ts.
-  # (Mirrors the cover-floor include/exclude — the barrel has no logic to mutate.)
-  local mutate_json
-  if [[ -f "${PROJECT_ROOT}/src/index.ts" ]] && [[ "$(find "${PROJECT_ROOT}/src" -maxdepth 1 -name '*.ts' ! -name '*.test.ts' ! -name '*.spec.ts' | wc -l | tr -d ' ')" == "1" ]]; then
-    # single-module leaf (e.g. scale): all logic lives in index.ts, so mutate it.
+  # The mutate target set: every non-test src module except the pure re-export barrels (`index.ts`
+  # at ANY depth — a barrel has no logic to mutate, so mutating it yields 0 mutants and starves the
+  # run). The single-module case (scale: ALL logic in the one top-level index.ts) is detected by
+  # counting non-test, non-barrel source across the WHOLE tree, not just maxdepth 1 — a lib whose
+  # logic lives in a subdir (e.g. primitives' src/button/tokens.ts) must take the glob branch, never
+  # the misfiring "mutate src/index.ts" branch that left it with 0 mutants.
+  local mutate_json non_barrel_count
+  non_barrel_count="$(find "${PROJECT_ROOT}/src" -name '*.ts' \
+    ! -name 'index.ts' ! -name '*.test.ts' ! -name '*.property.test.ts' \
+    ! -name '*.design.test.ts' ! -name '*.spec.ts' | wc -l | tr -d ' ')"
+  if [[ -f "${PROJECT_ROOT}/src/index.ts" ]] && [[ "$non_barrel_count" == "0" ]]; then
+    # single-module leaf (e.g. scale): all logic lives in the one index.ts, so mutate it.
     mutate_json='["src/index.ts"]'
   else
-    mutate_json='["src/**/*.ts","!src/index.ts","!src/**/*.test.ts","!src/**/*.property.test.ts","!src/**/*.design.test.ts","!src/**/*.spec.ts"]'
+    # multi-module lib: mutate every non-test source EXCEPT every barrel (index.ts at any depth).
+    mutate_json='["src/**/*.ts","!src/**/index.ts","!src/**/*.test.ts","!src/**/*.property.test.ts","!src/**/*.design.test.ts","!src/**/*.spec.ts"]'
   fi
 
   # Normal node_modules resolution: the vitest-runner plugin is named by its plain specifier and
@@ -408,6 +491,10 @@ JSON
 
   rm -f "$cfg"
   rm -rf "${PROJECT_ROOT}/.stryker-tmp"
+  # StrykerJS 9.x's vitest-runner writes per-worker `stryker-setup-<n>.js` files into the project
+  # root and, under inPlace, leaves them behind (stryker-js#5305). Reap them so the working tree is
+  # clean (otherwise the lint/format gate trips on an un-tsconfig'd stray .js — a real prior break).
+  find "$PROJECT_ROOT" -maxdepth 1 -name 'stryker-setup-*.js' -delete 2>/dev/null || true
 
   if [[ $rc -ne 0 ]]; then
     log_error "mutate: mutation score below FLOOR ${EDEN_MUTATION_FLOOR}% (or the run failed) — a survived mutant on covered code is a real test gap (rule 21 §h). Strengthen the test to kill it."
@@ -507,6 +594,9 @@ phase_testing() {
   _gate_run "property (fast-check invariants)" cmd_property
   _gate_run "cover-floor (per-package vitest istanbul FLOOR)" cmd_cover_floor
   _gate_run "design-correctness (the ninth dimension — math-is-source-of-truth)" cmd_design_correctness
+  # a11y evidence (axe Chromium+WebKit + keyboard) is REQUIRED for a component lib; cmd_a11y
+  # self-reports "not applicable" (PASS) for a pure-math leaf that ships no *.svelte.
+  _gate_run "a11y evidence (axe Chromium+WebKit + keyboard — RD-16)" cmd_a11y
   _gate_summary
 }
 
@@ -520,6 +610,7 @@ phase_qa() {
   _gate_run "maintainability (strict lint + typecheck + name lint + format + cohesion)" cmd_maintainability
   _gate_run "cohesion (dead-export + cross-lib math-duplication — one concept, one home)" cmd_cohesion
   _gate_run "design-correctness (the ninth dimension)" cmd_design_correctness
+  _gate_run "a11y evidence (axe Chromium+WebKit + keyboard — BLOCKER for component libs)" cmd_a11y
   _gate_run "no-shortcuts grep (ADR-0017)" _gate_no_shortcuts
   _gate_run "cover-floor (per-package FLOOR)" cmd_cover_floor
   _gate_run "mutate (StrykerJS — break FLOOR ${EDEN_MUTATION_FLOOR}%, the gremlins ≥0.75 analog)" cmd_mutate
@@ -597,6 +688,7 @@ ADR-0024 test-taxonomy verbs:
   cohesion           dead-export + cross-lib math-duplication scan (one concept, one home)
   mutate             StrykerJS mutation lane (break FLOOR ${EDEN_MUTATION_FLOOR}% — the gremlins ≥0.75 analog)
   design-correctness the ninth dimension — math-is-source-of-truth (provenance + design lane)
+  a11y               the a11y-evidence lane — axe on Chromium AND WebKit + keyboard (component libs)
   apidiff            diff the exported .d.ts surface vs the frozen .apibaseline (cardinal sin)
   apidiff-record     record the frozen surface (architecture gate / contract revision)
 
@@ -622,6 +714,7 @@ lib_main() {
     cohesion)            cmd_cohesion            "$@" ;;
     mutate)              cmd_mutate              "$@" ;;
     design-correctness)  cmd_design_correctness  "$@" ;;
+    a11y)                cmd_a11y                "$@" ;;
     apidiff)             cmd_apidiff             "$@" ;;
     apidiff-record)      cmd_apidiff_record      "$@" ;;
     phase-gate)          cmd_phase_gate          "$@" ;;

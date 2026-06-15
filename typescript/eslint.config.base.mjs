@@ -64,9 +64,14 @@ export default tseslint.config(
   },
   ...svelte.configs.recommended,
   {
-    files: ['**/*.svelte'],
+    files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
     languageOptions: {
       parserOptions: {
+        // svelte-eslint-parser delegates the `<script lang="ts">` block to a sub-parser; without
+        // this the TS in a component (e.g. `interface Props {`) is parsed as plain JS and throws
+        // "Unexpected token {". Point it at the typescript-eslint parser and enable the project
+        // service so the typed-linting rules have type information for component scripts too.
+        parser: tseslint.parser,
         projectService: true,
         extraFileExtensions: ['.svelte'],
       },
