@@ -4,6 +4,38 @@
   "projectType": "application",
   "tags": ["scope:libs", "type:ci"],
   "targets": {
+    "affected-gate-fast": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh affected-gate-fast",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "affected-gate-substrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh affected-gate-substrate",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "gate-all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh gate-all",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "updatability": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh updatability",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
     "validate": {
       "executor": "nx:run-commands",
       "options": {

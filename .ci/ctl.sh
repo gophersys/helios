@@ -2,15 +2,31 @@
 #
 # .ci/ctl.sh — orchestration-layer CI for gophersys/libs.
 #
-# Verbs delegate to the repo-level ctl.sh where possible; this layer is
-# for CI-specific concerns (release readiness, status, etc.) that don't
-# belong in the day-to-day ctl.sh.
+# This is the PROVIDER-NEUTRAL CI layer (the cictl contract). The three CI tiers
+# (pr / merge / nightly) each invoke one or more of THESE verbs, identically
+# whether run locally or on a remote provider. The .github/workflows/*.yml are
+# GENERATED from .ci/ci.contract.yaml by `cictl generate`; never hand-edit them —
+# `cictl drift` is the CI-on-CI gate that enforces it.
+#
+# Tier verbs map to the per-lib SDLC gate (ADR-0020, libs/go/_ctl/lib.sh):
+#   affected-gate-fast       → for each affected project: ctl.sh phase-gate implementation
+#                              (build + strict lint/hnslint + apidiff-no-break + vet + unit) — no
+#                              real substrate; the minutes lane on every push.
+#   affected-gate-substrate  → for each affected project: the integration/lifecycle/load lanes on
+#                              the REAL docker+k3d+kind host (never mocked) — the merge lane.
+#   gate-all                 → for each affected project: ctl.sh phase-gate all (1→4) — the nightly
+#                              exhaustive lane.
+#   updatability             → cictl updatability: the pinned-version audit (ADR-0021 generalised).
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
+
+# Diff base for affected detection. CI sets NX_BASE per tier; locally it defaults
+# to origin/main.
+NX_BASE="${NX_BASE:-origin/main}"
 
 function log_info()    { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
 function log_warn()    { printf '\033[0;33m[warn]\033[0m  %s\n' "$*" >&2; }
@@ -35,6 +51,84 @@ function on_exit() {
 }
 trap on_exit EXIT
 
+# ── affected-projects helper ─────────────────────────────────────────────────
+# affected_projects prints the changed project roots (one per line, repo-relative)
+# via cictl — the nx-free, uniform "what changed". A project is a dir with both
+# ctl.sh and project.json.
+function affected_projects() {
+  require_cmd cictl
+  cictl affected -C "$REPO_ROOT" --base "$NX_BASE"
+}
+
+# run_phase_gate_over_affected <selector> — for each affected project, run its
+# per-lib gate. A run with no affected project is a CLEAN no-op success (an empty
+# diff must not fail the tier).
+#
+# $1 selects what to run:
+#   implementation | testing | qa | architecture | all → ctl.sh phase-gate <$1>
+#   substrate                                           → the real-substrate lanes
+#                                                         (integration + lifecycle + load)
+function run_phase_gate_over_affected() {
+  local selector="$1"
+  local -a projects=()
+  mapfile -t projects < <(affected_projects)
+
+  if [[ ${#projects[@]} -eq 0 ]]; then
+    log_info "no affected projects for base '${NX_BASE}' — clean no-op"
+    return 0
+  fi
+
+  local ran=0 proj proj_dir
+  for proj in "${projects[@]}"; do
+    [[ -z "$proj" ]] && continue
+    proj_dir="$REPO_ROOT/$proj"
+    if [[ ! -f "$proj_dir/ctl.sh" ]]; then
+      log_warn "skipping '$proj': no ctl.sh (not a gateable project)"
+      continue
+    fi
+    ran=$((ran + 1))
+    case "$selector" in
+      substrate)
+        log_info "gate(substrate): $proj → integration + lifecycle + load (REAL docker+k3d+kind)"
+        ( cd "$proj_dir" && bash ./ctl.sh integration && bash ./ctl.sh lifecycle && bash ./ctl.sh load )
+        ;;
+      *)
+        log_info "gate: $proj → phase-gate $selector"
+        ( cd "$proj_dir" && bash ./ctl.sh phase-gate "$selector" )
+        ;;
+    esac
+  done
+
+  if [[ "$ran" -eq 0 ]]; then
+    log_info "affected projects had no gateable ctl.sh — clean no-op"
+    return 0
+  fi
+  log_success "gate ($selector): all $ran affected project(s) green"
+}
+
+# ── tier verbs (uniform local & remote; referenced by the cictl contract) ────
+function cmd_affected_gate_fast() {
+  log_info "affected-gate-fast: phase-gate implementation over affected projects (base=${NX_BASE})"
+  run_phase_gate_over_affected implementation
+}
+
+function cmd_affected_gate_substrate() {
+  log_info "affected-gate-substrate: real-substrate lanes over affected projects (base=${NX_BASE})"
+  run_phase_gate_over_affected substrate
+}
+
+function cmd_gate_all() {
+  log_info "gate-all: phase-gate all (1→4) over affected projects (base=${NX_BASE})"
+  run_phase_gate_over_affected all
+}
+
+function cmd_updatability() {
+  require_cmd cictl
+  log_info "updatability: pinned-version matrix from the contract's toolMatrix.sources"
+  cictl updatability -C "$REPO_ROOT" "$@"
+}
+
+# ── existing meta verbs (preserved) ──────────────────────────────────────────
 function cmd_validate() {
   bash "$REPO_ROOT/ctl.sh" validate "$@"
 }
@@ -67,11 +161,34 @@ function cmd_release_check() {
   log_success "release-check: ready (HEAD $head)"
 }
 
+# ── conformance hidden lister ────────────────────────────────────────────────
+# __verbs is the hidden command `cictl conformance` invokes to learn which verbs
+# this dispatcher defines. It MUST list every tier-referenced verb. Keep it in
+# sync with the case arms below (the conformance gate fails loudly if a tier
+# references a verb absent here).
+function cmd_list_verbs() {
+  cat <<'EOF'
+affected-gate-fast
+affected-gate-substrate
+gate-all
+updatability
+validate
+status
+release-check
+EOF
+}
+
 function usage() {
   cat <<EOF
 Usage: bash .ci/ctl.sh <command> [args]
 
-Commands:
+Tier verbs (referenced by .ci/ci.contract.yaml; uniform local & remote):
+  affected-gate-fast       phase-gate implementation over affected projects (pr tier)
+  affected-gate-substrate  integration/lifecycle/load on real docker+k3d+kind (merge tier)
+  gate-all                 phase-gate all (1->4) over affected projects (nightly tier)
+  updatability             pinned-version matrix from the contract toolMatrix (nightly tier)
+
+Meta verbs:
   validate       Delegates to repo-level ctl.sh validate
   status         Delegates to repo-level ctl.sh status
   release-check  Preflight for brain's release.sh
@@ -83,10 +200,15 @@ function main() {
   local cmd="${1:-help}"
   shift || true
   case "$cmd" in
-    validate)       cmd_validate       "$@" ;;
-    status)         cmd_status         "$@" ;;
-    release-check)  cmd_release_check  "$@" ;;
-    help|"")        usage ;;
+    affected-gate-fast)       cmd_affected_gate_fast       "$@" ;;
+    affected-gate-substrate)  cmd_affected_gate_substrate  "$@" ;;
+    gate-all)                 cmd_gate_all                 "$@" ;;
+    updatability)             cmd_updatability             "$@" ;;
+    validate)                 cmd_validate                 "$@" ;;
+    status)                   cmd_status                   "$@" ;;
+    release-check)            cmd_release_check            "$@" ;;
+    __verbs)                  cmd_list_verbs               "$@" ;;
+    help|"")                  usage ;;
     *) log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac
 }

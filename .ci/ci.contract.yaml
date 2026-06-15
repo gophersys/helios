@@ -1,0 +1,49 @@
+# Eden CI contract for gophersys/libs — the single source of truth for this repo's CI.
+# The .github/workflows/*.yml and .ci/providers/github/*.yml are GENERATED from THIS file by
+# `cictl generate -C .`; never hand-edit them — `cictl drift` is the CI-on-CI gate that enforces it.
+apiVersion: eden.ci/v1
+repo: libs
+kind: libraries
+image: ghcr.io/gophersys/base
+languages:
+  - go
+  - typescript
+tiers:
+  # pr — the fast lane on every push: cheap gates over the affected projects, no real substrate.
+  pr:
+    verbs:
+      - affected-gate-fast
+    substrate: []
+    timeoutMinutes: 15
+  # merge — the careful-orchestration lane before merge: the real-substrate gates on docker+k3d+kind.
+  merge:
+    verbs:
+      - affected-gate-substrate
+    substrate:
+      - docker
+      - k3d
+      - kind
+      - postgres
+    privileged: true
+    timeoutMinutes: 30
+  # nightly — the exhaustive lane on a schedule: the full per-lib gate plus the pinned-version audit.
+  nightly:
+    verbs:
+      - gate-all
+      - updatability
+    substrate:
+      - docker
+      - k3d
+      - kind
+      - postgres
+      - minio
+      - nats
+    privileged: true
+    schedule: "0 6 * * *"
+    timeoutMinutes: 90
+providers:
+  - github
+toolMatrix:
+  sources:
+    - "**/go.mod"
+    - "typescript/**/package.json"
