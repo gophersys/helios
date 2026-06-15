@@ -166,11 +166,19 @@ func (g *Gateway) openingPrompt(request *createSessionRequest) string {
 		return request.Prompt
 	}
 	preamble := productPreamble(NormalizeProductConfig(*request.Product))
-	if request.Prompt == "" {
-		return preamble
+	if request.Prompt != "" {
+		preamble += "\n\n" + request.Prompt
 	}
-	return preamble + "\n\n" + request.Prompt
+	// A build prompt is heavyweight; without guidance a model can reason silently for minutes
+	// before emitting anything, which reads as a frozen chat. Ask it to NARRATE: lead with a
+	// one-sentence summary and a short plan before deep work, so the chat streams visible progress
+	// from the first seconds (the thinking-progress status bar covers the silent-reasoning gaps).
+	return preamble + buildNarrationDirective
 }
+
+// buildNarrationDirective nudges the build agent to stream visible progress instead of reasoning
+// silently — appended to the product opening prompt only.
+const buildNarrationDirective = "\n\nBegin your reply with a one-sentence summary of what you will build, then a short numbered plan, before any deep work — so progress is visible as you go."
 
 // productPreamble synthesizes the agent's initial-context line from a normalized ProductConfig:
 // "Build <productName> (<kind>): <summary>. Stack <...>. Services <...>. Run phases <...>." It is

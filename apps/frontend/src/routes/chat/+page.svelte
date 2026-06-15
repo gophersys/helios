@@ -21,6 +21,7 @@
   import ChatTool from '$lib/chat/ChatTool.svelte';
   import ChatPermission from '$lib/chat/ChatPermission.svelte';
   import ChatUsageMeter from '$lib/chat/ChatUsageMeter.svelte';
+  import ChatStatusBar from '$lib/chat/ChatStatusBar.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
@@ -336,6 +337,9 @@
           <ChatUsageMeter meter={active.meter} {theme} />
         </aside>
       </div>
+
+      <!-- the live agent status bar (the TUI status line): spinner + verb + thinking tokens + clock -->
+      <ChatStatusBar session={active} {theme} />
 
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="composer" data-testid="composer-input" onkeydown={onComposerKey}>

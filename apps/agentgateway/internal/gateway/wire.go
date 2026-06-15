@@ -146,10 +146,14 @@ type stateView struct {
 	To   string `json:"to"`
 }
 
-// messageView projects a message-start / thinking-delta / text-delta / message-end fragment.
+// messageView projects a message-start / thinking-delta / text-delta / message-end fragment,
+// or a thinking-progress heartbeat (Tokens = the running estimated reasoning-token count).
 type messageView struct {
 	Role  string `json:"role,omitempty"`
 	Delta string `json:"delta,omitempty"`
+	// Tokens is the running estimated reasoning-token count on a thinking-progress event (the
+	// live "thinking…" status), zero/omitted on every message/thinking/text delta.
+	Tokens int `json:"tokens,omitempty"`
 }
 
 // toolView projects a tool start / update / end (REQ-0024 tool activity). The grant linkage
@@ -252,7 +256,7 @@ func toEventView(event agentsession.Event) eventView {
 		view.State = &stateView{From: event.State.From.String(), To: event.State.To.String()}
 	}
 	if event.Message != nil {
-		view.Message = &messageView{Role: event.Message.Role, Delta: event.Message.Delta}
+		view.Message = &messageView{Role: event.Message.Role, Delta: event.Message.Delta, Tokens: event.Message.Tokens}
 	}
 	if event.Tool != nil {
 		view.Tool = toToolView(event.Tool)

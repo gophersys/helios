@@ -9,6 +9,7 @@
 import { GatewayClient, GatewayError } from './client';
 import { subscribeEvents, type Subscription, type SseStatus } from './sse';
 import type {
+  Activity,
   EventView,
   Harness,
   LedgerView,
@@ -103,7 +104,22 @@ export class ChatSession {
   terminal = $state<boolean>(false);
   error = $state<string | null>(null);
 
+  // ── status-bar surface (the JS representation of the harness TUI) ──
+  /** The live agent activity the bottom status bar renders (thinking/responding/tool/…). */
+  activity = $state<Activity>('idle');
+  /** The running ESTIMATED reasoning-token count of the current/last turn (thinking-progress
+   *  heartbeats). Reset when a new turn begins; retained after terminal so the bar can show the
+   *  "thought for N tokens" summary. NOT a billed figure — that is the usage meter. */
+  thinkingTokens = $state<number>(0);
+  /** Epoch ms when the current turn began (its first activity); null when idle/terminal. The
+   *  status bar ticks an elapsed clock from it. */
+  turnStartedAt = $state<number | null>(null);
+  /** The name of the currently running tool (for the "Running <tool>…" status), else null. */
+  activeTool = $state<string | null>(null);
+
   private subscription: Subscription | null = null;
+  // The callIds of tools currently running (start without end), so the activity reflects tool work.
+  private runningTools = new Set<string>();
   // The streaming assistant entry being accreted (by turnId), so deltas land on one bubble.
   private liveAssistantIndex = new Map<string, number>();
   // The tool entries by callId, so update/end land on the same timeline entry.
@@ -179,19 +195,33 @@ export class ChatSession {
       case 'session-state':
         if (event.state) this.sessionState = event.state.to as SessionState;
         break;
+      case 'thinking-progress':
+        // The pre-message reasoning heartbeat: surface the running estimated token count and drive
+        // the live "thinking…" status — the signal that turns the dead "Waiting for events…" screen
+        // into a Claude-Code-style status bar during a long think.
+        this.beginTurn();
+        if (event.message?.tokens) this.thinkingTokens = event.message.tokens;
+        this.activity = 'thinking';
+        break;
       case 'message-start':
+        this.beginTurn();
         this.ensureAssistant(this.turnKey(event));
         break;
       case 'thinking-delta':
+        this.beginTurn();
+        this.activity = 'thinking';
         if (event.message?.delta) this.appendThinking(this.turnKey(event), event.message.delta);
         break;
       case 'text-delta':
+        this.beginTurn();
+        this.activity = 'responding';
         if (event.message?.delta) this.appendText(this.turnKey(event), event.message.delta);
         break;
       case 'message-end':
         this.finishAssistant(this.turnKey(event));
         break;
       case 'tool-start':
+        this.beginTurn();
         this.toolStart(event);
         break;
       case 'tool-update':
@@ -222,6 +252,26 @@ export class ChatSession {
 
   private turnKey(event: EventView): string {
     return event.turnId || `turn-${event.turn ?? 0}`;
+  }
+
+  /** beginTurn marks the start of a turn on the FIRST activity of that turn (thinking-progress,
+   *  message-start, a delta, or a tool) — including the wizard's server-side opening prompt, which
+   *  never goes through pushUser. It stamps the elapsed clock and resets the per-turn thinking
+   *  counter, so the status bar reflects THIS turn. Idempotent within a turn. */
+  private beginTurn(): void {
+    if (this.turnStartedAt === null) {
+      this.turnStartedAt = Date.now();
+      this.thinkingTokens = 0;
+    }
+  }
+
+  /** endTurn freezes the status bar on a terminal outcome: it stops the elapsed clock and clears
+   *  any running-tool state, but RETAINS thinkingTokens so the bar can show the turn's summary. */
+  private endTurn(activity: Activity): void {
+    this.activity = activity;
+    this.turnStartedAt = null;
+    this.runningTools.clear();
+    this.activeTool = null;
   }
 
   private ensureAssistant(turnKey: string): number {
@@ -277,6 +327,9 @@ export class ChatSession {
     const id = this.nextId('t');
     this.entries = [...this.entries, { id, role: 'tool', tool: entry }];
     this.toolIndex.set(tool.callId, this.entries.length - 1);
+    this.runningTools.add(tool.callId);
+    this.activeTool = entry.name;
+    this.activity = 'tool';
   }
 
   private toolUpdate(event: EventView): void {
@@ -308,6 +361,13 @@ export class ChatSession {
       },
     };
     this.entries = [...this.entries];
+    // The tool finished: if it was the last running tool and the turn is still live, the agent
+    // resumes responding (more text/thinking usually follows until the terminal event).
+    this.runningTools.delete(tool.callId);
+    if (this.runningTools.size === 0) {
+      this.activeTool = null;
+      if (!this.terminal) this.activity = 'responding';
+    }
   }
 
   private toolStatus(outcome?: string): ToolEntry['status'] {
@@ -418,6 +478,11 @@ export class ChatSession {
 
   private applyTerminal(event: EventView): void {
     this.terminal = true;
+    // Freeze the status bar on the matching terminal verb (done/failed/stopped); the elapsed clock
+    // stops but the turn's thinking-token summary is retained.
+    this.endTurn(
+      event.kind === 'result' ? 'done' : event.kind === 'aborted' ? 'stopped' : 'failed',
+    );
     const terminal = event.terminal;
     if (terminal) {
       this.reconcileLedger(terminal.ledger);
@@ -450,6 +515,12 @@ export class ChatSession {
 
   private pushUser(text: string): void {
     this.entries = [...this.entries, { id: this.nextId('u'), role: 'user', text }];
+    // A new turn begins: clear any terminal freeze and start the status bar on "thinking" (the
+    // agent will reason before it answers) with a fresh elapsed clock.
+    this.terminal = false;
+    this.turnStartedAt = null;
+    this.beginTurn();
+    this.activity = 'thinking';
   }
 
   private pushNotice(tone: 'info' | 'warn', text: string): void {

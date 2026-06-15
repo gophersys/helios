@@ -168,11 +168,26 @@ func (c *devConn) awaitFirstPrompt() (string, bool) {
 	}
 }
 
-// streamCanonical emits the canonical demo turn — byte-for-byte identical to
-// agentsessiontest.CanonicalScript(): a message + thinking + text deltas, a granted Write tool
-// start/end, a four-token usage tick, and a clean terminal Result. The forced-CRUD path runs
-// here unchanged.
+// streamCanonical emits the canonical demo turn: a brief THINKING-PROGRESS lead-in (the
+// pre-message reasoning heartbeat that drives the live "thinking…" status bar, mirroring a real
+// claude turn that thinks before it speaks), then the canonical body byte-for-byte identical to
+// agentsessiontest.CanonicalScript() — a message + thinking + text deltas, a granted Write tool
+// start/end, a four-token usage tick, and a clean terminal Result. The forced-CRUD path runs the
+// canonical body unchanged; the lead-in only adds renderable thinking-progress events ahead of it.
 func (c *devConn) streamCanonical() {
+	// A short, paced thinking ramp so the status bar's "thinking…" phase is observable (the real
+	// claude harness emits a `system/thinking_tokens` heartbeat ~per reasoning step). Paced with a
+	// small delay so a UI/E2E sees the live indicator before the body streams; honors stop.
+	for _, tokens := range []int{18, 64, 140, 260} {
+		if !c.emit(agentsessiontest.ThinkingProgress(tokens)) {
+			return
+		}
+		select {
+		case <-time.After(120 * time.Millisecond):
+		case <-c.stop:
+			return
+		}
+	}
 	for _, event := range agentsessiontest.CanonicalScript() {
 		if !c.emit(event) {
 			return

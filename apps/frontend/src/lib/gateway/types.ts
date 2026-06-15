@@ -22,7 +22,8 @@ export type EventKind =
   | 'result'
   | 'failed'
   | 'aborted'
-  | 'extension';
+  | 'extension'
+  | 'thinking-progress';
 
 /** The session lifecycle state token (mirrors agentsession.State.String()). */
 export type SessionState =
@@ -48,11 +49,25 @@ export interface StateView {
   to: string;
 }
 
-/** A streamed assistant message / thinking fragment (Delta is incremental, not cumulative). */
+/** A streamed assistant message / thinking fragment (Delta is incremental, not cumulative), or a
+ *  thinking-progress heartbeat (`tokens` = the running estimated reasoning-token count). */
 export interface MessageView {
   role?: string;
   delta?: string;
+  tokens?: number;
 }
+
+/** The live agent activity for the bottom status bar — a JS representation of the harness TUI.
+ *  Derived in the reducer from the event stream; `thinking` is the pre-text reasoning phase. */
+export type Activity =
+  | 'idle'
+  | 'connecting'
+  | 'thinking'
+  | 'responding'
+  | 'tool'
+  | 'done'
+  | 'failed'
+  | 'stopped';
 
 /** A tool start / update / end — name, args summary, grant linkage, redacted result digest. */
 export interface ToolView {

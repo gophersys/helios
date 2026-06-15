@@ -470,6 +470,19 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(wizard).toBeHidden();
     await expect(page.getByTestId('active-harness')).toHaveText(PROPOSED.harness);
 
+    // ── the bottom STATUS BAR (the TUI status line) goes live. Before any assistant text the agent
+    //    THINKS: the bar surfaces a running thinking-token count (the thinking-progress heartbeats),
+    //    proving that signal is wired end-to-end — without it the count would never leave 0. The
+    //    count is RETAINED after the turn, so 260 (the fake's thinking ramp peak) is deterministic. ──.
+    const statusBar = page.getByTestId('agent-status');
+    await expect(statusBar).toBeVisible();
+    await expect(statusBar.getByTestId('agent-status-label')).toContainText('Thinking', {
+      timeout: 10_000,
+    });
+    await expect(statusBar).toHaveAttribute('data-busy', 'true');
+    await expect(page.getByTestId('agent-status-tokens')).toContainText('thinking tokens');
+    await expect(statusBar).toHaveAttribute('data-thinking-tokens', '260', { timeout: 10_000 });
+
     // ── 3. the created session reflects that spec: it appears in the live session list under its
     //    real id (located by id, not position — the in-memory dev record plane may retain prior
     //    stopped records across the two engine runs sharing one dev-serve, so position is not stable). ──.
@@ -494,6 +507,11 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(page.getByTestId('meter-model')).toContainText('fake-fable-5');
     await expect(page.getByTestId('terminal-banner')).toHaveAttribute('data-outcome', 'completed');
     await expect(page.getByTestId('sse-status')).toHaveText('ended');
+    // The status bar settled on the terminal verb and stopped spinning, but retained the turn's
+    // thinking-token summary (the "thought for N" recap).
+    await expect(statusBar).toHaveAttribute('data-activity', 'done');
+    await expect(statusBar).toHaveAttribute('data-busy', 'false');
+    await expect(statusBar).toHaveAttribute('data-thinking-tokens', '260');
 
     // ── 6. LIFECYCLE: stop the session; the UI returns to the empty state cleanly ────.
     await page.getByTestId('stop').getByRole('button').click();
@@ -661,6 +679,19 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
     await expect(firstActivity, 'the real agent must stream a first response').toBeVisible({
       timeout: 120_000,
     });
+
+    // The bottom STATUS BAR reflects the REAL agent's live activity: it becomes busy (spinner on)
+    // and surfaces a real running thinking-token count > 0 (claude's thinking_tokens heartbeats,
+    // normalized to thinking-progress) — the fix for the dead "no thinking, no loading" screen.
+    const liveStatus = page.getByTestId('agent-status');
+    await expect(liveStatus).toBeVisible();
+    await expect
+      .poll(
+        async () =>
+          Number((await liveStatus.getAttribute('data-thinking-tokens')) ?? '0'),
+        { timeout: 120_000, message: 'the status bar must show a real thinking-token count > 0' },
+      )
+      .toBeGreaterThan(0);
 
     // If the live agent asks for an out-of-grant tool, the permission card is interactive (Allow it).
     const card = page.getByTestId('permission-card');
