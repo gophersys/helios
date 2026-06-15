@@ -1,0 +1,52 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/objectstorage
+BenchmarkNewRef-8            	20001596	        63.69 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	18813592	        65.89 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	17980131	        70.77 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	16637896	        67.30 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	19058496	        64.83 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	17846232	        64.89 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	17534768	        65.42 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	19267461	        65.29 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	18523150	        73.91 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNewRef-8            	16876538	        76.90 ns/op	      64 B/op	       1 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2336724	       508.5 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2242032	       522.0 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2591785	       477.0 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2516436	       472.9 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2365560	       498.5 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2413194	       498.5 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2486893	       475.2 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2515640	       481.1 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2477245	       501.0 ns/op	     752 B/op	       9 allocs/op
+BenchmarkPutGetRoundTrip-8   	 2365098	       491.0 ns/op	     752 B/op	       9 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/objectstorage	24.362s
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/objectstorage/minioadapter
+BenchmarkAdapterPut-8   	 3682372	       328.1 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3570951	       339.7 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3521193	       339.7 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3657523	       332.2 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3644335	       336.3 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3674824	       325.6 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3755430	       325.3 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3649670	       330.7 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3727993	       310.0 ns/op	     592 B/op	       4 allocs/op
+BenchmarkAdapterPut-8   	 3628444	       316.9 ns/op	     592 B/op	       4 allocs/op
+BenchmarkMapError-8     	19564964	        62.58 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	19241522	        61.08 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	20807954	        62.79 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	18952130	        62.81 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	18555361	        62.30 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	18932408	        62.21 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	19875844	        61.79 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	19583430	        61.70 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	19610353	        64.53 ns/op	      32 B/op	       1 allocs/op
+BenchmarkMapError-8     	19176693	        62.61 ns/op	      32 B/op	       1 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/objectstorage/minioadapter	24.148s
+PASS
+ok  	github.com/gophersys/libs/go/objectstorage/objectstoragetest	0.002s
