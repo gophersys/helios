@@ -79,7 +79,7 @@ func Run(ctx context.Context, logger *slog.Logger, environment Environment, prob
 		return runProbeOnly(ctx, logger, &environment)
 	}
 
-	runtime, cleanup, err := build(logger, &environment)
+	runtime, cleanup, err := build(ctx, logger, &environment)
 	if err != nil {
 		logger.Error("agent-runtime: composition failed", slog.String("error", err.Error()))
 		return 2
@@ -103,19 +103,26 @@ func Run(ctx context.Context, logger *slog.Logger, environment Environment, prob
 
 // build wires the real adapters into an agentruntime.Runtime: the NATS/JetStream bus, the
 // observability-backed observer, and the agentsession factory over the configured harness adapter. It
-// returns the runtime + a cleanup that closes the NATS connection (the sidecar owns its conn).
-func build(logger *slog.Logger, environment *Environment) (*agentruntime.Runtime, func(), error) {
+// returns the runtime + a cleanup that closes the NATS connection (the sidecar owns its conn). The
+// ctx bounds the one startup network side effect — provisioning the durable events stream.
+func build(ctx context.Context, logger *slog.Logger, environment *Environment) (*agentruntime.Runtime, func(), error) {
 	connection, jetStream, err := dialBus(environment)
 	if err != nil {
 		return nil, nil, err
 	}
 	bus, err := natsbus.New(
-		natsbus.Config{EnsureStream: true},
+		natsbus.Config{},
 		natsbus.Deps{Conn: connection, JetStream: jetStream},
 	)
 	if err != nil {
 		connection.Close()
 		return nil, nil, errors.Wrap(errors.KindInternal, "agent-runtime: build natsbus", err)
+	}
+	// Provision the durable events stream explicitly (New is pure; this is the one startup side
+	// effect). Idempotent — a stream already provisioned out-of-band is a no-op.
+	if ensureErr := bus.EnsureStream(ctx); ensureErr != nil {
+		connection.Close()
+		return nil, nil, errors.Wrap(errors.KindUnavailable, "agent-runtime: ensure events stream", ensureErr)
 	}
 
 	provider, err := observability.New(
