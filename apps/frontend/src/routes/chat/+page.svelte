@@ -11,7 +11,8 @@
   // proceeds or is blocked, and the resolved state reflects on the card. The prompt/steer/abort
   // control verbs, the session list, and the SSE/Last-Event-ID reconnect (B7) are preserved.
   import { onDestroy } from 'svelte';
-  import { Button, Input, Message } from '@eden/primitives';
+  import { Button, Input, Message, CommandPalette } from '@eden/primitives';
+  import type { CommandPaletteGroup } from '@eden/primitives';
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
   import { ChatSession } from '$lib/gateway/session.svelte';
@@ -24,6 +25,7 @@
   import ChatStatusBar from '$lib/chat/ChatStatusBar.svelte';
   import ChatContextBar from '$lib/chat/ChatContextBar.svelte';
   import RightPanel from '$lib/chat/RightPanel.svelte';
+  import TopBar from '$lib/chat/TopBar.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
   import { agentTypeFor } from '$lib/workspace/agentWorkspace';
 
@@ -37,6 +39,8 @@
 
   // ── product-wizard state ─────────────────────────────────────────────────────.
   let showWizard = $state(false);
+  // ── ⌘K command palette ───────────────────────────────────────────────────────.
+  let paletteOpen = $state(false);
 
   /** Map the product harness onto the chat label set (the SSE/control seam is harness-agnostic;
    *  `codex` folds to a claude-tone label for the chrome only — the full product still rides). */
@@ -70,6 +74,68 @@
   const activeType = $derived(
     active ? agentTypeFor(sessions.find((s) => s.id === active?.id)?.template, active.harness) : null,
   );
+
+  /** The command model the ⌘K palette renders: an Actions group (gated on whether a session is
+   *  open) + a Sessions group to jump to any session. Derived, so it tracks the live session list. */
+  const commandGroups = $derived<CommandPaletteGroup[]>([
+    {
+      value: 'actions',
+      heading: 'Actions',
+      items: [
+        { value: 'new-product', label: 'New product…', keywords: ['create', 'start', 'session'] },
+        ...(active
+          ? [
+              { value: 'stop', label: 'Stop session', keywords: ['end', 'kill'] },
+              { value: 'steer', label: 'Steer the agent', keywords: ['interject', 'redirect'] },
+              { value: 'abort', label: 'Abort the current turn', keywords: ['cancel'] },
+              { value: 'resume', label: 'Resume session', keywords: ['reconnect'] },
+              {
+                value: 'request-tool',
+                label: 'Request an out-of-grant tool (demo)',
+                keywords: ['permission', 'gate'],
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      value: 'sessions',
+      heading: 'Sessions',
+      items: sessions.map((agent) => ({
+        value: `session:${agent.id}`,
+        label: agent.id,
+        keywords: [agent.template, agent.status],
+      })),
+    },
+  ]);
+
+  /** Dispatch a selected ⌘K command. Session jumps carry the `session:<id>` value. */
+  function runCommand(value: string): void {
+    paletteOpen = false;
+    if (value === 'new-product') {
+      showWizard = true;
+      return;
+    }
+    if (value.startsWith('session:')) {
+      const id = value.slice('session:'.length);
+      const agent = sessions.find((s) => s.id === id);
+      if (agent) openSession(agent);
+      return;
+    }
+    if (value === 'stop') void stopSession();
+    else if (value === 'steer') void steer();
+    else if (value === 'abort') void abort();
+    else if (value === 'resume') void resumeSession();
+    else if (value === 'request-tool') void requestOutOfGrantTool();
+  }
+
+  /** ⌘K / Ctrl-K toggles the palette from anywhere in the workspace. */
+  function onGlobalKey(event: KeyboardEvent): void {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      paletteOpen = !paletteOpen;
+    }
+  }
   let composer = $state('');
   let scroller = $state<HTMLElement | null>(null);
 
@@ -206,11 +272,15 @@
   onDestroy(() => active?.close());
 </script>
 
+<svelte:window onkeydown={onGlobalKey} />
 <svelte:head>
   <title>Eden — chat</title>
 </svelte:head>
 
-<div class="chat" class:chat--panel={active} data-testid="chat-app">
+<div class="workspace-root">
+  <TopBar {active} agentType={activeType} onPalette={() => (paletteOpen = true)} {theme} />
+
+  <div class="chat" class:chat--panel={active} data-testid="chat-app">
   <!-- ── left rail: sessions ──────────────────────────────────────────────── -->
   <aside class="rail">
     <header class="rail__head">
@@ -402,21 +472,39 @@
     <RightPanel session={active} agentType={activeType} {theme} />
   {/if}
 
-  <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
-  {#if showWizard}
-    <ProductWizard
-      propose={(prompt) => client.propose(prompt)}
-      onlaunch={launchProduct}
-      oncancel={() => (showWizard = false)}
-    />
-  {/if}
+    <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
+    {#if showWizard}
+      <ProductWizard
+        propose={(prompt) => client.propose(prompt)}
+        onlaunch={launchProduct}
+        oncancel={() => (showWizard = false)}
+      />
+    {/if}
+  </div>
 </div>
 
+<!-- ── ⌘K command palette (overlays the whole workspace) ─────────────────────── -->
+<CommandPalette
+  groups={commandGroups}
+  bind:open={paletteOpen}
+  onSelect={runCommand}
+  {theme}
+  label="Eden command palette"
+  placeholder="Type a command or search sessions…"
+/>
+
 <style>
+  .workspace-root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
   .chat {
     display: grid;
     grid-template-columns: 300px minmax(0, 1fr);
-    height: 100vh;
+    flex: 1;
+    min-block-size: 0;
     overflow: hidden;
   }
   /* When a session is active the workspace opens its third region: the agent-type-aware panel. */

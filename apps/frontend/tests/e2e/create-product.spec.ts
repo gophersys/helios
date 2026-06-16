@@ -626,6 +626,30 @@ test.describe('create a new product — full-stack journey against a real dev-se
     expect(console_errors, `unexpected console errors: ${console_errors.join(' | ')}`).toEqual([]);
     expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
   });
+
+  test('the top bar + ⌘K command palette open the create flow', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (e) => pageErrors.push(e.message));
+    await openChat(page);
+
+    // The workspace TOP BAR is present (brand + the ⌘K affordance).
+    await expect(page.getByTestId('top-bar')).toBeVisible();
+    await expect(page.getByTestId('palette-open')).toBeVisible();
+
+    // ⌘K / Ctrl-K opens the command palette from anywhere.
+    await page.keyboard.press('ControlOrMeta+k');
+    const palette = page.getByRole('dialog', { name: /command palette/i });
+    await expect(palette).toBeVisible();
+
+    // It lists the actions; selecting "New product" opens the create wizard.
+    await expect(palette.getByText('New product…')).toBeVisible();
+    await palette.getByText('New product…').click();
+    await expect(page.getByTestId('product-wizard')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).first().click();
+    await expect(page.getByTestId('product-wizard')).toBeHidden();
+
+    expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
+  });
 });
 
 // ── LIVE arm — the SAME journey, but propose hits REAL claude (liveserve) and the created agent is
