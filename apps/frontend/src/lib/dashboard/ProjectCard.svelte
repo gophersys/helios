@@ -1,8 +1,8 @@
 <script lang="ts" module>
   // ProjectSummary — the SHAPE a card needs to render one project tile. It is intentionally a thin,
-  // display-only view: the Projects dashboard maps the gateway session-list records onto this until a
-  // real Project object lands, so the card stays decoupled from the gateway value layer. Everything
-  // past `id`/`name` is optional so a half-known record still renders cleanly.
+  // display-only view: the Projects dashboard maps the gateway's persisted ProjectViews onto this, so
+  // the card stays decoupled from the gateway value layer. Everything past `id`/`name` is optional so
+  // a half-known record still renders cleanly. `sessionId` is the build session the card opens into.
   export interface ProjectSummary {
     id: string;
     name: string;
@@ -11,6 +11,7 @@
     harness?: string;
     updatedAt?: string;
     stacks?: string[];
+    sessionId?: string;
   }
 </script>
 

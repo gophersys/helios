@@ -68,6 +68,18 @@
   }): Promise<void> {
     const harness = chatHarness(payload.harness);
     const created = await client.createSession({ harness, product: payload.product });
+    // Persist the Project (the dashboard reads these) linked to its build session. A persistence
+    // fault must NOT block the build — the session is already live — so we log and continue.
+    try {
+      await client.createProject({
+        product: payload.product,
+        name: payload.product.productName,
+        idea: payload.prompt,
+        sessionId: created.id,
+      });
+    } catch (cause) {
+      console.warn('eden: project persistence failed (build continues)', cause);
+    }
     await refreshList();
     showWizard = false;
     await attach(created.id, harness);

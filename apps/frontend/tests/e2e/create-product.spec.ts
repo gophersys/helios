@@ -88,6 +88,15 @@ function captureCreateRequest(page: Page): Promise<{ harness: string; product?: 
     .then((r) => r.postDataJSON() as { harness: string; product?: ProductConfig });
 }
 
+/** Capture the JSON body the flow POSTed to /projects (the Project the dashboard reads). */
+function captureCreateProjectRequest(
+  page: Page,
+): Promise<{ name?: string; idea?: string; sessionId?: string; product?: ProductConfig }> {
+  return page
+    .waitForRequest((r: Request) => r.url().endsWith('/projects') && r.method() === 'POST')
+    .then((r) => r.postDataJSON() as { name?: string; idea?: string; sessionId?: string; product?: ProductConfig });
+}
+
 // ── the UI-MATH audit: a mechanical, NON-VACUOUS a11y + contrast check on the LIVE rendered flow.
 //    This runs in-page (real getComputedStyle), so it is engine-true on both Chromium and WebKit. It
 //    is the design-math dimension the user requires as a first-class mechanical test — stricter than
@@ -403,6 +412,7 @@ test.describe('create a new project — full-stack journey against a real dev-se
     // ── 1 + 2 + 3. BUILD: capture the create REQUEST, then Build it. The payload MUST carry the
     //    proposed config + the user's name edit (NOT a drifted shell). ──.
     const createBody = captureCreateRequest(page);
+    const projectBody = captureCreateProjectRequest(page);
     const createResponse = page.waitForResponse(
       (r) => r.url().endsWith('/sessions') && r.request().method() === 'POST',
     );
@@ -426,6 +436,12 @@ test.describe('create a new project — full-stack journey against a real dev-se
     // The create returned a REAL session id (FE⇄BE: a live session, not a placeholder).
     expect(createdRes.id, 'create must return a real session id').toBeTruthy();
     expect(typeof createdRes.id).toBe('string');
+
+    // ── 2 + 3. PERSISTENCE: the Project was persisted (the dashboard's record), carrying the edited
+    //    name and linked to the build session just created (POST /projects, observed passively). ──.
+    const persistedProject = await projectBody;
+    expect(persistedProject.product?.productName).toBe(EDITED_NAME);
+    expect(persistedProject.sessionId).toBe(createdRes.id);
 
     // ── the flow closes and the chat view opens bound to the chosen harness ──────.
     await expect(flow).toBeHidden();

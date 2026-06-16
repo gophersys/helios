@@ -11,10 +11,12 @@ import type {
   Envelope,
   ErrorBody,
   Harness,
+  ListProjectsResponse,
   ListResponse,
   PermissionScope,
   PermissionVerdict,
   ProductConfig,
+  ProjectView,
   ResolveResponse,
   TranscriptResponse,
 } from './types';
@@ -115,6 +117,46 @@ export class GatewayClient {
     if (options.runId) body.runId = options.runId;
     if (options.product) body.product = options.product;
     return this.requestJSON<CreateResponse>('POST', '/sessions', body);
+  }
+
+  /** POST /projects — persist a Project from the scoped product (the create-flow's "Build it"). The
+   *  route is enveloped; this unwraps `.data` (the stored projectView). When `sessionId` is supplied
+   *  the gateway records the project as BUILDING (a build session was spawned), DRAFT otherwise. */
+  async createProject(options: {
+    product: ProductConfig;
+    name?: string;
+    idea?: string;
+    sessionId?: string;
+  }): Promise<ProjectView> {
+    const body: Record<string, unknown> = { product: options.product };
+    if (options.name) body.name = options.name;
+    if (options.idea) body.idea = options.idea;
+    if (options.sessionId) body.sessionId = options.sessionId;
+    const envelope = await this.requestJSON<Envelope<ProjectView>>('POST', '/projects', body);
+    return envelope.data;
+  }
+
+  /** GET /projects — the dashboard grid: persisted projects, newest first. Enveloped; unwraps
+   *  `.data`. `limit`/`cursor` page the list. */
+  async listProjects(options: { limit?: number; cursor?: string } = {}): Promise<ListProjectsResponse> {
+    const query = new URLSearchParams();
+    if (options.limit != null) query.set('limit', String(options.limit));
+    if (options.cursor) query.set('cursor', options.cursor);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    const envelope = await this.requestJSON<Envelope<ListProjectsResponse>>(
+      'GET',
+      `/projects${suffix}`,
+    );
+    return envelope.data;
+  }
+
+  /** GET /projects/{id} — one persisted project (enveloped; unwraps `.data`). */
+  async getProject(id: string): Promise<ProjectView> {
+    const envelope = await this.requestJSON<Envelope<ProjectView>>(
+      'GET',
+      `/projects/${encodeURIComponent(id)}`,
+    );
+    return envelope.data;
   }
 
   /** GET /sessions — the project-scoped session list. `active` narrows to live sessions. */

@@ -23,16 +23,17 @@
 
   async function refresh(): Promise<void> {
     try {
-      const page = await client.listSessions();
-      // Map the gateway session records onto the dashboard's ProjectSummary (a session ≈ a project
-      // until the persisted Project object lands).
-      projects = page.sessions.map((session) => ({
-        id: session.id,
-        name: session.id,
-        kind: session.template,
-        status: session.status,
-        harness: (session as { labels?: Record<string, string> }).labels?.harness,
-        updatedAt: session.updatedAt,
+      const page = await client.listProjects();
+      // Map the persisted ProjectViews onto the dashboard's ProjectSummary read model.
+      projects = page.projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        kind: project.kind,
+        status: project.status,
+        harness: project.harness,
+        updatedAt: project.updatedAt,
+        stacks: project.stacks,
+        sessionId: project.sessionId,
       }));
       listError = null;
     } catch (cause) {
@@ -46,8 +47,13 @@
     void refresh();
   });
 
-  function openProject(id: string): void {
-    void goto(`/chat?session=${encodeURIComponent(id)}`);
+  function openProject(project: ProjectSummary): void {
+    // Open the project's build session when it has one; otherwise drop into the chat workspace.
+    if (project.sessionId) {
+      void goto(`/chat?session=${encodeURIComponent(project.sessionId)}`);
+    } else {
+      void goto('/chat');
+    }
   }
   function newProject(): void {
     void goto('/chat?new=1');
@@ -88,7 +94,7 @@
           </button>
         </li>
         {#each projects as project (project.id)}
-          <li><ProjectCard {project} onOpen={() => openProject(project.id)} {theme} /></li>
+          <li><ProjectCard {project} onOpen={() => openProject(project)} {theme} /></li>
         {/each}
       </ul>
     {/if}

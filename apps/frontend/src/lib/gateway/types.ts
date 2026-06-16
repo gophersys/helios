@@ -295,10 +295,40 @@ export const SDLC_PHASES: readonly string[] = [
 ];
 
 /** The uniform Eden response envelope ({data, errors, kind}) the product-config surface returns
- *  (edenhttp.Envelope). The chat REST routes return bare JSON; only POST /product/propose is
- *  enveloped, so the propose client unwraps `.data`. */
+ *  (edenhttp.Envelope). The chat REST routes return bare JSON; the product/propose and /projects
+ *  routes are enveloped, so those clients unwrap `.data`. */
 export interface Envelope<T> {
   data: T;
   errors: string[];
   kind: string;
+}
+
+// ── the persisted-Project contract (the dashboard) ────────────────────────────.
+//
+// A Project is the durable form of a create-flow scope: what the user is building, persisted in
+// Postgres (gateway.Project). The dashboard lists ProjectViews; "Build it" persists one. A faithful
+// TypeScript mirror of the Go projectView (apps/agentgateway/internal/gateway/project.go). No field
+// carries a credential.
+
+/** projectView is the dashboard's read model of a persisted Project: the fields a ProjectCard reads,
+ *  with the originating idea and timestamps. `stacks` is the flattened languages + frameworks. */
+export interface ProjectView {
+  id: string;
+  name: string;
+  idea?: string;
+  kind: ProductKind;
+  status: string;
+  harness: ProductHarness;
+  stacks: string[];
+  services: string[];
+  sessionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The body of GET /projects (unwrapped from the data envelope): a page of projects, newest first,
+ *  plus the opaque next cursor. */
+export interface ListProjectsResponse {
+  projects: ProjectView[];
+  next?: string;
 }
