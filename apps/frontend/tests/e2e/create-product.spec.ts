@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Request, type Response } from '@playwright/test';
 
-// The FIRST user-story E2E — "create a new product" — a comprehensive, REAL, full-stack Playwright
+// The FIRST user-story E2E — "create a new project" — a comprehensive, REAL, full-stack Playwright
 // journey with DATA verification at every step. It drives the production-shaped UI against a REAL
 // agentgateway dev-serve over real REST + SSE (no mocked fetch/SSE): the dev-serve's DETERMINISTIC
 // proposer (devserve/proposer.go) returns a real ProductConfig from the prompt, a REAL
@@ -8,24 +8,27 @@ import { expect, test, type Page, type Request, type Response } from '@playwrigh
 // is stubbed in the browser — the route intercepts below only OBSERVE the real wire traffic (and the
 // one resilience case fails a request on purpose, which is a documented arm).
 //
-// The story (apps/frontend ProductWizard.svelte + routes/chat/+page.svelte):
-//   open app → start a new product → type an intent → propose → a ProductConfig (kind/stack/services)
-//   → the user EDITS it (add a service, drop an SDLC phase) → confirm → the session/product is created
-//   carrying that EDITED spec → the agent session opens and streams its first events.
+// The story (apps/frontend CreateProjectFlow.svelte + routes/chat/+page.svelte) — the animated,
+// multi-screen "trust me" flow:
+//   open app → start a new project → SPARK: say what you're building in one breath → THINKING:
+//   Eden scopes it (POST /product/propose → a real ProductConfig) → SCOPE: the agent AUTO-SELECTS
+//   the platform targets out of the palette; the project name is editable → STACK: the proposed
+//   languages/frameworks/services reveal as chips → Build it → the session/product is created
+//   carrying that spec (with the edited name) → the agent session opens and streams its first events.
 //
 // The matrix (each dimension asserts the ACTUAL captured data, never just "an element exists"):
-//   1 FUNCTIONAL FLOW    every wizard step advances; the confirm creates a session.
-//   2 DATA INTEGRITY     the rendered wizard reflects the propose RESPONSE; the create PAYLOAD carries
-//                        the proposed config + the user's edits (NOT the original).
-//   3 FE⇄BE INTEGRATION  propose POST → rendered config (no drift); create POST → a real session id;
+//   1 FUNCTIONAL FLOW    every screen advances; Build creates a session.
+//   2 DATA INTEGRITY     the rendered scope/stack reflect the propose RESPONSE; the create PAYLOAD
+//                        carries the proposed config + the user's name edit (NOT a drifted shell).
+//   3 FE⇄BE INTEGRATION  propose POST → rendered scope (no drift); create POST → a real session id;
 //                        the real SSE events render (no drift backend→UI).
-//   4 UI / DESIGN-MATH   a mechanical a11y + contrast audit on the LIVE wizard at each step, on
+//   4 UI / DESIGN-MATH   a mechanical a11y + contrast audit on the LIVE flow at each screen, on
 //                        Chromium AND WebKit; keyboard-navigable + focus visible; a generated theme
 //                        token resolves (not empty) and the accent control is actually painted.
 //   5 RESILIENCE         empty/whitespace intent validates (no propose call); a forced propose
 //                        failure renders gracefully (no crash) and the user can retry.
 //   6 LIFECYCLE          after creation the session stops cleanly; the UI returns to a sane state.
-// Plus a visual sanity: the wizard container stays within the viewport (no overflow/overlap).
+// Plus a visual sanity: the flow container stays within the viewport (no overflow/overlap).
 
 // ── the deterministic dev-serve proposer output for INTENT (captured empirically against
 //    devserve/proposer.go; this is the GROUND TRUTH the data-integrity assertions pin to) ──.
@@ -45,12 +48,11 @@ const PROPOSED = {
   posture: 'strict',
 } as const;
 
-// The EDIT the user makes in the wizard: add the "nats" service and DROP the "qa" SDLC phase. The
-// create payload MUST carry the edited spec — services ["postgres","nats"] and phases without "qa".
-const ADDED_SERVICE = 'nats';
-const DROPPED_PHASE = 'qa';
+// The EDIT the user makes in the flow: rename the project. The create payload MUST carry this name
+// (proving the user's edit flows through), and the proposed spec otherwise rides faithfully.
+const EDITED_NAME = 'acme-payments';
 
-/** The ProductConfig shape the wizard renders / posts (mirrors $lib/gateway/types ProductConfig). */
+/** The ProductConfig shape the flow renders / posts (mirrors $lib/gateway/types ProductConfig). */
 interface ProductConfig {
   productName: string;
   productKind: string;
@@ -79,14 +81,14 @@ function captureProposeResponse(page: Page): Promise<ProductConfig> {
     .then(async (r) => (await r.json()).data as ProductConfig);
 }
 
-/** Capture the JSON body the wizard POSTed to /sessions by OBSERVING the request (passive). */
+/** Capture the JSON body the flow POSTed to /sessions by OBSERVING the request (passive). */
 function captureCreateRequest(page: Page): Promise<{ harness: string; product?: ProductConfig }> {
   return page
     .waitForRequest((r: Request) => r.url().endsWith('/sessions') && r.method() === 'POST')
     .then((r) => r.postDataJSON() as { harness: string; product?: ProductConfig });
 }
 
-// ── the UI-MATH audit: a mechanical, NON-VACUOUS a11y + contrast check on the LIVE rendered wizard.
+// ── the UI-MATH audit: a mechanical, NON-VACUOUS a11y + contrast check on the LIVE rendered flow.
 //    This runs in-page (real getComputedStyle), so it is engine-true on both Chromium and WebKit. It
 //    is the design-math dimension the user requires as a first-class mechanical test — stricter than
 //    a smoke check: it computes the WCAG contrast ratio on rendered text and fails on a real defect. ──
@@ -94,16 +96,17 @@ function captureCreateRequest(page: Page): Promise<{ harness: string; product?: 
 interface AuditResult {
   tokenResolves: boolean; // a generated theme var resolves to a non-empty value
   accentPainted: boolean; // the accent control is actually painted (not transparent) — catches the orphan-token bug
+  samples: number; // how many text nodes the contrast pass actually judged (guards against a vacuous audit)
   unnamedControls: string[]; // interactive controls with no accessible name (a11y violation)
   unlabeledFields: number; // form inputs with neither a label nor an aria-label
-  lowContrast: { sample: string; ratio: number }[]; // text below WCAG AA on the wizard
-  withinViewport: boolean; // the wizard container fits the viewport (no overflow/overlap)
-  duplicateIds: string[]; // duplicate element ids inside the wizard (a11y/structure violation)
+  lowContrast: { sample: string; ratio: number }[]; // text below WCAG AA on the flow
+  withinViewport: boolean; // the flow container fits the viewport (no overflow/overlap)
+  duplicateIds: string[]; // duplicate element ids inside the flow (a11y/structure violation)
 }
 
-async function auditWizard(page: Page): Promise<AuditResult> {
+async function auditFlow(page: Page): Promise<AuditResult> {
   return page.evaluate(() => {
-    const root = document.querySelector('[data-testid="product-wizard"]') as HTMLElement;
+    const root = document.querySelector('[data-testid="create-flow"]') as HTMLElement;
 
     // Resolve ANY CSS color string (oklch(), rgb(), rgba(), color-mix(), a named color) to its
     // actual painted sRGB + alpha by letting a 2D canvas rasterize it. The generated @eden/theme
@@ -157,14 +160,14 @@ async function auditWizard(page: Page): Promise<AuditResult> {
       return (hi + 0.05) / (lo + 0.05);
     };
 
-    // A generated theme token resolves to a real value (the wizard reads the C21 math substrate).
+    // A generated theme token resolves to a real value (the flow reads the C21 math substrate).
     const cs = getComputedStyle(document.documentElement);
     const tokenResolves = cs.getPropertyValue('--color-primary').trim().length > 0;
 
-    // The accent control (Scope/Next/Launch) is actually painted — the orphan-token bug left it
-    // transparent. Assert the primary action has a non-transparent background.
+    // The accent control (Let's build it / Looks right / Build it) is actually painted — the orphan-
+    // token bug left it transparent. Assert the primary action has a non-transparent background.
     const accentBtn = root.querySelector(
-      '[data-testid="wizard-next"], [data-testid="wizard-launch"]',
+      '[data-testid="create-start"], [data-testid="create-next"], [data-testid="create-launch"]',
     ) as HTMLElement | null;
     const accentPainted = accentBtn
       ? parse(getComputedStyle(accentBtn).backgroundColor)[3] > 0
@@ -200,19 +203,19 @@ async function auditWizard(page: Page): Promise<AuditResult> {
       .filter((el) => getComputedStyle(el).display !== 'none' && accName(el).length === 0)
       .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
 
-    // Form fields must be labelled (a label wrapping, an aria-label, or — acceptably for a free text
-    // box — a placeholder). Count the ones with none.
+    // Form fields must be labelled (an aria-label, or — acceptably for a free text box — a placeholder).
     const fields = Array.from(root.querySelectorAll('input, textarea')) as HTMLElement[];
     const unlabeledFields = fields.filter((el) => accName(el).length === 0).length;
 
-    // Contrast on the wizard's rendered text vs its background (sample the labels, leads, buttons,
-    // review values). WCAG AA is 4.5:1 for normal text; we sample visible text nodes.
+    // Contrast on the flow's rendered text vs its background (sample the eyebrow, leads, targets,
+    // chips, runline, buttons). WCAG AA is 4.5:1 for normal text; we sample visible text nodes.
     const textEls = Array.from(
       root.querySelectorAll(
-        '.field__label, .lead, .hint, .eyebrow, .review dt, .review dd, .pillgroup__label, .chipinput__label, .btn, .steps__name',
+        '.eyebrow, .lead, .summary, .screen__title, .targets__caption, .target__label, .target__hint, .chip, .runline, .btn, .thinking-line',
       ),
     ) as HTMLElement[];
     const lowContrast: { sample: string; ratio: number }[] = [];
+    let samples = 0;
     for (const el of textEls) {
       const text = (el.textContent ?? '').trim();
       if (!text || getComputedStyle(el).display === 'none') continue;
@@ -222,11 +225,12 @@ async function auditWizard(page: Page): Promise<AuditResult> {
       const large = size >= 24 || (size >= 18.66 && weight >= 700);
       const min = large ? 3 : 4.5;
       const cr = ratio(style.color, el);
+      samples++;
       if (cr + 0.05 < min)
         lowContrast.push({ sample: text.slice(0, 40), ratio: Math.round(cr * 100) / 100 });
     }
 
-    // The wizard container fits the viewport (no overflow/overlap at a standard viewport).
+    // The flow container fits the viewport (no overflow/overlap at a standard viewport).
     const rect = root.getBoundingClientRect();
     const withinViewport =
       rect.left >= -1 &&
@@ -234,13 +238,14 @@ async function auditWizard(page: Page): Promise<AuditResult> {
       rect.right <= window.innerWidth + 1 &&
       rect.bottom <= window.innerHeight + 1;
 
-    // Duplicate ids inside the wizard.
+    // Duplicate ids inside the flow.
     const ids = Array.from(root.querySelectorAll('[id]')).map((el) => el.id);
     const duplicateIds = ids.filter((id, i) => ids.indexOf(id) !== i);
 
     return {
       tokenResolves,
       accentPainted,
+      samples,
       unnamedControls,
       unlabeledFields,
       lowContrast,
@@ -250,14 +255,15 @@ async function auditWizard(page: Page): Promise<AuditResult> {
   });
 }
 
-/** Assert the audit is clean (used at each wizard step). Fails LOUDLY with the offending data so a
- *  real regression names the exact control/sample — never a vacuous green. */
+/** Assert the audit is clean (used at each screen). Fails LOUDLY with the offending data so a real
+ *  regression names the exact control/sample — never a vacuous green. */
 function assertCleanAudit(audit: AuditResult, where: string): void {
   expect(audit.tokenResolves, `${where}: a generated theme token must resolve`).toBe(true);
   expect(
     audit.accentPainted,
     `${where}: the accent control must be painted (orphan-token guard)`,
   ).toBe(true);
+  expect(audit.samples, `${where}: the contrast audit must judge real text (non-vacuous)`).toBeGreaterThan(0);
   expect(
     audit.unnamedControls,
     `${where}: every interactive control needs an accessible name`,
@@ -265,11 +271,11 @@ function assertCleanAudit(audit: AuditResult, where: string): void {
   expect(audit.unlabeledFields, `${where}: every form field needs a label`).toBe(0);
   expect(audit.duplicateIds, `${where}: no duplicate ids`).toEqual([]);
   expect(audit.lowContrast, `${where}: text must meet WCAG AA contrast`).toEqual([]);
-  expect(audit.withinViewport, `${where}: the wizard must fit the viewport`).toBe(true);
+  expect(audit.withinViewport, `${where}: the flow must fit the viewport`).toBe(true);
 }
 
-test.describe('create a new product — full-stack journey against a real dev-serve (FAKE arm)', () => {
-  test('propose → render the real config → edit → create with the edited spec → stream first events → stop', async ({
+test.describe('create a new project — full-stack journey against a real dev-serve (FAKE arm)', () => {
+  test('spark → scope (auto-selected targets) → stack → build with the edited name → stream first events → stop', async ({
     page,
   }, testInfo) => {
     // Track real runtime faults across the journey. An uncaught exception (pageerror) is a hard
@@ -278,7 +284,6 @@ test.describe('create a new product — full-stack journey against a real dev-se
     // product preamble at create) reaches its terminal Result, and the UI's follow-up opening prompt
     // is correctly rejected 409 by the gateway (the browser logs the failed fetch). That 409 is the
     // gateway behaving correctly on a single-turn fake — NOT a UI bug; the UI surfaces it as a notice.
-    // A real defect (an uncaught exception, or a console.error the app itself logged) is still caught.
     const pageErrors: string[] = [];
     page.on('pageerror', (e) => pageErrors.push(e.message));
     const console_errors: string[] = [];
@@ -289,18 +294,16 @@ test.describe('create a new product — full-stack journey against a real dev-se
 
     await openChat(page);
 
-    // ── 1. FUNCTIONAL FLOW + 4. UI-MATH: open the wizard (DEFINE) ────────────────.
+    // ── 1. FUNCTIONAL FLOW + 4. UI-MATH: open the flow (SPARK) ───────────────────.
     await page.getByTestId('new-session').first().click();
-    const wizard = page.getByTestId('product-wizard');
-    await expect(wizard).toBeVisible();
-    await expect(wizard).toHaveAttribute('data-step', 'define');
-    assertCleanAudit(await auditWizard(page), 'DEFINE');
+    const flow = page.getByTestId('create-flow');
+    await expect(flow).toBeVisible();
+    await expect(flow).toHaveAttribute('data-step', 'spark');
+    assertCleanAudit(await auditFlow(page), 'SPARK');
 
-    // ── 5. RESILIENCE (validation): a whitespace-only intent must NOT propose ────.
-    await page.getByTestId('wizard-prompt').fill('   ');
-    // wizard-next is a raw <button> (not an @eden/primitives Button wrapper), so the testid IS the button.
-    await expect(page.getByTestId('wizard-next')).toBeDisabled();
-    // No /product/propose fired for the blank intent (race a click against a short window).
+    // ── 5. RESILIENCE (validation): a whitespace-only intent must NOT propose ─────.
+    await page.getByTestId('create-spark').fill('   ');
+    await expect(page.getByTestId('create-start')).toBeDisabled();
     let proposedWhileBlank = false;
     const blankWatcher = page
       .waitForRequest((r) => r.url().includes('/product/propose'), { timeout: 1200 })
@@ -309,18 +312,18 @@ test.describe('create a new product — full-stack journey against a real dev-se
       })
       .catch(() => {});
     await page
-      .getByTestId('wizard-next')
+      .getByTestId('create-start')
       .click({ force: true })
       .catch(() => {});
     await blankWatcher;
     expect(proposedWhileBlank, 'a blank intent must not trigger a propose').toBe(false);
 
-    // ── type the real intent → DEFINE → propose → STACK. Capture the propose RESPONSE. ──.
-    await page.getByTestId('wizard-prompt').fill(INTENT);
+    // ── type the real intent → SPARK → propose → SCOPE. Capture the propose RESPONSE. ──.
+    await page.getByTestId('create-spark').fill(INTENT);
     const proposeBody = captureProposeResponse(page);
-    await page.getByTestId('wizard-next').click();
+    await page.getByTestId('create-start').click();
     const proposed = await proposeBody;
-    await expect(wizard).toHaveAttribute('data-step', 'stack');
+    await expect(flow).toHaveAttribute('data-step', 'scope');
 
     // ── 2 + 3. DATA INTEGRITY / FE⇄BE: the propose RESPONSE carried the deterministic config ──.
     expect(proposed.productName).toBe(PROPOSED.productName);
@@ -332,142 +335,100 @@ test.describe('create a new product — full-stack journey against a real dev-se
     expect(proposed.sdlcPhases).toEqual(PROPOSED.phases);
     expect(proposed.sandbox.posture).toBe(PROPOSED.posture);
 
-    // ── the RENDERED wizard reflects that response (no drift backend→UI) ─────────.
-    await expect(page.getByTestId('wizard-name-stack')).toHaveValue(PROPOSED.productName);
-    await expect(page.getByTestId(`wizard-kind-${PROPOSED.productKind}`)).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    await expect(page.getByTestId('wizard-summary')).toHaveValue(proposed.summary);
-    await expect(page.getByTestId('wizard-languages-chip')).toContainText(PROPOSED.languages[0]);
-    await expect(page.getByTestId('wizard-services-chip')).toHaveCount(PROPOSED.services.length);
-    await expect(page.getByTestId('wizard-services-chip').first()).toContainText(
-      PROPOSED.services[0],
-    );
-    assertCleanAudit(await auditWizard(page), 'STACK');
-
-    // ── the user EDIT #1: add a service (chip-input). It must land in the rendered list. ──.
-    await page.getByTestId('wizard-services-input').fill(ADDED_SERVICE);
-    await page.getByTestId('wizard-services-input').press('Enter');
-    await expect(page.getByTestId('wizard-services-chip')).toHaveCount(
-      PROPOSED.services.length + 1,
-    );
+    // ── the RENDERED scope reflects that response (no drift backend→UI). The name seeds editable;
+    //    the summary shows; and the agent AUTO-SELECTED the right platform target (a Go service →
+    //    the "service" target is selected, the app-only targets are not). ──.
+    await expect(page.getByTestId('create-name')).toHaveValue(PROPOSED.productName);
+    await expect(page.getByTestId('create-summary')).toContainText(proposed.summary);
+    const serviceTarget = page.locator('[data-testid="create-target"][data-target-id="service"]');
+    await expect(serviceTarget).toHaveAttribute('data-selected', 'true');
+    await expect(serviceTarget).toContainText('Service');
+    // At least one target is selected (the agent always picks something buildable).
     await expect(
-      page.getByTestId('wizard-services-chip').filter({ hasText: ADDED_SERVICE }),
+      page.locator('[data-testid="create-target"][data-selected="true"]').first(),
+    ).toBeVisible();
+    assertCleanAudit(await auditFlow(page), 'SCOPE');
+
+    // ── the user EDIT: rename the project. It must land in the create payload (NOT the proposed name). ──.
+    await page.getByTestId('create-name').fill(EDITED_NAME);
+    await expect(page.getByTestId('create-name')).toHaveValue(EDITED_NAME);
+
+    // ── SCOPE → STACK: the proposed stack reveals as chips (the language + the service), and the
+    //    build harness/model are named (the capability binding, no drift). ──.
+    await page.getByTestId('create-next').click();
+    await expect(flow).toHaveAttribute('data-step', 'stack');
+    await expect(
+      page.locator('[data-testid="create-stack-item"]').filter({ hasText: PROPOSED.languages[0] }),
     ).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="create-stack-item"]').filter({ hasText: PROPOSED.services[0] }),
+    ).toHaveCount(1);
+    await expect(page.getByTestId('create-runline')).toContainText(PROPOSED.harness);
+    await expect(page.getByTestId('create-runline')).toContainText(PROPOSED.model);
+    assertCleanAudit(await auditFlow(page), 'STACK');
 
-    // ── STACK → CAPABILITIES → PROCESS ──────────────────────────────────────────.
-    await page.getByTestId('wizard-next').click();
-    await expect(wizard).toHaveAttribute('data-step', 'capabilities');
-    // The proposed harness/model render here (capability binding, no drift).
-    await expect(page.getByTestId(`wizard-harness-${PROPOSED.harness}`)).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    await expect(page.getByTestId('wizard-model')).toHaveValue(PROPOSED.model);
-    assertCleanAudit(await auditWizard(page), 'CAPABILITIES');
-
-    await page.getByTestId('wizard-next').click();
-    await expect(wizard).toHaveAttribute('data-step', 'process');
-    // The proposed phases render selected; EDIT #2: DROP the "qa" phase (toggle it off).
-    for (const phase of PROPOSED.phases) {
-      await expect(page.getByTestId(`wizard-phases-${phase}`)).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-    }
-    await page.getByTestId(`wizard-phases-${DROPPED_PHASE}`).click();
-    await expect(page.getByTestId(`wizard-phases-${DROPPED_PHASE}`)).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
-    assertCleanAudit(await auditWizard(page), 'PROCESS');
-
-    // ── PROCESS → SAFETY → REVIEW ───────────────────────────────────────────────.
-    await page.getByTestId('wizard-next').click();
-    await expect(wizard).toHaveAttribute('data-step', 'safety');
-    await expect(page.getByTestId(`wizard-posture-${PROPOSED.posture}`)).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    assertCleanAudit(await auditWizard(page), 'SAFETY');
-
-    await page.getByTestId('wizard-next').click();
-    await expect(wizard).toHaveAttribute('data-step', 'review');
-
-    // ── the REVIEW reflects the edited spec (the added service shows; the dropped phase is gone) ──.
-    await expect(page.getByTestId('review-name')).toContainText(PROPOSED.productName);
-    await expect(page.getByTestId('review-kind')).toContainText(PROPOSED.productKind);
-    await expect(page.getByTestId('review-harness')).toContainText(PROPOSED.harness);
-    const reviewPhases = (await page.getByTestId('review-phases').textContent()) ?? '';
-    expect(reviewPhases).toContain('architecture');
-    expect(reviewPhases).not.toContain(DROPPED_PHASE);
-    assertCleanAudit(await auditWizard(page), 'REVIEW');
-
-    // ── 4. KEYBOARD NAV + FOCUS: drive the wizard with the keyboard. Focus the dialog, Tab through
-    //    it, and assert focus lands on a real interactive control INSIDE the wizard (keyboard-
-    //    navigable, not a focus trap on the body) AND that the focused control shows a visible focus
-    //    indicator (a non-none outline or a box-shadow — :focus-visible activates on keyboard nav). ──.
-    await page.getByTestId('product-wizard').focus();
-    let landedInWizard = false;
+    // ── 4. KEYBOARD NAV + FOCUS: drive the flow with the keyboard. Focus the dialog, Tab through it,
+    //    and assert focus lands on a real interactive control INSIDE the flow (keyboard-navigable,
+    //    not a focus trap on the body) AND that the focused control shows a visible focus indicator
+    //    (a non-none outline or a box-shadow — :focus-visible activates on keyboard nav). ──.
+    await page.getByTestId('create-flow').focus();
+    let landedInFlow = false;
     let focusIndicatorVisible = false;
     for (let i = 0; i < 12; i++) {
       await page.keyboard.press('Tab');
       const probe = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement | null;
         if (!el || el.tagName.toLowerCase() === 'body') return null;
-        if (!el.closest('[data-testid="product-wizard"]'))
-          return { inWizard: false, indicator: false };
+        if (!el.closest('[data-testid="create-flow"]')) return { inFlow: false, indicator: false };
         const s = getComputedStyle(el);
         const indicator =
           (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) ||
           (s.boxShadow !== 'none' && s.boxShadow.trim().length > 0);
-        return { inWizard: true, indicator };
+        return { inFlow: true, indicator };
       });
-      if (probe?.inWizard) {
-        landedInWizard = true;
+      if (probe?.inFlow) {
+        landedInFlow = true;
         if (probe.indicator) {
           focusIndicatorVisible = true;
           break;
         }
       }
     }
-    expect(landedInWizard, 'Tab must move focus to a control inside the wizard').toBe(true);
+    expect(landedInFlow, 'Tab must move focus to a control inside the flow').toBe(true);
     expect(
       focusIndicatorVisible,
-      'a keyboard-focused wizard control must show a visible focus indicator',
+      'a keyboard-focused flow control must show a visible focus indicator',
     ).toBe(true);
 
-    // ── 1 + 2 + 3. CONFIRM: capture the create REQUEST, then Launch. The payload MUST carry the
-    //    proposed config + BOTH edits (NOT the original). ──.
+    // ── 1 + 2 + 3. BUILD: capture the create REQUEST, then Build it. The payload MUST carry the
+    //    proposed config + the user's name edit (NOT a drifted shell). ──.
     const createBody = captureCreateRequest(page);
     const createResponse = page.waitForResponse(
       (r) => r.url().endsWith('/sessions') && r.request().method() === 'POST',
     );
-    await page.getByTestId('wizard-launch').click();
+    await page.getByTestId('create-launch').click();
     const created = await createBody;
     const createdRes = await (await createResponse).json();
 
-    // The create payload carries a `product` ProductConfig == proposed + the edits.
+    // The create payload carries a `product` ProductConfig == proposed + the name edit.
     expect(created.product, 'the create payload must carry the product spec').toBeTruthy();
     const product = created.product!;
-    expect(product.productName).toBe(PROPOSED.productName);
+    // EDIT present: the renamed project flows through (and is NOT the proposed name).
+    expect(product.productName).toBe(EDITED_NAME);
+    expect(product.productName).not.toBe(PROPOSED.productName);
+    // The proposed spec otherwise rides faithfully (no drift).
     expect(product.productKind).toBe(PROPOSED.productKind);
     expect(product.capabilities.harness).toBe(PROPOSED.harness);
-    // EDIT #1 present: services include the ADDED service AND the original (not the original alone).
-    expect(product.services).toContain(PROPOSED.services[0]);
-    expect(product.services).toContain(ADDED_SERVICE);
-    expect(product.services).not.toEqual(PROPOSED.services); // proves it is NOT the un-edited original
-    // EDIT #2 present: the dropped phase is gone; the kept phases remain.
-    expect(product.sdlcPhases).not.toContain(DROPPED_PHASE);
+    expect(product.stack.languages).toEqual([...PROPOSED.languages]);
+    expect(product.services).toEqual([...PROPOSED.services]);
     expect(product.sdlcPhases).toContain('architecture');
     expect(product.sdlcPhases).toContain('implementation');
     // The create returned a REAL session id (FE⇄BE: a live session, not a placeholder).
     expect(createdRes.id, 'create must return a real session id').toBeTruthy();
     expect(typeof createdRes.id).toBe('string');
 
-    // ── the wizard closes and the chat view opens bound to the chosen harness ────.
-    await expect(wizard).toBeHidden();
+    // ── the flow closes and the chat view opens bound to the chosen harness ──────.
+    await expect(flow).toBeHidden();
     await expect(page.getByTestId('active-harness')).toHaveText(PROPOSED.harness);
 
     // LAYOUT: the composer must sit WITHIN the visible viewport — the chat chrome (top bar + two
@@ -537,8 +498,8 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(page.getByTestId('session-dot').first()).toBeVisible();
 
     // The live meter reconciled against the real terminal ledger (the canonical script's values).
-    // The usage/cost is now a concise dock pinned bottom-right (not a big in-column box): it shows
-    // the model + cost (header) reconciled against the terminal ledger.
+    // The usage/cost is a concise dock pinned bottom-right: it shows the model + cost (header)
+    // reconciled against the terminal ledger.
     await expect(page.getByTestId('usage-dock')).toBeVisible();
     await expect(page.getByTestId('usage-dock-cost')).toContainText('0.001500');
     await expect(page.getByTestId('usage-dock-model')).toContainText('fake-fable-5');
@@ -576,14 +537,42 @@ test.describe('create a new product — full-stack journey against a real dev-se
     });
   });
 
+  // ── the THINKING screen (the "nice animation" while Eden scopes) is shown between SPARK and SCOPE.
+  //    Delay the real propose just enough to OBSERVE it deterministically, then let it resolve. ──.
+  test('the scoping animation shows while Eden proposes, then resolves to scope', async ({ page }) => {
+    await openChat(page);
+    await page.getByTestId('new-session').first().click();
+    await expect(page.getByTestId('create-flow')).toBeVisible();
+
+    // Hold the FIRST propose ~600ms so the THINKING screen is observable (the request still hits the
+    // real backend — we only delay the round-trip, we do not stub the body).
+    let held = false;
+    await page.route('**/product/propose', async (route) => {
+      if (!held) {
+        held = true;
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+      await route.continue();
+    });
+
+    await page.getByTestId('create-spark').fill(INTENT);
+    await page.getByTestId('create-start').click();
+    // The transient scoping screen renders with a live status line.
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'thinking');
+    await expect(page.getByTestId('create-thinking')).toBeVisible();
+    await expect(page.getByTestId('create-thinking-line')).not.toBeEmpty();
+    // Then it resolves to the scope screen with the real proposed config.
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+      timeout: 10_000,
+    });
+    await expect(page.getByTestId('create-name')).toHaveValue(PROPOSED.productName);
+  });
+
   // ── 5. RESILIENCE: a propose FAILURE renders gracefully (the dev-serve fake never errors, so we
   //    force ONE /product/propose request to fail at the network seam — a documented intercept — and
-  //    assert the wizard surfaces the error, does NOT advance, does NOT crash, and the user can retry
-  //    successfully against the REAL backend once the intercept is removed). ──.
+  //    assert the flow surfaces the error, returns to SPARK, does NOT crash, and the user can retry
+  //    successfully against the REAL backend once the intercept is spent). ──.
   test('a propose failure renders gracefully and the user can retry', async ({ page }) => {
-    // Collect console errors EXCEPT the expected resource-load failure for the request we force to
-    // fail (the browser always logs a failed fetch); a genuine crash (an uncaught exception) is NOT
-    // a resource-load line, so this still catches a real defect.
     const console_errors: string[] = [];
     page.on('console', (m) => {
       if (m.type() === 'error' && !/Failed to load resource/i.test(m.text()))
@@ -594,7 +583,7 @@ test.describe('create a new product — full-stack journey against a real dev-se
 
     await openChat(page);
     await page.getByTestId('new-session').first().click();
-    await expect(page.getByTestId('product-wizard')).toBeVisible();
+    await expect(page.getByTestId('create-flow')).toBeVisible();
 
     // Fail the FIRST propose only, then let subsequent ones through to the real backend.
     let failed = false;
@@ -611,27 +600,29 @@ test.describe('create a new product — full-stack journey against a real dev-se
       await route.continue();
     });
 
-    await page.getByTestId('wizard-prompt').fill(INTENT);
-    await page.getByTestId('wizard-next').click();
+    await page.getByTestId('create-spark').fill(INTENT);
+    await page.getByTestId('create-start').click();
 
-    // The wizard surfaces the gateway's error message and stays on DEFINE (no crash, no dead advance).
-    await expect(page.getByTestId('wizard-error')).toBeVisible();
-    await expect(page.getByTestId('wizard-error')).toContainText('scoping unavailable');
-    await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'define');
+    // The flow surfaces the gateway's error message and returns to SPARK (no crash, no dead advance).
+    await expect(page.getByTestId('create-error')).toBeVisible();
+    await expect(page.getByTestId('create-error')).toContainText('scoping unavailable');
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'spark');
     expect(
       pageErrors,
       `a propose failure must not crash the app: ${pageErrors.join(' | ')}`,
     ).toEqual([]);
 
-    // Retry: the second propose hits the REAL backend and advances to STACK with the real config.
-    await page.getByTestId('wizard-next').click();
-    await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'stack');
-    await expect(page.getByTestId('wizard-name-stack')).toHaveValue(PROPOSED.productName);
+    // Retry: the second propose hits the REAL backend and advances to SCOPE with the real config.
+    await page.getByTestId('create-start').click();
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+      timeout: 10_000,
+    });
+    await expect(page.getByTestId('create-name')).toHaveValue(PROPOSED.productName);
 
-    // Close cleanly (no orphan session was created — propose does not create). We are on STACK now,
-    // where the left footer button is "Back"; close via the header ✕ (its onclick is oncancel).
-    await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByTestId('product-wizard')).toBeHidden();
+    // Close cleanly (no orphan session was created — propose does not create).
+    await page.getByTestId('create-back').click();
+    await page.getByTestId('create-cancel').click();
+    await expect(page.getByTestId('create-flow')).toBeHidden();
     await expect(page.getByTestId('empty-state')).toBeVisible();
     expect(console_errors, `unexpected console errors: ${console_errors.join(' | ')}`).toEqual([]);
     expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
@@ -651,12 +642,12 @@ test.describe('create a new product — full-stack journey against a real dev-se
     const palette = page.getByRole('dialog', { name: /command palette/i });
     await expect(palette).toBeVisible();
 
-    // It lists the actions; selecting "New product" opens the create wizard.
-    await expect(palette.getByText('New product…')).toBeVisible();
-    await palette.getByText('New product…').click();
-    await expect(page.getByTestId('product-wizard')).toBeVisible();
-    await page.getByRole('button', { name: 'Cancel' }).first().click();
-    await expect(page.getByTestId('product-wizard')).toBeHidden();
+    // It lists the actions; selecting "New project" opens the create flow.
+    await expect(palette.getByText('New project…')).toBeVisible();
+    await palette.getByText('New project…').click();
+    await expect(page.getByTestId('create-flow')).toBeVisible();
+    await page.getByTestId('create-cancel').first().click();
+    await expect(page.getByTestId('create-flow')).toBeHidden();
 
     expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
   });
@@ -682,7 +673,7 @@ test.describe('create a new product — full-stack journey against a real dev-se
 //    REAL. Honest-skipped unless CREATE_PRODUCT_LIVE=1 (exported by run-create-product-live.sh when a
 //    claude token is present in /workspace/.env.development). The token is NEVER read or logged here —
 //    the runner injects it into the agentgateway-live process env only; this spec just drives the UI. ──
-test.describe('create a new product — LIVE arm (real claude propose + real agent)', () => {
+test.describe('create a new project — LIVE arm (real claude propose + real agent)', () => {
   test.skip(
     process.env.CREATE_PRODUCT_LIVE !== '1',
     'live claude harness/token unavailable — run tests/e2e/run-create-product-live.sh with a CLAUDEADAPTER_LIVE_TOKEN in /workspace/.env.development',
@@ -697,7 +688,7 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
     test.setTimeout(240_000);
     await openChat(page);
     await page.getByTestId('new-session').first().click();
-    await expect(page.getByTestId('product-wizard')).toBeVisible();
+    await expect(page.getByTestId('create-flow')).toBeVisible();
 
     // A concrete intent a real model scopes into a sane ProductConfig.
     const liveIntent =
@@ -705,18 +696,16 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
     const proposeBody = page
       .waitForResponse(
         (r) => r.url().includes('/product/propose') && r.request().method() === 'POST',
-        {
-          timeout: 60_000,
-        },
+        { timeout: 60_000 },
       )
       .then(async (r) => (await r.json()).data as ProductConfig);
-    await page.getByTestId('wizard-prompt').fill(liveIntent);
-    await page.getByTestId('wizard-next').click();
+    await page.getByTestId('create-spark').fill(liveIntent);
+    await page.getByTestId('create-start').click();
     const proposed = await proposeBody;
 
     // The REAL propose returned a sane, NON-EMPTY config (a productName, a kind, and a non-empty
     // language set — the live model actually scoped a product, not an empty shell).
-    await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'stack', {
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
       timeout: 60_000,
     });
     expect(proposed.productName.trim().length).toBeGreaterThan(0);
@@ -728,24 +717,24 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
       'a real config must name at least one language',
     ).toBeGreaterThan(0);
 
-    // Edit (add a service), then drive to REVIEW → Launch (create a REAL agent session).
-    await page.getByTestId('wizard-services-input').fill('vault');
-    await page.getByTestId('wizard-services-input').press('Enter');
-    for (const step of ['capabilities', 'process', 'safety', 'review']) {
-      await page.getByTestId('wizard-next').click();
-      await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', step, {
-        timeout: 60_000,
-      });
-    }
-    await page.getByTestId('wizard-launch').click();
-    await expect(page.getByTestId('product-wizard')).toBeHidden({ timeout: 60_000 });
+    // The agent auto-selected at least one platform target out of the palette.
+    await expect(
+      page.locator('[data-testid="create-target"][data-selected="true"]').first(),
+    ).toBeVisible();
+
+    // Drive SCOPE → STACK → Build (create a REAL agent session).
+    await page.getByTestId('create-next').click();
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'stack', {
+      timeout: 60_000,
+    });
+    await page.getByTestId('create-launch').click();
+    await expect(page.getByTestId('create-flow')).toBeHidden({ timeout: 60_000 });
 
     // The REAL agent begins its turn over the live SSE stream. A real implementer agent's FIRST
     // emitted event kind is non-deterministic — it may lead with a thinking block, a tool call, an
     // out-of-grant permission request, or plain assistant text. So we wait for ANY of those to
     // render (not assistant-text specifically): every one of them proves the live FE⇄gateway⇄claude
-    // stream is alive and the real agent is doing real work. (The simple-prompt path is exercised
-    // exactly — `Hello from Eden.` — by tests/e2e/run-create-product-live.sh's transcript probe.)
+    // stream is alive and the real agent is doing real work.
     await expect(page.getByTestId('active-harness')).toHaveText('claude');
     const firstActivity = page
       .getByTestId('assistant-text')
@@ -757,17 +746,16 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
       timeout: 120_000,
     });
 
-    // The bottom STATUS BAR reflects the REAL agent's live activity: it becomes busy (spinner on)
-    // and surfaces a real running thinking-token count > 0 (claude's thinking_tokens heartbeats,
-    // normalized to thinking-progress) — the fix for the dead "no thinking, no loading" screen.
+    // The bottom STATUS BAR reflects the REAL agent's live activity: it becomes busy and surfaces a
+    // real running thinking-token count > 0 (claude's thinking_tokens heartbeats, normalized to
+    // thinking-progress) — the fix for the dead "no thinking, no loading" screen.
     const liveStatus = page.getByTestId('agent-status');
     await expect(liveStatus).toBeVisible();
     await expect
-      .poll(
-        async () =>
-          Number((await liveStatus.getAttribute('data-thinking-tokens')) ?? '0'),
-        { timeout: 120_000, message: 'the status bar must show a real thinking-token count > 0' },
-      )
+      .poll(async () => Number((await liveStatus.getAttribute('data-thinking-tokens')) ?? '0'), {
+        timeout: 120_000,
+        message: 'the status bar must show a real thinking-token count > 0',
+      })
       .toBeGreaterThan(0);
 
     // The CONTEXT bar reflects the REAL agent's observability live: as the agent does work, the
@@ -791,9 +779,7 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
     // end-to-end against the live agent (the narration directive makes it lead with prose).
     await expect(page.getByTestId('assistant-text').first()).not.toBeEmpty({ timeout: 120_000 });
 
-    // The agent-type-aware RIGHT PANEL is mounted for the live session (an implementer workspace);
-    // if the real agent writes a file during its turn, it lists it (best-effort — a short turn may
-    // not write), but the panel + workspace widget always render.
+    // The agent-type-aware RIGHT PANEL is mounted for the live session (an implementer workspace).
     await expect(page.getByTestId('agent-panel')).toBeVisible();
     await expect(page.getByTestId('panel-agent-type')).toContainText('Implementer');
     await expect(page.getByTestId('workspace-widget')).toBeVisible();

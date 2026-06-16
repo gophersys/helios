@@ -201,7 +201,7 @@ demo_up() {
 
   log ""
   log "  ============================================================"
-  log "  LIVE: open  http://127.0.0.1:${FRONTEND_PORT}/chat"
+  log "  LIVE: open  http://127.0.0.1:${FRONTEND_PORT}/   (Projects dashboard)"
   log "  gateway:    http://${GATEWAY_ADDRESS}/healthz"
   log "  harness:    ${EDEN_HARNESS:-claude-code} (real) via vault://eden/development#setup-token"
   log "  logs:       ${STATE_DIR}/{gateway,frontend}.log"

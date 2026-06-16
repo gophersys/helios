@@ -29,7 +29,7 @@
   import UsageDock from '$lib/chat/UsageDock.svelte';
   import Modal from '$lib/chat/Modal.svelte';
   import AgentConfigView from '$lib/chat/AgentConfigView.svelte';
-  import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
+  import CreateProjectFlow from '$lib/chat/wizard/CreateProjectFlow.svelte';
   import { agentTypeFor } from '$lib/workspace/agentWorkspace';
 
   const client = new GatewayClient(resolveGatewayUrl());
@@ -58,7 +58,7 @@
     return harness === 'omp' ? 'omp' : 'claude';
   }
 
-  /** REVIEW → Launch: create the session carrying the edited ProductConfig, then open the chat view
+  /** "Build it" → create the session carrying the proposed ProductConfig, then open the chat view
    *  streaming the real agent. Created WITHOUT an opening prompt so it starts in `ready`; the first
    *  turn is then driven through the control channel so the user bubble renders from a clean state. */
   async function launchProduct(payload: {
@@ -92,7 +92,7 @@
       value: 'actions',
       heading: 'Actions',
       items: [
-        { value: 'new-product', label: 'New product…', keywords: ['create', 'start', 'session'] },
+        { value: 'new-product', label: 'New project…', keywords: ['create', 'start', 'session', 'product'] },
         { value: 'settings', label: 'Settings', keywords: ['preferences', 'theme', 'dark', 'density'] },
         ...(active
           ? [
@@ -360,7 +360,7 @@
     </header>
 
     <div class="rail__new" data-testid="new-session">
-      <Button variant="primary" {theme} onclick={() => (showWizard = true)}>＋ New product</Button>
+      <Button variant="primary" {theme} onclick={() => (showWizard = true)}>＋ New project</Button>
     </div>
 
     {#if listError}
@@ -406,15 +406,15 @@
   <main class="view">
     {#if !active}
       <div class="empty" data-testid="empty-state">
-        <h2>Build a product with Eden</h2>
+        <h2>Build a project with Eden</h2>
         <p>
-          Every session is a product Eden builds through its 10-phase SDLC. Start a new product —
-          describe what you're building, edit the configuration Eden proposes, then watch the agent
-          stream every event live: reasoning, tool calls, permission gates, and a token/cost meter.
+          Every project is something Eden builds through its 10-phase SDLC. Start one — say what
+          you're building in a sentence, watch Eden scope it, then watch the agent stream every event
+          live: reasoning, tool calls, permission gates, and a token/cost meter.
         </p>
         <div class="empty__cta">
           <Button variant="primary" {theme} onclick={() => (showWizard = true)}
-            >＋ New product</Button
+            >＋ New project</Button
           >
         </div>
       </div>
@@ -537,7 +537,7 @@
 
     <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
     {#if showWizard}
-      <ProductWizard
+      <CreateProjectFlow
         propose={(prompt) => client.propose(prompt)}
         onlaunch={launchProduct}
         oncancel={() => (showWizard = false)}

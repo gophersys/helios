@@ -3,7 +3,7 @@
   // centered dialog shell that BOTH the product wizard AND future detail/session views adopt. It owns
   // the centered-overlay concept (scrim + centered panel) so no view re-spells it.
   //
-  // Behavior mirrors the a11y of ProductWizard / SettingsPanel exactly: role="dialog", aria-modal,
+  // Behavior mirrors the a11y of CreateProjectFlow / SettingsPanel exactly: role="dialog", aria-modal,
   // aria-label (the title), Escape closes, scrim click-out closes, the panel takes focus on open, and
   // a close ✕ control flips `open` to false. Controlled via the `open` bindable — the host owns the
   // open state; the shell only renders + dismisses.
