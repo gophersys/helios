@@ -672,7 +672,11 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    height: 100vh;
+    /* Fill the grid cell (the workspace column height), NOT the whole viewport — the top bar +
+       the status/context bars take their own rows, and .view__body flexes + scrolls so the
+       composer stays pinned at the bottom of the visible area. */
+    min-block-size: 0;
+    overflow: hidden;
   }
   .empty {
     margin: auto;

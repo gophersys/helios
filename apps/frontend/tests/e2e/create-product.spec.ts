@@ -470,6 +470,10 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(wizard).toBeHidden();
     await expect(page.getByTestId('active-harness')).toHaveText(PROPOSED.harness);
 
+    // LAYOUT: the composer must sit WITHIN the visible viewport — the chat chrome (top bar + two
+    // status bars) must not push it below the fold (the off-screen-composer defect).
+    await expect(page.getByTestId('composer-input')).toBeInViewport();
+
     // ── the bottom STATUS BAR (the TUI status line) goes live. Before any assistant text the agent
     //    THINKS: the bar surfaces a running thinking-token count (the thinking-progress heartbeats),
     //    proving that signal is wired end-to-end — without it the count would never leave 0. The
@@ -496,7 +500,10 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(page.getByTestId('assistant-text')).toContainText('Hello, world', {
       timeout: 15_000,
     });
+    // The reasoning is shown EXPANDED in the distinct thinking box (not folded away) — the agent's
+    // thinking is visible, not just a token count.
     await expect(page.getByTestId('thinking-block')).toBeVisible();
+    await expect(page.getByTestId('thinking-content')).toContainText('considering the request');
     const toolCard = page.getByTestId('tool-card').first();
     await expect(toolCard).toContainText('Write');
     await expect(toolCard.getByTestId('tool-result')).toContainText('wrote 12 bytes');

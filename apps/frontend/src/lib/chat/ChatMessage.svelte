@@ -1,11 +1,12 @@
 <script lang="ts">
-  // An assistant turn rendered on the design system: the @eden/primitives Message bubble
-  // (role="assistant") wrapping the foldable ThinkingBlock (the reasoning) and the StreamingText
-  // live token stream (the answer). The text accretes token-by-token from text-delta events and the
-  // caret blinks until message-end (streaming=false). Every colour/size/space is derived from the
-  // generated @eden/theme handed down — no hardcoded values.
-  import { Message, StreamingText, ThinkingBlock } from '@eden/primitives';
+  // An assistant turn: the agent's REASONING (ThinkingTrace — a distinct, expanded thinking box,
+  // shown live) above the answer (the @eden/primitives Message bubble + StreamingText token stream).
+  // The answer text accretes token-by-token and is typewriter-smoothed; the bubble renders ONLY once
+  // there is text (no empty caret box), and while the agent is still working with nothing to show a
+  // small pending indicator stands in. Every colour/size/space derives from @eden/theme.
+  import { Message, StreamingText } from '@eden/primitives';
   import type { Theme } from '@eden/theme';
+  import ThinkingTrace from './ThinkingTrace.svelte';
 
   let {
     text,
@@ -49,22 +50,60 @@
 </script>
 
 <div data-testid="assistant-message" data-streaming={streaming}>
-  <Message role="assistant" {theme}>
-    {#if thinking}
-      <div class="thinking" data-testid="thinking-block">
-        <ThinkingBlock summary="Thinking" open={false} {theme}>
-          {thinking}
-        </ThinkingBlock>
+  {#if thinking}
+    <ThinkingTrace text={thinking} streaming={streaming && !revealed} {theme} />
+  {/if}
+  {#if revealed}
+    <Message role="assistant" {theme}>
+      <div data-testid="assistant-text">
+        <StreamingText text={revealed} {streaming} {theme} />
       </div>
-    {/if}
-    <div data-testid="assistant-text">
-      <StreamingText text={revealed} {streaming} {theme} />
+    </Message>
+  {:else if streaming && !thinking}
+    <!-- The agent has started but has nothing to show yet: a small pending pulse, NOT an empty
+         answer box with a blinking caret (the "empty assistant box" defect). -->
+    <div class="pending" data-testid="assistant-pending" aria-label="working">
+      <span class="pending__dot"></span>
+      <span class="pending__dot"></span>
+      <span class="pending__dot"></span>
     </div>
-  </Message>
+  {/if}
 </div>
 
 <style>
-  .thinking {
-    margin-block-end: var(--space-3, 12px);
+  .pending {
+    display: inline-flex;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) 0;
+  }
+  .pending__dot {
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: 50%;
+    background: var(--eden-app-muted);
+    animation: pending-bounce 1.2s ease-in-out infinite;
+  }
+  .pending__dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .pending__dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  @keyframes pending-bounce {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pending__dot {
+      animation: none;
+    }
   }
 </style>
