@@ -1,6 +1,10 @@
 package ompadapter_test
 
 import (
+	"bufio"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -79,6 +83,38 @@ func TestNormalize_LiveStreamFoldsToTaxonomy(t *testing.T) {
 	// The assistant text delta carried the model's reply.
 	if d := firstDelta(events, agentsession.EventTextDelta); d != "ok" {
 		t.Errorf("text delta = %q, want %q", d, "ok")
+	}
+}
+
+// TestNormalize_PartialMessageStreaming proves omp streams text TOKEN-BY-TOKEN natively against
+// the REAL omp json frame shapes (testdata/partial-stream.jsonl): omp is delta-native, so a
+// single assistant message's text arrives as multiple incremental message_update text_delta
+// fragments (not one finished block), and the normalizer maps each to a distinct EventTextDelta.
+// The assertions: >=2 incremental EventTextDelta fragments accrete (concatenated, in order) to
+// the full sentence, no single delta re-emits the whole text (no doubling), the assistant message
+// boundary is emitted exactly ONCE (message_start/message_end, not also fabricated from agent_end),
+// and the tool_execution frame surfaces as one EventToolStart. This is the smooth-typing UX,
+// mock-free, off a fixture captured in the live omp wire shape.
+func TestNormalize_PartialMessageStreaming(t *testing.T) {
+	t.Parallel()
+	textDeltas, counts, toolName := tallyOmpStream(realOmpFixture(t, "partial-stream.jsonl"))
+
+	if len(textDeltas) < 2 {
+		t.Fatalf("expected token-level streaming (>=2 incremental text deltas), got %d: %q", len(textDeltas), textDeltas)
+	}
+	if got := strings.Join(textDeltas, ""); got != "Hello, world." {
+		t.Fatalf("accreted streamed text = %q, want %q", got, "Hello, world.")
+	}
+	if slices.Contains(textDeltas, "Hello, world.") {
+		t.Fatalf("the full assistant text was re-emitted as a single delta — streamed text is DOUBLED")
+	}
+	if counts[agentsession.EventMessageStart] != 1 || counts[agentsession.EventMessageEnd] != 1 {
+		t.Fatalf("the assistant message boundary must be emitted exactly once (message_start/message_end), got start=%d end=%d",
+			counts[agentsession.EventMessageStart], counts[agentsession.EventMessageEnd])
+	}
+	if counts[agentsession.EventToolStart] != 1 || toolName != "write" {
+		t.Fatalf("a tool_execution must surface as one EventToolStart (one write tool), got tools=%d name=%q",
+			counts[agentsession.EventToolStart], toolName)
 	}
 }
 
@@ -179,6 +215,51 @@ func TestNormalize_ErrorTerminalClassifiesByStatus(t *testing.T) {
 }
 
 // Test helpers follow.
+
+// realOmpFixture reads a testdata omp json-frame file and normalizes every line through ONE
+// stream normalizer, exactly as the live conn's scanner does — but with no process. It is the
+// streaming arm of the conformance proof off a fixture in the real omp wire shape.
+func realOmpFixture(t *testing.T, name string) []agentsession.Event {
+	t.Helper()
+	file, err := os.Open(filepath.Join("testdata", name)) //nolint:gosec // a fixed test fixture path
+	if err != nil {
+		t.Fatalf("open fixture %s: %v", name, err)
+	}
+	t.Cleanup(func() { _ = file.Close() }) //nolint:errcheck // best-effort fixture-file close on test cleanup.
+
+	var events []agentsession.Event
+	normalize := ompadapter.StreamNormalizerForTest() // one normalizer threads the whole stream
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 8<<20)
+	for scanner.Scan() {
+		line := make([]byte, len(scanner.Bytes()))
+		copy(line, scanner.Bytes())
+		events = append(events, normalize(line)...)
+	}
+	if serr := scanner.Err(); serr != nil {
+		t.Fatalf("scan fixture: %v", serr)
+	}
+	if len(events) == 0 {
+		t.Fatal("fixture produced no events")
+	}
+	return events
+}
+
+// tallyOmpStream collects, from a normalized event slice, the ordered text-delta fragments, a
+// count per Event kind, and the first tool name — the shape the streaming assertions read.
+func tallyOmpStream(events []agentsession.Event) (textDeltas []string, counts map[agentsession.EventKind]int, toolName string) {
+	counts = make(map[agentsession.EventKind]int)
+	for i := range events {
+		counts[events[i].Kind]++
+		if events[i].Kind == agentsession.EventTextDelta && events[i].Message != nil {
+			textDeltas = append(textDeltas, events[i].Message.Delta)
+		}
+		if events[i].Kind == agentsession.EventToolStart && events[i].Tool != nil {
+			toolName = events[i].Tool.Name
+		}
+	}
+	return textDeltas, counts, toolName
+}
 
 // requireKind asserts at least one event of kind exists and returns the first such event.
 func requireKind(t *testing.T, events []agentsession.Event, kind agentsession.EventKind) agentsession.Event { //nolint:gocritic // Event is the contract's copyable value record (§2); returned by value.
