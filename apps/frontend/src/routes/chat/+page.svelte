@@ -260,6 +260,18 @@
     return 'warn';
   }
 
+  /** The timeline-rail node glyph for a transcript entry — the marker on the connecting line that
+   *  makes the conversation read as one threaded sequence (user → the agent's reasoning, tools, and
+   *  result, all on the rail). */
+  function railGlyph(role: string): string {
+    if (role === 'user') return '▍';
+    if (role === 'assistant') return '✦';
+    if (role === 'tool') return '⎿';
+    if (role === 'permission') return '?';
+    if (role === 'terminal') return '■';
+    return '·';
+  }
+
   /** The session-navigator status dot: the ACTIVE session reflects its LIVE activity in real time;
    *  the others show their last-known lifecycle from the session list. Drives the dot's colour + pulse. */
   function sessionDotState(agent: AgentView): string {
@@ -405,45 +417,44 @@
         <div class="transcript" bind:this={scroller} data-testid="transcript">
           <ul class="turns" role="list">
             {#each active.entries as entry (entry.id)}
-              {#if entry.role === 'user'}
-                <li class="turn turn--user" data-testid="user-message">
-                  <Message role="user" {theme}>{entry.text}</Message>
-                </li>
-              {:else if entry.role === 'assistant'}
-                <li class="turn">
-                  <ChatMessage
-                    text={entry.text}
-                    thinking={entry.thinking}
-                    streaming={entry.streaming}
-                    {theme}
-                  />
-                </li>
-              {:else if entry.role === 'tool'}
-                <li class="turn"><ChatTool tool={entry.tool} {theme} /></li>
-              {:else if entry.role === 'permission'}
-                <li class="turn">
-                  <ChatPermission
-                    permission={entry.permission}
-                    {theme}
-                    onresolve={(requestId, verdict, scope) =>
-                      active?.resolve(requestId, verdict, scope)}
-                  />
-                </li>
-              {:else if entry.role === 'notice'}
-                <li class="turn">
-                  <div class="notice notice--{entry.tone}" data-testid="notice">{entry.text}</div>
-                </li>
-              {:else if entry.role === 'terminal'}
-                <li class="turn">
-                  <div class="terminal" data-testid="terminal-banner" data-outcome={entry.outcome}>
-                    <span class="chip chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
-                      {entry.outcome}
-                    </span>
-                    {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}
-                    {#if entry.reason}<span class="chip chip--warn">{entry.reason}</span>{/if}
-                  </div>
-                </li>
-              {/if}
+              <li class="turn" data-role={entry.role} data-testid="turn">
+                <span class="turn__rail" aria-hidden="true">
+                  <span class="turn__node" data-role={entry.role}>{railGlyph(entry.role)}</span>
+                </span>
+                <div class="turn__main">
+                  {#if entry.role === 'user'}
+                    <div class="turn--user" data-testid="user-message">
+                      <Message role="user" {theme}>{entry.text}</Message>
+                    </div>
+                  {:else if entry.role === 'assistant'}
+                    <ChatMessage
+                      text={entry.text}
+                      thinking={entry.thinking}
+                      streaming={entry.streaming}
+                      {theme}
+                    />
+                  {:else if entry.role === 'tool'}
+                    <ChatTool tool={entry.tool} {theme} />
+                  {:else if entry.role === 'permission'}
+                    <ChatPermission
+                      permission={entry.permission}
+                      {theme}
+                      onresolve={(requestId, verdict, scope) =>
+                        active?.resolve(requestId, verdict, scope)}
+                    />
+                  {:else if entry.role === 'notice'}
+                    <div class="notice notice--{entry.tone}" data-testid="notice">{entry.text}</div>
+                  {:else if entry.role === 'terminal'}
+                    <div class="terminal" data-testid="terminal-banner" data-outcome={entry.outcome}>
+                      <span class="chip chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
+                        {entry.outcome}
+                      </span>
+                      {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}
+                      {#if entry.reason}<span class="chip chip--warn">{entry.reason}</span>{/if}
+                    </div>
+                  {/if}
+                </div>
+              </li>
             {/each}
           </ul>
           {#if active.entries.length === 0}
@@ -741,16 +752,66 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4, 16px);
   }
+  /* Each turn is laid on a CONNECTED timeline: a rail column (the continuous vertical line + a node
+     marker) and the content. The line runs through the rail and into the inter-turn gaps so the
+     whole conversation reads as one thread; the node's filled circle sits on the line. */
   .turn {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: var(--space-6, 24px) minmax(0, 1fr);
+    gap: var(--space-3, 12px);
+    padding-block: var(--space-3, 12px);
   }
-  .turn--user {
-    align-items: flex-end;
+  .turn__rail {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .turn__rail::before {
+    content: '';
+    position: absolute;
+    inset-block: calc(-1 * var(--space-3, 12px));
+    inset-inline-start: 50%;
+    inline-size: 1px;
+    background: var(--eden-app-line);
+    transform: translateX(-50%);
+  }
+  /* the first turn's line should not run above the first node, the last's not below — masked by the
+     transcript's own padding + overflow; the node circle covers the line where the marker sits. */
+  .turn:first-child .turn__rail::before {
+    inset-block-start: var(--space-2, 8px);
+  }
+  .turn:last-child .turn__rail::before {
+    inset-block-end: calc(100% - var(--space-5, 20px));
+  }
+  .turn__node {
+    position: relative;
+    z-index: 1;
+    inline-size: var(--space-5, 20px);
+    block-size: var(--space-5, 20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--eden-app-bg);
+    border-radius: 50%;
+    font-family: var(--font-code);
+    font-size: var(--font-size-caption, 12px);
+    color: var(--eden-app-muted);
+  }
+  .turn__node[data-role='assistant'] {
+    color: var(--eden-app-accent);
+  }
+  .turn__node[data-role='user'] {
+    color: var(--eden-app-fg);
+  }
+  .turn__node[data-role='tool'] {
+    color: color-mix(in oklab, var(--eden-app-muted) 80%, var(--eden-app-bg));
+    font-size: var(--font-size-label, 13px);
+  }
+  .turn__main {
+    min-inline-size: 0;
+    padding-block-start: 1px;
   }
   .turn--user :global(.eden-message) {
     max-inline-size: 70ch;
