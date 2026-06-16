@@ -4,7 +4,7 @@
   // The answer text accretes token-by-token and is typewriter-smoothed; the bubble renders ONLY once
   // there is text (no empty caret box), and while the agent is still working with nothing to show a
   // small pending indicator stands in. Every colour/size/space derives from @eden/theme.
-  import { Message, StreamingText } from '@eden/primitives';
+  import { StreamingText } from '@eden/primitives';
   import type { Theme } from '@eden/theme';
   import ThinkingTrace from './ThinkingTrace.svelte';
 
@@ -54,11 +54,11 @@
     <ThinkingTrace text={thinking} streaming={streaming && !revealed} {theme} />
   {/if}
   {#if revealed}
-    <Message role="assistant" {theme}>
-      <div data-testid="assistant-text">
-        <StreamingText text={revealed} {streaming} {theme} />
-      </div>
-    </Message>
+    <!-- The agent's answer reads as clean prose under its timeline node (no heavy bubble — the user
+         turn is the distinct bubble); the streaming caret lives in StreamingText. -->
+    <div class="answer" data-testid="assistant-text">
+      <StreamingText text={revealed} {streaming} {theme} />
+    </div>
   {:else if streaming && !thinking}
     <!-- The agent has started but has nothing to show yet: a small pending pulse, NOT an empty
          answer box with a blinking caret (the "empty assistant box" defect). -->
@@ -71,6 +71,10 @@
 </div>
 
 <style>
+  .answer {
+    color: var(--eden-app-fg);
+    line-height: 1.6;
+  }
   .pending {
     display: inline-flex;
     gap: var(--space-2, 8px);
