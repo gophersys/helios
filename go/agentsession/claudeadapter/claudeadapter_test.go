@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -139,6 +140,51 @@ func TestNormalize_OtherSystemLineStaysExtension(t *testing.T) {
 	if len(events) != 1 || events[0].Kind != agentsession.EventExtension {
 		t.Fatalf("a non-thinking_tokens system line must stay an Extension, got %+v", events)
 	}
+}
+
+// TestNormalize_PartialMessageStreaming proves the --include-partial-messages path streams text
+// TOKEN-BY-TOKEN against the REAL claude partial-message frame shapes (testdata/partial-stream.jsonl):
+// the message text arrives as multiple incremental EventTextDelta fragments (not one finished
+// block), the message boundary is emitted exactly ONCE (not doubled by the final complete
+// `assistant` line), no delta re-emits the whole text, and a tool_use still surfaces from that
+// final line (its complete args land only there). This is the smooth-typing UX, mock-free.
+func TestNormalize_PartialMessageStreaming(t *testing.T) {
+	t.Parallel()
+	textDeltas, counts, toolName := tallyStream(realNormalizedFixture(t, "partial-stream.jsonl"))
+
+	if len(textDeltas) < 2 {
+		t.Fatalf("expected token-level streaming (>=2 incremental text deltas), got %d: %q", len(textDeltas), textDeltas)
+	}
+	if got := strings.Join(textDeltas, ""); got != "Hello, world." {
+		t.Fatalf("accreted streamed text = %q, want %q", got, "Hello, world.")
+	}
+	if slices.Contains(textDeltas, "Hello, world.") {
+		t.Fatalf("the final assistant text was re-emitted as a single delta — streamed text is DOUBLED")
+	}
+	if counts[agentsession.EventMessageStart] != 1 || counts[agentsession.EventMessageEnd] != 1 {
+		t.Fatalf("the message boundary must be emitted exactly once (stream_event, not also the assistant line), got start=%d end=%d",
+			counts[agentsession.EventMessageStart], counts[agentsession.EventMessageEnd])
+	}
+	if counts[agentsession.EventToolStart] != 1 || toolName != "Write" {
+		t.Fatalf("a tool_use must survive streaming suppression (one Write tool from the final line), got tools=%d name=%q",
+			counts[agentsession.EventToolStart], toolName)
+	}
+}
+
+// tallyStream collects, from a normalized event slice, the ordered text-delta fragments, a count
+// per Event kind, and the first tool name — the shape the streaming assertions read.
+func tallyStream(events []agentsession.Event) (textDeltas []string, counts map[agentsession.EventKind]int, toolName string) {
+	counts = make(map[agentsession.EventKind]int)
+	for i := range events {
+		counts[events[i].Kind]++
+		if events[i].Kind == agentsession.EventTextDelta && events[i].Message != nil {
+			textDeltas = append(textDeltas, events[i].Message.Delta)
+		}
+		if events[i].Kind == agentsession.EventToolStart && events[i].Tool != nil {
+			toolName = events[i].Tool.Name
+		}
+	}
+	return textDeltas, counts, toolName
 }
 
 // assertExtensionVerbatim proves every EventExtension carries non-empty raw bytes.

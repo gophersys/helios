@@ -216,6 +216,18 @@ func TestBuildArguments_PermissionPromptToolStdio(t *testing.T) {
 	}
 }
 
+// TestBuildArguments_IncludePartialMessages proves the spawn enables token-level streaming:
+// --include-partial-messages is what makes claude emit the incremental `stream_event` frames the
+// normalizer turns into token-by-token text/thinking deltas (without it, text arrives as one
+// finished message). It is unconditional (every session streams).
+func TestBuildArguments_IncludePartialMessages(t *testing.T) {
+	t.Parallel()
+	args := claudeadapter.BuildArgumentsForTest(agentsession.Spec{}, agentsession.Route{Model: "m"})
+	if !argPresent(args, "--include-partial-messages") {
+		t.Errorf("the spawn must enable token streaming via --include-partial-messages; got %v", args)
+	}
+}
+
 // TestHostToolRouter_ListAndCall proves the host-tool wire wiring: tools/list returns the
 // HostTool descriptors, and tools/call routes into the Handler and returns its result plus an
 // EventToolUpdate marked IsHostTool. The model sees the tool as mcp__eden__<name>.

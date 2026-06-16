@@ -33,6 +33,10 @@ type streamLine struct {
 	RequestID string          `json:"request_id"`
 	Request   *controlRequest `json:"request"`
 
+	// Event is the nested Anthropic streaming event on a `stream_event` line (emitted under
+	// --include-partial-messages): message_start / content_block_delta / message_stop, etc.
+	Event json.RawMessage `json:"event"`
+
 	// thinking-progress field: `system/thinking_tokens` lines carry the running estimated
 	// reasoning-token count (a pre-message heartbeat while the model thinks before emitting any
 	// content) — surfaced as EventThinkingProgress so the UI can show a live "thinking…" status.
@@ -102,6 +106,12 @@ type normalizer struct {
 	model  string // the model attribution (learned from the first assistant/init line)
 	digest digester
 
+	// streamedMessage is set once a `stream_event` frame has streamed the current message
+	// token-by-token (under --include-partial-messages). When set, the final complete `assistant`
+	// line is a DUPLICATE of the already-streamed text/thinking, so assistant() suppresses those
+	// (keeping only tool_use blocks + the usage tick) to avoid rendering the message twice.
+	streamedMessage bool
+
 	// pendingMu guards pendingInputs, written by the scan goroutine (a can_use_tool ask
 	// records the original input) and read+deleted by Send (the control_response echoes it
 	// as updatedInput). The raw input never enters an Event — it is held here, off-stream,
@@ -127,6 +137,8 @@ func (n *normalizer) normalize(line []byte) []agentsession.Event {
 	switch envelope.Type {
 	case "system":
 		return n.system(&envelope, line)
+	case "stream_event":
+		return n.streamEvent(&envelope, line)
 	case "assistant":
 		return n.assistant(&envelope, line)
 	case "user":
@@ -200,6 +212,77 @@ func (n *normalizer) takeInput(requestID string) (json.RawMessage, bool) {
 	return input, ok
 }
 
+// streamEventEnvelope is the nested Anthropic streaming event on a `stream_event` line
+// (--include-partial-messages). Only the fields the token stream needs are decoded.
+type streamEventEnvelope struct {
+	Type    string `json:"type"` // message_start | content_block_start | content_block_delta | content_block_stop | message_delta | message_stop
+	Message *struct {
+		Model string `json:"model"`
+	} `json:"message"`
+	Delta *struct {
+		Type     string `json:"type"` // text_delta | thinking_delta | input_json_delta | ...
+		Text     string `json:"text"`
+		Thinking string `json:"thinking"`
+	} `json:"delta"`
+}
+
+// streamEvent maps a partial-message `stream_event` frame to the TOKEN-LEVEL stream so text and
+// thinking render as the model produces them (the smooth-typing UX):
+//
+//	message_start                 -> EventMessageStart (records the model; arms streamedMessage)
+//	content_block_delta/text      -> EventTextDelta     (one token fragment)
+//	content_block_delta/thinking  -> EventThinkingDelta (one reasoning fragment)
+//	message_stop                  -> EventMessageEnd
+//
+// The structural frames (content_block_start/stop, message_delta) and input_json_delta carry no
+// renderable content and yield no Event — tool_use args arrive complete on the final `assistant`
+// line. A malformed nested event is preserved verbatim as an Extension (never dropped).
+func (n *normalizer) streamEvent(envelope *streamLine, line []byte) []agentsession.Event {
+	var event streamEventEnvelope
+	if len(envelope.Event) == 0 || json.Unmarshal(envelope.Event, &event) != nil {
+		return []agentsession.Event{extension(line)}
+	}
+	switch event.Type {
+	case "message_start":
+		if event.Message != nil && event.Message.Model != "" {
+			n.model = event.Message.Model
+		}
+		n.streamedMessage = true
+		return []agentsession.Event{{
+			Kind:    agentsession.EventMessageStart,
+			Message: &agentsession.MessagePayload{Role: "assistant"},
+		}}
+	case "content_block_delta":
+		if event.Delta == nil {
+			return nil
+		}
+		switch event.Delta.Type {
+		case "text_delta":
+			if event.Delta.Text == "" {
+				return nil
+			}
+			return []agentsession.Event{{
+				Kind:    agentsession.EventTextDelta,
+				Message: &agentsession.MessagePayload{Role: "assistant", Delta: event.Delta.Text},
+			}}
+		case "thinking_delta":
+			if event.Delta.Thinking == "" {
+				return nil
+			}
+			return []agentsession.Event{{
+				Kind:    agentsession.EventThinkingDelta,
+				Message: &agentsession.MessagePayload{Role: "assistant", Delta: event.Delta.Thinking},
+			}}
+		default:
+			return nil // input_json_delta and other deltas carry no renderable conversation content.
+		}
+	case "message_stop":
+		return []agentsession.Event{{Kind: agentsession.EventMessageEnd}}
+	default:
+		return nil // content_block_start/stop, message_delta — structural, no Event.
+	}
+}
+
 // system preserves every system line (init included) as session METADATA Extension.
 // Readiness is NOT derived from `system/init`: real claude defers init until the first stdin
 // user turn, so it cannot be the Ready trigger — the adapter signals Ready on spawn instead
@@ -235,6 +318,29 @@ func (n *normalizer) assistant(envelope *streamLine, line []byte) []agentsession
 	if message.Model != "" {
 		n.model = message.Model
 	}
+	// Token-streaming path: when stream_event already streamed this message's message-start, its
+	// text/thinking deltas, and message-end, the complete `assistant` line is a duplicate EXCEPT
+	// for tool_use blocks (whose full args land only here) and the usage tick. Emit only those so
+	// the streamed text is not rendered a second time. streamedMessage re-arms on the next
+	// stream_event message_start.
+	if n.streamedMessage {
+		n.streamedMessage = false
+		var events []agentsession.Event
+		for i := range message.Content {
+			if message.Content[i].Type != "tool_use" {
+				continue
+			}
+			if event, ok := n.block(&message.Content[i]); ok {
+				events = append(events, event)
+			}
+		}
+		if message.Usage != nil {
+			events = append(events, n.usageTick(message.Usage))
+		}
+		return events
+	}
+	// Non-streaming path (no stream_event seen — fixtures or a harness build without partial
+	// messages): the message arrives whole, so emit the full message-start / blocks / message-end.
 	events := []agentsession.Event{{
 		Kind:    agentsession.EventMessageStart,
 		Message: &agentsession.MessagePayload{Role: roleOr(message.Role, "assistant")},

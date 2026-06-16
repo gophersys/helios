@@ -109,6 +109,12 @@ func buildArguments(spec agentsession.Spec, route agentsession.Route) []string {
 		"--output-format", "stream-json",
 		"--verbose",
 		"--input-format", "stream-json",
+		// --include-partial-messages makes claude emit the Anthropic streaming events
+		// (`stream_event` frames: message_start / content_block_delta / message_stop) as the model
+		// produces them, so text and thinking render TOKEN-BY-TOKEN instead of arriving as one
+		// finished message. The normalizer streams those deltas and suppresses the now-duplicate
+		// text in the final complete `assistant` line (it keeps only its tool_use blocks + usage).
+		"--include-partial-messages",
 	}
 	if route.Model != "" {
 		arguments = append(arguments, "--model", route.Model)
