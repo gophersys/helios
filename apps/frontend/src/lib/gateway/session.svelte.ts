@@ -284,6 +284,9 @@ export class ChatSession {
     ];
     const index = this.entries.length - 1;
     this.liveAssistantIndex.set(turnKey, index);
+    // Real-time observability: each assistant message is a turn. Count it LIVE (the terminal ledger
+    // reconciles to the authoritative total) so the meter moves as the agent works, not only at the end.
+    this.meter = { ...this.meter, turns: this.meter.turns + 1 };
     return index;
   }
 
@@ -330,6 +333,9 @@ export class ChatSession {
     this.runningTools.add(tool.callId);
     this.activeTool = entry.name;
     this.activity = 'tool';
+    // Real-time observability: count each tool invocation LIVE (the terminal ledger reconciles to
+    // the authoritative toolUses) so the meter's tool counter ticks the instant a tool runs.
+    this.meter = { ...this.meter, toolUses: this.meter.toolUses + 1 };
   }
 
   private toolUpdate(event: EventView): void {

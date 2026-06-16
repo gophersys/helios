@@ -500,6 +500,17 @@ test.describe('create a new product — full-stack journey against a real dev-se
     const toolCard = page.getByTestId('tool-card').first();
     await expect(toolCard).toContainText('Write');
     await expect(toolCard.getByTestId('tool-result')).toContainText('wrote 12 bytes');
+
+    // ── the CONTEXT bar (the second TUI status line) shows real-time observability: the tool-use
+    //    and turn counters ticked as the agent worked (live increments, not only the terminal
+    //    ledger), the model is attributed, and the context-window gauge reads a %. ──.
+    const contextBar = page.getByTestId('agent-context');
+    await expect(contextBar).toBeVisible();
+    await expect(page.getByTestId('context-tools')).toHaveText('1');
+    await expect(page.getByTestId('context-turns')).toHaveText('1');
+    await expect(page.getByTestId('context-model')).toContainText('fake-fable-5');
+    await expect(page.getByTestId('context-window')).toContainText('% ctx');
+
     // The live meter reconciled against the real terminal ledger (the canonical script's values).
     await expect(page.getByTestId('meter-input')).toHaveText('100');
     await expect(page.getByTestId('meter-output')).toHaveText('40');
@@ -692,6 +703,27 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
         { timeout: 120_000, message: 'the status bar must show a real thinking-token count > 0' },
       )
       .toBeGreaterThan(0);
+
+    // The CONTEXT bar reflects the REAL agent's observability live: as the agent does work, the
+    // turn/tool counters tick in real time (not only at the terminal ledger). We count EITHER
+    // (a real agent may lead with a tool or with prose) so the proof is robust to its first move.
+    const liveContext = page.getByTestId('agent-context');
+    await expect(liveContext).toBeVisible();
+    await expect
+      .poll(
+        async () =>
+          Number((await liveContext.getAttribute('data-turns')) ?? '0') +
+          Number((await liveContext.getAttribute('data-tool-uses')) ?? '0'),
+        {
+          timeout: 120_000,
+          message: 'the context bar must count real agent work (turns or tool-uses) live',
+        },
+      )
+      .toBeGreaterThan(0);
+
+    // The real assistant text token-streams into the bubble (non-empty) — the smooth-typing path
+    // end-to-end against the live agent (the narration directive makes it lead with prose).
+    await expect(page.getByTestId('assistant-text').first()).not.toBeEmpty({ timeout: 120_000 });
 
     // If the live agent asks for an out-of-grant tool, the permission card is interactive (Allow it).
     const card = page.getByTestId('permission-card');

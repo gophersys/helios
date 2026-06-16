@@ -22,6 +22,7 @@
   import ChatPermission from '$lib/chat/ChatPermission.svelte';
   import ChatUsageMeter from '$lib/chat/ChatUsageMeter.svelte';
   import ChatStatusBar from '$lib/chat/ChatStatusBar.svelte';
+  import ChatContextBar from '$lib/chat/ChatContextBar.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
@@ -147,14 +148,18 @@
   async function stopSession(): Promise<void> {
     if (!active) return;
     const id = active.id;
+    // Clear the UI OPTIMISTICALLY so stop feels instant (responsive UX): close the SSE stream and
+    // drop the active session immediately, THEN record the stop intent + reap server-side. Awaiting
+    // the reap first would freeze the UI for as long as it takes to terminate a real harness child
+    // mid-turn (tens of seconds) — the stop intent is durable regardless, so the UI must not block.
+    active.close();
+    active = null;
+    activeHarness = null;
     try {
       await client.stop(id);
     } catch (cause) {
       listError = cause instanceof GatewayError ? `${cause.kind}: ${cause.message}` : String(cause);
     }
-    active.close();
-    active = null;
-    activeHarness = null;
     await refreshList();
   }
 
@@ -340,6 +345,8 @@
 
       <!-- the live agent status bar (the TUI status line): spinner + verb + thinking tokens + clock -->
       <ChatStatusBar session={active} {theme} />
+      <!-- the context/observability bar (Claude-Code-style): model · ctx gauge · tokens · cost · live turns/tools -->
+      <ChatContextBar meter={active.meter} {theme} />
 
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="composer" data-testid="composer-input" onkeydown={onComposerKey}>
