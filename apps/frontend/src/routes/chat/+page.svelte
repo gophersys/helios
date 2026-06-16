@@ -21,12 +21,14 @@
   import ChatMessage from '$lib/chat/ChatMessage.svelte';
   import ChatTool from '$lib/chat/ChatTool.svelte';
   import ChatPermission from '$lib/chat/ChatPermission.svelte';
-  import ChatUsageMeter from '$lib/chat/ChatUsageMeter.svelte';
   import ChatStatusBar from '$lib/chat/ChatStatusBar.svelte';
   import ChatContextBar from '$lib/chat/ChatContextBar.svelte';
   import RightPanel from '$lib/chat/RightPanel.svelte';
   import TopBar from '$lib/chat/TopBar.svelte';
   import SettingsPanel from '$lib/chat/SettingsPanel.svelte';
+  import UsageDock from '$lib/chat/UsageDock.svelte';
+  import Modal from '$lib/chat/Modal.svelte';
+  import AgentConfigView from '$lib/chat/AgentConfigView.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
   import { agentTypeFor } from '$lib/workspace/agentWorkspace';
 
@@ -40,9 +42,15 @@
 
   // ── product-wizard state ─────────────────────────────────────────────────────.
   let showWizard = $state(false);
-  // ── ⌘K command palette + settings ────────────────────────────────────────────.
+  // ── ⌘K command palette + settings + overlays ─────────────────────────────────.
   let paletteOpen = $state(false);
   let settingsOpen = $state(false);
+  let configOpen = $state(false);
+
+  // ── collapsible columns: the rail + the right panel fold away (top-bar toggles) so the chat can
+  //    take the full width — "the widest amount of chat area". ──.
+  let railOpen = $state(true);
+  let panelOpen = $state(true);
 
   /** Map the product harness onto the chat label set (the SSE/control seam is harness-agnostic;
    *  `codex` folds to a claude-tone label for the chrome only — the full product still rides). */
@@ -88,6 +96,7 @@
         { value: 'settings', label: 'Settings', keywords: ['preferences', 'theme', 'dark', 'density'] },
         ...(active
           ? [
+              { value: 'agent-config', label: 'Agent configuration', keywords: ['config', 'model', 'tools', 'details'] },
               { value: 'stop', label: 'Stop session', keywords: ['end', 'kill'] },
               { value: 'steer', label: 'Steer the agent', keywords: ['interject', 'redirect'] },
               { value: 'abort', label: 'Abort the current turn', keywords: ['cancel'] },
@@ -121,6 +130,10 @@
     }
     if (value === 'settings') {
       settingsOpen = true;
+      return;
+    }
+    if (value === 'agent-config') {
+      configOpen = true;
       return;
     }
     if (value.startsWith('session:')) {
@@ -300,13 +313,26 @@
   <TopBar
     {active}
     agentType={activeType}
+    {railOpen}
+    panelOpen={Boolean(active) && panelOpen}
+    showPanelToggle={Boolean(active)}
+    onToggleRail={() => (railOpen = !railOpen)}
+    onTogglePanel={() => (panelOpen = !panelOpen)}
     onPalette={() => (paletteOpen = true)}
     onSettings={() => (settingsOpen = true)}
+    onConfig={active ? () => (configOpen = true) : undefined}
     {theme}
   />
 
-  <div class="chat" class:chat--panel={active} data-testid="chat-app">
-  <!-- ── left rail: sessions ──────────────────────────────────────────────── -->
+  <div
+    class="chat"
+    data-testid="chat-app"
+    style="grid-template-columns: {railOpen
+      ? 'minmax(240px, 280px)'
+      : '0'} minmax(0, 1fr) {active && panelOpen ? 'clamp(300px, 26vw, 380px)' : '0'};"
+  >
+  <!-- ── left rail: sessions (collapsible) ─────────────────────────────────── -->
+  {#if railOpen}
   <aside class="rail">
     <header class="rail__head">
       <div>
@@ -360,6 +386,9 @@
       {/if}
     </ul>
   </aside>
+  {:else}
+    <div class="collapsed-col" aria-hidden="true"></div>
+  {/if}
 
   <!-- ── main: chat view ──────────────────────────────────────────────────── -->
   <main class="view">
@@ -463,10 +492,6 @@
             </p>
           {/if}
         </div>
-
-        <aside class="meterrail">
-          <ChatUsageMeter meter={active.meter} {theme} />
-        </aside>
       </div>
 
       <!-- the live agent status bar (the TUI status line): spinner + verb + thinking tokens + clock -->
@@ -491,9 +516,11 @@
     {/if}
   </main>
 
-  <!-- ── right panel: the agent-type-aware workspace (files/assets the agent generates) ────── -->
-  {#if active && activeType}
+  <!-- ── right panel: the agent-type-aware workspace (collapsible) ─────────────── -->
+  {#if active && activeType && panelOpen}
     <RightPanel session={active} agentType={activeType} {theme} />
+  {:else}
+    <div class="collapsed-col" aria-hidden="true"></div>
   {/if}
 
     <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
@@ -518,6 +545,22 @@
 />
 <SettingsPanel bind:open={settingsOpen} {theme} />
 
+<!-- ── the agent-config detail view in the global modal shell ─────────────────── -->
+{#if active && activeType}
+  {@const cfgSession = active}
+  {@const cfgType = activeType}
+  <Modal bind:open={configOpen} title="Agent configuration" size="md" {theme}>
+    {#snippet children()}
+      <AgentConfigView session={cfgSession} agentType={cfgType} {theme} />
+    {/snippet}
+  </Modal>
+{/if}
+
+<!-- ── the concise usage/cost dock, pinned bottom-right ──────────────────────── -->
+{#if active}
+  <UsageDock meter={active.meter} {theme} />
+{/if}
+
 <style>
   .workspace-root {
     display: flex;
@@ -525,24 +568,17 @@
     height: 100vh;
     overflow: hidden;
   }
+  /* The columns are set inline (rail · conversation · panel), each foldable to 0 via the top-bar
+     toggles — the rail/panel collapse to a 0-width empty column so the chat takes the full width. */
   .chat {
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
     flex: 1;
     min-block-size: 0;
     overflow: hidden;
   }
-  /* When a session is active the workspace opens its third region: the agent-type-aware panel. */
-  .chat--panel {
-    grid-template-columns: 280px minmax(0, 1fr) clamp(300px, 26vw, 380px);
-  }
-  @media (max-width: 1100px) {
-    .chat--panel {
-      grid-template-columns: 240px minmax(0, 1fr);
-    }
-    .chat--panel :global([data-testid='agent-panel']) {
-      display: none;
-    }
+  .collapsed-col {
+    inline-size: 0;
+    overflow: hidden;
   }
 
   /* ── rail ── */
@@ -739,14 +775,21 @@
   }
   .view__body {
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 300px;
+    display: flex;
     min-height: 0;
     overflow: hidden;
   }
   .transcript {
+    flex: 1;
+    min-inline-size: 0;
     overflow-y: auto;
     padding: var(--space-6, 24px);
+    /* keep the prose readable + room for the bottom-right usage dock */
+    max-inline-size: 100%;
+  }
+  .transcript :global(.turns) {
+    max-inline-size: 56rem;
+    margin-inline: auto;
   }
   .turns {
     list-style: none;
@@ -819,12 +862,6 @@
   .transcript__waiting {
     color: var(--eden-app-muted);
     font-style: italic;
-  }
-  .meterrail {
-    border-inline-start: 1px solid var(--eden-app-line);
-    padding: var(--space-5, 20px) var(--space-4, 16px);
-    overflow-y: auto;
-    background: var(--eden-app-rail-bg);
   }
 
   .notice {
@@ -908,18 +945,8 @@
   }
 
   @media (max-width: 760px) {
-    .chat {
-      grid-template-columns: 1fr;
-    }
     .rail {
       display: none;
-    }
-    .view__body {
-      grid-template-columns: 1fr;
-    }
-    .meterrail {
-      border-inline-start: none;
-      border-block-start: 1px solid var(--eden-app-line);
     }
   }
 </style>

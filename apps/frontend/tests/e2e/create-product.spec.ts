@@ -537,10 +537,11 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(page.getByTestId('session-dot').first()).toBeVisible();
 
     // The live meter reconciled against the real terminal ledger (the canonical script's values).
-    await expect(page.getByTestId('meter-input')).toHaveText('100');
-    await expect(page.getByTestId('meter-output')).toHaveText('40');
-    await expect(page.getByTestId('meter-cost')).toContainText('0.001500');
-    await expect(page.getByTestId('meter-model')).toContainText('fake-fable-5');
+    // The usage/cost is now a concise dock pinned bottom-right (not a big in-column box): it shows
+    // the model + cost (header) reconciled against the terminal ledger.
+    await expect(page.getByTestId('usage-dock')).toBeVisible();
+    await expect(page.getByTestId('usage-dock-cost')).toContainText('0.001500');
+    await expect(page.getByTestId('usage-dock-model')).toContainText('fake-fable-5');
     await expect(page.getByTestId('terminal-banner')).toHaveAttribute('data-outcome', 'completed');
     await expect(page.getByTestId('sse-status')).toHaveText('ended');
     // The status bar settled on the terminal verb and stopped spinning, but retained the turn's

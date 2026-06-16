@@ -9,13 +9,25 @@
   let {
     active,
     agentType,
+    railOpen = true,
+    panelOpen = true,
+    showPanelToggle = false,
+    onToggleRail,
+    onTogglePanel,
     onPalette,
     onSettings,
+    onConfig,
   }: {
     active: ChatSession | null;
     agentType: AgentTypeDescriptor | null;
+    railOpen?: boolean;
+    panelOpen?: boolean;
+    showPanelToggle?: boolean;
+    onToggleRail?: () => void;
+    onTogglePanel?: () => void;
     onPalette: () => void;
     onSettings?: () => void;
+    onConfig?: () => void;
     theme?: Theme;
   } = $props();
 
@@ -24,13 +36,32 @@
 </script>
 
 <header class="topbar" data-testid="top-bar">
+  {#if onToggleRail}
+    <button
+      class="topbar__icon-btn"
+      data-testid="toggle-rail"
+      aria-label={railOpen ? 'Collapse sessions' : 'Show sessions'}
+      aria-pressed={railOpen}
+      title="Sessions"
+      onclick={onToggleRail}
+    >
+      <span aria-hidden="true">{railOpen ? '⟨' : '☰'}</span>
+    </button>
+  {/if}
   <div class="topbar__brand">
     <span class="topbar__mark" aria-hidden="true">◆</span>
     <span class="topbar__name">Eden</span>
   </div>
 
   {#if active && agentType}
-    <div class="topbar__session" data-testid="top-session">
+    <!-- the session identity doubles as the agent-config affordance (config easily available) -->
+    <button
+      class="topbar__session"
+      data-testid="top-session"
+      title="Agent configuration"
+      disabled={!onConfig}
+      onclick={onConfig}
+    >
       <span class="topbar__type">
         <span class="topbar__glyph" aria-hidden="true">{agentType.glyph}</span>
         {agentType.label}
@@ -47,7 +78,8 @@
         title="stream {active.connection}"
         aria-label="stream {active.connection}"
       ></span>
-    </div>
+      {#if onConfig}<span class="topbar__cfg" aria-hidden="true">ⓘ</span>{/if}
+    </button>
   {/if}
 
   <div class="topbar__actions">
@@ -55,6 +87,18 @@
       <span aria-hidden="true">⌘K</span>
       <span class="topbar__palette-label">{isMac ? '⌘' : 'Ctrl'} K · commands</span>
     </button>
+    {#if showPanelToggle && onTogglePanel}
+      <button
+        class="topbar__icon-btn"
+        data-testid="toggle-panel"
+        aria-label={panelOpen ? 'Collapse panel' : 'Show panel'}
+        aria-pressed={panelOpen}
+        title="Workspace panel"
+        onclick={onTogglePanel}
+      >
+        <span aria-hidden="true">{panelOpen ? '⟩' : '◧'}</span>
+      </button>
+    {/if}
     {#if onSettings}
       <button
         class="topbar__icon-btn"
@@ -100,6 +144,21 @@
     color: var(--eden-app-muted);
     overflow: hidden;
     white-space: nowrap;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--eden-app-radius, 4px);
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    cursor: pointer;
+  }
+  .topbar__session:hover:not(:disabled) {
+    border-color: var(--eden-app-line);
+    background: var(--eden-app-rail-bg);
+  }
+  .topbar__session:disabled {
+    cursor: default;
+  }
+  .topbar__cfg {
+    color: var(--eden-app-accent);
   }
   .topbar__type {
     display: inline-flex;
