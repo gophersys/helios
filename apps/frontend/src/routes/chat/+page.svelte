@@ -179,6 +179,18 @@
     void refreshList();
   });
 
+  // Deep-link from the Projects dashboard: ?new=1 opens the create flow; ?session=<id> attaches to
+  // that project's session. Runs once (the guard keeps the non-reactive read from re-firing).
+  let deepLinkHandled = false;
+  $effect(() => {
+    if (deepLinkHandled || typeof window === 'undefined') return;
+    deepLinkHandled = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('new') === '1') showWizard = true;
+    const sessionId = params.get('session');
+    if (sessionId) void attach(sessionId, 'claude');
+  });
+
   // Autoscroll the transcript as entries stream in.
   $effect(() => {
     if (active && active.entries.length >= 0 && scroller) {
