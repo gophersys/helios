@@ -511,6 +511,22 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(page.getByTestId('context-model')).toContainText('fake-fable-5');
     await expect(page.getByTestId('context-window')).toContainText('% ctx');
 
+    // ── the AGENT-TYPE-AWARE RIGHT PANEL (the workspace's third region): an implementer session
+    //    mounts the Workspace widget, which lists the files the agent generated — derived LIVE from
+    //    its tool stream (the canonical Write touched note.txt). The session-navigator dot reflects
+    //    the live agent state. ──.
+    const panel = page.getByTestId('agent-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute('data-agent-type', 'implementer');
+    await expect(page.getByTestId('panel-agent-type')).toContainText('Implementer');
+    await expect(page.getByTestId('workspace-widget')).toBeVisible();
+    const file = page.getByTestId('workspace-file').first();
+    await expect(file).toBeVisible();
+    await expect(file).toHaveAttribute('data-path', 'note.txt');
+    await expect(page.getByTestId('workspace-count')).toHaveText('1');
+    // The navigator shows a live status dot for the session.
+    await expect(page.getByTestId('session-dot').first()).toBeVisible();
+
     // The live meter reconciled against the real terminal ledger (the canonical script's values).
     await expect(page.getByTestId('meter-input')).toHaveText('100');
     await expect(page.getByTestId('meter-output')).toHaveText('40');
@@ -724,6 +740,13 @@ test.describe('create a new product — LIVE arm (real claude propose + real age
     // The real assistant text token-streams into the bubble (non-empty) — the smooth-typing path
     // end-to-end against the live agent (the narration directive makes it lead with prose).
     await expect(page.getByTestId('assistant-text').first()).not.toBeEmpty({ timeout: 120_000 });
+
+    // The agent-type-aware RIGHT PANEL is mounted for the live session (an implementer workspace);
+    // if the real agent writes a file during its turn, it lists it (best-effort — a short turn may
+    // not write), but the panel + workspace widget always render.
+    await expect(page.getByTestId('agent-panel')).toBeVisible();
+    await expect(page.getByTestId('panel-agent-type')).toContainText('Implementer');
+    await expect(page.getByTestId('workspace-widget')).toBeVisible();
 
     // If the live agent asks for an out-of-grant tool, the permission card is interactive (Allow it).
     const card = page.getByTestId('permission-card');

@@ -23,7 +23,9 @@
   import ChatUsageMeter from '$lib/chat/ChatUsageMeter.svelte';
   import ChatStatusBar from '$lib/chat/ChatStatusBar.svelte';
   import ChatContextBar from '$lib/chat/ChatContextBar.svelte';
+  import RightPanel from '$lib/chat/RightPanel.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
+  import { agentTypeFor } from '$lib/workspace/agentWorkspace';
 
   const client = new GatewayClient(resolveGatewayUrl());
   const theme = edenTheme;
@@ -62,6 +64,12 @@
   // ── open-session state ───────────────────────────────────────────────────────.
   let active = $state<ChatSession | null>(null);
   let activeHarness = $state<Harness | null>(null);
+
+  // The active session's AGENT TYPE drives the right panel's widget stack. Derived from the
+  // session's template (carried on the session-list record); defaults to implementer.
+  const activeType = $derived(
+    active ? agentTypeFor(sessions.find((s) => s.id === active?.id)?.template, active.harness) : null,
+  );
   let composer = $state('');
   let scroller = $state<HTMLElement | null>(null);
 
@@ -179,6 +187,22 @@
     return 'warn';
   }
 
+  /** The session-navigator status dot: the ACTIVE session reflects its LIVE activity in real time;
+   *  the others show their last-known lifecycle from the session list. Drives the dot's colour + pulse. */
+  function sessionDotState(agent: AgentView): string {
+    if (active?.id === agent.id) {
+      const a = active.activity;
+      if (a === 'thinking' || a === 'responding' || a === 'tool') return 'working';
+      if (a === 'done') return 'done';
+      if (a === 'failed') return 'error';
+      return active.connection === 'open' ? 'ready' : 'connecting';
+    }
+    if (agent.status === 'running') return 'working';
+    if (agent.status === 'completed') return 'done';
+    if (agent.status === 'failed' || agent.status === 'aborted') return 'error';
+    return 'idle';
+  }
+
   onDestroy(() => active?.close());
 </script>
 
@@ -186,7 +210,7 @@
   <title>Eden — chat</title>
 </svelte:head>
 
-<div class="chat" data-testid="chat-app">
+<div class="chat" class:chat--panel={active} data-testid="chat-app">
   <!-- ── left rail: sessions ──────────────────────────────────────────────── -->
   <aside class="rail">
     <header class="rail__head">
@@ -220,7 +244,15 @@
             data-session-id={agent.id}
             onclick={() => openSession(agent)}
           >
-            <span class="session__id">{agent.id}</span>
+            <span class="session__id">
+              <span
+                class="session__dot"
+                data-testid="session-dot"
+                data-state={sessionDotState(agent)}
+                aria-hidden="true"
+              ></span>
+              {agent.id}
+            </span>
             <span class="session__meta">
               <span class="chip chip--muted">{agent.status}</span>
               <span class="session__template">{agent.template}</span>
@@ -365,6 +397,11 @@
     {/if}
   </main>
 
+  <!-- ── right panel: the agent-type-aware workspace (files/assets the agent generates) ────── -->
+  {#if active && activeType}
+    <RightPanel session={active} agentType={activeType} {theme} />
+  {/if}
+
   <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
   {#if showWizard}
     <ProductWizard
@@ -378,9 +415,21 @@
 <style>
   .chat {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 300px minmax(0, 1fr);
     height: 100vh;
     overflow: hidden;
+  }
+  /* When a session is active the workspace opens its third region: the agent-type-aware panel. */
+  .chat--panel {
+    grid-template-columns: 280px minmax(0, 1fr) clamp(300px, 26vw, 380px);
+  }
+  @media (max-width: 1100px) {
+    .chat--panel {
+      grid-template-columns: 240px minmax(0, 1fr);
+    }
+    .chat--panel :global([data-testid='agent-panel']) {
+      display: none;
+    }
   }
 
   /* ── rail ── */
@@ -465,6 +514,44 @@
     font-family: var(--font-code);
     font-weight: 650;
     font-size: var(--font-size-label, 13px);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+  }
+  /* The live status dot: a calm colour at rest, a pulsing accent while the agent is working. */
+  .session__dot {
+    inline-size: 8px;
+    block-size: 8px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--eden-app-muted);
+  }
+  .session__dot[data-state='working'] {
+    background: var(--eden-app-accent);
+    animation: session-dot-pulse 1.1s ease-in-out infinite;
+  }
+  .session__dot[data-state='ready'] {
+    background: var(--color-info);
+  }
+  .session__dot[data-state='done'] {
+    background: color-mix(in oklab, var(--color-info) 60%, var(--eden-app-muted));
+  }
+  .session__dot[data-state='error'] {
+    background: var(--color-error);
+  }
+  .session__dot[data-state='connecting'] {
+    background: var(--color-warning);
+  }
+  @keyframes session-dot-pulse {
+    50% {
+      opacity: 0.35;
+      transform: scale(0.85);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .session__dot[data-state='working'] {
+      animation: none;
+    }
   }
   .session__meta {
     display: flex;
