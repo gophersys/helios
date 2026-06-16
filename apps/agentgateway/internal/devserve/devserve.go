@@ -142,6 +142,9 @@ func BuildDevGateway(configuration Config) (*gateway.Gateway, error) {
 			// The create-flow wizard's propose seam: a DETERMINISTIC, prompt-derived fake (no model
 			// call) so POST /product/propose is stable for the Playwright E2E.
 			Proposer: fakeProposer{},
+			// The dashboard's persisted-Project seam: an in-memory fake (no database) so the /projects
+			// surface is exercised by the same E2E the live demo runs.
+			Projects: newInMemoryProjectStore(),
 		},
 	)
 	if err != nil {

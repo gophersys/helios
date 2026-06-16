@@ -27,6 +27,7 @@
 package liveserve
 
 import (
+	"context"
 	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -38,6 +39,7 @@ import (
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 
 	"github.com/gophersys/eden/apps/agentgateway/internal/gateway"
+	"github.com/gophersys/eden/apps/agentgateway/internal/projectpersistence"
 )
 
 // Logger is the narrow structured-log seam the live composition adapts the command's logger onto
@@ -72,6 +74,11 @@ type Config struct {
 	// Workspace is the directory the harness CLI runs in (its CWD). Required; the command provisions
 	// a real local directory (the demo needs no orchestrator-provisioned pod workspace).
 	Workspace string
+	// DatabaseDSN is the Postgres connection string the dashboard's persisted-Project store runs on
+	// (e.g. postgres://eden:eden@host:5432/eden?sslmode=disable). OPTIONAL: when empty the /projects
+	// routes are a 503 (a composition without a database). The pool is lazy — a missing database does
+	// not fail construction; the schema is ensured on the first /projects request.
+	DatabaseDSN string
 	// Logger, when non-nil, is wired onto the gateway so live requests emit structured lines.
 	Logger Logger
 }
@@ -149,6 +156,18 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 	// explicit per-call permission, 07 §3) — keeps an unattended live agent safe.
 	grants := []agentsession.ToolGrant{{ID: "grant-read", Tool: "Read", ReadOnly: true}}
 
+	// The dashboard's persisted-Project store: a REAL Postgres adapter when a DSN is configured (the
+	// pool is lazy — no dial here), nil otherwise (the /projects routes then 503). The store outlives
+	// the request; the process owns its lifetime (closed on exit).
+	var projectStore gateway.ProjectStore
+	if configuration.DatabaseDSN != "" {
+		postgresStore, dbErr := projectpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
+		if dbErr != nil {
+			return nil, errors.Wrap(errors.KindInternal, "liveserve: build project store", dbErr)
+		}
+		projectStore = postgresStore
+	}
+
 	gw, err := gateway.New(
 		gateway.Config{
 			Credential: secrets.Ref(configuration.CredentialReference),
@@ -176,6 +195,8 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 				},
 				logger: configuration.Logger,
 			},
+			// The dashboard's persisted-Project seam: the real Postgres store (or nil → /projects 503).
+			Projects: projectStore,
 		},
 	)
 	if err != nil {

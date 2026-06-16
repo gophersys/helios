@@ -73,6 +73,10 @@ load_env() {
   export POSTGRES_USER="${POSTGRES_USER:-eden}"
   export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-eden}"
   export POSTGRES_DB="${POSTGRES_DB:-eden}"
+  # The dashboard's persisted-Project store DSN (eden-postgres). Points at SUBSTRATE_HOST so the
+  # gateway reaches it both from the host (127.0.0.1) and from inside the devcontainer
+  # (host.docker.internal). agentgateway-live reads DATABASE_URL; unset → the /projects routes 503.
+  export DATABASE_URL="${DATABASE_URL:-postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${SUBSTRATE_HOST}:5432/${POSTGRES_DB}?sslmode=disable}"
   log "env loaded; harness credential keys present: $(present_keys)"
 }
 

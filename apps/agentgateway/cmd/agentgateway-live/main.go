@@ -153,7 +153,10 @@ func loadConfiguration(logger *slog.Logger) (liveserve.Config, error) {
 		Harness:             envOr("EDEN_HARNESS", defaultHarness),
 		Model:               os.Getenv("EDEN_MODEL"),
 		Workspace:           workspace,
-		Logger:              slogAdapter{logger: logger},
+		// The dashboard's persisted-Project store DSN. Optional: when unset the /projects routes 503;
+		// `deploy local` exports it (eden-postgres) so the live demo persists projects.
+		DatabaseDSN: os.Getenv("DATABASE_URL"),
+		Logger:      slogAdapter{logger: logger},
 	}, nil
 }
 

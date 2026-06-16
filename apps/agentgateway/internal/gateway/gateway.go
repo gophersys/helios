@@ -128,6 +128,12 @@ type Deps struct {
 	// a 503 (a composition that does not offer the wizard). The live root binds it to ONE real
 	// claude/omp turn; the dev root binds it to a deterministic prompt-derived fake.
 	Proposer Proposer
+
+	// Projects is the persisted-Project seam the dashboard surface (GET/POST /projects) reads and
+	// writes. It is OPTIONAL — when nil the /projects routes are a 503 (a composition that does not
+	// offer the dashboard). The live root binds it to a real Postgres adapter; the dev root binds it
+	// to an in-memory fake — the same real-vs-fake mirror the Proposer uses.
+	Projects ProjectStore
 }
 
 // Gateway is the concrete http.Handler builder New returns (return-concrete). It holds

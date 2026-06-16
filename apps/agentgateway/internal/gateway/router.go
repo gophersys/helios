@@ -22,11 +22,17 @@ import (
 //	GET    /sessions/{id}/transcript         persisted Run, queryable after end -> REQ-0020/0023
 //	GET    /sessions/{id}/workspace          REAL files the agent produced under its workspace root
 //	POST   /product/propose                  AI-propose a ProductConfig from the prompt (wizard step 1)
+//	POST   /projects                         persist a Project from the scoped product (Build it)
+//	GET    /projects                         list persisted projects (the dashboard grid)
+//	GET    /projects/{id}                    get one persisted project
 //	GET    /healthz                          liveness
 func (g *Gateway) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /product/propose", g.handleProductPropose)
+	mux.HandleFunc("POST /projects", g.handleCreateProject)
+	mux.HandleFunc("GET /projects", g.handleListProjects)
+	mux.HandleFunc("GET /projects/{id}", g.handleGetProject)
 	mux.HandleFunc("POST /sessions", g.handleCreateSession)
 	mux.HandleFunc("GET /sessions", g.handleListSessions)
 	mux.HandleFunc("GET /sessions/{id}", g.handleGetSession)
