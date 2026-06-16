@@ -26,6 +26,7 @@
   import ChatContextBar from '$lib/chat/ChatContextBar.svelte';
   import RightPanel from '$lib/chat/RightPanel.svelte';
   import TopBar from '$lib/chat/TopBar.svelte';
+  import SettingsPanel from '$lib/chat/SettingsPanel.svelte';
   import ProductWizard from '$lib/chat/wizard/ProductWizard.svelte';
   import { agentTypeFor } from '$lib/workspace/agentWorkspace';
 
@@ -39,8 +40,9 @@
 
   // ── product-wizard state ─────────────────────────────────────────────────────.
   let showWizard = $state(false);
-  // ── ⌘K command palette ───────────────────────────────────────────────────────.
+  // ── ⌘K command palette + settings ────────────────────────────────────────────.
   let paletteOpen = $state(false);
+  let settingsOpen = $state(false);
 
   /** Map the product harness onto the chat label set (the SSE/control seam is harness-agnostic;
    *  `codex` folds to a claude-tone label for the chrome only — the full product still rides). */
@@ -83,6 +85,7 @@
       heading: 'Actions',
       items: [
         { value: 'new-product', label: 'New product…', keywords: ['create', 'start', 'session'] },
+        { value: 'settings', label: 'Settings', keywords: ['preferences', 'theme', 'dark', 'density'] },
         ...(active
           ? [
               { value: 'stop', label: 'Stop session', keywords: ['end', 'kill'] },
@@ -114,6 +117,10 @@
     paletteOpen = false;
     if (value === 'new-product') {
       showWizard = true;
+      return;
+    }
+    if (value === 'settings') {
+      settingsOpen = true;
       return;
     }
     if (value.startsWith('session:')) {
@@ -278,7 +285,13 @@
 </svelte:head>
 
 <div class="workspace-root">
-  <TopBar {active} agentType={activeType} onPalette={() => (paletteOpen = true)} {theme} />
+  <TopBar
+    {active}
+    agentType={activeType}
+    onPalette={() => (paletteOpen = true)}
+    onSettings={() => (settingsOpen = true)}
+    {theme}
+  />
 
   <div class="chat" class:chat--panel={active} data-testid="chat-app">
   <!-- ── left rail: sessions ──────────────────────────────────────────────── -->
@@ -483,7 +496,7 @@
   </div>
 </div>
 
-<!-- ── ⌘K command palette (overlays the whole workspace) ─────────────────────── -->
+<!-- ── ⌘K command palette + settings (overlay the whole workspace) ───────────── -->
 <CommandPalette
   groups={commandGroups}
   bind:open={paletteOpen}
@@ -492,6 +505,7 @@
   label="Eden command palette"
   placeholder="Type a command or search sessions…"
 />
+<SettingsPanel bind:open={settingsOpen} {theme} />
 
 <style>
   .workspace-root {

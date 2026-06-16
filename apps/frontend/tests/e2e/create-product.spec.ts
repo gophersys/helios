@@ -523,7 +523,9 @@ test.describe('create a new product — full-stack journey against a real dev-se
     const file = page.getByTestId('workspace-file').first();
     await expect(file).toBeVisible();
     await expect(file).toHaveAttribute('data-path', 'note.txt');
-    await expect(page.getByTestId('workspace-count')).toHaveText('1');
+    await expect(page.getByTestId('workspace-widget')).toHaveAttribute('data-count', '1');
+    // The implementer panel also mounts the on-disk Files widget (its own collapsible section).
+    await expect(page.getByTestId('filetree-widget')).toBeVisible();
     // The navigator shows a live status dot for the session.
     await expect(page.getByTestId('session-dot').first()).toBeVisible();
 
@@ -647,6 +649,22 @@ test.describe('create a new product — full-stack journey against a real dev-se
     await expect(page.getByTestId('product-wizard')).toBeVisible();
     await page.getByRole('button', { name: 'Cancel' }).first().click();
     await expect(page.getByTestId('product-wizard')).toBeHidden();
+
+    expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
+  });
+
+  test('settings open from the top bar and dismiss', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (e) => pageErrors.push(e.message));
+    await openChat(page);
+
+    // The settings affordance in the top bar opens the dismissible settings panel.
+    await page.getByTestId('settings-open').click();
+    await expect(page.getByTestId('settings-panel')).toBeVisible();
+    // It surfaces the real settings (colour mode), and Escape dismisses it.
+    await expect(page.getByTestId('settings-colormode')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('settings-panel')).toBeHidden();
 
     expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
   });

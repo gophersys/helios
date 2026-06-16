@@ -6,8 +6,9 @@
   import type { Theme } from '@eden/theme';
   import type { Entry } from '$lib/gateway/session.svelte';
   import { deriveArtifacts } from '$lib/workspace/agentWorkspace';
+  import PanelWidget from './PanelWidget.svelte';
 
-  let { entries, theme: _theme }: { entries: Entry[]; theme?: Theme } = $props();
+  let { entries, theme }: { entries: Entry[]; theme?: Theme } = $props();
 
   const artifacts = $derived(deriveArtifacts(entries));
 
@@ -21,31 +22,42 @@
   }
 </script>
 
-<section class="workspace" data-testid="workspace-widget" aria-label="agent workspace files">
-  <header class="workspace__head">
-    <span class="workspace__title">Workspace</span>
-    <span class="workspace__count" data-testid="workspace-count">{artifacts.length}</span>
-  </header>
-
-  {#if artifacts.length === 0}
-    <p class="workspace__empty" data-testid="workspace-empty">No files yet — they appear as the agent writes.</p>
-  {:else}
-    <ul class="workspace__list" role="list">
-      {#each artifacts as artifact (artifact.path)}
-        <li class="file" data-testid="workspace-file" data-status={artifact.status} data-path={artifact.path}>
-          <span class="file__dot" data-status={artifact.status} aria-hidden="true"></span>
-          <span class="file__name">
-            {fileName(artifact.path)}
-            {#if dirName(artifact.path)}<span class="file__dir">{dirName(artifact.path)}</span>{/if}
-          </span>
-          <span class="file__ops">
-            {#each artifact.operations as op (op)}<span class="file__op">{op}</span>{/each}
-          </span>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-</section>
+<div
+  class="workspace"
+  data-testid="workspace-widget"
+  data-count={artifacts.length}
+  aria-label="agent workspace files"
+>
+  <PanelWidget title="Workspace" count={artifacts.length} {theme}>
+    {#snippet children()}
+      {#if artifacts.length === 0}
+        <p class="workspace__empty" data-testid="workspace-empty">
+          No files yet — they appear as the agent writes.
+        </p>
+      {:else}
+        <ul class="workspace__list" role="list">
+          {#each artifacts as artifact (artifact.path)}
+            <li
+              class="file"
+              data-testid="workspace-file"
+              data-status={artifact.status}
+              data-path={artifact.path}
+            >
+              <span class="file__dot" data-status={artifact.status} aria-hidden="true"></span>
+              <span class="file__name">
+                {fileName(artifact.path)}
+                {#if dirName(artifact.path)}<span class="file__dir">{dirName(artifact.path)}</span>{/if}
+              </span>
+              <span class="file__ops">
+                {#each artifact.operations as op (op)}<span class="file__op">{op}</span>{/each}
+              </span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    {/snippet}
+  </PanelWidget>
+</div>
 
 <style>
   .workspace {
@@ -53,26 +65,6 @@
     flex-direction: column;
     gap: var(--space-2, 8px);
     min-block-size: 0;
-  }
-  .workspace__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-2, 8px);
-  }
-  .workspace__title {
-    font-family: var(--font-code);
-    font-size: var(--font-size-caption, 12px);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--eden-app-muted);
-  }
-  .workspace__count {
-    font-family: var(--font-code);
-    font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-accent);
-    font-variant-numeric: tabular-nums;
   }
   .workspace__empty {
     font-size: var(--font-size-caption, 12px);

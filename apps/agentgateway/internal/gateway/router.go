@@ -20,6 +20,7 @@ import (
 //	POST   /sessions/{id}/permissions/{requestId}  resolve a pending permission (allow|deny + scope) -> ADR-0025
 //	GET    /sessions/{id}/events             SSE stream (Last-Event-ID / ?from-seq=) -> REQ-0023/0024
 //	GET    /sessions/{id}/transcript         persisted Run, queryable after end -> REQ-0020/0023
+//	GET    /sessions/{id}/workspace          REAL files the agent produced under its workspace root
 //	POST   /product/propose                  AI-propose a ProductConfig from the prompt (wizard step 1)
 //	GET    /healthz                          liveness
 func (g *Gateway) routes() *http.ServeMux {
@@ -35,6 +36,7 @@ func (g *Gateway) routes() *http.ServeMux {
 	mux.HandleFunc("POST /sessions/{id}/permissions/{requestId}", g.handleResolvePermission)
 	mux.HandleFunc("GET /sessions/{id}/events", g.handleEvents)
 	mux.HandleFunc("GET /sessions/{id}/transcript", g.handleTranscript)
+	mux.HandleFunc("GET /sessions/{id}/workspace", g.handleWorkspace)
 	mux.HandleFunc("GET /healthz", g.handleHealth)
 
 	return mux

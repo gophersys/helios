@@ -8,6 +8,11 @@
   import type { ChatSession } from '$lib/gateway/session.svelte';
   import type { AgentTypeDescriptor } from '$lib/workspace/agentWorkspace';
   import WorkspaceWidget from './WorkspaceWidget.svelte';
+  import FileTreeWidget from './FileTreeWidget.svelte';
+  import DocumentsWidget from './DocumentsWidget.svelte';
+  import DecisionsWidget from './DecisionsWidget.svelte';
+  import AgentsWidget from './AgentsWidget.svelte';
+  import ProgressWidget from './ProgressWidget.svelte';
 
   let {
     session,
@@ -29,8 +34,18 @@
     {#each agentType.widgets as widget (widget)}
       {#if widget === 'workspace'}
         <WorkspaceWidget entries={session.entries} {theme} />
+      {:else if widget === 'files'}
+        <FileTreeWidget {session} {theme} />
+      {:else if widget === 'documents'}
+        <DocumentsWidget {session} {theme} />
+      {:else if widget === 'decisions'}
+        <DecisionsWidget {session} {theme} />
+      {:else if widget === 'agents'}
+        <AgentsWidget {session} {theme} />
+      {:else if widget === 'progress'}
+        <ProgressWidget {session} {theme} />
       {:else}
-        <!-- scaffolded widget slots for the architect/supervisor/entry types (land as built) -->
+        <!-- any future widget id falls back to a labeled placeholder until its component lands -->
         <section class="panel__placeholder" data-testid="panel-widget-placeholder" data-widget={widget}>
           <span class="panel__placeholder-title">{widget}</span>
           <span class="panel__placeholder-note">coming online</span>

@@ -6,7 +6,14 @@
 import type { Entry, ToolEntry } from '$lib/gateway/session.svelte';
 
 /** The right-panel widgets a session can mount. New widgets are added here + in RightPanel. */
-export type WidgetId = 'workspace' | 'activity' | 'documents' | 'decisions' | 'agents' | 'progress';
+export type WidgetId =
+  | 'workspace'
+  | 'files'
+  | 'activity'
+  | 'documents'
+  | 'decisions'
+  | 'agents'
+  | 'progress';
 
 /** An out-of-the-box agent type: its label, glyph, and the ORDERED right-panel widget stack it
  *  presents. The implementer is realized today; architect/supervisor/entry-point are scaffolded so
@@ -19,10 +26,13 @@ export interface AgentTypeDescriptor {
 }
 
 export const AGENT_TYPES: Record<string, AgentTypeDescriptor> = {
-  implementer: { id: 'implementer', label: 'Implementer', glyph: '⚙', widgets: ['workspace', 'activity'] },
-  architect: { id: 'architect', label: 'Architect', glyph: '◳', widgets: ['documents', 'decisions', 'activity'] },
-  supervisor: { id: 'supervisor', label: 'Supervisor', glyph: '⌖', widgets: ['agents', 'progress', 'activity'] },
-  entrypoint: { id: 'entrypoint', label: 'Entry point', glyph: '⎈', widgets: ['activity', 'workspace'] },
+  // "less is more": each type mounts only the widgets it needs (live activity already lives in the
+  // conversation's status bars, so it is not duplicated as a panel widget). 'workspace' is the
+  // tool-derived (instant) file view; 'files' is the on-disk ground-truth tree (it starts collapsed).
+  implementer: { id: 'implementer', label: 'Implementer', glyph: '⚙', widgets: ['workspace', 'files'] },
+  architect: { id: 'architect', label: 'Architect', glyph: '◳', widgets: ['documents', 'decisions', 'files'] },
+  supervisor: { id: 'supervisor', label: 'Supervisor', glyph: '⌖', widgets: ['agents', 'progress'] },
+  entrypoint: { id: 'entrypoint', label: 'Entry point', glyph: '⎈', widgets: ['files'] },
 };
 
 /** agentTypeFor maps a session's template (and harness) to its agent type. Today the template name

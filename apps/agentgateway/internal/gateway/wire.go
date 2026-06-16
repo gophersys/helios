@@ -116,6 +116,24 @@ type transcriptResponse struct {
 	Complete bool        `json:"complete"` // true == the terminal event is present
 }
 
+// workspaceResponse is the body of GET /sessions/{id}/workspace: the REAL files the agent
+// actually produced under its workspace directory — the ground-truth view beyond the
+// tool-derived artifact list the UI assembles from the event stream. Paths are RELATIVE to
+// the workspace root, sorted, and capped; no field can carry a credential (a path, a size,
+// and a mtime are all that escape).
+type workspaceResponse struct {
+	Files []workspaceFileView `json:"files"`
+}
+
+// workspaceFileView is one file under the workspace root: its slash-separated path RELATIVE
+// to the root (never absolute, never escaping the root), its size in bytes, and its
+// modification time as a Unix second so the UI renders without parsing a timestamp.
+type workspaceFileView struct {
+	Path         string `json:"path"`
+	Size         int64  `json:"size"`
+	ModifiedUnix int64  `json:"modifiedUnix"`
+}
+
 // ── the SSE event projection (REQ-0024) ──────────────────────────────────────.
 
 // eventView is the JSON `data:` payload of one SSE frame — a redaction-safe projection of

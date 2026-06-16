@@ -10,10 +10,12 @@
     active,
     agentType,
     onPalette,
+    onSettings,
   }: {
     active: ChatSession | null;
     agentType: AgentTypeDescriptor | null;
     onPalette: () => void;
+    onSettings?: () => void;
     theme?: Theme;
   } = $props();
 
@@ -48,10 +50,23 @@
     </div>
   {/if}
 
-  <button class="topbar__palette" data-testid="palette-open" onclick={onPalette}>
-    <span aria-hidden="true">⌘K</span>
-    <span class="topbar__palette-label">{isMac ? '⌘' : 'Ctrl'} K · commands</span>
-  </button>
+  <div class="topbar__actions">
+    <button class="topbar__palette" data-testid="palette-open" onclick={onPalette}>
+      <span aria-hidden="true">⌘K</span>
+      <span class="topbar__palette-label">{isMac ? '⌘' : 'Ctrl'} K · commands</span>
+    </button>
+    {#if onSettings}
+      <button
+        class="topbar__icon-btn"
+        data-testid="settings-open"
+        aria-label="Settings"
+        title="Settings"
+        onclick={onSettings}
+      >
+        <span aria-hidden="true">⚙</span>
+      </button>
+    {/if}
+  </div>
 </header>
 
 <style>
@@ -119,8 +134,13 @@
   .topbar__conn[data-state='ended'] {
     background: var(--eden-app-muted);
   }
-  .topbar__palette {
+  .topbar__actions {
     margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+  }
+  .topbar__palette {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2, 8px);
@@ -132,6 +152,22 @@
     font-family: var(--font-code);
     font-size: var(--font-size-caption, 12px);
     cursor: pointer;
+  }
+  .topbar__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: calc(var(--space-6, 24px) + var(--space-1, 4px));
+    block-size: calc(var(--space-6, 24px) + var(--space-1, 4px));
+    background: var(--eden-app-rail-bg);
+    border: 1px solid var(--eden-app-line);
+    border-radius: var(--eden-app-radius, 4px);
+    color: var(--eden-app-muted);
+    cursor: pointer;
+  }
+  .topbar__icon-btn:hover {
+    color: var(--eden-app-fg);
+    border-color: var(--eden-app-accent);
   }
   .topbar__palette:hover {
     color: var(--eden-app-fg);
