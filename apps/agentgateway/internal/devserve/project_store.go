@@ -27,6 +27,10 @@ type storedProject struct {
 	project gateway.Project
 }
 
+// devProjectPageFloor mirrors projectpersistence.defaultPageSize: the page size a no-limit list
+// falls back to, kept identical so the fake and the real store agree on every path.
+const devProjectPageFloor = 100
+
 // newInMemoryProjectStore returns an empty dev ProjectStore.
 func newInMemoryProjectStore() *inMemoryProjectStore { return &inMemoryProjectStore{} }
 
@@ -70,7 +74,9 @@ func (s *inMemoryProjectStore) List(_ context.Context, filter gateway.ProjectFil
 
 	limit := filter.Limit
 	if limit <= 0 {
-		limit = len(s.projects)
+		// Mirror the Postgres adapter's no-limit floor (projectpersistence.defaultPageSize) so the
+		// fake and the real store agree on the unbounded-request path too.
+		limit = devProjectPageFloor
 	}
 	cursor, hasCursor := parseCursor(filter.Cursor)
 

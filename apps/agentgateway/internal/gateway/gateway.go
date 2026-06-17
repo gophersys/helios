@@ -220,9 +220,11 @@ func (g *Gateway) Serve(ctx context.Context, listener net.Listener) error {
 		defer cancel()
 		_ = server.Shutdown(shutdownCtx) //nolint:errcheck // shutdown best-effort; the registry reap below is the leak guarantee.
 		g.registry.closeAll(shutdownCtx)
+		g.closeStores()
 		return nil
 	case err := <-serveErr:
 		g.registry.closeAll(context.Background())
+		g.closeStores()
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
@@ -230,12 +232,28 @@ func (g *Gateway) Serve(ctx context.Context, listener net.Listener) error {
 	}
 }
 
-// Close reaps every live session in the registry (idempotent). The composition root calls
-// it when Serve was not used (e.g. a test that drove the Handler directly), so no harness
-// goroutine outlives the gateway. Returns nil; per-session close faults are best-effort.
+// Close reaps every live session in the registry (idempotent) and releases any closable store
+// resource. The composition root calls it when Serve was not used (e.g. a test that drove the
+// Handler directly), so no harness goroutine outlives the gateway. Returns nil; per-session close
+// faults are best-effort.
 func (g *Gateway) Close(ctx context.Context) error {
 	g.registry.closeAll(ctx)
+	g.closeStores()
 	return nil
+}
+
+// closeStores releases any store dependency that owns a closable resource on graceful shutdown — the
+// real Postgres adapters own a pgx pool; the in-memory fakes own nothing and are skipped (they do not
+// satisfy the closer). A nil (unconfigured, optional) store is also skipped. This is what makes the
+// adapters' "the caller owns Close" contract true: the gateway is that caller.
+func (g *Gateway) closeStores() {
+	type closer interface{ Close() }
+	if projects, ok := g.dependencies.Projects.(closer); ok {
+		projects.Close()
+	}
+	if agentConfigs, ok := g.dependencies.AgentConfigs.(closer); ok {
+		agentConfigs.Close()
+	}
 }
 
 // logInfo emits a redaction-safe info line when a Logger is wired (no-op otherwise).

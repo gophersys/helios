@@ -159,7 +159,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 
 	// The dashboard + Settings persistence: REAL Postgres adapters when a DSN is configured (the
 	// pools are lazy — no dial here), nil otherwise (those routes then 503). The stores outlive the
-	// request; the process owns their lifetime (closed on exit).
+	// request; the gateway releases their pools via closeStores on graceful shutdown (Serve/Close).
 	var (
 		projectStore     gateway.ProjectStore
 		agentConfigStore gateway.AgentConfigStore

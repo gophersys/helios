@@ -41,16 +41,30 @@
     return result || '?';
   }
 
-  /** onSettingsClick isolates the settings click from the card's own click surface. */
-  function onSettingsClick(event: MouseEvent): void {
-    event.stopPropagation();
-    onSettings?.();
+  /** onCardKeydown makes the role=button card keyboard-activatable (Enter / Space → open settings),
+   *  matching the pointer affordance so the card is a real, accessible button — not a div that merely
+   *  looks clickable. */
+  function onCardKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onSettings?.();
+    }
   }
 </script>
 
-<!-- The whole card is a pressable button surface; the settings ⚙ is a nested button whose click is
-     stopped from bubbling so the card's own click (if a host wires one) does not also fire. -->
-<div class="card" data-testid="user-profile-card">
+<!-- The whole card IS the (single) interactive control: a role=button surface that opens settings on
+     pointer or keyboard. The trailing ⚙ is a decorative cue, not a nested button — a click on it
+     bubbles to the card, so there is exactly one accessible control and no nested-interactive a11y trap. -->
+<div
+  class="card"
+  data-testid="user-profile-card"
+  role="button"
+  tabindex="0"
+  aria-label="Open settings"
+  title="Settings"
+  onclick={() => onSettings?.()}
+  onkeydown={onCardKeydown}
+>
   <span class="card__avatar" data-testid="user-avatar" aria-hidden="true">{initials}</span>
 
   <span class="card__identity">
@@ -60,21 +74,12 @@
     {/if}
   </span>
 
-  <button
-    type="button"
-    class="card__settings"
-    data-testid="user-settings-open"
-    aria-label="Open settings"
-    title="Settings"
-    onclick={onSettingsClick}
-  >
-    <span aria-hidden="true">⚙</span>
-  </button>
+  <span class="card__settings" data-testid="user-settings-open" aria-hidden="true">⚙</span>
 </div>
 
 <style>
-  /* The card reads as one pressable button: a horizontal surface with a hover lift. The host may wire
-     its own click on the root; the trailing ⚙ owns its own (isolated) click. */
+  /* The card IS one pressable button: a horizontal surface that opens settings on click/keyboard,
+     with a hover lift and a real focus ring. The trailing ⚙ is a decorative cue. */
   .card {
     display: flex;
     align-items: center;
@@ -95,7 +100,9 @@
     background: var(--eden-app-rail-bg);
     border-color: var(--eden-app-accent);
   }
-  .card:focus-within {
+  .card:focus-visible {
+    outline: 2px solid var(--eden-app-accent);
+    outline-offset: 2px;
     border-color: var(--eden-app-accent);
   }
 
@@ -142,7 +149,8 @@
     text-overflow: ellipsis;
   }
 
-  /* trailing settings affordance — its own button, click isolated from the card */
+  /* trailing settings cue — a decorative ⚙ glyph (the whole card is the control); it tints with the
+     card's hover so the affordance reads as one surface. */
   .card__settings {
     flex: none;
     display: inline-flex;
@@ -150,25 +158,13 @@
     justify-content: center;
     inline-size: var(--space-7, 28px);
     block-size: var(--space-7, 28px);
-    background: none;
-    border: 1px solid transparent;
     border-radius: var(--eden-app-radius, 6px);
     color: var(--eden-app-muted);
-    cursor: pointer;
     font-size: var(--font-size-body-large, 15px);
-    transition:
-      color 120ms ease,
-      border-color 120ms ease,
-      background-color 120ms ease;
+    transition: color 120ms ease;
   }
-  .card__settings:hover {
+  .card:hover .card__settings {
     color: var(--eden-app-fg);
-    border-color: var(--eden-app-accent);
-    background: var(--eden-app-panel-bg);
-  }
-  .card__settings:focus-visible {
-    outline: 2px solid var(--eden-app-accent);
-    outline-offset: 1px;
   }
 
   @media (prefers-reduced-motion: reduce) {

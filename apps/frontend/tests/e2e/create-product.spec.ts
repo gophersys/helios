@@ -413,6 +413,9 @@ test.describe('create a new project — full-stack journey against a real dev-se
     //    proposed config + the user's name edit (NOT a drifted shell). ──.
     const createBody = captureCreateRequest(page);
     const projectBody = captureCreateProjectRequest(page);
+    const projectResponse = page.waitForResponse(
+      (r) => r.url().endsWith('/projects') && r.request().method() === 'POST',
+    );
     const createResponse = page.waitForResponse(
       (r) => r.url().endsWith('/sessions') && r.request().method() === 'POST',
     );
@@ -438,10 +441,16 @@ test.describe('create a new project — full-stack journey against a real dev-se
     expect(typeof createdRes.id).toBe('string');
 
     // ── 2 + 3. PERSISTENCE: the Project was persisted (the dashboard's record), carrying the edited
-    //    name and linked to the build session just created (POST /projects, observed passively). ──.
+    //    name and linked to the build session just created. Assert BOTH the request payload AND that
+    //    the store ACCEPTED it (201) — a broken /projects handler (503/400/500) must fail the test,
+    //    not slip through as a correct-but-rejected payload (the create flow logs+continues on a
+    //    persistence fault, so the response status is the only real signal). ──.
     const persistedProject = await projectBody;
     expect(persistedProject.product?.productName).toBe(EDITED_NAME);
     expect(persistedProject.sessionId).toBe(createdRes.id);
+    expect((await projectResponse).status(), 'the Project must actually persist (POST /projects 201)').toBe(
+      201,
+    );
 
     // ── the flow closes and the chat view opens bound to the chosen harness ──────.
     await expect(flow).toBeHidden();
@@ -662,6 +671,14 @@ test.describe('create a new project — full-stack journey against a real dev-se
     await expect(palette.getByText('New project…')).toBeVisible();
     await palette.getByText('New project…').click();
     await expect(page.getByTestId('create-flow')).toBeVisible();
+
+    // Escape closes the flow even with focus INSIDE it (the dialog subtree must honor Escape, not
+    // swallow it) — then reopen and close via the Cancel button.
+    await page.getByTestId('create-spark').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('create-flow')).toBeHidden();
+    await page.getByTestId('new-session').first().click();
+    await expect(page.getByTestId('create-flow')).toBeVisible();
     await page.getByTestId('create-cancel').first().click();
     await expect(page.getByTestId('create-flow')).toBeHidden();
 
@@ -715,12 +732,20 @@ test.describe('create a new project — full-stack journey against a real dev-se
     expect(put.sandboxPosture).toBe('strict');
     await expect(card.getByTestId('agent-type-config-saved')).toBeVisible();
 
+    // Editing a field clears the "✓ saved" badge — it must not linger next to a now-dirty draft.
+    // (Change it to a DIFFERENT real model, so the edit→persist is proven with a clean value.)
+    await card.getByTestId('agent-type-config-model-input').fill('claude-sonnet-4-6');
+    await expect(card.getByTestId('agent-type-config-saved')).toBeHidden();
+    // Re-save so the persistence-reload assertion below reads a clean, saved value.
+    await card.getByTestId('agent-type-config-save').click();
+    await expect(card.getByTestId('agent-type-config-saved')).toBeVisible();
+
     // PERSISTENCE: reload the dashboard, reopen Settings → the saved config loads from the store
     // (proving the round-trip persisted, not just an in-memory UI edit).
     await page.reload();
     await page.getByTestId('user-settings-open').click();
     const reloaded = page.locator('[data-testid="agent-type-config"][data-agent-type="implementer"]');
-    await expect(reloaded.getByTestId('agent-type-config-model-input')).toHaveValue('claude-opus-4-8');
+    await expect(reloaded.getByTestId('agent-type-config-model-input')).toHaveValue('claude-sonnet-4-6');
     await expect(reloaded.getByTestId('agent-type-config-grants-input')).toHaveValue('Read, Write');
     await expect(reloaded.getByTestId('agent-type-config-posture-input')).toHaveValue('strict');
 

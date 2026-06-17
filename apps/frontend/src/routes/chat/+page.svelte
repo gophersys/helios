@@ -200,7 +200,13 @@
     const params = new URLSearchParams(window.location.search);
     if (params.get('new') === '1') showWizard = true;
     const sessionId = params.get('session');
-    if (sessionId) void attach(sessionId, 'claude');
+    if (sessionId) {
+      // Carry the project's harness through the deep link so an omp project opened from the
+      // dashboard attaches + labels as omp (codex folds to claude for the chat chrome). An absent or
+      // unrecognized harness defaults to claude.
+      const harnessParam = params.get('harness');
+      void attach(sessionId, harnessParam ? chatHarness(harnessParam as ProductHarness) : 'claude');
+    }
   });
 
   // Autoscroll the transcript as entries stream in.

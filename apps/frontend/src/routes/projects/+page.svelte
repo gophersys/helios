@@ -49,8 +49,11 @@
 
   function openProject(project: ProjectSummary): void {
     // Open the project's build session when it has one; otherwise drop into the chat workspace.
+    // Carry the project's harness so the chat attaches + labels under the right one (the chat
+    // deep-link folds codex → claude for its chrome).
     if (project.sessionId) {
-      void goto(`/chat?session=${encodeURIComponent(project.sessionId)}`);
+      const harness = project.harness ? `&harness=${encodeURIComponent(project.harness)}` : '';
+      void goto(`/chat?session=${encodeURIComponent(project.sessionId)}${harness}`);
     } else {
       void goto('/chat');
     }

@@ -20,15 +20,15 @@ func (g *Gateway) handleListAgentConfigs(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	configs, err := g.dependencies.AgentConfigs.List(r.Context())
+	configurations, err := g.dependencies.AgentConfigs.List(r.Context())
 	if err != nil {
 		g.writeEnvelopeError(w, err)
 		return
 	}
 
-	views := make([]agentConfigView, 0, len(configs))
-	for i := range configs {
-		views = append(views, toAgentConfigView(configs[i]))
+	views := make([]agentConfigView, 0, len(configurations))
+	for i := range configurations {
+		views = append(views, toAgentConfigView(configurations[i]))
 	}
 	g.writeData(w, http.StatusOK, listAgentConfigsResponse{Configs: views})
 }

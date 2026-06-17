@@ -136,6 +136,16 @@
   function onScrimKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') oncancel();
   }
+  // The dialog subtree stops keydowns from reaching the workspace's global ⌘K handler, but must
+  // still honor Escape-to-close itself (the scrim handler never sees it once focus is inside) —
+  // the same precedent as Modal.svelte's panel handler.
+  function onFlowKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      oncancel();
+      return;
+    }
+    event.stopPropagation();
+  }
   function onSparkKeydown(event: KeyboardEvent): void {
     // Cmd/Ctrl+Enter submits the idea straight from the textarea.
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -166,7 +176,7 @@
     data-testid="create-flow"
     data-step={step}
     onclick={(event) => event.stopPropagation()}
-    onkeydown={(event) => event.stopPropagation()}
+    onkeydown={onFlowKeydown}
   >
     <header class="flow__head">
       <div class="flow__progress" aria-hidden="true">

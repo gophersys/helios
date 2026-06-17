@@ -137,6 +137,16 @@
     }
   }
 
+  /** Clear a draft's saved/error confirmation once the user edits a field, so the "✓ saved" badge
+   *  never lingers next to a now-dirty, unsaved draft. */
+  function markDirty(agentTypeId: string): void {
+    const draft = drafts[agentTypeId];
+    if (draft && draft.status !== 'idle' && draft.status !== 'saving') {
+      draft.status = 'idle';
+      draft.message = undefined;
+    }
+  }
+
   /** Roving-tabindex arrow-key navigation across the tab strip (a11y: tablist keyboard pattern). */
   function onTabKeydown(event: KeyboardEvent, index: number): void {
     let next = index;
@@ -234,6 +244,7 @@
                         class="field field--editable"
                         type="text"
                         bind:value={draft.model}
+                        oninput={() => markDirty(agentType.id)}
                         placeholder="inherit (from AgentTemplate)"
                         aria-label={`Default model for ${agentType.label}`}
                         data-testid="agent-type-config-model-input"
@@ -251,6 +262,7 @@
                         class="field field--editable"
                         type="text"
                         bind:value={draft.grants}
+                        oninput={() => markDirty(agentType.id)}
                         placeholder="Read, Write, Bash…"
                         aria-label={`Tool grants for ${agentType.label} (comma separated)`}
                         data-testid="agent-type-config-grants-input"
@@ -267,6 +279,7 @@
                       <select
                         class="field field--select"
                         bind:value={draft.posture}
+                        onchange={() => markDirty(agentType.id)}
                         aria-label={`Sandbox posture for ${agentType.label}`}
                         data-testid="agent-type-config-posture-input"
                         disabled={!saveConfig}
@@ -291,7 +304,11 @@
                         {draft.status === 'saving' ? 'Saving…' : 'Save'}
                       </button>
                       {#if draft.status === 'saved'}
-                        <span class="save-status save-status--ok" data-testid="agent-type-config-saved">
+                        <span
+                          class="save-status save-status--ok"
+                          role="status"
+                          data-testid="agent-type-config-saved"
+                        >
                           ✓ saved
                         </span>
                       {:else if draft.status === 'error'}

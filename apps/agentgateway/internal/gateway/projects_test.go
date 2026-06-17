@@ -198,6 +198,22 @@ func TestCreateProjectRequiresProduct(t *testing.T) {
 	}
 }
 
+// TestCreateProjectWithoutSessionIsDraft pins the OTHER status arm: a create with a product but no
+// sessionId is a DRAFT (no build session was spawned), and the sessionId is omitted.
+func TestCreateProjectWithoutSessionIsDraft(t *testing.T) {
+	t.Parallel()
+	server := newProjectsServer(t, &fakeProjectStore{})
+	created := envelopeData(t, postJSON(t, server.URL+"/projects",
+		`{"idea":"scoped but not building yet","product":{"productName":"draft-thing","productKind":"service"}}`,
+		http.StatusCreated))
+	if created["status"] != gateway.ProjectStatusDraft {
+		t.Fatalf("create without sessionId: status = %v, want %q", created["status"], gateway.ProjectStatusDraft)
+	}
+	if sessionID, present := created["sessionId"]; present && sessionID != "" {
+		t.Fatalf("create without sessionId: sessionId = %v, want omitted/empty", sessionID)
+	}
+}
+
 // ── small test helpers ───────────────────────────────────────────────────────.
 
 func postJSON(t *testing.T, url, body string, wantStatus int) map[string]any {
