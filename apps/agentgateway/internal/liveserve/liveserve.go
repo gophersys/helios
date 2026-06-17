@@ -38,6 +38,7 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 
+	"github.com/gophersys/eden/apps/agentgateway/internal/agentconfigpersistence"
 	"github.com/gophersys/eden/apps/agentgateway/internal/gateway"
 	"github.com/gophersys/eden/apps/agentgateway/internal/projectpersistence"
 )
@@ -156,16 +157,25 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 	// explicit per-call permission, 07 §3) — keeps an unattended live agent safe.
 	grants := []agentsession.ToolGrant{{ID: "grant-read", Tool: "Read", ReadOnly: true}}
 
-	// The dashboard's persisted-Project store: a REAL Postgres adapter when a DSN is configured (the
-	// pool is lazy — no dial here), nil otherwise (the /projects routes then 503). The store outlives
-	// the request; the process owns its lifetime (closed on exit).
-	var projectStore gateway.ProjectStore
+	// The dashboard + Settings persistence: REAL Postgres adapters when a DSN is configured (the
+	// pools are lazy — no dial here), nil otherwise (those routes then 503). The stores outlive the
+	// request; the process owns their lifetime (closed on exit).
+	var (
+		projectStore     gateway.ProjectStore
+		agentConfigStore gateway.AgentConfigStore
+	)
 	if configuration.DatabaseDSN != "" {
 		postgresStore, dbErr := projectpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
 		if dbErr != nil {
 			return nil, errors.Wrap(errors.KindInternal, "liveserve: build project store", dbErr)
 		}
 		projectStore = postgresStore
+
+		configStore, configErr := agentconfigpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
+		if configErr != nil {
+			return nil, errors.Wrap(errors.KindInternal, "liveserve: build agent-config store", configErr)
+		}
+		agentConfigStore = configStore
 	}
 
 	gw, err := gateway.New(
@@ -197,6 +207,8 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 			},
 			// The dashboard's persisted-Project seam: the real Postgres store (or nil → /projects 503).
 			Projects: projectStore,
+			// The Settings → Agents config seam: the real Postgres store (or nil → /agent-configs 503).
+			AgentConfigs: agentConfigStore,
 		},
 	)
 	if err != nil {

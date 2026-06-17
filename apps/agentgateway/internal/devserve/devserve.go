@@ -145,6 +145,8 @@ func BuildDevGateway(configuration Config) (*gateway.Gateway, error) {
 			// The dashboard's persisted-Project seam: an in-memory fake (no database) so the /projects
 			// surface is exercised by the same E2E the live demo runs.
 			Projects: newInMemoryProjectStore(),
+			// The Settings → Agents per-agent-type config seam: an in-memory fake.
+			AgentConfigs: newInMemoryAgentConfigStore(),
 		},
 	)
 	if err != nil {

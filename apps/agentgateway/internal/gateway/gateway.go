@@ -134,6 +134,11 @@ type Deps struct {
 	// offer the dashboard). The live root binds it to a real Postgres adapter; the dev root binds it
 	// to an in-memory fake — the same real-vs-fake mirror the Proposer uses.
 	Projects ProjectStore
+
+	// AgentConfigs is the per-agent-type user-configuration seam the Settings → Agents surface
+	// (GET/PUT /agent-configs) reads and writes. OPTIONAL — when nil those routes are a 503. Real
+	// Postgres adapter in liveserve, in-memory fake in devserve.
+	AgentConfigs AgentConfigStore
 }
 
 // Gateway is the concrete http.Handler builder New returns (return-concrete). It holds
