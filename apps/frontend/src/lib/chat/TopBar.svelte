@@ -48,10 +48,10 @@
       <span aria-hidden="true">{railOpen ? '⟨' : '☰'}</span>
     </button>
   {/if}
-  <div class="topbar__brand">
+  <a class="topbar__brand" href="/projects" data-testid="top-home" title="Back to Eden">
     <span class="topbar__mark" aria-hidden="true">◆</span>
     <span class="topbar__name">Eden</span>
-  </div>
+  </a>
 
   {#if active && agentType}
     <!-- the session identity doubles as the agent-config affordance (config easily available) -->
@@ -127,6 +127,12 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2, 8px);
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--eden-app-radius, 8px);
+  }
+  .topbar__brand:hover {
+    opacity: 0.85;
   }
   .topbar__mark {
     color: var(--eden-app-accent);

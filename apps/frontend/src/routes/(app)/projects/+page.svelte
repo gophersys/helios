@@ -1,30 +1,18 @@
 <script lang="ts">
-  // The PROJECTS DASHBOARD — Eden's home. A project is what a user builds (today each gateway
-  // session stands in for a project until the persisted Project object lands). The grid shows the
-  // user's projects; "＋ New project" starts the creation flow; a user-profile card is pinned at the
-  // bottom and opens the tabbed Settings (its first tab is the per-agent-type default configuration).
-  // Token-driven from @eden/theme; the cards/profile/settings are reusable components.
+  // The PROJECTS page — Eden's home, rendered inside the app shell (the sidebar provides the brand,
+  // user, and Settings; this page owns its header + grid). A project is what a user builds; the grid
+  // lists them, "＋ New project" starts the creation flow. Token-driven; cards are reusable components.
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
   import { edenTheme } from '$lib/theme/edenTheme';
   import { goto } from '$app/navigation';
   import { Button } from '@eden/primitives';
   import ProjectCard, { type ProjectSummary } from '$lib/dashboard/ProjectCard.svelte';
-  import UserProfileCard from '$lib/dashboard/UserProfileCard.svelte';
-  import SettingsModal from '$lib/dashboard/SettingsModal.svelte';
-  import { currentUser } from '$lib/platform/currentUser.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
   const theme = edenTheme;
 
-  // The signed-in identity (set by the login screen). Load it lazily if a deep-link skipped login;
-  // a failure (platform API unreachable) is non-fatal — the profile card falls back to a neutral name.
-  $effect(() => {
-    if (!currentUser.user && !currentUser.loading) void currentUser.load();
-  });
-
   let projects = $state<ProjectSummary[]>([]);
-  let settingsOpen = $state(false);
   let listError = $state<string | null>(null);
   let loaded = $state(false);
 
@@ -56,8 +44,6 @@
 
   function openProject(project: ProjectSummary): void {
     // Open the project's build session when it has one; otherwise drop into the chat workspace.
-    // Carry the project's harness so the chat attaches + labels under the right one (the chat
-    // deep-link folds codex → claude for its chrome).
     if (project.sessionId) {
       const harness = project.harness ? `&harness=${encodeURIComponent(project.harness)}` : '';
       void goto(`/chat?session=${encodeURIComponent(project.sessionId)}${harness}`);
@@ -72,35 +58,31 @@
 
 <svelte:head><title>Eden — Projects</title></svelte:head>
 
-<div class="dash" data-testid="projects-dashboard">
-  <header class="dash__head">
-    <div class="dash__brand">
-      <span class="dash__mark" aria-hidden="true">◆</span>
-      <span class="dash__name">Eden</span>
-    </div>
-    <h1 class="dash__title">Projects</h1>
-    <span class="dash__new">
+<div class="page" data-testid="projects-dashboard">
+  <header class="page__head">
+    <h1 class="page__title">Projects</h1>
+    <span class="page__action">
       <Button variant="primary" {theme} onclick={newProject}>＋ New project</Button>
     </span>
   </header>
 
-  <main class="dash__body">
+  <div class="page__body">
     {#if listError}
-      <p class="dash__error" data-testid="dash-error">{listError}</p>
+      <p class="page__error" data-testid="dash-error">{listError}</p>
     {/if}
 
     {#if loaded && projects.length === 0}
-      <div class="dash__empty" data-testid="dash-empty">
+      <div class="page__empty" data-testid="dash-empty">
         <h2>Build something with Eden</h2>
         <p>An agent will scope it with you in a few quick steps, then build it.</p>
         <Button variant="primary" {theme} onclick={newProject}>＋ New project</Button>
       </div>
     {:else}
-      <ul class="dash__grid" role="list" data-testid="project-grid">
+      <ul class="grid" role="list" data-testid="project-grid">
         <li>
-          <button class="dash__newcard" data-testid="new-project-card" onclick={newProject}>
-            <span class="dash__newcard-plus" aria-hidden="true">＋</span>
-            <span class="dash__newcard-label">New project</span>
+          <button class="newcard" data-testid="new-project-card" onclick={newProject}>
+            <span class="newcard__plus" aria-hidden="true">＋</span>
+            <span class="newcard__label">New project</span>
           </button>
         </li>
         {#each projects as project (project.id)}
@@ -108,71 +90,38 @@
         {/each}
       </ul>
     {/if}
-  </main>
-
-  <footer class="dash__footer">
-    <UserProfileCard
-      name={currentUser.displayName}
-      email={currentUser.user?.email ?? ''}
-      onSettings={() => (settingsOpen = true)}
-      {theme}
-    />
-  </footer>
+  </div>
 </div>
 
-<SettingsModal
-  bind:open={settingsOpen}
-  {theme}
-  loadConfigs={() => client.listAgentConfigs()}
-  saveConfig={(agentType, body) => client.saveAgentConfig(agentType, body)}
-/>
-
 <style>
-  .dash {
+  .page {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    background: var(--eden-app-bg);
-    color: var(--eden-app-fg);
+    min-block-size: 100%;
   }
-  .dash__head {
+  .page__head {
     display: flex;
     align-items: center;
     gap: var(--space-4, 16px);
-    padding: var(--space-4, 16px) var(--space-6, 24px);
+    padding: var(--space-5, 20px) var(--space-6, 24px);
     border-block-end: 1px solid var(--eden-app-line);
   }
-  .dash__brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-  }
-  .dash__mark {
-    color: var(--eden-app-accent);
-    font-size: var(--font-size-body-large, 16px);
-  }
-  .dash__name {
-    font-weight: 700;
-  }
-  .dash__title {
+  .page__title {
     margin: 0;
     font-size: var(--font-size-title, 23px);
   }
-  .dash__new {
+  .page__action {
     margin-inline-start: auto;
   }
-  .dash__body {
+  .page__body {
     flex: 1;
-    min-block-size: 0;
-    overflow-y: auto;
     padding: var(--space-6, 24px);
   }
-  .dash__error {
+  .page__error {
     color: var(--color-error);
     font-size: var(--font-size-label, 13px);
   }
-  .dash__empty {
+  .page__empty {
     max-inline-size: 46ch;
     margin: 12vh auto 0;
     text-align: center;
@@ -181,11 +130,11 @@
     gap: var(--space-4, 16px);
     align-items: center;
   }
-  .dash__empty p {
+  .page__empty p {
     color: var(--eden-app-muted);
     margin: 0;
   }
-  .dash__grid {
+  .grid {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -194,7 +143,7 @@
     gap: var(--space-4, 16px);
     max-inline-size: 80rem;
   }
-  .dash__newcard {
+  .newcard {
     inline-size: 100%;
     block-size: 100%;
     min-block-size: 7rem;
@@ -212,21 +161,16 @@
       border-color 140ms ease,
       color 140ms ease;
   }
-  .dash__newcard:hover {
+  .newcard:hover {
     border-color: var(--eden-app-accent);
     color: var(--eden-app-fg);
   }
-  .dash__newcard-plus {
+  .newcard__plus {
     font-size: var(--font-size-title, 23px);
     color: var(--eden-app-accent);
   }
-  .dash__footer {
-    border-block-start: 1px solid var(--eden-app-line);
-    padding: var(--space-3, 12px) var(--space-6, 24px);
-    background: var(--eden-app-rail-bg);
-  }
   @media (prefers-reduced-motion: reduce) {
-    .dash__newcard {
+    .newcard {
       transition: none;
     }
   }
