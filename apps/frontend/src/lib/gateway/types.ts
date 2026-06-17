@@ -332,3 +332,23 @@ export interface ListProjectsResponse {
   projects: ProjectView[];
   next?: string;
 }
+
+// ── the per-agent-type configuration contract (Settings → Agents) ─────────────.
+//
+// An AgentConfigView is the user's saved default for one agent type (gateway.AgentConfig). A
+// faithful TypeScript mirror of the Go agentConfigView. Empty model/sandboxPosture mean "inherit".
+
+/** agentConfigView is the Settings tab's read/write model of one agent type's saved configuration. */
+export interface AgentConfigView {
+  agentType: string;
+  model: string;
+  toolGrants: string[];
+  sandboxPosture: string; // '' (inherit) | 'strict' | 'relaxed'
+  updatedAt: string;
+}
+
+/** The body of GET /agent-configs (unwrapped from the data envelope): every saved per-agent-type
+ *  configuration. */
+export interface ListAgentConfigsResponse {
+  configs: AgentConfigView[];
+}

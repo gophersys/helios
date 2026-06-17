@@ -1,22 +1,41 @@
 <script lang="ts">
   // SettingsModal — the USER-SETTINGS overlay, opened from the profile card. It is the ONE HOME for
   // the tabbed settings surface: a self-contained TAB strip (Agents / Profile / Appearance) rendered
-  // inside the reusable centered Modal shell. The host owns nothing but `open` — this component owns
-  // the tab state and the content of each tab. "Less is more": the first (and only real) tab today is
-  // AGENTS = the default configuration for each supported agent type, read straight off the AGENT_TYPES
-  // registry; Profile + Appearance are present-but-minimal so the tabbed structure reads as deliberate.
+  // inside the reusable centered Modal shell. The host owns nothing but `open` + the config seam —
+  // this component owns the tab state and the content of each tab.
   //
-  // The per-type config Eden has not yet wired to the UI (default model, tool grants, sandbox posture)
-  // is shown as a deliberate, muted "wiring in progress" surface so the panel reads as honest-and-growing,
-  // not broken-and-missing — the same epistemic stance as AgentConfigView. Fully token-driven from
-  // @eden/theme: every color/size/space is a var() over the allowed app token vocabulary
+  // The AGENTS tab is a REAL editor: per supported agent type (read off the AGENT_TYPES registry) the
+  // user edits the default model, the tool grants, and the sandbox posture, and Saves — the host's
+  // injected loadConfigs/saveConfig persist each through the gateway (GET/PUT /agent-configs), a user-
+  // PREFERENCE layer folded under the AgentTemplate ceiling (an empty field inherits). Profile +
+  // Appearance stay present-but-minimal so the tabbed structure reads as deliberate. Fully token-driven
+  // from @eden/theme: every color/size/space is a var() over the allowed app token vocabulary
   // (--eden-app-*, --space-*, --font-size-*, --font-code, --color-*); the only literals are token
   // fallbacks and hairline borders. Reduced-motion is honored.
   import type { Theme } from '@eden/theme';
+  import type { AgentConfigView } from '$lib/gateway/types';
   import Modal from '$lib/chat/Modal.svelte';
   import { AGENT_TYPES, type AgentTypeDescriptor } from '$lib/workspace/agentWorkspace';
 
-  let { open = $bindable(false), theme }: { open?: boolean; theme?: Theme } = $props();
+  // The configuration seam is injected as callbacks (the host wires them to its GatewayClient), so
+  // this component stays decoupled from the gateway value layer — the same seam the create flow uses.
+  // When they are absent the Agents tab degrades to read-only "inherit" defaults (graceful).
+  interface SaveBody {
+    model: string;
+    toolGrants: string[];
+    sandboxPosture: string;
+  }
+  let {
+    open = $bindable(false),
+    theme,
+    loadConfigs,
+    saveConfig,
+  }: {
+    open?: boolean;
+    theme?: Theme;
+    loadConfigs?: () => Promise<AgentConfigView[]>;
+    saveConfig?: (agentType: string, body: SaveBody) => Promise<AgentConfigView>;
+  } = $props();
 
   // The tab strip is local: the host opens the modal, this component decides which tab is shown.
   type TabId = 'agents' | 'profile' | 'appearance';
@@ -35,13 +54,88 @@
   // The agent types are a stable record; render them in declaration order as configuration rows.
   const agentTypes = $derived<AgentTypeDescriptor[]>(Object.values(AGENT_TYPES));
 
-  // The per-type config Eden has not yet surfaced to the UI — one home for the list so the
-  // "wiring in progress" rows read as a deliberate roadmap rather than missing fields. These land
-  // when the git-backed AgentTemplate declares the default model / grants / sandbox posture.
-  const PENDING_FIELDS: readonly { key: string; hint: string }[] = [
-    { key: 'Tool grants', hint: 'capability allowlist' },
-    { key: 'Sandbox posture', hint: 'isolation profile' },
-  ];
+  // ── the editable per-agent-type draft state ─────────────────────────────────────.
+  // One draft per agent type: the editable model, comma-separated tool grants, sandbox posture, and a
+  // save status. Initialized empty (= inherit) so every binding has a stable target before the load
+  // resolves; loadAll() then folds in any saved configuration.
+  type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+  interface Draft {
+    model: string;
+    grants: string;
+    posture: string;
+    status: SaveStatus;
+    message?: string;
+  }
+  const emptyDraft = (): Draft => ({ model: '', grants: '', posture: '', status: 'idle' });
+  let drafts = $state<Record<string, Draft>>(
+    Object.fromEntries(Object.values(AGENT_TYPES).map((type) => [type.id, emptyDraft()])),
+  );
+  let loaded = $state(false);
+  let loadError = $state<string | null>(null);
+
+  /** Load the saved per-agent-type configurations into the drafts (an agent type with no saved
+   *  config keeps its empty/inherit draft). */
+  async function loadAll(): Promise<void> {
+    if (!loadConfigs) {
+      loaded = true;
+      return;
+    }
+    try {
+      const configs = await loadConfigs();
+      const next: Record<string, Draft> = {};
+      for (const type of agentTypes) next[type.id] = emptyDraft();
+      for (const config of configs) {
+        next[config.agentType] = {
+          model: config.model,
+          grants: config.toolGrants.join(', '),
+          posture: config.sandboxPosture,
+          status: 'idle',
+        };
+      }
+      drafts = next;
+      loadError = null;
+    } catch (cause) {
+      loadError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      loaded = true;
+    }
+  }
+
+  // Load once per open; reset on close so a re-open re-reads fresh.
+  $effect(() => {
+    if (open && !loaded) void loadAll();
+    if (!open) loaded = false;
+  });
+
+  /** Persist one agent type's draft (parse the comma-separated grants into the array the API wants),
+   *  then reflect the server-normalized result back into the draft. */
+  async function save(agentTypeId: string): Promise<void> {
+    if (!saveConfig) return;
+    const draft = drafts[agentTypeId];
+    if (!draft) return;
+    draft.status = 'saving';
+    draft.message = undefined;
+    const toolGrants = draft.grants
+      .split(',')
+      .map((grant) => grant.trim())
+      .filter(Boolean);
+    try {
+      const stored = await saveConfig(agentTypeId, {
+        model: draft.model.trim(),
+        toolGrants,
+        sandboxPosture: draft.posture,
+      });
+      drafts[agentTypeId] = {
+        model: stored.model,
+        grants: stored.toolGrants.join(', '),
+        posture: stored.sandboxPosture,
+        status: 'saved',
+      };
+    } catch (cause) {
+      draft.status = 'error';
+      draft.message = cause instanceof Error ? cause.message : String(cause);
+    }
+  }
 
   /** Roving-tabindex arrow-key navigation across the tab strip (a11y: tablist keyboard pattern). */
   function onTabKeydown(event: KeyboardEvent, index: number): void {
@@ -88,7 +182,7 @@
           role="tabpanel"
           id="settings-tabpanel-agents"
           aria-labelledby="settings-tab-agents"
-          data-testid="settings-tab-agents"
+          data-testid="settings-panel-agents"
           tabindex="0"
         >
           <header class="panel__intro">
@@ -98,8 +192,13 @@
             </p>
           </header>
 
+          {#if loadError}
+            <p class="load-error" data-testid="settings-load-error" role="alert">{loadError}</p>
+          {/if}
+
           <ul class="agents" role="list">
             {#each agentTypes as agentType (agentType.id)}
+              {@const draft = drafts[agentType.id]}
               <li
                 class="agent"
                 data-testid="agent-type-config"
@@ -131,34 +230,77 @@
                   <div class="row" data-testid="agent-type-config-model">
                     <dt class="row__key">Default model</dt>
                     <dd class="row__val">
-                      <!-- Editable-LOOKING, but read-only / disabled until the AgentTemplate is wired. -->
                       <input
-                        class="field"
+                        class="field field--editable"
                         type="text"
-                        value="inherit (from AgentTemplate)"
-                        readonly
-                        disabled
+                        bind:value={draft.model}
+                        placeholder="inherit (from AgentTemplate)"
                         aria-label={`Default model for ${agentType.label}`}
+                        data-testid="agent-type-config-model-input"
+                        disabled={!saveConfig}
+                        autocomplete="off"
+                        spellcheck="false"
                       />
-                      <span class="pending-tag">
-                        <span class="pending-tag__mark" aria-hidden="true">◌</span>
-                        wiring in progress
-                      </span>
                     </dd>
                   </div>
 
-                  {#each PENDING_FIELDS as pending (pending.key)}
-                    <div class="row row--pending" data-testid="agent-type-config-pending">
-                      <dt class="row__key">{pending.key}</dt>
-                      <dd class="row__val">
-                        <span class="pending">
-                          <span class="pending__mark" aria-hidden="true">◌</span>
-                          <span class="pending__hint">{pending.hint}</span>
-                          <span class="pending-tag">wiring in progress</span>
+                  <div class="row" data-testid="agent-type-config-grants">
+                    <dt class="row__key">Tool grants</dt>
+                    <dd class="row__val">
+                      <input
+                        class="field field--editable"
+                        type="text"
+                        bind:value={draft.grants}
+                        placeholder="Read, Write, Bash…"
+                        aria-label={`Tool grants for ${agentType.label} (comma separated)`}
+                        data-testid="agent-type-config-grants-input"
+                        disabled={!saveConfig}
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                    </dd>
+                  </div>
+
+                  <div class="row" data-testid="agent-type-config-posture">
+                    <dt class="row__key">Sandbox posture</dt>
+                    <dd class="row__val">
+                      <select
+                        class="field field--select"
+                        bind:value={draft.posture}
+                        aria-label={`Sandbox posture for ${agentType.label}`}
+                        data-testid="agent-type-config-posture-input"
+                        disabled={!saveConfig}
+                      >
+                        <option value="">inherit</option>
+                        <option value="strict">strict</option>
+                        <option value="relaxed">relaxed</option>
+                      </select>
+                    </dd>
+                  </div>
+
+                  <div class="row" data-testid="agent-type-config-actions">
+                    <dt class="row__key" aria-hidden="true"></dt>
+                    <dd class="row__val agent__save">
+                      <button
+                        type="button"
+                        class="save-btn"
+                        data-testid="agent-type-config-save"
+                        disabled={!saveConfig || draft.status === 'saving'}
+                        onclick={() => save(agentType.id)}
+                      >
+                        {draft.status === 'saving' ? 'Saving…' : 'Save'}
+                      </button>
+                      {#if draft.status === 'saved'}
+                        <span class="save-status save-status--ok" data-testid="agent-type-config-saved">
+                          ✓ saved
                         </span>
-                      </dd>
-                    </div>
-                  {/each}
+                      {:else if draft.status === 'error'}
+                        <span class="save-status save-status--error" role="alert">
+                          {draft.message ?? 'failed'}
+                        </span>
+                      {/if}
+                    </dd>
+                  </div>
                 </dl>
               </li>
             {/each}
@@ -173,7 +315,7 @@
           role="tabpanel"
           id="settings-tabpanel-profile"
           aria-labelledby="settings-tab-profile"
-          data-testid="settings-tab-profile"
+          data-testid="settings-panel-profile"
           tabindex="0"
         >
           <header class="panel__intro">
@@ -194,7 +336,7 @@
           role="tabpanel"
           id="settings-tabpanel-appearance"
           aria-labelledby="settings-tab-appearance"
-          data-testid="settings-tab-appearance"
+          data-testid="settings-panel-appearance"
           tabindex="0"
         >
           <header class="panel__intro">
@@ -401,59 +543,86 @@
     letter-spacing: 0.02em;
   }
 
-  /* ── the editable-looking (but disabled) default-model field ── */
+  /* ── the editable per-agent-type fields ── */
   .field {
     flex: 1 1 14rem;
     min-inline-size: 0;
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    background: var(--eden-app-rail-bg);
-    color: var(--eden-app-muted);
+    background: var(--eden-app-bg);
+    color: var(--eden-app-fg);
     border: 1px solid var(--eden-app-line);
     border-radius: var(--eden-app-radius, 4px);
     font-family: var(--font-code);
     font-size: var(--font-size-label, 13px);
-    cursor: not-allowed;
+  }
+  .field:focus-visible {
+    outline: none;
+    border-color: var(--eden-app-accent);
+    box-shadow: 0 0 0 1px var(--eden-app-accent);
   }
   .field:disabled {
+    color: var(--eden-app-muted);
+    cursor: not-allowed;
     opacity: 0.7;
   }
+  .field--select {
+    flex: 0 0 auto;
+    cursor: pointer;
+  }
+  .field--select:disabled {
+    cursor: not-allowed;
+  }
 
-  /* ── pending / "wiring in progress" affordances ── */
-  .pending {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-2, 8px);
-    font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-muted);
-  }
-  .pending__hint {
-    font-style: italic;
-  }
-  .row--pending .row__key {
-    color: var(--eden-app-muted);
-  }
+  /* ── the ◌ mark on the present-but-minimal Profile/Appearance placeholders ── */
   .pending__mark {
     color: var(--eden-app-accent);
     opacity: 0.7;
   }
-  .pending-tag {
-    display: inline-flex;
+
+  /* ── save action + status ── */
+  .agent__save {
     align-items: center;
-    gap: var(--space-1, 4px);
-    padding: 1px var(--space-2, 8px);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 4px);
-    background: var(--eden-app-rail-bg);
-    color: var(--eden-app-muted);
-    font-family: var(--font-code);
-    font-size: var(--font-size-caption, 12px);
-    letter-spacing: 0.02em;
-    text-transform: lowercase;
   }
-  .pending-tag__mark {
-    color: var(--eden-app-accent);
-    opacity: 0.7;
+  .save-btn {
+    padding: var(--space-2, 8px) var(--space-4, 16px);
+    border: 1px solid var(--eden-app-accent);
+    border-radius: var(--eden-app-radius, 6px);
+    background: var(--eden-app-accent);
+    color: var(--color-on-primary, var(--eden-app-bg));
+    font-family: var(--font-code);
+    font-size: var(--font-size-label, 13px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+  .save-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+  .save-btn:focus-visible {
+    outline: 2px solid var(--eden-app-accent);
+    outline-offset: 2px;
+  }
+  .save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .save-status {
+    font-size: var(--font-size-caption, 12px);
+    font-family: var(--font-code);
+  }
+  .save-status--ok {
+    color: var(--color-success, var(--eden-app-accent));
+  }
+  .save-status--error {
+    color: var(--color-error);
+  }
+  .load-error {
+    margin: 0;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border: 1px solid var(--color-error);
+    border-radius: var(--eden-app-radius, 6px);
+    color: var(--color-error);
+    font-size: var(--font-size-label, 13px);
   }
 
   /* ── placeholder tab bodies ── */

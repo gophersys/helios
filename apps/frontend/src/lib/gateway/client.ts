@@ -5,12 +5,14 @@
 // seam (sse.ts) — this client covers create / list / get / control / stop / resume / transcript.
 
 import type {
+  AgentConfigView,
   AgentView,
   ControlResponse,
   CreateResponse,
   Envelope,
   ErrorBody,
   Harness,
+  ListAgentConfigsResponse,
   ListProjectsResponse,
   ListResponse,
   PermissionScope,
@@ -155,6 +157,30 @@ export class GatewayClient {
     const envelope = await this.requestJSON<Envelope<ProjectView>>(
       'GET',
       `/projects/${encodeURIComponent(id)}`,
+    );
+    return envelope.data;
+  }
+
+  /** GET /agent-configs — the saved per-agent-type configurations (the Settings → Agents loader).
+   *  Enveloped; unwraps `.data.configs`. An agent type with no saved config is simply absent. */
+  async listAgentConfigs(): Promise<AgentConfigView[]> {
+    const envelope = await this.requestJSON<Envelope<ListAgentConfigsResponse>>(
+      'GET',
+      '/agent-configs',
+    );
+    return envelope.data.configs;
+  }
+
+  /** PUT /agent-configs/{agentType} — upsert one agent type's configuration. Enveloped; unwraps
+   *  `.data` (the stored config). The server normalizes (posture constrained, fields trimmed). */
+  async saveAgentConfig(
+    agentType: string,
+    body: { model: string; toolGrants: string[]; sandboxPosture: string },
+  ): Promise<AgentConfigView> {
+    const envelope = await this.requestJSON<Envelope<AgentConfigView>>(
+      'PUT',
+      `/agent-configs/${encodeURIComponent(agentType)}`,
+      body,
     );
     return envelope.data;
   }

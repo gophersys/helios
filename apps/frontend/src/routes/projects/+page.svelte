@@ -105,7 +105,12 @@
   </footer>
 </div>
 
-<SettingsModal bind:open={settingsOpen} {theme} />
+<SettingsModal
+  bind:open={settingsOpen}
+  {theme}
+  loadConfigs={() => client.listAgentConfigs()}
+  saveConfig={(agentType, body) => client.saveAgentConfig(agentType, body)}
+/>
 
 <style>
   .dash {

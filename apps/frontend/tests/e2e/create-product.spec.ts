@@ -683,6 +683,49 @@ test.describe('create a new project — full-stack journey against a real dev-se
 
     expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
   });
+
+  // ── the dashboard's Settings → Agents tab is a REAL editor: edit a per-agent-type config, save it
+  //    (the PUT carries the parsed config), and prove it PERSISTS across a reload (loaded from the
+  //    dev-serve's real AgentConfigStore — the same surface liveserve backs with Postgres). ──.
+  test('settings → agents: edit a per-agent-type config, save, and persist it', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (e) => pageErrors.push(e.message));
+
+    await page.goto('/projects');
+    await expect(page.getByTestId('projects-dashboard')).toBeVisible();
+    await page.getByTestId('user-settings-open').click();
+    await expect(page.getByTestId('settings-modal')).toBeVisible();
+
+    // Edit the implementer card (Agents is the default tab).
+    const card = page.locator('[data-testid="agent-type-config"][data-agent-type="implementer"]');
+    await card.getByTestId('agent-type-config-model-input').fill('claude-opus-4-8');
+    await card.getByTestId('agent-type-config-grants-input').fill('Read, Write');
+    await card.getByTestId('agent-type-config-posture-input').selectOption('strict');
+
+    // Save → the PUT carries the parsed config (grants split from the comma list); the card confirms.
+    const putBody = page
+      .waitForRequest((r) => r.url().includes('/agent-configs/implementer') && r.method() === 'PUT')
+      .then(
+        (r) => r.postDataJSON() as { model: string; toolGrants: string[]; sandboxPosture: string },
+      );
+    await card.getByTestId('agent-type-config-save').click();
+    const put = await putBody;
+    expect(put.model).toBe('claude-opus-4-8');
+    expect(put.toolGrants).toEqual(['Read', 'Write']);
+    expect(put.sandboxPosture).toBe('strict');
+    await expect(card.getByTestId('agent-type-config-saved')).toBeVisible();
+
+    // PERSISTENCE: reload the dashboard, reopen Settings → the saved config loads from the store
+    // (proving the round-trip persisted, not just an in-memory UI edit).
+    await page.reload();
+    await page.getByTestId('user-settings-open').click();
+    const reloaded = page.locator('[data-testid="agent-type-config"][data-agent-type="implementer"]');
+    await expect(reloaded.getByTestId('agent-type-config-model-input')).toHaveValue('claude-opus-4-8');
+    await expect(reloaded.getByTestId('agent-type-config-grants-input')).toHaveValue('Read, Write');
+    await expect(reloaded.getByTestId('agent-type-config-posture-input')).toHaveValue('strict');
+
+    expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
+  });
 });
 
 // ── LIVE arm — the SAME journey, but propose hits REAL claude (liveserve) and the created agent is
