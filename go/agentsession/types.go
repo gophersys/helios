@@ -105,6 +105,71 @@ const (
 	CommandAbort                     // cancel the in-flight turn (always valid until terminal)
 )
 
+// commandTokens holds the stable lower-kebab token for each CommandKind, indexed by value. It is the
+// canonical wire/UI rendering the gateway projects and the frontend reads (one concept, one home).
+var commandTokens = [...]string{
+	CommandPrompt: "prompt",
+	CommandSteer:  "steer",
+	CommandAbort:  "abort",
+}
+
+// commandOpNames is the human-facing operation name a StateError carries ("operation Steer is
+// illegal in state running"), kept distinct from the lower-kebab wire token.
+var commandOpNames = [...]string{
+	CommandPrompt: "Prompt",
+	CommandSteer:  "Steer",
+	CommandAbort:  "Abort",
+}
+
+// String renders the CommandKind as its stable lower-kebab token (prompt|steer|abort) — the token
+// the gateway projects onto the wire and the UI keys controls off.
+func (k CommandKind) String() string {
+	if int(k) < len(commandTokens) {
+		return commandTokens[k]
+	}
+	return "command"
+}
+
+// LegalControls is the SINGLE source of truth for the (State × turn-taking command) legality matrix:
+// the set of CommandKinds that may be issued in state, in CommandKind (iota) order. guardControl
+// admits a command iff it is in this set (the CapSteer-absence invalid-check excepted, since that is
+// a capability fault, not a state fault), and the gateway projects exactly this set to the UI so a
+// control is never OFFERED when it is illegal. The matrix:
+//
+//	Initializing       → {Abort}                (no turn yet; only cancel)
+//	Ready/AwaitingInput → {Prompt, Abort}       (accept the (next) turn; cancel)
+//	Running            → {Steer, Abort}         (steer mid-turn — if CapSteer; cancel)
+//	AwaitingPermission → {Abort}                (blocked on a Resolve, which is NOT a command; cancel)
+//	terminal           → {}                     (nothing legal)
+//
+// Resolve (a permission allow/deny) is a SEPARATE method gated on a pending RequestID, NOT a
+// CommandKind, and is intentionally excluded here — it is the second, independent legality axis.
+func LegalControls(state State) []CommandKind {
+	switch state {
+	case StateReady, StateAwaitingInput:
+		return []CommandKind{CommandPrompt, CommandAbort}
+	case StateRunning:
+		return []CommandKind{CommandSteer, CommandAbort}
+	case StateInitializing, StateAwaitingPermission:
+		return []CommandKind{CommandAbort}
+	default: // StateCompleted, StateFailed, StateAborted (terminal)
+		return nil
+	}
+}
+
+// CanControl reports whether the turn-taking command kind is legal in state (membership over
+// LegalControls). It does NOT account for CapSteer absence (a capability fault guardControl checks
+// separately); it is the pure state-legality predicate both guardControl and the gateway projection
+// cite so neither re-derives the matrix.
+func CanControl(state State, kind CommandKind) bool {
+	for _, legal := range LegalControls(state) {
+		if legal == kind {
+			return true
+		}
+	}
+	return false
+}
+
 // Decision answers a PermissionRequest. The decider is the caller (human or
 // policy); the By stamp is the audit identity (07 §7): a user id or "policy:<name>".
 // In the ratified permission model (founder, 2026-06-15) a Decision may also be

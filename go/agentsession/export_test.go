@@ -14,3 +14,15 @@ func RiskClassForTest(tool string, scopes []string) RiskLevel { return riskClass
 func ClampToRiskForTest(tool string, scopes []string, decision Decision) Decision {
 	return clampToRisk(tool, scopes, decision)
 }
+
+// GuardControlForTest runs guardControl on a session FORCED into state with the given CapSteer status,
+// so the (state × command) legality the guard enforces is provable across ALL 8 states without
+// scripting the transitions to reach them — the exhaustive matrix the conformance transition-mirror
+// never covered. Test-only; does not ship.
+func GuardControlForTest(state State, steer CapStatus, command Command) error {
+	s := &session{
+		state:    state,
+		manifest: CapabilityManifest{Capabilities: map[Capability]CapStatus{CapSteer: steer}},
+	}
+	return s.guardControl(command)
+}

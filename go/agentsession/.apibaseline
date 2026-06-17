@@ -13,7 +13,9 @@
     const TurnCompleted TurnOutcome = iota ...
     const VehicleEnv CredentialVehicle = iota ...
     func FromSeq(seq uint64) Cursor
+    func LegalControls(state State) []CommandKind
     func NewLedgerFold() *LedgerFold
+func CanControl(state State, kind CommandKind) bool
 func New(configuration Config, dependencies Deps) (*Pool, error)
 type Ack struct{ ... }
 type Adapter interface{ ... }

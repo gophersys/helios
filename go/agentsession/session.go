@@ -192,29 +192,31 @@ func (s *session) guardControl(command Command) error {
 	state := s.state
 	s.mu.Unlock()
 
+	// An unknown CommandKind is an INVALID request (not a state conflict), rejected before any
+	// state/capability reasoning.
 	switch command.Kind {
-	case CommandPrompt:
-		if state != StateReady && state != StateAwaitingInput {
-			return errors.Wrap(errors.KindConflict, "agentsession: prompt",
-				StateError{From: state, Op: "Prompt"})
-		}
-	case CommandSteer:
-		if s.manifest.Status(CapSteer) == CapAbsent {
-			return errors.Wrap(errors.KindInvalid, "agentsession: steer",
-				UnsupportedError{Cap: CapSteer})
-		}
-		if state != StateRunning {
-			return errors.Wrap(errors.KindConflict, "agentsession: steer",
-				StateError{From: state, Op: "Steer"})
-		}
-	case CommandAbort:
-		if state.IsTerminal() {
-			return errors.Wrap(errors.KindConflict, "agentsession: abort",
-				StateError{From: state, Op: "Abort"})
-		}
+	case CommandPrompt, CommandSteer, CommandAbort:
+		// a known turn-taking command — fall through to the capability + state-legality checks
 	default:
 		return errors.Wrap(errors.KindInvalid, "agentsession: control",
 			StateError{From: state, Op: "Control"})
+	}
+
+	// CapSteer absence is a CAPABILITY fault (KindInvalid), checked BEFORE the state membership so an
+	// adapter that cannot steer reports UnsupportedError regardless of phase (the capability-honesty
+	// contract). It is the one legality input LegalControls deliberately does not encode.
+	if command.Kind == CommandSteer && s.manifest.Status(CapSteer) == CapAbsent {
+		return errors.Wrap(errors.KindInvalid, "agentsession: steer",
+			UnsupportedError{Cap: CapSteer})
+	}
+
+	// The (state × command) legality is sourced from the ONE canonical home (LegalControls via
+	// CanControl) — guardControl is its enforcer, the gateway projects the same set so the UI never
+	// offers an illegal control, and a drift fails in exactly one place. An illegal command in the
+	// current state is a typed StateError (KindConflict).
+	if !CanControl(state, command.Kind) {
+		return errors.Wrap(errors.KindConflict, "agentsession: "+command.Kind.String(),
+			StateError{From: state, Op: commandOpNames[command.Kind]})
 	}
 	return nil
 }
