@@ -121,7 +121,17 @@ OPENROUTER_KEY="$(read_env OPENROUTER_API_KEY)"
 declare -a kv_pairs=() seeded_keys=()
 if [ -n "${CLAUDE_TOKEN}" ]; then kv_pairs+=("setup-token=${CLAUDE_TOKEN}"); seeded_keys+=("setup-token"); fi
 if [ -n "${OPENROUTER_KEY}" ]; then kv_pairs+=("openrouter-api-key=${OPENROUTER_KEY}"); seeded_keys+=("openrouter-api-key"); fi
-[ "${#kv_pairs[@]}" -gt 0 ] || die "no harness credentials found in ${ENV_FILE} (need CLAUDE_CODE_OAUTH_TOKEN and/or OPENROUTER_API_KEY)"
+# The agent demo NEEDS a harness credential; the platform-only dev/test loop (the login E2E) does
+# NOT — it only needs the platformgateway secrets seeded below. So a missing harness credential is
+# fatal ONLY when harness creds are required (the default); EDEN_REQUIRE_HARNESS_CREDS=false (set by
+# the login E2E runner) downgrades it to a warning and seeds just the platform secrets.
+if [ "${#kv_pairs[@]}" -eq 0 ]; then
+  if [ "${EDEN_REQUIRE_HARNESS_CREDS:-true}" = "false" ]; then
+    log "WARNING: no harness credentials in ${ENV_FILE} — seeding ONLY the platformgateway secrets (EDEN_REQUIRE_HARNESS_CREDS=false)"
+  else
+    die "no harness credentials found in ${ENV_FILE} (need CLAUDE_CODE_OAUTH_TOKEN and/or OPENROUTER_API_KEY; set EDEN_REQUIRE_HARNESS_CREDS=false to seed only the platform secrets)"
+  fi
+fi
 
 # platformgateway (Eden's platform HTTP API) resolves its JWT signing key + Postgres DSN from Vault
 # (EDEN_GATEWAY_JWT_SECRET_REF / EDEN_GATEWAY_DATABASE_DSN_REF). The DSN points at the same eden

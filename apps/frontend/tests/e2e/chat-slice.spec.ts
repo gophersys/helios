@@ -21,43 +21,32 @@ async function openChat(page: Page): Promise<void> {
   await expect(page.getByTestId('gateway-health')).toHaveText('gateway up');
 }
 
-/** Drive the PRODUCT WIZARD end-to-end to launch a session of the given harness from a prompt.
- *  A "session" IS a product Eden builds: the wizard proposes a ProductConfig from the prompt
- *  (POST /product/propose — the dev-serve's deterministic fake, so this is stable), the steps are
- *  editable, and REVIEW → Launch creates the session (POST /sessions carrying the product) and
- *  opens the chat view. This exercises DEFINE → STACK → CAPABILITIES (pick the harness) → PROCESS
- *  → SAFETY → REVIEW → Launch — the full create flow over the real propose + create REST. */
+/** Drive the CREATE FLOW end-to-end to launch a session of the given harness from a spark prompt.
+ *  A "session" IS a product Eden builds: the flow proposes a ProductConfig from the spark (POST
+ *  /product/propose — the dev-serve's deterministic fake, so this is stable; the proposer scopes the
+ *  HARNESS from the spark — a "deepseek"/"oh my pi" spark scopes omp, else claude), the steps are
+ *  editable, and "Build it" creates the session (POST /sessions carrying the product) and opens the
+ *  chat view. Spark → Scope → Stack → Build it — the full create flow over the real propose + create
+ *  REST (the same flow create-product.spec drives). */
 async function createSession(page: Page, harness: 'claude' | 'omp', prompt: string): Promise<void> {
-  // ── open the wizard (DEFINE) ───────────────────────────────────────────────.
-  await page.getByTestId('new-session').click();
-  await expect(page.getByTestId('product-wizard')).toBeVisible();
-  await page.getByTestId('wizard-prompt').fill(prompt);
+  // ── open the flow (SPARK) ──────────────────────────────────────────────────.
+  await page.getByTestId('new-session').first().click();
+  await expect(page.getByTestId('create-flow')).toBeVisible();
+  await page.getByTestId('create-spark').fill(prompt);
 
-  // ── DEFINE → scope the product (real POST /product/propose) → STACK ─────────.
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'stack');
+  // ── SPARK → scope the product (real POST /product/propose) → STACK ──────────.
+  await page.getByTestId('create-start').click();
+  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+    timeout: 10_000,
+  });
+  await page.getByTestId('create-next').click();
+  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'stack');
+  // The run line names the proposed harness (the dev proposer scoped it from the spark).
+  await expect(page.getByTestId('create-runline')).toContainText(harness);
 
-  // STACK → CAPABILITIES.
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'capabilities');
-
-  // CAPABILITIES — pick the harness (single-select pill).
-  const harnessPill = page.getByTestId(`wizard-harness-${harness}`);
-  await harnessPill.click();
-  await expect(harnessPill).toHaveAttribute('aria-checked', 'true');
-
-  // CAPABILITIES → PROCESS → SAFETY → REVIEW.
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'process');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'safety');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'review');
-  await expect(page.getByTestId('review-harness')).toContainText(harness);
-
-  // REVIEW → Launch (POST /sessions with the product config) → open the chat view.
-  await page.getByTestId('wizard-launch').click();
-  await expect(page.getByTestId('product-wizard')).toBeHidden();
+  // ── STACK → Build it (POST /sessions with the product config) → open the chat view ──.
+  await page.getByTestId('create-launch').click();
+  await expect(page.getByTestId('create-flow')).toBeHidden();
 
   // The chat view is open and bound to the chosen harness label.
   await expect(page.getByTestId('active-harness')).toHaveText(harness);
@@ -90,10 +79,10 @@ test.describe('chat slice — forced CRUD against a real dev-serve', () => {
 
     // The live usage/cost meter updated from the real usage tick + terminal ledger (100 input,
     // 40 output tokens, $0.0015 cost — the canonical script's ledger).
-    await expect(page.getByTestId('meter-input')).toHaveText('100');
-    await expect(page.getByTestId('meter-output')).toHaveText('40');
-    await expect(page.getByTestId('meter-cost')).toContainText('0.001500');
-    await expect(page.getByTestId('meter-model')).toContainText('fake-fable-5');
+    await expect(page.getByTestId('usage-dock-input')).toContainText('100');
+    await expect(page.getByTestId('usage-dock-output')).toContainText('40');
+    await expect(page.getByTestId('usage-dock-cost')).toContainText('0.001500');
+    await expect(page.getByTestId('usage-dock-model')).toContainText('fake-fable-5');
 
     // The terminal banner (the result event) renders the clean completion.
     await expect(page.getByTestId('terminal-banner')).toHaveAttribute('data-outcome', 'completed');
@@ -129,17 +118,17 @@ test.describe('chat slice — forced CRUD against a real dev-serve', () => {
   test('omp: create → chat → real SSE events (happy path)', async ({ page }) => {
     await openChat(page);
 
-    // ── CREATE (omp) ─────────────────────────────────────────────────────────.
-    await createSession(page, 'omp', 'Summarize the plan.');
-    await expect(page.getByTestId('user-message')).toContainText('Summarize the plan.');
+    // ── CREATE (omp) — a "deepseek" spark scopes the omp harness (the dev proposer) ──.
+    await createSession(page, 'omp', 'Summarize the plan with deepseek.');
+    await expect(page.getByTestId('user-message')).toContainText('Summarize the plan');
 
     // ── REAL streamed events render (same canonical taxonomy over real SSE) ───.
     await expect(page.getByTestId('assistant-text')).toContainText('Hello, world', {
       timeout: 15_000,
     });
     await expect(page.getByTestId('tool-card').first()).toContainText('Write');
-    await expect(page.getByTestId('meter-output')).toHaveText('40');
-    await expect(page.getByTestId('meter-cost')).toContainText('0.001500');
+    await expect(page.getByTestId('usage-dock-output')).toContainText('40');
+    await expect(page.getByTestId('usage-dock-cost')).toContainText('0.001500');
     await expect(page.getByTestId('terminal-banner')).toHaveAttribute('data-outcome', 'completed');
 
     // Tear the session down so the dev-serve has no orphan live handle.

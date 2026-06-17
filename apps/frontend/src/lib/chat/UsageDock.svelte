@@ -60,8 +60,8 @@
   {#if expanded}
     <div class="dock__body" data-testid="usage-dock-body">
       <div class="dock__tokens" title="input / output tokens">
-        <span class="up">↑{compact(meter.inputTokens)}</span>
-        <span class="down">↓{compact(meter.outputTokens)}</span>
+        <span class="up" data-testid="usage-dock-input">↑{compact(meter.inputTokens)}</span>
+        <span class="down" data-testid="usage-dock-output">↓{compact(meter.outputTokens)}</span>
         {#if cacheTokens > 0}
           <span class="dock__sep" aria-hidden="true">·</span>
           <span class="cache" title="cache read + write">⟲{compact(cacheTokens)}</span>
