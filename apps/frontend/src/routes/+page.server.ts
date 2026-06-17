@@ -1,11 +1,10 @@
-// The root path is Eden's front door, and the front door is the Projects dashboard (/projects):
-// a grid of what the user is building, with the "＋ New project" creation flow. The legacy
-// document-workspace grid that used to live here is retired (its workspace pages remain under
-// /p/[slug]); the root now redirects so every entry point — the demo, a bare link, a bookmark —
-// lands on the projects home.
+// The root path is Eden's front door, and the front door is now the LOGIN screen (/login): a basic,
+// pre-identity sign-in that loads the default user and continues into the Projects dashboard. Every
+// entry point — the demo, a bare link, a bookmark — passes through login first. (The dashboard at
+// /projects loads the identity lazily too, so a deep-link that skips login still works.)
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = () => {
-  redirect(307, '/projects');
+  redirect(307, '/login');
 };

@@ -43,6 +43,7 @@ SUBSTRATE_HOST="$(detect_substrate_host)"
 
 # Bind addresses for the demo processes.
 GATEWAY_ADDRESS="${EDEN_GATEWAY_ADDRESS:-127.0.0.1:8080}"
+PLATFORM_ADDRESS="${EDEN_PLATFORM_ADDRESS:-127.0.0.1:8081}" # platformgateway (Eden's platform HTTP API: users + login)
 FRONTEND_PORT="${EDEN_FRONTEND_PORT:-5173}"
 
 log()  { printf '\033[1;36m[deploy]\033[0m %s\n' "$*" >&2; }
@@ -184,6 +185,20 @@ demo_up() {
   echo $! > "${STATE_DIR}/gateway.pid"
   wait_gateway
 
+  log "starting platformgateway-live (Eden's platform HTTP API: users + login) on ${PLATFORM_ADDRESS} ..."
+  # platformgateway resolves its JWT signing key + Postgres DSN from the SAME local Vault (seeded by
+  # vault-seed.sh as platformgateway-jwt-signing-key / platformgateway-database-dsn under
+  # eden/development); it runs migrations + seeds the default user at startup against eden-postgres.
+  ${launcher} env \
+      GOWORK="${REPO_ROOT}/go.work" \
+      EDEN_GATEWAY_ADDRESS="${PLATFORM_ADDRESS}" \
+      EDEN_GATEWAY_JWT_SECRET_REF="vault://eden/development#platformgateway-jwt-signing-key" \
+      EDEN_GATEWAY_DATABASE_DSN_REF="vault://eden/development#platformgateway-database-dsn" \
+      bash -c "cd '${REPO_ROOT}/apps/platformgateway' && exec go run ./cmd/gateway" \
+      >"${STATE_DIR}/platform.log" 2>&1 &
+  echo $! > "${STATE_DIR}/platform.pid"
+  wait_platform
+
   log "starting the SvelteKit chat UI (vite via bun) on port ${FRONTEND_PORT} ..."
   # The base devcontainer is bun-only (no node/yarn); the frontend's ctl.sh runs `bun x vite dev`.
   # The vite proxy forwards /gateway → the live gateway (EDEN_GATEWAY_TARGET), same-origin (no CORS).
@@ -193,6 +208,7 @@ demo_up() {
   # loopback-only (the vite proxy reaches it in-container); only the UI port is host-exposed.
   ${launcher} env \
       EDEN_GATEWAY_TARGET="http://${GATEWAY_ADDRESS}" \
+      EDEN_PLATFORM_TARGET="http://${PLATFORM_ADDRESS}" \
       bash -c "cd '${REPO_ROOT}/apps/frontend' && exec bash ./ctl.sh dev --port '${FRONTEND_PORT}' --host 0.0.0.0 --strictPort" \
       >"${STATE_DIR}/frontend.log" 2>&1 &
   echo $! > "${STATE_DIR}/frontend.pid"
@@ -205,8 +221,9 @@ demo_up() {
 
   log ""
   log "  ============================================================"
-  log "  LIVE: open  http://127.0.0.1:${FRONTEND_PORT}/   (Projects dashboard)"
-  log "  gateway:    http://${GATEWAY_ADDRESS}/healthz"
+  log "  LIVE: open  http://127.0.0.1:${FRONTEND_PORT}/   (login → Projects dashboard)"
+  log "  gateway:    http://${GATEWAY_ADDRESS}/healthz   (agentgateway — chat/agents)"
+  log "  platform:   http://${PLATFORM_ADDRESS}/healthz/live   (platformgateway — users/login)"
   log "  harness:    ${EDEN_HARNESS:-claude-code} (real) via vault://eden/development#setup-token"
   log "  logs:       ${STATE_DIR}/{gateway,frontend}.log"
   log "  stop:       bash deploy/ctl.sh demo down"
@@ -223,6 +240,20 @@ wait_gateway() {
     sleep 1
   done
   warn "gateway did not answer /healthz in time; check ${STATE_DIR}/gateway.log"
+}
+
+# wait_platform blocks until platformgateway answers its liveness probe (it migrates + seeds the
+# default user on startup, so a slightly longer budget covers the first-boot schema work).
+wait_platform() {
+  log "waiting for platformgateway /healthz/live ..."
+  for _ in $(seq 1 60); do
+    if curl -fsS "http://${PLATFORM_ADDRESS}/healthz/live" >/dev/null 2>&1; then
+      log "  platformgateway: healthy"
+      return 0
+    fi
+    sleep 1
+  done
+  warn "platformgateway did not answer /healthz/live in time; check ${STATE_DIR}/platform.log"
 }
 
 # DEMO_PROXY_NAME is the published-port proxy sidecar that bridges the Mac host to the in-container
@@ -288,7 +319,7 @@ demo_down() {
   if command -v docker >/dev/null 2>&1; then
     docker rm -f "${DEMO_PROXY_NAME}" >/dev/null 2>&1 || true
   fi
-  for p in frontend gateway; do
+  for p in frontend gateway platform; do
     local pidfile="${STATE_DIR}/${p}.pid"
     if [ -f "${pidfile}" ]; then
       local pid; pid="$(cat "${pidfile}")"

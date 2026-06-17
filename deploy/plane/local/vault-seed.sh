@@ -123,6 +123,19 @@ if [ -n "${CLAUDE_TOKEN}" ]; then kv_pairs+=("setup-token=${CLAUDE_TOKEN}"); see
 if [ -n "${OPENROUTER_KEY}" ]; then kv_pairs+=("openrouter-api-key=${OPENROUTER_KEY}"); seeded_keys+=("openrouter-api-key"); fi
 [ "${#kv_pairs[@]}" -gt 0 ] || die "no harness credentials found in ${ENV_FILE} (need CLAUDE_CODE_OAUTH_TOKEN and/or OPENROUTER_API_KEY)"
 
+# platformgateway (Eden's platform HTTP API) resolves its JWT signing key + Postgres DSN from Vault
+# (EDEN_GATEWAY_JWT_SECRET_REF / EDEN_GATEWAY_DATABASE_DSN_REF). The DSN points at the same eden
+# postgres the rest of the demo uses; the signing key is a FRESH local dev key (generated, never
+# committed — the public login bootstrap needs no token, so a per-seed key is fine).
+PLATFORM_JWT_KEY="$(openssl rand -hex 32 2>/dev/null || echo 'eden-platformgateway-local-dev-signing-key-32bytes')"
+kv_pairs+=("platformgateway-jwt-signing-key=${PLATFORM_JWT_KEY}")
+seeded_keys+=("platformgateway-jwt-signing-key")
+if [ -n "${DATABASE_URL:-}" ]; then
+  kv_pairs+=("platformgateway-database-dsn=${DATABASE_URL}")
+  seeded_keys+=("platformgateway-database-dsn")
+fi
+unset PLATFORM_JWT_KEY
+
 log "seeding ${#kv_pairs[@]} credential field(s) into ${VAULT_MOUNT}/${VAULT_SECRET_PATH}: ${seeded_keys[*]} (NAMES only) ..."
 # `vault kv put` runs inside the container; the value is in the argv there, NOT on any host log.
 # Redirect its stdout/stderr anyway (defense in depth — its metadata table has no value).

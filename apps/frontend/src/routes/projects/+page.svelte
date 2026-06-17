@@ -12,9 +12,16 @@
   import ProjectCard, { type ProjectSummary } from '$lib/dashboard/ProjectCard.svelte';
   import UserProfileCard from '$lib/dashboard/UserProfileCard.svelte';
   import SettingsModal from '$lib/dashboard/SettingsModal.svelte';
+  import { currentUser } from '$lib/platform/currentUser.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
   const theme = edenTheme;
+
+  // The signed-in identity (set by the login screen). Load it lazily if a deep-link skipped login;
+  // a failure (platform API unreachable) is non-fatal — the profile card falls back to a neutral name.
+  $effect(() => {
+    if (!currentUser.user && !currentUser.loading) void currentUser.load();
+  });
 
   let projects = $state<ProjectSummary[]>([]);
   let settingsOpen = $state(false);
@@ -104,7 +111,12 @@
   </main>
 
   <footer class="dash__footer">
-    <UserProfileCard name="You" onSettings={() => (settingsOpen = true)} {theme} />
+    <UserProfileCard
+      name={currentUser.displayName}
+      email={currentUser.user?.email ?? ''}
+      onSettings={() => (settingsOpen = true)}
+      {theme}
+    />
   </footer>
 </div>
 
@@ -196,7 +208,9 @@
     border-radius: var(--eden-app-radius, 8px);
     color: var(--eden-app-muted);
     cursor: pointer;
-    transition: border-color 140ms ease, color 140ms ease;
+    transition:
+      border-color 140ms ease,
+      color 140ms ease;
   }
   .dash__newcard:hover {
     border-color: var(--eden-app-accent);
