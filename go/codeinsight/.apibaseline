@@ -1,0 +1,43 @@
+## github.com/gophersys/libs/go/codeinsight
+    func New(configuration Config, dependencies Deps) (*Analyzer, error)
+    func NewGoMetricProvider() *GoMetricProvider
+    func NewSystemGitHistory() *SystemGitHistory
+const SchemaVersion = "0.1.0"
+type Analyzer struct{ ... }
+type Clock interface{ ... }
+type Commit struct{ ... }
+type Config struct{ ... }
+type Coupling struct{ ... }
+type Deps struct{ ... }
+type DoraKeys struct{ ... }
+type Entity struct{ ... }
+type FileChange struct{ ... }
+type FileMetrics struct{ ... }
+type GoMetricProvider struct{}
+type History interface{ ... }
+type HistoryError struct{ ... }
+type InvalidInputError struct{ ... }
+type MetricProvider interface{ ... }
+type Ownership struct{ ... }
+type Report struct{ ... }
+type RepositoryRef struct{ ... }
+type Summary struct{ ... }
+type SystemGitHistory struct{}
+type TrendPoint struct{ ... }
+type TrendSeries struct{ ... }
+type View struct{ ... }
+type WalkWindow struct{ ... }
+type Window struct{ ... }
+## github.com/gophersys/libs/go/codeinsight/codeinsighttest
+    func CanonicalSeed() RepoSeed
+    func FakeArm(t TestingT) HistoryFactory
+    func RealArm(t TestingT) HistoryFactory
+const SeededCanary = "Canary Author <canary@do-not-leak.example>"
+func NewRealRepo(t TestingT, seed RepoSeed) string
+func RunAnalyzerSuite(t *testing.T, newHistory HistoryFactory)
+type FakeHistory struct{ ... }
+type FixedClock struct{ ... }
+type HistoryFactory func() (history codeinsight.History, repositoryPath, head string)
+type RepoSeed struct{ ... }
+type SeedCommit struct{ ... }
+type TestingT interface{ ... }
