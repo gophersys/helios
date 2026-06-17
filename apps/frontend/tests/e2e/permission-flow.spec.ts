@@ -56,6 +56,10 @@ async function assertAwaitingPermissionControls(page: Page): Promise<void> {
   await expect(page.getByTestId('request-tool').getByRole('button')).toBeDisabled();
   // Abort is legal in any non-terminal state, so it stays enabled; the permission card's Allow/Deny too.
   await expect(page.getByTestId('abort').getByRole('button')).toBeEnabled();
+  // And the gateway drives the single opening turn, so NO illegal-prompt conflict notice renders —
+  // this is the exact "prompt is illegal in state awaiting-permission" artifact the double-send used
+  // to surface here; its absence is now asserted.
+  await expect(page.getByTestId('notice').filter({ hasText: /illegal|conflict/i })).toHaveCount(0);
 }
 
 test.describe('permission flow — live round-trip against a real dev-serve (fake arm)', () => {

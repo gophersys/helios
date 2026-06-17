@@ -59,8 +59,11 @@
   }
 
   /** "Build it" → create the session carrying the proposed ProductConfig, then open the chat view
-   *  streaming the real agent. Created WITHOUT an opening prompt so it starts in `ready`; the first
-   *  turn is then driven through the control channel so the user bubble renders from a clean state. */
+   *  streaming the real agent. The GATEWAY drives the SINGLE opening turn server-side: it folds the
+   *  product preamble (which already carries the user's idea) into the first prompt at create. The
+   *  client therefore only RECORDS the user's spark as a local bubble — issuing a second prompt here
+   *  would be an illegal turn (the session has already left `ready`) and 409. One home: the gateway
+   *  drives the opening turn, the client mirrors it. */
   async function launchProduct(payload: {
     product: ProductConfig;
     harness: ProductHarness;
@@ -84,7 +87,7 @@
     showWizard = false;
     await attach(created.id, harness);
     const opening = payload.prompt.trim();
-    if (opening && active) await active.send(opening);
+    if (opening && active) active.recordOpeningPrompt(opening);
   }
 
   // ── open-session state ───────────────────────────────────────────────────────.

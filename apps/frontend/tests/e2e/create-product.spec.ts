@@ -288,17 +288,16 @@ test.describe('create a new project — full-stack journey against a real dev-se
     page,
   }, testInfo) => {
     // Track real runtime faults across the journey. An uncaught exception (pageerror) is a hard
-    // crash and is asserted to be zero. For console errors we exclude the EXPECTED terminal-state
-    // resource line: the dev fake is a SINGLE-TURN script, so the opening turn (driven from the
-    // product preamble at create) reaches its terminal Result, and the UI's follow-up opening prompt
-    // is correctly rejected 409 by the gateway (the browser logs the failed fetch). That 409 is the
-    // gateway behaving correctly on a single-turn fake — NOT a UI bug; the UI surfaces it as a notice.
+    // crash and is asserted to be zero. Console errors are captured WITHOUT exclusions: the gateway
+    // now drives the SINGLE opening turn from the product preamble and the client only records the
+    // user bubble locally (no redundant follow-up prompt), so there is no illegal-prompt 409 and no
+    // failed-fetch line to filter out. A non-empty console_errors set is therefore a real fault —
+    // this guard is what would now catch a regression to the old double-send.
     const pageErrors: string[] = [];
     page.on('pageerror', (e) => pageErrors.push(e.message));
     const console_errors: string[] = [];
     page.on('console', (m) => {
-      if (m.type() === 'error' && !/Failed to load resource/i.test(m.text()))
-        console_errors.push(m.text());
+      if (m.type() === 'error') console_errors.push(m.text());
     });
 
     await openChat(page);
@@ -483,6 +482,12 @@ test.describe('create a new project — full-stack journey against a real dev-se
     // ── 3. REAL SSE EVENTS render (no drift between the backend events and the UI). The user's intent
     //    bubble renders, then the canonical streamed turn arrives over the REAL SSE stream. ──.
     await expect(page.getByTestId('user-message')).toContainText(INTENT);
+    // The opening turn is driven once, by the gateway — the client never fires a redundant second
+    // prompt, so NO illegal-prompt conflict notice renders (the regression guard for the double-send
+    // 409 that used to be filtered away above).
+    await expect(
+      page.getByTestId('notice').filter({ hasText: /illegal|conflict/i }),
+    ).toHaveCount(0);
     await expect(page.getByTestId('assistant-text')).toContainText('Hello, world', {
       timeout: 15_000,
     });
@@ -542,7 +547,8 @@ test.describe('create a new project — full-stack journey against a real dev-se
     await expect(page.getByTestId('transcript')).toHaveCount(0);
 
     // No uncaught exceptions and no app-logged console errors across the whole journey (catches the
-    // dumb runtime things). The expected single-turn-fake terminal 409 is excluded above.
+    // dumb runtime things). With the single-driver opening turn there is NO illegal-prompt 409 to
+    // exclude — the console-error set must be genuinely empty.
     expect(pageErrors, `uncaught exceptions during the journey: ${pageErrors.join(' | ')}`).toEqual(
       [],
     );

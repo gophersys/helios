@@ -179,6 +179,16 @@ export class ChatSession {
     }
   }
 
+  /** recordOpeningPrompt renders the user's opening spark as a local user bubble WITHOUT issuing a
+   *  control turn. The create flow's gateway drives the SINGLE opening turn server-side (it folds the
+   *  product preamble into the first prompt at create), so the chat surface must only REFLECT the
+   *  user's words — issuing a second prompt here would be an illegal turn (the session has already
+   *  left `ready`, often it is already `awaiting-permission` or terminal) and 409. This is the
+   *  one-home rule for the opening turn: the gateway drives it, the client mirrors it. */
+  recordOpeningPrompt(text: string): void {
+    this.pushUser(text);
+  }
+
   /** steer interjects into a running turn (CapSteer). */
   async steer(text: string): Promise<void> {
     try {
