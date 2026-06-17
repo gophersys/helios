@@ -1,0 +1,175 @@
+# platformgateway OpenAPI contract — GENERATED, DO NOT EDIT BY HAND (ADR-0023; OD-16-openapi=go-first-emit).
+#
+# This file is EMITTED from the five-file route packages' Go Request/Response types by
+# tools/openapi (`bash ./ctl.sh openapi`). The Go routes are the authoring surface; this YAML
+# is their projection — edit a route's types and re-emit, never edit here. `bash ./ctl.sh
+# verify-openapi` fails CI if this file drifts from the routes; `bash ./ctl.sh gen-client` emits
+# the typed Go client from it (clients/go), which the integration lane drives through the handlers.
+openapi: 3.0.3
+info:
+  title: platformgateway
+  version: 0.1.0
+  description: >-
+    Eden's platformgateway — the platform HTTP API (ADR-0023). The contract is EMITTED from the Go route types
+    (go-first-emit); sqlc/pgx data layer; the 5-files-per-route handler pipeline; behind the
+    edenhttp dev-JWT identity gate.
+servers:
+  - url: /v1
+    description: The versioned API surface (mounted behind the authentication Middleware).
+security:
+  - bearerAuth: []
+paths:
+  /ping:
+    get:
+      operationId: ping
+      summary: "Authenticated round-trip probe — echoes the caller's subject and a server timestamp."
+      description: "Requires the `ping:read` grant. Proves the authenticated request pipeline end to end (authenticate -> authorize -> execute)."
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_PingPayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `ping:read` grant.
+  /users:
+    get:
+      operationId: listUsers
+      summary: "List users (paginated, oldest-first)."
+      description: "Requires the `users:read` grant. Returns a page of users with the resolved limit/offset window."
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: "Page size (default 50, max 200)."
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          required: false
+          description: "Page offset (0-based)."
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_ListUsersPayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `users:read` grant.
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: "Get a user by id."
+      description: "Requires the `users:read` grant. A missing user is a 404."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The user id (a uuid)."
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_User"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `users:read` grant.
+        "404":
+          description: The resource does not exist.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Envelope_ListUsersPayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/ListUsersPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_PingPayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/PingPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_User:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/User"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    ListUsersPayload:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32
+    PingPayload:
+      type: object
+      required: [observedAt, subject]
+      properties:
+        subject:
+          type: string
+        observedAt:
+          type: string
+    User:
+      type: object
+      required: [createdAt, email, id, isDefault, name, updatedAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string

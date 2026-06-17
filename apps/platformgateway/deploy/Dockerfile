@@ -1,0 +1,31 @@
+# http-gateway image (the application-template default, ADR-0023). ONE Dockerfile per service; the
+# image-tag-as-environment-contract carries `:local` for a compose load vs
+# `<registry>/http-gateway:<tag>` for a registry push. The gateway holds no harness and resolves its
+# secret values at runtime through the Vault sidecar, so its runtime stage is a minimal, non-root
+# distroless base (no harness toolchain needed).
+#
+# Build from the MONOREPO ROOT with the go.work in context (the unpremultiplied sibling libraries
+# resolve there):
+#   docker build -f application-templates/go/http-gateway/deploy/Dockerfile -t http-gateway:local .
+#
+# SKELETON: a generated app keeps this shape; it changes only the binary name / exposed port if it
+# diverges from the template defaults.
+
+# ── build stage ───────────────────────────────────────────────────────────────────────────────────
+FROM golang:1.26 AS build
+WORKDIR /src
+COPY . .
+ENV GOWORK=/src/go.work CGO_ENABLED=0
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    go build -trimpath -ldflags='-s -w' -o /out/http-gateway \
+      ./application-templates/go/http-gateway/cmd/gateway
+
+# ── runtime stage: minimal, non-root ──────────────────────────────────────────────────────────────
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime
+COPY --from=build /out/http-gateway /usr/local/bin/http-gateway
+EXPOSE 8080
+# EDEN_GATEWAY_JWT_SECRET_REF (a Vault reference), VAULT_ADDR, EDEN_VAULT_MODE, EDEN_GATEWAY_ADDRESS
+# are injected by the deployment; the gateway requires the JWT secret reference (behind auth even
+# locally) and resolves its value through the Vault sidecar at startup — never an inlined value.
+ENTRYPOINT ["/usr/local/bin/http-gateway"]
