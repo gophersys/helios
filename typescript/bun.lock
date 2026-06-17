@@ -53,6 +53,16 @@
         "@eden/scale": "workspace:*",
       },
     },
+    "visualization": {
+      "name": "@eden/visualization",
+      "version": "0.0.0",
+      "dependencies": {
+        "@eden/theme": "workspace:*",
+      },
+      "peerDependencies": {
+        "svelte": "^5",
+      },
+    },
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
@@ -150,6 +160,8 @@
     "@eden/scale": ["@eden/scale@workspace:scale"],
 
     "@eden/theme": ["@eden/theme@workspace:theme"],
+
+    "@eden/visualization": ["@eden/visualization@workspace:visualization"],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.7", "", { "os": "aix", "cpu": "ppc64" }, "sha512-EKX3Qwmhz1eMdEJokhALr0YiD0lhQNwDqkPYyPhiSwKrh7/4KRjQc04sZ8db+5DVVnZ1LmbNDI1uAMPEUBnQPg=="],
 
