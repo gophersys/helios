@@ -159,10 +159,19 @@ hotspots (CodeScene's "X-Ray") are a later refinement, not v1.
 
 The `Report` fields realize research-note §2. Verified-now (✅) vs round-2-dependent (🧩):
 ✅ cyclomatic, maintainability index, coverage ingest, debt ratio + A–E rating, hotspot,
-logical coupling, churn (relative preferred), ownership/bus-factor. 🧩 cognitive complexity, Halstead,
-Martin Ca/Ce/I/A/D, DORA — fields are reserved (`omitempty`) and populated once round 2 promotes
-formulas + thresholds into research §2. The `Report` schema does **not** change when those land —
-only computation fills reserved fields. That stability is the whole point of the seam.
+logical coupling, churn (relative preferred), ownership/bus-factor. ✅ (R2) cognitive complexity
+(15/30), Martin I/Ca/Ce, DORA operationalization, Go/TS tooling shapes. 🔶 Halstead (low conf).
+Reserved (`omitempty`) fields fill as computation lands; the `Report` schema does **not** change.
+
+**OD-CI-4 resolved → native-AST per-language `MetricProvider` port.** A `MetricProvider` computes the
+static metrics for one language; the **Go provider computes cyclomatic + cognitive natively from
+`go/ast`** (formulas verified, no subprocess). Non-Go providers shell to the language tool and parse
+JSON (TS/Svelte: dependency-cruiser `-T json` for I/Ca/Ce + cycles, jscpd for duplication, knip for
+dead code — research §5a). v1 ships the Go provider only (covers the `libs/go/*` self-feeding target);
+the port keeps the rest additive. **Martin A/D have no emitting tool** — abstractness is computed
+natively. **DORA is partial without a deploy/incident feed:** deploy-frequency + change-failure need
+CI/CD + incident data beyond the repo, so `Summary.Dora` stays `omitempty` until a source is wired
+(only lead-time approximates from git merge→tag).
 
 ## 5. The `Views` render-plan → `@eden/visualization` (the 8 primitives)
 

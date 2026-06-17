@@ -10,10 +10,11 @@
 > **Provenance.** Two adversarially-verified deep-research passes (fan-out web search → source
 > fetch → 2-of-3-vote refutation → cited synthesis). Round 1 (15 findings, 0 refuted, 28 sources)
 > covered the metrics catalog, behavioral/temporal mining, visualization theory, and the widget
-> taxonomy. Round 2 (in progress at time of writing) closes four coverage gaps round 1 left
-> unverified: the DORA Four Keys, Martin package-coupling metrics, cognitive-complexity/Halstead
-> thresholds, and concrete Go+TypeScript tooling with machine-readable output shapes. Round-2
-> findings are promoted in below as `§R2` when they land.
+> taxonomy. Round 2 (3 findings, 3-0, complete) closed the gaps round 1 left: DORA operationalization,
+> Martin I/Ca/Ce (A/D theory-only), cognitive-complexity (15/30) + Halstead formulas, and concrete
+> Go+TypeScript tooling output shapes — promoted below as `§R2` (§5a) and into the metric table.
+> Four narrow items remain open (§7): the latest Google/DORA numeric bands, a Martin A/D tool, an
+> authoritative Halstead source, and the bus-factor algorithm default (OD-CI-3).
 
 **Domain:** how to compute, threshold, and *visualize* the load-bearing properties of a codebase —
 for two distinct lenses: (1) **active-development triage** (find the risky/complex/hotspot code worth
@@ -48,7 +49,7 @@ attention (pre-commit / PR review / release gate / continuous monitoring).
 | Metric | Calculation | Trouble threshold | Attention point | Tag |
 |---|---|---|---|---|
 | **Cyclomatic complexity** | `1 + #conditional branches` (`if`/`for`/`while`/`case`/`&&`/`‖`/`?`/`catch`); per-function min 1; file/repo = sum of function scores. Graph form `C = E − N + 2P`. | >10 review · >15–20 high risk (convention, *not* in the primary source) | pre-commit / PR | ✅ |
-| **Cognitive complexity** | SonarSource: structural + **nesting** increments (penalizes deeply nested flow, ignores `switch` fall-through shorthand) — readability proxy vs cyclomatic's path-count | §R2 | pre-commit / PR | 🧩 (round 2) |
+| **Cognitive complexity** | SonarSource: structural + **nesting** increments (penalizes deeply nested flow, ignores `switch` fall-through shorthand) — readability proxy vs cyclomatic's path-count | **15** (SonarJS default) · **30** (gocognit default) | pre-commit / PR | ✅ (R2) |
 | **Maintainability Index** | VS: `MAX(0, (171 − 5.2·ln(HalsteadVolume) − 0.23·CC − 16.2·ln(LOC)) · 100/171)`. Original (Oman & Hagemeister 1992) un-rescaled: `171 − 5.2·ln(V) − 0.23·CC − 16.2·ln(LOC)`. | VS bands: **0–9 red · 10–19 yellow · 20–100 green** | release gate / monitoring | ✅ (⚠️ validity critiqued — van Deursen, "Think Twice Before Using the MI"; dispute is usefulness, not the formula) |
 | **Coverage** | overall `(CT+LC)/(B+EL)` · line `LC/EL` · branch `(CT+CF)/(2B)` (CT/CF = conditions true/false ≥once, B = total conditions, LC = covered lines, EL = executable lines) | gate on **new code**, not flat global % (clean-as-you-code) | PR / release gate | ✅ |
 | **Technical-debt ratio (SQALE)** | `debt / (cost_per_line × LOC)`, default **30 min/line**. Worked ex: `122,563 / (30 × 63,987) = 6.4%` | maps to rating ↓ | continuous monitoring | ✅ |
@@ -57,9 +58,9 @@ attention (pre-commit / PR review / release gate / continuous monitoring).
 | **Logical / temporal coupling** | files co-changing in the same commit; `degree = shared_revs / avg_revs` (0–100) | filter **≥10 revisions** to cut accidental co-change | architecture review | ✅ |
 | **Code churn** | lines added+removed per file over a window; prefer **relative** churn (÷ LOC) over absolute | high churn → more post-release defects | continuous monitoring | ✅ |
 | **Bus factor / ownership** | author→code map from commit authorship | usually **2–3** even on big teams; flags single points of failure | team-health monitoring | 🔶 (⚠️ method-sensitive; precise 2-3/50-60 figure is an under-specified vendor study) |
-| **Martin coupling** (Ca, Ce, I, A, D) | `I = Ce/(Ca+Ce)` · `A = abstract/total` · `D = |A + I − 1|`; "zone of pain" / "zone of uselessness" off the main sequence | §R2 | architecture review | 🧩 (round 2) |
-| **Halstead suite** (n, N, V, D, E) | `V = N·log₂(n)` · `D = (n1/2)·(N2/n2)` · `E = D·V` | §R2 | release gate / monitoring | 🧩 (round 2) |
-| **DORA Four Keys** | deploy frequency · lead time for changes · change-failure rate · failed-deploy recovery (MTTR) — from CI/CD + incident + git/pipeline events | Elite/High/Medium/Low bands | continuous monitoring | 🧩 (round 2) |
+| **Martin coupling** (Ca, Ce, I, A, D) | `I = Ce/(Ca+Ce)` (Ca inbound, Ce outbound, 0–1) · `A = abstract/total` · `D = |A + I − 1|` | `D → 0` = on main sequence (good); `D → 1` bad. low-A/low-I = **zone of pain**, high-A/high-I = **zone of uselessness** | architecture review | ✅ I/Ca/Ce (R2) · 🔶 A/D (theory; no tool — compute natively) |
+| **Halstead suite** (n, N, V, D, E) | `V = N·log₂(n)` · `D = (n1/2)·(N2/n2)` · `E = D·V` · time `T = E/18` · bugs `B = V/3000` | no hard threshold (a proxy) | release gate / monitoring | 🔶 (R2, low conf — formulas not independently re-verified) |
+| **DORA Four Keys** | GitLab op.: deploy-freq = **mean** successful prod deploys/day · lead-time = **median** sec MR-merge→prod · change-fail = incidents/deploys · MTTR = **median** sec incident-open. Needs CI/CD **+ incident** data beyond git. | Elite/High/Med/Low bands **still unverified** (open-Q) | continuous monitoring / post-incident | ✅ formulas (R2) · ⚠️ bands + needs non-git data |
 
 ---
 
@@ -162,6 +163,26 @@ feature.
 
 ---
 
+## 5a. Concrete Go + TypeScript tooling (§R2 — machine-readable output)
+
+The per-language metric providers `codeinsight` dispatches to. Go cyclomatic/cognitive are cheap to
+compute **natively from the AST** (resolves OD-CI-4 for the Go provider — no subprocess); the tools
+below are the reference algorithms + the path for non-Go languages.
+
+| Metric | Go | TypeScript / Svelte | Output |
+|---|---|---|---|
+| Cyclomatic | gocyclo / `cyclop` (in golangci-lint) | SonarJS / ESLint `complexity` | golangci-lint **JSON + SARIF 2.1.0**; ESLint JSON |
+| Cognitive | gocognit (default **30**) | SonarJS (default **15**) | golangci-lint JSON/SARIF |
+| Coverage | `go test -coverprofile` (→ cobertura via gocover-cobertura) | c8/istanbul JSON | coverprofile / cobertura XML / JSON |
+| Duplication | (jscpd is polyglot) | **jscpd `--reporters json`** (Svelte/Vue SFC: `.vue` matches `.ts`) | JSON |
+| Dependency cycles + **Martin I/Ca/Ce** | (native AST) | **dependency-cruiser `-T json`** (`metrics` per module+folder) | JSON (`dependencies` + `summary`) |
+| Dead code | (native) | **knip `--reporter json`** (issues array per file) | JSON |
+| Vulnerabilities | **govulncheck `-json`** / `-format sarif` (streaming) | npm-audit / osv | JSON / SARIF |
+
+⚠️ `dependency-cruiser` computes **I/Ca/Ce** but NOT abstractness `A` or distance `D` — no verified
+tool emits A/D, so the main-sequence view requires native computation. `ts-complex` and the exact
+Halstead-emitting tools were not re-verified.
+
 ## 6. Caveats & coverage gaps (honest scope)
 
 - Metric **formulas/thresholds** from SonarQube and Visual Studio are **primary vendor docs** —
@@ -173,22 +194,25 @@ feature.
   shifted (`Modification`→`ModifiedFile`).
 - The widget taxonomy (§5) is a **synthesis/inference** across the three tool families, not one cited
   authority — hence 🧩.
-- **Round-1 coverage gaps closed by round 2 (`§R2`):** cognitive complexity, full Halstead suite,
-  Martin's Ca/Ce/I/A/D coupling, code-duplication ratio, dependency-cycle detection, defect density,
-  and the **entire DORA Four Keys**. Treat any thresholds for these as conventional until round 2
-  promotes verified values here.
+- **Round-1 gaps closed by round 2 (`§R2`):** cognitive complexity (15/30 thresholds), Halstead
+  formulas (🔶 low conf), Martin I/Ca/Ce (✅; A/D theory-only — no tool), DORA operationalization
+  (✅ GitLab formulas), and the Go/TS tooling output shapes (§5a). **Still open after round 2:** the
+  latest Google/DORA numeric **bands**, a tool for Martin **A/D**, an authoritative Halstead source,
+  and the deployment-vs-incident change-fail definition (store both).
+- **DORA needs non-git data.** Deploy frequency and change-failure rate require CI/CD pipeline +
+  incident records; only lead-time is approximable from git alone (merge→tag/deploy). For an arbitrary
+  repo with no pipeline/incident feed, DORA is **partial** — the `Report.Summary.Dora` field stays
+  `omitempty` and is populated only when a deploy/incident source is wired.
 
-## 7. Open questions → round 2 (in progress)
+## 7. Open questions (remaining after round 2)
 
-1. Canonical formulas + trouble thresholds for cognitive complexity, the full Halstead suite, Martin's
-   I/A/D coupling, code-duplication ratio, and defect density — from which primary sources?
-2. Authoritative DORA Four Keys definitions, calculation from git+pipeline events, and the current
-   Elite/High/Medium/Low benchmark bands (latest Google/DORA State of DevOps report).
-3. Concrete **Go + TypeScript tooling** per metric and its machine-readable output shape: Go —
-   gocyclo, gocognit, golangci-lint (cyclop/gocyclo/gocognit), `go test -coverprofile`, govulncheck;
-   TS — ts-complex, SonarJS/ESLint complexity, jscpd, madge, dependency-cruiser (JSON), knip.
-4. The defensible algorithm for deriving knowledge ownership / bus factor from authorship (>50%
-   line-ownership vs per-file primary-dev vs Minimum-Critical-Set) — which default should Eden adopt?
+1. The latest Google/DORA State-of-DevOps **numeric** Elite/High/Medium/Low bands (round 2 verified
+   the formulas/operationalization but not current threshold numbers).
+2. Any tool that emits Martin **abstractness A** and **distance D** (none found — Eden computes
+   natively from the AST per language).
+3. An authoritative primary source + emitting tool for the full **Halstead** suite (🔶 low confidence).
+4. **Bus-factor algorithm** default (OD-CI-3): >50%-line-ownership vs per-file primary-dev vs
+   Minimum-Critical-Set — round 2 did not resolve; default stays >50%-line-ownership.
 
 ## 8. Sources (round 1)
 

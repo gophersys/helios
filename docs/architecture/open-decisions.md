@@ -35,7 +35,7 @@
 | OD-CI-1 | **History-walk home** for the `codeinsight` temporal metrics (contract codeinsight §2) | grow a read-only History capability on `gitrepository.Inspector` (recommended — it owns git, "one concept one home"; additive `.apibaseline` change → contract revision) · a `codeinsight`-local reader over `gitrepository.Backend`. | before `codeinsight` implementation phase |
 | OD-CI-2 | **Entity granularity** for the `Report` (contract codeinsight §3) | file-level default in v1, directory/package derived (recommended) · method-level X-Ray hotspots (CodeScene-style) deferred to a later refinement. | `codeinsight` architecture phase |
 | OD-CI-3 | **Bus-factor algorithm** (contract codeinsight §3, research §3 / open-Q4) | >50%-line-ownership coverage (recommended default) · per-file primary-developer threshold · Minimum-Critical-Set (NP-hard). Resolved by research-note 06 round-2 finding. | before ownership view ships |
-| OD-CI-4 | **Complexity source** for `codeinsight` (contract codeinsight §4 / research open-Q3) | native Go AST traversal (no external process) · shell to gocyclo/gocognit and ingest their JSON. Resolved by research-note 06 round-2 Go-tooling finding. | before `codeinsight` implementation phase |
+| OD-CI-4 | **Complexity source** for `codeinsight` (contract codeinsight §4 / research open-Q3) | **PROVISIONALLY RESOLVED** (research-note 06 §R2): native-AST per-language `MetricProvider` — Go provider computes cyclomatic+cognitive from `go/ast` (no subprocess); non-Go providers shell to the tool (dependency-cruiser/jscpd/knip). Ratify at the `codeinsight` architecture-phase gate. | (resolved) |
 
 ## Resolved (ruling → ADR)
 
