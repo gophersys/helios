@@ -48,6 +48,14 @@
     <span class="nav__name">Eden</span>
   </a>
 
+  {#if user?.organization}
+    <!-- The current tenant (org switcher placeholder — the IOTEA org/space switch lands here later). -->
+    <div class="nav__org" data-testid="nav-org" title="Organization">
+      <span class="nav__org-glyph" aria-hidden="true">⬡</span>
+      <span class="nav__org-name">{user.organization.name}</span>
+    </div>
+  {/if}
+
   <ul class="nav__list" role="list">
     {#each nav as item (item.href)}
       <li>
@@ -71,7 +79,11 @@
     <span class="nav__avatar" aria-hidden="true">{initials}</span>
     <span class="nav__identity">
       <span class="nav__username" data-testid="user-name">{user?.name ?? 'You'}</span>
-      {#if user?.email}<span class="nav__email">{user.email}</span>{/if}
+      {#if user?.role}
+        <span class="nav__role" data-testid="user-role" data-role={user.role}>{user.role}</span>
+      {:else if user?.email}
+        <span class="nav__email">{user.email}</span>
+      {/if}
     </span>
     <span class="nav__gear" aria-hidden="true">⚙</span>
   </button>
@@ -102,6 +114,25 @@
     font-size: 1.15rem;
     letter-spacing: 0.01em;
   }
+  .nav__org {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border: 1px solid var(--eden-app-line);
+    border-radius: var(--eden-app-radius, 8px);
+    color: var(--eden-app-fg);
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  .nav__org-glyph {
+    color: var(--eden-app-accent);
+  }
+  .nav__org-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .nav__list {
     list-style: none;
     margin: 0;
@@ -109,6 +140,21 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+  .nav__role {
+    align-self: flex-start;
+    margin-block-start: 1px;
+    padding: 0 var(--space-2, 8px);
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: color-mix(in oklab, var(--eden-app-accent) 22%, transparent);
+    color: var(--eden-app-fg);
+  }
+  .nav__role[data-role='admin'] {
+    background: color-mix(in oklab, var(--color-info, var(--eden-app-accent)) 28%, transparent);
   }
   .nav__link {
     display: flex;

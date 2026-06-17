@@ -25,6 +25,17 @@ const (
 	defaultUserNameFallback  = "Mateo Segura"
 )
 
+// The IOTEA-style RBAC seed's fixed identifiers + org name when their env override is unset. The ids
+// are fixed uuids so the default organization, admin permission set, and the default user's membership
+// are stable across boots and the ON CONFLICT seed is a true no-op on every start. All four are
+// env-overridable (mirroring the DefaultUser* pattern), so a deployment can pin its own org.
+const (
+	defaultOrganizationIDFallback   = "00000000-0000-0000-0000-00000000074a" // "org" (0x74a) — the default organization.
+	defaultOrganizationNameFallback = "Eden"
+	adminPermissionSetIDFallback    = "00000000-0000-0000-0000-0000000000ad" // "ad" — the admin permission set.
+	defaultMembershipIDFallback     = "00000000-0000-0000-0000-00000000003b" // "mb" (member) — the default membership.
+)
+
 // Environment is the parsed, fully-resolved process environment (the configuration pattern: read
 // ONCE at the edge). A missing REQUIRED value is a typed startup error, not a silent default. The
 // libraries downstream read no env of their own — everything arrives through this value.
@@ -41,8 +52,14 @@ type Environment struct {
 	DefaultUserID     uuid.UUID         // EDEN_PLATFORM_DEFAULT_USER_ID — the seeded default user's stable id.
 	DefaultUserEmail  string            // EDEN_PLATFORM_DEFAULT_USER_EMAIL — the seeded default user's login handle.
 	DefaultUserName   string            // EDEN_PLATFORM_DEFAULT_USER_NAME — the seeded default user's display name.
-	RateLimit         int               // EDEN_GATEWAY_RATE_LIMIT — per-client request budget per window; 0 → unlimited.
-	RateLimitWindow   time.Duration     // EDEN_GATEWAY_RATE_LIMIT_WINDOW — the rolling window the budget is measured over.
+
+	DefaultOrganizationID   uuid.UUID // EDEN_PLATFORM_DEFAULT_ORG_ID — the seeded default organization's stable id.
+	DefaultOrganizationName string    // EDEN_PLATFORM_DEFAULT_ORG_NAME — the seeded default organization's display name.
+	AdminPermissionSetID    uuid.UUID // EDEN_PLATFORM_ADMIN_PERMISSION_SET_ID — the seeded admin permission set's stable id.
+	DefaultMembershipID     uuid.UUID // EDEN_PLATFORM_DEFAULT_MEMBERSHIP_ID — the seeded default membership's stable id.
+
+	RateLimit       int           // EDEN_GATEWAY_RATE_LIMIT — per-client request budget per window; 0 → unlimited.
+	RateLimitWindow time.Duration // EDEN_GATEWAY_RATE_LIMIT_WINDOW — the rolling window the budget is measured over.
 }
 
 // loadEnvironment parses the environment with the configuration library's env edge, then resolves
@@ -111,6 +128,19 @@ func loadEnvironment() (Environment, error) {
 		return Environment{}, err
 	}
 
+	defaultOrganizationID, err := parseUUIDOrDefault("EDEN_PLATFORM_DEFAULT_ORG_ID", defaultOrganizationIDFallback)
+	if err != nil {
+		return Environment{}, err
+	}
+	adminPermissionSetID, err := parseUUIDOrDefault("EDEN_PLATFORM_ADMIN_PERMISSION_SET_ID", adminPermissionSetIDFallback)
+	if err != nil {
+		return Environment{}, err
+	}
+	defaultMembershipID, err := parseUUIDOrDefault("EDEN_PLATFORM_DEFAULT_MEMBERSHIP_ID", defaultMembershipIDFallback)
+	if err != nil {
+		return Environment{}, err
+	}
+
 	return Environment{
 		Address:           os.Getenv("EDEN_GATEWAY_ADDRESS"),
 		Stage:             stage,
@@ -124,8 +154,14 @@ func loadEnvironment() (Environment, error) {
 		DefaultUserID:     defaultUserID,
 		DefaultUserEmail:  getenvOr("EDEN_PLATFORM_DEFAULT_USER_EMAIL", defaultUserEmailFallback),
 		DefaultUserName:   getenvOr("EDEN_PLATFORM_DEFAULT_USER_NAME", defaultUserNameFallback),
-		RateLimit:         rateLimit,
-		RateLimitWindow:   rateWindow,
+
+		DefaultOrganizationID:   defaultOrganizationID,
+		DefaultOrganizationName: getenvOr("EDEN_PLATFORM_DEFAULT_ORG_NAME", defaultOrganizationNameFallback),
+		AdminPermissionSetID:    adminPermissionSetID,
+		DefaultMembershipID:     defaultMembershipID,
+
+		RateLimit:       rateLimit,
+		RateLimitWindow: rateWindow,
 	}, nil
 }
 

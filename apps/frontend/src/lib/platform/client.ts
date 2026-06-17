@@ -17,8 +17,18 @@ export function resolvePlatformUrl(): string {
   return DEFAULT_PLATFORM_URL;
 }
 
-/** PlatformUser is the wire projection of a persisted user (platformgateway's UserView). The login
- *  surface and the dashboard render the default user from this. No field is a secret. */
+/** PlatformOrganization is the tenant the signed-in user belongs to (platformgateway's
+ *  MeOrganization). */
+export interface PlatformOrganization {
+  id: string;
+  name: string;
+}
+
+/** PlatformUser is the wire projection of the signed-in user's PROFILE (platformgateway's /me +
+ *  login bootstrap): the user record plus their IOTEA-style RBAC membership — the organization they
+ *  belong to, their role ("member" | "admin"; admin bypasses checks), and their permission grants
+ *  ("namespace:action", "*" = all). The login surface + the shell render this. No field is a secret.
+ *  organization/role/permissions are optional so a pre-RBAC payload still types. */
 export interface PlatformUser {
   id: string;
   email: string;
@@ -26,6 +36,9 @@ export interface PlatformUser {
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
+  organization?: PlatformOrganization;
+  role?: string;
+  permissions?: string[];
 }
 
 /** The uniform edenhttp response envelope ({ data, errors, kind }). The bootstrap route is enveloped,

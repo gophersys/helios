@@ -26,6 +26,13 @@ type EnvelopeListUsersPayload struct {
 	Kind   *string          `json:"kind,omitempty"`
 }
 
+// EnvelopeMeProfile The uniform edenhttp success Envelope wrapping the resource payload.
+type EnvelopeMeProfile struct {
+	Data   MeProfile `json:"data"`
+	Errors *[]string `json:"errors,omitempty"`
+	Kind   *string   `json:"kind,omitempty"`
+}
+
 // EnvelopePingPayload The uniform edenhttp success Envelope wrapping the resource payload.
 type EnvelopePingPayload struct {
 	Data   PingPayload `json:"data"`
@@ -45,6 +52,25 @@ type ListUsersPayload struct {
 	Items  []User `json:"items"`
 	Limit  int32  `json:"limit"`
 	Offset int32  `json:"offset"`
+}
+
+// MeOrganization defines model for MeOrganization.
+type MeOrganization struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// MeProfile defines model for MeProfile.
+type MeProfile struct {
+	CreatedAt    string         `json:"createdAt"`
+	Email        string         `json:"email"`
+	Id           string         `json:"id"`
+	IsDefault    bool           `json:"isDefault"`
+	Name         string         `json:"name"`
+	Organization MeOrganization `json:"organization"`
+	Permissions  []string       `json:"permissions"`
+	Role         string         `json:"role"`
+	UpdatedAt    string         `json:"updatedAt"`
 }
 
 // PingPayload defines model for PingPayload.
@@ -145,6 +171,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetMe request
+	GetMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// Ping request
 	Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -153,6 +182,18 @@ type ClientInterface interface {
 
 	// GetUser request
 	GetUser(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMeRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) Ping(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -189,6 +230,33 @@ func (c *Client) GetUser(ctx context.Context, id string, reqEditors ...RequestEd
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetMeRequest generates requests for GetMe
+func NewGetMeRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/me")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewPingRequest generates requests for Ping
@@ -356,6 +424,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetMeWithResponse request
+	GetMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMeResponse, error)
+
 	// PingWithResponse request
 	PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error)
 
@@ -364,6 +435,28 @@ type ClientWithResponsesInterface interface {
 
 	// GetUserWithResponse request
 	GetUserWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetUserResponse, error)
+}
+
+type GetMeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *EnvelopeMeProfile
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type PingResponse struct {
@@ -432,6 +525,15 @@ func (r GetUserResponse) StatusCode() int {
 	return 0
 }
 
+// GetMeWithResponse request returning *GetMeResponse
+func (c *ClientWithResponses) GetMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMeResponse, error) {
+	rsp, err := c.GetMe(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMeResponse(rsp)
+}
+
 // PingWithResponse request returning *PingResponse
 func (c *ClientWithResponses) PingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingResponse, error) {
 	rsp, err := c.Ping(ctx, reqEditors...)
@@ -457,6 +559,31 @@ func (c *ClientWithResponses) GetUserWithResponse(ctx context.Context, id string
 		return nil, err
 	}
 	return ParseGetUserResponse(rsp)
+}
+
+// ParseGetMeResponse parses an HTTP response from a GetMeWithResponse call
+func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EnvelopeMeProfile
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+	}
+
+	return response, nil
 }
 
 // ParsePingResponse parses an HTTP response from a PingWithResponse call

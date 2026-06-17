@@ -28,3 +28,51 @@ CREATE TABLE IF NOT EXISTS users (
 -- At most one default user: a partial unique index over the constant `true` predicate rejects a
 -- second is_default row at the database, so the default identity is single-valued by construction.
 CREATE UNIQUE INDEX IF NOT EXISTS users_single_default ON users (is_default) WHERE is_default;
+
+-- IOTEA-style multi-tenant RBAC foundation (migration 0002). The model is User → OrganizationMember
+-- (role + a PermissionSet) → Organization: a user belongs to an organization through a membership
+-- row that carries a role (member|admin) and references the PermissionSet whose `permissions` array
+-- ("namespace:action" strings, "*" = all) names what the member may do. The startup seed plants a
+-- default organization, an admin PermissionSet (permissions {*}), and the default user as an admin
+-- member. This slice is the DATA MODEL + the read surface (/v1/me, the bootstrap profile); it does
+-- NOT rewrite the edenhttp auth spine (the JWT grants remain the authorize source).
+
+CREATE TABLE IF NOT EXISTS organizations (
+    -- id is the server-minted primary key (uuid). The seed supplies a fixed id so the default
+    -- organization is stable across restarts.
+    id          uuid        PRIMARY KEY,
+    -- name is the organization's display name (shown in the profile card).
+    name        text        NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS permission_sets (
+    -- id is the server-minted primary key (uuid). The seed supplies a fixed id for the admin set.
+    id              uuid        PRIMARY KEY,
+    -- organization_id scopes the permission set to its owning organization (org-level set).
+    organization_id uuid        NOT NULL REFERENCES organizations (id),
+    -- name is the set's label (e.g. "Admin", "ReadOnly", "Default").
+    name            text        NOT NULL,
+    -- permissions is the array of "namespace:action" grant strings ("*" = all), the IOTEA permission
+    -- vocabulary. The default is the empty set (a no-permission set), never NULL.
+    permissions     text[]      NOT NULL DEFAULT '{}',
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS organization_members (
+    -- id is the server-minted primary key (uuid).
+    id                uuid        PRIMARY KEY,
+    -- organization_id + user_id link a user to an organization; the pair is UNIQUE (a user has at most
+    -- one membership per organization), the key the idempotent seed's ON CONFLICT targets.
+    organization_id   uuid        NOT NULL REFERENCES organizations (id),
+    user_id           uuid        NOT NULL REFERENCES users (id),
+    -- role is the IOTEA OrganizationRole: 'member' (permission-checked) or 'admin' (bypasses checks).
+    role              text        NOT NULL DEFAULT 'member',
+    -- permission_set_id is the org-level PermissionSet the member draws its permissions from.
+    permission_set_id uuid        NOT NULL REFERENCES permission_sets (id),
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    updated_at        timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (organization_id, user_id)
+);

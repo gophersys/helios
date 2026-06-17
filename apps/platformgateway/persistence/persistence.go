@@ -53,6 +53,7 @@ type Dependencies struct {
 type Persistence struct {
 	pool          *pgxpool.Pool
 	users         *Users
+	rbac          *RBAC
 	observability observability.Provider
 }
 
@@ -111,9 +112,11 @@ func New(ctx context.Context, configuration Configuration, dependencies Dependen
 	dependencies.Observability.Log(ctx, observability.SeverityInfo, "persistence: pool open",
 		observability.String("dsn-reference", configuration.DSN.String()))
 
+	queries := generated.New(pool)
 	return &Persistence{
 		pool:          pool,
-		users:         &Users{queries: generated.New(pool)},
+		users:         &Users{queries: queries},
+		rbac:          &RBAC{queries: queries},
 		observability: dependencies.Observability,
 	}, nil
 }
@@ -122,6 +125,11 @@ func New(ctx context.Context, configuration Configuration, dependencies Dependen
 // return-concrete — the consumer receives a usable store, not another port). The store maps pgx's
 // not-found sentinel to a typed errors.KindNotFound and owns the idempotent default-user seed.
 func (p *Persistence) Users() *Users { return p.users }
+
+// RBAC returns the typed RBAC store the /v1/me route + the login bootstrap call (accept-interfaces,
+// return-concrete — a usable store, not another port). It owns the membership read (maps pgx's
+// not-found to a typed errors.KindNotFound) and the idempotent org/permission-set/membership seed.
+func (p *Persistence) RBAC() *RBAC { return p.rbac }
 
 // Close releases the pool. Idempotent: a second Close is a no-op (a nil pool short-circuits), so the
 // composition root may defer it unconditionally. It logs the close on the observability stream.

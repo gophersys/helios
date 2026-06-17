@@ -14,7 +14,32 @@ type Querier interface {
 	// The idempotent IOTEA-style startup seed: plant the default user if absent, do nothing if the email
 	// already exists. ON CONFLICT keys on the unique email so a re-run on every boot is a safe no-op.
 	EnsureDefaultUser(ctx context.Context, arg EnsureDefaultUserParams) error
+	// The idempotent seed of an organization membership (the default user as an admin member). ON CONFLICT
+	// keys on the UNIQUE (organization_id, user_id) pair, so re-seeding the same user in the same org is a
+	// no-op (the user's existing role/permission set is left untouched).
+	EnsureMembership(ctx context.Context, arg EnsureMembershipParams) error
+	// Queries for the IOTEA-style RBAC tables (organizations, permission_sets, organization_members).
+	// sqlc emits one typed Go method per `-- name:` directive into ../../generated; the :one/:exec suffix
+	// selects the return shape. These are the queries the RBAC facade calls through the injected Querier
+	// (never string SQL): the idempotent startup seed (the three Ensure* writes) plus the membership read
+	// the /v1/me route and the login bootstrap project a profile from.
+	//
+	// A user can in principle belong to multiple organizations; this read slice returns the FIRST/default
+	// membership (ORDER BY created_at ASC LIMIT 1) — one membership per user is the shape this slice
+	// guarantees (the seed plants exactly one). A user with no membership yields pgx.ErrNoRows, which the
+	// facade maps to a typed errors.KindNotFound.
+	// The idempotent IOTEA-style startup seed: plant the default organization if absent, do nothing if
+	// the id already exists. ON CONFLICT keys on the fixed id so a re-run on every boot is a safe no-op.
+	EnsureOrganization(ctx context.Context, arg EnsureOrganizationParams) error
+	// The idempotent seed of an org-level permission set (e.g. the admin set with permissions {*}). ON
+	// CONFLICT on the fixed id makes a re-run a no-op.
+	EnsurePermissionSet(ctx context.Context, arg EnsurePermissionSetParams) error
 	GetDefaultUser(ctx context.Context) (User, error)
+	// The membership read the /v1/me route and the login bootstrap project a profile from: the member row
+	// joined to its organization and permission set, returning the organization id+name, the role, and the
+	// permission set name + permissions array. ORDER BY the member's created_at so the FIRST/default
+	// membership is returned for a (hypothetical) multi-org user; LIMIT 1 keeps it a :one read.
+	GetMembershipByUser(ctx context.Context, userID pgtype.UUID) (GetMembershipByUserRow, error)
 	// Queries for the `users` table. sqlc emits one typed Go method per `-- name:` directive into
 	// ../../generated. The :one/:many/:exec suffix selects the return shape. These are the queries the
 	// users routes' execute stages call through the injected Querier (never string SQL).

@@ -70,26 +70,39 @@ func structSchema(t reflect.Type, components map[string]schema) schema {
 		// Reserve the name first (a placeholder) so a self-referential type does not recurse forever.
 		components[name] = schema{typ: "object"}
 		object := schema{typ: "object"}
-		for i := range t.NumField() {
-			field := t.Field(i)
-			if !field.IsExported() {
-				continue
-			}
-			jsonName, omitempty, skip := jsonField(&field)
-			if skip {
-				continue
-			}
-			object.properties = append(object.properties, property{
-				name:   jsonName,
-				schema: schemaForType(field.Type, components),
-			})
-			if !omitempty {
-				object.required = append(object.required, jsonName)
-			}
-		}
+		collectFields(t, &object, components)
 		components[name] = object
 	}
 	return schema{ref: "#/components/schemas/" + name}
+}
+
+// collectFields appends t's wire properties to object, FLATTENING an anonymous embedded struct with no
+// json tag (Go's encoding/json promotes such an embed's fields into the parent JSON, so the contract
+// must promote them too — e.g. me/view.Profile embeds users/view.User, whose fields are on the wire at
+// the top level, not under a "User" key). A tagged or named embed is a normal property. Recursion is
+// bounded by the struct nesting depth.
+func collectFields(t reflect.Type, object *schema, components map[string]schema) {
+	for i := range t.NumField() {
+		field := t.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		if field.Anonymous && field.Tag.Get("json") == "" && deref(field.Type).Kind() == reflect.Struct {
+			collectFields(deref(field.Type), object, components)
+			continue
+		}
+		jsonName, omitempty, skip := jsonField(&field)
+		if skip {
+			continue
+		}
+		object.properties = append(object.properties, property{
+			name:   jsonName,
+			schema: schemaForType(field.Type, components),
+		})
+		if !omitempty {
+			object.required = append(object.required, jsonName)
+		}
+	}
 }
 
 // envelopeSchema builds the edenhttp data Envelope component wrapping payload's component (the
@@ -124,6 +137,11 @@ func componentName(t reflect.Type) string {
 	t = deref(t)
 	if strings.HasSuffix(t.PkgPath(), "/users/view") {
 		return t.Name() // the shared wire row: "User".
+	}
+	if strings.HasSuffix(t.PkgPath(), "/me/view") {
+		// The /me profile projection: "Profile" → "MeProfile", "Organization" → "MeOrganization" (a
+		// readable, collision-free name distinct from a future top-level organizations resource).
+		return "Me" + t.Name()
 	}
 	return operationPrefix(t.PkgPath()) + schemaSuffix(t.Name())
 }

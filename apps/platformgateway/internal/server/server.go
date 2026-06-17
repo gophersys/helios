@@ -16,6 +16,7 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 
 	apiv1 "github.com/gophersys/eden/apps/platformgateway/internal/api/v1"
+	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server/healthcheck"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server/identity"
@@ -57,10 +58,19 @@ type Deps struct {
 	// users.Store port; *persistence.Users satisfies it). Nil → the users routes are not mounted
 	// (the no-DB boot serves only the no-persistence `ping` reference).
 	Users users.Store
+	// RBAC is the typed RBAC store the `/v1/me` route reads memberships through and the login bootstrap
+	// renders the default user's profile from (the me.MembershipReader / loginbootstrap.MembershipProvider
+	// port; *persistence.RBAC satisfies it). Nil → the me route + the bootstrap profile fields are not
+	// served (the no-DB boot).
+	RBAC me.MembershipReader
 	// DefaultUser is the pre-identity default-user lookup the public login bootstrap reads (the
 	// loginbootstrap.DefaultProvider port; *persistence.Users satisfies it). Nil → the bootstrap route
 	// is not mounted (the no-DB boot has no default user to serve).
 	DefaultUser loginbootstrap.DefaultProvider
+	// DefaultMembership is the pre-identity default-user membership lookup the login bootstrap renders
+	// the profile (org/role/permissions) from (the loginbootstrap.MembershipProvider port;
+	// *persistence.RBAC satisfies it). Nil → the bootstrap returns the bare user fields only.
+	DefaultMembership loginbootstrap.MembershipProvider
 }
 
 // Server is the concrete value New returns (return-concrete): it owns the assembled http.Handler the
@@ -136,9 +146,14 @@ func route(configuration Config, spine *edenhttp.Spine, dependencies Deps) http.
 	mux.Handle("GET /healthz/ready", healthcheck.Ready(dependencies.ReadinessProbes...))
 
 	// Public login bootstrap (no auth — login is pre-identity, like the probes): the basic login reads
-	// the seeded default user here. Mounted only when persistence (hence a default user) is wired.
+	// the seeded default user (and, when the RBAC store is wired, their org/role/permissions) here.
+	// Mounted only when persistence (hence a default user) is wired.
 	if dependencies.DefaultUser != nil {
-		mux.Handle("GET /bootstrap/default-user", loginbootstrap.Handler(dependencies.DefaultUser, dependencies.Observability))
+		mux.Handle("GET /bootstrap/default-user", loginbootstrap.Handler(loginbootstrap.Deps{
+			DefaultUser:       dependencies.DefaultUser,
+			DefaultMembership: dependencies.DefaultMembership,
+			Observability:     dependencies.Observability,
+		}))
 	}
 
 	// The authenticated v1 API. v1.Mount registers every resource's 5-file routes onto a sub-mux,
@@ -147,6 +162,7 @@ func route(configuration Config, spine *edenhttp.Spine, dependencies Deps) http.
 	apiv1.Mount(apiMux, apiv1.Deps{
 		Observability: dependencies.Observability,
 		Users:         dependencies.Users,
+		RBAC:          dependencies.RBAC,
 	})
 	mux.Handle("/v1/", http.StripPrefix("/v1", spine.Middleware(apiMux)))
 

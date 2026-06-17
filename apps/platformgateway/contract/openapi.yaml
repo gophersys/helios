@@ -89,6 +89,20 @@ paths:
           description: The caller does not hold the `users:read` grant.
         "404":
           description: The resource does not exist.
+  /me:
+    get:
+      operationId: getMe
+      summary: "Get the authenticated caller's own profile (user + organization, role, permissions)."
+      description: "Requires NO grant beyond a valid bearer token — any authenticated caller reads THEIR OWN profile (the subject is the token's, not a path id). Returns the caller's user record plus their IOTEA RBAC context: the organization they belong to, their role (member|admin), and their permission set's `namespace:action` strings."
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_MeProfile"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
 components:
   securitySchemes:
     bearerAuth:
@@ -103,6 +117,19 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/ListUsersPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_MeProfile:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/MeProfile"
         errors:
           type: array
           items:
@@ -149,6 +176,38 @@ components:
         offset:
           type: integer
           format: int32
+    MeOrganization:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    MeProfile:
+      type: object
+      required: [createdAt, email, id, isDefault, name, organization, permissions, role, updatedAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        organization:
+          $ref: "#/components/schemas/MeOrganization"
+        role:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
     PingPayload:
       type: object
       required: [observedAt, subject]

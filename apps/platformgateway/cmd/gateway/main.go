@@ -35,6 +35,7 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 
+	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server/healthcheck"
@@ -52,6 +53,20 @@ const readHeaderTimeout = 10 * time.Second
 
 // shutdownGrace bounds the graceful drain after a signal.
 const shutdownGrace = 10 * time.Second
+
+// The IOTEA-style RBAC seed's fixed labels. The default user is seeded as an ADMIN member whose
+// permission set carries the wildcard permission "*" (admin-like, "can do everything"). The role +
+// permission strings are the seed's constants (the ids are env-overridable in environment.go); the
+// role string mirrors the IOTEA OrganizationRole vocabulary (member|admin).
+const (
+	adminRole              = "admin"
+	adminPermissionSetName = "Admin"
+)
+
+// adminPermissions is the wildcard permission set the seeded admin member holds: "*" matches every
+// "namespace:action" (the IOTEA admin-like grant). It is a package-level value (a slice cannot be a
+// const) the seed passes to EnsurePermissionSet.
+var adminPermissions = []string{"*"}
 
 func main() {
 	os.Exit(realMain())
@@ -119,7 +134,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// When wired, its reachability backs the readiness probe (503 until the pool round-trips).
 	var readinessProbes []healthcheck.Probe
 	var userStore users.Store
+	var rbacStore me.MembershipReader
 	var defaultUserProvider loginbootstrap.DefaultProvider
+	var defaultMembershipProvider loginbootstrap.MembershipProvider
 	if !environment.PersistenceDSNRef.IsZero() {
 		dataStore, dataErr := persistence.New(
 			ctx,
@@ -142,13 +159,37 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return errors.Wrap(errors.KindUnavailable, "gateway: seed default user", seedErr)
 		}
 
+		// IOTEA-style RBAC seed (idempotent, fixed ids → re-runs are no-ops): a default organization,
+		// an admin permission set (permissions {*} — admin-like, "can do everything"), and the default
+		// user as an ADMIN member of that org. The schema/data split holds (Migrate planted the tables);
+		// each Ensure* is ON CONFLICT DO NOTHING, so the seed is safe on every boot. This is the DATA
+		// MODEL slice — it does not rewrite the edenhttp auth spine (the JWT grants remain the authorize
+		// source); /v1/me + the bootstrap profile READ this seed.
+		if seedErr := dataStore.RBAC().EnsureOrganization(ctx,
+			environment.DefaultOrganizationID, environment.DefaultOrganizationName); seedErr != nil {
+			return errors.Wrap(errors.KindUnavailable, "gateway: seed default organization", seedErr)
+		}
+		if seedErr := dataStore.RBAC().EnsurePermissionSet(ctx,
+			environment.AdminPermissionSetID, environment.DefaultOrganizationID,
+			adminPermissionSetName, adminPermissions); seedErr != nil {
+			return errors.Wrap(errors.KindUnavailable, "gateway: seed admin permission set", seedErr)
+		}
+		if seedErr := dataStore.RBAC().EnsureMembership(ctx,
+			environment.DefaultMembershipID, environment.DefaultOrganizationID,
+			environment.DefaultUserID, environment.AdminPermissionSetID, adminRole); seedErr != nil {
+			return errors.Wrap(errors.KindUnavailable, "gateway: seed default membership", seedErr)
+		}
+
 		readinessProbes = append(readinessProbes, postgresProbe(dataStore))
-		// The persisted `users` routes + the public login bootstrap both draw on the typed users
-		// facade; with no DSN they stay nil and only the no-persistence `ping` reference is mounted
-		// (the probe-only boot). *persistence.Users satisfies both ports.
+		// The persisted `users`/`me` routes + the public login bootstrap draw on the typed facades;
+		// with no DSN they stay nil and only the no-persistence `ping` reference is mounted (the
+		// probe-only boot). *persistence.Users + *persistence.RBAC satisfy the respective ports.
 		usersFacade := dataStore.Users()
+		rbacFacade := dataStore.RBAC()
 		userStore = usersFacade
+		rbacStore = rbacFacade
 		defaultUserProvider = usersFacade
+		defaultMembershipProvider = rbacFacade
 	}
 
 	// 6. server.New — the pure constructor that assembles the edenhttp spine + the v1 routes, with
@@ -164,11 +205,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			},
 		},
 		server.Deps{
-			Secrets:         mediator,
-			Observability:   provider,
-			ReadinessProbes: readinessProbes,
-			Users:           userStore,
-			DefaultUser:     defaultUserProvider,
+			Secrets:           mediator,
+			Observability:     provider,
+			ReadinessProbes:   readinessProbes,
+			Users:             userStore,
+			RBAC:              rbacStore,
+			DefaultUser:       defaultUserProvider,
+			DefaultMembership: defaultMembershipProvider,
 		},
 	)
 	if err != nil {

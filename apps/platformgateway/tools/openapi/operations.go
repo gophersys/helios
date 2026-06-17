@@ -17,6 +17,7 @@ package main
 import (
 	"reflect"
 
+	meroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	pingroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/ping"
 	getroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users/get"
 	listroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users/list"
@@ -103,6 +104,16 @@ func operations() []operation {
 			successStatus: 200,
 			responseType:  reflect.TypeOf(getroute.Response{}),
 			pathParams:    []parameter{idPathParam},
+		},
+		{
+			method:        "GET",
+			path:          "/me",
+			operationID:   "getMe",
+			summary:       "Get the authenticated caller's own profile (user + organization, role, permissions).",
+			description:   "Requires NO grant beyond a valid bearer token — any authenticated caller reads THEIR OWN profile (the subject is the token's, not a path id). Returns the caller's user record plus their IOTEA RBAC context: the organization they belong to, their role (member|admin), and their permission set's `namespace:action` strings.",
+			grant:         "", // the zero Grant: authenticated-only, no namespace:action required.
+			successStatus: 200,
+			responseType:  reflect.TypeOf(meroute.Response{}),
 		},
 	}
 }

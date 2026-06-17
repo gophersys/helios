@@ -44,10 +44,22 @@ test.describe('login — real Vault + Postgres + platformgateway (no mocks)', ()
     const response = await request.get(`${baseURL}/platform/bootstrap/default-user`);
     expect(response.ok()).toBeTruthy();
     const body = (await response.json()) as {
-      data: { email: string; name: string; isDefault: boolean };
+      data: {
+        email: string;
+        name: string;
+        isDefault: boolean;
+        organization: { name: string };
+        role: string;
+        permissions: string[];
+      };
     };
     expect(body.data.email).toBe(DEFAULT_EMAIL);
     expect(body.data.name).toBe(DEFAULT_NAME);
     expect(body.data.isDefault).toBe(true);
+    // The IOTEA-style RBAC seed: the default user is an ADMIN of the default org with the "*" grant —
+    // proving the org + permission-set + membership were migrated + seeded on the real stack.
+    expect(body.data.organization.name).toBe('Eden');
+    expect(body.data.role).toBe('admin');
+    expect(body.data.permissions).toContain('*');
   });
 });

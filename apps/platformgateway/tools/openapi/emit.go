@@ -137,7 +137,11 @@ func writeResponses(b *strings.Builder, op *operation, components map[string]sch
 	b.WriteString("          description: Success.\n          content:\n            application/json:\n              schema:\n")
 	writeSchemaInline(b, &envelope, "                ")
 	b.WriteString("        \"401\":\n          description: Missing or invalid bearer token (the gateway is behind auth even locally).\n")
-	fmt.Fprintf(b, "        \"403\":\n          description: The caller does not hold the `%s` grant.\n", op.grant)
+	// A route with a Required grant documents 403 (the caller may be authenticated but under-granted).
+	// A zero-grant (authenticated-only) route has no authorize step, so it never returns 403.
+	if op.grant != "" {
+		fmt.Fprintf(b, "        \"403\":\n          description: The caller does not hold the `%s` grant.\n", op.grant)
+	}
 	if len(op.pathParams) > 0 {
 		b.WriteString("        \"404\":\n          description: The resource does not exist.\n")
 	}
