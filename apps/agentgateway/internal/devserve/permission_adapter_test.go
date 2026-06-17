@@ -1,4 +1,4 @@
-package devserve
+package devserve //nolint:testpackage // white-box: drives the unexported devConn directly
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func driveDevConn(t *testing.T, firstPrompt string, follow ...agentsession.Comma
 	t.Helper()
 	conn := newDevConn()
 	conn.start()
-	t.Cleanup(func() { _ = conn.Close(context.Background()) })
+	t.Cleanup(func() { _ = conn.Close(context.Background()) }) //nolint:errcheck // test cleanup reap; a close fault is not a test signal.
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -30,7 +30,7 @@ func driveDevConn(t *testing.T, firstPrompt string, follow ...agentsession.Comma
 	// it), so the first prompt is sent on a goroutine — otherwise Send (blocking on the unbuffered
 	// command channel) and the Ready emit would deadlock before the read loop starts.
 	go func() {
-		_ = conn.Send(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: firstPrompt})
+		_ = conn.Send(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: firstPrompt}) //nolint:errcheck // best-effort prompt on a goroutine; the read loop asserts the resulting events.
 	}()
 
 	var events []agentsession.Event
@@ -45,17 +45,24 @@ func driveDevConn(t *testing.T, firstPrompt string, follow ...agentsession.Comma
 			// Once the request is on the wire, forward the queued answer frame(s).
 			if !sentFollow && event.Kind == agentsession.EventPermissionRequest {
 				sentFollow = true
-				for _, frame := range follow {
-					if err := conn.Send(ctx, frame); err != nil {
-						t.Fatalf("send follow frame: %v", err)
-					}
-				}
+				sendFollowFrames(ctx, t, conn, follow)
 			}
 			if event.IsTerminal() {
 				return events
 			}
 		case <-ctx.Done():
 			t.Fatalf("dev conn did not reach terminal: %v (events=%d)", ctx.Err(), len(events))
+		}
+	}
+}
+
+// sendFollowFrames forwards each queued answer frame to the conn once the permission request is on
+// the wire, failing the test on a send fault.
+func sendFollowFrames(ctx context.Context, t *testing.T, conn *devConn, follow []agentsession.Command) {
+	t.Helper()
+	for _, frame := range follow {
+		if err := conn.Send(ctx, frame); err != nil {
+			t.Fatalf("send follow frame: %v", err)
 		}
 	}
 }
@@ -81,9 +88,9 @@ func answerFrame(verdict string) agentsession.Command {
 // findResolved returns the first EventPermissionResolved (or fails).
 func findResolved(t *testing.T, events []agentsession.Event) agentsession.Event {
 	t.Helper()
-	for _, event := range events {
-		if event.Kind == agentsession.EventPermissionResolved {
-			return event
+	for i := range events {
+		if events[i].Kind == agentsession.EventPermissionResolved {
+			return events[i]
 		}
 	}
 	t.Fatalf("no permission-resolved event in stream (kinds=%v)", kindsOf(events))
@@ -93,9 +100,9 @@ func findResolved(t *testing.T, events []agentsession.Event) agentsession.Event 
 // findBashToolEnd returns the tool-end event for the out-of-grant Bash call (or fails).
 func findBashToolEnd(t *testing.T, events []agentsession.Event) agentsession.Event {
 	t.Helper()
-	for _, event := range events {
-		if event.Kind == agentsession.EventToolEnd && event.Tool != nil && event.Tool.CallID == "perm-call-1" {
-			return event
+	for i := range events {
+		if events[i].Kind == agentsession.EventToolEnd && events[i].Tool != nil && events[i].Tool.CallID == "perm-call-1" {
+			return events[i]
 		}
 	}
 	t.Fatalf("no Bash tool-end event in stream (kinds=%v)", kindsOf(events))

@@ -31,10 +31,26 @@ func (fakeProposer) Propose(_ context.Context, prompt string) (gateway.ProductCo
 		Summary:     deriveSummary(prompt),
 		Services:    deriveServices(lowered),
 		Capabilities: gateway.ProductCapabilities{
-			Harness: gateway.HarnessClaude,
+			Harness: deriveHarness(lowered),
 		},
 		Sandbox: gateway.ProductSandbox{Posture: gateway.PostureStrict},
 	}, nil
+}
+
+// deriveHarness picks the build harness from the prompt by keyword (deterministic), so the create
+// flow can scope an omp or codex product, not only claude — the dev counterpart of the live
+// proposer choosing a harness. The model is filled by NormalizeProductConfig's per-harness default.
+// It uses DISTINCTIVE tokens (never the bare "omp", a substring of "compose"/"complete") and defaults
+// to claude (the Eden default build target) when none match.
+func deriveHarness(lowered string) string {
+	switch {
+	case containsAny(lowered, "oh my pi", "oh-my-pi", "deepseek", "openrouter"):
+		return gateway.HarnessOMP
+	case containsAny(lowered, "codex"):
+		return gateway.HarnessCodex
+	default:
+		return gateway.HarnessClaude
+	}
 }
 
 // deriveKind classifies the prompt into a ProductKind by keyword (deterministic). It defaults to a

@@ -3,9 +3,12 @@ package gateway
 import (
 	"io/fs"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	stderrors "errors"
 
 	"github.com/gophersys/libs/go/errors"
 )
@@ -52,59 +55,22 @@ func (g *Gateway) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 // A path that does not stay within root (an absolute or "..-escaping" relative path — only
 // reachable via a symlink target, since WalkDir does not follow links) is dropped, never
 // emitted: the root is never escaped. A missing root is not an error — it yields an empty
-// listing (the workspace may not have been written to yet).
+// listing (the workspace may not have been written to yet); any OTHER root fault (e.g. a
+// permission denial on the root itself) IS surfaced rather than masqueraded as empty.
 func listWorkspaceFiles(root string) ([]workspaceFileView, error) {
 	cleanRoot := filepath.Clean(root)
 
 	files := make([]workspaceFileView, 0, 64)
 	walkErr := filepath.WalkDir(cleanRoot, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			// An unreadable subtree (a permission fault on one directory) must not abort the
-			// whole listing: skip it and continue. A missing root surfaces here on the first
-			// call and is handled by the caller treating walk as best-effort below.
-			if entry != nil && entry.IsDir() {
-				return fs.SkipDir
-			}
-			return nil //nolint:nilerr // a per-entry stat fault is skipped, not fatal — the listing is best-effort ground truth.
-		}
-		name := entry.Name()
-		if path != cleanRoot && strings.HasPrefix(name, ".") {
-			// Skip dotfiles and dot-directories (.git, .cache, …) — noise and a
-			// secret-bearing surface; pruning the directory avoids walking into it.
-			if entry.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		if !entry.Type().IsRegular() {
-			// Skip symlinks, devices, sockets — only real files the agent wrote are reported,
-			// and a symlink is the one way a path could escape the root (its target is not walked).
-			return nil
-		}
-
-		relative, ok := relativeWithinRoot(cleanRoot, path)
-		if !ok {
-			return nil
-		}
-		info, infoErr := entry.Info()
-		if infoErr != nil {
-			return nil //nolint:nilerr // a stat race (file removed mid-walk) drops the entry, never aborts the listing.
-		}
-		files = append(files, workspaceFileView{
-			Path:         relative,
-			Size:         info.Size(),
-			ModifiedUnix: info.ModTime().Unix(),
-		})
-		return nil
+		return collectWorkspaceFile(cleanRoot, path, entry, err, &files)
 	})
 	if walkErr != nil {
-		// The only walkErr that reaches here is a fault from the root entry itself (e.g. the
-		// root does not exist yet). Treat an absent/unstattable root as an empty workspace —
-		// the agent simply has not written anything — rather than a 5xx.
-		return []workspaceFileView{}, nil
+		// The only fault that propagates here is a root-entry fault the callback chose to
+		// surface (a non-not-exist stat error on the root itself). A missing root never
+		// reaches here — the callback maps it to an empty listing — so this is a genuine
+		// fault worth a 5xx, not a workspace that simply has not been written to yet.
+		return nil, errors.Wrap(errors.KindUnavailable, "gateway: workspace listing",
+			RequestError{Reason: "the workspace root could not be read"})
 	}
 
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
@@ -112,6 +78,61 @@ func listWorkspaceFiles(root string) ([]workspaceFileView, error) {
 		files = files[:maxWorkspaceFiles]
 	}
 	return files, nil
+}
+
+// collectWorkspaceFile is the WalkDir visitor: it appends a regular, in-root, non-dotfile
+// entry to files (skipping dotfiles/dot-directories, non-regular entries, and root-escaping
+// paths) and classifies walk faults. A per-entry fault (an unreadable subtree, a stat race)
+// is non-fatal — skipped so the best-effort ground-truth listing keeps going — but a fault on
+// the ROOT entry that is NOT a not-exist (a missing workspace is the normal "not written yet"
+// case, mapped to empty) is propagated, never swallowed, so a real root fault becomes a 5xx
+// instead of a silently empty listing.
+func collectWorkspaceFile(cleanRoot, path string, entry fs.DirEntry, err error, files *[]workspaceFileView) error {
+	if err != nil {
+		if path == cleanRoot && !stderrors.Is(err, os.ErrNotExist) {
+			// A real fault on the root itself (e.g. a permission denial) — surface it; only a
+			// missing root is the benign "not written yet" case mapped to an empty listing.
+			return err
+		}
+		// An unreadable subtree (a permission fault on one directory) or a missing root must
+		// not abort the listing: skip the subtree and continue best-effort.
+		if entry != nil && entry.IsDir() {
+			return fs.SkipDir
+		}
+		return nil //nolint:nilerr // a per-entry stat fault (or a missing root) is skipped, not fatal — the listing is best-effort ground truth.
+	}
+	name := entry.Name()
+	if path != cleanRoot && strings.HasPrefix(name, ".") {
+		// Skip dotfiles and dot-directories (.git, .cache, …) — noise and a
+		// secret-bearing surface; pruning the directory avoids walking into it.
+		if entry.IsDir() {
+			return fs.SkipDir
+		}
+		return nil
+	}
+	if entry.IsDir() {
+		return nil
+	}
+	if !entry.Type().IsRegular() {
+		// Skip symlinks, devices, sockets — only real files the agent wrote are reported,
+		// and a symlink is the one way a path could escape the root (its target is not walked).
+		return nil
+	}
+
+	relative, ok := relativeWithinRoot(cleanRoot, path)
+	if !ok {
+		return nil
+	}
+	info, infoErr := entry.Info()
+	if infoErr != nil {
+		return nil //nolint:nilerr // a stat race (file removed mid-walk) drops the entry, never aborts the listing.
+	}
+	*files = append(*files, workspaceFileView{
+		Path:         relative,
+		Size:         info.Size(),
+		ModifiedUnix: info.ModTime().Unix(),
+	})
+	return nil
 }
 
 // relativeWithinRoot returns path expressed RELATIVE to root with forward slashes, and

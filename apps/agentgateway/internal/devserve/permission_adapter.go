@@ -14,6 +14,7 @@
 // One adapter serves every dev session and dispatches by the FIRST prompt: the permission-demo
 // sentinel drives the gate; any other prompt runs the canonical demo body byte-for-byte
 // identical to agentsessiontest.CanonicalScript() — so the forced-CRUD path is unchanged.
+
 package devserve
 
 import (
@@ -188,8 +189,9 @@ func (c *devConn) streamCanonical() {
 			return
 		}
 	}
-	for _, event := range agentsessiontest.CanonicalScript() {
-		if !c.emit(event) {
+	script := agentsessiontest.CanonicalScript()
+	for i := range script {
+		if !c.emit(script[i]) {
 			return
 		}
 	}
@@ -211,8 +213,8 @@ func (c *devConn) streamPermissionDemo() {
 			"Clean the build directory — a shell command outside the standing Write grant.",
 		),
 	}
-	for _, event := range leadIn {
-		if !c.emit(event) {
+	for i := range leadIn {
+		if !c.emit(leadIn[i]) {
 			return
 		}
 	}
@@ -253,8 +255,8 @@ func (c *devConn) emitVerdictContinuation(allow bool) {
 			agentsessiontest.MessageEnd(),
 			permissionResult("Done — cleaned the build directory.", 2),
 		}
-		for _, event := range allowed {
-			if !c.emit(event) {
+		for i := range allowed {
+			if !c.emit(allowed[i]) {
 				return
 			}
 		}
@@ -269,8 +271,8 @@ func (c *devConn) emitVerdictContinuation(allow bool) {
 		agentsessiontest.MessageEnd(),
 		permissionResult("Stopped — the out-of-grant tool was denied.", 1),
 	}
-	for _, event := range denied {
-		if !c.emit(event) {
+	for i := range denied {
+		if !c.emit(denied[i]) {
 			return
 		}
 	}

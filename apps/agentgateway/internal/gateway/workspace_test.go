@@ -153,7 +153,7 @@ func newWorkspaceServer(t *testing.T, dir string) *httptest.Server {
 }
 
 // getWorkspace GETs the workspace route and returns the status + decoded body.
-func getWorkspace(t *testing.T, url string) (int, map[string]any) {
+func getWorkspace(t *testing.T, url string) (status int, body map[string]any) {
 	t.Helper()
 	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
