@@ -43,10 +43,17 @@ export const TERMINAL_KINDS: ReadonlySet<EventKind> = new Set<EventKind>([
   'aborted',
 ]);
 
-/** A session-state transition (chat connection/idle/working chrome). */
+/** A session-state transition (chat connection/idle/working chrome) + the turn-taking control
+ *  allowances for the NEW state. `allowed` is the set of legal control tokens (prompt|steer|abort)
+ *  from the agentsession (state × command) matrix, projected by the gateway so the UI DERIVES every
+ *  control's enablement from it — a control absent from `allowed` must be disabled, so an illegal
+ *  action is never offerable. `canResolve` is the permission axis (true iff a request is pending,
+ *  i.e. awaiting-permission). */
 export interface StateView {
   from: string;
   to: string;
+  allowed: string[];
+  canResolve: boolean;
 }
 
 /** A streamed assistant message / thinking fragment (Delta is incremental, not cumulative), or a
@@ -157,6 +164,10 @@ export interface AgentView {
   createdAt: string;
   updatedAt: string;
   ledger: LedgerView;
+  /** The record-plane Resume allowance (true only when the lifecycle status is re-attachable —
+   *  Suspended/Stopped). The UI seeds the Resume control from this so a live session never offers a
+   *  Resume the orchestrator rejects. */
+  canResume?: boolean;
 }
 
 /** GET /sessions — a page of agents + the opaque next cursor. */

@@ -77,6 +77,11 @@ type agentView struct {
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
 	Ledger    ledgerView `json:"ledger"`
+	// CanResume is the record-plane (orchestrator) Resume allowance: true only when the agent's
+	// lifecycle Status is re-attachable (Suspended/Stopped). The UI seeds the Resume control's
+	// enablement from this on attach so a live session never offers a Resume the record plane rejects
+	// (the turn-taking allowances ride the SSE stateView instead).
+	CanResume bool `json:"canResume"`
 }
 
 // listResponse is the body of GET /sessions: a page of agents plus the opaque next cursor
@@ -158,10 +163,29 @@ type eventView struct {
 	Extension  []byte          `json:"extension,omitempty"`
 }
 
-// stateView projects a session-state transition (the chat's connection/idle/working chrome).
+// stateView projects a session-state transition (the chat's connection/idle/working chrome) AND the
+// turn-taking control allowances for the NEW state — the one-home (state × command) legality
+// (agentsession.LegalControls), projected so the UI derives every control's enablement from this set
+// instead of re-encoding the matrix. A control absent from Allowed must be disabled, so an illegal
+// action (e.g. Steer in awaiting-permission) is never offerable. CanResolve is the second axis (a
+// permission allow/deny is legal iff a request is pending — i.e. the AwaitingPermission state).
 type stateView struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	From       string   `json:"from"`
+	To         string   `json:"to"`
+	Allowed    []string `json:"allowed"`
+	CanResolve bool     `json:"canResolve"`
+}
+
+// allowedControlTokens renders agentsession.LegalControls(state) as the lower-kebab wire tokens
+// (prompt|steer|abort) the UI keys its controls off — citing the agentsession home, never a re-spelled
+// gateway matrix. Always a non-nil slice so the JSON is an array (a terminal state → []).
+func allowedControlTokens(state agentsession.State) []string {
+	legal := agentsession.LegalControls(state)
+	tokens := make([]string, 0, len(legal))
+	for _, kind := range legal {
+		tokens = append(tokens, kind.String())
+	}
+	return tokens
 }
 
 // messageView projects a message-start / thinking-delta / text-delta / message-end fragment,
@@ -252,6 +276,7 @@ func toAgentView(agent orchestrator.Agent) agentView {
 		CreatedAt: agent.CreatedAt,
 		UpdatedAt: agent.UpdatedAt,
 		Ledger:    toLedgerView(agent.Ledger),
+		CanResume: agent.Status == orchestrator.StatusSuspended || agent.Status == orchestrator.StatusStopped,
 	}
 }
 
@@ -271,7 +296,12 @@ func toEventView(event agentsession.Event) eventView {
 		Extension: event.Extension,
 	}
 	if event.State != nil {
-		view.State = &stateView{From: event.State.From.String(), To: event.State.To.String()}
+		view.State = &stateView{
+			From:       event.State.From.String(),
+			To:         event.State.To.String(),
+			Allowed:    allowedControlTokens(event.State.To),
+			CanResolve: event.State.To == agentsession.StateAwaitingPermission,
+		}
 	}
 	if event.Message != nil {
 		view.Message = &messageView{Role: event.Message.Role, Delta: event.Message.Delta, Tokens: event.Message.Tokens}

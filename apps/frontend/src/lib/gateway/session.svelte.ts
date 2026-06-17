@@ -104,6 +104,19 @@ export class ChatSession {
   terminal = $state<boolean>(false);
   error = $state<string | null>(null);
 
+  // ── control legality (the one source of truth for which controls are offerable) ──
+  /** The turn-taking control tokens (prompt|steer|abort) legal in the CURRENT sessionState, folded
+   *  from each SSE state event — the gateway projects the agentsession (state × command) matrix here.
+   *  Every control derives its enablement from membership: a control NOT in this set must be
+   *  disabled, so the UI can never offer an illegal action (e.g. Steer in awaiting-permission).
+   *  Empty until the first state event arrives (everything disabled — the safe default). */
+  allowed = $state<Set<string>>(new Set());
+  /** True iff a permission decision (allow/deny) is legal now — i.e. the session is awaiting one. */
+  canResolve = $state<boolean>(false);
+  /** The record-plane Resume allowance, seeded from the agent record on attach (a live session is
+   *  never resumable, so this stays false through the chat — fixing the always-enabled Resume bug). */
+  canResume = $state<boolean>(false);
+
   // ── status-bar surface (the JS representation of the harness TUI) ──
   /** The live agent activity the bottom status bar renders (thinking/responding/tool/…). */
   activity = $state<Activity>('idle');
@@ -193,7 +206,13 @@ export class ChatSession {
   private fold(event: EventView): void {
     switch (event.kind) {
       case 'session-state':
-        if (event.state) this.sessionState = event.state.to as SessionState;
+        if (event.state) {
+          this.sessionState = event.state.to as SessionState;
+          // Fold the projected control legality so every control derives its enablement from one
+          // source — the gateway's (state × command) matrix for this new state.
+          this.allowed = new Set(event.state.allowed ?? []);
+          this.canResolve = event.state.canResolve ?? false;
+        }
         break;
       case 'thinking-progress':
         // The pre-message reasoning heartbeat: surface the running estimated token count and drive

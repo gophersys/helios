@@ -26,28 +26,36 @@ async function openChat(page: Page): Promise<void> {
   await expect(page.getByTestId('gateway-health')).toHaveText('gateway up');
 }
 
-/** Drive the PRODUCT WIZARD to launch a claude session whose OPENING prompt is the permission-demo
- *  prompt — so the dev adapter's first turn is the out-of-grant gate (not the canonical demo). */
+/** Drive the CREATE-PROJECT FLOW to launch a claude session whose OPENING prompt is the
+ *  permission-demo prompt — so the dev adapter's first turn is the out-of-grant gate (not the
+ *  canonical demo). Spark (the prompt) → Scope → Stack → Build it. */
 async function launchPermissionSession(page: Page): Promise<void> {
-  await page.getByTestId('new-session').click();
-  await expect(page.getByTestId('product-wizard')).toBeVisible();
-  await page.getByTestId('wizard-prompt').fill(PERMISSION_DEMO_PROMPT);
-
-  // DEFINE -> STACK -> CAPABILITIES (claude) -> PROCESS -> SAFETY -> REVIEW -> Launch.
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'stack');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'capabilities');
-  await page.getByTestId('wizard-harness-claude').click();
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'process');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'safety');
-  await page.getByTestId('wizard-next').click();
-  await expect(page.getByTestId('product-wizard')).toHaveAttribute('data-step', 'review');
-  await page.getByTestId('wizard-launch').click();
-  await expect(page.getByTestId('product-wizard')).toBeHidden();
+  await page.getByTestId('new-session').first().click();
+  await expect(page.getByTestId('create-flow')).toBeVisible();
+  await page.getByTestId('create-spark').fill(PERMISSION_DEMO_PROMPT);
+  await page.getByTestId('create-start').click();
+  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+    timeout: 10_000,
+  });
+  await page.getByTestId('create-next').click();
+  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'stack');
+  await page.getByTestId('create-launch').click();
+  await expect(page.getByTestId('create-flow')).toBeHidden();
   await expect(page.getByTestId('active-harness')).toHaveText('claude');
+}
+
+/** assertAwaitingPermissionControls is the regression guard for the (state × action) bug: while the
+ *  session is AWAITING-PERMISSION, the turn-taking controls the state machine forbids (Steer needs
+ *  Running; Prompt needs Ready/AwaitingInput) MUST be disabled — the UI derives them from the
+ *  projected allowed-set, so an illegal control is unclickable. Abort (legal, non-terminal) and the
+ *  permission Allow/Deny stay enabled. This is the assertion whose absence let the live bug ship. */
+async function assertAwaitingPermissionControls(page: Page): Promise<void> {
+  await expect(page.getByTestId('session-state')).toHaveText('awaiting-permission');
+  await expect(page.getByTestId('steer').getByRole('button')).toBeDisabled();
+  await expect(page.getByTestId('composer-send').getByRole('button')).toBeDisabled();
+  await expect(page.getByTestId('request-tool').getByRole('button')).toBeDisabled();
+  // Abort is legal in any non-terminal state, so it stays enabled; the permission card's Allow/Deny too.
+  await expect(page.getByTestId('abort').getByRole('button')).toBeEnabled();
 }
 
 test.describe('permission flow — live round-trip against a real dev-serve (fake arm)', () => {
@@ -66,6 +74,12 @@ test.describe('permission flow — live round-trip against a real dev-serve (fak
     const allowOnce = card.getByRole('button', { name: 'Allow once' });
     await expect(allowOnce).toBeVisible();
     await expect(card.getByRole('button', { name: 'Deny' })).toBeVisible();
+
+    // While awaiting the decision, the illegal turn-taking controls are disabled (the matrix fix);
+    // Allow/Deny/Abort stay live. This is the cell the live "Steer is illegal in awaiting-permission"
+    // bug lived in — the UI now cannot fire it.
+    await assertAwaitingPermissionControls(page);
+    await expect(allowOnce).toBeEnabled();
 
     // Allow once -> GatewayClient.resolve(id, req, 'allow', 'once') POSTs to the Resolve endpoint;
     // session.Resolve forwards the verdict, the harness emits permission-resolved (allowed), and the

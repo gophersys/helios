@@ -110,13 +110,32 @@
           ? [
               { value: 'agent-config', label: 'Agent configuration', keywords: ['config', 'model', 'tools', 'details'] },
               { value: 'stop', label: 'Stop session', keywords: ['end', 'kill'] },
-              { value: 'steer', label: 'Steer the agent', keywords: ['interject', 'redirect'] },
-              { value: 'abort', label: 'Abort the current turn', keywords: ['cancel'] },
-              { value: 'resume', label: 'Resume session', keywords: ['reconnect'] },
+              // The control items DERIVE disabled from the same allowed-set as the inline buttons —
+              // one source of truth, two render sites — so the palette can never dispatch an illegal
+              // control either.
+              {
+                value: 'steer',
+                label: 'Steer the agent',
+                keywords: ['interject', 'redirect'],
+                disabled: !active.allowed.has('steer'),
+              },
+              {
+                value: 'abort',
+                label: 'Abort the current turn',
+                keywords: ['cancel'],
+                disabled: !active.allowed.has('abort'),
+              },
+              {
+                value: 'resume',
+                label: 'Resume session',
+                keywords: ['reconnect'],
+                disabled: !active.canResume,
+              },
               {
                 value: 'request-tool',
                 label: 'Request an out-of-grant tool (demo)',
                 keywords: ['permission', 'gate'],
+                disabled: !active.allowed.has('prompt'),
               },
             ]
           : []),
@@ -154,11 +173,14 @@
       if (agent) openSession(agent);
       return;
     }
+    // Defense-in-depth: even though the disabled palette items above are not selectable, guard the
+    // dispatch against the live allowed-set so a TOCTOU (state changed between render and select)
+    // can never fire an illegal control. Stop is always allowed (idempotent).
     if (value === 'stop') void stopSession();
-    else if (value === 'steer') void steer();
-    else if (value === 'abort') void abort();
-    else if (value === 'resume') void resumeSession();
-    else if (value === 'request-tool') void requestOutOfGrantTool();
+    else if (value === 'steer' && active?.allowed.has('steer')) void steer();
+    else if (value === 'abort' && active?.allowed.has('abort')) void abort();
+    else if (value === 'resume' && active?.canResume) void resumeSession();
+    else if (value === 'request-tool' && active?.allowed.has('prompt')) void requestOutOfGrantTool();
   }
 
   /** ⌘K / Ctrl-K toggles the palette from anywhere in the workspace. */
@@ -235,7 +257,9 @@
 
   async function sendComposer(): Promise<void> {
     const text = composer.trim();
-    if (!text || !active) return;
+    // Prompt is legal only in ready/awaiting-input — the allowed-set guards both the Send button and
+    // the Enter key, so the composer can never fire an illegal Prompt (which would 409).
+    if (!text || !active || !active.allowed.has('prompt')) return;
     composer = '';
     await active.send(text);
   }
@@ -446,25 +470,33 @@
             {active.connection}
           </span>
         </div>
+        <!-- Every control DERIVES its enablement from the session's projected allowed-set (the one
+             source of truth, the agentsession (state × command) matrix) — never a hand-guessed
+             condition. A control absent from the set is disabled, so an illegal action (e.g. steer in
+             awaiting-permission) is impossible to trigger. -->
         <div class="view__controls">
           <span class="control" data-testid="request-tool">
             <Button
               variant="secondary"
               {theme}
-              disabled={active.terminal}
+              disabled={!active.allowed.has('prompt')}
               onclick={requestOutOfGrantTool}>request tool</Button
             >
           </span>
           <span class="control" data-testid="steer">
-            <Button variant="ghost" {theme} disabled={active.terminal} onclick={steer}>steer</Button
+            <Button variant="ghost" {theme} disabled={!active.allowed.has('steer')} onclick={steer}
+              >steer</Button
             >
           </span>
           <span class="control" data-testid="abort">
-            <Button variant="ghost" {theme} disabled={active.terminal} onclick={abort}>abort</Button
+            <Button variant="ghost" {theme} disabled={!active.allowed.has('abort')} onclick={abort}
+              >abort</Button
             >
           </span>
           <span class="control" data-testid="resume">
-            <Button variant="ghost" {theme} onclick={resumeSession}>resume</Button>
+            <Button variant="ghost" {theme} disabled={!active.canResume} onclick={resumeSession}
+              >resume</Button
+            >
           </span>
           <span class="control" data-testid="stop">
             <Button variant="danger" {theme} onclick={stopSession}>stop</Button>
@@ -540,7 +572,12 @@
           />
         </div>
         <span class="control" data-testid="composer-send">
-          <Button variant="primary" {theme} onclick={sendComposer}>Send</Button>
+          <Button
+            variant="primary"
+            {theme}
+            disabled={!active.allowed.has('prompt')}
+            onclick={sendComposer}>Send</Button
+          >
         </span>
       </div>
     {/if}
