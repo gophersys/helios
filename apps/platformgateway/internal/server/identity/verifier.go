@@ -17,12 +17,13 @@ import (
 )
 
 // NewVerifier resolves the JWT signing secret from ref through the secrets port and returns the
-// edenhttp dev-JWT verifier built over it. The secret is used ONLY to construct the verifier and is
-// zeroized immediately after (the secrets.Use point-of-use scope) — it never reaches a log or a
-// field. A missing/denied secret is a wrapped, inspectable error; the value never appears in it.
-//
-//nolint:ireturn // returns the edenhttp.TokenVerifier port the spine's Deps accept (the frozen surface).
-func NewVerifier(ctx context.Context, provider secrets.Provider, ref secrets.Reference) (edenhttp.TokenVerifier, error) {
+// CONCRETE edenhttp dev-JWT HMAC verifier built over it (return-concrete). The server wires the SAME
+// verifier two ways: wrapped in NewDBVerifier as the spine's authenticate-and-DB-authorize TokenVerifier,
+// AND exposed (its Sign method) to the /auth/login handler to MINT a token — one signing key both mints
+// and verifies. The secret is used ONLY to construct the verifier and is zeroized immediately after (the
+// secrets.Use point-of-use scope) — it never reaches a log or a field. A missing/denied secret is a
+// wrapped, inspectable error; the value never appears in it.
+func NewVerifier(ctx context.Context, provider secrets.Provider, ref secrets.Reference) (*edenhttp.HMACVerifier, error) {
 	if ref.IsZero() {
 		return nil, errors.New(errors.KindInvalid, "identity: a JWT secret Reference is required (the gateway is behind auth even locally)")
 	}

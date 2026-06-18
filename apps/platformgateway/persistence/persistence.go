@@ -54,6 +54,7 @@ type Persistence struct {
 	pool          *pgxpool.Pool
 	users         *Users
 	rbac          *RBAC
+	accounts      *Accounts
 	observability observability.Provider
 }
 
@@ -117,6 +118,7 @@ func New(ctx context.Context, configuration Configuration, dependencies Dependen
 		pool:          pool,
 		users:         &Users{queries: queries},
 		rbac:          &RBAC{queries: queries},
+		accounts:      &Accounts{queries: queries},
 		observability: dependencies.Observability,
 	}, nil
 }
@@ -130,6 +132,12 @@ func (p *Persistence) Users() *Users { return p.users }
 // return-concrete — a usable store, not another port). It owns the membership read (maps pgx's
 // not-found to a typed errors.KindNotFound) and the idempotent org/permission-set/membership seed.
 func (p *Persistence) RBAC() *RBAC { return p.rbac }
+
+// Accounts returns the typed linked-identity store the login Authenticator + the password-account seed
+// call (accept-interfaces, return-concrete — a usable store, not another port). It owns the credential
+// read by (provider, provider_account_id) (maps pgx's not-found to a typed errors.KindNotFound) and the
+// idempotent find-or-create seed — the OAuth-ready authentication seam.
+func (p *Persistence) Accounts() *Accounts { return p.accounts }
 
 // Close releases the pool. Idempotent: a second Close is a no-op (a nil pool short-circuits), so the
 // composition root may defer it unconditionally. It logs the close on the observability stream.

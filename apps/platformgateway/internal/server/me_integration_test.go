@@ -161,14 +161,18 @@ func driveBootstrapProfile(t *testing.T, baseURL string, userID, orgID uuid.UUID
 }
 
 // newServerWithRBAC assembles the gateway with the REAL persistence facades wired as the users store,
-// the RBAC store, and the bootstrap providers, through the same server.New the composition root calls.
+// the RBAC store, the Accounts store, and the bootstrap providers, through the same server.New the
+// composition root calls. It CLEARS the fake GrantResolver so the server derives the persistence-backed
+// RBACGrantResolver — the DB-driven authorize is the REAL membership read on the real database.
 func newServerWithRBAC(t *testing.T, dataStore *persistence.Persistence) *server.Server {
 	t.Helper()
 	dependencies := newDeps(t)
 	dependencies.Users = dataStore.Users()
 	dependencies.RBAC = dataStore.RBAC()
+	dependencies.Accounts = dataStore.Accounts()
 	dependencies.DefaultUser = dataStore.Users()
 	dependencies.DefaultMembership = dataStore.RBAC()
+	dependencies.GrantResolver = nil // derive the REAL RBACGrantResolver from the real RBAC store.
 	srv, err := server.New(server.Config{JWTSecretRef: secrets.Ref(jwtSecretRef)}, dependencies)
 	if err != nil {
 		t.Fatalf("server.New: %v", err)

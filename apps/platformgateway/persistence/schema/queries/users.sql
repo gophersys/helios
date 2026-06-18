@@ -29,3 +29,13 @@ LIMIT 1;
 INSERT INTO users (id, email, name, is_default)
 VALUES ($1, $2, $3, true)
 ON CONFLICT (email) DO NOTHING;
+
+-- name: EnsureUser :exec
+-- The idempotent seed of a NON-default user (is_default = false): plant the user if absent, do nothing if
+-- the email already exists. ON CONFLICT keys on the unique email so a re-run is a safe no-op. Unlike
+-- EnsureDefaultUser it does NOT touch the single-default partial unique index, so any number of users may
+-- be seeded. It is the create-additional-user primitive the backend (and the integration lane's
+-- multi-user authorize proof) draws on.
+INSERT INTO users (id, email, name, is_default)
+VALUES ($1, $2, $3, false)
+ON CONFLICT (email) DO NOTHING;

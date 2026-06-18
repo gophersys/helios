@@ -1,18 +1,24 @@
 package server_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/gophersys/libs/go/edenhttp"
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/observability/slogadapter"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 
 	"github.com/gophersys/eden/apps/platformgateway/internal/server"
+	"github.com/gophersys/eden/apps/platformgateway/internal/server/identity"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server/middleware"
 )
 
@@ -26,9 +32,44 @@ type testClock struct{}
 
 func (testClock) Now() time.Time { return time.Unix(0, 0).UTC() }
 
+// grantRegistry is the test-wide map from a minted token's SUBJECT (a user uuid) to the grants that
+// subject holds — the DB-driven model's stand-in for a real membership row. The `token` helpers register
+// a fresh uuid → grant-set here, and grantResolver reads it. This is what makes authorization DB-driven
+// in tests: the token carries only the subject, and the grants come from the resolver (the fake DB),
+// never from the token. It is package-level + mutex-guarded because tests run in parallel.
+var grantRegistry = struct {
+	sync.Mutex
+	bySubject map[string][]edenhttp.Grant
+}{bySubject: map[string][]edenhttp.Grant{}}
+
+// registerGrants records the grants for a subject (a minted token's user id) so the fake resolver returns
+// them when the spine resolves that caller. Returns the subject for convenience.
+func registerGrants(subject string, grants []edenhttp.Grant) string {
+	grantRegistry.Lock()
+	defer grantRegistry.Unlock()
+	grantRegistry.bySubject[subject] = grants
+	return subject
+}
+
+// grantResolver is the test's fake identity.GrantResolver: it returns the grants registered for the
+// caller's user id (the DB-driven authorize source, mocked). An unregistered subject resolves to the
+// empty grant set (an authenticated-but-unauthorized caller). The integration lane proves the SAME
+// authorize on a real membership read (ADR-0016 §2).
+type grantResolver struct{}
+
+func (grantResolver) ResolveGrants(_ context.Context, userID uuid.UUID) ([]edenhttp.Grant, error) {
+	grantRegistry.Lock()
+	defer grantRegistry.Unlock()
+	return grantRegistry.bySubject[userID.String()], nil
+}
+
+// compile-time assertion: grantResolver satisfies the DB-driven verifier's port.
+var _ identity.GrantResolver = grantResolver{}
+
 // newDeps builds the server's required ports for a test: a secretstest provider seeded with the JWT
-// signing key and a real observability Provider over a discarding slog exporter (the SAME shape the
-// composition root wires, so the test exercises the production seams, not stubs). It returns the
+// signing key, a real observability Provider over a discarding slog exporter (the SAME shape the
+// composition root wires, so the test exercises the production seams, not stubs), and the fake
+// DB-driven GrantResolver (so authorize is the resolver's answer, not the token's). It returns the
 // concrete server.Deps record.
 func newDeps(t *testing.T) server.Deps {
 	t.Helper()
@@ -42,6 +83,7 @@ func newDeps(t *testing.T) server.Deps {
 	return server.Deps{
 		Secrets:       secretstest.New(map[string]string{jwtSecretRef: "test-signing-key-32-bytes-minimum!!"}),
 		Observability: provider,
+		GrantResolver: grantResolver{},
 	}
 }
 

@@ -8,6 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Account struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserID            pgtype.UUID        `json:"user_id"`
+	Provider          string             `json:"provider"`
+	ProviderAccountID string             `json:"provider_account_id"`
+	PasswordHash      pgtype.Text        `json:"password_hash"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Organization struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`

@@ -70,14 +70,13 @@ func newUsersServer(t *testing.T, userStore *fakeStore) *server.Server {
 	return srv
 }
 
-// token mints a signed dev-JWT carrying the given grants, so the test can drive the authenticated +
-// authorized happy path and the 403 (wrong grant) path through the real spine.
+// token mints a signed dev-JWT for a FRESH test user id and REGISTERS the given grants for that user in
+// the fake DB-driven resolver — so the spine authenticates the token (subject only) and then authorizes
+// against the resolver's grants, NOT the token's. This is the DB-driven model: the token carries identity,
+// the grants come from the (fake) database. The test drives the authorized happy path and the 403
+// (wrong/missing grant) path through the real spine + verifier, just keyed off the resolver now.
 func token(t *testing.T, grants ...string) string {
 	t.Helper()
-	verifier, err := edenhttp.NewHMACVerifier(signingKey)
-	if err != nil {
-		t.Fatalf("new verifier: %v", err)
-	}
 	parsed := make([]edenhttp.Grant, 0, len(grants))
 	for _, g := range grants {
 		grant, perr := edenhttp.ParseGrant(g)
@@ -86,11 +85,8 @@ func token(t *testing.T, grants ...string) string {
 		}
 		parsed = append(parsed, grant)
 	}
-	signed, err := verifier.Sign("tester", parsed, time.Now().Add(time.Hour))
-	if err != nil {
-		t.Fatalf("sign token: %v", err)
-	}
-	return signed
+	subject := registerGrants(uuid.NewString(), parsed)
+	return tokenForSubject(t, subject) // a uuid subject; grants live in the resolver, not the token.
 }
 
 // do issues a request through the assembled server and returns the recorder.

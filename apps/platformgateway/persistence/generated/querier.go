@@ -11,6 +11,12 @@ import (
 )
 
 type Querier interface {
+	// The idempotent find-or-create seed: plant the provider identity (with its linked user + optional
+	// password_hash) if absent, do nothing if the (provider, provider_account_id) pair already exists. ON
+	// CONFLICT keys on the UNIQUE (provider, provider_account_id) pair so a re-run on every boot is a safe
+	// no-op (the existing account's hash is left untouched). It is the password-account seed AND the shape an
+	// OAuth find-or-create would reuse (provider 'google'/'github', a NULL password_hash).
+	EnsureAccount(ctx context.Context, arg EnsureAccountParams) error
 	// The idempotent IOTEA-style startup seed: plant the default user if absent, do nothing if the email
 	// already exists. ON CONFLICT keys on the unique email so a re-run on every boot is a safe no-op.
 	EnsureDefaultUser(ctx context.Context, arg EnsureDefaultUserParams) error
@@ -34,6 +40,27 @@ type Querier interface {
 	// The idempotent seed of an org-level permission set (e.g. the admin set with permissions {*}). ON
 	// CONFLICT on the fixed id makes a re-run a no-op.
 	EnsurePermissionSet(ctx context.Context, arg EnsurePermissionSetParams) error
+	// The idempotent seed of a NON-default user (is_default = false): plant the user if absent, do nothing if
+	// the email already exists. ON CONFLICT keys on the unique email so a re-run is a safe no-op. Unlike
+	// EnsureDefaultUser it does NOT touch the single-default partial unique index, so any number of users may
+	// be seeded. It is the create-additional-user primitive the backend (and the integration lane's
+	// multi-user authorize proof) draws on.
+	EnsureUser(ctx context.Context, arg EnsureUserParams) error
+	// Queries for the `accounts` linked-identity table (the OAuth-ready authentication seam). sqlc emits one
+	// typed Go method per `-- name:` directive into ../../generated; the :one/:exec suffix selects the return
+	// shape. These are the queries the login Authenticator and the password-account seed call through the
+	// injected Querier (never string SQL): the credential read by (provider, provider_account_id) plus the
+	// idempotent find-or-create seed.
+	//
+	// The vocabulary is provider ∈ {"password","google","github"}: for "password" the provider_account_id is
+	// the lowercased email and password_hash holds the bcrypt digest; for an OAuth provider the
+	// provider_account_id is the provider's stable account id and password_hash is NULL. A missing account
+	// yields pgx.ErrNoRows, which the facade maps to a typed errors.KindNotFound.
+	// The credential read the login Authenticator runs: resolve a (provider, provider_account_id) pair to its
+	// account, returning the linked user_id and the password_hash the password provider checks against. The
+	// (provider, provider_account_id) pair is UNIQUE, so this is a :one read; a missing pair is pgx.ErrNoRows
+	// (→ the facade's KindNotFound → a 401 the Authenticator renders, never revealing which half was wrong).
+	GetAccountByProvider(ctx context.Context, arg GetAccountByProviderParams) (Account, error)
 	GetDefaultUser(ctx context.Context) (User, error)
 	// The membership read the /v1/me route and the login bootstrap project a profile from: the member row
 	// joined to its organization and permission set, returning the organization id+name, the role, and the

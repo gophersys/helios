@@ -30,6 +30,28 @@ func (q *Queries) EnsureDefaultUser(ctx context.Context, arg EnsureDefaultUserPa
 	return err
 }
 
+const ensureUser = `-- name: EnsureUser :exec
+INSERT INTO users (id, email, name, is_default)
+VALUES ($1, $2, $3, false)
+ON CONFLICT (email) DO NOTHING
+`
+
+type EnsureUserParams struct {
+	ID    pgtype.UUID `json:"id"`
+	Email string      `json:"email"`
+	Name  string      `json:"name"`
+}
+
+// The idempotent seed of a NON-default user (is_default = false): plant the user if absent, do nothing if
+// the email already exists. ON CONFLICT keys on the unique email so a re-run is a safe no-op. Unlike
+// EnsureDefaultUser it does NOT touch the single-default partial unique index, so any number of users may
+// be seeded. It is the create-additional-user primitive the backend (and the integration lane's
+// multi-user authorize proof) draws on.
+func (q *Queries) EnsureUser(ctx context.Context, arg EnsureUserParams) error {
+	_, err := q.db.Exec(ctx, ensureUser, arg.ID, arg.Email, arg.Name)
+	return err
+}
+
 const getDefaultUser = `-- name: GetDefaultUser :one
 SELECT id, email, name, is_default, created_at, updated_at
 FROM users

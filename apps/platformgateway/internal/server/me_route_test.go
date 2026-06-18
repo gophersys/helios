@@ -49,24 +49,17 @@ func newProfileServer(t *testing.T, userStore *fakeStore, rbacStore *fakeRBAC) *
 	return srv
 }
 
-// tokenForSubject mints a signed dev-JWT whose SUBJECT is the given user id (not the "tester" subject
-// the bare token helper uses), so the /v1/me route — which reads the caller from the verified token's
-// subject — resolves to a specific seeded user. The grants are carried verbatim.
-func tokenForSubject(t *testing.T, subject string, grants ...string) string {
+// tokenForSubject mints a signed dev-JWT whose SUBJECT is the given user id, so a route that reads the
+// caller from the verified token's subject (/v1/me) resolves to a specific seeded user. Under the
+// DB-driven model the token carries ONLY the subject — the caller's grants come from the resolver, NOT
+// the token — so no grants are embedded here; authorization is configured on the (fake or real) resolver.
+func tokenForSubject(t *testing.T, subject string) string {
 	t.Helper()
 	verifier, err := edenhttp.NewHMACVerifier(signingKey)
 	if err != nil {
 		t.Fatalf("new verifier: %v", err)
 	}
-	parsed := make([]edenhttp.Grant, 0, len(grants))
-	for _, g := range grants {
-		grant, perr := edenhttp.ParseGrant(g)
-		if perr != nil {
-			t.Fatalf("parse grant %q: %v", g, perr)
-		}
-		parsed = append(parsed, grant)
-	}
-	signed, err := verifier.Sign(subject, parsed, time.Now().Add(time.Hour))
+	signed, err := verifier.Sign(subject, nil, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("sign token: %v", err)
 	}
@@ -151,14 +144,16 @@ func TestMe_AnyGrantIsAccepted(t *testing.T) {
 	}
 }
 
-// TestMe_MalformedSubjectIsBadRequest proves the execute stage rejects a token whose subject is not a
-// uuid (the bare token helper signs subject "tester") with a 400 — a malformed caller, not a 500.
-func TestMe_MalformedSubjectIsBadRequest(t *testing.T) {
+// TestMe_MalformedSubjectIsRejected proves the DB-driven verifier rejects a token whose subject is not a
+// uuid: under the new model the verifier parses the subject as a user id BEFORE the route runs (to resolve
+// grants from the DB), so a non-uuid subject is an UNAUTHENTICATED token (401 at the spine), not a 400
+// from execute. The token is valid-signed but carries the non-uuid subject "tester".
+func TestMe_MalformedSubjectIsRejected(t *testing.T) {
 	t.Parallel()
 	srv := newProfileServer(t, &fakeStore{}, &fakeRBAC{})
-	recorder := do(srv, http.MethodGet, "/v1/me", token(t), nil) // subject "tester" — not a uuid.
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("GET /v1/me (non-uuid subject) status = %d, want 400; body=%s", recorder.Code, recorder.Body.String())
+	recorder := do(srv, http.MethodGet, "/v1/me", tokenForSubject(t, "tester"), nil) // subject not a uuid.
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /v1/me (non-uuid subject) status = %d, want 401; body=%s", recorder.Code, recorder.Body.String())
 	}
 }
 

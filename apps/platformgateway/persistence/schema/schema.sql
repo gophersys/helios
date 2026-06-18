@@ -76,3 +76,36 @@ CREATE TABLE IF NOT EXISTS organization_members (
     updated_at        timestamptz NOT NULL DEFAULT now(),
     UNIQUE (organization_id, user_id)
 );
+
+-- IOTEA-style linked-identity model (migration 0003), the OAuth-ready authentication seam. An
+-- `accounts` row is a credential record that links an authentication PROVIDER identity to an Eden
+-- user, mirroring the IOTEA prisma `Account` model (provider + providerAccountId, unique together).
+-- The provider vocabulary is {"password","google","github"}: for the "password" provider the
+-- provider_account_id is the lowercased email and password_hash holds the bcrypt digest; for an OAuth
+-- provider (google/github) the provider_account_id is the provider's stable account id and
+-- password_hash is NULL (OAuth carries no password). Authentication resolves a (provider,
+-- provider_account_id) pair to its user_id; the JWT then carries ONLY that user id, and the
+-- DB-driven authorize loads the user's grants from the RBAC tables per request. Adding an OAuth
+-- provider therefore changes only USER RESOLUTION (find-or-create the user+account from the OAuth
+-- profile) — the mint + authorize path is identical (the IOTEA OAuth invariant).
+
+CREATE TABLE IF NOT EXISTS accounts (
+    -- id is the server-minted primary key (uuid). The password-account seed supplies a fixed id so the
+    -- default user's password account is stable across restarts and the ON CONFLICT seed is a no-op.
+    id                  uuid        PRIMARY KEY,
+    -- user_id is the Eden user this provider identity is linked to (the account resolves to it on login).
+    user_id             uuid        NOT NULL REFERENCES users (id),
+    -- provider is the authentication provider: 'password' (local credential) or 'google'|'github' (OAuth).
+    provider            text        NOT NULL,
+    -- provider_account_id is the identity WITHIN the provider: the lowercased email for 'password', the
+    -- provider's stable account id for an OAuth provider. (provider, provider_account_id) is UNIQUE.
+    provider_account_id text        NOT NULL,
+    -- password_hash is the bcrypt digest, set ONLY by the 'password' provider; NULL for an OAuth account
+    -- (OAuth carries no password). It is a credential digest, never logged (gosec/secretscan guard it).
+    password_hash       text,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    -- A provider identity is single-valued: (provider, provider_account_id) is the natural key the
+    -- find-or-create seed's ON CONFLICT targets, so a re-seed on every boot is a safe no-op.
+    UNIQUE (provider, provider_account_id)
+);

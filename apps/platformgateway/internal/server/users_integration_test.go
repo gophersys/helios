@@ -70,11 +70,18 @@ func TestIntegration_UsersReadSlice(t *testing.T) {
 		t.Fatalf("re-seed default user (idempotent): %v", err)
 	}
 
+	// DB-driven authorize: the token carries only the subject, so the caller needs a REAL membership for
+	// the resolver to grant them. Seed the default user as an ADMIN member (permission set {*}); admin's
+	// wildcard "*" grant covers users:read, so the bearer for THIS user authorizes the read routes.
+	seedRBAC(ctx, t, dataStore, defaultID, uuid.New(), uuid.New(), uuid.New())
+
 	srv := newServerWithRealStore(t, dataStore)
 	httpServer := httptest.NewServer(srv.Handler())
 	t.Cleanup(httpServer.Close)
 
-	bearer := token(t, "users:read")
+	// The bearer's SUBJECT is the seeded admin user id; the real resolver loads their {*} grant from the
+	// membership, which Covers users:read — the DB-driven authorize, proven on the real database.
+	bearer := tokenForSubject(t, defaultID.String())
 	api, err := client.NewClientWithResponses(httpServer.URL+"/v1", client.WithRequestEditorFn(
 		func(_ context.Context, request *http.Request) error {
 			request.Header.Set("Authorization", "Bearer "+bearer)
@@ -88,7 +95,7 @@ func TestIntegration_UsersReadSlice(t *testing.T) {
 	driveList(ctx, t, api, defaultID)
 	driveGet(ctx, t, api, defaultID)
 	driveGetNotFound(ctx, t, api)
-	driveAuthorizationDenied(ctx, t, httpServer.URL)
+	driveAuthorizationDenied(ctx, t, httpServer.URL, dataStore)
 	driveBootstrap(t, httpServer.URL, defaultID)
 }
 
@@ -172,10 +179,13 @@ func driveGetNotFound(ctx context.Context, t *testing.T, api *client.ClientWithR
 	assertErrorEnvelope(t, "get-absent", gone.Body)
 }
 
-// driveAuthorizationDenied proves the users routes sit behind the auth spine, exercised THROUGH a
-// generated client against the running server: an unauthenticated client (no bearer) is 401, and an
-// authenticated-but-under-granted client (a token without users:read) is 403.
-func driveAuthorizationDenied(ctx context.Context, t *testing.T, baseURL string) {
+// driveAuthorizationDenied proves the DB-driven authorize end to end, exercised THROUGH a generated client
+// against the running server: an unauthenticated client (no bearer) is 401; an authenticated client whose
+// REAL membership lacks users:read is 403. The 403 case seeds a SECOND user as a plain 'member' with a
+// permission set that does NOT include users:read (only ping:read) — so the resolver loads their grants
+// from the database and the route's Required users:read grant is not covered. Authorization is the route's
+// Required grant checked against the DB-resolved set, not the token's.
+func driveAuthorizationDenied(ctx context.Context, t *testing.T, baseURL string, dataStore *persistence.Persistence) {
 	t.Helper()
 
 	// (a) No bearer at all → 401 (the spine authenticates before authorize/parse).
@@ -192,9 +202,28 @@ func driveAuthorizationDenied(ctx context.Context, t *testing.T, baseURL string)
 			unauthenticated.StatusCode(), string(unauthenticated.Body))
 	}
 
-	// (b) Authenticated but holding the wrong grant (users:write, not users:read) → 403 on the read
-	// route — authorization is the route's Required grant, checked after a valid identity.
-	underGranted := token(t, "users:write")
+	// (b) Authenticated but under-granted: seed a plain 'member' whose permission set is {ping:read}
+	// (NOT users:read), then drive the list route with THEIR token. The resolver loads {ping:read} from
+	// the real membership, which does not cover users:read → 403.
+	memberID := uuid.New()
+	memberOrgID := uuid.New()
+	memberPermissionSetID := uuid.New()
+	// A NON-default user (EnsureUser, not EnsureDefault) — the single-default index allows only one
+	// is_default row, and the read-slice's default user already holds it.
+	if err := dataStore.Users().EnsureUser(ctx, memberID, "member@eden.local", "Member"); err != nil {
+		t.Fatalf("seed member user: %v", err)
+	}
+	if err := dataStore.RBAC().EnsureOrganization(ctx, memberOrgID, "MemberOrg"); err != nil {
+		t.Fatalf("seed member org: %v", err)
+	}
+	if err := dataStore.RBAC().EnsurePermissionSet(ctx, memberPermissionSetID, memberOrgID, "ReadPing", []string{"ping:read"}); err != nil {
+		t.Fatalf("seed member permission set: %v", err)
+	}
+	if err := dataStore.RBAC().EnsureMembership(ctx, uuid.New(), memberOrgID, memberID, memberPermissionSetID, "member"); err != nil {
+		t.Fatalf("seed member membership: %v", err)
+	}
+
+	underGranted := tokenForSubject(t, memberID.String())
 	scoped, err := client.NewClientWithResponses(baseURL+"/v1", client.WithRequestEditorFn(
 		func(_ context.Context, request *http.Request) error {
 			request.Header.Set("Authorization", "Bearer "+underGranted)
@@ -333,14 +362,20 @@ func openPersistence(t *testing.T, dsn string) *persistence.Persistence {
 	return dataStore
 }
 
-// newServerWithRealStore assembles the gateway with the REAL persistence facade wired as the users
-// store and the bootstrap default-user provider behind/around the auth spine, through the same
-// server.New the composition root calls.
+// newServerWithRealStore assembles the gateway with the REAL persistence facades behind/around the auth
+// spine, through the same server.New the composition root calls. It wires the REAL RBAC store and CLEARS
+// the fake GrantResolver, so the server derives the persistence-backed RBACGrantResolver — authorization
+// is the REAL per-request membership read on the real database (the DB-driven model proven end to end),
+// not a fake. The Accounts facade is wired so the public /auth/login route is mounted too.
 func newServerWithRealStore(t *testing.T, dataStore *persistence.Persistence) *server.Server {
 	t.Helper()
 	dependencies := newDeps(t)
 	dependencies.Users = dataStore.Users()
+	dependencies.RBAC = dataStore.RBAC()
+	dependencies.Accounts = dataStore.Accounts()
 	dependencies.DefaultUser = dataStore.Users()
+	dependencies.DefaultMembership = dataStore.RBAC()
+	dependencies.GrantResolver = nil // derive the REAL RBACGrantResolver from the real RBAC store.
 	srv, err := server.New(server.Config{JWTSecretRef: secrets.Ref(jwtSecretRef)}, dependencies)
 	if err != nil {
 		t.Fatalf("server.New: %v", err)

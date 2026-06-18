@@ -91,6 +91,21 @@ func (u *Users) EnsureDefault(ctx context.Context, id uuid.UUID, email, name str
 	return nil
 }
 
+// EnsureUser idempotently seeds a NON-default user (INSERT ... ON CONFLICT (email) DO NOTHING, is_default
+// false). It is the create-additional-user primitive — unlike EnsureDefault it does not touch the
+// single-default index, so any number of users may be seeded. The id is supplied so the user's id is
+// stable across calls.
+func (u *Users) EnsureUser(ctx context.Context, id uuid.UUID, email, name string) error {
+	if err := u.queries.EnsureUser(ctx, generated.EnsureUserParams{
+		ID:    toPgUUID(id),
+		Email: email,
+		Name:  name,
+	}); err != nil {
+		return errors.Wrap(errors.KindUnavailable, "persistence: ensure user", err)
+	}
+	return nil
+}
+
 // notFoundUser builds the canonical typed not-found error for a user id. The id is a safe scalar, so
 // it rides the error's redaction-safe field set. Declared once so the Kind + message are consistent.
 func notFoundUser(id string) error {
