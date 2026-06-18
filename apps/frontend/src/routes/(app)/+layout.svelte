@@ -17,10 +17,16 @@
   const theme = edenTheme;
   let settingsOpen = $state(false);
 
-  // The signed-in identity drives the sidebar user; load it lazily if a deep-link skipped login (a
-  // failure leaves the neutral "You" fallback — the shell never blocks on the platform API).
+  // The signed-in identity drives the sidebar user; re-establish it from the stored token ONCE on
+  // mount (a reload or a deep-link into the shell). A one-shot guard is essential: restore() leaves
+  // `user` null when there is no token (signed out → the neutral "You" fallback), so re-running on the
+  // user/loading state would loop. The shell never blocks on the platform API.
+  let restoreAttempted = $state(false);
   $effect(() => {
-    if (!currentUser.user && !currentUser.loading) void currentUser.load();
+    if (!restoreAttempted) {
+      restoreAttempted = true;
+      if (!currentUser.user) void currentUser.restore();
+    }
   });
 
   // The primary navigation — the SaaS app's sections. The chat workspace is reached FROM a project or
@@ -28,6 +34,7 @@
   const NAV: readonly NavItem[] = [
     { label: 'Projects', href: '/projects', glyph: '▤' },
     { label: 'Sessions', href: '/sessions', glyph: '◇' },
+    { label: 'Clusters', href: '/clusters', glyph: '⎈' },
   ];
 </script>
 

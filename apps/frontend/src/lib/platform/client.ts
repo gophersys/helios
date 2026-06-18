@@ -60,10 +60,92 @@ export class PlatformError extends Error {
   }
 }
 
+/** The cookie the minted Eden session JWT is stored in. It is client-readable (the platform client
+ *  reads it to attach the Bearer header to /v1 calls — the same shape IOTEA's readable access token
+ *  uses); set on login, cleared on logout; SameSite=strict, 7-day. */
+const TOKEN_COOKIE = 'eden_token';
+
+function readToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${TOKEN_COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+function writeToken(token: string): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=strict`;
+}
+function clearToken(): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${TOKEN_COOKIE}=; path=/; max-age=0; samesite=strict`;
+}
+
+/** LoginResult is the POST /auth/login payload: the minted session JWT + the caller's profile. */
+export interface LoginResult {
+  token: string;
+  profile: PlatformUser;
+}
+
 /** PlatformClient talks to platformgateway over REST. Construct with the resolved base URL (default:
- *  the same-origin proxy). It is stateless — a thin typed wrapper over fetch. */
+ *  the same-origin proxy). The session token (when present) lives in the eden_token cookie; login sets
+ *  it and the authenticated calls attach it as the Bearer. */
 export class PlatformClient {
   constructor(private readonly base: string = resolvePlatformUrl()) {}
+
+  /** login exchanges email + password for an Eden session JWT + the caller's profile (POST /auth/login,
+   *  public/pre-identity). It stores the token (the cookie the client attaches as Bearer on /v1 calls)
+   *  and returns the profile. A bad credential is a 401 PlatformError that never reveals which factor
+   *  was wrong. The same mint path a Google/GitHub login lands on once OAuth is wired. */
+  async login(email: string, password: string): Promise<LoginResult> {
+    const response = await fetch(`${this.base}/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as Partial<Envelope<unknown>>;
+      throw new PlatformError(
+        body.kind ?? `http-${response.status}`,
+        body.errors?.[0] ?? `login failed (${response.status})`,
+      );
+    }
+    const envelope = (await response.json()) as Envelope<LoginResult>;
+    writeToken(envelope.data.token);
+    return envelope.data;
+  }
+
+  /** me fetches the AUTHENTICATED caller's profile (GET /v1/me, Bearer). Returns null when there is no
+   *  stored token (not signed in) or the token is stale (401 → cleared). The DB-driven authorize resolves
+   *  the caller's grants server-side from their membership. */
+  async me(): Promise<PlatformUser | null> {
+    const token = readToken();
+    if (!token) return null;
+    const response = await fetch(`${this.base}/v1/me`, {
+      headers: { accept: 'application/json', authorization: `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+      clearToken();
+      return null;
+    }
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as Partial<Envelope<unknown>>;
+      throw new PlatformError(
+        body.kind ?? `http-${response.status}`,
+        body.errors?.[0] ?? `profile request failed (${response.status})`,
+      );
+    }
+    const envelope = (await response.json()) as Envelope<PlatformUser>;
+    return envelope.data;
+  }
+
+  /** signedIn reports whether a session token is stored. */
+  signedIn(): boolean {
+    return readToken() !== null;
+  }
+
+  /** logout clears the stored session token. */
+  logout(): void {
+    clearToken();
+  }
 
   /** defaultUser fetches the seeded default user from the PUBLIC login bootstrap (no token — login is
    *  pre-identity). It unwraps the data envelope; a non-2xx is a typed PlatformError. */
