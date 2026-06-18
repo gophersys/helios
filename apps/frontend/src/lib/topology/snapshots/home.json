@@ -1,0 +1,1328 @@
+{
+  "clusterId": "home",
+  "clusterName": "Home \u00b7 k3s",
+  "generatedAt": "2026-06-18T22:47:57Z",
+  "source": "live-introspection",
+  "nodes": [
+    {
+      "id": "deploy/cert-manager/cert-manager",
+      "kind": "secretstore",
+      "name": "cert-manager",
+      "namespace": "cert-manager",
+      "meta": {
+        "kind": "deploy",
+        "image": "cert-manager-controller",
+        "replicas": "1/1",
+        "ports": "9402,9403"
+      },
+      "status": "ok",
+      "group": "ns/cert-manager"
+    },
+    {
+      "id": "deploy/cert-manager/cert-manager-cainjector",
+      "kind": "secretstore",
+      "name": "cert-manager-cainjector",
+      "namespace": "cert-manager",
+      "meta": {
+        "kind": "deploy",
+        "image": "cert-manager-cainjector",
+        "replicas": "1/1",
+        "ports": "9402"
+      },
+      "status": "ok",
+      "group": "ns/cert-manager"
+    },
+    {
+      "id": "deploy/cert-manager/cert-manager-webhook",
+      "kind": "secretstore",
+      "name": "cert-manager-webhook",
+      "namespace": "cert-manager",
+      "meta": {
+        "kind": "deploy",
+        "image": "cert-manager-webhook",
+        "replicas": "1/1",
+        "ports": "10250,6080,9402"
+      },
+      "status": "ok",
+      "group": "ns/cert-manager"
+    },
+    {
+      "id": "deploy/cloudflare-tunnel/cloudflared",
+      "kind": "deployment",
+      "name": "cloudflared",
+      "namespace": "cloudflare-tunnel",
+      "meta": {
+        "kind": "deploy",
+        "image": "cloudflared",
+        "replicas": "2/2"
+      },
+      "status": "ok",
+      "group": "ns/cloudflare-tunnel"
+    },
+    {
+      "id": "deploy/ingress-nginx/ingress-nginx-controller",
+      "kind": "deployment",
+      "name": "ingress-nginx-controller",
+      "namespace": "ingress-nginx",
+      "meta": {
+        "kind": "deploy",
+        "image": "controller",
+        "replicas": "1/1",
+        "ports": "80,443,8443"
+      },
+      "status": "ok",
+      "group": "ns/ingress-nginx"
+    },
+    {
+      "id": "deploy/kube-system/coredns",
+      "kind": "deployment",
+      "name": "coredns",
+      "namespace": "kube-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "mirrored-coredns-coredns",
+        "replicas": "1/1",
+        "ports": "53,53,9153"
+      },
+      "status": "ok",
+      "group": "ns/kube-system"
+    },
+    {
+      "id": "deploy/kube-system/local-path-provisioner",
+      "kind": "deployment",
+      "name": "local-path-provisioner",
+      "namespace": "kube-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "local-path-provisioner",
+        "replicas": "1/1"
+      },
+      "status": "ok",
+      "group": "ns/kube-system"
+    },
+    {
+      "id": "deploy/kube-system/metrics-server",
+      "kind": "deployment",
+      "name": "metrics-server",
+      "namespace": "kube-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "mirrored-metrics-server",
+        "replicas": "1/1",
+        "ports": "10250"
+      },
+      "status": "ok",
+      "group": "ns/kube-system"
+    },
+    {
+      "id": "deploy/longhorn-system/csi-attacher",
+      "kind": "deployment",
+      "name": "csi-attacher",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "csi-attacher",
+        "replicas": "3/3"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "deploy/longhorn-system/csi-provisioner",
+      "kind": "deployment",
+      "name": "csi-provisioner",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "csi-provisioner",
+        "replicas": "3/3"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "deploy/longhorn-system/csi-resizer",
+      "kind": "deployment",
+      "name": "csi-resizer",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "csi-resizer",
+        "replicas": "3/3"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "deploy/longhorn-system/csi-snapshotter",
+      "kind": "deployment",
+      "name": "csi-snapshotter",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "csi-snapshotter",
+        "replicas": "3/3"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "deploy/longhorn-system/longhorn-driver-deployer",
+      "kind": "deployment",
+      "name": "longhorn-driver-deployer",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "longhorn-manager",
+        "replicas": "1/1"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "deploy/longhorn-system/longhorn-ui",
+      "kind": "deployment",
+      "name": "longhorn-ui",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "longhorn-ui",
+        "replicas": "2/2",
+        "ports": "8000"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "deploy/metallb-system/controller",
+      "kind": "deployment",
+      "name": "controller",
+      "namespace": "metallb-system",
+      "meta": {
+        "kind": "deploy",
+        "image": "controller",
+        "replicas": "1/1",
+        "ports": "7472,9443"
+      },
+      "status": "ok",
+      "group": "ns/metallb-system"
+    },
+    {
+      "id": "deploy/observability/alloy-gateway",
+      "kind": "deployment",
+      "name": "alloy-gateway",
+      "namespace": "observability",
+      "meta": {
+        "kind": "deploy",
+        "image": "alloy",
+        "replicas": "1/1",
+        "ports": "12345,4317,4318"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "deploy/observability/grafana",
+      "kind": "deployment",
+      "name": "grafana",
+      "namespace": "observability",
+      "meta": {
+        "kind": "deploy",
+        "image": "grafana",
+        "replicas": "1/1",
+        "ports": "3000,9094,9094,6060"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "deploy/observability/obs-kube-state-metrics",
+      "kind": "deployment",
+      "name": "obs-kube-state-metrics",
+      "namespace": "observability",
+      "meta": {
+        "kind": "deploy",
+        "image": "kube-state-metrics",
+        "replicas": "1/1",
+        "ports": "8080,8081"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "deploy/observability/prometheus-server",
+      "kind": "deployment",
+      "name": "prometheus-server",
+      "namespace": "observability",
+      "meta": {
+        "kind": "deploy",
+        "image": "prometheus-config-reloader",
+        "replicas": "1/1",
+        "ports": "8080,9090"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "sts/observability/loki",
+      "kind": "statefulset",
+      "name": "loki",
+      "namespace": "observability",
+      "meta": {
+        "kind": "sts",
+        "image": "loki",
+        "replicas": "1/1",
+        "ports": "3100,9095,7946"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "sts/observability/tempo",
+      "kind": "statefulset",
+      "name": "tempo",
+      "namespace": "observability",
+      "meta": {
+        "kind": "sts",
+        "image": "tempo",
+        "replicas": "1/1",
+        "ports": "3200,6831,6832,14268,14250,9411"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "ds/longhorn-system/engine-image-ei-51cc7b9c",
+      "kind": "daemonset",
+      "name": "engine-image-ei-51cc7b9c",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "ds",
+        "image": "longhorn-engine",
+        "replicas": "8/8"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "ds/longhorn-system/longhorn-csi-plugin",
+      "kind": "daemonset",
+      "name": "longhorn-csi-plugin",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "ds",
+        "image": "csi-node-driver-registrar",
+        "replicas": "8/8",
+        "ports": "9808"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "ds/longhorn-system/longhorn-manager",
+      "kind": "daemonset",
+      "name": "longhorn-manager",
+      "namespace": "longhorn-system",
+      "meta": {
+        "kind": "ds",
+        "image": "longhorn-manager",
+        "replicas": "8/8",
+        "ports": "9500,9501,9502,9503"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "ds/metallb-system/speaker",
+      "kind": "daemonset",
+      "name": "speaker",
+      "namespace": "metallb-system",
+      "meta": {
+        "kind": "ds",
+        "image": "speaker",
+        "replicas": "8/8",
+        "ports": "7472,7946,7946"
+      },
+      "status": "ok",
+      "group": "ns/metallb-system"
+    },
+    {
+      "id": "ds/observability/alloy-logs",
+      "kind": "daemonset",
+      "name": "alloy-logs",
+      "namespace": "observability",
+      "meta": {
+        "kind": "ds",
+        "image": "alloy",
+        "replicas": "8/8",
+        "ports": "12345"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "ds/observability/obs-prometheus-node-exporter",
+      "kind": "daemonset",
+      "name": "obs-prometheus-node-exporter",
+      "namespace": "observability",
+      "meta": {
+        "kind": "ds",
+        "image": "node-exporter",
+        "replicas": "8/8",
+        "ports": "9100"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/cert-manager/cert-manager",
+      "kind": "service",
+      "name": "cert-manager",
+      "namespace": "cert-manager",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9402",
+        "clusterIP": "10.43.177.46"
+      },
+      "status": "ok",
+      "group": "ns/cert-manager"
+    },
+    {
+      "id": "svc/cert-manager/cert-manager-cainjector",
+      "kind": "service",
+      "name": "cert-manager-cainjector",
+      "namespace": "cert-manager",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9402",
+        "clusterIP": "10.43.219.48"
+      },
+      "status": "ok",
+      "group": "ns/cert-manager"
+    },
+    {
+      "id": "svc/cert-manager/cert-manager-webhook",
+      "kind": "service",
+      "name": "cert-manager-webhook",
+      "namespace": "cert-manager",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443,9402",
+        "clusterIP": "10.43.253.247"
+      },
+      "status": "ok",
+      "group": "ns/cert-manager"
+    },
+    {
+      "id": "svc/default/kubernetes",
+      "kind": "service",
+      "name": "kubernetes",
+      "namespace": "default",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.0.1"
+      },
+      "status": "ok",
+      "group": "ns/default"
+    },
+    {
+      "id": "svc/ingress-nginx/ingress-nginx-controller",
+      "kind": "service",
+      "name": "ingress-nginx-controller",
+      "namespace": "ingress-nginx",
+      "meta": {
+        "type": "LoadBalancer",
+        "ports": "80,443",
+        "clusterIP": "10.43.33.133"
+      },
+      "status": "ok",
+      "group": "ns/ingress-nginx"
+    },
+    {
+      "id": "svc/ingress-nginx/ingress-nginx-controller-admission",
+      "kind": "service",
+      "name": "ingress-nginx-controller-admission",
+      "namespace": "ingress-nginx",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.13.118"
+      },
+      "status": "ok",
+      "group": "ns/ingress-nginx"
+    },
+    {
+      "id": "svc/kube-system/kube-dns",
+      "kind": "service",
+      "name": "kube-dns",
+      "namespace": "kube-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "53,53,9153",
+        "clusterIP": "10.43.0.10"
+      },
+      "status": "ok",
+      "group": "ns/kube-system"
+    },
+    {
+      "id": "svc/kube-system/metrics-server",
+      "kind": "service",
+      "name": "metrics-server",
+      "namespace": "kube-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.47.178"
+      },
+      "status": "ok",
+      "group": "ns/kube-system"
+    },
+    {
+      "id": "svc/longhorn-system/longhorn-admission-webhook",
+      "kind": "service",
+      "name": "longhorn-admission-webhook",
+      "namespace": "longhorn-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9502",
+        "clusterIP": "10.43.222.29"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "svc/longhorn-system/longhorn-backend",
+      "kind": "service",
+      "name": "longhorn-backend",
+      "namespace": "longhorn-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9500",
+        "clusterIP": "10.43.7.44"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "svc/longhorn-system/longhorn-conversion-webhook",
+      "kind": "service",
+      "name": "longhorn-conversion-webhook",
+      "namespace": "longhorn-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9501",
+        "clusterIP": "10.43.141.97"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "svc/longhorn-system/longhorn-frontend",
+      "kind": "service",
+      "name": "longhorn-frontend",
+      "namespace": "longhorn-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "80",
+        "clusterIP": "10.43.33.234"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "svc/longhorn-system/longhorn-recovery-backend",
+      "kind": "service",
+      "name": "longhorn-recovery-backend",
+      "namespace": "longhorn-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9503",
+        "clusterIP": "10.43.220.234"
+      },
+      "status": "ok",
+      "group": "ns/longhorn-system"
+    },
+    {
+      "id": "svc/metallb-system/metallb-webhook-service",
+      "kind": "service",
+      "name": "metallb-webhook-service",
+      "namespace": "metallb-system",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.152.78"
+      },
+      "status": "ok",
+      "group": "ns/metallb-system"
+    },
+    {
+      "id": "svc/observability/alloy-gateway",
+      "kind": "service",
+      "name": "alloy-gateway",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "12345,4317,4318",
+        "clusterIP": "10.43.145.102"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/alloy-logs",
+      "kind": "service",
+      "name": "alloy-logs",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "12345",
+        "clusterIP": "10.43.241.185"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/grafana",
+      "kind": "service",
+      "name": "grafana",
+      "namespace": "observability",
+      "meta": {
+        "type": "LoadBalancer",
+        "ports": "80",
+        "clusterIP": "10.43.138.83"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/loki",
+      "kind": "service",
+      "name": "loki",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "3100,9095",
+        "clusterIP": "10.43.4.196"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/loki-headless",
+      "kind": "service",
+      "name": "loki-headless",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "3100"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/loki-memberlist",
+      "kind": "service",
+      "name": "loki-memberlist",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "7946"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/obs-kube-state-metrics",
+      "kind": "service",
+      "name": "obs-kube-state-metrics",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.191.224"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/obs-prometheus-node-exporter",
+      "kind": "service",
+      "name": "obs-prometheus-node-exporter",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9100",
+        "clusterIP": "10.43.186.180"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/prometheus-server",
+      "kind": "service",
+      "name": "prometheus-server",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "80",
+        "clusterIP": "10.43.116.98"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "svc/observability/tempo",
+      "kind": "service",
+      "name": "tempo",
+      "namespace": "observability",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "6831,6832,3200,14268,14250,9411",
+        "clusterIP": "10.43.144.73"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "ing/observability/grafana",
+      "kind": "ingress",
+      "name": "grafana",
+      "namespace": "observability",
+      "meta": {
+        "hosts": "grafana.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "pvc/observability/grafana",
+      "kind": "pvc",
+      "name": "grafana",
+      "namespace": "observability",
+      "meta": {
+        "storageClass": "longhorn",
+        "capacity": "5Gi"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "pvc/observability/prometheus-server",
+      "kind": "pvc",
+      "name": "prometheus-server",
+      "namespace": "observability",
+      "meta": {
+        "storageClass": "longhorn",
+        "capacity": "20Gi"
+      },
+      "status": "ok",
+      "group": "ns/observability"
+    },
+    {
+      "id": "ns/cert-manager",
+      "kind": "namespace",
+      "name": "cert-manager",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/cloudflare-tunnel",
+      "kind": "namespace",
+      "name": "cloudflare-tunnel",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/default",
+      "kind": "namespace",
+      "name": "default",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/ingress-nginx",
+      "kind": "namespace",
+      "name": "ingress-nginx",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/kube-system",
+      "kind": "namespace",
+      "name": "kube-system",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/longhorn-system",
+      "kind": "namespace",
+      "name": "longhorn-system",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/metallb-system",
+      "kind": "namespace",
+      "name": "metallb-system",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/observability",
+      "kind": "namespace",
+      "name": "observability",
+      "meta": {},
+      "status": "ok"
+    }
+  ],
+  "edges": [
+    {
+      "id": "selects:svc/cert-manager/cert-manager->deploy/cert-manager/cert-manager",
+      "source": "svc/cert-manager/cert-manager",
+      "target": "deploy/cert-manager/cert-manager",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/cert-manager/cert-manager-cainjector->deploy/cert-manager/cert-manager-cainjector",
+      "source": "svc/cert-manager/cert-manager-cainjector",
+      "target": "deploy/cert-manager/cert-manager-cainjector",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/cert-manager/cert-manager-webhook->deploy/cert-manager/cert-manager-webhook",
+      "source": "svc/cert-manager/cert-manager-webhook",
+      "target": "deploy/cert-manager/cert-manager-webhook",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/ingress-nginx/ingress-nginx-controller->deploy/ingress-nginx/ingress-nginx-controller",
+      "source": "svc/ingress-nginx/ingress-nginx-controller",
+      "target": "deploy/ingress-nginx/ingress-nginx-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/ingress-nginx/ingress-nginx-controller-admission->deploy/ingress-nginx/ingress-nginx-controller",
+      "source": "svc/ingress-nginx/ingress-nginx-controller-admission",
+      "target": "deploy/ingress-nginx/ingress-nginx-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kube-system/kube-dns->deploy/kube-system/coredns",
+      "source": "svc/kube-system/kube-dns",
+      "target": "deploy/kube-system/coredns",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kube-system/metrics-server->deploy/kube-system/metrics-server",
+      "source": "svc/kube-system/metrics-server",
+      "target": "deploy/kube-system/metrics-server",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/longhorn-system/longhorn-backend->ds/longhorn-system/longhorn-manager",
+      "source": "svc/longhorn-system/longhorn-backend",
+      "target": "ds/longhorn-system/longhorn-manager",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/longhorn-system/longhorn-frontend->deploy/longhorn-system/longhorn-ui",
+      "source": "svc/longhorn-system/longhorn-frontend",
+      "target": "deploy/longhorn-system/longhorn-ui",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/metallb-system/metallb-webhook-service->deploy/metallb-system/controller",
+      "source": "svc/metallb-system/metallb-webhook-service",
+      "target": "deploy/metallb-system/controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/alloy-gateway->deploy/observability/alloy-gateway",
+      "source": "svc/observability/alloy-gateway",
+      "target": "deploy/observability/alloy-gateway",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/alloy-logs->ds/observability/alloy-logs",
+      "source": "svc/observability/alloy-logs",
+      "target": "ds/observability/alloy-logs",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/grafana->deploy/observability/grafana",
+      "source": "svc/observability/grafana",
+      "target": "deploy/observability/grafana",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/loki->sts/observability/loki",
+      "source": "svc/observability/loki",
+      "target": "sts/observability/loki",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/loki-headless->sts/observability/loki",
+      "source": "svc/observability/loki-headless",
+      "target": "sts/observability/loki",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/obs-kube-state-metrics->deploy/observability/obs-kube-state-metrics",
+      "source": "svc/observability/obs-kube-state-metrics",
+      "target": "deploy/observability/obs-kube-state-metrics",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/obs-prometheus-node-exporter->ds/observability/obs-prometheus-node-exporter",
+      "source": "svc/observability/obs-prometheus-node-exporter",
+      "target": "ds/observability/obs-prometheus-node-exporter",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/prometheus-server->deploy/observability/prometheus-server",
+      "source": "svc/observability/prometheus-server",
+      "target": "deploy/observability/prometheus-server",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/observability/tempo->sts/observability/tempo",
+      "source": "svc/observability/tempo",
+      "target": "sts/observability/tempo",
+      "kind": "selects"
+    },
+    {
+      "id": "routes:ing/observability/grafana->svc/observability/grafana",
+      "source": "ing/observability/grafana",
+      "target": "svc/observability/grafana",
+      "kind": "routes"
+    },
+    {
+      "id": "mounts:deploy/observability/grafana->pvc/observability/grafana",
+      "source": "deploy/observability/grafana",
+      "target": "pvc/observability/grafana",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/observability/prometheus-server->pvc/observability/prometheus-server",
+      "source": "deploy/observability/prometheus-server",
+      "target": "pvc/observability/prometheus-server",
+      "kind": "mounts"
+    },
+    {
+      "id": "contains:ns/cert-manager->deploy/cert-manager/cert-manager",
+      "source": "ns/cert-manager",
+      "target": "deploy/cert-manager/cert-manager",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/cert-manager->deploy/cert-manager/cert-manager-cainjector",
+      "source": "ns/cert-manager",
+      "target": "deploy/cert-manager/cert-manager-cainjector",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/cert-manager->deploy/cert-manager/cert-manager-webhook",
+      "source": "ns/cert-manager",
+      "target": "deploy/cert-manager/cert-manager-webhook",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/cloudflare-tunnel->deploy/cloudflare-tunnel/cloudflared",
+      "source": "ns/cloudflare-tunnel",
+      "target": "deploy/cloudflare-tunnel/cloudflared",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/ingress-nginx->deploy/ingress-nginx/ingress-nginx-controller",
+      "source": "ns/ingress-nginx",
+      "target": "deploy/ingress-nginx/ingress-nginx-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kube-system->deploy/kube-system/coredns",
+      "source": "ns/kube-system",
+      "target": "deploy/kube-system/coredns",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kube-system->deploy/kube-system/local-path-provisioner",
+      "source": "ns/kube-system",
+      "target": "deploy/kube-system/local-path-provisioner",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kube-system->deploy/kube-system/metrics-server",
+      "source": "ns/kube-system",
+      "target": "deploy/kube-system/metrics-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->deploy/longhorn-system/csi-attacher",
+      "source": "ns/longhorn-system",
+      "target": "deploy/longhorn-system/csi-attacher",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->deploy/longhorn-system/csi-provisioner",
+      "source": "ns/longhorn-system",
+      "target": "deploy/longhorn-system/csi-provisioner",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->deploy/longhorn-system/csi-resizer",
+      "source": "ns/longhorn-system",
+      "target": "deploy/longhorn-system/csi-resizer",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->deploy/longhorn-system/csi-snapshotter",
+      "source": "ns/longhorn-system",
+      "target": "deploy/longhorn-system/csi-snapshotter",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->deploy/longhorn-system/longhorn-driver-deployer",
+      "source": "ns/longhorn-system",
+      "target": "deploy/longhorn-system/longhorn-driver-deployer",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->deploy/longhorn-system/longhorn-ui",
+      "source": "ns/longhorn-system",
+      "target": "deploy/longhorn-system/longhorn-ui",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/metallb-system->deploy/metallb-system/controller",
+      "source": "ns/metallb-system",
+      "target": "deploy/metallb-system/controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->deploy/observability/alloy-gateway",
+      "source": "ns/observability",
+      "target": "deploy/observability/alloy-gateway",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->deploy/observability/grafana",
+      "source": "ns/observability",
+      "target": "deploy/observability/grafana",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->deploy/observability/obs-kube-state-metrics",
+      "source": "ns/observability",
+      "target": "deploy/observability/obs-kube-state-metrics",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->deploy/observability/prometheus-server",
+      "source": "ns/observability",
+      "target": "deploy/observability/prometheus-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->sts/observability/loki",
+      "source": "ns/observability",
+      "target": "sts/observability/loki",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->sts/observability/tempo",
+      "source": "ns/observability",
+      "target": "sts/observability/tempo",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->ds/longhorn-system/engine-image-ei-51cc7b9c",
+      "source": "ns/longhorn-system",
+      "target": "ds/longhorn-system/engine-image-ei-51cc7b9c",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->ds/longhorn-system/longhorn-csi-plugin",
+      "source": "ns/longhorn-system",
+      "target": "ds/longhorn-system/longhorn-csi-plugin",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->ds/longhorn-system/longhorn-manager",
+      "source": "ns/longhorn-system",
+      "target": "ds/longhorn-system/longhorn-manager",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/metallb-system->ds/metallb-system/speaker",
+      "source": "ns/metallb-system",
+      "target": "ds/metallb-system/speaker",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->ds/observability/alloy-logs",
+      "source": "ns/observability",
+      "target": "ds/observability/alloy-logs",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->ds/observability/obs-prometheus-node-exporter",
+      "source": "ns/observability",
+      "target": "ds/observability/obs-prometheus-node-exporter",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/cert-manager->svc/cert-manager/cert-manager",
+      "source": "ns/cert-manager",
+      "target": "svc/cert-manager/cert-manager",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/cert-manager->svc/cert-manager/cert-manager-cainjector",
+      "source": "ns/cert-manager",
+      "target": "svc/cert-manager/cert-manager-cainjector",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/cert-manager->svc/cert-manager/cert-manager-webhook",
+      "source": "ns/cert-manager",
+      "target": "svc/cert-manager/cert-manager-webhook",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/default->svc/default/kubernetes",
+      "source": "ns/default",
+      "target": "svc/default/kubernetes",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/ingress-nginx->svc/ingress-nginx/ingress-nginx-controller",
+      "source": "ns/ingress-nginx",
+      "target": "svc/ingress-nginx/ingress-nginx-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/ingress-nginx->svc/ingress-nginx/ingress-nginx-controller-admission",
+      "source": "ns/ingress-nginx",
+      "target": "svc/ingress-nginx/ingress-nginx-controller-admission",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kube-system->svc/kube-system/kube-dns",
+      "source": "ns/kube-system",
+      "target": "svc/kube-system/kube-dns",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kube-system->svc/kube-system/metrics-server",
+      "source": "ns/kube-system",
+      "target": "svc/kube-system/metrics-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->svc/longhorn-system/longhorn-admission-webhook",
+      "source": "ns/longhorn-system",
+      "target": "svc/longhorn-system/longhorn-admission-webhook",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->svc/longhorn-system/longhorn-backend",
+      "source": "ns/longhorn-system",
+      "target": "svc/longhorn-system/longhorn-backend",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->svc/longhorn-system/longhorn-conversion-webhook",
+      "source": "ns/longhorn-system",
+      "target": "svc/longhorn-system/longhorn-conversion-webhook",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->svc/longhorn-system/longhorn-frontend",
+      "source": "ns/longhorn-system",
+      "target": "svc/longhorn-system/longhorn-frontend",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->svc/longhorn-system/longhorn-recovery-backend",
+      "source": "ns/longhorn-system",
+      "target": "svc/longhorn-system/longhorn-recovery-backend",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/metallb-system->svc/metallb-system/metallb-webhook-service",
+      "source": "ns/metallb-system",
+      "target": "svc/metallb-system/metallb-webhook-service",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/alloy-gateway",
+      "source": "ns/observability",
+      "target": "svc/observability/alloy-gateway",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/alloy-logs",
+      "source": "ns/observability",
+      "target": "svc/observability/alloy-logs",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/grafana",
+      "source": "ns/observability",
+      "target": "svc/observability/grafana",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/loki",
+      "source": "ns/observability",
+      "target": "svc/observability/loki",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/loki-headless",
+      "source": "ns/observability",
+      "target": "svc/observability/loki-headless",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/loki-memberlist",
+      "source": "ns/observability",
+      "target": "svc/observability/loki-memberlist",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/obs-kube-state-metrics",
+      "source": "ns/observability",
+      "target": "svc/observability/obs-kube-state-metrics",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/obs-prometheus-node-exporter",
+      "source": "ns/observability",
+      "target": "svc/observability/obs-prometheus-node-exporter",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/prometheus-server",
+      "source": "ns/observability",
+      "target": "svc/observability/prometheus-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->svc/observability/tempo",
+      "source": "ns/observability",
+      "target": "svc/observability/tempo",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->ing/observability/grafana",
+      "source": "ns/observability",
+      "target": "ing/observability/grafana",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->pvc/observability/grafana",
+      "source": "ns/observability",
+      "target": "pvc/observability/grafana",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/observability->pvc/observability/prometheus-server",
+      "source": "ns/observability",
+      "target": "pvc/observability/prometheus-server",
+      "kind": "contains"
+    }
+  ],
+  "views": [
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "description": "Workloads, services, ingress and storage, grouped by namespace.",
+      "nodes": [],
+      "edges": []
+    },
+    {
+      "id": "dataflow",
+      "title": "Data flow",
+      "description": "The request + storage path: ingress \u2192 service \u2192 workload \u2192 volume.",
+      "nodes": [
+        "deploy/cloudflare-tunnel/cloudflared",
+        "deploy/ingress-nginx/ingress-nginx-controller",
+        "deploy/kube-system/coredns",
+        "deploy/kube-system/local-path-provisioner",
+        "deploy/kube-system/metrics-server",
+        "deploy/longhorn-system/csi-attacher",
+        "deploy/longhorn-system/csi-provisioner",
+        "deploy/longhorn-system/csi-resizer",
+        "deploy/longhorn-system/csi-snapshotter",
+        "deploy/longhorn-system/longhorn-driver-deployer",
+        "deploy/longhorn-system/longhorn-ui",
+        "deploy/metallb-system/controller",
+        "deploy/observability/alloy-gateway",
+        "deploy/observability/grafana",
+        "deploy/observability/obs-kube-state-metrics",
+        "deploy/observability/prometheus-server",
+        "sts/observability/loki",
+        "sts/observability/tempo",
+        "ds/longhorn-system/engine-image-ei-51cc7b9c",
+        "ds/longhorn-system/longhorn-csi-plugin",
+        "ds/longhorn-system/longhorn-manager",
+        "ds/metallb-system/speaker",
+        "ds/observability/alloy-logs",
+        "ds/observability/obs-prometheus-node-exporter",
+        "svc/cert-manager/cert-manager",
+        "svc/cert-manager/cert-manager-cainjector",
+        "svc/cert-manager/cert-manager-webhook",
+        "svc/default/kubernetes",
+        "svc/ingress-nginx/ingress-nginx-controller",
+        "svc/ingress-nginx/ingress-nginx-controller-admission",
+        "svc/kube-system/kube-dns",
+        "svc/kube-system/metrics-server",
+        "svc/longhorn-system/longhorn-admission-webhook",
+        "svc/longhorn-system/longhorn-backend",
+        "svc/longhorn-system/longhorn-conversion-webhook",
+        "svc/longhorn-system/longhorn-frontend",
+        "svc/longhorn-system/longhorn-recovery-backend",
+        "svc/metallb-system/metallb-webhook-service",
+        "svc/observability/alloy-gateway",
+        "svc/observability/alloy-logs",
+        "svc/observability/grafana",
+        "svc/observability/loki",
+        "svc/observability/loki-headless",
+        "svc/observability/loki-memberlist",
+        "svc/observability/obs-kube-state-metrics",
+        "svc/observability/obs-prometheus-node-exporter",
+        "svc/observability/prometheus-server",
+        "svc/observability/tempo",
+        "ing/observability/grafana",
+        "pvc/observability/grafana",
+        "pvc/observability/prometheus-server"
+      ],
+      "edges": [
+        "selects:svc/cert-manager/cert-manager->deploy/cert-manager/cert-manager",
+        "selects:svc/cert-manager/cert-manager-cainjector->deploy/cert-manager/cert-manager-cainjector",
+        "selects:svc/cert-manager/cert-manager-webhook->deploy/cert-manager/cert-manager-webhook",
+        "selects:svc/ingress-nginx/ingress-nginx-controller->deploy/ingress-nginx/ingress-nginx-controller",
+        "selects:svc/ingress-nginx/ingress-nginx-controller-admission->deploy/ingress-nginx/ingress-nginx-controller",
+        "selects:svc/kube-system/kube-dns->deploy/kube-system/coredns",
+        "selects:svc/kube-system/metrics-server->deploy/kube-system/metrics-server",
+        "selects:svc/longhorn-system/longhorn-backend->ds/longhorn-system/longhorn-manager",
+        "selects:svc/longhorn-system/longhorn-frontend->deploy/longhorn-system/longhorn-ui",
+        "selects:svc/metallb-system/metallb-webhook-service->deploy/metallb-system/controller",
+        "selects:svc/observability/alloy-gateway->deploy/observability/alloy-gateway",
+        "selects:svc/observability/alloy-logs->ds/observability/alloy-logs",
+        "selects:svc/observability/grafana->deploy/observability/grafana",
+        "selects:svc/observability/loki->sts/observability/loki",
+        "selects:svc/observability/loki-headless->sts/observability/loki",
+        "selects:svc/observability/obs-kube-state-metrics->deploy/observability/obs-kube-state-metrics",
+        "selects:svc/observability/obs-prometheus-node-exporter->ds/observability/obs-prometheus-node-exporter",
+        "selects:svc/observability/prometheus-server->deploy/observability/prometheus-server",
+        "selects:svc/observability/tempo->sts/observability/tempo",
+        "routes:ing/observability/grafana->svc/observability/grafana",
+        "mounts:deploy/observability/grafana->pvc/observability/grafana",
+        "mounts:deploy/observability/prometheus-server->pvc/observability/prometheus-server"
+      ]
+    }
+  ]
+}
