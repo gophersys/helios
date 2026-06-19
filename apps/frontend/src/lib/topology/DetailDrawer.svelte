@@ -36,6 +36,25 @@
   function onKey(ev: KeyboardEvent): void {
     if (ev.key === 'Escape') clusters.focus(null);
   }
+
+  // "Open in k9s" → a live, read-only k9s TUI in a new tab, served by ttyd on its OWN port (it is a
+  // full-page terminal, not a same-origin API — and vite's ws proxy crashes under bun). ttyd appends
+  // the ?arg=… values as k9s flags (--context/-n/-c) so the session lands on THIS resource; the k9s
+  // resource view is keyed off the authoritative meta.kind. Port overridable via PUBLIC_EDEN_K9S_PORT.
+  const K9S_PORT = '7682';
+  const K9S_VIEW: Record<string, string> = {
+    deploy: 'deploy', deployment: 'deploy', sts: 'statefulset', statefulset: 'statefulset',
+    ds: 'daemonset', daemonset: 'daemonset', svc: 'service', service: 'service',
+    ing: 'ingress', ingress: 'ingress', pvc: 'pvc',
+  };
+  function openK9s(): void {
+    if (!node) return;
+    const args = ['--context', model.topo.clusterId];
+    if (node.namespace) args.push('-n', node.namespace);
+    args.push('-c', K9S_VIEW[node.meta.kind ?? ''] ?? K9S_VIEW[node.kind] ?? 'pods');
+    const qs = args.map((a) => `arg=${encodeURIComponent(a)}`).join('&');
+    window.open(`http://${window.location.hostname}:${K9S_PORT}/?${qs}`, '_blank', 'noopener');
+  }
 </script>
 
 <svelte:window onkeydown={onKey} />

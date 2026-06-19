@@ -33,6 +33,9 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/platform/, ''),
       },
+      // NB: the k9s TUI (ttyd) is NOT proxied here — vite's ws proxy crashes under bun
+      // (`socket.destroySoon`), and a full-page terminal needs no same-origin. The "Open in k9s"
+      // button opens ttyd directly on its own port (see DetailDrawer + scripts/k9s-serve.sh).
     },
   },
 });
