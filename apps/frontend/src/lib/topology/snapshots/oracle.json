@@ -1,50 +1,74 @@
 {
   "clusterId": "oracle",
   "clusterName": "Oracle \u00b7 k3s",
-  "generatedAt": "2026-06-18T22:47:58Z",
+  "generatedAt": "2026-06-19T04:58:19Z",
   "source": "live-introspection",
   "nodes": [
     {
       "id": "deploy/cert-manager/cert-manager",
-      "kind": "secretstore",
+      "kind": "deployment",
       "name": "cert-manager",
       "namespace": "cert-manager",
       "meta": {
         "kind": "deploy",
         "image": "cert-manager-controller",
         "replicas": "1/1",
+        "imageTag": "v1.20.0",
+        "createdAt": "2026-03-12T06:32:53Z",
         "ports": "9402,9403"
       },
       "status": "ok",
-      "group": "ns/cert-manager"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/cert-manager",
+      "exposure": "internal"
     },
     {
       "id": "deploy/cert-manager/cert-manager-cainjector",
-      "kind": "secretstore",
+      "kind": "deployment",
       "name": "cert-manager-cainjector",
       "namespace": "cert-manager",
       "meta": {
         "kind": "deploy",
         "image": "cert-manager-cainjector",
         "replicas": "1/1",
+        "imageTag": "v1.20.0",
+        "createdAt": "2026-03-12T06:32:53Z",
         "ports": "9402"
       },
       "status": "ok",
-      "group": "ns/cert-manager"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/cert-manager",
+      "exposure": "internal"
     },
     {
       "id": "deploy/cert-manager/cert-manager-webhook",
-      "kind": "secretstore",
+      "kind": "deployment",
       "name": "cert-manager-webhook",
       "namespace": "cert-manager",
       "meta": {
         "kind": "deploy",
         "image": "cert-manager-webhook",
         "replicas": "1/1",
+        "imageTag": "v1.20.0",
+        "createdAt": "2026-03-12T06:32:53Z",
         "ports": "10250,6080,9402"
       },
       "status": "ok",
-      "group": "ns/cert-manager"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/cert-manager",
+      "exposure": "internal"
     },
     {
       "id": "deploy/kube-system/coredns",
@@ -55,10 +79,18 @@
         "kind": "deploy",
         "image": "mirrored-coredns-coredns",
         "replicas": "1/1",
+        "imageTag": "1.14.1",
+        "createdAt": "2026-03-05T21:08:11Z",
         "ports": "53,53,9153"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "deploy/kube-system/kube-state-metrics",
@@ -69,10 +101,18 @@
         "kind": "deploy",
         "image": "kube-state-metrics",
         "replicas": "1/1",
+        "imageTag": "v2.18.0",
+        "createdAt": "2026-03-19T07:39:18Z",
         "ports": "8080,8081"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "deploy/kube-system/local-path-provisioner",
@@ -82,10 +122,18 @@
       "meta": {
         "kind": "deploy",
         "image": "local-path-provisioner",
-        "replicas": "1/1"
+        "replicas": "1/1",
+        "imageTag": "v0.0.34",
+        "createdAt": "2026-03-05T21:08:11Z"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "deploy/kube-system/metrics-server",
@@ -96,10 +144,18 @@
         "kind": "deploy",
         "image": "mirrored-metrics-server",
         "replicas": "1/1",
+        "imageTag": "v0.8.1",
+        "createdAt": "2026-03-05T21:08:11Z",
         "ports": "10250"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "deploy/kube-system/sealed-secrets",
@@ -110,10 +166,18 @@
         "kind": "deploy",
         "image": "sealed-secrets-controller",
         "replicas": "1/1",
+        "imageTag": "0.36.0",
+        "createdAt": "2026-03-12T07:05:30Z",
         "ports": "8080,8081"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 3
+      },
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "deploy/observability/alloy-gateway",
@@ -124,10 +188,18 @@
         "kind": "deploy",
         "image": "alloy",
         "replicas": "1/1",
+        "imageTag": "v1.17.0",
+        "createdAt": "2026-06-18T17:23:32Z",
         "ports": "12345,4317,4318"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "deploy/shared-services/grafana",
@@ -138,10 +210,18 @@
         "kind": "deploy",
         "image": "grafana",
         "replicas": "1/1",
+        "imageTag": "13.0.2",
+        "createdAt": "2026-03-19T07:30:18Z",
         "ports": "3000"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "deploy/shared-services/oauth2-proxy",
@@ -152,10 +232,18 @@
         "kind": "deploy",
         "image": "oauth2-proxy",
         "replicas": "1/1",
+        "imageTag": "v7.7.1",
+        "createdAt": "2026-03-19T04:45:59Z",
         "ports": "4180"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "deploy/shared-services/otel-collector",
@@ -166,10 +254,18 @@
         "kind": "deploy",
         "image": "opentelemetry-collector-contrib",
         "replicas": "1/1",
+        "imageTag": "0.96.0",
+        "createdAt": "2026-03-12T07:00:37Z",
         "ports": "4317,4318,13133"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 3
+      },
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "deploy/shared-services/prometheus-server",
@@ -180,10 +276,18 @@
         "kind": "deploy",
         "image": "prometheus-config-reloader",
         "replicas": "1/1",
+        "imageTag": "v0.89.0",
+        "createdAt": "2026-03-19T07:39:43Z",
         "ports": "8080,9090"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "deploy/shared-services/vaultwarden",
@@ -194,10 +298,18 @@
         "kind": "deploy",
         "image": "server",
         "replicas": "1/1",
+        "imageTag": "1.35.4",
+        "createdAt": "2026-03-19T04:45:59Z",
         "ports": "8080"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 3
+      },
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "deploy/tailscale/subnet-router",
@@ -207,10 +319,18 @@
       "meta": {
         "kind": "deploy",
         "image": "tailscale",
-        "replicas": "1/1"
+        "replicas": "1/1",
+        "imageTag": "stable",
+        "createdAt": "2026-06-18T05:26:08Z"
       },
       "status": "ok",
-      "group": "ns/tailscale"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/tailscale",
+      "exposure": "internal"
     },
     {
       "id": "sts/observability/loki",
@@ -221,10 +341,18 @@
         "kind": "sts",
         "image": "loki",
         "replicas": "1/1",
+        "imageTag": "3.6.7",
+        "createdAt": "2026-06-18T17:23:32Z",
         "ports": "3100,9095,7946"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "sts/observability/tempo",
@@ -235,10 +363,18 @@
         "kind": "sts",
         "image": "tempo",
         "replicas": "1/1",
+        "imageTag": "2.9.0",
+        "createdAt": "2026-06-18T17:23:32Z",
         "ports": "3200,6831,6832,14268,14250,9411"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "sts/shared-services/couchdb-shared-couchdb",
@@ -249,10 +385,18 @@
         "kind": "sts",
         "image": "couchdb",
         "replicas": "1/1",
+        "imageTag": "3",
+        "createdAt": "2026-03-31T17:14:55Z",
         "ports": "5984"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "sts/shared-services/postgres-shared-postgres",
@@ -263,10 +407,18 @@
         "kind": "sts",
         "image": "postgres",
         "replicas": "1/1",
+        "imageTag": "16-alpine",
+        "createdAt": "2026-03-12T06:59:14Z",
         "ports": "5432"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "ds/ingress-nginx/ingress-nginx-controller",
@@ -277,10 +429,18 @@
         "kind": "ds",
         "image": "controller",
         "replicas": "2/2",
+        "imageTag": "sha256:4eea9a4cc2cb",
+        "createdAt": "2026-03-12T06:45:45Z",
         "ports": "80,443,8443"
       },
       "status": "ok",
-      "group": "ns/ingress-nginx"
+      "health": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 5
+      },
+      "group": "ns/ingress-nginx",
+      "exposure": "internal"
     },
     {
       "id": "ds/kube-system/node-exporter-prometheus-node-exporter",
@@ -291,10 +451,18 @@
         "kind": "ds",
         "image": "node-exporter",
         "replicas": "2/2",
+        "imageTag": "v1.10.2",
+        "createdAt": "2026-03-19T07:39:32Z",
         "ports": "9100"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "health": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 5
+      },
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "ds/observability/alloy-logs",
@@ -305,10 +473,18 @@
         "kind": "ds",
         "image": "alloy",
         "replicas": "2/2",
+        "imageTag": "v1.17.0",
+        "createdAt": "2026-06-18T17:23:32Z",
         "ports": "12345"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "health": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0
+      },
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/cert-manager/cert-manager",
@@ -321,7 +497,8 @@
         "clusterIP": "10.43.225.22"
       },
       "status": "ok",
-      "group": "ns/cert-manager"
+      "group": "ns/cert-manager",
+      "exposure": "internal"
     },
     {
       "id": "svc/cert-manager/cert-manager-cainjector",
@@ -334,7 +511,8 @@
         "clusterIP": "10.43.250.96"
       },
       "status": "ok",
-      "group": "ns/cert-manager"
+      "group": "ns/cert-manager",
+      "exposure": "internal"
     },
     {
       "id": "svc/cert-manager/cert-manager-webhook",
@@ -347,7 +525,8 @@
         "clusterIP": "10.43.234.194"
       },
       "status": "ok",
-      "group": "ns/cert-manager"
+      "group": "ns/cert-manager",
+      "exposure": "internal"
     },
     {
       "id": "svc/default/kubernetes",
@@ -360,7 +539,8 @@
         "clusterIP": "10.43.0.1"
       },
       "status": "ok",
-      "group": "ns/default"
+      "group": "ns/default",
+      "exposure": "internal"
     },
     {
       "id": "svc/ingress-nginx/ingress-nginx-controller",
@@ -373,7 +553,8 @@
         "clusterIP": "10.43.92.32"
       },
       "status": "ok",
-      "group": "ns/ingress-nginx"
+      "group": "ns/ingress-nginx",
+      "exposure": "internal"
     },
     {
       "id": "svc/ingress-nginx/ingress-nginx-controller-admission",
@@ -386,7 +567,8 @@
         "clusterIP": "10.43.99.102"
       },
       "status": "ok",
-      "group": "ns/ingress-nginx"
+      "group": "ns/ingress-nginx",
+      "exposure": "internal"
     },
     {
       "id": "svc/kube-system/kube-dns",
@@ -399,7 +581,8 @@
         "clusterIP": "10.43.0.10"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "svc/kube-system/kube-state-metrics",
@@ -412,7 +595,8 @@
         "clusterIP": "10.43.113.200"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "svc/kube-system/metrics-server",
@@ -425,7 +609,8 @@
         "clusterIP": "10.43.98.119"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "svc/kube-system/node-exporter-prometheus-node-exporter",
@@ -438,7 +623,8 @@
         "clusterIP": "10.43.182.82"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "svc/kube-system/sealed-secrets",
@@ -451,7 +637,8 @@
         "clusterIP": "10.43.57.120"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "svc/kube-system/sealed-secrets-metrics",
@@ -464,7 +651,8 @@
         "clusterIP": "10.43.173.186"
       },
       "status": "ok",
-      "group": "ns/kube-system"
+      "group": "ns/kube-system",
+      "exposure": "internal"
     },
     {
       "id": "svc/observability/alloy-gateway",
@@ -477,7 +665,8 @@
         "clusterIP": "10.43.98.175"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/observability/alloy-logs",
@@ -490,7 +679,8 @@
         "clusterIP": "10.43.246.74"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/observability/loki",
@@ -503,7 +693,8 @@
         "clusterIP": "10.43.167.177"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/observability/loki-headless",
@@ -515,7 +706,8 @@
         "ports": "3100"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/observability/loki-memberlist",
@@ -527,7 +719,8 @@
         "ports": "7946"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/observability/tempo",
@@ -540,7 +733,8 @@
         "clusterIP": "10.43.226.137"
       },
       "status": "ok",
-      "group": "ns/observability"
+      "group": "ns/observability",
+      "exposure": "internal"
     },
     {
       "id": "svc/shared-services/couchdb",
@@ -553,7 +747,8 @@
         "clusterIP": "10.43.131.232"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "svc/shared-services/grafana",
@@ -566,7 +761,8 @@
         "clusterIP": "10.43.252.202"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "svc/shared-services/oauth2-proxy",
@@ -579,7 +775,8 @@
         "clusterIP": "10.43.60.16"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "svc/shared-services/otel-collector",
@@ -592,7 +789,8 @@
         "clusterIP": "10.43.171.162"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "svc/shared-services/postgres",
@@ -605,7 +803,8 @@
         "clusterIP": "10.43.133.8"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "svc/shared-services/prometheus-server",
@@ -618,7 +817,8 @@
         "clusterIP": "10.43.186.82"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "svc/shared-services/vaultwarden",
@@ -631,7 +831,8 @@
         "clusterIP": "10.43.25.145"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "ing/shared-services/couchdb",
@@ -642,7 +843,8 @@
         "hosts": "notes.mateosegura.com"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "ing/shared-services/grafana",
@@ -653,7 +855,8 @@
         "hosts": "obsv.mateosegura.com"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "ing/shared-services/secrets-manager-noauth",
@@ -664,7 +867,8 @@
         "hosts": "secrets.mateosegura.com"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "ing/shared-services/secrets-manager-web",
@@ -675,7 +879,8 @@
         "hosts": "secrets.mateosegura.com"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "public"
     },
     {
       "id": "pvc/shared-services/prometheus-server",
@@ -687,7 +892,8 @@
         "capacity": "10Gi"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "pvc/shared-services/vaultwarden-data",
@@ -699,7 +905,8 @@
         "capacity": "1Gi"
       },
       "status": "ok",
-      "group": "ns/shared-services"
+      "group": "ns/shared-services",
+      "exposure": "internal"
     },
     {
       "id": "ns/cert-manager",
@@ -894,31 +1101,61 @@
       "id": "routes:ing/shared-services/couchdb->svc/shared-services/couchdb",
       "source": "ing/shared-services/couchdb",
       "target": "svc/shared-services/couchdb",
-      "kind": "routes"
+      "kind": "routes",
+      "label": "notes.mateosegura.com/",
+      "meta": {
+        "host": "notes.mateosegura.com",
+        "path": "/",
+        "port": "5984"
+      }
     },
     {
       "id": "routes:ing/shared-services/grafana->svc/shared-services/grafana",
       "source": "ing/shared-services/grafana",
       "target": "svc/shared-services/grafana",
-      "kind": "routes"
+      "kind": "routes",
+      "label": "obsv.mateosegura.com/",
+      "meta": {
+        "host": "obsv.mateosegura.com",
+        "path": "/",
+        "port": "3000"
+      }
     },
     {
       "id": "routes:ing/shared-services/secrets-manager-noauth->svc/shared-services/oauth2-proxy",
       "source": "ing/shared-services/secrets-manager-noauth",
       "target": "svc/shared-services/oauth2-proxy",
-      "kind": "routes"
+      "kind": "routes",
+      "label": "secrets.mateosegura.com/oauth2",
+      "meta": {
+        "host": "secrets.mateosegura.com",
+        "path": "/oauth2",
+        "port": "4180"
+      }
     },
     {
       "id": "routes:ing/shared-services/secrets-manager-noauth->svc/shared-services/vaultwarden",
       "source": "ing/shared-services/secrets-manager-noauth",
       "target": "svc/shared-services/vaultwarden",
-      "kind": "routes"
+      "kind": "routes",
+      "label": "secrets.mateosegura.com/api",
+      "meta": {
+        "host": "secrets.mateosegura.com",
+        "path": "/api",
+        "port": "80"
+      }
     },
     {
       "id": "routes:ing/shared-services/secrets-manager-web->svc/shared-services/vaultwarden",
       "source": "ing/shared-services/secrets-manager-web",
       "target": "svc/shared-services/vaultwarden",
-      "kind": "routes"
+      "kind": "routes",
+      "label": "secrets.mateosegura.com/",
+      "meta": {
+        "host": "secrets.mateosegura.com",
+        "path": "/",
+        "port": "80"
+      }
     },
     {
       "id": "mounts:deploy/shared-services/prometheus-server->pvc/shared-services/prometheus-server",
@@ -1264,6 +1501,9 @@
       "title": "Data flow",
       "description": "The request + storage path: ingress \u2192 service \u2192 workload \u2192 volume.",
       "nodes": [
+        "deploy/cert-manager/cert-manager",
+        "deploy/cert-manager/cert-manager-cainjector",
+        "deploy/cert-manager/cert-manager-webhook",
         "deploy/kube-system/coredns",
         "deploy/kube-system/kube-state-metrics",
         "deploy/kube-system/local-path-provisioner",
