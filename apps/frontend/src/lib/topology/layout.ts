@@ -1,7 +1,9 @@
 // Deterministic namespace-grouped layout: each namespace becomes a box (group node), its members
 // laid out in a sub-grid, and the boxes flow left-to-right wrapping to the next shelf. No external
-// layout engine — readable + stable for ~60 nodes. Returns Svelte Flow nodes/edges for a given view.
-import type { Topology, TopoNode, EdgeKind } from './contract';
+// layout engine — readable + stable for ~60 nodes. Returns Svelte Flow nodes/edges. Edge styling is
+// token-driven (Eden light theme); the caller chooses which edge kinds are drawn (routes+depends are
+// meaningful by default; selects/mounts are opt-in) and an optional namespace scope (scope-first).
+import type { EdgeKind, Topology, TopoNode } from './contract';
 
 export interface FlowNode {
   id: string;
@@ -26,24 +28,58 @@ export interface FlowEdge {
   style?: string;
 }
 
-const CELL_W = 188, CELL_H = 76, GAP = 14, HEADER = 34, PAD = 14;
+export interface BuildOptions {
+  /** Which edge kinds to draw (`contains` is never drawn). */
+  edgeKinds: Set<EdgeKind>;
+  /** Namespace names to include; empty/undefined = the whole cluster. */
+  scope?: Set<string>;
+  /** The focused node id → 1-hop neighbourhood stays solid, the rest dims (focus+context). */
+  focusId?: string | null;
+}
+
+const CELL_W = 190, CELL_H = 74, GAP = 14, HEADER = 34, PAD = 14;
 const SHELF_W = 1680, NS_GAP = 28;
 
-const FLOW_KINDS = new Set(['ingress', 'service', 'deployment', 'statefulset', 'daemonset', 'database', 'cache', 'queue', 'pvc']);
+// Edge styling reads ONLY generated tokens — meaning, not decoration.
+const EDGE_STYLE: Record<EdgeKind, string> = {
+  routes: 'stroke:var(--color-primary);stroke-width:1.8',
+  depends: 'stroke:color-mix(in oklab, var(--color-on-surface) 45%, transparent);stroke-width:1.3',
+  selects: 'stroke:var(--color-outline);stroke-width:1.1;stroke-dasharray:5 4',
+  mounts: 'stroke:var(--color-warning);stroke-width:1.2;stroke-dasharray:2 3',
+  contains: '',
+};
 
-export function buildFlow(topo: Topology, viewId: string): { nodes: FlowNode[]; edges: FlowEdge[] } {
-  const dataflow = viewId === 'dataflow';
-  const keepMember = (n: TopoNode) => n.kind !== 'namespace' && (!dataflow || FLOW_KINDS.has(n.kind));
+export function buildFlow(topo: Topology, opts: BuildOptions): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const scope = opts.scope && opts.scope.size ? opts.scope : null;
+  const keepMember = (n: TopoNode) =>
+    n.kind !== 'namespace' && (!scope || (n.namespace != null && scope.has(n.namespace)));
 
   const members = topo.nodes.filter(keepMember);
   const keptIds = new Set(members.map((m) => m.id));
+
+  const linkEdges = topo.edges
+    .filter((e) => e.kind !== 'contains' && opts.edgeKinds.has(e.kind))
+    .filter((e) => keptIds.has(e.source) && keptIds.has(e.target));
+
+  // focus+context neighbourhood (ids 1 hop from the focused node along the drawn edges).
+  const neighbours = new Set<string>();
+  if (opts.focusId && keptIds.has(opts.focusId)) {
+    neighbours.add(opts.focusId);
+    for (const e of linkEdges) {
+      if (e.source === opts.focusId) neighbours.add(e.target);
+      if (e.target === opts.focusId) neighbours.add(e.source);
+    }
+  }
+  const dim = (id: string) => neighbours.size > 0 && !neighbours.has(id);
+
   const byNs = new Map<string, TopoNode[]>();
   for (const m of members) {
     const ns = m.namespace ?? '—';
-    (byNs.get(ns) ?? byNs.set(ns, []).get(ns)!).push(m);
+    const list = byNs.get(ns) ?? [];
+    list.push(m);
+    byNs.set(ns, list);
   }
-
-  // order namespaces by size (biggest first) for a tidy pack
+  // biggest namespace first for a tidy pack
   const namespaces = [...byNs.entries()].sort((a, b) => b[1].length - a[1].length);
 
   const nodes: FlowNode[] = [];
@@ -71,27 +107,19 @@ export function buildFlow(topo: Topology, viewId: string): { nodes: FlowNode[]; 
       nodes.push({
         id: m.id, type: 'service', parentId: gid, extent: 'parent',
         position: { x: PAD + c * (CELL_W + GAP), y: HEADER + PAD + r * (CELL_H + GAP) },
-        data: { node: m }, draggable: false, width: CELL_W, height: CELL_H,
+        data: { node: m, dimmed: dim(m.id) }, draggable: false, width: CELL_W, height: CELL_H,
       });
     });
     shelfX += w + NS_GAP;
     shelfMaxH = Math.max(shelfMaxH, h);
   }
 
-  const edgeStyle: Record<string, string> = {
-    routes: 'stroke:var(--eden-accent, #7aa2f7);stroke-width:1.6',
-    selects: 'stroke:var(--eden-border-strong, #8a8f98);stroke-width:1.2',
-    mounts: 'stroke:#c9a227;stroke-width:1.2;stroke-dasharray:4 3',
-    depends: 'stroke:#9d7cd8;stroke-width:1.2;stroke-dasharray:2 3',
-  };
-  const edges: FlowEdge[] = topo.edges
-    .filter((e) => e.kind !== 'contains' && keptIds.has(e.source) && keptIds.has(e.target))
-    .filter((e) => (dataflow ? e.kind === 'routes' || e.kind === 'selects' || e.kind === 'mounts' : true))
-    .map((e) => ({
+  return {
+    nodes,
+    edges: linkEdges.map((e) => ({
       id: e.id, source: e.source, target: e.target, type: 'bezier',
-      animated: dataflow && (e.kind === 'routes' || e.kind === 'selects'),
-      data: { kind: e.kind }, style: edgeStyle[e.kind] ?? edgeStyle.selects,
-    }));
-
-  return { nodes, edges };
+      animated: false, data: { kind: e.kind },
+      style: `${EDGE_STYLE[e.kind] || EDGE_STYLE.selects}${dim(e.source) || dim(e.target) ? ';opacity:.12' : ''}`,
+    })),
+  };
 }

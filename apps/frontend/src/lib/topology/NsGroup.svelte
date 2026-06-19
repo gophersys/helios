@@ -1,4 +1,6 @@
 <script lang="ts">
+  // A namespace group box in the Service Map — enclosure conveys containment (no `contains` edge).
+  // Token-driven (Eden light theme).
   let { data }: { data: { name: string; count: number } } = $props();
 </script>
 
@@ -8,18 +10,33 @@
 
 <style>
   .ns {
-    width: 100%; height: 100%; box-sizing: border-box;
-    background: rgba(122, 162, 247, 0.04);
-    border: 1px solid #262a3d; border-radius: 12px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    background: var(--eden-app-rail-bg);
+    border: 1px solid var(--eden-app-line);
+    border-radius: 12px;
   }
   .hd {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 12px; color: #9aa5ce;
-    font: 600 12px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .02em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    color: var(--eden-app-fg);
+    font: 600 12px/1 var(--font-text);
+    letter-spacing: 0.02em;
   }
-  .nm { text-transform: lowercase; }
+  .nm {
+    text-transform: lowercase;
+  }
   .ct {
-    background: #262a3d; color: #7a82a8; border-radius: 999px;
-    padding: 2px 8px; font-size: 11px; font-weight: 600;
+    background: var(--eden-app-panel-bg);
+    color: var(--eden-app-muted);
+    border: 1px solid var(--eden-app-line);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-code);
   }
 </style>
