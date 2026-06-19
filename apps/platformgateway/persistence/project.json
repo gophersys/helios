@@ -2,8 +2,8 @@
   "name": "http-gateway-template-persistence",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
-  "sourceRoot": "application-templates/go/http-gateway/persistence",
-  "tags": ["scope:application-templates", "type:codegen", "eden:template-codegen", "eden:axis=persistence"],
+  "sourceRoot": "libs/templates/go/http-gateway/persistence",
+  "tags": ["scope:templates", "type:codegen", "eden:template-codegen", "eden:axis=persistence"],
   "targets": {
     "generate": {
       "executor": "nx:run-commands",

@@ -2,10 +2,10 @@
 #
 # apps/platformgateway/ctl.sh — control script for platformgateway, Eden's platform HTTP API
 # (an OpenAPI-first, sqlc/pgx HTTP service that assembles the Eden Go libraries). Scaffolded from
-# the application-templates/go/http-gateway template (ADR-0023): Eden builds Eden.
+# the libs/templates/go/http-gateway template (ADR-0023): Eden builds Eden.
 #
 # Thin dispatcher (ADR-0023, mirroring ADR-0020): the verb BODIES live once in
-# application-templates/_ctl/template.sh ("one concept, one home", 10 §9). This file sets the
+# libs/templates/_ctl/template.sh ("one concept, one home", 10 §9). This file sets the
 # per-app metadata and sources that shared library. project.json targets delegate here.
 #
 set -Eeuo pipefail
@@ -32,11 +32,11 @@ EDEN_CLIENT_PROJECT="clients/go"
 export EDEN_TEMPLATE_NAME EDEN_COVERAGE_FLOOR EDEN_INTEGRATION_CMDS EDEN_CODEGEN_PROJECTS
 export EDEN_OPENAPI_EMITTER EDEN_OPENAPI_CONTRACT EDEN_CLIENT_PROJECT
 
-# The verb bodies live ONCE in the application-templates submodule's shared ctl library (one home,
+# The verb bodies live ONCE in the libs/templates subtree's shared ctl library (one home,
 # 10 §9). platformgateway sits at apps/ in the eden superproject, so reach across to the submodule.
-# shellcheck source=../../application-templates/_ctl/template.sh
+# shellcheck source=../../libs/templates/_ctl/template.sh
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/../../application-templates/_ctl/template.sh"
+source "$PROJECT_ROOT/../../libs/templates/_ctl/template.sh"
 
 case "${1:-help}" in
   help|"") template_usage ;;

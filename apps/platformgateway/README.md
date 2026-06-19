@@ -41,7 +41,7 @@ http-gateway/
 ## Build, test, gate (devcontainer-first)
 
 ```bash
-docker exec -u dev -w /workspace/application-templates/go/http-gateway base-devcontainer \
+docker exec -u dev -w /workspace/libs/templates/go/http-gateway base-devcontainer \
   bash -lc 'bash ./ctl.sh build'              # compile (go build ./...)
 # ... test | lint | generate | integration | phase-gate <architecture|implementation|testing|qa|all>
 ```

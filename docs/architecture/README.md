@@ -62,7 +62,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 12 | [Presentation layer](12-presentation-layer.md) | Visual-first thesis, view altitudes A0–A4, diagram-as-projection, navigation/IA | Draft |
 | 13 | [Versioning & git workflow](13-versioning-and-git-workflow.md) | One workflow machine for all artifact classes; branch/commit grammar; worktrees; merge agents; per-class versioning | Draft |
 | 14 | [Library engineering pipeline](14-library-engineering-pipeline.md) | The four-phase library SDLC + the 8-dimension test taxonomy + per-phase gates | Draft |
-| 16 | [Application template system](16-application-template-system.md) | The application-templates submodule; sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
+| 16 | [Application template system](16-application-template-system.md) | Templates in `libs/templates/` (ADR-0026 folds them into libs); sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
 | — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
@@ -107,7 +107,7 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Threat model, credential & sandbox rules | 07 |
 | Test layers, mutation/spec-determinacy instruments | 08 |
 | Library engineering pipeline (four phases) + the 8-dimension test taxonomy + phase gates | 14 (ADR-0020) |
-| Application template system (the submodule, 5-files-per-route, sqlc/pgx, OpenAPI-first, two codegen axes, libs-assembly, .claude enforcement) | 16 (ADR-0023) |
+| Application template system (libs/templates/, 5-files-per-route, sqlc/pgx, OpenAPI-first, two codegen axes, libs-assembly, .claude enforcement) | 16 (ADR-0023) |
 | TypeScript/Svelte library-engineering pipeline (the `libs/typescript/` `@eden/*` set, the UI test-taxonomy recast + design-correctness dimension, the Bits-UI-primary behavior layer); the design system re-homed in-repo | ADR-0024 (amends ADR-0005); the `@eden/theme` math foundation = `docs/research/05-design-foundations.md` |
 | Agent permission system (grants → human → advisor → default-deny; `Decision.Scope` once\|session; the `PermissionAdvisor` port + the data-derived risk-class wall; the native control-channel protocol obligation per adapter) | ADR-0025 (realizes the `agentsession` permission round-trip on the live path) |
 | Workstreams, interface negotiation protocol, milestones | 09 |

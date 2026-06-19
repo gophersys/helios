@@ -2,8 +2,8 @@
   "name": "http-gateway-template",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "application-templates/go/http-gateway",
-  "tags": ["scope:application-templates", "type:go", "eden:template", "eden:coverage-floor=80"],
+  "sourceRoot": "libs/templates/go/http-gateway",
+  "tags": ["scope:templates", "type:go", "eden:template", "eden:coverage-floor=80"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",

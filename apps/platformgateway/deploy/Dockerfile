@@ -6,7 +6,7 @@
 #
 # Build from the MONOREPO ROOT with the go.work in context (the unpremultiplied sibling libraries
 # resolve there):
-#   docker build -f application-templates/go/http-gateway/deploy/Dockerfile -t http-gateway:local .
+#   docker build -f libs/templates/go/http-gateway/deploy/Dockerfile -t http-gateway:local .
 #
 # SKELETON: a generated app keeps this shape; it changes only the binary name / exposed port if it
 # diverges from the template defaults.
@@ -19,7 +19,7 @@ ENV GOWORK=/src/go.work CGO_ENABLED=0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -ldflags='-s -w' -o /out/http-gateway \
-      ./application-templates/go/http-gateway/cmd/gateway
+      ./libs/templates/go/http-gateway/cmd/gateway
 
 # ── runtime stage: minimal, non-root ──────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/static-debian12:nonroot AS runtime

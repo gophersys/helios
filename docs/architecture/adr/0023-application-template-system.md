@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-06-14
 - **Deciders:** Mateo (ratified the forks 2026-06-14; grounded in the `MateoSegura/IOTEA-archive` prior art)
+- **Amended by:** ADR-0026 — templates fold into `libs/templates/` (a sibling of `go/`/`typescript/`); this ADR's *location* decision (a 4th submodule) is superseded. The engineering bar (5-files-per-route, libs-assembly, the phase-gate) stands unchanged.
 
 ## Context
 

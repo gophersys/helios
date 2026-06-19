@@ -7,6 +7,3 @@
 [submodule ".devcontainer"]
 	path = .devcontainer
 	url = https://github.com/gophersys/.devcontainer.git
-[submodule "application-templates"]
-	path = application-templates
-	url = https://github.com/gophersys/application-templates.git

@@ -25,13 +25,13 @@ under the same `_ctl` + phase-gate machinery.
 
 ## 2. Where it lives — the submodule 🧩 (ADR-0023 #1)
 
-Application templates live in a **new git submodule**, `gophersys/application-templates`, mounted at
-`application-templates/` in the eden monorepo (peer of `libs/`, `infrastructure/`, `.devcontainer/`
+Application templates live in a **new git submodule**, `gophersys/libs`, mounted at
+`libs/templates/` in the eden monorepo (peer of `libs/`, `infrastructure/`, `.devcontainer/`
 in `.gitmodules`). Separate repo, separate commits — the same boundary rule the other submodules
 follow.
 
 ```
-application-templates/
+libs/templates/
 ├── _ctl/template.sh        # shared verb bodies + the phase-gate sequencer (one home)
 ├── go/                     # the Go ecosystem subtree (mirrors libs/go/)
 │   └── http-gateway/       # the first template
@@ -44,7 +44,7 @@ The layout deliberately mirrors `libs/`: an `_ctl/` shared dispatcher library, a
 
 ## 3. The control plane — `_ctl/template.sh` + phase-gate ✅ (ADR-0023, mirrors ADR-0020)
 
-The verb BODIES live ONCE in `application-templates/_ctl/template.sh` (the app-side analogue of
+The verb BODIES live ONCE in `libs/templates/_ctl/template.sh` (the app-side analogue of
 `libs/go/_ctl/lib.sh`); each per-template `ctl.sh` is a thin dispatcher that sets its metadata (the
 slug, the coverage floor, the integration tools, the codegen sub-projects) and sources the shared
 library. This is "one concept, one home" applied to the build verbs (doc 10 §9).
@@ -168,7 +168,7 @@ phase-gate), wired when the template is promoted to a registered plugin (mirrori
 
 - A template's `go.mod` requires the `gophersys/libs/go/*` siblings at `v0.0.0` and carries **NO
   module-level `replace`** — the monorepo `go.work` owns sibling resolution (the standing rule).
-  `go.work` gains `application-templates/go/http-gateway` and its `clients/go` in the `use` block,
+  `go.work` gains `libs/templates/go/http-gateway` and its `clients/go` in the `use` block,
   and `configuration` in the workspace `replace` block (the +incompatible-graph pin the vault SDK
   forces, same as the other libs).
 - The `deploy/` and `clients/go/` directories are SEPARATE Go modules: deploy is a build-time
