@@ -276,5 +276,11 @@ func credentialHelper(cred *secrets.Secret) (args []string, cleanup func(), err 
 
 	// Point git at the helper by absolute path, and clear any inherited helper first so ONLY
 	// this op's helper can answer the credential challenge.
-	return []string{"-c", "credential.helper=", "-c", "credential.helper=" + shellQuote(helperPath)}, cleanup, nil
+	//
+	// `-c credential.helper=<value>` is a direct git argv element (NO shell parses it), so the
+	// value must be the bare absolute path — NOT shell-quoted. Git only runs a helper "directly"
+	// when the configured value starts with `/` (or `!`); shell-quoting it ("'/tmp/…'") makes the
+	// leading char a quote, so git prepends `git credential-` and fails. The path lives under an
+	// os.MkdirTemp dir (no spaces), so a raw value is safe.
+	return []string{"-c", "credential.helper=", "-c", "credential.helper=" + helperPath}, cleanup, nil
 }

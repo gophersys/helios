@@ -24,6 +24,7 @@ import (
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/gitrepository"
 	"github.com/gophersys/libs/go/gitrepository/gitrepositorytest"
+	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
 
@@ -348,6 +349,71 @@ func TestSystemGit_TemplateCopySeed(t *testing.T) {
 	trailers := gitOutput(t, newBare, "log", "-1", "main", "--format=%(trailers:only,unfold)")
 	if !strings.Contains(trailers, "Eden-Run-ID: seedrun") {
 		t.Errorf("seed commit must carry the agent audit trailer; got:\n%s", trailers)
+	}
+}
+
+const (
+	// envCloneAuthToken gates TestSystemGit_ClonePrivateRemote_RealAuth — a real PAT with at
+	// least the `repo` read scope. The lane SKIPS (never fails) when it is absent.
+	envCloneAuthToken = "EDEN_FORGE_GITHUB_TOKEN" //nolint:gosec // env var NAME, not a credential.
+	// privateTemplateRemote is the real private repository the credential helper must authenticate
+	// against. A local-file remote (every other test here) needs no auth, so it can NEVER exercise
+	// the credential-helper run path — only a real https remote that issues a 401-without-creds does.
+	privateTemplateRemote = "https://github.com/gophersys/template.git"
+	cloneAuthRefName      = "eden-gitrepository-clone-token"
+)
+
+// TestSystemGit_ClonePrivateRemote_RealAuth clones a REAL private https remote
+// (gophersys/template) through the library's credential helper, proving the helper actually
+// authenticates real `git clone` over the network. This is the ONLY test in the suite that
+// exercises the credential-helper RUN path: every other test targets a local-file bare remote,
+// which git serves with no auth challenge, so git never invokes the helper. A regression in how
+// `-c credential.helper=<path>` is passed (e.g. shell-quoting the absolute path so git treats it
+// as a `git credential-<name>` lookup instead of a direct executable) makes the clone fail with
+// "could not read Username for github.com" — exactly the defect this test now fences. SKIPS
+// (never silently passes) without the PAT.
+func TestSystemGit_ClonePrivateRemote_RealAuth(t *testing.T) {
+	t.Parallel()
+	token := os.Getenv(envCloneAuthToken)
+	if token == "" {
+		t.Skipf("clone-auth lane needs %s in the environment; a real PAT cannot be synthesized", envCloneAuthToken)
+	}
+
+	// The PAT flows through the real secrets seam: an env-seeded provider hands the token to the
+	// credential helper only via secrets.Secret.Use — it is never placed on argv or a URL.
+	provider := secretstest.New(map[string]string{cloneAuthRefName: token})
+	parent := t.TempDir()
+	repository := buildRealRepository(t, parent, map[string]string{"origin": privateTemplateRemote}, provider)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	workDir := filepath.Join(parent, "checkout")
+	clone, err := repository.Clone(ctx, privateTemplateRemote, workDir, gitrepository.CloneOptions{
+		Depth:      1,
+		Credential: secrets.Ref(cloneAuthRefName),
+	})
+	if err != nil {
+		t.Fatalf("Clone(private remote via credential helper): %v", err)
+	}
+	if clone == nil {
+		t.Fatal("Clone returned a nil repository for a successful private clone")
+	}
+
+	// The clone is real: it is a git work tree (a `.git`) carrying the template's tracked files.
+	if _, statErr := os.Stat(filepath.Join(workDir, ".git")); statErr != nil {
+		t.Fatalf("cloned work tree has no .git: %v", statErr)
+	}
+	tracked := gitOutput(t, workDir, "ls-files")
+	if strings.TrimSpace(tracked) == "" {
+		t.Fatal("cloned private template is empty; expected the template's tracked files")
+	}
+
+	// No-leak: the real PAT must never have reached an argv surface. The credential helper script
+	// itself (and the token file it reads) live in a per-op temp dir under /tmp, NOT in the work
+	// tree, so the checked-out files can never contain the secret.
+	if strings.Contains(tracked, token) {
+		t.Fatal("the PAT must never appear in a tracked path")
 	}
 }
 
