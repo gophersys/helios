@@ -39,6 +39,8 @@ import (
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 
 	"github.com/gophersys/eden/apps/agentgateway/internal/agentconfigpersistence"
+	"github.com/gophersys/eden/apps/agentgateway/internal/auditpersistence"
+	"github.com/gophersys/eden/apps/agentgateway/internal/createsteppersistence"
 	"github.com/gophersys/eden/apps/agentgateway/internal/gateway"
 	"github.com/gophersys/eden/apps/agentgateway/internal/projectpersistence"
 )
@@ -157,15 +159,18 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 	// explicit per-call permission, 07 §3) — keeps an unattended live agent safe.
 	grants := []agentsession.ToolGrant{{ID: "grant-read", Tool: "Read", ReadOnly: true}}
 
-	// The dashboard + Settings persistence: REAL Postgres adapters when a DSN is configured (the
-	// pools are lazy — no dial here), nil otherwise (those routes then 503). The stores outlive the
-	// request; the gateway releases their pools via closeStores on graceful shutdown (Serve/Close).
+	// The dashboard + Settings + create-saga persistence: REAL Postgres adapters when a DSN is
+	// configured (the pools are lazy — no dial here), nil otherwise (those routes/saga then 503/absent).
+	// The stores outlive the request; the gateway releases their pools via closeStores on graceful
+	// shutdown (Serve/Close). UpdateStatus + the ledger stamp times from the system clock.
 	var (
 		projectStore     gateway.ProjectStore
 		agentConfigStore gateway.AgentConfigStore
+		createStepStore  gateway.CreateStepStore
+		auditStore       gateway.AuditStore
 	)
 	if configuration.DatabaseDSN != "" {
-		postgresStore, dbErr := projectpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
+		postgresStore, dbErr := projectpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN, projectpersistence.WithClock(clock))
 		if dbErr != nil {
 			return nil, errors.Wrap(errors.KindInternal, "liveserve: build project store", dbErr)
 		}
@@ -176,6 +181,18 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 			return nil, errors.Wrap(errors.KindInternal, "liveserve: build agent-config store", configErr)
 		}
 		agentConfigStore = configStore
+
+		stepStore, stepErr := createsteppersistence.NewPostgres(context.Background(), configuration.DatabaseDSN, createsteppersistence.WithClock(clock))
+		if stepErr != nil {
+			return nil, errors.Wrap(errors.KindInternal, "liveserve: build create-step store", stepErr)
+		}
+		createStepStore = stepStore
+
+		trailStore, trailErr := auditpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
+		if trailErr != nil {
+			return nil, errors.Wrap(errors.KindInternal, "liveserve: build audit store", trailErr)
+		}
+		auditStore = trailStore
 	}
 
 	gw, err := gateway.New(
@@ -207,6 +224,10 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 			},
 			// The dashboard's persisted-Project seam: the real Postgres store (or nil → /projects 503).
 			Projects: projectStore,
+			// The create-saga ledger + append-only audit trail seams: the real Postgres stores (or nil
+			// when no DSN — the saga then runs without a durable ledger/trail).
+			CreateSteps: createStepStore,
+			Audit:       auditStore,
 			// The Settings → Agents config seam: the real Postgres store (or nil → /agent-configs 503).
 			AgentConfigs: agentConfigStore,
 		},

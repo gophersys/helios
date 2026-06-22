@@ -90,6 +90,75 @@ func TestIntegration_PostgresProjectStore(t *testing.T) {
 	}
 }
 
+// TestIntegration_PostgresProjectStore_UpdateStatus proves the REAL status-patch path against a REAL
+// postgres container: the transactional read-modify-write of the JSONB record walks a draft through
+// the saga states, merges the saga scratch (only non-nil fields), re-stamps UpdatedAt from the injected
+// clock, rejects an off-contract status (KindInvalid), and 404s a missing id (KindNotFound).
+func TestIntegration_PostgresProjectStore_UpdateStatus(t *testing.T) {
+	t.Parallel()
+	dsn := startPostgres(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	stamp := time.Date(2026, time.June, 22, 10, 0, 0, 0, time.UTC)
+	projectStore, err := projectpersistence.NewPostgres(ctx, dsn, projectpersistence.WithClock(fixedClock{at: stamp}))
+	if err != nil {
+		t.Fatalf("NewPostgres: %v", err)
+	}
+	defer projectStore.Close()
+
+	if _, err = projectStore.Create(ctx, gateway.Project{
+		ID: "project-saga", Name: "saga-app", Status: gateway.ProjectStatusDraft,
+		Product:   gateway.ProductConfig{ProductName: "saga-app", ProductKind: "service"},
+		CreatedAt: time.Date(2026, time.June, 22, 8, 0, 0, 0, time.UTC),
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Patch the saga forward: status + repo coordinates + saga step; Name (a nil field) is preserved.
+	advancing := gateway.ProjectStatusProvisioningRepo
+	owner := "gophersys"
+	patched, err := projectStore.UpdateStatus(ctx, "project-saga", gateway.ProjectStatusPatch{
+		Status:      &advancing,
+		GitHubOwner: &owner,
+		SagaStep:    ptr("provision-repo"),
+	})
+	if err != nil {
+		t.Fatalf("UpdateStatus: %v", err)
+	}
+	if patched.Status != gateway.ProjectStatusProvisioningRepo || patched.GitHubOwner != owner || patched.Name != "saga-app" {
+		t.Fatalf("patched project drift: %+v", patched)
+	}
+	if !patched.UpdatedAt.Equal(stamp) {
+		t.Fatalf("UpdatedAt = %v, want re-stamped %v", patched.UpdatedAt, stamp)
+	}
+
+	// The patch is durable (a fresh Get observes it across the JSONB round-trip).
+	reread, err := projectStore.Get(ctx, "project-saga")
+	if err != nil || reread.Status != gateway.ProjectStatusProvisioningRepo || reread.GitHubOwner != owner {
+		t.Fatalf("Get after patch: err=%v project=%+v", err, reread)
+	}
+
+	// An off-contract status is rejected and never written.
+	bogus := "halfway"
+	if _, badErr := projectStore.UpdateStatus(ctx, "project-saga", gateway.ProjectStatusPatch{Status: &bogus}); errors.KindOf(badErr) != errors.KindInvalid {
+		t.Fatalf("UpdateStatus(off-contract) kind = %v, want invalid", errors.KindOf(badErr))
+	}
+	// A missing id is a typed KindNotFound.
+	if _, missErr := projectStore.UpdateStatus(ctx, "project-nope", gateway.ProjectStatusPatch{SagaStep: ptr("x")}); errors.KindOf(missErr) != errors.KindNotFound {
+		t.Fatalf("UpdateStatus(missing) kind = %v, want not-found", errors.KindOf(missErr))
+	}
+}
+
+// fixedClock is a deterministic gateway.Clock for the patch path's UpdatedAt re-stamp.
+type fixedClock struct{ at time.Time }
+
+func (c fixedClock) Now() time.Time { return c.at }
+
+// ptr returns a pointer to s — the patch's "set this field" form.
+func ptr(s string) *string { return &s }
+
 // assertNames fails unless the projects' names equal want in order.
 func assertNames(t *testing.T, where string, projects []gateway.Project, want ...string) {
 	t.Helper()

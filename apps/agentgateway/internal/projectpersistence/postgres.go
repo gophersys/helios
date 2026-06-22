@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,7 +27,8 @@ import (
 
 // PostgresProjectStore is a real Postgres-backed gateway.ProjectStore. The caller owns Close.
 type PostgresProjectStore struct {
-	pool *pgxpool.Pool
+	pool  *pgxpool.Pool
+	clock gateway.Clock // re-stamps Project.UpdatedAt on a status patch; defaults to the wall clock.
 
 	// The schema is ensured lazily, on the first operation, so NewPostgres does no network I/O (the
 	// composition root stays effectively pure — pgxpool.New only parses the DSN). The mutex + flag
@@ -36,15 +38,40 @@ type PostgresProjectStore struct {
 	schemaReady bool
 }
 
+// Option configures a PostgresProjectStore at construction. The only knob today is the Clock the
+// status-patch path re-stamps UpdatedAt with — injected so a test is deterministic; defaulted to the
+// wall clock so the production call site need not supply one.
+type Option func(*PostgresProjectStore)
+
+// WithClock injects the Clock UpdateStatus re-stamps Project.UpdatedAt from. A nil clock is ignored
+// (the wall-clock default stands), so a test passes a fixed clock and production passes nothing.
+func WithClock(clock gateway.Clock) Option {
+	return func(s *PostgresProjectStore) {
+		if clock != nil {
+			s.clock = clock
+		}
+	}
+}
+
+// systemClock is the wall-clock default for UpdateStatus's UpdatedAt re-stamp. The clock is read only
+// inside the I/O method (never in NewPostgres), so the constructor stays pure.
+type systemClock struct{}
+
+func (systemClock) Now() time.Time { return time.Now() }
+
 // NewPostgres builds a ProjectStore over a pgx pool for dsn. The pool is lazy (it dials nothing until
 // the first query), and the schema is ensured on first use — so this does no network I/O and a
 // composition root may call it without a live database. A malformed DSN is a wrapped KindUnavailable.
-func NewPostgres(ctx context.Context, dsn string) (*PostgresProjectStore, error) {
+func NewPostgres(ctx context.Context, dsn string, options ...Option) (*PostgresProjectStore, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, errors.Wrap(errors.KindUnavailable, "projectpersistence: open postgres pool", err)
 	}
-	return &PostgresProjectStore{pool: pool}, nil
+	projectStore := &PostgresProjectStore{pool: pool, clock: systemClock{}}
+	for _, option := range options {
+		option(projectStore)
+	}
+	return projectStore, nil
 }
 
 // Close releases the connection pool (idempotent; a second Close is a no-op on a closed pool).
@@ -105,6 +132,58 @@ func (s *PostgresProjectStore) Get(ctx context.Context, id string) (gateway.Proj
 		return gateway.Project{}, errors.Wrap(errors.KindUnavailable, "projectpersistence: query project row", err)
 	}
 	return decode(blob)
+}
+
+// UpdateStatus applies a ProjectStatusPatch to one row by id (the saga's mutation seam): a
+// transactional read-modify-write of the JSONB record (SELECT … FOR UPDATE so a concurrent saga step
+// cannot lose an update), re-stamping UpdatedAt from the injected Clock. A patch naming an off-contract
+// Status is a wrapped KindInvalid (validated before the write); a missing id is a wrapped KindNotFound;
+// the row is never partially written (the transaction commits the whole record or rolls back).
+//
+//nolint:gocritic // gateway.ProjectStatusPatch is the copyable port input (a closed struct of pointers).
+func (s *PostgresProjectStore) UpdateStatus(ctx context.Context, id string, patch gateway.ProjectStatusPatch) (gateway.Project, error) {
+	if err := s.ensure(ctx); err != nil {
+		return gateway.Project{}, err
+	}
+	if patch.Status != nil && !gateway.ValidProjectStatus(*patch.Status) {
+		return gateway.Project{}, errors.New(errors.KindInvalid,
+			"projectpersistence: patch names an off-contract project status "+strconv.Quote(*patch.Status))
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return gateway.Project{}, errors.Wrap(errors.KindUnavailable, "projectpersistence: begin status patch", err)
+	}
+	// Roll back unless an explicit Commit below supersedes it (a committed tx's Rollback is a no-op).
+	defer func() { _ = tx.Rollback(ctx) }() //nolint:errcheck // best-effort rollback of an already-committed-or-faulted tx.
+
+	var blob []byte
+	err = tx.QueryRow(ctx, `SELECT record FROM projects WHERE id=$1 FOR UPDATE`, id).Scan(&blob)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return gateway.Project{}, errors.New(errors.KindNotFound, "projectpersistence: no project with id "+id)
+		}
+		return gateway.Project{}, errors.Wrap(errors.KindUnavailable, "projectpersistence: lock project row for patch", err)
+	}
+
+	project, err := decode(blob)
+	if err != nil {
+		return gateway.Project{}, err
+	}
+	patch.ApplyTo(&project)
+	project.UpdatedAt = s.clock.Now()
+
+	updated, err := json.Marshal(project)
+	if err != nil {
+		return gateway.Project{}, errors.Wrap(errors.KindInternal, "projectpersistence: marshal patched project", err)
+	}
+	if _, err = tx.Exec(ctx, `UPDATE projects SET record=$2 WHERE id=$1`, id, updated); err != nil {
+		return gateway.Project{}, errors.Wrap(errors.KindUnavailable, "projectpersistence: write patched project row", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return gateway.Project{}, errors.Wrap(errors.KindUnavailable, "projectpersistence: commit status patch", err)
+	}
+	return project, nil
 }
 
 // List returns the newest page of projects (ORDER BY seq DESC), bounded by filter.Limit, with the

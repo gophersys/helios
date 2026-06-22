@@ -135,6 +135,17 @@ type Deps struct {
 	// to an in-memory fake — the same real-vs-fake mirror the Proposer uses.
 	Projects ProjectStore
 
+	// CreateSteps is the DB-first create-saga's ledger seam: the per-step idempotency + replay record
+	// the saga advances (ProjectStore is the project's durable state; this is HOW it got there). It is
+	// OPTIONAL — nil in a composition that does not run the saga. Real Postgres in liveserve, in-memory
+	// fake in devserve.
+	CreateSteps CreateStepStore
+
+	// Audit is the append-only audit-trail seam: every action taken on a project, newest-first with
+	// cursor pagination. OPTIONAL — nil disables the trail (no action is recorded). Real Postgres in
+	// liveserve, in-memory fake in devserve.
+	Audit AuditStore
+
 	// AgentConfigs is the per-agent-type user-configuration seam the Settings → Agents surface
 	// (GET/PUT /agent-configs) reads and writes. OPTIONAL — when nil those routes are a 503. Real
 	// Postgres adapter in liveserve, in-memory fake in devserve.
@@ -253,6 +264,12 @@ func (g *Gateway) closeStores() {
 	}
 	if agentConfigs, ok := g.dependencies.AgentConfigs.(closer); ok {
 		agentConfigs.Close()
+	}
+	if createSteps, ok := g.dependencies.CreateSteps.(closer); ok {
+		createSteps.Close()
+	}
+	if audit, ok := g.dependencies.Audit.(closer); ok {
+		audit.Close()
 	}
 }
 

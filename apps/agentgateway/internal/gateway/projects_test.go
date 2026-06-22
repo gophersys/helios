@@ -49,6 +49,22 @@ func (s *fakeProjectStore) Get(_ context.Context, id string) (gateway.Project, e
 	return gateway.Project{}, errors.New(errors.KindNotFound, "fake: no project with id "+id)
 }
 
+//nolint:gocritic // matches the gateway.ProjectStore port (UpdateStatus takes the patch by value).
+func (s *fakeProjectStore) UpdateStatus(_ context.Context, id string, patch gateway.ProjectStatusPatch) (gateway.Project, error) {
+	if patch.Status != nil && !gateway.ValidProjectStatus(*patch.Status) {
+		return gateway.Project{}, errors.New(errors.KindInvalid, "fake: off-contract status")
+	}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for i := range s.items {
+		if s.items[i].ID == id {
+			patch.ApplyTo(&s.items[i])
+			return s.items[i], nil
+		}
+	}
+	return gateway.Project{}, errors.New(errors.KindNotFound, "fake: no project with id "+id)
+}
+
 func (s *fakeProjectStore) List(_ context.Context, _ gateway.ProjectFilter) (gateway.ProjectPage, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

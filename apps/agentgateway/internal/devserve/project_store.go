@@ -11,14 +11,15 @@ import (
 
 // inMemoryProjectStore is the DEV-ONLY gateway.ProjectStore: a mutex-guarded in-memory list with an
 // insertion-order seq, mirroring the Postgres adapter's semantics (newest-first list + cursor
-// pagination, upsert-on-id) WITHOUT a database. It is the dev counterpart of
-// projectpersistence.PostgresProjectStore — the same real-vs-fake mirror the Proposer uses — so the
-// create-flow E2E exercises the SAME /projects surface the live demo runs. State is per-process and
-// resets on restart (the deterministic dev plane).
+// pagination, upsert-on-id, status patch read-modify-write) WITHOUT a database. It is the dev
+// counterpart of projectpersistence.PostgresProjectStore — the same real-vs-fake mirror the Proposer
+// uses — so the create-flow E2E exercises the SAME /projects surface the live demo runs. State is
+// per-process and resets on restart (the deterministic dev plane).
 type inMemoryProjectStore struct {
 	mutex    sync.Mutex
 	nextSeq  int64
 	projects []storedProject // append-only, in insertion order (newest last)
+	clock    gateway.Clock   // re-stamps Project.UpdatedAt on a status patch (the fixed dev clock).
 }
 
 // storedProject pairs a Project with its monotonic seq (the order + cursor key).
@@ -31,8 +32,11 @@ type storedProject struct {
 // falls back to, kept identical so the fake and the real store agree on every path.
 const devProjectPageFloor = 100
 
-// newInMemoryProjectStore returns an empty dev ProjectStore.
-func newInMemoryProjectStore() *inMemoryProjectStore { return &inMemoryProjectStore{} }
+// newInMemoryProjectStore returns an empty dev ProjectStore re-stamping UpdatedAt from clock (the
+// fixed dev clock, so dev runs stay reproducible).
+func newInMemoryProjectStore(clock gateway.Clock) *inMemoryProjectStore {
+	return &inMemoryProjectStore{clock: clock}
+}
 
 // Create appends (or upserts on id) a Project and returns the stored copy.
 //
@@ -57,6 +61,30 @@ func (s *inMemoryProjectStore) Get(_ context.Context, id string) (gateway.Projec
 	defer s.mutex.Unlock()
 	for i := range s.projects {
 		if s.projects[i].project.ID == id {
+			return s.projects[i].project, nil
+		}
+	}
+	return gateway.Project{}, errors.New(errors.KindNotFound, "devserve: no project with id "+id)
+}
+
+// UpdateStatus applies a ProjectStatusPatch to one project by id (the saga's mutation seam): a
+// read-modify-write under the store mutex, re-stamping UpdatedAt from the dev clock — the SAME merge
+// rule (gateway.ProjectStatusPatch.ApplyTo) and validation (gateway.ValidProjectStatus) the Postgres
+// adapter uses, so the fake and the real store agree. An off-contract Status is a wrapped KindInvalid;
+// a missing id is a wrapped KindNotFound.
+//
+//nolint:gocritic // gateway.ProjectStatusPatch is the copyable port input (a closed struct of pointers).
+func (s *inMemoryProjectStore) UpdateStatus(_ context.Context, id string, patch gateway.ProjectStatusPatch) (gateway.Project, error) {
+	if patch.Status != nil && !gateway.ValidProjectStatus(*patch.Status) {
+		return gateway.Project{}, errors.New(errors.KindInvalid,
+			"devserve: patch names an off-contract project status "+strconv.Quote(*patch.Status))
+	}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for i := range s.projects {
+		if s.projects[i].project.ID == id {
+			patch.ApplyTo(&s.projects[i].project)
+			s.projects[i].project.UpdatedAt = s.clock.Now()
 			return s.projects[i].project, nil
 		}
 	}

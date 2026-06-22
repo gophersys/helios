@@ -143,8 +143,12 @@ func BuildDevGateway(configuration Config) (*gateway.Gateway, error) {
 			// call) so POST /product/propose is stable for the Playwright E2E.
 			Proposer: fakeProposer{},
 			// The dashboard's persisted-Project seam: an in-memory fake (no database) so the /projects
-			// surface is exercised by the same E2E the live demo runs.
-			Projects: newInMemoryProjectStore(),
+			// surface is exercised by the same E2E the live demo runs. The saga ledger + audit trail are
+			// the dev counterparts of the Postgres adapters, sharing the fixed dev clock so a saga-driven
+			// dev run stays reproducible.
+			Projects:    newInMemoryProjectStore(clock),
+			CreateSteps: newInMemoryCreateStepStore(clock),
+			Audit:       newInMemoryAuditStore(),
 			// The Settings → Agents per-agent-type config seam: an in-memory fake.
 			AgentConfigs: newInMemoryAgentConfigStore(),
 		},
