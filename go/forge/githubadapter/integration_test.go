@@ -66,7 +66,7 @@ func TestIntegration_CreateRepo_RealGitHub(t *testing.T) {
 
 	// Unique, time-namespaced name so concurrent/retried runs never collide and a
 	// leaked repository is identifiable as a forge integration artifact.
-	name := fmt.Sprintf("eden-forge-it-%d", time.Now().UnixNano())
+	name := fmt.Sprintf("eden-it-forge-%d", time.Now().UnixNano())
 	request := forge.CreateRepoRequest{
 		Owner:       owner,
 		Name:        name,
@@ -126,7 +126,7 @@ func TestIntegration_CreateRepo_BadTokenIsUnauthenticated(t *testing.T) {
 	defer cancel()
 	_, err = connector.CreateRepo(ctx, forge.CreateRepoRequest{
 		Owner:      owner,
-		Name:       fmt.Sprintf("eden-forge-noauth-%d", time.Now().UnixNano()),
+		Name:       fmt.Sprintf("eden-it-forgenoauth-%d", time.Now().UnixNano()),
 		Credential: secrets.Ref(integrationRefName),
 	})
 	if err == nil {
@@ -142,6 +142,12 @@ func TestIntegration_CreateRepo_BadTokenIsUnauthenticated(t *testing.T) {
 // does not expose delete in Wave 1); when a delete verb lands on the port, replace
 // this with it. Needs the `delete_repo` scope on the integration PAT.
 func deleteRepoForTeardown(ctx context.Context, token, owner, name string) error {
+	// Belt-and-suspenders: even this raw teardown is fenced by the same guard as forge.DeleteRepo —
+	// it refuses to delete anything that is not an ephemeral eden-it-* repository off the protected
+	// denylist, so a bad name can never reap a real repository.
+	if err := forge.GuardDelete(owner, name); err != nil {
+		return err
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodDelete,
 		"https://api.github.com/repos/"+owner+"/"+name, nil)
 	if err != nil {

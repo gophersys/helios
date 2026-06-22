@@ -125,6 +125,8 @@ func Classify(err error) errors.Kind {
 	switch {
 	case errors.IsType[InvalidRequestError](err):
 		return errors.KindInvalid
+	case errors.IsType[ForbiddenDeletionError](err):
+		return errors.KindInvalid
 	case errors.IsType[UnauthenticatedError](err):
 		return errors.KindUnauthenticated
 	case errors.IsType[ConflictError](err):

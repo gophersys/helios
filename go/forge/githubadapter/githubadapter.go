@@ -56,6 +56,21 @@ type Config struct {
 	// UserAgent is the User-Agent header GitHub requires on every request. Empty
 	// selects a stable default identifying the Eden forge connector.
 	UserAgent string
+
+	// EnableEphemeralDelete OPTS IN to the destructive DeleteRepo capability. It is FALSE by
+	// default, so a PRODUCTION composition root (the saga, the orchestrator) cannot delete a
+	// repository at all — DeleteRepo refuses every call before touching the network. ONLY an
+	// integration-test composition sets it true; and even then GuardDelete still confines deletion
+	// to ephemeral `eden-it-*` repositories that are not on the protected denylist. Two walls
+	// (capability-off + name-guard) so a real repository can never be deleted.
+	//
+	// TODO(eden, REMOVE THIS): DeleteRepo + this opt-in exist ONLY to reap throwaway
+	// integration-test repositories under MateoSegura while the delete_repo PAT scope is live.
+	// Remove DeleteRepo, this flag, and the delete_repo scope once test repos are reaped by a
+	// safer mechanism (a dedicated disposable GitHub org / sandbox account with automated TTL
+	// cleanup, or repo auto-expiry) — so NO Eden code path can delete a repository on a real
+	// account, by construction. This is a deliberate, temporary, clearly-marked affordance.
+	EnableEphemeralDelete bool
 }
 
 // Deps is the injected hexagon: the HTTP transport and the secrets provider. Both
@@ -89,6 +104,9 @@ type Connector struct {
 	userAgent string
 	http      HTTPDoer
 	secrets   secrets.Provider
+	// ephemeralDeleteEnabled gates the destructive DeleteRepo: false (the default) refuses every
+	// delete before any network call, so production connectors cannot delete a repository at all.
+	ephemeralDeleteEnabled bool
 }
 
 // compile-time assertion: *Connector implements the forge.Forge port.
@@ -120,10 +138,11 @@ func New(configuration Config, dependencies Deps) (*Connector, error) {
 	}
 
 	return &Connector{
-		baseURL:   base,
-		userAgent: userAgent,
-		http:      dependencies.HTTP,
-		secrets:   dependencies.Secrets,
+		baseURL:                base,
+		userAgent:              userAgent,
+		http:                   dependencies.HTTP,
+		secrets:                dependencies.Secrets,
+		ephemeralDeleteEnabled: configuration.EnableEphemeralDelete,
 	}, nil
 }
 

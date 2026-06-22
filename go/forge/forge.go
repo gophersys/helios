@@ -28,6 +28,36 @@ type Forge interface {
 	// KindNotFound); it never returns a non-zero Repository together with a non-nil
 	// error.
 	CreateRepo(ctx context.Context, request CreateRepoRequest) (Repository, error)
+
+	// DeleteRepo PERMANENTLY deletes the repository named by request — a DESTRUCTIVE,
+	// IRREVERSIBLE operation that exists ONLY to reap ephemeral test repositories. It is
+	// fenced by a HARD GUARD (GuardDelete, guard.go) applied BEFORE any network call: it
+	// refuses unless request.Name matches the reserved ephemeral pattern (EphemeralRepoName,
+	// `eden-it-*`) AND is not in the protected denylist (ProtectedRepoNames). A request for a
+	// real repository — eden / libs / template / infrastructure / .devcontainer / any
+	// non-`eden-it-*` name — is REFUSED with KindInvalid and NO HTTP call is made, by a test
+	// or production code, regardless of the credential. There is no unguarded delete path.
+	// Idempotent: a 404 (already gone) is success. The credential is resolved per call.
+	DeleteRepo(ctx context.Context, request DeleteRepoRequest) error
+}
+
+// DeleteRepoRequest names a repository to delete. The zero value is invalid. Even a fully-formed
+// request is REFUSED unless Name passes GuardDelete (ephemeral + not protected) — the request
+// shape is necessary but never sufficient to delete.
+type DeleteRepoRequest struct {
+	// Owner is the account/organization that owns the repository. Required.
+	Owner string
+	// Name is the repository name. Required, and MUST be an ephemeral `eden-it-*` test name
+	// (EphemeralRepoName) that is not protected (ProtectedRepoNames) or DeleteRepo refuses it.
+	Name string
+	// Credential is the opaque secrets.Reference to the forge PAT (needs the delete_repo scope),
+	// resolved at the call. Required. The token never enters this struct, a log, or an error.
+	Credential secrets.Reference
+}
+
+// IsZero reports whether r is the unconstructed delete request.
+func (r DeleteRepoRequest) IsZero() bool {
+	return r.Owner == "" && r.Name == "" && r.Credential.IsZero()
 }
 
 // CreateRepoRequest is the validated, credential-free description of a repository
