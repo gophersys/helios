@@ -313,6 +313,14 @@ type SpawnRequest struct {
 	BudgetOverride *agentsession.Budget // nil == template default
 	SystemHints    string               // extra hermetic system-prompt augmentation; never a secret
 	Labels         map[string]string    // per-spawn labels merged over the template's
+
+	// Workspace OPTIONALLY overrides the harness CWD (agentsession.Spec.Workspace) with an
+	// externally-materialized host directory — the caller provisions a real working tree (a clone +
+	// any overlaid agent operating files) and points the session at it, instead of the
+	// container-derived WorkDir. Empty == the provisioned workspace's WorkDir (the default). Never a
+	// secret; a plain path. v0 single-node: held in the in-process side table, so it does NOT survive
+	// a record-only reload — a Resume after reload falls back to the provisioned WorkDir.
+	Workspace string
 }
 
 // ClusterRef names the cluster a workspace is provisioned on (ADR-0012). Opaque to this

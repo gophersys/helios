@@ -22,6 +22,19 @@ type spawnInputs struct {
 	template     AgentTemplate
 	systemHints  string
 	budget       agentsession.Budget
+	workspace    string // OPTIONAL host-CWD override (SpawnRequest.Workspace); "" == the provisioned WorkDir
+}
+
+// effectiveWorkDir returns the per-spawn host-workspace OVERRIDE when set (an externally
+// materialized harness CWD), else the provisioned workspace's WorkDir, else the default.
+func (in *spawnInputs) effectiveWorkDir(provisioned string) string {
+	if in.workspace != "" {
+		return in.workspace
+	}
+	if provisioned != "" {
+		return provisioned
+	}
+	return defaultWorkDir
 }
 
 // spawnInputsTable is the AgentID-keyed side table. Safe for concurrent use.
@@ -81,6 +94,7 @@ func (p *Pool) rememberSpawnInputs(id AgentID, request *SpawnRequest, template *
 		template:     *template,
 		systemHints:  template.SystemHints + request.SystemHints,
 		budget:       effectiveBudget(template.Limits, request),
+		workspace:    request.Workspace,
 	})
 }
 

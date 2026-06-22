@@ -154,10 +154,7 @@ func (p *Pool) driveOpen(ctx context.Context, ports ReconcilePorts, agent *Agent
 		return p.failAndTeardown(ctx, ports, agent, "no session factory bound for opening")
 	}
 
-	workDir := agent.Workspace.WorkDir()
-	if workDir == "" {
-		workDir = defaultWorkDir
-	}
+	workDir := inputs.effectiveWorkDir(agent.Workspace.WorkDir())
 	spec := foldSession(workDir, &inputs, "")
 	session, err := ports.Sessions.Open(ctx, spec)
 	if err != nil {
@@ -269,14 +266,15 @@ func (p *Pool) driveResume(ctx context.Context, ports ReconcilePorts, agent *Age
 	// recycle reclaimed the pod) is RE-PROVISIONED, so a re-adopt across a real recycle
 	// restores a live sandbox before the session re-attaches. Provision is idempotent on Name
 	// within a tenancy, so a still-live workspace re-adopts rather than duplicates.
-	workDir := agent.Workspace.WorkDir()
-	if workDir == "" {
-		workDir = defaultWorkDir
-	}
+	workDir := inputs.effectiveWorkDir(agent.Workspace.WorkDir())
 	reattached := false
 	if !agent.Workspace.IsZero() && ports.Workspaces != nil {
 		if ws, err := ports.Workspaces.Open(ctx, agent.Workspace); err == nil {
-			workDir = ws.Handle().WorkDir()
+			// The host-CWD override (if any) wins over the re-attached container WorkDir — the
+			// materialized working tree is external to the pod and survives the re-dial.
+			if inputs.workspace == "" {
+				workDir = ws.Handle().WorkDir()
+			}
 			reattached = true
 		}
 	}
