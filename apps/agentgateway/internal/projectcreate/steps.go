@@ -113,9 +113,12 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 	}
 
 	agent, err := s.dependencies.Supervisor.Spawn(ctx, orchestrator.SpawnRequest{
-		Tenant:     s.supervisorTenancy(project.ID),
-		Template:   s.configuration.SupervisorTemplate,
-		Credential: s.configuration.ForgeCredential,
+		Tenant:   s.supervisorTenancy(project.ID),
+		Template: s.configuration.SupervisorTemplate,
+		// The supervisor harness authenticates with the CLAUDE token, NOT the gh-token — the harness-auth
+		// plane and the git plane carry separate credentials. The orchestrator resolves this reference
+		// server-side into the claude child env at agentsession.Open.
+		Credential: s.configuration.SupervisorCredential,
 		By:         "projectcreate-saga",
 		Cluster:    s.configuration.SupervisorCluster,
 	})

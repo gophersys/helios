@@ -64,6 +64,14 @@ type Config struct {
 	// secrets.Provider those ports hold — never by the saga, never into a log or an error. Required.
 	ForgeCredential secrets.Reference
 
+	// SupervisorCredential is the OPAQUE reference to the SUPERVISOR HARNESS credential (the Claude
+	// setup/OAuth token), distinct from ForgeCredential: the launch step folds it into the supervisor
+	// Spawn, where the orchestrator resolves it server-side into the claude child env
+	// (CLAUDE_CODE_OAUTH_TOKEN) at agentsession.Open. The git-plane (forge create + template push) and
+	// the harness-auth plane carry SEPARATE credentials — a real Claude supervisor authenticates with a
+	// Claude token, not the gh-token. Required.
+	SupervisorCredential secrets.Reference
+
 	// TemplateRepositoryURL is the clone URL of the seed template (gophersys/template). Required: the
 	// seed step clones it, flattens it, and pushes it into the fresh repository.
 	TemplateRepositoryURL string
@@ -164,6 +172,8 @@ func New(configuration Config, dependencies Deps) (*Saga, error) {
 		return nil, errors.New(errors.KindInvalid, "projectcreate: Config.RepositoryOwner is required (the GitHub account repos are created under)")
 	case configuration.ForgeCredential.IsZero():
 		return nil, errors.New(errors.KindInvalid, "projectcreate: Config.ForgeCredential is required (the opaque gh-token reference)")
+	case configuration.SupervisorCredential.IsZero():
+		return nil, errors.New(errors.KindInvalid, "projectcreate: Config.SupervisorCredential is required (the opaque Claude harness token reference for the supervisor Spawn)")
 	case configuration.TemplateRepositoryURL == "":
 		return nil, errors.New(errors.KindInvalid, "projectcreate: Config.TemplateRepositoryURL is required (the seed template clone URL)")
 	case configuration.SupervisorTemplate.IsZero():

@@ -57,7 +57,8 @@ const (
 	envForgeOwner    = "EDEN_FORGE_GITHUB_OWNER"
 	envPostgresDSN   = "EDEN_POSTGRES_DSN"
 	templateCloneURL = "https://github.com/gophersys/template.git"
-	tokenRef         = "gh://token" // the saga's loggable credential reference; the value is env-seeded.
+	tokenRef         = "gh://token"          // the saga's loggable gh credential reference; the value is env-seeded.
+	supervisorRef    = "claude://supervisor" //nolint:gosec // a secrets.Reference LOCATOR for the supervisor harness token, not a credential value.
 )
 
 // TestIntegration_Saga_RealForgeGitOrchestrator drives the FULL saga against real substrates and asserts
@@ -72,9 +73,11 @@ func TestIntegration_Saga_RealForgeGitOrchestrator(t *testing.T) {
 	}
 	requireDocker(t)
 
-	// One env-seeded secrets provider resolves the gh-token reference server-side for BOTH the forge
-	// (repo create + template clone) and the git push — the value never enters the saga's surface.
-	provider := secretstest.New(map[string]string{tokenRef: token})
+	// One env-seeded secrets provider resolves BOTH credential references server-side: the gh-token (forge
+	// repo create + template clone + git push) and the supervisor harness token (the claude child env at
+	// the supervisor Open). The stub claude ignores its value, but the agentsession Open still RESOLVES
+	// the reference — so the provider must carry it. Neither value enters the saga's surface.
+	provider := secretstest.New(map[string]string{tokenRef: token, supervisorRef: "stub-supervisor-token"})
 
 	// REAL postgres (one instance, shared): the project row store + the saga ledger + the orchestrator
 	// desired-state pool all run on it.
@@ -92,6 +95,7 @@ func TestIntegration_Saga_RealForgeGitOrchestrator(t *testing.T) {
 			RepositoryOwner:        owner,
 			PrivateRepository:      true,
 			ForgeCredential:        secrets.Ref(tokenRef),
+			SupervisorCredential:   secrets.Ref(supervisorRef),
 			TemplateRepositoryURL:  templateCloneURL,
 			TemplateReference:      "gophersys/template@main",
 			SupervisorTemplate:     orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},

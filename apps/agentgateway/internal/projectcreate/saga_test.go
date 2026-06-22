@@ -272,6 +272,7 @@ func newSagaHarness(t *testing.T, configure func(*fakeForge, *fakeSeeder, *fakeM
 			RepositoryOwner:        "MateoSegura",
 			PrivateRepository:      true,
 			ForgeCredential:        secrets.Ref("gh://token"),
+			SupervisorCredential:   secrets.Ref("claude://supervisor"),
 			TemplateRepositoryURL:  "https://github.com/gophersys/template.git",
 			TemplateReference:      "gophersys/template@main",
 			SupervisorTemplate:     orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
@@ -538,6 +539,7 @@ func TestNew_RejectsMissingSeams(t *testing.T) {
 	t.Parallel()
 	valid := projectcreate.Config{
 		RepositoryOwner: "MateoSegura", ForgeCredential: secrets.Ref("gh://token"),
+		SupervisorCredential:  secrets.Ref("claude://supervisor"),
 		TemplateRepositoryURL: "https://github.com/gophersys/template.git",
 		SupervisorTemplate:    orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
 		OrganizationID:        "eden",
@@ -560,6 +562,12 @@ func TestNew_RejectsMissingSeams(t *testing.T) {
 	badConfig.RepositoryOwner = ""
 	if _, err := projectcreate.New(badConfig, dependencies); edenerrors.KindOf(err) != edenerrors.KindInvalid {
 		t.Errorf("empty owner: kind = %v, want invalid", edenerrors.KindOf(err))
+	}
+	// The supervisor harness credential is a SEPARATE required reference from the gh-token.
+	noSupervisorCred := valid
+	noSupervisorCred.SupervisorCredential = secrets.Reference{}
+	if _, err := projectcreate.New(noSupervisorCred, dependencies); edenerrors.KindOf(err) != edenerrors.KindInvalid {
+		t.Errorf("missing SupervisorCredential: kind = %v, want invalid", edenerrors.KindOf(err))
 	}
 }
 
