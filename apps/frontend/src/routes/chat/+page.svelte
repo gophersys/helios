@@ -73,6 +73,13 @@
     const created = await client.createSession({ harness, product: payload.product });
     // Persist the Project (the dashboard reads these) linked to its build session. A persistence
     // fault must NOT block the build — the session is already live — so we log and continue.
+    //
+    // HANDOFF (W3a): once the create-SAGA drives provisioning (repo → template → supervisor), this is
+    // where the flow hands off to the LOADING route — `goto(/projects/${persisted.id})` — instead of
+    // attaching inline. That route (src/routes/(app)/projects/[id]/+page.svelte) re-reads + polls the
+    // saga status and renders ProjectLoading until supervisor_ready, then routes into the workspace.
+    // The session-first attach below is the pre-saga demo path; the saga POST is what wires the
+    // handoff (the persisted projectView carries the id the route polls).
     try {
       await client.createProject({
         product: payload.product,

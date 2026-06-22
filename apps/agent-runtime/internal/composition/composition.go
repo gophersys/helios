@@ -35,6 +35,8 @@ type Environment struct {
 	Workspace     string // EDEN_WORKSPACE — the harness CWD (the provisioned workspace)
 	Harness       string // EDEN_HARNESS — the adapter key (claude-code|omp|codex)
 	Model         string // EDEN_MODEL — the model id passed to the harness
+	Role          string // EDEN_ROLE — the session's agentconfiguration role (assistant|supervisor|...); "" == "assistant"
+	Phase         string // EDEN_PHASE — the SDLC phase the session runs in (implement|review|...); "" == interactive
 	CredentialRef string // EDEN_CREDENTIAL_REF — the opaque secrets.Reference for the harness credential
 	ProbeAddr     string // EDEN_PROBE_ADDR — the HTTP probe listener; "" == ":8081"
 	InitialPrompt string // EDEN_INITIAL_PROMPT — optional seed prompt (the batch path)
@@ -50,10 +52,35 @@ func LoadEnvironment() Environment {
 		Workspace:     os.Getenv("EDEN_WORKSPACE"),
 		Harness:       os.Getenv("EDEN_HARNESS"),
 		Model:         os.Getenv("EDEN_MODEL"),
+		Role:          os.Getenv("EDEN_ROLE"),
+		Phase:         os.Getenv("EDEN_PHASE"),
 		CredentialRef: os.Getenv("EDEN_CREDENTIAL_REF"),
 		ProbeAddr:     os.Getenv("EDEN_PROBE_ADDR"),
 		InitialPrompt: os.Getenv("EDEN_INITIAL_PROMPT"),
 	}
+}
+
+// Role keys (agentconfiguration RouteKey.Role values, 02 §5). The session's role selects the
+// (harness, model) Route. The default is the interactive assistant; a supervisor session
+// (EDEN_ROLE=supervisor) routes to the strongest reasoning model with a larger budget.
+const (
+	roleAssistant  = "assistant"
+	roleSupervisor = "supervisor"
+)
+
+// supervisorModel is the model id the supervisor route resolves to: opus-4.8, the strongest
+// reasoning model. The id is the opaque value passed through to the claude-code harness (the
+// agentsession Route.Model carries it verbatim). The pinned CLI VERSION that speaks to it lives in
+// harnesses/versions.env (CLAUDE_CODE_VERSION, ADR-0021); this is the model selector, not the CLI pin.
+const supervisorModel = "claude-opus-4-8"
+
+// supervisorBudget is the larger ceiling the supervisor route launches with: a supervisor reasons
+// over more turns and spends more than an interactive assistant turn, so its soft cap is raised
+// (the engine's TokenBudget remains the authoritative hard cap, 02 §2). The assistant route keeps
+// the environment/unbounded default.
+var supervisorBudget = agentsession.Budget{
+	MaxCostMicros: 2_000_000, // ~$2.00 soft ceiling for a supervisor adjudication/planning span
+	MaxTurns:      40,        // a supervisor plans/reviews over more turns than a single assistant reply
 }
 
 // systemClock is the production agentruntime.Clock / agentsession.Clock (the wall clock; the app is
@@ -181,25 +208,71 @@ func dialBus(environment *Environment) (*nats.Conn, nats.JetStreamContext, error
 	return connection, jetStream, nil
 }
 
-// buildSessionFactory wires the REAL agentsession.Pool: the configured harness adapter (claude-code |
-// omp), the secrets Mediator over the production Vault backend (ADR-0022 #1, the credential resolved
-// server-side from the opaque Reference), an in-process Transcript (Seq assignment; the DURABLE
-// stream is the JetStream publish the sidecar performs), and the system clock. The adapters do their
-// I/O lazily on Open, so build stays cheap.
+// buildSessionFactory wires the REAL agentsession.Pool: the configured harness adapters (claude-code
+// | omp), the secrets Mediator over the production Vault backend (ADR-0022 #1, the credential
+// resolved server-side from the opaque Reference), an in-process Transcript (Seq assignment; the
+// DURABLE stream is the JetStream publish the sidecar performs), the system clock, AND the permission
+// Advisor (the ratified out-of-grant chain: an out-of-grant tool request the human/policy did not
+// resolve consults the bounded reviewer advisor before the default-deny terminal). The adapters do
+// their I/O lazily on Open, so build stays cheap.
+//
+// The Advisor opens its bounded, tool-less reviewer session through a SEPARATE Pool (its Sessions
+// factory) so the wiring has no cycle: the reviewer pool carries the SAME adapters/secrets/transcript
+// but NO advisor, and the advisor never recurses (the reviewer's Spec denies every out-of-grant
+// request in-process). The main Pool then receives the constructed advisor as Deps.Advisor.
 //
 //nolint:ireturn // returns the agentsession.Factory port the sidecar holds (the frozen surface).
-func buildSessionFactory(environment *Environment, _ observability.Provider) (agentsession.Factory, error) {
-	provider, err := buildSecretsProvider()
+func buildSessionFactory(environment *Environment, provider observability.Provider) (agentsession.Factory, error) {
+	secretsProvider, err := buildSecretsProvider()
 	if err != nil {
 		return nil, err
 	}
-	harness := environment.Harness
-	if harness == "" {
-		harness = "claude-code"
+	adapters, err := buildAdapters()
+	if err != nil {
+		return nil, err
 	}
-	routing := map[agentsession.RouteKey]agentsession.Route{
-		{Role: "assistant"}: {Harness: harness, Model: environment.Model},
+	routing := buildRouting(environment)
+
+	// The reviewer Pool the Advisor opens its bounded reviewer session through. It shares the
+	// adapters/secrets but carries NO advisor — the reviewer denies every out-of-grant request in
+	// its Spec, so there is no advisor recursion and no cycle in the wiring.
+	reviewerPool, err := agentsession.New(
+		agentsession.Config{Routing: routing},
+		agentsession.Deps{
+			Adapters:   adapters,
+			Secrets:    secretsProvider,
+			Transcript: newTranscript(),
+			Clock:      systemClock{},
+		},
+	)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build reviewer agentsession pool", err)
 	}
+
+	advisor, err := buildAdvisor(environment, provider, reviewerPool)
+	if err != nil {
+		return nil, err
+	}
+
+	pool, err := agentsession.New(
+		agentsession.Config{Routing: routing},
+		agentsession.Deps{
+			Adapters:   adapters,
+			Secrets:    secretsProvider,
+			Transcript: newTranscript(),
+			Clock:      systemClock{},
+			Advisor:    advisor,
+		},
+	)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build agentsession factory", err)
+	}
+	return pool, nil
+}
+
+// buildAdapters constructs the per-harness agentsession.Adapter set the Pool routes Open to. The
+// adapters are pure (no I/O until Spawn), so this is cheap and shared by the reviewer + main pools.
+func buildAdapters() (map[string]agentsession.Adapter, error) {
 	claudeAdapter, err := claudeadapter.New(claudeadapter.Config{})
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build claude adapter", err)
@@ -208,22 +281,69 @@ func buildSessionFactory(environment *Environment, _ observability.Provider) (ag
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build omp adapter", err)
 	}
-	pool, err := agentsession.New(
-		agentsession.Config{Routing: routing},
-		agentsession.Deps{
-			Adapters: map[string]agentsession.Adapter{
-				"claude-code": claudeAdapter,
-				"omp":         ompAdapter,
-			},
-			Secrets:    provider,
-			Transcript: newTranscript(),
-			Clock:      systemClock{},
+	return map[string]agentsession.Adapter{
+		"claude-code": claudeAdapter,
+		"omp":         ompAdapter,
+	}, nil
+}
+
+// buildRouting builds the agentconfiguration projection (RouteKey -> Route, 02 §5) the Pool resolves
+// each Open against. The assistant route honors the pod's EDEN_HARNESS/EDEN_MODEL (the interactive
+// default); the supervisor route pins the claude-code harness at opus-4.8 (the strongest reasoning
+// model) so a supervisor session always lands on the strong reasoner regardless of the pod's
+// per-session harness/model. The advisor's reviewer session resolves through the SAME table — it is
+// opened under whichever role the pod runs as (the reviewer Spec carries the no-tools guarantee).
+func buildRouting(environment *Environment) map[agentsession.RouteKey]agentsession.Route {
+	harness := environment.Harness
+	if harness == "" {
+		harness = "claude-code"
+	}
+	return map[agentsession.RouteKey]agentsession.Route{
+		{Role: roleAssistant}:  {Harness: harness, Model: environment.Model},
+		{Role: roleSupervisor}: {Harness: "claude-code", Model: supervisorModel},
+	}
+}
+
+// buildAdvisor constructs the agentruntime permission Advisor wired into agentsession.Deps.Advisor
+// (the ratified out-of-grant chain). It routes its bounded reviewer session through the supervisor
+// route (the strong reasoner adjudicates a permission request well), runs the reviewer in the pod's
+// own workspace (the reviewer has NO write grants — read-only reasoning), and resolves the same
+// opaque credential reference server-side. The reviewer's bounds (wall-clock + cost + turns) default
+// inside NewAdvisor, so a wedged reviewer is a deny, never a hang.
+//
+// The advisor is built only when a credential reference is configured: the reviewer is a REAL harness
+// session that needs a resolvable credential, so a credential-less boot wires NO advisor (returns a
+// nil INTERFACE — not a typed-nil pointer, which would defeat agentsession's nil check), and the
+// out-of-grant chain degrades to Spec.OnPermission / default-deny with NO regression
+// (agentsession.Deps.Advisor is the OPTIONAL port). This preserves the existing credential-less
+// boot path instead of moving its failure earlier to composition time. It returns the
+// agentsession.PermissionAdvisor port (not the concrete *Advisor) precisely so the absent case is a
+// true nil interface.
+//
+//nolint:ireturn // returns the agentsession.PermissionAdvisor port so the absent case is a TRUE nil interface (a typed-nil *Advisor would make Deps.Advisor non-nil and NPE on Advise) — the nil-interface guarantee is the reason this returns the port, not the concrete type.
+func buildAdvisor(environment *Environment, provider observability.Provider, sessions agentsession.Factory) (agentsession.PermissionAdvisor, error) {
+	// Guard the empty string BEFORE secrets.Ref: Ref panics on an empty reference (it is the
+	// bare-name ergonomic constructor), so an unset EDEN_CREDENTIAL_REF must short-circuit to the
+	// nil-advisor degrade here rather than reach Ref.
+	if environment.CredentialRef == "" {
+		return nil, nil //nolint:nilnil // an absent credential wires NO advisor; the chain degrades to OnPermission/default-deny (the optional port's documented nil case), not an error.
+	}
+	advisor, err := agentruntime.NewAdvisor(
+		agentruntime.AdvisorConfig{
+			ReviewerRoute:      agentsession.RouteKey{Role: roleSupervisor},
+			ReviewerWorkspace:  environment.Workspace,
+			ReviewerCredential: secrets.Ref(environment.CredentialRef),
+		},
+		agentruntime.AdvisorDeps{
+			Sessions: sessions,
+			Observer: otelobserver.New(provider),
+			Clock:    systemClock{},
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "agent-runtime: build agentsession factory", err)
+		return nil, errors.Wrap(errors.KindInvalid, "agent-runtime: build permission advisor", err)
 	}
-	return pool, nil
+	return advisor, nil
 }
 
 // buildSecretsProvider builds the production secrets Mediator over the Vault backend. The mode is
@@ -261,14 +381,41 @@ func buildSecretsProvider() (secrets.Provider, error) {
 	return mediator, nil
 }
 
-// buildSpec builds the agentsession.Spec from the environment (the workspace, the routing key, and the
-// opaque credential reference resolved server-side by agentsession).
+// buildSpec builds the agentsession.Spec from the environment (the workspace, the routing key derived
+// from EDEN_ROLE/EDEN_PHASE, the per-role Budget, and the opaque credential reference resolved
+// server-side by agentsession). The Role is NO LONGER hardcoded: it is read from EDEN_ROLE
+// (defaulting to "assistant") so the same binary boots an assistant or a supervisor session; a
+// supervisor route lands on opus-4.8 with a larger Budget.
 func buildSpec(environment *Environment) agentsession.Spec {
+	role := resolveRole(environment.Role)
 	return agentsession.Spec{
 		Workspace:  environment.Workspace,
-		Routing:    agentsession.RouteKey{Role: "assistant"},
+		Routing:    agentsession.RouteKey{Role: role, Phase: environment.Phase},
+		Budget:     budgetForRole(role),
 		Credential: secrets.Ref(environment.CredentialRef),
 	}
+}
+
+// resolveRole maps the EDEN_ROLE env value to a routing role. The empty/unset value defaults to the
+// interactive assistant (the existing behavior); "supervisor" selects the supervisor route. An
+// unrecognized value is passed through verbatim so a future agentconfiguration role routes without a
+// composition-root change (the Pool's resolveRoute returns a typed RouteError if no route is
+// registered — fail fast and loud, never a silent assistant fallback).
+func resolveRole(envRole string) string {
+	if envRole == "" {
+		return roleAssistant
+	}
+	return envRole
+}
+
+// budgetForRole returns the soft Budget ceiling for a role: the supervisor gets the larger ceiling;
+// every other role keeps the zero Budget (environment/engine-bounded, the existing assistant
+// behavior). The engine's TokenBudget remains the single authoritative hard cap (02 §2).
+func budgetForRole(role string) agentsession.Budget {
+	if role == roleSupervisor {
+		return supervisorBudget
+	}
+	return agentsession.Budget{}
 }
 
 // startProbeServer binds the kubelet probe listener and serves the handler in the background. The

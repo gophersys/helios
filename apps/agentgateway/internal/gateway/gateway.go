@@ -28,6 +28,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -39,6 +40,21 @@ import (
 // Clock is the minimal injected time port (mirrors agentsession.Clock / observability
 // .Clock): the only wall-clock source, so New stays pure and tests stay deterministic.
 type Clock interface{ Now() time.Time }
+
+// ProjectCreator is the DB-first create-saga's drive seam: kick the ordered, resumable provisioning
+// saga for one persisted project (repo -> template seed -> supervisor -> ready). It is a ONE-method
+// consumer-defined port (the projectcreate.Saga binds it) the create handler calls AFTER writing the
+// DRAFT row, so the row is reload-safe before any provisioning starts. Run is long-lived (it waits on
+// the supervisor health heartbeat); the gateway runs it on a detached, tracked goroutine and the
+// handler returns the project row immediately so the dashboard shows loading. It is OPTIONAL on Deps —
+// when nil the create handler persists the project WITHOUT provisioning (the pre-saga behavior: a plain
+// draft/building row), so a composition that does not run the saga is unchanged.
+type ProjectCreator interface {
+	// Run drives the project named by projectID through the creation saga, resumably and idempotently.
+	// It returns a wrapped error on a step fault (the saga has already parked the project at FAILED with
+	// the reason); the gateway logs it (the caller already returned the row to the client).
+	Run(ctx context.Context, projectID string) error
+}
 
 // Logger is the narrow, redaction-safe structured-log seam the gateway emits on. It is a
 // consumer-defined port (the shape of the need, not a mirror of slog): the composition
@@ -150,6 +166,12 @@ type Deps struct {
 	// (GET/PUT /agent-configs) reads and writes. OPTIONAL — when nil those routes are a 503. Real
 	// Postgres adapter in liveserve, in-memory fake in devserve.
 	AgentConfigs AgentConfigStore
+
+	// ProjectCreator is the DB-first create-saga the POST /projects handler kicks (async) after writing
+	// the DRAFT row. OPTIONAL — when nil, POST /projects persists the project WITHOUT provisioning (the
+	// pre-saga behavior). The live root binds it to a projectcreate.Saga over real forge/git/orchestrator
+	// adapters; the dev root may bind a deterministic fake or leave it nil.
+	ProjectCreator ProjectCreator
 }
 
 // Gateway is the concrete http.Handler builder New returns (return-concrete). It holds
@@ -160,6 +182,10 @@ type Gateway struct {
 	dependencies  Deps
 	registry      *registry
 	mux           *http.ServeMux
+
+	// sagas tracks the detached create-saga goroutines the create handler kicks so graceful shutdown
+	// (Close/Serve) drains them — no provisioning goroutine outlives the gateway.
+	sagas sync.WaitGroup
 }
 
 // New is the pure constructor spine: no I/O, no clock read, no env read, no listen, no
@@ -231,10 +257,12 @@ func (g *Gateway) Serve(ctx context.Context, listener net.Listener) error {
 		defer cancel()
 		_ = server.Shutdown(shutdownCtx) //nolint:errcheck // shutdown best-effort; the registry reap below is the leak guarantee.
 		g.registry.closeAll(shutdownCtx)
+		g.sagas.Wait() // drain in-flight create-saga goroutines so none outlives the gateway.
 		g.closeStores()
 		return nil
 	case err := <-serveErr:
 		g.registry.closeAll(context.Background())
+		g.sagas.Wait() // drain in-flight create-saga goroutines so none outlives the gateway.
 		g.closeStores()
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
@@ -249,6 +277,7 @@ func (g *Gateway) Serve(ctx context.Context, listener net.Listener) error {
 // faults are best-effort.
 func (g *Gateway) Close(ctx context.Context) error {
 	g.registry.closeAll(ctx)
+	g.sagas.Wait() // drain in-flight create-saga goroutines so none outlives the gateway.
 	g.closeStores()
 	return nil
 }
@@ -271,6 +300,27 @@ func (g *Gateway) closeStores() {
 	if audit, ok := g.dependencies.Audit.(closer); ok {
 		audit.Close()
 	}
+}
+
+// kickSaga runs the create-saga for projectID on a detached, tracked goroutine and returns
+// immediately — the create handler has already returned the project row, so the dashboard shows
+// loading while the saga provisions. The goroutine runs under a context DETACHED from the request
+// (context.WithoutCancel of the gateway's base context) so the long-lived saga (it waits on the
+// supervisor heartbeat) is not canceled when the POST returns its 201. The WaitGroup makes the
+// goroutine drainable by graceful shutdown. A saga fault is logged (the saga has already parked the
+// project at FAILED); it never crashes the gateway.
+func (g *Gateway) kickSaga(baseCtx context.Context, projectID string) {
+	creator := g.dependencies.ProjectCreator
+	if creator == nil {
+		return
+	}
+	g.sagas.Add(1)
+	go func() {
+		defer g.sagas.Done()
+		if err := creator.Run(context.WithoutCancel(baseCtx), projectID); err != nil {
+			g.logError("gateway: create saga failed", "project", projectID, "error", err.Error(), "kind", errors.KindOf(err).String())
+		}
+	}()
 }
 
 // logInfo emits a redaction-safe info line when a Logger is wired (no-op otherwise).

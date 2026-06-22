@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
@@ -73,6 +74,13 @@ func (s *fakeProjectStore) List(_ context.Context, _ gateway.ProjectFilter) (gat
 		out = append(out, s.items[i])
 	}
 	return gateway.ProjectPage{Projects: out}, nil
+}
+
+// count reports how many rows the store holds (the idempotency assertion: a re-POST must not add one).
+func (s *fakeProjectStore) count() int {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return len(s.items)
 }
 
 // newProjectsServer builds a gateway with the given ProjectStore (or nil) and serves it over httptest.
@@ -227,6 +235,145 @@ func TestCreateProjectWithoutSessionIsDraft(t *testing.T) {
 	}
 	if sessionID, present := created["sessionId"]; present && sessionID != "" {
 		t.Fatalf("create without sessionId: sessionId = %v, want omitted/empty", sessionID)
+	}
+}
+
+// recordingCreator is a fake gateway.ProjectCreator: it records the project ids Run was kicked for so a
+// test can assert the saga was kicked (asynchronously) with the row already persisted. It blocks until
+// Run is observed via the done channel so the assertion is race-free.
+type recordingCreator struct {
+	mutex sync.Mutex
+	ran   []string
+	done  chan string
+}
+
+func newRecordingCreator() *recordingCreator {
+	return &recordingCreator{done: make(chan string, 8)}
+}
+
+func (c *recordingCreator) Run(_ context.Context, projectID string) error {
+	c.mutex.Lock()
+	c.ran = append(c.ran, projectID)
+	c.mutex.Unlock()
+	c.done <- projectID
+	return nil
+}
+
+// newProjectsServerWithSaga builds a projects-serving gateway with a ProjectCreator wired so POST
+// /projects kicks the saga (the DB-first create-flow path).
+func newProjectsServerWithSaga(t *testing.T, projectStore gateway.ProjectStore, creator gateway.ProjectCreator) *httptest.Server {
+	t.Helper()
+	adapter := agentsessiontest.New()
+	provider := secretstest.New(map[string]string{credentialRef: agentsessiontest.SeededCanary})
+	transcript := agentsessiontest.NewTranscript()
+	pool, err := agentsession.New(
+		agentsession.Config{Routing: map[agentsession.RouteKey]agentsession.Route{
+			gatewayRouteKey(): {Harness: "fake", Model: "fake-fable-5"},
+		}},
+		agentsession.Deps{
+			Adapters:   map[string]agentsession.Adapter{"fake": adapter},
+			Secrets:    provider,
+			Transcript: transcript,
+			Clock:      fixedClock{},
+		},
+	)
+	if err != nil {
+		t.Fatalf("agentsession.New: %v", err)
+	}
+	manager := orchestratortest.New(orchestratortest.WithTemplate(orchestratortest.DefaultTemplate()))
+	g, err := gateway.New(
+		gateway.Config{
+			Credential: secrets.Ref(credentialRef),
+			Routing:    gatewayRouteKey(),
+			Workspace:  "/workspace/eden",
+		},
+		gateway.Deps{
+			Manager:        manager,
+			Sessions:       pool,
+			Transcript:     transcript,
+			Clock:          fixedClock{},
+			Projects:       projectStore,
+			ProjectCreator: creator,
+		},
+	)
+	if err != nil {
+		t.Fatalf("gateway.New: %v", err)
+	}
+	server := httptest.NewServer(g.Handler())
+	t.Cleanup(func() {
+		server.Close()
+		_ = g.Close(context.Background()) //nolint:errcheck // test cleanup reap (also drains saga goroutines).
+	})
+	return server
+}
+
+// TestCreateProjectKicksSagaDBFirst proves the DB-first create-flow: with a ProjectCreator wired, POST
+// /projects persists the row at status=creating BEFORE provisioning, returns it immediately, and kicks
+// the saga asynchronously for THAT row's id.
+func TestCreateProjectKicksSagaDBFirst(t *testing.T) {
+	t.Parallel()
+	projectStore := &fakeProjectStore{}
+	creator := newRecordingCreator()
+	server := newProjectsServerWithSaga(t, projectStore, creator)
+
+	created := envelopeData(t, postJSON(t, server.URL+"/projects",
+		`{"clientToken":"token-abc","product":{"productName":"pay-backend","productKind":"service"}}`,
+		http.StatusCreated))
+	id := fmt.Sprint(created["id"])
+	if !strings.HasPrefix(id, "project-") {
+		t.Fatalf("create: id = %q, want a project-* id", id)
+	}
+	// DB-FIRST: the returned row is at status=creating (the saga drives it forward from there).
+	if created["status"] != gateway.ProjectStatusCreating {
+		t.Fatalf("create with saga: status = %v, want %q", created["status"], gateway.ProjectStatusCreating)
+	}
+
+	// The saga was kicked (asynchronously) for the persisted row's id.
+	select {
+	case ran := <-creator.done:
+		if ran != id {
+			t.Fatalf("saga kicked for %q, want the created id %q", ran, id)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("saga was not kicked within 2s")
+	}
+}
+
+// TestCreateProjectIdempotentOnClientToken proves a re-POST with the SAME client token returns the SAME
+// row (the create-flow double-submit guard) and does NOT start a second saga.
+func TestCreateProjectIdempotentOnClientToken(t *testing.T) {
+	t.Parallel()
+	projectStore := &fakeProjectStore{}
+	creator := newRecordingCreator()
+	server := newProjectsServerWithSaga(t, projectStore, creator)
+
+	body := `{"clientToken":"stable-token-xyz","product":{"productName":"billing","productKind":"service"}}`
+	first := envelopeData(t, postJSON(t, server.URL+"/projects", body, http.StatusCreated))
+	firstID := fmt.Sprint(first["id"])
+
+	// Wait for the first saga kick so the re-POST races against an in-progress row.
+	select {
+	case <-creator.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first saga was not kicked")
+	}
+
+	second := envelopeData(t, postJSON(t, server.URL+"/projects", body, http.StatusCreated))
+	secondID := fmt.Sprint(second["id"])
+	if secondID != firstID {
+		t.Fatalf("re-POST returned a different id: %q vs %q (idempotency broken)", secondID, firstID)
+	}
+
+	// The store holds exactly ONE row, and the saga was kicked exactly once (the re-POST returned the
+	// existing row without re-kicking).
+	if got := projectStore.count(); got != 1 {
+		t.Fatalf("store holds %d rows after a re-POST, want 1", got)
+	}
+	creator.mutex.Lock()
+	runs := len(creator.ran)
+	creator.mutex.Unlock()
+	if runs != 1 {
+		t.Fatalf("saga ran %d times, want 1 (re-POST must not re-kick)", runs)
 	}
 }
 

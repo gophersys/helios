@@ -197,6 +197,14 @@ type createProjectRequest struct {
 	Idea      string         `json:"idea,omitempty"`
 	Product   *ProductConfig `json:"product"`
 	SessionID string         `json:"sessionId,omitempty"`
+
+	// ClientToken is the create-flow's idempotency key: a stable token the browser mints once per
+	// "create a project" intent and re-sends on a retry (a double-submit, a reconnect). When the saga
+	// is wired, the project id is DERIVED deterministically from this token, so a re-POST with the same
+	// token returns the SAME in-progress row rather than starting a second saga or clobbering the first
+	// (the create-flow double-send 409 fix, generalized to the saga). Empty == a fresh random id (no
+	// idempotency — the pre-saga behavior for a draft persist).
+	ClientToken string `json:"clientToken,omitempty"`
 }
 
 // projectView is the JSON projection of a Project for the dashboard: the fields a ProjectCard reads
