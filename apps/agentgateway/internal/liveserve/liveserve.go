@@ -28,13 +28,23 @@ package liveserve
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/claudeadapter"
 	"github.com/gophersys/libs/go/agentsession/ompadapter"
 	"github.com/gophersys/libs/go/errors"
+	"github.com/gophersys/libs/go/forge/githubadapter"
+	"github.com/gophersys/libs/go/gitrepository"
+	"github.com/gophersys/libs/go/observability"
+	"github.com/gophersys/libs/go/observability/slogadapter"
+	"github.com/gophersys/libs/go/orchestrator"
 	"github.com/gophersys/libs/go/orchestrator/orchestratortest"
+	"github.com/gophersys/libs/go/orchestrator/postgresstore"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 
@@ -42,6 +52,8 @@ import (
 	"github.com/gophersys/eden/apps/agentgateway/internal/auditpersistence"
 	"github.com/gophersys/eden/apps/agentgateway/internal/createsteppersistence"
 	"github.com/gophersys/eden/apps/agentgateway/internal/gateway"
+	"github.com/gophersys/eden/apps/agentgateway/internal/orchestratorservice"
+	"github.com/gophersys/eden/apps/agentgateway/internal/projectcreate"
 	"github.com/gophersys/eden/apps/agentgateway/internal/projectpersistence"
 )
 
@@ -82,6 +94,27 @@ type Config struct {
 	// routes are a 503 (a composition without a database). The pool is lazy — a missing database does
 	// not fail construction; the schema is ensured on the first /projects request.
 	DatabaseDSN string
+
+	// ── The create-saga seam (OPTIONAL): when DatabaseDSN AND all of the fields below are set, the
+	// live gateway wires the DB-first project-creation saga (real GitHub repo → template seed → a REAL
+	// Claude supervisor on real docker) as gateway.Deps.ProjectCreator, and POST /projects provisions a
+	// project end-to-end. When any is empty the saga is NOT wired (the handler keeps the pre-saga draft
+	// behavior). The supervisor's harness credential is the SAME claude token as CredentialReference. ──
+
+	// RepositoryOwner is the GitHub account new project repositories are created under (e.g. MateoSegura).
+	RepositoryOwner string
+	// ForgeCredentialReference is the opaque vault:// reference to the GitHub PAT (the gh-token) the
+	// forge + git push authenticate with — DISTINCT from CredentialReference (the claude token).
+	ForgeCredentialReference string
+	// TemplateRepositoryURL is the clone URL of the seed template the saga flattens into each new repo
+	// (e.g. https://github.com/gophersys/template.git).
+	TemplateRepositoryURL string
+	// OrganizationID is the supervisor tenancy org key (mapped to a stable UUID by the saga).
+	OrganizationID string
+	// SeedCheckoutRoot is the ABSOLUTE parent directory the seeder clones each project's template into
+	// (the command ensures it exists). Required when the saga is wired.
+	SeedCheckoutRoot string
+
 	// Logger, when non-nil, is wired onto the gateway so live requests emit structured lines.
 	Logger Logger
 }
@@ -97,12 +130,15 @@ func (systemClock) Now() time.Time { return time.Now() }
 // Vault. It is PURE in the gateway sense — it opens no listener and spawns no goroutine (the
 // caller's Serve does the I/O) — but it does construct the real ports (the Vault adapter dials
 // nothing until the first Open; the harness spawns nothing until the first session). It returns
-// the concrete *gateway.Gateway the caller serves, or a wrapped error if any seam is misconfigured.
+// the concrete *gateway.Gateway the caller serves; the SECOND return is the create-saga's
+// orchestrator (nil unless the saga is wired) whose reconcile LOOP the caller must Start/Close
+// (the one goroutine this composition needs — owned by the command, not this pure builder), and a
+// wrapped error if any seam is misconfigured.
 //
 //nolint:gocritic // Config is the frozen, copyable composition input (the configuration pattern, read once at the edge); the builder takes it by value to match BuildDevGateway.
-func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
+func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorservice.Service, error) {
 	if err := configuration.validate(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	clock := systemClock{}
 
@@ -111,7 +147,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 	// server-side, into the harness child env — the value never reaches this package's surface.
 	provider, err := buildSecretsProvider(&configuration)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// The durable Run log: ONE in-process Transcript injected into BOTH the Pool (where the harness
@@ -123,11 +159,11 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 	// omp), the Vault-backed secrets provider, the shared in-memory Transcript, and the system clock.
 	claudeAdapter, err := claudeadapter.New(claudeadapter.Config{})
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "liveserve: build claude adapter", err)
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build claude adapter", err)
 	}
 	ompAdapter, err := ompadapter.New(ompadapter.Config{})
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "liveserve: build omp adapter", err)
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build omp adapter", err)
 	}
 	pool, err := agentsession.New(
 		agentsession.Config{
@@ -146,7 +182,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "liveserve: build agentsession pool", err)
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build agentsession pool", err)
 	}
 
 	// The record plane: a real orchestrator.Pool over in-memory fakes, seeded with the default
@@ -161,38 +197,27 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 
 	// The dashboard + Settings + create-saga persistence: REAL Postgres adapters when a DSN is
 	// configured (the pools are lazy — no dial here), nil otherwise (those routes/saga then 503/absent).
-	// The stores outlive the request; the gateway releases their pools via closeStores on graceful
-	// shutdown (Serve/Close). UpdateStatus + the ledger stamp times from the system clock.
+	projectStore, agentConfigStore, createStepStore, auditStore, err := buildPersistenceStores(configuration.DatabaseDSN, clock)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// ── The create-saga (OPTIONAL): when the database AND the forge/template fields are configured,
+	// wire the DB-first project-creation saga as the gateway's ProjectCreator. Its Supervisor is a REAL
+	// orchestratorservice.Service (real docker workspace + a REAL Claude supervisor session); the caller
+	// Starts/Closes its reconcile loop (the returned *Service). The CHAT record plane stays the
+	// in-process fake above — only project PROVISIONING goes through the real orchestrator. ──
 	var (
-		projectStore     gateway.ProjectStore
-		agentConfigStore gateway.AgentConfigStore
-		createStepStore  gateway.CreateStepStore
-		auditStore       gateway.AuditStore
+		projectCreator    gateway.ProjectCreator
+		supervisorService *orchestratorservice.Service
 	)
-	if configuration.DatabaseDSN != "" {
-		postgresStore, dbErr := projectpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN, projectpersistence.WithClock(clock))
-		if dbErr != nil {
-			return nil, errors.Wrap(errors.KindInternal, "liveserve: build project store", dbErr)
+	if configuration.createSagaConfigured() {
+		saga, service, sagaErr := buildCreateSaga(&configuration, provider, runLog, projectStore, createStepStore, clock)
+		if sagaErr != nil {
+			return nil, nil, sagaErr
 		}
-		projectStore = postgresStore
-
-		configStore, configErr := agentconfigpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
-		if configErr != nil {
-			return nil, errors.Wrap(errors.KindInternal, "liveserve: build agent-config store", configErr)
-		}
-		agentConfigStore = configStore
-
-		stepStore, stepErr := createsteppersistence.NewPostgres(context.Background(), configuration.DatabaseDSN, createsteppersistence.WithClock(clock))
-		if stepErr != nil {
-			return nil, errors.Wrap(errors.KindInternal, "liveserve: build create-step store", stepErr)
-		}
-		createStepStore = stepStore
-
-		trailStore, trailErr := auditpersistence.NewPostgres(context.Background(), configuration.DatabaseDSN)
-		if trailErr != nil {
-			return nil, errors.Wrap(errors.KindInternal, "liveserve: build audit store", trailErr)
-		}
-		auditStore = trailStore
+		projectCreator = saga
+		supervisorService = service
 	}
 
 	gw, err := gateway.New(
@@ -230,12 +255,120 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, error) {
 			Audit:       auditStore,
 			// The Settings → Agents config seam: the real Postgres store (or nil → /agent-configs 503).
 			AgentConfigs: agentConfigStore,
+			// The DB-first create-saga the POST /projects handler kicks async (or nil → the pre-saga
+			// draft behavior when the saga seam is not configured).
+			ProjectCreator: projectCreator,
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "liveserve: build gateway", err)
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build gateway", err)
 	}
-	return gw, nil
+	return gw, supervisorService, nil
+}
+
+// buildCreateSaga constructs the DB-first project-creation saga and the REAL orchestratorservice.Service
+// its supervisor spawns through. The orchestrator runs the supervisor on real docker with the REAL
+// claude binary (account-default Opus model); the saga's two credential planes are the gh-token
+// (ForgeCredentialReference) and the claude token (CredentialReference). The caller Starts/Closes the
+// returned Service's reconcile loop. The pool is process-lifetime (released on exit; the Service.Close
+// stops the loop first).
+func buildCreateSaga(
+	configuration *Config, provider secrets.Provider, runLog agentsession.Transcript,
+	projectStore gateway.ProjectStore, stepStore gateway.CreateStepStore, clock systemClock,
+) (*projectcreate.Saga, *orchestratorservice.Service, error) {
+	ctx := context.Background()
+
+	// The orchestrator's desired-state pool + schema (the composition root's startup step; New is pure).
+	pool, err := pgxpool.New(ctx, configuration.DatabaseDSN)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindUnavailable, "liveserve: open orchestrator database pool", err)
+	}
+	desiredStore, err := postgresstore.New(postgresstore.Config{}, postgresstore.Deps{Pool: pool})
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build orchestrator desired store", err)
+	}
+	if schemaErr := desiredStore.EnsureSchema(ctx); schemaErr != nil {
+		return nil, nil, errors.Wrap(errors.KindUnavailable, "liveserve: ensure orchestrator schema", schemaErr)
+	}
+
+	// The telemetry plane the orchestrator emits onto (discarded in the live-local demo).
+	telemetry, err := observability.New(
+		observability.Config{ServiceName: "agentgateway-live-orchestrator", DefaultPlane: observability.PlaneAgent},
+		observability.Deps{Exporter: slogadapter.New(io.Discard), Clock: clock},
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build orchestrator observability", err)
+	}
+
+	// The REAL orchestratorservice on docker: a real workspace + a REAL Claude supervisor session.
+	service, err := orchestratorservice.New(
+		orchestratorservice.Config{
+			DefaultMaxConcurrent: 4,
+			ReconcileInterval:    2 * time.Second,
+			ProvisionTimeout:     4 * time.Minute,
+			LabelNamespace:       "eden-live",
+		},
+		orchestratorservice.Deps{
+			DatabasePool:  pool,
+			Secrets:       provider,
+			Observability: telemetry,
+			Transcript:    runLog,
+		},
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build orchestrator service", err)
+	}
+
+	// The forge (real GitHub REST) + the gitrepository template seeder (real system-git).
+	connector, err := githubadapter.New(
+		githubadapter.Config{UserAgent: "eden-agentgateway-live"},
+		githubadapter.Deps{HTTP: &http.Client{Timeout: 30 * time.Second}, Secrets: provider},
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build forge connector", err)
+	}
+	forgeAdapter, err := projectcreate.NewForgeAdapter(connector)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build forge adapter", err)
+	}
+	seeder, err := projectcreate.NewSeeder(
+		projectcreate.SeederConfig{CheckoutRoot: configuration.SeedCheckoutRoot},
+		projectcreate.SeederDeps{Backend: gitrepository.SystemGit(), Secrets: provider, Clock: clock},
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build template seeder", err)
+	}
+
+	organizationID := configuration.OrganizationID
+	if organizationID == "" {
+		organizationID = "eden"
+	}
+	saga, err := projectcreate.New(
+		projectcreate.Config{
+			RepositoryOwner:        configuration.RepositoryOwner,
+			PrivateRepository:      true,
+			ForgeCredential:        secrets.Ref(configuration.ForgeCredentialReference),
+			SupervisorCredential:   secrets.Ref(configuration.CredentialReference),
+			TemplateRepositoryURL:  configuration.TemplateRepositoryURL,
+			TemplateReference:      configuration.TemplateRepositoryURL,
+			SupervisorTemplate:     orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
+			OrganizationID:         organizationID,
+			SupervisorReadyTimeout: 5 * time.Minute,
+			SupervisorPollInterval: 2 * time.Second,
+		},
+		projectcreate.Deps{
+			Projects:   projectStore,
+			Steps:      stepStore,
+			Forge:      forgeAdapter,
+			Seeder:     seeder,
+			Supervisor: service,
+			Clock:      clock,
+		},
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build create saga", err)
+	}
+	return saga, service, nil
 }
 
 // buildSecretsProvider builds the secrets Mediator over the REAL Vault backend (ModeUserpass —
@@ -274,6 +407,43 @@ func DefaultCreateTemplate() (name, version string) {
 // template's routing.
 func liveRouteKey() agentsession.RouteKey {
 	return agentsession.RouteKey{Role: "assistant"}
+}
+
+// createSagaConfigured reports whether every field the create-saga needs is set, so POST /projects
+// provisions a project end-to-end. When false the create handler keeps the pre-saga draft behavior.
+func (c *Config) createSagaConfigured() bool {
+	return c.DatabaseDSN != "" && c.RepositoryOwner != "" && c.ForgeCredentialReference != "" &&
+		c.TemplateRepositoryURL != "" && c.SeedCheckoutRoot != ""
+}
+
+// buildPersistenceStores builds the dashboard / Settings / create-saga Postgres stores when a DSN is
+// configured (each nil when no DSN — the dependent routes/saga then 503/absent). The pools are lazy
+// (no dial here); the gateway releases them via closeStores on graceful shutdown. It returns the
+// gateway.Deps store PORTS as interfaces ON PURPOSE: the no-DSN case must yield TRUE nil interfaces (a
+// concrete typed-nil would read as a present store → 500 instead of 503). The composition root wires
+// ports — the inverse of accept-interfaces/return-concrete.
+//
+//nolint:ireturn // composition root wires the store ports; true-nil interfaces are required (see doc).
+func buildPersistenceStores(dsn string, clock systemClock) (
+	projectStore gateway.ProjectStore, agentConfigStore gateway.AgentConfigStore,
+	createStepStore gateway.CreateStepStore, auditStore gateway.AuditStore, err error,
+) {
+	if dsn == "" {
+		return nil, nil, nil, nil, nil
+	}
+	if projectStore, err = projectpersistence.NewPostgres(context.Background(), dsn, projectpersistence.WithClock(clock)); err != nil {
+		return nil, nil, nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build project store", err)
+	}
+	if agentConfigStore, err = agentconfigpersistence.NewPostgres(context.Background(), dsn); err != nil {
+		return nil, nil, nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build agent-config store", err)
+	}
+	if createStepStore, err = createsteppersistence.NewPostgres(context.Background(), dsn, createsteppersistence.WithClock(clock)); err != nil {
+		return nil, nil, nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build create-step store", err)
+	}
+	if auditStore, err = auditpersistence.NewPostgres(context.Background(), dsn); err != nil {
+		return nil, nil, nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build audit store", err)
+	}
+	return projectStore, agentConfigStore, createStepStore, auditStore, nil
 }
 
 // validate checks the required configuration the command resolved from the environment, returning

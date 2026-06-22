@@ -31,6 +31,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/gophersys/libs/go/errors"
 
@@ -53,6 +54,15 @@ const (
 	defaultVaultUsername      = "eden"
 	defaultHarness            = "claude-code"
 	defaultWorkspaceParentDir = "/tmp/eden-live-workspace"
+)
+
+// The create-saga defaults (the .env.development convention). The saga wires only when DATABASE_URL is
+// also set; otherwise the create handler keeps the pre-saga draft behavior.
+const (
+	defaultRepositoryOwner       = "MateoSegura"
+	defaultForgeCredentialRef    = "vault://eden/development#gh-token" // #nosec G101 -- an opaque vault REFERENCE (path), not a credential value.
+	defaultTemplateRepositoryURL = "https://github.com/gophersys/template.git"
+	defaultOrganizationID        = "eden"
 )
 
 func main() {
@@ -107,9 +117,24 @@ func run(ctx context.Context, logger *slog.Logger, address string) error {
 		return err
 	}
 
-	gateway, err := liveserve.BuildLiveGateway(configuration)
+	gateway, supervisor, err := liveserve.BuildLiveGateway(configuration)
 	if err != nil {
 		return errors.Wrap(errors.KindInternal, "agentgateway-live: build live gateway", err)
+	}
+
+	// When the create-saga is wired, the supervisor orchestrator's reconcile LOOP is the one goroutine
+	// the live composition needs — owned here (the command), not the pure builder. Start it for the
+	// gateway's lifetime; Close it (draining in-flight reconciles) on shutdown before the process exits.
+	if supervisor != nil {
+		if startErr := supervisor.Start(ctx); startErr != nil {
+			return errors.Wrap(errors.KindUnavailable, "agentgateway-live: start orchestrator loop", startErr)
+		}
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = supervisor.Close(shutdownCtx) //nolint:errcheck // best-effort loop drain on shutdown; the process is exiting.
+		}()
+		logger.Info("agentgateway-live: project-creation saga wired (real supervisor orchestrator on docker)")
 	}
 
 	listener, err := net.Listen("tcp", address)
@@ -145,6 +170,10 @@ func loadConfiguration(logger *slog.Logger) (liveserve.Config, error) {
 	if err != nil {
 		return liveserve.Config{}, err
 	}
+	seedRoot, err := ensureSeedCheckoutRoot()
+	if err != nil {
+		return liveserve.Config{}, err
+	}
 	return liveserve.Config{
 		VaultAddress:        envOr("VAULT_ADDR", defaultVaultAddress),
 		VaultUsername:       envOr("VAULT_USERNAME", defaultVaultUsername),
@@ -156,8 +185,31 @@ func loadConfiguration(logger *slog.Logger) (liveserve.Config, error) {
 		// The dashboard's persisted-Project store DSN. Optional: when unset the /projects routes 503;
 		// `deploy local` exports it (eden-postgres) so the live demo persists projects.
 		DatabaseDSN: os.Getenv("DATABASE_URL"),
-		Logger:      slogAdapter{logger: logger},
+		// The create-saga seam: when DATABASE_URL is set these defaults wire the DB-first
+		// project-creation saga (real repo → template seed → a REAL Claude supervisor on docker). The
+		// gh-token reference is DISTINCT from the claude EDEN_CREDENTIAL_REF; `deploy local` seeds both
+		// into Vault. Empty any of these to fall back to the pre-saga draft behavior.
+		RepositoryOwner:          envOr("EDEN_REPOSITORY_OWNER", defaultRepositoryOwner),
+		ForgeCredentialReference: envOr("EDEN_FORGE_CREDENTIAL_REF", defaultForgeCredentialRef),
+		TemplateRepositoryURL:    envOr("EDEN_TEMPLATE_REPOSITORY_URL", defaultTemplateRepositoryURL),
+		OrganizationID:           envOr("EDEN_ORGANIZATION_ID", defaultOrganizationID),
+		SeedCheckoutRoot:         seedRoot,
+		Logger:                   slogAdapter{logger: logger},
 	}, nil
+}
+
+// ensureSeedCheckoutRoot resolves and creates the saga seeder's checkout root (EDEN_SEED_CHECKOUT_ROOT
+// or a local default) — the absolute parent dir each project's template clone lands in.
+func ensureSeedCheckoutRoot() (string, error) {
+	root := os.Getenv("EDEN_SEED_CHECKOUT_ROOT")
+	if root == "" {
+		root = filepath.Join(defaultWorkspaceParentDir, "seeds")
+	}
+	// #nosec G304,G703 -- an OPERATOR-set env value or a fixed local default, not request input.
+	if err := os.MkdirAll(root, 0o750); err != nil {
+		return "", errors.Wrap(errors.KindUnavailable, "agentgateway-live: create seed checkout root", err)
+	}
+	return root, nil
 }
 
 // ensureWorkspace resolves and creates the harness workspace directory (EDEN_WORKSPACE or a local

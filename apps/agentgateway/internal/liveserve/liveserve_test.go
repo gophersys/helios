@@ -40,7 +40,7 @@ func TestBuildLiveGatewayValidatesBeforeDialing(t *testing.T) {
 			configuration := validConfiguration()
 			testCase.mutate(&configuration)
 
-			gateway, err := liveserve.BuildLiveGateway(configuration)
+			gateway, _, err := liveserve.BuildLiveGateway(configuration)
 			if gateway != nil || err == nil {
 				t.Fatalf("BuildLiveGateway must reject a Config missing %s, got gateway=%v err=%v", testCase.wantField, gateway, err)
 			}
