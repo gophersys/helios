@@ -37,23 +37,18 @@
     if (ev.key === 'Escape') clusters.focus(null);
   }
 
-  // "Open in k9s" → a live, read-only k9s TUI in a new tab, served by ttyd on its OWN port (it is a
-  // full-page terminal, not a same-origin API — and vite's ws proxy crashes under bun). ttyd appends
-  // the ?arg=… values as k9s flags (--context/-n/-c) so the session lands on THIS resource; the k9s
-  // resource view is keyed off the authoritative meta.kind. Port overridable via PUBLIC_EDEN_K9S_PORT.
-  const K9S_PORT = '7682';
-  const K9S_VIEW: Record<string, string> = {
-    deploy: 'deploy', deployment: 'deploy', sts: 'statefulset', statefulset: 'statefulset',
-    ds: 'daemonset', daemonset: 'daemonset', svc: 'service', service: 'service',
-    ing: 'ingress', ingress: 'ingress', pvc: 'pvc',
-  };
+  // "Open in k9s" → a live k9s TUI in a new tab, served by ttyd on its OWN port (a full-page
+  // terminal, not a same-origin API). The URL build is the pure buildK9sUrl (see k9s.ts); ttyd
+  // appends the ?arg= values as k9s flags so the session lands on THIS resource.
+  import { buildK9sUrl } from './k9s';
   function openK9s(): void {
     if (!node) return;
-    const args = ['--context', model.topo.clusterId];
-    if (node.namespace) args.push('-n', node.namespace);
-    args.push('-c', K9S_VIEW[node.meta.kind ?? ''] ?? K9S_VIEW[node.kind] ?? 'pods');
-    const qs = args.map((a) => `arg=${encodeURIComponent(a)}`).join('&');
-    window.open(`http://${window.location.hostname}:${K9S_PORT}/?${qs}`, '_blank', 'noopener');
+    const url = buildK9sUrl({ hostname: window.location.hostname, clusterId: model.topo.clusterId, node });
+    // Open a FULL TAB, not a popup: passing a window-features string (even 'noopener') makes the
+    // browser open a small popup window (the k9s terminal then can't fill the viewport / steals
+    // focus poorly). Omit features → a real tab; null the opener to keep the same isolation.
+    const win = window.open(url, '_blank');
+    if (win) win.opener = null;
   }
 </script>
 
@@ -124,7 +119,7 @@
       </section>
     {/if}
 
-    <button class="k9s" title="Opens a live k9s session for this resource (ttyd) — coming next">
+    <button class="k9s" onclick={openK9s} title="Open a live k9s session for this resource (new tab)">
       ⎈ Open in k9s
     </button>
   </aside>
