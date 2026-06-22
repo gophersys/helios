@@ -56,6 +56,7 @@ const (
 	envForgeToken    = "EDEN_FORGE_GITHUB_TOKEN" //nolint:gosec // env var NAME, not a credential.
 	envForgeOwner    = "EDEN_FORGE_GITHUB_OWNER"
 	envPostgresDSN   = "EDEN_POSTGRES_DSN"
+	envClaudeToken   = "CLAUDEADAPTER_LIVE_TOKEN" //nolint:gosec // env var NAME, not a credential.
 	templateCloneURL = "https://github.com/gophersys/template.git"
 	tokenRef         = "gh://token"          // the saga's loggable gh credential reference; the value is env-seeded.
 	supervisorRef    = "claude://supervisor" //nolint:gosec // a secrets.Reference LOCATOR for the supervisor harness token, not a credential value.
@@ -147,6 +148,90 @@ func TestIntegration_Saga_RealForgeGitOrchestrator(t *testing.T) {
 	project := assertSupervisorReady(t, projectStore, projectID)
 
 	// Stop the supervisor so its container is reaped by the loop (the namespace cleanup is the backstop).
+	if stopErr := supervisor.Stop(context.Background(), orchestrator.AgentID(project.SupervisorAgentID), "integration-teardown"); stopErr != nil {
+		t.Errorf("stop supervisor: %v", stopErr)
+	}
+}
+
+// TestIntegration_Saga_RealClaudeSupervisor drives the FULL saga with a REAL Claude Opus supervisor (the
+// real `claude` binary + the real supervisor template + a real token), proving the create-a-product flow
+// launches a genuine agent — not a stub. It reaches supervisor_ready only if a real claude session
+// authenticates and opens. Gated on the gh-token + owner AND a real claude token (CLAUDEADAPTER_LIVE_TOKEN);
+// SKIPS (never fails) when any is absent. Reaps the repo + container + database on cleanup.
+//
+//nolint:paralleltest // serial by design: real postgres + real docker workspace + a real GitHub repo + a real claude session.
+func TestIntegration_Saga_RealClaudeSupervisor(t *testing.T) {
+	token := os.Getenv(envForgeToken)
+	owner := os.Getenv(envForgeOwner)
+	claudeToken := os.Getenv(envClaudeToken)
+	if token == "" || owner == "" || claudeToken == "" {
+		t.Skipf("real-claude saga lane needs %s, %s and %s (real credentials cannot be synthesized)", envForgeToken, envForgeOwner, envClaudeToken)
+	}
+	requireDocker(t)
+	if _, err := exec.LookPath("claude"); err != nil {
+		t.Skip("the real `claude` binary is not on PATH: the real-claude supervisor lane is skipped")
+	}
+
+	// The provider resolves BOTH planes: the gh-token (forge + git push) and the REAL claude token (the
+	// supervisor harness child env, CLAUDE_CODE_OAUTH_TOKEN, at the supervisor Open).
+	provider := secretstest.New(map[string]string{tokenRef: token, supervisorRef: claudeToken})
+	dsn := postgresDSN(t)
+
+	forgeAdapter := buildRealForge(t, provider)
+	seeder := buildRealSeeder(t, provider)
+	supervisor := buildRealClaudeOrchestrator(t, provider, dsn)
+	projectStore := buildProjectStore(t, dsn)
+	stepStore := buildStepStore(t, dsn)
+
+	saga, err := projectcreate.New(
+		projectcreate.Config{
+			RepositoryOwner:        owner,
+			PrivateRepository:      true,
+			ForgeCredential:        secrets.Ref(tokenRef),
+			SupervisorCredential:   secrets.Ref(supervisorRef),
+			TemplateRepositoryURL:  templateCloneURL,
+			TemplateReference:      "gophersys/template@main",
+			SupervisorTemplate:     orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
+			OrganizationID:         "eden-integration",
+			SupervisorReadyTimeout: 5 * time.Minute,
+			SupervisorPollInterval: 3 * time.Second,
+		},
+		projectcreate.Deps{
+			Projects: projectStore, Steps: stepStore,
+			Forge: forgeAdapter, Seeder: seeder, Supervisor: supervisor,
+			Clock: realClock{},
+		},
+	)
+	if err != nil {
+		t.Fatalf("projectcreate.New: %v", err)
+	}
+
+	loopCtx, stopLoop := context.WithCancel(context.Background())
+	t.Cleanup(stopLoop)
+	if startErr := supervisor.Start(loopCtx); startErr != nil {
+		t.Fatalf("start orchestrator loop: %v", startErr)
+	}
+	t.Cleanup(func() { _ = supervisor.Close(context.Background()) }) //nolint:errcheck // best-effort loop teardown on cleanup.
+
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 36)
+	projectName := "eden-it-saga-" + suffix
+	projectID := "project-" + suffix
+	if _, createErr := projectStore.Create(context.Background(), gateway.Project{
+		ID: projectID, Name: projectName, Status: gateway.ProjectStatusCreating,
+	}); createErr != nil {
+		t.Fatalf("seed draft row: %v", createErr)
+	}
+	registerRepoReap(t, projectStore, projectID, provider, owner)
+
+	runCtx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
+	if runErr := saga.Run(runCtx, projectID); runErr != nil {
+		t.Fatalf("saga.Run (real claude supervisor): %v", runErr)
+	}
+
+	project := assertSupervisorReady(t, projectStore, projectID)
+	t.Logf("real Claude Opus supervisor reached ready: agent=%s status=wizard", project.SupervisorAgentID)
+
 	if stopErr := supervisor.Stop(context.Background(), orchestrator.AgentID(project.SupervisorAgentID), "integration-teardown"); stopErr != nil {
 		t.Errorf("stop supervisor: %v", stopErr)
 	}
@@ -273,6 +358,49 @@ func buildRealOrchestrator(t *testing.T, provider *secretstest.Provider, dsn str
 	)
 	if err != nil {
 		t.Fatalf("orchestratorservice.New: %v", err)
+	}
+	return service
+}
+
+// buildRealClaudeOrchestrator composes the PRODUCTION orchestratorservice with the REAL claude binary
+// (ClaudeBinary unset) and the REAL supervisor template (no Deps.Templates override → the production
+// supervisor store resolves ghcr.io/gophersys/base). The supervisor session is a genuine Claude Opus
+// agent authenticated by the real token in the provider — the "real agent, zero mocks" path. claude runs
+// host-side (the devcontainer carries it) against its account-default model (Opus). Every workspace it
+// authors is reaped under a unique label namespace on cleanup.
+func buildRealClaudeOrchestrator(t *testing.T, provider *secretstest.Provider, dsn string) *orchestratorservice.Service {
+	t.Helper()
+	ctx := context.Background()
+	namespace := "edensagaclaude-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	t.Cleanup(func() { reapNamespace(namespace) })
+
+	pool := postgresPool(t, dsn)
+	desiredStore, err := postgresstore.New(postgresstore.Config{}, postgresstore.Deps{Pool: pool})
+	if err != nil {
+		t.Fatalf("construct postgres desired store: %v", err)
+	}
+	if schemaErr := desiredStore.EnsureSchema(ctx); schemaErr != nil {
+		t.Fatalf("ensure orchestrator schema: %v", schemaErr)
+	}
+
+	service, err := orchestratorservice.New(
+		orchestratorservice.Config{
+			DefaultMaxConcurrent: 2,
+			ReconcileInterval:    2 * time.Second,
+			ProvisionTimeout:     4 * time.Minute,
+			LabelNamespace:       namespace,
+			// ClaudeBinary unset == the real `claude` on PATH; the route Model is empty == claude's
+			// account-default model (Opus). No Deps.Templates override == the REAL supervisor template.
+		},
+		orchestratorservice.Deps{
+			DatabasePool:  pool,
+			Secrets:       provider,
+			Observability: discardObservability(t),
+			Transcript:    agentsessiontest.NewTranscript(),
+		},
+	)
+	if err != nil {
+		t.Fatalf("orchestratorservice.New (real claude): %v", err)
 	}
 	return service
 }

@@ -411,7 +411,11 @@ func buildClaudeSessions(configuration *Config, dependencies *Deps, clock system
 	sessions, err := agentsession.New(
 		agentsession.Config{
 			Routing: map[agentsession.RouteKey]agentsession.Route{
-				supervisorRouteKey: {Harness: "claude-code", Model: configuration.ClaudeBinary},
+				// Model is EMPTY on purpose: an empty Model makes claudeadapter omit --model, so the
+				// real claude uses its ACCOUNT-DEFAULT model (Opus, per the standing directive). The
+				// binary path lives in claudeadapter.Config.Binary (above), NEVER as the model id —
+				// passing ClaudeBinary here would feed a path to --model and real claude would reject it.
+				supervisorRouteKey: {Harness: "claude-code", Model: ""},
 			},
 		},
 		agentsession.Deps{
