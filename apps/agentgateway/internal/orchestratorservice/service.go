@@ -15,6 +15,7 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/workspaceprovider"
 	"github.com/gophersys/libs/go/workspaceprovider/dockeradapter"
+	"github.com/gophersys/libs/go/workspaceprovider/kubernetesadapter"
 )
 
 // localDockerCluster is the ClusterRef a docker-first Spawn defaults to when a SpawnRequest
@@ -22,6 +23,39 @@ import (
 // resolves a zero SpawnRequest.Cluster to it at Spawn (the orchestrator's effectiveLimits/Cluster
 // fold), so a caller never has to name "local-docker" for the common path.
 var localDockerCluster = orchestrator.ClusterRef{ID: "local-docker"}
+
+// localKubernetesCluster is the ClusterRef a kubernetes Spawn defaults to when a SpawnRequest
+// names no cluster — the local k3d test cluster the integration lane provisions against. The
+// remote eden-central deployment overrides Config.Substrate's default only by naming a different
+// SpawnRequest.Cluster; the substrate (kubernetes) and the cluster (which apiserver) are
+// orthogonal (ADR-0012), so this is the cluster IDENTITY the record carries, not the client
+// wiring (that is Config.Kubeconfig). The id matches the manifests' SpawnRequest.Cluster default.
+var localKubernetesCluster = orchestrator.ClusterRef{ID: "local-k3d"}
+
+// Substrate is THIS service's deployment-substrate selector — a closed enum whose ZERO value is
+// docker (the docker-first local default this service is built around). It exists distinct from
+// orchestrator.Substrate ONLY because the latter's zero value is kubernetes (ADR-0012: kubernetes
+// is the PLATFORM default), which would invert a zero Config into the kubernetes deployment. The
+// service folds it into the orchestrator.Substrate the supervisor template compiles to via
+// toOrchestratorSubstrate — one concept, one home: orchestrator owns the template substrate enum;
+// this is only the composition-root's zero-docker selector.
+type Substrate uint8
+
+// The deployment substrates this service composes. Append-only (10 §9): never reordered.
+const (
+	SubstrateDocker     Substrate = iota // the ZERO value: the docker-first local single instance
+	SubstrateKubernetes                  // the namespace-per-workspace cluster deployment (k3d/eden-central)
+)
+
+// toOrchestratorSubstrate folds this service's zero-docker selector onto the orchestrator's
+// template-substrate enum (whose own zero value is kubernetes). It is the single bridge between
+// the two enums, so the docker-first zero-Config rule lives in exactly one place.
+func toOrchestratorSubstrate(s Substrate) orchestrator.Substrate {
+	if s == SubstrateKubernetes {
+		return orchestrator.SubstrateKubernetes
+	}
+	return orchestrator.SubstrateDocker
+}
 
 // supervisorRouteKey is the route the claude Factory binds for the supervisor template (it MUST
 // match the template's Routing so agentsession.Open resolves an adapter). The model is the
@@ -46,11 +80,31 @@ type Config struct {
 	// DefaultMaxConcurrent is the class ceiling for a (Tenant, Template) whose template/request
 	// sets 0. Zero here == unbounded (discouraged in production); the supervisor template sets 1.
 	DefaultMaxConcurrent int
+	// Substrate selects which workspaceprovider adapter the reconcile loop provisions agent
+	// workspaces through, AND which substrate the supervisor template compiles to (ADR-0012:
+	// substrate selects mechanism only — the SAME service over a different adapter). The ZERO
+	// value is SubstrateDocker (this is the docker-FIRST service; the local single-instance
+	// default needs no opt-in); the kubernetes Deployment sets SubstrateKubernetes so a Spawn
+	// lands on a namespace-per-workspace pod instead of a container. It is the ONE knob
+	// distinguishing the docker and kubernetes deployments. It is a service-local enum (NOT the
+	// orchestrator.Substrate, whose zero value is kubernetes) precisely so a zero Config stays
+	// docker-first.
+	Substrate Substrate
 	// DockerHost overrides the docker daemon endpoint (empty == the SDK FromEnv default:
-	// DOCKER_HOST else the local socket). The local/BYO posture sets it at the command.
+	// DOCKER_HOST else the local socket). The local/BYO posture sets it at the command. Read only
+	// on the docker substrate.
 	DockerHost string
-	// LabelNamespace scopes this service's docker ownership domain (the eden.namespace label);
-	// empty for single-tenant local.
+	// Kubeconfig is the path to the kubeconfig selecting the target cluster, read only on the
+	// kubernetes substrate. Empty == the in-cluster service-account config (the production
+	// orchestrator pod posture) falling back to the default loading rules. The local-k3d posture
+	// points it at the k3d kubeconfig; SpawnRequest.Cluster (local-k3d vs the in-cluster central)
+	// is the orthogonal cluster identity the orchestrator records — this is the client wiring.
+	Kubeconfig string
+	// KubernetesContext overrides the kubeconfig's current-context (empty == current-context),
+	// read only on the kubernetes substrate.
+	KubernetesContext string
+	// LabelNamespace scopes this service's ownership domain (the eden.namespace label on docker,
+	// the namespace-name prefix on kubernetes); empty for single-tenant local.
 	LabelNamespace string
 	// ClaudeBinary names the claude CLI executable the session Factory spawns ("" == "claude").
 	// An integration harness points this at a trivial stub binary to exercise the real subprocess
@@ -106,11 +160,12 @@ var _ orchestrator.Manager = (*Service)(nil)
 //
 //nolint:gocritic // Config is the frozen, copyable composition input (the configuration pattern); New takes it by value (the constructor spine).
 func New(configuration Config, dependencies Deps) (*Service, error) {
-	// Production always resolves through the supervisor TemplateStore compiled to docker (the
-	// single-instance local substrate). The real-substrate integration test injects a trivial
-	// busybox TemplateStore through the unexported build seam so the same production adapter
-	// stack provisions a trivial workspace without the heavy supervisor image.
-	return build(configuration, dependencies, newSupervisorTemplateStore(orchestrator.SubstrateDocker))
+	// Production resolves through the supervisor TemplateStore compiled to the Config-selected
+	// substrate (docker by default; the kubernetes Deployment sets SubstrateKubernetes). The
+	// real-substrate integration test injects a trivial busybox TemplateStore through the
+	// unexported build seam so the same production adapter stack provisions a trivial workspace
+	// without the heavy supervisor image.
+	return build(configuration, dependencies, newSupervisorTemplateStore(toOrchestratorSubstrate(configuration.Substrate)))
 }
 
 // build is the shared composition body New delegates to: it validates the wiring and BUILDS the
@@ -133,8 +188,10 @@ func build(configuration Config, dependencies Deps, templates orchestrator.Templ
 	}
 	desired := newNamespacingStore(desiredStore)
 
-	// ── Provider: the workspaceprovider routed to the DOCKER adapter (the single local instance) ──
-	provisioner, err := buildDockerProvisioner(&configuration, &dependencies, clock)
+	// ── Provider: the workspaceprovider routed to the Config-selected adapter. Docker is the
+	// single local instance; kubernetes is the namespace-per-workspace cluster substrate
+	// (ADR-0012: substrate selects mechanism only — same Provider, different adapter). ──
+	provisioner, err := buildProvisioner(&configuration, &dependencies, clock)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +205,7 @@ func build(configuration Config, dependencies Deps, templates orchestrator.Templ
 	pool, err := orchestrator.New(
 		orchestrator.Config{
 			DefaultMaxConcurrent: configuration.DefaultMaxConcurrent,
-			DefaultCluster:       localDockerCluster,
+			DefaultCluster:       defaultCluster(configuration.Substrate),
 			ReconcileInterval:    configuration.ReconcileInterval,
 			RetentionWindow:      configuration.ProvisionRetention,
 			ProvisionTimeout:     configuration.ProvisionTimeout,
@@ -243,10 +300,31 @@ func (s *Service) Resume(ctx context.Context, id orchestrator.AgentID, by string
 	return s.pool.Resume(ctx, id, by) //nolint:wrapcheck // the Pool already returns a wrapped, classified error.
 }
 
+// defaultCluster picks the ClusterRef a zero-Cluster SpawnRequest resolves to for the
+// Config-selected substrate: the local docker daemon on docker, the local k3d cluster on
+// kubernetes. It is the Config.DefaultCluster the Pool folds at Spawn (ADR-0012); a Spawn naming
+// a different SpawnRequest.Cluster (e.g. the remote eden-central) overrides it.
+func defaultCluster(substrate Substrate) orchestrator.ClusterRef {
+	if substrate == SubstrateKubernetes {
+		return localKubernetesCluster
+	}
+	return localDockerCluster
+}
+
+// buildProvisioner builds the workspaceprovider.Provisioner routed to the Config-selected
+// substrate adapter (ADR-0012: substrate selects mechanism only — the SAME provider, a different
+// adapter, no other change). Docker is the single-instance local default; kubernetes is the
+// namespace-per-workspace cluster substrate the multi-replica Deployment provisions through.
+func buildProvisioner(configuration *Config, dependencies *Deps, clock systemClock) (*workspaceprovider.Provisioner, error) {
+	if configuration.Substrate == SubstrateKubernetes {
+		return buildKubernetesProvisioner(configuration, dependencies, clock)
+	}
+	return buildDockerProvisioner(configuration, dependencies, clock)
+}
+
 // buildDockerProvisioner builds the workspaceprovider.Provisioner routed to the DOCKER adapter —
-// the single-instance local substrate (ADR-0012). The docker adapter is the only substrate the
-// docker-first service binds; a kubernetes deployment binds the kubernetes adapter instead with
-// no other change.
+// the single-instance local substrate (ADR-0012). It is the default substrate; the kubernetes
+// deployment binds buildKubernetesProvisioner instead with no other change.
 func buildDockerProvisioner(configuration *Config, dependencies *Deps, clock systemClock) (*workspaceprovider.Provisioner, error) {
 	dockerAdapter, err := dockeradapter.New(dockeradapter.Config{
 		Host:           configuration.DockerHost,
@@ -263,6 +341,40 @@ func buildDockerProvisioner(configuration *Config, dependencies *Deps, clock sys
 		workspaceprovider.Deps{
 			Adapters: map[workspaceprovider.Substrate]workspaceprovider.Adapter{
 				workspaceprovider.SubstrateDocker: dockerAdapter,
+			},
+			Secrets: dependencies.Secrets,
+			Clock:   clock,
+		},
+	)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindInternal, "orchestratorservice: build workspace provider", err)
+	}
+	return provisioner, nil
+}
+
+// buildKubernetesProvisioner builds the workspaceprovider.Provisioner routed to the KUBERNETES
+// adapter — the namespace-per-workspace cluster substrate (ADR-0012). The adapter realizes each
+// WorkspaceSpec as a project namespace (eden-<prefix>-<name>) holding a single workspace pod
+// (kubernetesadapter.Create), so a Spawn lands on the cluster Config.Kubeconfig selects (in-cluster
+// for the production orchestrator pod, the k3d kubeconfig for the local integration lane). New
+// dials NO apiserver (kubernetesadapter.New is pure); the first apiserver call is at Provision.
+func buildKubernetesProvisioner(configuration *Config, dependencies *Deps, clock systemClock) (*workspaceprovider.Provisioner, error) {
+	kubernetesAdapter, err := kubernetesadapter.New(kubernetesadapter.Config{
+		Kubeconfig:     configuration.Kubeconfig,
+		Context:        configuration.KubernetesContext,
+		LabelNamespace: configuration.LabelNamespace,
+	})
+	if err != nil {
+		return nil, errors.Wrap(errors.KindUnavailable, "orchestratorservice: build kubernetes adapter", err)
+	}
+	provisioner, err := workspaceprovider.New(
+		workspaceprovider.Config{
+			Default:   workspaceprovider.SubstrateKubernetes,
+			Namespace: configuration.LabelNamespace,
+		},
+		workspaceprovider.Deps{
+			Adapters: map[workspaceprovider.Substrate]workspaceprovider.Adapter{
+				workspaceprovider.SubstrateKubernetes: kubernetesAdapter,
 			},
 			Secrets: dependencies.Secrets,
 			Clock:   clock,

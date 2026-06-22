@@ -246,3 +246,49 @@ func TestNew_DefaultsClusterToLocalDocker(t *testing.T) {
 		t.Fatalf("DefaultCluster id = %q, want local-docker", got)
 	}
 }
+
+// TestSubstrate_ZeroValueIsDocker pins the docker-FIRST invariant: a zero Config.Substrate must
+// select docker, NOT kubernetes — even though orchestrator.Substrate's own zero value is kubernetes
+// (ADR-0012). The service-local Substrate enum exists precisely to keep a zero Config docker-first;
+// this guards the regression where reusing orchestrator.Substrate inverted the default.
+func TestSubstrate_ZeroValueIsDocker(t *testing.T) {
+	t.Parallel()
+	if orchestratorservice.SubstrateDocker != 0 {
+		t.Fatalf("SubstrateDocker = %d, want 0 (the zero value MUST be docker — the docker-first default)", orchestratorservice.SubstrateDocker)
+	}
+	if orchestratorservice.SubstrateKubernetes == orchestratorservice.SubstrateDocker {
+		t.Fatal("SubstrateKubernetes must differ from SubstrateDocker (the two deployment substrates)")
+	}
+}
+
+// TestNewKubernetesLease_RejectsMissingWiring exercises the lease constructor's pure validation
+// fault arm (no apiserver): each missing required field is a wrapped KindInvalid naming the seam,
+// so a misconfigured lease fails at composition, never at the first election action.
+func TestNewKubernetesLease_RejectsMissingWiring(t *testing.T) {
+	t.Parallel()
+	valid := orchestratorservice.LeaseConfig{LeaseName: "eden-orchestrator", Namespace: "eden-system", Identity: "pod-1"}
+	cases := []struct {
+		name   string
+		mutate func(*orchestratorservice.LeaseConfig)
+	}{
+		{"missing lease name", func(c *orchestratorservice.LeaseConfig) { c.LeaseName = "" }},
+		{"missing namespace", func(c *orchestratorservice.LeaseConfig) { c.Namespace = "" }},
+		{"missing identity", func(c *orchestratorservice.LeaseConfig) { c.Identity = "" }},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			configuration := valid
+			testCase.mutate(&configuration)
+			// Deps are non-nil so the missing-CONFIG path is the one under test (the nil-deps paths
+			// are checked below); a fake client family is enough — New dials no apiserver.
+			_, err := orchestratorservice.NewKubernetesLease(configuration, orchestratorservice.LeaseDependencies{})
+			if err == nil {
+				t.Fatalf("NewKubernetesLease with %s: want error, got nil", testCase.name)
+			}
+			if errors.KindOf(err) != errors.KindInvalid {
+				t.Fatalf("NewKubernetesLease with %s: kind = %v, want Invalid", testCase.name, errors.KindOf(err))
+			}
+		})
+	}
+}

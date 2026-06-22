@@ -22,9 +22,13 @@
 //   - Templates — the supervisorTemplateStore (this package): the in-memory TemplateStore that
 //     resolves the supervisor AgentTemplate (libs/plugins/supervisor/AGENT-TEMPLATE.md) verbatim,
 //     compiled to the docker substrate for the local single-instance posture.
-//   - Provider  — workspaceprovider.Provisioner bound to the DOCKER adapter (the single-instance
-//     local substrate; ADR-0012 — a kubernetes cluster is the same Provider with a different
-//     adapter, not a new code path).
+//   - Provider  — workspaceprovider.Provisioner bound to the Config.Substrate-selected adapter:
+//     the DOCKER adapter for the single-instance local default, or the KUBERNETES adapter for the
+//     namespace-per-workspace cluster substrate (ADR-0012 — the SAME Provider with a different
+//     adapter, NOT a new code path; buildProvisioner is the one substrate switch). On kubernetes,
+//     Config.Kubeconfig selects the cluster (in-cluster SA for the production orchestrator pod,
+//     the k3d kubeconfig for the local integration lane); SpawnRequest.Cluster (local-k3d vs the
+//     remote eden-central) is the orthogonal cluster IDENTITY the record carries.
 //   - Sessions  — agentsession.Pool bound to the claude Factory (the harness the orchestrator
 //     opens sessions through).
 //   - Telemetry — the observabilityTelemetry shim (this package): it maps the orchestrator's
@@ -32,9 +36,11 @@
 //     orchestrator stays a leaf-ish library and never imports observability's Event shape).
 //
 // THE LEASE SEAM (lease.go): on docker this service is a SINGLE instance, so the multi-node
-// leader Lease is a no-op that is ALWAYS the leader. The seam exists so the kubernetes
-// deployment binds a real k8s Lease (only the leader runs the reconcile loop) with NO change
-// to this service — Start consults the Lease before each pass the same way locally and in k8s.
+// leader Lease is a no-op that is ALWAYS the leader (dockerLease). The kubernetes Deployment runs
+// REPLICAS, so it binds the REAL coordination.k8s.io/v1 Lease (KubernetesLease, a client-go
+// leaderelection over a Lease object) — only the replica that holds the Lease runs the reconcile
+// loop, so two controllers never both provision the same Pending agent. Start consults the Lease
+// before each pass the same way locally and in k8s; only the injected Lease differs.
 //
 // SpawnRequest.Cluster defaults to local-docker (Config.DefaultCluster) when a request names
 // no cluster, so a docker-first Spawn lands on the local daemon without the caller naming it.

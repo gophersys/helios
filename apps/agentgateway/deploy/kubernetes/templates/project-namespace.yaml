@@ -1,0 +1,71 @@
+# Eden per-PROJECT namespace template (W5). The orchestrator creates ONE namespace per project at
+# runtime, named eden-<prefix>-<projectUUID> (kubernetesadapter.deriveNamespace; <prefix> is
+# EDEN_LABEL_NAMESPACE — "central" in 40-orchestrator-deployment.yaml — and <projectUUID> the
+# project key off the SpawnRequest tenancy). The adapter creates the Namespace + the per-WORKSPACE
+# egress NetworkPolicy; THIS template adds the two PROJECT-scoped guards the adapter does not own:
+# a ResourceQuota (the project's aggregate ceiling) and a namespace-wide default-deny NetworkPolicy
+# (so a pod with no per-workspace policy still cannot dial out — defense in depth).
+#
+# It is a TEMPLATE, not a directly-applied manifest: the literal placeholders below
+# (${PROJECT_NAMESPACE}, ${PROJECT_UUID}, ${LABEL_PREFIX}) are substituted per project by the
+# orchestrator (or, for a manual test, by `envsubst < templates/project-namespace.yaml | kubectl
+# apply -f -`). The integration test (service_kubernetes_integration_test.go) proves the runtime
+# path: the orchestrator's kubernetesadapter creates+labels+reaps the namespace; this template is
+# the declarative shape of the project-scoped quota/policy that wraps it.
+#
+# Default-deny is enforced WHERE THE CNI IMPLEMENTS NetworkPolicy. k3d/kind ship flannel, which does
+# NOT enforce it — so on the local test cluster the policy is inert-but-declared (the honest
+# CapEgressPolicy=Absent the adapter manifests); on eden-central (a Calico/Cilium CNI) it is live.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${PROJECT_NAMESPACE} # eden-${LABEL_PREFIX}-${PROJECT_UUID}
+  labels:
+    app.kubernetes.io/part-of: eden
+    eden.io/plane: workspace
+    eden.workspaceprovider/owned: "true"
+    eden.workspaceprovider/namespace: ${LABEL_PREFIX}
+    eden.workspaceprovider/project: ${PROJECT_UUID}
+---
+# The project's aggregate resource ceiling: a single project's agents cannot exhaust the cluster.
+# Sized for a handful of concurrent supervisor/worker pods; eden-central overrides via the project's
+# plan. The workspace pods are Guaranteed-QoS (requests==limits, kubernetesadapter.buildResources),
+# so the requests.* and limits.* ceilings move together.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: eden-project-quota
+  namespace: ${PROJECT_NAMESPACE}
+  labels:
+    app.kubernetes.io/part-of: eden
+    eden.workspaceprovider/owned: "true"
+spec:
+  hard:
+    pods: "16"
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    requests.ephemeral-storage: 32Gi
+    limits.ephemeral-storage: 32Gi
+    count/secrets: "64" # the per-workspace MountSecret + pull-secret material the adapter creates
+---
+# The namespace-wide default-deny EGRESS: every pod in the project namespace is denied egress unless
+# a per-workspace NetworkPolicy (kubernetesadapter.buildNetworkPolicy) allows it. The empty
+# podSelector matches all pods; the empty egress rule list with PolicyTypes:[Egress] is the
+# canonical default-deny. The adapter's per-workspace policy then ADDS the declared allows (DNS +
+# the spec's EgressAllow). Ingress is left to the platform's own policy (the orchestrator reaches
+# the pod via exec/attach, not ingress).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eden-project-default-deny-egress
+  namespace: ${PROJECT_NAMESPACE}
+  labels:
+    app.kubernetes.io/part-of: eden
+    eden.workspaceprovider/owned: "true"
+spec:
+  podSelector: {} # all pods in the project namespace
+  policyTypes:
+    - Egress
+  egress: [] # deny all egress by default; per-workspace policies add the declared allows

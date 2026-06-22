@@ -140,7 +140,9 @@ export class GatewayClient {
 
   /** GET /projects — the dashboard grid: persisted projects, newest first. Enveloped; unwraps
    *  `.data`. `limit`/`cursor` page the list. */
-  async listProjects(options: { limit?: number; cursor?: string } = {}): Promise<ListProjectsResponse> {
+  async listProjects(
+    options: { limit?: number; cursor?: string } = {},
+  ): Promise<ListProjectsResponse> {
     const query = new URLSearchParams();
     if (options.limit != null) query.set('limit', String(options.limit));
     if (options.cursor) query.set('cursor', options.cursor);
@@ -159,6 +161,36 @@ export class GatewayClient {
       `/projects/${encodeURIComponent(id)}`,
     );
     return envelope.data;
+  }
+
+  /** Retry a stalled project's build: re-POST `POST /projects` from the surfaced view fields. The
+   *  create-saga is idempotency-keyed per project (saga.go: CreateStep.IdempotencyKey), so a re-create
+   *  RESUMES the provisioning walk from where it stalled rather than double-applying a committed step.
+   *  The view does not carry the full ProductConfig (the wire projection flattens it), so this rebuilds
+   *  a MINIMAL product from the surfaced kind/harness/stacks/services/idea; the gateway re-normalizes
+   *  every empty field to its Eden default (NormalizeProductConfig), yielding a complete, valid spec —
+   *  no fabricated capability. Returns the refreshed projectView (its status re-enters the walk). */
+  async resumeProject(project: ProjectView): Promise<ProjectView> {
+    const languages = project.stacks ?? [];
+    const product: ProductConfig = {
+      productName: project.name,
+      productKind: project.kind,
+      summary: (project.idea ?? '').trim(),
+      // The view flattens languages + frameworks into one `stacks` list; hand them back as languages
+      // and let NormalizeProductConfig redistribute/default frameworks for the kind (no guess here).
+      stack: { languages, frameworks: [] },
+      services: project.services ?? [],
+      capabilities: {
+        harness: project.harness,
+        model: '',
+        toolGrants: [],
+        skills: [],
+        rules: [],
+      },
+      sdlcPhases: [],
+      sandbox: { posture: 'strict', egressAllow: [] },
+    };
+    return this.createProject({ product, name: project.name, idea: project.idea });
   }
 
   /** GET /agent-configs — the saved per-agent-type configurations (the Settings → Agents loader).

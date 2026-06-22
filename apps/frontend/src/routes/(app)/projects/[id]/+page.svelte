@@ -26,6 +26,8 @@
     type ProjectView,
   } from '$lib/gateway/types';
   import ProjectLoading from '$lib/dashboard/ProjectLoading.svelte';
+  import SetupWizard from '$lib/chat/wizard/SetupWizard.svelte';
+  import { createGatewayWizardSource } from '$lib/chat/wizard/wizardSource';
 
   const client = new GatewayClient(resolveGatewayUrl());
   const theme = edenTheme;
@@ -76,6 +78,15 @@
       loadError = null;
       loaded = true;
 
+      // The SETUP WIZARD step is in-route: when the saga reaches `wizard` the supervisor is up and
+      // driving the product-scoping interview, so we render SetupWizard HERE (the template branches
+      // on the status) rather than routing on — the wizard runs its own worktree poll, so the
+      // status poll stops. Only the OTHER ready statuses (supervisor_ready/building) route straight
+      // into the build workspace.
+      if (next.status === 'wizard') {
+        clearPoll();
+        return;
+      }
       if (PROJECT_READY_STATUSES.has(next.status)) {
         clearPoll();
         enterWorkspace(next);
@@ -132,6 +143,9 @@
       project = refreshed;
       if (isLoadingStatus(refreshed.status)) {
         schedulePoll();
+      } else if (refreshed.status === 'wizard') {
+        // The setup wizard renders in-route (the template branches on status); stop polling.
+        clearPoll();
       } else if (PROJECT_READY_STATUSES.has(refreshed.status)) {
         enterWorkspace(refreshed);
       }
@@ -165,6 +179,26 @@
   // The status the loading surface renders. Before the first read we show the provisioning chrome at
   // the earliest step (`creating`) so there is no blank flash; after, the real status drives it.
   const displayStatus = $derived<ProjectStatus>(project?.status ?? 'creating');
+
+  // ── the SETUP WIZARD (status === 'wizard') ─────────────────────────────────────.
+  // True once the saga reached the wizard step AND the supervisor session id is known (the wizard
+  // drives that live session + reads the project's worktree). The template branches on this.
+  const inWizard = $derived(project?.status === 'wizard' && Boolean(project.supervisorAgentId));
+
+  // The wizard's I/O seam, bound to the LIVE gateway: the supervisor session's workspace file
+  // surface (the committed init/product/* interview artifacts) + its control channel. Derived from
+  // the project so it re-targets if the route id changes; null until the supervisor id is known.
+  const wizardSource = $derived(
+    project && project.supervisorAgentId
+      ? createGatewayWizardSource(client, project.supervisorAgentId)
+      : null,
+  );
+
+  /** The interview is complete (the wizard's onfinish): route into the build workspace, the same
+   *  handoff the other ready statuses take. */
+  function enterFromWizard(): void {
+    if (project) enterWorkspace(project);
+  }
 </script>
 
 <svelte:head><title>Eden — {project?.name ?? 'Project'}</title></svelte:head>
@@ -176,6 +210,15 @@
     <p class="fault__detail">{loadError}</p>
     <button type="button" class="fault__action" onclick={backToProjects}>Back to projects</button>
   </div>
+{:else if inWizard && wizardSource && project}
+  <!-- The setup wizard: the supervisor's FSM made visible. It renders the supervisor's committed
+       interview (live from the project's worktree) + drives the supervisor session. -->
+  <SetupWizard
+    source={wizardSource}
+    projectName={project.name}
+    onfinish={enterFromWizard}
+    {theme}
+  />
 {:else}
   <ProjectLoading
     status={displayStatus}

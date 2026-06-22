@@ -1,0 +1,112 @@
+# Eden NATS + JetStream (W5). The agent event bus (ADR-0022 #1): the agent-runtime pods publish the
+# normalized event stream to JetStream and subscribe to the control subject; the stateless gateway
+# replays from the durable stream. A StatefulSet with a PersistentVolumeClaim because JetStream's
+# file store is durable (a stream survives a NATS pod restart). ONE replica at v0 (the single
+# JetStream domain); a clustered NATS is a later concern behind the same Service name.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eden-nats
+  namespace: eden-system
+  labels:
+    app.kubernetes.io/name: eden-nats
+    app.kubernetes.io/part-of: eden
+data:
+  nats.conf: |
+    # JetStream enabled with a file store on the mounted PVC (durable streams).
+    port: 4222
+    http: 8222
+    jetstream {
+      store_dir: /data/jetstream
+      max_memory_store: 256MB
+      max_file_store: 4GB
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: eden-system
+  labels:
+    app.kubernetes.io/name: eden-nats
+    app.kubernetes.io/part-of: eden
+spec:
+  selector:
+    app.kubernetes.io/name: eden-nats
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitor
+      port: 8222
+      targetPort: 8222
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: eden-nats
+  namespace: eden-system
+  labels:
+    app.kubernetes.io/name: eden-nats
+    app.kubernetes.io/part-of: eden
+spec:
+  serviceName: nats
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eden-nats
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eden-nats
+        app.kubernetes.io/part-of: eden
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: nats
+          image: nats:2.14-alpine
+          args: ["-c", "/etc/nats/nats.conf"]
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: monitor
+              containerPort: 8222
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nats
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: eden-nats
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

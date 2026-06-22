@@ -322,20 +322,71 @@ export interface Envelope<T> {
 // carries a credential.
 
 /** projectView is the dashboard's read model of a persisted Project: the fields a ProjectCard reads,
- *  with the originating idea and timestamps. `stacks` is the flattened languages + frameworks. */
+ *  with the originating idea and timestamps. `stacks` is the flattened languages + frameworks.
+ *
+ *  The saga-scratch fields (`githubOwner`/`githubRepo`/`repoUrl`/`defaultBranch`/`templateRef`/
+ *  `supervisorAgentId`/`sagaStep`/`lastError`) are surfaced omitempty by the gateway so a pre-saga
+ *  draft omits them entirely (exactly as the dashboard grid sees), while the LOADING screen reads
+ *  them to render the provisioning walk: `sagaStep` is the saga's current step, `lastError` is the
+ *  human reason a `failed` project stalled, and `supervisorAgentId` is the build session the workspace
+ *  opens into once `supervisor_ready`. None is a credential — `repoUrl` is the public clone URL and the
+ *  handles are opaque record-plane ids (mirror of the Go projectView, project.go). */
 export interface ProjectView {
   id: string;
   name: string;
   idea?: string;
   kind: ProductKind;
-  status: string;
+  status: ProjectStatus;
   harness: ProductHarness;
   stacks: string[];
   services: string[];
   sessionId?: string;
+  githubOwner?: string;
+  githubRepo?: string;
+  repoUrl?: string;
+  defaultBranch?: string;
+  templateRef?: string;
+  supervisorAgentId?: string;
+  sagaStep?: string;
+  lastError?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+/** ProjectStatus is the closed set of legal Project lifecycle tokens, in create-saga order: `draft`
+ *  (persisted, pre-saga), then the provisioning walk (`creating` → `provisioning_repo` →
+ *  `seeding_template` → `launching_supervisor` → `supervisor_ready` → `wizard`), then the terminal
+ *  `building`/`failed`. A faithful mirror of the Go ProjectStatus* constants (project.go); the loading
+ *  screen branches on these tokens, never on a free-form string. */
+export type ProjectStatus =
+  | 'draft'
+  | 'creating'
+  | 'provisioning_repo'
+  | 'seeding_template'
+  | 'launching_supervisor'
+  | 'supervisor_ready'
+  | 'wizard'
+  | 'building'
+  | 'failed';
+
+/** The provisioning statuses during which the LOADING screen renders (the saga is mid-walk). On
+ *  `supervisor_ready`/`wizard` the project routes into the workspace; on `failed` it shows the fault +
+ *  a Retry. `draft`/`building` are not loading states — a `draft` has no live saga and `building` is a
+ *  spawned-session state the workspace owns. */
+export const PROJECT_LOADING_STATUSES: ReadonlySet<ProjectStatus> = new Set<ProjectStatus>([
+  'creating',
+  'provisioning_repo',
+  'seeding_template',
+  'launching_supervisor',
+]);
+
+/** The statuses on which the project is READY to enter its workspace (the provisioning walk
+ *  reached the supervisor; the wizard is the first in-workspace step). */
+export const PROJECT_READY_STATUSES: ReadonlySet<ProjectStatus> = new Set<ProjectStatus>([
+  'supervisor_ready',
+  'wizard',
+  'building',
+]);
 
 /** The body of GET /projects (unwrapped from the data envelope): a page of projects, newest first,
  *  plus the opaque next cursor. */
