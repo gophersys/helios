@@ -131,6 +131,15 @@ type Deps struct {
 	// transcript offset). Required (agentsession.New requires it).
 	Transcript agentsession.Transcript
 
+	// Templates OPTIONALLY overrides the TemplateStore the orchestrator resolves a SpawnRequest's
+	// TemplateRef through. nil selects the built-in supervisor store (the production default,
+	// compiled to Config.Substrate). The composition root supplies its own to inject a different
+	// template source — the git-backed agent-configs store (ADR-0020 B6), or a trivial busybox
+	// store the real-substrate integration lanes use to provision a hermetic workspace without the
+	// heavy supervisor image. This is the ONE composition seam that varies the template source;
+	// the rest of the adapter stack is identical.
+	Templates orchestrator.TemplateStore
+
 	// Lease guards the reconcile loop in a multi-instance deployment (only the leader reconciles).
 	// nil == the docker single-instance always-leader Lease (the local default).
 	Lease Lease
@@ -162,10 +171,15 @@ var _ orchestrator.Manager = (*Service)(nil)
 func New(configuration Config, dependencies Deps) (*Service, error) {
 	// Production resolves through the supervisor TemplateStore compiled to the Config-selected
 	// substrate (docker by default; the kubernetes Deployment sets SubstrateKubernetes). The
-	// real-substrate integration test injects a trivial busybox TemplateStore through the
-	// unexported build seam so the same production adapter stack provisions a trivial workspace
-	// without the heavy supervisor image.
-	return build(configuration, dependencies, newSupervisorTemplateStore(toOrchestratorSubstrate(configuration.Substrate)))
+	// composition root MAY inject its own store via Deps.Templates (the git-backed agent-configs
+	// store, or a trivial busybox store the real-substrate integration lanes use to provision a
+	// hermetic workspace without the heavy supervisor image) — the same production adapter stack
+	// otherwise.
+	templates := dependencies.Templates
+	if templates == nil {
+		templates = newSupervisorTemplateStore(toOrchestratorSubstrate(configuration.Substrate))
+	}
+	return build(configuration, dependencies, templates)
 }
 
 // build is the shared composition body New delegates to: it validates the wiring and BUILDS the

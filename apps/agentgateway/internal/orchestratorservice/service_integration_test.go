@@ -195,7 +195,7 @@ func buildRealService(t *testing.T) *orchestratorservice.Service {
 	namespace := "edentest-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	t.Cleanup(func() { reapNamespace(namespace) })
 
-	service, err := orchestratorservice.BuildWithTemplates(
+	service, err := orchestratorservice.New(
 		orchestratorservice.Config{
 			DefaultMaxConcurrent: 4,
 			ReconcileInterval:    time.Hour, // the test drives Reconcile by hand; the timed loop never ticks
@@ -208,11 +208,11 @@ func buildRealService(t *testing.T) *orchestratorservice.Service {
 			Secrets:       provider,
 			Observability: discardProvider(t),
 			Transcript:    agentsessiontest.NewTranscript(),
+			Templates:     trivialTemplateStore{}, // the production Deps.Templates seam swaps ONLY the template source
 		},
-		trivialTemplateStore{},
 	)
 	if err != nil {
-		t.Fatalf("BuildWithTemplates: %v", err)
+		t.Fatalf("orchestratorservice.New: %v", err)
 	}
 	return service
 }

@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,6 +33,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
 	"github.com/gophersys/libs/go/forge"
 	"github.com/gophersys/libs/go/forge/githubadapter"
@@ -38,6 +41,7 @@ import (
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/observability/slogadapter"
 	"github.com/gophersys/libs/go/orchestrator"
+	"github.com/gophersys/libs/go/orchestrator/postgresstore"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 
@@ -221,33 +225,103 @@ func buildRealSeeder(t *testing.T, provider *secretstest.Provider) *projectcreat
 	return seeder
 }
 
-// buildRealOrchestrator composes the PRODUCTION orchestratorservice.Service over a REAL postgres + REAL
-// docker, resolving the REAL supervisor template (ghcr.io/gophersys/base). It reaps every workspace it
-// authors under a unique label namespace on cleanup.
+// buildRealOrchestrator composes the production orchestratorservice over a REAL postgres + REAL docker.
+// It mirrors the orchestratorservice integration lane: the desired-state SCHEMA is applied to the fresh
+// database (the composition root's startup step — New is pure and never touches the DB), and the
+// supervisor session runs a STUB claude binary on a REAL busybox docker workspace via the
+// BuildWithTemplates seam. The saga + orchestrator + workspace provisioning are exercised end-to-end on
+// real substrates; the harness alone is a scripted stand-in (a live Claude Opus credential cannot be
+// synthesized in CI — the real-claude supervisor is proven by the gated claudeadapter live lane and the
+// live demo). Every workspace it authors is reaped under a unique label namespace on cleanup.
 func buildRealOrchestrator(t *testing.T, provider *secretstest.Provider, dsn string) *orchestratorservice.Service {
 	t.Helper()
+	ctx := context.Background()
 	namespace := "edensaga-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	t.Cleanup(func() { reapNamespace(namespace) })
 
 	pool := postgresPool(t, dsn)
+
+	// Apply the orchestrator's desired-state schema (CREATE TABLE/INDEX IF NOT EXISTS) to the fresh
+	// database. Without it the first agents-table query fails with relation "agents" does not exist.
+	desiredStore, err := postgresstore.New(postgresstore.Config{}, postgresstore.Deps{Pool: pool})
+	if err != nil {
+		t.Fatalf("construct postgres desired store: %v", err)
+	}
+	if schemaErr := desiredStore.EnsureSchema(ctx); schemaErr != nil {
+		t.Fatalf("ensure orchestrator schema: %v", schemaErr)
+	}
+
 	service, err := orchestratorservice.New(
 		orchestratorservice.Config{
 			DefaultMaxConcurrent: 2,
 			ReconcileInterval:    2 * time.Second,
 			ProvisionTimeout:     3 * time.Minute,
 			LabelNamespace:       namespace,
+			ClaudeBinary:         buildStubClaude(t),
 		},
 		orchestratorservice.Deps{
 			DatabasePool:  pool,
 			Secrets:       provider,
 			Observability: discardObservability(t),
 			Transcript:    agentsessiontest.NewTranscript(),
+			Templates:     supervisorBusyboxTemplateStore{}, // the production Deps.Templates seam: busybox in place of the heavy supervisor image
 		},
 	)
 	if err != nil {
 		t.Fatalf("orchestratorservice.New: %v", err)
 	}
 	return service
+}
+
+// supervisorTemplateRef is the ref the saga's Config.SupervisorTemplate names. The integration template
+// store resolves it to a trivial busybox docker workspace — the ONE production substitution (the heavy
+// supervisor image is swapped for busybox), keeping the spawn hermetic while still real-substrate.
+var supervisorTemplateRef = orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"}
+
+// supervisorBusyboxTemplateStore resolves the saga's supervisor TemplateRef to a long-lived busybox
+// sandbox compiled to docker, so the production orchestrator stack provisions a real container without
+// the heavy supervisor image. It is the only substitution vs production; the rest is verbatim.
+type supervisorBusyboxTemplateStore struct{}
+
+//nolint:gocritic // contract: TemplateStore.Resolve takes the TemplateRef by value (the frozen port surface).
+func (supervisorBusyboxTemplateStore) Resolve(_ context.Context, ref orchestrator.TemplateRef) (orchestrator.AgentTemplate, error) {
+	if ref != supervisorTemplateRef {
+		return orchestrator.AgentTemplate{}, fmt.Errorf("supervisorBusyboxTemplateStore: unknown ref %v", ref)
+	}
+	return orchestrator.AgentTemplate{
+		Ref:     supervisorTemplateRef,
+		Routing: agentsession.RouteKey{Phase: "supervise", Role: "supervisor"},
+		Sandbox: orchestrator.SandboxSpec{
+			Substrate: orchestrator.SubstrateDocker,
+			Image:     "busybox:1.36",
+			Resources: orchestrator.ResourceEnvelope{CPUMillis: 250, MemoryMiB: 64, EphemeralMiB: 64},
+		},
+		Limits: orchestrator.Limits{MaxConcurrent: 1},
+	}, nil
+}
+
+// buildStubClaude writes a POSIX stub `claude` that emits the system/init (Ready) frame, one assistant
+// turn, and a success result, then drains stdin — enough for the session to Open and the agent to reach
+// StatusRunning (the readiness step's success condition) without a live authenticated claude. Identical
+// in shape to the orchestratorservice integration lane's stub.
+func buildStubClaude(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the POSIX stub claude is not built on windows")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "claude-stub.sh")
+	const script = `#!/bin/sh
+printf '%s\n' '{"type":"system","subtype":"init","session_id":"stub-1","model":"stub-fable","tools":["Read"]}'
+printf '%s\n' '{"type":"assistant","message":{"model":"stub-fable","role":"assistant","content":[{"type":"text","text":"ready"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"num_turns":1,"duration_ms":10,"total_cost_usd":0.0,"result":"ready","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}'
+cat >/dev/null
+exit 0
+`
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil { //nolint:gosec // an executable test stub must be +x.
+		t.Fatalf("write stub claude: %v", err)
+	}
+	return path
 }
 
 func buildProjectStore(t *testing.T, dsn string) *projectpersistence.PostgresProjectStore {

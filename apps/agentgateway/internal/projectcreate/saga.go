@@ -2,6 +2,7 @@ package projectcreate
 
 import (
 	"context"
+	"crypto/sha1" //nolint:gosec // RFC-4122 v5 UUID derivation is DEFINED over SHA-1; this is name->UUID mapping, not a security hash.
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -222,10 +223,35 @@ func (s *Saga) resumePoint(ctx context.Context, projectUUID string) (int, error)
 	return len(orderedSteps), nil
 }
 
+// edenTenancyNamespace is the fixed RFC-4122 namespace the saga derives stable tenancy UUIDs in. The
+// orchestrator's desired-state store types org_id/project_id as UUID (07 §6), but the gateway mints
+// human-meaningful identifiers (an org slug; a "project-<hex>" id, never a UUID). deriveTenancyUUID maps
+// those names to STABLE, collision-resistant UUIDv5 values — the boundary between the gateway's id space
+// and the orchestrator's UUID-typed tenancy. The 16 bytes are an arbitrary fixed namespace seed.
+var edenTenancyNamespace = [16]byte{0xed, 0xed, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+
+// deriveTenancyUUID maps a human-meaningful tenancy identifier (the org slug or a "project-<hex>" id) to
+// the stable RFC-4122 v5 UUID the orchestrator's UUID tenancy columns require. v5 is defined as
+// SHA-1(namespace || name) with the version/variant bits set; deterministic, so a saga replay re-Spawns
+// under the IDENTICAL (org, project) tenancy and lands on the existing (Tenant, Template) admission class
+// rather than a second supervisor.
+func deriveTenancyUUID(name string) string {
+	sum := sha1.Sum(append(append([]byte{}, edenTenancyNamespace[:]...), name...)) //nolint:gosec // RFC-4122 v5 is defined over SHA-1; name->UUID mapping, not security.
+	var u [16]byte
+	copy(u[:], sum[:16])
+	u[6] = (u[6] & 0x0f) | 0x50 // version 5
+	u[8] = (u[8] & 0x3f) | 0x80 // RFC-4122 variant
+	return fmt.Sprintf("%x-%x-%x-%x-%x", u[0:4], u[4:6], u[6:8], u[8:10], u[10:16])
+}
+
 // supervisorTenancy is the orchestrator tenancy keys the supervisor spawns under: the configured org +
-// THIS project's id (07 §6). One supervisor per (org, project).
+// THIS project's id, each mapped to the stable tenancy UUID the orchestrator store requires (07 §6). One
+// supervisor per (org, project).
 func (s *Saga) supervisorTenancy(projectID string) orchestrator.Tenancy {
-	return orchestrator.Tenancy{OrganizationID: s.configuration.OrganizationID, ProjectID: projectID}
+	return orchestrator.Tenancy{
+		OrganizationID: deriveTenancyUUID(s.configuration.OrganizationID),
+		ProjectID:      deriveTenancyUUID(projectID),
+	}
 }
 
 // idempotencyKey is the saga's per-step idempotency key: projectUUID + ":" + step. It is recorded on

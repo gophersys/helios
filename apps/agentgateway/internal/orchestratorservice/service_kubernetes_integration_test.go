@@ -205,7 +205,7 @@ func buildRealKubernetesService(t *testing.T, kubeconfig string) (service *orche
 	// regardless, but a unique prefix keeps a shared cluster clean.
 	labelNamespace = "edenk8s-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 
-	svc, err := orchestratorservice.BuildWithTemplates(
+	svc, err := orchestratorservice.New(
 		orchestratorservice.Config{
 			Substrate:            orchestratorservice.SubstrateKubernetes,
 			Kubeconfig:           kubeconfig,
@@ -220,11 +220,11 @@ func buildRealKubernetesService(t *testing.T, kubeconfig string) (service *orche
 			Secrets:       provider,
 			Observability: discardProvider(t),
 			Transcript:    agentsessiontest.NewTranscript(),
+			Templates:     kubernetesTrivialTemplateStore{}, // the production Deps.Templates seam swaps ONLY the template source
 		},
-		kubernetesTrivialTemplateStore{},
 	)
 	if err != nil {
-		t.Fatalf("BuildWithTemplates (kubernetes): %v", err)
+		t.Fatalf("orchestratorservice.New (kubernetes): %v", err)
 	}
 	return svc, labelNamespace
 }

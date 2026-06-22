@@ -17,6 +17,8 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/nats-io/nats-server/v2 v2.14.2
 	github.com/nats-io/nats.go v1.52.0
+	k8s.io/apimachinery v0.34.1
+	k8s.io/client-go v0.34.1
 )
 
 require (

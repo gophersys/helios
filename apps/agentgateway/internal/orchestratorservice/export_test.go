@@ -38,17 +38,6 @@ func DockerLeaderProbe() Lease { return dockerLease{} }
 // LocalDockerClusterID re-exports the default cluster id the docker-first Spawn resolves to.
 func LocalDockerClusterID() string { return localDockerCluster.ID }
 
-// BuildWithTemplates re-exports the unexported build seam so the REAL-substrate integration test
-// composes the IDENTICAL production adapter stack (namespacing Postgres store + docker provisioner
-// + claude Factory + telemetry shim) over a TRIVIAL TemplateStore — proving the composition on
-// real docker+postgres without the heavy supervisor image. Production New always passes the
-// supervisor store; this seam swaps ONLY the template store.
-//
-//nolint:gocritic // Config is the frozen, copyable composition input (the configuration pattern); the seam takes it by value to match New/build.
-func BuildWithTemplates(configuration Config, dependencies Deps, templates orchestrator.TemplateStore) (*Service, error) {
-	return build(configuration, dependencies, templates)
-}
-
 // ReconcileOnce drives ONE deterministic reconcile pass through the embedded Pool, so the
 // integration test observes each transition step-by-step (Pending -> Provisioning -> Running and
 // the Stop drain) without waiting on the timed loop. It returns the per-pass report.

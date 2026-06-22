@@ -11,3 +11,7 @@ func DeriveRepositorySlugForTest(name, projectID string) string {
 
 // SlugifyHNS1ForTest re-exports slugifyHNS1 for the external test.
 func SlugifyHNS1ForTest(name string) string { return slugifyHNS1(name) }
+
+// DeriveTenancyUUIDForTest re-exports deriveTenancyUUID for the external test (the name->UUID mapping the
+// orchestrator's UUID tenancy columns require).
+func DeriveTenancyUUIDForTest(name string) string { return deriveTenancyUUID(name) }
