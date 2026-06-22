@@ -117,10 +117,17 @@ read_env() {
 CLAUDE_TOKEN="$(read_env CLAUDE_CODE_OAUTH_TOKEN)"
 [ -n "${CLAUDE_TOKEN}" ] || CLAUDE_TOKEN="$(read_env CLAUDEADAPTER_LIVE_TOKEN)"
 OPENROUTER_KEY="$(read_env OPENROUTER_API_KEY)"
+# The GitHub PAT (gh-token) the project-creation saga authenticates the forge (repo create) + git
+# push with — DISTINCT from the claude setup-token. Referenced as vault://eden/development#gh-token
+# (EDEN_FORGE_CREDENTIAL_REF). Optional: absent → the create-saga's forge step fails gracefully (the
+# project parks at failed); the chat demo is unaffected.
+GH_TOKEN="$(read_env EDEN_FORGE_GITHUB_TOKEN)"
+[ -n "${GH_TOKEN}" ] || GH_TOKEN="$(read_env GH_TOKEN)"
 
 declare -a kv_pairs=() seeded_keys=()
 if [ -n "${CLAUDE_TOKEN}" ]; then kv_pairs+=("setup-token=${CLAUDE_TOKEN}"); seeded_keys+=("setup-token"); fi
 if [ -n "${OPENROUTER_KEY}" ]; then kv_pairs+=("openrouter-api-key=${OPENROUTER_KEY}"); seeded_keys+=("openrouter-api-key"); fi
+if [ -n "${GH_TOKEN}" ]; then kv_pairs+=("gh-token=${GH_TOKEN}"); seeded_keys+=("gh-token"); fi
 # The agent demo NEEDS a harness credential; the platform-only dev/test loop (the login E2E) does
 # NOT — it only needs the platformgateway secrets seeded below. So a missing harness credential is
 # fatal ONLY when harness creds are required (the default); EDEN_REQUIRE_HARNESS_CREDS=false (set by
@@ -150,7 +157,7 @@ log "seeding ${#kv_pairs[@]} credential field(s) into ${VAULT_MOUNT}/${VAULT_SEC
 # `vault kv put` runs inside the container; the value is in the argv there, NOT on any host log.
 # Redirect its stdout/stderr anyway (defense in depth — its metadata table has no value).
 vault "VAULT_TOKEN=${ROOT_TOKEN}" -- kv put "${VAULT_MOUNT}/${VAULT_SECRET_PATH}" "${kv_pairs[@]}" >/dev/null 2>&1 || die "kv put failed"
-unset CLAUDE_TOKEN OPENROUTER_KEY kv_pairs
+unset CLAUDE_TOKEN OPENROUTER_KEY GH_TOKEN kv_pairs
 
 # ── 7. Least-privilege read policy + userpass role the agent bootstraps with ──────────────────────
 log "writing the least-privilege policy '${VAULT_POLICY}' (read ${VAULT_MOUNT}/data/${VAULT_SECRET_PATH}) ..."
