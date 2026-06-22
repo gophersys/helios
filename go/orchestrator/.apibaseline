@@ -50,6 +50,17 @@ type TemplateStore interface{ ... }
 type Tenancy struct{ ... }
 type UnsupportedError struct{ ... }
 type Watcher interface{ ... }
+## github.com/gophersys/libs/go/orchestrator/clusterprobe
+    func New(configuration Config, dependencies Deps) (*Probe, error)
+const DefaultAgentLabelKey = "eden.agent"
+type Config struct{ ... }
+type ConfigError struct{ ... }
+type Deps struct{ ... }
+type HealthQueryError struct{ ... }
+type HealthSource interface{ ... }
+type Probe struct{ ... }
+type WorkspaceLister interface{ ... }
+type WorkspaceQueryError struct{ ... }
 ## github.com/gophersys/libs/go/orchestrator/orchestratortest
     func New(options ...Option) *Manager
     func NewClock() *Clock
@@ -77,3 +88,9 @@ type Probe struct{ ... }
 type Telemetry struct{ ... }
 type TemplateStore struct{ ... }
 type TestingT interface{ ... }
+## github.com/gophersys/libs/go/orchestrator/postgresstore
+    func New(_ Config, dependencies Deps) (*PostgresStore, error)
+func MintAgentID(tenant orchestrator.Tenancy, sequence uint64) orchestrator.AgentID
+type Config struct{}
+type Deps struct{ ... }
+type PostgresStore struct{ ... }

@@ -46,7 +46,7 @@ func (r *Repository) Clone(ctx context.Context, remote, dir string, options Clon
 	// Repository's remotes (the logical name → URL map) and authoring defaults.
 	cloned := &Repository{
 		root:          filepath.Clean(dir),
-		remotes:       cloneRemotes(r.remotes),
+		remotes:       r.snapshotRemotes(),
 		defaultAuthor: r.defaultAuthor,
 		backend:       r.backend,
 		secrets:       r.secrets,
@@ -129,7 +129,7 @@ func (r *Repository) AddWorktree(ctx context.Context, options WorktreeOptions) (
 
 	worktree := &Repository{
 		root:          path,
-		remotes:       cloneRemotes(r.remotes),
+		remotes:       r.snapshotRemotes(),
 		defaultAuthor: r.defaultAuthor,
 		backend:       r.backend,
 		secrets:       r.secrets,

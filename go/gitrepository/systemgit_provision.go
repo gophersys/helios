@@ -110,6 +110,79 @@ func (g *systemGit) removeWorktree(ctx context.Context, op *ProvisionOp) error {
 	return nil
 }
 
+// flattenHistory drops the checkout's commit history and replaces the checked-out branch with a
+// SINGLE root commit snapshotting the current tree — the template-copy seed. The sequence is the
+// canonical clean-orphan reset: `checkout --orphan` (a parentless branch, index + working tree
+// preserved) → `add -A` → `commit` (the stamped identity + Eden-* trailers, message on stdin,
+// dates pinned via env) → rename the orphan OVER the original branch → prune the now-unreachable
+// old history so the seed commit is the ONLY object the branch reaches. A later Push of that
+// branch into an unborn destination is a clean fast-forward — the ff-only contract holds.
+func (g *systemGit) flattenHistory(ctx context.Context, op *ProvisionOp) (ProvisionResult, error) {
+	dir := op.Dir
+	if dir == "" {
+		dir = op.Root
+	}
+
+	// The branch the flatten must land on is whatever is currently checked out (the clone's
+	// default branch). A detached HEAD has no branch to replace — that is a misuse here.
+	target := g.currentBranch(ctx, dir)
+	if target.IsZero() {
+		return ProvisionResult{}, wrapKind(&InvalidRefError{Ref: "Flatten requires a checked-out branch (HEAD is detached)"})
+	}
+
+	// 1. Orphan branch: a parentless ref with the current index + working tree intact. A fixed
+	//    internal name avoids colliding with a user branch; it is renamed away in step 4.
+	const orphan = "eden-seed-orphan"
+	if _, err := g.run(ctx, dir, nil, nil, "checkout", "--orphan", orphan); err != nil {
+		return ProvisionResult{}, err
+	}
+
+	// 2. Stage the entire tree (the orphan checkout left every path staged-or-modified; -A makes
+	//    the index match the working tree exactly).
+	if _, err := g.run(ctx, dir, nil, nil, "add", "-A"); err != nil {
+		return ProvisionResult{}, err
+	}
+
+	// 3. The single seed commit, stamped exactly like Commit (author+committer pinned, message +
+	//    Eden-* trailers on stdin so no metacharacter reaches argv, dates pinned for reproducibility).
+	message := buildCommitMessage(op.Message, op.Trailers)
+	commitArgs := []string{
+		"-c", "user.name=" + op.AuthorName,
+		"-c", "user.email=" + op.AuthorEmail,
+		"commit",
+		"--author=" + op.AuthorName + " <" + op.AuthorEmail + ">",
+		"-F", "-",
+	}
+	env := []string{
+		"GIT_AUTHOR_NAME=" + op.AuthorName,
+		"GIT_AUTHOR_EMAIL=" + op.AuthorEmail,
+		"GIT_AUTHOR_DATE=" + op.When,
+		"GIT_COMMITTER_NAME=" + op.AuthorName,
+		"GIT_COMMITTER_EMAIL=" + op.AuthorEmail,
+		"GIT_COMMITTER_DATE=" + op.When,
+	}
+	if _, err := g.run(ctx, dir, env, []byte(message), commitArgs...); err != nil {
+		return ProvisionResult{}, err
+	}
+
+	// 4. Replace the original branch with the orphan (force-rename onto the target name), so the
+	//    checkout is back on its branch — now a single-commit history.
+	if _, err := g.run(ctx, dir, nil, nil, "branch", "-M", orphan, target.String()); err != nil {
+		return ProvisionResult{}, err
+	}
+
+	// 5. Prune the now-unreachable old history so the seed commit is the only reachable object
+	//    (a Push then sends only the seed). Best-effort: expire the reflog and gc; a gc failure
+	//    does not change the branch's single-commit shape, only on-disk packing.
+	_, _ = g.run(ctx, dir, nil, nil, "reflog", "expire", "--expire=now", "--all") //nolint:errcheck // best-effort history prune; the branch already reaches only the seed commit.
+	_, _ = g.run(ctx, dir, nil, nil, "gc", "--prune=now", "--quiet")              //nolint:errcheck // best-effort repack after the prune; success is not load-bearing for the seed shape.
+
+	return ProvisionResult{
+		Head:   g.resolveHead(ctx, dir),
+		Branch: g.currentBranch(ctx, dir),
+	}, nil
+}
+
 // worktreeRegistered reports whether git still lists a worktree at dir.
 func (g *systemGit) worktreeRegistered(ctx context.Context, root, dir string) bool {
 	out, err := g.run(ctx, root, nil, nil, "worktree", "list", "--porcelain")

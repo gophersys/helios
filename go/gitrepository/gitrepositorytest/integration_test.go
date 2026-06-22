@@ -256,6 +256,122 @@ func TestSystemGit_RealBareRemote_PushFetchFastForwardOnly(t *testing.T) {
 	}
 }
 
+// TestSystemGit_TemplateCopySeed drives the WHOLE template-copy ergonomic against real git: a
+// template bare remote with multi-commit history is library-Cloned; origin is re-pointed at a
+// fresh EMPTY bare repository (SetRemote); the clone's history is Flattened to a single seed
+// commit; and that seed is Pushed into the new repo as a clean first push. It proves the
+// end-state: the NEW repo holds EXACTLY ONE commit (the seed), the template's history is gone,
+// and the full working tree survived — all while preserving the fast-forward-only Push contract.
+func TestSystemGit_TemplateCopySeed(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// A "template" bare remote seeded with three commits of history (via a working clone).
+	templateBare := t.TempDir()
+	mustRunGit(t, templateBare, "init", "-q", "--bare", "-b", "main")
+	seedBareRemote(
+		t, templateBare,
+		seedStep{file: "README.md", content: "template v1\n", message: "template: init"},
+		seedStep{file: "main.go", content: "package main\n", message: "template: add main"},
+		seedStep{file: "README.md", content: "template v2\n", message: "template: update readme"},
+	)
+	if got := gitOutput(t, templateBare, "rev-list", "--count", "main"); got != "3" {
+		t.Fatalf("template remote must carry 3 commits, got %s", got)
+	}
+
+	// A fresh EMPTY destination bare repository (the NEW repo we seed into).
+	newBare := t.TempDir()
+	mustRunGit(t, newBare, "init", "-q", "--bare", "-b", "main")
+
+	// 1. Clone the template via the LIBRARY into a fresh work dir (origin → template).
+	parent := t.TempDir()
+	workDir := filepath.Join(parent, "checkout")
+	provider := secretstest.New(map[string]string{"vault://eden/git#token": "ignored-for-local-file-remote"})
+	cloner := buildRealRepository(t, parent, map[string]string{"origin": templateBare}, provider)
+	clone, err := cloner.Clone(ctx, templateBare, workDir, gitrepository.CloneOptions{})
+	if err != nil {
+		t.Fatalf("Clone(template): %v", err)
+	}
+
+	// 2. Re-point origin at the NEW, empty repository so the seed pushes THERE, not at the template.
+	if err := clone.SetRemote("origin", newBare); err != nil {
+		t.Fatalf("SetRemote(origin→new): %v", err)
+	}
+
+	// 3. Flatten the template's history to a single seed commit.
+	seed, err := clone.Flatten(ctx, gitrepository.FlattenOptions{
+		Message: "seed from template",
+		Author:  agentIdent("seedrun"),
+	})
+	if err != nil {
+		t.Fatalf("Flatten: %v", err)
+	}
+	if seed.IsZero() {
+		t.Fatal("Flatten returned a zero seed CommitID")
+	}
+
+	// 4. Push the seed into the NEW repo — a clean first push into an unborn branch (ff-only holds).
+	branch := mustBranchName(t, "main")
+	if _, err := clone.Push(ctx, gitrepository.PushOptions{Remote: "origin", LocalRef: branch}); err != nil {
+		t.Fatalf("Push(seed→new repo): %v", err)
+	}
+
+	// End-state on the NEW repo: EXACTLY one commit, it is the seed, and it is a ROOT commit.
+	if got := gitOutput(t, newBare, "rev-list", "--count", "main"); got != "1" {
+		t.Errorf("the NEW repo must hold a single seed commit, got %s commits", got)
+	}
+	if got := gitOutput(t, newBare, "rev-parse", "main"); got != seed.String() {
+		t.Errorf("the NEW repo's main = %s, want the seed id %s", got, seed.String())
+	}
+	if parents := gitOutput(t, newBare, "rev-list", "--parents", "-n", "1", "main"); strings.Contains(parents, " ") {
+		t.Errorf("the seeded commit must be a ROOT commit (no parent); got %q", parents)
+	}
+
+	// The template's history is GONE from the new repo: none of its commit subjects survive.
+	subjects := gitOutput(t, newBare, "log", "main", "--format=%s")
+	if strings.Contains(subjects, "template:") {
+		t.Errorf("the template's history must NOT bleed into the new repo; subjects:\n%s", subjects)
+	}
+
+	// The full working tree survived: every template file is tracked in the seed, latest content.
+	tracked := gitOutput(t, newBare, "ls-tree", "-r", "--name-only", "main")
+	for _, want := range []string{"README.md", "main.go"} {
+		if !strings.Contains(tracked, want) {
+			t.Errorf("seed tree missing %q; ls-tree:\n%s", want, tracked)
+		}
+	}
+	if body := gitOutput(t, newBare, "show", "main:README.md"); !strings.Contains(body, "template v2") {
+		t.Errorf("seed must carry the latest template content; README = %q", body)
+	}
+
+	// The seed is attributable (agent trailers queryable on the single commit in the new repo).
+	trailers := gitOutput(t, newBare, "log", "-1", "main", "--format=%(trailers:only,unfold)")
+	if !strings.Contains(trailers, "Eden-Run-ID: seedrun") {
+		t.Errorf("seed commit must carry the agent audit trailer; got:\n%s", trailers)
+	}
+}
+
+// seedStep is one file+message commit applied to a bare remote by seedBareRemote.
+type seedStep struct {
+	file    string
+	content string
+	message string
+}
+
+// seedBareRemote clones a bare remote into a temp work dir, applies the given commits in order,
+// and pushes them back — giving the bare remote a real multi-commit history.
+func seedBareRemote(t *testing.T, bare string, steps ...seedStep) {
+	t.Helper()
+	work := t.TempDir()
+	mustRunGit(t, "", "clone", "-q", bare, work)
+	for _, step := range steps {
+		writeFile(t, filepath.Join(work, step.file), step.content)
+		mustRunGit(t, work, "add", "-A")
+		mustRunGit(t, work, "-c", "user.name=Template", "-c", "user.email=template@eden.dev", "commit", "-q", "-m", step.message)
+	}
+	mustRunGit(t, work, "push", "-q", "origin", "main")
+}
+
 // TestSystemGit_NewIsPure asserts New runs no git: it constructs over a path that has NO .git
 // and never creates one (the pure-spine invariant — the first git op is the first verb).
 func TestSystemGit_NewIsPure(t *testing.T) {
@@ -365,7 +481,7 @@ func isDir(path string) bool {
 // gitOutput runs a git command in dir and returns its trimmed stdout, failing on error.
 func gitOutput(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", args...) //nolint:gosec // args are test-literal, never user input.
 	command.Dir = dir
 	command.Env = integrationEnv()
 	out, err := command.Output()
@@ -378,7 +494,7 @@ func gitOutput(t *testing.T, dir string, args ...string) string {
 // mustRunGit runs a git command in dir (or cwd-less for a clone), failing on error.
 func mustRunGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.Command("git", args...) //nolint:gosec // args are test-literal, never user input.
 	if dir != "" {
 		command.Dir = dir
 	}

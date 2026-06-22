@@ -67,6 +67,13 @@ const (
 	ProvisionAddWorktree
 	// ProvisionRemoveWorktree prunes a linked worktree.
 	ProvisionRemoveWorktree
+	// ProvisionFlattenHistory drops the worked checkout's commit history and replaces the
+	// checked-out branch with a SINGLE root commit snapshotting the current tree (the
+	// template-copy seed: `clone template` → flatten → `push` into an empty new repo). It
+	// rewrites no remote — the flattened branch is published by an ordinary fast-forward Push
+	// into an unborn destination, so the ff-only contract is preserved (the seed IS the first
+	// commit on the new origin).
+	ProvisionFlattenHistory
 )
 
 // ProvisionOp is the validated clone / worktree-add / worktree-remove descriptor (no secret).
@@ -97,6 +104,21 @@ type ProvisionOp struct {
 	DeleteBranch bool
 	// Force removes a dirty worktree.
 	Force bool
+
+	// The fields below are populated ONLY for ProvisionFlattenHistory — the single seed commit
+	// the flatten records. They mirror the AuthorOp commit-stamp surface (the library stamps the
+	// identity once; the seam records it) because a flatten is a checkout-level history rewrite,
+	// not a stage/commit of a working change.
+
+	// Message is the seed commit message (ProvisionFlattenHistory).
+	Message string
+	// AuthorName / AuthorEmail are the stamped author+committer identity for the seed commit.
+	AuthorName  string
+	AuthorEmail string
+	// When is the resolved seed-commit time (Identity.When, or Clock.Now() — already resolved).
+	When string
+	// Trailers are the queryable Eden-* trailers for an ActorAgent seed commit.
+	Trailers []AuthorTrailer
 }
 
 // InspectKind discriminates an InspectOp.

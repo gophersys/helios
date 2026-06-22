@@ -204,6 +204,8 @@ func (g *systemGit) Provision(ctx context.Context, op ProvisionOp, cred *secrets
 		return g.addWorktree(ctx, &op)
 	case ProvisionRemoveWorktree:
 		return ProvisionResult{}, g.removeWorktree(ctx, &op)
+	case ProvisionFlattenHistory:
+		return g.flattenHistory(ctx, &op)
 	default:
 		return ProvisionResult{}, errors.New(errors.KindInternal, "gitrepository: unknown provision kind")
 	}

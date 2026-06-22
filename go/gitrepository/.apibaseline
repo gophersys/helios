@@ -40,6 +40,7 @@ type DirtyWorktreeError struct{ ... }
 type FetchOptions struct{ ... }
 type FileChange struct{ ... }
 type FileDiff struct{ ... }
+type FlattenOptions struct{ ... }
 type Hunk struct{ ... }
 type Identity struct{ ... }
 type InspectKind uint8

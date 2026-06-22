@@ -1,0 +1,17 @@
+## github.com/gophersys/libs/go/forge
+func Classify(err error) errors.Kind
+func Wrap(err error) error
+type ConflictError struct{ ... }
+type CreateRepoRequest struct{ ... }
+type Forge interface{ ... }
+type InvalidRequestError struct{ ... }
+type NotFoundError struct{ ... }
+type Repository struct{ ... }
+type UnauthenticatedError struct{ ... }
+type UnavailableError struct{ ... }
+## github.com/gophersys/libs/go/forge/githubadapter
+    func New(configuration Config, dependencies Deps) (*Connector, error)
+type Config struct{ ... }
+type Connector struct{ ... }
+type Deps struct{ ... }
+type HTTPDoer interface{ ... }

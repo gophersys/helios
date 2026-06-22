@@ -29,6 +29,9 @@ func (b *Backend) Provision(ctx context.Context, op gitrepository.ProvisionOp, c
 		return result, gitrepository.WrapError(err) //nolint:wrapcheck // gitrepository.WrapError IS the Backend's wrap+classify boundary (the errors.Wrap analog the gate ignores); it returns an already-wrapped, Kind-classified error.
 	case gitrepository.ProvisionRemoveWorktree:
 		return gitrepository.ProvisionResult{}, gitrepository.WrapError(b.removeWorktree(&op)) //nolint:wrapcheck // gitrepository.WrapError IS the Backend's wrap+classify boundary (the errors.Wrap analog the gate ignores); it returns an already-wrapped, Kind-classified error.
+	case gitrepository.ProvisionFlattenHistory:
+		result, err := b.flattenHistory(&op)
+		return result, gitrepository.WrapError(err) //nolint:wrapcheck // gitrepository.WrapError IS the Backend's wrap+classify boundary (the errors.Wrap analog the gate ignores); it returns an already-wrapped, Kind-classified error.
 	default:
 		return gitrepository.ProvisionResult{}, gitrepository.WrapError(&gitrepository.NotFoundError{What: "unknown provision kind"}) //nolint:wrapcheck // gitrepository.WrapError IS the Backend's wrap+classify boundary (the errors.Wrap analog the gate ignores); it returns an already-wrapped, Kind-classified error.
 	}
@@ -110,6 +113,53 @@ func (b *Backend) addWorktree(op *gitrepository.ProvisionOp) (gitrepository.Prov
 	return gitrepository.ProvisionResult{
 		Head:   commitID(m.commits[tip]),
 		Branch: mustBranch(op.Branch),
+	}, nil
+}
+
+// flattenHistory drops the checked-out branch's history and replaces it with a SINGLE parentless
+// commit snapshotting the worktree's current tree — the in-memory analog of the system-git
+// orphan-squash. The seed commit's tree is the worktree's working content (what a real
+// `add -A` would stage), its parent is "" (a root commit), and the branch points only at it; the
+// old commits become unreachable. It mirrors the real backend's audit-trailer + identity stamp.
+func (b *Backend) flattenHistory(op *gitrepository.ProvisionOp) (gitrepository.ProvisionResult, error) {
+	dir := op.Dir
+	if dir == "" {
+		dir = op.Root
+	}
+	m := b.ensureModel(op.Root)
+	wt := m.worktrees[dir]
+	if wt == nil {
+		return gitrepository.ProvisionResult{}, &gitrepository.NotFoundError{What: "worktree " + dir}
+	}
+	if wt.branch == "" {
+		return gitrepository.ProvisionResult{}, &gitrepository.InvalidRefError{Ref: "Flatten requires a checked-out branch"}
+	}
+
+	// The seed's tree is the worktree's current working content (a real `add -A` would stage
+	// exactly this), snapshotted so a later working-tree edit does not mutate the commit.
+	tree := map[string][]byte{}
+	for path, content := range wt.working {
+		copied := make([]byte, len(content))
+		copy(copied, content)
+		tree[path] = copied
+	}
+
+	id := m.mintID()
+	m.commits[id] = &commit{
+		id:       id,
+		parent:   "", // a root commit: the template's history does not reach the seed.
+		tree:     tree,
+		message:  op.Message,
+		trailers: op.Trailers,
+		author:   op.AuthorName + " <" + op.AuthorEmail + ">",
+	}
+	m.branches[wt.branch] = id
+	// The worktree's index is now clean vs the new tip (the flatten committed everything).
+	wt.index = map[string]*[]byte{}
+
+	return gitrepository.ProvisionResult{
+		Head:   commitID(m.commits[id]),
+		Branch: mustBranch(wt.branch),
 	}, nil
 }
 

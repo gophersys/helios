@@ -15,6 +15,15 @@
       },
       "category": "enforcement",
       "source": "./plugins/project-go"
+    },
+    {
+      "name": "supervisor",
+      "description": "Eden supervisor operating manual: the deterministic .claude harness that turns an LLM project-manager into a repeatable finite-state machine — deny-by-default permissions, git-as-state, typed slash-commands per legal transition, and lifecycle gating hooks.",
+      "author": {
+        "name": "Mateo Segura"
+      },
+      "category": "orchestration",
+      "source": "./plugins/supervisor"
     }
   ]
 }

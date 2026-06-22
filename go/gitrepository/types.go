@@ -213,6 +213,20 @@ type CommitOptions struct {
 	AllowEmpty bool
 }
 
+// FlattenOptions controls Flatten — the template-copy seed (clone template → drop its history
+// → push into the NEW, empty repository). The flatten replaces the checked-out branch with a
+// SINGLE root commit snapshotting the current working tree, so the cloned-from template's
+// history does not bleed into the new repository. The push that publishes it is an ordinary
+// fast-forward into an unborn destination branch, so the ff-only Push contract is preserved.
+type FlattenOptions struct {
+	// Message is the seed commit message, e.g. "seed from template". Required — a flatten is an
+	// attributable act like any other commit.
+	Message string
+	// Author stamps the single seed commit (author+committer), exactly as Commit's Identity does.
+	// REQUIRED — a zero Identity (after the Config.DefaultAuthor fallback) is an InvalidRefError.
+	Author Identity
+}
+
 // FetchOptions selects what Fetch updates.
 type FetchOptions struct {
 	// Remote is the logical name from Config.Remotes.

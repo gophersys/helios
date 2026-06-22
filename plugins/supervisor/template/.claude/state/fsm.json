@@ -1,0 +1,182 @@
+{
+  "$schema": "../schemas/fsm.schema.json",
+  "version": "1.0.0",
+  "comment": "The supervisor lifecycle finite state machine. This file IS the supervisor's state. The agent reads current_state, finds the single legal transition whose `from` equals it, runs ONLY that transition's command, and the command advances current_state by rewriting this file. Guards are GIT predicates (resolved by hooks/gate-commit.sh against the real working tree), never prose, so they cannot be talked past. One concept, one home: the transition table lives ONCE here and is cited by instructions/10-state-machine.md and every command.",
+
+  "current_state": "init",
+
+  "states": [
+    {
+      "name": "init",
+      "description": "Empty project. No charter exists yet. The only legal act is to draft a charter.",
+      "terminal": false
+    },
+    {
+      "name": "charter_drafted",
+      "description": "A charter document exists at init/charter/charter.md but is not yet ratified by the human. It may be revised (re-draft) or ratified.",
+      "terminal": false
+    },
+    {
+      "name": "charter_ratified",
+      "description": "The human has ratified the charter. The scope is frozen. The next act is to decompose the product into work items.",
+      "terminal": false
+    },
+    {
+      "name": "product_decomposed",
+      "description": "The product is decomposed into a set of work items under init/product/. Open decisions (unruled forks) may now be raised.",
+      "terminal": false
+    },
+    {
+      "name": "decisions_open",
+      "description": "At least one open decision (an unruled fork) exists under init/decisions/open/. Forks must all be ruled before planning.",
+      "terminal": false
+    },
+    {
+      "name": "decisions_ruled",
+      "description": "Every open decision has been ruled and moved to init/decisions/ruled/. No fork remains open. Planning may begin.",
+      "terminal": false
+    },
+    {
+      "name": "planned",
+      "description": "An implementation plan exists at init/plan/plan.md binding work items to ordered work packages. Building may begin.",
+      "terminal": false
+    },
+    {
+      "name": "building",
+      "description": "Work packages are being executed. The supervisor tracks progress until every package is complete.",
+      "terminal": false
+    },
+    {
+      "name": "done",
+      "description": "Every planned work package is complete. The lifecycle is finished.",
+      "terminal": true
+    }
+  ],
+
+  "transitions": [
+    {
+      "transition": "propose-charter",
+      "command": "/propose-charter",
+      "from": ["init", "charter_drafted"],
+      "to": "charter_drafted",
+      "artifact": "init/charter/charter.md",
+      "schema": "charter",
+      "guard": {
+        "id": "charter-not-ratified",
+        "description": "The charter is not already ratified (no init/charter/.ratified marker tracked in git).",
+        "git_predicate": "absent",
+        "path": "init/charter/.ratified"
+      }
+    },
+    {
+      "transition": "ratify-charter",
+      "command": "/ratify-charter",
+      "from": ["charter_drafted"],
+      "to": "charter_ratified",
+      "artifact": "init/charter/.ratified",
+      "schema": "ratification",
+      "guard": {
+        "id": "charter-exists",
+        "description": "A drafted charter exists in git at init/charter/charter.md.",
+        "git_predicate": "present",
+        "path": "init/charter/charter.md"
+      }
+    },
+    {
+      "transition": "propose-questionnaire",
+      "command": "/propose-questionnaire",
+      "from": ["charter_ratified", "product_decomposed"],
+      "to": "product_decomposed",
+      "artifact": "init/product/",
+      "schema": "work-item",
+      "guard": {
+        "id": "charter-ratified",
+        "description": "The charter is ratified (init/charter/.ratified is tracked in git).",
+        "git_predicate": "present",
+        "path": "init/charter/.ratified"
+      }
+    },
+    {
+      "transition": "open-decision",
+      "command": "/open-decision",
+      "from": ["product_decomposed", "decisions_open", "decisions_ruled"],
+      "to": "decisions_open",
+      "artifact": "init/decisions/open/",
+      "schema": "decision",
+      "guard": {
+        "id": "product-decomposed",
+        "description": "At least one work item exists under init/product/ (the product has been decomposed).",
+        "git_predicate": "any-under",
+        "path": "init/product/"
+      }
+    },
+    {
+      "transition": "rule-decision",
+      "command": "/rule-decision",
+      "from": ["decisions_open"],
+      "to_when": [
+        {
+          "to": "decisions_ruled",
+          "git_predicate": "none-under",
+          "path": "init/decisions/open/",
+          "description": "No open decision remains after this ruling."
+        },
+        {
+          "to": "decisions_open",
+          "git_predicate": "any-under",
+          "path": "init/decisions/open/",
+          "description": "At least one open decision still remains."
+        }
+      ],
+      "artifact": "init/decisions/ruled/",
+      "schema": "ruling",
+      "guard": {
+        "id": "decision-open",
+        "description": "At least one open decision exists under init/decisions/open/ to rule.",
+        "git_predicate": "any-under",
+        "path": "init/decisions/open/"
+      }
+    },
+    {
+      "transition": "plan",
+      "command": "/plan",
+      "from": ["decisions_ruled", "product_decomposed"],
+      "to": "planned",
+      "artifact": "init/plan/plan.md",
+      "schema": "plan",
+      "guard": {
+        "id": "no-open-fork",
+        "description": "No open decision remains under init/decisions/open/ (every fork is ruled). This is the unforgeable 'no open forks' guard — it reads `git ls-files init/decisions/open/` and fails if non-empty.",
+        "git_predicate": "none-under",
+        "path": "init/decisions/open/"
+      }
+    },
+    {
+      "transition": "advance",
+      "command": "/advance",
+      "from": ["planned", "building"],
+      "to_when": [
+        {
+          "to": "done",
+          "git_predicate": "none-under",
+          "path": "init/product/open/",
+          "description": "No incomplete work item remains; every package is complete."
+        },
+        {
+          "to": "building",
+          "git_predicate": "any-under",
+          "path": "init/product/open/",
+          "description": "At least one incomplete work item remains; keep building."
+        }
+      ],
+      "artifact": "state/fsm.json",
+      "schema": "advance",
+      "guard": {
+        "id": "plan-exists",
+        "description": "An implementation plan exists at init/plan/plan.md.",
+        "git_predicate": "present",
+        "path": "init/plan/plan.md"
+      }
+    }
+  ]
+}

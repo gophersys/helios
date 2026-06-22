@@ -291,12 +291,16 @@ func (r *Repository) validateWorktree(path string) (string, error) {
 	return clean, nil
 }
 
-// resolveRemote maps a logical remote name to its configured URL, or a NotFoundError.
+// resolveRemote maps a logical remote name to its configured URL, or a NotFoundError. It reads
+// the remote map under r.mu so a concurrent SetRemote (which re-points origin for a
+// template-copy push) never races the read.
 func (r *Repository) resolveRemote(name string) (string, error) {
 	if !validRemoteName(name) {
 		return "", wrapKind(&InvalidRefError{Ref: "invalid remote name: " + name})
 	}
+	r.mu.Lock()
 	url, ok := r.remotes[name]
+	r.mu.Unlock()
 	if !ok {
 		return "", wrapKind(&NotFoundError{What: "remote " + name})
 	}
