@@ -258,27 +258,6 @@ func TestIntegration_ListPaginationDeterministicOrder(t *testing.T) {
 	}
 }
 
-//nolint:paralleltest // serial by design: each case boots its own ephemeral real postgres (a parallel fan-out would spin N containers).
-func TestIntegration_DeleteReaps(t *testing.T) {
-	desiredStore := newDesiredStore(t)
-	ctx := t.Context()
-
-	agent := sampleAgent(t, tenantA(), 1, orchestrator.StatusStopped)
-	if err := desiredStore.Put(ctx, agent); err != nil {
-		t.Fatalf("Put: %v", err)
-	}
-	if err := desiredStore.Delete(ctx, agent.ID); err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	if _, err := desiredStore.Get(ctx, agent.ID); !errors.IsType[*orchestrator.NotFoundError](err) {
-		t.Fatalf("Get after Delete: want *NotFoundError, got %v", err)
-	}
-	// Deleting an absent id is an idempotent no-op success (the reap is level-based).
-	if err := desiredStore.Delete(ctx, agent.ID); err != nil {
-		t.Fatalf("idempotent Delete of an absent id: want nil, got %v", err)
-	}
-}
-
 // ── fixtures + the real-postgres boot ──────────────────────────────────────────────────────.
 
 func tenantA() orchestrator.Tenancy {

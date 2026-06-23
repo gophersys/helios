@@ -156,19 +156,6 @@ func (s *PostgresStore) List(ctx context.Context, filter orchestrator.Filter) (o
 	return paginate(matched, &filter), nil
 }
 
-// Delete removes a terminal agent's row — the reap/GC seam the orchestrator.Reaper drives past
-// the retention window. It is NOT part of the frozen 3-method DesiredStore port (Put/Get/List);
-// it is an additional method on the concrete *PostgresStore the composition root wires into the reap
-// path (return-concrete: the consumer that reaps holds the *PostgresStore, the reconcile loop holds the
-// narrow DesiredStore). Deleting an absent id is an idempotent no-op success (the GC is
-// level-based; a record already reaped on another node is not an error).
-func (s *PostgresStore) Delete(ctx context.Context, id orchestrator.AgentID) error {
-	if _, err := s.pool.Exec(ctx, `DELETE FROM agents WHERE id=$1`, string(id)); err != nil {
-		return errors.Wrap(errors.KindUnavailable, "orchestrator/postgresstore: delete agent row", err)
-	}
-	return nil
-}
-
 // promote projects an Agent onto its row columns + the marshaled JSONB record/ledger/limits.
 //
 //nolint:gocritic // Agent is the contract's copyable serializable record; promote takes its own copy by value.
