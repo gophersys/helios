@@ -98,3 +98,37 @@ type SeedResult struct {
 	// no-op idempotent skip and the adapter did not re-resolve it).
 	CommitID string
 }
+
+// WorkspaceMaterializer is the saga's narrow seam over preparing the supervisor's WORKING DIRECTORY
+// before launch (step 3): clone the seeded project repository into a persistent host directory and
+// overlay the supervisor's `.claude` operating manual, so the spawned Claude agent finds BOTH the
+// project repo and its instructions in its CWD (the orchestrator's host-side harness runs there). It is
+// a ONE-method port the real gitrepository-backed adapter binds, and a fake binds in a unit test. The
+// clone credential rides MaterializeInput.Credential (opaque), resolved by the bound adapter, never by
+// the saga. OPTIONAL on Deps — when absent the supervisor spawns with no workspace override (a bare CWD).
+type WorkspaceMaterializer interface {
+	// Materialize prepares the supervisor's working directory for the project and returns its absolute
+	// host path. It MUST be IDEMPOTENT: a re-run for the same project re-materializes a clean tree (so a
+	// saga replay of step 3 converges). On failure it returns a wrapped *errors.Error whose Kind the saga
+	// branches on; it never returns a non-empty WorkDir together with a non-nil error.
+	Materialize(ctx context.Context, input MaterializeInput) (MaterializeResult, error)
+}
+
+// MaterializeInput is the validated, credential-FREE description of step 3's workspace preparation. The
+// credential is the opaque gh-token reference resolved at the clone by the bound adapter.
+type MaterializeInput struct {
+	// ProjectID scopes the persistent workspace directory, so distinct projects never collide. Required.
+	ProjectID string
+	// RepositoryURL is the public clone URL of the seeded project repository to clone into the workspace.
+	RepositoryURL string
+	// Credential is the OPAQUE gh-token reference, resolved server-side by the bound adapter at the clone.
+	Credential secrets.Reference
+}
+
+// MaterializeResult is the saga's record of the prepared workspace — its WorkDir is threaded into the
+// supervisor SpawnRequest.Workspace so the orchestrator opens the session with that host CWD.
+type MaterializeResult struct {
+	// WorkDir is the absolute host path of the prepared supervisor working directory (a clone of the
+	// project repo with the `.claude` operating manual overlaid). Never a credential.
+	WorkDir string
+}

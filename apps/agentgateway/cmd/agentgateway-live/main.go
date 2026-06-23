@@ -63,6 +63,9 @@ const (
 	defaultForgeCredentialRef    = "vault://eden/development#gh-token" // #nosec G101 -- an opaque vault REFERENCE (path), not a credential value.
 	defaultTemplateRepositoryURL = "https://github.com/gophersys/template.git"
 	defaultOrganizationID        = "eden"
+	// defaultSupervisorManualDir is the in-repo supervisor `.claude` operating-manual tree the
+	// materializer overlays (the devcontainer mounts the monorepo at /workspace).
+	defaultSupervisorManualDir = "/workspace/libs/plugins/supervisor/template/.claude"
 )
 
 func main() {
@@ -174,6 +177,10 @@ func loadConfiguration(logger *slog.Logger) (liveserve.Config, error) {
 	if err != nil {
 		return liveserve.Config{}, err
 	}
+	supervisorRoot, err := ensureSupervisorWorkspaceRoot()
+	if err != nil {
+		return liveserve.Config{}, err
+	}
 	return liveserve.Config{
 		VaultAddress:        envOr("VAULT_ADDR", defaultVaultAddress),
 		VaultUsername:       envOr("VAULT_USERNAME", defaultVaultUsername),
@@ -189,12 +196,14 @@ func loadConfiguration(logger *slog.Logger) (liveserve.Config, error) {
 		// project-creation saga (real repo → template seed → a REAL Claude supervisor on docker). The
 		// gh-token reference is DISTINCT from the claude EDEN_CREDENTIAL_REF; `deploy local` seeds both
 		// into Vault. Empty any of these to fall back to the pre-saga draft behavior.
-		RepositoryOwner:          envOr("EDEN_REPOSITORY_OWNER", defaultRepositoryOwner),
-		ForgeCredentialReference: envOr("EDEN_FORGE_CREDENTIAL_REF", defaultForgeCredentialRef),
-		TemplateRepositoryURL:    envOr("EDEN_TEMPLATE_REPOSITORY_URL", defaultTemplateRepositoryURL),
-		OrganizationID:           envOr("EDEN_ORGANIZATION_ID", defaultOrganizationID),
-		SeedCheckoutRoot:         seedRoot,
-		Logger:                   slogAdapter{logger: logger},
+		RepositoryOwner:           envOr("EDEN_REPOSITORY_OWNER", defaultRepositoryOwner),
+		ForgeCredentialReference:  envOr("EDEN_FORGE_CREDENTIAL_REF", defaultForgeCredentialRef),
+		TemplateRepositoryURL:     envOr("EDEN_TEMPLATE_REPOSITORY_URL", defaultTemplateRepositoryURL),
+		OrganizationID:            envOr("EDEN_ORGANIZATION_ID", defaultOrganizationID),
+		SeedCheckoutRoot:          seedRoot,
+		SupervisorWorkspaceRoot:   supervisorRoot,
+		SupervisorManualSourceDir: envOr("EDEN_SUPERVISOR_MANUAL_DIR", defaultSupervisorManualDir),
+		Logger:                    slogAdapter{logger: logger},
 	}, nil
 }
 
@@ -208,6 +217,21 @@ func ensureSeedCheckoutRoot() (string, error) {
 	// #nosec G304,G703 -- an OPERATOR-set env value or a fixed local default, not request input.
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return "", errors.Wrap(errors.KindUnavailable, "agentgateway-live: create seed checkout root", err)
+	}
+	return root, nil
+}
+
+// ensureSupervisorWorkspaceRoot resolves and creates the supervisor workspace root
+// (EDEN_SUPERVISOR_WORKSPACE_ROOT or a local default) — the parent dir each project's PERSISTENT
+// supervisor working directory (clone + the overlaid `.claude` manual) is materialized under.
+func ensureSupervisorWorkspaceRoot() (string, error) {
+	root := os.Getenv("EDEN_SUPERVISOR_WORKSPACE_ROOT")
+	if root == "" {
+		root = filepath.Join(defaultWorkspaceParentDir, "supervisors")
+	}
+	// #nosec G304,G703 -- an OPERATOR-set env value or a fixed local default, not request input.
+	if err := os.MkdirAll(root, 0o750); err != nil {
+		return "", errors.Wrap(errors.KindUnavailable, "agentgateway-live: create supervisor workspace root", err)
 	}
 	return root, nil
 }

@@ -112,6 +112,24 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 		}, nil
 	}
 
+	// Materialize the supervisor's working directory (clone the seeded repo + overlay the `.claude`
+	// operating manual) so the spawned Claude agent finds BOTH the project and its instructions in its
+	// CWD. The clone authenticates with the gh-token (the GIT plane), distinct from the supervisor's
+	// claude token (the harness plane). When no Materializer is wired (the stub-substrate lane) the
+	// supervisor spawns with no workspace override.
+	workspaceDir := ""
+	if s.dependencies.Materializer != nil {
+		materialized, materializeErr := s.dependencies.Materializer.Materialize(ctx, MaterializeInput{
+			ProjectID:     project.ID,
+			RepositoryURL: project.RepoURL,
+			Credential:    s.configuration.ForgeCredential,
+		})
+		if materializeErr != nil {
+			return stepOutcome{}, edenerrors.Wrap(edenerrors.KindOf(materializeErr), "projectcreate: materialize supervisor workspace", materializeErr)
+		}
+		workspaceDir = materialized.WorkDir
+	}
+
 	agent, err := s.dependencies.Supervisor.Spawn(ctx, orchestrator.SpawnRequest{
 		Tenant:   s.supervisorTenancy(project.ID),
 		Template: s.configuration.SupervisorTemplate,
@@ -119,8 +137,10 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 		// plane and the git plane carry separate credentials. The orchestrator resolves this reference
 		// server-side into the claude child env at agentsession.Open.
 		Credential: s.configuration.SupervisorCredential,
-		By:         "projectcreate-saga",
-		Cluster:    s.configuration.SupervisorCluster,
+		// The materialized host CWD (clone + .claude manual) — empty == the orchestrator's default WorkDir.
+		Workspace: workspaceDir,
+		By:        "projectcreate-saga",
+		Cluster:   s.configuration.SupervisorCluster,
 	})
 	if err != nil {
 		return stepOutcome{}, edenerrors.Wrap(edenerrors.KindOf(err), "projectcreate: spawn supervisor", err)

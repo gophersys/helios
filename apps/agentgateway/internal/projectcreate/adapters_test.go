@@ -217,3 +217,34 @@ func TestNewForgeAdapter_RejectsNil(t *testing.T) {
 		t.Errorf("nil forge: kind = %v, want invalid", edenerrors.KindOf(err))
 	}
 }
+
+// ── Materializer ───────────────────────────────────────────────────────────────────────────────.
+
+func TestNewMaterializer_RejectsBadConfig(t *testing.T) {
+	t.Parallel()
+	manualDir := t.TempDir() // a real, existing dir so only the field under test is invalid.
+	dependencies := projectcreate.MaterializerDeps{Backend: gitrepositorytest.New(), Secrets: secretstest.New(nil), Clock: seedClock{}}
+
+	cases := []struct {
+		name          string
+		configuration projectcreate.MaterializerConfig
+	}{
+		{"relative workspace root", projectcreate.MaterializerConfig{WorkspaceRoot: "relative", ManualSourceDir: manualDir}},
+		{"empty workspace root", projectcreate.MaterializerConfig{WorkspaceRoot: "", ManualSourceDir: manualDir}},
+		{"relative manual source", projectcreate.MaterializerConfig{WorkspaceRoot: t.TempDir(), ManualSourceDir: "relative"}},
+		{"manual source does not exist", projectcreate.MaterializerConfig{WorkspaceRoot: t.TempDir(), ManualSourceDir: "/nonexistent/eden/manual"}},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := projectcreate.NewMaterializer(testCase.configuration, dependencies); edenerrors.KindOf(err) != edenerrors.KindInvalid {
+				t.Errorf("%s: kind = %v, want invalid", testCase.name, edenerrors.KindOf(err))
+			}
+		})
+	}
+
+	// A complete configuration + a real manual dir constructs cleanly.
+	if _, err := projectcreate.NewMaterializer(projectcreate.MaterializerConfig{WorkspaceRoot: t.TempDir(), ManualSourceDir: manualDir}, dependencies); err != nil {
+		t.Errorf("valid materializer configuration rejected: %v", err)
+	}
+}

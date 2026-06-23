@@ -180,6 +180,7 @@ func TestIntegration_Saga_RealClaudeSupervisor(t *testing.T) {
 	forgeAdapter := buildRealForge(t, provider)
 	seeder := buildRealSeeder(t, provider)
 	supervisor := buildRealClaudeOrchestrator(t, provider, dsn)
+	materializer, workspaceRoot := buildRealMaterializer(t, provider)
 	projectStore := buildProjectStore(t, dsn)
 	stepStore := buildStepStore(t, dsn)
 
@@ -198,7 +199,7 @@ func TestIntegration_Saga_RealClaudeSupervisor(t *testing.T) {
 		},
 		projectcreate.Deps{
 			Projects: projectStore, Steps: stepStore,
-			Forge: forgeAdapter, Seeder: seeder, Supervisor: supervisor,
+			Forge: forgeAdapter, Seeder: seeder, Supervisor: supervisor, Materializer: materializer,
 			Clock: realClock{},
 		},
 	)
@@ -231,6 +232,15 @@ func TestIntegration_Saga_RealClaudeSupervisor(t *testing.T) {
 
 	project := assertSupervisorReady(t, projectStore, projectID)
 	t.Logf("real Claude Opus supervisor reached ready: agent=%s status=wizard", project.SupervisorAgentID)
+
+	// The supervisor has a BRAIN: its materialized working directory holds BOTH the cloned project repo
+	// (a real .git + the seeded README) AND its `.claude` operating manual (settings.json + a command).
+	workDir := filepath.Join(workspaceRoot, "supervisor-"+projectcreate.SlugifyHNS1ForTest(projectID))
+	for _, want := range []string{".git", "README.md", filepath.Join(".claude", "settings.json"), filepath.Join(".claude", "commands", "propose-questionnaire.sh")} {
+		if _, statErr := os.Stat(filepath.Join(workDir, want)); statErr != nil {
+			t.Errorf("supervisor workspace %s is missing %q (the agent has no brain): %v", workDir, want, statErr)
+		}
+	}
 
 	if stopErr := supervisor.Stop(context.Background(), orchestrator.AgentID(project.SupervisorAgentID), "integration-teardown"); stopErr != nil {
 		t.Errorf("stop supervisor: %v", stopErr)
@@ -403,6 +413,29 @@ func buildRealClaudeOrchestrator(t *testing.T, provider *secretstest.Provider, d
 		t.Fatalf("orchestratorservice.New (real claude): %v", err)
 	}
 	return service
+}
+
+// supervisorManualSourceDir is the supervisor `.claude` operating-manual tree the materializer overlays
+// (the monorepo path, available in the devcontainer at /workspace).
+const supervisorManualSourceDir = "/workspace/libs/plugins/supervisor/template/.claude"
+
+// buildRealMaterializer builds the gitrepository-backed workspace materializer (clone the seeded repo +
+// overlay the `.claude` manual) over a fresh per-test workspace root. SKIPS the lane when the manual
+// source tree is absent (it lives in the monorepo; a non-devcontainer run may not have it).
+func buildRealMaterializer(t *testing.T, provider *secretstest.Provider) (materializer *projectcreate.Materializer, workspaceRoot string) {
+	t.Helper()
+	if info, err := os.Stat(supervisorManualSourceDir); err != nil || !info.IsDir() {
+		t.Skipf("supervisor manual source tree absent at %s: the real-claude supervisor lane needs the monorepo checkout", supervisorManualSourceDir)
+	}
+	workspaceRoot = t.TempDir()
+	built, err := projectcreate.NewMaterializer(
+		projectcreate.MaterializerConfig{WorkspaceRoot: workspaceRoot, ManualSourceDir: supervisorManualSourceDir},
+		projectcreate.MaterializerDeps{Backend: gitrepository.SystemGit(), Secrets: provider, Clock: realClock{}},
+	)
+	if err != nil {
+		t.Fatalf("NewMaterializer: %v", err)
+	}
+	return built, workspaceRoot
 }
 
 // supervisorTemplateRef is the ref the saga's Config.SupervisorTemplate names. The integration template

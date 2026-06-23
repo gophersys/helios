@@ -130,6 +130,12 @@ type Deps struct {
 	// satisfies it. Required.
 	Supervisor orchestrator.Manager
 
+	// Materializer OPTIONALLY prepares the supervisor's working directory before launch (step 3): clone
+	// the seeded project repo + overlay the `.claude` operating manual, returning a host path threaded
+	// into SpawnRequest.Workspace. When nil the supervisor spawns with no workspace override (a bare CWD —
+	// the stub-substrate integration lane). The real *Materializer satisfies it.
+	Materializer WorkspaceMaterializer
+
 	// Clock stamps the saga's timestamps; keeps New pure and a test deterministic. Required.
 	Clock Clock
 

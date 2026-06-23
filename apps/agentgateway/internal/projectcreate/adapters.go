@@ -263,3 +263,132 @@ func isAlreadySeeded(err error) bool {
 	}
 	return edenerrors.KindOf(err) == edenerrors.KindConflict
 }
+
+// ── WorkspaceMaterializer over gitrepository + the supervisor .claude tree ────────────────────────.
+
+// materializeAuthorName / materializeAuthorEmail stamp the clone's local git identity (the supervisor
+// stages through its slash-commands; the orchestrator commits — but a local identity keeps git happy).
+const (
+	materializeAuthorName  = "Eden Supervisor"
+	materializeAuthorEmail = "supervisor@eden.dev"
+)
+
+// MaterializerConfig is the immutable input for the gitrepository-backed workspace materializer.
+type MaterializerConfig struct {
+	// WorkspaceRoot is the absolute parent directory each project's PERSISTENT supervisor working
+	// directory is created under (it lives for the session, unlike the seeder's scratch). Required.
+	WorkspaceRoot string
+	// ManualSourceDir is the absolute path to the supervisor `.claude` operating-manual tree overlaid
+	// into each workspace (libs/plugins/supervisor/template/.claude). Required.
+	ManualSourceDir string
+}
+
+// MaterializerDeps is the injected hexagon for the materializer (the gitrepository seam + the credential
+// resolver + the clock), exactly gitrepository.Deps threaded through.
+type MaterializerDeps struct {
+	// Backend executes the git clone (gitrepository.SystemGit() in production). Required.
+	Backend gitrepository.Backend
+	// Secrets resolves the clone credential reference server-side. Required for the networked clone.
+	Secrets secrets.Provider
+	// Clock stamps the repository handle. Required.
+	Clock gitrepository.Clock
+}
+
+// Materializer binds gitrepository + a filesystem overlay to the saga's WorkspaceMaterializer port: it
+// clones the seeded project repository into a fresh persistent per-project directory and overlays the
+// supervisor's `.claude` operating manual, so the spawned Claude agent finds the repo AND its manual in
+// its CWD. The production materializer the composition root constructs; safe for concurrent use across
+// distinct projects (each materialization roots at a distinct per-project directory).
+type Materializer struct {
+	workspaceRoot   string
+	manualSourceDir string
+	backend         gitrepository.Backend
+	secrets         secrets.Provider
+	clock           gitrepository.Clock
+}
+
+// compile-time assertion: *Materializer binds the saga's WorkspaceMaterializer port.
+var _ WorkspaceMaterializer = (*Materializer)(nil)
+
+// NewMaterializer is the pure constructor for the gitrepository-backed workspace materializer. It
+// validates the wiring (absolute roots, a manual source that exists) and returns the concrete
+// *Materializer, doing NO networked I/O (the first clone happens on the first Materialize). It DOES stat
+// the manual source so a misconfigured overlay fails at composition, not at the first launch.
+//
+//nolint:gocritic // MaterializerConfig is the frozen, copyable composition input; New takes it by value (the spine).
+func NewMaterializer(configuration MaterializerConfig, dependencies MaterializerDeps) (*Materializer, error) {
+	switch {
+	case configuration.WorkspaceRoot == "" || !filepath.IsAbs(configuration.WorkspaceRoot):
+		return nil, edenerrors.New(edenerrors.KindInvalid, "projectcreate: MaterializerConfig.WorkspaceRoot must be an absolute path: "+configuration.WorkspaceRoot)
+	case configuration.ManualSourceDir == "" || !filepath.IsAbs(configuration.ManualSourceDir):
+		return nil, edenerrors.New(edenerrors.KindInvalid, "projectcreate: MaterializerConfig.ManualSourceDir must be an absolute path: "+configuration.ManualSourceDir)
+	case dependencies.Backend == nil:
+		return nil, edenerrors.New(edenerrors.KindInvalid, "projectcreate: MaterializerDeps.Backend is required (the git vendor seam)")
+	case dependencies.Secrets == nil:
+		return nil, edenerrors.New(edenerrors.KindInvalid, "projectcreate: MaterializerDeps.Secrets is required (the clone credential resolver)")
+	case dependencies.Clock == nil:
+		return nil, edenerrors.New(edenerrors.KindInvalid, "projectcreate: MaterializerDeps.Clock is required")
+	}
+	if info, err := os.Stat(configuration.ManualSourceDir); err != nil || !info.IsDir() {
+		return nil, edenerrors.New(edenerrors.KindInvalid, "projectcreate: MaterializerConfig.ManualSourceDir is not a readable directory: "+configuration.ManualSourceDir)
+	}
+	return &Materializer{
+		workspaceRoot:   filepath.Clean(configuration.WorkspaceRoot),
+		manualSourceDir: filepath.Clean(configuration.ManualSourceDir),
+		backend:         dependencies.Backend,
+		secrets:         dependencies.Secrets,
+		clock:           dependencies.Clock,
+	}, nil
+}
+
+// Materialize clones the seeded project repository into a fresh persistent per-project directory and
+// overlays the supervisor `.claude` operating manual. Idempotent: a re-run clears the prior tree and
+// re-materializes (the persistent dir is the supervisor's CWD, so a stale one from a crashed run is
+// replaced, never appended to).
+func (m *Materializer) Materialize(ctx context.Context, input MaterializeInput) (MaterializeResult, error) {
+	if input.RepositoryURL == "" {
+		return MaterializeResult{}, edenerrors.New(edenerrors.KindInvalid, "projectcreate: Materialize requires a RepositoryURL")
+	}
+	name := slugifyHNS1(input.ProjectID)
+	if name == "" {
+		name = "project"
+	}
+	workDir := filepath.Join(m.workspaceRoot, "supervisor-"+name)
+	if removeErr := os.RemoveAll(workDir); removeErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindUnavailable, "projectcreate: clear stale supervisor workspace", removeErr)
+	}
+	if mkdirErr := os.MkdirAll(workDir, 0o750); mkdirErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindUnavailable, "projectcreate: create supervisor workspace dir", mkdirErr)
+	}
+
+	repository, err := gitrepository.New(
+		gitrepository.Config{
+			Root:          workDir,
+			DefaultAuthor: gitrepository.Identity{Name: materializeAuthorName, Email: materializeAuthorEmail, Kind: gitrepository.ActorPlatform},
+		},
+		gitrepository.Deps{Backend: m.backend, Secrets: m.secrets, Clock: m.clock},
+	)
+	if err != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindInternal, "projectcreate: build supervisor workspace repository handle", err)
+	}
+	// Clone the SEEDED project repo (origin -> the new repository) into the supervisor's CWD.
+	if _, cloneErr := repository.Clone(ctx, input.RepositoryURL, workDir, gitrepository.CloneOptions{
+		RemoteName: seedRemoteName,
+		Credential: input.Credential,
+	}); cloneErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindOf(cloneErr), "projectcreate: clone project repo into supervisor workspace", cloneErr)
+	}
+
+	// Overlay the supervisor `.claude` operating manual into <workDir>/.claude (the agent's OS). A clean
+	// RemoveAll first so a `.claude` shipped in the cloned repo never collides (os.CopyFS won't
+	// overwrite); CopyFS preserves the execute bit on the command/hook scripts.
+	claudeDir := filepath.Join(workDir, ".claude")
+	if rmErr := os.RemoveAll(claudeDir); rmErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindUnavailable, "projectcreate: clear stale .claude overlay", rmErr)
+	}
+	if overlayErr := os.CopyFS(claudeDir, os.DirFS(m.manualSourceDir)); overlayErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindInternal, "projectcreate: overlay supervisor .claude manual", overlayErr)
+	}
+
+	return MaterializeResult{WorkDir: workDir}, nil
+}

@@ -114,6 +114,14 @@ type Config struct {
 	// SeedCheckoutRoot is the ABSOLUTE parent directory the seeder clones each project's template into
 	// (the command ensures it exists). Required when the saga is wired.
 	SeedCheckoutRoot string
+	// SupervisorWorkspaceRoot is the ABSOLUTE parent directory each project's PERSISTENT supervisor
+	// working directory (clone + the overlaid `.claude` manual) is materialized under. Required when the
+	// saga is wired (the command ensures it exists).
+	SupervisorWorkspaceRoot string
+	// SupervisorManualSourceDir is the ABSOLUTE path to the supervisor `.claude` operating-manual tree
+	// the materializer overlays into each workspace (libs/plugins/supervisor/template/.claude). Required
+	// when the saga is wired.
+	SupervisorManualSourceDir string
 
 	// Logger, when non-nil, is wired onto the gateway so live requests emit structured lines.
 	Logger Logger
@@ -339,6 +347,19 @@ func buildCreateSaga(
 		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build template seeder", err)
 	}
 
+	// The workspace materializer: clone the seeded repo + overlay the supervisor `.claude` operating
+	// manual so the spawned Claude agent finds its brain (the repo + its instructions) in its CWD.
+	materializer, err := projectcreate.NewMaterializer(
+		projectcreate.MaterializerConfig{
+			WorkspaceRoot:   configuration.SupervisorWorkspaceRoot,
+			ManualSourceDir: configuration.SupervisorManualSourceDir,
+		},
+		projectcreate.MaterializerDeps{Backend: gitrepository.SystemGit(), Secrets: provider, Clock: clock},
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindOf(err), "liveserve: build workspace materializer", err)
+	}
+
 	organizationID := configuration.OrganizationID
 	if organizationID == "" {
 		organizationID = "eden"
@@ -357,12 +378,13 @@ func buildCreateSaga(
 			SupervisorPollInterval: 2 * time.Second,
 		},
 		projectcreate.Deps{
-			Projects:   projectStore,
-			Steps:      stepStore,
-			Forge:      forgeAdapter,
-			Seeder:     seeder,
-			Supervisor: service,
-			Clock:      clock,
+			Projects:     projectStore,
+			Steps:        stepStore,
+			Forge:        forgeAdapter,
+			Seeder:       seeder,
+			Supervisor:   service,
+			Materializer: materializer,
+			Clock:        clock,
 		},
 	)
 	if err != nil {
@@ -413,7 +435,8 @@ func liveRouteKey() agentsession.RouteKey {
 // provisions a project end-to-end. When false the create handler keeps the pre-saga draft behavior.
 func (c *Config) createSagaConfigured() bool {
 	return c.DatabaseDSN != "" && c.RepositoryOwner != "" && c.ForgeCredentialReference != "" &&
-		c.TemplateRepositoryURL != "" && c.SeedCheckoutRoot != ""
+		c.TemplateRepositoryURL != "" && c.SeedCheckoutRoot != "" &&
+		c.SupervisorWorkspaceRoot != "" && c.SupervisorManualSourceDir != ""
 }
 
 // buildPersistenceStores builds the dashboard / Settings / create-saga Postgres stores when a DSN is
