@@ -136,6 +136,12 @@ type Deps struct {
 	// the stub-substrate integration lane). The real *Materializer satisfies it.
 	Materializer WorkspaceMaterializer
 
+	// SupervisorHostTools OPTIONALLY supplies the per-project supervisor controller host-tools (the
+	// eden_commit_transition tool) at launch, built over the materialized workspace + the project's
+	// credentials. When nil the supervisor spawns with no host-tools (the pre-controller behavior). The
+	// composition root supplies the impl (it holds the git backend + forge credential + project store).
+	SupervisorHostTools SupervisorHostToolFactory
+
 	// Clock stamps the saga's timestamps; keeps New pure and a test deterministic. Required.
 	Clock Clock
 

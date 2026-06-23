@@ -29,6 +29,7 @@ package liveserve
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -373,11 +374,43 @@ func buildCreateSaga(
 	if organizationID == "" {
 		organizationID = "eden"
 	}
+
+	// The supervisor's controller host-tools, built PER launched project over its materialized workspace
+	// + the forge push credential: the eden_commit_transition tool the supervisor calls to commit+push a
+	// staged transition and project its FSM state onto Project.Status. The git backend, the credential,
+	// and the project store all live here at the composition root. A construction fault (only reachable on
+	// an invalid per-project input — guarded upstream) logs and degrades the launch to no host-tools
+	// rather than failing the spawn.
+	forgeCredential := secrets.Ref(configuration.ForgeCredentialReference)
+	supervisorHostTools := func(project gateway.Project, workspaceDir string) []agentsession.HostTool {
+		tool, toolErr := projectcreate.NewCommitTransitionTool(
+			projectcreate.CommitTransitionConfig{
+				WorkspaceDir:    workspaceDir,
+				ProjectID:       project.ID,
+				RemoteURL:       project.RepoURL,
+				Branch:          project.DefaultBranch,
+				ForgeCredential: forgeCredential,
+				SessionID:       project.SessionID,
+			},
+			projectcreate.CommitTransitionDeps{
+				Backend:  gitrepository.SystemGit(),
+				Secrets:  provider,
+				Clock:    clock,
+				Projects: projectStore,
+			},
+		)
+		if toolErr != nil {
+			slog.Error("liveserve: build supervisor commit-transition tool", "project", project.ID, "error", toolErr)
+			return nil
+		}
+		return []agentsession.HostTool{tool}
+	}
+
 	saga, err := projectcreate.New(
 		projectcreate.Config{
 			RepositoryOwner:        configuration.RepositoryOwner,
 			PrivateRepository:      true,
-			ForgeCredential:        secrets.Ref(configuration.ForgeCredentialReference),
+			ForgeCredential:        forgeCredential,
 			SupervisorCredential:   secrets.Ref(configuration.CredentialReference),
 			TemplateRepositoryURL:  configuration.TemplateRepositoryURL,
 			TemplateReference:      configuration.TemplateRepositoryURL,
@@ -387,13 +420,14 @@ func buildCreateSaga(
 			SupervisorPollInterval: 2 * time.Second,
 		},
 		projectcreate.Deps{
-			Projects:     projectStore,
-			Steps:        stepStore,
-			Forge:        forgeAdapter,
-			Seeder:       seeder,
-			Supervisor:   service,
-			Materializer: materializer,
-			Clock:        clock,
+			Projects:            projectStore,
+			Steps:               stepStore,
+			Forge:               forgeAdapter,
+			Seeder:              seeder,
+			Supervisor:          service,
+			Materializer:        materializer,
+			SupervisorHostTools: supervisorHostTools,
+			Clock:               clock,
 		},
 	)
 	if err != nil {

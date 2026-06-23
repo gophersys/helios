@@ -176,20 +176,23 @@ func (s *Saga) failStep(ctx context.Context, project *gateway.Project, step stri
 	return edenerrors.Wrap(edenerrors.KindOf(cause), "projectcreate: step "+step, cause)
 }
 
-// finish flips the project from the supervisor-ready in-progress status to the user-visible WIZARD
-// status (the saga's terminal success state — the project is now build-ready and the supervisor session
-// is live). Idempotent: a project already at WIZARD/BUILDING is left as-is so a completed-saga replay is
-// a no-op.
+// finish projects the supervisor-ready project onto the user-visible status that its INITIAL FSM state
+// maps to — the saga's terminal success state (the supervisor session is live and the project is now
+// ready for the interview). The supervisor starts at the FSM's `init` state, which projects to WIZARD;
+// thereafter the supervisor's eden_commit_transition host-tool owns the status (the push-model
+// projection on every committed transition) through the SAME projectStatusForFSMState map — one home for
+// the FSM-state → Project.Status projection, no hardcoded status here. Idempotent: a project already at
+// WIZARD/BUILDING is left as-is so a completed-saga replay is a no-op.
 func (s *Saga) finish(ctx context.Context, project *gateway.Project) error {
 	if project.Status == gateway.ProjectStatusWizard || project.Status == gateway.ProjectStatusBuilding {
 		return nil
 	}
 	updated, err := s.dependencies.Projects.UpdateStatus(ctx, project.ID, gateway.ProjectStatusPatch{
-		Status:    stringPointer(gateway.ProjectStatusWizard),
+		Status:    stringPointer(projectStatusForFSMState(supervisorInitialState)),
 		LastError: stringPointer(""),
 	})
 	if err != nil {
-		return edenerrors.Wrap(edenerrors.KindUnavailable, "projectcreate: flip project to wizard", err)
+		return edenerrors.Wrap(edenerrors.KindUnavailable, "projectcreate: project supervisor-ready status", err)
 	}
 	*project = updated
 	s.logInfo("projectcreate: saga complete", "project", project.ID, "supervisorAgent", project.SupervisorAgentID)

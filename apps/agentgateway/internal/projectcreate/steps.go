@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gophersys/libs/go/agentsession"
 	edenerrors "github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/orchestrator"
 
@@ -130,6 +131,14 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 		workspaceDir = materialized.WorkDir
 	}
 
+	// The per-project supervisor controller host-tools (eden_commit_transition), built over the
+	// materialized workspace + the project's forge credential. Empty when no factory is wired (the
+	// stub-substrate lane) OR when the workspace was not materialized (a host-tool needs a real CWD).
+	var hostTools []agentsession.HostTool
+	if s.dependencies.SupervisorHostTools != nil && workspaceDir != "" {
+		hostTools = s.dependencies.SupervisorHostTools(*project, workspaceDir)
+	}
+
 	agent, err := s.dependencies.Supervisor.Spawn(ctx, orchestrator.SpawnRequest{
 		Tenant:   s.supervisorTenancy(project.ID),
 		Template: s.configuration.SupervisorTemplate,
@@ -139,6 +148,8 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 		Credential: s.configuration.SupervisorCredential,
 		// The materialized host CWD (clone + .claude manual) — empty == the orchestrator's default WorkDir.
 		Workspace: workspaceDir,
+		// The supervisor's controller host-tools (commit-transition) — REPLACE the template's nil Hosts.
+		HostTools: hostTools,
 		By:        "projectcreate-saga",
 		Cluster:   s.configuration.SupervisorCluster,
 	})
