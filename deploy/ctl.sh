@@ -8,6 +8,8 @@
 #   bash deploy/ctl.sh local verify     # confirm a `kv get` returns the seeded ref WITHOUT printing the value
 #   bash deploy/ctl.sh demo             # THE ONE COMMAND: stack up + seed + agentgateway-live + frontend → live UI
 #   bash deploy/ctl.sh demo down        # reap the demo (gateway + frontend + stack)
+#   bash deploy/ctl.sh demo ssh-editor-config  # print the ~/.ssh/config alias for the desktop ssh-remote editor
+#                                              # (set EDEN_EDITOR_SSH_HOST first; opt-in — the demo is web-only without it)
 #   bash deploy/ctl.sh production render # render the Helm chart from the typed ServiceSpec
 #
 # Two-axis (ADR-0022 #2): `deploy/<plane>/{local,production}`; one typed Go ServiceSpec renders to
@@ -183,6 +185,7 @@ demo_up() {
       EDEN_SUPERVISOR_WORKSPACE_ROOT="${REPO_ROOT}/.eden-runtime/supervisors" \
       EDEN_WORKSPACE="${REPO_ROOT}/.eden-runtime/session" \
       EDEN_EDITOR_URL_BASE="${EDEN_EDITOR_URL_BASE:-http://localhost:${CODE_SERVER_PORT}}" \
+      EDEN_EDITOR_SSH_HOST="${EDEN_EDITOR_SSH_HOST:-}" \
       bash -c "cd '${REPO_ROOT}/apps/agentgateway' && exec go run ./cmd/agentgateway-live" \
       >"${STATE_DIR}/gateway.log" 2>&1 &
   echo $! > "${STATE_DIR}/gateway.pid"
@@ -222,6 +225,7 @@ demo_up() {
   # through Docker Desktop, forwarding to the devcontainer's bridge IP where vite now listens.
   start_demo_proxy
   start_code_server
+  start_ssh_editor
 
   log ""
   log "  ============================================================"
@@ -273,6 +277,30 @@ CODE_SERVER_IMAGE="${EDEN_EDITOR_IMAGE:-codercom/code-server:latest}"
 # project worktrees live under /workspace/.eden-runtime (set in demo_up), so the editor sees them live.
 EDEN_DEVCONTAINER_NAME="${EDEN_DEVCONTAINER_NAME:-base-devcontainer}"
 
+# ── The DESKTOP ssh-remote read-only editor (Workstream C) ────────────────────────────────────────.
+# A SECOND, OPTIONAL editor surface for the NATIVE VS Code path. When EDEN_EDITOR_SSH_HOST is set, the
+# gateway returns it as the editor `sshHost`, and the desktop app opens
+# `vscode://vscode-remote/ssh-remote+<host><worktreePath>` so the user's own VS Code attaches over SSH.
+# That requires a real sshd reachable at <host>; this builds + runs a SIBLING container (the docker
+# adapter exposes NO container ports, so it cannot live in the agent container) that mounts the
+# devcontainer /workspace READ-ONLY (the EROFS read-only guarantee, OD-EDITOR-2) with a SEPARATE
+# writable home volume for the VS Code Server bootstrap. The host alias <EDEN_EDITOR_SSH_HOST> is
+# resolved by an ~/.ssh/config block (deploy/ssh-editor/ssh-config-snippet, emitted by `ssh-editor-config`)
+# to 127.0.0.1:SSH_EDITOR_PORT with the matching key — a CONFIG alias, never a credential on the wire.
+#
+# GATING: EDEN_EDITOR_SSH_HOST is UNSET by default → start_ssh_editor SKIPS and the gateway returns an
+# empty sshHost → the UI stays on today's WEB code-server path. The demo is unchanged unless an operator
+# opts in by exporting EDEN_EDITOR_SSH_HOST (the host alias) before `deploy demo`.
+SSH_EDITOR_NAME="eden-ssh-editor"
+SSH_EDITOR_PORT="${EDEN_EDITOR_SSH_PORT:-2222}"
+SSH_EDITOR_IMAGE="${EDEN_SSH_EDITOR_IMAGE:-eden/ssh-editor:local}"
+SSH_EDITOR_HOME_VOLUME="${EDEN_SSH_EDITOR_HOME_VOLUME:-eden-ssh-editor-home}"
+# The key pair the desktop client presents. The PRIVATE half stays on the host (~/.ssh); only the
+# PUBLIC half is handed to the sibling container at start. Generated on first run by start_ssh_editor.
+SSH_EDITOR_KEY_DIR="${EDEN_SSH_EDITOR_KEY_DIR:-${STATE_DIR}/ssh-editor}"
+SSH_EDITOR_KEY="${SSH_EDITOR_KEY_DIR}/id_ed25519"
+SSH_EDITOR_DOCKERFILE_DIR="${SCRIPT_DIR}/ssh-editor"
+
 # start_code_server runs a SINGLE read-only code-server (VS Code in the browser) that mounts the
 # devcontainer's /workspace READ-ONLY via --volumes-from — so every project's live worktree (under
 # /workspace/.eden-runtime/supervisors/…) is VIEWABLE but never editable. It is published to the Mac
@@ -296,6 +324,105 @@ start_code_server() {
   else
     warn "failed to start ${CODE_SERVER_NAME}; the 'Open in VS Code' button is unavailable (is ${CODE_SERVER_IMAGE} pulled? is ${EDEN_DEVCONTAINER_NAME} the devcontainer name?)"
   fi
+}
+
+# ensure_ssh_editor_key generates the desktop client's ed25519 key pair under the deploy state dir on
+# first run. The PRIVATE half NEVER leaves the host; only the PUBLIC half is provisioned into the
+# sibling sshd at start. Idempotent: an existing key is reused. The bytes are never echoed.
+ensure_ssh_editor_key() {
+  if [ -f "${SSH_EDITOR_KEY}" ] && [ -f "${SSH_EDITOR_KEY}.pub" ]; then return 0; fi
+  mkdir -p "${SSH_EDITOR_KEY_DIR}"
+  chmod 700 "${SSH_EDITOR_KEY_DIR}"
+  log "generating the desktop ssh-editor key pair (${SSH_EDITOR_KEY}) ..."
+  # -N '' (no passphrase) so the desktop client attaches non-interactively; the key is loopback-scoped
+  # and lives only in the gitignored deploy state. -q keeps the public-key bytes off the log.
+  ssh-keygen -t ed25519 -N '' -C 'eden-ssh-editor' -f "${SSH_EDITOR_KEY}" -q
+  chmod 600 "${SSH_EDITOR_KEY}"
+}
+
+# start_ssh_editor runs the SIBLING sshd the DESKTOP "Open in VS Code" path attaches to (the native
+# VS Code ssh-remote). It is GATED on EDEN_EDITOR_SSH_HOST: unset → skip (today's web-only behaviour,
+# the demo unchanged). When set, it builds the deploy/ssh-editor image (if absent), ensures the client
+# key, then runs the container with /workspace READ-ONLY (--volumes-from :ro → EROFS, OD-EDITOR-2) plus
+# a SEPARATE writable home volume for the VS Code Server bootstrap, publishing :22 to
+# 127.0.0.1:SSH_EDITOR_PORT (loopback-only, like the code-server). The eden PUBLIC key is handed in via
+# EDEN_SSH_EDITOR_AUTHORIZED_KEY (entrypoint installs it as the only authorized key). In KUBERNETES this
+# LOCAL adapter is replaced by a per-project sshd Deployment+Service mounting the workspace PVC read-only
+# (the desktop ssh-remote+<host><path> URI contract is identical). Skipped outside the devcontainer.
+start_ssh_editor() {
+  # GATE: the desktop ssh-remote editor is opt-in. Unset host → the gateway returns an empty sshHost →
+  # the UI uses the web code-server path. This keeps the default demo exactly as it is today.
+  if [ -z "${EDEN_EDITOR_SSH_HOST:-}" ]; then
+    log "EDEN_EDITOR_SSH_HOST unset — skipping the desktop ssh-remote editor (web code-server only)"
+    return 0
+  fi
+  command -v docker >/dev/null 2>&1 || { warn "docker absent; skipping the ssh-remote editor"; return 0; }
+  if [ ! -f /.dockerenv ]; then return 0; fi
+
+  ensure_ssh_editor_key
+
+  # Build the minimal openssh image once (idempotent; docker layer-caches). The Dockerfile + sshd_config
+  # + entrypoint live in deploy/ssh-editor.
+  if ! docker image inspect "${SSH_EDITOR_IMAGE}" >/dev/null 2>&1; then
+    log "building the ssh-editor image (${SSH_EDITOR_IMAGE}) from ${SSH_EDITOR_DOCKERFILE_DIR} ..."
+    if ! docker build -t "${SSH_EDITOR_IMAGE}" "${SSH_EDITOR_DOCKERFILE_DIR}" >"${STATE_DIR}/ssh-editor-build.log" 2>&1; then
+      warn "failed to build ${SSH_EDITOR_IMAGE}; the desktop ssh-remote editor is unavailable (see ${STATE_DIR}/ssh-editor-build.log)"
+      return 0
+    fi
+  fi
+
+  log "starting the read-only ssh-remote editor (${SSH_EDITOR_NAME}) on 127.0.0.1:${SSH_EDITOR_PORT} ..."
+  docker rm -f "${SSH_EDITOR_NAME}" >/dev/null 2>&1 || true
+  # --volumes-from …:ro mounts /workspace READ-ONLY (worktree un-writable, EROFS). The SEPARATE
+  # writable named volume at /home/eden lets VS Code Server bootstrap (~/.vscode-server) succeed while
+  # the source tree stays immutable. The PUBLIC key is passed via env (a public key is not a secret).
+  if docker run -d --rm --name "${SSH_EDITOR_NAME}" --label eden.demo=ssheditor \
+      --volumes-from "${EDEN_DEVCONTAINER_NAME}:ro" \
+      -v "${SSH_EDITOR_HOME_VOLUME}:/home/eden" \
+      -e "EDEN_SSH_EDITOR_AUTHORIZED_KEY=$(cat "${SSH_EDITOR_KEY}.pub")" \
+      -p "127.0.0.1:${SSH_EDITOR_PORT}:22" \
+      "${SSH_EDITOR_IMAGE}" \
+      >/dev/null 2>&1; then
+    log "  ${SSH_EDITOR_NAME}: read-only ssh-remote editor at 127.0.0.1:${SSH_EDITOR_PORT} (user 'eden', key-only)"
+    write_ssh_editor_config
+    log "  ssh alias '${EDEN_EDITOR_SSH_HOST}' written to ${SSH_EDITOR_KEY_DIR}/ssh-config-snippet"
+    log "  enable it once with: cat '${SSH_EDITOR_KEY_DIR}/ssh-config-snippet' >> ~/.ssh/config"
+  else
+    warn "failed to start ${SSH_EDITOR_NAME}; the desktop 'Open in VS Code' (ssh-remote) path is unavailable"
+  fi
+}
+
+# write_ssh_editor_config emits the ~/.ssh/config block that resolves the host alias EDEN_EDITOR_SSH_HOST
+# to 127.0.0.1:SSH_EDITOR_PORT with the matching private key. This is a CONFIG alias — the gateway/UI only
+# ever hand the OS the bare alias in the vscode://…ssh-remote+<alias> URI; the credential (the key path)
+# stays in the user's local ssh config, never on the wire. The operator appends this once to ~/.ssh/config.
+write_ssh_editor_config() {
+  local snippet="${SSH_EDITOR_KEY_DIR}/ssh-config-snippet"
+  mkdir -p "${SSH_EDITOR_KEY_DIR}"
+  cat > "${snippet}" <<EOF
+# Eden read-only ssh-remote editor — generated by deploy/ctl.sh start_ssh_editor.
+# Append once to ~/.ssh/config so VS Code's vscode://…ssh-remote+${EDEN_EDITOR_SSH_HOST} resolves here.
+Host ${EDEN_EDITOR_SSH_HOST}
+  HostName 127.0.0.1
+  Port ${SSH_EDITOR_PORT}
+  User eden
+  IdentityFile ${SSH_EDITOR_KEY}
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  UserKnownHostsFile ${SSH_EDITOR_KEY_DIR}/known_hosts
+EOF
+  chmod 600 "${snippet}"
+}
+
+# ssh_editor_config prints the ~/.ssh/config alias block on demand (the `ssh-editor-config` verb) so an
+# operator can wire the alias WITHOUT a running demo (e.g. before `deploy demo` with EDEN_EDITOR_SSH_HOST
+# set). It requires the host alias so the block is concrete; the key is generated if absent.
+ssh_editor_config() {
+  [ -n "${EDEN_EDITOR_SSH_HOST:-}" ] || die "set EDEN_EDITOR_SSH_HOST (the host alias) first — it names the ssh config block"
+  ensure_ssh_editor_key
+  write_ssh_editor_config
+  log "ssh-editor alias '${EDEN_EDITOR_SSH_HOST}' → 127.0.0.1:${SSH_EDITOR_PORT}; append this to ~/.ssh/config:"
+  cat "${SSH_EDITOR_KEY_DIR}/ssh-config-snippet"
 }
 
 # start_demo_proxy publishes the in-container vite UI to the Mac host. The demo runs INSIDE the
@@ -358,6 +485,8 @@ demo_down() {
     docker rm -f "${DEMO_PROXY_NAME}" >/dev/null 2>&1 || true
     # Reap every read-only code-server editor sidecar by label (one shot, count-agnostic).
     docker ps -aq --filter label=eden.demo=codeserver 2>/dev/null | xargs -r docker rm -f >/dev/null 2>&1 || true
+    # Reap the read-only ssh-remote editor sibling(s) by label too (the desktop "Open in VS Code" path).
+    docker ps -aq --filter label=eden.demo=ssheditor 2>/dev/null | xargs -r docker rm -f >/dev/null 2>&1 || true
   fi
   for p in frontend gateway platform; do
     local pidfile="${STATE_DIR}/${p}.pid"
@@ -412,6 +541,7 @@ main() {
       case "${verb}" in
         up|"") demo_up ;;
         down) demo_down ;;
+        ssh-editor-config) ssh_editor_config ;;
         *) die "unknown 'demo' verb: ${verb}" ;;
       esac
       ;;

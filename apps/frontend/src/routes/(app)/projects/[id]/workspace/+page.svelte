@@ -28,6 +28,7 @@
   import type { Harness, ProductHarness, ProjectView } from '$lib/gateway/types';
   import { edenTheme } from '$lib/theme/edenTheme';
   import { isDesktop } from '$lib/platform/runtime';
+  import { openEditor as openEditorFor } from '$lib/platform/openEditor';
   import WorkspaceShell from '$lib/workspace/WorkspaceShell.svelte';
   import ProjectTopBar, { type CommitSummary } from '$lib/workspace/ProjectTopBar.svelte';
   import SupervisorConversation from '$lib/workspace/SupervisorConversation.svelte';
@@ -160,12 +161,10 @@
     editorError = null;
     try {
       const editor = await client.getEditor(sid);
-      if (isDesktop() && editor.sshHost) {
-        window.location.href = `vscode://vscode-remote/ssh-remote+${editor.sshHost}${editor.worktreePath}`;
-      } else {
-        const win = window.open(editor.url, 'eden-vscode');
-        if (win) win.opener = null;
-      }
+      // The desktop/web branch lives once in $lib/platform/openEditor (unit-tested in isolation): DESKTOP
+      // + a non-empty sshHost hands the OS a vscode://ssh-remote URI (native VS Code → read-only sandbox);
+      // otherwise the web code-server URL opens in the reusable 'eden-vscode' window.
+      openEditorFor(editor, window, isDesktop);
     } catch (cause) {
       editorError = cause instanceof Error ? cause.message : 'could not open the editor';
     } finally {

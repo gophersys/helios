@@ -1,0 +1,23 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The Eden desktop shell's default capability set. Deliberately MINIMAL: the web bundle does all its work over HTTP/SSE to the gateway (same as the browser), so the shell needs almost no native API surface. The one thing it MUST permit (never block) is handing the OS a vscode:// ssh-remote URI when the user clicks 'Open in VS Code' — the desktop branch in src/routes/(app)/projects/[id]/workspace/+page.svelte sets window.location.href = 'vscode://vscode-remote/ssh-remote+<host><path>'. shell:allow-open lets that external-scheme navigation reach the OS handler (VS Code registered the vscode:// scheme, not Tauri). The scope restricts shell-open to the vscode: scheme only — permissive for the editor handoff, not a general shell.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:webview:default",
+    "core:app:default",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [
+        {
+          "url": "vscode:*"
+        },
+        {
+          "url": "vscode-insiders:*"
+        }
+      ]
+    }
+  ]
+}
