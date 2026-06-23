@@ -39,22 +39,20 @@ func controlResponseFrame(requestID string, response any) ([]byte, error) {
 // mcp_message control_requests (tools/list + tools/call). With no host tools it is a bare
 // handshake. requestID correlates claude's control_response ack.
 //
-// sdkMcpServers is a JSON OBJECT keyed by server name (the Claude Agent SDK contract), NOT a
-// JSON array of names. Each value is the in-process SDK server descriptor ({type:"sdk", name})
-// so claude knows the server runs in-process and routes its tools over mcp_message rather than
-// spawning a subprocess. Advertising an ARRAY makes claude (2.1.x) complete the MCP
-// `initialize` + `notifications/initialized` then STALL before `tools/list` — the whole turn
-// never processes (admittedSeq frozen at ready, zero message/tool events). This was the
-// eden_commit_transition host-tool stall; reproduced live (array=stall, object=runs clean even
-// under the full supervisor shape: hooks + --permission-prompt-tool stdio + a large allowlist).
+// sdkMcpServers is a JSON ARRAY of bare server NAMES (the CLI's Zod schema is
+// `sdkMcpServers: array(string)`; the CLI itself synthesizes the {type:"sdk", name} descriptor
+// for each). It is NOT an object/map and NOT an array of objects — either of those fails the
+// schema, so the CLI drops the server and reports it "not connected" (the model then cannot call
+// mcp__<server>__<tool>). The array merely ADVERTISES; the host must then SERVE the CLI-initiated
+// MCP JSON-RPC handshake over mcp_message control_requests (initialize → notifications/initialized
+// → tools/list → tools/call), each answered in the matching control_response — see
+// hostToolRouter.route. Failing to answer ANY step (notably notifications/initialized) blocks the
+// CLI's client.connect() (the host-tool round-trip never starts). Verified via the Claude Agent
+// SDK control-protocol source (claude 2.1.x).
 func initializeFrame(requestID string, servers []string) ([]byte, error) {
 	request := map[string]any{"subtype": "initialize"}
 	if len(servers) > 0 {
-		advertised := make(map[string]any, len(servers))
-		for _, name := range servers {
-			advertised[name] = map[string]any{"type": "sdk", "name": name}
-		}
-		request["sdkMcpServers"] = advertised
+		request["sdkMcpServers"] = servers
 	}
 	payload := map[string]any{
 		"type":       "control_request",

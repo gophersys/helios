@@ -76,8 +76,14 @@ func (r *hostToolRouter) route(ctx context.Context, raw json.RawMessage) (respon
 	case "tools/call":
 		return r.call(ctx, &message)
 	default:
-		// notifications/* and any unmodeled method carry no id and expect no response.
-		return nil, nil, false
+		// notifications/* (e.g. notifications/initialized) are tunneled as mcp_message
+		// control_requests that STILL require a control_response — without one the CLI's
+		// client.connect() blocks forever and the host-tool round-trip never starts (the
+		// supervisor "MCP server not connected" stall). The JSON-RPC notification carries no id;
+		// answer with an empty result keyed id:0, per the SDK control-protocol contract. An
+		// unmodeled request also falls here; the empty-result ack is a safe no-op (the CLI only
+		// drives initialize / notifications/initialized / tools/list / tools/call on this channel).
+		return map[string]any{"jsonrpc": "2.0", "id": 0, "result": map[string]any{}}, nil, true
 	}
 }
 

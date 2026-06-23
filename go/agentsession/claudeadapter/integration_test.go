@@ -351,7 +351,12 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
 	}
 	if !handlerRan.Load() {
-		t.Skip("the model did not call the host tool within the window (non-deterministic willingness); the mcp_message wiring is proven by the unit router test")
+		// HARD assertion (was a skip): now that the host answers the CLI-driven MCP handshake
+		// (initialize → notifications/initialized → tools/list → tools/call), a direct "call this
+		// tool now" prompt MUST drive a real round-trip into the Handler. A non-run here is a
+		// round-trip REGRESSION (e.g. notifications/initialized unanswered → connect blocks), not
+		// model reluctance — fail loud so it cannot silently rot back to "MCP server not connected".
+		t.Fatalf("the host tool Handler never ran: the mcp_message round-trip (tools/list→tools/call) is broken; kinds=%v", kindsOf(events))
 	}
 	// The Handler ran: assert a host-tool update was surfaced on the stream.
 	if !hasHostToolUpdate(events) {

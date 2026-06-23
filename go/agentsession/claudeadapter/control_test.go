@@ -59,7 +59,7 @@ func TestNormalize_ControlRequest_CanUseTool(t *testing.T) {
 // If the normalizer naively mapped every control_request to a permission event, this fails.
 func TestNormalize_ControlRequest_WeakenToConfirm(t *testing.T) {
 	t.Parallel()
-	initAck := `{"type":"control_request","request_id":"x","request":{"subtype":"initialize","sdkMcpServers":{"eden":{"type":"sdk","name":"eden"}}}}`
+	initAck := `{"type":"control_request","request_id":"x","request":{"subtype":"initialize","sdkMcpServers":["eden"]}}`
 	events := claudeadapter.NormalizeLineForTest([]byte(initAck))
 	for i := range events {
 		if events[i].Kind == agentsession.EventPermissionRequest {
@@ -99,12 +99,13 @@ func TestNormalize_CanUseTool_SkillScoped(t *testing.T) {
 	}
 }
 
-// TestInitializeFrame_SdkMcpServersIsObjectNotArray pins the host-tool stall fix: the initialize
-// control_request must advertise sdkMcpServers as a JSON OBJECT keyed by server name (each an
-// in-process {type:"sdk",name} descriptor), NOT a JSON array of names. Advertising an array makes
-// claude complete the MCP handshake then STALL before tools/list (the whole turn never processes).
-// The array-is-gone assertion is the non-vacuous regression: the pre-fix code emitted an array.
-func TestInitializeFrame_SdkMcpServersIsObjectNotArray(t *testing.T) {
+// TestInitializeFrame_SdkMcpServersIsArrayOfNames pins the host-tool advertise shape: the
+// initialize control_request must advertise sdkMcpServers as a JSON ARRAY of bare server NAMES
+// (the CLI's `array(string)` Zod schema; the CLI synthesizes the {type:"sdk",name} descriptor
+// itself). It must NOT be an object/map — the object form fails the schema, the CLI drops the
+// server, and the model is told "not connected". The object-is-gone check is the non-vacuous
+// regression (an earlier mis-fix emitted the object form).
+func TestInitializeFrame_SdkMcpServersIsArrayOfNames(t *testing.T) {
 	t.Parallel()
 	frame, err := claudeadapter.InitializeFrameForTest([]agentsession.HostTool{{Name: "eden_commit_transition"}})
 	if err != nil {
@@ -122,23 +123,58 @@ func TestInitializeFrame_SdkMcpServersIsObjectNotArray(t *testing.T) {
 	if decoded.Request.Subtype != "initialize" {
 		t.Fatalf("subtype = %q, want initialize", decoded.Request.Subtype)
 	}
-	// Non-vacuous regression: the pre-fix array form must be GONE.
-	if len(decoded.Request.SdkMcpServers) > 0 && decoded.Request.SdkMcpServers[0] == '[' {
-		t.Fatalf("sdkMcpServers is a JSON array (the stall bug): %s", decoded.Request.SdkMcpServers)
+	// Non-vacuous regression: the object form (the not-connected mis-fix) must be GONE.
+	if len(decoded.Request.SdkMcpServers) > 0 && decoded.Request.SdkMcpServers[0] == '{' {
+		t.Fatalf("sdkMcpServers is a JSON object (fails the CLI schema → server dropped): %s", decoded.Request.SdkMcpServers)
 	}
-	var servers map[string]struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
+	var names []string
+	if err := json.Unmarshal(decoded.Request.SdkMcpServers, &names); err != nil {
+		t.Fatalf("sdkMcpServers must be a JSON array of names: %v (%s)", err, decoded.Request.SdkMcpServers)
 	}
-	if err := json.Unmarshal(decoded.Request.SdkMcpServers, &servers); err != nil {
-		t.Fatalf("sdkMcpServers must be an object keyed by server name: %v (%s)", err, decoded.Request.SdkMcpServers)
+	if len(names) != 1 || names[0] != "eden" {
+		t.Fatalf("sdkMcpServers = %v, want [eden]", names)
 	}
-	server, ok := servers["eden"]
+}
+
+// TestHostToolRouter_AnswersNotificationsInitialized pins the round-trip fix: an mcp_message the
+// CLI tunnels for a JSON-RPC NOTIFICATION (notifications/initialized — no id) MUST still be
+// answered (ok=true) with an mcp_response, or the CLI's client.connect() blocks and the host-tool
+// round-trip never starts. The router previously returned ok=false for the default case (no
+// control_response written) — the "MCP server not connected" stall. Non-vacuous: the empty-result
+// answer must be a valid jsonrpc result envelope.
+func TestHostToolRouter_AnswersNotificationsInitialized(t *testing.T) {
+	t.Parallel()
+	tools := []agentsession.HostTool{{Name: "eden_commit_transition"}}
+	resp, _, ok := claudeadapter.HostToolRouteForTest(tools, []byte(`{"jsonrpc":"2.0","method":"notifications/initialized"}`))
 	if !ok {
-		t.Fatalf("sdkMcpServers missing the %q key: %s", "eden", decoded.Request.SdkMcpServers)
+		t.Fatalf("notifications/initialized must be answered (ok=true) or client.connect() blocks")
 	}
-	if server.Type != "sdk" || server.Name != "eden" {
-		t.Fatalf("server descriptor = %+v, want {type:sdk name:eden}", server)
+	raw, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal notification response: %v", err)
+	}
+	var env struct {
+		JSONRPC string          `json:"jsonrpc"`
+		Result  json.RawMessage `json:"result"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil || env.JSONRPC != "2.0" || env.Result == nil {
+		t.Fatalf("notification answer must be a jsonrpc result envelope: %s", raw)
+	}
+}
+
+// TestHostToolRouter_InitializeAdvertisesToolsCapability pins that the host's MCP initialize
+// answer declares capabilities.tools — which is what makes the CLI proceed to tools/list (it
+// gates on `if (capabilities?.tools)`). Without it the server connects but no tools are listed.
+func TestHostToolRouter_InitializeAdvertisesToolsCapability(t *testing.T) {
+	t.Parallel()
+	tools := []agentsession.HostTool{{Name: "eden_commit_transition"}}
+	resp, _, ok := claudeadapter.HostToolRouteForTest(tools, []byte(`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`))
+	if !ok {
+		t.Fatalf("initialize must be answered")
+	}
+	raw, _ := json.Marshal(resp) //nolint:errcheck // test marshal of a known map.
+	if !strings.Contains(string(raw), `"capabilities"`) || !strings.Contains(string(raw), `"tools"`) {
+		t.Fatalf("initialize answer must declare capabilities.tools (gates the CLI's tools/list): %s", raw)
 	}
 }
 
