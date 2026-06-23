@@ -101,6 +101,26 @@ func (p *Pool) ensureLive() *liveTable {
 	return p.live
 }
 
+// Session returns the OPEN agentsession.Session for a LIVE agent and whether it is present in
+// THIS node's in-process live table — the live-plane handoff seam. A consumer (the gateway)
+// adopts the handle (e.g. a project supervisor's) into its own session registry so the SAME
+// /sessions/{id} routes that serve a chat session serve any orchestrator-opened agent, without
+// the orchestrator becoming the live plane. Returns (nil,false) when the agent has no open
+// session on this node (not yet Running, reaped, or — in a multi-node deployment — held by
+// another replica). The returned Session is owned by the Pool; the caller MUST NOT Close it.
+//
+//nolint:ireturn // returns the agentsession.Session port — the live handle the consumer adopts.
+func (p *Pool) Session(id AgentID) (agentsession.Session, bool) {
+	if p.live == nil {
+		return nil, false
+	}
+	handle, ok := p.live.get(id)
+	if !ok || handle.session == nil {
+		return nil, false
+	}
+	return handle.session, true
+}
+
 // defaultProbe is the in-process Probe the Pool binds when Deps.Probe is nil: it reads
 // the live-actual side table. Multi-node swaps a cluster-query Probe with no surface
 // change.
