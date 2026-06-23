@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/gitrepository"
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/secrets"
 )
@@ -57,4 +58,19 @@ func BuildAdvisorForTest(environment Environment, provider observability.Provide
 //nolint:gocritic // Environment is the frozen, copyable pod-environment input; the test seam takes it by value, mirroring Run.
 func PrepareWorkdirForTest(ctx context.Context, environment Environment, secretsProvider secrets.Provider) (string, error) {
 	return newWorkdirCloner(secretsProvider).prepareWorkdir(ctx, &environment)
+}
+
+// PrepareWorkdirWithBackendForTest exposes the in-pod clone-on-boot seam with an INJECTED
+// gitrepository.Backend (the in-memory gitrepositorytest.Backend fake), so a UNIT test proves the
+// pure cloner logic — the credential REFERENCE is resolved server-side and threaded to Clone, and the
+// credential VALUE never reaches a process-argument surface — WITHOUT a real git binary or a real
+// clone (the on-disk overlay+clean-tree half is the real-system-git test PrepareWorkdirForTest drives).
+// It mirrors the production newWorkdirCloner exactly but for the backend (the one substrate seam): the
+// SAME injected secrets Mediator, the SAME manualSourceDir resolution, the SAME system clock.
+//
+//nolint:gocritic // Environment is the frozen, copyable pod-environment input; the test seam takes it by value, mirroring Run.
+func PrepareWorkdirWithBackendForTest(ctx context.Context, environment Environment, secretsProvider secrets.Provider, backend gitrepository.Backend) (string, error) {
+	cloner := newWorkdirCloner(secretsProvider)
+	cloner.backend = backend // inject the in-memory fake in place of the production SystemGit backend (the lone substrate seam).
+	return cloner.prepareWorkdir(ctx, &environment)
 }
