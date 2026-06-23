@@ -109,10 +109,25 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 		return workspaceprovider.HandleData{}, serr
 	}
 
+	// Editor sidecar (ADR-0027, OD-EDITOR-3): when spec.Editor is set, run the read-only editor as
+	// a docker SIBLING that shares the workspace's workdir volume read-only (`--volumes-from
+	// <workspace>:ro`) and publishes the editor port. A nil Editor creates no sibling, so the
+	// non-editor workspace is byte-identical. A sibling failure rolls back the whole workspace
+	// (the all-or-nothing contract): the editor container (if any), then the workspace container +
+	// its egress network.
+	editorOrigin, eerr := a.startEditorSibling(ctx, &spec, createResp.ID)
+	if eerr != nil {
+		_ = a.removeEditorSibling(ctx, &spec)                                                                       //nolint:errcheck // best-effort rollback; the editor error is the one returned.
+		_ = a.client.ContainerRemove(ctx, createResp.ID, container.RemoveOptions{Force: true, RemoveVolumes: true}) //nolint:errcheck // best-effort rollback; the editor error is the one returned.
+		_ = a.removeEgressNetwork(ctx, egressNet)                                                                   //nolint:errcheck // best-effort rollback; the editor error is the one returned.
+		return workspaceprovider.HandleData{}, eerr
+	}
+
 	handle := a.handleFor(&spec, workDir)
 	return workspaceprovider.HandleData{
-		Handle:     handle,
-		Connection: a.connection(createResp.ID, handle),
+		Handle:       handle,
+		Connection:   a.connection(createResp.ID, handle),
+		EditorOrigin: editorOrigin,
 	}, nil
 }
 
@@ -181,6 +196,13 @@ func (a *Adapter) Destroy(ctx context.Context, handle workspaceprovider.Handle) 
 	id := containerID(handle)
 	if id == "" {
 		return nil
+	}
+	// Remove the read-only editor sibling FIRST (it shares the workspace's volumes via
+	// `--volumes-from`, so a still-running sibling would block RemoveVolumes on the workspace
+	// container). Its name is deterministic from the handle, so Destroy reaps it without the spec;
+	// an absent sibling (a non-editor workspace) is a no-op (idempotent).
+	if eerr := a.removeEditorByName(ctx, editorContainerName(handle.Namespace(), handle.Name())); eerr != nil {
+		return eerr
 	}
 	err := a.client.ContainerRemove(ctx, id, container.RemoveOptions{Force: true, RemoveVolumes: true})
 	if err != nil && !isNotFound(err) {
@@ -254,14 +276,31 @@ func (a *Adapter) imagePresent(ctx context.Context, ref string) bool {
 // that live in the container's writable layer, NOT a tmpfs — a tmpfs masks CopyToContainer,
 // so the Files seam could not seed/read them). A MountVolume docker cannot honor for the
 // declared isolation is an IsolationError (fail-closed, never a degraded success).
+//
+// When spec.Editor is set (ADR-0027), a source-less workdir bind becomes an ANONYMOUS VOLUME
+// rather than a writable-layer directory, so the read-only editor sibling can share it via
+// `--volumes-from <workspace>:ro` (a writable-layer dir is NOT shareable by VolumesFrom; a volume
+// is). A volume does NOT mask CopyToContainer (only a tmpfs does), so the Files seam still
+// seeds/reads it. A nil Editor keeps the writable-layer-dir path verbatim, so the non-editor
+// container is byte-identical.
 func buildMounts(spec *workspaceprovider.WorkspaceSpec) ([]mount.Mount, []string, error) {
 	var mounts []mount.Mount
 	var ensureDirs []string
+	shareWorkdir := spec.Editor != nil
 	for i := range spec.Mounts {
 		m := spec.Mounts[i]
 		switch m.Kind {
 		case workspaceprovider.MountBind:
 			if m.Source == "" {
+				if shareWorkdir {
+					// Editor present: the workspace's own workdir is an ANONYMOUS VOLUME so the
+					// `--volumes-from …:ro` editor sibling shares it; ensureDirs still creates the
+					// path so the Files seam and the workload find it. (A volume does not mask
+					// CopyToContainer; only a tmpfs would.)
+					mounts = append(mounts, mount.Mount{Type: mount.TypeVolume, Target: m.Target})
+					ensureDirs = append(ensureDirs, m.Target)
+					continue
+				}
 				// A bind with no host source is the workspace's own writable workdir — a
 				// plain directory in the container's writable layer (so the Files tar
 				// plane can read/write it; a tmpfs would mask CopyToContainer).

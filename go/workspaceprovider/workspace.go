@@ -28,6 +28,13 @@ type workspace struct {
 	// empty on an Open re-dial (the clean-room flow provisions fresh, never re-dials).
 	readOnlyTargets []string
 
+	// editorOrigin is the externally-reachable base URL of this workspace's READ-ONLY editor
+	// sidecar (ADR-0027), copied from HandleData.EditorOrigin the adapter set at Create/Dial; ""
+	// when spec.Editor was nil (no sidecar) or the substrate did not route one. It carries NO
+	// secret (a host:port). Read via the EditorOriginer optional accessor, NOT a sixth Workspace
+	// method — the Workspace port stays the frozen 5-method surface.
+	editorOrigin string
+
 	// states enforces the documented legal State-transition set (types.go State doc) on every
 	// Status read: the library — not the adapter — owns the machine, so a substrate Probe that
 	// reads an impossible transition (a move OUT of terminal Gone, an edge not in the graph)
@@ -38,11 +45,33 @@ type workspace struct {
 	running bool // a primary workload is live (the 1-sandbox-per-execution gate, 07 §3)
 }
 
-// Static assertion: *workspace satisfies the Workspace port.
-var _ Workspace = (*workspace)(nil)
+// Static assertions: *workspace satisfies the Workspace port AND the optional EditorOriginer
+// accessor (so a consumer that needs the read-only editor URL type-asserts for it without
+// growing the frozen 5-method Workspace surface).
+var (
+	_ Workspace      = (*workspace)(nil)
+	_ EditorOriginer = (*workspace)(nil)
+)
+
+// EditorOriginer is the OPTIONAL accessor a Workspace satisfies when its workspace has a
+// READ-ONLY editor sidecar (ADR-0027): EditorOrigin returns the externally-reachable base URL of
+// that editor ("http(s)://<agent-id>.editor.<domain>" on kubernetes, "http://<host>:<port>" on
+// docker), or "" when no editor was requested/routed. A consumer (the agentgateway, which forms
+// the per-agent "Open in VS Code" URL) type-asserts the Workspace for this — it is NOT a sixth
+// Workspace method, so the frozen 5-method port is unchanged (the same optional-extension pattern
+// the conformance suite's ownerCounter uses). The returned string carries NO secret (it is a
+// host:port the canary redaction property holds for) and is loggable.
+type EditorOriginer interface {
+	EditorOrigin() string
+}
 
 // Handle returns the durable, loggable identity of this workspace. Pure; no I/O.
 func (w *workspace) Handle() Handle { return w.handle }
+
+// EditorOrigin returns this workspace's read-only editor sidecar base URL (ADR-0027), or "" when
+// no editor was requested/routed. It satisfies the optional EditorOriginer accessor the gateway
+// type-asserts; it is pure (a stored value, no I/O) and never a secret.
+func (w *workspace) EditorOrigin() string { return w.editorOrigin }
 
 // Run starts the ONE primary workload. A second Run while one is Running is a
 // NotReadyError (the 1-sandbox-per-execution rule). The library resolves the workload

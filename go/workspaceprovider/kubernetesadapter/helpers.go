@@ -46,6 +46,17 @@ func port32(p int) intstr.IntOrString {
 	return intstr.FromInt32(int32(p)) // #nosec G115 -- guarded: p is clamped to 0..maxPort (65535) above, well within int32; gosec cannot follow the clamp.
 }
 
+// portInt32 is the GUARDED int->int32 conversion for the editor Service/Ingress/container ports
+// (the SAME bounds-check discipline as port32, in one home): an out-of-range port is clamped to 0
+// rather than wrapping into a bogus int32. editorPort already clamps to 1..maxPort, so this is a
+// belt-and-braces guard the SAST tool can follow.
+func portInt32(p int) int32 {
+	if p < 0 || p > maxPort {
+		p = 0
+	}
+	return int32(p) // #nosec G115 -- guarded: p is clamped to 0..maxPort (65535) above, well within int32.
+}
+
 // dnsEgressRule is the always-on DNS allow (TCP+UDP 53) every egress NetworkPolicy carries so a
 // restricted workload can still resolve its allowed hosts.
 func dnsEgressRule() networkingv1.NetworkPolicyEgressRule {

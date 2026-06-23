@@ -108,6 +108,12 @@ func (a *Adapter) Manifest() workspaceprovider.CapabilityManifest {
 			// (PID-1); docker's cgroup State.OOMKilled + exit code then reflect the workload
 			// directly (the OD-15-a workload-owned model), verified on the real daemon.
 			workspaceprovider.CapWorkloadPod: workspaceprovider.CapFull,
+			// CapEditorSidecar: a spec.Editor runs a read-only code-server SIBLING container that
+			// shares the workspace's workdir volume read-only (`--volumes-from <workspace>:ro`) and
+			// publishes the editor port — the docker analog of the kubernetes sidecar (ADR-0027,
+			// OD-EDITOR-3: this library owns the local docker editor too). Read-only is structural:
+			// the `:ro` VolumesFrom means the editor cannot write the worktree.
+			workspaceprovider.CapEditorSidecar: workspaceprovider.CapFull,
 		},
 	}
 }

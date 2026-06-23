@@ -3,6 +3,7 @@ module github.com/gophersys/libs/go/workspaceprovider
 go 1.26
 
 require (
+	github.com/docker/go-connections v0.7.0
 	github.com/gophersys/libs/go/dependencies v0.0.0
 	github.com/gophersys/libs/go/errors v0.0.0
 	github.com/gophersys/libs/go/secrets v0.0.0
@@ -28,7 +29,6 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect

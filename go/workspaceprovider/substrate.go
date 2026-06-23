@@ -172,7 +172,7 @@ func (s *Provisioner) Provision(ctx context.Context, spec WorkspaceSpec) (Worksp
 		return nil, classify(cerr)
 	}
 	handle := s.stampHandle(data.Handle, substrate, &spec)
-	return s.wrap(handle, data.Connection, readOnlyTargets(&spec)), nil
+	return s.wrap(handle, data.Connection, readOnlyTargets(&spec), data.EditorOrigin), nil
 }
 
 // provisionKey is the per-Name singleflight key: the substrate + tenancy (org/project) + Name, so a
@@ -198,10 +198,14 @@ func (s *Provisioner) Open(ctx context.Context, handle Handle) (Workspace, error
 	if derr != nil {
 		return nil, classify(derr)
 	}
-	// Open is a pure re-dial: the spec (and thus its read-only mount targets) is not
-	// known here, so the library enforces no read-only Files guard on a re-dialed
-	// workspace (the clean-room flow provisions fresh and never re-dials).
-	return s.wrap(handle, data.Connection, nil), nil
+	// Open is a pure re-dial: the spec (and thus its read-only mount targets AND the editor
+	// request) is not known here, so the library enforces no read-only Files guard on a re-dialed
+	// workspace (the clean-room flow provisions fresh and never re-dials). An adapter that can
+	// cheaply re-derive the editor origin from the live native object on Dial surfaces it via
+	// HandleData.EditorOrigin (host-per-agent on kubernetes is deterministic from the handle +
+	// the configured domain); an adapter that cannot leaves it "" (the gateway then falls back to
+	// its static base). Whichever the adapter returns is honored here.
+	return s.wrap(handle, data.Connection, nil, data.EditorOrigin), nil
 }
 
 // List enumerates the workspaces Eden authored within a tenancy that match selector. It
@@ -387,13 +391,14 @@ func (s *Provisioner) stampHandle(assigned Handle, substrate Substrate, spec *Wo
 // concrete per accept-interfaces/return-concrete, 10 §9).
 //
 //nolint:ireturn // wrap constructs the Workspace port the frozen Provider methods return.
-func (s *Provisioner) wrap(handle Handle, conn Connection, readOnly []string) *workspace {
+func (s *Provisioner) wrap(handle Handle, conn Connection, readOnly []string, editorOrigin string) *workspace {
 	return &workspace{
 		handle:          handle,
 		conn:            conn,
 		clock:           s.clock,
 		secrets:         s.secrets,
 		readOnlyTargets: readOnly,
+		editorOrigin:    editorOrigin,
 		states:          &stateMachine{},
 	}
 }

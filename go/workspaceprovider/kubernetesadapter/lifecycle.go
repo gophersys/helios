@@ -2,6 +2,7 @@ package kubernetesadapter
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // readyPollInterval / readyTimeout bound the Ready handshake: Create waits for the pod to
@@ -73,11 +75,120 @@ func (a *Adapter) Create(ctx context.Context, spec workspaceprovider.WorkspaceSp
 		return rollback(werr)
 	}
 
+	// Editor sidecar exposure (ADR-0027): when spec.Editor is set, the pod already carries the
+	// read-only code-server container (buildPod appended it); now route to it host-per-agent via a
+	// Service + an Ingress in the workspace namespace. Both are reaped by the namespace cascade
+	// (rollback unchanged). A nil Editor creates neither, so a non-editor workspace is byte-identical.
+	editorOrigin, eerr := a.exposeEditor(ctx, &spec, namespace)
+	if eerr != nil {
+		return rollback(eerr)
+	}
+
 	handle := a.handleFor(&spec, namespace, workDir)
 	return workspaceprovider.HandleData{
-		Handle:     handle,
-		Connection: a.connection(namespace, pod.Name, handle),
+		Handle:       handle,
+		Connection:   a.connection(namespace, pod.Name, handle),
+		EditorOrigin: editorOrigin,
 	}, nil
+}
+
+// exposeEditor routes the editor sidecar host-per-agent (ADR-0027 §3): a ClusterIP Service in the
+// workspace namespace selecting the workspace pod on the editor port, plus an Ingress whose single
+// rule maps the host "<agent-id>.editor.<domain>" to that Service. It returns the editor's
+// externally-reachable origin ("http://<host>" — the editor speaks HTTP; TLS terminates at the
+// ingress) the library surfaces on HandleData.EditorOrigin. A nil Editor is a no-op (returns ""):
+// the workspace is byte-identical. When no EditorIngressDomain is configured the Service is still
+// created (so an in-cluster reach by Service DNS works) but no Ingress host can be formed, so the
+// returned origin is the in-cluster Service URL — the honest origin for that composition.
+func (a *Adapter) exposeEditor(ctx context.Context, spec *workspaceprovider.WorkspaceSpec, namespace string) (string, error) {
+	if spec.Editor == nil {
+		return "", nil
+	}
+	port := editorPort(spec.Editor)
+	service := buildEditorService(spec, namespace, a.ownerLabels(spec), port)
+	if _, serr := a.client.CreateService(ctx, namespace, service); serr != nil {
+		return "", &workspaceprovider.IsolationError{Detail: "expose editor: create Service: " + serr.Error()}
+	}
+	host := a.editorHost(spec)
+	if host == "" {
+		// No ingress domain configured: the editor is reachable in-cluster by Service DNS only.
+		return "http://" + service.Name + "." + namespace + ".svc:" + strconv.Itoa(port), nil
+	}
+	ingress := buildEditorIngress(spec, namespace, a.ownerLabels(spec), host, service.Name, port)
+	if _, ierr := a.client.CreateIngress(ctx, namespace, ingress); ierr != nil {
+		return "", &workspaceprovider.IsolationError{Detail: "expose editor: create Ingress: " + ierr.Error()}
+	}
+	return "http://" + host, nil
+}
+
+// editorHost derives the host-per-agent editor hostname "<agent-id>.editor.<domain>" (ADR-0027 §3)
+// from the spec's Name (the agent id) and the adapter's configured editor ingress domain. It
+// returns "" when no domain is configured (then the editor is reached in-cluster by Service DNS).
+func (a *Adapter) editorHost(spec *workspaceprovider.WorkspaceSpec) string {
+	if a.editorIngressDomain == "" {
+		return ""
+	}
+	return SanitizeName(spec.Name) + ".editor." + a.editorIngressDomain
+}
+
+// editorServiceName / editorIngressName derive deterministic per-workspace names for the editor's
+// Service + Ingress so they are unambiguous within the namespace (which already scopes the
+// workspace 1:1). The namespace cascade reaps both on Teardown.
+func editorServiceName() string { return "eden-editor" }
+func editorIngressName() string { return "eden-editor" }
+
+// buildEditorService builds the ClusterIP Service exposing the editor sidecar port on the workspace
+// pod (selected by the ownership labels every authored pod carries).
+func buildEditorService(spec *workspaceprovider.WorkspaceSpec, namespace string, labels map[string]string, port int) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      editorServiceName(),
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{ownerLabel: "true", nameLabel: labelValue(spec.Name)},
+			Ports: []corev1.ServicePort{{
+				Name:       editorContainer,
+				Port:       portInt32(port),
+				TargetPort: intstr.FromInt32(portInt32(port)),
+				Protocol:   corev1.ProtocolTCP,
+			}},
+		},
+	}
+}
+
+// buildEditorIngress builds the host-per-agent Ingress routing "<agent-id>.editor.<domain>" to the
+// editor Service (ADR-0027 §3). The wildcard DNS + wildcard TLS are an infrastructure concern (the
+// cluster's ingress controller + cert), not this object — it carries the host rule only.
+func buildEditorIngress(spec *workspaceprovider.WorkspaceSpec, namespace string, labels map[string]string, host, serviceName string, port int) *networkingv1.Ingress {
+	pathType := networkingv1.PathTypePrefix
+	return &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      editorIngressName(),
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				Host: host,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
+							Path:     "/",
+							PathType: &pathType,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: serviceName,
+									Port: networkingv1.ServiceBackendPort{Number: portInt32(port)},
+								},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
 }
 
 // createNamespace creates the labeled ownership-domain namespace. An AlreadyExists is a
@@ -358,7 +469,91 @@ func buildPod(spec *workspaceprovider.WorkspaceSpec, labels map[string]string, w
 	if creds.pullSecretName != "" {
 		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: creds.pullSecretName}}
 	}
+	// Editor sidecar (ADR-0027): APPEND the read-only code-server container ONLY when spec.Editor
+	// is set. It mounts the SAME workdir volume a SECOND time with ReadOnly:true (one Volume, two
+	// VolumeMounts — read-only is STRUCTURAL: the mount mode means the editor process cannot write
+	// the worktree, not merely advised). nil Editor ⇒ this is skipped entirely, so the pod is
+	// byte-identical to a non-editor workspace.
+	if spec.Editor != nil {
+		eerr := appendEditorContainer(pod, spec, workDir)
+		if eerr != nil {
+			return nil, eerr
+		}
+	}
 	return pod, nil
+}
+
+// editorContainer is the read-only code-server sidecar's container name in the workspace pod.
+const editorContainer = "editor"
+
+// defaultEditorImage / defaultEditorPort are the adapter defaults a zero EditorSpec field
+// substitutes (an explicit Image/Port on the spec overrides them). The code-server image serves
+// VS Code in the browser; 8080 is its conventional bind port.
+const (
+	defaultEditorImage = "codercom/code-server:latest"
+	defaultEditorPort  = 8080
+)
+
+// appendEditorContainer adds the read-only editor sidecar to the pod: a code-server container that
+// mounts the workdir volume a SECOND time read-only and binds the editor port. It locates the
+// workdir volume (the one whose mount path IS workDir) and re-mounts it ReadOnly:true on the editor
+// container — one Volume, two VolumeMounts. The editor inherits the namespace's default-deny egress
+// (it serves files; it does not dial out). An EditorSpec.Image/Port of zero takes the adapter default.
+func appendEditorContainer(pod *corev1.Pod, spec *workspaceprovider.WorkspaceSpec, workDir string) error {
+	workdirVolume := workdirVolumeName(pod, workDir)
+	if workdirVolume == "" {
+		return &workspaceprovider.IsolationError{Detail: "editor sidecar: no workdir volume to mount read-only"}
+	}
+	image := spec.Editor.Image
+	if image == "" {
+		image = defaultEditorImage
+	}
+	port := editorPort(spec.Editor)
+	resourceReqs, rerr := buildResources(spec.Editor.Resources)
+	if rerr != nil {
+		return rerr
+	}
+	pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
+		Name:  editorContainer,
+		Image: image,
+		// code-server with auth disabled (the read-only editor carries no credential; access is
+		// gated by the ingress origin, not a code-server password), bound on all interfaces so the
+		// Service reaches it, serving the read-only worktree.
+		Args:       []string{"--auth", "none", "--bind-addr", "0.0.0.0:" + strconv.Itoa(port), workDir},
+		WorkingDir: workDir,
+		// The SAME workdir volume, mounted READ-ONLY: the editor process cannot write the worktree.
+		VolumeMounts: []corev1.VolumeMount{{Name: workdirVolume, MountPath: workDir, ReadOnly: true}},
+		Ports:        []corev1.ContainerPort{{ContainerPort: portInt32(port), Name: editorContainer}},
+		Resources:    resourceReqs,
+	})
+	return nil
+}
+
+// workdirVolumeName returns the name of the pod volume mounted at workDir on the workspace
+// container (the one the editor re-mounts read-only), or "" if none is found.
+func workdirVolumeName(pod *corev1.Pod, workDir string) string {
+	for i := range pod.Spec.Containers {
+		if pod.Spec.Containers[i].Name != workspaceContainer {
+			continue
+		}
+		for j := range pod.Spec.Containers[i].VolumeMounts {
+			vm := pod.Spec.Containers[i].VolumeMounts[j]
+			if vm.MountPath == workDir {
+				return vm.Name
+			}
+		}
+	}
+	return ""
+}
+
+// editorPort resolves the editor's served port: the spec's Port when in (0, maxPort], else the
+// adapter default. It is the single source the container port, the Service targetPort, and the
+// Ingress backend agree on.
+func editorPort(editor *workspaceprovider.EditorSpec) int {
+	if editor != nil && editor.Port > 0 && editor.Port <= maxPort {
+		return editor.Port
+	}
+	return defaultEditorPort
 }
 
 // buildVolumes maps the spec's Mounts onto pod volumes + volume mounts. Bind/Inputs become

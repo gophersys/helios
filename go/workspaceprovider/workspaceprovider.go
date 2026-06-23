@@ -352,4 +352,15 @@ type HandleData struct {
 	// Connection is the live native driver the library drives Run/Exec/Files/Status
 	// over. The library never inspects the adapter's underlying client.
 	Connection Connection
+
+	// EditorOrigin is the externally-reachable base URL of this workspace's READ-ONLY editor
+	// sidecar when spec.Editor was set (ADR-0027), else "". On kubernetes it is the
+	// host-per-agent ingress origin "http(s)://<agent-id>.editor.<domain>" the adapter routed the
+	// editor Service through; on docker it is "http://<host>:<published-port>" of the
+	// `--volumes-from …:ro` editor sibling. It carries NO secret (a host:port, the canary
+	// redaction property holds) and is loggable. The library surfaces it on the Workspace's
+	// EditorOrigin() accessor so the gateway derives the per-agent "Open in VS Code" URL from the
+	// actual editor the substrate stood up, rather than a single static base. Empty (the default,
+	// a nil-Editor spec) ⇒ the gateway falls back to its configured static EditorURLBase.
+	EditorOrigin string
 }

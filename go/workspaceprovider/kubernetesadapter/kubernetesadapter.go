@@ -83,17 +83,25 @@ type Config struct {
 	// LabelNamespace scopes the ownership domain (the eden.namespace label value) and
 	// prefixes the kubernetes namespaces this adapter creates; empty for single-tenant local.
 	LabelNamespace string
+	// EditorIngressDomain is the wildcard DNS base for the host-per-agent read-only editor
+	// sidecar (ADR-0027 §3): the editor of a workspace named "<agent-id>" is exposed at
+	// "<agent-id>.editor.<EditorIngressDomain>" via a per-workspace Service + Ingress. Empty
+	// disables Ingress creation (the editor is then reachable in-cluster by Service DNS only),
+	// so a composition that does not run an ingress controller provisions editors without a
+	// dangling host. It is loggable (a domain, never a secret).
+	EditorIngressDomain string
 }
 
 // Adapter is the kubernetes workspaceprovider.Adapter. It holds a live typed client +
 // the REST config (needed for the SPDY exec/attach plane) and the ownership-domain
 // namespace. Safe for concurrent use (client-go's clientset is). Construct via New.
 type Adapter struct {
-	client     kubernetesClient
-	restConfig *rest.Config
-	namespace  string
-	distro     string
-	prePulled  map[string]bool
+	client              kubernetesClient
+	restConfig          *rest.Config
+	namespace           string
+	distro              string
+	editorIngressDomain string
+	prePulled           map[string]bool
 }
 
 // Static assertion: *Adapter satisfies the workspaceprovider.Adapter port.
@@ -118,11 +126,12 @@ func New(configuration Config) (*Adapter, error) {
 // recording double without an apiserver.
 func newWithClient(client kubernetesClient, restConfig *rest.Config, configuration Config) *Adapter {
 	return &Adapter{
-		client:     client,
-		restConfig: restConfig,
-		namespace:  configuration.LabelNamespace,
-		distro:     "kubernetes",
-		prePulled:  map[string]bool{},
+		client:              client,
+		restConfig:          restConfig,
+		namespace:           configuration.LabelNamespace,
+		distro:              "kubernetes",
+		editorIngressDomain: configuration.EditorIngressDomain,
+		prePulled:           map[string]bool{},
 	}
 }
 
@@ -188,6 +197,12 @@ func (a *Adapter) Manifest() workspaceprovider.CapabilityManifest {
 			// the readable workspace container — surfacing the ConditionOOMKilled discriminator
 			// NATIVELY on the kubernetes Run path, closing the OD-15 / §7 Q14 gap.
 			workspaceprovider.CapWorkloadPod: workspaceprovider.CapFull,
+			// CapEditorSidecar: a spec.Editor co-locates a read-only code-server container in the
+			// SAME pod mounting the workdir emptyDir read-only (an emptyDir is pod-scoped, so the
+			// sidecar shares the exact worktree the workspace container writes), exposed host-per-
+			// agent via a Service + Ingress (ADR-0027). Read-only is structural: the read-only
+			// volumeMount means the editor process cannot write the worktree.
+			workspaceprovider.CapEditorSidecar: workspaceprovider.CapFull,
 		},
 	}
 }

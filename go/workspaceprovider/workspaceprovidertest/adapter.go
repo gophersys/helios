@@ -176,11 +176,12 @@ func (a *Adapter) Create(_ context.Context, spec workspaceprovider.WorkspaceSpec
 
 // realizeEditor reports whether the fake co-located the read-only editor sidecar for spec (the
 // observable caseEditorSidecar asserts, mirroring the real adapters' editor container + read-only
-// workdir mount, ADR-0027). It is the RED-before-green seam: it returns false for now (the editor
-// sidecar is NOT yet realized), so a spec.Editor request is observably unsatisfied and the
-// conformance case FAILS — the implementation phase replaces this body with the real realization.
-func realizeEditor(_ *workspaceprovider.WorkspaceSpec) bool {
-	return false
+// workdir mount, ADR-0027). GREEN: it honors spec.Editor — a non-nil Editor IS realized (the fake's
+// analog of the kubernetesadapter adding the sidecar container + the read-only workdir mount and the
+// dockeradapter running the `--volumes-from …:ro` sibling), while a nil Editor realizes NOTHING (so a
+// workspace without an Editor is byte-identical, exactly as on the real substrates).
+func realizeEditor(spec *workspaceprovider.WorkspaceSpec) bool {
+	return spec.Editor != nil
 }
 
 // EditorRealized reports whether the fake realized the read-only editor sidecar for the workspace

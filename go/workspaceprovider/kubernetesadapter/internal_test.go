@@ -407,6 +407,110 @@ func TestBuildVolumesRejectsPersistentVolume(t *testing.T) {
 	}
 }
 
+// TestBuildPodNilEditorIsByteIdentical proves the ADDITIVE guarantee (ADR-0027): a nil-Editor spec
+// produces a pod with EXACTLY the single workspace container and no editor volume mount — byte-
+// identical to the pre-editor behavior (the editor path only ADDS, gated on spec.Editor != nil).
+func TestBuildPodNilEditorIsByteIdentical(t *testing.T) {
+	t.Parallel()
+	spec := testSpec("ws-no-editor") // Editor is nil
+	pod, err := buildPod(&spec, map[string]string{ownerLabel: "true"}, "/workspace", podCredentials{mountSecretNames: map[string]string{}})
+	if err != nil {
+		t.Fatalf("buildPod: %v", err)
+	}
+	if len(pod.Spec.Containers) != 1 {
+		t.Fatalf("a nil-Editor pod must have exactly 1 container (byte-identical), got %d", len(pod.Spec.Containers))
+	}
+	if pod.Spec.Containers[0].Name != workspaceContainer {
+		t.Errorf("the sole container must be %q, got %q", workspaceContainer, pod.Spec.Containers[0].Name)
+	}
+	// No volume is mounted read-only (the editor's read-only re-mount is the only read-only
+	// workdir mount the adapter adds, and it is absent here).
+	for _, vm := range pod.Spec.Containers[0].VolumeMounts {
+		if vm.ReadOnly && vm.MountPath == "/workspace" {
+			t.Errorf("a nil-Editor pod must not carry a read-only workdir mount")
+		}
+	}
+}
+
+// TestBuildPodEditorAddsReadOnlySidecar proves a non-nil Editor APPENDS the read-only code-server
+// sidecar that re-mounts the SAME workdir volume read-only (one Volume, two VolumeMounts) — the
+// structural read-only guarantee (ADR-0027 §1).
+func TestBuildPodEditorAddsReadOnlySidecar(t *testing.T) {
+	t.Parallel()
+	spec := testSpec("ws-editor")
+	spec.Editor = &workspaceprovider.EditorSpec{Image: "codercom/code-server", Port: 8080}
+	pod, err := buildPod(&spec, map[string]string{ownerLabel: "true"}, "/workspace", podCredentials{mountSecretNames: map[string]string{}})
+	if err != nil {
+		t.Fatalf("buildPod: %v", err)
+	}
+	if len(pod.Spec.Containers) != 2 {
+		t.Fatalf("an Editor pod must have 2 containers (workspace + editor), got %d", len(pod.Spec.Containers))
+	}
+	var editor *corev1.Container
+	for i := range pod.Spec.Containers {
+		if pod.Spec.Containers[i].Name == editorContainer {
+			editor = &pod.Spec.Containers[i]
+		}
+	}
+	if editor == nil {
+		t.Fatalf("the editor sidecar container %q was not appended", editorContainer)
+	}
+	// The editor mounts the workdir READ-ONLY.
+	var roWorkdir bool
+	for _, vm := range editor.VolumeMounts {
+		if vm.MountPath == "/workspace" && vm.ReadOnly {
+			roWorkdir = true
+		}
+	}
+	if !roWorkdir {
+		t.Errorf("the editor sidecar must re-mount the workdir read-only (structural read-only)")
+	}
+	// It is the SAME volume the workspace container writes (one Volume, two VolumeMounts).
+	wsVol := workdirVolumeName(pod, "/workspace")
+	if wsVol == "" || editor.VolumeMounts[0].Name != wsVol {
+		t.Errorf("the editor must re-mount the workspace's workdir volume %q, got %q", wsVol, editor.VolumeMounts[0].Name)
+	}
+	// The editor image + port are honored.
+	if editor.Image != "codercom/code-server" {
+		t.Errorf("editor image = %q, want the spec's", editor.Image)
+	}
+	if len(editor.Ports) != 1 || editor.Ports[0].ContainerPort != 8080 {
+		t.Errorf("editor must expose the served port 8080, got %v", editor.Ports)
+	}
+}
+
+// TestExposeEditorRoutesHostPerAgent proves Create routes the editor host-per-agent: a Service +
+// an Ingress whose host is "<agent-id>.editor.<domain>" (ADR-0027 §3), and the returned origin is
+// that host. The fake client records both objects in the namespace.
+func TestExposeEditorRoutesHostPerAgent(t *testing.T) {
+	t.Parallel()
+	client := newFakeClient()
+	adapter := fakeAdapter(client, "ns")
+	adapter.editorIngressDomain = "eden.example.com"
+	spec := testSpec("agent-7")
+	spec.Editor = &workspaceprovider.EditorSpec{Port: 8080}
+
+	data, err := adapter.Create(context.Background(), spec, workspaceprovider.Resolved{})
+	if err != nil {
+		t.Fatalf("Create(editor): %v", err)
+	}
+	wantHost := "agent-7.editor.eden.example.com"
+	if data.EditorOrigin != "http://"+wantHost {
+		t.Errorf("EditorOrigin = %q, want http://%s", data.EditorOrigin, wantHost)
+	}
+	ns := adapter.k8sNamespace("agent-7")
+	if _, ok := client.services[podKey(ns, editorServiceName())]; !ok {
+		t.Errorf("Create did not author the editor Service")
+	}
+	ing, ok := client.ingresses[podKey(ns, editorIngressName())]
+	if !ok {
+		t.Fatalf("Create did not author the editor Ingress")
+	}
+	if len(ing.Spec.Rules) != 1 || ing.Spec.Rules[0].Host != wantHost {
+		t.Errorf("Ingress host = %v, want %q", ing.Spec.Rules, wantHost)
+	}
+}
+
 func TestBuildResourcesIsGuaranteedQoS(t *testing.T) {
 	t.Parallel()
 	reqs, err := buildResources(workspaceprovider.Resources{CPUMilli: 500, MemoryBytes: 256 << 20, StorageBytes: 1 << 30})
