@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
-	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
 	"github.com/gophersys/libs/go/orchestrator"
 	"github.com/gophersys/libs/go/orchestrator/postgresstore"
 	"github.com/gophersys/libs/go/secrets"
@@ -213,14 +212,13 @@ func buildRealKubernetesService(t *testing.T, kubeconfig string) (service *orche
 			ReconcileInterval:    time.Hour, // the test drives Reconcile by hand; the timed loop never ticks
 			ProvisionTimeout:     k3dClusterTimeout,
 			LabelNamespace:       labelNamespace,
-			ClaudeBinary:         stub,
 		},
 		orchestratorservice.Deps{
 			DatabasePool:  pool,
 			Secrets:       provider,
 			Observability: discardProvider(t),
-			Transcript:    agentsessiontest.NewTranscript(),
-			Templates:     kubernetesTrivialTemplateStore{}, // the production Deps.Templates seam swaps ONLY the template source
+			Sessions:      supervisorPool(t, provider, stub), // the ONE injected pool over the stub claude binary
+			Templates:     kubernetesTrivialTemplateStore{},  // the production Deps.Templates seam swaps ONLY the template source
 		},
 	)
 	if err != nil {

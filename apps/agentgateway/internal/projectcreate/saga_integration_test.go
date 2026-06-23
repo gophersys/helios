@@ -35,6 +35,7 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
+	"github.com/gophersys/libs/go/agentsession/claudeadapter"
 	"github.com/gophersys/libs/go/forge"
 	"github.com/gophersys/libs/go/forge/githubadapter"
 	"github.com/gophersys/libs/go/gitrepository"
@@ -356,20 +357,47 @@ func buildRealOrchestrator(t *testing.T, provider *secretstest.Provider, dsn str
 			ReconcileInterval:    2 * time.Second,
 			ProvisionTimeout:     3 * time.Minute,
 			LabelNamespace:       namespace,
-			ClaudeBinary:         buildStubClaude(t),
 		},
 		orchestratorservice.Deps{
 			DatabasePool:  pool,
 			Secrets:       provider,
 			Observability: discardObservability(t),
-			Transcript:    agentsessiontest.NewTranscript(),
-			Templates:     supervisorBusyboxTemplateStore{}, // the production Deps.Templates seam: busybox in place of the heavy supervisor image
+			Sessions:      supervisorPool(t, provider, buildStubClaude(t)), // the ONE injected pool over the stub claude
+			Templates:     supervisorBusyboxTemplateStore{},                // busybox in place of the heavy supervisor image
 		},
 	)
 	if err != nil {
 		t.Fatalf("orchestratorservice.New: %v", err)
 	}
 	return service
+}
+
+// supervisorPool builds the ONE agentsession pool the composition root now injects into the
+// orchestratorservice (the supervisor opens through it): a claude adapter (binary "" == the real
+// `claude`, or a stub path) + the canonical supervisor route.
+//
+//nolint:ireturn // returns the agentsession.Factory port (the injected pool); the test hands it on unchanged.
+func supervisorPool(t *testing.T, provider *secretstest.Provider, binary string) agentsession.Factory {
+	t.Helper()
+	adapter, err := claudeadapter.New(claudeadapter.Config{Binary: binary})
+	if err != nil {
+		t.Fatalf("claudeadapter.New: %v", err)
+	}
+	sessions, err := agentsession.New(
+		agentsession.Config{Routing: map[agentsession.RouteKey]agentsession.Route{
+			orchestratorservice.SupervisorRouteKey(): {Harness: "claude-code", Model: ""},
+		}},
+		agentsession.Deps{
+			Adapters:   map[string]agentsession.Adapter{"claude-code": adapter},
+			Secrets:    provider,
+			Transcript: agentsessiontest.NewTranscript(),
+			Clock:      realClock{},
+		},
+	)
+	if err != nil {
+		t.Fatalf("build supervisor pool: %v", err)
+	}
+	return sessions
 }
 
 // buildRealClaudeOrchestrator composes the PRODUCTION orchestratorservice with the REAL claude binary
@@ -406,7 +434,7 @@ func buildRealClaudeOrchestrator(t *testing.T, provider *secretstest.Provider, d
 			DatabasePool:  pool,
 			Secrets:       provider,
 			Observability: discardObservability(t),
-			Transcript:    agentsessiontest.NewTranscript(),
+			Sessions:      supervisorPool(t, provider, ""), // the ONE injected pool over the REAL claude
 		},
 	)
 	if err != nil {

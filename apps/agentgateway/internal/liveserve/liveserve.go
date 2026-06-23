@@ -175,8 +175,12 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 	}
 	pool, err := agentsession.New(
 		agentsession.Config{
+			// ONE pool, both routes: the chat assistant AND the supervisor controller. The
+			// orchestratorservice opens the supervisor session through this SAME pool (Deps.Sessions),
+			// so the supervisor is reachable on the gateway's registry like any other session.
 			Routing: map[agentsession.RouteKey]agentsession.Route{
-				liveRouteKey(): {Harness: configuration.Harness, Model: configuration.Model},
+				liveRouteKey():                           {Harness: configuration.Harness, Model: configuration.Model},
+				orchestratorservice.SupervisorRouteKey(): {Harness: "claude-code", Model: ""},
 			},
 		},
 		agentsession.Deps{
@@ -220,7 +224,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 		supervisorService *orchestratorservice.Service
 	)
 	if configuration.createSagaConfigured() {
-		saga, service, sagaErr := buildCreateSaga(&configuration, provider, runLog, projectStore, createStepStore, clock)
+		saga, service, sagaErr := buildCreateSaga(&configuration, provider, pool, projectStore, createStepStore, clock)
 		if sagaErr != nil {
 			return nil, nil, sagaErr
 		}
@@ -281,7 +285,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 // returned Service's reconcile loop. The pool is process-lifetime (released on exit; the Service.Close
 // stops the loop first).
 func buildCreateSaga(
-	configuration *Config, provider secrets.Provider, runLog agentsession.Transcript,
+	configuration *Config, provider secrets.Provider, sessions agentsession.Factory,
 	projectStore gateway.ProjectStore, stepStore gateway.CreateStepStore, clock systemClock,
 ) (*projectcreate.Saga, *orchestratorservice.Service, error) {
 	ctx := context.Background()
@@ -320,7 +324,7 @@ func buildCreateSaga(
 			DatabasePool:  pool,
 			Secrets:       provider,
 			Observability: telemetry,
-			Transcript:    runLog,
+			Sessions:      sessions, // the gateway's ONE shared pool (carries the Transcript) — the supervisor opens through it
 		},
 	)
 	if err != nil {

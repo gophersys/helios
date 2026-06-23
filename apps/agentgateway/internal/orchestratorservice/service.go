@@ -7,7 +7,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gophersys/libs/go/agentsession"
-	"github.com/gophersys/libs/go/agentsession/claudeadapter"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/orchestrator"
@@ -57,10 +56,15 @@ func toOrchestratorSubstrate(s Substrate) orchestrator.Substrate {
 	return orchestrator.SubstrateDocker
 }
 
-// supervisorRouteKey is the route the claude Factory binds for the supervisor template (it MUST
-// match the template's Routing so agentsession.Open resolves an adapter). The model is the
-// account default for claude-code (empty Model == claude's own default), per the Opus directive.
+// supervisorRouteKey is the ONE canonical route the supervisor template + the composition root's
+// pool routing both cite (one concept, one home): the template's Routing MUST match it so
+// agentsession.Open resolves the adapter, and the gateway's shared pool MUST route it to claude-code
+// at the account-default model (empty Model == claude's own default, per the Opus directive).
 var supervisorRouteKey = agentsession.RouteKey{Phase: "supervise", Role: "supervisor"}
+
+// SupervisorRouteKey exposes the canonical supervisor RouteKey so the composition root adds the
+// matching route to the shared agentsession pool (it builds the pool now, not this service).
+func SupervisorRouteKey() agentsession.RouteKey { return supervisorRouteKey }
 
 // Config is the immutable, fully-resolved input for the docker-first orchestrator service (the
 // configuration pattern: read once at the edge by the command, frozen here). It holds NO ports,
@@ -106,10 +110,6 @@ type Config struct {
 	// LabelNamespace scopes this service's ownership domain (the eden.namespace label on docker,
 	// the namespace-name prefix on kubernetes); empty for single-tenant local.
 	LabelNamespace string
-	// ClaudeBinary names the claude CLI executable the session Factory spawns ("" == "claude").
-	// An integration harness points this at a trivial stub binary to exercise the real subprocess
-	// lifecycle without a live authenticated claude.
-	ClaudeBinary string
 }
 
 // Deps is the injected hexagon for the service (accept interfaces; New constructs the
@@ -127,9 +127,12 @@ type Deps struct {
 	// Observability is the telemetry plane the orchestrator emits its transition/limit/ledger
 	// events onto (mapped to PlaneAgent by the observabilityTelemetry shim). Required.
 	Observability observability.Provider
-	// Transcript is the durable replay log the agentsession.Pool appends harness events to (Seq ==
-	// transcript offset). Required (agentsession.New requires it).
-	Transcript agentsession.Transcript
+	// Sessions is the agentsession Factory the orchestrator opens agent sessions through — the SAME
+	// pool the gateway serves chat off, injected here so the live process runs ONE session pool, ONE
+	// routing table, ONE harness-adapter set (the supervisor + chat + sub-agents are all sessions in
+	// it). The composition root builds it with the routes it needs (assistant for chat, the
+	// supervise/supervisor key for the controller). Required.
+	Sessions agentsession.Factory
 
 	// Templates OPTIONALLY overrides the TemplateStore the orchestrator resolves a SpawnRequest's
 	// TemplateRef through. nil selects the built-in supervisor store (the production default,
@@ -151,9 +154,8 @@ type Deps struct {
 // lifecycle (Start/Close). Safe for concurrent use (the Pool is); zero value unusable —
 // construct via New.
 type Service struct {
-	pool        *orchestrator.Pool
-	provisioner *workspaceprovider.Provisioner
-	lease       Lease
+	pool  *orchestrator.Pool
+	lease Lease
 }
 
 // static assertions: the Service exposes exactly the orchestrator.Manager surface (the saga
@@ -210,11 +212,8 @@ func build(configuration Config, dependencies Deps, templates orchestrator.Templ
 		return nil, err
 	}
 
-	// ── Sessions: the agentsession Pool bound to the claude Factory ──
-	sessions, err := buildClaudeSessions(&configuration, &dependencies, clock)
-	if err != nil {
-		return nil, err
-	}
+	// ── Sessions: the ONE injected agentsession pool (the same one the gateway serves chat off) ──
+	sessions := dependencies.Sessions
 
 	pool, err := orchestrator.New(
 		orchestrator.Config{
@@ -247,7 +246,7 @@ func build(configuration Config, dependencies Deps, templates orchestrator.Templ
 	if lease == nil {
 		lease = dockerLease{} // docker single instance: always the leader
 	}
-	return &Service{pool: pool, provisioner: provisioner, lease: lease}, nil
+	return &Service{pool: pool, lease: lease}, nil
 }
 
 // Start launches the reconcile loop when THIS instance holds the lease (always true on docker:
@@ -403,34 +402,6 @@ func buildKubernetesProvisioner(configuration *Config, dependencies *Deps, clock
 // buildClaudeSessions builds the agentsession.Pool bound to the claude Factory — the harness the
 // orchestrator opens supervisor sessions through. The route table maps the supervisor RouteKey to
 // the claude-code adapter (the standing Opus directive; the account default model).
-func buildClaudeSessions(configuration *Config, dependencies *Deps, clock systemClock) (*agentsession.Pool, error) {
-	claudeAdapter, err := claudeadapter.New(claudeadapter.Config{Binary: configuration.ClaudeBinary})
-	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "orchestratorservice: build claude adapter", err)
-	}
-	sessions, err := agentsession.New(
-		agentsession.Config{
-			Routing: map[agentsession.RouteKey]agentsession.Route{
-				// Model is EMPTY on purpose: an empty Model makes claudeadapter omit --model, so the
-				// real claude uses its ACCOUNT-DEFAULT model (Opus, per the standing directive). The
-				// binary path lives in claudeadapter.Config.Binary (above), NEVER as the model id —
-				// passing ClaudeBinary here would feed a path to --model and real claude would reject it.
-				supervisorRouteKey: {Harness: "claude-code", Model: ""},
-			},
-		},
-		agentsession.Deps{
-			Adapters:   map[string]agentsession.Adapter{"claude-code": claudeAdapter},
-			Secrets:    dependencies.Secrets,
-			Transcript: dependencies.Transcript,
-			Clock:      clock,
-		},
-	)
-	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "orchestratorservice: build agentsession pool", err)
-	}
-	return sessions, nil
-}
-
 // validateDeps checks the required ports BEFORE any adapter is built, returning a wrapped
 // KindInvalid error naming the missing seam (never echoing a value), so a misconfigured service
 // fails at composition, never at the first verb.
@@ -442,8 +413,8 @@ func validateDeps(dependencies *Deps) error {
 		return errors.New(errors.KindInvalid, "orchestratorservice: Deps.Secrets is required (the per-spawn credential resolver)")
 	case dependencies.Observability == nil:
 		return errors.New(errors.KindInvalid, "orchestratorservice: Deps.Observability is required (the telemetry plane)")
-	case dependencies.Transcript == nil:
-		return errors.New(errors.KindInvalid, "orchestratorservice: Deps.Transcript is required (the agentsession replay log)")
+	case dependencies.Sessions == nil:
+		return errors.New(errors.KindInvalid, "orchestratorservice: Deps.Sessions is required (the shared agentsession pool)")
 	}
 	return nil
 }

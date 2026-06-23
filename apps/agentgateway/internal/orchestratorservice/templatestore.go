@@ -96,7 +96,7 @@ func (s supervisorTemplateStore) supervisorTemplate() orchestrator.AgentTemplate
 
 		// Role=supervisor -> agentconfiguration resolves {claude-code, opus} (the standing
 		// Opus directive). The orchestrator carries this key and never decides the model.
-		Routing: agentsession.RouteKey{Phase: "supervise", Role: "supervisor"},
+		Routing: supervisorRouteKey, // cite the one canonical key (service.go); the pool routes it to claude-code
 
 		Sandbox: orchestrator.SandboxSpec{
 			Substrate:   s.substrate,

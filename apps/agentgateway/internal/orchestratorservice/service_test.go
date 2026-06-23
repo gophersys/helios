@@ -10,11 +10,13 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
+	"github.com/gophersys/libs/go/agentsession/claudeadapter"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/observability/slogadapter"
 	"github.com/gophersys/libs/go/orchestrator"
 	"github.com/gophersys/libs/go/orchestrator/postgresstore"
+	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 
 	"github.com/gophersys/eden/apps/agentgateway/internal/orchestratorservice"
@@ -54,14 +56,43 @@ type stubClock struct{}
 
 func (stubClock) Now() time.Time { return time.Unix(0, 0).UTC() }
 
+// supervisorPool builds the ONE agentsession pool the composition root now injects (the supervisor
+// opens through it): a claude adapter (binary "" == the real `claude`, or a stub path) + the canonical
+// supervisor route. The service no longer builds its own pool — the test provides it like liveserve does.
+//
+//nolint:ireturn // returns the agentsession.Factory port (the injected pool); the test hands it on unchanged.
+func supervisorPool(t *testing.T, provider secrets.Provider, binary string) agentsession.Factory {
+	t.Helper()
+	adapter, err := claudeadapter.New(claudeadapter.Config{Binary: binary})
+	if err != nil {
+		t.Fatalf("claudeadapter.New: %v", err)
+	}
+	pool, err := agentsession.New(
+		agentsession.Config{Routing: map[agentsession.RouteKey]agentsession.Route{
+			orchestratorservice.SupervisorRouteKey(): {Harness: "claude-code", Model: ""},
+		}},
+		agentsession.Deps{
+			Adapters:   map[string]agentsession.Adapter{"claude-code": adapter},
+			Secrets:    provider,
+			Transcript: agentsessiontest.NewTranscript(),
+			Clock:      stubClock{},
+		},
+	)
+	if err != nil {
+		t.Fatalf("build supervisor pool: %v", err)
+	}
+	return pool
+}
+
 // validDeps builds a fully-wired Deps over fakes + a lazy pool — the happy composition input.
 func validDeps(t *testing.T) orchestratorservice.Deps {
 	t.Helper()
+	provider := secretstest.New(map[string]string{})
 	return orchestratorservice.Deps{
 		DatabasePool:  undialedPool(t),
-		Secrets:       secretstest.New(map[string]string{}),
+		Secrets:       provider,
 		Observability: discardObservability(t),
-		Transcript:    agentsessiontest.NewTranscript(),
+		Sessions:      supervisorPool(t, provider, ""),
 	}
 }
 
@@ -85,7 +116,7 @@ func TestNew_RejectsMissingDeps(t *testing.T) {
 		{"nil database pool", func(d *orchestratorservice.Deps) { d.DatabasePool = nil }},
 		{"nil secrets", func(d *orchestratorservice.Deps) { d.Secrets = nil }},
 		{"nil observability", func(d *orchestratorservice.Deps) { d.Observability = nil }},
-		{"nil transcript", func(d *orchestratorservice.Deps) { d.Transcript = nil }},
+		{"nil sessions", func(d *orchestratorservice.Deps) { d.Sessions = nil }},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
