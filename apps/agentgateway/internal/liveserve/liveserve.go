@@ -238,10 +238,11 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 
 	gw, err := gateway.New(
 		gateway.Config{
-			Credential: secrets.Ref(configuration.CredentialReference),
-			Routing:    liveRouteKey(),
-			Workspace:  configuration.Workspace,
-			Grants:     grants,
+			Credential:   secrets.Ref(configuration.CredentialReference),
+			Routing:      liveRouteKey(),
+			Workspace:    configuration.Workspace,
+			Grants:       grants,
+			OnPermission: alwaysAllowPermission,
 		},
 		gateway.Deps{
 			Manager:    manager,
@@ -428,6 +429,7 @@ func buildCreateSaga(
 			OrganizationID:         organizationID,
 			SupervisorReadyTimeout: 5 * time.Minute,
 			SupervisorPollInterval: 2 * time.Second,
+			OnPermission:           alwaysAllowPermission,
 		},
 		projectcreate.Deps{
 			Projects:            projectStore,
@@ -482,6 +484,19 @@ func DefaultCreateTemplate() (name, version string) {
 // template's routing.
 func liveRouteKey() agentsession.RouteKey {
 	return agentsession.RouteKey{Role: "assistant"}
+}
+
+// alwaysAllowPermission is the project-level "always allow" permission policy the live composition
+// injects by DEFAULT (the global option, default ON) into every spawned session — the chat sessions
+// (gateway.Config.OnPermission) and the supervisor (projectcreate.Config.OnPermission → the fold).
+// It auto-resolves EVERY out-of-grant tool request with an allow, so a live agent never stalls on a
+// permission prompt and the human-resolve round-trip (with its 5-minute timeout, the source of the
+// "unknown or already-resolved" 404) is never armed. This only removes the EDEN-side prompt: the agent's
+// in-container settings.json allowlist + its PreToolUse/gate-tool hooks remain the independent wall, so
+// auto-allowing at the agentsession layer is safe. A composition that wants the human-prompt chain back
+// simply passes nil (the field is the option's seam).
+func alwaysAllowPermission(_ agentsession.PermissionRequest) agentsession.Decision {
+	return agentsession.Decision{Allow: true, By: "policy:always-allow", Scope: agentsession.ScopeOnce}
 }
 
 // createSagaConfigured reports whether every field the create-saga needs is set, so POST /projects

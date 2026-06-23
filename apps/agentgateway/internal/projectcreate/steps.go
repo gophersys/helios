@@ -150,8 +150,12 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 		Workspace: workspaceDir,
 		// The supervisor's controller host-tools (commit-transition) — REPLACE the template's nil Hosts.
 		HostTools: hostTools,
-		By:        "projectcreate-saga",
-		Cluster:   s.configuration.SupervisorCluster,
+		// The project's permission policy (the always-allow default): auto-resolve out-of-grant tools so
+		// the supervisor never stalls on a prompt. nil == the human-prompt chain. The in-container hooks
+		// remain the wall.
+		OnPermission: s.configuration.OnPermission,
+		By:           "projectcreate-saga",
+		Cluster:      s.configuration.SupervisorCluster,
 	})
 	if err != nil {
 		return stepOutcome{}, edenerrors.Wrap(edenerrors.KindOf(err), "projectcreate: spawn supervisor", err)

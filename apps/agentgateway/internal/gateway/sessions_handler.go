@@ -234,10 +234,11 @@ func (g *Gateway) spawnRequest(request *createSessionRequest) orchestrator.Spawn
 // never holds the value. The AgentID is carried so the registry key matches the record.
 func (g *Gateway) openSpec(_ orchestrator.AgentID) agentsession.Spec {
 	return agentsession.Spec{
-		Workspace:  g.configuration.Workspace,
-		Routing:    g.configuration.Routing,
-		Grants:     g.configuration.Grants,
-		Credential: g.configuration.Credential,
+		Workspace:    g.configuration.Workspace,
+		Routing:      g.configuration.Routing,
+		Grants:       g.configuration.Grants,
+		Credential:   g.configuration.Credential,
+		OnPermission: g.configuration.OnPermission,
 	}
 }
 

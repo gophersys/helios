@@ -28,6 +28,7 @@ package projectcreate
 import (
 	"time"
 
+	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/orchestrator"
 	"github.com/gophersys/libs/go/secrets"
@@ -101,6 +102,13 @@ type Config struct {
 	// SupervisorPollInterval is the cadence step 4 re-Gets the agent record while waiting for ready.
 	// Zero == DefaultSupervisorPollInterval.
 	SupervisorPollInterval time.Duration
+
+	// OnPermission is the OPTIONAL synchronous permission policy threaded onto the supervisor's
+	// SpawnRequest.OnPermission (→ agentsession.Spec.OnPermission via the fold). nil == the human-prompt
+	// chain; a non-nil decider (the always-allow default the live composition injects) auto-resolves
+	// every out-of-grant request with no prompt/timeout. The supervisor's in-container settings.json +
+	// gate-tool hook remain the independent wall, so auto-allow at the Eden layer is safe.
+	OnPermission func(agentsession.PermissionRequest) agentsession.Decision
 }
 
 // DefaultSupervisorPollInterval is the step-4 readiness poll cadence when Config.SupervisorPollInterval

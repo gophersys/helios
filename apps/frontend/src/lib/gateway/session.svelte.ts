@@ -463,6 +463,16 @@ export class ChatSession {
     verdict: PermissionVerdict,
     scope: PermissionScope,
   ): Promise<void> {
+    // Idempotent per requestId: a second click (or a Svelte async-flush double-fire of the same
+    // permission card) must NOT re-POST — the backend is first-decision-wins, so a duplicate resolve
+    // 404s ("unknown or already-resolved"). Skip when this request is already in flight or decided; a
+    // FAILED resolve leaves decision='pending' + resolving=false (markResolving on the catch), so a real
+    // retry is still allowed.
+    const index = this.permissionIndex.get(requestId);
+    const current = index != null ? this.entries[index] : undefined;
+    if (current?.role === 'permission' && (current.permission.resolving || current.permission.decision !== 'pending')) {
+      return;
+    }
     this.markResolving(requestId, true);
     try {
       await this.client.resolve(this.id, requestId, verdict, scope);

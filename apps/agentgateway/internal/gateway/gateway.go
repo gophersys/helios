@@ -90,6 +90,13 @@ type Config struct {
 	// Spec.Grants (07 §3). Never a secret.
 	Grants []agentsession.ToolGrant
 
+	// OnPermission is the OPTIONAL synchronous permission policy folded into the opened session's
+	// Spec.OnPermission: a project-level decider for out-of-grant tools. nil == the human-prompt chain
+	// (an EventPermissionRequest the UI resolves, with a timeout). A non-nil decider (e.g. the
+	// always-allow default the live composition injects) auto-resolves every request with NO prompt and
+	// NO timeout — the in-harness settings.json + hooks remain the independent in-container wall.
+	OnPermission func(agentsession.PermissionRequest) agentsession.Decision
+
 	// MaxPageSize caps the session-list page size (REQ-0022). 0 == DefaultPageSize.
 	MaxPageSize int
 

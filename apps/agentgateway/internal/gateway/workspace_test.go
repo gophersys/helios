@@ -192,6 +192,55 @@ func TestWorkspaceFileReadsContentAndRejectsTraversal(t *testing.T) {
 	}
 }
 
+// TestWorkspaceSurfacesClaudeConfigButNotSecrets proves the ONE dot-directory the workspace surface
+// exposes — the agent's `.claude` operating manual (the live config view) — is listed AND readable,
+// while .git, .env, and Claude's secret-bearing settings.local.json stay blocked on BOTH the list and
+// the read. This is what lets the right panel show what the agent is instructed with without leaking a
+// credential surface.
+func TestWorkspaceSurfacesClaudeConfigButNotSecrets(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	// The agent's operating manual — what the user wants to SEE.
+	writeFile(t, filepath.Join(root, ".claude", "settings.json"), `{"permissions":{}}`)
+	writeFile(t, filepath.Join(root, ".claude", "instructions", "00-identity.md"), "# You are the supervisor")
+	writeFile(t, filepath.Join(root, ".claude", "state", "fsm.json"), `{"current_state":"init"}`)
+	// Secret / noise surfaces that MUST stay hidden.
+	writeFile(t, filepath.Join(root, ".claude", "settings.local.json"), "TOKEN=should-never-list")
+	writeFile(t, filepath.Join(root, ".git", "config"), "[core]")
+	writeFile(t, filepath.Join(root, ".env"), "SECRET=nope")
+	writeFile(t, filepath.Join(root, "main.go"), "package main")
+
+	server := newWorkspaceServer(t, root)
+
+	paths := getWorkspacePaths(t, server.URL+"/sessions/agent-x/workspace")
+	for _, want := range []string{".claude/settings.json", ".claude/instructions/00-identity.md", ".claude/state/fsm.json", "main.go"} {
+		if !containsString(paths, want) {
+			t.Errorf("expected %q in the listing (the .claude manual must be surfaced), got %v", want, paths)
+		}
+	}
+	for _, absent := range []string{".claude/settings.local.json", ".git/config", ".env"} {
+		if containsString(paths, absent) {
+			t.Errorf("path %q must NOT appear (secret/.git/.env stay blocked), got %v", absent, paths)
+		}
+	}
+
+	fileURL := func(path string) string { return server.URL + "/sessions/agent-x/workspace/file?path=" + path }
+	// A .claude manual file reads back as text.
+	status, body := getWorkspace(t, fileURL(".claude/state/fsm.json"))
+	if status != http.StatusOK {
+		t.Fatalf("reading .claude/state/fsm.json: status %d (%v)", status, body)
+	}
+	if text, ok := body["text"].(string); !ok || !strings.Contains(text, "current_state") {
+		t.Errorf("the .claude config file did not read back: %v", body)
+	}
+	// The secret local-override + .git stay refused on the read too (never 200).
+	for _, bad := range []string{".claude/settings.local.json", ".git/config", ".env"} {
+		if s, b := getWorkspace(t, fileURL(bad)); s == http.StatusOK {
+			t.Errorf("reading %q must be refused, got 200 (%v)", bad, b)
+		}
+	}
+}
+
 // getWorkspace GETs the workspace route and returns the status + decoded body.
 func getWorkspace(t *testing.T, url string) (status int, body map[string]any) {
 	t.Helper()

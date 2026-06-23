@@ -119,10 +119,34 @@ func (g *Gateway) handleWorkspaceFile(w http.ResponseWriter, r *http.Request) {
 	g.writeJSON(w, http.StatusOK, workspaceFileContent{Path: filepath.ToSlash(rel), Text: text, Kind: kind, Truncated: truncated})
 }
 
+// surfacedConfigDir is the ONE dot-directory the workspace surface DOES expose: the agent's `.claude`
+// operating manual (settings.json, commands/*, instructions/*, schemas/*, state/fsm.json) — what the
+// agent is instructed with, rendered live in the right-panel config view. Every OTHER dotfile/dot-dir
+// (.git, .env, .cache, the .ratified markers) stays pruned.
+const surfacedConfigDir = ".claude"
+
+// secretConfigFile is the one name under .claude that must NEVER be served: Claude Code's local-override
+// settings file, which may carry a token. It is skipped on BOTH the listing and the read, so opening up
+// .claude leaks no credential surface (the resolved credential itself never touches .claude — it is
+// injected into the child env server-side).
+const secretConfigFile = "settings.local.json"
+
+// isPrunedDotEntry reports whether a path SEGMENT (a dir or file name) must be pruned from the workspace
+// surface: any dotfile/dot-dir EXCEPT the surfaced `.claude` manual, plus the secret local-override file
+// anywhere. The `.claude` manual is exposed; everything else dot-prefixed (and settings.local.json) stays
+// blocked — the same rule the listing prune and the read guard both apply, so they cannot diverge.
+func isPrunedDotEntry(name string) bool {
+	if name == secretConfigFile {
+		return true
+	}
+	return strings.HasPrefix(name, ".") && name != surfacedConfigDir
+}
+
 // safeWorkspacePath joins rel onto root and verifies the result is a REGULAR file that provably
-// stays inside root (no absolute rel, no ".." escape, no dotfile/.git segment) — the same traversal
-// + secret-surface guard the listing applies. A path that escapes or names a dot/.git segment is a
-// typed RequestError (KindInvalid → 400); a non-regular target is KindInvalid too.
+// stays inside root (no absolute rel, no ".." escape, no pruned dotfile/.git/secret segment) — the same
+// traversal + secret-surface guard the listing applies, including the `.claude` allowance. A path that
+// escapes or names a pruned segment is a typed RequestError (KindInvalid → 400); a non-regular target
+// is KindInvalid too.
 func safeWorkspacePath(root, rel string) (string, error) {
 	cleanRel := filepath.Clean(filepath.FromSlash(rel))
 	if filepath.IsAbs(cleanRel) || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(filepath.Separator)) {
@@ -130,9 +154,9 @@ func safeWorkspacePath(root, rel string) (string, error) {
 			RequestError{Reason: "path escapes the workspace root"})
 	}
 	for _, segment := range strings.Split(filepath.ToSlash(cleanRel), "/") {
-		if strings.HasPrefix(segment, ".") {
+		if isPrunedDotEntry(segment) {
 			return "", errors.Wrap(errors.KindInvalid, "gateway: workspace file",
-				RequestError{Reason: "dotfiles and .git are not served"})
+				RequestError{Reason: "dotfiles, .git, and local secrets are not served"})
 		}
 	}
 	absolute := filepath.Join(filepath.Clean(root), cleanRel)
@@ -197,9 +221,10 @@ func collectWorkspaceFile(cleanRoot, path string, entry fs.DirEntry, err error, 
 		return nil //nolint:nilerr // a per-entry stat fault (or a missing root) is skipped, not fatal — the listing is best-effort ground truth.
 	}
 	name := entry.Name()
-	if path != cleanRoot && strings.HasPrefix(name, ".") {
-		// Skip dotfiles and dot-directories (.git, .cache, …) — noise and a
-		// secret-bearing surface; pruning the directory avoids walking into it.
+	if path != cleanRoot && isPrunedDotEntry(name) {
+		// Skip dotfiles and dot-directories (.git, .cache, the secret local-override) — noise + a
+		// secret-bearing surface; pruning the directory avoids walking into it. The agent's `.claude`
+		// operating manual is the one dot-dir surfaced (the config view), so it is NOT pruned here.
 		if entry.IsDir() {
 			return fs.SkipDir
 		}
