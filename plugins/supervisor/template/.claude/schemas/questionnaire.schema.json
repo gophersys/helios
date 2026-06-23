@@ -14,18 +14,24 @@
       "description": "The ordered questions. The array order becomes the NN filename prefix (01-, 02-, …), giving a stable presentation order in the wizard.",
       "items": {
         "type": "object",
-        "required": ["id", "prompt"],
+        "required": ["id"],
+        "anyOf": [{ "required": ["prompt"] }, { "required": ["text"] }],
         "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9-]*$",
-            "description": "Stable lowercase-kebab slug for the question; the filename stem (under its 2-digit order prefix). Full words, no abbreviations (HNS-1). The answer is recorded under the SAME slug in init/product/answers/, so the slug is the question-to-answer join key."
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "Stable lowercase-kebab slug for the question; the filename stem (under its 2-digit order prefix). The answer is recorded under the SAME slug in init/product/answers/, so the slug is the question-to-answer join key."
           },
           "prompt": {
             "type": "string",
-            "minLength": 10,
-            "description": "The question text shown to the human verbatim — the entire file body. One focused product-scoping question."
+            "minLength": 8,
+            "description": "The question text shown to the human verbatim — the entire file body. One focused product-scoping question. (`text` is accepted as an alias.)"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 8,
+            "description": "Alias for `prompt` — the question text. Supply EITHER prompt or text."
           }
         }
       }

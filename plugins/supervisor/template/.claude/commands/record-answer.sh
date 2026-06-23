@@ -25,8 +25,13 @@ sv_assert_legal    "$TRANSITION"
 sv_assert_guard    "$TRANSITION"
 sv_validate_schema "answer" "$PAYLOAD"
 
-question="$(printf '%s' "$PAYLOAD" | jq -r '.question')"
-answer="$(printf '%s' "$PAYLOAD" | jq -r '.answer')"
+# question is the question slug being answered; answer is the recorded text. Accept `text` /
+# `response` as aliases for `answer` (a model commonly emits either); a blank answer is a HARD
+# error so the wizard never renders "null" as the recorded answer.
+question="$(printf '%s' "$PAYLOAD" | jq -r '.question // empty')"
+[[ -n "$question" ]] || sv_die "record-answer payload has no question slug."
+answer="$(printf '%s' "$PAYLOAD" | jq -r '.answer // .text // .response // empty')"
+[[ -n "$answer" ]] || sv_die "record-answer payload for '$question' has no answer/text."
 ARTIFACT="init/product/answers/${question}.md"
 
 sv_write_text_artifact "$ARTIFACT" "$answer"

@@ -33,9 +33,14 @@ count="$(printf '%s' "$PAYLOAD" | jq -r '.questions | length')"
 
 i=0
 while [[ "$i" -lt "$count" ]]; do
-  qid="$(printf '%s' "$PAYLOAD" | jq -r --argjson i "$i" '.questions[$i].id')"
-  prompt="$(printf '%s' "$PAYLOAD" | jq -r --argjson i "$i" '.questions[$i].prompt')"
+  # id is the slug stem; prompt is the question text. Accept `text` as an alias for `prompt`
+  # (a model commonly emits either) and a missing/blank id falls back to the ordinal — but a
+  # blank question body is a HARD error: it must never write "null" as the rendered question.
   ord="$(printf '%02d' "$((i + 1))")"
+  qid="$(printf '%s' "$PAYLOAD" | jq -r --argjson i "$i" '.questions[$i].id // empty')"
+  [[ -n "$qid" ]] || qid="q${ord}"
+  prompt="$(printf '%s' "$PAYLOAD" | jq -r --argjson i "$i" '.questions[$i].prompt // .questions[$i].text // empty')"
+  [[ -n "$prompt" ]] || sv_die "question $ord (id: $qid) has no prompt/text — the questionnaire payload is malformed."
   rel="init/product/questionnaire/${ord}-${qid}.md"
   sv_write_text_artifact "$rel" "$prompt"
   printf 'wrote question %s: %s\n' "$ord" "$rel"
