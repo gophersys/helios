@@ -3,6 +3,7 @@ package dockeradapter
 import (
 	"context"
 	"io"
+	"strconv"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -126,6 +127,43 @@ func (a *Adapter) CountOwned(ctx context.Context) (int, error) {
 	return len(summaries), nil
 }
 
+// EditorContainerForTest returns the deterministic NAME of the read-only editor SIBLING for the
+// workspace named by handle (so a test can `docker exec` into it to prove the `:ro` share is
+// STRUCTURAL — a write from the editor side fails EROFS), plus its NETWORK-REACHABLE address
+// (the editor container's own bridge IP + served port). The IP:port is the address reachable from
+// a SIBLING container on the same daemon (e.g. the devcontainer the test runs in), which the
+// editorOrigin's published `127.0.0.1:<host-port>` is NOT — a published port is reachable from the
+// docker HOST, not from a peer container. Test-support only (ADR-0027 editor integration).
+func (a *Adapter) EditorContainerForTest(ctx context.Context, handle workspaceprovider.Handle, editor *workspaceprovider.EditorSpec) (name, endpoint string, err error) {
+	name = editorContainerName(a.namespace, handle.Name())
+	inspect, ierr := a.client.ContainerInspect(ctx, name)
+	if ierr != nil {
+		return name, "", classifyDockerError("inspect editor sibling", ierr)
+	}
+	// Read the editor's bridge IP from NetworkSettings.Networks (the per-network EndpointSettings —
+	// the non-deprecated source; the flat NetworkSettings.IPAddress is removed in docker SDK v29).
+	for _, ip := range inspectNetworkIPs(inspect) {
+		return name, ip + ":" + strconv.Itoa(editorPort(editor)), nil
+	}
+	return name, "", &workspaceprovider.IsolationError{Detail: "editor sibling has no reachable IP"}
+}
+
+// inspectNetworkIPs returns the per-network IPv4 addresses the editor sibling is attached to, read
+// from NetworkSettings.Networks (the EndpointSettings the docker SDK keys per attached network — the
+// non-deprecated successor to the flat NetworkSettings.IPAddress field).
+func inspectNetworkIPs(inspect container.InspectResponse) []string {
+	if inspect.NetworkSettings == nil {
+		return nil
+	}
+	out := make([]string, 0, len(inspect.NetworkSettings.Networks))
+	for _, n := range inspect.NetworkSettings.Networks {
+		if n != nil && n.IPAddress != "" {
+			out = append(out, n.IPAddress)
+		}
+	}
+	return out
+}
+
 // ContainerEnvForTest returns the hold container's PERSISTED environment (ContainerInspect's
 // Config.Env) for the workspace named by handle. The real-injection canary scan (finding #4) asserts
 // a VehicleEnv workload credential never lands here — the value rides the TRANSIENT exec child, not
@@ -137,7 +175,9 @@ func (a *Adapter) ContainerEnvForTest(ctx context.Context, handle workspaceprovi
 		return nil, classifyDockerError("inspect container env", err)
 	}
 	if inspect.Config == nil {
-		return nil, nil
+		// A container with no Config carries no environment — an explicit empty result, not a stub
+		// (the empty slice is the faithful "no env" answer the canary scan ranges over harmlessly).
+		return []string{}, nil
 	}
 	return inspect.Config.Env, nil
 }

@@ -10,9 +10,10 @@ import (
 
 // harnessConfig is the resolved option set the real-substrate spinners read.
 type harnessConfig struct {
-	perTest       bool
-	prePullImages []string
-	keepOnFailure bool
+	perTest             bool
+	prePullImages       []string
+	keepOnFailure       bool
+	editorIngressDomain string
 }
 
 // HarnessOption tunes a real-substrate harness.
@@ -31,6 +32,14 @@ func WithImages(refs ...string) HarnessOption {
 
 // KeepOnFailure skips Cleanup when the test failed (debugging).
 func KeepOnFailure() HarnessOption { return func(c *harnessConfig) { c.keepOnFailure = true } }
+
+// WithEditorIngressDomain configures the kubernetes adapter the cluster harness binds with a
+// wildcard editor ingress domain, so a spec.Editor authors the host-per-agent editor Ingress
+// "<agent-id>.editor.<domain>" (ADR-0027 §3) — the editor-sidecar integration test asserts that
+// Ingress OBJECT exists on the live cluster. No effect on the docker harness (docker has no Ingress).
+func WithEditorIngressDomain(domain string) HarnessOption {
+	return func(c *harnessConfig) { c.editorIngressDomain = domain }
+}
 
 // resolveOptions folds the options into a config.
 func resolveOptions(opts ...HarnessOption) harnessConfig {
@@ -163,6 +172,57 @@ func KindCluster(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter 
 	return bindCluster(t, cluster, configuration)
 }
 
+// ClusterAccess carries the raw handles a test needs to reach a just-spun ephemeral cluster
+// OUTSIDE the Adapter port — the isolated Kubeconfig path (so a `kubectl exec` lands on THIS
+// cluster, never the developer's ~/.kube/config) and the cluster Name (for diagnostics). The
+// editor-sidecar integration test (ADR-0027) uses it to `kubectl exec` into the read-only editor
+// CONTAINER (which the Connection.Exec port intentionally cannot target — it only execs the
+// workspace container) to reach the editor over the pod-localhost and to prove the read-only mount
+// STRUCTURALLY (a write from the editor side fails EROFS).
+type ClusterAccess struct {
+	Kubeconfig string
+	Name       string
+}
+
+// K3dClusterForEditor is K3dCluster plus the cluster's ClusterAccess (kubeconfig + name), so the
+// editor-sidecar integration test can `kubectl exec` into the editor container — the one reach the
+// Adapter's Connection.Exec port does not offer (it execs the workspace container only). The
+// cluster + its namespaces are reaped on t.Cleanup exactly as K3dCluster. SKIPS when k3d/docker is
+// unavailable.
+//
+//nolint:ireturn // the harness vends the workspaceprovider.Adapter port; returning the port IS the contract.
+func K3dClusterForEditor(t *testing.T, opts ...HarnessOption) (workspaceprovider.Adapter, ClusterAccess) {
+	t.Helper()
+	configuration := resolveOptions(opts...)
+	if !k3dAvailable() {
+		t.Skip("k3d or docker unavailable, skipping editor-sidecar conformance (the k3d binding needs both)")
+	}
+	cluster, err := createK3dCluster(t.Context(), configuration.prePullImages)
+	if err != nil {
+		t.Skipf("k3d cluster create unavailable, skipping: %v", err)
+	}
+	return bindCluster(t, cluster, configuration), ClusterAccess{Kubeconfig: cluster.Kubeconfig, Name: cluster.Name}
+}
+
+// KindClusterForEditor is KindCluster plus the cluster's ClusterAccess. kind ships NO ingress
+// controller, so the editor test asserts at the Service / pod-exec layer on kind (never the
+// Ingress) and encodes that divergence honestly (ADR-0012 CapStatus), never a silent skip. SKIPS
+// when kind/docker is unavailable.
+//
+//nolint:ireturn // the harness vends the workspaceprovider.Adapter port; returning the port IS the contract.
+func KindClusterForEditor(t *testing.T, opts ...HarnessOption) (workspaceprovider.Adapter, ClusterAccess) {
+	t.Helper()
+	configuration := resolveOptions(opts...)
+	if !kindAvailable() {
+		t.Skip("kind or docker unavailable, skipping editor-sidecar conformance (the kind binding needs both)")
+	}
+	cluster, err := createKindCluster(t.Context(), configuration.prePullImages)
+	if err != nil {
+		t.Skipf("kind cluster create unavailable, skipping: %v", err)
+	}
+	return bindCluster(t, cluster, configuration), ClusterAccess{Kubeconfig: cluster.Kubeconfig, Name: cluster.Name}
+}
+
 // bindCluster binds the REAL kubernetesadapter to the just-created ephemeral cluster, registers
 // the cluster-delete + namespace-reap on t.Cleanup (on failure too — a leaked cluster is
 // unacceptable, C23), and returns the adapter as the Adapter port. The cluster-delete is the
@@ -193,6 +253,10 @@ func bindCluster(t *testing.T, cluster *ephemeralCluster, configuration harnessC
 		}
 		t.Fatalf("bind kubernetes adapter to cluster %q: %v", cluster.Name, err)
 	}
+	// Post-New setter (the ephemeral test seam): when the harness was given an editor ingress domain,
+	// a spec.Editor then authors the host-per-agent Ingress (ADR-0027 §3) — kept off the frozen
+	// EphemeralClusterConfig (by-value) so its size stays small.
+	adapter.WithEditorIngressDomain(configuration.editorIngressDomain)
 	t.Cleanup(func() {
 		if rerr := reap(); rerr != nil {
 			t.Errorf("reap namespaces on cluster %q: %v", cluster.Name, rerr)

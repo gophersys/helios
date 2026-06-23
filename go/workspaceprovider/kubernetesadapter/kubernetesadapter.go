@@ -219,6 +219,18 @@ func (a *Adapter) WithDistro(distro string) *Adapter {
 	return a
 }
 
+// WithEditorIngressDomain sets the wildcard editor ingress domain after construction (the
+// ephemeral-cluster test seam, mirroring WithDistro): a spec.Editor then authors the host-per-agent
+// editor Ingress "<agent-id>.editor.<domain>" (ADR-0027 §3). It is the post-New setter the test
+// harness drives so the frozen Config-by-value EphemeralClusterConfig need not grow a field; the
+// production path sets EditorIngressDomain on Config at New. An empty domain is a no-op (no Ingress).
+func (a *Adapter) WithEditorIngressDomain(domain string) *Adapter {
+	if domain != "" {
+		a.editorIngressDomain = domain
+	}
+	return a
+}
+
 // ownerLabels builds the label set every authored namespace/pod carries.
 func (a *Adapter) ownerLabels(spec *workspaceprovider.WorkspaceSpec) map[string]string {
 	labels := map[string]string{

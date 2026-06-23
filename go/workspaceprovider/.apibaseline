@@ -108,10 +108,13 @@ type Config struct{ ... }
 type EphemeralClusterConfig struct{ ... }
 type ExecRequest struct{ ... }
 ## github.com/gophersys/libs/go/workspaceprovider/workspaceprovidertest
+    func K3dClusterForEditor(t *testing.T, opts ...HarnessOption) (workspaceprovider.Adapter, ClusterAccess)
     func K3dClusterWithRegistry(t *testing.T, baseImage string, opts ...HarnessOption) (workspaceprovider.Adapter, *LocalRegistry)
     func KeepOnFailure() HarnessOption
+    func KindClusterForEditor(t *testing.T, opts ...HarnessOption) (workspaceprovider.Adapter, ClusterAccess)
     func NewAdapter(caps ...workspaceprovider.Capability) *Adapter
     func NewLocalRegistry(ctx context.Context, baseImage string) (*LocalRegistry, error)
+    func WithEditorIngressDomain(domain string) HarnessOption
     func WithImages(refs ...string) HarnessOption
     func WithPerTest() HarnessOption
 const SeededCanary = "S3CR3T-canary-do-not-leak"
@@ -124,6 +127,7 @@ func KindCluster(t *testing.T, opts ...HarnessOption) workspaceprovider.Adapter
 func ProviderSuite() edentesting.Suite[workspaceprovider.Adapter]
 func RunProviderSuite(t *testing.T, ...)
 type Adapter struct{ ... }
+type ClusterAccess struct{ ... }
 type HarnessOption func(*harnessConfig)
 type LocalRegistry struct{ ... }
 type TestingT interface{ ... }
