@@ -322,6 +322,12 @@ func (s *Service) Session(id orchestrator.AgentID) (agentsession.Session, bool) 
 	return s.pool.Session(id)
 }
 
+// Workspace returns the materialized host working directory a live agent's session was opened with
+// (e.g. a supervisor's cloned-repo CWD) so the gateway can serve a per-{id} workspace listing/read.
+func (s *Service) Workspace(id orchestrator.AgentID) (string, bool) {
+	return s.pool.Workspace(id)
+}
+
 // defaultCluster picks the ClusterRef a zero-Cluster SpawnRequest resolves to for the
 // Config-selected substrate: the local docker daemon on docker, the local k3d cluster on
 // kubernetes. It is the Config.DefaultCluster the Pool folds at Spawn (ADR-0012); a Spawn naming

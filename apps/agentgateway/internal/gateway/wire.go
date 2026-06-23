@@ -139,6 +139,17 @@ type workspaceFileView struct {
 	ModifiedUnix int64  `json:"modifiedUnix"`
 }
 
+// workspaceFileContent is the body of GET /sessions/{id}/workspace/file?path= — the content of one
+// workspace file the UI viewer renders. Kind is "text" (Text holds the UTF-8 content) or "binary"
+// (Text empty); Truncated marks a read clipped at the size cap. No field can hold a credential
+// (.git + dotfiles are refused by the handler).
+type workspaceFileContent struct {
+	Path      string `json:"path"`
+	Text      string `json:"text"`
+	Kind      string `json:"kind"`
+	Truncated bool   `json:"truncated"`
+}
+
 // ── the SSE event projection (REQ-0024) ──────────────────────────────────────.
 
 // eventView is the JSON `data:` payload of one SSE frame — a redaction-safe projection of

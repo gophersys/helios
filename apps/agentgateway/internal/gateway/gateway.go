@@ -123,6 +123,10 @@ type LiveSessions interface {
 	// cheap in-memory lookup; the gateway calls it per request (no caching) so a reaped agent's
 	// handle is never served stale.
 	Session(id orchestrator.AgentID) (agentsession.Session, bool)
+	// Workspace returns the materialized host working directory the agent's session runs in (e.g. a
+	// supervisor's cloned-repo CWD), so the gateway serves a per-{id} workspace listing/read instead
+	// of the single Config.Workspace. Empty/(false) when the agent has no host workspace.
+	Workspace(id orchestrator.AgentID) (string, bool)
 }
 
 // Deps is the injected hexagon. New constructs no ports; everything the gateway touches

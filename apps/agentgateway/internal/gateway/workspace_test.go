@@ -152,6 +152,46 @@ func newWorkspaceServer(t *testing.T, dir string) *httptest.Server {
 	return server
 }
 
+// TestWorkspaceFileReadsContentAndRejectsTraversal proves GET /sessions/{id}/workspace/file?path=
+// returns a file's UTF-8 content under the workspace root and REFUSES traversal, dotfiles, and .git
+// — the read-side complement of the listing's no-escape guarantee.
+func TestWorkspaceFileReadsContentAndRejectsTraversal(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "init", "product", "questionnaire", "01-scope.md"), "# Scope\nWhat is in scope?")
+	writeFile(t, filepath.Join(root, ".env"), "SECRET=nope")
+	writeFile(t, filepath.Join(root, ".git", "config"), "[core]")
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "leaked.txt"), "TOP SECRET")
+
+	server := newWorkspaceServer(t, root)
+	// The test paths carry no chars needing percent-encoding (`..`, `/`, `-`, `.` are query-safe).
+	fileURL := func(path string) string {
+		return server.URL + "/sessions/agent-x/workspace/file?path=" + path
+	}
+
+	// A real file reads back as text.
+	status, body := getWorkspace(t, fileURL("init/product/questionnaire/01-scope.md"))
+	if status != http.StatusOK {
+		t.Fatalf("read file: status %d (%v)", status, body)
+	}
+	text, ok := body["text"].(string)
+	if !ok || body["kind"] != "text" || !strings.Contains(text, "What is in scope?") {
+		t.Fatalf("file content wrong: %v", body)
+	}
+
+	// Traversal, dotfiles, and .git are refused (never 200).
+	for _, bad := range []string{"../../etc/passwd", "../" + filepath.Base(outside) + "/leaked.txt", ".env", ".git/config", "init/../.env"} {
+		if s, b := getWorkspace(t, fileURL(bad)); s == http.StatusOK {
+			t.Fatalf("path %q must be refused, got 200 (%v)", bad, b)
+		}
+	}
+	// A missing path query is a 400.
+	if s, _ := getWorkspace(t, server.URL+"/sessions/agent-x/workspace/file"); s != http.StatusBadRequest {
+		t.Errorf("missing path: status %d, want 400", s)
+	}
+}
+
 // getWorkspace GETs the workspace route and returns the status + decoded body.
 func getWorkspace(t *testing.T, url string) (status int, body map[string]any) {
 	t.Helper()

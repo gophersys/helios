@@ -47,6 +47,7 @@ func (g *Gateway) routes() *http.ServeMux {
 	mux.HandleFunc("GET /sessions/{id}/events", g.handleEvents)
 	mux.HandleFunc("GET /sessions/{id}/transcript", g.handleTranscript)
 	mux.HandleFunc("GET /sessions/{id}/workspace", g.handleWorkspace)
+	mux.HandleFunc("GET /sessions/{id}/workspace/file", g.handleWorkspaceFile)
 	mux.HandleFunc("GET /healthz", g.handleHealth)
 
 	return mux

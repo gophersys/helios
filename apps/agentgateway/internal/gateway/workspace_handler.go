@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	stderrors "errors"
 
 	"github.com/gophersys/libs/go/errors"
+	"github.com/gophersys/libs/go/orchestrator"
 )
 
 // maxWorkspaceFiles caps the workspace listing so a runaway generation (a node_modules
@@ -34,10 +36,10 @@ const maxWorkspaceFiles = 500
 // traversal can leak a path outside the workspace). The body carries only a path, a size,
 // and a mtime; no field can hold a credential.
 func (g *Gateway) handleWorkspace(w http.ResponseWriter, r *http.Request) {
-	root := strings.TrimSpace(g.configuration.Workspace)
-	if root == "" {
+	root, ok := g.resolveWorkspaceRoot(orchestrator.AgentID(r.PathValue("id")))
+	if !ok {
 		g.writeError(w, errors.Wrap(errors.KindUnavailable, "gateway: workspace",
-			RequestError{Reason: "no workspace root is configured for this gateway"}))
+			RequestError{Reason: "no workspace root for this session"}))
 		return
 	}
 
@@ -47,6 +49,99 @@ func (g *Gateway) handleWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g.writeJSON(w, http.StatusOK, workspaceResponse{Files: files})
+}
+
+// resolveWorkspaceRoot returns the workspace root for a session id: the agent's OWN materialized
+// host workspace (a project supervisor's cloned-repo CWD) via the LiveSessions seam, else the
+// gateway's single configured Workspace (the live-local chat harness CWD). This is what makes the
+// supervisor's /sessions/{id}/workspace serve ITS project files, not the chat workspace.
+func (g *Gateway) resolveWorkspaceRoot(id orchestrator.AgentID) (string, bool) {
+	if g.dependencies.LiveSessions != nil {
+		if root, ok := g.dependencies.LiveSessions.Workspace(id); ok && strings.TrimSpace(root) != "" {
+			return root, true
+		}
+	}
+	if root := strings.TrimSpace(g.configuration.Workspace); root != "" {
+		return root, true
+	}
+	return "", false
+}
+
+// maxWorkspaceFileBytes caps a single file read so a giant artifact can neither exhaust the
+// response nor stall the UI; a larger file is returned truncated with the kind flagged.
+const maxWorkspaceFileBytes = 1 << 20 // 1 MiB
+
+// handleWorkspaceFile serves GET /sessions/{id}/workspace/file?path=<rel> — the CONTENT of one file
+// under the session's workspace root (the wizard reads the supervisor's generated init/product/*
+// artifacts this way). The path is validated to stay WITHIN the root (no absolute, no ".." escape,
+// no dotfile/.git), the file is read up to a 1 MiB cap, and the body carries {path, text, kind}:
+// kind is "text" for valid-UTF-8 content (returned in text) or "binary" (text empty). No field can
+// hold a credential — .git and dotfiles are refused.
+func (g *Gateway) handleWorkspaceFile(w http.ResponseWriter, r *http.Request) {
+	id := orchestrator.AgentID(r.PathValue("id"))
+	rel := strings.TrimSpace(r.URL.Query().Get("path"))
+	if rel == "" {
+		g.writeError(w, errors.Wrap(errors.KindInvalid, "gateway: workspace file",
+			RequestError{Reason: "the path query parameter is required"}))
+		return
+	}
+	root, ok := g.resolveWorkspaceRoot(id)
+	if !ok {
+		g.writeError(w, errors.Wrap(errors.KindUnavailable, "gateway: workspace file",
+			RequestError{Reason: "no workspace root for this session"}))
+		return
+	}
+
+	absolute, readErr := safeWorkspacePath(root, rel)
+	if readErr != nil {
+		g.writeError(w, readErr)
+		return
+	}
+	// #nosec G304 -- absolute is verified by safeWorkspacePath to be a regular file WITHIN the
+	// resolved workspace root (no absolute path, no ".." escape, no dotfile/.git), not request input.
+	data, err := os.ReadFile(absolute)
+	if err != nil {
+		g.writeError(w, errors.Wrap(errors.KindNotFound, "gateway: workspace file",
+			RequestError{Reason: "the file could not be read"}))
+		return
+	}
+	truncated := false
+	if len(data) > maxWorkspaceFileBytes {
+		data = data[:maxWorkspaceFileBytes]
+		truncated = true
+	}
+	kind := "text"
+	text := string(data)
+	if !utf8.Valid(data) {
+		kind = "binary"
+		text = ""
+	}
+	g.writeJSON(w, http.StatusOK, workspaceFileContent{Path: filepath.ToSlash(rel), Text: text, Kind: kind, Truncated: truncated})
+}
+
+// safeWorkspacePath joins rel onto root and verifies the result is a REGULAR file that provably
+// stays inside root (no absolute rel, no ".." escape, no dotfile/.git segment) — the same traversal
+// + secret-surface guard the listing applies. A path that escapes or names a dot/.git segment is a
+// typed RequestError (KindInvalid → 400); a non-regular target is KindInvalid too.
+func safeWorkspacePath(root, rel string) (string, error) {
+	cleanRel := filepath.Clean(filepath.FromSlash(rel))
+	if filepath.IsAbs(cleanRel) || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(filepath.Separator)) {
+		return "", errors.Wrap(errors.KindInvalid, "gateway: workspace file",
+			RequestError{Reason: "path escapes the workspace root"})
+	}
+	for _, segment := range strings.Split(filepath.ToSlash(cleanRel), "/") {
+		if strings.HasPrefix(segment, ".") {
+			return "", errors.Wrap(errors.KindInvalid, "gateway: workspace file",
+				RequestError{Reason: "dotfiles and .git are not served"})
+		}
+	}
+	absolute := filepath.Join(filepath.Clean(root), cleanRel)
+	info, statErr := os.Stat(absolute)
+	if statErr != nil || !info.Mode().IsRegular() {
+		return "", errors.Wrap(errors.KindNotFound, "gateway: workspace file",
+			RequestError{Reason: "no such file in the workspace"})
+	}
+	return absolute, nil
 }
 
 // listWorkspaceFiles walks root and returns every regular file beneath it as a
