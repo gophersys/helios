@@ -73,18 +73,21 @@ func (s supervisorTemplateStore) supervisorTemplate() orchestrator.AgentTemplate
 			{Name: "supervisor-artifact-schemas", Version: "0.1.0"},
 		},
 
-		// BROAD-but-CLAMPED: read the whole project + the eight typed command scripts + read-only
-		// git. The supervisor's breadth is in WHAT it decides, not WHAT it touches. The orchestrator
-		// folds these verbatim into agentsession.Spec.Grants.
+		// BROAD-but-CLAMPED: read the whole project + the typed command scripts + read-only git. The
+		// supervisor's breadth is in WHAT it decides, not WHAT it touches. The orchestrator folds these
+		// verbatim into agentsession.Spec.Grants — this auto-allow set MUST stay in sync with the
+		// template's .claude/commands/*.sh (the FSM transitions); a missing grant stalls the supervisor.
 		Grants: []agentsession.ToolGrant{
 			{ID: "read", Tool: "Read", ReadOnly: true},
 			{ID: "glob", Tool: "Glob", ReadOnly: true},
 			{ID: "grep", Tool: "Grep", ReadOnly: true},
 			{ID: "git-ro", Tool: "Bash", Scopes: []string{"git status *", "git ls-files *", "git log *", "git diff *", "git show *"}, ReadOnly: true},
 			{ID: "cmd-state-show", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/state-show.sh *"}},
+			{ID: "cmd-propose-questionnaire", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/propose-questionnaire.sh *"}},
+			{ID: "cmd-record-answer", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/record-answer.sh *"}},
 			{ID: "cmd-propose-charter", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/propose-charter.sh *"}},
 			{ID: "cmd-ratify-charter", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/ratify-charter.sh *"}},
-			{ID: "cmd-propose-questionnaire", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/propose-questionnaire.sh *"}},
+			{ID: "cmd-propose-work-item", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/propose-work-item.sh *"}},
 			{ID: "cmd-open-decision", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/open-decision.sh *"}},
 			{ID: "cmd-rule-decision", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/rule-decision.sh *"}},
 			{ID: "cmd-plan", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/plan.sh *"}},
