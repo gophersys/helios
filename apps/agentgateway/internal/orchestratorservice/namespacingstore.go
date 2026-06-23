@@ -103,20 +103,6 @@ func (s *namespacingStore) List(ctx context.Context, filter orchestrator.Filter)
 	return page, nil
 }
 
-// Delete is the reap/GC seam the orchestrator's Reap path drives through the concrete store. It
-// resolves the bare id to its namespaced store id and forgets the mapping (the agent is reaped).
-// Deleting an absent id is an idempotent no-op (the store's contract), so a double-reap is safe.
-func (s *namespacingStore) Delete(ctx context.Context, id orchestrator.AgentID) error {
-	namespaced := s.lookupNamespaced(id)
-	if err := s.inner.Delete(ctx, namespaced); err != nil {
-		return err //nolint:wrapcheck // the store already returns a wrapped, classified error; re-wrapping double-classifies.
-	}
-	s.mu.Lock()
-	delete(s.namespaced, id)
-	s.mu.Unlock()
-	return nil
-}
-
 // toNamespaced rewrites a bare process-local id (agent-<n>) to the project-namespaced store id
 // (agent-<project>-<n>) via the production minter. An id that is ALREADY namespaced (a record
 // reloaded after a restart, or one this decorator did not mint) is returned unchanged — the
