@@ -34,6 +34,14 @@ USER dev
 WORKDIR /workspace
 COPY --from=build /out/agent-runtime /usr/local/bin/agent-runtime
 
+# Bake the supervisor `.claude` operating manual into the image (ADDITIVE — the in-pod clone-on-boot
+# path, gated on EDEN_WORKDIR_REPO, overlays it; the existing assistant/probe boot never reads it).
+# The agent-runtime binary's workdir.go reads /opt/eden/supervisor-manual at boot and os.CopyFS's it
+# over the cloned repo's .claude — cross-module go:embed is impossible (the manual lives in the libs
+# submodule, not this app's Go module), so it is a baked filesystem path, not an embedded asset. This
+# is the image-side half of the in-pod analog of the host-side projectcreate.Materializer.
+COPY libs/plugins/supervisor/template/.claude /opt/eden/supervisor-manual
+
 # The PID-1 workload. The orchestrator/provider sets EDEN_AGENT_ID, EDEN_NATS_URL, EDEN_HARNESS,
 # EDEN_CREDENTIAL_REF, EDEN_WORKSPACE, and mounts the Vault sidecar token at /vault/secrets/token.
 ENTRYPOINT ["/usr/local/bin/agent-runtime"]

@@ -26,6 +26,17 @@ var supervisorTemplateRef = orchestrator.TemplateRef{Name: "supervisor", Version
 // composition passes SubstrateKubernetes — the only difference between the two deployments).
 type supervisorTemplateStore struct {
 	substrate orchestrator.Substrate
+	// inPod selects the IN-POD supervisor variant (ADR-0022 §4): when true the template's sandbox is a
+	// WORKLOAD POD (Entrypoint = the agent-runtime binary as PID-1) that clones the project repo itself
+	// and runs the supervisor session in-pod, instead of the host-side Materializer + Ready-then-Run
+	// workspace. Default FALSE — the existing host-side template is byte-IDENTICAL when off (the live
+	// demo path), so this variant is purely additive and flag-gated.
+	inPod bool
+	// inPodNATSURL is the bus URL the in-pod agent-runtime binary dials (folded into the in-pod
+	// Sandbox.Env as EDEN_NATS_URL). Read only when inPod is true; "" lets the pod default to
+	// nats.DefaultURL. The repo URL + credential are per-SPAWN (the orchestrator folds them into the
+	// in-pod env from the SpawnRequest's WorkdirRepo), never static template values.
+	inPodNATSURL string
 }
 
 // static assertion: the store binds the frozen orchestrator.TemplateStore port (Resolve only).
@@ -34,9 +45,10 @@ var _ orchestrator.TemplateStore = supervisorTemplateStore{}
 // newSupervisorTemplateStore freezes the substrate the supervisor template's sandbox compiles
 // to. The docker-first service passes orchestrator.SubstrateDocker (the local single instance);
 // the kubernetes deployment passes SubstrateKubernetes — the AGENT-TEMPLATE.md ceiling otherwise
-// identical (ADR-0012: substrate selects mechanism only).
-func newSupervisorTemplateStore(substrate orchestrator.Substrate) supervisorTemplateStore {
-	return supervisorTemplateStore{substrate: substrate}
+// identical (ADR-0012: substrate selects mechanism only). inPod selects the in-pod workload variant
+// (default false: the existing host-side Ready-then-Run template).
+func newSupervisorTemplateStore(substrate orchestrator.Substrate, inPod bool, inPodNATSURL string) supervisorTemplateStore {
+	return supervisorTemplateStore{substrate: substrate, inPod: inPod, inPodNATSURL: inPodNATSURL}
 }
 
 // Resolve returns the immutable supervisor AgentTemplate for the supervisor ref, or a wrapped
@@ -121,15 +133,7 @@ func (s supervisorTemplateStore) supervisorTemplate() orchestrator.AgentTemplate
 		// Opus directive). The orchestrator carries this key and never decides the model.
 		Routing: supervisorRouteKey, // cite the one canonical key (service.go); the pool routes it to claude-code
 
-		Sandbox: orchestrator.SandboxSpec{
-			Substrate:   s.substrate,
-			Image:       "ghcr.io/gophersys/base",
-			Resources:   orchestrator.ResourceEnvelope{CPUMillis: 1000, MemoryMiB: 2048, EphemeralMiB: 4096},
-			EgressAllow: nil, // model provider only (default-deny, 07 §3); git is local to the workspace
-			Env:         map[string]string{"EDEN_AGENT_ROLE": "supervisor"},
-			// Entrypoint empty == the classic Ready-then-Run workspace (the supervisor is
-			// interactive/looped, not a one-shot workload pod).
-		},
+		Sandbox: s.supervisorSandbox(),
 
 		// A LONG budget: a supervisor session spans the whole init lifecycle. 0 == unbounded
 		// HERE; the engine still enforces the project TokenBudget (02 §2). One supervisor per
@@ -140,5 +144,64 @@ func (s supervisorTemplateStore) supervisorTemplate() orchestrator.AgentTemplate
 		},
 
 		Labels: map[string]string{"eden.role": "supervisor", "eden.lifecycle": "init"},
+	}
+}
+
+// inPodSupervisorEntrypoint is the workload-pod PID-1 command of the in-pod supervisor variant: the
+// agent-runtime binary baked into ghcr.io/gophersys/base-derived image (deploy/image/agent-runtime
+// .Dockerfile installs it at /usr/local/bin/agent-runtime; the image's own ENTRYPOINT names it, so the
+// Entrypoint here is the explicit ADR-0022 §4 workload declaration the provider folds onto the pod).
+var inPodSupervisorEntrypoint = []string{"agent-runtime"}
+
+// inPod env keys folded into the in-pod supervisor Sandbox.Env (the agent-runtime binary reads them at
+// boot). EDEN_ROLE selects the supervisor route (opus) in the pod's own composition root; EDEN_NATS_URL
+// is the bus the in-pod sidecar dials. The per-spawn EDEN_WORKDIR_REPO / EDEN_WORKDIR_REPO_CRED are
+// folded by the ORCHESTRATOR from the SpawnRequest's WorkdirRepo (orchestrator.withWorkdirRepoEnv), NOT
+// here — the template carries only the static knobs.
+const (
+	inPodEnvRole    = "EDEN_ROLE"
+	inPodRoleValue  = "supervisor"
+	inPodEnvNATSURL = "EDEN_NATS_URL"
+)
+
+// supervisorSandbox builds the supervisor template's SandboxSpec. The DEFAULT (inPod false) is the
+// existing host-side Ready-then-Run workspace — BYTE-IDENTICAL to the prior inline literal (the live
+// demo path). The IN-POD variant (inPod true) makes the workspace a WORKLOAD POD: a non-empty
+// Entrypoint (agent-runtime as PID-1, ADR-0022 §4) + the in-pod Env (EDEN_ROLE=supervisor +
+// EDEN_NATS_URL). The orchestrator's fold (libs/go/orchestrator/fold.go) detects the non-empty
+// Entrypoint and folds the per-spawn WorkdirRepo (URL + credential reference) into the in-pod Env so
+// the pod's agent-runtime binary clones the project repo + overlays the baked supervisor .claude
+// manual itself (apps/agent-runtime workdir.go), the in-pod analog of the host-side Materializer.
+func (s supervisorTemplateStore) supervisorSandbox() orchestrator.SandboxSpec {
+	if !s.inPod {
+		return orchestrator.SandboxSpec{
+			Substrate:   s.substrate,
+			Image:       "ghcr.io/gophersys/base",
+			Resources:   orchestrator.ResourceEnvelope{CPUMillis: 1000, MemoryMiB: 2048, EphemeralMiB: 4096},
+			EgressAllow: nil, // model provider only (default-deny, 07 §3); git is local to the workspace
+			Env:         map[string]string{"EDEN_AGENT_ROLE": "supervisor"},
+			// Entrypoint empty == the classic Ready-then-Run workspace (the supervisor is
+			// interactive/looped, not a one-shot workload pod).
+		}
+	}
+	env := map[string]string{
+		"EDEN_AGENT_ROLE": "supervisor", // preserved for parity with the host-side variant (observability)
+		inPodEnvRole:      inPodRoleValue,
+	}
+	if s.inPodNATSURL != "" {
+		env[inPodEnvNATSURL] = s.inPodNATSURL
+	}
+	return orchestrator.SandboxSpec{
+		Substrate:   s.substrate,
+		Image:       "ghcr.io/gophersys/agent-runtime", // the in-pod image (base + the baked agent-runtime binary + supervisor manual)
+		Resources:   orchestrator.ResourceEnvelope{CPUMillis: 1000, MemoryMiB: 2048, EphemeralMiB: 4096},
+		EgressAllow: nil,
+		Env:         env,
+		// The non-empty Entrypoint IS the in-pod selector: the orchestrator folds the per-spawn
+		// WorkdirRepo into the Env (URL + credential reference) on this branch, and provisions a
+		// workload pod whose PID-1 is the agent-runtime binary (ADR-0022 §4). The credential reference
+		// rides the SpawnRequest per-project; the template declares the workload shape, not the secret.
+		Entrypoint:  append([]string(nil), inPodSupervisorEntrypoint...),
+		WorkdirRepo: orchestrator.RepoMount{}, // the per-spawn repo URL + credential are threaded by the saga into the SpawnRequest; the orchestrator folds them into the in-pod Env.
 	}
 }

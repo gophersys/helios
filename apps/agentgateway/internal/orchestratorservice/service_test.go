@@ -212,6 +212,57 @@ func TestSupervisorTemplateStore_ResolvesSupervisorOnDocker(t *testing.T) {
 	}
 }
 
+// TestSupervisorTemplateStore_HostSideHasNoEntrypoint pins the ADDITIVE GUARD: the DEFAULT (host-side)
+// supervisor template is a CLASSIC Ready-then-Run workspace — an EMPTY Entrypoint — exactly as before
+// the in-pod variant existed. This is the byte-unchanged contract for the live demo path (inPod off).
+func TestSupervisorTemplateStore_HostSideHasNoEntrypoint(t *testing.T) {
+	t.Parallel()
+	templateStore := orchestratorservice.NewSupervisorTemplateStore(orchestrator.SubstrateDocker)
+	template, err := templateStore.Resolve(context.Background(), orchestratorservice.SupervisorTemplateRef())
+	if err != nil {
+		t.Fatalf("Resolve supervisor: %v", err)
+	}
+	if len(template.Sandbox.Entrypoint) != 0 {
+		t.Fatalf("host-side supervisor Entrypoint = %v, want EMPTY (the classic Ready-then-Run workspace)", template.Sandbox.Entrypoint)
+	}
+	if template.Sandbox.Image != "ghcr.io/gophersys/base" {
+		t.Fatalf("host-side supervisor Image = %q, want the base image", template.Sandbox.Image)
+	}
+}
+
+// TestSupervisorTemplateStore_InPodVariant proves the IN-POD variant's additive workload-pod shape: a
+// NON-EMPTY Entrypoint (agent-runtime as PID-1, ADR-0022 §4) + the in-pod Env (EDEN_ROLE=supervisor +
+// EDEN_NATS_URL). The orchestrator's fold detects the non-empty Entrypoint and folds the per-spawn
+// WorkdirRepo into the in-pod Env; this asserts the STATIC template half. The rest of the template
+// (ref, grants, routing, limits) is identical to the host-side variant.
+func TestSupervisorTemplateStore_InPodVariant(t *testing.T) {
+	t.Parallel()
+	templateStore := orchestratorservice.NewInPodSupervisorTemplateStore(orchestrator.SubstrateDocker, "nats://eden-nats:4222")
+	template, err := templateStore.Resolve(context.Background(), orchestratorservice.SupervisorTemplateRef())
+	if err != nil {
+		t.Fatalf("Resolve in-pod supervisor: %v", err)
+	}
+	// The workload-pod selector: a non-empty Entrypoint naming the agent-runtime PID-1 binary.
+	if got := template.Sandbox.Entrypoint; len(got) != 1 || got[0] != "agent-runtime" {
+		t.Fatalf("in-pod Entrypoint = %v, want [agent-runtime] (the PID-1 workload)", got)
+	}
+	// The in-pod Env carries the role + bus knobs the agent-runtime binary reads at boot.
+	if template.Sandbox.Env["EDEN_ROLE"] != "supervisor" {
+		t.Fatalf("in-pod EDEN_ROLE = %q, want supervisor", template.Sandbox.Env["EDEN_ROLE"])
+	}
+	if template.Sandbox.Env["EDEN_NATS_URL"] != "nats://eden-nats:4222" {
+		t.Fatalf("in-pod EDEN_NATS_URL = %q, want the wired bus url", template.Sandbox.Env["EDEN_NATS_URL"])
+	}
+	// The rest of the template is identical to the host-side variant (the variant changes ONLY the
+	// sandbox shape, not the grants/routing/limits).
+	if template.Routing != (agentsession.RouteKey{Phase: "supervise", Role: "supervisor"}) {
+		t.Fatalf("in-pod Routing drifted from the host-side variant: %v", template.Routing)
+	}
+	if template.Limits.MaxConcurrent != 1 {
+		t.Fatalf("in-pod MaxConcurrent = %d, want 1 (one PM per project)", template.Limits.MaxConcurrent)
+	}
+}
+
 func TestSupervisorTemplateStore_RejectsUnknownRef(t *testing.T) {
 	t.Parallel()
 	templateStore := orchestratorservice.NewSupervisorTemplateStore(orchestrator.SubstrateDocker)

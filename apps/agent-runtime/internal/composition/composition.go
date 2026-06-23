@@ -40,6 +40,15 @@ type Environment struct {
 	CredentialRef string // EDEN_CREDENTIAL_REF — the opaque secrets.Reference for the harness credential
 	ProbeAddr     string // EDEN_PROBE_ADDR — the HTTP probe listener; "" == ":8081"
 	InitialPrompt string // EDEN_INITIAL_PROMPT — optional seed prompt (the batch path)
+
+	// WorkdirRepo / WorkdirRepoCred / WorkdirRepoRef drive the IN-POD clone-on-boot path (workdir.go,
+	// the in-pod analog of the host-side projectcreate.Materializer). WorkdirRepo is the clone URL of
+	// the seeded project repo; "" == NO in-pod clone (the existing assistant/probe boot, byte-unchanged
+	// — prepareWorkdir returns Workspace verbatim). WorkdirRepoCred is the OPAQUE clone-credential
+	// reference (resolved server-side, never the value); WorkdirRepoRef is an optional branch/tag.
+	WorkdirRepo     string // EDEN_WORKDIR_REPO — the seeded project clone URL; "" == no in-pod clone
+	WorkdirRepoCred string // EDEN_WORKDIR_REPO_CRED — the OPAQUE clone-credential reference
+	WorkdirRepoRef  string // EDEN_WORKDIR_REPO_REF — optional branch/tag to check out; "" == default branch
 }
 
 // LoadEnvironment reads the pod environment. Only EDEN_AGENT_ID is strictly required to construct;
@@ -47,16 +56,19 @@ type Environment struct {
 // boot needs just the id.
 func LoadEnvironment() Environment {
 	return Environment{
-		AgentID:       os.Getenv("EDEN_AGENT_ID"),
-		NATSURL:       os.Getenv("EDEN_NATS_URL"),
-		Workspace:     os.Getenv("EDEN_WORKSPACE"),
-		Harness:       os.Getenv("EDEN_HARNESS"),
-		Model:         os.Getenv("EDEN_MODEL"),
-		Role:          os.Getenv("EDEN_ROLE"),
-		Phase:         os.Getenv("EDEN_PHASE"),
-		CredentialRef: os.Getenv("EDEN_CREDENTIAL_REF"),
-		ProbeAddr:     os.Getenv("EDEN_PROBE_ADDR"),
-		InitialPrompt: os.Getenv("EDEN_INITIAL_PROMPT"),
+		AgentID:         os.Getenv("EDEN_AGENT_ID"),
+		NATSURL:         os.Getenv("EDEN_NATS_URL"),
+		Workspace:       os.Getenv("EDEN_WORKSPACE"),
+		Harness:         os.Getenv("EDEN_HARNESS"),
+		Model:           os.Getenv("EDEN_MODEL"),
+		Role:            os.Getenv("EDEN_ROLE"),
+		Phase:           os.Getenv("EDEN_PHASE"),
+		CredentialRef:   os.Getenv("EDEN_CREDENTIAL_REF"),
+		ProbeAddr:       os.Getenv("EDEN_PROBE_ADDR"),
+		InitialPrompt:   os.Getenv("EDEN_INITIAL_PROMPT"),
+		WorkdirRepo:     os.Getenv(envWorkdirRepo),
+		WorkdirRepoCred: os.Getenv(envWorkdirRepoRef),
+		WorkdirRepoRef:  os.Getenv(envWorkdirRepoBranch),
 	}
 }
 
@@ -161,7 +173,24 @@ func build(ctx context.Context, logger *slog.Logger, environment *Environment) (
 		return nil, nil, errors.Wrap(errors.KindInternal, "agent-runtime: build observability", err)
 	}
 
-	factory, err := buildSessionFactory(environment, provider)
+	// In-pod clone-on-boot (workdir.go): when EDEN_WORKDIR_REPO is set, clone the seeded project repo
+	// + overlay the supervisor .claude manual INTO the pod and re-point the harness CWD at the clone.
+	// GATED on a non-empty EDEN_WORKDIR_REPO — a NO-OP returning environment.Workspace verbatim
+	// otherwise, so the existing assistant/probe boot is byte-unchanged. It runs BEFORE the session
+	// factory so the Advisor's ReviewerWorkspace + the Spec.Workspace both observe the cloned CWD.
+	secretsProvider, err := buildSecretsProvider()
+	if err != nil {
+		connection.Close()
+		return nil, nil, err
+	}
+	workDir, err := newWorkdirCloner(secretsProvider).prepareWorkdir(ctx, environment)
+	if err != nil {
+		connection.Close()
+		return nil, nil, err
+	}
+	environment.Workspace = workDir
+
+	factory, err := buildSessionFactory(environment, provider, secretsProvider)
 	if err != nil {
 		connection.Close()
 		return nil, nil, err
@@ -221,12 +250,12 @@ func dialBus(environment *Environment) (*nats.Conn, nats.JetStreamContext, error
 // but NO advisor, and the advisor never recurses (the reviewer's Spec denies every out-of-grant
 // request in-process). The main Pool then receives the constructed advisor as Deps.Advisor.
 //
+// secretsProvider is built ONCE in build (the in-pod clone and the session factory share one Vault
+// Mediator) and threaded in, so the pod dials Vault once — the clone credential and the harness
+// credential resolve through the SAME server-side seam.
+//
 //nolint:ireturn // returns the agentsession.Factory port the sidecar holds (the frozen surface).
-func buildSessionFactory(environment *Environment, provider observability.Provider) (agentsession.Factory, error) {
-	secretsProvider, err := buildSecretsProvider()
-	if err != nil {
-		return nil, err
-	}
+func buildSessionFactory(environment *Environment, provider observability.Provider, secretsProvider secrets.Provider) (agentsession.Factory, error) {
 	adapters, err := buildAdapters()
 	if err != nil {
 		return nil, err

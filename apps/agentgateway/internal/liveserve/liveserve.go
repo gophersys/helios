@@ -324,6 +324,14 @@ func buildCreateSaga(
 		return nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build orchestrator observability", err)
 	}
 
+	// EDEN_SUPERVISOR_INPOD=1 selects the IN-POD supervisor template variant (ADR-0022 §4): the built-in
+	// supervisor store compiles a WORKLOAD-POD sandbox (agent-runtime PID-1, the in-pod clone-on-boot
+	// path) instead of the host-side Materializer + Ready-then-Run workspace. DEFAULT OFF — the existing
+	// host-side template + the live demo path are byte-IDENTICAL when unset (this is purely additive,
+	// flag-gated; the in-pod end-to-end run is NOT yet proven — it needs the k3d network-join + a real
+	// in-pod claude turn, deferred). The same EDEN_NATS_URL the rest of the live process dials is the
+	// bus the in-pod sidecar dials.
+	supervisorInPod := os.Getenv("EDEN_SUPERVISOR_INPOD") == "1"
 	// The REAL orchestratorservice on docker: a real workspace + a REAL Claude supervisor session.
 	service, err := orchestratorservice.New(
 		orchestratorservice.Config{
@@ -331,6 +339,8 @@ func buildCreateSaga(
 			ReconcileInterval:    2 * time.Second,
 			ProvisionTimeout:     4 * time.Minute,
 			LabelNamespace:       "eden-live",
+			SupervisorInPod:      supervisorInPod,
+			SupervisorNATSURL:    os.Getenv("EDEN_NATS_URL"),
 		},
 		orchestratorservice.Deps{
 			DatabasePool:  pool,
@@ -388,14 +398,16 @@ func buildCreateSaga(
 	// an invalid per-project input — guarded upstream) logs and degrades the launch to no host-tools
 	// rather than failing the spawn.
 	//
-	// GATED (EDEN_SUPERVISOR_HOST_TOOLS=1): injecting the sdkMcpServers host-tool into the supervisor's
-	// LIVE claude session currently stalls its turn processing (the MCP initialize handshake coexisting
-	// with the supervisor's SessionStart/PreToolUse hooks + the large allowlist — under investigation vs
-	// the green claudeadapter HostToolRoundTrip reference). The Handler + projection are fully tested; the
-	// flag keeps the proven wizard demo working until the live handshake interaction is resolved.
+	// DEFAULT ON (opt out with EDEN_SUPERVISOR_HOST_TOOLS=0): the supervisor commits its OWN transitions
+	// through this host-tool — the controller model, git is the supervisor's truth, it acts through
+	// eden_commit_transition; Postgres is the projection. PROVEN live end-to-end: a real Opus supervisor
+	// calls the tool, the Handler validates the FSM transition against state/fsm.json, stages+commits with
+	// the fsm: trailer, ff-pushes with the forge credential, and projects the FSM state onto Project.Status.
+	// The SDK-MCP round-trip that once blocked this was fixed in claudeadapter (84afe0e): array-form
+	// sdkMcpServers + answering the CLI-driven notifications/initialized so client.connect() completes.
 	forgeCredential := secrets.Ref(configuration.ForgeCredentialReference)
 	var supervisorHostTools projectcreate.SupervisorHostToolFactory
-	if os.Getenv("EDEN_SUPERVISOR_HOST_TOOLS") == "1" {
+	if os.Getenv("EDEN_SUPERVISOR_HOST_TOOLS") != "0" {
 		supervisorHostTools = func(project gateway.Project, workspaceDir string) []agentsession.HostTool {
 			tool, toolErr := projectcreate.NewCommitTransitionTool(
 				projectcreate.CommitTransitionConfig{

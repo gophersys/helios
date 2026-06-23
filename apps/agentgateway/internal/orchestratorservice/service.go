@@ -110,6 +110,15 @@ type Config struct {
 	// LabelNamespace scopes this service's ownership domain (the eden.namespace label on docker,
 	// the namespace-name prefix on kubernetes); empty for single-tenant local.
 	LabelNamespace string
+
+	// SupervisorInPod selects the IN-POD supervisor template variant (ADR-0022 §4): when true the
+	// built-in supervisor store compiles a WORKLOAD-POD sandbox (Entrypoint = the agent-runtime binary
+	// as PID-1, the in-pod clone-on-boot path) instead of the host-side Materializer + Ready-then-Run
+	// workspace. The composition root reads it from EDEN_SUPERVISOR_INPOD (default FALSE — the existing
+	// host-side template + the live demo path are byte-IDENTICAL when off). Ignored when Deps.Templates
+	// overrides the store. SupervisorNATSURL is the bus the in-pod sidecar dials (in-pod only).
+	SupervisorInPod   bool
+	SupervisorNATSURL string
 }
 
 // Deps is the injected hexagon for the service (accept interfaces; New constructs the
@@ -179,7 +188,7 @@ func New(configuration Config, dependencies Deps) (*Service, error) {
 	// otherwise.
 	templates := dependencies.Templates
 	if templates == nil {
-		templates = newSupervisorTemplateStore(toOrchestratorSubstrate(configuration.Substrate))
+		templates = newSupervisorTemplateStore(toOrchestratorSubstrate(configuration.Substrate), configuration.SupervisorInPod, configuration.SupervisorNATSURL)
 	}
 	return build(configuration, dependencies, templates)
 }

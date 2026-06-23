@@ -6,6 +6,7 @@ require (
 	github.com/gophersys/libs/go/agentruntime v0.0.0
 	github.com/gophersys/libs/go/agentsession v0.0.0
 	github.com/gophersys/libs/go/errors v0.0.0
+	github.com/gophersys/libs/go/gitrepository v0.0.0
 	github.com/gophersys/libs/go/observability v0.0.0
 	github.com/gophersys/libs/go/secrets v0.0.0
 	github.com/nats-io/nats.go v1.52.0

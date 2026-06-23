@@ -15,11 +15,20 @@ import (
 // BareSequence re-exports bareSequence for the unit test (the bare agent-<n> sequence parser).
 func BareSequence(id orchestrator.AgentID) (uint64, bool) { return bareSequence(id) }
 
-// NewSupervisorTemplateStore re-exports newSupervisorTemplateStore for the unit test.
+// NewSupervisorTemplateStore re-exports the HOST-SIDE supervisor store (inPod false) for the unit
+// test — the existing default the existing tests assert against, unchanged.
 //
 //nolint:ireturn // the test drives the store through the orchestrator.TemplateStore port (Resolve); returning the port is the seam.
 func NewSupervisorTemplateStore(substrate orchestrator.Substrate) orchestrator.TemplateStore {
-	return newSupervisorTemplateStore(substrate)
+	return newSupervisorTemplateStore(substrate, false, "")
+}
+
+// NewInPodSupervisorTemplateStore re-exports the IN-POD supervisor variant (inPod true) so the unit
+// test asserts the additive workload-pod shape (a non-empty Entrypoint + the in-pod Env).
+//
+//nolint:ireturn // the test drives the store through the orchestrator.TemplateStore port (Resolve); returning the port is the seam.
+func NewInPodSupervisorTemplateStore(substrate orchestrator.Substrate, natsURL string) orchestrator.TemplateStore {
+	return newSupervisorTemplateStore(substrate, true, natsURL)
 }
 
 // SupervisorTemplateRef re-exports the pinned supervisor ref for the unit test.
