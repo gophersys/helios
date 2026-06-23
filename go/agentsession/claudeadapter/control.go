@@ -38,10 +38,23 @@ func controlResponseFrame(requestID string, response any) ([]byte, error) {
 // advertises them as sdkMcpServers, so claude drives the in-process host tools over
 // mcp_message control_requests (tools/list + tools/call). With no host tools it is a bare
 // handshake. requestID correlates claude's control_response ack.
+//
+// sdkMcpServers is a JSON OBJECT keyed by server name (the Claude Agent SDK contract), NOT a
+// JSON array of names. Each value is the in-process SDK server descriptor ({type:"sdk", name})
+// so claude knows the server runs in-process and routes its tools over mcp_message rather than
+// spawning a subprocess. Advertising an ARRAY makes claude (2.1.x) complete the MCP
+// `initialize` + `notifications/initialized` then STALL before `tools/list` — the whole turn
+// never processes (admittedSeq frozen at ready, zero message/tool events). This was the
+// eden_commit_transition host-tool stall; reproduced live (array=stall, object=runs clean even
+// under the full supervisor shape: hooks + --permission-prompt-tool stdio + a large allowlist).
 func initializeFrame(requestID string, servers []string) ([]byte, error) {
 	request := map[string]any{"subtype": "initialize"}
 	if len(servers) > 0 {
-		request["sdkMcpServers"] = servers
+		advertised := make(map[string]any, len(servers))
+		for _, name := range servers {
+			advertised[name] = map[string]any{"type": "sdk", "name": name}
+		}
+		request["sdkMcpServers"] = advertised
 	}
 	payload := map[string]any{
 		"type":       "control_request",

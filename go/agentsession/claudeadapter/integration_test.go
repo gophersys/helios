@@ -359,6 +359,67 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 	}
 }
 
+// TestIntegration_LiveClaude_HostToolReachesTerminal is the REGRESSION that locks the
+// sdkMcpServers stall fix: a REAL claude turn opened WITH an Eden host tool registered MUST reach
+// a terminal. The pre-fix code advertised sdkMcpServers as a JSON ARRAY, which made claude
+// complete the MCP `initialize` + `notifications/initialized` then STALL before `tools/list` — so
+// the turn never terminated (the eden_commit_transition supervisor stall). Unlike HostToolRoundTrip
+// this does NOT skip on a non-call: reaching a terminal is the HARD assertion (the array form
+// never reaches one within the window → fails; the object form processes the turn → passes). The
+// session mirrors the supervisor's breadth (a host tool + a multi-grant allowlist). SKIPPED
+// without the live token.
+func TestIntegration_LiveClaude_HostToolReachesTerminal(t *testing.T) {
+	t.Parallel()
+	token := liveTokenOrSkip(t)
+
+	hostTool := agentsession.HostTool{
+		Name:        "eden_commit_transition",
+		Description: `Commit the current FSM transition. Call with {"fsm":"<from>-><to>"}.`,
+		Schema:      []byte(`{"type":"object","properties":{"fsm":{"type":"string"}},"required":["fsm"]}`),
+		Handler: func(_ context.Context, _ []byte) ([]byte, error) {
+			return []byte(`{"committed":true}`), nil
+		},
+	}
+
+	pool := newLivePool(t, token)
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace: t.TempDir(),
+		Routing:   agentsession.RouteKey{Role: "assistant"},
+		HostTools: []agentsession.HostTool{hostTool},
+		// A representative multi-grant allowlist so the session shape matches the supervisor's
+		// breadth (the stall reproduced under exactly this kind of session), not a one-grant minimal.
+		Grants: []agentsession.ToolGrant{
+			{ID: "g-commit", Tool: "mcp__eden__eden_commit_transition"},
+			{ID: "g-read", Tool: "Read"},
+			{ID: "g-glob", Tool: "Glob"},
+			{ID: "g-grep", Tool: "Grep"},
+			{ID: "g-lsdir", Tool: "Bash(ls)"},
+			{ID: "g-gitstatus", Tool: "Bash(git status)"},
+		},
+		Credential: secrets.Ref("vault://eden/anthropic#setup-token"),
+	})
+	if err != nil {
+		t.Fatalf("live Open: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
+
+	prompt := `Call the eden_commit_transition host tool with {"fsm":"init->charter"}, then tell me exactly what it returned.`
+	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
+		t.Fatalf("live Prompt: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	stream := session.Events(ctx, agentsession.FromSeq(0))
+	events := drainStreamTo(t, ctx, stream)
+	for i := range events {
+		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
+	}
+	if len(events) == 0 || !events[len(events)-1].IsTerminal() {
+		t.Fatalf("the turn never reached a terminal under a registered host tool (the sdkMcpServers array stall) — kinds: %v", kindsOf(events))
+	}
+}
+
 // newLivePool builds a Pool whose route carries an EMPTY model, so buildArguments omits
 // --model and the live claude uses its own default (a REAL model). The stub-fable model the
 // other integration pools use is a fake the real CLI rejects ("model may not exist"), so the

@@ -59,7 +59,7 @@ func TestNormalize_ControlRequest_CanUseTool(t *testing.T) {
 // If the normalizer naively mapped every control_request to a permission event, this fails.
 func TestNormalize_ControlRequest_WeakenToConfirm(t *testing.T) {
 	t.Parallel()
-	initAck := `{"type":"control_request","request_id":"x","request":{"subtype":"initialize","sdkMcpServers":["eden"]}}`
+	initAck := `{"type":"control_request","request_id":"x","request":{"subtype":"initialize","sdkMcpServers":{"eden":{"type":"sdk","name":"eden"}}}}`
 	events := claudeadapter.NormalizeLineForTest([]byte(initAck))
 	for i := range events {
 		if events[i].Kind == agentsession.EventPermissionRequest {
@@ -96,6 +96,63 @@ func TestNormalize_CanUseTool_SkillScoped(t *testing.T) {
 	bare := claudeadapter.NormalizeLineForTest([]byte(capturedCanUseToolFrame))
 	if len(bare) != 1 || bare[0].Permission == nil || bare[0].Permission.Tool != "Bash" {
 		t.Fatalf("a non-wrapper tool must be unchanged; got %+v", bare)
+	}
+}
+
+// TestInitializeFrame_SdkMcpServersIsObjectNotArray pins the host-tool stall fix: the initialize
+// control_request must advertise sdkMcpServers as a JSON OBJECT keyed by server name (each an
+// in-process {type:"sdk",name} descriptor), NOT a JSON array of names. Advertising an array makes
+// claude complete the MCP handshake then STALL before tools/list (the whole turn never processes).
+// The array-is-gone assertion is the non-vacuous regression: the pre-fix code emitted an array.
+func TestInitializeFrame_SdkMcpServersIsObjectNotArray(t *testing.T) {
+	t.Parallel()
+	frame, err := claudeadapter.InitializeFrameForTest([]agentsession.HostTool{{Name: "eden_commit_transition"}})
+	if err != nil {
+		t.Fatalf("InitializeFrameForTest: %v", err)
+	}
+	var decoded struct {
+		Request struct {
+			Subtype       string          `json:"subtype"`
+			SdkMcpServers json.RawMessage `json:"sdkMcpServers"`
+		} `json:"request"`
+	}
+	if err := json.Unmarshal(frame, &decoded); err != nil {
+		t.Fatalf("unmarshal initialize frame: %v (%s)", err, frame)
+	}
+	if decoded.Request.Subtype != "initialize" {
+		t.Fatalf("subtype = %q, want initialize", decoded.Request.Subtype)
+	}
+	// Non-vacuous regression: the pre-fix array form must be GONE.
+	if len(decoded.Request.SdkMcpServers) > 0 && decoded.Request.SdkMcpServers[0] == '[' {
+		t.Fatalf("sdkMcpServers is a JSON array (the stall bug): %s", decoded.Request.SdkMcpServers)
+	}
+	var servers map[string]struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(decoded.Request.SdkMcpServers, &servers); err != nil {
+		t.Fatalf("sdkMcpServers must be an object keyed by server name: %v (%s)", err, decoded.Request.SdkMcpServers)
+	}
+	server, ok := servers["eden"]
+	if !ok {
+		t.Fatalf("sdkMcpServers missing the %q key: %s", "eden", decoded.Request.SdkMcpServers)
+	}
+	if server.Type != "sdk" || server.Name != "eden" {
+		t.Fatalf("server descriptor = %+v, want {type:sdk name:eden}", server)
+	}
+}
+
+// TestInitializeFrame_NoHostToolsIsBareHandshake pins the chat path: with no host tools the
+// initialize frame carries NO sdkMcpServers key (a bare handshake) — so the chat/permission
+// paths are byte-unaffected by the host-tool advertisement.
+func TestInitializeFrame_NoHostToolsIsBareHandshake(t *testing.T) {
+	t.Parallel()
+	frame, err := claudeadapter.InitializeFrameForTest(nil)
+	if err != nil {
+		t.Fatalf("InitializeFrameForTest(nil): %v", err)
+	}
+	if strings.Contains(string(frame), "sdkMcpServers") {
+		t.Fatalf("a no-host-tools initialize must omit sdkMcpServers: %s", frame)
 	}
 }
 

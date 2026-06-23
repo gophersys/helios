@@ -96,6 +96,13 @@ func HostToolRouteForTest(tools []agentsession.HostTool, jsonrpc []byte) (respon
 	return newHostToolRouter(tools).route(contextForTest(), jsonrpc)
 }
 
+// InitializeFrameForTest renders the initialize control_request the conn writes at startup for
+// a given set of HostTools, so the sdkMcpServers wire shape (an object keyed by server name, not
+// an array) is pinned without a live claude. Compiled only in tests.
+func InitializeFrameForTest(tools []agentsession.HostTool) ([]byte, error) {
+	return initializeFrame("eden-init-test", hostToolNames(tools))
+}
+
 // ConnProcessPIDForTest exposes the OS process id the conn's subprocess was started with,
 // so the lifecycle probe can verify the REAL child is reaped after Close (CountOwned via
 // signal-0 liveness). It returns (0, false) for a conn type that is not the os/exec-backed
