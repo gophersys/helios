@@ -222,6 +222,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 	var (
 		projectCreator    gateway.ProjectCreator
 		supervisorService *orchestratorservice.Service
+		liveSessions      gateway.LiveSessions // nil interface unless the saga's orchestrator is built (avoid the typed-nil trap)
 	)
 	if configuration.createSagaConfigured() {
 		saga, service, sagaErr := buildCreateSaga(&configuration, provider, pool, projectStore, createStepStore, clock)
@@ -230,6 +231,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 		}
 		projectCreator = saga
 		supervisorService = service
+		liveSessions = service // the same orchestrator the saga spawns the supervisor through resolves its live session
 	}
 
 	gw, err := gateway.New(
@@ -270,6 +272,9 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 			// The DB-first create-saga the POST /projects handler kicks async (or nil → the pre-saga
 			// draft behavior when the saga seam is not configured).
 			ProjectCreator: projectCreator,
+			// The orchestrator's live plane: resolves the supervisor's open session so the gateway's
+			// /sessions/{id} routes (control/events/resolve) reach the controller (nil when no saga).
+			LiveSessions: liveSessions,
 		},
 	)
 	if err != nil {

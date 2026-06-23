@@ -113,6 +113,18 @@ const DefaultWriteTimeout = 15 * time.Second
 // DefaultFlushInterval is the SSE heartbeat cadence when Config.FlushInterval is unset.
 const DefaultFlushInterval = 20 * time.Second
 
+// LiveSessions is the gateway's narrow consumer-defined seam over the orchestrator's live plane:
+// resolve the OPEN agentsession.Session for an orchestrator-managed agent id (a project
+// supervisor, a sub-agent) the gateway did not open itself. The real *orchestratorservice.Service
+// binds it (its Pool holds the handle). The returned Session is owned by the orchestrator — the
+// gateway serves it (control/events/resolve) but never Closes it.
+type LiveSessions interface {
+	// Session returns the open session for the agent and whether it is live on this node. It is a
+	// cheap in-memory lookup; the gateway calls it per request (no caching) so a reaped agent's
+	// handle is never served stale.
+	Session(id orchestrator.AgentID) (agentsession.Session, bool)
+}
+
 // Deps is the injected hexagon. New constructs no ports; everything the gateway touches
 // arrives here or on Config.
 type Deps struct {
@@ -125,6 +137,13 @@ type Deps struct {
 	// obtain a live Session it tails (Events) and controls (Control). The
 	// agentsessiontest scripted Adapter wired into a real *agentsession.Pool satisfies it.
 	Sessions agentsession.Factory
+
+	// LiveSessions OPTIONALLY resolves the OPEN session for an orchestrator-managed agent (e.g. a
+	// project supervisor) that the gateway did NOT open itself — so the SAME /sessions/{id} routes
+	// (control/events/resolve) that serve a chat session serve any orchestrator-opened agent. The
+	// real *orchestratorservice.Service satisfies it. nil == no orchestrator live plane (the
+	// dev-serve / chat-only composition); then only gateway-opened sessions are reachable.
+	LiveSessions LiveSessions
 
 	// Clock stamps response/log times; keeps New pure and the fake deterministic.
 	Clock Clock

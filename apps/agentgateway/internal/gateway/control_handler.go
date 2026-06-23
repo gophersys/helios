@@ -9,6 +9,22 @@ import (
 	"github.com/gophersys/libs/go/orchestrator"
 )
 
+// resolveSession returns the live session for an agent id: a gateway-OPENED session from the
+// registry (chat), else an orchestrator-OPENED session (a project supervisor / sub-agent) via the
+// LiveSessions seam — so the same /sessions/{id} routes serve both. No caching: the orchestrator
+// owns the live handle's lifetime, so a per-request lookup never serves a reaped agent's handle stale.
+//
+//nolint:ireturn // returns the agentsession.Session port the handlers control/tail (the live plane).
+func (g *Gateway) resolveSession(id orchestrator.AgentID) (agentsession.Session, bool) {
+	if session, ok := g.registry.lookup(id); ok {
+		return session, true
+	}
+	if g.dependencies.LiveSessions == nil {
+		return nil, false
+	}
+	return g.dependencies.LiveSessions.Session(id)
+}
+
 // handleControl is the control channel (REQ-0020 prompt/steer/abort mid-session). It
 // resolves the live session from the registry and issues the normalized Command against it;
 // the resulting events stream back on every SSE subscriber's Events tail (the control verb
@@ -31,7 +47,7 @@ func (g *Gateway) handleControl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, ok := g.registry.lookup(id)
+	session, ok := g.resolveSession(id)
 	if !ok {
 		g.writeError(w, errors.Wrap(errors.KindNotFound, "gateway: control",
 			RequestError{Reason: "no live session for id " + string(id)}))
@@ -97,7 +113,7 @@ func (g *Gateway) handleResolvePermission(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	session, ok := g.registry.lookup(id)
+	session, ok := g.resolveSession(id)
 	if !ok {
 		g.writeError(w, errors.Wrap(errors.KindNotFound, "gateway: resolve permission",
 			RequestError{Reason: "no live session for id " + string(id)}))

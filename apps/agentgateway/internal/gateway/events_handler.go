@@ -44,7 +44,7 @@ func (g *Gateway) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, ok := g.registry.lookup(id)
+	session, ok := g.resolveSession(id)
 	if !ok {
 		g.writeError(w, errors.Wrap(errors.KindNotFound, "gateway: events",
 			RequestError{Reason: "no live session for id " + string(id)}))

@@ -313,6 +313,15 @@ func (s *Service) Resume(ctx context.Context, id orchestrator.AgentID, by string
 	return s.pool.Resume(ctx, id, by) //nolint:wrapcheck // the Pool already returns a wrapped, classified error.
 }
 
+// Session returns the OPEN agentsession.Session for a live agent (e.g. a project supervisor) and
+// whether it is present on this node — the live-plane handoff seam the gateway adopts into its
+// session registry so the same /sessions/{id} routes serve any orchestrator-opened agent.
+//
+//nolint:ireturn // returns the agentsession.Session port (the Pool's live handle) for the gateway to adopt.
+func (s *Service) Session(id orchestrator.AgentID) (agentsession.Session, bool) {
+	return s.pool.Session(id)
+}
+
 // defaultCluster picks the ClusterRef a zero-Cluster SpawnRequest resolves to for the
 // Config-selected substrate: the local docker daemon on docker, the local k3d cluster on
 // kubernetes. It is the Config.DefaultCluster the Pool folds at Spawn (ADR-0012); a Spawn naming
