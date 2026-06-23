@@ -31,6 +31,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -381,29 +382,38 @@ func buildCreateSaga(
 	// and the project store all live here at the composition root. A construction fault (only reachable on
 	// an invalid per-project input — guarded upstream) logs and degrades the launch to no host-tools
 	// rather than failing the spawn.
+	//
+	// GATED (EDEN_SUPERVISOR_HOST_TOOLS=1): injecting the sdkMcpServers host-tool into the supervisor's
+	// LIVE claude session currently stalls its turn processing (the MCP initialize handshake coexisting
+	// with the supervisor's SessionStart/PreToolUse hooks + the large allowlist — under investigation vs
+	// the green claudeadapter HostToolRoundTrip reference). The Handler + projection are fully tested; the
+	// flag keeps the proven wizard demo working until the live handshake interaction is resolved.
 	forgeCredential := secrets.Ref(configuration.ForgeCredentialReference)
-	supervisorHostTools := func(project gateway.Project, workspaceDir string) []agentsession.HostTool {
-		tool, toolErr := projectcreate.NewCommitTransitionTool(
-			projectcreate.CommitTransitionConfig{
-				WorkspaceDir:    workspaceDir,
-				ProjectID:       project.ID,
-				RemoteURL:       project.RepoURL,
-				Branch:          project.DefaultBranch,
-				ForgeCredential: forgeCredential,
-				SessionID:       project.SessionID,
-			},
-			projectcreate.CommitTransitionDeps{
-				Backend:  gitrepository.SystemGit(),
-				Secrets:  provider,
-				Clock:    clock,
-				Projects: projectStore,
-			},
-		)
-		if toolErr != nil {
-			slog.Error("liveserve: build supervisor commit-transition tool", "project", project.ID, "error", toolErr)
-			return nil
+	var supervisorHostTools projectcreate.SupervisorHostToolFactory
+	if os.Getenv("EDEN_SUPERVISOR_HOST_TOOLS") == "1" {
+		supervisorHostTools = func(project gateway.Project, workspaceDir string) []agentsession.HostTool {
+			tool, toolErr := projectcreate.NewCommitTransitionTool(
+				projectcreate.CommitTransitionConfig{
+					WorkspaceDir:    workspaceDir,
+					ProjectID:       project.ID,
+					RemoteURL:       project.RepoURL,
+					Branch:          project.DefaultBranch,
+					ForgeCredential: forgeCredential,
+					SessionID:       project.SessionID,
+				},
+				projectcreate.CommitTransitionDeps{
+					Backend:  gitrepository.SystemGit(),
+					Secrets:  provider,
+					Clock:    clock,
+					Projects: projectStore,
+				},
+			)
+			if toolErr != nil {
+				slog.Error("liveserve: build supervisor commit-transition tool", "project", project.ID, "error", toolErr)
+				return nil
+			}
+			return []agentsession.HostTool{tool}
 		}
-		return []agentsession.HostTool{tool}
 	}
 
 	saga, err := projectcreate.New(
