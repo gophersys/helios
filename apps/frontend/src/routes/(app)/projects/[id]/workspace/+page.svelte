@@ -27,6 +27,7 @@
   import { ChatSession } from '$lib/gateway/session.svelte';
   import type { Harness, ProductHarness, ProjectView } from '$lib/gateway/types';
   import { edenTheme } from '$lib/theme/edenTheme';
+  import { isDesktop } from '$lib/platform/runtime';
   import WorkspaceShell from '$lib/workspace/WorkspaceShell.svelte';
   import ProjectTopBar, { type CommitSummary } from '$lib/workspace/ProjectTopBar.svelte';
   import SupervisorConversation from '$lib/workspace/SupervisorConversation.svelte';
@@ -139,6 +140,39 @@
     void goto('/projects');
   }
 
+  // ── Open in VS Code (read-only) ───────────────────────────────────────────────────────────────.
+  // Resolve the editor coordinates for the project's worktree, then open a read-only VS Code: WEB opens
+  // the code-server URL in a REUSABLE tab (the named window is re-pointed when another project is
+  // opened — "reuse this window"); DESKTOP (Tauri) hands the OS a vscode://ssh-remote URI so the user's
+  // native VS Code attaches to the sandbox. editorBusy guards a double-open.
+  let editorBusy = $state(false);
+  let editorError = $state<string | null>(null);
+
+  async function openEditor(): Promise<void> {
+    const record = project;
+    if (!record || editorBusy) return;
+    const sid = supervisorSessionId(record);
+    if (!sid) {
+      editorError = 'this project has no live workspace yet';
+      return;
+    }
+    editorBusy = true;
+    editorError = null;
+    try {
+      const editor = await client.getEditor(sid);
+      if (isDesktop() && editor.sshHost) {
+        window.location.href = `vscode://vscode-remote/ssh-remote+${editor.sshHost}${editor.worktreePath}`;
+      } else {
+        const win = window.open(editor.url, 'eden-vscode');
+        if (win) win.opener = null;
+      }
+    } catch (cause) {
+      editorError = cause instanceof Error ? cause.message : 'could not open the editor';
+    } finally {
+      editorBusy = false;
+    }
+  }
+
   // (Re)bind whenever the route id changes. $effect re-runs on projectId; a hard reload runs it fresh
   // on mount, a client-side nav re-targets it. The session is torn down on cleanup so the SSE stream
   // never leaks across a nav or teardown.
@@ -171,7 +205,17 @@
   {@const activeProject = project}
   <WorkspaceShell leftLabel="Conversation with the supervisor" {theme}>
     {#snippet topbar()}
-      <ProjectTopBar project={activeProject} commit={lastCommit} onBack={backToProjects} {theme} />
+      <ProjectTopBar
+        project={activeProject}
+        commit={lastCommit}
+        onBack={backToProjects}
+        onOpenEditor={openEditor}
+        {editorBusy}
+        {theme}
+      />
+      {#if editorError}
+        <p class="editor-error" role="alert" data-testid="editor-error">{editorError}</p>
+      {/if}
     {/snippet}
     {#snippet left()}
       {#if session}
@@ -255,5 +299,13 @@
   }
   .no-session p {
     max-inline-size: 40ch;
+  }
+  .editor-error {
+    margin: 0;
+    padding: var(--space-1, 4px) var(--space-4, 16px);
+    background: color-mix(in oklab, var(--color-warning) 14%, var(--color-surface));
+    color: var(--color-warning);
+    font-size: var(--font-size-caption, 12px);
+    border-block-end: 1px solid var(--eden-app-line);
   }
 </style>

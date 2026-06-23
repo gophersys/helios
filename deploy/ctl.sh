@@ -180,6 +180,9 @@ demo_up() {
       EDEN_GATEWAY_ADDRESS="${GATEWAY_ADDRESS}" \
       EDEN_CREDENTIAL_REF="${EDEN_CREDENTIAL_REF:-vault://eden/development#setup-token}" \
       EDEN_HARNESS="${EDEN_HARNESS:-claude-code}" \
+      EDEN_SUPERVISOR_WORKSPACE_ROOT="${REPO_ROOT}/.eden-runtime/supervisors" \
+      EDEN_WORKSPACE="${REPO_ROOT}/.eden-runtime/session" \
+      EDEN_EDITOR_URL_BASE="${EDEN_EDITOR_URL_BASE:-http://localhost:${CODE_SERVER_PORT}}" \
       bash -c "cd '${REPO_ROOT}/apps/agentgateway' && exec go run ./cmd/agentgateway-live" \
       >"${STATE_DIR}/gateway.log" 2>&1 &
   echo $! > "${STATE_DIR}/gateway.pid"
@@ -218,6 +221,7 @@ demo_up() {
   # sidecar (alpine/socat) over docker-out-of-docker: -p publishes FRONTEND_PORT to the Mac host
   # through Docker Desktop, forwarding to the devcontainer's bridge IP where vite now listens.
   start_demo_proxy
+  start_code_server
 
   log ""
   log "  ============================================================"
@@ -259,6 +263,40 @@ wait_platform() {
 # DEMO_PROXY_NAME is the published-port proxy sidecar that bridges the Mac host to the in-container
 # vite dev server. It is unique to the demo, so demo_down reaps it by this fixed name.
 DEMO_PROXY_NAME="eden-demo-proxy"
+
+# The LOCAL (docker) read-only VS Code editor workload. CODE_SERVER_PORT is the Mac-host port the
+# editor is published on; the gateway hands the UI per-project URLs (…/?folder=<worktree>) under it.
+CODE_SERVER_NAME="eden-codeserver"
+CODE_SERVER_PORT="${EDEN_EDITOR_PORT:-8500}"
+CODE_SERVER_IMAGE="${EDEN_EDITOR_IMAGE:-codercom/code-server:latest}"
+# The devcontainer name whose /workspace mount the editor shares READ-ONLY (--volumes-from). The
+# project worktrees live under /workspace/.eden-runtime (set in demo_up), so the editor sees them live.
+EDEN_DEVCONTAINER_NAME="${EDEN_DEVCONTAINER_NAME:-base-devcontainer}"
+
+# start_code_server runs a SINGLE read-only code-server (VS Code in the browser) that mounts the
+# devcontainer's /workspace READ-ONLY via --volumes-from — so every project's live worktree (under
+# /workspace/.eden-runtime/supervisors/…) is VIEWABLE but never editable. It is published to the Mac
+# host at 127.0.0.1:CODE_SERVER_PORT (the same docker-out-of-docker publish the UI proxy uses); the
+# gateway returns per-project URLs http://localhost:CODE_SERVER_PORT/?folder=<worktree>. The reusable
+# browser tab re-points to a new ?folder when you open a different project. In KUBERNETES this LOCAL
+# adapter is replaced by a per-project code-server Deployment+Service+Ingress mounting the project's
+# workspace PVC read-only (the gateway's editor URL contract is identical, only the base URL differs).
+# Skipped outside the devcontainer or if the image is unavailable.
+start_code_server() {
+  command -v docker >/dev/null 2>&1 || { warn "docker absent; skipping the code-server editor"; return 0; }
+  if [ ! -f /.dockerenv ]; then return 0; fi
+  log "starting the read-only VS Code (code-server) editor on 127.0.0.1:${CODE_SERVER_PORT} ..."
+  docker rm -f "${CODE_SERVER_NAME}" >/dev/null 2>&1 || true
+  if docker run -d --rm --name "${CODE_SERVER_NAME}" --label eden.demo=codeserver \
+      --volumes-from "${EDEN_DEVCONTAINER_NAME}:ro" \
+      -p "127.0.0.1:${CODE_SERVER_PORT}:8080" \
+      "${CODE_SERVER_IMAGE}" --auth none --bind-addr 0.0.0.0:8080 /workspace \
+      >/dev/null 2>&1; then
+    log "  ${CODE_SERVER_NAME}: read-only VS Code at http://localhost:${CODE_SERVER_PORT}/ (opened per-project from the UI)"
+  else
+    warn "failed to start ${CODE_SERVER_NAME}; the 'Open in VS Code' button is unavailable (is ${CODE_SERVER_IMAGE} pulled? is ${EDEN_DEVCONTAINER_NAME} the devcontainer name?)"
+  fi
+}
 
 # start_demo_proxy publishes the in-container vite UI to the Mac host. The demo runs INSIDE the
 # devcontainer, which publishes no host ports of its own, so a Mac browser cannot reach a service
@@ -318,6 +356,8 @@ demo_down() {
   # a docker-out-of-docker container, not a process group, so the pidfile reap below never sees it).
   if command -v docker >/dev/null 2>&1; then
     docker rm -f "${DEMO_PROXY_NAME}" >/dev/null 2>&1 || true
+    # Reap every read-only code-server editor sidecar by label (one shot, count-agnostic).
+    docker ps -aq --filter label=eden.demo=codeserver 2>/dev/null | xargs -r docker rm -f >/dev/null 2>&1 || true
   fi
   for p in frontend gateway platform; do
     local pidfile="${STATE_DIR}/${p}.pid"

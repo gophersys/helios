@@ -97,6 +97,18 @@ type Config struct {
 	// NO timeout — the in-harness settings.json + hooks remain the independent in-container wall.
 	OnPermission func(agentsession.PermissionRequest) agentsession.Decision
 
+	// EditorURLBase is the externally-reachable base URL of the READ-ONLY code-server (VS Code in the
+	// browser) that serves the project worktrees. Empty == the editor is not configured (GET
+	// /sessions/{id}/editor is a 503). The gateway forms a per-project URL <base>/?folder=<worktree>;
+	// the editor WORKLOAD is substrate-managed (a docker container locally, a code-server
+	// Deployment+Service+Ingress in kubernetes) — only this base URL differs across substrates.
+	EditorURLBase string
+
+	// EditorSSHHost is the OPTIONAL ssh-remote target the DESKTOP app opens VS Code against
+	// (vscode://vscode-remote/ssh-remote+<host><worktree>). Empty == web-only (the desktop button falls
+	// back to the browser URL). Never a credential — an ssh host[:port] alias the user's VS Code resolves.
+	EditorSSHHost string
+
 	// MaxPageSize caps the session-list page size (REQ-0022). 0 == DefaultPageSize.
 	MaxPageSize int
 

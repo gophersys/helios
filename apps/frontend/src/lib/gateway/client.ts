@@ -56,6 +56,15 @@ export const DEV_TENANCY: Tenancy = {
   templateVersion: '1.0.0',
 };
 
+/** EditorView is the read-only VS Code coordinates GET /sessions/{id}/editor returns: `url` is the
+ *  code-server URL (open in a new tab on web); `worktreePath` is the dir the editor opens; `sshHost` is
+ *  the optional ssh-remote host the desktop app builds a vscode:// URI against ("" == web-only). */
+export interface EditorView {
+  url: string;
+  worktreePath: string;
+  sshHost: string;
+}
+
 /** GatewayClient is constructed with the gateway base URL (e.g. http://127.0.0.1:8080). It
  *  holds no session state — each method is one request. */
 export class GatewayClient {
@@ -161,6 +170,17 @@ export class GatewayClient {
       `/projects/${encodeURIComponent(id)}`,
     );
     return envelope.data;
+  }
+
+  /** GET /sessions/{id}/editor — read-only VS Code coordinates for the session's project worktree.
+   *  NOT enveloped (mirrors the workspace surface): { url, worktreePath, sshHost }. Throws when the
+   *  editor is not configured (503) so the caller surfaces an inline notice instead of opening a blank tab. */
+  async getEditor(sessionId: string): Promise<EditorView> {
+    const response = await fetch(this.url(`/sessions/${encodeURIComponent(sessionId)}/editor`));
+    if (!response.ok) {
+      throw new Error(`the editor is unavailable (${response.status})`);
+    }
+    return (await response.json()) as EditorView;
   }
 
   /** Retry a stalled project's build: re-POST `POST /projects` from the surfaced view fields. The

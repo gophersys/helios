@@ -33,6 +33,8 @@
     project,
     commit = null,
     onBack,
+    onOpenEditor,
+    editorBusy = false,
     theme: _theme,
   }: {
     /** The project's redaction-safe read model (repoUrl/defaultBranch/status/stacks/supervisorAgentId). */
@@ -41,6 +43,11 @@
     commit?: CommitSummary | null;
     /** Invoked when the user clicks the brand/back affordance (e.g. to the projects dashboard). */
     onBack?: () => void;
+    /** Invoked to open the project in a read-only VS Code. Absent == the editor affordance is hidden
+     *  (kept network-free: the host resolves the editor URL + opens the tab / vscode:// URI). */
+    onOpenEditor?: () => void;
+    /** True while an editor open is in flight — disables the button so a double-click can't double-open. */
+    editorBusy?: boolean;
     theme?: Theme;
   } = $props();
 
@@ -109,6 +116,20 @@
         <span class="ptbar__glyph" aria-hidden="true">↗</span>
         repository
       </a>
+    {/if}
+    {#if onOpenEditor}
+      <span class="ptbar__sep" aria-hidden="true">·</span>
+      <button
+        class="ptbar__repo ptbar__editor"
+        data-testid="project-open-editor"
+        type="button"
+        disabled={editorBusy}
+        onclick={onOpenEditor}
+        title="Open this project in a read-only VS Code"
+      >
+        <span class="ptbar__glyph" aria-hidden="true">⧉</span>
+        {editorBusy ? 'opening…' : 'open in VS Code'}
+      </button>
     {/if}
   </div>
 
@@ -252,6 +273,18 @@
     outline: 2px solid var(--eden-app-accent);
     outline-offset: 2px;
     border-radius: 2px;
+  }
+  /* the editor action reuses the repo-link look but is a real <button> (it triggers a host callback,
+     not a navigation) — reset the button chrome so it reads as an inline accent action. */
+  .ptbar__editor {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .ptbar__editor:disabled {
+    cursor: progress;
+    opacity: 0.65;
   }
   .ptbar__supervisor-id {
     overflow: hidden;

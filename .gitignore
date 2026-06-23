@@ -66,3 +66,6 @@ docs/architecture/eden-architecture.html
 docs/eden-atlas.html
 **/documents.html
 .audit/
+
+# Local-demo materialized project worktrees (under /workspace so the read-only code-server can mount them)
+.eden-runtime/
