@@ -82,6 +82,20 @@ func (s supervisorTemplateStore) supervisorTemplate() orchestrator.AgentTemplate
 			{ID: "glob", Tool: "Glob", ReadOnly: true},
 			{ID: "grep", Tool: "Grep", ReadOnly: true},
 			{ID: "git-ro", Tool: "Bash", Scopes: []string{"git status *", "git ls-files *", "git log *", "git diff *", "git show *"}, ReadOnly: true},
+			// The supervisor invokes each typed transition as a SLASH-COMMAND, which Claude Code runs
+			// through the Skill tool ({"skill":"propose-questionnaire", ...}). The adapter folds the
+			// invoked name into the permission tool string ("Skill(propose-questionnaire)"), so these
+			// Skill-scoped grants are the auto-allow surface for the supervisor's closed command set —
+			// each command's UNDERLYING bash stays double-walled by the template settings.json + the
+			// gate-tool hook. The Bash command-script grants below cover a direct (non-Skill) run.
+			{ID: "skill-commands", Tool: "Skill", Scopes: []string{
+				"state-show", "propose-questionnaire", "record-answer", "propose-charter",
+				"ratify-charter", "propose-work-item", "open-decision", "rule-decision", "plan", "advance",
+			}},
+			{ID: "slash-commands", Tool: "SlashCommand", Scopes: []string{
+				"state-show", "propose-questionnaire", "record-answer", "propose-charter",
+				"ratify-charter", "propose-work-item", "open-decision", "rule-decision", "plan", "advance",
+			}},
 			{ID: "cmd-state-show", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/state-show.sh *"}},
 			{ID: "cmd-propose-questionnaire", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/propose-questionnaire.sh *"}},
 			{ID: "cmd-record-answer", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/record-answer.sh *"}},
