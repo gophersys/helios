@@ -109,6 +109,15 @@ type Config struct {
 	// back to the browser URL). Never a credential — an ssh host[:port] alias the user's VS Code resolves.
 	EditorSSHHost string
 
+	// EditorIngressDomain is the OPTIONAL wildcard DNS base for the PER-AGENT read-only editor sidecar
+	// (ADR-0027 §3): when set, the editor of session <id> is served at "https://<id>.editor.<domain>"
+	// — the host-per-agent origin the kubernetesadapter routes each agent's editor Service+Ingress
+	// through. The handler prefers this per-agent origin over the single static EditorURLBase, so each
+	// agent opens ITS OWN editor (mounting ITS OWN worktree read-only) rather than one shared editor.
+	// Empty == no per-agent derivation (the handler falls back to EditorURLBase). Never a secret (a
+	// domain). When BOTH this and EditorURLBase are empty the editor route is a 503 (unchanged).
+	EditorIngressDomain string
+
 	// MaxPageSize caps the session-list page size (REQ-0022). 0 == DefaultPageSize.
 	MaxPageSize int
 

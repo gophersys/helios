@@ -238,13 +238,14 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 
 	gw, err := gateway.New(
 		gateway.Config{
-			Credential:    secrets.Ref(configuration.CredentialReference),
-			Routing:       liveRouteKey(),
-			Workspace:     configuration.Workspace,
-			Grants:        grants,
-			OnPermission:  alwaysAllowPermission,
-			EditorURLBase: os.Getenv("EDEN_EDITOR_URL_BASE"),
-			EditorSSHHost: os.Getenv("EDEN_EDITOR_SSH_HOST"),
+			Credential:          secrets.Ref(configuration.CredentialReference),
+			Routing:             liveRouteKey(),
+			Workspace:           configuration.Workspace,
+			Grants:              grants,
+			OnPermission:        alwaysAllowPermission,
+			EditorURLBase:       os.Getenv("EDEN_EDITOR_URL_BASE"),
+			EditorSSHHost:       os.Getenv("EDEN_EDITOR_SSH_HOST"),
+			EditorIngressDomain: os.Getenv("EDEN_EDITOR_INGRESS_DOMAIN"),
 		},
 		gateway.Deps{
 			Manager:    manager,

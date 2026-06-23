@@ -57,9 +57,53 @@ func TestEditorUnconfiguredIs503(t *testing.T) {
 	}
 }
 
+// TestEditorIngressDomainDerivesPerAgentHost proves the host-per-agent derivation (ADR-0027 §3): with
+// EditorIngressDomain set, GET /sessions/{id}/editor serves the editor at "https://<id>.editor.<domain>"
+// — each agent opens ITS OWN editor (mounting its own worktree read-only), not one shared base. It
+// PREFERS the per-agent host over the static EditorURLBase.
+func TestEditorIngressDomainDerivesPerAgentHost(t *testing.T) {
+	t.Parallel()
+	workspaceDir := t.TempDir()
+	server := newEditorServerWithDomain(t, workspaceDir, "http://localhost:8500/", "eden.example.com")
+
+	status, body := getWorkspace(t, server.URL+"/sessions/agent-7/editor")
+	if status != http.StatusOK {
+		t.Fatalf("editor: status %d (%v)", status, body)
+	}
+	wantURL := "https://agent-7.editor.eden.example.com/?folder=" + url.QueryEscape(workspaceDir)
+	if body["url"] != wantURL {
+		t.Errorf("url = %v, want the per-agent host %s", body["url"], wantURL)
+	}
+}
+
+// TestEditorIngressDomainStillFallsBackTo503 proves the 503 path is preserved: with NEITHER an ingress
+// domain NOR a static base, the editor route is still unavailable.
+func TestEditorIngressDomainStillFallsBackTo503(t *testing.T) {
+	t.Parallel()
+	server := newEditorServerWithDomain(t, t.TempDir(), "", "")
+	status, _ := getWorkspace(t, server.URL+"/sessions/agent-7/editor")
+	if status != http.StatusServiceUnavailable {
+		t.Fatalf("an editor with neither a domain nor a base must be 503, got %d", status)
+	}
+}
+
 // newEditorServer builds a gateway whose Config carries the editor base URL + ssh host (and a workspace
 // root the editor opens), served over httptest. Mirrors newWorkspaceServer; reaped on cleanup.
 func newEditorServer(t *testing.T, dir, editorBase, sshHost string) *httptest.Server {
+	t.Helper()
+	return newEditorServerFull(t, dir, editorBase, sshHost, "")
+}
+
+// newEditorServerWithDomain builds an editor gateway whose Config carries the per-agent ingress domain
+// (ADR-0027 §3) plus an optional static base — exercising the host-per-agent derivation.
+func newEditorServerWithDomain(t *testing.T, dir, editorBase, ingressDomain string) *httptest.Server {
+	t.Helper()
+	return newEditorServerFull(t, dir, editorBase, "", ingressDomain)
+}
+
+// newEditorServerFull is the shared editor-gateway builder: it carries the editor base, ssh host, and
+// per-agent ingress domain on Config, served over httptest and reaped on cleanup.
+func newEditorServerFull(t *testing.T, dir, editorBase, sshHost, ingressDomain string) *httptest.Server {
 	t.Helper()
 	provider := secretstest.New(map[string]string{credentialRef: agentsessiontest.SeededCanary})
 	transcript := agentsessiontest.NewTranscript()
@@ -79,11 +123,12 @@ func newEditorServer(t *testing.T, dir, editorBase, sshHost string) *httptest.Se
 	}
 	g, err := gateway.New(
 		gateway.Config{
-			Credential:    secrets.Ref(credentialRef),
-			Routing:       gatewayRouteKey(),
-			Workspace:     dir,
-			EditorURLBase: editorBase,
-			EditorSSHHost: sshHost,
+			Credential:          secrets.Ref(credentialRef),
+			Routing:             gatewayRouteKey(),
+			Workspace:           dir,
+			EditorURLBase:       editorBase,
+			EditorSSHHost:       sshHost,
+			EditorIngressDomain: ingressDomain,
 		},
 		gateway.Deps{
 			Manager:    orchestratortest.New(orchestratortest.WithTemplate(orchestratortest.DefaultTemplate())),
