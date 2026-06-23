@@ -121,6 +121,19 @@ func (p *Pool) Session(id AgentID) (agentsession.Session, bool) {
 	return handle.session, true
 }
 
+// Workspace returns the EXTERNALLY-materialized host working directory a live agent's session was
+// opened with (the SpawnRequest.Workspace override — e.g. a project supervisor's cloned-repo CWD)
+// and whether one is present. It is the seam the gateway resolves a per-{id} workspace listing
+// from. Empty/(false) when the agent has no host-CWD override (it runs in the provisioned
+// workspace, not a host directory the gateway can read) or is not live on this node.
+func (p *Pool) Workspace(id AgentID) (string, bool) {
+	inputs, ok := p.lookupSpawnInputs(id)
+	if !ok || inputs.workspace == "" {
+		return "", false
+	}
+	return inputs.workspace, true
+}
+
 // defaultProbe is the in-process Probe the Pool binds when Deps.Probe is nil: it reads
 // the live-actual side table. Multi-node swaps a cluster-query Probe with no surface
 // change.
