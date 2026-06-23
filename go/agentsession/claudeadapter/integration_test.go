@@ -249,29 +249,9 @@ func runLivePermissionArm(t *testing.T, token string, allow bool) {
 	defer cancel()
 	stream := session.Events(ctx, agentsession.FromSeq(0))
 
-	// Phase 1: read until the REAL permission request surfaces. It must be a genuine
-	// EventPermissionRequest for Bash (not an opaque Extension) — the (a) assertion.
-	var requestID string
-	var preDecision []agentsession.Event
-	for requestID == "" {
-		event, ok := stream.Next(ctx)
-		if !ok {
-			t.Fatalf("stream ended before a permission request surfaced (saw %d events); the gate did not fire", len(preDecision))
-		}
-		preDecision = append(preDecision, event)
-		if event.Kind == agentsession.EventExtension && looksLikeCanUseTool(event.Extension) {
-			t.Fatalf("a can_use_tool control_request leaked as an opaque EventExtension (the pre-fix bug): %s", event.Extension)
-		}
-		if event.Kind == agentsession.EventPermissionRequest && event.Permission != nil {
-			if event.Permission.Tool != "Bash" {
-				t.Logf("permission request for %q (expected Bash); continuing", event.Permission.Tool)
-			}
-			requestID = event.Permission.RequestID
-		}
-	}
-	if requestID == "" {
-		t.Fatal("no EventPermissionRequest observed")
-	}
+	// Phase 1: read until the REAL permission request surfaces (a genuine EventPermissionRequest,
+	// not an opaque Extension — the (a) assertion, enforced inside awaitLivePermissionRequest).
+	requestID, preDecision := awaitLivePermissionRequest(t, ctx, stream)
 
 	// Phase 2: resolve the decision over the NATIVE control channel.
 	decision := agentsession.Decision{Allow: allow, By: "user-live-test"}
@@ -298,6 +278,35 @@ func runLivePermissionArm(t *testing.T, token string, allow bool) {
 			t.Errorf("on Resolve(deny) the Bash tool ran anyway (the deny did not reach claude); kinds=%v", kindsOf(all))
 		}
 	}
+}
+
+// awaitLivePermissionRequest reads the live stream until the REAL permission request surfaces,
+// returning its request id plus the events seen before the decision (for the no-secret-leak
+// sweep). It enforces the (a) assertion inline: a can_use_tool that leaked as an opaque
+// EventExtension is the pre-fix bug and fails the test. Extracted from runLivePermissionArm so
+// each stays a single, legible responsibility (the loop's branching kept the arm over the
+// cognitive-complexity ceiling).
+func awaitLivePermissionRequest(t *testing.T, ctx context.Context, stream agentsession.Stream) (string, []agentsession.Event) { //nolint:revive // ctx-after-t mirrors the other helpers in this live test file.
+	t.Helper()
+	var requestID string
+	var preDecision []agentsession.Event
+	for requestID == "" {
+		event, ok := stream.Next(ctx)
+		if !ok {
+			t.Fatalf("stream ended before a permission request surfaced (saw %d events); the gate did not fire", len(preDecision))
+		}
+		preDecision = append(preDecision, event)
+		if event.Kind == agentsession.EventExtension && looksLikeCanUseTool(event.Extension) {
+			t.Fatalf("a can_use_tool control_request leaked as an opaque EventExtension (the pre-fix bug): %s", event.Extension)
+		}
+		if event.Kind == agentsession.EventPermissionRequest && event.Permission != nil {
+			if event.Permission.Tool != "Bash" {
+				t.Logf("permission request for %q (expected Bash); continuing", event.Permission.Tool)
+			}
+			requestID = event.Permission.RequestID
+		}
+	}
+	return requestID, preDecision
 }
 
 // TestIntegration_LiveClaude_HostToolRoundTrip drives a REAL claude turn that calls an

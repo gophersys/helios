@@ -355,10 +355,17 @@ func cloneGrants(in []ToolGrant) []ToolGrant {
 // grant with NO scopes covers the whole tool (any scope); a scoped grant covers a request
 // only when EVERY requested scope is in the grant's scope set (a partial match still
 // escalates). An empty requested-scope set is covered by any grant for the tool.
+//
+// Tool names are compared by their BASE name (the parenthesized scope suffix stripped), so a
+// request whose tool carries an inline scope — "Skill(propose-questionnaire)", the wrapper-tool
+// shape the adapter folds, with the scope ALSO surfaced in `scopes` via scopesFromTool — matches a
+// grant declared as the base tool plus that scope ({Tool:"Skill", Scopes:["propose-questionnaire"]}).
+// A bare tool name (the common case, "Bash"/"Read") is its own base, so this is a no-op there.
 func grantCovers(grants []ToolGrant, tool string, scopes []string) bool {
+	base := baseToolName(tool)
 	for i := range grants {
 		grant := &grants[i]
-		if grant.Tool != tool {
+		if baseToolName(grant.Tool) != base {
 			continue
 		}
 		if len(grant.Scopes) == 0 {
@@ -400,6 +407,18 @@ func scopesFor(payload *PermissionPayload) []string {
 		return nil
 	}
 	return scopesFromTool(payload.Tool)
+}
+
+// baseToolName returns a tool string with its parenthesized scope suffix stripped, preserving
+// case: "Skill(propose-questionnaire)" -> "Skill", "Bash" -> "Bash". It is the grant-matching
+// counterpart to scopesFromTool (which extracts the scope) — together they split a folded
+// "Tool(scope)" into the (base, scope) pair the grant set is declared in. Case is preserved
+// (unlike normalizeToken) because grant tool names are case-sensitive ("Read"/"Bash").
+func baseToolName(tool string) string {
+	if open := strings.IndexByte(tool, '('); open >= 0 {
+		return strings.TrimSpace(tool[:open])
+	}
+	return strings.TrimSpace(tool)
 }
 
 // scopesFromTool pulls a parenthesized scope out of a tool string ("Bash(rm -rf /)" ->

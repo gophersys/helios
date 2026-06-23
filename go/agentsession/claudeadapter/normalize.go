@@ -10,6 +10,7 @@ package claudeadapter
 import (
 	"encoding/json"
 	"math"
+	"strings"
 	"sync"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -181,10 +182,45 @@ func (n *normalizer) controlRequest(envelope *streamLine, line []byte) []agentse
 		Kind: agentsession.EventPermissionRequest,
 		Permission: &agentsession.PermissionPayload{
 			RequestID: envelope.RequestID,
-			Tool:      envelope.Request.ToolName,
+			Tool:      scopedPermissionTool(envelope.Request.ToolName, envelope.Request.Input),
 			Reason:    decisionReasonText(envelope.Request.DecisionReason),
 		},
 	}}
+}
+
+// scopedPermissionTool scopes the permission tool string for the wrapper tools whose INPUT names
+// the sub-command actually being invoked — the Skill / SlashCommand tools, through which Claude
+// Code runs a `.claude/commands/<name>` slash-command. A bare "Skill" carries no scope, so it
+// matches no scoped grant and ALWAYS escalates (the supervisor's `/propose-questionnaire` was
+// default-denied as an unscoped "Skill"); folding the invoked name in — "Skill" + input.skill
+// "propose-questionnaire" -> "Skill(propose-questionnaire)" — lets the library's existing
+// scoped-grant + risk machinery gate WHICH skill, using the same scope-in-parentheses shape Bash
+// uses ("Bash(go test)"). A non-wrapper tool, or an input that names no sub-command, is returned
+// unchanged (the bare tool name, exactly as before).
+func scopedPermissionTool(toolName string, input json.RawMessage) string {
+	switch strings.ToLower(strings.TrimSpace(toolName)) {
+	case "skill", "slashcommand":
+	default:
+		return toolName
+	}
+	var decoded struct {
+		Skill   string `json:"skill"`
+		Command string `json:"command"`
+	}
+	if json.Unmarshal(input, &decoded) != nil {
+		return toolName
+	}
+	sub := strings.TrimSpace(decoded.Skill)
+	if sub == "" {
+		// A SlashCommand input is the raw "/name args" line; take the leading /token's name.
+		if fields := strings.Fields(strings.TrimSpace(decoded.Command)); len(fields) > 0 {
+			sub = strings.TrimPrefix(fields[0], "/")
+		}
+	}
+	if sub == "" {
+		return toolName
+	}
+	return toolName + "(" + sub + ")"
 }
 
 // rememberInput stashes the raw input a can_use_tool ask carried, keyed by request id, so the

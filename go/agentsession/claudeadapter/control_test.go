@@ -68,6 +68,37 @@ func TestNormalize_ControlRequest_WeakenToConfirm(t *testing.T) {
 	}
 }
 
+// TestNormalize_CanUseTool_SkillScoped proves the Skill/SlashCommand wrapper is scoped with the
+// INVOKED sub-command name so the library's scoped-grant machinery can gate WHICH skill. A bare
+// "Skill" matches no scoped grant and always escalates (the supervisor's /propose-questionnaire
+// was default-denied as an unscoped "Skill"); the normalizer folds input.skill into the tool
+// string as "Skill(propose-questionnaire)" (the same scope-in-parens shape as "Bash(go test)").
+func TestNormalize_CanUseTool_SkillScoped(t *testing.T) {
+	t.Parallel()
+	frame := `{"type":"control_request","request_id":"req-skill","request":{"subtype":"can_use_tool","tool_name":"Skill","input":{"skill":"propose-questionnaire","args":"generate it"},"tool_use_id":"toolu_skill"}}`
+	events := claudeadapter.NormalizeLineForTest([]byte(frame))
+	if len(events) != 1 || events[0].Permission == nil {
+		t.Fatalf("Skill can_use_tool must map to one EventPermissionRequest, got %+v", events)
+	}
+	if got := events[0].Permission.Tool; got != "Skill(propose-questionnaire)" {
+		t.Fatalf("Skill tool must be scoped with the invoked skill name; Tool = %q, want Skill(propose-questionnaire)", got)
+	}
+	// A SlashCommand input carries the raw "/name args" line; the leading /token's name is folded.
+	slash := `{"type":"control_request","request_id":"req-slash","request":{"subtype":"can_use_tool","tool_name":"SlashCommand","input":{"command":"/record-answer {\"question\":\"01-x\"}"},"tool_use_id":"toolu_slash"}}`
+	sevents := claudeadapter.NormalizeLineForTest([]byte(slash))
+	if len(sevents) != 1 || sevents[0].Permission == nil {
+		t.Fatalf("SlashCommand can_use_tool must map to one EventPermissionRequest, got %+v", sevents)
+	}
+	if got := sevents[0].Permission.Tool; got != "SlashCommand(record-answer)" {
+		t.Fatalf("SlashCommand tool must be scoped with the command name; Tool = %q, want SlashCommand(record-answer)", got)
+	}
+	// A non-wrapper tool (Bash) is returned unchanged — the fold is wrapper-only, non-vacuous.
+	bare := claudeadapter.NormalizeLineForTest([]byte(capturedCanUseToolFrame))
+	if len(bare) != 1 || bare[0].Permission == nil || bare[0].Permission.Tool != "Bash" {
+		t.Fatalf("a non-wrapper tool must be unchanged; got %+v", bare)
+	}
+}
+
 // TestControlRequest_NotOpaqueExtension pins the regression directly: the SAME captured
 // can_use_tool frame, if the control_request case were absent, would fall to the normalizer's
 // default arm and become an EventExtension. Assert it does NOT.
