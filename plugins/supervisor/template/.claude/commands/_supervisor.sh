@@ -177,6 +177,9 @@ sv_write_markdown_artifact() {
     printf '```\n\n'
     printf '%s\n' "$body"
   } >"$abs"
+  # Stage the artifact so a transition guard (which inspects the index) is satisfiable within ONE
+  # supervisor turn. The orchestrator still commits (the agent only stages — 20-git-protocol.md).
+  git -C "$root" add -- "$rel" 2>/dev/null || true
 }
 
 # sv_write_json_marker <relpath> <payload> — write a small JSON marker file (e.g. .ratified,
@@ -186,6 +189,8 @@ sv_write_json_marker() {
   root="$(sv_project_dir)"; abs="$root/$rel"; dir="$(dirname "$abs")"
   mkdir -p "$dir"
   printf '%s\n' "$payload" | jq -S . >"$abs"
+  # Stage the marker (see sv_write_markdown_artifact) so a transition guard sees it in one turn.
+  git -C "$root" add -- "$rel" 2>/dev/null || true
 }
 
 # ── state advance ────────────────────────────────────────────────────────────────────────────
