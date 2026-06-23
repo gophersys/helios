@@ -106,6 +106,12 @@ func (s supervisorTemplateStore) supervisorTemplate() orchestrator.AgentTemplate
 			{ID: "cmd-rule-decision", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/rule-decision.sh *"}},
 			{ID: "cmd-plan", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/plan.sh *"}},
 			{ID: "cmd-advance", Tool: "Bash", Scopes: []string{"bash ./.claude/commands/advance.sh *"}},
+			// The eden_commit_transition controller host-tool (injected per-spawn via
+			// SpawnRequest.HostTools at the composition root): the supervisor calls it to COMMIT+push a
+			// transition it staged and project the FSM state to Postgres. Claude surfaces an Eden SDK-MCP
+			// host-tool as mcp__<server>__<name> (server "eden", claudeadapter hostToolServerName), so the
+			// grant key is the MCP-qualified name. The handler re-validates the transition server-side.
+			{ID: "host-commit-transition", Tool: "mcp__eden__eden_commit_transition"},
 		},
 
 		// No Eden host-callback tools at v0 (the supervisor reads the repo directly).
