@@ -15,6 +15,18 @@ func EffectiveWorkDirForTest(override, provisioned string) string {
 // DefaultWorkDirForTest re-exports the repo-less harness CWD constant for the precedence test.
 func DefaultWorkDirForTest() string { return defaultWorkDir }
 
+// WorkdirRepoEnvForTest exercises the in-pod WorkdirRepo env-fold (the additive in-pod branch): it
+// folds a RepoMount into the env COPY exactly as toWorkspaceSpec does for an in-pod workload, so the
+// test asserts the URL/Ref/credential-reference land in the Sandbox.Env (the producer side of the env
+// contract the agent-runtime PID-1 binary consumes), without re-spelling the env keys.
+func WorkdirRepoEnvForTest(base map[string]string, repository RepoMount) map[string]string {
+	return withWorkdirRepoEnv(base, repository)
+}
+
+// IsInPodWorkloadForTest re-exports the workload-shape predicate so the test pins the additive branch
+// selector: an empty Entrypoint is the classic host-Bind path; a non-empty one is the in-pod env-fold.
+func IsInPodWorkloadForTest(entrypoint []string) bool { return isInPodWorkload(entrypoint) }
+
 // EffectiveHostToolNamesForTest exercises the per-spawn-host-tools-over-template-Hosts precedence by
 // the tool NAMES (the Handler closures are not comparable): a non-empty per-spawn set REPLACES the
 // template's declared Hosts, else the template's Hosts apply.

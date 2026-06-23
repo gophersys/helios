@@ -29,6 +29,18 @@ func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.Wo
 		labels[k] = v
 	}
 
+	// The WorkdirRepo is realized one of two ways, selected by the workload shape (additive, ADR-0022
+	// §4): an IN-POD workload (a non-empty Entrypoint — the workspace's PID-1 IS the agent-runtime
+	// binary, which clones the repo itself; apps/agent-runtime workdir.go) folds the repo into the
+	// child-process Env (URL + Ref + the OPAQUE credential reference) so the in-pod cloner resolves the
+	// credential server-side and clones locally; a CLASSIC Ready-then-Run workspace (empty Entrypoint —
+	// the existing host-side path) keeps the host Bind mount behavior verbatim. The in-pod path is the
+	// only one that threads .Ref + .Credential (the host Bind dropped them; they had no realization).
+	env := template.Sandbox.Env
+	if isInPodWorkload(template.Sandbox.Entrypoint) {
+		env = withWorkdirRepoEnv(env, template.Sandbox.WorkdirRepo)
+	}
+
 	spec := workspaceprovider.WorkspaceSpec{
 		Name:             workspaceName(agent.ID),
 		Substrate:        substrateToProvider(template.Sandbox.Substrate),
@@ -36,12 +48,16 @@ func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.Wo
 		Resources:        resourcesToProvider(template.Sandbox.Resources),
 		Egress:           egressToProvider(template.Sandbox.EgressAllow),
 		Labels:           labels,
-		Env:              envToProvider(template.Sandbox.Env),
+		Env:              envToProvider(env),
 		Entrypoint:       entrypointToProvider(template.Sandbox.Entrypoint),
 		ProvisionTimeout: 0, // not the per-spec deadline: reconcile bounds the Provision CALL via Config.ProvisionTimeout (provisionContext), so the ctx governs the wait
 	}
-	if mount, ok := repoMount(template.Sandbox.WorkdirRepo); ok {
-		spec.Mounts = append(spec.Mounts, mount)
+	// The host Bind mount is the CLASSIC Ready-then-Run path only: an in-pod workload clones the repo
+	// itself from the folded Env, so it takes no host Bind (the .URL is a remote, not a host path).
+	if !isInPodWorkload(template.Sandbox.Entrypoint) {
+		if mount, ok := repoMount(template.Sandbox.WorkdirRepo); ok {
+			spec.Mounts = append(spec.Mounts, mount)
+		}
 	}
 	return spec
 }
@@ -135,6 +151,49 @@ func entrypointToProvider(entrypoint []string) []string {
 		return nil
 	}
 	return append([]string(nil), entrypoint...)
+}
+
+// isInPodWorkload reports whether the template is an in-pod workload (a non-empty Entrypoint: the
+// workspace's PID-1 IS the agent-runtime binary, ADR-0022 §4). Only an in-pod workload folds the
+// WorkdirRepo into the child Env (the binary clones it itself); a classic Ready-then-Run workspace
+// keeps the host Bind. Empty == the existing behavior, so the existing host-side path is byte-unchanged.
+func isInPodWorkload(entrypoint []string) bool { return len(entrypoint) > 0 }
+
+// The in-pod workdir-clone env keys (the producer side of the env contract the agent-runtime PID-1
+// binary consumes in apps/agent-runtime workdir.go). They are NON-secret: EnvWorkdirRepoCredential
+// carries the OPAQUE secrets.Reference STRING (RepoMount.Credential.String()), resolved server-side by
+// the in-pod cloner's secrets Mediator — never the value. The agent-runtime app reads these by name at
+// boot (the env boundary between the orchestrator producer and the in-pod consumer).
+const (
+	// EnvWorkdirRepo names the env var carrying the clone URL of the repo the in-pod binary clones.
+	EnvWorkdirRepo = "EDEN_WORKDIR_REPO"
+	// EnvWorkdirRepoRef names the env var carrying the optional branch/tag/sha to check out.
+	EnvWorkdirRepoRef = "EDEN_WORKDIR_REPO_REF"
+	// EnvWorkdirRepoCredential names the env var carrying the OPAQUE clone-credential reference STRING.
+	EnvWorkdirRepoCredential = "EDEN_WORKDIR_REPO_CRED" //nolint:gosec // G101 false positive: this is an env-var KEY NAME, not a credential value (the value is an opaque secrets.Reference resolved server-side).
+)
+
+// withWorkdirRepoEnv folds a non-zero WorkdirRepo into a COPY of env (the in-pod workload path): the
+// URL, the optional Ref, and the OPAQUE Credential reference STRING (RepoMount.Credential is never a
+// VALUE — its String() is a loggable reference the in-pod cloner resolves server-side). A zero
+// WorkdirRepo (no URL) returns env unchanged (an empty in-pod workspace). It NEVER mutates the
+// template's map (the template is immutable; the fold copies).
+func withWorkdirRepoEnv(env map[string]string, repository RepoMount) map[string]string {
+	if repository.URL == "" {
+		return env
+	}
+	merged := make(map[string]string, len(env)+3)
+	for k, v := range env {
+		merged[k] = v
+	}
+	merged[EnvWorkdirRepo] = repository.URL
+	if repository.Ref != "" {
+		merged[EnvWorkdirRepoRef] = repository.Ref
+	}
+	if !repository.Credential.IsZero() {
+		merged[EnvWorkdirRepoCredential] = repository.Credential.String()
+	}
+	return merged
 }
 
 // workspaceName derives the deterministic, tenancy-scoped workspace name from the
