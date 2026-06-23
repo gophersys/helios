@@ -171,8 +171,15 @@ fi
 
 [ -n "${VAULT_PASSWORD:-}" ] || die "VAULT_PASSWORD must be set in the environment (deploy local exports it; never committed)"
 log "binding userpass user '${VAULT_USERNAME}' to policy '${VAULT_POLICY}' ..."
+# Token TTL for the LOCAL demo: the agent's vaultadapter logs in ONCE (sticky, ModeUserpass) and caches
+# the token for the process lifetime — it does NOT re-login on expiry (production uses ModeTokenFile +
+# a sidecar refresh instead). A short TTL therefore breaks a long-running local demo: the gateway's
+# cached token expires mid-session and every credential resolution then 503s ("authentication failed").
+# A local, read-only userpass on a dev secret carries little risk, so give it a long life (30 days) so
+# the demo survives an overnight/multi-day run. Override with VAULT_TOKEN_TTL if a short TTL is wanted.
+VAULT_TOKEN_TTL="${VAULT_TOKEN_TTL:-720h}"
 vault "VAULT_TOKEN=${ROOT_TOKEN}" -- write "auth/userpass/users/${VAULT_USERNAME}" \
-  password="${VAULT_PASSWORD}" policies="${VAULT_POLICY}" token_ttl=1h token_max_ttl=4h >/dev/null 2>&1 || die "userpass user bind failed"
+  password="${VAULT_PASSWORD}" policies="${VAULT_POLICY}" token_ttl="${VAULT_TOKEN_TTL}" token_max_ttl="${VAULT_TOKEN_TTL}" >/dev/null 2>&1 || die "userpass user bind failed"
 unset ROOT_TOKEN
 
 log "DONE — Vault seeded. The agent resolves vault://${VAULT_MOUNT}/${VAULT_SECRET_PATH}#setup-token via userpass '${VAULT_USERNAME}'."
