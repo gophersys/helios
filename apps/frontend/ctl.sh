@@ -112,6 +112,39 @@ function cmd_e2e() {
   log_success "e2e: OK"
 }
 
+# unit runs the vitest unit suite (the openEditor desktop/web branch-selection test lives here). The
+# frontend is a yarn workspace member, so `bun x vitest` resolves the workspace-hoisted vitest (the same
+# pin the @eden/* TS libs gate against). jsdom is wired in vitest.config.unit.ts for the window/location
+# mocking the branch test needs. Run-once (no watch) so it is a clean gate.
+function cmd_unit() {
+  require_cmd bun
+  log_info "unit: $YARN_DISPLAY vitest run --config vitest.config.unit.ts"
+  (cd "$PROJECT_ROOT" && "${YARN[@]}" vitest run --config vitest.config.unit.ts "$@")
+  log_success "unit: OK"
+}
+
+# tauri drives the desktop shell (ADR-0006) via the Tauri CLI. The shell wraps the SAME web bundle
+# (src-tauri/tauri.conf.json points at this app's dev server / build output) and bakes
+# PUBLIC_EDEN_RUNTIME=desktop so isDesktop() resolves true. The Tauri CLI is the `cargo tauri` cargo
+# subcommand (cargo-tauri); if the toolchain is absent this FAILS LOUDLY (FAIL-NOT-SKIP) rather than
+# pretend a build happened. The default action is `build`; pass dev/build/info through.
+#   ./ctl.sh tauri info       # report the Tauri/Rust/webview toolchain status
+#   ./ctl.sh tauri dev        # run the desktop shell over the live vite dev server
+#   ./ctl.sh tauri build      # package the desktop app (needs the SvelteKit static adapter — see tauri.conf.json)
+function cmd_tauri() {
+  require_cmd cargo
+  if ! cargo tauri --help >/dev/null 2>&1; then
+    log_error "the Tauri CLI (cargo-tauri) is not installed — install it with: cargo install tauri-cli --version '^2'"
+    log_error "(the src-tauri scaffold is complete; only the CLI binary is missing)"
+    exit 127
+  fi
+  local action="${1:-build}"
+  shift || true
+  log_info "tauri: cargo tauri $action (desktop shell over the web bundle, PUBLIC_EDEN_RUNTIME=desktop)"
+  (cd "$PROJECT_ROOT/src-tauri" && PUBLIC_EDEN_RUNTIME=desktop cargo tauri "$action" "$@")
+  log_success "tauri: OK"
+}
+
 # -------- usage --------
 function usage() {
   cat <<EOF
@@ -125,6 +158,8 @@ Commands:
   typecheck    Sync SvelteKit types and run svelte-check (TypeScript strict)
   check        Alias of typecheck (the ADR-0020 gate / package.json check)
   e2e          Playwright forced-CRUD E2E against a real agentgateway dev-serve
+  unit         Vitest unit suite (openEditor desktop/web branch selection)
+  tauri        Drive the desktop shell (cargo tauri <dev|build|info>); FAILS if the CLI is absent
   help         Show this message
 EOF
 }
@@ -141,6 +176,8 @@ function main() {
     typecheck) cmd_typecheck "$@" ;;
     check)     cmd_check     "$@" ;;
     e2e)       cmd_e2e       "$@" ;;
+    unit)      cmd_unit      "$@" ;;
+    tauri)     cmd_tauri     "$@" ;;
     help|"")   usage ;;
     *)         log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac
