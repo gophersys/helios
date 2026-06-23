@@ -1,9 +1,27 @@
 package orchestrator
 
-import "github.com/gophersys/libs/go/agentsession"
+import (
+	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/workspaceprovider"
+)
 
 // export_test.go is the white-box seam: it re-exports a PURE unexported helper so the external
 // _test package exercises it WITHOUT widening the public surface.
+
+// ToWorkspaceSpecForTest drives the FULL fold (toWorkspaceSpec) so a test asserts the in-pod vs
+// host-side branch DIVERGENCE at the WorkspaceSpec level: an in-pod workload (non-empty Entrypoint)
+// folds the WorkdirRepo into Sandbox.Env and takes NO host Bind mount; a classic host-side workspace
+// (empty Entrypoint) keeps the host Bind and folds NO repo env. It builds the Agent the fold reads
+// (the tenancy + template-name labels) from the template so the test drives the real production fold,
+// not a re-spelled copy.
+//
+//nolint:gocritic // Tenancy is the small frozen tenancy key taken by value (the production fold reads it by value); template is a pointer to mirror toWorkspaceSpec's production signature.
+func ToWorkspaceSpecForTest(tenant Tenancy, template *AgentTemplate) workspaceprovider.WorkspaceSpec {
+	// toWorkspaceSpec reads agent.Tenant (the ownership-domain labels) and agent.Template.Name (the
+	// template-name label); the production Spawn sets agent.Template to the resolved template's Ref.
+	agent := &Agent{ID: "agent-1", Tenant: tenant, Template: template.Ref}
+	return toWorkspaceSpec(agent, template)
+}
 
 // EffectiveWorkDirForTest exercises the per-spawn host-CWD override precedence: the SpawnRequest
 // .Workspace override wins, else the provisioned WorkDir, else the default.

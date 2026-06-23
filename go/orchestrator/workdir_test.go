@@ -6,6 +6,7 @@ import (
 
 	"github.com/gophersys/libs/go/orchestrator"
 	"github.com/gophersys/libs/go/secrets"
+	"github.com/gophersys/libs/go/workspaceprovider"
 )
 
 // TestEffectiveHostTools_PerSpawnReplacesTemplate proves the per-spawn host-tools override: a caller's
@@ -117,4 +118,105 @@ func TestWorkdirRepoEnvFold_ThreadsRefAndCredential(t *testing.T) {
 	if _, present := passthrough[orchestrator.EnvWorkdirRepo]; present {
 		t.Error("a zero WorkdirRepo must fold NO repo env (the empty in-pod workspace)")
 	}
+}
+
+// TestToWorkspaceSpec_InPodFoldsEnvNoBind drives the FULL fold (toWorkspaceSpec) end-to-end to prove
+// the BRANCH DIVERGENCE the increment turns on: an IN-POD workload (a non-empty Entrypoint) folds the
+// per-spawn WorkdirRepo into the WorkspaceSpec.Env (URL + Ref + the OPAQUE credential reference) and
+// takes NO host Bind mount — the in-pod binary clones the repo itself from the folded env. This is the
+// additive in-pod path: the .Ref + .Credential thread through (the host Bind dropped them).
+func TestToWorkspaceSpec_InPodFoldsEnvNoBind(t *testing.T) {
+	t.Parallel()
+	tenant := orchestrator.Tenancy{OrganizationID: "acme", ProjectID: "alpha"}
+	template := orchestrator.AgentTemplate{
+		Ref: orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
+		Sandbox: orchestrator.SandboxSpec{
+			Substrate:  orchestrator.SubstrateDocker,
+			Image:      "ghcr.io/gophersys/agent-runtime",
+			Entrypoint: []string{"agent-runtime"}, // the in-pod selector (a non-empty Entrypoint)
+			Env:        map[string]string{"EDEN_ROLE": "supervisor"},
+			WorkdirRepo: orchestrator.RepoMount{
+				URL:        "https://github.com/acme/seeded-project.git",
+				Ref:        "main",
+				Credential: secrets.Ref("vault://eden/projects/acme#gh-token"),
+			},
+		},
+	}
+
+	spec := orchestrator.ToWorkspaceSpecForTest(tenant, &template)
+
+	// The in-pod path takes NO host Bind mount: the binary clones the remote itself.
+	for _, mount := range spec.Mounts {
+		if mount.Kind == workspaceprovider.MountBind {
+			t.Fatalf("in-pod workload must take NO host Bind mount (the binary clones the repo), got %+v", mount)
+		}
+	}
+	// The WorkdirRepo folded into Sandbox.Env: URL + Ref + the OPAQUE credential REFERENCE STRING.
+	env := envByName(spec.Env)
+	if env[orchestrator.EnvWorkdirRepo] != "https://github.com/acme/seeded-project.git" {
+		t.Errorf("in-pod %s = %q, want the clone URL folded into Env", orchestrator.EnvWorkdirRepo, env[orchestrator.EnvWorkdirRepo])
+	}
+	if env[orchestrator.EnvWorkdirRepoRef] != "main" {
+		t.Errorf("in-pod %s = %q, want the branch ref threaded (the host Bind dropped it)", orchestrator.EnvWorkdirRepoRef, env[orchestrator.EnvWorkdirRepoRef])
+	}
+	if env[orchestrator.EnvWorkdirRepoCredential] != "vault://eden/projects/acme#gh-token" {
+		t.Errorf("in-pod %s = %q, want the OPAQUE credential reference threaded (the host Bind dropped it)", orchestrator.EnvWorkdirRepoCredential, env[orchestrator.EnvWorkdirRepoCredential])
+	}
+	// The base env is preserved alongside the folded repo env.
+	if env["EDEN_ROLE"] != "supervisor" {
+		t.Error("the in-pod fold must preserve the template's base Sandbox.Env")
+	}
+}
+
+// TestToWorkspaceSpec_HostSideKeepsBindNoEnvFold drives the FULL fold for the CLASSIC host-side path
+// (an EMPTY Entrypoint): the existing behavior is byte-unchanged — a host Bind mount IS produced from
+// the WorkdirRepo.URL and the repo URL is NOT folded into Sandbox.Env. This is the guard that the
+// additive in-pod branch leaves the live host-side demo path untouched.
+func TestToWorkspaceSpec_HostSideKeepsBindNoEnvFold(t *testing.T) {
+	t.Parallel()
+	tenant := orchestrator.Tenancy{OrganizationID: "acme", ProjectID: "alpha"}
+	template := orchestrator.AgentTemplate{
+		Ref: orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
+		Sandbox: orchestrator.SandboxSpec{
+			Substrate: orchestrator.SubstrateDocker,
+			Image:     "ghcr.io/gophersys/base",
+			// Entrypoint EMPTY == the classic Ready-then-Run host-side workspace (the existing behavior).
+			Env: map[string]string{"EDEN_AGENT_ROLE": "supervisor"},
+			WorkdirRepo: orchestrator.RepoMount{
+				URL:        "https://github.com/acme/seeded-project.git",
+				Ref:        "main",
+				Credential: secrets.Ref("vault://eden/projects/acme#gh-token"),
+			},
+		},
+	}
+
+	spec := orchestrator.ToWorkspaceSpecForTest(tenant, &template)
+
+	// The host-side path keeps the host Bind mount derived from the WorkdirRepo.URL (the existing behavior).
+	var bind *workspaceprovider.Mount
+	for i := range spec.Mounts {
+		if spec.Mounts[i].Kind == workspaceprovider.MountBind {
+			bind = &spec.Mounts[i]
+		}
+	}
+	if bind == nil {
+		t.Fatal("host-side workspace must keep the host Bind mount (the existing behavior, byte-unchanged)")
+	}
+	if bind.Source != "https://github.com/acme/seeded-project.git" {
+		t.Errorf("host-side Bind source = %q, want the WorkdirRepo URL", bind.Source)
+	}
+	// The host-side path does NOT fold the repo into Sandbox.Env (only the in-pod branch does).
+	env := envByName(spec.Env)
+	if _, present := env[orchestrator.EnvWorkdirRepo]; present {
+		t.Error("host-side path must NOT fold the repo URL into Sandbox.Env (that is the in-pod branch only)")
+	}
+}
+
+// envByName indexes a WorkspaceSpec's []EnvVar by name for assertion convenience.
+func envByName(vars []workspaceprovider.EnvVar) map[string]string {
+	out := make(map[string]string, len(vars))
+	for _, v := range vars {
+		out[v.Name] = v.Value
+	}
+	return out
 }
