@@ -28,7 +28,8 @@
       "Bash(bash ./.claude/commands/open-decision.sh:*)",
       "Bash(bash ./.claude/commands/rule-decision.sh:*)",
       "Bash(bash ./.claude/commands/plan.sh:*)",
-      "Bash(bash ./.claude/commands/advance.sh:*)"
+      "Bash(bash ./.claude/commands/advance.sh:*)",
+      "mcp__eden__eden_commit_transition"
     ]
   },
   "hooks": {

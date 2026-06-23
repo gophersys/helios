@@ -23,14 +23,16 @@ project position by reading git.
 ## The clean-tree rule
 
 The working tree is **clean between transitions**. A transition is atomic from the FSM's view: the
-command writes the artifact + advances state in the working tree, the orchestrator commits it, and
-the tree returns to clean. The Stop hook BLOCKS you from ending a turn on a dirty tree — because a
-dirty tree means the on-disk state and the committed state disagree, which breaks resume-by-checkout.
+command writes the artifact + advances state in the working tree, the transition is committed, and the
+tree returns to clean. The Stop hook BLOCKS you from ending a turn on a dirty tree — because a dirty
+tree means the on-disk state and the committed state disagree, which breaks resume-by-checkout.
 
-You do **not** commit. The orchestrator (the parent loop / the human) reviews the staged change and
-commits it with the `fsm:` trailer the command printed. The `gate-commit` hook re-derives that
-trailer from git and denies any commit whose trailer is not the legal transition — so even the
-commit is verified, not trusted.
+You do **not** run `git commit` yourself (it is denied). Instead, after a transition's slash-command
+stages its artifact and prints its `fsm:` trailer, you call the **`eden_commit_transition`** host-tool
+with that exact trailer line. The platform re-validates the transition against `state/fsm.json` (the
+same FSM-table legality the `gate-commit` hook enforces, but server-side and authoritative), commits
+the staged tree AS you, fast-forward pushes it, and records the new state — so even the commit is
+verified, not trusted. Call it ONCE per transition, immediately after the command prints its trailer.
 
 ## Resume = checkout + re-read state
 

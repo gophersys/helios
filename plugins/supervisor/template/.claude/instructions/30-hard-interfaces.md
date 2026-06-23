@@ -18,6 +18,10 @@ with an explanation by the `gate-tool` hook.
 | `/rule-decision` | `rule-decision` | `ruling` | moves a fork `open/` → `ruled/` (settles it) |
 | `/plan` | `plan` | `plan` | writes `init/plan/plan.md`, seeds work-package markers |
 | `/advance` | `advance` | `advance` | completes one package; FSM recomputes `building`/`done` |
+| `eden_commit_transition` (host-tool) | (commits the staged transition) | `{trailer}` | commits + pushes the transition you staged and projects its FSM state to the platform |
+
+After a transition's slash-command stages its artifact and prints its `fsm:` trailer, call the
+`eden_commit_transition` host-tool with `{"trailer": "<that fsm: line>"}` to commit and push it.
 
 ## What you may NOT do
 
@@ -26,7 +30,7 @@ with an explanation by the `gate-tool` hook.
 - **No ad-hoc `Bash`.** The only shell you may run is a command script (above) or a read-only git
   verb (`git status` / `ls-files` / `log` / `diff` / `show`) to inspect state. No `git add`,
   `commit`, `push`, `rm`, `reset`, `mv` by hand — the commands stage what they must; the
-  orchestrator commits.
+  `eden_commit_transition` host-tool commits (server-side, after re-validating the transition).
 - **No skipping the FSM.** You may not run a command for a transition that is illegal from the
   current state (the command refuses), nor fabricate a guard's prerequisite (the guard reads git).
 - **No self-ratifying / self-ruling on the human's behalf.** `/ratify-charter` and `/rule-decision`
