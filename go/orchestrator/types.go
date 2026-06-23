@@ -321,6 +321,14 @@ type SpawnRequest struct {
 	// secret; a plain path. v0 single-node: held in the in-process side table, so it does NOT survive
 	// a record-only reload — a Resume after reload falls back to the provisioned WorkDir.
 	Workspace string
+
+	// HostTools OPTIONALLY supplies the per-spawn Eden-callback tools (agentsession.Spec.HostTools)
+	// — the controller's powers (commit a transition, spawn a sub-agent), built as in-process Handler
+	// closures over THIS project's context at the composition root, which the static AgentTemplate
+	// cannot carry. When non-empty it REPLACES the template's Hosts (the caller folds in the template's
+	// declared surface itself); nil == the template's Hosts. Like OnPermission, a live closure held in
+	// the in-process side table — it does NOT survive a record-only reload (a v0 single-node seam).
+	HostTools []agentsession.HostTool
 }
 
 // ClusterRef names the cluster a workspace is provisioned on (ADR-0012). Opaque to this

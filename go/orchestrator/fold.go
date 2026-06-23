@@ -57,7 +57,7 @@ func foldSession(workDir string, inputs *spawnInputs, resumeFrom SessionRef) age
 		Workspace:    workDir,
 		Routing:      inputs.template.Routing,
 		Grants:       inputs.template.Grants,
-		HostTools:    inputs.template.Hosts,
+		HostTools:    inputs.effectiveHostTools(),
 		Credential:   inputs.credential, // OPAQUE ref; agentsession.Open resolves it server-side
 		Budget:       inputs.budget,
 		ResumeFrom:   string(resumeFrom),

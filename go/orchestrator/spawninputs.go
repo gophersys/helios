@@ -22,7 +22,17 @@ type spawnInputs struct {
 	template     AgentTemplate
 	systemHints  string
 	budget       agentsession.Budget
-	workspace    string // OPTIONAL host-CWD override (SpawnRequest.Workspace); "" == the provisioned WorkDir
+	workspace    string                  // OPTIONAL host-CWD override (SpawnRequest.Workspace); "" == the provisioned WorkDir
+	hostTools    []agentsession.HostTool // OPTIONAL per-spawn host-tools (SpawnRequest.HostTools); nil == the template's Hosts
+}
+
+// effectiveHostTools returns the per-spawn host-tools when supplied (the composition-root closures),
+// else the template's declared Hosts.
+func (in *spawnInputs) effectiveHostTools() []agentsession.HostTool {
+	if len(in.hostTools) > 0 {
+		return in.hostTools
+	}
+	return in.template.Hosts
 }
 
 // effectiveWorkDir returns the per-spawn host-workspace OVERRIDE when set (an externally
@@ -95,6 +105,7 @@ func (p *Pool) rememberSpawnInputs(id AgentID, request *SpawnRequest, template *
 		systemHints:  template.SystemHints + request.SystemHints,
 		budget:       effectiveBudget(template.Limits, request),
 		workspace:    request.Workspace,
+		hostTools:    request.HostTools,
 	})
 }
 
