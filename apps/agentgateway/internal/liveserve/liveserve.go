@@ -182,7 +182,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 			// so the supervisor is reachable on the gateway's registry like any other session.
 			Routing: map[agentsession.RouteKey]agentsession.Route{
 				liveRouteKey():                           {Harness: configuration.Harness, Model: configuration.Model},
-				orchestratorservice.SupervisorRouteKey(): {Harness: "claude-code", Model: ""},
+				orchestratorservice.SupervisorRouteKey(): {Harness: "claude-code", Model: "opus"},
 			},
 		},
 		agentsession.Deps{
@@ -291,7 +291,8 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 
 // buildCreateSaga constructs the DB-first project-creation saga and the REAL orchestratorservice.Service
 // its supervisor spawns through. The orchestrator runs the supervisor on real docker with the REAL
-// claude binary (account-default Opus model); the saga's two credential planes are the gh-token
+// claude binary pinned to the Opus alias (--model opus, the standing Opus directive — never the
+// account default, which can drift to Sonnet); the saga's two credential planes are the gh-token
 // (ForgeCredentialReference) and the claude token (CredentialReference). The caller Starts/Closes the
 // returned Service's reconcile loop. The pool is process-lifetime (released on exit; the Service.Close
 // stops the loop first).
