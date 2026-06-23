@@ -242,6 +242,12 @@ func TestIntegration_Saga_RealClaudeSupervisor(t *testing.T) {
 			t.Errorf("supervisor workspace %s is missing %q (the agent has no brain): %v", workDir, want, statErr)
 		}
 	}
+	// The working tree is CLEAN: the materializer committed the .claude overlay, so the supervisor's
+	// protocol (which refuses to transition against a dirty tree — the live supervisor's own complaint)
+	// is unblocked from the first turn.
+	if dirty := gitOutput(t, workDir, "status", "--porcelain"); strings.TrimSpace(dirty) != "" {
+		t.Errorf("supervisor workspace %s is NOT a clean tree (the .claude overlay must be committed); git status:\n%s", workDir, dirty)
+	}
 
 	if stopErr := supervisor.Stop(context.Background(), orchestrator.AgentID(project.SupervisorAgentID), "integration-teardown"); stopErr != nil {
 		t.Errorf("stop supervisor: %v", stopErr)
@@ -587,6 +593,16 @@ func discardObservability(t *testing.T) observability.Provider { //nolint:iretur
 type discardWriter struct{}
 
 func (discardWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+// gitOutput runs `git -C dir <args>` and returns its combined output, failing the test on error.
+func gitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput() //nolint:gosec // fixed argv (git + a test-controlled dir + literal flags); no user input.
+	if err != nil {
+		t.Fatalf("git %v in %s: %v\n%s", args, dir, err, out)
+	}
+	return string(out)
+}
 
 type realClock struct{}
 

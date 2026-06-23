@@ -271,6 +271,9 @@ func isAlreadySeeded(err error) bool {
 const (
 	materializeAuthorName  = "Eden Supervisor"
 	materializeAuthorEmail = "supervisor@eden.dev"
+	// materializeManualCommitMessage is the platform bootstrap commit that grafts the supervisor's
+	// .claude operating manual into the workspace so the agent starts on a clean tree.
+	materializeManualCommitMessage = "chore: provision supervisor operating manual (.claude)"
 )
 
 // MaterializerConfig is the immutable input for the gitrepository-backed workspace materializer.
@@ -388,6 +391,21 @@ func (m *Materializer) Materialize(ctx context.Context, input MaterializeInput) 
 	}
 	if overlayErr := os.CopyFS(claudeDir, os.DirFS(m.manualSourceDir)); overlayErr != nil {
 		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindInternal, "projectcreate: overlay supervisor .claude manual", overlayErr)
+	}
+
+	// Commit the .claude overlay so the supervisor starts on a CLEAN working tree. The supervisor's
+	// protocol REFUSES to run an FSM transition against a dirty tree (untracked files are "a human's
+	// to resolve, not a transition's") — and the platform, not the agent, grafts the operating manual.
+	// A LOCAL bootstrap commit (ActorPlatform, no fsm: trailer, so it never trips the gate-commit hook
+	// which only fires for the agent's own claude-driven commits); the supervisor's first transition
+	// push publishes it.
+	if _, stageErr := repository.Stage(ctx, workDir, gitrepository.StageOptions{All: true}); stageErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindOf(stageErr), "projectcreate: stage supervisor .claude overlay", stageErr)
+	}
+	if _, commitErr := repository.Commit(ctx, workDir, materializeManualCommitMessage,
+		gitrepository.Identity{Name: materializeAuthorName, Email: materializeAuthorEmail, Kind: gitrepository.ActorPlatform},
+		gitrepository.CommitOptions{}); commitErr != nil {
+		return MaterializeResult{}, edenerrors.Wrap(edenerrors.KindOf(commitErr), "projectcreate: commit supervisor .claude overlay", commitErr)
 	}
 
 	return MaterializeResult{WorkDir: workDir}, nil
