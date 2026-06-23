@@ -85,6 +85,34 @@
     {
       "transition": "propose-questionnaire",
       "command": "/propose-questionnaire",
+      "from": ["init"],
+      "to": "init",
+      "artifact": "init/product/questionnaire/",
+      "schema": "questionnaire",
+      "guard": {
+        "id": "charter-not-ratified",
+        "description": "The charter is not yet ratified (the early product-inquiry phase): no init/charter/.ratified marker tracked in git.",
+        "git_predicate": "absent",
+        "path": "init/charter/.ratified"
+      }
+    },
+    {
+      "transition": "record-answer",
+      "command": "/record-answer",
+      "from": ["init"],
+      "to": "init",
+      "artifact": "init/product/answers/",
+      "schema": "answer",
+      "guard": {
+        "id": "questionnaire-exists",
+        "description": "A product questionnaire exists under init/product/questionnaire/ (a question to answer).",
+        "git_predicate": "any-under",
+        "path": "init/product/questionnaire/"
+      }
+    },
+    {
+      "transition": "propose-work-item",
+      "command": "/propose-work-item",
       "from": ["charter_ratified", "product_decomposed"],
       "to": "product_decomposed",
       "artifact": "init/product/",

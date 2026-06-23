@@ -193,6 +193,22 @@ sv_write_json_marker() {
   git -C "$root" add -- "$rel" 2>/dev/null || true
 }
 
+# sv_write_text_artifact <relpath> <body> — write a PLAIN text/markdown artifact whose ENTIRE file
+# body is <body> (no front-matter, no fenced-json header). The setup wizard renders the
+# init/product/questionnaire/* and init/product/answers/* files by taking the WHOLE file body as the
+# question / answer text (setupWizard.ts parseQuestions/parseAnswers), so these artifacts must carry
+# only that text — the supervisor:artifact comment a markdown artifact prepends would leak into the
+# rendered question. Creates parent dirs and stages (git add) like the other writers, so a transition
+# guard that inspects the index is satisfiable within one supervisor turn.
+sv_write_text_artifact() {
+  local rel="$1" body="$2" root abs dir
+  root="$(sv_project_dir)"; abs="$root/$rel"; dir="$(dirname "$abs")"
+  mkdir -p "$dir"
+  printf '%s\n' "$body" >"$abs"
+  # Stage the artifact (see sv_write_markdown_artifact) so a transition guard sees it in one turn.
+  git -C "$root" add -- "$rel" 2>/dev/null || true
+}
+
 # ── state advance ────────────────────────────────────────────────────────────────────────────
 #
 # sv_advance_state <to-state> — rewrite state/fsm.json's current_state. The ONLY writer of

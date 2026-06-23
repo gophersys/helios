@@ -9,9 +9,11 @@ with an explanation by the `gate-tool` hook.
 | Command | Transition | Payload schema | What it does |
 |---|---|---|---|
 | `/state-show` | (read-only) | — | prints `current_state` + the one legal transition + each guard's status |
+| `/propose-questionnaire` | `propose-questionnaire` | `questionnaire` | writes the product-scoping interview under `init/product/questionnaire/` (one file per question) |
+| `/record-answer` | `record-answer` | `answer` | records one human answer under `init/product/answers/` |
 | `/propose-charter` | `propose-charter` | `charter` | drafts/redrafts `init/charter/charter.md` |
 | `/ratify-charter` | `ratify-charter` | `ratification` | writes `init/charter/.ratified` (the human's freeze) |
-| `/propose-questionnaire` | `propose-questionnaire` | `work-item` | records one work item under `init/product/` |
+| `/propose-work-item` | `propose-work-item` | `work-item` | records one work item under `init/product/` |
 | `/open-decision` | `open-decision` | `decision` | raises one unruled fork under `init/decisions/open/` |
 | `/rule-decision` | `rule-decision` | `ruling` | moves a fork `open/` → `ruled/` (settles it) |
 | `/plan` | `plan` | `plan` | writes `init/plan/plan.md`, seeds work-package markers |

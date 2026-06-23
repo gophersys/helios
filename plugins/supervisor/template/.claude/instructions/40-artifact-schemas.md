@@ -26,7 +26,33 @@ never reaches git. The schemas are the authority; the shapes below are the quick
 The command fingerprints the ratified charter into `init/charter/.ratified` so a later silent edit
 of the charter is detectable.
 
-## `work-item` → `/propose-questionnaire`
+## `questionnaire` → `/propose-questionnaire`
+
+```json
+{
+  "questions": [
+    { "id": "audience", "prompt": "Who is the primary user, and what do they do today instead?" },
+    { "id": "scope", "prompt": "What is the ONE thing the first version must do well?" }
+  ]
+}
+```
+
+Written ONCE from the user's DESCRIBE brief: each question becomes
+`init/product/questionnaire/<NN>-<id>.md` (the array order is the 2-digit `NN` prefix), and the file
+body is the question text the wizard renders verbatim. `id` is a lowercase-kebab slug (HNS-1) and is
+the question↔answer join key.
+
+## `answer` → `/record-answer`
+
+```json
+{ "question": "01-audience", "answer": "Small-team founders who track work in spreadsheets today." }
+```
+
+`question` is the question's filename stem under `init/product/questionnaire/` (the `NN-slug`); the
+answer is written to `init/product/answers/<question>.md` (body = the answer text). One call per
+answer. When every question is answered, draft the charter via `/propose-charter`.
+
+## `work-item` → `/propose-work-item`
 
 ```json
 {

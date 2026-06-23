@@ -8,9 +8,11 @@ project position by reading git.
 
 | Concept | Path | Written by |
 |---|---|---|
+| Product questionnaire (the interview) | `init/product/questionnaire/<NN>-<slug>.md` | `/propose-questionnaire` |
+| Recorded answers | `init/product/answers/<slug>.md` | `/record-answer` |
 | Charter | `init/charter/charter.md` | `/propose-charter` |
 | Charter ratification marker | `init/charter/.ratified` | `/ratify-charter` |
-| Work items (decomposed product) | `init/product/<id>.md` | `/propose-questionnaire` |
+| Work items (decomposed product) | `init/product/<id>.md` | `/propose-work-item` |
 | Open work-package markers | `init/product/open/<package>` | `/plan` (seeded), `/advance` (removed) |
 | Open decisions (unruled forks) | `init/decisions/open/<id>.md` | `/open-decision` |
 | Ruled decisions | `init/decisions/ruled/<id>.md` | `/rule-decision` |

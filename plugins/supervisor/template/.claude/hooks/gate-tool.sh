@@ -27,7 +27,7 @@ CMD="$(sv_json '.tool_input.command')"
 
 # The whitelist of intent. A command is allowed iff EVERY statement in it (split on ; && || |)
 # matches one of these safe forms. Anything else → deny with a reason.
-#   - bash ./.claude/commands/<one-of-the-seven>.sh ...
+#   - bash ./.claude/commands/<one-of-the-typed-commands>.sh ...
 #   - read-only git: git status|ls-files|log|diff|show (NEVER add|commit|push|rm|reset|mv)
 _stmt_allowed() {
   local s="$1"
@@ -36,9 +36,11 @@ _stmt_allowed() {
   [[ -z "$s" ]] && return 0   # empty statement (trailing separator) is harmless
   case "$s" in
     bash\ ./.claude/commands/state-show.sh*|\
+    bash\ ./.claude/commands/propose-questionnaire.sh*|\
+    bash\ ./.claude/commands/record-answer.sh*|\
     bash\ ./.claude/commands/propose-charter.sh*|\
     bash\ ./.claude/commands/ratify-charter.sh*|\
-    bash\ ./.claude/commands/propose-questionnaire.sh*|\
+    bash\ ./.claude/commands/propose-work-item.sh*|\
     bash\ ./.claude/commands/open-decision.sh*|\
     bash\ ./.claude/commands/rule-decision.sh*|\
     bash\ ./.claude/commands/plan.sh*|\
@@ -64,7 +66,7 @@ done
 unset IFS
 
 if [[ -n "$illegal" ]]; then
-  sv_deny "Supervisor hard-interface violation: you may run ONLY the typed supervisor slash-commands (state-show / propose-charter / ratify-charter / propose-questionnaire / open-decision / rule-decision / plan / advance) and read-only git (status/ls-files/log/diff/show). The statement \`${illegal}\` is outside that interface and is denied. Act through a slash-command — never ad-hoc shell, Write, or Edit. Run \`/state-show\` to see the one legal transition."
+  sv_deny "Supervisor hard-interface violation: you may run ONLY the typed supervisor slash-commands (state-show / propose-questionnaire / record-answer / propose-charter / ratify-charter / propose-work-item / open-decision / rule-decision / plan / advance) and read-only git (status/ls-files/log/diff/show). The statement \`${illegal}\` is outside that interface and is denied. Act through a slash-command — never ad-hoc shell, Write, or Edit. Run \`/state-show\` to see the one legal transition."
 fi
 
 exit 0

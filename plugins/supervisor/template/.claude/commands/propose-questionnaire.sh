@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 #
-# propose-questionnaire.sh — FSM transition `propose-questionnaire`:
-#   {charter_ratified|product_decomposed} -> product_decomposed.
-# Decomposes the ratified product into ONE work item per invocation. Guard: the charter is
-# ratified (init/charter/.ratified tracked in git). Validates the work-item schema, writes
-# init/product/<id>.md, advances state, audits, prints the trailer. Does NOT commit.
+# propose-questionnaire.sh — FSM transition `propose-questionnaire`: init -> init (a self-loop
+# in the early product-inquiry phase). Generates the product-scoping interview: ONE focused
+# question per file under init/product/questionnaire/<NN>-<id>.md (NN is the 2-digit order, id is
+# the question slug). The whole set is written in a single invocation. The setup wizard renders
+# each file's BODY verbatim as the question, so the body carries only the question text (no
+# front-matter) — written via sv_write_text_artifact. Guard: the charter is NOT yet ratified
+# (the interview precedes the charter). Advances state (self-loop), audits, prints the trailer.
+# Does NOT commit.
 #
-# Usage: propose-questionnaire.sh '<work-item-json>'
+# Usage: propose-questionnaire.sh '{"questions":[{"id":"<slug>","prompt":"..."}, ...]}'
 #
 # shellcheck shell=bash
 # shellcheck source=_supervisor.sh
@@ -16,26 +19,27 @@ source "$SCRIPT_DIR/_supervisor.sh"
 sv_require_jq
 
 PAYLOAD="${*:-}"
-[[ -n "$PAYLOAD" ]] || sv_die "propose-questionnaire requires a JSON work-item payload."
+[[ -n "$PAYLOAD" ]] || sv_die "propose-questionnaire requires a JSON questionnaire payload."
 
 TRANSITION="propose-questionnaire"
+ARTIFACT="init/product/questionnaire/"
 
 sv_assert_legal    "$TRANSITION"
 sv_assert_guard    "$TRANSITION"
-sv_validate_schema "work-item" "$PAYLOAD"
+sv_validate_schema "questionnaire" "$PAYLOAD"
 
-id="$(printf '%s' "$PAYLOAD" | jq -r '.id')"
-ARTIFACT="init/product/${id}.md"
+count="$(printf '%s' "$PAYLOAD" | jq -r '.questions | length')"
+[[ "$count" -gt 0 ]] || sv_die "questionnaire must contain at least one question."
 
-body="$(printf '%s' "$PAYLOAD" | jq -r '
-  "# Work item — \(.title)\n\n## Summary\n\n\(.summary)\n\n## Acceptance criteria\n\n" +
-  ([.acceptance[] | "- " + .] | join("\n")) +
-  (if (.depends_on // []) | length > 0
-   then "\n\n## Depends on\n\n" + ([.depends_on[] | "- " + .] | join("\n"))
-   else "" end) + "\n"
-')"
+i=0
+while [[ "$i" -lt "$count" ]]; do
+  qid="$(printf '%s' "$PAYLOAD" | jq -r --argjson i "$i" '.questions[$i].id')"
+  prompt="$(printf '%s' "$PAYLOAD" | jq -r --argjson i "$i" '.questions[$i].prompt')"
+  ord="$(printf '%02d' "$((i + 1))")"
+  rel="init/product/questionnaire/${ord}-${qid}.md"
+  sv_write_text_artifact "$rel" "$prompt"
+  printf 'wrote question %s: %s\n' "$ord" "$rel"
+  i=$((i + 1))
+done
 
-sv_write_markdown_artifact "$ARTIFACT" "$PAYLOAD" "$body"
-
-printf 'wrote work item: %s  (id: %s)\n' "$ARTIFACT" "$id"
-sv_finish_transition "$TRANSITION" "$ARTIFACT" "supervisor" "$id"
+sv_finish_transition "$TRANSITION" "$ARTIFACT" "supervisor" "${count} questions"
