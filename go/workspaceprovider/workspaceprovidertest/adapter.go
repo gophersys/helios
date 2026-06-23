@@ -70,6 +70,14 @@ type fakeWorkspace struct {
 	running   bool
 	oomKilled bool // the workload-pod (Entrypoint) OOM-kill the supervised Probe surfaces (OD-15-a)
 
+	// editorRealized records whether the adapter co-located the READ-ONLY editor sidecar for a
+	// workspace whose spec.Editor was non-nil (ADR-0027). It is the fake's observable analog of the
+	// real adapters adding the editor container + the read-only workdir mount (kubernetes) / the
+	// `--volumes-from …:ro` sibling (docker). Create sets it from realizeEditor(spec); the
+	// conformance case asserts it so a spec.Editor that is silently dropped is a FAILURE, not a
+	// fake pass. (TDD: false until the Create body realizes the sidecar — the RED-before-green seam.)
+	editorRealized bool
+
 	// forcedStates is a scripted sequence of native States the Probe returns one-per-call (the
 	// LAST entry sticks once exhausted). It lets a conformance case drive the workspace through an
 	// ILLEGAL transition (e.g. Gone -> Ready) so the LIBRARY's State-machine guard is exercised —
@@ -117,6 +125,7 @@ func defaultCaps() []workspaceprovider.Capability {
 		workspaceprovider.CapReattach,
 		workspaceprovider.CapSupervise,
 		workspaceprovider.CapWorkloadPod,
+		workspaceprovider.CapEditorSidecar,
 	}
 }
 
@@ -157,8 +166,33 @@ func (a *Adapter) Create(_ context.Context, spec workspaceprovider.WorkspaceSpec
 	// file's bytes — never echoed into a recorded Spec/Handle/ref (the no-leak scan covers
 	// those), so caseMountSecret can `cat` the Target and the no-leak assertion still holds.
 	a.writeMountSecrets(ws, &spec, resolved)
+	// Realize the read-only editor sidecar where the spec requested one (ADR-0027). TDD-RED: the
+	// realization body lands in the implementation phase; until then realizeEditor reports
+	// not-yet-realized, so caseEditorSidecar (which asserts the sidecar IS realized) is RED.
+	ws.editorRealized = realizeEditor(&spec)
 	a.state[handle.String()] = ws
 	return workspaceprovider.HandleData{Handle: handle, Connection: a.connFor(ws)}, nil
+}
+
+// realizeEditor reports whether the fake co-located the read-only editor sidecar for spec (the
+// observable caseEditorSidecar asserts, mirroring the real adapters' editor container + read-only
+// workdir mount, ADR-0027). It is the RED-before-green seam: it returns false for now (the editor
+// sidecar is NOT yet realized), so a spec.Editor request is observably unsatisfied and the
+// conformance case FAILS — the implementation phase replaces this body with the real realization.
+func realizeEditor(_ *workspaceprovider.WorkspaceSpec) bool {
+	return false
+}
+
+// EditorRealized reports whether the fake realized the read-only editor sidecar for the workspace
+// named by handle (ADR-0027). The conformance caseEditorSidecar reads it so a dropped spec.Editor
+// is a FAILURE, not a fake pass. False for an unknown handle.
+func (a *Adapter) EditorRealized(handle workspaceprovider.Handle) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if ws, ok := a.state[handle.String()]; ok {
+		return ws.editorRealized
+	}
+	return false
 }
 
 // writeMountSecrets stores each resolved MountSecret's value at its Target in the in-memory FS,

@@ -23,6 +23,7 @@ const (
 	capMulti       = "multi-tenant"
 	capSupervise   = "supervise"
 	capWorkloadPod = "workload-pod"
+	capEditor      = "editor-sidecar"
 )
 
 // providerCases is the ordered set of conformance assertions — the executable form of the
@@ -53,6 +54,7 @@ func providerCases() []edentesting.Case[workspaceprovider.Adapter] {
 		{Name: "EntrypointWorkloadIsPID1", Run: caseEntrypointWorkloadPod},
 		{Name: "RunReturnsBeforeWorkloadExits", Run: caseRunReturnsBeforeWorkloadExits},
 		{Name: "StateTransitionGuardRejectsIllegal", Run: caseStateTransitionGuard},
+		{Name: "EditorSidecarRealizesReadOnlyEditor", Run: caseEditorSidecar},
 	}
 }
 
@@ -1088,6 +1090,63 @@ func caseStateTransitionGuard(adapter workspaceprovider.Adapter, h edentesting.H
 	if typed, ok := errors.AsType[*workspaceprovider.IllegalStateTransitionError](serr); !ok || typed == nil {
 		report.Errorf("illegal transition: want *IllegalStateTransitionError in the chain, got %v", serr)
 	}
+}
+
+// caseEditorSidecar proves the READ-ONLY EDITOR-SIDECAR capability (ADR-0027): a spec.Editor makes
+// the adapter co-locate a read-only code-server alongside the workspace, mounting the SAME workdir
+// READ-ONLY (the `readOnly: true` volumeMount on kubernetes / the `--volumes-from …:ro` sibling on
+// docker), so a user opens the agent's live worktree in a view-only VS Code without a second writer
+// racing the supervisor. It provisions a workspace whose Editor requests the read-only code-server,
+// asserts the workspace still comes up Ready/Running (the ADDITIVE sidecar must not break the
+// workspace — nil Editor ⇒ byte-identical pods, a non-nil Editor only ADDS the viewer), and asserts
+// the editor was actually REALIZED (a silently-dropped spec.Editor is a FAILURE, not a fake pass —
+// the canonical half-wired-contract trap an exported field invites). It is capability-gated: a
+// substrate whose manifest declares CapEditorSidecar absent Skips honestly (05 §3). The realization
+// observable is asserted via the fake's EditorRealized inspector (a real substrate asserts it by
+// reaching the editor endpoint once the kubernetesadapter/dockeradapter bodies land — those bindings
+// do not yet declare the capability, so they Skip until then). EditorSpec carries NO secret, so the
+// no-leak property is unaffected. WEAKEN-TO-CONFIRM (post-implementation): drop the editor container
+// from the Create body and this case fails on "the editor sidecar was not realized".
+func caseEditorSidecar(adapter workspaceprovider.Adapter, h edentesting.Harness, report edentesting.Report) {
+	if !h.Has(capEditor) {
+		report.Skipf("CapEditorSidecar absent: this substrate has no read-only editor-sidecar path")
+		return
+	}
+	ctx := h.Context()
+	prov, _ := providerOver(adapter)
+
+	spec := baseSpec("ws-editor")
+	// Request the read-only editor sidecar: a code-server image on its served port. No field is a
+	// secret (the canary redaction property holds for EditorSpec).
+	spec.Editor = &workspaceprovider.EditorSpec{Image: "codercom/code-server", Port: 8080}
+	ws, err := prov.Provision(ctx, spec)
+	if err != nil {
+		report.Fatalf("Provision(Editor): unexpected error: %v", err)
+		return
+	}
+	defer cleanup(ctx, prov, ws.Handle())
+
+	// The ADDITIVE sidecar must NOT break the workspace: it comes up Ready/Running exactly as a
+	// workspace without an Editor would (nil Editor ⇒ byte-identical; a non-nil Editor only ADDS).
+	st, serr := ws.Status(ctx)
+	if serr != nil {
+		report.Fatalf("Status: %v", serr)
+		return
+	}
+	if st.State != workspaceprovider.StateReady && st.State != workspaceprovider.StateRunning {
+		report.Errorf("an Editor-sidecar workspace must be Ready/Running (the sidecar is additive), got %v", st.State)
+	}
+
+	// The editor must be REALIZED, not silently dropped: a spec.Editor that the adapter ignores is
+	// the half-wired-contract trap an exported field invites. Asserted via the fake's inspector;
+	// a real substrate asserts it by reaching the editor endpoint once its body lands.
+	if realizer, ok := adapter.(*Adapter); ok {
+		if !realizer.EditorRealized(ws.Handle()) {
+			report.Errorf("spec.Editor was requested but the read-only editor sidecar was not realized (ADR-0027): a dropped Editor is a half-wired contract, not a fake pass")
+		}
+		return
+	}
+	report.Skipf("the editor-sidecar realization is asserted via the fake's EditorRealized inspector; a real substrate asserts it by reaching the editor endpoint once the adapter body lands (ADR-0027 implementation phase)")
 }
 
 // supervisionEventTimeout bounds how long a reconcile-from-reality / live transition may take to

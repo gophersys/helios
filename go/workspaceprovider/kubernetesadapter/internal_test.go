@@ -34,6 +34,8 @@ type fakeClient struct {
 	pods         map[string]*corev1.Pod    // key: namespace/name
 	secrets      map[string]*corev1.Secret // key: namespace/name
 	policies     map[string]*networkingv1.NetworkPolicy
+	services     map[string]*corev1.Service       // key: namespace/name (editor sidecar exposure, ADR-0027)
+	ingresses    map[string]*networkingv1.Ingress // key: namespace/name (host-per-agent routing, ADR-0027)
 	createNSErr  error
 	createPodErr error
 	execHook     func(ExecRequest) error
@@ -47,6 +49,8 @@ func newFakeClient() *fakeClient {
 		pods:       map[string]*corev1.Pod{},
 		secrets:    map[string]*corev1.Secret{},
 		policies:   map[string]*networkingv1.NetworkPolicy{},
+		services:   map[string]*corev1.Service{},
+		ingresses:  map[string]*networkingv1.Ingress{},
 	}
 }
 
@@ -158,6 +162,22 @@ func (f *fakeClient) CreateNetworkPolicy(_ context.Context, namespace string, po
 	defer f.mu.Unlock()
 	cp := policy.DeepCopy()
 	f.policies[namespace] = cp
+	return cp, nil
+}
+
+func (f *fakeClient) CreateService(_ context.Context, namespace string, service *corev1.Service) (*corev1.Service, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cp := service.DeepCopy()
+	f.services[podKey(namespace, service.Name)] = cp
+	return cp, nil
+}
+
+func (f *fakeClient) CreateIngress(_ context.Context, namespace string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cp := ingress.DeepCopy()
+	f.ingresses[podKey(namespace, ingress.Name)] = cp
 	return cp, nil
 }
 

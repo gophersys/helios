@@ -50,5 +50,6 @@ func fullCapabilities() []workspaceprovider.Capability {
 		workspaceprovider.CapReattach,
 		workspaceprovider.CapSupervise,
 		workspaceprovider.CapWorkloadPod,
+		workspaceprovider.CapEditorSidecar,
 	}
 }

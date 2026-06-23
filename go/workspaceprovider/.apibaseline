@@ -25,6 +25,7 @@ type CredentialVehicle uint8
 type DeadlineError struct{ ... }
 type Deps struct{ ... }
 type Descriptor struct{ ... }
+type EditorSpec struct{ ... }
 type EgressRule struct{ ... }
 type EnvVar struct{ ... }
 type Event struct{ ... }

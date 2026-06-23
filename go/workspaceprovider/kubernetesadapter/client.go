@@ -44,6 +44,14 @@ type kubernetesClient interface {
 
 	CreateNetworkPolicy(ctx context.Context, namespace string, policy *networkingv1.NetworkPolicy) (*networkingv1.NetworkPolicy, error)
 
+	// CreateService creates a corev1.Service exposing the editor sidecar's port within the
+	// workspace namespace (ADR-0027 §3, host-per-agent routing). The namespace-cascade rollback
+	// reaps it with the namespace; there is no separate delete path.
+	CreateService(ctx context.Context, namespace string, service *corev1.Service) (*corev1.Service, error)
+	// CreateIngress creates a networkingv1.Ingress routing `<agent-id>.editor.<domain>` to the
+	// editor Service (ADR-0027 §3). Reaped by the namespace cascade.
+	CreateIngress(ctx context.Context, namespace string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error)
+
 	// Exec runs a command in a pod's container over the SPDY exec plane, streaming
 	// stdin/stdout/stderr. It is the kubectl-exec primitive Run/Exec/Files (tar) ride on.
 	Exec(ctx context.Context, request ExecRequest) error
@@ -128,6 +136,14 @@ func (c clientWrapper) GetSecret(ctx context.Context, namespace, name string) (*
 
 func (c clientWrapper) CreateNetworkPolicy(ctx context.Context, namespace string, policy *networkingv1.NetworkPolicy) (*networkingv1.NetworkPolicy, error) {
 	return c.clientset.NetworkingV1().NetworkPolicies(namespace).Create(ctx, policy, metav1.CreateOptions{}) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
+}
+
+func (c clientWrapper) CreateService(ctx context.Context, namespace string, service *corev1.Service) (*corev1.Service, error) {
+	return c.clientset.CoreV1().Services(namespace).Create(ctx, service, metav1.CreateOptions{}) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
+}
+
+func (c clientWrapper) CreateIngress(ctx context.Context, namespace string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
+	return c.clientset.NetworkingV1().Ingresses(namespace).Create(ctx, ingress, metav1.CreateOptions{}) //nolint:wrapcheck // bounded SDK seam: the adapter inspects+maps the raw apiserver error.
 }
 
 // Exec builds the SPDY exec request against the pod's container and streams it. It is the single

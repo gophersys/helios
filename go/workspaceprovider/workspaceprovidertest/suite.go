@@ -185,6 +185,7 @@ func declaredCapabilityNames(manifest workspaceprovider.CapabilityManifest) []st
 		workspaceprovider.CapHibernate,
 		workspaceprovider.CapSupervise,
 		workspaceprovider.CapWorkloadPod,
+		workspaceprovider.CapEditorSidecar,
 	}
 	var names []string
 	for _, c := range all {

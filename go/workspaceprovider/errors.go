@@ -178,6 +178,8 @@ func (c Capability) String() string {
 		return "supervise"
 	case CapWorkloadPod:
 		return "workload-pod"
+	case CapEditorSidecar:
+		return "editor-sidecar"
 	default:
 		return "unknown"
 	}

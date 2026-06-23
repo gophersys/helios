@@ -50,6 +50,34 @@ type WorkspaceSpec struct {
 	// argv is data; a credential the entrypoint needs rides RunSpec on the Run that adopts it, or
 	// a MountSecret, never here.
 	Entrypoint []string
+
+	// Editor is the READ-ONLY EDITOR-SIDECAR capability (ADR-0027, CapEditorSidecar): when
+	// non-nil, the adapter co-locates a read-only code-server alongside the workspace that mounts
+	// the SAME workdir READ-ONLY (the `readOnly: true` volumeMount on kubernetes / the
+	// `--volumes-from …:ro` sibling on docker), so a user opens the agent's live worktree in a
+	// view-only VS Code without a second writer racing the supervisor. Read-only is STRUCTURAL,
+	// not advisory: the mount mode means the editor process CANNOT write the worktree. nil (the
+	// default) ⇒ BYTE-IDENTICAL pods/containers — every existing consumer is unaffected; the
+	// editor path is ADDITIVE and spec-selected, exactly as Entrypoint is. It carries NO secret:
+	// EditorSpec is a viewer image + port (+ optional caps), never a credential — the canary
+	// redaction property holds. On kubernetes the sidecar is exposed per agent via a Service + an
+	// Ingress (host-per-agent, `<agent-id>.editor.<domain>`); the gateway derives EditorURLBase
+	// from that host (ADR-0027 §3). The sidecar inherits the namespace's default-deny egress (it
+	// serves files, it does not dial out).
+	Editor *EditorSpec
+}
+
+// EditorSpec is the read-only editor sidecar's configuration (ADR-0027). It is DATA: the adapter
+// reads it to co-locate a read-only code-server that mounts the workspace's workdir read-only. It
+// holds NO secret VALUE and NO live handle — a viewer image + the port it serves + optional
+// resource ceilings — so it is loggable and redaction-safe by construction (the canary property).
+// A zero EditorSpec (reached only via a non-nil pointer to the zero value) lets the adapter
+// substitute its default editor image/port; the FIELD on WorkspaceSpec being nil is the
+// not-requested signal.
+type EditorSpec struct {
+	Image     string    // the read-only code-server OCI image ref (e.g. "codercom/code-server"); "" == the adapter default
+	Port      int       // the container port the editor serves (e.g. 8080); 0 == the adapter default
+	Resources Resources // OPTIONAL cpu/memory/storage ceilings for the editor sidecar (07 §3); zero == the adapter/tenancy default
 }
 
 // Mount is one mount, as data. Source semantics depend on Kind; the adapter maps it to
@@ -371,6 +399,7 @@ const (
 	CapHibernate                          // pause/resume without teardown (policy idle/hibernate, 10 §12) — deferred verb, Q4
 	CapSupervise                          // a global label-filtered watch (docker events / k8s pod-watch) → the normalized Event stream (ADR-0022 §4, §7 Q15)
 	CapWorkloadPod                        // the Entrypoint capability: the container's MAIN process IS the workload (PID-1); on k8s this surfaces the native OOM-discriminator (ADR-0022 §4, §7 Q16, OD-15-a)
+	CapEditorSidecar                      // the Editor capability: a read-only code-server co-located with the workspace, mounting the workdir read-only (ADR-0027); k8s = sidecar+Service+Ingress, docker = `--volumes-from …:ro` sibling
 )
 
 // CapStatus is the declared support level for a Capability.
