@@ -147,7 +147,18 @@ func (s *Saga) runLaunchSupervisor(ctx context.Context, project *gateway.Project
 		// server-side into the claude child env at agentsession.Open.
 		Credential: s.configuration.SupervisorCredential,
 		// The materialized host CWD (clone + .claude manual) — empty == the orchestrator's default WorkDir.
+		// Used by the HOST-SIDE path; the IN-POD path ignores it and clones via WorkdirRepo below.
 		Workspace: workspaceDir,
+		// The project repo the IN-POD supervisor clones itself: the orchestrator folds this into the
+		// in-pod Sandbox.Env (EDEN_WORKDIR_REPO/_CRED) ONLY when the template is a workload-pod Entrypoint
+		// (the agent-runtime PID-1 clone-on-boot); the host-side path ignores it (uses Workspace above).
+		// The git plane (ForgeCredential, the gh-token) — opaque, resolved in-pod. Additive + harmless on
+		// the host-side path, so it is always set.
+		WorkdirRepo: orchestrator.RepoMount{
+			URL:        project.RepoURL,
+			Ref:        project.DefaultBranch,
+			Credential: s.configuration.ForgeCredential,
+		},
 		// The supervisor's controller host-tools (commit-transition) — REPLACE the template's nil Hosts.
 		HostTools: hostTools,
 		// The project's permission policy (the always-allow default): auto-resolve out-of-grant tools so
