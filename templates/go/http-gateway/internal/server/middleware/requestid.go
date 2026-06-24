@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
@@ -18,13 +17,9 @@ const requestIDHeader = "X-Request-Id"
 // collision-free across a fleet without pulling a uuid dependency for a correlation token.
 const requestIDBytes = 16
 
-// requestIDContextKey is the unexported context key the request id is stashed under, so a downstream
-// handler reads it via RequestIDFrom rather than re-parsing the header.
-type requestIDContextKey struct{}
-
 // RequestID wraps next so every request carries a correlation id and an observability Scope (the
 // OTel-correlated span). It propagates an inbound X-Request-Id when present (an ingress already
-// stamped it) else mints one; stashes it on the context + echoes it on the response header; and
+// stamped it) else mints one; echoes it on the response header; and
 // opens a Scope around next so the span Event carries the method/path/request-id and the request's
 // duration + outcome. The Scope's ctx flows into next, so every Event a handler emits inherits the
 // trace/span correlation. It logs no secret — a request id and a path are operator-safe tokens.
@@ -36,7 +31,7 @@ func RequestID(provider observability.Provider) func(next http.Handler) http.Han
 				id = mintRequestID()
 			}
 			writer.Header().Set(requestIDHeader, id)
-			ctx := context.WithValue(request.Context(), requestIDContextKey{}, id)
+			ctx := request.Context()
 
 			// No observability wired (a bare/test composition): still propagate the id, just no span.
 			if provider == nil {
@@ -55,16 +50,6 @@ func RequestID(provider observability.Provider) func(next http.Handler) http.Han
 			end(observability.Outcome{Err: recorder.serverError()})
 		})
 	}
-}
-
-// RequestIDFrom returns the correlation id stashed on ctx by RequestID, or "" when none is present
-// (a request that did not pass through the middleware). It is the read seam a handler/effect uses to
-// stamp the id onto its own telemetry.
-func RequestIDFrom(ctx context.Context) string {
-	if id, ok := ctx.Value(requestIDContextKey{}).(string); ok {
-		return id
-	}
-	return ""
 }
 
 // mintRequestID returns a fresh hex correlation id from crypto/rand. A rand read cannot fail on a
