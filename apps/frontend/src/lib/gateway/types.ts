@@ -232,22 +232,9 @@ export type Harness = 'claude' | 'omp';
  *  `service` (the Eden default build target) server-side. */
 export type ProductKind = 'service' | 'library' | 'application' | 'cli' | 'ui' | 'other';
 
-/** The closed ProductKind set, in wizard display order. */
-export const PRODUCT_KINDS: readonly ProductKind[] = [
-  'service',
-  'library',
-  'application',
-  'cli',
-  'ui',
-  'other',
-];
-
 /** The harness the build agent runs on (mirrors gateway.Harness*). Wider than the chat-label
  *  `Harness` type: the product capability accepts `codex` too. */
 export type ProductHarness = 'claude' | 'omp' | 'codex';
-
-/** The closed product-harness set, in wizard display order. */
-export const PRODUCT_HARNESSES: readonly ProductHarness[] = ['claude', 'omp', 'codex'];
 
 /** The sandbox egress posture (mirrors gateway.Posture*). Strict == default-deny, the safe
  *  posture for an unattended build agent. */
@@ -289,21 +276,6 @@ export interface ProductConfig {
   sdlcPhases: string[];
   sandbox: ProductSandbox;
 }
-
-/** The full 10-phase SDLC pipeline the wizard's PROCESS step multi-selects from. The default
- *  proposal runs the four-phase library core (architecture..qa — gateway.DefaultSDLCPhases). */
-export const SDLC_PHASES: readonly string[] = [
-  'architecture',
-  'implementation',
-  'testing',
-  'qa',
-  'integration',
-  'security',
-  'performance',
-  'documentation',
-  'release',
-  'operations',
-];
 
 /** The uniform Eden response envelope ({data, errors, kind}) the product-config surface returns
  *  (edenhttp.Envelope). The chat REST routes return bare JSON; the product/propose and /projects
