@@ -165,9 +165,3 @@ export function hasOpenQuestions(states: readonly WizardQuestionState[]): boolea
 export function questionnaireReady(questions: readonly WizardQuestion[]): boolean {
   return questions.length > 0;
 }
-
-/** answersPathFor returns the committed-answer path for a question id (the wizard writes the answer
- *  here via the supervisor). The one home for the answers path shape. */
-export function answersPathFor(questionId: string): string {
-  return `${ANSWERS_PREFIX}${questionId}.md`;
-}

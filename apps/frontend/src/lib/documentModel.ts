@@ -92,10 +92,3 @@ const ITEM_ID = /^(PER|REQ|WF|ENT|INV|CMP|CTR|ADR|WP|SPEC)-\d{4}$/;
 export function isItemId(value: string): boolean {
   return ITEM_ID.test(value);
 }
-
-// A link target is "external" (not an in-corpus item) when it is not an item id —
-// e.g. an artifact:// or path:// reference. Such targets render as plain chips,
-// not navigable anchors.
-export function isExternalTarget(value: string): boolean {
-  return !isItemId(value);
-}

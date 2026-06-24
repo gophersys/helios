@@ -31,7 +31,3 @@ export function listClusters(): ClusterSummary[] {
 export function getModel(id: string): ClusterModel | undefined {
   return models.get(id);
 }
-
-export function getTopology(id: string): Topology | undefined {
-  return topologies.find((t) => t.clusterId === id);
-}
