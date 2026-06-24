@@ -1,0 +1,59 @@
+name: harness-conformance
+
+# ADR-0021 — proves the PINNED harness versions are conformant with the adapters. Triggered when
+# the version manifest or any agentsession adapter changes (a pin bump or an adapter edit). Runs
+# inside the base devcontainer image (which carries bun + the Go gate toolchain), installs the
+# EXACT pinned harnesses via post-create, then runs the per-adapter conformance + the live gated
+# tests (real harness + real provider) against them. A protocol drift fails HERE, in the PR.
+
+on:
+  pull_request:
+    paths:
+      - "harnesses/versions.env"
+      - "libs/go/agentsession/**"
+  workflow_dispatch:
+
+concurrency:
+  group: harness-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  conformance:
+    name: pinned-harness conformance
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/gophersys/base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install the pinned harnesses (claude + omp + codex)
+        env:
+          # Read the in-repo manifest rather than the /workspace default (CI checks out elsewhere).
+          HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
+        run: bash .devcontainer/base/ctl.sh post-create
+
+      - name: Adapter conformance + live gated tests against the pinned versions
+        env:
+          # Bootstrap credentials for the live arm (ADR-0021). Absent -> the live tests SKIP and
+          # only the fixtures run, which is NOT a merge-eligible verification of a pin bump.
+          CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GOWORK: ${{ github.workspace }}/go.work
+        run: |
+          echo "harness versions under test:"
+          claude --version || true
+          omp --version || true
+          codex --version || true
+          cd libs/go/agentsession
+          go test -tags integration -race ./... -count=1

@@ -1,1 +1,80 @@
-../../.ci/providers/github/on-pr.yml
+name: on-pr
+
+on:
+  # init/seed is the current working branch; main is the future integration target. A PR into
+  # either runs the gate (the main-as-integration cutover is a tracked follow-up).
+  pull_request:
+    branches: [init/seed, main]
+
+concurrency:
+  group: on-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # The minutes lane: lint/typecheck/test/leak/maintainability/vuln/sast/secretscan over the
+  # affected projects. Runs inside ghcr.io/gophersys/base, where every linter + Go tool is
+  # present, so a missing tool is a HARD FAIL (each ctl.sh verb require_cmds it → exit 127),
+  # never a silent skip (ADR-0020 §enforcement).
+  fast:
+    name: affected-gate (fast)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/gophersys/base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Run affected-gate (fast)
+        env:
+          NX_BASE: origin/${{ github.base_ref }}
+        run: bash .ci/ctl.sh affected-gate-fast
+
+  # The careful-orchestration lane: integration/load/lifecycle/bench-guard on the REAL
+  # docker + k3d host (ADR-0020 dimension (d)/(e)). The base image carries docker-cli + k3d +
+  # kind; the job starts the docker host and runs the real-substrate suites — mocks are not an
+  # acceptable substitute (ADR-0016 §2). Absent here too is a hard fail, not a skip.
+  substrate:
+    name: affected-gate (substrate · real docker+k3d)
+    # DEFERRED on GitHub-hosted runners: a privileged job container with the host docker socket +
+    # nested k3d/kind does not run reliably on ubuntu-latest. Gated OFF by default; set the repo
+    # variable EDEN_CI_SUBSTRATE=true once a CAPABLE runner exists (a self-hosted runner with docker,
+    # or a runner image that supports privileged k3d) — then this lane runs the real-substrate suites.
+    if: ${{ vars.EDEN_CI_SUBSTRATE == 'true' }}
+    runs-on: ubuntu-latest
+    needs: fast
+    container:
+      image: ghcr.io/gophersys/base:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      # Privileged + the docker socket so the real daemon and k3d/kind clusters come up inside
+      # the job (the careful-orchestration lane runs the substrate, it does not mock it).
+      options: --privileged -v /var/run/docker.sock:/var/run/docker.sock
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Start docker host (if not already provided by the runner)
+        run: |
+          if ! docker info >/dev/null 2>&1; then
+            (dockerd >/tmp/dockerd.log 2>&1 &)
+            for _ in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+          fi
+          docker version
+          k3d version
+          kind version
+      - name: Run affected-gate (substrate)
+        env:
+          NX_BASE: origin/${{ github.base_ref }}
+        run: bash .ci/ctl.sh affected-gate-substrate

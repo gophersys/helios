@@ -2,7 +2,10 @@ name: on-push
 
 on:
   push:
-    branches: [main]
+    # init/seed is the current working branch (the repo default today); main is the future
+    # integration target. CI runs on a push to either so it fires NOW + keeps working after the
+    # main-as-integration cutover (a tracked follow-up).
+    branches: [init/seed, main]
   workflow_dispatch:
 
 concurrency:
@@ -30,5 +33,5 @@ jobs:
           fetch-depth: 0
       - name: Run affected-check
         env:
-          NX_BASE: origin/main~1
+          NX_BASE: ${{ github.event.before }}
         run: bash .ci/ctl.sh affected-check
