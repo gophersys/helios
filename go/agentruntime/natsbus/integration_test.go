@@ -5,7 +5,7 @@
 //
 //   - an EMBEDDED real nats-server/v2 with JetStream (a real server started in-process, millisecond
 //     boot, deterministic) — the primary arm, exercised on every integration run;
-//   - a REAL `nats:latest` container booted docker-out-of-docker (the vaultadapter posture) — the
+//   - a REAL `nats:2.14.2` container booted docker-out-of-docker (the vaultadapter posture) — the
 //     cross-process wire arm, SKIPPED if the docker CLI / image is unavailable locally but REQUIRED
 //     in the devcontainer where docker is live.
 //
@@ -91,7 +91,7 @@ func TestIntegration_EmbeddedNATS_DurableReplayBySeq(t *testing.T) {
 	}
 }
 
-// TestIntegration_RealNATSContainer_RoundTrip is the cross-process arm: a REAL nats:latest container
+// TestIntegration_RealNATSContainer_RoundTrip is the cross-process arm: a REAL nats:2.14.2 container
 // booted docker-out-of-docker. SKIPPED if docker/the image is unavailable locally; REQUIRED in the
 // devcontainer where docker is live.
 func TestIntegration_RealNATSContainer_RoundTrip(t *testing.T) {
@@ -315,7 +315,7 @@ func dialJetStream(t *testing.T, url string) (*nats.Conn, nats.JetStreamContext)
 	return conn, jetStream
 }
 
-// startNATSContainer boots a real nats:latest container with JetStream (docker-out-of-docker) and
+// startNATSContainer boots a real nats:2.14.2 container with JetStream (docker-out-of-docker) and
 // returns its client URL reached over the container's docker-bridge IP — NOT a published host port:
 // the devcontainer shares the docker network, so the bridge IP is directly reachable (the
 // vaultadapter posture), while a published 127.0.0.1 port would land on the docker HOST, not the
@@ -324,7 +324,7 @@ func startNATSContainer(t *testing.T) string {
 	t.Helper()
 	name := "eden-agentruntime-nats-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	// #nosec G204 -- fixed `docker run` of the official nats image; name is time-derived, not user input.
-	run := exec.Command("docker", "run", "-d", "--rm", "--name", name, "nats:latest", "-js")
+	run := exec.Command("docker", "run", "-d", "--rm", "--name", name, "nats:2.14.2", "-js")
 	if out, err := run.CombinedOutput(); err != nil {
 		t.Skipf("could not start nats container (image unavailable?): %v\n%s", err, out)
 	}

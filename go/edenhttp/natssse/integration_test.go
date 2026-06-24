@@ -5,7 +5,7 @@
 //
 //   - an EMBEDDED real nats-server/v2 with JetStream (started in-process, millisecond boot,
 //     deterministic) — the primary arm, exercised on every integration run;
-//   - a REAL `nats:latest` container booted docker-out-of-docker — the cross-process wire arm,
+//   - a REAL `nats:2.14.2` container booted docker-out-of-docker — the cross-process wire arm,
 //     SKIPPED if docker/the image is unavailable locally, REQUIRED in the devcontainer.
 //
 // Both arms drive the SAME assertions through the real natssse.Bridge: a publisher writes
@@ -278,7 +278,7 @@ func publishOne(t *testing.T, jetStream nats.JetStreamContext, seq uint64, termi
 	}
 }
 
-// TestIntegration_RealNATSContainer_ReplayBySeq is the cross-process arm: a REAL nats:latest
+// TestIntegration_RealNATSContainer_ReplayBySeq is the cross-process arm: a REAL nats:2.14.2
 // container booted docker-out-of-docker. SKIPPED if docker/the image is unavailable locally.
 func TestIntegration_RealNATSContainer_ReplayBySeq(t *testing.T) {
 	t.Parallel()
@@ -476,7 +476,7 @@ func startNATSContainer(t *testing.T) string {
 	t.Helper()
 	name := "eden-edenhttp-nats-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	// #nosec G204 -- fixed `docker run` of the official nats image; name is time-derived, not user input.
-	run := exec.Command("docker", "run", "-d", "--rm", "--name", name, "nats:latest", "-js")
+	run := exec.Command("docker", "run", "-d", "--rm", "--name", name, "nats:2.14.2", "-js")
 	if out, err := run.CombinedOutput(); err != nil {
 		t.Skipf("could not start nats container (image unavailable?): %v\n%s", err, out)
 	}

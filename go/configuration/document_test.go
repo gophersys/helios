@@ -11,11 +11,8 @@ import (
 // Section: Zero Document.
 func TestZeroDocument_LookupMissesCleanly(t *testing.T) {
 	t.Parallel()
-	var doc configuration.Document // zero value of the interface is nil; the contract's
-	// "zero Document" refers to a constructed empty tree. The fake supplies it.
-	if doc != nil {
-		t.Skip("nil interface is not the zero-tree; covered by emptyDoc test")
-	}
+	// The contract's "zero Document" is a constructed empty tree, not a nil
+	// interface; the fake supplies it.
 	empty := configurationtest.Doc(map[string]any{})
 	if _, ok := empty.Lookup("anything"); ok {
 		t.Fatal("empty Document Lookup returned ok == true, want false")
