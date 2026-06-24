@@ -283,7 +283,7 @@ func buildSecrets(environment *Environment) (*secrets.Mediator, error) {
 	}
 	var adapter secrets.Provider
 	var err error
-	if environment.VaultMode == "token-file" {
+	if vaultadapter.ParseMode(environment.VaultMode) == vaultadapter.ModeTokenFile {
 		adapter, err = vaultadapter.New(
 			vaultadapter.Config{Address: address, Mode: vaultadapter.ModeTokenFile, TokenFilePath: os.Getenv("EDEN_VAULT_TOKEN_FILE")},
 			vaultadapter.Deps{},
