@@ -17,6 +17,7 @@ import (
 	natsservertest "github.com/nats-io/nats-server/v2/test"
 	"github.com/nats-io/nats.go"
 
+	"github.com/gophersys/libs/go/agentruntime"
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
 	"github.com/gophersys/libs/go/dependencies/dependenciestest"
@@ -310,10 +311,10 @@ type controlMessage struct {
 	OTel    map[string]string `json:"otel,omitempty"`
 }
 
-// controlSubject renders agent.<id>.control (the soft-control subject; the SAME format
-// agentruntime.ControlSubject renders — a data contract).
+// controlSubject renders agent.<id>.control by CITING agentruntime.ControlSubject (the one home for
+// the subject format, 10 §9) — a thin AgentID type-adapter, never a re-spelling of the literal.
 func controlSubject(id orchestrator.AgentID) string {
-	return "agent." + string(id) + ".control"
+	return agentruntime.ControlSubject(agentruntime.AgentID(id))
 }
 
 // ── real-substrate container boots (docker-out-of-docker; the vaultadapter posture) ────────.

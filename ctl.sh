@@ -62,7 +62,7 @@ function on_exit() {
 trap on_exit EXIT
 
 # -------- language subtrees --------
-LANG_SUBTREES=(typescript python rust zephyr protocols)
+LANG_SUBTREES=(go typescript python rust zephyr protocols)
 
 # -------- helpers --------
 function count_libs_in() {
