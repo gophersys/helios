@@ -54,6 +54,22 @@ const (
 	ModeTokenFile
 )
 
+// EnvTokenFile is the EDEN_VAULT_MODE wire VALUE that selects ModeTokenFile (the PRODUCTION
+// K8s-ServiceAccount sidecar path). It is the one home for the env-var string the composition
+// roots compare against; any other value (including empty) selects the LOCAL ModeUserpass path.
+const EnvTokenFile = "token-file"
+
+// ParseMode maps an EDEN_VAULT_MODE wire value to a Mode: EnvTokenFile selects ModeTokenFile,
+// everything else (including "") selects the LOCAL ModeUserpass default. It is the one place the
+// env-string-to-Mode decision lives, so a composition root cites it instead of re-spelling the
+// "token-file" literal.
+func ParseMode(value string) Mode {
+	if value == EnvTokenFile {
+		return ModeTokenFile
+	}
+	return ModeUserpass
+}
+
 // errInvalidConfig reports a construction-time wiring mistake (a missing address, an unset
 // credential for the chosen Mode). It is a sentinel so the composition root can branch via
 // errors.Is; it carries KindInvalid because the dependencies/configuration are malformed.
