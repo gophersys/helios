@@ -14,7 +14,10 @@
 # for a registry push.
 
 # ── build stage ───────────────────────────────────────────────────────────────────────────────────
-FROM golang:1.26 AS build
+# Pin the Go patch (not the floating golang:1.26) — matches the devcontainer ARG GO_VERSION + go.mod
+# toolchain, and closes the stdlib-CVE window a floating tag drifts into. cictl can track this ARG.
+ARG GO_VERSION=1.26.4
+FROM golang:${GO_VERSION} AS build
 WORKDIR /src
 COPY . .
 ENV GOWORK=/src/go.work CGO_ENABLED=0

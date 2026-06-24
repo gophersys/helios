@@ -18,7 +18,10 @@
 
 # ── build stage: compile the static-ish Go binary over the workspace ──────────────────────────────
 ARG BASE_IMAGE=ghcr.io/gophersys/base:latest
-FROM golang:1.26 AS build
+# Pin the Go patch (not the floating golang:1.26) — matches the devcontainer ARG GO_VERSION + go.mod
+# toolchain, closing the stdlib-CVE window a floating tag drifts into.
+ARG GO_VERSION=1.26.4
+FROM golang:${GO_VERSION} AS build
 WORKDIR /src
 
 # Copy the whole workspace (the go.work pins the sibling libs to in-repo source). A .dockerignore
