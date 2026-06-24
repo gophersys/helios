@@ -3,16 +3,22 @@ package workspaceprovider
 import "sync"
 
 // The workspace lifecycle State machine (types.go State doc): legal transitions are enforced by
-// the LIBRARY, not the adapter. The documented graph is
+// the LIBRARY, not the adapter. The legalTransitions table below is the SINGLE source of truth; the
+// sketch here mirrors it edge-for-edge so a reader sees the shape, but the table — not this prose —
+// is authoritative (10 §9, and the very drift this finding fixed):
 //
-//	Provisioning → Ready → {Degraded → Ready | Evicted} → Gone
+//	Provisioning → {Ready, Running, Degraded, Evicted, Gone}
+//	Ready        → {Running, Degraded, Evicted, Gone, Provisioning}
+//	Running      → {Ready, Degraded, Evicted, Gone}
+//	Degraded     → {Ready, Running, Evicted, Gone}
+//	Evicted      → {Gone, Provisioning}              (the drift signal: reaped or re-provisioned)
+//	Gone         → {}                                (terminal: never transitions out)
 //
-// with a terminal Gone that never transitions, plus the always-legal self-transition (a repeated
-// Status read of the same State) and the initial entry (the first observed State from the zero
-// machine). This file backs that documented invariant with code (it was previously documented but
-// unimplemented — half-wired growth); the conformance caseStateTransitionGuard drives an adapter
-// through an ILLEGAL transition (Gone → Ready) and asserts the library rejects it, turning the doc
-// claim into an executed test.
+// plus the always-legal self-transition (a repeated Status read of the same State) and the initial
+// entry (the first observed State from the zero machine). This file backs that invariant with code
+// (it was previously documented but unimplemented — half-wired growth); the conformance
+// caseStateTransitionGuard drives an adapter through an ILLEGAL transition (Gone → Ready) and
+// asserts the library rejects it, turning the doc claim into an executed test.
 
 // legalTransitions is the closed adjacency set of the documented State graph. A State maps to the
 // set of States it may transition INTO. A self-transition (s → s) and the initial entry are handled

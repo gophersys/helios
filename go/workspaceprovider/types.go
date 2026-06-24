@@ -189,10 +189,12 @@ type Selector struct {
 	Labels map[string]string // exact-match label set (MUST include the tenancy keys on the multi-tenant cluster)
 }
 
-// State is the workspace lifecycle. Closed taxonomy, additive-only (10 §9). Legal
-// transitions are enforced by the library, not the adapter: Provisioning → Ready →
-// {Degraded → Ready | Evicted} → Gone. A terminal state (Gone) never transitions. The
-// adapter-native phase rides Status.Detail verbatim.
+// State is the workspace lifecycle. Closed taxonomy, additive-only (10 §9). Legal transitions are
+// enforced by the library (not the adapter) per the authoritative legalTransitions adjacency table
+// in statemachine.go — see there for the exact edge set, never re-spelled here. In shape:
+// Provisioning enters; Ready and Running interconvert and accept work; Degraded is recoverable;
+// Evicted is the substrate-reclaim DRIFT signal (05 §5) that may be re-provisioned or reaped; Gone
+// is terminal. The adapter-native phase rides Status.Detail verbatim.
 type State uint8
 
 // The lifecycle states.
