@@ -1,6 +1,7 @@
 # 16 — Application template system
 
-> Status: Draft for review · Created: 2026-06-14 · Owner: Mateo · Ratifies: ADR-0023
+> Status: Draft for review · Created: 2026-06-14 · Owner: Mateo · Ratifies: ADR-0023 ·
+> Amended-by: ADR-0026 (location — templates are a `libs/` subtree, not a 4th submodule)
 > Canonical spec for the Eden **application-template** system: the gated, versioned scaffolds that
 > assemble the shared Go libraries into a complete, deployable service. Sits downstream of the
 > library system (doc 10), the library pipeline (doc 14, ADR-0020), and Milestone-B (ADR-0022); it
@@ -23,12 +24,20 @@ under the same `_ctl` + phase-gate machinery.
 > reimplementation — so the cohesion contract (one concept, one home, doc 10 §9) holds across the
 > app/library seam too. 🔶
 
-## 2. Where it lives — the submodule 🧩 (ADR-0023 #1)
+## 2. Where it lives — a subtree of the `libs` submodule 🧩 (ADR-0023 #1, amended by ADR-0026)
 
-Application templates live in a **new git submodule**, `gophersys/libs`, mounted at
-`libs/templates/` in the eden monorepo (peer of `libs/`, `infrastructure/`, `.devcontainer/`
-in `.gitmodules`). Separate repo, separate commits — the same boundary rule the other submodules
-follow.
+Application templates live as a **subtree of the existing `libs` submodule**, at `libs/templates/`
+— a sibling of `libs/go/` and `libs/typescript/`, **not** a separate repository. They share the
+`libs` repo's commits and boundary rules; `.gitmodules` carries three submodules (`infrastructure`,
+`libs`, `.devcontainer`) and templates are not a fourth.
+
+> **Amended by ADR-0026 (2026-06-19, Accepted).** ADR-0023 #1 originally placed templates in a *new
+> 4th submodule* (`gophersys/application-templates`, a `.gitmodules` peer). That *location* decision
+> was superseded: because a template's whole job is to ASSEMBLE the shared `libs/go/*` libraries, a
+> lib API change breaking its template is the *normal* case — two repos turned every such change into
+> a cross-repo dance (bump lib → release → re-pin → hope they agree). ADR-0026 folded the templates
+> INTO `libs` so a lib and the template that consumes it move in ONE commit. The engineering bar
+> (5-files-per-route, libs-assembly, the phase-gate) is unchanged — only the home moved.
 
 ```
 libs/templates/
