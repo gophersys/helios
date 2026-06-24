@@ -3,7 +3,7 @@
 // or run with NODE_PATH pointing at any node_modules that contains marked@15)
 // Output: docs/architecture/eden-architecture.html (gitignored; never edit by hand)
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -32,42 +32,41 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'architectur
 const OUT = `${ROOT}/eden-architecture.html`;
 const GENERATED = new Date().toISOString().slice(0, 10);
 
+// The manifest is derived from the filesystem so new docs/ADRs self-heal on regen. Ordering is
+// preserved deterministically: README first, numbered specs ascending by NN, open-decisions last,
+// then ADRs ascending by NNNN. The `id` MUST stay derived from the filename stem (d-<stem> /
+// d-adr-<NNNN>) — rewriteLinks() rewrites cross-doc links onto exactly those anchors.
+//
+// Excluded by design: README/open-decisions are placed explicitly (not auto-listed among the
+// numbered specs); handoff-* are transient working artifacts (not canonical specs); adr/template.md
+// is the ADR stencil (no NNNN prefix); the generated *.html reading copies are never re-ingested.
+const firstHeading = (file) => {
+  const m = readFileSync(`${ROOT}/${file}`, 'utf8').match(/^#\s+(.+?)\s*$/m);
+  return m ? m[1].trim() : file;
+};
+// Strip the leading "NN — " / "NN - " or "ADR-NNNN: " ordinal so the nav label reads cleanly.
+const navLabel = (file) => firstHeading(file)
+  .replace(/^\d{2}\s*[—–-]\s*/, '')
+  .replace(/^ADR-\d{4}:\s*/i, '');
+
+const numberedSpecs = readdirSync(ROOT)
+  .filter((f) => /^\d{2}-[a-z0-9-]+\.md$/.test(f))
+  .sort((a, b) => Number(a.slice(0, 2)) - Number(b.slice(0, 2)))
+  .map((file) => ({ id: `d-${file.replace(/\.md$/, '')}`, file, nav: navLabel(file), chip: file.slice(0, 2) }));
+
+const adrDocs = readdirSync(`${ROOT}/adr`)
+  .filter((f) => /^\d{4}-[a-z0-9-]+\.md$/.test(f))
+  .sort((a, b) => Number(a.slice(0, 4)) - Number(b.slice(0, 4)))
+  .map((f) => {
+    const num = f.slice(0, 4);
+    return { id: `d-adr-${num}`, file: `adr/${f}`, nav: navLabel(`adr/${f}`), chip: `ADR-${num}`, adr: true };
+  });
+
 const DOCS = [
   { id: 'd-readme', file: 'README.md', nav: 'Overview & doc map', chip: 'README' },
-  { id: 'd-00-charter', file: '00-charter.md', nav: 'Charter', chip: '00' },
-  { id: 'd-01-principles', file: '01-principles.md', nav: 'Principles', chip: '01' },
-  { id: 'd-02-domain-model', file: '02-domain-model.md', nav: 'Domain model', chip: '02' },
-  { id: 'd-03-system-decomposition', file: '03-system-decomposition.md', nav: 'System decomposition', chip: '03' },
-  { id: 'd-04-process-model', file: '04-process-model.md', nav: 'Process model (SDLC)', chip: '04' },
-  { id: 'd-05-connector-model', file: '05-connector-model.md', nav: 'Connector model', chip: '05' },
-  { id: 'd-06-dogfooding-bootstrap', file: '06-dogfooding-bootstrap.md', nav: 'Dogfooding & bootstrap', chip: '06' },
-  { id: 'd-07-security-model', file: '07-security-model.md', nav: 'Security model', chip: '07' },
-  { id: 'd-08-testing-strategy', file: '08-testing-strategy.md', nav: 'Testing strategy', chip: '08' },
-  { id: 'd-09-build-execution-plan', file: '09-build-execution-plan.md', nav: 'Build execution plan', chip: '09' },
-  { id: 'd-10-library-system', file: '10-library-system.md', nav: 'Library system', chip: '10' },
-  { id: 'd-11-project-document-system', file: '11-project-document-system.md', nav: 'Project document system', chip: '11' },
-  { id: 'd-12-presentation-layer', file: '12-presentation-layer.md', nav: 'Presentation layer', chip: '12' },
-  { id: 'd-13-versioning-and-git-workflow', file: '13-versioning-and-git-workflow.md', nav: 'Versioning & git workflow', chip: '13' },
+  ...numberedSpecs,
   { id: 'd-open-decisions', file: 'open-decisions.md', nav: 'Open decisions', chip: 'OD' },
-  { id: 'd-adr-0001', file: 'adr/0001-record-architecture-decisions.md', nav: 'Record architecture decisions', chip: 'ADR-0001', adr: true },
-  { id: 'd-adr-0002', file: 'adr/0002-rename-helios-to-eden.md', nav: 'Rename Helios → Eden', chip: 'ADR-0002', adr: true },
-  { id: 'd-adr-0003', file: 'adr/0003-go-1.26-floor.md', nav: 'Go 1.26 floor', chip: 'ADR-0003', adr: true },
-  { id: 'd-adr-0004', file: 'adr/0004-svelte-replatform.md', nav: 'Svelte re-platform', chip: 'ADR-0004', adr: true },
-  { id: 'd-adr-0005', file: 'adr/0005-photosphere-refound-svelte.md', nav: 'Photosphere re-founded', chip: 'ADR-0005', adr: true },
-  { id: 'd-adr-0006', file: 'adr/0006-local-first-hosting.md', nav: 'Local-first hosting', chip: 'ADR-0006', adr: true },
-  { id: 'd-adr-0007', file: 'adr/0007-kernel-first-bootstrap.md', nav: 'Kernel-first bootstrap', chip: 'ADR-0007', adr: true },
-  { id: 'd-adr-0008', file: 'adr/0008-claude-code-first-agent-connector.md', nav: 'Claude Code first connector', chip: 'ADR-0008', adr: true },
-  { id: 'd-adr-0009', file: 'adr/0009-library-system-rulings.md', nav: 'Library-system rulings A–F', chip: 'ADR-0009', adr: true },
-  { id: 'd-adr-0010', file: 'adr/0010-documentation-scheme.md', nav: 'Documentation scheme', chip: 'ADR-0010', adr: true },
-  { id: 'd-adr-0011', file: 'adr/0011-document-schema-language.md', nav: 'Document schema language', chip: 'ADR-0011', adr: true },
-  { id: 'd-adr-0012', file: 'adr/0012-compute-posture.md', nav: 'Hosted-default compute', chip: 'ADR-0012', adr: true },
-  { id: 'd-adr-0013', file: 'adr/0013-scm-integration-modes.md', nav: 'SCM integration modes', chip: 'ADR-0013', adr: true },
-  { id: 'd-adr-0014', file: 'adr/0014-upstream-consolidation.md', nav: 'Upstream consolidation', chip: 'ADR-0014', adr: true },
-  { id: 'd-adr-0015', file: 'adr/0015-product-first-build-order.md', nav: 'Product-first build order', chip: 'ADR-0015', adr: true },
-  { id: 'd-adr-0016', file: 'adr/0016-ws1-freeze-and-build-waves.md', nav: 'WS1 freeze & build waves', chip: 'ADR-0016', adr: true },
-  { id: 'd-adr-0017', file: 'adr/0017-quality-bar-and-post-wave-review.md', nav: 'Quality bar & post-wave review', chip: 'ADR-0017', adr: true },
-  { id: 'd-adr-0018', file: 'adr/0018-go-enforcement-and-ai-instrumentation.md', nav: 'Go enforcement & AI instrumentation', chip: 'ADR-0018', adr: true },
-  { id: 'd-adr-0019', file: 'adr/0019-unified-git-workflow-and-merge-agents.md', nav: 'Unified git workflow & merge agents', chip: 'ADR-0019', adr: true },
+  ...adrDocs,
 ];
 
 marked.use({ gfm: true });
