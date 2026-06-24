@@ -7,8 +7,11 @@
 # pinned harness toolchain (claude/omp) the adapters parse — no drift between "what the agent runs"
 # and "what the gate proved".
 #
-# Build (from the repo root, with the go.work in context):
-#   docker build -f deploy/image/agent-runtime.Dockerfile -t agent-runtime:local .
+# Build (from the repo root, with the go.work in context); the Claude Code version is REQUIRED and
+# sourced from harnesses/versions.env (ADR-0021 — the pin has one home, never hardcoded here):
+#   docker build -f deploy/image/agent-runtime.Dockerfile \
+#     --build-arg CLAUDE_CODE_VERSION="$(grep ^CLAUDE_CODE_VERSION harnesses/versions.env | cut -d= -f2)" \
+#     -t agent-runtime:local .
 #
 # Image-tag-as-environment-contract: tag `:local` for a compose load, `<registry>/agent-runtime:<tag>`
 # for a registry push (one Dockerfile, the tag is the only difference).
@@ -41,6 +44,17 @@ COPY --from=build /out/agent-runtime /usr/local/bin/agent-runtime
 # submodule, not this app's Go module), so it is a baked filesystem path, not an embedded asset. This
 # is the image-side half of the in-pod analog of the host-side projectcreate.Materializer.
 COPY libs/plugins/supervisor/template/.claude /opt/eden/supervisor-manual
+
+# Install the pinned Claude Code harness. The base image installs harnesses at devcontainer
+# post-create (NOT baked into base), so the agent-pod image MUST install it explicitly — the in-pod
+# supervisor runs `claude` as its PID-1 child, and an absent binary is a boot failure, not a skip.
+# Installed via the official installer to /home/dev/.local/bin (already on PATH). The version is a
+# REQUIRED build ARG sourced from harnesses/versions.env (ADR-0021: the pin has ONE home; never a
+# hardcoded second source of truth). omp/codex are not installed here (the supervisor is claude-only).
+ARG CLAUDE_CODE_VERSION
+RUN test -n "${CLAUDE_CODE_VERSION}" || { echo "CLAUDE_CODE_VERSION build-arg required (source harnesses/versions.env)" >&2; exit 1; }; \
+    curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_CODE_VERSION}" \
+    && /home/dev/.local/bin/claude --version
 
 # The PID-1 workload. The orchestrator/provider sets EDEN_AGENT_ID, EDEN_NATS_URL, EDEN_HARNESS,
 # EDEN_CREDENTIAL_REF, EDEN_WORKSPACE, and mounts the Vault sidecar token at /vault/secrets/token.
