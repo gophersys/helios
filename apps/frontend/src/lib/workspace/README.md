@@ -29,12 +29,12 @@ carries no app coupling.
 - **File LIST** — `GET /sessions/{id}/workspace` — **EXISTS** (`workspace_handler.go`): the real files
   the supervisor produced under its workspace root, as `{ files: [{ path, size, modifiedUnix }] }`,
   relative + sorted + capped, dotfiles/`.git` skipped. Reused as-is.
-- **File READ** — `GET /sessions/{id}/workspace/file?path=<rel>` — **SPECIFIED, NOT YET SERVED**. The
-  `GatewayWorktreeSource.read()` adapter binds it; expected body `{ path, kind, text }`. Until the
-  gateway serves it, `read()` surfaces the gateway's typed fault, which the viewer shows as an honest
-  "could not read" notice. The handler should mirror `handleWorkspace`'s traversal safety (clean the
-  relative path, reject `..`/absolute, stay within the configured workspace root) and refuse a
-  non-text/oversize file with a typed error rather than streaming bytes.
+- **File READ** — `GET /sessions/{id}/workspace/file?path=<rel>` — **SERVED** (`router.go:50` →
+  `handleWorkspaceFile`): the `GatewayWorktreeSource.read()` adapter binds it; body `{ path, kind, text }`.
+  The handler mirrors `handleWorkspace`'s traversal safety (cleans the relative path, rejects
+  `..`/absolute, stays within the workspace root, skips dotfiles/`.git`), reads up to a 1 MiB cap, and
+  marks `kind` `"text"`/`"binary"`. If a read faults, `read()` surfaces the gateway's typed fault,
+  which the viewer shows as an honest "could not read" notice rather than streaming bytes.
 - **Supervisor session binding** — `project.supervisorAgentId` (falling back to the legacy
   `project.sessionId`) is the build/supervisor session the conversation attaches to. EXISTS on the
   `projectView` projection (`project.go`).

@@ -83,9 +83,9 @@ type Environment struct {
 }
 
 // loadEnvironment parses the environment with the configuration library's env edge, then resolves
-// the required values into the frozen Environment. SKELETON: it reads from os.Environ via the
-// configuration FormatEnv decoder so a generated app extends the parsed Document rather than
-// reaching for os.Getenv ad hoc; the required JWT secret reference is validated here.
+// the required values into the frozen Environment. It reads from os.Environ via the configuration
+// FormatEnv decoder so a generated app extends the parsed Document rather than reaching for
+// os.Getenv ad hoc; the required JWT secret reference is validated here.
 func loadEnvironment() (Environment, error) {
 	// The configuration parser is the typed env edge (FormatEnv: KEY=VALUE lines, dotted keys nest).
 	// The composition root reads the resolved process env directly for the required startup values

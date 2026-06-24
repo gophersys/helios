@@ -75,10 +75,10 @@ export function prettyJson(text: string): string {
  *
  *  • list()  → GET /sessions/{id}/workspace            (the EXISTING root-scoped list contract,
  *              workspace_handler.go: { files: [{path,size,modifiedUnix}] }).
- *  • read()  → GET /sessions/{id}/workspace/file?path=<rel>   (the file-read contract this layer
- *              SPECIFIES — see the integration note; the body is { path, kind, text }. Until the
- *              gateway serves it, read() surfaces the gateway's typed fault, which the viewer shows
- *              as an honest "could not read" notice rather than a blank pane).
+ *  • read()  → GET /sessions/{id}/workspace/file?path=<rel>   (SERVED by router.go:50 →
+ *              handleWorkspaceFile; the body is { path, kind, text }, traversal-safe with a 1 MiB
+ *              cap. If a read faults, read() surfaces the gateway's typed fault, which the viewer
+ *              shows as an honest "could not read" notice rather than a blank pane).
  *
  *  The session id is the supervisor/build session bound to the project (project.supervisorAgentId,
  *  falling back to the legacy sessionId). No credential rides either request. */

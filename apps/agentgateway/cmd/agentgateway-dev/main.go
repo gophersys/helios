@@ -4,8 +4,8 @@
 // transcript) — NO real claude setup-token, NO harness process, NO container, NO network
 // substrate beyond the loopback listener.
 //
-// It is the deliberate counterpart to cmd/agentgateway (the production entrypoint, which
-// awaits the kernel composition root + real adapters and imports NO test fakes). All fake
+// It is the deliberate counterpart to cmd/agentgateway (the production entrypoint, which dials the
+// REAL NATS/JetStream bus + the natssse/natscontrol adapters and imports NO test fakes). All fake
 // wiring is isolated in internal/devserve, so this command stays a thin listen+serve+signal
 // shell and the production command stays fake-free.
 //

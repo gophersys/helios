@@ -3,8 +3,8 @@
 // runnable REST+SSE backend to develop against WITHOUT the gated real claude setup-token, a
 // real harness process, a container, or a persistence substrate.
 //
-// It is the deliberate counterpart to cmd/agentgateway (the production entrypoint, which
-// awaits the kernel composition root + real adapters and imports NO test fakes). The fakes
+// It is the deliberate counterpart to cmd/agentgateway (the production entrypoint, which dials the
+// REAL NATS/JetStream bus + the natssse/natscontrol adapters and imports NO test fakes). The fakes
 // live here, behind a clearly dev-only package, so the production command stays fake-free.
 //
 // What it wires (the same hexagon gateway.New validates, but every port is a fake):

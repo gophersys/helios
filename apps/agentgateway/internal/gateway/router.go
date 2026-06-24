@@ -21,6 +21,8 @@ import (
 //	GET    /sessions/{id}/events             SSE stream (Last-Event-ID / ?from-seq=) -> REQ-0023/0024
 //	GET    /sessions/{id}/transcript         persisted Run, queryable after end -> REQ-0020/0023
 //	GET    /sessions/{id}/workspace          REAL files the agent produced under its workspace root
+//	GET    /sessions/{id}/workspace/file     CONTENT of one workspace file (?path=, traversal-safe, 1 MiB cap)
+//	GET    /sessions/{id}/editor             read-only "Open in VS Code" coordinates for the session -> ADR-0027
 //	POST   /product/propose                  AI-propose a ProductConfig from the prompt (wizard step 1)
 //	POST   /projects                         persist a Project from the scoped product (Build it)
 //	GET    /projects                         list persisted projects (the dashboard grid)

@@ -23,11 +23,11 @@
 //
 //   GET /sessions/{id}/workspace            → { files: [{ path, size, modifiedUnix }, …] }   EXISTS
 //       (workspace_handler.go — relative, traversal-safe, sorted, dotfiles/.git skipped).
-//   GET /sessions/{id}/workspace/file?path= → { path, kind, text }                           SPECIFIED
-//       (the file-READ contract $lib/workspace/worktreeFiles specifies — NOT YET SERVED. Until the
-//       gateway serves it, readFile surfaces the gateway's typed fault, which the wizard shows as an
-//       honest inline error rather than a blank screen. The handler must mirror handleWorkspace's
-//       traversal safety and refuse a non-text/oversize file with a typed error.)
+//   GET /sessions/{id}/workspace/file?path= → { path, kind, text }                           SERVED
+//       (router.go:50 → handleWorkspaceFile: traversal-safe, refuses .git/dotfiles, reads up to a
+//       1 MiB cap, kind is "text"|"binary". If a read faults — bad path, oversize, no workspace
+//       root — readFile surfaces the gateway's typed fault, which the wizard shows as an honest
+//       inline error rather than a blank screen.)
 //
 // And the supervisor side must COMMIT the interview artifacts to that worktree as the session runs:
 //   - after the DESCRIBE brief is sent, commit init/product/questionnaire/<NN>-<slug>.md per question

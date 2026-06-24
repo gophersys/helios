@@ -3,9 +3,9 @@
 // into the edenhttp dev-JWT verifier the spine's Middleware drives. The package name is `identity`
 // per HNS-1 (the banned token `auth` becomes `identity`, rule 11).
 //
-// SKELETON: the dev-JWT HMAC verifier is the template's default identity path (behind auth even
-// locally, ADR-0022 #3). A generated app that fronts a real IdP binds its own edenhttp.TokenVerifier
-// behind the SAME port here — the Middleware and the routes never change.
+// The dev-JWT HMAC verifier is the template's default identity path (behind auth even locally,
+// ADR-0022 #3) — a complete implementation, not a stub. A generated app that fronts a real IdP binds
+// its own edenhttp.TokenVerifier behind the SAME port here — the Middleware and the routes never change.
 package identity
 
 import (
