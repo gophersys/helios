@@ -62,8 +62,13 @@ COPY libs/plugins/supervisor/template/.claude /opt/eden/supervisor-manual
 # hardcoded second source of truth). omp/codex are not installed here (the supervisor is claude-only).
 ARG CLAUDE_CODE_VERSION
 RUN test -n "${CLAUDE_CODE_VERSION}" || { echo "CLAUDE_CODE_VERSION build-arg required (source harnesses/versions.env)" >&2; exit 1; }; \
-    curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_CODE_VERSION}" \
-    && /home/dev/.local/bin/claude --version
+    curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_CODE_VERSION}"; \
+    installed="$(/home/dev/.local/bin/claude --version)"; \
+    echo "claude --version → ${installed}"; \
+    case "${installed}" in \
+      *"${CLAUDE_CODE_VERSION}"*) : ;; \
+      *) echo "harness pin drift: installed '${installed}' does not match CLAUDE_CODE_VERSION='${CLAUDE_CODE_VERSION}'" >&2; exit 1 ;; \
+    esac
 
 # The PID-1 workload. The orchestrator/provider sets EDEN_AGENT_ID, EDEN_NATS_URL, EDEN_HARNESS,
 # EDEN_CREDENTIAL_REF, EDEN_WORKSPACE, and mounts the Vault sidecar token at /vault/secrets/token.
