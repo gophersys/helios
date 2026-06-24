@@ -7,7 +7,8 @@
 # distroless base (no harness toolchain needed) — unlike agent-runtime, which dogfoods the
 # devcontainer base because it spawns the real harness.
 #
-# Build (from the repo root, with the go.work in context):
+# Build from the repo root (the build stage regenerates go.work via scripts/gen-go-work.sh, so a
+# clean checkout with no committed go.work still resolves the in-repo sibling libs):
 #   docker build -f deploy/image/agentgateway.Dockerfile -t agentgateway:local .
 #
 # Image-tag-as-environment-contract: `:local` for a compose load, `<registry>/agentgateway:<tag>`
@@ -20,6 +21,10 @@ ARG GO_VERSION=1.26.4
 FROM golang:${GO_VERSION} AS build
 WORKDIR /src
 COPY . .
+# Regenerate go.work from the tracked module list (scripts/gen-go-work.sh) — go.work is gitignored,
+# so a clean checkout / git-archive build context has none; the generator pins the v0.0.0 sibling
+# libs to in-repo source deterministically before the build resolves them.
+RUN bash scripts/gen-go-work.sh
 ENV GOWORK=/src/go.work CGO_ENABLED=0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \

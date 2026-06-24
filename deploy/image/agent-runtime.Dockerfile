@@ -7,8 +7,9 @@
 # pinned harness toolchain (claude/omp) the adapters parse — no drift between "what the agent runs"
 # and "what the gate proved".
 #
-# Build (from the repo root, with the go.work in context); the Claude Code version is REQUIRED and
-# sourced from harnesses/versions.env (ADR-0021 — the pin has one home, never hardcoded here):
+# Build from the repo root (the build stage regenerates go.work via scripts/gen-go-work.sh, so a
+# clean checkout with no committed go.work still resolves the in-repo sibling libs); the Claude Code
+# version is REQUIRED and sourced from harnesses/versions.env (ADR-0021 — the pin has one home):
 #   docker build -f deploy/image/agent-runtime.Dockerfile \
 #     --build-arg CLAUDE_CODE_VERSION="$(grep ^CLAUDE_CODE_VERSION harnesses/versions.env | cut -d= -f2)" \
 #     -t agent-runtime:local .
@@ -27,6 +28,11 @@ WORKDIR /src
 # Copy the whole workspace (the go.work pins the sibling libs to in-repo source). A .dockerignore
 # trims node_modules/.git/etc so the context stays lean.
 COPY . .
+
+# Regenerate go.work from the tracked module list (scripts/gen-go-work.sh) — go.work is gitignored,
+# so a clean checkout / git-archive build context has none; the generator pins the v0.0.0 sibling
+# libs to in-repo source deterministically before the build resolves them.
+RUN bash scripts/gen-go-work.sh
 
 ENV GOWORK=/src/go.work CGO_ENABLED=0
 RUN --mount=type=cache,target=/root/.cache/go-build \

@@ -4,8 +4,8 @@
 # secret values at runtime through the Vault sidecar, so its runtime stage is a minimal, non-root
 # distroless base (no harness toolchain needed).
 #
-# Build from the MONOREPO ROOT with the go.work in context (the unpremultiplied sibling libraries
-# resolve there):
+# Build from the MONOREPO ROOT (the build stage regenerates go.work via scripts/gen-go-work.sh, so a
+# clean checkout with no committed go.work still resolves the in-repo sibling libraries):
 #   docker build -f libs/templates/go/http-gateway/deploy/Dockerfile -t http-gateway:local .
 #
 # SKELETON: a generated app keeps this shape; it changes only the binary name / exposed port if it
@@ -18,6 +18,10 @@ ARG GO_VERSION=1.26.4
 FROM golang:${GO_VERSION} AS build
 WORKDIR /src
 COPY . .
+# Regenerate go.work from the tracked module list (scripts/gen-go-work.sh) — go.work is gitignored,
+# so a clean checkout / git-archive build context has none; the generator pins the v0.0.0 sibling
+# libs to in-repo source deterministically before the build resolves them.
+RUN bash scripts/gen-go-work.sh
 ENV GOWORK=/src/go.work CGO_ENABLED=0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
