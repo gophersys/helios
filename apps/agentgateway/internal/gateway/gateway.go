@@ -307,14 +307,10 @@ func (g *Gateway) Serve(ctx context.Context, listener net.Listener) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = server.Shutdown(shutdownCtx) //nolint:errcheck // shutdown best-effort; the registry reap below is the leak guarantee.
-		g.registry.closeAll(shutdownCtx)
-		g.sagas.Wait() // drain in-flight create-saga goroutines so none outlives the gateway.
-		g.closeStores()
+		g.drain(shutdownCtx)
 		return nil
 	case err := <-serveErr:
-		g.registry.closeAll(context.Background())
-		g.sagas.Wait() // drain in-flight create-saga goroutines so none outlives the gateway.
-		g.closeStores()
+		g.drain(context.Background())
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
@@ -327,10 +323,19 @@ func (g *Gateway) Serve(ctx context.Context, listener net.Listener) error {
 // Handler directly), so no harness goroutine outlives the gateway. Returns nil; per-session close
 // faults are best-effort.
 func (g *Gateway) Close(ctx context.Context) error {
+	g.drain(ctx)
+	return nil
+}
+
+// drain is the single graceful-teardown sequence Serve (both shutdown branches) and Close share:
+// reap every live session in the registry (bounded by ctx so a wedged harness never hangs shutdown),
+// wait for in-flight create-saga goroutines to finish so none outlives the gateway, then release any
+// closable store resource. It is idempotent (closeAll empties the registry; sagas.Wait on a drained
+// group is a no-op) so a Close after Serve, or a double Close, is safe.
+func (g *Gateway) drain(ctx context.Context) {
 	g.registry.closeAll(ctx)
 	g.sagas.Wait() // drain in-flight create-saga goroutines so none outlives the gateway.
 	g.closeStores()
-	return nil
 }
 
 // closeStores releases any store dependency that owns a closable resource on graceful shutdown — the

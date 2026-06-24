@@ -27,6 +27,11 @@ import (
 // the upper bound before a dead server fails the request.
 const flushTimeout = 5 * time.Second
 
+// marshalControl is the JSON marshal seam for the control payload. It is json.Marshal in production;
+// a white-box test (export_test.go) swaps it to drive the marshal-fault arm mock-free — a valid
+// ControlMessage (string/uint8/map fields) can never make json.Marshal fail through the public API.
+var marshalControl = json.Marshal
+
 // Adapter is the concrete stateless.ControlPublisher over a dialed *nats.Conn. Safe for concurrent
 // use (the underlying *nats.Conn is). Construct via New; it is the value the composition root wires
 // into stateless.Deps.Control.
@@ -47,7 +52,7 @@ func New(conn *nats.Conn) (*Adapter, error) {
 // core NATS, then flushes bounded by ctx so a dead server fails fast. A marshal/publish/flush fault
 // is wrapped on the Eden errors seam so the gateway pipeline branches by Kind (→ HTTP status).
 func (a *Adapter) PublishControl(ctx context.Context, message agentruntime.ControlMessage) error {
-	payload, err := json.Marshal(message)
+	payload, err := marshalControl(message)
 	if err != nil {
 		return errors.Wrap(errors.KindInternal, "natscontrol: marshal control message", err)
 	}

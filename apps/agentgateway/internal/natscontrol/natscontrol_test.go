@@ -19,13 +19,20 @@ func TestNew_RequiresConn(t *testing.T) {
 	}
 }
 
-// TestPublishControl_NilConnGuard is a defense-in-depth check that the typed port is satisfied; the
-// real publish round trip is proven over REAL NATS in the integration arm (natscontrol_integration_test).
-func TestPublishControl_PortShape(t *testing.T) {
-	t.Parallel()
-	// A compile-time + runtime assertion that the adapter implements the publisher port shape; the
-	// real round trip is the integration arm's job (a real *nats.Conn).
-	var _ interface {
-		PublishControl(context.Context, agentruntime.ControlMessage) error
-	} = (*natscontrol.Adapter)(nil)
+// TestPublishControl_MarshalFault proves a marshal failure is wrapped on the Eden errors seam as
+// KindInternal (an invariant we own broken). The marshal seam is swapped white-box (export_test.go)
+// because a valid ControlMessage (string/uint8/map fields) can never make json.Marshal fail through
+// the public surface; the arm returns before the connection is touched, so a nil-conn adapter is
+// sufficient. Not t.Parallel(): it mutates the package-level marshal seam.
+func TestPublishControl_MarshalFault(t *testing.T) {
+	restore := natscontrol.SetMarshalControl(func(any) ([]byte, error) {
+		return nil, errors.New(errors.KindInternal, "natscontrol: forced marshal fault")
+	})
+	t.Cleanup(restore)
+
+	adapter := natscontrol.NewForTest()
+	err := adapter.PublishControl(context.Background(), agentruntime.ControlMessage{AgentID: "agent-x", Verb: agentruntime.VerbStop})
+	if errors.KindOf(err) != errors.KindInternal {
+		t.Fatalf("marshal-fault kind = %s, want internal", errors.KindOf(err))
+	}
 }
