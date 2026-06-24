@@ -133,25 +133,35 @@ function cmd_affected_check() {
 function cmd_affected_gate() {
   if ! has_nx; then log_warn "nx not available; affected-gate is a no-op"; return 0; fi
   (cd "$REPO_ROOT" && nx_cmd affected \
-     -t lint,typecheck,test,leak,lifecycle,integration,load,vuln,sast,secretscan,bench-guard,maintainability \
+     -t lint,typecheck,test,leak,property,lifecycle,integration,load,vuln,sast,secretscan,bench-guard,cover-floor,maintainability,mutate \
      --base="$NX_BASE" --output-style=stream)
 }
 
 # cmd_affected_gate_fast — the minutes-long subset (no real-substrate lanes): lint/typecheck/test/
-# leak/maintainability/vuln/sast/secretscan. Used by the `fast` GitHub job.
+# leak/property/maintainability/vuln/sast/secretscan. Used by the `fast` GitHub job. `property`
+# (pgregory.net/rapid, `go test -race`, no build tags) is hermetic — it belongs here so the local
+# phase-gate's application-logic-correctness dimension is also enforced in CI. cover-floor + mutate
+# are NOT here: cover-floor for a substrate lib is computed WITH the integration tag
+# (EDEN_COVER_TAGS="lifecycle load integration") so it needs the real docker+k3d host, and mutate is
+# time-heavy — both live in the substrate lane below.
 function cmd_affected_gate_fast() {
   if ! has_nx; then log_warn "nx not available; affected-gate-fast is a no-op"; return 0; fi
   (cd "$REPO_ROOT" && nx_cmd affected \
-     -t lint,typecheck,test,leak,maintainability,vuln,sast,secretscan \
+     -t lint,typecheck,test,leak,property,maintainability,vuln,sast,secretscan \
      --base="$NX_BASE" --output-style=stream)
 }
 
 # cmd_affected_gate_substrate — the careful-orchestration lanes on the real docker+k3d host:
-# integration/load/lifecycle. Used by the `substrate` GitHub job.
+# integration/load/lifecycle/bench-guard, plus cover-floor and mutate. cover-floor lives here (not in
+# the fast lane) because a substrate lib's coverage profile is built with the integration tag
+# (EDEN_COVER_TAGS="lifecycle load integration"), which requires the real docker+k3d+postgres host; a
+# leaf lib's hermetic cover run is harmless on this host too. mutate (gremlins on Go leaf libs,
+# StrykerJS on TS libs) is time-heavy, so it rides the careful lane. Together these close the gap
+# between CI and the local `phase-gate qa` 8-dimension taxonomy (ADR-0020).
 function cmd_affected_gate_substrate() {
   if ! has_nx; then log_warn "nx not available; affected-gate-substrate is a no-op"; return 0; fi
   (cd "$REPO_ROOT" && nx_cmd affected \
-     -t integration,load,lifecycle,bench-guard \
+     -t integration,load,lifecycle,bench-guard,cover-floor,mutate \
      --base="$NX_BASE" --output-style=stream)
 }
 
