@@ -22,6 +22,7 @@ func main() {
 	registry := flag.String("registry", "ghcr.io/gophersys/eden", "production image registry prefix")
 	tag := flag.String("tag", "latest", "production image tag (a release version or a git sha)")
 	namespace := flag.String("namespace", "eden", "kubernetes namespace")
+	stage := flag.String("stage", "production", "deployment stage the values.yaml credential paths default to")
 	outDir := flag.String("out", "", "output root (default: the deploy/ dir relative to this command)")
 	flag.Parse()
 
@@ -34,7 +35,7 @@ func main() {
 	services := servicespec.Catalog()
 
 	// Production: the Helm chart.
-	helmTarget := servicespec.RenderTarget{Plane: servicespec.PlaneProduction, Registry: *registry, Tag: *tag, Namespace: *namespace}
+	helmTarget := servicespec.RenderTarget{Plane: servicespec.PlaneProduction, Registry: *registry, Tag: *tag, Namespace: *namespace, Stage: *stage}
 	chartRoot := filepath.Join(root, "plane", "production", "chart")
 	for _, f := range servicespec.RenderHelm(helmTarget, services) {
 		if err := writeFile(filepath.Join(chartRoot, f.Path), f.Content); err != nil {

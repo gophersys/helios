@@ -39,12 +39,21 @@ type Port struct {
 type EnvVar struct {
 	// Name is the env var name (e.g. EDEN_NATS_URL, EDEN_CREDENTIAL_REF). Required.
 	Name string
-	// Value is a plain, non-secret literal (e.g. a NATS URL, a harness key). Empty if FromSecret.
+	// Value is a plain, non-secret literal (e.g. a NATS URL, a harness key). Empty if FromSecret
+	// or FromVaultField.
 	Value string
 	// FromSecret, when set, names a kubernetes Secret + key the production manifest references via
 	// valueFromSecretKeyRef (never an inlined value). Ignored for the local plane, which injects
 	// the value from the loaded .env at runtime via compose's `environment:`/`env_file`.
 	FromSecret *SecretKeyRef
+	// FromVaultField, when set, names the FIELD segment (the part after '#') of a stage-scoped Vault
+	// reference `vault://eden/<stage>#<field>`. The STAGE segment is environment-scoped, NOT a
+	// literal: the production Helm render emits `vault://eden/{{ .Values.stage }}#<field>` (values.yaml
+	// defaults `stage: production`) so a prod install never inherits the development path, while the
+	// local compose render pins `vault://eden/development#<field>` (the local plane IS the development
+	// stage). vaultStageRef is the one home for the reference shape — the renderers build it, the
+	// catalog only names the field. Mutually exclusive with Value/FromSecret.
+	FromVaultField string
 }
 
 // SecretKeyRef names a kubernetes Secret and the key within it (the production secret seam).
@@ -105,6 +114,25 @@ type RenderTarget struct {
 	Registry  string // e.g. "ghcr.io/gophersys/eden" (production image prefix)
 	Tag       string // e.g. "1.0.0" or a git sha (production image tag)
 	Namespace string // kubernetes namespace (production)
+	// Stage is the deployment STAGE (development/test/staging/production) the production values.yaml
+	// defaults its `stage:` knob to — the segment a FromVaultField env entry resolves under. Empty
+	// defaults to "production" (a prod install must never inherit the development credential path).
+	// The local plane is always the development stage and ignores this.
+	Stage string
+}
+
+// vaultHelmStagePlaceholder is the Helm value reference the production render substitutes for the
+// stage segment of a FromVaultField reference. The operator sets it via values.yaml `stage:` (the
+// render defaults it to "production"), so re-pointing every credential path to a different stage is
+// one `--set stage=<stage>`.
+const vaultHelmStagePlaceholder = "{{ .Values.stage }}"
+
+// vaultStageRef is the ONE home for the stage-scoped Vault reference shape
+// `vault://eden/<stage>#<field>` (10 §9: one concept, one home). Both renderers build a
+// FromVaultField entry through it — production passes the Helm `{{ .Values.stage }}` placeholder,
+// local passes the literal "development" stage — so the reference grammar is never re-spelled.
+func vaultStageRef(stage, field string) string {
+	return "vault://eden/" + stage + "#" + field
 }
 
 // ImageReference returns the fully-qualified image reference for the target plane (the

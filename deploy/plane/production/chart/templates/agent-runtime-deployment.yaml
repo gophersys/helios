@@ -36,7 +36,7 @@ spec:
             - name: EDEN_HARNESS
               value: "claude-code"
             - name: EDEN_CREDENTIAL_REF
-              value: "vault://eden/development#setup-token"
+              value: "vault://eden/{{ .Values.stage }}#setup-token"
           resources:
             requests:
               cpu: 1000m

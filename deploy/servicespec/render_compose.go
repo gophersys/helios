@@ -52,6 +52,11 @@ func renderComposeService(b *strings.Builder, target RenderTarget, service Servi
 				fmt.Fprintf(b, "      %s: \"${%s}\"\n", e.Name, e.Name)
 				continue
 			}
+			if e.FromVaultField != "" {
+				// The local plane IS the development stage — pin the literal development segment.
+				fmt.Fprintf(b, "      %s: %q\n", e.Name, vaultStageRef("development", e.FromVaultField))
+				continue
+			}
 			fmt.Fprintf(b, "      %s: %q\n", e.Name, e.Value)
 		}
 	}

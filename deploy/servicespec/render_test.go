@@ -78,6 +78,46 @@ func TestRenderComposeOmitsEmptyPortsBlock(t *testing.T) {
 	}
 }
 
+// TestRenderStageScopedCredentialRef is the C1 regression: a FromVaultField credential reference must
+// be STAGE-SCOPED, never the literal development path baked into the production chart. The production
+// Helm render emits the `{{ .Values.stage }}` placeholder (values.yaml defaults stage: production) so
+// a prod install resolves the production stage; the local compose overlay pins the development stage.
+func TestRenderStageScopedCredentialRef(t *testing.T) {
+	t.Parallel()
+	services := []ServiceSpec{{
+		Name:  "agent-runtime",
+		Image: "agent-runtime",
+		Env: []EnvVar{
+			{Name: "EDEN_CREDENTIAL_REF", FromVaultField: "setup-token"},
+		},
+	}}
+
+	helm := joinHelm(RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, services))
+	// The bug was the development path rendered into production. The placeholder must be present and
+	// the literal development segment must be ABSENT from the production manifests.
+	if !strings.Contains(helm, `vault://eden/{{ .Values.stage }}#setup-token`) {
+		t.Errorf("helm did not render the stage-scoped credential reference:\n%s", helm)
+	}
+	if strings.Contains(helm, "vault://eden/development#") {
+		t.Error("helm baked the DEVELOPMENT credential path into the production chart (C1 regression)")
+	}
+	if !strings.Contains(helm, "stage: production") {
+		t.Error("values.yaml did not default the stage knob to production")
+	}
+
+	// A staging override re-points the default without re-spelling any reference.
+	staging := joinHelm(RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t", Stage: "staging"}, services))
+	if !strings.Contains(staging, "stage: staging") {
+		t.Error("the Stage knob did not override the values.yaml default")
+	}
+
+	// Local: the development stage is correct here (the local plane IS development).
+	compose := RenderCompose(RenderTarget{Plane: PlaneLocal}, services)
+	if !strings.Contains(compose, `EDEN_CREDENTIAL_REF: "vault://eden/development#setup-token"`) {
+		t.Errorf("compose did not pin the development credential reference:\n%s", compose)
+	}
+}
+
 func joinHelm(files []HelmFile) string {
 	var b strings.Builder
 	for _, f := range files {

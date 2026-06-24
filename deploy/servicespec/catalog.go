@@ -33,7 +33,9 @@ func agentRuntimeSpec() ServiceSpec {
 			{Name: "EDEN_VAULT_TOKEN_FILE", Value: "/vault/secrets/token"},
 			{Name: "VAULT_ADDR", Value: "http://vault:8200"},
 			{Name: "EDEN_HARNESS", Value: "claude-code"},
-			{Name: "EDEN_CREDENTIAL_REF", Value: "vault://eden/development#setup-token"},
+			// Stage-scoped: production renders vault://eden/{{ .Values.stage }}#setup-token (stage
+			// defaults to production), local pins the development stage — never the dev path in prod.
+			{Name: "EDEN_CREDENTIAL_REF", FromVaultField: "setup-token"},
 		},
 		Resources:      ResourceEnvelope{CPUMillis: 1000, MemoryMiB: 2048, EphemeralMiB: 4096},
 		Liveness:       &Probe{Path: "/live", Port: 8081},
