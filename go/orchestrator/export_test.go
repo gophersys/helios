@@ -20,7 +20,18 @@ func ToWorkspaceSpecForTest(tenant Tenancy, template *AgentTemplate) workspacepr
 	// toWorkspaceSpec reads agent.Tenant (the ownership-domain labels) and agent.Template.Name (the
 	// template-name label); the production Spawn sets agent.Template to the resolved template's Ref.
 	agent := &Agent{ID: "agent-1", Tenant: tenant, Template: template.Ref}
-	return toWorkspaceSpec(agent, template)
+	// The template's own Sandbox.WorkdirRepo is the effective repo here (no per-spawn override) — the
+	// production fold passes spawnInputs.effectiveWorkdirRepo(); EffectiveWorkdirRepoForTest covers the
+	// per-spawn-override precedence separately.
+	return toWorkspaceSpec(agent, template, template.Sandbox.WorkdirRepo)
+}
+
+// EffectiveWorkdirRepoForTest exercises the per-spawn repo override precedence: the SpawnRequest
+// .WorkdirRepo (a non-empty URL) wins over the template's Sandbox.WorkdirRepo; a zero override falls
+// back to the template's own. Mirrors the production spawnInputs.effectiveWorkdirRepo seam.
+func EffectiveWorkdirRepoForTest(override, templateRepo RepoMount) RepoMount {
+	inputs := spawnInputs{workdirRepo: override, template: AgentTemplate{Sandbox: SandboxSpec{WorkdirRepo: templateRepo}}}
+	return inputs.effectiveWorkdirRepo()
 }
 
 // EffectiveWorkDirForTest exercises the per-spawn host-CWD override precedence: the SpawnRequest

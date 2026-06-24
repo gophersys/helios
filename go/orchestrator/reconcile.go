@@ -110,7 +110,7 @@ func (p *Pool) driveProvision(ctx context.Context, ports ReconcilePorts, agent *
 		return p.fail(ctx, agent, "no workspace provider bound for provisioning")
 	}
 
-	spec := toWorkspaceSpec(agent, &inputs.template)
+	spec := toWorkspaceSpec(agent, &inputs.template, inputs.effectiveWorkdirRepo())
 	provisionCtx, cancel := p.provisionContext(ctx)
 	defer cancel()
 	workspace, err := ports.Workspaces.Provision(provisionCtx, spec)
@@ -284,7 +284,7 @@ func (p *Pool) driveResume(ctx context.Context, ports ReconcilePorts, agent *Age
 		// means the workspace actually still EXISTS (a transient Open miss against a pod still
 		// settling) — re-dial it rather than fail; the spec is unchanged, so this is the same
 		// workspace re-adopted, never a duplicate. Any other provisioning fault marks Failed.
-		spec := toWorkspaceSpec(agent, &inputs.template)
+		spec := toWorkspaceSpec(agent, &inputs.template, inputs.effectiveWorkdirRepo())
 		provisionCtx, cancel := p.provisionContext(ctx)
 		workspace, err := ports.Workspaces.Provision(provisionCtx, spec)
 		cancel()

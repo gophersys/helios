@@ -18,7 +18,7 @@ import (
 // substrate + image + resources map 1:1. Provision is idempotent on Name within a
 // tenancy, so the Name is derived deterministically from the AgentID (a retried pass
 // re-adopts rather than duplicates).
-func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.WorkspaceSpec {
+func toWorkspaceSpec(agent *Agent, template *AgentTemplate, workdirRepo RepoMount) workspaceprovider.WorkspaceSpec {
 	labels := map[string]string{
 		workspaceprovider.LabelOrganization: agent.Tenant.OrganizationID,
 		workspaceprovider.LabelProject:      agent.Tenant.ProjectID,
@@ -29,16 +29,19 @@ func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.Wo
 		labels[k] = v
 	}
 
-	// The WorkdirRepo is realized one of two ways, selected by the workload shape (additive, ADR-0022
-	// §4): an IN-POD workload (a non-empty Entrypoint — the workspace's PID-1 IS the agent-runtime
-	// binary, which clones the repo itself; apps/agent-runtime workdir.go) folds the repo into the
-	// child-process Env (URL + Ref + the OPAQUE credential reference) so the in-pod cloner resolves the
-	// credential server-side and clones locally; a CLASSIC Ready-then-Run workspace (empty Entrypoint —
-	// the existing host-side path) keeps the host Bind mount behavior verbatim. The in-pod path is the
-	// only one that threads .Ref + .Credential (the host Bind dropped them; they had no realization).
+	// The EFFECTIVE WorkdirRepo (workdirRepo) is the per-spawn SpawnRequest.WorkdirRepo when supplied —
+	// e.g. the project-creation saga's per-project repo, which the STATIC template cannot carry — else
+	// the template's own Sandbox.WorkdirRepo (spawnInputs.effectiveWorkdirRepo). It is realized one of
+	// two ways, selected by the workload shape (additive, ADR-0022 §4): an IN-POD workload (a non-empty
+	// Entrypoint — the workspace's PID-1 IS the agent-runtime binary, which clones the repo itself;
+	// apps/agent-runtime workdir.go) folds the repo into the child-process Env (URL + Ref + the OPAQUE
+	// credential reference) so the in-pod cloner resolves the credential server-side and clones locally;
+	// a CLASSIC Ready-then-Run workspace (empty Entrypoint — the existing host-side path) keeps the host
+	// Bind mount behavior verbatim. The in-pod path is the only one that threads .Ref + .Credential (the
+	// host Bind dropped them; they had no realization).
 	env := template.Sandbox.Env
 	if isInPodWorkload(template.Sandbox.Entrypoint) {
-		env = withWorkdirRepoEnv(env, template.Sandbox.WorkdirRepo)
+		env = withWorkdirRepoEnv(env, workdirRepo)
 	}
 
 	spec := workspaceprovider.WorkspaceSpec{
@@ -55,7 +58,7 @@ func toWorkspaceSpec(agent *Agent, template *AgentTemplate) workspaceprovider.Wo
 	// The host Bind mount is the CLASSIC Ready-then-Run path only: an in-pod workload clones the repo
 	// itself from the folded Env, so it takes no host Bind (the .URL is a remote, not a host path).
 	if !isInPodWorkload(template.Sandbox.Entrypoint) {
-		if mount, ok := repoMount(template.Sandbox.WorkdirRepo); ok {
+		if mount, ok := repoMount(workdirRepo); ok {
 			spec.Mounts = append(spec.Mounts, mount)
 		}
 	}

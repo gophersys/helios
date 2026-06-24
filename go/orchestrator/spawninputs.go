@@ -24,6 +24,7 @@ type spawnInputs struct {
 	budget       agentsession.Budget
 	workspace    string                  // OPTIONAL host-CWD override (SpawnRequest.Workspace); "" == the provisioned WorkDir
 	hostTools    []agentsession.HostTool // OPTIONAL per-spawn host-tools (SpawnRequest.HostTools); nil == the template's Hosts
+	workdirRepo  RepoMount               // OPTIONAL per-spawn repo to clone (SpawnRequest.WorkdirRepo); zero == the template's Sandbox.WorkdirRepo
 }
 
 // effectiveHostTools returns the per-spawn host-tools when supplied (the composition-root closures),
@@ -45,6 +46,16 @@ func (in *spawnInputs) effectiveWorkDir(provisioned string) string {
 		return provisioned
 	}
 	return defaultWorkDir
+}
+
+// effectiveWorkdirRepo returns the per-spawn repo to clone when supplied (e.g. the saga's per-project
+// repo, which the static template cannot carry — identified by a non-empty URL), else the template's
+// own Sandbox.WorkdirRepo. The fold realizes it per the workload shape (in-pod Env vs host Bind).
+func (in *spawnInputs) effectiveWorkdirRepo() RepoMount {
+	if in.workdirRepo.URL != "" {
+		return in.workdirRepo
+	}
+	return in.template.Sandbox.WorkdirRepo
 }
 
 // spawnInputsTable is the AgentID-keyed side table. Safe for concurrent use.
@@ -106,6 +117,7 @@ func (p *Pool) rememberSpawnInputs(id AgentID, request *SpawnRequest, template *
 		budget:       effectiveBudget(template.Limits, request),
 		workspace:    request.Workspace,
 		hostTools:    request.HostTools,
+		workdirRepo:  request.WorkdirRepo,
 	})
 }
 

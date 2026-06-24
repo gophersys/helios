@@ -329,6 +329,14 @@ type SpawnRequest struct {
 	// declared surface itself); nil == the template's Hosts. Like OnPermission, a live closure held in
 	// the in-process side table — it does NOT survive a record-only reload (a v0 single-node seam).
 	HostTools []agentsession.HostTool
+
+	// WorkdirRepo OPTIONALLY supplies the per-spawn repo to clone into the workspace — the PROJECT
+	// repo a static AgentTemplate cannot carry (e.g. the project-creation saga's per-project repo).
+	// When its URL is non-empty it OVERRIDES the template's Sandbox.WorkdirRepo; zero == the template's
+	// own. The fold realizes it by workload shape: an in-pod Entrypoint folds it into the child Env
+	// (the agent-runtime binary clones it itself); a classic workspace takes it as a host Bind. The
+	// .Credential is an OPAQUE reference resolved server-side — never the value (a serializable record).
+	WorkdirRepo RepoMount
 }
 
 // ClusterRef names the cluster a workspace is provisioned on (ADR-0012). Opaque to this

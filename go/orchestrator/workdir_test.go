@@ -63,6 +63,40 @@ func TestEffectiveWorkDir_OverridePrecedence(t *testing.T) {
 	}
 }
 
+// TestEffectiveWorkdirRepo_OverridePrecedence pins the per-spawn repo override: a SpawnRequest
+// .WorkdirRepo with a non-empty URL (e.g. the saga's per-project repo, which the static template
+// cannot carry) wins over the template's Sandbox.WorkdirRepo; a zero override (empty URL) falls back
+// to the template's own. This is the seam that makes the in-pod supervisor clone the RIGHT project.
+func TestEffectiveWorkdirRepo_OverridePrecedence(t *testing.T) {
+	t.Parallel()
+	perSpawn := orchestrator.RepoMount{URL: "https://github.com/acme/project.git", Ref: "main", Credential: secrets.Ref("vault://eden/development#gh-token")}
+	templateRepo := orchestrator.RepoMount{URL: "https://github.com/acme/template-default.git"}
+	cases := []struct {
+		name     string
+		override orchestrator.RepoMount
+		template orchestrator.RepoMount
+		wantURL  string
+	}{
+		{"per-spawn override wins over template", perSpawn, templateRepo, perSpawn.URL},
+		{"per-spawn override wins over zero template", perSpawn, orchestrator.RepoMount{}, perSpawn.URL},
+		{"zero override falls back to template", orchestrator.RepoMount{}, templateRepo, templateRepo.URL},
+		{"both zero stays zero", orchestrator.RepoMount{}, orchestrator.RepoMount{}, ""},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			got := orchestrator.EffectiveWorkdirRepoForTest(testCase.override, testCase.template)
+			if got.URL != testCase.wantURL {
+				t.Errorf("effectiveWorkdirRepo URL = %q, want %q", got.URL, testCase.wantURL)
+			}
+			// When the per-spawn override wins, its Ref + Credential ride through too (not just the URL).
+			if testCase.override.URL != "" && (got.Ref != testCase.override.Ref || got.Credential != testCase.override.Credential) {
+				t.Errorf("override must thread Ref+Credential: got {%q,%v}", got.Ref, got.Credential)
+			}
+		})
+	}
+}
+
 // TestIsInPodWorkload_SelectsByEntrypoint pins the additive branch selector: an EMPTY Entrypoint is
 // the classic host-Bind path (the existing behavior, byte-unchanged); a NON-EMPTY one is the in-pod
 // env-fold. This is the guard that keeps the existing host-side supervisor template's fold identical.
