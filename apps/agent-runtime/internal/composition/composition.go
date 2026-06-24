@@ -67,8 +67,8 @@ func LoadEnvironment() Environment {
 		ProbeAddr:       os.Getenv("EDEN_PROBE_ADDR"),
 		InitialPrompt:   os.Getenv("EDEN_INITIAL_PROMPT"),
 		WorkdirRepo:     os.Getenv(envWorkdirRepo),
-		WorkdirRepoCred: os.Getenv(envWorkdirRepoRef),
-		WorkdirRepoRef:  os.Getenv(envWorkdirRepoBranch),
+		WorkdirRepoCred: os.Getenv(envWorkdirRepoCredential),
+		WorkdirRepoRef:  os.Getenv(envWorkdirRepoRef),
 	}
 }
 

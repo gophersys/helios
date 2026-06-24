@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha1" //nolint:gosec // RFC-4122 v5 UUID derivation is DEFINED over SHA-1; this is name->UUID mapping, not a security hash.
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	edenerrors "github.com/gophersys/libs/go/errors"
@@ -270,10 +269,12 @@ func stringPointer(s string) *string { return &s }
 // Eden error's message (which is redaction-safe by the errors contract — never a secret), so the
 // dashboard surfaces a real cause without leaking a credential or a stack.
 func humanReason(err error) string {
-	var edenError *edenerrors.Error
-	if errors.As(err, &edenError) {
-		return edenError.Error()
+	if err == nil {
+		return ""
 	}
+	// An *edenerrors.Error and any wrapper render the same human message via Error() (redaction-safe
+	// by the errors contract — never a secret); the typed Kind is logged separately by the caller
+	// (edenerrors.KindOf). nil-safe so a missing cause can't panic.
 	return err.Error()
 }
 

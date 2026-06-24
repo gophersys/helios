@@ -27,10 +27,14 @@ import (
 // the in-pod path; see libs/go/orchestrator/fold.go). They are NON-secret: the credential travels as
 // an OPAQUE secrets.Reference (EDEN_WORKDIR_REPO_CRED), resolved server-side by the same Vault-backed
 // Mediator the harness credential uses — the value never enters the env.
+// Each identifier matches its value's suffix AND the orchestrator producer's exported name
+// (orchestrator.EnvWorkdirRepo / EnvWorkdirRepoRef / EnvWorkdirRepoCredential, fold.go:170-176) so
+// the consumer reads cannot drift from the producer by a crossed name. They are read by string at
+// the env boundary (like the other producer keys here), not imported, to keep this PID-1 binary lean.
 const (
-	envWorkdirRepo       = "EDEN_WORKDIR_REPO"      // the clone URL of the seeded project repo; "" == no in-pod clone (the existing boot)
-	envWorkdirRepoRef    = "EDEN_WORKDIR_REPO_CRED" // the OPAQUE clone-credential reference (a secrets.Reference); resolved server-side
-	envWorkdirRepoBranch = "EDEN_WORKDIR_REPO_REF"  // optional branch/tag to check out; "" == the remote's default branch
+	envWorkdirRepo           = "EDEN_WORKDIR_REPO"      // the clone URL of the seeded project repo; "" == no in-pod clone (the existing boot)
+	envWorkdirRepoRef        = "EDEN_WORKDIR_REPO_REF"  // optional branch/tag/sha to check out; "" == the remote's default branch
+	envWorkdirRepoCredential = "EDEN_WORKDIR_REPO_CRED" //nolint:gosec // G101: this is an env-var KEY NAME, not a secret — the OPAQUE secrets.Reference value is resolved server-side
 )
 
 // supervisorManualSourceDir is the BAKED image path the supervisor `.claude` operating manual is
