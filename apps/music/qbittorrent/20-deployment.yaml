@@ -1,0 +1,138 @@
+# qBittorrent behind a Gluetun (ProtonVPN WireGuard) kill-switch.
+#
+# HOW THE VPN ISOLATION WORKS
+# Both containers share the pod's network namespace. Gluetun brings up the
+# WireGuard tunnel INSIDE that namespace, sets the default route through the VPN,
+# and installs a kill-switch firewall. qBittorrent has no network config of its
+# own — because it shares the namespace, ALL its traffic is forced through the
+# tunnel. If the tunnel drops, the firewall blocks everything → the real IP can
+# never leak. We punch two holes in the firewall so the Web UI stays reachable:
+#   - FIREWALL_INPUT_PORTS=8080          (let the UI port in)
+#   - FIREWALL_OUTBOUND_SUBNETS=<LAN+k8s> (let replies / health checks / DNS out)
+#
+# The `gluetun-wireguard` Secret is NOT in git. Create it from the vault:
+#   WG=$(bw get notes "shared/protonvpn/wireguard")
+#   kubectl -n media create secret generic gluetun-wireguard \
+#     --from-literal=WIREGUARD_PRIVATE_KEY="$(printf '%s' "$WG" | awk -F' = ' '/^PrivateKey/{print $2}')" \
+#     --from-literal=WIREGUARD_ADDRESSES="$(printf '%s' "$WG" | awk -F' = ' '/^Address/{print $2}' | cut -d, -f1 | tr -d ' ')"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: media
+  labels:
+    app: qbittorrent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate            # RWO volumes + stateful singleton
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      # Pin to pve-00 so local-path lands on the big NVMe.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values: ["pve-00"]
+      containers:
+        # ---------- VPN sidecar: all pod egress routes through here ----------
+        - name: gluetun
+          image: qmcgaw/gluetun:v3
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: protonvpn
+            - name: VPN_TYPE
+              value: wireguard
+            - name: WIREGUARD_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gluetun-wireguard
+                  key: WIREGUARD_PRIVATE_KEY
+            - name: WIREGUARD_ADDRESSES
+              valueFrom:
+                secretKeyRef:
+                  name: gluetun-wireguard
+                  key: WIREGUARD_ADDRESSES
+            # Port forwarding (Proton NAT-PMP) — needed for healthy seeding.
+            - name: VPN_PORT_FORWARDING
+              value: "on"
+            - name: VPN_PORT_FORWARDING_PROVIDER
+              value: protonvpn
+            - name: PORT_FORWARD_ONLY
+              value: "on"       # only connect to servers that support port forwarding
+            # Kill-switch firewall exceptions so the Web UI stays reachable.
+            - name: FIREWALL_OUTBOUND_SUBNETS
+              value: "10.42.0.0/16,10.43.0.0/16,10.168.0.0/24"
+            - name: FIREWALL_INPUT_PORTS
+              value: "8080"
+            - name: TZ
+              value: America/Los_Angeles
+          volumeMounts:
+            - name: gluetun-tmp
+              mountPath: /tmp/gluetun
+          livenessProbe:
+            exec:
+              command: ["/gluetun-entrypoint", "healthcheck"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+        # ---------- qBittorrent: no network of its own; uses gluetun's ----------
+        - name: qbittorrent
+          image: lscr.io/linuxserver/qbittorrent:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/Los_Angeles
+            - name: WEBUI_PORT
+              value: "8080"
+          ports:
+            - name: qbit-ui
+              containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
+        - name: gluetun-tmp
+          emptyDir: {}

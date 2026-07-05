@@ -1,0 +1,33 @@
+# Storage for qBittorrent.
+#
+# Both PVCs use `local-path` (NOT Longhorn) on purpose: media is re-downloadable,
+# so replicating it 3x across the laptops' small disks is wasteful. local-path
+# binds on the node where the pod schedules (WaitForFirstConsumer), and the
+# Deployment pins the pod to pve-00 — the node with the 954 GB NVMe.
+#
+# NOTE: local-path does not enforce the requested size (it provisions a hostPath
+# dir), so `storage:` here is a nominal label; actual limit is the disk itself.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-config
+  namespace: media
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-downloads
+  namespace: media
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 300Gi
