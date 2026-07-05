@@ -1,0 +1,55 @@
+# Kyverno policy engine — installed AUDIT-SAFE (Phase 4).
+#
+# Safety posture:
+# - Deployed with NO ClusterPolicies → Kyverno registers no resource-admission
+#   webhooks, so it CANNOT block pod scheduling. Policies are added later, each
+#   validationFailureAction=Audit (report-only) + failurePolicy=Ignore.
+# - Critical namespaces are excluded from processing (defense in depth).
+# - ServerSideApply handles Kyverno's large CRDs (exceed the client-side annotation limit).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://kyverno.github.io/kyverno/
+    chart: kyverno
+    targetRevision: 3.8.1
+    helm:
+      values: |
+        admissionController:
+          replicas: 1
+        backgroundController:
+          replicas: 1
+        cleanupController:
+          replicas: 1
+        reportsController:
+          replicas: 1
+        config:
+          # Exclude critical namespaces from ALL policy processing — Kyverno must
+          # never interfere with the control plane, GitOps, secrets, or media/VPN.
+          resourceFiltersExcludeNamespaces:
+            - kube-system
+            - kube-public
+            - kube-node-lease
+            - kyverno
+            - argocd
+            - external-secrets
+            - cert-manager
+            - ingress-nginx
+            - metallb-system
+            - longhorn-system
+            - cloudflare-tunnel
+            - media
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
