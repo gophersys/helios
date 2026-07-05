@@ -16,8 +16,8 @@ spec:
   project: argocd
   source:
     repoURL: https://github.com/gophersys/infrastructure.git
-    targetRevision: feat/argocd-phase0
-    path: kubernetes/argocd/registry
+    targetRevision: main
+    path: platform/services/gitops/registry
     directory:
       recurse: true
   destination:

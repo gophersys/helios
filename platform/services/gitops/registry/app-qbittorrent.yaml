@@ -17,8 +17,8 @@ spec:
   project: media
   source:
     repoURL: https://github.com/gophersys/infrastructure.git
-    targetRevision: feat/argocd-phase0
-    path: kubernetes/apps/qbittorrent
+    targetRevision: main
+    path: apps/music/qbittorrent
     directory:
       recurse: false
       exclude: "00-namespace.yaml"
