@@ -1,7 +1,7 @@
 # Baseline Pod Security Standard — AUDIT mode (report-only, never blocks).
-# failureAction: Audit + failurePolicy: Ignore = zero admission risk.
-# Surfaces violations in PolicyReports (e.g. the Gluetun VPN pod's NET_ADMIN)
-# so we know exactly what needs an exception BEFORE any enforce flip (Phase 5).
+# Fields MATCH what Kyverno's webhook mutates the policy into (admission,
+# emitWarning, skipBackgroundRequests, allowExistingViolations,
+# validationFailureAction) so Argo sees zero drift.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -10,16 +10,21 @@ metadata:
     policies.kyverno.io/title: "Baseline Pod Security (Audit)"
     policies.kyverno.io/category: "Pod Security Standards"
 spec:
-  failurePolicy: Ignore
+  admission: true
   background: true
+  emitWarning: false
+  failurePolicy: Ignore
+  validationFailureAction: Audit
   rules:
     - name: baseline
       match:
         any:
           - resources:
               kinds: [Pod]
+      skipBackgroundRequests: true
       validate:
         failureAction: Audit
+        allowExistingViolations: true
         podSecurity:
           level: baseline
           version: latest
