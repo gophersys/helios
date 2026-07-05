@@ -1,0 +1,14 @@
+# Longhorn Helm values — replicated persistent storage across the K3s VMs.
+# Conservative defaults for a 3-node laptop cluster.
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 2 # 3 nodes -> 2 replicas tolerates one node down
+
+defaultSettings:
+  # Laptops have modest disks; keep a safety margin before scheduling refuses.
+  storageMinimalAvailablePercentage: 15
+  defaultDataPath: /var/lib/longhorn
+  replicaAutoBalance: best-effort
+
+longhornUI:
+  replicas: 1

@@ -1,0 +1,25 @@
+# Let's Encrypt ClusterIssuer using Cloudflare DNS-01.
+# DNS-01 works without exposing the home LAN to the internet (unlike HTTP-01),
+# which is what makes TLS viable for a cluster behind a home router.
+#
+# Requires a secret with the Cloudflare API token:
+#   kubectl create secret generic cloudflare-api-token \
+#     -n cert-manager --from-literal=api-token="$CLOUDFLARE_API_TOKEN"
+# (bootstrap.sh / a follow-up step creates this from env:homelab.)
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-homelab
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: mateo.segura413@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-homelab-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
