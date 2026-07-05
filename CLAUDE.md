@@ -42,6 +42,13 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
 - `libs/`, `infrastructure/`, `.devcontainer/` are git submodules — separate repos, separate
   commits.
 - Nx Cloud is disabled in `nx.json` (ratified in ADR-0010); keep it that way.
+- **Secrets (GitOps):** the cluster is driven by **Argo CD** from this repo's `infrastructure/`
+  submodule; secrets flow from the **cloud Vaultwarden** (`secrets.mateosegura.com`, the single
+  source of truth) into k8s via **External Secrets Operator + a `bw-serve` bridge** — only
+  non-secret `ExternalSecret` CRs live in git, never plaintext. To deploy an Eden app's secrets,
+  add an `ExternalSecret` referencing the `vaultwarden` ClusterSecretStore; don't hand-create k8s
+  Secrets or add `.env` files. Own-codebase deploys get the reserved Argo `apps` AppProject. See
+  `infrastructure/kubernetes/apps/external-secrets/` and `infrastructure/docs/media-platform-roadmap.md`.
 
 ## Devcontainer-first + harness versions
 
