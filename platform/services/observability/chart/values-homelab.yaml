@@ -1,0 +1,29 @@
+# Homelab overrides: full self-contained stack on Longhorn, Grafana on a MetalLB LB.
+loki:
+  singleBinary:
+    persistence:
+      storageClass: longhorn
+
+tempo:
+  persistence:
+    storageClassName: longhorn
+
+prometheus:
+  server:
+    persistentVolume:
+      storageClass: longhorn
+
+grafana:
+  persistence:
+    storageClassName: longhorn
+  service:
+    type: LoadBalancer        # MetalLB hands out 10.168.0.240-250 (tailnet access)
+  ingress:                    # public via the Cloudflare tunnel (catch-all -> ingress-nginx)
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.mateosegura.com
+  grafana.ini:
+    server:
+      root_url: "https://grafana.mateosegura.com"
+      domain: grafana.mateosegura.com

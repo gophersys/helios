@@ -1,0 +1,344 @@
+# eden-observability — base defaults (cross-cluster).
+# Override per cluster with values-homelab.yaml (Longhorn) or values-cloud.yaml (S3 + reuse Grafana).
+# Service names are pinned via fullnameOverride so the Alloy river + Grafana datasources
+# can reference them as stable in-namespace DNS. Install into namespace `observability`.
+
+# =========================================================================
+# Alloy — GATEWAY (Deployment): the OTLP endpoint your apps target.
+# Receives OTLP (gRPC 4317 / HTTP 4318) -> metrics to Prometheus (remote_write),
+# logs to Loki, traces to Tempo.
+# =========================================================================
+alloyGateway:
+  enabled: true
+  fullnameOverride: alloy-gateway
+  controller:
+    type: deployment
+    replicas: 1
+  alloy:
+    clustering:
+      enabled: false
+    configMap:
+      content: |
+        logging {
+          level  = "info"
+          format = "logfmt"
+        }
+
+        otelcol.receiver.otlp "default" {
+          grpc {
+            endpoint = "0.0.0.0:4317"
+          }
+          http {
+            endpoint = "0.0.0.0:4318"
+          }
+          output {
+            metrics = [otelcol.processor.batch.default.input]
+            logs    = [otelcol.processor.batch.default.input]
+            traces  = [otelcol.processor.batch.default.input]
+          }
+        }
+
+        otelcol.processor.batch "default" {
+          output {
+            metrics = [otelcol.exporter.prometheus.default.input]
+            logs    = [otelcol.exporter.loki.default.input]
+            traces  = [otelcol.exporter.otlp.tempo.input]
+          }
+        }
+
+        // app metrics (OTLP) -> Prometheus remote-write
+        otelcol.exporter.prometheus "default" {
+          forward_to = [prometheus.remote_write.default.receiver]
+        }
+
+        prometheus.remote_write "default" {
+          endpoint {
+            url = "http://prometheus-server/api/v1/write"
+          }
+        }
+
+        // app logs (OTLP) -> Loki
+        otelcol.exporter.loki "default" {
+          forward_to = [loki.write.default.receiver]
+        }
+
+        loki.write "default" {
+          endpoint {
+            url = "http://loki:3100/loki/api/v1/push"
+          }
+        }
+
+        // app traces (OTLP) -> Tempo
+        otelcol.exporter.otlp "tempo" {
+          client {
+            endpoint = "tempo:4317"
+            tls {
+              insecure = true
+            }
+          }
+        }
+    extraPorts:
+      - name: otlp-grpc
+        port: 4317
+        targetPort: 4317
+        protocol: TCP
+      - name: otlp-http
+        port: 4318
+        targetPort: 4318
+        protocol: TCP
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 512Mi }
+
+# =========================================================================
+# Alloy — LOGS (DaemonSet): tails every pod's logs -> Loki.
+# =========================================================================
+alloyLogs:
+  enabled: true
+  fullnameOverride: alloy-logs
+  controller:
+    type: daemonset
+  alloy:
+    clustering:
+      enabled: false
+    mounts:
+      varlog: true
+    configMap:
+      content: |
+        logging {
+          level  = "info"
+          format = "logfmt"
+        }
+
+        discovery.kubernetes "pods" {
+          role = "pod"
+        }
+
+        discovery.relabel "pod_logs" {
+          targets = discovery.kubernetes.pods.targets
+          rule {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_pod_name"]
+            target_label  = "pod"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_pod_container_name"]
+            target_label  = "container"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
+            separator     = "/"
+            target_label  = "job"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_pod_node_name"]
+            target_label  = "node_name"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+            separator     = "/"
+            action        = "replace"
+            replacement   = "/var/log/pods/*$1/*.log"
+            target_label  = "__path__"
+          }
+        }
+
+        local.file_match "pod_logs" {
+          path_targets = discovery.relabel.pod_logs.output
+        }
+
+        loki.source.file "pod_logs" {
+          targets    = local.file_match.pod_logs.targets
+          forward_to = [loki.process.pod_logs.receiver]
+        }
+
+        loki.process "pod_logs" {
+          stage.cri { }
+          forward_to = [loki.write.default.receiver]
+        }
+
+        loki.write "default" {
+          endpoint {
+            url = "http://loki:3100/loki/api/v1/push"
+          }
+        }
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 256Mi }
+
+# =========================================================================
+# Loki (logs store) — SingleBinary, filesystem by default (S3 via values-cloud).
+# =========================================================================
+loki:
+  enabled: true
+  fullnameOverride: loki
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    schemaConfig:
+      configs:
+        - from: "2024-04-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    storage:
+      type: filesystem
+    limits_config:
+      retention_period: 168h
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+    ruler:
+      enable_api: false
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+  # disable scalable + extras to stay lean
+  read: { replicas: 0 }
+  write: { replicas: 0 }
+  backend: { replicas: 0 }
+  gateway: { enabled: false }
+  chunksCache: { enabled: false }
+  resultsCache: { enabled: false }
+  lokiCanary: { enabled: false }
+  test: { enabled: false }
+  monitoring:
+    selfMonitoring: { enabled: false, grafanaAgent: { installOperator: false } }
+    serviceMonitor: { enabled: false }
+  minio: { enabled: false }
+
+# =========================================================================
+# Tempo (traces store) — monolithic, OTLP receivers on, local storage by default.
+# =========================================================================
+tempo:
+  enabled: true
+  fullnameOverride: tempo
+  persistence:
+    enabled: true
+    size: 10Gi
+  tempo:
+    retention: 168h
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+          http:
+            endpoint: "0.0.0.0:4318"
+    resources:
+      requests: { cpu: 50m, memory: 256Mi }
+      limits: { memory: 512Mi }
+
+# =========================================================================
+# Prometheus (metrics store) — self-scrapes k8s + remote-write receiver on.
+# =========================================================================
+prometheus:
+  enabled: true
+  server:
+    fullnameOverride: prometheus-server
+    extraFlags:
+      - web.enable-lifecycle
+      - web.enable-remote-write-receiver
+    retention: "15d"
+    persistentVolume:
+      enabled: true
+      size: 20Gi
+    resources:
+      requests: { cpu: 100m, memory: 512Mi }
+      limits: { memory: 1536Mi }
+  alertmanager:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  kube-state-metrics:
+    enabled: true
+  prometheus-node-exporter:
+    enabled: true
+
+# =========================================================================
+# Grafana (dashboards + datasources). Disable on clusters that already run it.
+# =========================================================================
+grafana:
+  enabled: true
+  fullnameOverride: grafana
+  # PVC-backed (RWO) -> Recreate avoids the new pod deadlocking on the volume during upgrades
+  deploymentStrategy:
+    type: Recreate
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  persistence:
+    enabled: true
+    size: 5Gi
+  service:
+    type: ClusterIP
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          url: http://prometheus-server
+          access: proxy
+          isDefault: true
+        - name: Loki
+          type: loki
+          uid: loki
+          url: http://loki:3100
+          access: proxy
+        - name: Tempo
+          type: tempo
+          uid: tempo
+          url: http://tempo:3200
+          access: proxy
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: loki
+            tracesToMetrics:
+              datasourceUid: prometheus
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      node-exporter-full:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+      k8s-views-global:
+        gnetId: 15757
+        datasource: Prometheus
+      k8s-views-namespaces:
+        gnetId: 15758
+        datasource: Prometheus
+      k8s-views-pods:
+        gnetId: 15759
+        datasource: Prometheus
+      loki-logs:
+        gnetId: 13639
+        datasource: Loki
