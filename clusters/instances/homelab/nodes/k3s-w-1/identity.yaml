@@ -1,0 +1,49 @@
+# identity.yaml — k3s-w-1 (homelab cluster member)
+#
+# Proxmox VM on pve-00, Ubuntu 24.04, joined to the homelab k3s cluster + Tailscale.
+# Values from live kubectl (2026-07-05). See clusters/instances/homelab/identity.yaml.
+
+name: k3s-w-1
+os: linux-ubuntu
+purpose: "k3s worker — media node (apps); NVMe /mnt/media + intended Radeon 780M"
+tailscale_hostname: k3s-w-1
+status: active
+location: proxmox-pve-00
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-ubuntu          # NOTE: role to be created (nodes are Ubuntu 24.04, not Debian)
+  - networking-tailscale
+  - secrets-bitwarden-client
+  - cluster-node-labels
+
+hardware:
+  provider: proxmox                 # NOTE: providers/proxmox/ module pending (R12)
+  compute_unit:
+    arch: amd64
+    cores: 4
+    memory_gb: 14
+    storage_gb: 60                  # root VM disk (thin LV on the host NVMe)
+    storage_class: ssd
+    network: tailnet
+  proxmox:
+    host: pve-00
+    vmid: 922
+
+kubernetes:
+  role: agent                      # k3s role
+  cluster_role: apps
+  labels:
+    role: apps
+    media-storage: nvme        # 100Gi NVMe at /mnt/media (music-prod downloads/config)
+    gpu: radeon-780m           # intended VAAPI transcode (passthrough pending)
+  taints: []
+  extra_flags: []
+
+irreplaceable: false                # Proxmox VM — recreatable (unlike OCI A1.Flex)
+
+ssh:
+  port: 22
+  allowed_tailnet_tags:
+    - "tag:admin"
