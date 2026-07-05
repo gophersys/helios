@@ -1,0 +1,40 @@
+# Ingress for the qBittorrent Web UI.
+#
+# EXPOSURE MODEL: tailnet-private. The DNS record for torrent.mateosegura.com
+# points at the INTERNAL ingress IP (10.168.0.240), which is only reachable over
+# the Tailscale tailnet / home LAN. The name is public (so Let's Encrypt DNS-01
+# can issue a real cert), but the target is a private IP — the public internet
+# resolves it to something it cannot reach. Create the DNS record as a
+# **DNS-only (grey-cloud, NOT proxied)** A record in Cloudflare:
+#   torrent.mateosegura.com  A  10.168.0.240
+#
+# The cert is issued via cert-manager DNS-01 (letsencrypt-homelab) regardless of
+# whether the A record is reachable — DNS-01 only needs the _acme-challenge TXT.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qbittorrent
+  namespace: media
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-homelab
+    # qBittorrent's WebUI is picky behind a proxy; keep body size unlimited for
+    # uploading .torrent files, and preserve the Host header (default).
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - torrent.mateosegura.com
+      secretName: torrent-tls
+  rules:
+    - host: torrent.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qbittorrent
+                port:
+                  number: 8080
