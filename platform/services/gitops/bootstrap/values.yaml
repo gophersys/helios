@@ -1,0 +1,34 @@
+# Argo CD — Helm values. Chart: argo/argo-cd 10.1.2 (app v3.4.4).
+#
+# TLS is terminated at ingress-nginx (cert-manager DNS-01), so Argo serves plain
+# HTTP internally (server.insecure=true). Resource tracking is set to ANNOTATION
+# before any Application exists — required so the qBittorrent adoption in a later
+# Phase-0 step is a no-op (label tracking would mutate/steal live resources).
+#
+# Bootstrap once:
+#   helm install argocd argo/argo-cd -n argocd --create-namespace \
+#     --version 10.1.2 -f values.yaml
+# Then Argo self-manages via the argocd-self Application (added next step).
+
+global:
+  domain: argocd.mateosegura.com
+
+configs:
+  cm:
+    application.resourceTrackingMethod: annotation
+    url: https://argocd.mateosegura.com
+  params:
+    server.insecure: true
+
+# Not using Dex now — admin plane is tailnet-private. Cloudflare Access/OIDC is a
+# later phase if SSO in front of Argo is wanted.
+dex:
+  enabled: false
+
+# Notifications land in Phase 1 (drift-guard / Discord).
+notifications:
+  enabled: false
+
+# Non-HA is fine for the homelab to start; scale later if needed.
+redis-ha:
+  enabled: false

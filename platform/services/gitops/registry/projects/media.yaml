@@ -1,0 +1,19 @@
+# AppProject: media — the media stack (qBittorrent, *arr, Jellyfin).
+# LOCKED to the `media` namespace. Cannot create cluster-scoped resources and
+# cannot deploy into any other namespace — hard blast-radius isolation.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: media
+  namespace: argocd
+spec:
+  description: Media stack — namespace-locked to `media`
+  sourceRepos:
+    - https://github.com/gophersys/infrastructure.git
+  destinations:
+    - namespace: media
+      server: https://kubernetes.default.svc
+  # no clusterResourceWhitelist → media apps may NOT create cluster-scoped objects
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

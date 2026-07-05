@@ -1,0 +1,33 @@
+# Argo CD manages its own install (self-management) from the pinned Helm chart +
+# the values file in this repo. Multi-source: source 1 = the chart, source 2 =
+# this repo providing the values file via $values.
+#
+# Sync policy is intentionally MANUAL during bootstrap — the running install was
+# helm-installed with these exact values, so this should adopt as a no-op. We
+# review the diff and sync deliberately before enabling auto-sync (prune stays
+# OFF for Argo itself, always).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: argocd
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 10.1.2
+      helm:
+        valueFiles:
+          - $values/kubernetes/argocd/bootstrap/values.yaml
+    - repoURL: https://github.com/gophersys/infrastructure.git
+      targetRevision: feat/argocd-phase0
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  # No automated block yet — manual sync during bootstrap. prune never enabled here.
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
