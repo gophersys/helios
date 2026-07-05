@@ -1,7 +1,10 @@
 # Baseline Pod Security Standard — AUDIT mode (report-only, never blocks).
-# Fields MATCH what Kyverno's webhook mutates the policy into (admission,
-# emitWarning, skipBackgroundRequests, allowExistingViolations,
-# validationFailureAction) so Argo sees zero drift.
+# Fields match Kyverno's webhook-mutated spec (no Argo drift).
+#
+# Infrastructure namespaces that legitimately require elevated privileges
+# (host namespaces / hostPath / capabilities) are EXCLUDED — same rationale as
+# kube-system: storage (Longhorn), load-balancer (MetalLB), node metrics/log
+# collection (observability), and the VPN egress app (media/Gluetun NET_ADMIN).
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -21,6 +24,14 @@ spec:
         any:
           - resources:
               kinds: [Pod]
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - longhorn-system
+                - observability
+                - metallb-system
+                - media
       skipBackgroundRequests: true
       validate:
         failureAction: Audit
