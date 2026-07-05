@@ -1,0 +1,32 @@
+# The app-of-apps ROOT — the single hand-applied Argo object.
+# It syncs kubernetes/argocd/registry/ (the AppProjects + argocd-self), so from
+# here on the tenancy structure and Argo's self-management live in git.
+#
+# Tracks the feat branch during Phase-0 bootstrap/verification; repoint to `main`
+# after the PR merges (decided: feat-branch-first).
+#
+# Apply once by hand:
+#   kubectl apply -f kubernetes/argocd/bootstrap/root-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: argocd
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: feat/argocd-phase0
+    path: kubernetes/argocd/registry
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false        # never auto-delete during bootstrap
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true

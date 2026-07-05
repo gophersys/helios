@@ -1,0 +1,29 @@
+# Argo CD UI — tailnet-private (same pattern as qbittorrent):
+#   DNS-only A record  argocd.mateosegura.com -> 10.168.0.240  (ingress-nginx VIP)
+#   reachable only over the Tailscale tailnet / home LAN.
+# TLS via cert-manager DNS-01 (letsencrypt-homelab). Argo serves plain HTTP
+# (server.insecure=true), so no backend-HTTPS annotation is needed.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-homelab
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - argocd.mateosegura.com
+      secretName: argocd-tls
+  rules:
+    - host: argocd.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
