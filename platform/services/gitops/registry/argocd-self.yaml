@@ -19,9 +19,9 @@ spec:
       targetRevision: 10.1.2
       helm:
         valueFiles:
-          - $values/kubernetes/argocd/bootstrap/values.yaml
+          - $values/platform/services/gitops/bootstrap/values.yaml
     - repoURL: https://github.com/gophersys/infrastructure.git
-      targetRevision: feat/argocd-phase0
+      targetRevision: main
       ref: values
   destination:
     server: https://kubernetes.default.svc
