@@ -1,0 +1,47 @@
+# identity.yaml — k3s-w-3 (homelab cluster member)
+#
+# Proxmox VM on pve-01, Ubuntu 24.04, joined to the homelab k3s cluster + Tailscale.
+# Values from live kubectl (2026-07-05). See clusters/instances/homelab/identity.yaml.
+
+name: k3s-w-3
+os: linux-ubuntu
+purpose: "k3s worker — apps role"
+tailscale_hostname: k3s-w-3
+status: active
+location: proxmox-pve-01
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-ubuntu          # NOTE: role to be created (nodes are Ubuntu 24.04, not Debian)
+  - networking-tailscale
+  - secrets-bitwarden-client
+  - cluster-node-labels
+
+hardware:
+  provider: proxmox                 # NOTE: providers/proxmox/ module pending (R12)
+  compute_unit:
+    arch: amd64
+    cores: 4
+    memory_gb: 9
+    storage_gb: 60                  # root VM disk (thin LV on the host NVMe)
+    storage_class: ssd
+    network: tailnet
+  proxmox:
+    host: pve-01
+    # vmid: TODO (confirm on pve-01)
+
+kubernetes:
+  role: agent                      # k3s role
+  cluster_role: apps
+  labels:
+    role: apps
+  taints: []
+  extra_flags: []
+
+irreplaceable: false                # Proxmox VM — recreatable (unlike OCI A1.Flex)
+
+ssh:
+  port: 22
+  allowed_tailnet_tags:
+    - "tag:admin"
