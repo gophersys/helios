@@ -1,0 +1,63 @@
+# Bitwarden-CLI bridge: logs into the cloud Vaultwarden with the API key, unlocks
+# with the master password, and exposes the CLI REST API (`bw serve`) in-cluster.
+# Reads all credentials from the hand-created `bw-cli-credentials` secret.
+#
+# NOTE: image/entrypoint verified during activation — the bitwarden/cli image tag
+# is pinned then; if its shell/entrypoint differs, adjust the command here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bw-serve
+  namespace: external-secrets
+  labels:
+    app: bw-serve
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bw-serve
+  template:
+    metadata:
+      labels:
+        app: bw-serve
+    spec:
+      containers:
+        - name: bw-serve
+          # Purpose-built image whose entrypoint logs in (API key), unlocks
+          # (master password), and runs `bw serve` on :8087 — all from the
+          # BW_HOST/BW_CLIENTID/BW_CLIENTSECRET/BW_PASSWORD env below.
+          # Pinned to a 2025 CLI: newer 2026.x CLIs expect an account-crypto
+          # format Vaultwarden doesn't serve ("toWrappedAccountCryptographicState"
+          # null crash). This older CLI is Vaultwarden-compatible.
+          image: ghcr.io/charlesthomas/bitwarden-cli:2026.1.0
+          envFrom:
+            - secretRef:
+                name: bw-cli-credentials
+          ports:
+            - name: http
+              containerPort: 8087
+          readinessProbe:
+            tcpSocket:
+              port: 8087
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bw-serve
+  namespace: external-secrets
+spec:
+  selector:
+    app: bw-serve
+  ports:
+    - name: http
+      port: 8087
+      targetPort: 8087
