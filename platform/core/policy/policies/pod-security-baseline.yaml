@@ -1,0 +1,25 @@
+# Baseline Pod Security Standard — AUDIT mode (report-only, never blocks).
+# failureAction: Audit + failurePolicy: Ignore = zero admission risk.
+# Surfaces violations in PolicyReports (e.g. the Gluetun VPN pod's NET_ADMIN)
+# so we know exactly what needs an exception BEFORE any enforce flip (Phase 5).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-security-baseline
+  annotations:
+    policies.kyverno.io/title: "Baseline Pod Security (Audit)"
+    policies.kyverno.io/category: "Pod Security Standards"
+spec:
+  failurePolicy: Ignore
+  background: true
+  rules:
+    - name: baseline
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        failureAction: Audit
+        podSecurity:
+          level: baseline
+          version: latest
