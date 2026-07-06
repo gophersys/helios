@@ -9,7 +9,7 @@
 # QEMU is not involved here.
 #
 # Usage: bash .ci/smoke.sh <image>
-# where <image> ∈ {base, flutter, zephyr}
+# where <image> ∈ {base, flutter, zephyr, zephyr-devbox}
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -89,15 +89,40 @@ echo "--- zephyr smoke ---"
 west --version
 EOF
 
+# zephyr-devbox adds the SSH + flash/debug stack on top of the zephyr smoke.
+# Runs as the dev user (the image itself defaults to root for sshd); root
+# steps go through the dev user's passwordless sudo. Throwaway host keys are
+# generated so `sshd -t` can validate the full effective config, HostKey
+# paths included.
+read -r -d '' SMOKE_DEVBOX <<'EOF' || true
+echo "--- zephyr-devbox smoke ---"
+openocd --version
+st-info --version
+esptool version
+picocom --help >/dev/null && echo "picocom: ok"
+gdb-multiarch --version | head -n 1
+for t in xtensa-espressif_esp32_zephyr-elf xtensa-espressif_esp32s2_zephyr-elf xtensa-espressif_esp32s3_zephyr-elf riscv64-zephyr-elf; do
+  test -x "${ZEPHYR_SDK_INSTALL_DIR}/${t}/bin/${t}-gcc" && echo "sdk toolchain ${t}: ok"
+done
+sudo mkdir -p /etc/ssh/hostkeys
+sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
+sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
+sudo /usr/sbin/sshd -t
+echo "sshd config: ok"
+EOF
+
 case "$IMAGE" in
   base)    SCRIPT="$SMOKE_BASE" ;;
   flutter) SCRIPT="${SMOKE_BASE}
 ${SMOKE_FLUTTER}" ;;
   zephyr)  SCRIPT="${SMOKE_BASE}
 ${SMOKE_ZEPHYR}" ;;
+  zephyr-devbox) SCRIPT="${SMOKE_BASE}
+${SMOKE_ZEPHYR}
+${SMOKE_DEVBOX}" ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, flutter, zephyr"
+    log_error "valid images: base, flutter, zephyr, zephyr-devbox"
     exit 2
     ;;
 esac
@@ -105,5 +130,12 @@ esac
 REF="ghcr.io/gophersys/${IMAGE}:latest"
 
 log_info "running smoke test in ${REF}"
-docker run --rm "${REF}" /usr/bin/zsh -c "${SCRIPT}"
+if [[ "$IMAGE" == "zephyr-devbox" ]]; then
+  # The devbox image defaults to USER root (sshd entrypoint) and its
+  # entrypoint execs any provided argv; force the dev user so the base
+  # checks run in the same identity as the other images.
+  docker run --rm --user dev "${REF}" /usr/bin/zsh -c "${SCRIPT}"
+else
+  docker run --rm "${REF}" /usr/bin/zsh -c "${SCRIPT}"
+fi
 log_info "smoke test passed for ${IMAGE}"

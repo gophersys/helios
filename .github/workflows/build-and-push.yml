@@ -1,11 +1,11 @@
 name: build-and-push
 
-# Publishes the 3-image IDP set (base + flutter + zephyr) to the GitHub
-# Container Registry. Every image is built multi-arch (linux/amd64 +
-# linux/arm64) on every push to main. On semver tag pushes (v*) we also
-# publish a :v<semver> tag. Flutter and zephyr consume base via BASE_TAG
-# build-arg set to the commit short SHA so the child layer FROMs the
-# freshly pushed parent.
+# Publishes the 4-image IDP set (base + flutter + zephyr + zephyr-devbox)
+# to the GitHub Container Registry. Every image is built multi-arch
+# (linux/amd64 + linux/arm64) on every push to main. On semver tag pushes
+# (v*) we also publish a :v<semver> tag. Flutter and zephyr consume base —
+# and zephyr-devbox consumes zephyr — via BASE_TAG build-arg set to the
+# commit short SHA so the child layer FROMs the freshly pushed parent.
 
 on:
   push:
@@ -176,3 +176,56 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr
           cache-to: type=gha,mode=max,scope=zephyr
+
+  zephyr-devbox:
+    # Layers on zephyr the same way zephyr layers on base: BASE_TAG is the
+    # commit short SHA (base's output), which is also the tag the zephyr job
+    # just pushed — so the devbox FROMs the freshly pushed zephyr.
+    needs: [base, zephyr]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free up runner disk
+        # The hosted runner ships ~14 GB free; a multi-arch (amd64+arm64) build of these large
+        # images exhausts it ("No space left on device"). Reclaim ~25-30 GB of preinstalled SDKs
+        # we never use, keeping docker/buildx intact.
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/build-push-action@v6
+        with:
+          context: zephyr-devbox
+          file: zephyr-devbox/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          build-args: |
+            BASE_TAG=${{ needs.base.outputs.short }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:${{ needs.base.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr-devbox:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
+          cache-from: type=gha,scope=zephyr-devbox
+          cache-to: type=gha,mode=max,scope=zephyr-devbox

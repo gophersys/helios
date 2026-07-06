@@ -4,8 +4,8 @@
 #
 # Sits one level above the repo-level ctl.sh and the per-image ctl.sh scripts.
 # Every verb here acts on the WHOLE set of managed images (base + flutter +
-# zephyr) in dependency order, and delegates per-image work to the repo-level
-# ctl.sh.
+# zephyr + zephyr-devbox) in dependency order, and delegates per-image work
+# to the repo-level ctl.sh.
 #
 # Verbs:
 #   validate              shellcheck + hadolint + jq across the repo
@@ -25,7 +25,7 @@ REPO_ROOT="$(cd "$CI_DIR/.." && pwd)"
 export REPO_ROOT
 
 # Dependency order — parents first.
-BUILD_ORDER=(base flutter zephyr)
+BUILD_ORDER=(base flutter zephyr zephyr-devbox)
 
 # -------- logging --------
 function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
@@ -71,7 +71,7 @@ function repo_ctl() {
 function cmd_validate() {
   require_cmd shellcheck jq
   local rc=0
-  local name dir
+  local name dir script
 
   log_info "shellcheck: .ci/ctl.sh"
   shellcheck "$CI_DIR/ctl.sh" || rc=1
@@ -86,8 +86,11 @@ function cmd_validate() {
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$REPO_ROOT/$name"
-    log_info "shellcheck: ${name}/ctl.sh"
-    shellcheck "$dir/ctl.sh" || rc=1
+    # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
+    for script in "$dir"/*.sh; do
+      log_info "shellcheck: ${name}/$(basename "$script")"
+      shellcheck "$script" || rc=1
+    done
 
     log_info "jq parse: ${name}/project.json"
     jq empty "$dir/project.json" || rc=1

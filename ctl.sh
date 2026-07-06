@@ -20,8 +20,9 @@ REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
 export REPO_ROOT
 
 # Dependency order — parents first. `base` is the root of the dev-image
-# family; `flutter` and `zephyr` both layer on top of `base`.
-BUILD_ORDER=(base flutter zephyr)
+# family; `flutter` and `zephyr` both layer on top of `base`, and
+# `zephyr-devbox` layers on top of `zephyr`.
+BUILD_ORDER=(base flutter zephyr zephyr-devbox)
 
 # Multi-arch platforms enforced on push.
 MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"
@@ -162,11 +163,11 @@ function cmd_inspect() {
 
 function cmd_list() {
   local name ref
-  printf '%-10s  %s\n' "IMAGE" "REF"
-  printf '%-10s  %s\n' "-----" "---"
+  printf '%-13s  %s\n' "IMAGE" "REF"
+  printf '%-13s  %s\n' "-----" "---"
   for name in "${BUILD_ORDER[@]}"; do
     ref="ghcr.io/gophersys/${name}:latest"
-    printf '%-10s  %s\n' "$name" "$ref"
+    printf '%-13s  %s\n' "$name" "$ref"
   done
 }
 
@@ -176,15 +177,18 @@ function cmd_list() {
 function cmd_validate() {
   require_cmd shellcheck jq
   local rc=0
-  local name dir
+  local name dir script
 
   log_info "shellcheck: ctl.sh"
   shellcheck "$PROJECT_ROOT/ctl.sh" || rc=1
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$(image_dir "$name")"
-    log_info "shellcheck: ${name}/ctl.sh"
-    shellcheck "$dir/ctl.sh" || rc=1
+    # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
+    for script in "$dir"/*.sh; do
+      log_info "shellcheck: ${name}/$(basename "$script")"
+      shellcheck "$script" || rc=1
+    done
 
     log_info "jq parse: ${name}/project.json"
     jq empty "$dir/project.json" || rc=1

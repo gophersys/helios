@@ -7,23 +7,24 @@ and as the CI runtime that GitHub Actions invokes `nx affected` inside.
 
 ## Purpose
 
-- Single source of truth for the three canonical container images the
+- Single source of truth for the four canonical container images the
   brain ecosystem depends on.
 - Keeps local dev and CI execution environments byte-for-byte identical.
 - Provides a place to bump a toolchain version exactly once and have the
   change flow to every project via shared-change propagation.
 
-## 3-image model
+## 4-image model
 
-The repo exposes exactly three images. All three have the
+The repo exposes exactly four images. All four have the
 `GOPHERSYS_DEVCONTAINER` env marker set so scripts can detect which image
 they are running inside.
 
 | Image | `GOPHERSYS_DEVCONTAINER` | Intent |
 |---|---|---|
-| `ghcr.io/gophersys/base`         | `base`         | Everything most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (terraform/kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
-| `ghcr.io/gophersys/flutter`      | `flutter`      | Base + OpenJDK 17 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
-| `ghcr.io/gophersys/zephyr`       | `zephyr`       | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
+| `ghcr.io/gophersys/base`          | `base`          | Everything most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (terraform/kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
+| `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 17 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
+| `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
+| `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules. Remote SSH-able embedded dev box for k8s pods. |
 
 ## Structure
 
@@ -36,6 +37,7 @@ they are running inside.
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
 └── .github/workflows/build-and-push.yml
 ```
 
@@ -44,9 +46,11 @@ they are running inside.
 1. **No Nx workspace of its own.** Every operation must be runnable as plain
    `bash ./ctl.sh <cmd>` from within this repo.
 2. **Per-image file rule.** Every image directory at the repo root
-   (`base/`, `flutter/`, `zephyr/`) contains `devcontainer.json` +
-   `Dockerfile` + `project.json` + `ctl.sh`. No per-image READMEs;
-   `ctl.sh usage()` is the spec.
+   (`base/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
+   `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`
+   (plus any scripts the image COPYs in, e.g. an entrypoint — all
+   `*.sh` in an image dir are shellchecked by `validate`). No per-image
+   READMEs; `ctl.sh usage()` is the spec.
 3. **No `CLAUDE.md` files.** Repo-specific conventions live here in
    `.claude/rules/`.
 4. **Human-authored voice.** Commits, comments, and docs contain no AI/LLM
@@ -98,8 +102,12 @@ and project CI can detect which image they are running inside.
 Each image directory ships a `devcontainer.json` pinned to its published
 image. Mounted inside a consuming project at
 `.devcontainer/<image>/devcontainer.json`, VS Code's "Reopen in Container"
-lists `base`, `flutter`, and `zephyr` as selectable configurations — each
-bind-mounts the project to `/workspace` and runs as the `dev` user.
+lists `base`, `flutter`, `zephyr`, and `zephyr-devbox` as selectable
+configurations — each bind-mounts the project to `/workspace` and runs as
+the `dev` user. `zephyr-devbox` is additionally deployable as a k8s pod
+targeted over VS Code Remote-SSH: it defaults to a root-run sshd
+entrypoint, and its entrypoint execs any provided argv so local
+devcontainer use behaves like the other layers.
 
 ## Per-image verb catalog
 
@@ -130,9 +138,11 @@ bind-mounts the project to `/workspace` and runs as the `dev` user.
 ## Dependency graph
 
 ```
-     base
-   ┌──┴──┐
+       base
+     ┌──┴──┐
 flutter  zephyr
+            │
+      zephyr-devbox
 ```
 
 Declared in three places that MUST stay in sync:

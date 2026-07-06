@@ -1,9 +1,10 @@
 # .devcontainer
 
 Shared IDP (internal developer platform) images for every project in the
-brain ecosystem. The repo produces **three** container images: one rich
-base that most projects can run directly, and two domain-specific layers
-on top (flutter, zephyr).
+brain ecosystem. The repo produces **four** container images: one rich
+base that most projects can run directly, two domain-specific layers on
+top (flutter, zephyr), and a remote dev box layered on zephyr
+(zephyr-devbox).
 
 Each image serves two roles:
 
@@ -28,16 +29,20 @@ the ecosystem, and `bash ./ctl.sh <cmd>` works directly with or without Nx.
 | `ghcr.io/gophersys/base` | "Pick up and work" image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/terraform/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
 | `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. Linux desktop + Android targets. iOS is out of scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
+| `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. Runs as a k8s pod, targeted with VS Code Remote-SSH; starts as root and execs sshd, logins land as `dev`. | `zephyr-devbox` |
 
 ## Dependency graph
 
 ```
-     base
-   ┌──┴──┐
+       base
+     ┌──┴──┐
 flutter  zephyr
+            │
+      zephyr-devbox
 ```
 
-Build order: `base`, then `flutter` and `zephyr` (both layer on `base`).
+Build order: `base`, then `flutter` and `zephyr` (both layer on `base`),
+then `zephyr-devbox` (layers on `zephyr`).
 
 ## How to use
 
@@ -47,18 +52,20 @@ Pull an image directly:
 docker pull ghcr.io/gophersys/base:latest
 docker pull ghcr.io/gophersys/flutter:latest
 docker pull ghcr.io/gophersys/zephyr:latest
+docker pull ghcr.io/gophersys/zephyr-devbox:latest
 ```
 
 As a VS Code devcontainer (inside a consuming project): this repo is
 mounted at `<project>/.devcontainer/`, and each image directory ships its
 own `devcontainer.json`. Run **Dev Containers: Reopen in Container** and
-pick `base`, `flutter`, or `zephyr` — each bind-mounts the project to
-`/workspace` and runs as the `dev` user. The configs live at:
+pick `base`, `flutter`, `zephyr`, or `zephyr-devbox` — each bind-mounts
+the project to `/workspace` and runs as the `dev` user. The configs live at:
 
 ```
 .devcontainer/base/devcontainer.json
 .devcontainer/flutter/devcontainer.json
 .devcontainer/zephyr/devcontainer.json
+.devcontainer/zephyr-devbox/devcontainer.json
 ```
 
 As a GitHub Actions job container:
@@ -78,10 +85,11 @@ Detect the image at runtime (use in scripts / CI):
 
 ```sh
 case "${GOPHERSYS_DEVCONTAINER}" in
-  base)    echo "running in the base image" ;;
-  flutter) echo "running in the flutter layer" ;;
-  zephyr)  echo "running in the zephyr layer" ;;
-  *)       echo "not inside a gophersys devcontainer" ;;
+  base)          echo "running in the base image" ;;
+  flutter)       echo "running in the flutter layer" ;;
+  zephyr)        echo "running in the zephyr layer" ;;
+  zephyr-devbox) echo "running in the zephyr-devbox layer" ;;
+  *)             echo "not inside a gophersys devcontainer" ;;
 esac
 ```
 
@@ -134,6 +142,7 @@ every push to `main` and on every semver tag (`v*`).
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
 └── .github/workflows/build-and-push.yml
 ```
 
@@ -146,6 +155,7 @@ From the repo root:
 bash ./ctl.sh build base
 bash ./ctl.sh build flutter
 bash ./ctl.sh build zephyr
+bash ./ctl.sh build zephyr-devbox
 
 # Verify multi-arch locally without pushing.
 bash ./ctl.sh build-multi-arch base
@@ -171,7 +181,7 @@ bash ./ctl.sh inspect
 
 ## CI
 
-`.github/workflows/build-and-push.yml` builds and publishes all three
+`.github/workflows/build-and-push.yml` builds and publishes all four
 images on every push to `main`, tagged with both `:latest` and the short
 commit SHA. On semver tag pushes (`v*`), it additionally publishes
 `:v<semver>`. The workflow always sets up QEMU + buildx and runs
