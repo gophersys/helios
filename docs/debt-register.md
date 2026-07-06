@@ -50,12 +50,16 @@ WebUI\LocalHostAuth=false
 `qBittorrent.conf` before qBittorrent starts, drift-guarded against the deployed
 ConfigMap. Verified a no-op against the live config; downloads re-verified.
 
-### D2 🟠 Prowlarr indexer/download-client config not reproducible
-Prowlarr's config + API key live on `prowlarr-config` PVC. The qBittorrent
-download-client link was **not** successfully wired (API attempts returned 400)
-and no indexers are added yet — so search isn't functional end-to-end.
-**Resolution:** task 4 — wire the download client correctly and add indexers,
-capturing the steps reproducibly.
+### D2 🟡 Prowlarr indexer/download-client config not reproducible — DOCUMENTED (PR #31)
+Prowlarr's config lives in its PVC SQLite DB (UI-managed, not GitOps-able).
+**Resolved-as-runbook:** `apps/music/prowlarr/SETUP.md` — the reproducible
+source of truth for indexers + the qBittorrent download client, with exact
+values. Headless API automation was attempted and rejected as fragile: Prowlarr
+2.4.0's download-client test NREs against qBittorrent 5.2.2, and indexer-add
+hangs on a synchronous site-test (`?forceSave=true` skips neither). Both work in
+the Web UI. **Remaining (honest):** full search→grab automation needs the
+download client wired via the UI, or qBittorrent pinned to a Prowlarr-compatible
+version (remediation in SETUP.md). Search itself works once indexers are added.
 
 ### D3 ✅ Host-level changes made over SSH, not in IaC — RESOLVED (PR #30)
 None of these are in Ansible or any tracked config:
