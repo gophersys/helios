@@ -1,0 +1,8 @@
+mainmenu "cipher_esp32"
+config WIFI_SSID
+	string "WiFi SSID"
+	default ""
+config WIFI_PSK
+	string "WiFi PSK"
+	default ""
+source "Kconfig.zephyr"
