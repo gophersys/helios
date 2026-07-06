@@ -78,19 +78,24 @@ agent, udev slot rules) and `clusters/instances/homelab/hypervisors/pve-01/`
 (no-suspend, ip-forward). File-based config is auto-applied; live device/tailnet
 ops (USB passthrough, subnet-router advertise) are documented in each README.
 
-### D4 🟡 Secrets created imperatively (accepted pattern, needs recording)
-- `media/homepage-secrets` — Prowlarr API key + qBit widget placeholder,
-  created with `kubectl` (like `media/gluetun-wireguard`). Acceptable while the
-  ESO bridge is the fallback, but the recreation command must be documented.
-**Resolution:** task 5 documents recreation; consider ExternalSecret once the
-Vaultwarden items exist.
+### D4 ✅ Secrets created imperatively — DOCUMENTED (PR #32)
+**Resolved-as-doc:** `docs/runtime-secrets.md` inventories every imperative
+k8s Secret (`gluetun-wireguard`, `homepage-secrets`, `filebrowser-admin`,
+`operator-oauth`) with its Vaultwarden source and exact recreation command, and
+explains why single-value logins stay imperative (the ESO store returns an
+item's `notes` blob, not individual fields).
 
-### D5 🔴 Default / unset credentials
-- **Filebrowser** ships `admin`/`admin` — currently reachable to anyone who can
-  hit the pod (tailnet + in-cluster).
-- **qBittorrent** WebUI password — status unknown / possibly default.
-**Resolution:** task 5 — strong passwords, stored in Vaultwarden, materialized
-via ExternalSecret where consumed.
+### D5 ✅ Default / unset credentials — RESOLVED (PR #32)
+Both now have strong random passwords stored in Vaultwarden:
+- **qBittorrent** — `shared/qbittorrent/webui`; set via API (verified: the WebUI
+  password hash changed, `admin`/`admin`-era default gone). External login only;
+  in-cluster is subnet-bypassed.
+- **Filebrowser** — `shared/filebrowser/admin`; set by
+  `apps/music/filebrowser/reset-admin/job.yaml` from the `filebrowser-admin`
+  Secret. `admin`/`admin` verified rejected (403). A successful-login re-check is
+  pending the app's login rate-limiter cooldown (tripped during setup) — noted
+  for the final verification pass.
+Recreation for both: `docs/runtime-secrets.md`.
 
 ### D6 🟡 Workspaces create/destroy unimplemented
 `POST`/`DELETE /api/workspaces` return `501 gitops automation pending`. Feature,
@@ -113,4 +118,4 @@ imperative installs (ingress-nginx, cloudflared). No authoritative
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
-them. So far: **D1** (PR #29), **D3** (PR #30).
+them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32); **D2** documented (#31).

@@ -10,3 +10,4 @@ Documentation index for `infrastructure/`.
 | `secrets-guide.md`        | Bitwarden ephemeral-on-tmpfs pattern, end-to-end        |
 | `troubleshooting.md`      | Common issues and first-stop diagnostics                |
 | `debt-register.md`        | Undocumented/imperative state + the engineering agreement |
+| `runtime-secrets.md`      | Imperative k8s Secrets + their Vaultwarden recreation   |

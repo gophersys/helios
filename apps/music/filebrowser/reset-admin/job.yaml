@@ -1,0 +1,58 @@
+# One-shot: set Filebrowser's admin password from the `filebrowser-admin` Secret.
+#
+# NOT Argo-synced (the filebrowser app syncs only top-level apps/music/filebrowser
+# with recurse:false; this subdir is ignored). Run it by hand when needed —
+# e.g. after a config-PVC rebuild, when Filebrowser recreates a default admin.
+#
+# Filebrowser keeps users in a BoltDB the running server locks exclusively, so
+# the password can't be changed live — scale the Deployment to 0 first:
+#   kubectl -n media scale deploy/filebrowser --replicas=0
+#   kubectl -n media wait --for=delete pod -l app=filebrowser --timeout=90s
+#   kubectl -n media apply -f job.yaml
+#   kubectl -n media wait --for=condition=complete job/filebrowser-passwd-reset --timeout=90s
+#   kubectl -n media scale deploy/filebrowser --replicas=1
+#   kubectl -n media delete job filebrowser-passwd-reset
+#
+# The Secret comes from Vaultwarden `shared/filebrowser/admin` — see
+# docs/runtime-secrets.md. runAsUser:0 matches the server (root-owned DB).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: filebrowser-passwd-reset
+  namespace: media
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: k3s-w-1     # where the config PVC's data lives
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: reset
+          image: filebrowser/filebrowser:v2
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              DB=/database/filebrowser.db
+              # recreate the admin user with the vault password (idempotent:
+              # delete+add avoids the "user exists" / lock-timeout paths)
+              rm -f "$DB"
+              filebrowser config init -d "$DB"
+              filebrowser config set --auth.method=json --root=/srv -d "$DB"
+              filebrowser users add admin "$(cat /secret/password)" --perm.admin -d "$DB"
+              echo RESET_OK
+          volumeMounts:
+            - { name: config, mountPath: /database }
+            - { name: secret, mountPath: /secret, readOnly: true }
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: filebrowser-config
+        - name: secret
+          secret:
+            secretName: filebrowser-admin
