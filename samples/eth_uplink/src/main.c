@@ -34,12 +34,29 @@ static cipher_daemon_config_t daemon_cfg =
     },
 };
 
+// Advertise a service from the uplink side too, so service discovery is
+// verified in BOTH directions regardless of which node is the server.
+static cipher_service_entry_t uplink_services[] =
+{
+    {
+        .service =
+        {
+            .id = 43,
+            .name = "board-uplink-probe",
+            .allowed_hops = 1,
+            .ops = NULL,
+            .num_ops = 0,
+        },
+    },
+};
+
 int main(void)
 {
     LOG_INF("cipher uplink node booting (device id 0x%04x -> %s:%d)",
             daemon_cfg.device_id, CIPHER_SERVER_HOST, CIPHER_PORT);
 
     cipher_daemon_init(&daemon_cfg, &daemon_inst);
+    cipher_register_local_services(&daemon_inst, uplink_services, ARRAY_SIZE(uplink_services));
     cipher_daemon_start(&daemon_inst);
 
     while (true)
