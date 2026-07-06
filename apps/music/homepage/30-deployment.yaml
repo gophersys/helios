@@ -1,0 +1,76 @@
+# Homepage — the single-pane portal (home.mateosegura.com), behind Cloudflare
+# Access + Google. Config from the ConfigMap; live widgets pull from qBittorrent,
+# Prowlarr, and a /mnt/media disk glance.
+#
+# Pinned to k3s-w-1 via the /mnt/media hostPath (read-only, just for the disk
+# stat). Widget targets are in-cluster Service DNS — no NetworkPolicy blocks in
+# the media/observability namespaces.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: media
+  labels:
+    app: homepage
+    app.kubernetes.io/part-of: music
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+        app.kubernetes.io/part-of: music
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: ["k3s-w-1"]
+      containers:
+        - name: homepage
+          image: ghcr.io/gethomepage/homepage:latest
+          env:
+            # Homepage refuses requests whose Host isn't allow-listed.
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: "home.mateosegura.com,localhost:3000"
+          envFrom:
+            - secretRef:
+                name: homepage-secrets   # HOMEPAGE_VAR_* — created imperatively
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: home.mateosegura.com
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+            - name: media
+              mountPath: /media
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: homepage-config
+        - name: media
+          hostPath:
+            path: /mnt/media
+            type: Directory

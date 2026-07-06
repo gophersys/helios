@@ -1,0 +1,27 @@
+# home.mateosegura.com — the ONE public front door, behind Cloudflare Access
+# (Google SSO). Goes through the CF tunnel like grafana, so NO tls: block
+# (tunnel enters nginx on :80; a TLS section would 308-redirect-loop).
+# Cloudflare terminates public TLS + enforces Google login at its edge.
+#
+# Out-of-band (Cloudflare console): add tunnel public hostname
+#   home.mateosegura.com -> HTTP ingress-nginx-controller.ingress-nginx.svc:80
+# then an Access self-hosted app for home.mateosegura.com (Google IdP, allow
+# your email) — same runbook as workspaces, second hostname.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homepage
+  namespace: media
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: home.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homepage
+                port:
+                  number: 3000

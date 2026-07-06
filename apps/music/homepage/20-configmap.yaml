@@ -1,0 +1,97 @@
+# Homepage config as code. Each key becomes a file in /app/config.
+# Secrets ({{HOMEPAGE_VAR_*}}) are substituted from env (Secret homepage-secrets,
+# created imperatively — never in git).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: media
+  labels:
+    app: homepage
+    app.kubernetes.io/part-of: music
+data:
+  settings.yaml: |
+    title: Segura Homelab
+    theme: dark
+    color: slate
+    headerStyle: boxed
+    layout:
+      Infrastructure:
+        style: row
+        columns: 3
+      Media:
+        style: row
+        columns: 3
+
+  widgets.yaml: |
+    - greeting:
+        text_size: xl
+        text: Segura Homelab
+    - datetime:
+        text_size: l
+        format:
+          dateStyle: full
+          timeStyle: short
+    - resources:
+        label: media node
+        cpu: true
+        memory: true
+        disk: /media    # /mnt/media mounted read-only below → live disk glance
+    - search:
+        provider: duckduckgo
+        target: _blank
+
+  services.yaml: |
+    - Infrastructure:
+        - Argo CD:
+            href: https://argocd.mateosegura.com
+            description: GitOps continuous delivery
+            icon: argocd
+            siteMonitor: http://argocd-server.argocd.svc.cluster.local
+        - Grafana:
+            href: https://grafana.mateosegura.com
+            description: Metrics & dashboards
+            icon: grafana
+            siteMonitor: http://grafana.observability.svc.cluster.local
+        - Workspaces:
+            href: https://workspaces.mateosegura.com
+            description: Zephyr dev environments
+            icon: mdi-microchip
+
+    - Media:
+        - qBittorrent:
+            href: https://torrent.mateosegura.com
+            description: Torrent client (VPN)
+            icon: qbittorrent
+            widget:
+              type: qbittorrent
+              url: http://qbittorrent:8080
+              username: admin
+              password: "{{HOMEPAGE_VAR_QBIT_PASS}}"
+        - Prowlarr:
+            href: https://prowlarr.mateosegura.com
+            description: Indexer manager / search
+            icon: prowlarr
+            widget:
+              type: prowlarr
+              url: http://prowlarr:9696
+              key: "{{HOMEPAGE_VAR_PROWLARR_KEY}}"
+        - Filebrowser:
+            href: https://files.mateosegura.com
+            description: Browse & download media
+            icon: filebrowser
+            siteMonitor: http://filebrowser.media.svc.cluster.local
+
+  bookmarks.yaml: |
+    - Developer:
+        - GitHub:
+            - abbr: GH
+              href: https://github.com/gophersys
+        - Tailscale:
+            - abbr: TS
+              href: https://login.tailscale.com/admin/machines
+
+  docker.yaml: ""
+  kubernetes.yaml: ""
+  custom.css: ""
+  custom.js: ""
