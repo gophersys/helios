@@ -5,6 +5,10 @@
 # Pinned to k3s-w-1 via the /mnt/media hostPath (read-only, just for the disk
 # stat). Widget targets are in-cluster Service DNS — no NetworkPolicy blocks in
 # the media/observability namespaces.
+#
+# /app/config must be WRITABLE (Homepage creates logs/ there), but a ConfigMap
+# mount is read-only. So: an initContainer seeds an emptyDir from the ConfigMap,
+# and Homepage runs against the writable copy.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,6 +36,15 @@ spec:
                   - key: kubernetes.io/hostname
                     operator: In
                     values: ["k3s-w-1"]
+      initContainers:
+        - name: seed-config
+          image: busybox:1.36
+          command: ["sh", "-c", "cp -f /config-src/* /app/config/ 2>/dev/null; ls /app/config"]
+          volumeMounts:
+            - name: config-src
+              mountPath: /config-src
+            - name: config
+              mountPath: /app/config
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:latest
@@ -67,9 +80,11 @@ spec:
               mountPath: /media
               readOnly: true
       volumes:
-        - name: config
+        - name: config-src
           configMap:
             name: homepage-config
+        - name: config
+          emptyDir: {}
         - name: media
           hostPath:
             path: /mnt/media
