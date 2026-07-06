@@ -106,20 +106,19 @@ token → read-only, 503). Live wiring: the `workspaces-github` bot-PAT Secret
 (optional, `docs/runtime-secrets.md`) — creating the PAT is a one-time GitHub-UI
 step, the only part not automatable headlessly.
 
-### D7 🟡 Documentation drift
-`docs/` predates today's media/portal/workspaces build-out and the live
-imperative installs (ingress-nginx, cloudflared). No authoritative
-"what runs in each namespace and why" reference exists.
-**Resolution:** task 7 — full namespace-by-namespace documentation round.
+### D7 ✅ Documentation drift — RESOLVED (PR #34)
+`docs/cluster-topology.md` is the authoritative namespace-by-namespace reference
+(platform / edge / apps, the exposure model, node roles), reconciled against the
+live 14-namespace cluster.
 
-### D8 🟡 Missing referenced doc
-`docs/migration-homelab-to-idp.md` is referenced from `identity.yaml` and
-`README.md` but absent. Either restore it or update the references.
-**Resolution:** folded into task 7.
+### D8 ✅ Missing referenced doc — RESOLVED (PR #34)
+`docs/migration-homelab-to-idp.md` restored as a historical record (migration
+complete) with the 9 ratified decisions, so the references from identity.yaml
+and the READMEs no longer dangle.
 
 ---
 
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
-them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1); **D2** documented (#31).
+them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** documented (#31).

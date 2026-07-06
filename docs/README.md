@@ -11,3 +11,5 @@ Documentation index for `infrastructure/`.
 | `troubleshooting.md`      | Common issues and first-stop diagnostics                |
 | `debt-register.md`        | Undocumented/imperative state + the engineering agreement |
 | `runtime-secrets.md`      | Imperative k8s Secrets + their Vaultwarden recreation   |
+| `cluster-topology.md`     | What runs in each namespace and why (live reference) |
+| `migration-homelab-to-idp.md` | Historical: the homelab→IDP relocation + 9 decisions |
