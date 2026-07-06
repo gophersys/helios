@@ -220,7 +220,6 @@ void cipher_stream_thread(void *arg0, void *arg1, void *arg2) {
     while (true) {
         cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->stream_packet_event_queue, K_FOREVER);
         __ASSERT(fifo_item, "Null item on stream_packet_event_queue, daemon %d", d->id);
-
         handle_stream_packet(d, &fifo_item->packet);
         free_packet_fifo_item(d, fifo_item);
     }

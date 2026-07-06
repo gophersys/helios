@@ -110,7 +110,6 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2) {
                 if (acc_len - offset < packet_size) {
                     break;  // rest of this packet has not arrived yet
                 }
-
                 dispatch_framed_packet(d, iface, &header, acc + offset, (uint16_t)packet_size);
                 offset += packet_size;
             }
