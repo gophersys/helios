@@ -91,3 +91,17 @@ void cipher_rpc_thread(void *arg0, void *arg1, void *arg2) {
         }
     }
 }
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Helpers
+ *---------------------------------------------------------------------------------------------------*/
+char *cipher_rpc_err_str(cipher_rpc_err_t err) {
+    switch (err) {
+        case CIPHER_RPC_ERR_OK:              return "OK";
+        case CIPHER_RPC_ERR_TIMEOUT:         return "TIMEOUT";
+        case CIPHER_RPC_ERR_CONN_LOST:       return "CONNECTION_LOST";
+        case CIPHER_RPC_ERR_NOT_FOUND:       return "NOT_FOUND";
+        case CIPHER_RPC_ERR_NOT_IMPLEMENTED: return "NOT_IMPLEMENTED";
+        default:                             return "UNKNOWN";
+    }
+}
