@@ -101,8 +101,11 @@ st-info --version
 esptool version
 picocom --help >/dev/null && echo "picocom: ok"
 gdb-multiarch --version | head -n 1
+clangd --version
 # west extension commands + blob fetchers import these at runtime.
 /opt/west-venv/bin/python -c "import requests, jsonschema" && echo "west venv deps: ok"
+# `west espressif monitor` imports esptool + pyserial inside the west venv.
+/opt/west-venv/bin/python -c "import esptool, serial" && echo "west venv esptool: ok"
 for t in xtensa-espressif_esp32_zephyr-elf xtensa-espressif_esp32s2_zephyr-elf xtensa-espressif_esp32s3_zephyr-elf riscv64-zephyr-elf; do
   test -x "${ZEPHYR_SDK_INSTALL_DIR}/${t}/bin/${t}-gcc" && echo "sdk toolchain ${t}: ok"
 done

@@ -47,6 +47,8 @@ ARG ZSDK_EXTRA_TOOLCHAINS=xtensa-espressif_esp32_zephyr-elf,xtensa-espressif_esp
 #                   against openocd, regardless of target arch (the SDK's
 #                   per-toolchain gdbs exist but one multiarch gdb is what
 #                   IDE debug configs point at)
+#   clangd          C/C++ language server backing VS Code IntelliSense
+#                   (the repo's committed .vscode settings point at it)
 # The host keys Debian's postinst generates are removed: this image is
 # shared, and the real keys live on a per-pod persistent volume
 # (/etc/ssh/hostkeys), created by the entrypoint on first boot.
@@ -55,6 +57,7 @@ USER root
 # hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
+      clangd \
       gdb-multiarch \
       openocd \
       openssh-server \
@@ -90,14 +93,19 @@ RUN mkdir -p "${ESPTOOL_VENV}" \
 # (`west build`, `west flash`) and the blob fetchers (`west blobs fetch`)
 # import `requests` and `jsonschema` at runtime; without them all three
 # crash (masked by a west bug as "AttributeError: 'NoneType' object has no
-# attribute 'err'"). uv-created venvs ship WITHOUT pip, so install via the
-# same uv-as-dev mechanism the parent layer used to create the venv.
+# attribute 'err'"). The espressif extension (`west espressif monitor`)
+# does `import esptool` INSIDE the west venv — the standalone esptool venv
+# above does not satisfy that — and pyserial is imported by the monitor
+# and by runner code. uv-created venvs ship WITHOUT pip, so install via
+# the same uv-as-dev mechanism the parent layer used to create the venv.
 # -------------------------------------------------------------------------
 RUN runuser -u dev -- /home/dev/.local/bin/uv pip install \
       --python "${WEST_VENV}/bin/python" \
       --no-cache-dir \
       requests \
       jsonschema \
+      "esptool==${ESPTOOL_VERSION}" \
+      pyserial \
  && chmod -R a+rx "${WEST_VENV}"
 
 # -------------------------------------------------------------------------
