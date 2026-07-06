@@ -20,7 +20,6 @@
 #include "utils/err.h"
 
 // Private include
-#include "netdbg.h"
 #include "interface.h"
 #include "threads.h"
 

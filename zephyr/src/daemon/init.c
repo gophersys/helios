@@ -3,12 +3,14 @@
 
 // Zephyr includes
 #include <zephyr/kernel.h>
+#include <zephyr/sys/sys_heap.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/random/random.h>
 
 // Cipher includes
 #include "config/default.h"
+#include "daemon/api.h"
 #include "daemon/daemon.h"
 #include "daemon/registry.h"
 #include "utils/err.h"
@@ -193,6 +195,7 @@ static void init_objects(cipher_daemon_t *d)
 
     k_fifo_init(&d->events_packet_event_queue);
     k_fifo_init(&d->stream_packet_event_queue);  // was missing: stream thread pended on an uninitialized queue (SEGV on native_sim)
+    k_mutex_init(&d->stream_state.mutex);         // guards the per-daemon stream reassembly/completion state
 
     k_heap_init(&d->ctrl_events_heap, d->ctrl_events_heap_mem, sizeof(d->ctrl_events_heap_mem));
 
@@ -395,4 +398,19 @@ char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buf
 {
     snprintf(buffer, buflen, "%s_%02u_%03u", prefix, d_id, iface_id);
     return buffer;
+}
+
+void cipher_daemon_get_heap_stats(cipher_daemon_t *d, cipher_heap_stats_t *out)
+{
+    struct sys_memory_stats st;
+
+    sys_heap_runtime_stats_get(&d->net_buffers_heap.heap, &st);
+    out->net_allocated = st.allocated_bytes;
+    out->net_free = st.free_bytes;
+    out->net_max = st.max_allocated_bytes;
+
+    sys_heap_runtime_stats_get(&d->local_packets_heap.heap, &st);
+    out->local_allocated = st.allocated_bytes;
+    out->local_free = st.free_bytes;
+    out->local_max = st.max_allocated_bytes;
 }

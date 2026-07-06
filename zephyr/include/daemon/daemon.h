@@ -7,8 +7,36 @@
 #include <corekinect/cipher/registry/rpc.h>
 #include <corekinect/cipher/registry/service.h>
 #include <corekinect/cipher/service/types.h>
+#include <corekinect/cipher/stream.h>
 
 #include "config/default.h"
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                          Stream state
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Per-daemon stream reassembly + completion state.
+ *
+ * Owned by the daemon (not file-scope globals) so multiple daemon instances in
+ * one image each track their own inbound stream independently.
+ */
+typedef struct {
+    struct {
+        bool in_progress;
+        uint16_t stream_id;
+        uint32_t total_len;
+        uint32_t received_len;
+        uint32_t num_chunks;
+        uint32_t checksum;
+        int64_t start_time;
+    } rx;                              /*!< Single in-flight inbound stream */
+
+    cipher_stream_rx_stats_t last_rx;  /*!< Last completed stream, published to readers */
+    bool last_rx_valid;
+    uint32_t completion_id;            /*!< Monotonic id so readers can dedupe completions */
+    struct k_mutex mutex;              /*!< Guards rx + last_rx */
+} cipher_stream_state_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
@@ -93,6 +121,9 @@ typedef struct cipher_daemon {
     k_tid_t stream_t_id;
     struct k_thread stream_t_data;
     K_KERNEL_STACK_MEMBER(stream_t_stack, STREAM_THREAD_STACK_SIZE);
+
+    // Inbound-stream reassembly + last-completion state (per instance).
+    cipher_stream_state_t stream_state;
 
     /*-----------------------------------------------
      *                                         Ifaces

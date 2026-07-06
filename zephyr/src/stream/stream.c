@@ -31,21 +31,10 @@ LOG_MODULE_REGISTER(stream, CONFIG_CK_CIPHER_STREAM_LOG_LEVEL);
 #define FNV1A_OFFSET_BASIS 2166136261u
 #define FNV1A_PRIME        16777619u
 
-// Single in-flight inbound stream (sufficient for point-to-point benchmarking).
-static struct {
-    bool in_progress;
-    uint16_t stream_id;
-    uint32_t total_len;
-    uint32_t received_len;
-    uint32_t num_chunks;
-    uint32_t checksum;
-    int64_t start_time;
-} stream_rx;
-
-static cipher_stream_rx_stats_t stream_last_rx;
-static bool stream_last_rx_valid;
-static uint32_t stream_completion_id;
-static K_MUTEX_DEFINE(stream_mutex);
+// Stream reassembly + completion state is owned by the daemon
+// (cipher_daemon_t::stream_state), NOT file-scope globals, so multiple daemon
+// instances in one image each keep their own independent stream state. The
+// mutex is initialised in cipher_daemon_init via k_mutex_init.
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                             Checksum
@@ -142,15 +131,15 @@ int32_t cipher_stream_send(cipher_daemon_t *d, uint16_t device_id, uint16_t stre
  *                                                                                          Last Stream
  *---------------------------------------------------------------------------------------------------*/
 bool cipher_stream_get_last_rx(cipher_daemon_t *d, cipher_stream_rx_stats_t *out) {
-    ARG_UNUSED(d);
+    cipher_stream_state_t *s = &d->stream_state;
     bool valid;
 
-    k_mutex_lock(&stream_mutex, K_FOREVER);
-    valid = stream_last_rx_valid;
+    k_mutex_lock(&s->mutex, K_FOREVER);
+    valid = s->last_rx_valid;
     if (valid) {
-        *out = stream_last_rx;
+        *out = s->last_rx;
     }
-    k_mutex_unlock(&stream_mutex);
+    k_mutex_unlock(&s->mutex);
 
     return valid;
 }
@@ -159,28 +148,28 @@ bool cipher_stream_get_last_rx(cipher_daemon_t *d, cipher_stream_rx_stats_t *out
  *                                                                                    Receive (Reassy)
  *---------------------------------------------------------------------------------------------------*/
 static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
-    ARG_UNUSED(d);
+    cipher_stream_state_t *s = &d->stream_state;
     const uint8_t *payload = (const uint8_t *)packet->payload;
     const uint16_t flags = packet->header.flags;
 
     if (flags & CIPHER_FLAG_STREAM_START) {
-        k_mutex_lock(&stream_mutex, K_FOREVER);
-        stream_rx.in_progress = true;
-        memcpy(&stream_rx.total_len, &payload[0], sizeof(uint32_t));
-        memcpy(&stream_rx.stream_id, &payload[4], sizeof(uint16_t));
-        stream_rx.received_len = 0;
-        stream_rx.num_chunks = 0;
-        stream_rx.checksum = FNV1A_OFFSET_BASIS;
-        stream_rx.start_time = k_uptime_get();
-        k_mutex_unlock(&stream_mutex);
-        LOG_INF("stream %u START: expecting %u bytes", stream_rx.stream_id, stream_rx.total_len);
+        k_mutex_lock(&s->mutex, K_FOREVER);
+        s->rx.in_progress = true;
+        memcpy(&s->rx.total_len, &payload[0], sizeof(uint32_t));
+        memcpy(&s->rx.stream_id, &payload[4], sizeof(uint16_t));
+        s->rx.received_len = 0;
+        s->rx.num_chunks = 0;
+        s->rx.checksum = FNV1A_OFFSET_BASIS;
+        s->rx.start_time = k_uptime_get();
+        k_mutex_unlock(&s->mutex);
+        LOG_INF("stream %u START: expecting %u bytes", s->rx.stream_id, s->rx.total_len);
 
     } else if (flags & CIPHER_FLAG_STREAM_DATA) {
-        k_mutex_lock(&stream_mutex, K_FOREVER);
-        stream_rx.received_len += packet->header.payload_len;
-        stream_rx.num_chunks++;
-        stream_rx.checksum = cipher_stream_fnv1a(stream_rx.checksum, payload, packet->header.payload_len);
-        k_mutex_unlock(&stream_mutex);
+        k_mutex_lock(&s->mutex, K_FOREVER);
+        s->rx.received_len += packet->header.payload_len;
+        s->rx.num_chunks++;
+        s->rx.checksum = cipher_stream_fnv1a(s->rx.checksum, payload, packet->header.payload_len);
+        k_mutex_unlock(&s->mutex);
 
     } else if (flags & CIPHER_FLAG_STREAM_END) {
         uint32_t declared_len = 0;
@@ -188,21 +177,21 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
         memcpy(&declared_len, &payload[0], sizeof(uint32_t));
         memcpy(&declared_checksum, &payload[4], sizeof(uint32_t));
 
-        k_mutex_lock(&stream_mutex, K_FOREVER);
-        int64_t duration = k_uptime_get() - stream_rx.start_time;
-        stream_last_rx.completion_id = ++stream_completion_id;
-        stream_last_rx.stream_id = stream_rx.stream_id;
-        stream_last_rx.total_len = stream_rx.total_len;
-        stream_last_rx.received_len = stream_rx.received_len;
-        stream_last_rx.num_chunks = stream_rx.num_chunks;
-        stream_last_rx.checksum = stream_rx.checksum;
-        stream_last_rx.checksum_ok =
-            (stream_rx.checksum == declared_checksum) && (stream_rx.received_len == declared_len);
-        stream_last_rx.duration_ms = duration;
-        stream_last_rx_valid = true;
-        stream_rx.in_progress = false;
-        cipher_stream_rx_stats_t snapshot = stream_last_rx;
-        k_mutex_unlock(&stream_mutex);
+        k_mutex_lock(&s->mutex, K_FOREVER);
+        int64_t duration = k_uptime_get() - s->rx.start_time;
+        s->last_rx.completion_id = ++s->completion_id;
+        s->last_rx.stream_id = s->rx.stream_id;
+        s->last_rx.total_len = s->rx.total_len;
+        s->last_rx.received_len = s->rx.received_len;
+        s->last_rx.num_chunks = s->rx.num_chunks;
+        s->last_rx.checksum = s->rx.checksum;
+        s->last_rx.checksum_ok =
+            (s->rx.checksum == declared_checksum) && (s->rx.received_len == declared_len);
+        s->last_rx.duration_ms = duration;
+        s->last_rx_valid = true;
+        s->rx.in_progress = false;
+        cipher_stream_rx_stats_t snapshot = s->last_rx;
+        k_mutex_unlock(&s->mutex);
 
         uint32_t kbps = (duration > 0) ? (uint32_t)((int64_t)snapshot.received_len * 1000 / duration / 1024) : 0;
         LOG_INF("stream %u END: %u bytes / %u chunks in %lld ms = %u KiB/s, checksum %s",
