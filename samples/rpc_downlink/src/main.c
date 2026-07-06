@@ -9,6 +9,7 @@
 #include <zephyr/logging/log.h>
 
 // Cipher includes
+#include <zephyr/net/net_if.h>
 #include <daemon/api.h>
 
 // Shared RPC contract
@@ -100,8 +101,13 @@ int main(void)
 
     while (true)
     {
-        k_sleep(K_SECONDS(30));
-        LOG_INF("downlink alive");
+        k_sleep(K_SECONDS(3));
+        struct net_if *iface = net_if_get_default();
+        char buf[NET_IPV4_ADDR_LEN] = "(none)";
+        if (iface && iface->config.ip.ipv4 && iface->config.ip.ipv4->unicast[0].ipv4.is_used) {
+            net_addr_ntop(AF_INET, &iface->config.ip.ipv4->unicast[0].ipv4.address.in_addr, buf, sizeof(buf));
+        }
+        LOG_INF("downlink alive, ip=%s", buf);
     }
 
     return 0;

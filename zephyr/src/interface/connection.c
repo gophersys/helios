@@ -15,6 +15,7 @@
 
 // Private include
 #include "events.h"
+#include "netdbg.h"
 #include "interface.h"
 #include "threads.h"
 

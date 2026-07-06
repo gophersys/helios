@@ -20,6 +20,7 @@
 #include "utils/err.h"
 
 // Private include
+#include "netdbg.h"
 #include "interface.h"
 #include "threads.h"
 
@@ -68,21 +69,29 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2) {
         LOG("Send thread for iface %d unblocked", iface->id);
 
         while (iface->connected) {
-            int event = k_poll(send_events, EVENT_NUM, K_FOREVER);
+            // Poll with a timeout (not K_FOREVER) so that when the peer
+            // disconnects — which sets iface->connected=false but queues nothing
+            // to wake this poll — the send thread still wakes, sees the flag, and
+            // loops back to k_sem_take() to re-arm for the NEXT connection.
+            // Without this the send thread stayed parked on the old connection
+            // and never delivered SD/data to any subsequent client.
+            int event = k_poll(send_events, EVENT_NUM, K_MSEC(200));
             if (event == 0) {
                 if (send_events[ENCODED_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
                     handle_encoded_packet_event(d, iface);
-                else if (send_events[DECODED_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+                else if (send_events[DECODED_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
                     handle_decoded_packet_event(d, iface);
+                }
                 else
                     ERROR("Unknown poll condition: %d. iface %d, daemon %d", event, iface->id, d->id);
 
                 // reset events
                 for (uint8_t i = 0; i < EVENT_NUM; i++)
                     send_events[i].state = K_POLL_STATE_NOT_READY;
-            } else {
-                ERROR("Unexpected timeout on k_poll: %d. iface %d, daemon %d", event, iface->id, d->id);
+            } else if (event != -EAGAIN) {
+                ERROR("Unexpected k_poll error: %d. iface %d, daemon %d", event, iface->id, d->id);
             }
+            // -EAGAIN == poll timeout: loop and re-check iface->connected.
         }
     }
 }

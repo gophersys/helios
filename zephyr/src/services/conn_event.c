@@ -18,6 +18,7 @@
 
 // Private include
 #include "interface.h"
+#include "netdbg.h"
 #include "services.h"
 #include "threads.h"
 
@@ -59,7 +60,6 @@ void handle_iface_conn_event(cipher_daemon_t *d) {
             .allowed_hops = current_entry->service.allowed_hops,
         };
         strcpy(payload.name, current_entry->service.name);
-
         send_service_payload(d, conn_iface, &payload);
 
         // // For each end point in that service
