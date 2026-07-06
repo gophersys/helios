@@ -17,7 +17,6 @@
 
 #include "config/default.h"
 #include "daemon/daemon.h"
-#include "daemon/service.h"
 
 typedef struct {
     uintptr_t __k_reserved;

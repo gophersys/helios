@@ -97,7 +97,7 @@ static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_it
     memcpy(entry->response, fifo_item->packet.payload, entry->response_size);
 
     // Find remote service with RPC
-    cipher_rpc_user_info_t *info = entry->user_info;
+    cipher_unary_rpc_user_info_t *info = entry->user_info;
     info->error = CIPHER_RPC_ERR_OK;
     k_sem_give(&entry->await_sem);
 

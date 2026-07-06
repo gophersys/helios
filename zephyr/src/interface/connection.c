@@ -18,7 +18,7 @@
 #include "interface.h"
 #include "threads.h"
 
-LOG_MODULE_REGISTER(iface, CONFIG_CK_CIPHER_IFACE_LOG_LEVEL);
+LOG_MODULE_REGISTER(cipher_iface, CONFIG_CK_CIPHER_IFACE_LOG_LEVEL);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes

@@ -20,7 +20,7 @@ typedef struct {
     size_t response_size;
     struct k_timer timer;
     struct k_sem await_sem;
-    cipher_rpc_user_info_t *user_info;
+    cipher_unary_rpc_user_info_t *user_info;
 } cipher_registry_rpc_entry_t;
 
 typedef struct {

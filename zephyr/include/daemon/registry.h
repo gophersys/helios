@@ -5,7 +5,6 @@
 #include <corekinect/cipher/config.h>
 #include "config/default.h"
 #include "daemon/daemon.h"
-#include "daemon/service.h"
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                             Services

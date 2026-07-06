@@ -1,7 +1,7 @@
 // Zephyr includes
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr/random/random.h>
 
 // Cipher includes
 #include "config/default.h"

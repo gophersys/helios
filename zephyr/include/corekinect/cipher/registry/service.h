@@ -7,6 +7,10 @@
 // CoreKinect includes
 #include <corekinect/cipher/service/types.h>
 
+// Forward declaration: daemon.h includes this header, so the full definition
+// is not visible yet. Prototypes below only need the pointer type.
+typedef struct cipher_daemon cipher_daemon_t;
+
 /**
  * @brief Service metadata used by the daemon
  */
@@ -32,7 +36,7 @@ typedef struct {
  * @retval true If found
  * @retval false If not found
  */
-bool registry_service_exists(cipher_service_registry_t *r, cipher_service_entry_t *entry);
+bool registry_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 /**
  * @brief Add an entry to the daemon's service registry

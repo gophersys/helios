@@ -24,7 +24,7 @@
 #include "interface.h"
 #include "threads.h"
 
-LOG_MODULE_DECLARE(iface);
+LOG_MODULE_DECLARE(cipher_iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes

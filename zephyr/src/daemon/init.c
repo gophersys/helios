@@ -5,7 +5,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr/random/random.h>
 
 // Cipher includes
 #include "config/default.h"
@@ -229,7 +229,7 @@ static void init_threads(cipher_daemon_t *d)
     char name_buf[32];
     d->ctrl_t_id = k_thread_create(&d->ctrl_t_data,
                                    d->ctrl_t_stack,
-                                   K_THREAD_STACK_SIZEOF(d->ctrl_t_stack),
+                                   K_KERNEL_STACK_SIZEOF(d->ctrl_t_stack),
                                    cipher_ctrl_thread,
                                    (void *)d, NULL, NULL,
                                    CTRL_THREAD_PRIORITY,
@@ -239,7 +239,7 @@ static void init_threads(cipher_daemon_t *d)
 
     d->sd.t_id = k_thread_create(&d->sd.t_data,
                                  d->sd.t_stack,
-                                 K_THREAD_STACK_SIZEOF(d->sd.t_stack),
+                                 K_KERNEL_STACK_SIZEOF(d->sd.t_stack),
                                  cipher_sd_thread,
                                  (void *)d, NULL, NULL,
                                  SD_THREAD_PRIORITY,
@@ -249,7 +249,7 @@ static void init_threads(cipher_daemon_t *d)
 
     d->event_t_id = k_thread_create(&d->event_t_data,
                                     d->event_t_stack,
-                                    K_THREAD_STACK_SIZEOF(d->event_t_stack),
+                                    K_KERNEL_STACK_SIZEOF(d->event_t_stack),
                                     cipher_event_thread,
                                     (void *)d, NULL, NULL,
                                     EVENT_THREAD_PRIORITY,
@@ -259,7 +259,7 @@ static void init_threads(cipher_daemon_t *d)
 
     d->stream_t_id = k_thread_create(&d->stream_t_data,
                                      d->stream_t_stack,
-                                     K_THREAD_STACK_SIZEOF(d->stream_t_stack),
+                                     K_KERNEL_STACK_SIZEOF(d->stream_t_stack),
                                      cipher_stream_thread,
                                      (void *)d, NULL, NULL,
                                      STREAM_THREAD_PRIORITY,
@@ -335,7 +335,7 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_g
         cipher_iface_thread_info_t *conn_t = &t_group[i].connection_t;
         conn_t->id = k_thread_create(&conn_t->data,
                                      conn_t->stack,
-                                     K_THREAD_STACK_SIZEOF(conn_t->stack),
+                                     K_KERNEL_STACK_SIZEOF(conn_t->stack),
                                      cipher_interface_conn_thread,
                                      (void *)d, (void *)&t_group[i].iface, NULL,
                                      conn_t_prio,
@@ -346,7 +346,7 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_g
         cipher_iface_thread_info_t *send_t = &t_group[i].send_t;
         send_t->id = k_thread_create(&send_t->data,
                                      send_t->stack,
-                                     K_THREAD_STACK_SIZEOF(send_t->stack),
+                                     K_KERNEL_STACK_SIZEOF(send_t->stack),
                                      cipher_interface_send_thread,
                                      (void *)d, (void *)&t_group[i].iface, NULL,
                                      send_t_prio,
@@ -357,7 +357,7 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_g
         cipher_iface_thread_info_t *recv_t = &t_group[i].recv_t;
         recv_t->id = k_thread_create(&recv_t->data,
                                      recv_t->stack,
-                                     K_THREAD_STACK_SIZEOF(recv_t->stack),
+                                     K_KERNEL_STACK_SIZEOF(recv_t->stack),
                                      cipher_interface_recv_thread,
                                      (void *)d, (void *)&t_group[i].iface, NULL,
                                      recv_t_prio,

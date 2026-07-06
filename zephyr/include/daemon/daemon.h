@@ -20,7 +20,7 @@
 typedef struct {
     k_tid_t t_id;
     struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, SD_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(t_stack, SD_THREAD_STACK_SIZE);
 
     struct k_fifo packets_event_queue;
 
@@ -40,7 +40,7 @@ typedef struct {
 typedef struct {
     k_tid_t t_id;
     struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
 
     bool in_use;
     struct k_fifo packets_event_queue;
@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
     k_tid_t t_id;
     struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
 
     struct k_fifo packets_event_queue;
     struct k_fifo ctrl_event_queue;
@@ -68,7 +68,7 @@ typedef struct {
 /**
  * @brief Object to encapsulate the Cipher application daemon
  */
-typedef struct {
+typedef struct cipher_daemon {
     // user config
     cipher_daemon_config_t *cfg;
 
@@ -84,15 +84,15 @@ typedef struct {
 
     k_tid_t ctrl_t_id;
     struct k_thread ctrl_t_data;
-    K_THREAD_STACK_MEMBER(ctrl_t_stack, CTRL_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(ctrl_t_stack, CTRL_THREAD_STACK_SIZE);
 
     k_tid_t event_t_id;
     struct k_thread event_t_data;
-    K_THREAD_STACK_MEMBER(event_t_stack, EVENT_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(event_t_stack, EVENT_THREAD_STACK_SIZE);
 
     k_tid_t stream_t_id;
     struct k_thread stream_t_data;
-    K_THREAD_STACK_MEMBER(stream_t_stack, STREAM_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(stream_t_stack, STREAM_THREAD_STACK_SIZE);
 
     /*-----------------------------------------------
      *                                         Ifaces

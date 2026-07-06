@@ -83,7 +83,7 @@ void send_rpc_cancel_request(cipher_daemon_t *d, cipher_registry_rpc_entry_t *en
 }
 
 void signal_rpc_caller(cipher_daemon_t *d, cipher_registry_rpc_entry_t *entry) {
-    cipher_rpc_user_info_t *info = entry->user_info;
+    cipher_unary_rpc_user_info_t *info = entry->user_info;
     info->error = CIPHER_RPC_ERR_TIMEOUT;
     k_sem_give(&entry->await_sem);
 }

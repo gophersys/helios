@@ -41,7 +41,7 @@ void handle_local_request_event(cipher_daemon_t* d) {
     __ASSERT(fifo_item, "Null item on local_request_event_queue, daemon %d", d->id);
 
     cipher_registry_rpc_entry_t* entry = fifo_item->entry;
-    cipher_rpc_user_info_t* info = entry->user_info;
+    cipher_unary_rpc_user_info_t* info = entry->user_info;
 
     if (!cipher_rpc_entry_register(d, entry)) {
         ERROR("Unable to register RPC with daemon");

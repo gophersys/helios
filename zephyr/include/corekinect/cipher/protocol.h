@@ -46,7 +46,7 @@ typedef struct __attribute__((packed))
     uint32_t service_id : 14;
 
     // Up to 256 operations per service
-    uint32_t rpc_id : 8;
+    uint32_t operation_id : 8;
 
     // Header + Payload will never exceed 1024 bytes
     uint32_t payload_len : 10;

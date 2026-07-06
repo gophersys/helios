@@ -40,7 +40,7 @@ typedef struct {
 typedef struct {
     k_tid_t id;
     struct k_thread data;
-    K_THREAD_STACK_MEMBER(stack, CONFIG_CK_CIPHER_IFACE_THREAD_STACK_SIZE);
+    K_KERNEL_STACK_MEMBER(stack, CONFIG_CK_CIPHER_IFACE_THREAD_STACK_SIZE);
 } cipher_iface_thread_info_t;
 
 /**
