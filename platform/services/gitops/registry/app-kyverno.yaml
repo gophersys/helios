@@ -44,6 +44,8 @@ spec:
             - longhorn-system
             - cloudflare-tunnel
             - media
+            - tailscale        # operator's proxy pods need tun/NET_ADMIN
+            - embedded-lab     # devbox pods: privileged + /dev hostPath (USB flashing)
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno

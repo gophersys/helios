@@ -48,6 +48,7 @@ policy_profile: audit-only
 
 projects_hosted:
   - music                 # the media/music platform (decision 3)
+  - embedded              # Zephyr embedded dev envs (apps/embedded/); env=lab → ns embedded-lab, pinned to k3s-w-4 (USB passthrough)
 
 namespace_provisioning:
   default_quota_tier_by_env:
@@ -89,6 +90,8 @@ platform_services:
     redis:         { enabled: false }
   messaging:
     nats:          { enabled: false }
+  networking:
+    tailscale-operator: { enabled: true, version: "1.98.4" }  # per-Service tailnet exposure (zephyr envs)
   registry:        { enabled: false }
   admin-dashboard: { enabled: false }
   identity-sso:    { enabled: false, note: "Cloudflare Access + Google — future" }

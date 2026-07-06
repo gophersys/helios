@@ -7,6 +7,7 @@ under `clusters/instances/<c>/overlays/services/<path>/values.yaml`.
 | Service              | Provides                                   |
 |----------------------|--------------------------------------------|
 | `observability/`     | Grafana + Prometheus + Loki + Tempo        |
+| `networking/`        | Tailscale operator (per-Service tailnet exposure) |
 | `databases/`         | PostgreSQL (cnpg), Redis                   |
 | `messaging/`         | NATS JetStream                             |
 | `registry/`          | Internal OCI registry (optional)           |

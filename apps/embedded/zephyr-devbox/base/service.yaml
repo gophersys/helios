@@ -1,0 +1,22 @@
+# Tailnet-native SSH entrypoint. loadBalancerClass `tailscale` hands this
+# Service to the Tailscale operator (NOT MetalLB): the operator creates a proxy
+# pod that joins the tailnet as `tailscale.com/hostname`, so each env gets its
+# own MagicDNS ssh name. The annotation value here is a base placeholder — each
+# env overlay MUST patch it to zephyr-<env>.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zephyr-devbox
+  labels:
+    app.kubernetes.io/part-of: embedded
+  annotations:
+    tailscale.com/hostname: zephyr-devbox
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: zephyr-devbox
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: 22

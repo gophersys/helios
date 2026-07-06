@@ -1,0 +1,38 @@
+# Tailscale Kubernetes operator — tailnet exposure for in-cluster Services.
+#
+# Greenfield install (no prior Tailscale components in-cluster). Services opt in
+# with `type: LoadBalancer` + `loadBalancerClass: tailscale` + a
+# `tailscale.com/hostname` annotation; the operator spins up a per-Service proxy
+# pod that joins the tailnet under that MagicDNS name. First consumer: the
+# Zephyr embedded dev environments (app-zephyr-envs.yaml).
+#
+# BOOTSTRAP SECRET (NOT in git — ESO/Vaultwarden bridge is down, so imperative,
+# same pattern as media/gluetun-wireguard): the operator needs Secret
+# `tailscale/operator-oauth` with keys client_id/client_secret. Full procedure:
+# platform/services/networking/tailscale-operator/README.md. The operator
+# crash-loops harmlessly until the Secret exists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://pkgs.tailscale.com/helmcharts
+    chart: tailscale-operator
+    targetRevision: 1.98.4
+    helm:
+      values: |
+        operatorConfig:
+          hostname: homelab-ts-operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false          # never auto-delete the operator (would orphan proxies)
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

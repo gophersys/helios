@@ -5,7 +5,7 @@
 
 name: k3s-w-4
 os: linux-ubuntu
-purpose: "k3s worker — apps role"
+purpose: "k3s worker — embedded USB node (apps); QEMU USB passthrough for Zephyr dev envs"
 tailscale_hostname: k3s-w-4
 status: active
 location: proxmox-pve-01
@@ -36,6 +36,9 @@ kubernetes:
   cluster_role: apps
   labels:
     role: apps
+    usb-embedded: "true"       # microcontrollers QEMU-passed into this VM from pve-01;
+                               # devices at /dev/bus/usb + /dev/serial, stable udev
+                               # symlinks /dev/mcu-slot-N (apps/embedded pins here)
   taints: []
   extra_flags: []
 

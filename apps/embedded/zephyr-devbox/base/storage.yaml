@@ -1,0 +1,27 @@
+# Per-env storage. local-path (NOT Longhorn) on purpose: the volumes are
+# node-local scratch for an env that is itself pinned to k3s-w-4, and
+# WaitForFirstConsumer binds them on that node. Sizes are nominal — local-path
+# does not enforce them (see apps/music/qbittorrent/10-storage.yaml).
+# The env overlay's nameSuffix gives every env its own claims.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zephyr-devbox-home
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zephyr-devbox-workspace
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi

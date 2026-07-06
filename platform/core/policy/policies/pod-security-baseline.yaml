@@ -32,6 +32,8 @@ spec:
                 - observability
                 - metallb-system
                 - media
+                - tailscale        # operator's proxy pods need tun/NET_ADMIN
+                - embedded-lab     # devbox pods: privileged + /dev hostPath (USB flashing)
       skipBackgroundRequests: true
       validate:
         failureAction: Audit
