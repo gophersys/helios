@@ -82,7 +82,7 @@ static bool handshake_uplink(cipher_daemon_t *d, iface_t *cfg) {
     }
 
     uint16_t bytes_recv = 0;
-    const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
+    const size_t recv_buffer_size = sizeof(bool);  // exact: don't over-read into post-handshake stream
     uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
@@ -136,7 +136,7 @@ static bool handshake_downlink(cipher_daemon_t *d, iface_t *cfg) {
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;
-    const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
+    const size_t recv_buffer_size = sizeof(uint16_t);  // exact: don't over-read the client's follow-on traffic
     uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
