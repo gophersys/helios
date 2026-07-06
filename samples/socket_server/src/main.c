@@ -18,7 +18,7 @@
 // Corekinect includes
 #include <corekinect/iface/iface.h>  // <- This is how you'd include the library in your app
 
-LOG_MODULE_REGISTER(socket_client);
+LOG_MODULE_REGISTER(socket_server);
 
 // Configuration
 #define SERVER_PORT 4444
@@ -95,15 +95,20 @@ static void print_net_addr(void)
 
     for (size_t i = 0; i < NET_IF_MAX_IPV4_ADDR; i++)
     {
+        // Zephyr 4.x: address moved to unicast[i].ipv4, netmask is per-address
+        if (!iface->config.ip.ipv4->unicast[i].ipv4.is_used)
+        {
+            continue;
+        }
 
         LOG_INF("IP Addr: %s",
                 net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->unicast[i].address.in_addr,
+                              &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
                               buf, sizeof(buf)));
 
         LOG_INF("Subnet: %s",
                 net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->netmask,
+                              &iface->config.ip.ipv4->unicast[i].netmask,
                               buf, sizeof(buf)));
         LOG_INF("Router: %s",
                 net_addr_ntop(AF_INET,

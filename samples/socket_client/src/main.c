@@ -21,7 +21,11 @@
 LOG_MODULE_REGISTER(socket_client);
 
 // Configuration
-#define SERVER_IP "10.0.0.2"  // Client connects to
+// The server advertises itself over mDNS (see socket_server: CONFIG_NET_HOSTNAME
+// + CONFIG_MDNS_RESPONDER). The iface lib resolves any non-numeric host via
+// DNS/mDNS, so no hardcoded addresses: both boards get DHCP leases and find
+// each other by name.
+#define SERVER_HOST "iface-server.local"
 #define SERVER_PORT 4444
 
 // Useful networking information
@@ -36,7 +40,7 @@ int main(void)
     {
         .type = IFACE_TYPE_SOCKET,
         .link = IFACE_LINK_TYPE_CLIENT,
-        .p_host = SERVER_IP,
+        .p_host = SERVER_HOST,
         .port = SERVER_PORT,
     };
 
@@ -108,15 +112,20 @@ static void print_net_addr(void)
 
     for (size_t i = 0; i < NET_IF_MAX_IPV4_ADDR; i++)
     {
+        // Zephyr 4.x: address moved to unicast[i].ipv4, netmask is per-address
+        if (!iface->config.ip.ipv4->unicast[i].ipv4.is_used)
+        {
+            continue;
+        }
 
         LOG_INF("IP Addr: %s",
                 net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->unicast[i].address.in_addr,
+                              &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
                               buf, sizeof(buf)));
 
         LOG_INF("Subnet: %s",
                 net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->netmask,
+                              &iface->config.ip.ipv4->unicast[i].netmask,
                               buf, sizeof(buf)));
         LOG_INF("Router: %s",
                 net_addr_ntop(AF_INET,
