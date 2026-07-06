@@ -44,10 +44,15 @@ done
 # NON-recursive: recursing into a populated persistent homedir on every
 # boot is slow and can trample intentional ownership.
 for dir in "${DEV_HOME}" /workspace; do
-  if [[ -d "${dir}" ]] && [[ "$(stat -c '%u' "${dir}")" == "0" ]]; then
+  [[ -d "${dir}" ]] || continue
+  if [[ "$(stat -c '%u' "${dir}")" == "0" ]]; then
     log "chown ${dir} -> dev:dev (mountpoint only)"
     chown dev:dev "${dir}"
   fi
+  # local-path PVCs mount with mode 0777; sshd StrictModes then refuses
+  # authorized_keys ("bad ownership or modes for directory /home/dev").
+  # Normalize the mountpoint mode every boot — cheap and idempotent.
+  chmod 0755 "${dir}"
 done
 
 # -------- authorized_keys --------
@@ -71,6 +76,26 @@ if [[ -n "${keys}" ]]; then
 elif [[ ! -f "${DEV_SSH_DIR}/authorized_keys" ]]; then
   log "WARNING: no authorized keys (DEVBOX_AUTHORIZED_KEYS or ${AUTHORIZED_KEYS_FILE}) — ssh logins will fail"
 fi
+
+# -------- mcu slot symlinks --------
+# On the k8s node udev creates /dev/mcu-slot-N, but the pod only receives
+# hostPath mounts of /dev/serial and /dev/bus/usb — symlinks at the node's
+# /dev root do not propagate into the container. Recreate them here from
+# the by-path tree: slot N == guest USB port N == physical hub slot N.
+# Best-effort by design: outside k8s (plain local devcontainer) these
+# paths don't exist, and that must not abort the boot.
+for n in 1 2 3 4 5 6; do
+  for candidate in /dev/serial/by-path/*-usb-0:"${n}":*; do
+    if [[ -e "${candidate}" ]]; then
+      if ln -sf "${candidate}" "/dev/mcu-slot-${n}" 2>/dev/null; then
+        log "linked /dev/mcu-slot-${n} -> ${candidate}"
+      else
+        log "WARNING: could not link /dev/mcu-slot-${n}"
+      fi
+      break
+    fi
+  done
+done
 
 # -------- sshd --------
 mkdir -p /run/sshd

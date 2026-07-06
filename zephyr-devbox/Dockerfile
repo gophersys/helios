@@ -86,6 +86,21 @@ RUN mkdir -p "${ESPTOOL_VENV}" \
 # cross-arch build; verified in post-build smoke test (.ci/smoke.sh).
 
 # -------------------------------------------------------------------------
+# West venv runtime deps the parent layer misses. West extension commands
+# (`west build`, `west flash`) and the blob fetchers (`west blobs fetch`)
+# import `requests` and `jsonschema` at runtime; without them all three
+# crash (masked by a west bug as "AttributeError: 'NoneType' object has no
+# attribute 'err'"). uv-created venvs ship WITHOUT pip, so install via the
+# same uv-as-dev mechanism the parent layer used to create the venv.
+# -------------------------------------------------------------------------
+RUN runuser -u dev -- /home/dev/.local/bin/uv pip install \
+      --python "${WEST_VENV}/bin/python" \
+      --no-cache-dir \
+      requests \
+      jsonschema \
+ && chmod -R a+rx "${WEST_VENV}"
+
+# -------------------------------------------------------------------------
 # Extra Zephyr SDK toolchains — same setup.sh mechanism the parent layer
 # uses; setup.sh resolves its own host arch and fetches the matching
 # toolchain archive into ${ZEPHYR_SDK_INSTALL_DIR} (inherited env).
