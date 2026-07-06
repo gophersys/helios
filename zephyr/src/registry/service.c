@@ -357,7 +357,8 @@ cipher_iface_t *registry_get_iface(cipher_daemon_t *d, uint16_t device_id) {
 static inline bool verify_service_entry(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
     if (entry->service.id == 0) {
-        WARN("Service cannot have ID 0");
+        // Empty/unused registry slot — not a valid service, but not an error to
+        // report. (Warning here floods the UART when the SD path scans slots.)
         return false;
     }
 
