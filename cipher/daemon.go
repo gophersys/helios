@@ -25,10 +25,11 @@ type Service struct {
 // Config is the user configuration for a daemon node (cipher_daemon_config_t).
 type Config struct {
 	DeviceID      uint16
-	ClientIfaces  []*iface.Interface // Uplinks: this node dials out
-	ServerIfaces  []*iface.Interface // Downlinks: this node accepts
-	LocalServices []Service          // Broadcast to peers on connect
-	Analyzer      *Analyzer          // Optional observability (nil = off)
+	ClientIfaces  []*iface.Interface    // Uplinks: this node dials out
+	ServerIfaces  []*iface.Interface    // Downlinks: this node accepts
+	LocalServices []Service             // Broadcast to peers on connect
+	RPCHandlers   map[uint32]RPCHandler // key: rpcKey(service, op) — server-side RPCs
+	Analyzer      *Analyzer             // Optional observability (nil = off)
 }
 
 // Daemon is a running cipher node.
@@ -37,6 +38,17 @@ type Daemon struct {
 
 	registryMutex sync.Mutex
 	registry      map[uint16]remoteService // key: service id
+
+	routesMutex sync.Mutex
+	routes      map[uint16]*iface.Interface // device id -> transport that reaches it
+
+	rpcMutex   sync.Mutex
+	rpcPending map[uint32]chan rpcReply // key: rpcKey(service, op)
+
+	streamMutex   sync.Mutex
+	streamRx      map[uint16]*streamReassembly // key: stream id
+	lastStreamRx  StreamStats
+	lastStreamSet bool
 
 	waitGroup sync.WaitGroup
 }
@@ -49,8 +61,11 @@ type remoteService struct {
 // NewDaemon builds (but does not start) a daemon. Mirrors cipher_daemon_init.
 func NewDaemon(config Config) *Daemon {
 	return &Daemon{
-		config:   config,
-		registry: make(map[uint16]remoteService),
+		config:     config,
+		registry:   make(map[uint16]remoteService),
+		routes:     make(map[uint16]*iface.Interface),
+		rpcPending: make(map[uint32]chan rpcReply),
+		streamRx:   make(map[uint16]*streamReassembly),
 	}
 }
 
@@ -170,7 +185,9 @@ func (d *Daemon) handshakeUplink(transport *iface.Interface) bool {
 func (d *Daemon) handshakeDownlink(transport *iface.Interface) bool {
 	log.Printf("Handshaking downlink node")
 
-	version := make([]byte, MaxPayloadSize)
+	// Read EXACTLY the 2 version bytes so TCP cannot hand back coalesced
+	// follow-on data (the peer's SD broadcast) and break framing.
+	version := make([]byte, 2)
 	received, _, _, err := transport.Recv(version)
 	if err != nil || received != 2 {
 		log.Printf("downlink handshake recv (%d bytes): %v", received, err)
@@ -247,10 +264,13 @@ func (d *Daemon) broadcastLocalServices(transport *iface.Interface) {
 // may carry several packets back to back (the firmware coalesces SD
 // broadcasts), so the loop walks the buffer by header+payload strides.
 func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
-	buffer := make([]byte, MaxPayloadSize)
+	readBuf := make([]byte, MaxPayloadSize)
+	// acc holds bytes that have arrived but not yet formed a complete packet.
+	// TCP is a byte stream, so a packet may span reads or several may coalesce.
+	acc := make([]byte, 0, 2*MaxPayloadSize)
 
 	for {
-		received, connClosed, _, err := transport.Recv(buffer)
+		received, connClosed, _, err := transport.Recv(readBuf)
 		if connClosed || (err != nil && err == io.EOF) {
 			log.Printf("iface %d: connection closed by peer", index)
 			d.config.Analyzer.IfaceEvent("close", int32(index))
@@ -262,25 +282,59 @@ func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
 			return
 		}
 
+		acc = append(acc, readBuf[:received]...)
+
+		// Frame every complete packet currently buffered.
 		offset := 0
-		for offset+HeaderSize <= received {
-			header, decodeErr := DecodeHeader(buffer[offset:])
+		for len(acc)-offset >= HeaderSize {
+			header, decodeErr := DecodeHeader(acc[offset:])
 			if decodeErr != nil {
+				offset = len(acc) // desync guard: drop the buffer
 				break
 			}
+			packetEnd := offset + HeaderSize + int(header.PayloadLength)
+			if packetEnd > len(acc) {
+				break // rest of this packet has not arrived yet
+			}
+
 			d.config.Analyzer.CipherPacket(DirectionRX, header)
+			d.recordRoute(header.SourceID, transport)
+			d.dispatch(header, acc[offset+HeaderSize:packetEnd])
+			offset = packetEnd
+		}
 
-			payloadStart := offset + HeaderSize
-			payloadEnd := payloadStart + int(header.PayloadLength)
-			if payloadEnd > received {
-				log.Printf("iface %d: truncated packet (%d > %d)", index, payloadEnd, received)
-				break
-			}
-
-			d.dispatch(header, buffer[payloadStart:payloadEnd])
-			offset = payloadEnd
+		// Slide any trailing partial packet to the front.
+		if offset > 0 {
+			acc = append(acc[:0], acc[offset:]...)
 		}
 	}
+}
+
+// recordRoute learns which transport reaches a given device (like the C
+// registry's device->interface map) so RPC/stream can be sent back.
+func (d *Daemon) recordRoute(deviceID uint16, transport *iface.Interface) {
+	d.routesMutex.Lock()
+	d.routes[deviceID] = transport
+	d.routesMutex.Unlock()
+}
+
+func (d *Daemon) route(deviceID uint16) *iface.Interface {
+	d.routesMutex.Lock()
+	defer d.routesMutex.Unlock()
+	return d.routes[deviceID]
+}
+
+// sendPacket encodes a header + raw payload and writes it to the transport.
+func (d *Daemon) sendPacket(transport *iface.Interface, header Header, payload []byte) error {
+	header.PayloadLength = uint16(len(payload))
+	packet := make([]byte, HeaderSize+len(payload))
+	if err := header.EncodeHeader(packet); err != nil {
+		return err
+	}
+	copy(packet[HeaderSize:], payload)
+	d.config.Analyzer.CipherPacket(DirectionTX, header)
+	_, _, _, err := transport.Send(packet)
+	return err
 }
 
 func (d *Daemon) dispatch(header Header, payload []byte) {
@@ -309,6 +363,12 @@ func (d *Daemon) dispatch(header Header, payload []byte) {
 
 		log.Printf("registry: learned service %q (id %d) at device 0x%04x",
 			broadcast.Name, broadcast.ServiceID, broadcast.DeviceID)
+
+	case PacketTypeRPC:
+		d.handleRPCPacket(header, payload)
+
+	case PacketTypeStream:
+		d.handleStreamPacket(header, payload)
 
 	default:
 		log.Printf("unhandled packet: %s", header)

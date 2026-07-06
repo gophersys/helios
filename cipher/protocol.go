@@ -61,6 +61,11 @@ const (
 	FlagRPCResponse uint8 = 1 << 1
 	FlagRPCError    uint8 = 1 << 2
 	FlagSDBroadcast uint8 = 1 << 3
+
+	// Stream framing (mirror protocol.h)
+	FlagStreamStart uint8 = 1 << 4
+	FlagStreamData  uint8 = 1 << 5
+	FlagStreamEnd   uint8 = 1 << 6
 )
 
 // Broadcast destination: every device on the network.
