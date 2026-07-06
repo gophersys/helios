@@ -9,3 +9,4 @@ Documentation index for `infrastructure/`.
 | `contracts.md`            | What an application monorepo can rely on from infra     |
 | `secrets-guide.md`        | Bitwarden ephemeral-on-tmpfs pattern, end-to-end        |
 | `troubleshooting.md`      | Common issues and first-stop diagnostics                |
+| `debt-register.md`        | Undocumented/imperative state + the engineering agreement |
