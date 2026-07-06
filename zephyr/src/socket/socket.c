@@ -3,16 +3,16 @@
 #include <corekinect/iface/iface.h>
 
 // Standard includes
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 // Zephyr includes
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_ip.h>
 #include <zephyr/net/socket.h>
-// #include <zephyr/posix/netinet/in.h>
-// #include <zephyr/posix/sys/socket.h>
 
 LOG_MODULE_DECLARE(iface);
 
@@ -23,6 +23,10 @@ LOG_MODULE_DECLARE(iface);
 /**
  * We don't check for NULL interfaces in any function, since caller guarantees to not call us without a
  * valid interface pointer.
+ *
+ * This file uses the zsock_* socket API (and net_htons) rather than the bare BSD
+ * names: NET_SOCKETS_POSIX_NAMES was removed in Zephyr 4.x, and a library should
+ * not force CONFIG_POSIX_API onto its consumers.
  */
 
 //TODO: Clean the living hell of this file, ASSERTS, names etc
@@ -40,7 +44,18 @@ bool socket_create(iface_t *iface)
 
     int *socket_ptr = (iface->link == IFACE_LINK_TYPE_CLIENT) ? &iface->client_socket : &iface->listening_socket;
 
-    *socket_ptr = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    // Mark the not-yet-used fd invalid so close() can tell it apart from a real
+    // fd (Zephyr fds start at 0, so a zero-initialized struct is ambiguous).
+    if (iface->link == IFACE_LINK_TYPE_CLIENT)
+    {
+        iface->listening_socket = -1;
+    }
+    else
+    {
+        iface->client_socket = -1;  // Set by accept() later
+    }
+
+    *socket_ptr = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (*socket_ptr < 0)
     {
         LOG_WRN("Socket creation failed: %s", strerror(errno));
@@ -49,15 +64,23 @@ bool socket_create(iface_t *iface)
 
     if (iface->link == IFACE_LINK_TYPE_SERVER)
     {
+        // Allow fast rebinds after a close/restart; otherwise the kernel holds the
+        // port in TIME_WAIT and bind() fails with EADDRINUSE.
+        int reuse = 1;
+        if (zsock_setsockopt(*socket_ptr, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+        {
+            LOG_WRN("SO_REUSEADDR failed (continuing): %s", strerror(errno));
+        }
+
         struct sockaddr_in local_addr = {0};
         local_addr.sin_family = AF_INET;
-        local_addr.sin_port = htons(iface->port);
-        local_addr.sin_addr.s_addr = htonl(INADDR_ANY);  // Bind to all available interfaces
+        local_addr.sin_port = net_htons(iface->port);
+        local_addr.sin_addr.s_addr = INADDR_ANY;  // Bind to all available interfaces
 
-        if (bind(*socket_ptr, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
+        if (zsock_bind(*socket_ptr, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
         {
             LOG_WRN("Socket bind failed: %s", strerror(errno));
-            close(*socket_ptr);
+            zsock_close(*socket_ptr);
             return false;
         }
     }
@@ -79,12 +102,12 @@ bool socket_set_opt(iface_t *iface, iface_opt_t type, void *option, size_t optio
         {
             __ASSERT(option_size == sizeof(uint16_t), "Option size mismatch for TIMEOUT options");
 
-            struct timeval tv;
+            struct zsock_timeval tv;
             tv.tv_sec = (*(uint16_t *)option) / 1000;
             tv.tv_usec = ((*(uint16_t *)option) % 1000) * 1000;
             int optname = (type == IFACE_OPT_SEND_TIMEOUT) ? SO_SNDTIMEO : SO_RCVTIMEO;
 
-            ret = setsockopt(socket_to_set, SOL_SOCKET, optname, &tv, sizeof(tv));
+            ret = zsock_setsockopt(socket_to_set, SOL_SOCKET, optname, &tv, sizeof(tv));
             if (ret < 0)
             {
                 LOG_WRN("Failed to set socket option: %s", strerror(errno));
@@ -106,14 +129,35 @@ bool socket_connect(iface_t *iface, bool *timeout)
     __ASSERT(iface->p_host, "Interface host cannot be NULL");
     __ASSERT(iface->port != 0, "Interface port cannot be zero");
 
-    struct sockaddr_in remote_addr;
+    struct sockaddr_in remote_addr = {0};
     remote_addr.sin_family = AF_INET;
-    remote_addr.sin_port = htons(iface->port);
-    inet_pton(AF_INET, iface->p_host, &remote_addr.sin_addr);  // Convert IP string to sockaddr_in format.
+    remote_addr.sin_port = net_htons(iface->port);
 
-    if (connect(iface->client_socket, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
+    // Fast path: p_host is a numeric IPv4 literal. Otherwise resolve it as a
+    // hostname via DNS (requires CONFIG_DNS_RESOLVER in the application; .local
+    // names additionally need CONFIG_MDNS_RESOLVER).
+    if (zsock_inet_pton(AF_INET, iface->p_host, &remote_addr.sin_addr) != 1)
     {
-        if (errno == EINPROGRESS || errno == EAGAIN || errno == EWOULDBLOCK || ETIMEDOUT)    // These indicate a timeout.
+        struct zsock_addrinfo hints = {
+            .ai_family = AF_INET,
+            .ai_socktype = SOCK_STREAM,
+        };
+        struct zsock_addrinfo *p_res = NULL;
+
+        int err = zsock_getaddrinfo(iface->p_host, NULL, &hints, &p_res);
+        if (err != 0 || p_res == NULL)
+        {
+            LOG_WRN("DNS resolution failed for '%s': err %d", iface->p_host, err);
+            return false;
+        }
+
+        remote_addr.sin_addr = ((struct sockaddr_in *)p_res->ai_addr)->sin_addr;
+        zsock_freeaddrinfo(p_res);
+    }
+
+    if (zsock_connect(iface->client_socket, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
+    {
+        if (errno == EINPROGRESS || errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)    // These indicate a timeout.
         {
             *timeout = true;
             return false;
@@ -134,13 +178,13 @@ bool socket_accept(iface_t *iface, bool *timeout)
     socklen_t addr_len = sizeof(client_addr);
 
     // Start listening on the listening_socket
-    if (listen(iface->listening_socket, 1) < 0)
+    if (zsock_listen(iface->listening_socket, 1) < 0)
     {
         LOG_WRN("Socket listen failed: %s", strerror(errno));
         return false;
     }
 
-    int client_socket = accept(iface->listening_socket, (struct sockaddr *)&client_addr, &addr_len);
+    int client_socket = zsock_accept(iface->listening_socket, (struct sockaddr *)&client_addr, &addr_len);
     if (client_socket < 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)    // These indicate a timeout.
@@ -165,7 +209,7 @@ bool socket_send(const iface_t *iface, const void *buffer, const size_t buffer_s
     __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
     __ASSERT(timeout, "Timeout pointer cannot be NULL");
 
-    int socket_send_count = send(iface->client_socket, buffer, buffer_size, 0);
+    int socket_send_count = zsock_send(iface->client_socket, buffer, buffer_size, 0);
 
     if (socket_send_count > 0)
     {
@@ -196,8 +240,6 @@ bool socket_send(const iface_t *iface, const void *buffer, const size_t buffer_s
 
         return false;
     }
-
-    return true;
 }
 
 bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
@@ -208,7 +250,7 @@ bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
     __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
     __ASSERT(timeout, "Timeout pointer cannot be NULL");
 
-    int socket_recv_count = recv(iface->client_socket, buffer, buffer_size, 0);
+    int socket_recv_count = zsock_recv(iface->client_socket, buffer, buffer_size, 0);
 
     if (socket_recv_count > 0)
     {
@@ -253,21 +295,21 @@ bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
 
 bool socket_close(const iface_t *iface)
 {
-    int result = close(iface->client_socket);
-    if (result < 0)
+    bool ok = true;
+
+    // client_socket is -1 on a server that never accept()ed — skip it.
+    if (iface->client_socket >= 0 && zsock_close(iface->client_socket) < 0)
     {
         LOG_WRN("Failed to close the socket: %s", strerror(errno));
-        return false;
+        ok = false;
     }
 
-    if (iface->link == IFACE_LINK_TYPE_SERVER)
+    if (iface->link == IFACE_LINK_TYPE_SERVER &&
+        iface->listening_socket >= 0 && zsock_close(iface->listening_socket) < 0)
     {
-        result = close(iface->listening_socket);
-        if (result < 0)
-        {
-            LOG_WRN("Failed to close the listening socket: %s", strerror(errno));
-            return false;
-        }
+        LOG_WRN("Failed to close the listening socket: %s", strerror(errno));
+        ok = false;
     }
-    return true;
+
+    return ok;
 }

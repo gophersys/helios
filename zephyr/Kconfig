@@ -23,10 +23,12 @@ config CK_IFACE_LIB_SOCKETS
     select NET_IPV4
     select NET_TCP
     select NET_SOCKETS
-    select NET_SOCKETS_POSIX_NAMES
     select NET_CONTEXT_SNDTIMEO
     select NET_CONTEXT_RCVTIMEO
-    select CONFIG_NOCACHE_MEMORY
+    # NET_SOCKETS_POSIX_NAMES was removed in Zephyr 4.0 (bare BSD names now come
+    # from the POSIX layer / zsock_ wrappers). The old `select CONFIG_NOCACHE_MEMORY`
+    # referenced an undefined symbol (CONFIG_ prefix is illegal inside Kconfig);
+    # the STM32 ethernet driver manages its own DMA memory attributes.
 
 # Set to level DBG to see useful output regarding UART sockets, such as state
 # register/unregister events, etc
