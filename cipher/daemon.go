@@ -318,6 +318,9 @@ func (d *Daemon) recordRoute(deviceID uint16, transport *iface.Interface) {
 	d.routesMutex.Unlock()
 }
 
+// Route returns the transport that reaches a device, or nil.
+func (d *Daemon) Route(deviceID uint16) *iface.Interface { return d.route(deviceID) }
+
 func (d *Daemon) route(deviceID uint16) *iface.Interface {
 	d.routesMutex.Lock()
 	defer d.routesMutex.Unlock()
