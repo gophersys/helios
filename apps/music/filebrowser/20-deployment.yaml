@@ -1,0 +1,74 @@
+# Filebrowser — web UI to browse / download / upload media from any computer's
+# browser. Mounts the same storage the media stack writes to:
+#   /srv/downloads  <- qBittorrent's completed downloads (read-only)
+#   /srv/media      <- /mnt/media on the node (the 100GB NVMe volume, read-write)
+#
+# Node pinning: mounting the RWO qbittorrent-downloads PVC forces this pod onto
+# k3s-w-1 (that PV is node-bound), which is exactly where /mnt/media lives too.
+# RWO is per-NODE, so sharing it with qBittorrent (same node) is fine; mounted
+# read-only here so there's no chance of racing qBit's writes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filebrowser
+  namespace: media
+  labels:
+    app: filebrowser
+    app.kubernetes.io/part-of: music
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: filebrowser
+  template:
+    metadata:
+      labels:
+        app: filebrowser
+        app.kubernetes.io/part-of: music
+    spec:
+      securityContext:
+        runAsUser: 0          # read files owned by qBit's abc(1000) + node root
+      containers:
+        - name: filebrowser
+          image: filebrowser/filebrowser:v2
+          env:
+            - name: FB_DATABASE
+              value: /database/filebrowser.db
+            - name: FB_ROOT
+              value: /srv
+            - name: FB_PORT
+              value: "80"
+            - name: FB_ADDRESS
+              value: 0.0.0.0
+            - name: FB_LOG
+              value: stdout
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: database
+              mountPath: /database
+            - name: downloads
+              mountPath: /srv/downloads
+              readOnly: true
+            - name: media
+              mountPath: /srv/media
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: filebrowser-config
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
+        - name: media
+          hostPath:
+            path: /mnt/media
+            type: Directory

@@ -1,0 +1,28 @@
+# files.mateosegura.com — tailnet-private (same model as torrent/prowlarr).
+# Add DNS-only A record: files.mateosegura.com -> 10.168.0.240
+# Large uploads allowed (media files).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: filebrowser
+  namespace: media
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-homelab
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - files.mateosegura.com
+      secretName: files-tls
+  rules:
+    - host: files.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: filebrowser
+                port:
+                  number: 80
