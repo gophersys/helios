@@ -10,7 +10,7 @@
 
 // Cipher includes
 #include <corekinect/cipher/protocol.h>
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 #include "config/default.h"
 #include "daemon/daemon.h"

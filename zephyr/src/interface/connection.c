@@ -7,7 +7,7 @@
 #include <zephyr/net/socket.h>
 
 // Cipher includes
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 #include "config/default.h"
 #include "daemon/daemon.h"
@@ -99,7 +99,7 @@ static void await_connect(cipher_daemon_t *d, cipher_iface_t *iface) {
 static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
     bool conn_timeout = false;
 
-    if (!tal_create(iface->cfg))
+    if (!iface_create(iface->cfg))
         handle_iface_error(d, iface, IFACE_ERROR_CREATE, NULL, 0);
 
     // Continuously try to establish the connection
@@ -107,9 +107,9 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
     while (!iface->connected)  // TODO: Zephyr's sockets dont yet support a connect() timeout
     {
         switch (iface->cfg->link) {
-            case TAL_LINK_TYPE_CLIENT:
+            case IFACE_LINK_TYPE_CLIENT:
 
-                if (tal_connect(iface->cfg, &conn_timeout)) {
+                if (iface_connect(iface->cfg, &conn_timeout)) {
                     iface->connected = true;
                 } else {
                     if (!conn_timeout)
@@ -117,8 +117,8 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
                 }
                 break;
 
-            case TAL_LINK_TYPE_SERVER:
-                if (tal_accept(iface->cfg, &conn_timeout)) {
+            case IFACE_LINK_TYPE_SERVER:
+                if (iface_accept(iface->cfg, &conn_timeout)) {
                     iface->connected = true;
                 } else {
                     if (!conn_timeout)
@@ -143,10 +143,10 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
 }
 
 static void set_send_recv_timeouts(cipher_daemon_t *d, cipher_iface_t *iface, uint16_t send_t, uint16_t recv_t) {
-    if (!tal_set_opt(iface->cfg, TAL_OPTION_SEND_TIMEOUT, &send_t, sizeof(send_t)))
+    if (!iface_set_opt(iface->cfg, IFACE_OPT_SEND_TIMEOUT, &send_t, sizeof(send_t)))
         handle_iface_error(d, iface, IFACE_ERROR_SET_OPT, NULL, 0);
 
-    if (!tal_set_opt(iface->cfg, TAL_OPTION_RECV_TIMEOUT, &recv_t, sizeof(recv_t)))
+    if (!iface_set_opt(iface->cfg, IFACE_OPT_RECV_TIMEOUT, &recv_t, sizeof(recv_t)))
         handle_iface_error(d, iface, IFACE_ERROR_SET_OPT, NULL, 0);
 }
 
@@ -184,7 +184,7 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface) {
 
     // Close and collect resources
     iface->connected = false;
-    if (!tal_close(iface->cfg))
+    if (!iface_close(iface->cfg))
         handle_iface_error(d, iface, IFACE_ERROR_CLOSE, NULL, 0);
 
     cipher_ctrl_add_event(d, &conn_event);

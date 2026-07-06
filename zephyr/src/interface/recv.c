@@ -12,7 +12,7 @@
 #include <corekinect/cipher/serdes/encode.h>
 #include <corekinect/cipher/serdes/print.h>
 #include <corekinect/cipher/serdes/types.h>
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 #include "config/default.h"
 #include "daemon/daemon.h"
@@ -59,7 +59,7 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2) {
     __ASSERT(d != NULL, "null daemon passed to thread");
     __ASSERT(iface != NULL, "null interface passed to thread");
 
-    tal_config_t *interface_cfg = iface->cfg;
+    iface_t *interface_cfg = iface->cfg;
 
     while (1) {
         // Wait until the iface is connected
@@ -74,7 +74,7 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2) {
             uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
             CHECK_MALLOC(recv_buffer);
 
-            if (!tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed, &timeout)) {
+            if (!iface_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed, &timeout)) {
 
                 // We don't need the network buffer anymore
                 k_heap_free(&d->net_buffers_heap, recv_buffer);

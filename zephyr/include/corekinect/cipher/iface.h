@@ -9,7 +9,7 @@
 #include <zephyr/kernel.h>
 
 // CoreKinect includes
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 /**
  * @struct cipher_iface_t
@@ -17,7 +17,7 @@
  */
 typedef struct {
     uint8_t id;               /*!< Unique Id for the interface */
-    tal_config_t *cfg;        /*!< The TAL config for the interface */
+    iface_t *cfg;        /*!< The TAL config for the interface */
     bool connected;           /*!< Used to indicate connection status */
     struct k_sem conn_sem;    /*!< Used to signal send/recv threads, from conn thread */
     struct k_sem disconn_sem; /*!< Used to signal conn thread, from send or recv threads */

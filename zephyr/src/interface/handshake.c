@@ -9,7 +9,7 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 #include "utils/err.h"
 
 // Private include
@@ -21,8 +21,8 @@ LOG_MODULE_DECLARE(iface);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *iface);
-static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *iface);
+static bool handshake_uplink(cipher_daemon_t *d, iface_t *iface);
+static bool handshake_downlink(cipher_daemon_t *d, iface_t *iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
@@ -31,10 +31,10 @@ bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface) {
     bool status = false;
 
     switch (iface->cfg->link) {
-        case TAL_LINK_TYPE_CLIENT:
+        case IFACE_LINK_TYPE_CLIENT:
             status = handshake_uplink(d, iface->cfg);
             break;
-        case TAL_LINK_TYPE_SERVER:
+        case IFACE_LINK_TYPE_SERVER:
             status = handshake_downlink(d, iface->cfg);
             break;
         default:
@@ -57,7 +57,7 @@ bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface) {
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
+static bool handshake_uplink(cipher_daemon_t *d, iface_t *cfg) {
     LOG("Handshaking uplink node");
 
     uint16_t bytes_sent = 0;
@@ -65,7 +65,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
     bool timeout = false;
 
     uint16_t local_node_version = htons(CIPHER_CONFIG_PROTOCOL_VERSION);
-    if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed, &timeout)) {
+    if (!iface_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to send protocol version to server");
         else if (conn_closed)
@@ -86,7 +86,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
     uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
-    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
+    if (!iface_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to recv server response");
         else if (conn_closed)
@@ -129,7 +129,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg) {
+static bool handshake_downlink(cipher_daemon_t *d, iface_t *cfg) {
     LOG("Handshaking downlink node");
 
     uint16_t bytes_recv = 0;
@@ -140,7 +140,7 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg) {
     uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
-    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
+    if (!iface_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to recv client protocol version");
         else if (conn_closed)
@@ -164,7 +164,7 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg) {
 
     bool supported = (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION) ? true : false;
 
-    if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed, &timeout)) {
+    if (!iface_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to send response %d to client", supported);
         else if (conn_closed)

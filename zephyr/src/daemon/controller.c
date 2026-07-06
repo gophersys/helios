@@ -160,7 +160,7 @@ static void handle_local_event(cipher_daemon_t *d) {
 
             k_thread_abort(d->sd.t_id);
 
-            // tal_close(&daemon->uplink_cfg);
+            // iface_close(&daemon->uplink_cfg);
 
             DBG("Exiting");
 

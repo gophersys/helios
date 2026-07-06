@@ -1,6 +1,8 @@
 config CK_CIPHER_LIB
     bool "Cipher Protocol Library"
-    select CK_TAL_LIB
+    # The transport comes from the iface library (the old CK_TAL_LIB is gone —
+    # TAL was renamed/absorbed into iface). The application picks the flavor.
+    depends on CK_IFACE_LIB_SOCKETS || CK_IFACE_LIB_UART
 
 # Log Levels
 # LOG_LEVEL_NONE 0U

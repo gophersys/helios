@@ -6,7 +6,7 @@
 
 // CoreKinect includes
 #include <corekinect/cipher/config.h>
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 #include "config/default.h"
 #include "daemon/daemon.h"
@@ -15,7 +15,7 @@
  *                                                                                                  API
  *---------------------------------------------------------------------------------------------------*/
 
-void cipher_daemon_start(cipher_daemon_config_t *cfg, cipher_daemon_t *d);
+void cipher_daemon_init(cipher_daemon_config_t *cfg, cipher_daemon_t *d);
 void cipher_daemon_start(cipher_daemon_t *d);
 
 /*-----------------------------------------------------------------------------------------------------

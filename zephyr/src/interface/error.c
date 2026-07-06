@@ -9,7 +9,7 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 #include "utils/err.h"
 
 // Private include

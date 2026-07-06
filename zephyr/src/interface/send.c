@@ -12,7 +12,7 @@
 #include <corekinect/cipher/serdes/encode.h>
 #include <corekinect/cipher/serdes/print.h>
 #include <corekinect/cipher/serdes/types.h>
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 #include "config/default.h"
 #include "daemon/daemon.h"
@@ -118,7 +118,7 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     bool timeout = false;
 
     // Send the encoded encoded_packet on the interface
-    if (!tal_send(iface->cfg, fifo_item->raw_packet, fifo_item->packet_len, &bytes_sent, &conn_closed, &timeout)) {
+    if (!iface_send(iface->cfg, fifo_item->raw_packet, fifo_item->packet_len, &bytes_sent, &conn_closed, &timeout)) {
 
         free_router_packet_fifo_item(d, fifo_item);
 
@@ -180,7 +180,7 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     bool conn_closed = false;
     bool timeout = false;
 
-    if (!tal_send(iface->cfg, send_buffer, packet_len, &bytes_sent, &conn_closed, &timeout)) {
+    if (!iface_send(iface->cfg, send_buffer, packet_len, &bytes_sent, &conn_closed, &timeout)) {
         if (timeout) {
             handle_iface_timeout(d, iface, __func__);
         } else if (conn_closed) {

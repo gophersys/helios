@@ -40,7 +40,7 @@ char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buf
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_daemon_start(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
+void cipher_daemon_init(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
 {
     __ASSERT(cfg != NULL, "Daemon cfg pointer must not be NULL");
     __ASSERT(d != NULL, "Daemon struct pointer must not be NULL");

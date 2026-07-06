@@ -13,7 +13,7 @@
 #include <corekinect/cipher/ops/stream.h>
 #include <corekinect/cipher/ops/types.h>
 #include <corekinect/cipher/protocol.h>
-#include <corekinect/tal.h>
+#include <corekinect/iface/iface.h>
 
 #include "config/default.h"
 #include "daemon/daemon.h"
