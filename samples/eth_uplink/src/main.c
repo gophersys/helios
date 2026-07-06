@@ -13,7 +13,7 @@
 
 LOG_MODULE_REGISTER(eth_uplink);
 
-#define CIPHER_SERVER_HOST "cipher-server.local"
+#define CIPHER_SERVER_HOST CONFIG_CIPHER_SAMPLE_SERVER_HOST
 #define CIPHER_PORT 5555
 
 static cipher_daemon_t daemon_inst;
@@ -28,7 +28,7 @@ static cipher_daemon_config_t daemon_cfg =
         {
             .type = IFACE_TYPE_SOCKET,
             .link = IFACE_LINK_TYPE_CLIENT,
-            .p_host = CIPHER_SERVER_HOST,
+            .p_host = (char *)CIPHER_SERVER_HOST,
             .port = CIPHER_PORT,
         },
     },

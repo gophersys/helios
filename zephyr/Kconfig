@@ -60,7 +60,7 @@ config CK_CIPHER_SERVICE_MAX_NAME_LEN
 # Thread Info
 config CK_CIPHER_IFACE_THREAD_STACK_SIZE
     int "Interface thread stack size"
-    default 1024
+    default 2048
 
 config CK_CIPHER_MAX_NUM_DEVICES_PER_IFACE
     int "Number of allowed devices on an interface"

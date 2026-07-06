@@ -192,6 +192,7 @@ static void init_objects(cipher_daemon_t *d)
     k_fifo_init(&d->sd.iface_disconn_queue);
 
     k_fifo_init(&d->events_packet_event_queue);
+    k_fifo_init(&d->stream_packet_event_queue);  // was missing: stream thread pended on an uninitialized queue (SEGV on native_sim)
 
     k_heap_init(&d->ctrl_events_heap, d->ctrl_events_heap_mem, sizeof(d->ctrl_events_heap_mem));
 

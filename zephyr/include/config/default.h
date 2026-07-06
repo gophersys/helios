@@ -32,26 +32,26 @@
  *                                                                                              Threads
  *---------------------------------------------------------------------------------------------------*/
 #define CTRL_THREAD_PRIORITY 90
-#define CTRL_THREAD_STACK_SIZE 1024
+#define CTRL_THREAD_STACK_SIZE 2048
 
 #define SD_THREAD_PRIORITY 100
-#define SD_THREAD_STACK_SIZE 1024
+#define SD_THREAD_STACK_SIZE 2048
 
 #define ROUTER_THREAD_PRIORITY 100
-#define ROUTER_THREAD_STACK_SIZE 1024
+#define ROUTER_THREAD_STACK_SIZE 2048
 
 #define RPC_THREAD_PRIORITY 100
-#define RPC_WORKER_THREAD_STACK_SIZE 512
-#define RPC_THREAD_STACK_SIZE 1024
+#define RPC_WORKER_THREAD_STACK_SIZE 1024
+#define RPC_THREAD_STACK_SIZE 2048
 
 #define EVENT_THREAD_PRIORITY 100
-#define EVENT_THREAD_STACK_SIZE 1024
+#define EVENT_THREAD_STACK_SIZE 2048
 
 #define STREAM_THREAD_PRIORITY 100
-#define STREAM_THREAD_STACK_SIZE 1024
+#define STREAM_THREAD_STACK_SIZE 2048
 
 #define TRANSPORT_THREAD_BASE_PRIORITY 100
-#define TRANSPORT_THREAD_STACK_SIZE 1024
+#define TRANSPORT_THREAD_STACK_SIZE 2048
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
