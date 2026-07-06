@@ -78,8 +78,6 @@ struct thread_cpu_prev
     uint64_t cycles;
 };
 static struct thread_cpu_prev cpu_prev[MAX_TRACKED_THREADS];
-static uint64_t sys_prev_active;
-static uint64_t sys_prev_total;
 
 static uint64_t prev_cycles_for(const struct k_thread *tid)
 {
@@ -109,17 +107,31 @@ static void store_cycles_for(const struct k_thread *tid, uint64_t cycles)
     }
 }
 
-struct sampler_ctx
+// One snapshot row per thread, collected in a first pass so CPU% can be taken
+// against a denominator (the sum of all threads' execution-cycle deltas) that
+// uses the SAME clock as the numerator. Mixing the runtime-stats counter with
+// k_cycle_get() gave >100% because the two run at different frequencies.
+struct thread_row
 {
-    char *buf;
-    size_t cap;
-    int len;
-    uint64_t elapsed; /* system active+idle cycles this interval */
+    const char *name;
+    uint64_t delta;      /* execution-cycle delta this interval */
+    size_t stack_unused;
+    bool is_idle;
 };
 
-static void per_thread_cb(const struct k_thread *thread, void *user_data)
+struct collect_ctx
 {
-    struct sampler_ctx *ctx = user_data;
+    struct thread_row rows[MAX_TRACKED_THREADS];
+    int count;
+    uint64_t total_delta; /* sum of every thread's delta = active + idle */
+};
+
+static void collect_cb(const struct k_thread *thread, void *user_data)
+{
+    struct collect_ctx *ctx = user_data;
+    if (ctx->count >= MAX_TRACKED_THREADS) {
+        return;
+    }
 
     k_thread_runtime_stats_t rt;
     if (k_thread_runtime_stats_get((struct k_thread *)thread, &rt) != 0) {
@@ -128,22 +140,22 @@ static void per_thread_cb(const struct k_thread *thread, void *user_data)
 
     uint64_t delta = rt.execution_cycles - prev_cycles_for(thread);
     store_cycles_for(thread, rt.execution_cycles);
-    uint32_t cpu_milli = ctx->elapsed ? (uint32_t)(delta * 100000 / ctx->elapsed) : 0;
-
-    size_t unused = 0;
-    (void)k_thread_stack_space_get(thread, &unused);
 
     const char *name = k_thread_name_get((struct k_thread *)thread);
     if (name == NULL || name[0] == '\0') {
         name = "?";
     }
 
-    if (ctx->len < (int)ctx->cap - 96) {
-        ctx->len += snprintk(ctx->buf + ctx->len, ctx->cap - ctx->len,
-            "%s{\"name\":\"%s\",\"cpu_milli\":%u,\"stack_unused\":%u}",
-            ctx->len && ctx->buf[ctx->len - 1] != '[' ? "," : "",
-            name, cpu_milli, (unsigned)unused);
-    }
+    size_t unused = 0;
+    (void)k_thread_stack_space_get(thread, &unused);
+
+    struct thread_row *row = &ctx->rows[ctx->count++];
+    row->name = name;
+    row->delta = delta;
+    row->stack_unused = unused;
+    row->is_idle = (strstr(name, "idle") != NULL);
+
+    ctx->total_delta += delta;
 }
 
 static void metrics_sampler_thread(void *a, void *b, void *c)
@@ -155,20 +167,22 @@ static void metrics_sampler_thread(void *a, void *b, void *c)
     }
 
     static char buf[1024];
+    static struct collect_ctx ctx;
     while (true) {
         k_sleep(K_MSEC(SAMPLE_INTERVAL_MS));
 
-        k_thread_runtime_stats_t all;
-        if (k_thread_runtime_stats_all_get(&all) != 0) {
-            continue;
+        ctx.count = 0;
+        ctx.total_delta = 0;
+        k_thread_foreach_unlocked(collect_cb, &ctx);
+
+        uint64_t denom = ctx.total_delta ? ctx.total_delta : 1;
+        uint64_t idle_delta = 0;
+        for (int i = 0; i < ctx.count; i++) {
+            if (ctx.rows[i].is_idle) {
+                idle_delta += ctx.rows[i].delta;
+            }
         }
-        uint64_t active = all.execution_cycles;
-        uint64_t total = all.total_cycles;
-        uint64_t elapsed = total - sys_prev_total;
-        uint64_t active_delta = active - sys_prev_active;
-        sys_prev_active = active;
-        sys_prev_total = total;
-        uint32_t sys_cpu_milli = elapsed ? (uint32_t)(active_delta * 100000 / elapsed) : 0;
+        uint32_t sys_cpu_milli = (uint32_t)((denom - idle_delta) * 100000 / denom);
 
         cipher_heap_stats_t heap;
         cipher_daemon_get_heap_stats(&daemon_inst, &heap);
@@ -181,9 +195,12 @@ static void metrics_sampler_thread(void *a, void *b, void *c)
             (unsigned)heap.net_allocated, (unsigned)heap.net_max,
             (unsigned)heap.local_allocated, (unsigned)heap.local_max);
 
-        struct sampler_ctx ctx = { .buf = buf, .cap = sizeof(buf), .len = len, .elapsed = elapsed };
-        k_thread_foreach_unlocked(per_thread_cb, &ctx);
-        len = ctx.len;
+        for (int i = 0; i < ctx.count && len < (int)sizeof(buf) - 96; i++) {
+            uint32_t cpu_milli = (uint32_t)(ctx.rows[i].delta * 100000 / denom);
+            len += snprintk(buf + len, sizeof(buf) - len,
+                "%s{\"name\":\"%s\",\"cpu_milli\":%u,\"stack_unused\":%u}",
+                i ? "," : "", ctx.rows[i].name, cpu_milli, (unsigned)ctx.rows[i].stack_unused);
+        }
         len += snprintk(buf + len, sizeof(buf) - len, "]}");
 
         metrics_emit(buf, len);
