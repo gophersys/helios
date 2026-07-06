@@ -30,7 +30,9 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: tailscale
       server: https://kubernetes.default.svc
-    - namespace: embedded-lab            # only the Namespace object (app-embedded-namespace)
+    - namespace: embedded-lab            # only the Namespace object (app-embedded-namespace) + workspaces RBAC grant
+      server: https://kubernetes.default.svc
+    - namespace: workspaces-prod         # only the Namespace object (app-workspaces-namespace)
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: "*"

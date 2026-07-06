@@ -1,0 +1,23 @@
+# Public path: Cloudflare edge (TLS + Access/Google SSO) -> tunnel ->
+# ingress-nginx:80 -> here. DELIBERATELY NO tls: block — the tunnel
+# enters nginx on plain HTTP and use-forwarded-headers is off, so a TLS
+# section would 308-redirect-loop (grafana precedent; see infra recon
+# 2026-07-06). Cloudflare terminates public TLS at its edge.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workspaces-api
+  namespace: workspaces-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: workspaces.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workspaces-api
+                port:
+                  number: 8080

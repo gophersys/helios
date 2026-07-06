@@ -1,0 +1,35 @@
+# Cross-namespace read grant: the workspaces API (SA in workspaces-prod)
+# may list/watch the dev environments living in embedded-lab, and read
+# their pod logs. Kept OUTSIDE the workspaces AppProject on purpose —
+# granting rights INTO embedded-lab is a platform decision, so a
+# platform-project Application applies this file (app-workspaces-rbac).
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workspaces-reader
+  namespace: embedded-lab
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workspaces-reader
+  namespace: embedded-lab
+subjects:
+  - kind: ServiceAccount
+    name: workspaces-api
+    namespace: workspaces-prod
+roleRef:
+  kind: Role
+  name: workspaces-reader
+  apiGroup: rbac.authorization.k8s.io

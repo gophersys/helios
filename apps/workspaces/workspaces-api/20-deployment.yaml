@@ -1,0 +1,51 @@
+# workspaces-api — the workspaces.mateosegura.com backend + embedded UI.
+# Unprivileged, read-only-rootfs, distroless nonroot image. Reads the
+# embedded-lab envs via the workspaces-reader Role (rbac-embedded/).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspaces-api
+  namespace: workspaces-prod
+  labels:
+    app.kubernetes.io/part-of: workspaces
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workspaces-api
+  template:
+    metadata:
+      labels:
+        app: workspaces-api
+        app.kubernetes.io/part-of: workspaces
+    spec:
+      serviceAccountName: workspaces-api
+      containers:
+        - name: api
+          # NOTE: ghcr package is private on first publish — flip it public
+          # (package settings) or the pull backs off, exactly like
+          # zephyr-devbox did on day one.
+          image: ghcr.io/gophersys/workspaces-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /api/workspaces
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 15
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi

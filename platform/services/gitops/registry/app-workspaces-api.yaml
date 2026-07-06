@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workspaces-api
+  namespace: argocd
+spec:
+  project: workspaces
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/workspaces/workspaces-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: workspaces-prod
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - ServerSideApply=true

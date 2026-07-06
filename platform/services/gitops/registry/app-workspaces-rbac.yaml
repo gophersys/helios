@@ -1,0 +1,22 @@
+# Cross-namespace grant INTO embedded-lab for the workspaces API —
+# platform project on purpose (see apps/workspaces/rbac-embedded/rbac.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workspaces-rbac
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/workspaces/rbac-embedded
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: embedded-lab
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - ServerSideApply=true

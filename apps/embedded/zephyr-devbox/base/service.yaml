@@ -20,3 +20,8 @@ spec:
     - name: ssh
       port: 22
       targetPort: 22
+    # code-server (browser VS Code) — proxied by workspaces-api; auth is
+    # enforced upstream (Cloudflare Access), the pod listens --auth none
+    - name: code
+      port: 8443
+      targetPort: 8443
