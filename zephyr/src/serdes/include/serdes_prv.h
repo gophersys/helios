@@ -17,6 +17,9 @@ decode_func sd_lookup_decode_func(serdes_decode_args_t *args);
 encode_func rpc_lookup_encode_func(cipher_daemon_t *d, serdes_encode_args_t *args);
 decode_func rpc_lookup_decode_func(cipher_daemon_t *d, serdes_decode_args_t *args);
 
+encode_func stream_lookup_encode_func(serdes_encode_args_t *args);
+decode_func stream_lookup_decode_func(serdes_decode_args_t *args);
+
 encode_func event_lookup_encode_func(serdes_encode_args_t *args);
 decode_func event_lookup_decode_func(serdes_decode_args_t *args);
 

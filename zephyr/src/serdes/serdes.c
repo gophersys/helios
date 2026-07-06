@@ -98,8 +98,7 @@ static encode_func lookup_encode_func(cipher_daemon_t *d, serdes_encode_args_t *
 
             break;
         case CIPHER_PACKET_TYPE_STREAM:
-
-            break;
+            return stream_lookup_encode_func(args);
 
         default:
             break;
@@ -122,8 +121,7 @@ static decode_func lookup_decode_func(cipher_daemon_t *d, serdes_decode_args_t *
 
             break;
         case CIPHER_PACKET_TYPE_STREAM:
-
-            break;
+            return stream_lookup_decode_func(args);
 
         default:
             break;

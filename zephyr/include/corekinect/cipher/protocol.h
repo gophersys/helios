@@ -85,6 +85,13 @@ typedef enum
     CIPHER_FLAG_RPC_ERR = (1 << 2),
 
     CIPHER_FLAG_SD_BROADCAST = (1 << 3),
+
+    // Stream framing: START carries the total length + a stream id; DATA
+    // carries an ordered chunk (header.sequence_num); END carries the final
+    // byte count + checksum so the receiver can verify the whole transfer.
+    CIPHER_FLAG_STREAM_START = (1 << 4),
+    CIPHER_FLAG_STREAM_DATA = (1 << 5),
+    CIPHER_FLAG_STREAM_END = (1 << 6),
 } cipher_flags_e;
 
 // Macro to set a flag

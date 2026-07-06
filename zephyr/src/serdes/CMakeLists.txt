@@ -4,4 +4,5 @@ zephyr_library_sources(header.c
                            serdes.c
                            helpers.c
                            sd.c
-                           rpc.c)
+                           rpc.c
+                           stream.c)
