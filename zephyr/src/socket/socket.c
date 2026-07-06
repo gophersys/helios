@@ -16,6 +16,16 @@
 
 LOG_MODULE_DECLARE(iface);
 
+// Optional packet-analyzer hooks (no-ops when the analyzer is absent/disabled)
+#ifdef CONFIG_CK_PKT_ANALYZER
+#include <corekinect/analyzer/analyzer.h>
+#else
+#define CK_ANA_IFACE_EVT(event, detail) ((void)0)
+#define CK_ANA_IFACE_BYTES(dir, count)  ((void)0)
+#define CK_ANA_DIR_TX 0
+#define CK_ANA_DIR_RX 1
+#endif
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes
  *---------------------------------------------------------------------------------------------------*/
@@ -167,6 +177,7 @@ bool socket_connect(iface_t *iface, bool *timeout)
     }
 
     *timeout = false;  // No timeout occurred.
+    CK_ANA_IFACE_EVT("connect", iface->client_socket);
     return true;
 }
 
@@ -198,6 +209,7 @@ bool socket_accept(iface_t *iface, bool *timeout)
     *timeout = false;  // No timeout occurred.
 
     iface->client_socket = client_socket;  // Update iface->client_socket with the new connected socket.
+    CK_ANA_IFACE_EVT("accept", client_socket);
     return true;
 }
 
@@ -213,6 +225,7 @@ bool socket_send(const iface_t *iface, const void *buffer, const size_t buffer_s
 
     if (socket_send_count > 0)
     {
+        CK_ANA_IFACE_BYTES(CK_ANA_DIR_TX, (size_t)socket_send_count);
         *send_count = (uint16_t)socket_send_count;
         *conn_closed = false;
         *timeout = false;
@@ -254,6 +267,7 @@ bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
 
     if (socket_recv_count > 0)
     {
+        CK_ANA_IFACE_BYTES(CK_ANA_DIR_RX, (size_t)socket_recv_count);
         *recv_count = (uint16_t)socket_recv_count;
         *conn_closed = false;
         *timeout = false;
@@ -296,6 +310,8 @@ bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
 bool socket_close(const iface_t *iface)
 {
     bool ok = true;
+
+    CK_ANA_IFACE_EVT("close", iface->client_socket);
 
     // client_socket is -1 on a server that never accept()ed — skip it.
     if (iface->client_socket >= 0 && zsock_close(iface->client_socket) < 0)
