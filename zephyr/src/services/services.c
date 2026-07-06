@@ -17,6 +17,7 @@
 
 // Private include
 #include "interface.h"
+#include "netdbg.h"
 #include "services.h"
 #include "threads.h"
 

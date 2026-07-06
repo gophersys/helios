@@ -145,14 +145,19 @@ static void handle_local_event(cipher_daemon_t *d) {
             DBG("CTRL_EVENT_TYPE_IFACE_CONNECTED received");
             ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
             cipher_iface_t *iface = iface_options->iface;
-            k_fifo_put(&d->sd.iface_conn_queue, iface);
+            // Use alloc_put, NOT k_fifo_put: k_fifo_put reuses the item's first
+            // word as its list node, which would clobber cipher_iface_t::id and
+            // — fatally on a rapid reconnect — let the same iface sit on BOTH the
+            // conn and disconn queues at once, corrupting both lists. alloc_put
+            // wraps the pointer in its own node so the iface is never touched.
+            k_fifo_alloc_put(&d->sd.iface_conn_queue, iface);
         } break;
 
         case CTRL_EVENT_TYPE_IFACE_DISCONNECTED: {
             DBG("CTRL_EVENT_TYPE_IFACE_DISCONNECTED received");
             ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
             cipher_iface_t *iface = iface_options->iface;
-            k_fifo_put(&d->sd.iface_disconn_queue, iface);
+            k_fifo_alloc_put(&d->sd.iface_disconn_queue, iface);
         } break;
 
         case CTRL_EVENT_TYPE_EXIT: {

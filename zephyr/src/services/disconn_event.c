@@ -71,13 +71,28 @@ static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disco
     for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
         cipher_service_entry_t *entry = &d->service_registry.entries[i];
 
-        // Skip entry if it does NOT belong to the disconnected interface
-        // if (entry->iface->id != disconn_iface->id) {
-        //     continue;
-        // } //TODO: fix me
+        // Skip empty slots and our own local services — a client disconnecting
+        // never makes a node-local service unavailable, so don't advertise it
+        // as gone.
+        if (!entry->_used || entry->local) {
+            continue;
+        }
 
         // Skip entry if it cannot be routed to other devices
         if (entry->service.allowed_hops < 1) {
+            continue;
+        }
+
+        // Only re-advertise services that actually had an endpoint on the iface
+        // that disconnected.
+        bool affected = false;
+        for (size_t j = 0; j < ARRAY_SIZE(entry->end_points); j++) {
+            if (entry->end_points[j]._used && entry->end_points[j].iface == disconn_iface) {
+                affected = true;
+                break;
+            }
+        }
+        if (!affected) {
             continue;
         }
 
@@ -94,11 +109,39 @@ static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
 
         cipher_service_entry_t *entry = &d->service_registry.entries[i];
 
-        // Skip entry if it does NOT belong to the disconnected interface
-        // if (entry->iface->id != disconn_iface->id) {
-        //     continue;
-        // } // fix me
+        // Skip empty slots.
+        if (!entry->_used) {
+            continue;
+        }
 
-        registry_service_remove(d, entry);
+        // Local services persist for the lifetime of the node. A client
+        // disconnecting must NEVER remove them — otherwise the first disconnect
+        // wipes our own advertised services and every subsequent client finds
+        // nothing to discover (the reconnect regression this fixes).
+        if (entry->local) {
+            continue;
+        }
+
+        // Remote service: drop only the endpoints that were reachable through
+        // the interface that just disconnected. Endpoints learned via other
+        // interfaces stay put.
+        for (size_t j = 0; j < ARRAY_SIZE(entry->end_points); j++) {
+            cipher_service_end_point_t *ep = &entry->end_points[j];
+            if (ep->_used && ep->iface == disconn_iface) {
+                registry_end_point_rm_from_service(d, entry, ep);
+            }
+        }
+
+        // If the service has no endpoints left, retire the whole entry.
+        bool has_endpoint = false;
+        for (size_t j = 0; j < ARRAY_SIZE(entry->end_points); j++) {
+            if (entry->end_points[j]._used) {
+                has_endpoint = true;
+                break;
+            }
+        }
+        if (!has_endpoint) {
+            registry_service_remove(d, entry);
+        }
     }
 }
