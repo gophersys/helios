@@ -18,6 +18,7 @@ spec:
     chart: kyverno
     targetRevision: 3.8.1
     helm:
+      skipCrds: true   # Kyverno's operator owns its CRDs; avoids API-defaulted conversion drift
       values: |
         admissionController:
           replicas: 1
