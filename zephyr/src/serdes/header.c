@@ -16,6 +16,30 @@
 
 #include "utils/err.h"
 
+// Optional packet-analyzer hooks (no-ops when the analyzer is absent/disabled)
+#ifdef CONFIG_CK_PKT_ANALYZER
+#include <corekinect/analyzer/analyzer.h>
+static inline void ana_emit(ck_ana_dir_t dir, const cipher_header_t *h)
+{
+    const ck_ana_cipher_meta_t meta = {
+        .source_id = h->source_id,
+        .destination_id = h->destination_id,
+        .service_id = h->service_id,
+        .operation_id = h->operation_id,
+        .type = h->type,
+        .payload_len = h->payload_len,
+        .sequence_num = h->sequence_num,
+        .flags = h->flags,
+        .hop_count = h->hop_count,
+    };
+    CK_ANA_CIPHER_PKT(dir, &meta, NULL);
+}
+#else
+#define ana_emit(dir, h) ((void)0)
+#define CK_ANA_DIR_TX 0
+#define CK_ANA_DIR_RX 1
+#endif
+
 LOG_MODULE_DECLARE(serdes);
 
 serdes_error_t serdes_encode_header(uint8_t *buffer, uint16_t buffer_size, const cipher_header_t *header) {
@@ -58,6 +82,8 @@ serdes_error_t serdes_encode_header(uint8_t *buffer, uint16_t buffer_size, const
     if (!serdes_put_uint8(buffer, buffer_size, &position, header->hop_count)) {
         return SERDES_ERROR_ENCODING;
     }
+
+    ana_emit(CK_ANA_DIR_TX, header);
     return SERDES_ERROR_OK;
 }
 
@@ -90,6 +116,7 @@ serdes_error_t serdes_decode_header(const uint8_t *buffer, uint16_t buffer_size,
     header->flags = serdes_get_uint8(buffer, buffer_size, &position);
     header->hop_count = serdes_get_uint8(buffer, buffer_size, &position);
 
+    ana_emit(CK_ANA_DIR_RX, header);
     return SERDES_ERROR_OK;
 }
 

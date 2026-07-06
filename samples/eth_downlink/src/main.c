@@ -33,12 +33,29 @@ static cipher_daemon_config_t daemon_cfg =
     },
 };
 
+// A demo service: gives service discovery something real to broadcast, so
+// cipher packets actually cross the wire (and the analyzer can decode them).
+static cipher_service_entry_t demo_services[] =
+{
+    {
+        .service =
+        {
+            .id = 42,
+            .name = "demo-echo",
+            .allowed_hops = 1,
+            .ops = NULL,
+            .num_ops = 0,
+        },
+    },
+};
+
 int main(void)
 {
     LOG_INF("cipher downlink node booting (device id 0x%04x, port %d)",
             daemon_cfg.device_id, CIPHER_PORT);
 
     cipher_daemon_init(&daemon_cfg, &daemon_inst);
+    cipher_register_local_services(&daemon_inst, demo_services, ARRAY_SIZE(demo_services));
     cipher_daemon_start(&daemon_inst);
 
     while (true)

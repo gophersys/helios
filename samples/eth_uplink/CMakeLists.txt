@@ -4,6 +4,7 @@ set(LIBS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 list(APPEND ZEPHYR_EXTRA_MODULES
     ${LIBS_ROOT}/iface
     ${LIBS_ROOT}/cipher
+    ${LIBS_ROOT}/ck_analyzer
 )
 
 find_package(Zephyr)
