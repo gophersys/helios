@@ -1,0 +1,318 @@
+package cipher
+
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+	"log"
+	"sync"
+
+	"github.com/gophersys/cipher-go/iface"
+)
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                               Daemon
+ *---------------------------------------------------------------------------------------------------*/
+
+// Service is a service this node offers or has learned about.
+type Service struct {
+	ID          uint16
+	Name        string
+	AllowedHops uint8
+	NumOps      uint8
+}
+
+// Config is the user configuration for a daemon node (cipher_daemon_config_t).
+type Config struct {
+	DeviceID      uint16
+	ClientIfaces  []*iface.Interface // Uplinks: this node dials out
+	ServerIfaces  []*iface.Interface // Downlinks: this node accepts
+	LocalServices []Service          // Broadcast to peers on connect
+	Analyzer      *Analyzer          // Optional observability (nil = off)
+}
+
+// Daemon is a running cipher node.
+type Daemon struct {
+	config Config
+
+	registryMutex sync.Mutex
+	registry      map[uint16]remoteService // key: service id
+
+	waitGroup sync.WaitGroup
+}
+
+type remoteService struct {
+	service  Service
+	deviceID uint16
+}
+
+// NewDaemon builds (but does not start) a daemon. Mirrors cipher_daemon_init.
+func NewDaemon(config Config) *Daemon {
+	return &Daemon{
+		config:   config,
+		registry: make(map[uint16]remoteService),
+	}
+}
+
+// Start launches one goroutine per interface (the Go analogue of the
+// firmware's per-interface thread groups). Mirrors cipher_daemon_start.
+func (d *Daemon) Start() {
+	for index, serverInterface := range d.config.ServerIfaces {
+		d.waitGroup.Add(1)
+		go d.runDownlink(index, serverInterface)
+	}
+	for index, clientInterface := range d.config.ClientIfaces {
+		d.waitGroup.Add(1)
+		go d.runUplink(index, clientInterface)
+	}
+}
+
+// Wait blocks until every interface goroutine has exited.
+func (d *Daemon) Wait() { d.waitGroup.Wait() }
+
+// Services returns a snapshot of the learned remote services.
+func (d *Daemon) Services() map[uint16]uint16 {
+	d.registryMutex.Lock()
+	defer d.registryMutex.Unlock()
+
+	snapshot := make(map[uint16]uint16, len(d.registry))
+	for id, remote := range d.registry {
+		snapshot[id] = remote.deviceID
+	}
+	return snapshot
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                            Interface
+ *---------------------------------------------------------------------------------------------------*/
+
+func (d *Daemon) runDownlink(index int, transport *iface.Interface) {
+	defer d.waitGroup.Done()
+
+	if err := transport.Create(); err != nil {
+		log.Printf("downlink %d: create: %v", index, err)
+		return
+	}
+	defer transport.Close()
+
+	for {
+		if _, err := transport.Accept(); err != nil {
+			log.Printf("downlink %d: accept: %v", index, err)
+			return
+		}
+		d.config.Analyzer.IfaceEvent("accept", int32(index))
+
+		if !d.handshakeDownlink(transport) {
+			continue
+		}
+
+		d.broadcastLocalServices(transport)
+		d.receiveLoop(index, transport)
+	}
+}
+
+func (d *Daemon) runUplink(index int, transport *iface.Interface) {
+	defer d.waitGroup.Done()
+
+	if err := transport.Create(); err != nil {
+		log.Printf("uplink %d: create: %v", index, err)
+		return
+	}
+	defer transport.Close()
+
+	if _, err := transport.Connect(); err != nil {
+		log.Printf("uplink %d: connect: %v", index, err)
+		return
+	}
+	d.config.Analyzer.IfaceEvent("connect", int32(index))
+
+	if !d.handshakeUplink(transport) {
+		return
+	}
+
+	d.broadcastLocalServices(transport)
+	d.receiveLoop(index, transport)
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                            Handshake
+ *---------------------------------------------------------------------------------------------------*/
+
+// handshakeUplink: send our protocol version (u16, network byte order),
+// expect one boolean byte back. Wire-identical to handshake_uplink.
+func (d *Daemon) handshakeUplink(transport *iface.Interface) bool {
+	log.Printf("Handshaking uplink node")
+
+	version := make([]byte, 2)
+	binary.BigEndian.PutUint16(version, ProtocolVersion)
+	if _, _, _, err := transport.Send(version); err != nil {
+		log.Printf("uplink handshake send: %v", err)
+		return false
+	}
+
+	response := make([]byte, 1)
+	received, _, _, err := transport.Recv(response)
+	if err != nil || received != 1 {
+		log.Printf("uplink handshake recv (%d bytes): %v", received, err)
+		return false
+	}
+	if response[0] == 0 {
+		log.Printf("server rejected protocol version %d", ProtocolVersion)
+		return false
+	}
+
+	log.Printf("Uplink handshake succesful")
+	return true
+}
+
+// handshakeDownlink: receive the client's version, answer with one boolean
+// byte. Wire-identical to handshake_downlink.
+func (d *Daemon) handshakeDownlink(transport *iface.Interface) bool {
+	log.Printf("Handshaking downlink node")
+
+	version := make([]byte, MaxPayloadSize)
+	received, _, _, err := transport.Recv(version)
+	if err != nil || received != 2 {
+		log.Printf("downlink handshake recv (%d bytes): %v", received, err)
+		return false
+	}
+
+	remoteVersion := binary.BigEndian.Uint16(version[:2])
+	supported := remoteVersion == ProtocolVersion
+
+	answer := []byte{0}
+	if supported {
+		answer[0] = 1
+	}
+	if _, _, _, err := transport.Send(answer); err != nil {
+		log.Printf("downlink handshake send: %v", err)
+		return false
+	}
+	if !supported {
+		log.Printf("client protocol version %d unsupported (want %d)", remoteVersion, ProtocolVersion)
+		return false
+	}
+
+	log.Printf("Downlink handshake succesful")
+	return true
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                    Service Discovery
+ *---------------------------------------------------------------------------------------------------*/
+
+// broadcastLocalServices advertises every local service to the connected
+// peer (the SD-B thread's on-connect behavior).
+func (d *Daemon) broadcastLocalServices(transport *iface.Interface) {
+	for _, service := range d.config.LocalServices {
+		header := Header{
+			SourceID:      d.config.DeviceID,
+			DestinationID: DeviceIDBroadcast,
+			Type:          PacketTypeSD,
+			Flags:         FlagSDBroadcast,
+			PayloadLength: SDBroadcastSize,
+		}
+		payload := SDBroadcast{
+			Alive:       true,
+			Name:        service.Name,
+			ServiceID:   service.ID,
+			DeviceID:    d.config.DeviceID,
+			NumOps:      service.NumOps,
+			AllowedHops: service.AllowedHops,
+		}
+
+		packet := make([]byte, HeaderSize+SDBroadcastSize)
+		if err := header.EncodeHeader(packet); err != nil {
+			log.Printf("sd encode header: %v", err)
+			return
+		}
+		if err := payload.Encode(packet[HeaderSize:]); err != nil {
+			log.Printf("sd encode payload: %v", err)
+			return
+		}
+
+		d.config.Analyzer.CipherPacket(DirectionTX, header)
+		if _, _, _, err := transport.Send(packet); err != nil {
+			log.Printf("sd broadcast send: %v", err)
+			return
+		}
+	}
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                         Receive Loop
+ *---------------------------------------------------------------------------------------------------*/
+
+// receiveLoop reads packets, decodes headers, and dispatches. One TCP read
+// may carry several packets back to back (the firmware coalesces SD
+// broadcasts), so the loop walks the buffer by header+payload strides.
+func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
+	buffer := make([]byte, MaxPayloadSize)
+
+	for {
+		received, connClosed, _, err := transport.Recv(buffer)
+		if connClosed || (err != nil && err == io.EOF) {
+			log.Printf("iface %d: connection closed by peer", index)
+			d.config.Analyzer.IfaceEvent("close", int32(index))
+			return
+		}
+		if err != nil {
+			log.Printf("iface %d: recv: %v", index, err)
+			d.config.Analyzer.IfaceEvent("error", int32(index))
+			return
+		}
+
+		offset := 0
+		for offset+HeaderSize <= received {
+			header, decodeErr := DecodeHeader(buffer[offset:])
+			if decodeErr != nil {
+				break
+			}
+			d.config.Analyzer.CipherPacket(DirectionRX, header)
+
+			payloadStart := offset + HeaderSize
+			payloadEnd := payloadStart + int(header.PayloadLength)
+			if payloadEnd > received {
+				log.Printf("iface %d: truncated packet (%d > %d)", index, payloadEnd, received)
+				break
+			}
+
+			d.dispatch(header, buffer[payloadStart:payloadEnd])
+			offset = payloadEnd
+		}
+	}
+}
+
+func (d *Daemon) dispatch(header Header, payload []byte) {
+	switch header.Type {
+	case PacketTypeSD:
+		if header.Flags&FlagSDBroadcast == 0 {
+			return
+		}
+		broadcast, err := DecodeSDBroadcast(payload)
+		if err != nil {
+			log.Printf("sd decode: %v", err)
+			return
+		}
+
+		d.registryMutex.Lock()
+		d.registry[broadcast.ServiceID] = remoteService{
+			service: Service{
+				ID:          broadcast.ServiceID,
+				Name:        broadcast.Name,
+				AllowedHops: broadcast.AllowedHops,
+				NumOps:      broadcast.NumOps,
+			},
+			deviceID: broadcast.DeviceID,
+		}
+		d.registryMutex.Unlock()
+
+		log.Printf("registry: learned service %q (id %d) at device 0x%04x",
+			broadcast.Name, broadcast.ServiceID, broadcast.DeviceID)
+
+	default:
+		log.Printf("unhandled packet: %s", header)
+	}
+}
+
+var _ = fmt.Sprintf // keep fmt for future handlers
