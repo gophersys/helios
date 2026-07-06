@@ -1,0 +1,70 @@
+# Prowlarr — indexer manager / meta-search for the media stack. Replaces
+# qBittorrent's broken built-in search: Prowlarr does its own indexer HTTP
+# fetches and pushes grabs to qBittorrent's API (added as a download client
+# in the Prowlarr UI after first boot).
+#
+# NO gluetun sidecar (unlike qBittorrent): Prowlarr only makes HTTPS indexer
+# queries, not P2P traffic. If indexer-query privacy matters later, wrap it in
+# a gluetun sidecar the same way qBittorrent is.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: media
+  labels:
+    app: prowlarr
+    app.kubernetes.io/part-of: music
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate            # RWO config volume, single writer
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+        app.kubernetes.io/part-of: music
+    spec:
+      # Same node as qBittorrent (local-path config binds there).
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values: ["pve-00"]
+      containers:
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+          ports:
+            - name: http
+              containerPort: 9696
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: prowlarr-config
