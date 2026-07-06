@@ -1,0 +1,5 @@
+if(CONFIG_CK_IFACE_LIB_UART OR CONFIG_CK_IFACE_LIB_SOCKETS)
+  zephyr_include_directories(include)
+  zephyr_library()
+  add_subdirectory(src)
+endif()

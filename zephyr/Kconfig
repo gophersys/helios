@@ -1,0 +1,79 @@
+config CK_IFACE_LIB_UART
+    bool "Enable UART support for interface library"
+    select SERIAL
+    select SERIAL_SUPPORT_ASYNC
+    select UART_ASYNC_API
+    # select NOCACHE_MEMORY
+    select RING_BUFFER
+    select POLL
+
+config CK_IFACE_LIB_UART_NOCACHE_MEMORY
+    bool "Suggest No-Cache Memory for CK_IFACE_LIB_UART"
+    depends on ARCH_HAS_NOCACHE_MEMORY_SUPPORT
+    help
+      Selecting this option suggests that NOCACHE_MEMORY should be
+      enabled if your architecture supports non-cacheable memory regions.
+      This is useful for DMA operations or other scenarios where cache
+      effects should be avoided. Please ensure to manually select
+      NOCACHE_MEMORY in your configuration if required by your application.
+
+config CK_IFACE_LIB_SOCKETS
+    bool "Enable Sockets support for interface library"
+    select NETWORKING
+    select NET_IPV4
+    select NET_TCP
+    select NET_SOCKETS
+    select NET_SOCKETS_POSIX_NAMES
+    select NET_CONTEXT_SNDTIMEO
+    select NET_CONTEXT_RCVTIMEO
+    select CONFIG_NOCACHE_MEMORY
+
+# Set to level DBG to see useful output regarding UART sockets, such as state
+# register/unregister events, etc
+config CK_IFACE_LIB_STACK_DEBUG_LEVEL
+    int "Log level for UART transport stack"
+    default 3
+
+# Set to level DBG to see useful output regarding the raw data being received
+# on the UART device
+config CK_IFACE_LIB_ASSEMBLER_DEBUG_LEVEL
+    int "Log level for UART packet assembler"
+    default 3
+
+# How many UART devices we expect in the stack
+config CK_IFACE_NUM_UART_SOCKETS
+    int "Number of UART sockets being used"
+    default 1
+
+config CK_IFACE_UART_STACK_HEAP_SIZE
+    int "Heap size for packets heap"
+    default 2128
+
+config CK_IFACE_NUM_PACKET_BUFFERS
+    int "Number of recv buffer pointers available to the packet assembler"
+    default 5
+
+config CK_IFACE_RECV_RING_BUFER_SIZE
+    int "Packet assembler ring buffer size"
+    default 2072
+
+config CK_IFACE_RECV_CB_BUFFER_SIZE
+    int "Buffer used by uart async API to hold newly received data on a bus"
+    default 32
+
+config CK_IFACE_SEND_BUFFER_COUNT
+    int "Packet assembler ring buffer size"
+    default 1
+
+config CK_IFACE_PROTOCOL_MAX_PAYLOAD_SIZE
+    int "Maximum usable payload for a single UART packet"
+    default 1068
+
+# 
+config CK_IFACE_UART_STACK_THREAD_PRIORITY
+    int "Thread priority for the UART transport stack"
+    default 100
+
+config CK_IFACE_UART_STACK_THREAD_STACK_SIZE
+    int "Thread memory stack size for the UART transport stack"
+    default 1024

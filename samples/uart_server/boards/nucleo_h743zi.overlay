@@ -1,0 +1,42 @@
+&usart3 {
+    current-speed = <0xe1000>;
+};
+
+&pinctrl {
+    usart2_rx_pd6: usart2_rx_pd6 {
+        pinmux = <STM32_PINMUX('D', 6, AF7)>;
+        bias-pull-up;
+    };
+
+    usart2_tx_pd5: usart2_tx_pd5 {
+        pinmux = <STM32_PINMUX('D', 5, AF7)>;
+    };
+};
+
+&usart2 {
+    dmas = <&dmamux1 2 44 STM32_DMA_PERIPH_TX>,
+		   <&dmamux1 3 43 STM32_DMA_PERIPH_RX>;
+    dma-names = "tx", "rx";
+    status = "okay";
+    pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
+    pinctrl-names = "default";
+    current-speed = <115200>;
+};
+
+&dma1 {
+	status = "okay";
+};
+
+&dma2 {
+	status = "okay";
+};
+
+&dmamux1 {
+	status = "okay";
+};
+
+/ {
+    aliases {
+        iface-uart = &usart2;
+    };
+};
