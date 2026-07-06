@@ -69,6 +69,11 @@ spec:
               mountPath: /dev/bus/usb
             - name: dev-serial
               mountPath: /dev/serial
+            # sshd host keys live on the home PVC — a restarted pod keeps its
+            # SSH identity (no MITM warnings). Entrypoint generates on first boot.
+            - name: home
+              mountPath: /etc/ssh/hostkeys
+              subPath: .ssh-hostkeys
           readinessProbe:
             tcpSocket:
               port: 22
@@ -94,4 +99,8 @@ spec:
         - name: dev-serial
           hostPath:
             path: /dev/serial
-            type: Directory
+            # DirectoryOrCreate (not Directory): if the node boots a kernel
+            # missing USB-serial drivers, /dev/serial is briefly absent — the
+            # pod must still start (2026-07-06 incident: kernel upgrade without
+            # matching linux-modules-extra blocked FailedMount for 10 min).
+            type: DirectoryOrCreate
