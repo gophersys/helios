@@ -16,6 +16,18 @@
 
 LOG_MODULE_DECLARE(iface);
 
+// Disable Nagle on the CLIENT socket: back-to-back RPC requests were held by
+// Nagle waiting on the prior request's (delayed) ACK, adding ~35-40 ms per
+// round trip. Set on connect() only -- setting it on the server's accepted
+// socket regressed SD delivery on Zephyr's TCP and buys nothing (a lone
+// response packet has no unacked data for Nagle to hold).
+static void set_tcp_nodelay(int sock)
+{
+    int one = 1;
+    int rc = zsock_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+    LOG_INF("TCP_NODELAY on fd %d: rc=%d%s", sock, rc, rc == 0 ? "" : " (errno set)");
+}
+
 // Optional packet-analyzer hooks (no-ops when the analyzer is absent/disabled)
 #ifdef CONFIG_CK_PKT_ANALYZER
 #include <corekinect/analyzer/analyzer.h>
@@ -52,47 +64,57 @@ bool socket_create(iface_t *iface)
         __ASSERT(iface->p_host != NULL, "Remote host cannot be NULL");
     }
 
-    int *socket_ptr = (iface->link == IFACE_LINK_TYPE_CLIENT) ? &iface->client_socket : &iface->listening_socket;
-
-    // Mark the not-yet-used fd invalid so close() can tell it apart from a real
-    // fd (Zephyr fds start at 0, so a zero-initialized struct is ambiguous).
     if (iface->link == IFACE_LINK_TYPE_CLIENT)
     {
+        // A client gets a fresh connected socket per connection.
         iface->listening_socket = -1;
-    }
-    else
-    {
-        iface->client_socket = -1;  // Set by accept() later
+        iface->client_socket = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (iface->client_socket < 0)
+        {
+            LOG_WRN("Socket creation failed: %s", strerror(errno));
+            return false;
+        }
+        return true;
     }
 
-    *socket_ptr = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (*socket_ptr < 0)
+    // SERVER. The listening socket is created ONCE and persists across client
+    // connections — the connection thread calls create()/accept() in a loop, so
+    // re-creating (and closing) the listener on every reconnect churns the tiny
+    // STM32 socket pool until accept()/broadcast start failing. Only the
+    // per-connection client_socket is recycled.
+    iface->client_socket = -1;  // Set by accept()
+
+    if (iface->listening_socket > 0)
+    {
+        return true;  // already listening
+    }
+
+    iface->listening_socket = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (iface->listening_socket < 0)
     {
         LOG_WRN("Socket creation failed: %s", strerror(errno));
         return false;
     }
 
-    if (iface->link == IFACE_LINK_TYPE_SERVER)
+    // Allow fast rebinds after a restart; otherwise the kernel holds the port
+    // in TIME_WAIT and bind() fails with EADDRINUSE.
+    int reuse = 1;
+    if (zsock_setsockopt(iface->listening_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
     {
-        // Allow fast rebinds after a close/restart; otherwise the kernel holds the
-        // port in TIME_WAIT and bind() fails with EADDRINUSE.
-        int reuse = 1;
-        if (zsock_setsockopt(*socket_ptr, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
-        {
-            LOG_WRN("SO_REUSEADDR failed (continuing): %s", strerror(errno));
-        }
+        LOG_WRN("SO_REUSEADDR failed (continuing): %s", strerror(errno));
+    }
 
-        struct sockaddr_in local_addr = {0};
-        local_addr.sin_family = AF_INET;
-        local_addr.sin_port = net_htons(iface->port);
-        local_addr.sin_addr.s_addr = INADDR_ANY;  // Bind to all available interfaces
+    struct sockaddr_in local_addr = {0};
+    local_addr.sin_family = AF_INET;
+    local_addr.sin_port = net_htons(iface->port);
+    local_addr.sin_addr.s_addr = INADDR_ANY;  // Bind to all available interfaces
 
-        if (zsock_bind(*socket_ptr, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
-        {
-            LOG_WRN("Socket bind failed: %s", strerror(errno));
-            zsock_close(*socket_ptr);
-            return false;
-        }
+    if (zsock_bind(iface->listening_socket, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
+    {
+        LOG_WRN("Socket bind failed: %s", strerror(errno));
+        zsock_close(iface->listening_socket);
+        iface->listening_socket = -1;
+        return false;
     }
 
     return true;
@@ -177,6 +199,7 @@ bool socket_connect(iface_t *iface, bool *timeout)
     }
 
     *timeout = false;  // No timeout occurred.
+    set_tcp_nodelay(iface->client_socket);
     CK_ANA_IFACE_EVT("connect", iface->client_socket);
     return true;
 }
@@ -221,22 +244,31 @@ bool socket_send(const iface_t *iface, const void *buffer, const size_t buffer_s
     __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
     __ASSERT(timeout, "Timeout pointer cannot be NULL");
 
-    int socket_send_count = zsock_send(iface->client_socket, buffer, buffer_size, 0);
+    // A stream socket can accept fewer bytes than requested (a "short write")
+    // whenever the send buffer is momentarily full — this is normal TCP, not an
+    // error, and shows up readily on fast/loopback links. Loop until the whole
+    // buffer is delivered so callers get an all-or-error contract.
+    *conn_closed = false;
+    *timeout = false;
 
-    if (socket_send_count > 0)
-    {
-        CK_ANA_IFACE_BYTES(CK_ANA_DIR_TX, (size_t)socket_send_count);
-        *send_count = (uint16_t)socket_send_count;
-        *conn_closed = false;
-        *timeout = false;
-        return true;
-    }
-    else
-    {
-        *send_count = 0;
-        *timeout = false;  // Initialize to false
+    const uint8_t *p = (const uint8_t *)buffer;
+    size_t total_sent = 0;
 
-        if (errno == ECONNRESET || errno == EPIPE)
+    while (total_sent < buffer_size)
+    {
+        int n = zsock_send(iface->client_socket, p + total_sent, buffer_size - total_sent, 0);
+
+        if (n > 0)
+        {
+            CK_ANA_IFACE_BYTES(CK_ANA_DIR_TX, (size_t)n);
+            total_sent += (size_t)n;
+            continue;
+        }
+
+        // n <= 0: real error or the peer went away. Report how much did land.
+        *send_count = (uint16_t)total_sent;
+
+        if (n == 0 || errno == ECONNRESET || errno == EPIPE)
         {
             *conn_closed = true;
             LOG_DBG("Connection closed by remote peer on socket %d", iface->client_socket);
@@ -247,12 +279,14 @@ bool socket_send(const iface_t *iface, const void *buffer, const size_t buffer_s
         }
         else
         {
-            *conn_closed = false;
             LOG_WRN("Socket send error: %s", strerror(errno));
         }
 
         return false;
     }
+
+    *send_count = (uint16_t)total_sent;
+    return true;
 }
 
 bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
@@ -313,19 +347,18 @@ bool socket_close(const iface_t *iface)
 
     CK_ANA_IFACE_EVT("close", iface->client_socket);
 
-    // client_socket is -1 on a server that never accept()ed — skip it.
+    // Close the per-connection client socket. client_socket is -1 on a server
+    // that never accept()ed — skip it.
     if (iface->client_socket >= 0 && zsock_close(iface->client_socket) < 0)
     {
         LOG_WRN("Failed to close the socket: %s", strerror(errno));
         ok = false;
     }
 
-    if (iface->link == IFACE_LINK_TYPE_SERVER &&
-        iface->listening_socket >= 0 && zsock_close(iface->listening_socket) < 0)
-    {
-        LOG_WRN("Failed to close the listening socket: %s", strerror(errno));
-        ok = false;
-    }
+    // The server's listening socket persists across client connections (created
+    // once in socket_create) — do NOT close it on a client disconnect, or the
+    // reconnect churn exhausts the socket pool. It is released only when the
+    // whole daemon tears down.
 
     return ok;
 }
