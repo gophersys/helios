@@ -97,10 +97,14 @@ Both now have strong random passwords stored in Vaultwarden:
   for the final verification pass.
 Recreation for both: `docs/runtime-secrets.md`.
 
-### D6 🟡 Workspaces create/destroy unimplemented
-`POST`/`DELETE /api/workspaces` return `501 gitops automation pending`. Feature,
-not a bug — tracked as task 6 (full TDD: create/remove `apps/embedded/envs/<name>`
-via a GitHub PR using a scoped bot PAT).
+### D6 ✅ Workspaces create/destroy — RESOLVED (gophersys/workspaces#1 + PR #33)
+Implemented with full TDD (34 tests: interface fakes + an httptest GitHub mock).
+`POST`/`DELETE /api/workspaces` open a PR against this repo that adds/removes
+`apps/embedded/envs/<name>/` (the `zephyr-envs` ApplicationSet deploys/prunes on
+merge). Name validation is path-traversal-safe; the manager is token-gated (no
+token → read-only, 503). Live wiring: the `workspaces-github` bot-PAT Secret
+(optional, `docs/runtime-secrets.md`) — creating the PAT is a one-time GitHub-UI
+step, the only part not automatable headlessly.
 
 ### D7 🟡 Documentation drift
 `docs/` predates today's media/portal/workspaces build-out and the live
@@ -118,4 +122,4 @@ imperative installs (ingress-nginx, cloudflared). No authoritative
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
-them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32); **D2** documented (#31).
+them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1); **D2** documented (#31).

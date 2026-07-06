@@ -27,6 +27,23 @@ spec:
           # zephyr-devbox did on day one.
           image: ghcr.io/gophersys/workspaces-api:latest
           imagePullPolicy: Always
+          env:
+            # GitOps automation: create/destroy workspaces open PRs against this
+            # infra repo. OPTIONAL — without the token the API is read-only and
+            # create/delete return 503. Provide it via the `workspaces-github`
+            # Secret (a fine-grained bot PAT) — see docs/runtime-secrets.md.
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: workspaces-github
+                  key: token
+                  optional: true
+            - name: GITHUB_OWNER
+              value: gophersys
+            - name: GITHUB_REPO
+              value: infrastructure
+            - name: GITHUB_BASE
+              value: main
           ports:
             - name: http
               containerPort: 8080

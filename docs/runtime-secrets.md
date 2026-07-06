@@ -41,6 +41,22 @@ Then apply it to the app with `apps/music/filebrowser/reset-admin/job.yaml`
 Vault: `shared/tailscale/oauth-k8s-operator`. Recreation is documented in
 `platform/services/networking/tailscale-operator/README.md`.
 
+### `workspaces-github` (ns `workspaces-prod`) — bot PAT for workspace create/destroy
+The workspaces API opens PRs against this repo to add/remove env overlays.
+**Optional**: without it the API is read-only (create/delete return `503`). The
+Deployment mounts it with `optional: true`, so the pod starts either way.
+1. Create a **fine-grained** GitHub PAT (ideally on a dedicated bot account):
+   resource owner `gophersys`, repository access **`gophersys/infrastructure`
+   only**, permissions **Contents: read/write** + **Pull requests: read/write**.
+   Store it in Vaultwarden as `shared/github/workspaces-bot`.
+2. Create the Secret:
+```sh
+kubectl -n workspaces-prod create secret generic workspaces-github \
+  --from-literal=token="$(bw get password shared/github/workspaces-bot)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+Restart the API to pick it up: `kubectl -n workspaces-prod rollout restart deploy/workspaces-api`.
+
 ## App-managed passwords (not k8s Secrets)
 
 ### qBittorrent WebUI password
