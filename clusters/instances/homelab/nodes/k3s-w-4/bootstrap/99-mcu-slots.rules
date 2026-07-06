@@ -1,0 +1,13 @@
+# Physical hub slot N == QEMU guest port N (usb0..usb5 -> guest ports 1..6).
+# tty symlinks by slot — interface-agnostic glob so any board type works.
+SUBSYSTEM=="tty", ENV{ID_PATH}=="*-usb-0:1:*", SYMLINK+="mcu-slot-1", MODE="0666"
+SUBSYSTEM=="tty", ENV{ID_PATH}=="*-usb-0:2:*", SYMLINK+="mcu-slot-2", MODE="0666"
+SUBSYSTEM=="tty", ENV{ID_PATH}=="*-usb-0:3:*", SYMLINK+="mcu-slot-3", MODE="0666"
+SUBSYSTEM=="tty", ENV{ID_PATH}=="*-usb-0:4:*", SYMLINK+="mcu-slot-4", MODE="0666"
+SUBSYSTEM=="tty", ENV{ID_PATH}=="*-usb-0:5:*", SYMLINK+="mcu-slot-5", MODE="0666"
+SUBSYSTEM=="tty", ENV{ID_PATH}=="*-usb-0:6:*", SYMLINK+="mcu-slot-6", MODE="0666"
+# Raw USB access for flash/debug tools (openocd, esptool, dfu-util) run from pods
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="10c4", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="303a", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1a86", MODE="0666"

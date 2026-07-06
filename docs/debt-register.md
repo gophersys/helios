@@ -30,7 +30,7 @@ Last updated: 2026-07-06.
 
 ## Ledger
 
-### D1 🔴 qBittorrent runtime config lives only on the PVC
+### D1 ✅ qBittorrent runtime config lives only on the PVC — RESOLVED (PR #29)
 The fix that made downloads work — binding qBittorrent to the VPN interface —
 plus the in-cluster auth bypass and search-plugin state were all set via the
 WebUI API and persist only in `qbittorrent-config` PVC
@@ -45,9 +45,10 @@ WebUI\AuthSubnetWhitelist=10.42.0.0/16
 WebUI\AuthSubnetWhitelistEnabled=true
 WebUI\LocalHostAuth=false
 ```
-**Resolution:** initContainer that idempotently enforces these into
-`qBittorrent.conf` before qBittorrent starts. See task 2. Status flips to ✅
-when merged.
+**Resolved (PR #29):** `apps/music/qbittorrent/config-enforce/` — a tested
+(9 unit tests), idempotent, surgical initContainer enforces these keys into
+`qBittorrent.conf` before qBittorrent starts, drift-guarded against the deployed
+ConfigMap. Verified a no-op against the live config; downloads re-verified.
 
 ### D2 🟠 Prowlarr indexer/download-client config not reproducible
 Prowlarr's config + API key live on `prowlarr-config` PVC. The qBittorrent
@@ -56,7 +57,7 @@ and no indexers are added yet — so search isn't functional end-to-end.
 **Resolution:** task 4 — wire the download client correctly and add indexers,
 capturing the steps reproducibly.
 
-### D3 🟠 Host-level changes made over SSH, not in IaC
+### D3 ✅ Host-level changes made over SSH, not in IaC — RESOLVED (PR #30)
 None of these are in Ansible or any tracked config:
 - **pve-01** (Proxmox / ThinkPad P1): lid-suspend disabled
   (`/etc/systemd/logind.conf.d/99-hypervisor-no-sleep.conf` + masked
@@ -67,7 +68,11 @@ None of these are in Ansible or any tracked config:
 - **k3s-w-4**: `linux-generic` meta + `linux-modules-extra-$(uname -r)`
   (the stock cloud kernel lacks `cp210x`/`cdc_acm`), `qemu-guest-agent`, and
   the `/etc/udev/rules.d/99-mcu-slots.rules` stable-slot symlinks.
-**Resolution:** task 3 — capture as an Ansible role or a reviewed runbook.
+**Resolved (PR #30):** idempotent, shellcheck-clean bootstrap scripts —
+`clusters/instances/homelab/nodes/k3s-w-4/bootstrap/` (kernel modules, guest
+agent, udev slot rules) and `clusters/instances/homelab/hypervisors/pve-01/`
+(no-suspend, ip-forward). File-based config is auto-applied; live device/tailnet
+ops (USB passthrough, subnet-router advertise) are documented in each README.
 
 ### D4 🟡 Secrets created imperatively (accepted pattern, needs recording)
 - `media/homepage-secrets` — Prowlarr API key + qBit widget placeholder,
@@ -103,4 +108,5 @@ imperative installs (ingress-nginx, cloudflared). No authoritative
 
 ## Resolved
 
-_(entries move here as tasks complete, with the PR that captured them)_
+Resolved items stay in the ledger above, marked ✅ with the PR that captured
+them. So far: **D1** (PR #29), **D3** (PR #30).
