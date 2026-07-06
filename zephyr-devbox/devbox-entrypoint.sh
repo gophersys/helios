@@ -3,8 +3,10 @@
 # devbox-entrypoint.sh — PID 1 for the zephyr-devbox pod.
 #
 # Runs as root: prepares persistent SSH host keys, the `dev` user's
-# authorized_keys, and mounted-volume ownership, then execs sshd in the
-# foreground. Interactive work happens over SSH as `dev`.
+# authorized_keys, and mounted-volume ownership, starts code-server (as
+# `dev`, backgrounded, supplementary), then execs sshd in the foreground.
+# Interactive work happens over SSH as `dev` or in the browser via
+# code-server on :8443.
 #
 # Pass-through: any argv (e.g. `docker run <image> zsh`, or a devcontainer
 # override command) is exec'd instead of sshd, preserving local-devcontainer
@@ -17,6 +19,9 @@ HOSTKEY_DIR=/etc/ssh/hostkeys
 AUTHORIZED_KEYS_FILE=/etc/devbox/authorized_keys
 DEV_HOME=/home/dev
 DEV_SSH_DIR="${DEV_HOME}/.ssh"
+CODE_SERVER_SEED_EXT_DIR="${CODE_SERVER_SEED_EXTENSIONS:-/opt/code-server-extensions}"
+DEV_CODE_SERVER_EXT_DIR="${DEV_HOME}/.local/share/code-server/extensions"
+CODE_SERVER_LOG=/var/log/code-server.log
 
 function log() { printf '[devbox-entrypoint] %s\n' "$*" >&2; }
 
@@ -96,6 +101,40 @@ for n in 1 2 3 4 5 6; do
     fi
   done
 done
+
+# -------- code-server --------
+# Browser VS Code for the workspaces web UI, served alongside sshd.
+# --auth none is DELIBERATE: an authenticating reverse proxy + Cloudflare
+# Access sit in front of :8443, so code-server must not stack a second
+# login on top. Config and extensions live under the default XDG paths in
+# /home/dev (~/.config/code-server, ~/.local/share/code-server), i.e. on
+# the PVC, so settings and user-installed extensions survive pod restarts.
+# Supplementary service: a startup failure (or a later crash of the
+# backgrounded child) must never take sshd down.
+if command -v code-server >/dev/null 2>&1; then
+  # Seed the baked-in extension set (clangd) onto a fresh home. The image
+  # keeps it in /opt because the PVC mount masks anything installed into
+  # /home/dev at build time. Done as dev so no root-owned dirs land in the
+  # home; skipped once the user's extensions dir exists.
+  if [[ -d "${CODE_SERVER_SEED_EXT_DIR}" ]] && [[ ! -d "${DEV_CODE_SERVER_EXT_DIR}" ]]; then
+    log "seeding code-server extensions -> ${DEV_CODE_SERVER_EXT_DIR}"
+    if ! runuser -u dev -- mkdir -p "${DEV_CODE_SERVER_EXT_DIR%/*}" \
+      || ! runuser -u dev -- cp -a "${CODE_SERVER_SEED_EXT_DIR}" "${DEV_CODE_SERVER_EXT_DIR}"; then
+      log "WARNING: could not seed code-server extensions (continuing)"
+    fi
+  fi
+  # cwd is already /workspace (image WORKDIR); the trailing folder arg
+  # makes the browser UI open it by default.
+  log "starting code-server on :8443 (log: ${CODE_SERVER_LOG})"
+  runuser -u dev -- code-server \
+    --bind-addr 0.0.0.0:8443 \
+    --auth none \
+    --disable-telemetry \
+    /workspace \
+    >>"${CODE_SERVER_LOG}" 2>&1 &
+else
+  log "WARNING: code-server not installed — browser IDE unavailable"
+fi
 
 # -------- sshd --------
 mkdir -p /run/sshd

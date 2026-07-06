@@ -5,8 +5,9 @@
 # Runs as a Kubernetes pod and is targeted with VS Code Remote-SSH. Adds
 # sshd (key-auth only, host keys on a persistent volume), the flash/debug
 # stack for the lab bench (openocd, stlink-tools, esptool, picocom,
-# gdb-multiarch), the full Espressif Xtensa SDK toolchain set, and udev
-# rules for the USB-UART bridges the bench boards use (CP210x, CH340).
+# gdb-multiarch), the full Espressif Xtensa SDK toolchain set, udev
+# rules for the USB-UART bridges the bench boards use (CP210x, CH340),
+# and code-server on :8443 for browser VS Code (the workspaces web UI).
 #
 # The container starts as ROOT so sshd can bind and manage host keys;
 # interactive work happens over SSH as the `dev` user. Local devcontainer
@@ -23,6 +24,7 @@ ARG BUILDPLATFORM
 # Tool versions — latest LTS / stable as of 2026-07-05.
 # -------------------------------------------------------------------------
 ARG ESPTOOL_VERSION=5.3.1                                              # latest stable as of 2026-07-05
+ARG CODE_SERVER_VERSION=4.127.0                                        # latest stable as of 2026-07-06
 # Extra Zephyr SDK toolchains installed on top of the parent layer's set
 # (arm-zephyr-eabi + riscv64-zephyr-elf). This is EVERY Espressif toolchain
 # sdk-ng v1.0.1 ships (names verified against the release's toolchain
@@ -170,14 +172,55 @@ RUN { \
       echo 'export ZEPHYR_BASE=/workspace/zephyr'; \
     } >> /etc/zsh/zshenv
 
+# -------------------------------------------------------------------------
+# code-server — browser VS Code for the workspaces web UI, from coder's
+# release .deb (TARGETPLATFORM-aware, same pattern as the Zephyr SDK
+# fetch). The entrypoint serves it on :8443 alongside sshd; an
+# authenticating reverse proxy + Cloudflare Access front it.
+# -------------------------------------------------------------------------
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=amd64 ;; \
+      linux/arm64) ARCH=arm64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && wget -q -O /tmp/code-server.deb \
+      "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_${ARCH}.deb" \
+ && dpkg -i /tmp/code-server.deb \
+ && rm /tmp/code-server.deb
+# NOTE: no in-layer version smoke, per repo convention — verified on the
+# native arch in the post-build smoke test (.ci/smoke.sh). code-server IS
+# executed at build time by the extension-seed layer below (node runs
+# under QEMU, unlike the static native binaries the convention exists for).
+
+# -------------------------------------------------------------------------
+# code-server extension seed. At runtime /home/dev is a PVC mount, so any
+# extension installed into the home at build time would be masked by the
+# mount; bake the set into /opt instead and let the entrypoint seed a
+# fresh home from it. The clangd extension (NOT Microsoft cpptools:
+# ms-vscode.cpptools is licence-restricted to official Microsoft VS Code
+# builds and absent from Open VSX, so it cannot ship with code-server)
+# pairs with the apt-installed clangd binary above for browser
+# IntelliSense out of the box.
+# -------------------------------------------------------------------------
+ENV CODE_SERVER_SEED_EXTENSIONS=/opt/code-server-extensions
+
+RUN mkdir -p "${CODE_SERVER_SEED_EXTENSIONS}" \
+ && chown -R dev:dev "${CODE_SERVER_SEED_EXTENSIONS}" \
+ && runuser -u dev -- code-server \
+      --extensions-dir "${CODE_SERVER_SEED_EXTENSIONS}" \
+      --install-extension llvm-vs-code-extensions.vscode-clangd \
+ && chmod -R a+rx "${CODE_SERVER_SEED_EXTENSIONS}"
+
 COPY --chmod=0755 devbox-entrypoint.sh /usr/local/bin/devbox-entrypoint.sh
 
 ENV GOPHERSYS_DEVCONTAINER=zephyr-devbox
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
-LABEL org.opencontainers.image.description="gophersys zephyr-devbox layer: SSH-able k8s embedded dev box (sshd + openocd + stlink + esptool ${ESPTOOL_VERSION} + picocom)"
+LABEL org.opencontainers.image.description="gophersys zephyr-devbox layer: SSH-able k8s embedded dev box (sshd + openocd + stlink + esptool ${ESPTOOL_VERSION} + picocom + code-server ${CODE_SERVER_VERSION})"
 
 EXPOSE 22
+# code-server (browser VS Code) — fronted by the workspaces reverse proxy.
+EXPOSE 8443
 
 # Root by design: the entrypoint prepares host keys / volume ownership and
 # execs sshd. Interactive logins land as `dev` (AllowUsers dev).

@@ -102,6 +102,11 @@ esptool version
 picocom --help >/dev/null && echo "picocom: ok"
 gdb-multiarch --version | head -n 1
 clangd --version
+code-server --version
+# Baked-in extension seed (the entrypoint copies it onto a fresh PVC home).
+code-server --extensions-dir "${CODE_SERVER_SEED_EXTENSIONS}" --list-extensions \
+  | grep llvm-vs-code-extensions.vscode-clangd \
+  && echo "code-server clangd extension: ok"
 # west extension commands + blob fetchers import these at runtime.
 /opt/west-venv/bin/python -c "import requests, jsonschema" && echo "west venv deps: ok"
 # `west espressif monitor` imports esptool + pyserial inside the west venv.
