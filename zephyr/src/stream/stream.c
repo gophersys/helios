@@ -44,6 +44,7 @@ static struct {
 
 static cipher_stream_rx_stats_t stream_last_rx;
 static bool stream_last_rx_valid;
+static uint32_t stream_completion_id;
 static K_MUTEX_DEFINE(stream_mutex);
 
 /*-----------------------------------------------------------------------------------------------------
@@ -189,6 +190,7 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
 
         k_mutex_lock(&stream_mutex, K_FOREVER);
         int64_t duration = k_uptime_get() - stream_rx.start_time;
+        stream_last_rx.completion_id = ++stream_completion_id;
         stream_last_rx.stream_id = stream_rx.stream_id;
         stream_last_rx.total_len = stream_rx.total_len;
         stream_last_rx.received_len = stream_rx.received_len;

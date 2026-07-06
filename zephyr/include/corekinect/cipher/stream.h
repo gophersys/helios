@@ -48,6 +48,7 @@ int32_t cipher_stream_send(cipher_daemon_t *d, uint16_t device_id, uint16_t stre
  * @brief Stats for the most recently completed inbound stream.
  */
 typedef struct {
+    uint32_t completion_id;  /**< Monotonic per completed stream (dedup key) */
     uint16_t stream_id;
     uint32_t total_len;      /**< Bytes the sender declared in START */
     uint32_t received_len;   /**< Bytes actually received across DATA packets */
