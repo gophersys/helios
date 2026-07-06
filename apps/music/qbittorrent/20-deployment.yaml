@@ -44,6 +44,32 @@ spec:
                   - key: topology.kubernetes.io/zone
                     operator: In
                     values: ["pve-00"]
+      initContainers:
+        # Reconcile the download-critical settings into qBittorrent.conf BEFORE
+        # qBittorrent starts, so binding-to-tun0 + the in-cluster auth whitelist
+        # survive a config-PVC rebuild (docs/debt-register.md, D1). Idempotent
+        # and surgical — a no-op when the conf is already compliant. Script is
+        # the tested config-enforce/enforce_qbt.py, shipped via ConfigMap.
+        - name: enforce-config
+          image: python:3.12-alpine
+          command:
+            - sh
+            - -c
+            - >-
+              python3 /scripts/enforce_qbt.py /config/qBittorrent/qBittorrent.conf
+              && { chown 1000:1000 /config/qBittorrent /config/qBittorrent/qBittorrent.conf 2>/dev/null || true; }
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: config-enforce
+              mountPath: /scripts
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
       containers:
         # ---------- VPN sidecar: all pod egress routes through here ----------
         - name: gluetun
@@ -136,3 +162,6 @@ spec:
             claimName: qbittorrent-downloads
         - name: gluetun-tmp
           emptyDir: {}
+        - name: config-enforce
+          configMap:
+            name: qbittorrent-config-enforce
