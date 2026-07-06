@@ -178,11 +178,7 @@ RUN { \
 # fetch). The entrypoint serves it on :8443 alongside sshd; an
 # authenticating reverse proxy + Cloudflare Access front it.
 # -------------------------------------------------------------------------
-RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
-      linux/arm64) ARCH=arm64 ;; \
-      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
-    esac \
+RUN ARCH="$(dpkg --print-architecture)" \
  && wget -q -O /tmp/code-server.deb \
       "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_${ARCH}.deb" \
  && dpkg -i /tmp/code-server.deb \
