@@ -22,6 +22,8 @@ LOG_MODULE_REGISTER(cipher_esp32, LOG_LEVEL_INF);
 
 static struct net_mgmt_event_callback wifi_cb, ipv4_cb;
 static volatile bool have_ip;
+static struct k_sem connect_result;   /* given on each WiFi CONNECT_RESULT */
+static volatile int connect_status;   /* 0 = associated, else failure reason */
 
 static cipher_daemon_t daemon_inst;
 static cipher_daemon_config_t daemon_cfg = {
@@ -53,10 +55,13 @@ static void wifi_evt(struct net_mgmt_event_callback *cb, uint64_t evt, struct ne
 {
     if (evt == NET_EVENT_WIFI_CONNECT_RESULT) {
         const struct wifi_status *st = cb->info;
-        if (st->status) { LOG_ERR("WiFi failed %d", st->status); return; }
-        struct wifi_ps_params ps = { .enabled = WIFI_PS_DISABLED };
-        net_mgmt(NET_REQUEST_WIFI_PS, iface, &ps, sizeof(ps));
-        net_dhcpv4_start(iface);
+        connect_status = st->status;
+        if (st->status == 0) {
+            struct wifi_ps_params ps = { .enabled = WIFI_PS_DISABLED };
+            net_mgmt(NET_REQUEST_WIFI_PS, iface, &ps, sizeof(ps));
+            net_dhcpv4_start(iface);
+        }
+        k_sem_give(&connect_result);
     }
 }
 static void ipv4_evt(struct net_mgmt_event_callback *cb, uint64_t evt, struct net_if *iface)
@@ -79,6 +84,7 @@ int main(void)
     net_mgmt_init_event_callback(&ipv4_cb, ipv4_evt, NET_EVENT_IPV4_ADDR_ADD);
     net_mgmt_add_event_callback(&ipv4_cb);
 
+    k_sem_init(&connect_result, 0, 1);
     struct net_if *iface = net_if_get_first_wifi();
     k_sleep(K_SECONDS(1));
     static struct wifi_connect_req_params p;
@@ -86,10 +92,34 @@ int main(void)
     p.psk = (const uint8_t *)CONFIG_WIFI_PSK;   p.psk_length = strlen(CONFIG_WIFI_PSK);
     p.security = WIFI_SECURITY_TYPE_PSK; p.channel = WIFI_CHANNEL_ANY;
     p.band = WIFI_FREQ_BAND_2_4_GHZ; p.mfp = WIFI_MFP_OPTIONAL;
-    LOG_INF("connecting to '%s'...", CONFIG_WIFI_SSID);
-    net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &p, sizeof(p));
 
-    while (!have_ip) k_sleep(K_MSEC(200));
+    // Retry until associated + DHCP, with EXPONENTIAL BACKOFF. A single patient
+    // attempt reliably associates; hammering the AP with rapid retries makes a
+    // consumer router rate-limit the MAC (every attempt then returns
+    // CONN_TIMEOUT). Backing off gives both the driver and the AP time to
+    // recover, so across a continuous reflash loop a fresh flash always comes up
+    // on WiFi without intervention.
+    int backoff_s = 5;
+    for (int attempt = 1; !have_ip; attempt++) {
+        LOG_INF("WiFi connect attempt %d to '%s'...", attempt, CONFIG_WIFI_SSID);
+        k_sem_reset(&connect_result);
+        connect_status = -1;
+        net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &p, sizeof(p));
+        if (k_sem_take(&connect_result, K_SECONDS(25)) == 0 && connect_status == 0) {
+            for (int i = 0; i < 75 && !have_ip; i++) {
+                k_sleep(K_MSEC(200));   /* associated — wait for the DHCP lease */
+            }
+        }
+        if (have_ip) {
+            break;
+        }
+        LOG_WRN("WiFi attempt %d failed (status=%d) — backoff %ds", attempt, connect_status, backoff_s);
+        net_mgmt(NET_REQUEST_WIFI_DISCONNECT, iface, NULL, 0);
+        k_sleep(K_SECONDS(backoff_s));
+        if (backoff_s < 30) {
+            backoff_s += 5;    /* 5,10,15,20,25,30,30... */
+        }
+    }
 
     LOG_INF("network up — starting cipher daemon (device 0x%04x, port %d)", daemon_cfg.device_id, CIPHER_PORT);
     cipher_daemon_init(&daemon_cfg, &daemon_inst);
