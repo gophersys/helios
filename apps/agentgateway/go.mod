@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/gophersys/libs/go/agentruntime v0.0.0
 	github.com/gophersys/libs/go/agentsession v0.0.0
+	github.com/gophersys/libs/go/codeinsight v0.0.0
 	github.com/gophersys/libs/go/dependencies v0.0.0
 	github.com/gophersys/libs/go/edenhttp v0.0.0
 	github.com/gophersys/libs/go/errors v0.0.0

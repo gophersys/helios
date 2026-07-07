@@ -27,6 +27,7 @@ import (
 //	POST   /projects                         persist a Project from the scoped product (Build it)
 //	GET    /projects                         list persisted projects (the dashboard grid)
 //	GET    /projects/{id}                    get one persisted project
+//	GET    /projects/{id}/insight            codeinsight Report over the project's worktree (self-feeding)
 //	GET    /agent-configs                    list the saved per-agent-type configurations (Settings)
 //	PUT    /agent-configs/{agentType}        upsert one agent type's configuration
 //	GET    /healthz                          liveness
@@ -37,6 +38,7 @@ func (g *Gateway) routes() *http.ServeMux {
 	mux.HandleFunc("POST /projects", g.handleCreateProject)
 	mux.HandleFunc("GET /projects", g.handleListProjects)
 	mux.HandleFunc("GET /projects/{id}", g.handleGetProject)
+	mux.HandleFunc("GET /projects/{id}/insight", g.handleProjectInsight)
 	mux.HandleFunc("GET /agent-configs", g.handleListAgentConfigs)
 	mux.HandleFunc("PUT /agent-configs/{agentType}", g.handlePutAgentConfig)
 	mux.HandleFunc("POST /sessions", g.handleCreateSession)
