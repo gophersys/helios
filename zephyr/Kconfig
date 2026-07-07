@@ -91,3 +91,68 @@ config CK_IFACE_WIFI_CONNECTIVITY
 config CK_IFACE_WIFI_CONNECTIVITY_LOG_LEVEL
     int "Log level for the WiFi connectivity backend"
     default 3
+
+# ---------------------------------------------------------------------------
+# Networking memory <-> throughput profile.
+#
+# Bundles the net-stack tuning that trades RAM for throughput (per Espressif's
+# "max WiFi throughput in Zephyr" guidance + measured A/B on ESP32). Optional:
+# with no profile selected the stack keeps its Zephyr defaults, so this never
+# changes an existing build silently. A board just adds e.g.
+# CONFIG_CK_IFACE_NET_THROUGHPUT=y to opt in.
+# ---------------------------------------------------------------------------
+choice CK_IFACE_NET_PROFILE
+    prompt "Networking memory/throughput profile"
+    optional
+    depends on CK_IFACE_LIB_SOCKETS
+
+config CK_IFACE_NET_THROUGHPUT
+    bool "Throughput (more RAM; ~4 Mbps WiFi TCP ceiling on ESP32)"
+
+config CK_IFACE_NET_BALANCED
+    bool "Balanced"
+
+config CK_IFACE_NET_FOOTPRINT
+    bool "Footprint (least RAM, functional)"
+
+endchoice
+
+# TCP receive window is the single biggest throughput lever (default is tiny ->
+# no in-flight pipelining). Espressif: 0 -> 50000 gives +44% TCP download.
+configdefault NET_TCP_MAX_RECV_WINDOW_SIZE
+    default 50000 if CK_IFACE_NET_THROUGHPUT
+    default 16384 if CK_IFACE_NET_BALANCED
+
+configdefault NET_TCP_MAX_SEND_WINDOW_SIZE
+    default 50000 if CK_IFACE_NET_THROUGHPUT
+    default 16384 if CK_IFACE_NET_BALANCED
+
+# Full-MTU net buffers: at the 128 B default a 1500 B packet shreds across ~12
+# buffers. One buffer per packet removes that fragmentation tax.
+configdefault NET_BUF_DATA_SIZE
+    default 1500 if CK_IFACE_NET_THROUGHPUT
+    default 512 if CK_IFACE_NET_BALANCED
+    default 256 if CK_IFACE_NET_FOOTPRINT
+
+configdefault NET_PKT_RX_COUNT
+    default 16 if CK_IFACE_NET_THROUGHPUT
+    default 12 if CK_IFACE_NET_BALANCED
+
+configdefault NET_PKT_TX_COUNT
+    default 16 if CK_IFACE_NET_THROUGHPUT
+    default 12 if CK_IFACE_NET_BALANCED
+
+configdefault NET_BUF_RX_COUNT
+    default 24 if CK_IFACE_NET_THROUGHPUT
+    default 16 if CK_IFACE_NET_BALANCED
+
+configdefault NET_BUF_TX_COUNT
+    default 24 if CK_IFACE_NET_THROUGHPUT
+    default 16 if CK_IFACE_NET_BALANCED
+
+# ESP32-only knobs (ignored on other boards): run WiFi from IRAM, not flash.
+configdefault ESP32_WIFI_IRAM_OPT
+    default y if CK_IFACE_NET_THROUGHPUT
+
+configdefault ESP32_WIFI_RX_IRAM_OPT
+    default y if CK_IFACE_NET_THROUGHPUT
