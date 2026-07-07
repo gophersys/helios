@@ -9,8 +9,6 @@ spec:
     repoURL: https://github.com/gophersys/infrastructure.git
     targetRevision: main
     path: apps/music/config-backup
-    directory:
-      recurse: false
   destination:
     server: https://kubernetes.default.svc
     namespace: media
