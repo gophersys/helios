@@ -141,14 +141,14 @@ func TestNewSeeder_RejectsBadConfig(t *testing.T) {
 
 // scriptForge is a fake forge.Forge that records the request and returns a scripted repository.
 type scriptForge struct {
-	request       forge.CreateRepoRequest
-	deleteRequest forge.DeleteRepoRequest
+	request       forge.CreateRepositoryRequest
+	deleteRequest forge.DeleteRepositoryRequest
 	repository    forge.Repository
 	err           error
 }
 
-//nolint:gocritic // matches forge.Forge (CreateRepo takes the request by value).
-func (f *scriptForge) CreateRepo(_ context.Context, request forge.CreateRepoRequest) (forge.Repository, error) {
+//nolint:gocritic // matches forge.Forge (CreateRepository takes the request by value).
+func (f *scriptForge) CreateRepository(_ context.Context, request forge.CreateRepositoryRequest) (forge.Repository, error) {
 	f.request = request
 	if f.err != nil {
 		return forge.Repository{}, f.err
@@ -156,11 +156,11 @@ func (f *scriptForge) CreateRepo(_ context.Context, request forge.CreateRepoRequ
 	return f.repository, nil
 }
 
-// deleteRequest records the last DeleteRepo call so a test can assert the saga never deletes (the
-// saga is create-only; the production path has no delete).
+// deleteRequest records the last DeleteRepository call so a test can assert the saga never deletes
+// (the saga is create-only; the production path has no delete).
 //
-//nolint:gocritic // matches forge.Forge (DeleteRepo takes the request by value).
-func (f *scriptForge) DeleteRepo(_ context.Context, request forge.DeleteRepoRequest) error {
+//nolint:gocritic // matches forge.Forge (DeleteRepository takes the request by value).
+func (f *scriptForge) DeleteRepository(_ context.Context, request forge.DeleteRepositoryRequest) error {
 	f.deleteRequest = request
 	return f.err
 }

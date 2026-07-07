@@ -45,7 +45,7 @@ type ProjectForge interface {
 
 // CreateRepositoryInput is the validated, credential-FREE description of the repository step 1 creates.
 // It carries the opaque secrets.Reference that NAMES the gh-token, never the token value (07 §2). The
-// bound adapter maps it onto forge.CreateRepoRequest.
+// bound adapter maps it onto forge.CreateRepositoryRequest.
 type CreateRepositoryInput struct {
 	// Owner is the account/organization the repository is created under.
 	Owner string

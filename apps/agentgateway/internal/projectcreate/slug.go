@@ -3,7 +3,7 @@ package projectcreate
 import "strings"
 
 // deriveRepositorySlug renders a project name + its unique project id into a single, valid, unique
-// HNS-1 repository slug (lowercase, hyphen-separated, [a-z0-9] words) so forge.CreateRepo always
+// HNS-1 repository slug (lowercase, hyphen-separated, [a-z0-9] words) so forge.CreateRepository always
 // receives a legal, collision-free repository name. PURE: no I/O.
 //
 // The name is slugified to the HNS-1 grammar (the human-readable prefix) and the project id's unique

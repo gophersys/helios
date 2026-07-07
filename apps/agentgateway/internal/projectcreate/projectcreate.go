@@ -2,7 +2,7 @@
 // dashboard's "create a project" flow. It drives one fresh project from a persisted DRAFT row to a
 // live, supervisor-ready workspace through an ORDERED, IDEMPOTENT, RESUMABLE sequence of steps:
 //
-//  1. provision_repo     forge.CreateRepo(owner, slug, private)            -> repo coordinates
+//  1. provision_repo     forge.CreateRepository(owner, slug, private)            -> repo coordinates
 //  2. seed_template      gitrepository: clone gophersys/template, flatten,  -> seeded origin/main
 //     re-point origin at the new repo, push the seed
 //  3. launch_supervisor  orchestrator.Spawn(supervisor, local-docker)      -> workspace + agent
@@ -57,7 +57,7 @@ type Config struct {
 	// (e.g. "MateoSegura"). Required: an empty owner is a wrapped KindInvalid at New.
 	RepositoryOwner string
 
-	// PrivateRepository requests a private repository on forge.CreateRepo; false creates a public one.
+	// PrivateRepository requests a private repository on forge.CreateRepository; false creates a public one.
 	PrivateRepository bool
 
 	// ForgeCredential is the OPAQUE, loggable reference to the GitHub PAT (the gh-token) the forge and

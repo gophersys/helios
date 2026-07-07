@@ -126,7 +126,7 @@ func TestIntegration_Saga_RealForgeGitOrchestrator(t *testing.T) {
 
 	// DB-FIRST: write the DRAFT row the handler would write, then run the saga. The project name is
 	// an EPHEMERAL eden-it-* name on purpose: its derived repo slug is the only shape the guarded
-	// forge.DeleteRepo will reap — a real repo name would be refused (that is the delete guard).
+	// forge.DeleteRepository will reap — a real repo name would be refused (that is the delete guard).
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 36)
 	projectName := "eden-it-saga-" + suffix
 	projectID := "project-" + suffix
@@ -137,7 +137,7 @@ func TestIntegration_Saga_RealForgeGitOrchestrator(t *testing.T) {
 	}
 
 	// ALWAYS reap the GitHub repository under the derived slug, even on a mid-test failure — through
-	// the GUARDED forge.DeleteRepo, so only the throwaway eden-it-* repo can ever be deleted.
+	// the GUARDED forge.DeleteRepository, so only the throwaway eden-it-* repo can ever be deleted.
 	registerRepoReap(t, projectStore, projectID, provider, owner)
 
 	runCtx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
@@ -255,7 +255,7 @@ func TestIntegration_Saga_RealClaudeSupervisor(t *testing.T) {
 }
 
 // registerRepoReap schedules a cleanup that deletes the throwaway repository the saga created (read
-// from the project row's recorded slug) — through the GUARDED forge.DeleteRepo. The reaper connector
+// from the project row's recorded slug) — through the GUARDED forge.DeleteRepository. The reaper connector
 // opts into EnableEphemeralDelete, but the guard still confines deletion to ephemeral eden-it-* names
 // off the protected denylist, so a real repository can never be deleted even by this teardown.
 func registerRepoReap(t *testing.T, projectStore gateway.ProjectStore, projectID string, provider *secretstest.Provider, owner string) {
@@ -272,7 +272,7 @@ func registerRepoReap(t *testing.T, projectStore gateway.ProjectStore, projectID
 		if getErr != nil || project.GitHubRepo == "" {
 			return // step 1 never recorded a repo (nothing to reap) or the row is gone.
 		}
-		delErr := reaper.DeleteRepo(context.Background(), forge.DeleteRepoRequest{
+		delErr := reaper.DeleteRepository(context.Background(), forge.DeleteRepositoryRequest{
 			Owner: owner, Name: project.GitHubRepo, Credential: secrets.Ref(tokenRef),
 		})
 		if delErr != nil {
@@ -545,7 +545,7 @@ func buildStepStore(t *testing.T, dsn string) *createsteppersistence.PostgresCre
 
 // ── teardown + helpers ────────────────────────────────────────────────────────────────────────────.
 
-// (The throwaway repository is reaped through the guarded forge.DeleteRepo in registerRepoReap —
+// (The throwaway repository is reaped through the guarded forge.DeleteRepository in registerRepoReap —
 // there is no raw, unguarded DELETE in this test.)
 
 // reapNamespace removes every docker container/volume/network labeled eden.namespace=<namespace> — the

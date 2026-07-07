@@ -21,7 +21,7 @@ import (
 // ── ProjectForge over forge.Forge ───────────────────────────────────────────────────────────────.
 
 // ForgeAdapter binds a forge.Forge (the production githubadapter) to the saga's ProjectForge port. It
-// maps CreateRepositoryInput onto forge.CreateRepoRequest and the resolved forge.Repository back onto
+// maps CreateRepositoryInput onto forge.CreateRepositoryRequest and the resolved forge.Repository back onto
 // the saga's RepositoryCoordinates. It owns no state beyond the wrapped forge; safe for concurrent use
 // iff the wrapped forge is (the githubadapter is).
 type ForgeAdapter struct {
@@ -44,7 +44,7 @@ func NewForgeAdapter(remoteForge forge.Forge) (*ForgeAdapter, error) {
 // an existing repo back via GET on a 422) and maps the result onto RepositoryCoordinates. The
 // credential rides the request as an opaque reference, resolved server-side by the forge.
 func (a *ForgeAdapter) CreateRepository(ctx context.Context, input CreateRepositoryInput) (RepositoryCoordinates, error) {
-	repository, err := a.forge.CreateRepo(ctx, forge.CreateRepoRequest{
+	repository, err := a.forge.CreateRepository(ctx, forge.CreateRepositoryRequest{
 		Owner:       input.Owner,
 		Name:        input.Name,
 		Private:     input.Private,
