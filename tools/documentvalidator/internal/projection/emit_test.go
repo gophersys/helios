@@ -24,7 +24,7 @@ func TestMarshalTopLevelOrder(t *testing.T) {
 	metaAt := strings.Index(text, `"meta"`)
 	dataAt := strings.Index(text, `"data"`)
 	sectionsAt := strings.Index(text, `"sections"`)
-	if !(metaAt >= 0 && metaAt < dataAt && dataAt < sectionsAt) {
+	if metaAt < 0 || metaAt >= dataAt || dataAt >= sectionsAt {
 		t.Fatalf("top-level keys out of contract order (meta=%d data=%d sections=%d):\n%s",
 			metaAt, dataAt, sectionsAt, text)
 	}

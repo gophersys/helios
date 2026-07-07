@@ -24,26 +24,26 @@ type diagnostic struct {
 func runValidate(args []string, stdout, stderr io.Writer) int {
 	opts, err := parseArgs(args)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		usage(stderr)
 		return exitUsage
 	}
 
 	schemaDir, err := resolveSchemaDir(opts.schemas, opts.dir)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		return exitUsage
 	}
 
 	schemas, err := loadSchemas(schemaDir)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: loading schemas: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: loading schemas: %v\n", err)
 		return exitUsage
 	}
 
 	paths, err := walkDocuments(opts.dir)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		return exitUsage
 	}
 
@@ -82,9 +82,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 			})
 			continue
 		}
-		for _, d := range validateShape(schema, doc, rel) {
-			diags = append(diags, d)
-		}
+		diags = append(diags, validateShape(schema, doc, rel)...)
 	}
 
 	// CORPUS rules T1-T5 + T6 report. Build over every projected document
@@ -100,7 +98,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 	if opts.against != "" {
 		transitionDiags, terr := checkTransitions(opts.dir, opts.against)
 		if terr != nil {
-			fmt.Fprintf(stderr, "documentvalidator: transition check against %q: %v\n", opts.against, terr)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: transition check against %q: %v\n", opts.against, terr)
 			return exitUsage
 		}
 		diags = append(diags, transitionDiags...)
@@ -180,16 +178,16 @@ func sortDiagnostics(diags []diagnostic) {
 
 func emitText(w io.Writer, diags, coverage []diagnostic) {
 	for _, d := range diags {
-		fmt.Fprintln(w, formatLine(d))
+		_, _ = fmt.Fprintln(w, formatLine(d))
 	}
 	if len(coverage) > 0 {
-		fmt.Fprintln(w, "# coverage report (T6 — not a violation):")
+		_, _ = fmt.Fprintln(w, "# coverage report (T6 — not a violation):")
 		for _, d := range coverage {
-			fmt.Fprintln(w, formatLine(d))
+			_, _ = fmt.Fprintln(w, formatLine(d))
 		}
 	}
 	if len(diags) == 0 {
-		fmt.Fprintln(w, "ok: 0 violations")
+		_, _ = fmt.Fprintln(w, "ok: 0 violations")
 	}
 }
 

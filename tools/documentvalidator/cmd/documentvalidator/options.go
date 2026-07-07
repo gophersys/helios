@@ -16,7 +16,7 @@ type options struct {
 	dir     string
 	schemas string
 	json    bool
-	// against, when non-empty, is the git ref the T5 transition check diffs the
+	// against, when non-empty, is the git ref the T5/T7 transition checks diff the
 	// corpus against (validate only).
 	against string
 }

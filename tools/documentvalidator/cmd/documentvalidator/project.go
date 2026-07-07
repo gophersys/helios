@@ -35,14 +35,14 @@ type projectOptions struct {
 func runProject(args []string, stdout, stderr io.Writer) int {
 	opts, err := parseProjectArgs(args)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		usage(stderr)
 		return exitUsage
 	}
 
 	paths, err := walkDocuments(opts.dir)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		return exitUsage
 	}
 
@@ -50,7 +50,7 @@ func runProject(args []string, stdout, stderr io.Writer) int {
 	for _, path := range paths {
 		doc, perr := projection.Project(path)
 		if perr != nil {
-			fmt.Fprintf(stderr, "documentvalidator: %v\n", perr)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", perr)
 			return exitUsage
 		}
 		docs = append(docs, doc)
@@ -79,16 +79,16 @@ func projectToStdout(docs []*projection.Document, stdout, stderr io.Writer) int 
 	for _, doc := range docs {
 		indented, err := projection.Marshal(doc.Projection)
 		if err != nil {
-			fmt.Fprintf(stderr, "documentvalidator: projecting %s: %v\n", doc.Path, err)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: projecting %s: %v\n", doc.Path, err)
 			return exitUsage
 		}
 		compact, err := compactJSONLine(indented)
 		if err != nil {
-			fmt.Fprintf(stderr, "documentvalidator: projecting %s: %v\n", doc.Path, err)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: projecting %s: %v\n", doc.Path, err)
 			return exitUsage
 		}
 		if _, err := fmt.Fprintf(stdout, "%s\n", compact); err != nil {
-			fmt.Fprintf(stderr, "documentvalidator: writing projection: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: writing projection: %v\n", err)
 			return exitUsage
 		}
 	}
@@ -101,7 +101,7 @@ func projectToStdout(docs []*projection.Document, stdout, stderr io.Writer) int 
 // well-formed, id-keyed map — that is what the dashboards consume).
 func projectToDirectory(docs []*projection.Document, opts projectOptions, stdout, stderr io.Writer) int {
 	if err := os.MkdirAll(opts.out, 0o755); err != nil { //nolint:gosec // operator-chosen output dir.
-		fmt.Fprintf(stderr, "documentvalidator: creating --out dir %q: %v\n", opts.out, err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: creating --out dir %q: %v\n", opts.out, err)
 		return exitUsage
 	}
 
@@ -109,19 +109,19 @@ func projectToDirectory(docs []*projection.Document, opts projectOptions, stdout
 	for _, doc := range docs {
 		id := doc.DocumentID()
 		if id == "" {
-			fmt.Fprintf(stderr, "documentvalidator: %s has no meta.id; cannot name its projection file\n", doc.Path)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: %s has no meta.id; cannot name its projection file\n", doc.Path)
 			return exitUsage
 		}
 		fileName := id + ".json"
 		if prior, clash := written[fileName]; clash {
-			fmt.Fprintf(stderr, "documentvalidator: documents %s and %s both project to %s\n", prior, doc.Path, fileName)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: documents %s and %s both project to %s\n", prior, doc.Path, fileName)
 			return exitUsage
 		}
 		written[fileName] = doc.Path
 
 		indented, err := projection.Marshal(doc.Projection)
 		if err != nil {
-			fmt.Fprintf(stderr, "documentvalidator: projecting %s: %v\n", doc.Path, err)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: projecting %s: %v\n", doc.Path, err)
 			return exitUsage
 		}
 		// A trailing newline makes the file a well-formed text file and matches the
@@ -129,10 +129,10 @@ func projectToDirectory(docs []*projection.Document, opts projectOptions, stdout
 		content := append(indented, '\n')
 		outPath := filepath.Join(opts.out, fileName)
 		if err := os.WriteFile(outPath, content, 0o644); err != nil { //nolint:gosec // operator-chosen output dir.
-			fmt.Fprintf(stderr, "documentvalidator: writing %s: %v\n", outPath, err)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: writing %s: %v\n", outPath, err)
 			return exitUsage
 		}
-		fmt.Fprintf(stdout, "wrote %s\n", outPath)
+		_, _ = fmt.Fprintf(stdout, "wrote %s\n", outPath)
 	}
 	return exitClean
 }

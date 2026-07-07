@@ -11,13 +11,14 @@ import (
 	"github.com/gophersys/eden/tools/documentvalidator/internal/projection"
 )
 
-// statusSuperseded and statusApproved are the lifecycle statuses the T5
-// transition check reasons about (doc 11 §4 lifecycle).
+// The lifecycle statuses the T5/T7 transition checks reason about (doc 11 §4
+// lifecycle; `frozen` is the negotiated-contract state T7 guards).
 const (
 	statusDraft      = "draft"
 	statusReview     = "review"
 	statusApproved   = "approved"
 	statusSuperseded = "superseded"
+	statusFrozen     = "frozen"
 )
 
 // checkTransitions enforces the T5 lifecycle rules across a git revision (doc 11
@@ -102,34 +103,49 @@ type envelopeMeta struct {
 	status    string
 }
 
-// transitionDiagnostics applies the T5 rules to one document's old/new envelope.
+// transitionDiagnostics applies the T5 (lifecycle) and T7 (frozen-contract)
+// rules to one document's old/new envelope.
 func transitionDiagnostics(rel string, old, current envelopeMeta, identical bool) []diagnostic {
 	id := current.id
 	if id == "" {
 		id = old.id
 	}
-	mk := func(message string) diagnostic {
-		return diagnostic{File: rel, DocumentID: id, Rule: "T5", Message: message}
+	mkRule := func(rule, message string) diagnostic {
+		return diagnostic{File: rel, DocumentID: id, Rule: rule, Message: message}
 	}
+	mk := func(message string) diagnostic { return mkRule("T5", message) }
 
 	var diags []diagnostic
 
 	// (1) Version is monotonic — it may never decrease.
 	if old.okVersion && current.okVersion && current.version < old.version {
 		diags = append(diags, mk(fmt.Sprintf(
-			"meta.version decreased from %d to %d (version is monotonic)", old.version, current.version)))
+			"meta.version decreased from %d to %d (version is monotonic)", old.version, current.version,
+		)))
 	}
 
 	// (2) `superseded` is terminal — it may never return to another status.
 	if old.status == statusSuperseded && current.status != statusSuperseded {
 		diags = append(diags, mk(fmt.Sprintf(
-			"status moved from superseded to %q (superseded is terminal)", current.status)))
+			"status moved from superseded to %q (superseded is terminal)", current.status,
+		)))
 	}
 
 	// (3) An approved document is immutable except via the sanctioned paths.
 	if old.status == statusApproved && !identical {
 		if !approvedTransitionAllowed(old, current) {
 			diags = append(diags, mk(approvedViolationMessage(old, current)))
+		}
+	}
+
+	// (4) T7 — a FROZEN contract follows the negotiation gate (doc 11 §7 / 09 §4):
+	// editing it is a NEW NEGOTIATION (version+1 re-entering draft|review) or a
+	// retirement (superseded at the same version); any in-place edit — including a
+	// silent unfreeze back to another status at the same version — is mechanically
+	// refused. Byte-identical is always fine.
+	if old.status == statusFrozen && !identical {
+		if !frozenTransitionAllowed(old, current) {
+			diags = append(diags, mkRule("T7", frozenViolationMessage(old, current)))
 		}
 	}
 
@@ -162,7 +178,36 @@ func approvedViolationMessage(old, current envelopeMeta) string {
 		"approved document was modified illegally (was version %d/%s, now version %d/%s): "+
 			"an approved document must be byte-identical, or bump to version %d with status draft|review, "+
 			"or move to status superseded at the same version",
-		old.version, old.status, current.version, current.status, old.version+1)
+		old.version, old.status, current.version, current.status, old.version+1,
+	)
+}
+
+// frozenTransitionAllowed reports whether a non-identical change to a
+// previously-frozen contract is one of the two sanctioned T7 transitions:
+//
+//	(b) version = old+1 AND status draft|review (a NEW NEGOTIATION, 09 §4), or
+//	(c) status superseded with version unchanged (retiring the frozen revision).
+func frozenTransitionAllowed(old, current envelopeMeta) bool {
+	if (current.status == statusDraft || current.status == statusReview) &&
+		old.okVersion && current.okVersion && current.version == old.version+1 {
+		return true
+	}
+	if current.status == statusSuperseded &&
+		old.okVersion && current.okVersion && current.version == old.version {
+		return true
+	}
+	return false
+}
+
+// frozenViolationMessage explains why a non-identical change to a frozen
+// contract is refused (the T7 negotiation gate).
+func frozenViolationMessage(old, current envelopeMeta) string {
+	return fmt.Sprintf(
+		"frozen contract was edited outside the negotiation gate (was version %d/%s, now version %d/%s): "+
+			"a frozen contract must be byte-identical, or re-enter negotiation as version %d with status draft|review, "+
+			"or move to status superseded at the same version (doc 11 T7 / 09 §4)",
+		old.version, old.status, current.version, current.status, old.version+1,
+	)
 }
 
 // projectMeta projects a document's raw bytes and extracts the transition-check

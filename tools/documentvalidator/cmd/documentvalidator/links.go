@@ -22,14 +22,14 @@ type edge struct {
 func runLinks(args []string, stdout, stderr io.Writer) int {
 	opts, err := parseArgs(args)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		usage(stderr)
 		return exitUsage
 	}
 
 	paths, err := walkDocuments(opts.dir)
 	if err != nil {
-		fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", err)
 		return exitUsage
 	}
 
@@ -37,7 +37,7 @@ func runLinks(args []string, stdout, stderr io.Writer) int {
 	for _, path := range paths {
 		doc, perr := projection.Project(path)
 		if perr != nil {
-			fmt.Fprintf(stderr, "documentvalidator: %v\n", perr)
+			_, _ = fmt.Fprintf(stderr, "documentvalidator: %v\n", perr)
 			return exitUsage
 		}
 		docs = append(docs, doc)
@@ -58,7 +58,7 @@ func runLinks(args []string, stdout, stderr io.Writer) int {
 	}
 
 	for _, e := range edges {
-		fmt.Fprintf(stdout, "%s: %s --%s--> %s\n", relPath(opts.dir, e.FromPath), e.From, e.Type, e.To)
+		_, _ = fmt.Fprintf(stdout, "%s: %s --%s--> %s\n", relPath(opts.dir, e.FromPath), e.From, e.Type, e.To)
 	}
 	return exitClean
 }

@@ -278,6 +278,97 @@ func TestTransitionDraftToApprovedIsClean(t *testing.T) {
 	}
 }
 
+// hasT7 reports whether any diagnostic is a T7 finding, and returns the joined
+// rule-prefixed messages for assertion context.
+func hasT7(diags []diagnostic) (bool, string) {
+	var msgs []string
+	found := false
+	for _, d := range diags {
+		if d.Rule == "T7" {
+			found = true
+		}
+		msgs = append(msgs, d.Rule+": "+d.Message)
+	}
+	return found, strings.Join(msgs, "\n")
+}
+
+// setupFrozenV1 builds a repo whose committed v1 state is a FROZEN, version-1
+// document (the negotiated-contract state T7 guards), and returns the repo.
+func setupFrozenV1(t *testing.T) *gitRepo {
+	r := newGitRepo(t)
+	r.write("requirements.yaml", approvedDoc(1, "frozen"))
+	r.commitAll("v1 frozen")
+	return r
+}
+
+func TestTransitionFrozenByteIdenticalIsClean(t *testing.T) {
+	r := setupFrozenV1(t)
+	diags, err := checkTransitions(r.dir, "HEAD")
+	if err != nil {
+		t.Fatalf("checkTransitions: %v", err)
+	}
+	if found, msgs := hasT7(diags); found {
+		t.Fatalf("byte-identical frozen contract must be clean, got T7:\n%s", msgs)
+	}
+}
+
+func TestTransitionFrozenMutatedInPlaceFiresT7(t *testing.T) {
+	r := setupFrozenV1(t)
+	// Mutate the body but keep status frozen / version 1 — the exact edit T7
+	// exists to refuse (an edit outside the negotiation gate).
+	r.write("requirements.yaml", "meta:\n  id: requirements\n  type: requirements\n  status: frozen\n  version: 1\ndata:\n  items:\n    - id: REQ-0001\n")
+	diags, err := checkTransitions(r.dir, "HEAD")
+	if err != nil {
+		t.Fatalf("checkTransitions: %v", err)
+	}
+	found, msgs := hasT7(diags)
+	if !found {
+		t.Fatalf("mutating a frozen contract in place must fire T7, got:\n%s", msgs)
+	}
+	if !strings.Contains(msgs, "frozen contract was edited outside the negotiation gate") {
+		t.Errorf("unexpected T7 message:\n%s", msgs)
+	}
+}
+
+func TestTransitionFrozenReenteringNegotiationIsClean(t *testing.T) {
+	r := setupFrozenV1(t)
+	// The sanctioned path: version+1 re-entering draft — a NEW negotiation (09 §4).
+	r.write("requirements.yaml", approvedDoc(2, "draft"))
+	diags, err := checkTransitions(r.dir, "HEAD")
+	if err != nil {
+		t.Fatalf("checkTransitions: %v", err)
+	}
+	if found, msgs := hasT7(diags); found {
+		t.Fatalf("frozen -> v2 draft (a new negotiation) must be clean, got T7:\n%s", msgs)
+	}
+}
+
+func TestTransitionFrozenToSupersededSameVersionIsClean(t *testing.T) {
+	r := setupFrozenV1(t)
+	// The retirement path: superseded at the same version.
+	r.write("requirements.yaml", approvedDoc(1, "superseded"))
+	diags, err := checkTransitions(r.dir, "HEAD")
+	if err != nil {
+		t.Fatalf("checkTransitions: %v", err)
+	}
+	if found, msgs := hasT7(diags); found {
+		t.Fatalf("frozen -> superseded at the same version must be clean, got T7:\n%s", msgs)
+	}
+}
+
+func TestTransitionFrozenSilentUnfreezeFiresT7(t *testing.T) {
+	r := setupFrozenV1(t)
+	// Unfreezing back to draft at the SAME version skips the negotiation gate.
+	r.write("requirements.yaml", approvedDoc(1, "draft"))
+	diags, err := checkTransitions(r.dir, "HEAD")
+	if err != nil {
+		t.Fatalf("checkTransitions: %v", err)
+	}
+	if found, msgs := hasT7(diags); !found {
+		t.Fatalf("a same-version unfreeze must fire T7, got:\n%s", msgs)
+	}
+}
+
 // TestTransitionThroughValidateCLI exercises the --against flag end-to-end:
 // an illegal in-place mutation of an approved document must make `validate`
 // exit 1 with a T5 diagnostic. Schemas come from the in-repo set so the shape
