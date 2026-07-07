@@ -42,11 +42,11 @@ spec:
             - |
               set -e
               DB=/database/filebrowser.db
-              [ -f "$DB" ] || filebrowser config init -d "$DB"
-              if filebrowser users ls -d "$DB" 2>/dev/null | grep -qw admin; then
-                filebrowser users update admin --password "$(cat /secret/password)" -d "$DB"
+              [ -f "$DB" ] || /filebrowser config init -d "$DB"
+              if /filebrowser users ls -d "$DB" 2>/dev/null | grep -qw admin; then
+                /filebrowser users update admin --password "$(cat /secret/password)" -d "$DB"
               else
-                filebrowser users add admin "$(cat /secret/password)" --perm.admin -d "$DB"
+                /filebrowser users add admin "$(cat /secret/password)" --perm.admin -d "$DB"
               fi
               echo "filebrowser admin bootstrapped"
           volumeMounts:
