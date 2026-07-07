@@ -43,15 +43,19 @@
   });
 
   function openProject(project: ProjectSummary): void {
-    // Open the project's build session when it has one; otherwise drop into the chat workspace.
-    if (project.sessionId) {
-      const harness = project.harness ? `&harness=${encodeURIComponent(project.harness)}` : '';
-      void goto(`/chat?session=${encodeURIComponent(project.sessionId)}${harness}`);
+    // Open the project's Build view IN-SHELL (doc 17 §5): a persisted project maps to its own
+    // /projects/<id>/build surface (which resolves its build session). A project without an id would
+    // have nowhere to map — fall back to the unscoped Build view — but every ProjectSummary carries
+    // an id, so this is the mapped path in practice.
+    if (project.id) {
+      void goto(`/projects/${encodeURIComponent(project.id)}/build`);
     } else {
       void goto('/chat');
     }
   }
   function newProject(): void {
+    // "New project" opens the create flow — it lives in the Build view (now in-shell) via ?new=1.
+    // The create-flow → saga handoff (route into /projects/<id>) is wired in BuildWorkspace itself.
     void goto('/chat?new=1');
   }
 </script>

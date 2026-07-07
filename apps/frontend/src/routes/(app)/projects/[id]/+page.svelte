@@ -119,17 +119,11 @@
     pollTimer = setTimeout(() => void fetchOnce(), POLL_INTERVAL_MS);
   }
 
-  /** Route into the project's workspace once the supervisor is up. The build session is the
-   *  supervisor agent (or the legacy `sessionId` link); the chat surface IS the workspace today, so we
-   *  hand it the session + harness. When no session id is known yet we drop into a fresh workspace. */
+  /** Route into the project's Build view IN-SHELL once the supervisor is up (doc 17 §5). The project
+   *  maps to its own /projects/<id>/build surface, which resolves the build session (supervisor agent
+   *  or legacy link) and streams it inside the one shell. */
   function enterWorkspace(ready: ProjectView): void {
-    const sessionId = ready.supervisorAgentId || ready.sessionId;
-    if (sessionId) {
-      const harness = ready.harness ? `&harness=${encodeURIComponent(ready.harness)}` : '';
-      void goto(`/chat?session=${encodeURIComponent(sessionId)}${harness}`);
-    } else {
-      void goto('/chat');
-    }
+    void goto(`/projects/${encodeURIComponent(ready.id)}/build`);
   }
 
   /** Retry a failed build: re-POST the create (the saga is idempotency-keyed, so it resumes), then
@@ -194,10 +188,20 @@
       : null,
   );
 
-  /** The interview is complete (the wizard's onfinish): route into the build workspace, the same
-   *  handoff the other ready statuses take. */
+  /** The interview is complete (the wizard's onfinish): route into the build workspace. The build
+   *  session is the supervisor agent (or the legacy `sessionId` link). This finish path lands on the
+   *  unscoped Build view at /chat?session= (the wizard's committed contract — the setup interview
+   *  ends in the running build conversation, which the Build view streams); the project's own
+   *  /projects/<id>/build surface is reached from the dashboard once the project is mapped. */
   function enterFromWizard(): void {
-    if (project) enterWorkspace(project);
+    if (!project) return;
+    const sessionId = project.supervisorAgentId || project.sessionId;
+    if (sessionId) {
+      const harness = project.harness ? `&harness=${encodeURIComponent(project.harness)}` : '';
+      void goto(`/chat?session=${encodeURIComponent(sessionId)}${harness}`);
+    } else {
+      void goto('/chat');
+    }
   }
 </script>
 

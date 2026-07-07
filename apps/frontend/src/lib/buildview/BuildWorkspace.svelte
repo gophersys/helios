@@ -1,16 +1,20 @@
 <script lang="ts">
-  // The chat slice — the demo centerpiece, rebuilt on the Eden design system (@eden/primitives +
-  // @eden/theme, ADR-0024) and wired to the LIVE agent + permission flow (ADR-0025). It talks to the
-  // agentgateway backend over REAL REST + SSE: a "session" IS a PRODUCT Eden builds via its 10-phase
-  // SDLC, so creation is the multi-step PRODUCT WIZARD. The right pane streams the conversation via
-  // the per-session SSE stream, rendering the agent event taxonomy with the primitives — Message
-  // (user/assistant bubbles), StreamingText (the live token stream), ThinkingBlock (reasoning),
-  // ToolCall (tool events), UsageMeter (the live cost/token meter), and the INTERACTIVE
-  // PermissionRequest card (the human-in-the-loop gate). A permission decision flows
-  // GatewayClient.resolve(...) -> session.Resolve -> the native control_response, so the agent
-  // proceeds or is blocked, and the resolved state reflects on the card. The prompt/steer/abort
-  // control verbs, the session list, and the SSE/Last-Event-ID reconnect (B7) are preserved.
-  import { onDestroy } from 'svelte';
+  // BuildWorkspace — THE Build view (doc 17 §5): the chat/conversation surface that used to be the
+  // parallel `/chat` app, now a REUSABLE view mounted INSIDE the one (app) shell. It hosts the
+  // session rail, the transcript timeline, the composer, the agent-type-aware RightPanel, the live
+  // status/context bars, the docked usage meter, the create-project wizard, the per-session config
+  // modal, and the workspace SettingsPanel. It talks to the agentgateway backend over REAL REST +
+  // SSE (a "session" IS a PRODUCT Eden builds via its 10-phase SDLC), streaming the agent event
+  // taxonomy through @eden/primitives (Message, StreamingText, ThinkingBlock, ToolCall, UsageMeter,
+  // and the interactive PermissionRequest gate).
+  //
+  // Two things that used to be LOCAL /chat-shell chrome now lift OUT into the app shell: the ⌘K
+  // palette (mounted ONCE in the shell; this view REGISTERS its session commands on the shared
+  // paletteBus) and — conceptually — the gateway-health chip (kept in the rail here where the e2e
+  // asserts it, and mirrored on the shell header). The rail toggle, ⌘K affordance, and settings mount
+  // stay wired here through the TopBar so the Build view is self-contained wherever it is mounted:
+  // `/chat`, `/projects/[id]/build`, and `/sessions/[id]` all render this one component.
+  import { onDestroy, onMount } from 'svelte';
   import { Button, Input, Message, CommandPalette } from '@eden/primitives';
   import type { CommandPaletteGroup } from '@eden/primitives';
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
@@ -31,9 +35,23 @@
   import AgentConfigView from '$lib/chat/AgentConfigView.svelte';
   import CreateProjectFlow from '$lib/chat/wizard/CreateProjectFlow.svelte';
   import { agentTypeFor } from '$lib/workspace/agentWorkspace';
+  import { usePaletteBus, type PaletteProvider } from '$lib/buildview/paletteBus.svelte';
+
+  // ── deep-link intent (the ?new / ?session / ?harness contract, resolved by the host route) ──
+  //    A host route (/chat, /projects/[id]/build, /sessions/[id]) resolves the URL into this intent
+  //    and passes it in, so this view is route-agnostic. `onLaunched` is the saga handoff seam: after
+  //    a product is created + persisted, the host decides where to route (the project loading route).
+  let {
+    deepLink = {},
+    onLaunched,
+  }: {
+    deepLink?: { new?: boolean; sessionId?: string | null; harness?: ProductHarness | null };
+    onLaunched?: (result: { projectId: string | null; sessionId: string }) => void;
+  } = $props();
 
   const client = new GatewayClient(resolveGatewayUrl());
   const theme = edenTheme;
+  const palette = usePaletteBus();
 
   // ── session-list state ───────────────────────────────────────────────────────.
   let sessions = $state<AgentView[]>([]);
@@ -42,8 +60,7 @@
 
   // ── product-wizard state ─────────────────────────────────────────────────────.
   let showWizard = $state(false);
-  // ── ⌘K command palette + settings + overlays ─────────────────────────────────.
-  let paletteOpen = $state(false);
+  // ── settings + per-session config overlays (the palette lives in the shell now) ─────────────.
   let settingsOpen = $state(false);
   let configOpen = $state(false);
 
@@ -73,25 +90,28 @@
     const created = await client.createSession({ harness, product: payload.product });
     // Persist the Project (the dashboard reads these) linked to its build session. A persistence
     // fault must NOT block the build — the session is already live — so we log and continue.
-    //
-    // HANDOFF (W3a): once the create-SAGA drives provisioning (repo → template → supervisor), this is
-    // where the flow hands off to the LOADING route — `goto(/projects/${persisted.id})` — instead of
-    // attaching inline. That route (src/routes/(app)/projects/[id]/+page.svelte) re-reads + polls the
-    // saga status and renders ProjectLoading until supervisor_ready, then routes into the workspace.
-    // The session-first attach below is the pre-saga demo path; the saga POST is what wires the
-    // handoff (the persisted projectView carries the id the route polls).
+    let persistedId: string | null = null;
     try {
-      await client.createProject({
+      const persisted = await client.createProject({
         product: payload.product,
         name: payload.product.productName,
         idea: payload.prompt,
         sessionId: created.id,
       });
+      persistedId = persisted?.id ?? null;
     } catch (cause) {
       console.warn('eden: project persistence failed (build continues)', cause);
     }
     await refreshList();
     showWizard = false;
+    // HANDOFF (doc 17 §5, chat/+page.svelte:78 intent now wired): once the project persists, hand
+    // OFF to the host, which routes into the project's loading route (/projects/<id>) so the saga
+    // lifecycle drives. When no host handoff is provided (or persistence failed), attach inline —
+    // the pre-saga demo path the create-product e2e still drives on `/chat`.
+    if (onLaunched && persistedId) {
+      onLaunched({ projectId: persistedId, sessionId: created.id });
+      return;
+    }
     await attach(created.id, harness);
     const opening = payload.prompt.trim();
     if (opening && active) active.recordOpeningPrompt(opening);
@@ -107,15 +127,16 @@
     active ? agentTypeFor(sessions.find((s) => s.id === active?.id)?.template, active.harness) : null,
   );
 
-  /** The command model the ⌘K palette renders: an Actions group (gated on whether a session is
-   *  open) + a Sessions group to jump to any session. Derived, so it tracks the live session list. */
+  /** The command model the ⌘K palette renders for THIS build (an Actions group gated on whether a
+   *  session is open + a Sessions group to jump to any session). Registered on the shared bus so the
+   *  ONE shell-mounted palette carries it alongside the app-navigation commands. */
   const commandGroups = $derived<CommandPaletteGroup[]>([
     {
-      value: 'actions',
-      heading: 'Actions',
+      value: 'build-actions',
+      heading: 'Build',
       items: [
         { value: 'new-product', label: 'New project…', keywords: ['create', 'start', 'session', 'product'] },
-        { value: 'settings', label: 'Settings', keywords: ['preferences', 'theme', 'dark', 'density'] },
+        { value: 'build-settings', label: 'Settings', keywords: ['preferences', 'theme', 'dark', 'density'] },
         ...(active
           ? [
               { value: 'agent-config', label: 'Agent configuration', keywords: ['config', 'model', 'tools', 'details'] },
@@ -162,44 +183,76 @@
     },
   ]);
 
-  /** Dispatch a selected ⌘K command. Session jumps carry the `session:<id>` value. */
-  function runCommand(value: string): void {
-    paletteOpen = false;
+  /** Dispatch a selected ⌘K command owned by this build. Returns true if handled (so the shell's
+   *  bus knows not to fall through to an app-navigation command). Session jumps carry `session:<id>`. */
+  function runCommand(value: string): boolean {
     if (value === 'new-product') {
       showWizard = true;
-      return;
+      return true;
     }
-    if (value === 'settings') {
+    if (value === 'build-settings') {
       settingsOpen = true;
-      return;
+      return true;
     }
     if (value === 'agent-config') {
       configOpen = true;
-      return;
+      return true;
     }
     if (value.startsWith('session:')) {
       const id = value.slice('session:'.length);
       const agent = sessions.find((s) => s.id === id);
       if (agent) openSession(agent);
-      return;
+      return true;
     }
     // Defense-in-depth: even though the disabled palette items above are not selectable, guard the
     // dispatch against the live allowed-set so a TOCTOU (state changed between render and select)
     // can never fire an illegal control. Stop is always allowed (idempotent).
-    if (value === 'stop') void stopSession();
-    else if (value === 'steer' && active?.allowed.has('steer')) void steer();
-    else if (value === 'abort' && active?.allowed.has('abort')) void abort();
-    else if (value === 'resume' && active?.canResume) void resumeSession();
-    else if (value === 'request-tool' && active?.allowed.has('prompt')) void requestOutOfGrantTool();
+    if (value === 'stop') {
+      void stopSession();
+      return true;
+    }
+    if (value === 'steer' && active?.allowed.has('steer')) {
+      void steer();
+      return true;
+    }
+    if (value === 'abort' && active?.allowed.has('abort')) {
+      void abort();
+      return true;
+    }
+    if (value === 'resume' && active?.canResume) {
+      void resumeSession();
+      return true;
+    }
+    if (value === 'request-tool' && active?.allowed.has('prompt')) {
+      void requestOutOfGrantTool();
+      return true;
+    }
+    return false;
   }
 
-  /** ⌘K / Ctrl-K toggles the palette from anywhere in the workspace. */
+  // Register this build's commands on the shared palette bus while mounted; clear on destroy so the
+  // shell palette reverts to the app-navigation commands alone. When rendered OUTSIDE the shell (no
+  // bus), fall back to a local palette (below) so the Build view still works standalone.
+  const provider: PaletteProvider = { groups: () => commandGroups, run: runCommand };
+  onMount(() => palette?.register(provider));
+  onDestroy(() => palette?.clear(provider));
+
+  // ── fallback local palette (only when there is no shell bus — never in the (app) shell) ──
+  let localPaletteOpen = $state(false);
+  function openPalette(): void {
+    if (palette) palette.show();
+    else localPaletteOpen = true;
+  }
+  /** ⌘K / Ctrl-K toggles the palette. When mounted in the shell the layout owns the global key; this
+   *  local handler only fires for the standalone (no-bus) fallback. */
   function onGlobalKey(event: KeyboardEvent): void {
+    if (palette) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
-      paletteOpen = !paletteOpen;
+      localPaletteOpen = !localPaletteOpen;
     }
   }
+
   let composer = $state('');
   let scroller = $state<HTMLElement | null>(null);
 
@@ -223,21 +276,15 @@
     void refreshList();
   });
 
-  // Deep-link from the Projects dashboard: ?new=1 opens the create flow; ?session=<id> attaches to
-  // that project's session. Runs once (the guard keeps the non-reactive read from re-firing).
+  // Deep-link intent, resolved by the host route: ?new=1 opens the create flow; ?session=<id>
+  // attaches to that project's session; ?harness=<h> labels it. Runs once per mount.
   let deepLinkHandled = false;
   $effect(() => {
-    if (deepLinkHandled || typeof window === 'undefined') return;
+    if (deepLinkHandled) return;
     deepLinkHandled = true;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('new') === '1') showWizard = true;
-    const sessionId = params.get('session');
-    if (sessionId) {
-      // Carry the project's harness through the deep link so an omp project opened from the
-      // dashboard attaches + labels as omp (codex folds to claude for the chat chrome). An absent or
-      // unrecognized harness defaults to claude.
-      const harnessParam = params.get('harness');
-      void attach(sessionId, harnessParam ? chatHarness(harnessParam as ProductHarness) : 'claude');
+    if (deepLink.new) showWizard = true;
+    if (deepLink.sessionId) {
+      void attach(deepLink.sessionId, deepLink.harness ? chatHarness(deepLink.harness) : 'claude');
     }
   });
 
@@ -369,9 +416,6 @@
 </script>
 
 <svelte:window onkeydown={onGlobalKey} />
-<svelte:head>
-  <title>Eden — chat</title>
-</svelte:head>
 
 <div class="workspace-root">
   <TopBar
@@ -382,7 +426,7 @@
     showPanelToggle={Boolean(active)}
     onToggleRail={() => (railOpen = !railOpen)}
     onTogglePanel={() => (panelOpen = !panelOpen)}
-    onPalette={() => (paletteOpen = true)}
+    onPalette={openPalette}
     onSettings={() => (settingsOpen = true)}
     onConfig={active ? () => (configOpen = true) : undefined}
     {theme}
@@ -611,15 +655,22 @@
   </div>
 </div>
 
-<!-- ── ⌘K command palette + settings (overlay the whole workspace) ───────────── -->
-<CommandPalette
-  groups={commandGroups}
-  bind:open={paletteOpen}
-  onSelect={runCommand}
-  {theme}
-  label="Eden command palette"
-  placeholder="Type a command or search sessions…"
-/>
+<!-- ── ⌘K palette: only the STANDALONE (no-shell) fallback renders one here; in the (app) shell the
+     ONE palette lives in the layout and this build registered its commands on the bus. ────────── -->
+{#if !palette}
+  <CommandPalette
+    groups={commandGroups}
+    bind:open={localPaletteOpen}
+    onSelect={(v) => {
+      localPaletteOpen = false;
+      runCommand(v);
+    }}
+    {theme}
+    label="Eden command palette"
+    placeholder="Type a command or search sessions…"
+  />
+{/if}
+
 <SettingsPanel bind:open={settingsOpen} {theme} />
 
 <!-- ── the agent-config detail view in the global modal shell ─────────────────── -->
@@ -642,7 +693,11 @@
   .workspace-root {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    /* Fill the shell content cell (the app shell gives us a full-height column). Standalone hosts
+       (/chat wrapped by the app group) also give a 100%-height cell, so 100% here — not 100vh —
+       keeps the Build view inside its host without a double-scroll. */
+    height: 100%;
+    min-block-size: 0;
     overflow: hidden;
   }
   /* The columns are set inline (rail · conversation · panel), each foldable to 0 via the top-bar

@@ -34,7 +34,9 @@
   });
 
   function openSession(session: AgentView): void {
-    void goto(`/chat?session=${encodeURIComponent(session.id)}`);
+    // Open the session's Build view IN-SHELL (doc 17 §5): the global, unscoped Build surface
+    // addressed by the session id.
+    void goto(`/sessions/${encodeURIComponent(session.id)}`);
   }
   function shortId(id: string): string {
     return id.length > 12 ? `${id.slice(0, 10)}…` : id;
