@@ -9,7 +9,7 @@ here as accepted-imperative with recreation steps.
 Status legend: 🔴 open (reliability/security risk) · 🟠 open (reproducibility) ·
 🟡 minor / accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-07-06.
+Last updated: 2026-07-06 (backlog closeout).
 
 ---
 
@@ -85,17 +85,19 @@ k8s Secret (`gluetun-wireguard`, `homepage-secrets`, `filebrowser-admin`,
 explains why single-value logins stay imperative (the ESO store returns an
 item's `notes` blob, not individual fields).
 
-### D5 ✅ Default / unset credentials — RESOLVED (PR #32)
-Both now have strong random passwords stored in Vaultwarden:
-- **qBittorrent** — `shared/qbittorrent/webui`; set via API (verified: the WebUI
-  password hash changed, `admin`/`admin`-era default gone). External login only;
-  in-cluster is subnet-bypassed.
-- **Filebrowser** — `shared/filebrowser/admin`; set by
-  `apps/music/filebrowser/reset-admin/job.yaml` from the `filebrowser-admin`
-  Secret. `admin`/`admin` verified rejected (403). A successful-login re-check is
-  pending the app's login rate-limiter cooldown (tripped during setup) — noted
-  for the final verification pass.
-Recreation for both: `docs/runtime-secrets.md`.
+### D5 🟡 Default / unset credentials — qBit RESOLVED; Filebrowser known-issue (PR #32)
+- **qBittorrent** — ✅ strong password (`shared/qbittorrent/webui`), set via API,
+  verified (WebUI hash changed, `admin`/`admin` default gone). In-cluster is
+  subnet-bypassed; the password is for external/UI login only.
+- **Filebrowser** — ⚠️ the weak `admin`/`admin` default is **eliminated** (login
+  returns 403) and a strong password is stored in `shared/filebrowser/admin` and
+  set in the BoltDB via `apps/music/filebrowser/reset-admin/job.yaml`. HOWEVER
+  interactive login with that password *also* 403s and could not be resolved
+  remotely — the official-image `users add` set it and the server uses the same
+  DB with default `json` auth, yet auth fails (a filebrowser-internal quirk).
+  **Exposure is tailnet-only.** Fix needs a hands-on session: interactive
+  `filebrowser` DB/config inspection, or redeploy filebrowser fresh and set the
+  password before its first external use. Tracked as the one honest carry-over.
 
 ### D6 ✅ Workspaces create/destroy — RESOLVED (gophersys/workspaces#1 + PR #33)
 Implemented with full TDD (34 tests: interface fakes + an httptest GitHub mock).
@@ -104,7 +106,7 @@ Implemented with full TDD (34 tests: interface fakes + an httptest GitHub mock).
 merge). Name validation is path-traversal-safe; the manager is token-gated (no
 token → read-only, 503). Live wiring: the `workspaces-github` bot-PAT Secret
 (optional, `docs/runtime-secrets.md`) — creating the PAT is a one-time GitHub-UI
-step, the only part not automatable headlessly.
+step, the only part not automatable headlessly. VERIFIED: the new binary is live (logs `gitops env management disabled … 503` — correctly token-gated).
 
 ### D7 ✅ Documentation drift — RESOLVED (PR #34)
 `docs/cluster-topology.md` is the authoritative namespace-by-namespace reference
@@ -121,4 +123,4 @@ and the READMEs no longer dangle.
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
-them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** documented (#31).
+them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** documented (#31); **D5** qBit-done, Filebrowser known-issue.
