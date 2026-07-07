@@ -1,9 +1,14 @@
 'aria-describedby'?: string;
 'aria-label'?: string;
+[key: string]: unknown;
 action?: Snippet;
+active: string;
+advanceable?: boolean;
 args?: string;
 author?: string;
+autofocus: (node: HTMLElement) => void;
 bg: OkLch;
+body: Snippet<[{
 body?: Snippet;
 body?: string;
 budget: number;
@@ -36,6 +41,7 @@ declare const ThinkingBlock: import("svelte").Component<ThinkingBlockProps, {}, 
 declare const ToolCall: import("svelte").Component<ToolCallProps, {}, "">;
 declare const Tooltip: import("svelte").Component<TooltipProps, {}, "open">;
 declare const UsageMeter: import("svelte").Component<UsageMeterProps, {}, "">;
+declare const WizardShell: import("svelte").Component<WizardShellProps, {}, "">;
 delayDuration?: number;
 description?: string;
 disabled?: boolean;
@@ -75,6 +81,7 @@ export declare function deriveTabsTokens(theme: Theme): TabsTokens;
 export declare function deriveThinkingBlockTokens(theme: Theme): ThinkingBlockTokens;
 export declare function deriveToolCallTokens(status: ToolCallStatus, theme: Theme): ToolCallTokens;
 export declare function deriveUsageMeterTokens(tier: UsageTier, theme: Theme): UsageMeterTokens;
+export declare function deriveWizardShellTokens(theme: Theme): WizardShellTokens;
 export declare function dividerStyleVars(tokens: DividerTokens): string;
 export declare function elevationShadow(theme: Theme, elevation: Elevation): string;
 export declare function emptyStateStyleVars(tokens: EmptyStateTokens): string;
@@ -108,6 +115,8 @@ export declare function toolCallStyleVars(tokens: ToolCallTokens): string;
 export declare function usageFraction(used: number, budget: number): number;
 export declare function usageMeterStyleVars(tokens: UsageMeterTokens): string;
 export declare function usageTier(fraction: number): UsageTier;
+export declare function wizardProgressFraction(stepIndex: number, stepCount: number): number;
+export declare function wizardShellStyleVars(tokens: WizardShellTokens, progressFraction: number): string;
 export default Badge;
 export default Button;
 export default Card;
@@ -133,6 +142,7 @@ export default ThinkingBlock;
 export default ToolCall;
 export default Tooltip;
 export default UsageMeter;
+export default WizardShell;
 export interface BadgeTokens {
 export interface ButtonTokens {
 export interface CardTokens {
@@ -161,6 +171,8 @@ export interface TabsTokens {
 export interface ThinkingBlockTokens {
 export interface ToolCallTokens {
 export interface UsageMeterTokens {
+export interface WizardShellTokens {
+export interface WizardStep {
 export type BadgeVariant = Status;
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type CardVariant = 'raised' | 'flat';
@@ -203,6 +215,7 @@ export { ThinkingBlock, deriveThinkingBlockTokens, thinkingBlockStyleVars, type 
 export { ToolCall, deriveToolCallTokens, toolCallStyleVars, type ToolCallStatus, type ToolCallTokens, } from './tool-call/index.js';
 export { Tooltip } from './tooltip/index.js';
 export { UsageMeter, deriveUsageMeterTokens, usageMeterStyleVars, usageFraction, usageTier, barWidthPercent, type UsageTier, type UsageMeterTokens, } from './usage-meter/index.js';
+export { WizardShell, deriveWizardShellTokens, wizardShellStyleVars, wizardProgressFraction, type WizardShellTokens, type WizardStep, } from './wizard-shell/index.js';
 export { default as Badge } from './badge.svelte';
 export { default as Button } from './button.svelte';
 export { default as Card } from './card.svelte';
@@ -228,6 +241,7 @@ export { default as ThinkingBlock } from './thinking-block.svelte';
 export { default as ToolCall } from './tool-call.svelte';
 export { default as Tooltip } from './tooltip.svelte';
 export { default as UsageMeter } from './usage-meter.svelte';
+export { default as WizardShell } from './wizard-shell.svelte';
 export { deriveBadgeTokens, badgeStyleVars, type BadgeVariant, type BadgeTokens, } from './tokens.js';
 export { deriveButtonTokens, buttonStyleVars, defaultButtonTheme, type ButtonVariant, type ButtonTokens, type ThemeSeed, } from './tokens.js';
 export { deriveCardTokens, cardStyleVars, type CardVariant, type CardTokens } from './tokens.js';
@@ -250,6 +264,7 @@ export { deriveTabsTokens, tabsStyleVars, type Tab, type TabsTokens } from './to
 export { deriveThinkingBlockTokens, thinkingBlockStyleVars, type ThinkingBlockTokens, } from './tokens.js';
 export { deriveToolCallTokens, toolCallStyleVars, type ToolCallStatus, type ToolCallTokens, } from './tokens.js';
 export { deriveUsageMeterTokens, usageMeterStyleVars, usageFraction, usageTier, barWidthPercent, type UsageTier, type UsageMeterTokens, } from './tokens.js';
+export { deriveWizardShellTokens, wizardShellStyleVars, wizardProgressFraction, type WizardShellTokens, type WizardStep, } from './tokens.js';
 export { proseSurface, accentSurface, quietSurface, stateSurface, proportion, rampPx, space, hitTargetPx, styleVars, type SurfacePair, type StateRole, type ProportionPick, type StyleEntry, } from './chat-surface/index.js';
 export { proseSurface, accentSurface, quietSurface, stateSurface, proportion, rampPx, space, hitTargetPx, styleVars, type SurfacePair, type StateRole, type ProportionPick, type StyleEntry, } from './tokens.js';
 export { radiusPx, elevationShadow, statusRole, statusRoleOklch, statusTint, type Radius, type Elevation, type Status, } from './surface-tokens/index.js';
@@ -287,12 +302,15 @@ interface ThinkingBlockProps {
 interface ToolCallProps {
 interface TooltipProps {
 interface UsageMeterProps {
+interface WizardShellProps {
 invalid?: boolean;
 itemPrefix?: Snippet<[CommandPaletteItem]>;
 items: readonly DropdownMenuItem[];
 label: string;
 label?: string;
+onAdvance?: () => void;
 onDecision?: (decision: PermissionDecision) => void;
+onExit?: () => void;
 onOpenChange?: (open: boolean) => void;
 onRemove?: () => void;
 onSelect?: (value: string) => void;
@@ -303,6 +321,8 @@ open?: boolean;
 orientation?: DividerOrientation;
 panel: Snippet<[string]>;
 placeholder?: string;
+readonly accent: string;
+readonly accentOklch: OkLch;
 readonly actionGapPx: number;
 readonly active: string;
 readonly activeOklch: OkLch;
@@ -310,6 +330,8 @@ readonly arc: string;
 readonly arcOklch: OkLch;
 readonly background: string;
 readonly backgroundOklch: OkLch;
+readonly barRadiusPx: number;
+readonly barThicknessPx: number;
 readonly body: string;
 readonly bodyFontFamily: string;
 readonly bodyFontSizePx: number;
@@ -333,6 +355,7 @@ readonly easing: string;
 readonly elevationShadow: string;
 readonly error: string;
 readonly errorOklch: OkLch;
+readonly eyebrow?: string;
 readonly fill: string;
 readonly fillOklch: OkLch;
 readonly fontFamily: string;
@@ -342,6 +365,7 @@ readonly foregroundOklch: OkLch;
 readonly gapPx: number;
 readonly groupHeadingForeground: string;
 readonly groupHeadingForegroundOklch: OkLch;
+readonly gutterPx: number;
 readonly heading: string;
 readonly headingColor: string;
 readonly headingFontFamily: string;
@@ -383,11 +407,21 @@ readonly labelFontFamily: string;
 readonly labelFontSizePx: number;
 readonly labelLineHeightPx: number;
 readonly labelOklch: OkLch;
+readonly lead: string;
+readonly lead?: string;
+readonly leadFontFamily: string;
+readonly leadFontSizePx: number;
+readonly leadLineHeightPx: number;
+readonly leadOklch: OkLch;
 readonly line: string;
 readonly lineHeightPx: number;
 readonly lineOklch: OkLch;
 readonly listMaxHeightPx: number;
 readonly maxWidthPx: number;
+readonly measurePx: number;
+readonly monoFontFamily: string;
+readonly monoFontSizePx: number;
+readonly monoLineHeightPx: number;
 readonly onSelect: () => void;
 readonly onSurface: string;
 readonly onSurfaceOklch: OkLch;
@@ -426,11 +460,15 @@ readonly surface: string;
 readonly surfaceOklch: OkLch;
 readonly text: string;
 readonly thicknessPx: number;
+readonly title: string;
 readonly titleFontFamily: string;
+readonly titleFontSizePx: number;
 readonly titleLineHeightPx: number;
+readonly titleOklch: OkLch;
 readonly titleSizePx: number;
 readonly track: string;
 readonly trackHeightPx: number;
+readonly transitionMs: number;
 readonly value: string;
 readonly valueFontFamily: string;
 readonly valueFontSizePx: number;
@@ -446,6 +484,7 @@ rows?: number;
 stats: readonly Stat[];
 status?: ToolCallStatus;
 status?: boolean;
+steps: readonly WizardStep[];
 streaming?: boolean;
 summary?: string;
 tabs: readonly Tab[];
@@ -480,6 +519,7 @@ type ThinkingBlock = ReturnType<typeof ThinkingBlock>;
 type ToolCall = ReturnType<typeof ToolCall>;
 type Tooltip = ReturnType<typeof Tooltip>;
 type UsageMeter = ReturnType<typeof UsageMeter>;
+type WizardShell = ReturnType<typeof WizardShell>;
 type?: 'button' | 'submit' | 'reset';
 type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'number';
 unit?: string;
@@ -492,3 +532,4 @@ variant?: ChipVariant;
 variant?: SpinnerVariant;
 }
 };
+}]>;

@@ -29,6 +29,7 @@ export default defineConfig({
         form: here('./form.html'),
         chat: here('./chat.html'),
         wave1: here('./wave1.html'),
+        'wizard-shell': here('./wizard-shell.html'),
       },
     },
   },

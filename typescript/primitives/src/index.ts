@@ -241,3 +241,18 @@ export {
   emptyStateStyleVars,
   type EmptyStateTokens,
 } from './empty-state/index.js';
+
+// ── WizardShell — the FULL-SCREEN wizard focus organism (doc 17 §6; the create/setup flows) ───────
+// One question per screen: a thin top progress bar (fraction = step index), a mono `1 / 3` counter,
+// the mono eyebrow, the SERIF DISPLAY title at the largest generated step, a one-sentence lead, a
+// scale-measured content region, and a footer slot. The shell owns the LAYOUT + the KEYBOARD CONTRACT
+// (Enter advances via onAdvance on an advanceable step · Escape calls onExit · focus trapped ·
+// first-field autofocus via a slot-forwarded action); the consumer owns the buttons + body content.
+export {
+  WizardShell,
+  deriveWizardShellTokens,
+  wizardShellStyleVars,
+  wizardProgressFraction,
+  type WizardShellTokens,
+  type WizardStep,
+} from './wizard-shell/index.js';
