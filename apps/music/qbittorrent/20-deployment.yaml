@@ -73,7 +73,7 @@ spec:
       containers:
         # ---------- VPN sidecar: all pod egress routes through here ----------
         - name: gluetun
-          image: qmcgaw/gluetun:v3
+          image: qmcgaw/gluetun@sha256:1a5bf4b4820a879cdf8d93d7ef0d2d963af56670c9ebff8981860b6804ebc8ab  # v3 pinned by digest (kill-switch behavior must not drift)
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
@@ -123,7 +123,7 @@ spec:
               memory: 256Mi
         # ---------- qBittorrent: no network of its own; uses gluetun's ----------
         - name: qbittorrent
-          image: lscr.io/linuxserver/qbittorrent:latest
+          image: lscr.io/linuxserver/qbittorrent@sha256:dd24a5f3db32bc1425d3f8dc95e8aca8ac5a35905d798171230edf33f516d9a4  # 5.2.2 pinned by digest (D2: Prowlarr compat depends on this)
           env:
             - name: PUID
               value: "1000"

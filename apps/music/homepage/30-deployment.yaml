@@ -47,7 +47,7 @@ spec:
               mountPath: /app/config
       containers:
         - name: homepage
-          image: ghcr.io/gethomepage/homepage:latest
+          image: ghcr.io/gethomepage/homepage@sha256:a0b71c8e757298d02560186bab9fbe3fc2d375c523a62cc1019177b37e48aa28  # pinned by digest
           env:
             # Homepage refuses requests whose Host isn't allow-listed.
             - name: HOMEPAGE_ALLOWED_HOSTS

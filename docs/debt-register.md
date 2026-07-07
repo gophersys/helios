@@ -128,4 +128,4 @@ and the READMEs no longer dangle.
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
-them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** (#40); **D5** qBit-done, Filebrowser known-issue.
+them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** (#40); **D5** (#32, #36-#38, login verified).
