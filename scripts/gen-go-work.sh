@@ -11,8 +11,10 @@
 #
 # The module list is CURATED, never a blind `find -name go.mod`: poc/knowledge and the hnslint
 # checker carry deliberately-isolated go.mod test FIXTURES (bad module paths, conflicting names) that
-# must NEVER enter the workspace. The three GOWORK=off build-time renderers are also EXCLUDED on
-# purpose so they keep resolving in module mode (their go.mod docs say so):
+# must NEVER enter the workspace, and the other poc/ donor modules (poc/agents, poc/codeinsight)
+# stay out too — poc/ is reference-only material (ADR-0009 D), never workspace members. The three
+# GOWORK=off build-time renderers are also EXCLUDED on purpose so they keep resolving in module
+# mode (their go.mod docs say so):
 #   - deploy/servicespec                     (the typed deploy renderer; stdlib-only, own module)
 #   - apps/platformgateway/deploy            (a GOWORK=off image-build module)
 #   - libs/templates/go/http-gateway/deploy  (the template's GOWORK=off image-build module)

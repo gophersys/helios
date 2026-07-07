@@ -48,7 +48,9 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
   non-secret `ExternalSecret` CRs live in git, never plaintext. To deploy an Eden app's secrets,
   add an `ExternalSecret` referencing the `vaultwarden` ClusterSecretStore; don't hand-create k8s
   Secrets or add `.env` files. Own-codebase deploys get the reserved Argo `apps` AppProject. See
-  `infrastructure/kubernetes/apps/external-secrets/` and `infrastructure/docs/media-platform-roadmap.md`.
+  `infrastructure/platform/core/secrets-operator/` +
+  `infrastructure/platform/services/gitops/registry/app-external-secrets.yaml` (the ESO/bridge
+  wiring) and `infrastructure/docs/secrets-guide.md` + `infrastructure/docs/runtime-secrets.md`.
 
 ## Devcontainer-first + harness versions
 

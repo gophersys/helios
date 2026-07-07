@@ -7,8 +7,11 @@
 > `Views` render-plan — every datum stamped with the commit it was computed at. The `Report` schema is
 > the **abstraction seam**: the Go analyzer (producer) and `@eden/visualization` (consumer) build
 > independently against it, so a frontend renders any repo's dashboard with zero per-repo code.
-> NOT frozen — no library exists yet; this is the 09 §4 step-1/2 negotiation draft. When built, the
-> surface is recorded at `libs/go/codeinsight/.apibaseline` and this freezes (ADR-0020).
+> NOT frozen — still the 09 §4 step-1/2 negotiation draft, but the library NOW EXISTS:
+> `libs/go/codeinsight` shipped through phase-gate qa with its exported surface recorded at
+> `libs/go/codeinsight/.apibaseline` (2026-06-17). The DRAFT→Frozen flip is the outstanding step —
+> the code ran ahead of the contract ceremony; freezing (or amending, then freezing) this document
+> against the recorded baseline is the pending decision (ADR-0020).
 >
 > Epistemic legend: ✅ ratified · 🔶 derived-but-settled · ⚠️ load-bearing assumption · 🧩 open fork.
 > Evidence base: research note `docs/research/06-codebase-insight-visualization.md`.

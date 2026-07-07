@@ -7,7 +7,7 @@
 > `docs/architecture/open-decisions.md`.
 >
 > **Provenance.** Extracted verbatim from Appendix A of the (transient) UI/TypeScript-track handoff
-> `docs/architecture/handoff-ui-libs.md`, re-homed here as the canonical research-note class. The note
+> `docs/attic/handoff-ui-libs.md` (attic'd 2026-07-06 after its content was promoted into ADR-0024 and this note), re-homed here as the canonical research-note class. The note
 > is web-sourced and adversarially fact-checked; four load-bearing corrections from the verification
 > pass are applied inline and are the *corrected* values.
 

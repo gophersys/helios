@@ -2,6 +2,11 @@
 
 > Status: Draft · 2026-06-12 · Canonical home for: workstreams, parallelism discipline, the
 > interface-negotiation protocol, milestones.
+> **Supersession note (2026-07-06):** the M0–M3 / B-numbered sequencing below is the ORIGINAL
+> plan; the executed order was re-ruled by ADR-0015 (product-first build order) + ADR-0022
+> (Milestone B), and Milestone B has since shipped. The negotiation protocol (§4) and the
+> parallelism discipline remain the live rules; read the milestone tables as history, not the
+> current plan.
 > Constraint set: built with Claude (Claude Code sessions + swarms); Mateo is never idle waiting
 > on a single agent (divide and conquer); the build itself must *exercise* the practices the
 > platform will later enforce — worktrees, interface negotiation, TDD, evidence gates — so that

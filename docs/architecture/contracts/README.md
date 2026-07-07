@@ -6,8 +6,9 @@
 > 09 §4 step-1/2 artifacts for the six universal patterns: per pattern, a producer-side draft and
 > a consumer-side draft were authored independently and reconciled into one document, with
 > unresolved tensions recorded as open questions. Freezing happens at the contract-PR gate
-> (09 §4 step 3) after Mateo's review; the frozen contract then lands in `libs/go/<pattern>/`
-> and this draft moves to the attic.
+> (09 §4 step 3) after Mateo's review; the frozen contract's CODE lands in `libs/go/<pattern>/`
+> while the contract DOCUMENT is retained here in place as the living contract text (the original
+> "moves to the attic" plan was not adopted — contracts/ is the canonical retained home).
 
 | Draft | Kind | Summary |
 |---|---|---|

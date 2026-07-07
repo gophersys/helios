@@ -1,5 +1,13 @@
 # Eden build STATUS — autonomous manager loop
 
+> ⚠️ **DATED JOURNAL — NOT current state (banner added 2026-07-06).** This was the self-paced
+> manager loop's working memory (2026-06-12 → 2026-06-14) and stops at Milestone B. It predates —
+> and therefore omits — the permission system (ADR-0025), the editor system (ADR-0027),
+> `platformgateway` + login, `libs/go/forge` + the project-creation saga, `codeinsight`, the
+> templates-into-libs fold (ADR-0026 — any "4th submodule" claim below is WRONG), and the projects
+> dashboard. Kept as a build record; for current state read the git log and the architecture
+> ADR set (0020–0027).
+
 > Living working-state for the self-paced manager loop (set up 2026-06-12 while Mateo is away).
 > This is my memory across loop iterations. Mateo: read this first when you're back.
 
@@ -229,7 +237,7 @@ pinned harness versions; agent pods dogfood the devcontainer images.
 ## ▶ POST-DEMO PROGRAM (2026-06-14) — application-templates + the UI foundation (single orchestrator)
 
 After the live demo, Mateo opened two new tracks and **consolidated to one orchestrator** (the parallel
-UI/TypeScript agent handed off — handoff doc `docs/architecture/handoff-ui-libs.md`, eden 455b1fd).
+UI/TypeScript agent handed off — handoff doc `docs/attic/handoff-ui-libs.md` (attic'd 2026-07-06), eden 455b1fd).
 Strategy (Mateo agreed): **DEPTH-FIRST on ONE working vertical** (http-gateway backend ⇄ OpenAPI ⇄ a real
 UI) before scaling breadth; **integration seam = OpenAPI** (the backend emits, the UI generates its client).
 
