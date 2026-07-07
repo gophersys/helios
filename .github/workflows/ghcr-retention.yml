@@ -1,0 +1,32 @@
+# Scheduled ghcr cleanup for the whole gophersys org. Uses a multi-arch-aware
+# retention tool (never orphans arch sub-manifests of a live image). Prunes only
+# UNTAGGED versions older than the cut-off, keeping recent ones and ALL tagged
+# images. Runs on self-hosted arc-org. Auth: the gophersys-arc App — which needs
+# "Packages: write" added before this can run for real (starts in dry-run).
+name: ghcr-retention
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 0"   # weekly, Sunday 05:00
+permissions:
+  contents: read
+jobs:
+  prune:
+    runs-on: arc-org
+    steps:
+      - uses: actions/create-github-app-token@v1
+        id: app
+        with:
+          app-id: ${{ secrets.ARC_APP_ID }}
+          private-key: ${{ secrets.ARC_APP_PRIVATE_KEY }}
+          owner: gophersys
+      - uses: snok/container-retention-policy@v3.0.0
+        with:
+          account: gophersys
+          token: ${{ steps.app.outputs.token }}
+          image-names: "*"
+          image-tags: "!latest"        # never touch :latest
+          tag-selection: untagged      # only untagged (multi-arch safe)
+          cut-off: 4w
+          keep-n-most-recent: 5
+          dry-run: true                # flip to false once verified
