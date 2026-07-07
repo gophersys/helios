@@ -1,0 +1,47 @@
+# Namespace-wide ingress lockdown for `media` (debt-register D-security / audit H1).
+# Before this, any pod cluster-wide could reach qBittorrent's WebUI API — whose
+# auth is deliberately subnet-bypassed (D1) — plus the root filebrowser. kube-router
+# enforces NetworkPolicy here, so a default-deny + explicit allows actually bites.
+#
+# Ingress is denied by default, then allowed from: (1) same namespace (homepage's
+# widgets -> qBit/Prowlarr, Prowlarr -> qBit) and (2) the ingress controller (every
+# WebUI is reached via nginx). Egress is intentionally NOT restricted — gluetun's
+# WireGuard tunnel, Prowlarr's external indexers, and homepage's outbound calls all
+# depend on open egress; locking it down here would break the VPN kill-switch path.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: media
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: media
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx
+  namespace: media
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
