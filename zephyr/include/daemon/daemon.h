@@ -36,6 +36,9 @@ typedef struct {
     bool last_rx_valid;
     uint32_t completion_id;            /*!< Monotonic id so readers can dedupe completions */
     struct k_mutex mutex;              /*!< Guards rx + last_rx */
+
+    cipher_stream_rx_sink_t rx_sink;   /*!< Optional consumer of stream bytes (e.g. OTA) */
+    void *rx_sink_ctx;
 } cipher_stream_state_t;
 
 /*-----------------------------------------------------------------------------------------------------

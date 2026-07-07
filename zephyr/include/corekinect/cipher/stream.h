@@ -80,6 +80,36 @@ typedef struct {
  */
 bool cipher_stream_get_last_rx(cipher_daemon_t *d, cipher_stream_rx_stats_t *out);
 
+/* Phase passed to a stream RX sink. */
+#define CIPHER_STREAM_PHASE_START 0
+#define CIPHER_STREAM_PHASE_DATA  1
+#define CIPHER_STREAM_PHASE_END   2
+
+/**
+ * @brief Sink invoked as inbound stream bytes arrive, so an application can
+ *        consume the payload instead of only its checksum (the reassembler is
+ *        buffer-less by design). Used by OTA to write firmware straight into the
+ *        secondary flash slot.
+ *
+ * Called outside the daemon's stream mutex, in the stream thread context:
+ *   - START: data=NULL, len=0 — begin a transfer (e.g. flash_img_init).
+ *   - DATA:  data/len = one chunk, in order — append it.
+ *   - END:   data = &(uint8_t checksum_ok), len=1 — finalize/commit or discard.
+ *
+ * @param stream_id  The stream's id (from START).
+ * @param phase      CIPHER_STREAM_PHASE_{START,DATA,END}.
+ * @param data       Chunk bytes (DATA) / checksum_ok flag (END) / NULL (START).
+ * @param len        Byte count for this call.
+ * @param ctx        Opaque pointer registered with the sink.
+ */
+typedef void (*cipher_stream_rx_sink_t)(uint16_t stream_id, uint8_t phase,
+                                        const uint8_t *data, uint16_t len, void *ctx);
+
+/**
+ * @brief Register (or clear, with sink=NULL) the inbound stream RX sink.
+ */
+void cipher_stream_set_rx_sink(cipher_daemon_t *d, cipher_stream_rx_sink_t sink, void *ctx);
+
 /**
  * @brief FNV-1a helper (public so a sender can precompute the expected value).
  */

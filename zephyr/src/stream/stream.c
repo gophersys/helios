@@ -183,6 +183,14 @@ int32_t cipher_stream_send_pattern(cipher_daemon_t *d, uint16_t device_id, uint1
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                          Last Stream
  *---------------------------------------------------------------------------------------------------*/
+void cipher_stream_set_rx_sink(cipher_daemon_t *d, cipher_stream_rx_sink_t sink, void *ctx) {
+    cipher_stream_state_t *s = &d->stream_state;
+    k_mutex_lock(&s->mutex, K_FOREVER);
+    s->rx_sink = sink;
+    s->rx_sink_ctx = ctx;
+    k_mutex_unlock(&s->mutex);
+}
+
 bool cipher_stream_get_last_rx(cipher_daemon_t *d, cipher_stream_rx_stats_t *out) {
     cipher_stream_state_t *s = &d->stream_state;
     bool valid;
@@ -214,15 +222,28 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
         s->rx.num_chunks = 0;
         s->rx.checksum = FNV1A_OFFSET_BASIS;
         s->rx.start_time = k_uptime_get();
+        cipher_stream_rx_sink_t sink = s->rx_sink;
+        void *sink_ctx = s->rx_sink_ctx;
+        uint16_t sid = s->rx.stream_id;
         k_mutex_unlock(&s->mutex);
-        LOG_INF("stream %u START: expecting %u bytes", s->rx.stream_id, s->rx.total_len);
+        LOG_INF("stream %u START: expecting %u bytes", sid, s->rx.total_len);
+        if (sink) {
+            sink(sid, CIPHER_STREAM_PHASE_START, NULL, 0, sink_ctx);
+        }
 
     } else if (flags & CIPHER_FLAG_STREAM_DATA) {
         k_mutex_lock(&s->mutex, K_FOREVER);
         s->rx.received_len += packet->header.payload_len;
         s->rx.num_chunks++;
         s->rx.checksum = cipher_stream_fnv1a(s->rx.checksum, payload, packet->header.payload_len);
+        cipher_stream_rx_sink_t sink = s->rx_sink;
+        void *sink_ctx = s->rx_sink_ctx;
+        uint16_t sid = s->rx.stream_id;
         k_mutex_unlock(&s->mutex);
+        // Deliver the chunk to a consumer (e.g. OTA -> flash) outside the lock.
+        if (sink) {
+            sink(sid, CIPHER_STREAM_PHASE_DATA, payload, packet->header.payload_len, sink_ctx);
+        }
 
     } else if (flags & CIPHER_FLAG_STREAM_END) {
         uint32_t declared_len = 0;
@@ -244,12 +265,19 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
         s->last_rx_valid = true;
         s->rx.in_progress = false;
         cipher_stream_rx_stats_t snapshot = s->last_rx;
+        cipher_stream_rx_sink_t sink = s->rx_sink;
+        void *sink_ctx = s->rx_sink_ctx;
         k_mutex_unlock(&s->mutex);
 
         uint32_t kbps = (duration > 0) ? (uint32_t)((int64_t)snapshot.received_len * 1000 / duration / 1024) : 0;
         LOG_INF("stream %u END: %u bytes / %u chunks in %lld ms = %u KiB/s, checksum %s",
                 snapshot.stream_id, snapshot.received_len, snapshot.num_chunks,
                 duration, kbps, snapshot.checksum_ok ? "OK" : "MISMATCH");
+        // Signal the consumer to finalize (commit on checksum OK, discard otherwise).
+        if (sink) {
+            uint8_t ok = snapshot.checksum_ok ? 1U : 0U;
+            sink(snapshot.stream_id, CIPHER_STREAM_PHASE_END, &ok, 1, sink_ctx);
+        }
     }
 }
 
