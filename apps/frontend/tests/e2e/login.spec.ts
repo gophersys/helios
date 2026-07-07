@@ -13,6 +13,14 @@ const DEFAULT_NAME = 'Mateo Segura';
 const DEFAULT_EMAIL = 'mateo@eden.local';
 
 test.describe('login — real Vault + Postgres + platformgateway (no mocks)', () => {
+  // This lane needs the REAL platform stack (Vault seed + Postgres + platformgateway-live), which
+  // tests/e2e/run-login.sh stands up and signals via E2E_PLATFORM_READY. Through the generic
+  // runner the stack is absent — skip HONESTLY with the runner to use, never fail-by-default.
+  test.skip(
+    !process.env.E2E_PLATFORM_READY,
+    'real platform stack not up — run via tests/e2e/run-login.sh (Vault+Postgres+platformgateway)',
+  );
+
   test('login loads the seeded default user and continues into the dashboard as them', async ({
     page,
   }) => {

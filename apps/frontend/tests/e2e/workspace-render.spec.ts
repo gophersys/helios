@@ -181,7 +181,11 @@ function sseTranscript(): string {
 /** Wire the four gateway surfaces onto deterministic fixtures. The workspace resolves the gateway to
  *  the same-origin `/gateway` proxy by default, so every gateway call lands under `**\/gateway/**`. */
 async function stubGateway(page: Page): Promise<void> {
-  await page.route('**/gateway/**', async (route: Route) => {
+  // Match by PATHNAME, not the '**/gateway/**' glob: under `vite dev` the app's own source modules
+  // live at /src/lib/gateway/*.ts, which that glob also matches — the stub then 404s the app's JS,
+  // the route chunk fails its dynamic import, and SvelteKit shows its 500 page (the long-standing
+  // "workspace-render 500" flake). Only the same-origin API prefix /gateway/ is the stub's business.
+  await page.route((url) => url.pathname.startsWith('/gateway/'), async (route: Route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/gateway/, '');
 
@@ -272,7 +276,9 @@ test.describe('project workspace — 3-pane render over a fake project + worktre
   });
 
   test('a not-found project shows an honest fault, not a blank shell', async ({ page }) => {
-    await page.route('**/gateway/**', async (route: Route) => {
+    // Pathname predicate, not '**/gateway/**' — see stubGateway: the glob would also 404 the
+    // app's own /src/lib/gateway/*.ts modules under `vite dev`.
+    await page.route((url) => url.pathname.startsWith('/gateway/'), async (route: Route) => {
       await route.fulfill({ status: 404, json: { kind: 'not-found', message: 'no such project' } });
     });
     await page.goto('/projects/does-not-exist/workspace');

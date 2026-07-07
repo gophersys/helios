@@ -43,8 +43,11 @@ PREVIEW_PID=""
 
 cleanup() {
   local code=$?
-  if [[ -n "$PREVIEW_PID" ]]; then kill "$PREVIEW_PID" 2>/dev/null || true; fi
-  if [[ -n "$DEV_PID" ]]; then kill "$DEV_PID" 2>/dev/null || true; fi
+  # Tree-kill: `bun x` spawns vite as a CHILD, so killing only the tracked pid orphans a live
+  # vite that keeps watching the tree and re-running svelte-kit sync — renumbering route chunks
+  # under any LATER run's open pages (the failed-dynamic-import 500 flake). Reap descendants first.
+  if [[ -n "$PREVIEW_PID" ]]; then pkill -P "$PREVIEW_PID" 2>/dev/null || true; kill "$PREVIEW_PID" 2>/dev/null || true; fi
+  if [[ -n "$DEV_PID" ]]; then pkill -P "$DEV_PID" 2>/dev/null || true; kill "$DEV_PID" 2>/dev/null || true; fi
   wait 2>/dev/null || true
   log "torn down (dev-serve + preview reaped)"
   exit "$code"
@@ -85,7 +88,7 @@ wait_http "${GATEWAY_URL}/healthz" "dev-serve"
 # events come straight off the dev-serve.
 log "starting vite dev (same-origin /gateway proxy -> $GATEWAY_URL) on $PREVIEW_URL"
 (cd "$FRONTEND_ROOT" && EDEN_GATEWAY_TARGET="$GATEWAY_URL" \
-  bun x vite dev --host 127.0.0.1 --port "$PREVIEW_PORT" --strictPort \
+  exec bun x vite dev --host 127.0.0.1 --port "$PREVIEW_PORT" --strictPort \
   >"${TMPDIR:-/tmp}/e2e-preview.log" 2>&1) &
 PREVIEW_PID=$!
 wait_http "$PREVIEW_URL" "vite dev"

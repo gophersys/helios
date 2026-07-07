@@ -102,5 +102,5 @@ wait_http "$PREVIEW_URL" "vite dev"
 
 # ── 4. run the login spec against the real stack ──
 log "running the login E2E against real Vault + Postgres + platformgateway-live"
-(cd "$FRONTEND_ROOT" && E2E_BASE_URL="$PREVIEW_URL" \
+(cd "$FRONTEND_ROOT" && E2E_BASE_URL="$PREVIEW_URL" E2E_PLATFORM_READY=1 \
   bun x playwright test tests/e2e/login.spec.ts "$@")
