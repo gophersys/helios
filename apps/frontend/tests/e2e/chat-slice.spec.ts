@@ -26,7 +26,7 @@ async function openChat(page: Page): Promise<void> {
  *  /product/propose — the dev-serve's deterministic fake, so this is stable; the proposer scopes the
  *  HARNESS from the spark — a "deepseek"/"oh my pi" spark scopes omp, else claude), the steps are
  *  editable, and "Build it" creates the session (POST /sessions carrying the product) and opens the
- *  chat view. Spark → Scope → Stack → Build it — the full create flow over the real propose + create
+ *  chat view. Spark → Review → Build it — the full create flow over the real propose + create
  *  REST (the same flow create-product.spec drives). */
 async function createSession(page: Page, harness: 'claude' | 'omp', prompt: string): Promise<void> {
   // ── open the flow (SPARK) ──────────────────────────────────────────────────.
@@ -34,17 +34,17 @@ async function createSession(page: Page, harness: 'claude' | 'omp', prompt: stri
   await expect(page.getByTestId('create-flow')).toBeVisible();
   await page.getByTestId('create-spark').fill(prompt);
 
-  // ── SPARK → scope the product (real POST /product/propose) → STACK ──────────.
+  // ── SPARK → scope the product (real POST /product/propose) → REVIEW ─────────.
+  // W3: the create flow is full-screen on WizardShell and collapses SCOPE+STACK into ONE editable
+  // REVIEW screen — SPARK advances straight to REVIEW (no intermediate create-next step).
   await page.getByTestId('create-start').click();
-  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'review', {
     timeout: 10_000,
   });
-  await page.getByTestId('create-next').click();
-  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'stack');
   // The run line names the proposed harness (the dev proposer scoped it from the spark).
   await expect(page.getByTestId('create-runline')).toContainText(harness);
 
-  // ── STACK → Build it (POST /sessions with the product config) → open the chat view ──.
+  // ── REVIEW → Build it (POST /sessions with the product config) → open the chat view ──.
   await page.getByTestId('create-launch').click();
   await expect(page.getByTestId('create-flow')).toBeHidden();
 

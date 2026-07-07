@@ -176,7 +176,7 @@ async function auditFlow(page: Page): Promise<AuditResult> {
     // The accent control (Let's build it / Looks right / Build it) is actually painted — the orphan-
     // token bug left it transparent. Assert the primary action has a non-transparent background.
     const accentBtn = root.querySelector(
-      '[data-testid="create-start"], [data-testid="create-next"], [data-testid="create-launch"]',
+      '[data-testid="create-start"], [data-testid="create-launch"]',
     ) as HTMLElement | null;
     const accentPainted = accentBtn
       ? parse(getComputedStyle(accentBtn).backgroundColor)[3] > 0
@@ -331,7 +331,10 @@ test.describe('create a new project — full-stack journey against a real dev-se
     const proposeBody = captureProposeResponse(page);
     await page.getByTestId('create-start').click();
     const proposed = await proposeBody;
-    await expect(flow).toHaveAttribute('data-step', 'scope');
+    // W3: the create flow is full-screen on WizardShell and collapses SCOPE+STACK into ONE editable
+    // REVIEW screen — the data-step walk is now spark → thinking → review (was spark/thinking/scope/
+    // stack). SPARK advances straight to REVIEW after the propose round-trip.
+    await expect(flow).toHaveAttribute('data-step', 'review');
 
     // ── 2 + 3. DATA INTEGRITY / FE⇄BE: the propose RESPONSE carried the deterministic config ──.
     expect(proposed.productName).toBe(PROPOSED.productName);
@@ -343,9 +346,10 @@ test.describe('create a new project — full-stack journey against a real dev-se
     expect(proposed.sdlcPhases).toEqual(PROPOSED.phases);
     expect(proposed.sandbox.posture).toBe(PROPOSED.posture);
 
-    // ── the RENDERED scope reflects that response (no drift backend→UI). The name seeds editable;
+    // ── the RENDERED review reflects that response (no drift backend→UI). The name seeds editable;
     //    the summary shows; and the agent AUTO-SELECTED the right platform target (a Go service →
-    //    the "service" target is selected, the app-only targets are not). ──.
+    //    the "service" target is selected, the app-only targets are not). W3: SCOPE + STACK are one
+    //    REVIEW screen now, so the targets AND the stack chips AND the run-line all render together. ──.
     await expect(page.getByTestId('create-name')).toHaveValue(PROPOSED.productName);
     await expect(page.getByTestId('create-summary')).toContainText(proposed.summary);
     const serviceTarget = page.locator('[data-testid="create-target"][data-target-id="service"]');
@@ -355,16 +359,9 @@ test.describe('create a new project — full-stack journey against a real dev-se
     await expect(
       page.locator('[data-testid="create-target"][data-selected="true"]').first(),
     ).toBeVisible();
-    assertCleanAudit(await auditFlow(page), 'SCOPE');
 
-    // ── the user EDIT: rename the project. It must land in the create payload (NOT the proposed name). ──.
-    await page.getByTestId('create-name').fill(EDITED_NAME);
-    await expect(page.getByTestId('create-name')).toHaveValue(EDITED_NAME);
-
-    // ── SCOPE → STACK: the proposed stack reveals as chips (the language + the service), and the
-    //    build harness/model are named (the capability binding, no drift). ──.
-    await page.getByTestId('create-next').click();
-    await expect(flow).toHaveAttribute('data-step', 'stack');
+    // ── the proposed stack reveals as chips (the language + the service), and the build harness/model
+    //    are named (the capability binding, no drift) — all on the same REVIEW screen. ──.
     await expect(
       page.locator('[data-testid="create-stack-item"]').filter({ hasText: PROPOSED.languages[0] }),
     ).toHaveCount(1);
@@ -373,7 +370,11 @@ test.describe('create a new project — full-stack journey against a real dev-se
     ).toHaveCount(1);
     await expect(page.getByTestId('create-runline')).toContainText(PROPOSED.harness);
     await expect(page.getByTestId('create-runline')).toContainText(PROPOSED.model);
-    assertCleanAudit(await auditFlow(page), 'STACK');
+    assertCleanAudit(await auditFlow(page), 'REVIEW');
+
+    // ── the user EDIT: rename the project. It must land in the create payload (NOT the proposed name). ──.
+    await page.getByTestId('create-name').fill(EDITED_NAME);
+    await expect(page.getByTestId('create-name')).toHaveValue(EDITED_NAME);
 
     // ── 4. KEYBOARD NAV + FOCUS: drive the flow with the keyboard. Focus the dialog, Tab through it,
     //    and assert focus lands on a real interactive control INSIDE the flow (keyboard-navigable,
@@ -592,8 +593,8 @@ test.describe('create a new project — full-stack journey against a real dev-se
     await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'thinking');
     await expect(page.getByTestId('create-thinking')).toBeVisible();
     await expect(page.getByTestId('create-thinking-line')).not.toBeEmpty();
-    // Then it resolves to the scope screen with the real proposed config.
-    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+    // Then it resolves to the REVIEW screen with the real proposed config (W3: scope+stack merged).
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'review', {
       timeout: 10_000,
     });
     await expect(page.getByTestId('create-name')).toHaveValue(PROPOSED.productName);
@@ -643,14 +644,14 @@ test.describe('create a new project — full-stack journey against a real dev-se
       `a propose failure must not crash the app: ${pageErrors.join(' | ')}`,
     ).toEqual([]);
 
-    // Retry: the second propose hits the REAL backend and advances to SCOPE with the real config.
+    // Retry: the second propose hits the REAL backend and advances to REVIEW with the real config.
     await page.getByTestId('create-start').click();
-    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'review', {
       timeout: 10_000,
     });
     await expect(page.getByTestId('create-name')).toHaveValue(PROPOSED.productName);
 
-    // Close cleanly (no orphan session was created — propose does not create).
+    // Close cleanly (no orphan session was created — propose does not create). Back to SPARK, cancel.
     await page.getByTestId('create-back').click();
     await page.getByTestId('create-cancel').click();
     await expect(page.getByTestId('create-flow')).toBeHidden();
@@ -795,7 +796,7 @@ test.describe('create a new project — LIVE arm (real claude propose + real age
 
     // The REAL propose returned a sane, NON-EMPTY config (a productName, a kind, and a non-empty
     // language set — the live model actually scoped a product, not an empty shell).
-    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'review', {
       timeout: 60_000,
     });
     expect(proposed.productName.trim().length).toBeGreaterThan(0);
@@ -812,11 +813,8 @@ test.describe('create a new project — LIVE arm (real claude propose + real age
       page.locator('[data-testid="create-target"][data-selected="true"]').first(),
     ).toBeVisible();
 
-    // Drive SCOPE → STACK → Build (create a REAL agent session).
-    await page.getByTestId('create-next').click();
-    await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'stack', {
-      timeout: 60_000,
-    });
+    // Drive REVIEW → Build (create a REAL agent session). W3: scope+stack are one REVIEW screen, so
+    // Build is available directly (no intermediate create-next step).
     await page.getByTestId('create-launch').click();
     await expect(page.getByTestId('create-flow')).toBeHidden({ timeout: 60_000 });
 

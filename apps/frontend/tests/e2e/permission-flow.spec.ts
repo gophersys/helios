@@ -28,17 +28,17 @@ async function openChat(page: Page): Promise<void> {
 
 /** Drive the CREATE-PROJECT FLOW to launch a claude session whose OPENING prompt is the
  *  permission-demo prompt — so the dev adapter's first turn is the out-of-grant gate (not the
- *  canonical demo). Spark (the prompt) → Scope → Stack → Build it. */
+ *  canonical demo). Spark (the prompt) → Review → Build it. */
 async function launchPermissionSession(page: Page): Promise<void> {
   await page.getByTestId('new-session').first().click();
   await expect(page.getByTestId('create-flow')).toBeVisible();
   await page.getByTestId('create-spark').fill(PERMISSION_DEMO_PROMPT);
   await page.getByTestId('create-start').click();
-  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'scope', {
+  // W3: the create flow collapses SCOPE+STACK into ONE full-screen REVIEW screen — SPARK advances
+  // straight to REVIEW (no intermediate create-next step).
+  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'review', {
     timeout: 10_000,
   });
-  await page.getByTestId('create-next').click();
-  await expect(page.getByTestId('create-flow')).toHaveAttribute('data-step', 'stack');
   await page.getByTestId('create-launch').click();
   await expect(page.getByTestId('create-flow')).toBeHidden();
   await expect(page.getByTestId('active-harness')).toHaveText('claude');

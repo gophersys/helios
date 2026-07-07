@@ -650,6 +650,7 @@
         propose={(prompt) => client.propose(prompt)}
         onlaunch={launchProduct}
         oncancel={() => (showWizard = false)}
+        {theme}
       />
     {/if}
   </div>

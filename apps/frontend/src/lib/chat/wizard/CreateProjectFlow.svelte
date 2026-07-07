@@ -1,24 +1,37 @@
 <script lang="ts">
-  // CREATE PROJECT FLOW — the animated, multi-screen "start a new project" experience. It replaces
-  // the dense form wizard with a short, confident "trust me" flow: the user says what they want in
-  // one breath, Eden scopes it, and the user WATCHES the agent auto-select the platform targets and
-  // the stack before launching the build. Simplicity is the design: one idea in, the agent does the
-  // thinking, three quick screens out.
+  // CREATE PROJECT FLOW — the full-screen, focus-moment "start a new project" experience (doc 17 §6).
+  // It is the @eden/primitives WizardShell made concrete: one question per screen, the serif display
+  // question at the largest step, a mono `1 / N` counter, a thin progress bar, Enter advances, Esc
+  // offers exit. The "trust me" promise is unchanged — the user says what they want in one breath,
+  // Eden scopes it, and the user reviews the agent's pick before launching — but the presentation is
+  // now full-screen (not a scrim modal) and collapses to TWO visible steps (doc 17 §6 "larger, simpler
+  // words"; the survey's MINIMAL FULL-SCREEN STEP COUNT plan):
   //
-  //   1. SPARK     — one prompt: "what do you want to build?" (be brief; details come later).
-  //   2. THINKING  — a transient scoping animation while POST /product/propose runs.
-  //   3. SCOPE     — the agent SELECTS the platform targets out of the palette (web/mobile/desktop/
-  //                  service/cli), staggered; the project name is editable, the summary shown.
-  //   4. STACK     — the proposed languages/frameworks/services reveal as chips; the harness is named;
-  //                  "Build it" hands the assembled ProductConfig to the parent (POST /sessions).
+  //   1. SPARK    — one prompt: "What are we building?" (be brief; details come later). Enter fires
+  //                 POST /product/propose.
+  //   2. THINKING — a transient scoping interstitial while the propose round-trips (NOT a step: it
+  //                 keeps the SPARK progress fraction, no counter jump).
+  //   3. REVIEW   — the proposal rendered as editable CARDS: the project name is the ONLY editable
+  //                 field (a deliberate product + data-integrity contract), and the platform targets,
+  //                 stack chips, and run-line are shown as the agent's pick. "Build it" hands the
+  //                 assembled ProductConfig to the parent (POST /sessions + POST /projects).
   //
   // The component owns only local flow state. propose() and onlaunch() are the parent's GatewayClient
   // calls, injected as callbacks, so this stays a pure, testable view with no network of its own. The
   // proposed config is authoritative (normalized server-side); the only edit surfaced is the name —
-  // everything else is the agent's pick (the "trust me" promise), tunable later in settings.
+  // everything else is the agent's pick (the "trust me" promise), tunable later in settings. The wire
+  // payload is byte-identical to the pre-full-screen flow: the proposed config rides faithfully, with
+  // only the name overridden.
+  //
+  // WIRE CONTRACT (pinned by tests/e2e/create-product.spec.ts): SPARK submit → POST /product/propose
+  // → returns the normalized ProductConfig. REVIEW renders it (create-name seeded to productName,
+  // create-summary=summary, targets auto-selected, stack chips, runline harness · model). Build
+  // (create-launch) → onlaunch with product == proposed + only productName overridden.
 
-  import { fly, fade } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import type { Theme } from '@eden/theme';
+  import { WizardShell, type WizardStep } from '@eden/primitives';
   import type { ProductConfig, ProductHarness } from '$lib/gateway/types';
   import { deriveStack, deriveTargets } from './projectScope';
 
@@ -34,10 +47,14 @@
     onlaunch: (payload: LaunchPayload) => Promise<void> | void;
     /** Invoked on Cancel / Escape (close the flow without launching). */
     oncancel: () => void;
+    /** The active generated theme, handed uniformly with every Eden component. */
+    theme?: Theme;
   }
-  let { propose, onlaunch, oncancel }: Props = $props();
+  let { propose, onlaunch, oncancel, theme }: Props = $props();
 
-  type Step = 'spark' | 'thinking' | 'scope' | 'stack';
+  // The rendered step. `thinking` is a transient overlay of SPARK (it keeps SPARK's progress
+  // fraction) — the two VISIBLE steps are SPARK and REVIEW, so the WizardShell counter reads `1 / 2`.
+  type Step = 'spark' | 'thinking' | 'review';
   let step = $state<Step>('spark');
 
   let idea = $state('');
@@ -50,16 +67,30 @@
   const stack = $derived(config ? deriveStack(config) : []);
   const ideaValid = $derived(idea.trim().length > 0);
 
-  // The three content screens, for the progress dots (THINKING is a transient overlay of SPARK, not
-  // its own dot).
-  const DOTS: { id: Step; name: string }[] = [
-    { id: 'spark', name: 'Idea' },
-    { id: 'scope', name: 'Scope' },
-    { id: 'stack', name: 'Stack' },
+  // The two VISIBLE wizard steps (THINKING is a transient overlay of SPARK, not its own step) — the
+  // WizardShell reads this for the progress bar length + the `1 / 2` mono counter. The active step id
+  // is `spark` while thinking (so the counter/bar do not jump during the interstitial).
+  const STEPS: readonly WizardStep[] = [
+    {
+      id: 'spark',
+      eyebrow: 'New project',
+      title: 'What are we building?',
+      lead: "Say it in one breath — we'll capture the details together.",
+    },
+    {
+      id: 'review',
+      eyebrow: "Here's the plan",
+      title: 'Review and build',
+      lead: 'The name is yours to edit — everything else is the agent’s pick.',
+    },
   ];
-  const dotIndex = $derived(step === 'thinking' ? 0 : DOTS.findIndex((d) => d.id === step));
+  const activeStepId = $derived(step === 'thinking' ? 'spark' : step);
+  // Enter advances only from SPARK (with a valid idea); REVIEW's build is an explicit button, and the
+  // THINKING interstitial must not advance. The textarea keeps native Enter (the shell only swallows
+  // Enter on single-line targets), so this gates the shell's Enter contract precisely.
+  const advanceable = $derived(step === 'spark' && ideaValid);
 
-  // Rotating status lines for the THINKING animation. setInterval (not requestAnimationFrame) so the
+  // Rotating status lines for the THINKING interstitial. setInterval (not requestAnimationFrame) so the
   // copy keeps cycling even in a headless/background page, where rAF is throttled to a stop.
   const THINKING_LINES = [
     'Reading your idea…',
@@ -94,7 +125,7 @@
       config = proposed;
       projectName = proposed.productName;
       stopThinking();
-      step = 'scope';
+      step = 'review';
     } catch (cause) {
       stopThinking();
       error = cause instanceof Error ? cause.message : String(cause);
@@ -102,14 +133,6 @@
     }
   }
 
-  function toStack(): void {
-    error = null;
-    step = 'stack';
-  }
-  function backToScope(): void {
-    error = null;
-    step = 'scope';
-  }
   function backToSpark(): void {
     error = null;
     config = null;
@@ -120,7 +143,9 @@
     if (!config || launching) return;
     launching = true;
     error = null;
-    // The proposal is authoritative; the only user edit is the name. Fold it in and hand off.
+    // The proposal is authoritative; the only user edit is the name. Fold it in and hand off — the
+    // create payload carries the proposed config with ONLY productName overridden (the data-integrity
+    // contract the e2e pins byte-for-byte).
     const product: ProductConfig = {
       ...config,
       productName: projectName.trim() || config.productName,
@@ -133,84 +158,32 @@
     }
   }
 
-  function onScrimKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') oncancel();
-  }
-  // The dialog subtree stops keydowns from reaching the workspace's global ⌘K handler, but must
-  // still honor Escape-to-close itself (the scrim handler never sees it once focus is inside) —
-  // the same precedent as Modal.svelte's panel handler.
-  function onFlowKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      oncancel();
-      return;
-    }
-    event.stopPropagation();
-  }
-  function onSparkKeydown(event: KeyboardEvent): void {
-    // Cmd/Ctrl+Enter submits the idea straight from the textarea.
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-      event.preventDefault();
-      void spark();
-    }
+  // The shell's Enter-advance intent: only SPARK advances (gated by `advanceable`); REVIEW never
+  // auto-advances (its build is a deliberate button press).
+  function onAdvance(): void {
+    if (step === 'spark') void spark();
   }
 
   // Clean up the rotating-status interval if the flow unmounts mid-think.
   $effect(() => () => stopThinking());
-
-  const screenIn = { x: 28, duration: 300, easing: cubicOut } as const;
 </script>
 
-<div
-  class="scrim"
-  role="presentation"
-  onclick={oncancel}
-  onkeydown={onScrimKeydown}
-  data-testid="create-scrim"
+<WizardShell
+  steps={STEPS}
+  active={activeStepId}
+  {theme}
+  {advanceable}
+  {onAdvance}
+  onExit={oncancel}
+  label="New project"
+  data-testid="create-flow"
+  data-step={step}
 >
-  <div
-    class="flow"
-    role="dialog"
-    tabindex="-1"
-    aria-modal="true"
-    aria-label="New project"
-    data-testid="create-flow"
-    data-step={step}
-    onclick={(event) => event.stopPropagation()}
-    onkeydown={onFlowKeydown}
-  >
-    <header class="flow__head">
-      <div class="flow__progress" aria-hidden="true">
-        {#each DOTS as dot, index (dot.id)}
-          <span class="dot" class:dot--done={index < dotIndex} class:dot--on={index === dotIndex}
-          ></span>
-        {/each}
-      </div>
-      <button type="button" class="flow__close" aria-label="Cancel" onclick={oncancel}>✕</button>
-    </header>
-
-    <div class="flow__body">
-      {#if step === 'spark'}
-        <!-- ── 1. SPARK ────────────────────────────────────────────────────── -->
-        <section class="screen" data-testid="create-spark-screen" in:fly={screenIn}>
-          <p class="eyebrow">New project</p>
-          <h2 class="screen__title">What do you want to build?</h2>
-          <p class="lead">Be brief — we'll capture the details together.</p>
-          <textarea
-            class="spark"
-            data-testid="create-spark"
-            rows="3"
-            aria-label="What do you want to build?"
-            placeholder="A tool that turns my invoices into a clean dashboard…"
-            bind:value={idea}
-            onkeydown={onSparkKeydown}
-          ></textarea>
-          {#if error}
-            <p class="flow__error" data-testid="create-error" role="alert">{error}</p>
-          {/if}
-        </section>
-      {:else if step === 'thinking'}
-        <!-- ── 2. THINKING ─────────────────────────────────────────────────── -->
-        <section class="screen screen--center" data-testid="create-thinking" in:fade={{ duration: 200 }}>
+  {#snippet body({ autofocus })}
+    {#if step === 'spark' || step === 'thinking'}
+      <!-- ── 1. SPARK (with the THINKING interstitial overlaid) ─────────────────── -->
+      {#if step === 'thinking'}
+        <div class="thinking" data-testid="create-thinking" in:fade={{ duration: 200 }}>
           <div class="orbit" aria-hidden="true">
             <span class="orbit__core"></span>
             <span class="orbit__ring"></span>
@@ -219,31 +192,51 @@
             <span class="orbit__dot orbit__dot--3"></span>
           </div>
           <p class="thinking-line" data-testid="create-thinking-line" role="status">{thinkingLine}</p>
-        </section>
-      {:else if step === 'scope' && config}
-        <!-- ── 3. SCOPE — the agent auto-selects the targets ───────────────── -->
-        <section class="screen" data-testid="create-scope" in:fly={screenIn}>
-          <p class="eyebrow">Here's the plan</p>
+        </div>
+      {:else}
+        <div class="spark-body">
+          <textarea
+            class="spark"
+            data-testid="create-spark"
+            rows="3"
+            aria-label="What are we building?"
+            placeholder="A tool that turns my invoices into a clean dashboard…"
+            bind:value={idea}
+            use:autofocus
+          ></textarea>
+          {#if error}
+            <p class="flow__error" data-testid="create-error" role="alert">{error}</p>
+          {/if}
+        </div>
+      {/if}
+    {:else if step === 'review' && config}
+      <!-- ── 2. REVIEW — the proposal as editable cards (name editable; the rest is the pick) ── -->
+      <div class="review" data-testid="create-scope">
+        <div class="card card--name">
+          <label class="card__caption" for="create-name-input">Project name</label>
           <input
+            id="create-name-input"
             class="name"
             data-testid="create-name"
             aria-label="Project name"
             bind:value={projectName}
             autocomplete="off"
             spellcheck="false"
+            use:autofocus
           />
           <p class="lead summary" data-testid="create-summary">{config.summary}</p>
+        </div>
 
-          <p class="targets__caption">This needs</p>
+        <div class="card" data-testid="create-stack">
+          <p class="card__caption">This needs</p>
           <ul class="targets" role="list" data-testid="create-targets">
-            {#each targets as target, index (target.id)}
+            {#each targets as target (target.id)}
               <li
                 class="target"
                 class:target--on={target.selected}
                 data-testid="create-target"
                 data-target-id={target.id}
                 data-selected={target.selected}
-                style="--i: {index}"
               >
                 <span class="target__check" aria-hidden="true">✓</span>
                 <span class="target__label">{target.label}</span>
@@ -253,218 +246,99 @@
               </li>
             {/each}
           </ul>
-          {#if error}
-            <p class="flow__error" data-testid="create-error" role="alert">{error}</p>
-          {/if}
-        </section>
-      {:else if step === 'stack' && config}
-        <!-- ── 4. STACK ────────────────────────────────────────────────────── -->
-        <section class="screen" data-testid="create-stack" in:fly={screenIn}>
-          <p class="eyebrow">And here's the stack</p>
-          <h2 class="screen__title screen__title--sm">We'll build {projectName || config.productName} with…</h2>
+
+          <p class="card__caption card__caption--stack">Built with</p>
           <ul class="chips" role="list" data-testid="create-stack-list">
-            {#each stack as chip, index (chip.role + chip.label)}
+            {#each stack as chip (chip.role + chip.label)}
               <li
                 class="chip chip--{chip.role}"
                 data-testid="create-stack-item"
                 data-role={chip.role}
-                style="--i: {index}"
-                in:fly={{ y: 10, delay: index * 60, duration: 280, easing: cubicOut }}
               >
                 {chip.label}
               </li>
             {/each}
           </ul>
+
           <p class="runline" data-testid="create-runline">
             Built by <strong>{config.capabilities.harness}</strong>
             · <span class="runline__model">{config.capabilities.model}</span>
           </p>
-          {#if error}
-            <p class="flow__error" data-testid="create-error" role="alert">{error}</p>
-          {/if}
-        </section>
-      {/if}
-    </div>
+        </div>
 
-    <!-- ── nav ────────────────────────────────────────────────────────────── -->
-    <footer class="flow__nav">
-      {#if step === 'spark'}
-        <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}>Cancel</button>
-        <button
-          type="button"
-          class="btn btn--accent"
-          data-testid="create-start"
-          disabled={!ideaValid}
-          onclick={spark}>Let's build it →</button
-        >
-      {:else if step === 'thinking'}
-        <span class="nav-spacer"></span>
-        <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}>Cancel</button>
-      {:else if step === 'scope'}
-        <button type="button" class="btn" data-testid="create-back" onclick={backToSpark}>← Back</button>
-        <button type="button" class="btn btn--accent" data-testid="create-next" onclick={toStack}
-          >Looks right →</button
-        >
-      {:else if step === 'stack'}
-        <button type="button" class="btn" data-testid="create-back" onclick={backToScope}>← Back</button>
-        <button
-          type="button"
-          class="btn btn--accent"
-          data-testid="create-launch"
-          disabled={launching || !config}
-          onclick={launch}>{launching ? 'Building…' : 'Build it →'}</button
-        >
-      {/if}
-    </footer>
-  </div>
-</div>
+        {#if error}
+          <p class="flow__error" data-testid="create-error" role="alert">{error}</p>
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+
+  {#snippet footer()}
+    {#if step === 'spark'}
+      <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}>Cancel</button>
+      <button
+        type="button"
+        class="btn btn--accent"
+        data-testid="create-start"
+        disabled={!ideaValid}
+        onclick={spark}>Let's build it →</button
+      >
+    {:else if step === 'thinking'}
+      <span class="nav-spacer"></span>
+      <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}>Cancel</button>
+    {:else if step === 'review'}
+      <button type="button" class="btn" data-testid="create-back" onclick={backToSpark}>← Back</button>
+      <button
+        type="button"
+        class="btn btn--accent"
+        data-testid="create-launch"
+        disabled={launching || !config}
+        onclick={launch}>{launching ? 'Building…' : 'Build it →'}</button
+      >
+    {/if}
+  {/snippet}
+</WizardShell>
 
 <style>
   /* ── token bridge ─────────────────────────────────────────────────────────.
-     @eden/theme emits --color-*, --space-*, --font-size-* (+ the +layout --eden-app-* aliases) but
-     NOT the --accent/--fg/--panel-* vocabulary this subtree reads. Bridge each to a generated role
-     token at the root so the whole flow inherits a math-sourced value (one hue source, no literals)
-     — the same token-bridge pattern the chat overlays use. */
-  .scrim {
+     The WizardShell owns the surface / title / lead / eyebrow / counter / progress appearance
+     (all @eden/theme-derived, no literals). This subtree styles only the STEP BODY (the input +
+     the review cards) and the FOOTER buttons, bridging the generated @eden/theme role tokens to the
+     --accent/--fg/--panel-* vocabulary this content reads — the same math-sourced bridge the app's
+     overlays use. One hue source, no hand-set hex or px on a painted role. */
+  .spark-body,
+  .review {
     --accent: var(--color-primary);
     --on-accent: var(--color-on-primary);
     --fg: var(--color-on-surface);
-    --muted: var(--eden-app-muted, color-mix(in oklab, var(--color-on-surface) 62%, var(--color-surface)));
+    --muted: var(
+      --eden-app-muted,
+      color-mix(in oklab, var(--color-on-surface) 62%, var(--color-surface))
+    );
     --panel-bg: var(--color-surface);
     --panel-line: var(--color-outline);
     --radius: var(--eden-app-radius, var(--space-2, 8px));
     --micro: var(--font-size-caption, 12px);
     --warn: var(--color-warning);
-
-    position: fixed;
-    inset: 0;
-    background: color-mix(in srgb, var(--color-on-surface) 55%, transparent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    z-index: 10;
-  }
-  .flow {
-    width: min(560px, 100%);
-    min-height: min(64vh, 540px);
-    max-height: min(88vh, 720px);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    background: var(--panel-bg);
-    border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.75);
-    padding: 1.25rem 1.4rem 1.1rem;
-    box-shadow: 0 18px 56px color-mix(in srgb, var(--color-on-surface) 22%, transparent);
-    overflow: hidden;
   }
 
-  /* ── head: progress dots + close ── */
-  .flow__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .flow__progress {
-    display: inline-flex;
-    gap: 0.4rem;
-    align-items: center;
-  }
-  .dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--fg) 18%, transparent);
-    transition: background 0.2s ease, width 0.2s ease;
-  }
-  .dot--on {
-    width: 1.4rem;
-    background: var(--accent);
-  }
-  .dot--done {
-    background: color-mix(in oklab, var(--accent) 55%, transparent);
-  }
-  .flow__close {
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 1rem;
-    line-height: 1;
-    padding: 0.3rem;
-    border-radius: var(--radius);
-  }
-  .flow__close:hover {
-    color: var(--fg);
-  }
-  .flow__close:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  /* ── body / screens ── */
-  .flow__body {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    overflow-y: auto;
-    padding: 0.3rem 0.15rem;
-  }
-  .screen {
-    flex: 1;
+  /* ── SPARK input ── */
+  .spark-body {
     display: flex;
     flex-direction: column;
     gap: 0.7rem;
   }
-  .screen--center {
-    align-items: center;
-    justify-content: center;
-    gap: 1.4rem;
-    text-align: center;
-  }
-  .eyebrow {
-    font-family: var(--font-code);
-    font-size: var(--micro);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin: 0;
-  }
-  .screen__title {
-    margin: 0;
-    font-size: 1.7rem;
-    line-height: 1.15;
-    letter-spacing: -0.015em;
-    color: var(--fg);
-  }
-  .screen__title--sm {
-    font-size: 1.25rem;
-  }
-  .lead {
-    margin: 0;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .summary {
-    color: var(--fg);
-    font-size: 1.02rem;
-  }
-
-  /* ── SPARK ── */
   .spark {
     font: inherit;
-    font-size: 1.05rem;
-    margin-top: 0.3rem;
-    padding: 0.85rem 1rem;
+    font-size: 1.2rem;
+    padding: 1rem 1.15rem;
     border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.25);
+    border-radius: calc(var(--radius) * 1.5);
     background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
     color: var(--fg);
     resize: vertical;
     line-height: 1.5;
-    min-height: 6.5rem;
+    min-height: 7.5rem;
   }
   .spark::placeholder {
     color: color-mix(in oklab, var(--muted) 85%, transparent);
@@ -475,14 +349,38 @@
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
   }
 
-  /* ── SCOPE: editable name + targets ── */
+  /* ── REVIEW cards ── */
+  .review {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid var(--panel-line);
+    border-radius: calc(var(--radius) * 1.5);
+    background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
+  }
+  .card__caption {
+    margin: 0;
+    font-size: var(--micro);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .card__caption--stack {
+    margin-top: 0.5rem;
+  }
   .name {
     font: inherit;
-    font-size: 1.55rem;
+    font-size: 1.7rem;
     font-weight: 650;
     letter-spacing: -0.015em;
-    padding: 0.2rem 0.3rem;
-    margin: -0.2rem -0.3rem 0;
+    padding: 0.35rem 0.5rem;
+    margin: -0.1rem -0.5rem;
     border: 1px solid transparent;
     border-radius: var(--radius);
     background: transparent;
@@ -496,13 +394,14 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
   }
-  .targets__caption {
-    margin: 0.4rem 0 0;
-    font-size: var(--micro);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
+  .summary {
+    margin: 0;
+    color: var(--fg);
+    font-size: 1.02rem;
+    line-height: 1.5;
   }
+
+  /* targets */
   .targets {
     list-style: none;
     margin: 0;
@@ -521,9 +420,7 @@
     color: var(--muted);
     background: transparent;
     font-size: 0.92rem;
-    /* unselected targets sit quietly; selected ones pop in (the agent "choosing" them). */
-    opacity: 0.5;
-    transition: opacity 0.25s ease;
+    opacity: 0.55;
   }
   .target__check {
     display: none;
@@ -531,7 +428,7 @@
     line-height: 1;
   }
   .target__hint {
-    color: color-mix(in oklab, var(--on-accent) 82%, transparent);
+    color: color-mix(in oklab, var(--on-accent) 88%, var(--accent));
     font-size: 0.78rem;
   }
   .target--on {
@@ -540,43 +437,16 @@
     background: var(--accent);
     border-color: var(--accent);
     font-weight: 600;
-    animation: target-pop 0.42s cubic-bezier(0.2, 1.3, 0.5, 1) both;
-    animation-delay: calc(var(--i) * 90ms + 120ms);
   }
   .target--on .target__check {
     display: inline-block;
     color: var(--on-accent);
-    animation: check-in 0.3s ease both;
-    animation-delay: calc(var(--i) * 90ms + 260ms);
-  }
-  @keyframes target-pop {
-    0% {
-      opacity: 0;
-      transform: scale(0.82);
-    }
-    60% {
-      transform: scale(1.06);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  @keyframes check-in {
-    from {
-      opacity: 0;
-      transform: scale(0);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
   }
 
-  /* ── STACK chips ── */
+  /* stack chips */
   .chips {
     list-style: none;
-    margin: 0.2rem 0 0;
+    margin: 0;
     padding: 0;
     display: flex;
     flex-wrap: wrap;
@@ -601,7 +471,7 @@
     border-style: dashed;
   }
   .runline {
-    margin: 0.7rem 0 0;
+    margin: 0.4rem 0 0;
     font-size: 0.85rem;
     color: var(--muted);
   }
@@ -613,11 +483,22 @@
     font-family: var(--font-code);
   }
 
-  /* ── THINKING orbit ── */
+  /* ── THINKING orbit interstitial ── */
+  .thinking {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.4rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--color-on-surface);
+  }
   .orbit {
     position: relative;
-    width: 5.5rem;
-    height: 5.5rem;
+    width: 6rem;
+    height: 6rem;
+    --accent: var(--color-primary);
   }
   .orbit__core {
     position: absolute;
@@ -654,16 +535,16 @@
   }
   .thinking-line {
     margin: 0;
-    color: var(--fg);
-    font-size: 1.05rem;
+    color: var(--color-on-surface);
+    font-size: 1.1rem;
     font-weight: 550;
   }
   @keyframes orbit {
     from {
-      transform: rotate(0) translateX(2.4rem);
+      transform: rotate(0) translateX(2.6rem);
     }
     to {
-      transform: rotate(360deg) translateX(2.4rem);
+      transform: rotate(360deg) translateX(2.6rem);
     }
   }
   @keyframes pulse {
@@ -689,28 +570,34 @@
     font-size: 0.88rem;
   }
 
-  /* ── nav ── */
-  .flow__nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.6rem;
-    padding-top: 0.6rem;
-  }
+  /* ── footer buttons ── the shell lays out the footer; the consumer owns the button vocabulary. A
+     native <button> carries the load-bearing data-testid directly (the e2e asserts create-start /
+     create-launch by testid AND reads their disabled state + painted accent background — a wrapper
+     span would break both), and `.btn` is a sampled class the UI-math audit reads. ── */
   .nav-spacer {
     flex: 1;
   }
   .btn {
+    --accent: var(--color-primary);
+    --on-accent: var(--color-on-primary);
+    --fg: var(--color-on-surface);
+    --panel-bg: var(--color-surface);
+    --panel-line: var(--color-outline);
+    --radius: var(--eden-app-radius, var(--space-2, 8px));
+
     font: inherit;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    padding: 0.6rem 1.1rem;
+    padding: 0.65rem 1.2rem;
     border-radius: calc(var(--radius) * 1.25);
     border: 1px solid var(--panel-line);
     background: var(--panel-bg);
     color: var(--fg);
     cursor: pointer;
-    transition: border-color 0.12s ease, background 0.12s ease, transform 0.08s ease;
+    transition:
+      border-color 0.12s ease,
+      background 0.12s ease,
+      transform 0.08s ease;
   }
   .btn:hover:not(:disabled) {
     border-color: var(--accent);
@@ -733,13 +620,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .target--on,
-    .target--on .target__check,
     .orbit__core,
     .orbit__dot {
       animation: none;
     }
-    .dot,
     .btn {
       transition: none;
     }

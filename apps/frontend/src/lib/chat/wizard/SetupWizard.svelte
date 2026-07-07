@@ -4,9 +4,13 @@
   // live build agent the create-saga launched) drives the interview, and this surface renders that
   // interview from the artifacts the supervisor COMMITS to the project's workspace worktree
   // (init/product/questionnaire/* → the questions, init/product/answers/* → the recorded answers),
-  // live, plus the supervisor session's SSE activity. It REUSES the create-flow front (the scrim /
-  // flow panel / progress dots / screen + button vocabulary and the @eden/theme token bridge) — only
-  // the CONTENT differs: the front is reused, the content comes from the supervisor.
+  // live, plus the supervisor session's SSE activity.
+  //
+  // W3: the presentation is now the shared full-screen @eden/primitives WizardShell (doc 17 §6) —
+  // one question per screen, serif display question, mono `1 / 4` counter, thin progress bar, Enter
+  // advances, Esc offers exit. ONLY the presentation moved: the four steps, the 1200ms worktree poll,
+  // the SSE ChatSession lifecycle, every setup-* testid + data-step/data-ready/data-open-questions
+  // attr, and the WizardSource I/O seam are all EXACTLY as before.
   //
   // The four steps (setupWizard.WIZARD_STEPS) mirror the supervisor's interview phases:
   //   1. STACKS        — choose the platform targets (web/desktop/mobile, a GROWABLE list).
@@ -20,12 +24,11 @@
   // It owns only local flow state + the worktree poll. All I/O is the injected WizardSource
   // (chat/wizard/wizardSource.ts) — list/read the committed files + send to the supervisor — so this
   // stays a pure, testable view: the live wizard binds the source to the gateway, the E2E binds a
-  // FAKE supervisor file source + session. Everything is DERIVED off the project status (=wizard) +
-  // the supervisor source; nothing is hand-guessed.
+  // FAKE supervisor file source + session.
 
-  import { fly, fade } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
+  import { fade } from 'svelte/transition';
   import type { Theme } from '@eden/theme';
+  import { WizardShell, type WizardStep as ShellStep } from '@eden/primitives';
   import type { ChatSession } from '$lib/gateway/session.svelte';
   import ChatStatusBar from '$lib/chat/ChatStatusBar.svelte';
   import {
@@ -100,14 +103,44 @@
   let drafts = $state<Record<string, string>>({});
   let answering = $state<string | null>(null);
 
-  // ── progress dots ───────────────────────────────────────────────────────────.
-  const DOT_NAMES: Record<WizardStep, string> = {
-    stacks: 'Stacks',
-    describe: 'Describe',
-    questionnaire: 'Questions',
-    qa: 'Answers',
-  };
-  const dotIndex = $derived(WIZARD_STEPS.indexOf(step));
+  // ── the WizardShell step metadata (the mono eyebrow + serif question + one-sentence lead per
+  //    screen — the copy budget: question ≤ 6 words, helper ≤ 1 sentence, doc 17 §6). The 4 ids match
+  //    WIZARD_STEPS exactly, so the progress bar length + `1 / 4` counter are the real step count. ──.
+  const SHELL_STEPS: readonly ShellStep[] = [
+    {
+      id: 'stacks',
+      eyebrow: 'Set up',
+      title: 'What are you building?',
+      lead: 'Pick the platforms your product needs — choose more than one.',
+    },
+    {
+      id: 'describe',
+      eyebrow: 'In one breath',
+      title: 'Describe the simplest product',
+      lead: 'The simplest version that’s still useful — the supervisor asks the rest.',
+    },
+    {
+      id: 'questionnaire',
+      eyebrow: 'The supervisor is scoping',
+      title: 'A few questions',
+      lead: 'The supervisor drafts what it needs to know. Review, then answer.',
+    },
+    {
+      id: 'qa',
+      eyebrow: 'Answer',
+      title: 'Tell the supervisor',
+      lead: 'Answer each question — every one is needed before the build starts.',
+    },
+  ];
+
+  // Enter advances only when the active step is legal to advance (a valid field / a committed
+  // questionnaire / no open questions). The shell keeps native Enter inside a textarea, so the brief
+  // + answer boxes are never hijacked; this gates the button-equivalent transitions.
+  const advanceable = $derived(
+    (step === 'stacks' && stacksValid) ||
+      (step === 'questionnaire' && ready) ||
+      (step === 'qa' && ready && !openQuestions),
+  );
 
   /** Reload the committed init/product/* artifacts from the worktree and re-derive the question
    *  state. Surfaced (never swallowed) on fault, but a transient read fault does NOT clear the
@@ -221,203 +254,168 @@
   function setDraft(id: string, value: string): void {
     drafts = { ...drafts, [id]: value };
   }
+
+  // The shell's Enter-advance intent maps to the current step's forward transition (guarded by
+  // `advanceable`, so an illegal step never fires). DESCRIBE's send is an explicit button (Enter
+  // inside the brief textarea stays native), and answering a single question is its own button.
+  function onAdvance(): void {
+    if (step === 'stacks') toDescribe();
+    else if (step === 'questionnaire') toQa();
+    else if (step === 'qa') finish();
+  }
 </script>
 
-<div class="scrim" role="presentation" data-testid="setup-scrim">
-  <div
-    class="flow"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Set up your project"
-    tabindex="-1"
-    data-testid="setup-wizard"
-    data-step={step}
-    data-ready={ready}
-    data-open-questions={openQuestions}
-  >
-    <header class="flow__head">
-      <div class="flow__progress" aria-hidden="true">
-        {#each WIZARD_STEPS as id, index (id)}
-          <span
-            class="dot"
-            class:dot--done={index < dotIndex}
-            class:dot--on={index === dotIndex}
-            title={DOT_NAMES[id]}
-          ></span>
-        {/each}
-      </div>
-      <p class="flow__name" data-testid="setup-project-name">{projectName}</p>
-    </header>
+<WizardShell
+  steps={SHELL_STEPS}
+  active={step}
+  {theme}
+  {advanceable}
+  {onAdvance}
+  label="Set up your project"
+  data-testid="setup-wizard"
+  data-step={step}
+  data-ready={ready}
+  data-open-questions={openQuestions}
+>
+  {#snippet body({ autofocus })}
+    <p class="flow__name" data-testid="setup-project-name">{projectName}</p>
 
-    <div class="flow__body">
-      {#if step === 'stacks'}
-        <!-- ── 1. STACKS ───────────────────────────────────────────────────────── -->
-        <section
-          class="screen"
-          data-testid="setup-stacks"
-          in:fly={{ x: 28, duration: 280, easing: cubicOut }}
-        >
-          <p class="eyebrow">Set up</p>
-          <h2 class="screen__title">What are you building?</h2>
-          <p class="lead">Pick the platforms your product needs — you can choose more than one.</p>
-          <ul class="stacks" role="list" data-testid="setup-stack-list">
-            {#each WIZARD_STACKS as stack, index (stack.id)}
-              {@const on = selectedStacks.has(stack.id)}
-              <li>
-                <button
-                  type="button"
-                  class="stack"
-                  class:stack--on={on}
-                  data-testid="setup-stack"
-                  data-stack-id={stack.id}
-                  data-selected={on}
-                  aria-pressed={on}
-                  style="--i: {index}"
-                  onclick={() => toggleStack(stack.id)}
-                >
-                  <span class="stack__glyph" aria-hidden="true">{stack.glyph}</span>
-                  <span class="stack__body">
-                    <span class="stack__label">{stack.label}</span>
-                    <span class="stack__hint">{stack.hint}</span>
-                  </span>
-                  <span class="stack__check" aria-hidden="true">{on ? '✓' : ''}</span>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        </section>
-      {:else if step === 'describe'}
-        <!-- ── 2. DESCRIBE ─────────────────────────────────────────────────────── -->
-        <section
-          class="screen"
-          data-testid="setup-describe"
-          in:fly={{ x: 28, duration: 280, easing: cubicOut }}
-        >
-          <p class="eyebrow">In one breath</p>
-          <h2 class="screen__title">Describe the simplest product</h2>
-          <p class="lead">
-            The simplest version that's still useful. Keep it short — the supervisor will ask the
-            rest.
-          </p>
-          <textarea
-            class="brief"
-            data-testid="setup-brief"
-            rows="4"
-            aria-label="Describe the simplest product"
-            placeholder="A dashboard that turns my raw invoices into a clean monthly summary…"
-            bind:value={brief}
-          ></textarea>
-          <p
-            class="brief__count"
-            class:brief__count--over={briefWords > DESCRIBE_WORD_LIMIT}
-            data-testid="setup-brief-count"
-            aria-live="polite"
-          >
-            {briefWords} / {DESCRIBE_WORD_LIMIT} words
-          </p>
-        </section>
-      {:else if step === 'questionnaire'}
-        <!-- ── 3. QUESTIONNAIRE (live from the worktree) ───────────────────────── -->
-        <section class="screen" data-testid="setup-questionnaire" in:fade={{ duration: 200 }}>
-          <p class="eyebrow">The supervisor is scoping</p>
-          <h2 class="screen__title">A few questions</h2>
-          {#if !ready}
-            <div class="waiting" data-testid="setup-questionnaire-waiting" role="status">
-              <span class="waiting__spinner" aria-hidden="true"></span>
-              <p class="lead">
-                {questionnaireLoaded
-                  ? 'Waiting for the supervisor to draft the questionnaire…'
-                  : 'Reading the supervisor’s notes…'}
-              </p>
-            </div>
-          {:else}
-            <p class="lead">
-              The supervisor committed {questions.length} question{questions.length === 1
-                ? ''
-                : 's'}. Review them, then answer.
-            </p>
-            <ul
-              class="questions questions--preview"
-              role="list"
-              data-testid="setup-question-preview-list"
+    {#if step === 'stacks'}
+      <!-- ── 1. STACKS ───────────────────────────────────────────────────────── -->
+      <ul class="stacks" role="list" data-testid="setup-stack-list">
+        {#each WIZARD_STACKS as stack, index (stack.id)}
+          {@const on = selectedStacks.has(stack.id)}
+          <li>
+            <button
+              type="button"
+              class="stack"
+              class:stack--on={on}
+              data-testid="setup-stack"
+              data-stack-id={stack.id}
+              data-selected={on}
+              aria-pressed={on}
+              onclick={() => toggleStack(stack.id)}
             >
-              {#each questions as state (state.question.id)}
-                <li
-                  class="question"
-                  data-testid="setup-question-preview"
-                  data-question-id={state.question.id}
-                  data-path={state.question.path}
-                >
-                  <span class="question__path">{state.question.path}</span>
-                  <p class="question__prompt">{state.question.prompt}</p>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </section>
-      {:else if step === 'qa'}
-        <!-- ── 4. Q&A ──────────────────────────────────────────────────────────── -->
-        <section
-          class="screen"
-          data-testid="setup-qa"
-          in:fly={{ x: 28, duration: 280, easing: cubicOut }}
+              <span class="stack__glyph" aria-hidden="true">{stack.glyph}</span>
+              <span class="stack__body">
+                <span class="stack__label">{stack.label}</span>
+                <span class="stack__hint">{stack.hint}</span>
+              </span>
+              <span class="stack__check" aria-hidden="true">{on ? '✓' : ''}</span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {:else if step === 'describe'}
+      <!-- ── 2. DESCRIBE ─────────────────────────────────────────────────────── -->
+      <div class="describe">
+        <textarea
+          class="brief"
+          data-testid="setup-brief"
+          rows="4"
+          aria-label="Describe the simplest product"
+          placeholder="A dashboard that turns my raw invoices into a clean monthly summary…"
+          bind:value={brief}
+          use:autofocus
+        ></textarea>
+        <p
+          class="brief__count"
+          class:brief__count--over={briefWords > DESCRIBE_WORD_LIMIT}
+          data-testid="setup-brief-count"
+          aria-live="polite"
         >
-          <p class="eyebrow">Answer</p>
-          <h2 class="screen__title">Tell the supervisor</h2>
+          {briefWords} / {DESCRIBE_WORD_LIMIT} words
+        </p>
+      </div>
+    {:else if step === 'questionnaire'}
+      <!-- ── 3. QUESTIONNAIRE (live from the worktree) ───────────────────────── -->
+      <div data-testid="setup-questionnaire" in:fade={{ duration: 200 }}>
+        {#if !ready}
+          <div class="waiting" data-testid="setup-questionnaire-waiting" role="status">
+            <span class="waiting__spinner" aria-hidden="true"></span>
+            <p class="lead">
+              {questionnaireLoaded
+                ? 'Waiting for the supervisor to draft the questionnaire…'
+                : 'Reading the supervisor’s notes…'}
+            </p>
+          </div>
+        {:else}
           <p class="lead">
-            {#if openQuestions}
-              {questions.filter((q) => q.open).length} still open — answer each to continue.
-            {:else}
-              Everything's answered. You're ready to build.
-            {/if}
+            The supervisor committed {questions.length} question{questions.length === 1
+              ? ''
+              : 's'}. Review them, then answer.
           </p>
-          <ul class="questions" role="list" data-testid="setup-qa-list">
+          <ul class="questions questions--preview" role="list" data-testid="setup-question-preview-list">
             {#each questions as state (state.question.id)}
               <li
-                class="question question--qa"
-                class:question--answered={!state.open}
-                data-testid="setup-qa-item"
+                class="question"
+                data-testid="setup-question-preview"
                 data-question-id={state.question.id}
-                data-open={state.open}
+                data-path={state.question.path}
               >
+                <span class="question__path">{state.question.path}</span>
                 <p class="question__prompt">{state.question.prompt}</p>
-                {#if state.answer}
-                  <p class="question__answer" data-testid="setup-qa-answer">{state.answer.text}</p>
-                {:else}
-                  <div class="qa__compose">
-                    <textarea
-                      class="qa__input"
-                      data-testid="setup-qa-input"
-                      data-question-id={state.question.id}
-                      rows="2"
-                      aria-label={`Answer: ${state.question.prompt}`}
-                      placeholder="Your answer…"
-                      value={drafts[state.question.id] ?? ''}
-                      oninput={(event) => setDraft(state.question.id, event.currentTarget.value)}
-                    ></textarea>
-                    <button
-                      type="button"
-                      class="btn btn--accent qa__send"
-                      data-testid="setup-qa-send"
-                      data-question-id={state.question.id}
-                      disabled={answering === state.question.id ||
-                        (drafts[state.question.id] ?? '').trim().length === 0}
-                      onclick={() => answerQuestion(state)}
-                    >
-                      {answering === state.question.id ? 'Sending…' : 'Answer'}
-                    </button>
-                  </div>
-                {/if}
               </li>
             {/each}
           </ul>
-        </section>
-      {/if}
+        {/if}
+      </div>
+    {:else if step === 'qa'}
+      <!-- ── 4. Q&A ──────────────────────────────────────────────────────────── -->
+      <div data-testid="setup-qa">
+        <p class="qa-status">
+          {#if openQuestions}
+            {questions.filter((q) => q.open).length} still open — answer each to continue.
+          {:else}
+            Everything's answered. You're ready to build.
+          {/if}
+        </p>
+        <ul class="questions" role="list" data-testid="setup-qa-list">
+          {#each questions as state (state.question.id)}
+            <li
+              class="question question--qa"
+              class:question--answered={!state.open}
+              data-testid="setup-qa-item"
+              data-question-id={state.question.id}
+              data-open={state.open}
+            >
+              <p class="question__prompt">{state.question.prompt}</p>
+              {#if state.answer}
+                <p class="question__answer" data-testid="setup-qa-answer">{state.answer.text}</p>
+              {:else}
+                <div class="qa__compose">
+                  <textarea
+                    class="qa__input"
+                    data-testid="setup-qa-input"
+                    data-question-id={state.question.id}
+                    rows="2"
+                    aria-label={`Answer: ${state.question.prompt}`}
+                    placeholder="Your answer…"
+                    value={drafts[state.question.id] ?? ''}
+                    oninput={(event) => setDraft(state.question.id, event.currentTarget.value)}
+                  ></textarea>
+                  <button
+                    type="button"
+                    class="btn btn--accent qa__send"
+                    data-testid="setup-qa-send"
+                    data-question-id={state.question.id}
+                    disabled={answering === state.question.id ||
+                      (drafts[state.question.id] ?? '').trim().length === 0}
+                    onclick={() => answerQuestion(state)}
+                  >
+                    {answering === state.question.id ? 'Sending…' : 'Answer'}
+                  </button>
+                </div>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
 
-      {#if error}
-        <p class="flow__error" data-testid="setup-error" role="alert">{error}</p>
-      {/if}
-    </div>
+    {#if error}
+      <p class="flow__error" data-testid="setup-error" role="alert">{error}</p>
+    {/if}
 
     <!-- the live supervisor status (the FSM activity made visible) -->
     {#if session}
@@ -425,61 +423,66 @@
         <ChatStatusBar {session} {theme} />
       </div>
     {/if}
+  {/snippet}
 
-    <!-- ── nav ───────────────────────────────────────────────────────────────── -->
-    <footer class="flow__nav">
-      {#if step === 'stacks'}
-        <span class="nav-spacer"></span>
-        <button
-          type="button"
-          class="btn btn--accent"
-          data-testid="setup-next"
-          disabled={!stacksValid}
-          onclick={toDescribe}>Continue →</button
-        >
-      {:else if step === 'describe'}
-        <button type="button" class="btn" data-testid="setup-back" onclick={backToStacks}
-          >← Back</button
-        >
-        <button
-          type="button"
-          class="btn btn--accent"
-          data-testid="setup-send-brief"
-          disabled={!briefValid || sending}
-          onclick={submitBrief}>{sending ? 'Sending…' : 'Send to supervisor →'}</button
-        >
-      {:else if step === 'questionnaire'}
-        <button type="button" class="btn" data-testid="setup-back" onclick={backToDescribe}
-          >← Back</button
-        >
-        <button
-          type="button"
-          class="btn btn--accent"
-          data-testid="setup-next"
-          disabled={!ready}
-          onclick={toQa}>Answer the questions →</button
-        >
-      {:else if step === 'qa'}
-        <button type="button" class="btn" data-testid="setup-back" onclick={backToQuestionnaire}
-          >← Back</button
-        >
-        <button
-          type="button"
-          class="btn btn--accent"
-          data-testid="setup-finish"
-          disabled={!ready || openQuestions}
-          onclick={finish}>Start building →</button
-        >
-      {/if}
-    </footer>
-  </div>
-</div>
+  {#snippet footer()}
+    {#if step === 'stacks'}
+      <span class="nav-spacer"></span>
+      <button
+        type="button"
+        class="btn btn--accent"
+        data-testid="setup-next"
+        disabled={!stacksValid}
+        onclick={toDescribe}>Continue →</button
+      >
+    {:else if step === 'describe'}
+      <button type="button" class="btn" data-testid="setup-back" onclick={backToStacks}>← Back</button>
+      <button
+        type="button"
+        class="btn btn--accent"
+        data-testid="setup-send-brief"
+        disabled={!briefValid || sending}
+        onclick={submitBrief}>{sending ? 'Sending…' : 'Send to supervisor →'}</button
+      >
+    {:else if step === 'questionnaire'}
+      <button type="button" class="btn" data-testid="setup-back" onclick={backToDescribe}>← Back</button>
+      <button
+        type="button"
+        class="btn btn--accent"
+        data-testid="setup-next"
+        disabled={!ready}
+        onclick={toQa}>Answer the questions →</button
+      >
+    {:else if step === 'qa'}
+      <button type="button" class="btn" data-testid="setup-back" onclick={backToQuestionnaire}
+        >← Back</button
+      >
+      <button
+        type="button"
+        class="btn btn--accent"
+        data-testid="setup-finish"
+        disabled={!ready || openQuestions}
+        onclick={finish}>Start building →</button
+      >
+    {/if}
+  {/snippet}
+</WizardShell>
 
 <style>
-  /* ── token bridge (same pattern as CreateProjectFlow): bridge the generated @eden/theme role
-     tokens to the --accent/--fg/--panel-* vocabulary this subtree reads, so every value is
-     math-sourced (one hue source, no literals). ── */
-  .scrim {
+  /* ── token bridge ─────────────────────────────────────────────────────────.
+     The WizardShell owns the surface / title / lead / eyebrow / counter / progress appearance (all
+     @eden/theme-derived, no literals). This subtree styles only the STEP BODY content + the FOOTER
+     buttons, bridging the generated @eden/theme role tokens to the --accent/--fg/--panel-* vocabulary
+     this content reads — one hue source, no hand-set hex/px on a painted role. ── */
+  .stacks,
+  .describe,
+  .questions,
+  .qa-status,
+  .waiting,
+  .flow__name,
+  .flow__status,
+  .flow__error,
+  .btn {
     --accent: var(--color-primary);
     --on-accent: var(--color-on-primary);
     --fg: var(--color-on-surface);
@@ -492,121 +495,38 @@
     --radius: var(--eden-app-radius, var(--space-2, 8px));
     --micro: var(--font-size-caption, 12px);
     --warn: var(--color-warning);
-
-    position: fixed;
-    inset: 0;
-    background: color-mix(in srgb, var(--color-on-surface) 55%, transparent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    z-index: 10;
-  }
-  .flow {
-    width: min(620px, 100%);
-    min-height: min(64vh, 560px);
-    max-height: min(90vh, 760px);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    background: var(--panel-bg);
-    border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.75);
-    padding: 1.25rem 1.4rem 1.1rem;
-    box-shadow: 0 18px 56px color-mix(in srgb, var(--color-on-surface) 22%, transparent);
-    overflow: hidden;
   }
 
-  .flow__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-  }
-  .flow__progress {
-    display: inline-flex;
-    gap: 0.4rem;
-    align-items: center;
-  }
-  .dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--fg) 18%, transparent);
-    transition:
-      background 0.2s ease,
-      width 0.2s ease;
-  }
-  .dot--on {
-    width: 1.4rem;
-    background: var(--accent);
-  }
-  .dot--done {
-    background: color-mix(in oklab, var(--accent) 55%, transparent);
-  }
   .flow__name {
-    margin: 0;
+    margin: 0 0 0.4rem;
     font-family: var(--font-code);
     font-size: var(--micro);
     font-weight: 600;
     color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 50%;
-  }
-
-  .flow__body {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding: 0.3rem 0.15rem;
-  }
-  .screen {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-  }
-  .eyebrow {
-    font-family: var(--font-code);
-    font-size: var(--micro);
-    font-weight: 600;
-    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--accent);
-    margin: 0;
-  }
-  .screen__title {
-    margin: 0;
-    font-size: 1.55rem;
-    line-height: 1.15;
-    letter-spacing: -0.015em;
-    color: var(--fg);
+    letter-spacing: 0.06em;
   }
   .lead {
-    margin: 0;
-    color: var(--muted);
+    margin: 0 0 0.6rem;
+    color: var(--color-outline);
     line-height: 1.5;
   }
 
   /* ── STACKS ── */
   .stacks {
     list-style: none;
-    margin: 0.3rem 0 0;
+    margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.6rem;
   }
   .stack {
     inline-size: 100%;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 0.9rem;
+    gap: 0.85rem;
+    padding: 0.9rem 1rem;
     border: 1.5px solid var(--panel-line);
     border-radius: calc(var(--radius) * 1.25);
     background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
@@ -618,8 +538,6 @@
       border-color 0.15s ease,
       background 0.15s ease,
       transform 0.08s ease;
-    animation: stack-in 0.34s cubic-bezier(0.2, 1, 0.5, 1) both;
-    animation-delay: calc(var(--i) * 60ms);
   }
   .stack:hover {
     border-color: color-mix(in oklab, var(--accent) 55%, var(--panel-line));
@@ -636,10 +554,10 @@
     background: color-mix(in oklab, var(--accent) 12%, var(--panel-bg));
   }
   .stack__glyph {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     color: var(--accent);
     flex: none;
-    width: 1.5rem;
+    width: 1.6rem;
     text-align: center;
   }
   .stack__body {
@@ -654,36 +572,34 @@
     color: var(--fg);
   }
   .stack__hint {
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     color: var(--muted);
   }
   .stack__check {
     flex: none;
-    inline-size: 1.2rem;
+    inline-size: 1.3rem;
     text-align: center;
     color: var(--accent);
     font-weight: 700;
   }
-  @keyframes stack-in {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-  }
 
   /* ── DESCRIBE ── */
+  .describe {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
   .brief {
     font: inherit;
-    font-size: 1.02rem;
-    margin-top: 0.3rem;
-    padding: 0.85rem 1rem;
+    font-size: 1.05rem;
+    padding: 0.9rem 1.1rem;
     border: 1px solid var(--panel-line);
     border-radius: calc(var(--radius) * 1.25);
     background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
     color: var(--fg);
     resize: vertical;
     line-height: 1.5;
-    min-height: 6rem;
+    min-height: 7rem;
   }
   .brief::placeholder {
     color: color-mix(in oklab, var(--muted) 85%, transparent);
@@ -706,6 +622,11 @@
   }
 
   /* ── QUESTIONNAIRE + Q&A ── */
+  .qa-status {
+    margin: 0 0 0.6rem;
+    color: var(--color-outline);
+    line-height: 1.5;
+  }
   .waiting {
     display: flex;
     flex-direction: column;
@@ -715,8 +636,8 @@
     text-align: center;
   }
   .waiting__spinner {
-    inline-size: 1.8rem;
-    block-size: 1.8rem;
+    inline-size: 1.9rem;
+    block-size: 1.9rem;
     border-radius: 50%;
     border: 2.5px solid color-mix(in oklab, var(--accent) 28%, transparent);
     border-block-start-color: var(--accent);
@@ -724,7 +645,7 @@
   }
   .questions {
     list-style: none;
-    margin: 0.2rem 0 0;
+    margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -734,15 +655,14 @@
     border: 1px solid var(--panel-line);
     border-radius: calc(var(--radius) * 1.25);
     background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
-    padding: 0.75rem 0.9rem;
+    padding: 0.85rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    animation: stack-in 0.3s cubic-bezier(0.2, 1, 0.5, 1) both;
   }
   .question__path {
     font-family: var(--font-code);
-    font-size: 0.74rem;
+    font-size: 0.76rem;
     color: var(--muted);
     overflow-wrap: anywhere;
   }
@@ -770,8 +690,8 @@
   }
   .qa__input {
     font: inherit;
-    font-size: 0.96rem;
-    padding: 0.6rem 0.75rem;
+    font-size: 0.98rem;
+    padding: 0.65rem 0.8rem;
     border: 1px solid var(--panel-line);
     border-radius: var(--radius);
     background: var(--panel-bg);
@@ -791,11 +711,12 @@
 
   .flow__status {
     border-block-start: 1px solid var(--panel-line);
-    padding-block-start: 0.4rem;
+    margin-block-start: 0.8rem;
+    padding-block-start: 0.6rem;
   }
 
   .flow__error {
-    margin: 0.5rem 0 0;
+    margin: 0.6rem 0 0;
     padding: 0.5rem 0.8rem;
     border-radius: var(--radius);
     color: var(--warn);
@@ -804,22 +725,17 @@
     font-size: 0.88rem;
   }
 
-  /* ── nav ── */
-  .flow__nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.6rem;
-    padding-top: 0.6rem;
-  }
+  /* ── footer buttons — native <button> carries the load-bearing setup-* testid directly (the e2e
+     asserts setup-next / setup-send-brief / setup-finish by testid AND reads their disabled state +
+     painted accent background — a wrapper would break both); `.btn` is a sampled UI-math class. ── */
   .nav-spacer {
     flex: 1;
   }
   .btn {
     font: inherit;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    padding: 0.6rem 1.1rem;
+    padding: 0.65rem 1.2rem;
     border-radius: calc(var(--radius) * 1.25);
     border: 1px solid var(--panel-line);
     background: var(--panel-bg);
@@ -856,14 +772,11 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .stack,
-    .question,
     .waiting__spinner {
       animation: none;
     }
-    .dot,
-    .btn,
-    .stack {
+    .stack,
+    .btn {
       transition: none;
     }
   }

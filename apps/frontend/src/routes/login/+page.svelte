@@ -1,14 +1,40 @@
 <script lang="ts">
-  // The LOGIN screen — Eden's front door. REAL authentication: email + password POSTs to
-  // /auth/login, which mints an Eden session JWT (stored in a cookie) + returns the profile; the shell
-  // then reads the authenticated identity. OAuth (Google/GitHub) lands on the SAME mint path once the
-  // provider is wired — the buttons are present + structured here so that drop-in is trivial. A dev
-  // "Continue as <default user>" shortcut signs in with the seeded default credentials for the demo.
+  // The LOGIN screen — Eden's front door (doc 17 §7 "rebuilt honest"). REAL authentication: email +
+  // password POSTs to /auth/login, which mints an Eden session JWT (stored in a cookie) + returns the
+  // profile; the shell then reads the authenticated identity. A dev "Continue as <default user>"
+  // shortcut signs in with the seeded default credentials for the demo.
+  //
+  // W3: honest chrome (P-D6). The fake disabled Google/GitHub OAuth buttons + the "coming soon" span
+  // are GONE — nothing disabled-that-looks-enabled, no non-functional control. OAuth appears only when
+  // it works. The screen is a real brand moment (◆ + serif display, the platform line) over the
+  // @eden/primitives Field/Input/Button, with a SOLID accent submit (no washed-out look).
   import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
+  import { Field, Input, Button } from '@eden/primitives';
   import { currentUser } from '$lib/platform/currentUser.svelte';
   import { PlatformClient, PlatformError, type PlatformUser } from '$lib/platform/client';
+  import { edenLightTheme, edenDarkTheme } from '$lib/theme/edenTheme';
+  import { themePreference } from '$lib/theme/themePreference.svelte';
 
   const client = new PlatformClient();
+
+  // The @eden/primitives Field/Input/Button derive their appearance from the theme OBJECT handed in
+  // (not the runtime data-theme CSS switch), so on the login — a bare route outside the shell — we
+  // resolve the ACTIVE mode reactively (the persisted light/dark choice, or the OS when 'system') and
+  // hand the matching generated theme. That keeps the honest chrome tracking dark mode (doc 17 §3/§7).
+  let systemDark = $state(false);
+  $effect(() => {
+    if (!browser) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    systemDark = mq.matches;
+    const onChange = (e: MediaQueryListEvent) => (systemDark = e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  });
+  const isDark = $derived(
+    themePreference.value === 'dark' || (themePreference.value === 'system' && systemDark),
+  );
+  const theme = $derived(isDark ? edenDarkTheme : edenLightTheme);
 
   // The seeded default user (the public bootstrap) names the dev shortcut. A LOCAL hint only (not the
   // authenticated session) — login() establishes the real session. A failure leaves the shortcut hidden.
@@ -28,6 +54,8 @@
   let password = $state('');
   let submitting = $state(false);
   let error = $state<string | null>(null);
+
+  const canSubmit = $derived(email.trim().length > 0 && password.length > 0 && !submitting);
 
   async function signIn(loginEmail: string, loginPassword: string): Promise<void> {
     submitting = true;
@@ -61,55 +89,46 @@
   <form class="login__card" onsubmit={onSubmit}>
     <div class="login__brand">
       <span class="login__mark" aria-hidden="true">◆</span>
-      <span class="login__name">Eden</span>
+      <h1 class="login__name">Eden</h1>
     </div>
     <p class="login__tagline">The agentic engineering platform</p>
 
-    <!-- OAuth — most people have Google/GitHub; the backend OAuth lands behind the SAME /auth mint
-         path (find-or-create the user → mint the same JWT). Present + structured; enabled once wired. -->
-    <div class="login__oauth">
-      <button type="button" class="oauth" data-testid="login-google" disabled>
-        <span class="oauth__glyph" aria-hidden="true">G</span> Continue with Google
-      </button>
-      <button type="button" class="oauth" data-testid="login-github" disabled>
-        <span class="oauth__glyph" aria-hidden="true">⌥</span> Continue with GitHub
-      </button>
-      <span class="login__soon">Google &amp; GitHub sign-in — coming soon</span>
+    <div class="login__fields">
+      <Field label="Email" {theme}>
+        {#snippet control({ id, describedby, invalid })}
+          <Input
+            {id}
+            {theme}
+            type="email"
+            bind:value={email}
+            placeholder="you@example.com"
+            aria-describedby={describedby}
+            {invalid}
+          />
+        {/snippet}
+      </Field>
+      <Field label="Password" {theme}>
+        {#snippet control({ id, describedby, invalid })}
+          <Input
+            {id}
+            {theme}
+            type="password"
+            bind:value={password}
+            placeholder="••••••••"
+            aria-describedby={describedby}
+            {invalid}
+          />
+        {/snippet}
+      </Field>
     </div>
 
-    <div class="login__divider"><span>or</span></div>
+    {#if error}<p class="login__error" data-testid="login-error" role="alert">{error}</p>{/if}
 
-    <label class="login__field">
-      <span>Email</span>
-      <input
-        type="email"
-        bind:value={email}
-        data-testid="login-email"
-        autocomplete="email"
-        placeholder="you@example.com"
-      />
-    </label>
-    <label class="login__field">
-      <span>Password</span>
-      <input
-        type="password"
-        bind:value={password}
-        data-testid="login-password"
-        autocomplete="current-password"
-        placeholder="••••••••"
-      />
-    </label>
-
-    {#if error}<p class="login__error" data-testid="login-error">{error}</p>{/if}
-
-    <button
-      type="submit"
-      class="login__submit"
-      data-testid="login-submit"
-      disabled={submitting || !email.trim() || !password}
-    >
-      {submitting ? 'Signing in…' : 'Sign in'}
-    </button>
+    <span class="login__submit">
+      <Button variant="primary" {theme} type="submit" disabled={!canSubmit}>
+        {submitting ? 'Signing in…' : 'Sign in'}
+      </Button>
+    </span>
 
     {#if hint}
       <div class="login__dev-wrap" data-testid="login-continue">
@@ -133,13 +152,15 @@
 </div>
 
 <style>
+  /* The login is a focus moment (P-D5): generous, centered, one brand moment. Every painted value is
+     a generated @eden/theme role token — no hand-set hex/px on a color role (P-D3). */
   .login {
     display: grid;
     place-items: center;
     min-height: 100dvh;
     padding: var(--space-6, 32px);
-    background: var(--eden-app-bg, var(--color-surface, #0f1115));
-    color: var(--eden-app-fg, var(--color-on-surface, #e8e8ea));
+    background: var(--color-surface);
+    color: var(--color-on-surface);
   }
   .login__card {
     display: flex;
@@ -148,10 +169,10 @@
     gap: var(--space-4, 16px);
     width: min(400px, 100%);
     padding: var(--space-7, 40px) var(--space-6, 32px);
-    border: 1px solid color-mix(in oklab, var(--eden-app-fg, #fff) 10%, transparent);
+    border: 1px solid var(--color-outline);
     border-radius: var(--eden-app-radius, 16px);
-    background: var(--eden-app-panel-bg, color-mix(in oklab, #fff 3%, #14161b));
-    box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.55);
+    background: color-mix(in oklab, var(--color-on-surface) 3%, var(--color-surface));
+    box-shadow: 0 24px 60px -28px color-mix(in oklab, var(--color-on-surface) 45%, transparent);
   }
   .login__brand {
     display: flex;
@@ -160,115 +181,51 @@
     gap: var(--space-2, 8px);
   }
   .login__mark {
-    color: var(--eden-app-accent);
-    font-size: 1.5rem;
-  }
-  .login__name {
-    font-weight: 700;
+    color: var(--color-primary);
     font-size: 1.6rem;
+  }
+  /* The brand name is the serif DISPLAY identity voice (P-D4) — the one identity moment on the screen. */
+  .login__name {
+    margin: 0;
+    font-family: var(--font-display, var(--font-serif, serif));
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+    color: var(--color-on-surface);
   }
   .login__tagline {
     margin: 0 0 var(--space-2, 8px);
     text-align: center;
-    color: var(--eden-app-muted);
-    font-size: 0.92rem;
-  }
-  .login__oauth {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2, 8px);
-  }
-  .oauth {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2, 8px);
-    padding: var(--space-3, 10px);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    background: none;
-    color: var(--eden-app-fg);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .oauth:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  .oauth__glyph {
-    font-weight: 700;
-    color: var(--eden-app-accent);
-  }
-  .login__soon {
-    text-align: center;
-    font-size: 0.74rem;
-    color: var(--eden-app-muted);
-  }
-  .login__divider {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3, 12px);
-    color: var(--eden-app-muted);
-    font-size: 0.78rem;
-  }
-  .login__divider::before,
-  .login__divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--eden-app-line);
-  }
-  .login__field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.82rem;
-    color: var(--eden-app-muted);
-  }
-  .login__field input {
-    padding: var(--space-3, 10px);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    background: var(--eden-app-bg);
-    color: var(--eden-app-fg);
-    font: inherit;
+    color: var(--color-outline);
     font-size: 0.95rem;
   }
-  .login__field input:focus {
-    outline: 2px solid color-mix(in oklab, var(--eden-app-accent) 60%, transparent);
-    outline-offset: 1px;
-    border-color: var(--eden-app-accent);
+  .login__fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 12px);
   }
   .login__error {
     margin: 0;
     color: var(--color-error);
-    font-size: 0.82rem;
+    font-size: 0.85rem;
   }
+  /* A block wrapper so the primitives Button (inline-flex) spans the card width, matching the fields. */
   .login__submit {
-    padding: var(--space-3, 11px);
-    border: 0;
-    border-radius: var(--eden-app-radius, 8px);
-    background: var(--eden-app-accent);
-    color: var(--color-on-primary, #fff);
-    font: inherit;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 120ms ease;
+    display: grid;
   }
-  .login__submit:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .login__submit :global(.eden-button) {
+    inline-size: 100%;
   }
   .login__dev-wrap {
     display: grid;
+    margin-top: var(--space-1, 4px);
   }
   .login__dev {
     display: flex;
     align-items: center;
     gap: var(--space-3, 12px);
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    border: 1px dashed var(--eden-app-line);
+    border: 1px dashed var(--color-outline);
     border-radius: var(--eden-app-radius, 8px);
     background: none;
     color: inherit;
@@ -276,7 +233,11 @@
     text-align: start;
   }
   .login__dev:hover {
-    border-color: var(--eden-app-accent);
+    border-color: var(--color-primary);
+  }
+  .login__dev:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
   .login__dev:disabled {
     opacity: 0.5;
@@ -288,8 +249,8 @@
     width: 34px;
     height: 34px;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--eden-app-accent) 24%, var(--eden-app-panel-bg));
-    color: var(--eden-app-fg);
+    background: color-mix(in oklab, var(--color-primary) 24%, var(--color-surface));
+    color: var(--color-on-surface);
     font-weight: 600;
     flex-shrink: 0;
   }
@@ -305,16 +266,16 @@
     font-size: 0.9rem;
   }
   .login__dev-email {
-    font-size: 0.76rem;
-    color: var(--eden-app-muted);
+    font-size: 0.78rem;
+    color: var(--color-outline);
   }
   .login__dev-tag {
-    font-size: 0.62rem;
+    font-size: 0.64rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--eden-app-muted);
-    border: 1px solid var(--eden-app-line);
+    color: var(--color-outline);
+    border: 1px solid var(--color-outline);
     border-radius: 999px;
     padding: 1px 6px;
   }
