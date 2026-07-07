@@ -1,0 +1,12 @@
+name: arc-smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/arc-smoke.yml']
+jobs:
+  smoke:
+    runs-on: arc-org
+    steps:
+      - run: echo "self-hosted runner OK on $(hostname)"
+      - run: docker version --format '{{.Server.Version}}' && echo "dind OK"
+      - run: git --version && python3 --version
