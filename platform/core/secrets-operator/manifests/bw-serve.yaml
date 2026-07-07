@@ -21,6 +21,11 @@ spec:
       labels:
         app: bw-serve
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: bw-serve
           # Purpose-built image whose entrypoint logs in (API key), unlocks
@@ -30,11 +35,11 @@ spec:
           # format Vaultwarden doesn't serve ("toWrappedAccountCryptographicState"
           # null crash). This older CLI is Vaultwarden-compatible.
           image: ghcr.io/charlesthomas/bitwarden-cli:2026.1.0
-          # Low-risk hardening on the vault bridge: no caps, no priv-esc, seccomp.
-          # NOT runAsNonRoot/readOnlyRootFilesystem — the CLI writes its session/
-          # config and its user model is unknown; those would risk breaking ESO.
+          # Fully hardened: non-root, read-only rootfs, no caps, seccomp. The CLI
+          # writes its app data to an emptyDir via BITWARDENCLI_APPDATA_DIR/HOME.
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
             seccompProfile:
@@ -42,6 +47,11 @@ spec:
           envFrom:
             - secretRef:
                 name: bw-cli-credentials
+          env:
+            - name: HOME
+              value: /data
+            - name: BITWARDENCLI_APPDATA_DIR
+              value: /data
           ports:
             - name: http
               containerPort: 8087
@@ -57,6 +67,16 @@ spec:
               memory: 96Mi
             limits:
               memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
