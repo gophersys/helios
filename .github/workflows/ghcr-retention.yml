@@ -1,58 +1,29 @@
-# Scheduled ghcr cleanup for workspaces-api (our single-arch image). Keeps :latest
-# + the N most-recent versions, deletes older ones. Scoped to OUR package only —
-# Eden's multi-arch packages (base/flutter/zephyr/orchestrator/zephyr-devbox) are
-# owned by the Eden agent and need multi-arch-aware handling, so we don't touch
-# them here. App installation tokens can't list-all org packages, so this targets
-# the package by name (per-package endpoints work with App tokens).
+# Weekly ghcr cleanup for workspaces-api (our single-arch image): keep :latest +
+# the 8 most-recent versions. Scoped to OUR package — Eden's multi-arch packages
+# are the Eden agent's domain. See .github/scripts/prune-ghcr.py.
 name: ghcr-retention
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: "dry run (no deletes)"
-        type: boolean
-        default: true
+      dry_run: { description: "dry run", type: boolean, default: true }
   schedule:
-    - cron: "0 5 * * 0"   # weekly, Sunday 05:00
+    - cron: "0 5 * * 0"
 permissions:
   contents: read
 jobs:
   prune:
     runs-on: arc-org
-    env:
-      KEEP: "8"                         # keep :latest + the 8 most-recent versions
-      DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/create-github-app-token@v1
         id: app
         with:
           app-id: ${{ secrets.ARC_APP_ID }}
           private-key: ${{ secrets.ARC_APP_PRIVATE_KEY }}
           owner: gophersys
-      - name: Prune workspaces-api versions
+      - name: Prune
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-        run: |
-          set -euo pipefail
-          gh api --paginate "/orgs/gophersys/packages/container/workspaces-api/versions" > versions.json
-          python3 - <<'PY'
-          import json, os, subprocess
-          keep_n = int(os.environ["KEEP"]); dry = os.environ["DRY_RUN"] != "false"
-          d = json.load(open("versions.json"))
-          d.sort(key=lambda v: v["updated_at"], reverse=True)
-          keep_ids, kept = set(), 0
-          for v in d:
-              tags = v.get("metadata", {}).get("container", {}).get("tags", [])
-              if "latest" in tags:
-                  keep_ids.add(v["id"]); continue
-              if kept < keep_n:
-                  keep_ids.add(v["id"]); kept += 1
-          drop = [v for v in d if v["id"] not in keep_ids]
-          print(f"total={len(d)} keep={len(keep_ids)} drop={len(drop)} dry_run={dry}")
-          for v in drop:
-              tags = v.get("metadata", {}).get("container", {}).get("tags", []) or "(untagged)"
-              print(f"  {'WOULD DELETE' if dry else 'DELETING'} id={v['id']} tags={tags} updated={v['updated_at']}")
-              if not dry:
-                  subprocess.run(["gh","api","--method","DELETE",
-                    f"/orgs/gophersys/packages/container/workspaces-api/versions/{v['id']}"], check=True)
-          PY
+          KEEP: "8"
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+        run: python3 .github/scripts/prune-ghcr.py
