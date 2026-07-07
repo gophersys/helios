@@ -1,11 +1,10 @@
 # Daily tar of the hard-to-reproduce config PVCs (qBittorrent/Prowlarr/filebrowser
-# runtime state) onto the NVMe at /mnt/media/backups, 14-day retention. The NVMe is
-# a SEPARATE physical disk from the OS-disk local-path the config lives on, so an
-# OS-disk failure is recoverable. (Node-level/off-site backup is a future tier —
-# Longhorn couldn't co-schedule with the k3s-w-1-pinned local-path config PVCs.)
-# Pinned to k3s-w-1 where the local-path config PVCs live (RWO, same node = OK).
-# Read-only mounts; a live SQLite/BoltDB tar is crash-consistent enough for a
-# homelab (the configs are also reproducible via config-enforce/SETUP.md/initC).
+# runtime state) to /mnt/media/backups (NVMe — a separate physical disk from the
+# OS-disk local-path the config lives on), 14-day retention. Reads the local-path
+# storage dir directly (read-only) instead of mounting the RWO config PVCs, which
+# can't be co-mounted while the app pods hold them. Pinned to k3s-w-1 where the
+# data + NVMe live. Crash-consistent (live DB tar) — fine for a homelab, and the
+# configs are independently reproducible (config-enforce / SETUP.md / initC).
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -36,24 +35,29 @@ spec:
                 - |
                   set -e
                   TS=$(date +%Y%m%d-%H%M)
-                  for src in qbittorrent-config prowlarr-config filebrowser-config; do
-                    tar czf "/backups/${src}-${TS}.tar.gz" -C "/src/${src}" . && echo "backed up ${src}"
+                  mkdir -p /backups
+                  for name in qbittorrent-config prowlarr-config filebrowser-config; do
+                    dir=$(ls -d /storage/*_media_"$name" 2>/dev/null | head -1)
+                    if [ -n "$dir" ]; then
+                      tar czf "/backups/${name}-${TS}.tar.gz" -C "$dir" . && echo "backed up $name ($(du -sh "$dir" | cut -f1))"
+                    else
+                      echo "WARN: $name dir not found"
+                    fi
                   done
                   find /backups -name '*.tar.gz' -mtime +14 -delete
-                  echo "backup complete: $(ls /backups/*.tar.gz 2>/dev/null | wc -l) archives on disk"
+                  echo "backup complete: $(ls /backups/*.tar.gz 2>/dev/null | wc -l) archives"
               resources:
                 requests: { cpu: 25m, memory: 32Mi }
                 limits: { memory: 128Mi }
               volumeMounts:
+                - { name: storage, mountPath: /storage, readOnly: true }
                 - { name: backups, mountPath: /backups }
-                - { name: qbit, mountPath: /src/qbittorrent-config, readOnly: true }
-                - { name: prowlarr, mountPath: /src/prowlarr-config, readOnly: true }
-                - { name: filebrowser, mountPath: /src/filebrowser-config, readOnly: true }
           volumes:
+            - name: storage
+              hostPath:
+                path: /var/lib/rancher/k3s/storage
+                type: Directory
             - name: backups
               hostPath:
                 path: /mnt/media/backups
                 type: DirectoryOrCreate
-            - { name: qbit, persistentVolumeClaim: { claimName: qbittorrent-config } }
-            - { name: prowlarr, persistentVolumeClaim: { claimName: prowlarr-config } }
-            - { name: filebrowser, persistentVolumeClaim: { claimName: filebrowser-config } }
