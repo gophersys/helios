@@ -39,6 +39,10 @@ jobs:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
+          # The org-scope PAT (the same secret harness-upgrade-check opens PRs with): the job's
+          # GITHUB_TOKEN cannot clone the PRIVATE sibling submodules (libs / infrastructure /
+          # .devcontainer) — checkout reuses this token for the recursive submodule fetch.
+          token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
@@ -84,6 +88,10 @@ jobs:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
+          # The org-scope PAT (the same secret harness-upgrade-check opens PRs with): the job's
+          # GITHUB_TOKEN cannot clone the PRIVATE sibling submodules (libs / infrastructure /
+          # .devcontainer) — checkout reuses this token for the recursive submodule fetch.
+          token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
