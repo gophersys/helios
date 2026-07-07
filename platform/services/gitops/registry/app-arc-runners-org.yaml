@@ -19,6 +19,11 @@ spec:
         runnerScaleSetName: arc-org
         minRunners: 0
         maxRunners: 4
+        # Argo renders helm without cluster access, so the chart can't auto-discover
+        # the controller SA — set it explicitly.
+        controllerServiceAccount:
+          namespace: arc-systems
+          name: arc-gha-rs-controller
         containerMode:
           type: dind
   destination:
