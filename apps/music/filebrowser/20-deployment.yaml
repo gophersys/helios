@@ -67,7 +67,7 @@ spec:
             - name: FB_LOG
               value: stdout
           ports:
-            - name: http
+            - name: fb
               containerPort: 80
           resources:
             requests:
@@ -83,7 +83,31 @@ spec:
               readOnly: true
             - name: media
               mountPath: /srv/media
+        # ---------- cd-proxy: add an ASCII filename= fallback to downloads ----------
+        - name: cd-proxy
+          image: openresty/openresty:1.29.2.5-alpine
+          ports:
+            - name: http
+              containerPort: 8090
+          readinessProbe:
+            tcpSocket:
+              port: 8090
+            initialDelaySeconds: 3
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: cd-proxy-conf
+              mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+              subPath: nginx.conf
       volumes:
+        - name: cd-proxy-conf
+          configMap:
+            name: filebrowser-cd-proxy
         - name: database
           persistentVolumeClaim:
             claimName: filebrowser-config
