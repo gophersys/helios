@@ -155,3 +155,89 @@ export {
   thinkingBlockStyleVars,
   type ThinkingBlockTokens,
 } from './thinking-block/index.js';
+
+// ── surface-tokens — the SHARED Wave-1 surface vocabulary every atom/molecule below is built from ─
+// The single home (10 §9) the Wave-1 components cite for the derived primitives doc 17 §3/§4 names
+// but chat-surface did not already own: the three radii (control/surface/sheet), the two elevations
+// (raised/overlay), and the status/health role selection (the Clusters vocabulary). Every Wave-1
+// component's tokens.ts CITES these (and chat-surface) and re-spells no ramp lookup, shadow recipe,
+// or status→role mapping.
+export {
+  radiusPx,
+  elevationShadow,
+  statusRole,
+  statusRoleOklch,
+  statusTint,
+  type Radius,
+  type Elevation,
+  type Status,
+} from './surface-tokens/index.js';
+
+// ── WAVE-1 ATOMS + MOLECULES — the ATOM/MOLECULE set (doc 17 §3/§4, the Clusters north star) ──────
+// Badge (the health/count label), Chip (the mono data chip, removable variant), Kbd (the ⌘K cap),
+// Spinner (the loading atom, motion-token driven + reduced-motion honored), Divider (the inset rule),
+// Card (the surface molecule: surface radius + raised shadow), StatRow (the Clusters number-row),
+// Tabs (on bits-ui), EmptyState (headline · body · action · content slot — a product surface, never
+// a void). Each derives its colour/size/space from @eden/theme via the shared surface-tokens/
+// chat-surface vocabulary, carries no hardcoded literal, and is proven by a design-correctness test
+// (contrast gate on every painted pair + scale/motion provenance + the 44px floor where interactive)
+// and an a11y-evidence spec (axe Chromium+WebKit + keyboard).
+export {
+  Badge,
+  deriveBadgeTokens,
+  badgeStyleVars,
+  type BadgeVariant,
+  type BadgeTokens,
+} from './badge/index.js';
+
+export {
+  Chip,
+  deriveChipTokens,
+  chipStyleVars,
+  MONO_FONT_FAMILY,
+  type ChipVariant,
+  type ChipTokens,
+} from './chip/index.js';
+
+export { Kbd, deriveKbdTokens, kbdStyleVars, type KbdTokens } from './kbd/index.js';
+
+export {
+  Spinner,
+  deriveSpinnerTokens,
+  spinnerStyleVars,
+  type SpinnerVariant,
+  type SpinnerTokens,
+} from './spinner/index.js';
+
+export {
+  Divider,
+  deriveDividerTokens,
+  dividerStyleVars,
+  type DividerOrientation,
+  type DividerTokens,
+} from './divider/index.js';
+
+export {
+  Card,
+  deriveCardTokens,
+  cardStyleVars,
+  type CardVariant,
+  type CardTokens,
+} from './card/index.js';
+
+export {
+  StatRow,
+  deriveStatRowTokens,
+  statRowStyleVars,
+  type Stat,
+  type StatRowTokens,
+} from './stat-row/index.js';
+
+export { Tabs, deriveTabsTokens, tabsStyleVars, type Tab, type TabsTokens } from './tabs/index.js';
+
+export {
+  EmptyState,
+  deriveEmptyStateTokens,
+  emptyStateStyleVars,
+  type EmptyStateTokens,
+} from './empty-state/index.js';

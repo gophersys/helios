@@ -28,6 +28,7 @@ export default defineConfig({
         index: here('./index.html'),
         form: here('./form.html'),
         chat: here('./chat.html'),
+        wave1: here('./wave1.html'),
       },
     },
   },
