@@ -24,7 +24,7 @@ permissions:
 jobs:
   conformance:
     name: pinned-harness conformance
-    runs-on: ubuntu-latest
+    runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     container:
       image: ghcr.io/gophersys/base:latest
       credentials:
@@ -47,6 +47,10 @@ jobs:
           token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
+      # Job steps run as root while the checkout may be written under a different uid (the runner's)
+      # — mark the workspace + submodules trusted so git/nx affected work (disposable CI container).
+      - name: Trust the workspace checkout (git safe.directory)
+        run: git config --global --add safe.directory '*'
 
       - name: Install the pinned harnesses (claude + omp + codex)
         env:

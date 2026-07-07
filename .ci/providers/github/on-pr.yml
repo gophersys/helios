@@ -21,7 +21,7 @@ jobs:
   # never a silent skip (ADR-0020 §enforcement).
   fast:
     name: affected-gate (fast)
-    runs-on: ubuntu-latest
+    runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     container:
       image: ghcr.io/gophersys/base:latest
       credentials:
@@ -45,6 +45,10 @@ jobs:
           token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
+      # Job steps run as root while the checkout may be written under a different uid (the runner's)
+      # — mark the workspace + submodules trusted so git/nx affected work (disposable CI container).
+      - name: Trust the workspace checkout (git safe.directory)
+        run: git config --global --add safe.directory '*'
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
       # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
       - name: Expose the image's node toolchain (nvm) on PATH
@@ -69,7 +73,7 @@ jobs:
     # variable EDEN_CI_SUBSTRATE=true once a CAPABLE runner exists (a self-hosted runner with docker,
     # or a runner image that supports privileged k3d) — then this lane runs the real-substrate suites.
     if: ${{ vars.EDEN_CI_SUBSTRATE == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     needs: fast
     container:
       image: ghcr.io/gophersys/base:latest
@@ -94,6 +98,10 @@ jobs:
           token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
+      # Job steps run as root while the checkout may be written under a different uid (the runner's)
+      # — mark the workspace + submodules trusted so git/nx affected work (disposable CI container).
+      - name: Trust the workspace checkout (git safe.directory)
+        run: git config --global --add safe.directory '*'
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
       # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
       - name: Expose the image's node toolchain (nvm) on PATH
