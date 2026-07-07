@@ -97,10 +97,15 @@ jobs:
       credentials:
         username: mateosegura
         password: ${{ secrets.GHCR_PULL_TOKEN }}
-      # Privileged + the docker socket so the real daemon and k3d/kind clusters come up inside
-      # the job (the careful-orchestration lane runs the substrate, it does not mock it). Runs as
+      # Privileged so the job starts its OWN dockerd (dind-in-job) and k3d/kind clusters come up
+      # inside it (the careful-orchestration lane runs the substrate, it does not mock it). Runs as
       # root like every job container (the runner's file commands are host-runner-owned).
-      options: --privileged -v /var/run/docker.sock:/var/run/docker.sock --user root
+      # NO host-socket mount: on arc-org the runner pod's docker lives in a dind sidecar (not at
+      # /var/run/docker.sock on the "host"), and the privileged+socket-mount combination wedged the
+      # job container at its first exec'd run step (runs 28850…/28898330978 hung on the trivial
+      # safe.directory step; the identical image+step shape runs clean outside ARC). The "Start
+      # docker host" step below brings up the in-job daemon.
+      options: --privileged --user root
     env:
       # Keep the dev-user layout even as root: the nvm/corepack caches live under /home/dev and
       # the image's ENV PATH carries the dev-homed tool dirs; root can write there.
