@@ -100,13 +100,14 @@ func (d *Daemon) sendStreamPacket(transport *iface.Interface, dst, streamID uint
 
 // StreamStats mirrors cipher_stream_rx_stats_t.
 type StreamStats struct {
-	StreamID    uint16
-	TotalLen    uint32
-	ReceivedLen uint32
-	NumChunks   uint32
-	Checksum    uint32
-	ChecksumOK  bool
-	DurationMs  int64
+	CompletionID uint32 // monotonic per receiving daemon, so readers can dedupe
+	StreamID     uint16
+	TotalLen     uint32
+	ReceivedLen  uint32
+	NumChunks    uint32
+	Checksum     uint32
+	ChecksumOK   bool
+	DurationMs   int64
 }
 
 type streamReassembly struct {
@@ -158,6 +159,8 @@ func (d *Daemon) handleStreamPacket(header Header, payload []byte) {
 			ChecksumOK:  reassembly.checksum == declaredChecksum && reassembly.received == declaredLen,
 			DurationMs:  time.Since(reassembly.start).Milliseconds(),
 		}
+		d.streamCompletions++
+		stats.CompletionID = d.streamCompletions
 		d.lastStreamRx = stats
 		d.lastStreamSet = true
 		delete(d.streamRx, header.ServiceID)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gophersys/cipher-go/iface"
 )
@@ -45,10 +46,11 @@ type Daemon struct {
 	rpcMutex   sync.Mutex
 	rpcPending map[uint32]chan rpcReply // key: rpcKey(service, op)
 
-	streamMutex   sync.Mutex
-	streamRx      map[uint16]*streamReassembly // key: stream id
-	lastStreamRx  StreamStats
-	lastStreamSet bool
+	streamMutex       sync.Mutex
+	streamRx          map[uint16]*streamReassembly // key: stream id
+	lastStreamRx      StreamStats
+	lastStreamSet     bool
+	streamCompletions uint32
 
 	waitGroup sync.WaitGroup
 }
@@ -129,24 +131,31 @@ func (d *Daemon) runDownlink(index int, transport *iface.Interface) {
 func (d *Daemon) runUplink(index int, transport *iface.Interface) {
 	defer d.waitGroup.Done()
 
-	if err := transport.Create(); err != nil {
-		log.Printf("uplink %d: create: %v", index, err)
-		return
-	}
-	defer transport.Close()
+	// Reconnect loop: a client keeps (re)dialing so a transient failure (stale
+	// ARP on a WiFi peer, the peer rebooting) or a dropped connection recovers on
+	// its own, instead of the route being lost for the process lifetime.
+	for {
+		if err := transport.Create(); err != nil {
+			log.Printf("uplink %d: create: %v", index, err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
 
-	if _, err := transport.Connect(); err != nil {
-		log.Printf("uplink %d: connect: %v", index, err)
-		return
-	}
-	d.config.Analyzer.IfaceEvent("connect", int32(index))
+		if _, err := transport.Connect(); err != nil {
+			log.Printf("uplink %d: connect: %v (retrying)", index, err)
+			transport.Close()
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		d.config.Analyzer.IfaceEvent("connect", int32(index))
 
-	if !d.handshakeUplink(transport) {
-		return
+		if d.handshakeUplink(transport) {
+			d.broadcastLocalServices(transport)
+			d.receiveLoop(index, transport)
+		}
+		transport.Close()
+		time.Sleep(1 * time.Second) // brief backoff before re-dialing
 	}
-
-	d.broadcastLocalServices(transport)
-	d.receiveLoop(index, transport)
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -270,11 +279,14 @@ func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
 	acc := make([]byte, 0, 2*MaxPayloadSize)
 
 	for {
-		received, connClosed, _, err := transport.Recv(readBuf)
+		received, connClosed, timedOut, err := transport.Recv(readBuf)
 		if connClosed || (err != nil && err == io.EOF) {
 			log.Printf("iface %d: connection closed by peer", index)
 			d.config.Analyzer.IfaceEvent("close", int32(index))
 			return
+		}
+		if timedOut {
+			continue // idle read timeout — keep the connection alive
 		}
 		if err != nil {
 			log.Printf("iface %d: recv: %v", index, err)
