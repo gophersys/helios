@@ -85,19 +85,15 @@ k8s Secret (`gluetun-wireguard`, `homepage-secrets`, `filebrowser-admin`,
 explains why single-value logins stay imperative (the ESO store returns an
 item's `notes` blob, not individual fields).
 
-### D5 🟡 Default / unset credentials — qBit RESOLVED; Filebrowser known-issue (PR #32)
+### D5 ✅ Default / unset credentials — RESOLVED (PR #32, #36-#38)
 - **qBittorrent** — ✅ strong password (`shared/qbittorrent/webui`), set via API,
   verified (WebUI hash changed, `admin`/`admin` default gone). In-cluster is
   subnet-bypassed; the password is for external/UI login only.
-- **Filebrowser** — ⚠️ the weak `admin`/`admin` default is **eliminated** (login
-  returns 403) and a strong password is stored in `shared/filebrowser/admin` and
-  set in the BoltDB via `apps/music/filebrowser/reset-admin/job.yaml`. HOWEVER
-  interactive login with that password *also* 403s and could not be resolved
-  remotely — the official-image `users add` set it and the server uses the same
-  DB with default `json` auth, yet auth fails (a filebrowser-internal quirk).
-  **Exposure is tailnet-only.** Fix needs a hands-on session: interactive
-  `filebrowser` DB/config inspection, or redeploy filebrowser fresh and set the
-  password before its first external use. Tracked as the one honest carry-over.
+- **Filebrowser** — ✅ strong password (`shared/filebrowser/admin`), set by a
+  `bootstrap-admin` initContainer that runs before the server (no BoltDB-lock
+  fight) and re-applies it every boot. **Login verified (HTTP 200).** Root cause
+  of the earlier saga: the `:v2` tag became the "quantum" rewrite (v2.63) that
+  broke `/api/login` auth — pinned to classic **v2.31.2** (PR #36-#38).
 
 ### D6 ✅ Workspaces create/destroy — RESOLVED (gophersys/workspaces#1 + PR #33)
 Implemented with full TDD (34 tests: interface fakes + an httptest GitHub mock).

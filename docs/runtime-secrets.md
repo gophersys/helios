@@ -57,6 +57,10 @@ kubectl -n workspaces-prod create secret generic workspaces-github \
 ```
 Restart the API to pick it up: `kubectl -n workspaces-prod rollout restart deploy/workspaces-api`.
 
+> **Current state:** populated from the operator's `gh` CLI token to activate the
+> feature. Swap for a dedicated fine-grained bot PAT (above) — a personal token
+> has broader scope than this service needs.
+
 ## App-managed passwords (not k8s Secrets)
 
 ### qBittorrent WebUI password
