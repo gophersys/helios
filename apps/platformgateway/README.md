@@ -1,50 +1,48 @@
-# http-gateway (application template)
+# platformgateway
 
-> Directory README · the first Eden application template (ADR-0023, spec
-> `docs/architecture/16-application-template-system.md`). An OpenAPI-first, sqlc/pgx HTTP service
-> that ASSEMBLES the Eden Go libraries the IOTEA way.
+> Directory README · Eden's **platform HTTP API** — the SaaS-side gateway (users, identity, login)
+> the frontend talks to via the `/platform` vite proxy. Generated from the `http-gateway`
+> application template (ADR-0023/0026, spec `docs/architecture/16-application-template-system.md`)
+> and then specialized; it keeps the template's engineering bar (5-files-per-route, sqlc/pgx,
+> OpenAPI-first, phase-gate) — "Eden builds Eden".
 
-## What you get
+## What it serves
 
-A production-shaped HTTP service, compiling and ready to extend:
+Behind the edenhttp 6-stage pipeline and the dev-JWT identity gate (behind auth even locally):
 
-- A **pure composition root** (`cmd/gateway`) that wires the libraries in order: `configuration`
-  → `secrets` (Vault) → `observability` → substrate-detect → `server.New` → `signal.NotifyContext`
-  drain. The libraries own all behavior; this owns only the wiring.
-- The **edenhttp 6-stage handler pipeline** behind a dev-JWT identity gate (behind auth even
-  locally), with the health probes mounted public.
-- The **5-files-per-route rule** (`internal/api/v1/`): every route is
-  `route.go`/`parse.go`/`validate.go`/`execute.go`/`effect.go`, authorization a declarative
-  `Required` Grant — the worked `ping` resource is the reference.
-- A **sqlc/pgx data layer** (`persistence/`) and an **OpenAPI contract** (`contract/openapi.yaml`)
-  that emits the typed test client (`clients/go/`) — the two codegen axes.
-- A **two-axis deploy surface** (`deploy/`) rendered from eden's `deploy/servicespec`.
+- `GET /ping` — the template's worked reference route (kept as the living example).
+- `GET /users` + `GET /users/{id}` — the users read-slice (list paginated, get by id).
+- `GET /me` — the caller's own identity, resolved from the verified JWT.
+
+Public (pre-identity, mounted by the server composition, not the v1 mux):
+
+- `POST /auth/login` — password login against the seeded users → a signed dev-JWT.
+- `GET /bootstrap/default-user` — the login screen's bootstrap (the seeded default identity).
+- `GET /healthz/live` + `GET /healthz/ready` — probes.
+
+## The data layer
+
+`persistence/` is sqlc-over-pgx with three migrations (`0001_create_users`, `0002_create_rbac`,
+`0003_create_accounts`) run by an IOTEA-style embedded migrate-then-seed at startup. The
+integration lane drives the running handlers through the emitted OpenAPI client against a REAL
+postgres (never a mock — ADR-0016 §2).
+
+## Running it
+
+- Local dev: via eden's `deploy/ctl.sh` platformgateway-live path — Vault seeds
+  `platformgateway-jwt-signing-key` / `platformgateway-database-dsn`, the frontend proxies
+  `/platform` → the gateway.
+- Image: `docker build -f apps/platformgateway/deploy/Dockerfile -t platformgateway:local .` from
+  the MONOREPO ROOT (the build stage regenerates the gitignored go.work via
+  `scripts/gen-go-work.sh`).
+- Gates: `bash ./ctl.sh phase-gate all` in the devcontainer — the same four-phase ADR-0020
+  sequence as every lib.
 
 ## Layout
 
-```
-http-gateway/
-├── ctl.sh                  # thin dispatcher → ../../_ctl/template.sh
-├── project.json            # Nx app wiring
-├── go.mod / go.sum         # requires gophersys/libs/go/* (resolved via the workspace go.work)
-├── cmd/gateway/            # the composition root (main.go + environment.go)
-├── internal/
-│   ├── server/             # server.New + Handler(); middleware/, healthcheck/, runtime/, identity/, bom/
-│   └── api/v1/             # the versioned resources — the 5-files-per-route rule (ping/ is the example)
-├── contract/openapi.yaml   # OpenAPI-first — the API's source of truth
-├── persistence/            # sqlc/pgx data layer (Nx codegen sub-project)
-├── clients/go/             # the emitted Go test client (Nx codegen sub-project, own module)
-├── deploy/                 # Dockerfile + the typed ServiceSpec (reuses deploy/servicespec)
-└── .claude/                # the CRUD-authoring rules injected at SessionStart
-```
-
-## Build, test, gate (devcontainer-first)
-
-```bash
-docker exec -u dev -w /workspace/libs/templates/go/http-gateway base-devcontainer \
-  bash -lc 'bash ./ctl.sh build'              # compile (go build ./...)
-# ... test | lint | generate | integration | phase-gate <architecture|implementation|testing|qa|all>
-```
-
-The sibling `gophersys/libs/go/*` modules resolve through the monorepo's `go.work`; this module's
-`go.mod` carries NO module-level `replace`. A library is "done" only past `phase-gate qa`.
+The template shape, kept: `cmd/gateway/` (pure composition root), `internal/api/v1/<resource>/`
+(five files per route + declarative `Required` grants, registered in `internal/api/v1/mount.go`),
+`internal/server/` (spine + middleware + healthcheck + identity verifier), `persistence/` (schema,
+migrations, queries, generated Querier), `contract/openapi.yaml` (EMITTED from the route types —
+never hand-edited), `clients/go/` (the emitted typed client the integration lane drives), and
+`.claude/` (the CRUD-authoring rules injected at SessionStart).
