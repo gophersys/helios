@@ -73,10 +73,10 @@ func TestErrorMessagesNeverFabricateValues(t *testing.T) {
 // relies on at the boundary.
 func TestRequestAndRepositoryIsZero(t *testing.T) {
 	t.Parallel()
-	if !(forge.CreateRepoRequest{}).IsZero() {
-		t.Error("zero CreateRepoRequest must report IsZero")
+	if !(forge.CreateRepositoryRequest{}).IsZero() {
+		t.Error("zero CreateRepositoryRequest must report IsZero")
 	}
-	if (forge.CreateRepoRequest{Owner: "o"}).IsZero() {
+	if (forge.CreateRepositoryRequest{Owner: "o"}).IsZero() {
 		t.Error("a populated request must not report IsZero")
 	}
 	if !(forge.Repository{}).IsZero() {

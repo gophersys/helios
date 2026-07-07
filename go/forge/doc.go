@@ -19,7 +19,7 @@
 // forge only through the Authorization header — never argv, never the URL, never a
 // log line.
 //
-// IDEMPOTENCY: CreateRepo is idempotent. A forge that rejects a duplicate create
+// IDEMPOTENCY: CreateRepository is idempotent. A forge that rejects a duplicate create
 // (GitHub answers HTTP 422 with a "name already exists" validation error) is not a
 // failure here — the connector reads the existing repository back and returns it,
 // so a retried provision converges on the same Repository rather than erroring.

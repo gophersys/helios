@@ -79,8 +79,8 @@ func newConnector(t *testing.T, transport *fakeTransport) *githubadapter.Connect
 	return connector
 }
 
-func sampleRequest() forge.CreateRepoRequest {
-	return forge.CreateRepoRequest{
+func sampleRequest() forge.CreateRepositoryRequest {
+	return forge.CreateRepositoryRequest{
 		Owner:       "eden-org",
 		Name:        "new-service",
 		Private:     true,
@@ -89,7 +89,7 @@ func sampleRequest() forge.CreateRepoRequest {
 	}
 }
 
-const createdRepoBody = `{
+const createdRepositoryBody = `{
   "name": "new-service",
   "clone_url": "https://github.com/eden-org/new-service.git",
   "default_branch": "main",
@@ -108,11 +108,11 @@ const unauthorizedBody = `{"message": "Bad credentials"}`
 
 // --- the table: create-ok, already-exists-422 -> get, 401 --------------------.
 
-// createRepoCase is one row of the CreateRepo table: the scripted forge responses
+// createRepositoryCase is one row of the CreateRepository table: the scripted forge responses
 // and the expected outcome (a success with a clone URL/branch, or a classified
 // error). wantKind == KindUnknown together with wantErr == false means "expect
 // success".
-type createRepoCase struct {
+type createRepositoryCase struct {
 	name        string
 	responses   []scriptedResponse
 	wantKind    errors.Kind
@@ -123,13 +123,13 @@ type createRepoCase struct {
 	wantErrType func(error) bool // nil means skip the typed-error assertion
 }
 
-func TestCreateRepo(t *testing.T) {
+func TestCreateRepository(t *testing.T) {
 	t.Parallel()
 
-	tests := []createRepoCase{
+	tests := []createRepositoryCase{
 		{
 			name:       "create-ok",
-			responses:  []scriptedResponse{{status: http.StatusCreated, body: createdRepoBody}},
+			responses:  []scriptedResponse{{status: http.StatusCreated, body: createdRepositoryBody}},
 			wantErr:    false,
 			wantCalls:  1,
 			wantClone:  "https://github.com/eden-org/new-service.git",
@@ -139,7 +139,7 @@ func TestCreateRepo(t *testing.T) {
 			name: "already-exists-422-then-get",
 			responses: []scriptedResponse{
 				{status: http.StatusUnprocessableEntity, body: alreadyExistsBody},
-				{status: http.StatusOK, body: createdRepoBody},
+				{status: http.StatusOK, body: createdRepositoryBody},
 			},
 			wantErr:    false,
 			wantCalls:  2, // POST (422) then GET (200) — the idempotent read-back
@@ -205,7 +205,7 @@ func TestCreateRepo(t *testing.T) {
 			transport := &fakeTransport{responses: testCase.responses}
 			connector := newConnector(t, transport)
 
-			repository, err := connector.CreateRepo(context.Background(), sampleRequest())
+			repository, err := connector.CreateRepository(context.Background(), sampleRequest())
 
 			if testCase.wantErr {
 				assertErrorCase(t, &testCase, repository, err)
@@ -222,7 +222,7 @@ func TestCreateRepo(t *testing.T) {
 
 // assertErrorCase verifies a classified-error row: a non-nil error, the expected
 // Kind and taxonomy type, and a zero Repository.
-func assertErrorCase(t *testing.T, testCase *createRepoCase, repository forge.Repository, err error) {
+func assertErrorCase(t *testing.T, testCase *createRepositoryCase, repository forge.Repository, err error) {
 	t.Helper()
 	if err == nil {
 		t.Fatalf("expected an error, got nil and repository %+v", repository)
@@ -240,7 +240,7 @@ func assertErrorCase(t *testing.T, testCase *createRepoCase, repository forge.Re
 
 // assertSuccessCase verifies a happy-path row: no error and the expected resolved
 // Repository identity, clone URL, and default branch.
-func assertSuccessCase(t *testing.T, testCase *createRepoCase, repository forge.Repository, err error) {
+func assertSuccessCase(t *testing.T, testCase *createRepositoryCase, repository forge.Repository, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -256,15 +256,15 @@ func assertSuccessCase(t *testing.T, testCase *createRepoCase, repository forge.
 	}
 }
 
-// TestCreateRepo_AuthHeaderCarriesResolvedTokenAndNeverLeaks proves the resolved
+// TestCreateRepository_AuthHeaderCarriesResolvedTokenAndNeverLeaks proves the resolved
 // token reaches the Authorization header (so the call authenticates) AND never
 // appears in the request URL — the credential-confinement contract (07 §2).
-func TestCreateRepo_AuthHeaderCarriesResolvedTokenAndNeverLeaks(t *testing.T) {
+func TestCreateRepository_AuthHeaderCarriesResolvedTokenAndNeverLeaks(t *testing.T) {
 	t.Parallel()
-	transport := &fakeTransport{responses: []scriptedResponse{{status: http.StatusCreated, body: createdRepoBody}}}
+	transport := &fakeTransport{responses: []scriptedResponse{{status: http.StatusCreated, body: createdRepositoryBody}}}
 	connector := newConnector(t, transport)
 
-	if _, err := connector.CreateRepo(context.Background(), sampleRequest()); err != nil {
+	if _, err := connector.CreateRepository(context.Background(), sampleRequest()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -282,10 +282,10 @@ func TestCreateRepo_AuthHeaderCarriesResolvedTokenAndNeverLeaks(t *testing.T) {
 	}
 }
 
-// TestCreateRepo_CredentialResolutionFailureIsUnauthenticated proves that when the
-// secrets provider rejects the reference, CreateRepo never reaches the transport and
+// TestCreateRepository_CredentialResolutionFailureIsUnauthenticated proves that when the
+// secrets provider rejects the reference, CreateRepository never reaches the transport and
 // classifies the failure as Unauthenticated with the loggable reference (no value).
-func TestCreateRepo_CredentialResolutionFailureIsUnauthenticated(t *testing.T) {
+func TestCreateRepository_CredentialResolutionFailureIsUnauthenticated(t *testing.T) {
 	t.Parallel()
 	ref := secrets.Ref(tokenRef)
 	provider := secretstest.New(nil).FailWith(tokenRef, secrets.DeniedError{Ref: ref})
@@ -298,7 +298,7 @@ func TestCreateRepo_CredentialResolutionFailureIsUnauthenticated(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	_, err = connector.CreateRepo(context.Background(), sampleRequest())
+	_, err = connector.CreateRepository(context.Background(), sampleRequest())
 	if err == nil {
 		t.Fatal("expected an error when the credential cannot be resolved")
 	}
@@ -320,9 +320,9 @@ func TestCreateRepo_CredentialResolutionFailureIsUnauthenticated(t *testing.T) {
 	}
 }
 
-// TestCreateRepo_UnavailableCredentialStoreStaysRetryable proves a transient
+// TestCreateRepository_UnavailableCredentialStoreStaysRetryable proves a transient
 // secrets-store fault maps to KindUnavailable (retryable), not Unauthenticated.
-func TestCreateRepo_UnavailableCredentialStoreStaysRetryable(t *testing.T) {
+func TestCreateRepository_UnavailableCredentialStoreStaysRetryable(t *testing.T) {
 	t.Parallel()
 	ref := secrets.Ref(tokenRef)
 	provider := secretstest.New(nil).FailWith(tokenRef, secrets.UnavailableError{Ref: ref})
@@ -332,31 +332,31 @@ func TestCreateRepo_UnavailableCredentialStoreStaysRetryable(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	_, err = connector.CreateRepo(context.Background(), sampleRequest())
+	_, err = connector.CreateRepository(context.Background(), sampleRequest())
 	if got := errors.KindOf(err); got != errors.KindUnavailable {
 		t.Errorf("Kind: got %v, want KindUnavailable", got)
 	}
 }
 
-// TestCreateRepo_InvalidRequestRejectedBeforeIO proves the port boundary rejects a
+// TestCreateRepository_InvalidRequestRejectedBeforeIO proves the port boundary rejects a
 // malformed request with KindInvalid and never resolves a credential or dials.
-func TestCreateRepo_InvalidRequestRejectedBeforeIO(t *testing.T) {
+func TestCreateRepository_InvalidRequestRejectedBeforeIO(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
-		request forge.CreateRepoRequest
+		request forge.CreateRepositoryRequest
 	}{
-		{"empty-owner", forge.CreateRepoRequest{Name: "x", Credential: secrets.Ref(tokenRef)}},
-		{"empty-name", forge.CreateRepoRequest{Owner: "o", Credential: secrets.Ref(tokenRef)}},
-		{"zero-credential", forge.CreateRepoRequest{Owner: "o", Name: "x"}},
-		{"slash-in-name", forge.CreateRepoRequest{Owner: "o", Name: "a/b", Credential: secrets.Ref(tokenRef)}},
+		{"empty-owner", forge.CreateRepositoryRequest{Name: "x", Credential: secrets.Ref(tokenRef)}},
+		{"empty-name", forge.CreateRepositoryRequest{Owner: "o", Credential: secrets.Ref(tokenRef)}},
+		{"zero-credential", forge.CreateRepositoryRequest{Owner: "o", Name: "x"}},
+		{"slash-in-name", forge.CreateRepositoryRequest{Owner: "o", Name: "a/b", Credential: secrets.Ref(tokenRef)}},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			transport := &fakeTransport{}
 			connector := newConnector(t, transport)
-			_, err := connector.CreateRepo(context.Background(), testCase.request)
+			_, err := connector.CreateRepository(context.Background(), testCase.request)
 			if err == nil {
 				t.Fatal("expected an error for a malformed request")
 			}

@@ -51,8 +51,8 @@ func TestGuardDelete_AllowsEphemeral(t *testing.T) {
 		if err := forge.GuardDelete("MateoSegura", name); err != nil {
 			t.Fatalf("GuardDelete MUST allow ephemeral test repository %q, got: %v", name, err)
 		}
-		if !forge.EphemeralRepoName(name) {
-			t.Fatalf("EphemeralRepoName(%q) should be true", name)
+		if !forge.EphemeralRepositoryName(name) {
+			t.Fatalf("EphemeralRepositoryName(%q) should be true", name)
 		}
 	}
 }

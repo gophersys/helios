@@ -10,7 +10,7 @@
 // a fake in unit tests (table: create-ok, already-exists-422→get, 401) and against
 // the REAL github.com under the integration build tag. New is the pure constructor
 // spine: it validates Config + Deps and wires; the first network call is the first
-// CreateRepo.
+// CreateRepository.
 package githubadapter
 
 import (
@@ -57,16 +57,16 @@ type Config struct {
 	// selects a stable default identifying the Eden forge connector.
 	UserAgent string
 
-	// EnableEphemeralDelete OPTS IN to the destructive DeleteRepo capability. It is FALSE by
+	// EnableEphemeralDelete OPTS IN to the destructive DeleteRepository capability. It is FALSE by
 	// default, so a PRODUCTION composition root (the saga, the orchestrator) cannot delete a
-	// repository at all — DeleteRepo refuses every call before touching the network. ONLY an
+	// repository at all — DeleteRepository refuses every call before touching the network. ONLY an
 	// integration-test composition sets it true; and even then GuardDelete still confines deletion
 	// to ephemeral `eden-it-*` repositories that are not on the protected denylist. Two walls
 	// (capability-off + name-guard) so a real repository can never be deleted.
 	//
-	// TODO(eden, REMOVE THIS): DeleteRepo + this opt-in exist ONLY to reap throwaway
+	// TODO(eden, REMOVE THIS): DeleteRepository + this opt-in exist ONLY to reap throwaway
 	// integration-test repositories under MateoSegura while the delete_repo PAT scope is live.
-	// Remove DeleteRepo, this flag, and the delete_repo scope once test repos are reaped by a
+	// Remove DeleteRepository, this flag, and the delete_repo scope once test repos are reaped by a
 	// safer mechanism (a dedicated disposable GitHub org / sandbox account with automated TTL
 	// cleanup, or repo auto-expiry) — so NO Eden code path can delete a repository on a real
 	// account, by construction. This is a deliberate, temporary, clearly-marked affordance.
@@ -104,8 +104,8 @@ type Connector struct {
 	userAgent string
 	http      HTTPDoer
 	secrets   secrets.Provider
-	// ephemeralDeleteEnabled gates the destructive DeleteRepo: false (the default) refuses every
-	// delete before any network call, so production connectors cannot delete a repository at all.
+	// ephemeralDeleteEnabled gates the destructive DeleteRepository: false (the default) refuses
+	// every delete before any network call, so production connectors cannot delete a repository at all.
 	ephemeralDeleteEnabled bool
 }
 
@@ -114,7 +114,7 @@ var _ forge.Forge = (*Connector)(nil)
 
 // New is the pure constructor spine (10 §9). PURE: no I/O, no env reads, no clock,
 // no network dial. It validates Deps + Config, defaults the knobs, and returns the
-// concrete *Connector. The first network call is the first CreateRepo.
+// concrete *Connector. The first network call is the first CreateRepository.
 //
 //nolint:gocritic // contract: New(configuration, dependencies) is the canon spine; Config/Deps pass by value (the frozen, copyable inputs).
 func New(configuration Config, dependencies Deps) (*Connector, error) {

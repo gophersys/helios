@@ -14,10 +14,10 @@ import (
 // pull requests) within the 5-method interface ceiling, splitting into composed
 // ports before it would exceed it.
 //
-// Implementations MUST be idempotent on CreateRepo (a duplicate is read back, not
-// an error) and MUST be safe for concurrent use by multiple goroutines.
+// Implementations MUST be idempotent on CreateRepository (a duplicate is read back,
+// not an error) and MUST be safe for concurrent use by multiple goroutines.
 type Forge interface {
-	// CreateRepo creates the repository named by request under request.Owner and
+	// CreateRepository creates the repository named by request under request.Owner and
 	// returns its resolved Repository (clone URL + default branch the forge chose).
 	// It is IDEMPOTENT: if the repository already exists, the existing repository is
 	// read back and returned rather than erroring. The credential is named by
@@ -27,28 +27,29 @@ type Forge interface {
 	// (KindConflict / KindUnauthenticated / KindUnavailable / KindInvalid /
 	// KindNotFound); it never returns a non-zero Repository together with a non-nil
 	// error.
-	CreateRepo(ctx context.Context, request CreateRepoRequest) (Repository, error)
+	CreateRepository(ctx context.Context, request CreateRepositoryRequest) (Repository, error)
 
-	// DeleteRepo PERMANENTLY deletes the repository named by request — a DESTRUCTIVE,
+	// DeleteRepository PERMANENTLY deletes the repository named by request — a DESTRUCTIVE,
 	// IRREVERSIBLE operation that exists ONLY to reap ephemeral test repositories. It is
 	// fenced by a HARD GUARD (GuardDelete, guard.go) applied BEFORE any network call: it
-	// refuses unless request.Name matches the reserved ephemeral pattern (EphemeralRepoName,
-	// `eden-it-*`) AND is not in the protected denylist (ProtectedRepoNames). A request for a
+	// refuses unless request.Name matches the reserved ephemeral pattern (EphemeralRepositoryName,
+	// `eden-it-*`) AND is not in the protected denylist (ProtectedRepositoryNames). A request for a
 	// real repository — eden / libs / template / infrastructure / .devcontainer / any
 	// non-`eden-it-*` name — is REFUSED with KindInvalid and NO HTTP call is made, by a test
 	// or production code, regardless of the credential. There is no unguarded delete path.
 	// Idempotent: a 404 (already gone) is success. The credential is resolved per call.
-	DeleteRepo(ctx context.Context, request DeleteRepoRequest) error
+	DeleteRepository(ctx context.Context, request DeleteRepositoryRequest) error
 }
 
-// DeleteRepoRequest names a repository to delete. The zero value is invalid. Even a fully-formed
-// request is REFUSED unless Name passes GuardDelete (ephemeral + not protected) — the request
-// shape is necessary but never sufficient to delete.
-type DeleteRepoRequest struct {
+// DeleteRepositoryRequest names a repository to delete. The zero value is invalid. Even a
+// fully-formed request is REFUSED unless Name passes GuardDelete (ephemeral + not protected) — the
+// request shape is necessary but never sufficient to delete.
+type DeleteRepositoryRequest struct {
 	// Owner is the account/organization that owns the repository. Required.
 	Owner string
 	// Name is the repository name. Required, and MUST be an ephemeral `eden-it-*` test name
-	// (EphemeralRepoName) that is not protected (ProtectedRepoNames) or DeleteRepo refuses it.
+	// (EphemeralRepositoryName) that is not protected (ProtectedRepositoryNames) or
+	// DeleteRepository refuses it.
 	Name string
 	// Credential is the opaque secrets.Reference to the forge PAT (needs the delete_repo scope),
 	// resolved at the call. Required. The token never enters this struct, a log, or an error.
@@ -56,16 +57,16 @@ type DeleteRepoRequest struct {
 }
 
 // IsZero reports whether r is the unconstructed delete request.
-func (r DeleteRepoRequest) IsZero() bool {
+func (r DeleteRepositoryRequest) IsZero() bool {
 	return r.Owner == "" && r.Name == "" && r.Credential.IsZero()
 }
 
-// CreateRepoRequest is the validated, credential-free description of a repository
+// CreateRepositoryRequest is the validated, credential-free description of a repository
 // to create. It carries the opaque secrets.Reference that NAMES the credential —
 // never the token value (07 §2). DATA, not code; the zero value is invalid (Owner
 // and Name are required, Credential must be non-zero), rejected at the port
 // boundary before any I/O.
-type CreateRepoRequest struct {
+type CreateRepositoryRequest struct {
 	// Owner is the account or organization that will own the repository (a GitHub
 	// user login or organization slug). Required.
 	Owner string
@@ -89,7 +90,7 @@ type CreateRepoRequest struct {
 
 // IsZero reports whether r is the zero request (no Owner, Name, or Credential set).
 // It lets a caller and the adapter guard the unconstructed value before any I/O.
-func (r CreateRepoRequest) IsZero() bool {
+func (r CreateRepositoryRequest) IsZero() bool {
 	return r.Owner == "" && r.Name == "" && !r.Private && r.Description == "" && r.Credential.IsZero()
 }
 

@@ -13,10 +13,10 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 )
 
-// createRepoBody is the GitHub "create a repository for the authenticated user"
+// createRepositoryBody is the GitHub "create a repository for the authenticated user"
 // request payload (POST /user/repos). Only the fields the forge port exposes are
 // sent; GitHub defaults the rest.
-type createRepoBody struct {
+type createRepositoryBody struct {
 	Name        string `json:"name"`
 	Private     bool   `json:"private"`
 	Description string `json:"description,omitempty"`
@@ -56,12 +56,12 @@ type httpResult struct {
 	body   []byte
 }
 
-// postCreateRepo issues POST <base>/user/repos with the create payload and the
+// postCreateRepository issues POST <base>/user/repos with the create payload and the
 // authenticated header set, returning the captured result, or a transport-level
 // error mapped into the forge taxonomy (Unavailable). The body is always drained
 // and closed.
-func (c *Connector) postCreateRepo(ctx context.Context, request forge.CreateRepoRequest, secret *secrets.Secret) (httpResult, error) {
-	payload := createRepoBody{
+func (c *Connector) postCreateRepository(ctx context.Context, request forge.CreateRepositoryRequest, secret *secrets.Secret) (httpResult, error) {
+	payload := createRepositoryBody{
 		Name:        request.Name,
 		Private:     request.Private,
 		Description: request.Description,
@@ -84,10 +84,10 @@ func (c *Connector) postCreateRepo(ctx context.Context, request forge.CreateRepo
 	return c.do(httpRequest, request, secret)
 }
 
-// getRepo issues GET <base>/repos/{owner}/{name} for the idempotent read-back,
+// fetchRepository issues GET <base>/repos/{owner}/{name} for the idempotent read-back,
 // returning the captured result or a transport error mapped to the forge taxonomy.
 // The body is always drained and closed.
-func (c *Connector) getRepo(ctx context.Context, request forge.CreateRepoRequest, secret *secrets.Secret) (httpResult, error) {
+func (c *Connector) fetchRepository(ctx context.Context, request forge.CreateRepositoryRequest, secret *secrets.Secret) (httpResult, error) {
 	path := c.baseURL + "/repos/" + request.Owner + "/" + request.Name
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, path, http.NoBody)
 	if err != nil {
@@ -100,7 +100,7 @@ func (c *Connector) getRepo(ctx context.Context, request forge.CreateRepoRequest
 // secrets.Secret.Use so the token never escapes the closure into a retained string),
 // runs the request through the injected transport, and returns the captured status +
 // bounded, drained body. A transport error classifies as Unavailable (retryable).
-func (c *Connector) do(httpRequest *http.Request, request forge.CreateRepoRequest, secret *secrets.Secret) (httpResult, error) {
+func (c *Connector) do(httpRequest *http.Request, request forge.CreateRepositoryRequest, secret *secrets.Secret) (httpResult, error) {
 	httpRequest.Header.Set("Accept", "application/vnd.github+json")
 	httpRequest.Header.Set("X-GitHub-Api-Version", defaultAPIVersion)
 	httpRequest.Header.Set("User-Agent", c.userAgent)
@@ -147,7 +147,7 @@ func (c *Connector) do(httpRequest *http.Request, request forge.CreateRepoReques
 // falling back to the request's Owner/Name when the response omits them (a defensive
 // guard; GitHub always populates them). A body that does not decode is an Unavailable
 // fault (a malformed/garbled response the caller may retry).
-func decodeRepository(request forge.CreateRepoRequest, body []byte) (forge.Repository, error) {
+func decodeRepository(request forge.CreateRepositoryRequest, body []byte) (forge.Repository, error) {
 	var raw repositoryResponse
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return forge.Repository{}, forge.UnavailableError{Owner: request.Owner, Name: request.Name, Reason: "decoding repository response failed"}

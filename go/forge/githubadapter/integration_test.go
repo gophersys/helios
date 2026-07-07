@@ -14,9 +14,9 @@
 // secrets.Provider resolves the reference; the value never enters argv or a log.
 //
 // NOTE FOR THE INTEGRATION PASS: deleting a repository needs the `delete_repo` scope,
-// which is BROADER than the `repo` scope Wave 1's CreateRepo needs. The throwaway PAT
+// which is BROADER than the `repo` scope Wave 1's CreateRepository needs. The throwaway PAT
 // used by this lane must carry it; document that in the CI secret provisioning. The
-// `DeleteRepo` call below is a TEST-ONLY teardown helper issued directly against the
+// `DeleteRepository` call below is a TEST-ONLY teardown helper issued directly against the
 // API (forge.Forge does not expose delete in Wave 1) — when a delete verb is added to
 // the port, replace the inline teardown with it.
 
@@ -67,7 +67,7 @@ func TestIntegration_CreateRepo_RealGitHub(t *testing.T) {
 	// Unique, time-namespaced name so concurrent/retried runs never collide and a
 	// leaked repository is identifiable as a forge integration artifact.
 	name := fmt.Sprintf("eden-it-forge-%d", time.Now().UnixNano())
-	request := forge.CreateRepoRequest{
+	request := forge.CreateRepositoryRequest{
 		Owner:       owner,
 		Name:        name,
 		Private:     true,
@@ -85,9 +85,9 @@ func TestIntegration_CreateRepo_RealGitHub(t *testing.T) {
 		}
 	})
 
-	created, err := connector.CreateRepo(ctx, request)
+	created, err := connector.CreateRepository(ctx, request)
 	if err != nil {
-		t.Fatalf("CreateRepo (first): %v", err)
+		t.Fatalf("CreateRepository (first): %v", err)
 	}
 	if created.CloneURL == "" || created.DefaultBranch == "" {
 		t.Errorf("created repository is under-populated: %+v", created)
@@ -98,9 +98,9 @@ func TestIntegration_CreateRepo_RealGitHub(t *testing.T) {
 
 	// Idempotency on the REAL substrate: a second create must 422 then read the same
 	// repository back, not error.
-	again, err := connector.CreateRepo(ctx, request)
+	again, err := connector.CreateRepository(ctx, request)
 	if err != nil {
-		t.Fatalf("CreateRepo (idempotent re-create): %v", err)
+		t.Fatalf("CreateRepository (idempotent re-create): %v", err)
 	}
 	if again.CloneURL != created.CloneURL {
 		t.Errorf("idempotent re-create drifted: got %q, want %q", again.CloneURL, created.CloneURL)
@@ -124,7 +124,7 @@ func TestIntegration_CreateRepo_BadTokenIsUnauthenticated(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	_, err = connector.CreateRepo(ctx, forge.CreateRepoRequest{
+	_, err = connector.CreateRepository(ctx, forge.CreateRepositoryRequest{
 		Owner:      owner,
 		Name:       fmt.Sprintf("eden-it-forgenoauth-%d", time.Now().UnixNano()),
 		Credential: secrets.Ref(integrationRefName),
@@ -142,7 +142,7 @@ func TestIntegration_CreateRepo_BadTokenIsUnauthenticated(t *testing.T) {
 // does not expose delete in Wave 1); when a delete verb lands on the port, replace
 // this with it. Needs the `delete_repo` scope on the integration PAT.
 func deleteRepoForTeardown(ctx context.Context, token, owner, name string) error {
-	// Belt-and-suspenders: even this raw teardown is fenced by the same guard as forge.DeleteRepo —
+	// Belt-and-suspenders: even this raw teardown is fenced by the same guard as forge.DeleteRepository —
 	// it refuses to delete anything that is not an ephemeral eden-it-* repository off the protected
 	// denylist, so a bad name can never reap a real repository.
 	if err := forge.GuardDelete(owner, name); err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 )
 
-// CreateRepo creates the repository named by request and returns its resolved
+// CreateRepository creates the repository named by request and returns its resolved
 // forge.Repository. It is IDEMPOTENT: a GitHub 422 whose validation error is the
 // "name already exists" case is reconciled by reading the existing repository back
 // via GET, so a retried provision converges rather than erroring. Every other
@@ -18,7 +18,7 @@ import (
 // 404 → NotFound, 5xx/transport → Unavailable, other 4xx → Conflict/Invalid). The
 // credential is resolved at the call and zeroized immediately; its value never
 // enters argv, the URL, a log, or the returned error.
-func (c *Connector) CreateRepo(ctx context.Context, request forge.CreateRepoRequest) (forge.Repository, error) {
+func (c *Connector) CreateRepository(ctx context.Context, request forge.CreateRepositoryRequest) (forge.Repository, error) {
 	if err := errors.FromContext(ctx); err != nil {
 		return forge.Repository{}, err
 	}
@@ -32,7 +32,7 @@ func (c *Connector) CreateRepo(ctx context.Context, request forge.CreateRepoRequ
 	}
 	defer secret.Zeroize()
 
-	result, err := c.postCreateRepo(ctx, request, secret)
+	result, err := c.postCreateRepository(ctx, request, secret)
 	if err != nil {
 		return forge.Repository{}, forge.Wrap(err)
 	}
@@ -59,7 +59,7 @@ func (c *Connector) CreateRepo(ctx context.Context, request forge.CreateRepoRequ
 // injected provider, classifying a resolution failure as Unauthenticated with the
 // loggable Reference (never the value). It never returns (nil, nil): a successful
 // resolution returns a non-nil Secret the caller owns and must Zeroize.
-func (c *Connector) resolveCredential(ctx context.Context, request forge.CreateRepoRequest) (*secrets.Secret, error) {
+func (c *Connector) resolveCredential(ctx context.Context, request forge.CreateRepositoryRequest) (*secrets.Secret, error) {
 	secret, err := c.secrets.Resolve(ctx, request.Credential)
 	if err != nil {
 		// The forge-typed boundary error carries the loggable Reference and WRAPS the
@@ -89,8 +89,8 @@ func (c *Connector) resolveCredential(ctx context.Context, request forge.CreateR
 // read-back). A 200 decodes the repository; a 404 is a NotFound (a race where the
 // repository vanished between the 422 and the read); anything else classifies via
 // the shared status mapper.
-func (c *Connector) getRepository(ctx context.Context, request forge.CreateRepoRequest, secret *secrets.Secret) (forge.Repository, error) {
-	result, err := c.getRepo(ctx, request, secret)
+func (c *Connector) getRepository(ctx context.Context, request forge.CreateRepositoryRequest, secret *secrets.Secret) (forge.Repository, error) {
+	result, err := c.fetchRepository(ctx, request, secret)
 	if err != nil {
 		return forge.Repository{}, forge.Wrap(err)
 	}
@@ -111,7 +111,7 @@ func (c *Connector) getRepository(ctx context.Context, request forge.CreateRepoR
 // validateRequest enforces the port boundary: a non-empty Owner and Name and a
 // non-zero Credential Reference, before any I/O. A malformed request is an
 // InvalidRequestError (KindInvalid).
-func validateRequest(request forge.CreateRepoRequest) error {
+func validateRequest(request forge.CreateRepositoryRequest) error {
 	switch {
 	case strings.TrimSpace(request.Owner) == "":
 		return forge.InvalidRequestError{Owner: request.Owner, Name: request.Name, Reason: "Owner is required"}
@@ -132,7 +132,7 @@ func validateRequest(request forge.CreateRepoRequest) error {
 // Conflict (a validation error that is NOT the already-exists case); any other 4xx
 // → Conflict as the closest stable client-side classification. The forge's error
 // message (operator-safe; never a token) rides the Reason for diagnosis.
-func classifyStatus(request forge.CreateRepoRequest, status int, body []byte) error {
+func classifyStatus(request forge.CreateRepositoryRequest, status int, body []byte) error {
 	reason := summarizeBody(status, body)
 	switch {
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:

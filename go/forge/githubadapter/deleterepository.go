@@ -11,14 +11,14 @@ import (
 	"github.com/gophersys/libs/go/secrets"
 )
 
-// DeleteRepo PERMANENTLY deletes the repository named by request — but ONLY after
+// DeleteRepository PERMANENTLY deletes the repository named by request — but ONLY after
 // forge.GuardDelete passes (the name is an ephemeral `eden-it-*` test repository AND not in the
 // protected denylist). The guard runs BEFORE the credential is even resolved, so a protected or
 // non-ephemeral name is refused with ForbiddenDeletionError and NO HTTP request is ever issued —
 // a real repository (eden / libs / template / …) cannot be deleted through this adapter, by any
 // caller, regardless of the credential's scopes. Idempotent: a 204 (deleted) and a 404 (already
 // gone) are both success. The credential must carry the delete_repo scope.
-func (c *Connector) DeleteRepo(ctx context.Context, request forge.DeleteRepoRequest) error {
+func (c *Connector) DeleteRepository(ctx context.Context, request forge.DeleteRepositoryRequest) error {
 	if err := errors.FromContext(ctx); err != nil {
 		return err
 	}
@@ -35,7 +35,7 @@ func (c *Connector) DeleteRepo(ctx context.Context, request forge.DeleteRepoRequ
 		return forge.Wrap(err)
 	}
 	// WALL 2 — the name fence, before any credential resolution or network call. There is no
-	// DeleteRepo path that does not pass through GuardDelete first.
+	// DeleteRepository path that does not pass through GuardDelete first.
 	if err := forge.GuardDelete(request.Owner, request.Name); err != nil {
 		return forge.Wrap(err)
 	}
@@ -49,7 +49,7 @@ func (c *Connector) DeleteRepo(ctx context.Context, request forge.DeleteRepoRequ
 	}
 	defer secret.Zeroize()
 
-	status, err := c.deleteRepo(ctx, request, secret)
+	status, err := c.deleteRepository(ctx, request, secret)
 	if err != nil {
 		return forge.Wrap(err)
 	}
@@ -67,7 +67,7 @@ func (c *Connector) DeleteRepo(ctx context.Context, request forge.DeleteRepoRequ
 
 // validateDeleteRequest enforces the delete port boundary (non-empty Owner/Name, non-zero
 // Credential) before the guard and any I/O.
-func validateDeleteRequest(request forge.DeleteRepoRequest) error {
+func validateDeleteRequest(request forge.DeleteRepositoryRequest) error {
 	switch {
 	case strings.TrimSpace(request.Owner) == "":
 		return forge.InvalidRequestError{Owner: request.Owner, Name: request.Name, Reason: "Owner is required"}
@@ -83,10 +83,10 @@ func validateDeleteRequest(request forge.DeleteRepoRequest) error {
 	return nil
 }
 
-// deleteRepo issues DELETE <base>/repos/{owner}/{name} with the auth header built inside
+// deleteRepository issues DELETE <base>/repos/{owner}/{name} with the auth header built inside
 // Secret.Use (the token never escapes the closure), returning the status. The body is drained +
 // closed for connection reuse; it carries no data the caller needs.
-func (c *Connector) deleteRepo(ctx context.Context, request forge.DeleteRepoRequest, secret *secrets.Secret) (int, error) {
+func (c *Connector) deleteRepository(ctx context.Context, request forge.DeleteRepositoryRequest, secret *secrets.Secret) (int, error) {
 	path := c.baseURL + "/repos/" + request.Owner + "/" + request.Name
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodDelete, path, http.NoBody)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 // diagnosis. Every message is operator-safe: it carries the repository slug or the
 // Reference's canonical form, none ever carries a secret value.
 
-// InvalidRequestError reports a malformed CreateRepoRequest (empty Owner/Name, a
+// InvalidRequestError reports a malformed CreateRepositoryRequest (empty Owner/Name, a
 // zero Credential Reference) caught at the port boundary before any I/O. It maps to
 // errors.KindInvalid.
 type InvalidRequestError struct {
