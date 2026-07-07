@@ -14,6 +14,8 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/dfu/flash_img.h>
 #include <zephyr/dfu/mcuboot.h>
+#include <zephyr/net/socket.h>
+#include <string.h>
 
 #include <daemon/api.h>
 #include <corekinect/cipher/stream.h>
@@ -22,6 +24,26 @@ LOG_MODULE_REGISTER(ota_node, LOG_LEVEL_INF);
 
 #define CIPHER_PORT   5555
 #define OTA_STREAM_ID 0x00F0   /* firmware stream (matrix streamctl uses id 1) */
+#define COLLECTOR_HOST "10.168.0.225"
+#define COLLECTOR_PORT 9999
+
+/* Reliable results channel: serial drops lines under stream load, so OTA
+ * progress is reported over UDP to the node collector. */
+static int metrics_sock = -1;
+static struct sockaddr_in metrics_dest;
+static void metrics_init(void)
+{
+    metrics_sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    memset(&metrics_dest, 0, sizeof(metrics_dest));
+    metrics_dest.sin_family = AF_INET;
+    metrics_dest.sin_port = htons(COLLECTOR_PORT);
+    zsock_inet_pton(AF_INET, COLLECTOR_HOST, &metrics_dest.sin_addr);
+}
+static void metrics_emit(const char *j, int n)
+{
+    if (metrics_sock >= 0)
+        (void)zsock_sendto(metrics_sock, j, n, 0, (struct sockaddr *)&metrics_dest, sizeof(metrics_dest));
+}
 
 #ifndef APP_VERSION_STR
 #define APP_VERSION_STR "v1"
@@ -46,47 +68,61 @@ static struct k_work_delayable reboot_work;
 
 static void do_reboot(struct k_work *w) { ARG_UNUSED(w); sys_reboot(SYS_REBOOT_COLD); }
 
+static uint32_t ota_chunks;
+static int ota_last_write_rc;
+
 static void ota_sink(uint16_t stream_id, uint8_t phase, const uint8_t *data, uint16_t len, void *ctx)
 {
     ARG_UNUSED(ctx);
+    char j[192];
+    int n;
     if (stream_id != OTA_STREAM_ID) {
         return;   /* not a firmware stream — leave it to the plain reassembler */
     }
 
     switch (phase) {
-    case CIPHER_STREAM_PHASE_START:
-        if (flash_img_init(&ota_ctx) == 0) {
-            ota_active = true;
-            LOG_INF("OTA: receiving firmware into secondary slot");
-        } else {
-            LOG_ERR("OTA: flash_img_init failed");
-        }
+    case CIPHER_STREAM_PHASE_START: {
+        int rc = flash_img_init(&ota_ctx);
+        ota_active = (rc == 0);
+        ota_chunks = 0;
+        ota_last_write_rc = 0;
+        n = snprintk(j, sizeof(j), "{\"kind\":\"ota\",\"node\":\"0x%04x\",\"phase\":\"start\",\"init_rc\":%d}",
+                     CONFIG_CIPHER_DEVICE_ID, rc);
+        metrics_emit(j, n);
         break;
+    }
 
     case CIPHER_STREAM_PHASE_DATA:
         if (ota_active) {
             int rc = flash_img_buffered_write(&ota_ctx, data, len, false);
-            if (rc) { LOG_ERR("OTA: write failed rc=%d", rc); ota_active = false; }
+            ota_chunks++;
+            if (rc) { ota_last_write_rc = rc; ota_active = false; }
         }
         break;
 
-    case CIPHER_STREAM_PHASE_END:
-        if (ota_active) {
-            bool ok = (data && len >= 1 && data[0]);
-            int rc = flash_img_buffered_write(&ota_ctx, NULL, 0, true);   /* flush */
-            size_t written = flash_img_bytes_written(&ota_ctx);
-            ota_active = false;
-            LOG_INF("OTA: wrote %u bytes to slot1, stream checksum %s, flush rc=%d",
-                    (unsigned)written, ok ? "OK" : "BAD", rc);
-            if (ok && rc == 0) {
-                rc = boot_request_upgrade(BOOT_UPGRADE_TEST);
-                LOG_INF("OTA: boot_request_upgrade rc=%d -> rebooting to swap", rc);
-                k_work_schedule(&reboot_work, K_MSEC(500));
-            } else {
-                LOG_ERR("OTA: image rejected (checksum/flush) — slot1 discarded");
-            }
+    case CIPHER_STREAM_PHASE_END: {
+        bool ok = (data && len >= 1 && data[0]);
+        int flush_rc = ota_active ? flash_img_buffered_write(&ota_ctx, NULL, 0, true) : -1;
+        size_t written = ota_active ? flash_img_bytes_written(&ota_ctx) : 0;
+        int upgrade_rc = -999;
+        if (ota_active && ok && flush_rc == 0) {
+            /* PERMANENT: swap sticks on the next boot (no confirm handshake
+             * needed). Switch to BOOT_UPGRADE_TEST + a post-self-test
+             * boot_write_img_confirmed() for revert-on-failure in production. */
+            upgrade_rc = boot_request_upgrade(BOOT_UPGRADE_PERMANENT);
+        }
+        n = snprintk(j, sizeof(j),
+            "{\"kind\":\"ota\",\"node\":\"0x%04x\",\"phase\":\"end\",\"active\":%d,\"chunks\":%u,"
+            "\"written\":%u,\"csum_ok\":%s,\"write_rc\":%d,\"flush_rc\":%d,\"upgrade_rc\":%d}",
+            CONFIG_CIPHER_DEVICE_ID, ota_active, ota_chunks, (unsigned)written,
+            ok ? "true" : "false", ota_last_write_rc, flush_rc, upgrade_rc);
+        metrics_emit(j, n);
+        ota_active = false;
+        if (upgrade_rc == 0) {
+            k_work_schedule(&reboot_work, K_MSEC(800));   /* let the UDP report flush */
         }
         break;
+    }
     }
 }
 
@@ -106,6 +142,7 @@ int main(void)
     cipher_register_local_services(&daemon_inst, node_services, ARRAY_SIZE(node_services));
     cipher_stream_set_rx_sink(&daemon_inst, ota_sink, NULL);
     cipher_daemon_start(&daemon_inst);   /* waits for the link internally */
+    metrics_init();
 
     while (true) {
         k_sleep(K_SECONDS(10));

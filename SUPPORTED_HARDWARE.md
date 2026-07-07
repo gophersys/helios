@@ -72,3 +72,34 @@ WiFi tops out around **TCP ~4 Mbps / UDP ~10 Mbps**; the single biggest lever is
 **Reliability caveat:** WiFi stability depends on the AP. An AP left in *setup
 mode* (`SETUP-xxxx` SSID) can associate but drop client traffic; use a properly
 configured 2.4 GHz AP for sustained runs.
+
+## OTA over cipher (MCUboot A/B)
+
+`samples/ota_node` receives a firmware image as a cipher **stream** and applies
+it as an MCUboot A/B update, via the `cipher_stream_set_rx_sink()` hook:
+
+```
+Go server (cipher-ota, k8s-ready) --stream--> node
+  START -> flash_img_init(secondary slot)
+  DATA  -> flash_img_buffered_write(...)        (writes firmware into slot1)
+  END   -> flush + verify FNV-1a + boot_request_upgrade() + reboot
+        -> MCUboot swaps slot1 <-> slot0 -> new image
+```
+
+**Verified (Nucleo H743, over Ethernet):**
+- Cipher stream -> `flash_img` write of the full image into slot1, FNV-1a
+  checksum OK, `boot_request_upgrade` rc=0 — reproducible every run (reported
+  over the UDP metrics channel; serial drops lines under stream load).
+- MCUboot performs the A/B swap (`Swap type: perm`, `Secondary image:
+  magic=good, image_ok=1`).
+
+**Notes / gotchas:**
+- Partition sizing: the H743 default slots are 256 KB — too small for the full
+  cipher+net stack. `boards/nucleo_h743zi.overlay` resizes to 512 KB A/B slots
+  (shared with the MCUboot image via `mcuboot_EXTRA_DTC_OVERLAY_FILE`).
+- Give each build a distinct `CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION`; MCUboot
+  reports `Swap type: none` for a same-version image.
+- Diagnose the sink over UDP, never serial — the stream burst drops console
+  lines (a documented constraint of this bench).
+- ESP32 OTA uses the same code (slots are 1344 KB, image fits) but needs a
+  stable AP — the WiFi link drops before a multi-hundred-KB image completes.
