@@ -3,16 +3,17 @@
 Infrastructure-specific rules for secret material. Layers on top of brain's
 global secrets discipline; in case of conflict, brain's rule wins.
 
-## Bitwarden is the only source
+## Vaultwarden is the only source
 
 Every secret consumed by infrastructure — SSH keys, Tailscale auth keys,
 cloud API tokens, container registry credentials, certificate keys — lives
-in Bitwarden. Not in this repo. Not in any consuming project. Not on any
-developer machine outside tmpfs.
+in the self-hosted Vaultwarden (secrets.mateosegura.com; Bitwarden-compatible,
+so the `bw` CLI and the Bitwarden naming below apply unchanged). Not in this
+repo. Not in any consuming project. Not on any developer machine outside tmpfs.
 
 ## Naming conventions in the vault
 
-Items in Bitwarden follow these name prefixes so scripts can resolve them
+Items in the vault follow these name prefixes so scripts can resolve them
 mechanically:
 
 - `ssh-key-<host>` — SSH private key for a machine. Used by

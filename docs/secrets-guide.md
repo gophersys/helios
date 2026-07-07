@@ -5,7 +5,7 @@ shell session.
 
 ## The rules (one-liner per)
 
-1. Secrets live in Bitwarden. Nowhere else.
+1. Secrets live in Vaultwarden (self-hosted, Bitwarden-compatible — the `bw` tooling applies unchanged). Nowhere else.
 2. Secrets transit through `/dev/shm/brain-secrets-$$/` tmpfs.
 3. Secrets scrub on shell exit via `trap on_exit EXIT`.
 4. Scripts log secret *names*, never values.
