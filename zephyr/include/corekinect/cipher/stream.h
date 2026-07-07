@@ -45,6 +45,19 @@ int32_t cipher_stream_send(cipher_daemon_t *d, uint16_t device_id, uint16_t stre
                            const uint8_t *data, uint32_t length, uint16_t chunk_size);
 
 /**
+ * @brief Stream `length` bytes generated on the fly (deterministic pattern).
+ *
+ * Like cipher_stream_send but produces the payload one chunk at a time instead
+ * of reading a buffer, so a memory-constrained node can send an arbitrarily
+ * large stream (100 MB+) while holding only a single chunk. The checksum is
+ * folded incrementally; the receiver verifies it exactly as for a buffered send.
+ *
+ * @return Number of bytes sent, or a negative value on error.
+ */
+int32_t cipher_stream_send_pattern(cipher_daemon_t *d, uint16_t device_id, uint16_t stream_id,
+                                   uint32_t length, uint16_t chunk_size);
+
+/**
  * @brief Stats for the most recently completed inbound stream.
  */
 typedef struct {

@@ -65,8 +65,68 @@ void cipher_daemon_init(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
     DBG("Daemon instance %d, initialized OK, device id: %d", d->id, d->device_id);
 }
 
+#if defined(CONFIG_CK_CIPHER_WAIT_FOR_L4)
+#include <zephyr/net/net_event.h>
+#include <zephyr/net/net_mgmt.h>
+#include <zephyr/net/conn_mgr_connectivity.h>
+
+// Re-entrant, no file-scope state: the waiter (callback + semaphore) lives on
+// the caller's stack, so multiple daemon instances can start concurrently.
+struct l4_waiter {
+    struct net_mgmt_event_callback cb;
+    struct k_sem sem;
+};
+static void l4_handler(struct net_mgmt_event_callback *cb, uint64_t evt, struct net_if *iface)
+{
+    ARG_UNUSED(iface);
+    if (evt == NET_EVENT_L4_CONNECTED) {
+        struct l4_waiter *w = CONTAINER_OF(cb, struct l4_waiter, cb);
+        k_sem_give(&w->sem);
+    }
+}
+static bool default_iface_has_ipv4(void)
+{
+    struct net_if *iface = net_if_get_default();
+    if (!iface || !iface->config.ip.ipv4) {
+        return false;
+    }
+    for (int i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+        if (iface->config.ip.ipv4->unicast[i].ipv4.is_used) {
+            return true;
+        }
+    }
+    return false;
+}
+static void cipher_wait_for_network(cipher_daemon_t *d)
+{
+    struct l4_waiter w;
+    k_sem_init(&w.sem, 0, 1);
+    net_mgmt_init_event_callback(&w.cb, l4_handler, NET_EVENT_L4_CONNECTED);
+    net_mgmt_add_event_callback(&w.cb);
+
+#if defined(CONFIG_CK_CIPHER_AUTOCONNECT)
+    // Cooperative, idempotent, system-wide "ensure connectivity" — a no-op if
+    // the platform (or another app) already brought the link up.
+    conn_mgr_all_if_up(true);
+    conn_mgr_all_if_connect(true);
+#endif
+
+    LOG_INF("daemon %d: waiting for network (L4)...", d->id);
+    while (!default_iface_has_ipv4()) {              // fallback covers a missed event
+        if (k_sem_take(&w.sem, K_MSEC(500)) == 0) {
+            break;
+        }
+    }
+    net_mgmt_del_event_callback(&w.cb);
+    LOG_INF("daemon %d: network ready", d->id);
+}
+#endif
+
 void cipher_daemon_start(cipher_daemon_t *d)
 {
+#if defined(CONFIG_CK_CIPHER_WAIT_FOR_L4)
+    cipher_wait_for_network(d);
+#endif
 
     // Init Daemon threads
     k_thread_start(d->ctrl_t_id);

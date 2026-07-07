@@ -4,6 +4,30 @@ config CK_CIPHER_LIB
     # TAL was renamed/absorbed into iface). The application picks the flavor.
     depends on CK_IFACE_LIB_SOCKETS || CK_IFACE_LIB_UART
 
+# Connectivity is owned by the platform (the Zephyr connection manager + the
+# per-L2 WiFi/Ethernet bindings), NOT by cipher — so cipher is a well-behaved
+# application-level library that coexists with any other networking on the node.
+# It only WAITS for the link to be ready; it never associates or runs DHCP.
+config CK_CIPHER_WAIT_FOR_L4
+    bool "Wait for network (L4 connected) before starting cipher ifaces"
+    default y
+    depends on NET_CONNECTION_MANAGER
+    help
+      cipher_daemon_start() blocks until conn_mgr reports the network is up
+      (NET_EVENT_L4_CONNECTED), so the daemon starts cleanly on a ready link,
+      identically on WiFi, Ethernet, or anything else conn_mgr supports. No
+      transport-specific code in cipher or the application.
+
+config CK_CIPHER_AUTOCONNECT
+    bool "Cooperatively bring connectivity up on daemon start"
+    default y
+    depends on CK_CIPHER_WAIT_FOR_L4
+    help
+      cipher_daemon_start() issues conn_mgr_all_if_up()/connect() — an idempotent,
+      system-wide request to ensure connectivity (a no-op if another component
+      already brought it up). Set n if the platform owns bringing the network up;
+      cipher then only waits for L4.
+
 # Log Levels
 # LOG_LEVEL_NONE 0U
 # LOG_LEVEL_ERR  1U
