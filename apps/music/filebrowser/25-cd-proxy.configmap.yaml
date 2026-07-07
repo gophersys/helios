@@ -35,6 +35,10 @@ data:
           proxy_set_header X-Forwarded-Proto $scheme;
           proxy_buffering off;
           proxy_request_buffering off;
+          # large media zips stream for a long time — don't cut them at the 60s default
+          proxy_read_timeout 3600s;
+          proxy_send_timeout 3600s;
+          proxy_connect_timeout 30s;
           header_filter_by_lua_block {
             local cd = ngx.header["Content-Disposition"]
             if cd then
