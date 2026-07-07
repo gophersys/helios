@@ -9,44 +9,37 @@ permissions:
 
 jobs:
   manifests:
-    runs-on: ubuntu-latest
+    runs-on: arc-org          # self-hosted (ARC)
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install tools
+      - name: Install tools (no sudo — self-hosted runner)
         run: |
           set -euo pipefail
-          cd /tmp
+          mkdir -p "$HOME/bin"; cd /tmp
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
-          sudo install -m0755 kubeconform /usr/local/bin/kubeconform
+          install -m0755 kubeconform "$HOME/bin/"
           curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | tar xz
-          sudo install -m0755 kustomize /usr/local/bin/kustomize
-          pipx install yamllint
+          install -m0755 kustomize "$HOME/bin/"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          python3 -m pip install --user --quiet yamllint 2>/dev/null || echo "yamllint unavailable — advisory step will skip"
 
       - name: yamllint (advisory)
         continue-on-error: true
-        run: yamllint -c .yamllint.yml apps platform clusters
+        run: python3 -m yamllint -c .yamllint.yml apps platform clusters 2>/dev/null || echo "yamllint skipped"
 
       - name: kubeconform — raw manifests
         run: |
           set -euo pipefail
-          # Plain k8s manifests. Kustomize bases/overlays are validated separately.
-          # -ignore-missing-schemas lets CRDs (Argo, Kyverno, cert-manager, ...) pass.
           find apps platform/services/gitops/registry platform/core/policy/policies platform/core/secrets-operator/manifests \
-            -name '*.yaml' \
-            -not -path '*/config-enforce/*' \
-            -not -path '*/zephyr-devbox/*' \
-            -not -path '*/envs/*' \
-            -not -name 'kustomization.yaml' \
-            -print0 \
-          | xargs -0 -r kubeconform -strict -ignore-missing-schemas -summary
+            -name '*.yaml' -not -path '*/config-enforce/*' -not -path '*/zephyr-devbox/*' -not -path '*/envs/*' -not -name 'kustomization.yaml' \
+            -print0 | xargs -0 -r kubeconform -strict -ignore-missing-schemas -summary
 
       - name: kubeconform — kustomize overlays
         run: |
           set -euo pipefail
           for d in apps/embedded/zephyr-devbox/base apps/embedded/envs/zephyr-libs apps/embedded/envs/nucleo-bringup; do
-            echo "== building $d =="
-            kustomize build "$d" | kubeconform -strict -ignore-missing-schemas -summary
+            echo "== $d =="; kustomize build "$d" | kubeconform -strict -ignore-missing-schemas -summary
           done
 
       - name: Argo registry paths resolve
@@ -54,7 +47,7 @@ jobs:
           missing=0
           while IFS= read -r p; do
             case "$p" in *'{{'*) continue;; '') continue;; esac
-            if [ ! -e "$p" ]; then echo "::error::registry references missing path: $p"; missing=1; fi
+            [ ! -e "$p" ] && { echo "::error::registry references missing path: $p"; missing=1; }
           done < <(grep -hE '^[[:space:]]*path:' platform/services/gitops/registry/*.yaml | sed -E "s/.*path:[[:space:]]*//; s/['\"]//g")
           exit $missing
 
@@ -64,13 +57,16 @@ jobs:
           cd apps/music/qbittorrent/config-enforce
           python3 test_enforce_qbt.py
           diff <(python3 gen_configmap.py) ../15-config-enforce.configmap.yaml \
-            || { echo "::error::15-config-enforce.configmap.yaml is stale — run: python3 gen_configmap.py > ../15-config-enforce.configmap.yaml"; exit 1; }
+            || { echo "::error::15-config-enforce.configmap.yaml is stale"; exit 1; }
 
   shellcheck:
-    runs-on: ubuntu-latest
+    runs-on: arc-org
     steps:
       - uses: actions/checkout@v4
-      - name: shellcheck
+      - name: shellcheck (advisory)
+        continue-on-error: true
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-          find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -r shellcheck -S warning || true
+          cd /tmp
+          curl -sSL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar xJ || exit 0
+          cd "$GITHUB_WORKSPACE"
+          find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -r /tmp/shellcheck-v0.10.0/shellcheck -S warning || true
