@@ -153,6 +153,41 @@ spec:
               memory: 256Mi
             limits:
               memory: 1Gi
+        # ---------- port-sync: keep qBit's listen port == gluetun's forwarded port ----------
+        # ProtonVPN hands out a NEW forwarded port on every VPN reconnect. Without
+        # this, qBittorrent keeps listening on a stale port, incoming peers can't
+        # reach it, torrents run "firewalled" and speeds tank. This watches the
+        # port gluetun writes and pushes it into qBit (localhost auth is bypassed
+        # for 127.0.0.1, so no credentials needed). Durable across reconnects.
+        - name: port-sync
+          image: curlimages/curl:8.11.0
+          command: ["sh", "-c"]
+          args:
+            - |
+              last=""
+              while true; do
+                p=$(cat /tmp/gluetun/forwarded_port 2>/dev/null || true)
+                if [ -n "$p" ] && [ "$p" != "$last" ]; then
+                  if curl -sf -m 10 -H "Referer: http://localhost:8080" \
+                       -X POST "http://localhost:8080/api/v2/app/setPreferences" \
+                       --data-urlencode "json={\"listen_port\":$p,\"random_port\":false,\"upnp\":false}" >/dev/null 2>&1; then
+                    echo "port-sync: qBittorrent listen_port -> $p"; last="$p"
+                  else
+                    echo "port-sync: qBittorrent not ready yet, will retry"
+                  fi
+                fi
+                sleep 30
+              done
+          volumeMounts:
+            - name: gluetun-tmp
+              mountPath: /tmp/gluetun
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
       volumes:
         - name: config
           persistentVolumeClaim:
