@@ -47,6 +47,11 @@ jobs:
       # — mark the workspace + submodules trusted so git/nx affected work (disposable CI container).
       - name: Trust the workspace checkout (git safe.directory)
         run: git config --global --add safe.directory '*'
+      # The apps' gate verbs resolve sibling libs through the WORKSPACE go.work, which is
+      # gitignored — regenerate it from the tracked curated module list (the same generator the
+      # deploy image builds run).
+      - name: Generate go.work (tracked generator over the gitignored file)
+        run: bash scripts/gen-go-work.sh
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
       # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
       - name: Expose the image's node toolchain (nvm) on PATH
