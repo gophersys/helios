@@ -50,7 +50,7 @@ WebUI\LocalHostAuth=false
 `qBittorrent.conf` before qBittorrent starts, drift-guarded against the deployed
 ConfigMap. Verified a no-op against the live config; downloads re-verified.
 
-### D2 🟡 Prowlarr indexer/download-client config not reproducible — DOCUMENTED (PR #31)
+### D2 ✅ Prowlarr download client — RESOLVED (PR #40 + categories fix)
 Prowlarr's config lives in its PVC SQLite DB (UI-managed, not GitOps-able).
 **Resolved-as-runbook:** `apps/music/prowlarr/SETUP.md` — the reproducible
 source of truth for indexers + the qBittorrent download client, with exact
@@ -60,6 +60,15 @@ hangs on a synchronous site-test (`?forceSave=true` skips neither). Both work in
 the Web UI. **Remaining (honest):** full search→grab automation needs the
 download client wired via the UI, or qBittorrent pinned to a Prowlarr-compatible
 version (remediation in SETUP.md). Search itself works once indexers are added.
+
+The download-client NRE ("Object reference not set") was **not** a qBit-5.2
+incompatibility — it was a missing top-level `categories: []` in the POST body,
+which null-crashed Prowlarr's `ValidateCategories`. Adding it registers the
+qBittorrent client cleanly (HTTP 201, test passes). Prowlarr is pinned to
+`nightly-2.5.1.5460-ls4` (PR #40); the fix works on any version, but the DB was
+migrated by 2.5.1 so we stay there rather than risk a downgrade. Exact working
+payload in `apps/music/prowlarr/SETUP.md`. Indexers still added via the UI
+(PVC-resident); search→grab now works end-to-end once indexers exist.
 
 ### D3 ✅ Host-level changes made over SSH, not in IaC — RESOLVED (PR #30)
 None of these are in Ansible or any tracked config:
@@ -119,4 +128,4 @@ and the READMEs no longer dangle.
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
-them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** documented (#31); **D5** qBit-done, Filebrowser known-issue.
+them. So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 + workspaces#1), **D7** (#34), **D8** (#34); **D2** (#40); **D5** qBit-done, Filebrowser known-issue.

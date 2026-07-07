@@ -50,3 +50,25 @@ That is the known 2.4.0 ↔ 5.2.2 NRE. Options, cleanest first:
 - Search: UI **Search** → query `debian` → results with seeders.
 - Grab (if client wired): search result → **Grab** → appears in qBittorrent
   under the `prowlarr` category, downloading over the VPN.
+
+## Download client (qBittorrent) — API recreation
+
+The UI works, but if scripting: the critical, easily-missed field is the
+top-level `categories: []`. Without it Prowlarr's `ValidateCategories` throws a
+NullReferenceException and the add fails with a 400 (this looked like a
+qBit-5.2 incompatibility but wasn't). Working request:
+
+```
+POST /api/v1/downloadclient   (X-Api-Key: <key>)
+{
+  "enable": true, "protocol": "torrent", "priority": 1,
+  "categories": [],                      # <-- REQUIRED, else NRE
+  "name": "qBittorrent", "implementation": "QBittorrent",
+  "configContract": "QBittorrentSettings",
+  "fields": [ {"name":"host","value":"qbittorrent"}, {"name":"port","value":8080},
+              {"name":"username","value":"admin"}, {"name":"password","value":"<qbit-webui-pw>"},
+              {"name":"category","value":"prowlarr"} ]
+}
+```
+Returns `201` with the test passing. qBit auth is subnet-bypassed in-cluster, but
+passing real creds also works.
