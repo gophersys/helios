@@ -31,9 +31,13 @@ services:
     environment:
       EDEN_GATEWAY_ADDRESS: ":8080"
       EDEN_NATS_URL: "nats://nats:4222"
-      EDEN_GATEWAY_JWT_SECRET: "${EDEN_GATEWAY_JWT_SECRET}"
+      EDEN_VAULT_MODE: "token-file"
+      EDEN_VAULT_TOKEN_FILE: "/vault/secrets/token"
+      VAULT_ADDR: "http://vault:8200"
+      EDEN_GATEWAY_JWT_SECRET_REF: "vault://eden/development#agentgateway-jwt-signing-key"
     depends_on:
       - nats
+      - vault
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/healthz"]
       interval: 5s

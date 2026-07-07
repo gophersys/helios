@@ -11,11 +11,13 @@
 #
 # NEITHER is the dev/live convenience binary (those import test fakes and are never shipped).
 #
-# The gateway holds no harness and resolves no credential value, so its runtime stage is a minimal
-# distroless base (no harness toolchain needed) — unlike agent-runtime, which dogfoods the
-# devcontainer base because it spawns the real harness. The orchestrator role likewise spawns no
-# harness in-process (the supervisor runs in a provisioned workspace pod), so it shares this minimal
-# base; it resolves the harness credential only as an opaque Vault reference (server-side at Open).
+# The gateway holds no harness, so its runtime stage is a minimal distroless base (no harness
+# toolchain needed) — unlike agent-runtime, which dogfoods the devcontainer base because it spawns
+# the real harness. It DOES resolve exactly one credential VALUE at boot — its dev-JWT HMAC signing
+# key — from Vault via EDEN_GATEWAY_JWT_SECRET_REF (an HTTP resolution, no toolchain), used
+# point-of-use and zeroized (H8). The orchestrator role likewise spawns no harness in-process (the
+# supervisor runs in a provisioned workspace pod), so it shares this minimal base; it resolves the
+# harness credential only as an opaque Vault reference (server-side at Open).
 #
 # Build from the repo root (the build stage regenerates go.work via scripts/gen-go-work.sh, so a
 # clean checkout with no committed go.work still resolves the in-repo sibling libs):
@@ -48,7 +50,9 @@ FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 COPY --from=build /out/agentgateway /usr/local/bin/agentgateway
 COPY --from=build /out/agentgateway-orchestrator /usr/local/bin/agentgateway-orchestrator
 EXPOSE 8080
-# EDEN_GATEWAY_JWT_SECRET (a kubernetes Secret reference), EDEN_NATS_URL, EDEN_GATEWAY_ADDRESS are
-# injected by the deployment; the gateway requires the JWT secret (behind auth even locally). The
-# orchestrator Deployment overrides this ENTRYPOINT with an explicit command to select its binary.
+# EDEN_GATEWAY_JWT_SECRET_REF (an opaque vault:// reference the gateway resolves through the
+# dual-mode Vault provider — EDEN_VAULT_MODE/EDEN_VAULT_TOKEN_FILE/VAULT_ADDR), EDEN_NATS_URL, and
+# EDEN_GATEWAY_ADDRESS are injected by the deployment; the gateway requires the JWT signing-key
+# reference (behind auth even locally). The orchestrator Deployment overrides this ENTRYPOINT with an
+# explicit command to select its binary.
 ENTRYPOINT ["/usr/local/bin/agentgateway"]

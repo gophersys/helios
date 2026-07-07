@@ -153,6 +153,15 @@ if [ -n "${DATABASE_URL:-}" ]; then
 fi
 unset PLATFORM_JWT_KEY
 
+# agentgateway (the stateless NATS→SSE chat gateway, cmd/agentgateway) resolves its dev-JWT HMAC
+# signing key from Vault too (EDEN_GATEWAY_JWT_SECRET_REF → agentgateway-jwt-signing-key, H8) — the
+# same discipline as every OTHER Eden credential, no raw env secret. Like the platformgateway key it
+# is a FRESH per-seed local dev key (generated, never committed).
+GATEWAY_JWT_KEY="$(openssl rand -hex 32 2>/dev/null || echo 'eden-agentgateway-local-dev-signing-key-32bytes')"
+kv_pairs+=("agentgateway-jwt-signing-key=${GATEWAY_JWT_KEY}")
+seeded_keys+=("agentgateway-jwt-signing-key")
+unset GATEWAY_JWT_KEY
+
 log "seeding ${#kv_pairs[@]} credential field(s) into ${VAULT_MOUNT}/${VAULT_SECRET_PATH}: ${seeded_keys[*]} (NAMES only) ..."
 # `vault kv put` runs inside the container; the value is in the argv there, NOT on any host log.
 # Redirect its stdout/stderr anyway (defense in depth — its metadata table has no value).

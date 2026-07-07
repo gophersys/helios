@@ -17,6 +17,7 @@ spec:
       labels:
         app.kubernetes.io/name: agentgateway
     spec:
+      serviceAccountName: eden-agent
       containers:
         - name: agentgateway
           image: "{{ .Values.registry }}/agentgateway:{{ .Values.tag }}"
@@ -28,11 +29,14 @@ spec:
               value: ":8080"
             - name: EDEN_NATS_URL
               value: "nats://nats:4222"
-            - name: EDEN_GATEWAY_JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: eden-gateway
-                  key: jwt-secret
+            - name: EDEN_VAULT_MODE
+              value: "token-file"
+            - name: EDEN_VAULT_TOKEN_FILE
+              value: "/vault/secrets/token"
+            - name: VAULT_ADDR
+              value: "http://vault:8200"
+            - name: EDEN_GATEWAY_JWT_SECRET_REF
+              value: "vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key"
           resources:
             requests:
               cpu: 500m

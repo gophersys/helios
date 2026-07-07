@@ -20,19 +20,22 @@ func TestImageReference(t *testing.T) {
 	}
 }
 
-// TestRenderNeverInlinesSecretValue is the secret-safety invariant: a render of a spec carrying a
-// FromSecret env entry must NEVER inline a value — the production manifest references the Secret by
-// name/key (valueFrom.secretKeyRef), and the local overlay uses a ${VAR} interpolation. Were a
-// renderer to print the value, this catches it.
+// TestRenderNeverInlinesSecretValue is the secret-safety invariant for the FromSecret env mechanism:
+// a render of a spec carrying a FromSecret env entry must NEVER inline a value — the production
+// manifest references the Secret by name/key (valueFrom.secretKeyRef), and the local overlay uses a
+// ${VAR} interpolation. Were a renderer to print the value, this catches it. (The catalog itself no
+// longer uses FromSecret — the agentgateway JWT signing key moved onto a stage-scoped Vault
+// reference, H8 — but the mechanism remains a supported EnvVar kind a generated app may use, so this
+// exercises it directly rather than through the catalog.)
 func TestRenderNeverInlinesSecretValue(t *testing.T) {
 	t.Parallel()
 	const sentinelValue = "SUPER-SECRET-VALUE-must-never-render"
 	services := []ServiceSpec{{
-		Name:  "agentgateway",
-		Image: "agentgateway",
+		Name:  "example",
+		Image: "example",
 		Ports: []Port{{Name: "http", Container: 8080, Host: 8080}},
 		Env: []EnvVar{
-			{Name: "EDEN_GATEWAY_JWT_SECRET", FromSecret: &SecretKeyRef{SecretName: "eden-gateway", Key: "jwt-secret"}},
+			{Name: "EXAMPLE_SECRET", FromSecret: &SecretKeyRef{SecretName: "example-secret", Key: "value"}},
 			// A renderer that mistakenly read a value into a FromSecret entry would surface it:
 			{Name: "PLAIN_OK", Value: "not-a-secret"},
 		},
@@ -45,8 +48,8 @@ func TestRenderNeverInlinesSecretValue(t *testing.T) {
 		}
 	}
 	helm := joinHelm(RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, services))
-	if !strings.Contains(helm, "secretKeyRef") || !strings.Contains(helm, "jwt-secret") {
-		t.Error("helm did not render the JWT secret as a secretKeyRef")
+	if !strings.Contains(helm, "secretKeyRef") || !strings.Contains(helm, "example-secret") {
+		t.Error("helm did not render the FromSecret env as a secretKeyRef")
 	}
 
 	// Local (compose overlay).
@@ -54,8 +57,39 @@ func TestRenderNeverInlinesSecretValue(t *testing.T) {
 	if strings.Contains(compose, sentinelValue) {
 		t.Error("compose overlay inlined a secret value")
 	}
-	if !strings.Contains(compose, "${EDEN_GATEWAY_JWT_SECRET}") {
-		t.Error("compose overlay did not render the JWT secret as a ${VAR} interpolation")
+	if !strings.Contains(compose, "${EXAMPLE_SECRET}") {
+		t.Error("compose overlay did not render the FromSecret env as a ${VAR} interpolation")
+	}
+}
+
+// TestAgentGatewayJWTSecretIsVaultReference is the H8 regression: the agentgateway JWT signing key
+// must be a stage-scoped Vault reference (EDEN_GATEWAY_JWT_SECRET_REF), never a raw env value nor a
+// kubernetes-Secret secretKeyRef. The production Helm render emits the `{{ .Values.stage }}`
+// placeholder; the local compose overlay pins the development stage. Driven through the REAL Catalog
+// so a future catalog regression (a revert to FromSecret/raw) fails here.
+func TestAgentGatewayJWTSecretIsVaultReference(t *testing.T) {
+	t.Parallel()
+	services := Catalog()
+
+	helm := joinHelm(RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, services))
+	if !strings.Contains(helm, `vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key`) {
+		t.Errorf("helm did not render the stage-scoped JWT signing-key reference:\n%s", helm)
+	}
+	// The old raw env / kubernetes-Secret forms must be GONE from the production manifests.
+	if strings.Contains(helm, "EDEN_GATEWAY_JWT_SECRET\n") || strings.Contains(helm, "name: EDEN_GATEWAY_JWT_SECRET\n") {
+		t.Error("helm still renders the raw EDEN_GATEWAY_JWT_SECRET env (H8 regression)")
+	}
+	if strings.Contains(helm, "eden-gateway") || strings.Contains(helm, "jwt-secret") {
+		t.Error("helm still renders the old eden-gateway/jwt-secret secretKeyRef (H8 regression)")
+	}
+
+	// Local: the development stage is correct here (the local plane IS development).
+	compose := RenderCompose(RenderTarget{Plane: PlaneLocal}, services)
+	if !strings.Contains(compose, `EDEN_GATEWAY_JWT_SECRET_REF: "vault://eden/development#agentgateway-jwt-signing-key"`) {
+		t.Errorf("compose did not pin the development JWT signing-key reference:\n%s", compose)
+	}
+	if strings.Contains(compose, "${EDEN_GATEWAY_JWT_SECRET}") {
+		t.Error("compose still renders the raw ${EDEN_GATEWAY_JWT_SECRET} interpolation (H8 regression)")
 	}
 }
 

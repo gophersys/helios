@@ -47,8 +47,10 @@ func agentRuntimeSpec() ServiceSpec {
 
 // agentGatewaySpec is the stateless NATS→SSE gateway (apps/agentgateway, cmd/agentgateway): any
 // replica serves any session via JetStream durable replay, so it scales horizontally. Behind the
-// dev-JWT auth even locally (ADR-0022 #3); the JWT secret is a kubernetes Secret reference in
-// production, never an inlined value.
+// dev-JWT auth even locally (ADR-0022 #3); like every OTHER Eden credential the JWT signing key is a
+// stage-scoped Vault reference (EDEN_GATEWAY_JWT_SECRET_REF) the gateway resolves through the
+// dual-mode Vault provider at boot, never an inlined value or a raw env secret. The Vault plane env
+// mirrors agentRuntimeSpec's (the production token-file sidecar path).
 func agentGatewaySpec() ServiceSpec {
 	return ServiceSpec{
 		Name:     "agentgateway",
@@ -60,11 +62,17 @@ func agentGatewaySpec() ServiceSpec {
 		Env: []EnvVar{
 			{Name: "EDEN_GATEWAY_ADDRESS", Value: ":8080"},
 			{Name: "EDEN_NATS_URL", Value: "nats://nats:4222"},
-			{Name: "EDEN_GATEWAY_JWT_SECRET", FromSecret: &SecretKeyRef{SecretName: "eden-gateway", Key: "jwt-secret"}},
+			{Name: "EDEN_VAULT_MODE", Value: "token-file"}, // production: the K8s-SA sidecar token
+			{Name: "EDEN_VAULT_TOKEN_FILE", Value: "/vault/secrets/token"},
+			{Name: "VAULT_ADDR", Value: "http://vault:8200"},
+			// Stage-scoped: production renders vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key
+			// (stage defaults to production), local pins the development stage — never the dev path in prod.
+			{Name: "EDEN_GATEWAY_JWT_SECRET_REF", FromVaultField: "agentgateway-jwt-signing-key"},
 		},
-		Resources: ResourceEnvelope{CPUMillis: 500, MemoryMiB: 512, EphemeralMiB: 1024},
-		Liveness:  &Probe{Path: "/healthz", Port: 8080},
-		Readiness: &Probe{Path: "/healthz", Port: 8080},
-		DependsOn: []string{"nats"},
+		Resources:      ResourceEnvelope{CPUMillis: 500, MemoryMiB: 512, EphemeralMiB: 1024},
+		Liveness:       &Probe{Path: "/healthz", Port: 8080},
+		Readiness:      &Probe{Path: "/healthz", Port: 8080},
+		DependsOn:      []string{"nats", "vault"},
+		ServiceAccount: "eden-agent",
 	}
 }
