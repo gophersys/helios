@@ -92,6 +92,11 @@ func (i *Interface) Connect() (timedOut bool, err error) {
 	}
 
 	connection, err := dialer.Dial("tcp4", net.JoinHostPort(i.Host, fmt.Sprintf("%d", i.Port)))
+	if err == nil {
+		if tcp, ok := connection.(*net.TCPConn); ok {
+			_ = tcp.SetNoDelay(true) // disable Nagle so back-to-back RPCs are not held
+		}
+	}
 	if err != nil {
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {

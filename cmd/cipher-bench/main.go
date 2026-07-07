@@ -62,6 +62,35 @@ func main() {
 		fmt.Printf("RESULT stream bytes=%d chunk=%d dur_ms=%d send_MBps=%.2f\n",
 			sent, *streamChunk, dt.Milliseconds(), mbps)
 
+	case "pull":
+		// Ask the remote node to stream TO us via its streamctl RPC (service
+		// 101, op 1), then verify what we receive. Exercises the reverse leg
+		// (node -> Go) so a matrix cell can be checked double-sided.
+		req := make([]byte, 8)
+		binary.LittleEndian.PutUint16(req[0:2], uint16(*deviceID))    // target = me
+		binary.LittleEndian.PutUint32(req[2:6], uint32(*streamBytes)) // size
+		binary.LittleEndian.PutUint16(req[6:8], uint16(*streamChunk)) // chunk
+		resp, err := daemon.CallRPC(uint16(*remoteID), 101, 1, req, 20*time.Second)
+		if err != nil {
+			log.Fatalf("streamctl: %v", err)
+		}
+		sent := int32(binary.LittleEndian.Uint32(resp))
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			if st, ok := daemon.LastStreamRx(); ok && st.ReceivedLen > 0 {
+				secs := float64(st.DurationMs) / 1000.0
+				mbps := 0.0
+				if secs > 0 {
+					mbps = float64(st.ReceivedLen) / 1024.0 / 1024.0 / secs
+				}
+				fmt.Printf("RESULT pull sent=%d recv=%d chunks=%d checksum_ok=%v dur_ms=%d recv_MBps=%.3f\n",
+					sent, st.ReceivedLen, st.NumChunks, st.ChecksumOK, st.DurationMs, mbps)
+				return
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		log.Fatalf("pull: stream never arrived (streamctl returned sent=%d)", sent)
+
 	case "rpc":
 		latencies := make([]time.Duration, 0, *rpcCount)
 		var failures int
