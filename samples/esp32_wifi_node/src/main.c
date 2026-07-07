@@ -31,8 +31,51 @@ static cipher_daemon_config_t daemon_cfg = {
     .num_server_ifaces = 1,
     .server_ifaces = {{ .type = IFACE_TYPE_SOCKET, .link = IFACE_LINK_TYPE_SERVER, .port = CIPHER_PORT }},
 };
-static cipher_service_entry_t sink_services[] = {
+// ---- Matrix RPC surface: math (latency probe) + streamctl (trigger sends) ----
+struct math_req_t { uint32_t a; uint32_t b; } __packed;
+struct math_resp_t { uint32_t sum; } __packed;
+struct sctl_req_t { uint16_t target; uint32_t size; uint16_t chunk; } __packed;
+struct sctl_resp_t { int32_t sent; } __packed;
+
+static uint8_t bench_buf[CONFIG_BENCH_PAYLOAD_SIZE];
+
+static cipher_rpc_err_t math_add_h(void *req, void *resp)
+{
+    const struct math_req_t *q = req;
+    struct math_resp_t *r = resp;
+    r->sum = q->a + q->b;
+    return CIPHER_RPC_ERR_OK;
+}
+
+// Stream min(size, bench_buf) bytes to `target`. Lets the Go orchestrator fire
+// any node->any node stream, so every matrix cell can be driven in BOTH
+// directions (incl. micro<->micro where Go is neither endpoint).
+static cipher_rpc_err_t streamctl_h(void *req, void *resp)
+{
+    const struct sctl_req_t *q = req;
+    struct sctl_resp_t *r = resp;
+    uint32_t n = q->size > sizeof(bench_buf) ? sizeof(bench_buf) : q->size;
+    uint16_t chunk = q->chunk ? q->chunk : 1000;
+    r->sent = cipher_stream_send(&daemon_inst, q->target, 1, bench_buf, n, chunk);
+    return CIPHER_RPC_ERR_OK;
+}
+
+static cipher_ops_entry_t math_ops[] = {
+    { .id = 1, .type = CIPHER_OPS_TYPE_RPC, .name = "add",
+      .op = { .rpc = { .request_size = sizeof(struct math_req_t),
+                       .response_size = sizeof(struct math_resp_t),
+                       .handler = math_add_h, .supports_parallelism = false } } },
+};
+static cipher_ops_entry_t sctl_ops[] = {
+    { .id = 1, .type = CIPHER_OPS_TYPE_RPC, .name = "send",
+      .op = { .rpc = { .request_size = sizeof(struct sctl_req_t),
+                       .response_size = sizeof(struct sctl_resp_t),
+                       .handler = streamctl_h, .supports_parallelism = false } } },
+};
+static cipher_service_entry_t node_services[] = {
     { .service = { .id = 200, .name = "sink", .allowed_hops = 1, .ops = NULL, .num_ops = 0 } },
+    { .service = { .id = 100, .name = "math", .allowed_hops = 1, .ops = math_ops, .num_ops = 1 } },
+    { .service = { .id = 101, .name = "sctl", .allowed_hops = 1, .ops = sctl_ops, .num_ops = 1 } },
 };
 
 static int metrics_sock = -1;
@@ -122,8 +165,11 @@ int main(void)
     }
 
     LOG_INF("network up — starting cipher daemon (device 0x%04x, port %d)", daemon_cfg.device_id, CIPHER_PORT);
+    for (size_t i = 0; i < sizeof(bench_buf); i++) {
+        bench_buf[i] = (uint8_t)(i * 31 + 7);   /* deterministic payload for streamctl sends */
+    }
     cipher_daemon_init(&daemon_cfg, &daemon_inst);
-    cipher_register_local_services(&daemon_inst, sink_services, ARRAY_SIZE(sink_services));
+    cipher_register_local_services(&daemon_inst, node_services, ARRAY_SIZE(node_services));
     cipher_daemon_start(&daemon_inst);
     metrics_init();
 

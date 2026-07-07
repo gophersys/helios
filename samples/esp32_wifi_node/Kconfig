@@ -5,4 +5,7 @@ config WIFI_SSID
 config WIFI_PSK
 	string "WiFi PSK"
 	default ""
+config BENCH_PAYLOAD_SIZE
+	int "Stream payload buffer size (bytes)"
+	default 16384
 source "Kconfig.zephyr"

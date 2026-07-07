@@ -69,18 +69,28 @@
 // RPC events heap
 #define CONFIG_RPC_EVENTS_HEAP_SIZE 1024
 
-// Network Heap
+// Network Heap. The packet-pipeline depths below dominate the daemon's static
+// RAM (count * MAX_PAYLOAD each). They default to a deep pipeline for wired
+// throughput, but are #ifndef-guarded so a memory-constrained target (e.g. an
+// ESP32, where WiFi already claims ~50 KB) can override them at build time via
+// zephyr_compile_definitions(CONFIG_LOCAL_PACKETS_COUNT=8 ...).
+#ifndef CONFIG_NET_PACKETS_COUNT
 #define CONFIG_NET_PACKETS_COUNT 16   // deeper pipeline for streaming throughput (also feeds the recv framer accumulator)
+#endif
 #define CONFIG_NET_PACKET_HEAP_SIZE (CONFIG_NET_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
 
 #define CONFIG_NET_PART_PACKET_HEAP_SIZE (CONFIG_NET_PACKET_HEAP_SIZE / 2)
 
 // Unrecv packet heaps
+#ifndef CONFIG_UNROUTED_PACKETS_COUNT
 #define CONFIG_UNROUTED_PACKETS_COUNT 2
+#endif
 #define CONFIG_UNROUTED_PACKETS_HEAP_SIZE (CONFIG_UNROUTED_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
 
 // Local packet heaps
+#ifndef CONFIG_LOCAL_PACKETS_COUNT
 #define CONFIG_LOCAL_PACKETS_COUNT 32  // in-flight stream packets (send pipeline depth)
+#endif
 #define CONFIG_LOCAL_PACKETS_HEAP_SIZE (CONFIG_LOCAL_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
 
 #endif  // DEFAULT_H
