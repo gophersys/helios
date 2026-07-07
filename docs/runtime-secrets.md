@@ -41,25 +41,18 @@ Then apply it to the app with `apps/music/filebrowser/reset-admin/job.yaml`
 Vault: `shared/tailscale/oauth-k8s-operator`. Recreation is documented in
 `platform/services/networking/tailscale-operator/README.md`.
 
-### `workspaces-github` (ns `workspaces-prod`) — bot PAT for workspace create/destroy
-The workspaces API opens PRs against this repo to add/remove env overlays.
-**Optional**: without it the API is read-only (create/delete return `503`). The
-Deployment mounts it with `optional: true`, so the pod starts either way.
-1. Create a **fine-grained** GitHub PAT (ideally on a dedicated bot account):
-   resource owner `gophersys`, repository access **`gophersys/infrastructure`
-   only**, permissions **Contents: read/write** + **Pull requests: read/write**.
-   Store it in Vaultwarden as `shared/github/workspaces-bot`.
-2. Create the Secret:
+### `workspaces-github-app` (ns `workspaces-prod`) — GitHub App auth for create/destroy
+workspaces-api authenticates to GitHub as the **gophersys-arc** App (mints
+short-lived installation tokens at runtime) — the personal PAT (`workspaces-github`)
+is **retired**. Recreate from the App key at `shared/github/arc-app`:
 ```sh
-kubectl -n workspaces-prod create secret generic workspaces-github \
-  --from-literal=token="$(bw get password shared/github/workspaces-bot)" \
-  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n workspaces-prod create secret generic workspaces-github-app \
+  --from-literal=github_app_id=4235192 \
+  --from-literal=github_app_installation_id=144912786 \
+  --from-file=github_app_private_key=<key.pem>   # bw: shared/github/arc-app
 ```
-Restart the API to pick it up: `kubectl -n workspaces-prod rollout restart deploy/workspaces-api`.
+Optional (deployment mounts with optional:true): without it the API is read-only.
 
-> **Current state:** populated from the operator's `gh` CLI token to activate the
-> feature. Swap for a dedicated fine-grained bot PAT (above) — a personal token
-> has broader scope than this service needs.
 
 ### `arc-github-app` (ns `arc-runners`) — GitHub App for self-hosted CI + CD promotion
 The **gophersys-arc** GitHub App authenticates the org self-hosted runner pool
