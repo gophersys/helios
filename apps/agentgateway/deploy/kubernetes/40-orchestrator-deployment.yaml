@@ -59,6 +59,11 @@ spec:
       containers:
         - name: orchestrator
           image: "ghcr.io/gophersys/eden/agentgateway:latest"
+          # The agentgateway image ships TWO binaries (see deploy/image/agentgateway.Dockerfile); the
+          # ENTRYPOINT default is the stateless NATS→SSE gateway, so the orchestrator role selects its
+          # own binary explicitly. cmd/agentgateway-orchestrator reads the env below (the configuration
+          # pattern) into orchestratorservice.Config{Substrate: SubstrateKubernetes} + NewKubernetesLease.
+          command: ["/usr/local/bin/agentgateway-orchestrator"]
           ports:
             - name: http
               containerPort: 8080
@@ -98,6 +103,23 @@ spec:
             # labels). Keeps a shared cluster's project namespaces attributable to this orchestrator.
             - name: EDEN_LABEL_NAMESPACE
               value: "central"
+            # ── Secrets plane (dual-mode Vault, ADR-0022 #1): the supervisor's harness credential is
+            # NEVER a raw env value — it rides every SpawnRequest as the opaque EDEN_CREDENTIAL_REF
+            # (vault://…) resolved server-side at agentsession.Open. The PRODUCTION token-file mode reads
+            # the Vault token the K8s-ServiceAccount sidecar writes to EDEN_VAULT_TOKEN_FILE, re-read per
+            # Resolve. This mirrors the agent-runtime deployment's Vault env shape (deploy/plane/production/
+            # chart/templates/agent-runtime-deployment.yaml). The Vault sidecar/agent injector is a
+            # human-applied prerequisite (see README "Remote eden-central — NOT deployed").
+            - name: EDEN_VAULT_MODE
+              value: "token-file"
+            - name: EDEN_VAULT_TOKEN_FILE
+              value: "/vault/secrets/token"
+            - name: VAULT_ADDR
+              value: "http://vault.eden-system.svc:8200"
+            - name: EDEN_HARNESS
+              value: "claude-code"
+            - name: EDEN_CREDENTIAL_REF
+              value: "vault://eden/production#setup-token"
           resources:
             requests:
               cpu: 250m

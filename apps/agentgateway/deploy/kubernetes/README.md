@@ -36,13 +36,17 @@ with `Config.Kubeconfig=""` resolving the in-cluster ServiceAccount config.
 
 ## The orchestrator command
 
-`cmd/agentgateway` today is the stateless NATS→SSE bridge; the orchestrator role (the binary that
-runs `orchestratorservice.Service.Start` under the Lease) is its sibling composition root. The
-Deployment's image and env (`EDEN_WORKSPACE_SUBSTRATE`, `EDEN_LEASE_NAME`, `EDEN_LEASE_NAMESPACE`,
-`EDEN_LEASE_IDENTITY`, `DATABASE_URL`, `EDEN_NATS_URL`, `EDEN_LABEL_NAMESPACE`) are the contract that
-command reads once at the edge (the configuration pattern) into `orchestratorservice.Config` +
-`LeaseConfig`/`LeaseDependencies`. The library seam (`lease.go`, the kubernetes provisioner in
-`service.go`) is complete and proven; wiring that command is the remaining composition step.
+`cmd/agentgateway` is the stateless NATS→SSE bridge; the orchestrator role — `cmd/agentgateway-orchestrator`,
+the binary that runs `orchestratorservice.Service.Start` under `NewKubernetesLease` — is its sibling
+composition root, and it now EXISTS. The Deployment selects it explicitly (`command:
+["/usr/local/bin/agentgateway-orchestrator"]`; the agentgateway image ships both binaries). Its env
+(`EDEN_WORKSPACE_SUBSTRATE`, `EDEN_LEASE_NAME`, `EDEN_LEASE_NAMESPACE`, `EDEN_LEASE_IDENTITY`,
+`DATABASE_URL`, `EDEN_NATS_URL`, `EDEN_LABEL_NAMESPACE`, plus the dual-mode Vault plane `EDEN_VAULT_MODE`/
+`EDEN_VAULT_TOKEN_FILE`/`VAULT_ADDR`/`EDEN_HARNESS`/`EDEN_CREDENTIAL_REF`) is the contract that command
+reads once at the edge (the configuration pattern) into `orchestratorservice.Config` +
+`LeaseConfig`/`LeaseDependencies`. It builds the leader-election coordination/core clients from the
+in-cluster ServiceAccount config (the same `Config.Kubeconfig=""` posture the kubernetes provisioner
+uses), owns the database pool, and serves the liveness probe on `:8080` (`GET /healthz`).
 
 ## Apply (local k3d)
 
@@ -90,5 +94,11 @@ applied to the remote cluster.** Before a human applies it to eden-central:
 2. Pin the image to a digest (`ghcr.io/gophersys/eden/agentgateway@sha256:…`), not `:latest`.
 3. Confirm the CNI enforces NetworkPolicy (Calico/Cilium) so the default-deny egress is live (it is
    inert on flannel — the honest `CapEgressPolicy=Absent`).
-4. Wire + ship the orchestrator command (see "The orchestrator command") so the Deployment's
-   container actually runs `Service.Start` under `NewKubernetesLease`.
+4. Provision the Vault agent/sidecar that writes the token to `EDEN_VAULT_TOKEN_FILE`
+   (`/vault/secrets/token`) and seed `vault://eden/production#setup-token` — the orchestrator resolves
+   the supervisor's harness credential through it (dual-mode `EDEN_VAULT_MODE=token-file`), never a
+   literal.
+
+The orchestrator command itself (`cmd/agentgateway-orchestrator`, running `Service.Start` under
+`NewKubernetesLease`) is BUILT and shipped in the image; the remaining work above is the cluster-side
+prerequisites, not the composition.
