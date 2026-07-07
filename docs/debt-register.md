@@ -9,7 +9,7 @@ here as accepted-imperative with recreation steps.
 Status legend: 🔴 open (reliability/security risk) · 🟠 open (reproducibility) ·
 🟡 minor / accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-07-06 (backlog closeout).
+Last updated: 2026-07-07 (full cluster audit — see docs/audit-2026-07.md).
 
 ---
 
@@ -124,6 +124,24 @@ complete) with the 9 ratified decisions, so the references from identity.yaml
 and the READMEs no longer dangle.
 
 ---
+
+### D9 🟠 Version drift on imperative platform components
+Full audit 2026-07-07 (`docs/audit-2026-07.md`): Longhorn 1.7.2 (EOL, →1.12),
+cloudflared 2025.5.0 (→2026.6.1, 13mo), cert-manager 1.16→1.20, ingress-nginx
+1.12→1.15, Tempo 2.9→3.0 (breaking), MetalLB 0.14→0.16. All imperative Helm
+installs — need staged upgrades + maintenance windows. Longhorn is the priority
+(EOL + most privileged). See the audit doc's staged plan.
+
+### D10 🟡 cert-manager DNS-01 cleanup fails on Cloudflare
+Recurring `Error 7003 DELETE /zones//dns_records/…` (empty zone id) leaves
+orphaned `_acme-challenge` TXT records + log spam. Cert issuance is unaffected
+(all Ready). Fix the ClusterIssuer Cloudflare solver (zone/token scope).
+
+### D11 🟡 bw-serve cannot run non-root (image limitation)
+The vault bridge is hardened to caps-drop + seccomp, but the
+`charlesthomas/bitwarden-cli` image's entrypoint crashloops under
+non-root/read-only-rootfs (verified). Full hardening needs a vendored non-root
+bitwarden-cli image. Accepted ceiling for now.
 
 ## Resolved
 
