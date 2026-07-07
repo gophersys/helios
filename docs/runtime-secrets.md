@@ -61,6 +61,19 @@ Restart the API to pick it up: `kubectl -n workspaces-prod rollout restart deplo
 > feature. Swap for a dedicated fine-grained bot PAT (above) — a personal token
 > has broader scope than this service needs.
 
+### `arc-github-app` (ns `arc-runners`) — GitHub App for self-hosted CI + CD promotion
+The **gophersys-arc** GitHub App authenticates the org self-hosted runner pool
+(`arc-org`, ARC) and the workspaces→infra image promotion. Vault:
+**`shared/github/arc-app`** (App ID, Client ID, Installation ID, private key).
+```sh
+kubectl -n arc-runners create secret generic arc-github-app \
+  --from-literal=github_app_id=4235192 \
+  --from-literal=github_app_installation_id=144912786 \
+  --from-file=github_app_private_key=<key.pem>   # from bw: shared/github/arc-app
+```
+The same App key is also set as repo secrets on `gophersys/workspaces`
+(`ARC_APP_ID`, `ARC_APP_PRIVATE_KEY`) so its build can promote the deployment.
+
 ## App-managed passwords (not k8s Secrets)
 
 ### qBittorrent WebUI password
