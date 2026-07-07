@@ -55,6 +55,8 @@ jobs:
           dirname "$(command -v node)" >> "$GITHUB_PATH"
       - name: Install workspace dependencies (yarn 4)
         run: yarn install --immutable
+      - name: Install the TypeScript-libs workspace dependencies (bun)
+        run: cd libs/typescript && bun install --frozen-lockfile
       - name: Run affected-check
         env:
           NX_BASE: ${{ github.event.before }}
