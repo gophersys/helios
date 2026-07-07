@@ -14,6 +14,7 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/dfu/flash_img.h>
 #include <zephyr/dfu/mcuboot.h>
+#include <zephyr/storage/flash_map.h>
 #include <zephyr/net/socket.h>
 #include <string.h>
 
@@ -49,6 +50,17 @@ static void metrics_emit(const char *j, int n)
 #define APP_VERSION_STR "v1"
 #endif
 
+#if defined(CONFIG_OTA_FILLER_KB) && CONFIG_OTA_FILLER_KB > 0
+/* Filler blob to simulate a large application image: pads the firmware in flash
+ * so the OTA transfers a realistic multi-hundred-KB / multi-MB payload. Placed
+ * in .rodata (flash) as a fixed pattern; `used` keeps the linker from dropping
+ * it. Sized via CONFIG_OTA_FILLER_KB. */
+#define OTA_FILLER_BYTES (CONFIG_OTA_FILLER_KB * 1024)
+const volatile uint8_t ota_filler[OTA_FILLER_BYTES] __attribute__((used)) = {
+    [0 ... OTA_FILLER_BYTES - 1] = 0xA5,
+};
+#endif
+
 static cipher_daemon_t daemon_inst;
 static cipher_daemon_config_t daemon_cfg = {
     .device_id = CONFIG_CIPHER_DEVICE_ID,
@@ -82,12 +94,19 @@ static void ota_sink(uint16_t stream_id, uint8_t phase, const uint8_t *data, uin
 
     switch (phase) {
     case CIPHER_STREAM_PHASE_START: {
+        /* Erase the WHOLE secondary bank first — flash_img only erases the
+         * sectors it writes, leaving stale bytes in slot1's MCUboot trailer.
+         * boot_request_upgrade() then can't cleanly set the swap magic (flash
+         * only clears bits), which made the swap fire only intermittently.
+         * A full bank erase makes the swap deterministic. */
+        int erase_rc = boot_erase_img_bank(FIXED_PARTITION_ID(slot1_partition));
         int rc = flash_img_init(&ota_ctx);
         ota_active = (rc == 0);
         ota_chunks = 0;
         ota_last_write_rc = 0;
-        n = snprintk(j, sizeof(j), "{\"kind\":\"ota\",\"node\":\"0x%04x\",\"phase\":\"start\",\"init_rc\":%d}",
-                     CONFIG_CIPHER_DEVICE_ID, rc);
+        n = snprintk(j, sizeof(j),
+            "{\"kind\":\"ota\",\"node\":\"0x%04x\",\"phase\":\"start\",\"erase_rc\":%d,\"init_rc\":%d}",
+            CONFIG_CIPHER_DEVICE_ID, erase_rc, rc);
         metrics_emit(j, n);
         break;
     }
@@ -119,11 +138,34 @@ static void ota_sink(uint16_t stream_id, uint8_t phase, const uint8_t *data, uin
         metrics_emit(j, n);
         ota_active = false;
         if (upgrade_rc == 0) {
-            k_work_schedule(&reboot_work, K_MSEC(800));   /* let the UDP report flush */
+            /* Give the UDP report + the trailer flash write time to settle
+             * before the reset — a short delay made the swap non-deterministic. */
+            k_work_schedule(&reboot_work, K_MSEC(1500));
         }
         break;
     }
     }
+}
+
+/* Version heartbeat over UDP so a soak harness can confirm which image actually
+ * booted (serial drops lines; this does not). */
+static void emit_version(void)
+{
+    /* Report the running image's MCUboot header version (major.minor.rev) — this
+     * is the field the OTA actually bumps and MCUboot swaps on, so it is the
+     * ground-truth "which firmware am I" (the banner string is a cosmetic label). */
+    struct mcuboot_img_header hdr;
+    unsigned maj = 0, min = 0, rev = 0;
+    if (boot_read_bank_header(FIXED_PARTITION_ID(slot0_partition), &hdr, sizeof(hdr)) == 0) {
+        maj = hdr.h.v1.sem_ver.major;
+        min = hdr.h.v1.sem_ver.minor;
+        rev = hdr.h.v1.sem_ver.revision;
+    }
+    char j[192];
+    int n = snprintk(j, sizeof(j),
+        "{\"kind\":\"ota_boot\",\"node\":\"0x%04x\",\"imgver\":\"%u.%u.%u\",\"confirmed\":%d,\"uptime_s\":%lld}",
+        CONFIG_CIPHER_DEVICE_ID, maj, min, rev, boot_is_img_confirmed(), k_uptime_get() / 1000);
+    metrics_emit(j, n);
 }
 
 int main(void)
@@ -135,6 +177,11 @@ int main(void)
         LOG_INF("confirmed running image rc=%d", rc);
     }
     LOG_INF("==== OTA NODE %s (device 0x%04x) ====", APP_VERSION_STR, CONFIG_CIPHER_DEVICE_ID);
+#if defined(CONFIG_OTA_FILLER_KB) && CONFIG_OTA_FILLER_KB > 0
+    /* Touch the filler so --gc-sections keeps the whole blob in the image. */
+    LOG_INF("large-app filler: %u KB (marker 0x%02x)", CONFIG_OTA_FILLER_KB,
+            ota_filler[CONFIG_OTA_FILLER_KB * 512]);
+#endif
 
     k_work_init_delayable(&reboot_work, do_reboot);
 
@@ -143,10 +190,11 @@ int main(void)
     cipher_stream_set_rx_sink(&daemon_inst, ota_sink, NULL);
     cipher_daemon_start(&daemon_inst);   /* waits for the link internally */
     metrics_init();
+    emit_version();   /* announce this boot's version immediately */
 
     while (true) {
-        k_sleep(K_SECONDS(10));
-        LOG_INF("OTA NODE %s alive (confirmed=%d)", APP_VERSION_STR, boot_is_img_confirmed());
+        k_sleep(K_SECONDS(3));
+        emit_version();
     }
     return 0;
 }

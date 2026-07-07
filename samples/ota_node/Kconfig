@@ -2,4 +2,8 @@ mainmenu "ota_node"
 config CIPHER_DEVICE_ID
 	hex "Cipher device id for this node"
 	default 0x000A
+config OTA_FILLER_KB
+	int "Filler blob KB to simulate a large app image"
+	default 0
+
 source "Kconfig.zephyr"
