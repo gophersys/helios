@@ -79,3 +79,15 @@ config CK_IFACE_UART_STACK_THREAD_PRIORITY
 config CK_IFACE_UART_STACK_THREAD_STACK_SIZE
     int "Thread memory stack size for the UART transport stack"
     default 1024
+
+# WiFi connectivity backend for the Zephyr connection manager. Implements
+# CONNECTIVITY_WIFI_MGMT so conn_mgr (not the app) owns WiFi: associate from NVS
+# credentials + disable power-save. Keeps the application transport-agnostic.
+config CK_IFACE_WIFI_CONNECTIVITY
+    bool "Provide the conn_mgr WiFi connectivity backend"
+    depends on NET_CONNECTION_MANAGER_CONNECTIVITY_WIFI_MGMT && WIFI_CREDENTIALS
+    default y if NET_CONNECTION_MANAGER_CONNECTIVITY_WIFI_MGMT && WIFI_CREDENTIALS
+
+config CK_IFACE_WIFI_CONNECTIVITY_LOG_LEVEL
+    int "Log level for the WiFi connectivity backend"
+    default 3

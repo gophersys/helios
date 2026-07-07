@@ -11,3 +11,7 @@ endif()
 if(CONFIG_CK_IFACE_LIB_SOCKETS)
     add_subdirectory(socket)
 endif()
+
+if(CONFIG_CK_IFACE_WIFI_CONNECTIVITY)
+    add_subdirectory(wifi)
+endif()
