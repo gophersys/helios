@@ -24,7 +24,7 @@ jobs:
         with:
           account: gophersys
           token: ${{ steps.app.outputs.token }}
-          image-names: "*"
+          image-names: "workspaces-api base flutter zephyr orchestrator zephyr-devbox"  # explicit: App tokens cannot list-all org packages (400)
           image-tags: "!latest"        # never touch :latest
           tag-selection: untagged      # only untagged (multi-arch safe)
           cut-off: 4w
