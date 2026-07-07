@@ -43,7 +43,7 @@ data:
                 local dec = string.gsub(enc, "%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end)
                 local ascii = string.gsub(dec, "[^\032-\126]", "_")
                 ascii = string.gsub(ascii, '["\\]', "_")
-                ngx.header["Content-Disposition"] = 'attachment; filename="' .. ascii .. '"; ' .. cd
+                ngx.header["Content-Disposition"] = "attachment; filename=\"" .. ascii .. "\"; filename*=utf-8''" .. enc
               end
             end
           }
