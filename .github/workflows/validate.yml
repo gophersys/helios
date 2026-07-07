@@ -1,0 +1,76 @@
+name: validate
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          cd /tmp
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo install -m0755 kubeconform /usr/local/bin/kubeconform
+          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | tar xz
+          sudo install -m0755 kustomize /usr/local/bin/kustomize
+          pipx install yamllint
+
+      - name: yamllint (advisory)
+        continue-on-error: true
+        run: yamllint -c .yamllint.yml apps platform clusters
+
+      - name: kubeconform — raw manifests
+        run: |
+          set -euo pipefail
+          # Plain k8s manifests. Kustomize bases/overlays are validated separately.
+          # -ignore-missing-schemas lets CRDs (Argo, Kyverno, cert-manager, ...) pass.
+          find apps platform/services/gitops/registry platform/core/policy/policies platform/core/secrets-operator/manifests \
+            -name '*.yaml' \
+            -not -path '*/config-enforce/*' \
+            -not -path '*/zephyr-devbox/*' \
+            -not -path '*/envs/*' \
+            -not -name 'kustomization.yaml' \
+            -print0 \
+          | xargs -0 -r kubeconform -strict -ignore-missing-schemas -summary
+
+      - name: kubeconform — kustomize overlays
+        run: |
+          set -euo pipefail
+          for d in apps/embedded/zephyr-devbox/base apps/embedded/envs/zephyr-libs apps/embedded/envs/nucleo-bringup; do
+            echo "== building $d =="
+            kustomize build "$d" | kubeconform -strict -ignore-missing-schemas -summary
+          done
+
+      - name: Argo registry paths resolve
+        run: |
+          missing=0
+          while IFS= read -r p; do
+            case "$p" in *'{{'*) continue;; '') continue;; esac
+            if [ ! -e "$p" ]; then echo "::error::registry references missing path: $p"; missing=1; fi
+          done < <(grep -hE '^[[:space:]]*path:' platform/services/gitops/registry/*.yaml | sed -E "s/.*path:[[:space:]]*//; s/['\"]//g")
+          exit $missing
+
+      - name: qBittorrent config-enforce — tests + drift guard
+        run: |
+          set -euo pipefail
+          cd apps/music/qbittorrent/config-enforce
+          python3 test_enforce_qbt.py
+          diff <(python3 gen_configmap.py) ../15-config-enforce.configmap.yaml \
+            || { echo "::error::15-config-enforce.configmap.yaml is stale — run: python3 gen_configmap.py > ../15-config-enforce.configmap.yaml"; exit 1; }
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -r shellcheck -S warning || true
