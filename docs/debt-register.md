@@ -130,7 +130,10 @@ Full audit 2026-07-07 (`docs/audit-2026-07.md`). Progress:
 - ✅ **cloudflared** 2025.5.0 → 2026.6.1 + hardened (non-root, RO-rootfs, drop-ALL, seccomp).
 - ✅ **cert-manager** 1.16.3 → 1.20.3 (certs undisrupted; ships the DNS-01 cleanup fix — D10).
 - ✅ **MetalLB** 0.14.9 → 0.16.1 (VIP stayed up).
-- ⬜ **ingress-nginx** 1.12→1.15, **Tempo** 2.9→3.0 (breaking) — pending.
+- ✅ **ingress-nginx** 1.12.1 → 1.15.1 (all 7 routes stayed up).
+- ⬜ **Tempo** 2.9→3.0 + observability minors — these live in the **eden-observability
+  Helm chart** (`obs` release, currently in **failed** helm state), so they're the Eden
+  agent's domain, not an imperative upgrade. Flag for that chart's owner.
 - ⬜ **Longhorn** 1.7.2 → 1.12 (EOL) — staged runbook at `docs/runbooks/longhorn-upgrade.md`.
   **BLOCKED on configuring a backup target first** (none exists). Multi-session campaign.
 
