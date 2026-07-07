@@ -125,17 +125,19 @@ and the READMEs no longer dangle.
 
 ---
 
-### D9 🟠 Version drift on imperative platform components
-Full audit 2026-07-07 (`docs/audit-2026-07.md`): Longhorn 1.7.2 (EOL, →1.12),
-cloudflared 2025.5.0 (→2026.6.1, 13mo), cert-manager 1.16→1.20, ingress-nginx
-1.12→1.15, Tempo 2.9→3.0 (breaking), MetalLB 0.14→0.16. All imperative Helm
-installs — need staged upgrades + maintenance windows. Longhorn is the priority
-(EOL + most privileged). See the audit doc's staged plan.
+### D9 🟠 Version drift on imperative platform components — IN PROGRESS
+Full audit 2026-07-07 (`docs/audit-2026-07.md`). Progress:
+- ✅ **cloudflared** 2025.5.0 → 2026.6.1 + hardened (non-root, RO-rootfs, drop-ALL, seccomp).
+- ✅ **cert-manager** 1.16.3 → 1.20.3 (certs undisrupted; ships the DNS-01 cleanup fix — D10).
+- ✅ **MetalLB** 0.14.9 → 0.16.1 (VIP stayed up).
+- ⬜ **ingress-nginx** 1.12→1.15, **Tempo** 2.9→3.0 (breaking) — pending.
+- ⬜ **Longhorn** 1.7.2 → 1.12 (EOL) — staged runbook at `docs/runbooks/longhorn-upgrade.md`.
+  **BLOCKED on configuring a backup target first** (none exists). Multi-session campaign.
 
-### D10 🟡 cert-manager DNS-01 cleanup fails on Cloudflare
-Recurring `Error 7003 DELETE /zones//dns_records/…` (empty zone id) leaves
-orphaned `_acme-challenge` TXT records + log spam. Cert issuance is unaffected
-(all Ready). Fix the ClusterIssuer Cloudflare solver (zone/token scope).
+### D10 ✅ cert-manager DNS-01 cleanup — RESOLVED
+The 5 orphaned `_acme-challenge` TXT records were deleted from Cloudflare, and the
+cleanup fix ships with the cert-manager 1.20.3 upgrade (D9). Watch the next renewal
+to confirm no new orphans.
 
 ### D11 🟡 bw-serve cannot run non-root (image limitation)
 The vault bridge is hardened to caps-drop + seccomp, but the
