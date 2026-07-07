@@ -30,6 +30,15 @@ spec:
           # format Vaultwarden doesn't serve ("toWrappedAccountCryptographicState"
           # null crash). This older CLI is Vaultwarden-compatible.
           image: ghcr.io/charlesthomas/bitwarden-cli:2026.1.0
+          # Low-risk hardening on the vault bridge: no caps, no priv-esc, seccomp.
+          # NOT runAsNonRoot/readOnlyRootFilesystem — the CLI writes its session/
+          # config and its user model is unknown; those would risk breaking ESO.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           envFrom:
             - secretRef:
                 name: bw-cli-credentials
