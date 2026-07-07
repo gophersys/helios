@@ -38,7 +38,7 @@ spec:
                     values: ["pve-00"]
       containers:
         - name: prowlarr
-          image: lscr.io/linuxserver/prowlarr:latest
+          image: lscr.io/linuxserver/prowlarr:nightly-2.5.1.5460-ls4  # 2.5.x: fixes qBittorrent 5.x download-client compat (2.4.0 NREs)
           env:
             - name: PUID
               value: "1000"
