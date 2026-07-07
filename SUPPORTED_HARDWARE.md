@@ -45,3 +45,30 @@ No `#ifdef`, no WiFi/DHCP code, no credentials in the image.
    iface lib supplies the connectivity backend).
 2. Build `samples/matrix_node` for it — no code changes.
 3. Run the interop matrix; record the row here with its numbers.
+
+## WiFi throughput tuning (ESP32)
+
+Networking speed trades against RAM. The iface lib exposes this as one switch —
+`CONFIG_CK_IFACE_NET_{THROUGHPUT,BALANCED,FOOTPRINT}` — which drives the whole
+net-stack tuning (TCP window, `NET_BUF_DATA_SIZE`, buffer counts, ESP32 IRAM):
+
+| Profile | TCP window | NET_BUF_DATA | ~WiFi TCP | RAM cost | Fits ESP32+cipher? |
+|---|---|---|---|---|---|
+| THROUGHPUT | 50000 | 1500 (MTU) | ~4 Mbps | +~80–100 KB | ❌ (needs a higher-RAM board) |
+| **BALANCED** | 16384 | 512 | ~1–2 Mbps | +~30 KB | ✅ (the ESP32 default here) |
+| FOOTPRINT | default | 256 | ~1 Mbps | minimal | ✅ |
+
+**Why the ESP32 uses BALANCED, not THROUGHPUT:** the original ESP32 has ~320 KB
+DRAM, ~50 KB of which the WiFi stack claims. Full-MTU (1500 B) net buffers +
+a 50 KB TCP window on top of cipher's own packet heaps overflow DRAM by ~15 KB.
+BALANCED (512 B buffers) is the sweet spot that fits and still ~8×'s the untuned
+rate. This is the memory↔speed tradeoff made explicit: **more speed needs more
+RAM; on a fixed-RAM part you pick the point on the curve.**
+
+**Ceiling (Espressif, "max WiFi throughput in Zephyr", 2024-06):** ESP32 Zephyr
+WiFi tops out around **TCP ~4 Mbps / UDP ~10 Mbps**; the single biggest lever is
+`NET_TCP_MAX_RECV_WINDOW_SIZE` (default is tiny → no in-flight pipelining).
+
+**Reliability caveat:** WiFi stability depends on the AP. An AP left in *setup
+mode* (`SETUP-xxxx` SSID) can associate but drop client traffic; use a properly
+configured 2.4 GHz AP for sustained runs.
