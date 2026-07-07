@@ -37,8 +37,19 @@ function on_exit() {
 }
 trap on_exit EXIT
 
-# Base commit for `nx affected`. Defaults to origin/main.
+# Base commit for `nx affected`. Defaults to origin/main. A first-push or force-push delivers
+# github.event.before as the all-zeros SHA (and a misconfigured caller may pass ""), which would
+# make every `nx affected` git call fail — fold both to HEAD~1 (the previous commit), the honest
+# minimal base for a push event.
 NX_BASE="${NX_BASE:-origin/main}"
+if [[ -z "$NX_BASE" || "$NX_BASE" == "0000000000000000000000000000000000000000" ]]; then
+  NX_BASE="HEAD~1"
+fi
+
+# NOTE: the frontend's `e2e` nx target (Playwright over a real dev-serve) is deliberately in NO CI
+# lane yet — it needs a browser-capable runner + a playwright install step; wire it into the
+# substrate lane once that lane is proven green on arc-org. Until then e2e runs via
+# `apps/frontend/ctl.sh e2e` locally (a documented gap, not an accidental one).
 
 function has_nx() {
   # Check, in order: global nx, node_modules/.bin (npm/yarn classic), Yarn

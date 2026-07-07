@@ -1,10 +1,11 @@
 # Eden orchestrator Deployment (W5): the per-project orchestrator as a STATELESS, HA Deployment
-# under a REAL coordination.k8s.io/v1 Lease. replicas:3 — all three serve the read/admission Manager
-# verbs (Spawn/Get/List/Stop/Resume), but ONLY the replica that holds the Lease runs the reconcile
-# loop (orchestratorservice.Service.Start consults orchestratorservice.NewKubernetesLease before
-# each pass), so two controllers never both provision the same Pending agent. A replica that loses
-# the Lease (a partition, a rollout) stops reconciling within the lease duration; a peer acquires it
-# and continues — that is the HA property this Deployment proves.
+# under a REAL coordination.k8s.io/v1 Lease. replicas:3 — every replica serves the health probe and
+# contends in the election, but ONLY the Lease holder runs the reconcile loop: the command's
+# superviseLeadership poll (cmd/agentgateway-orchestrator) starts the loop the moment a replica
+# acquires the Lease (Service.Start consults IsLeader once at start), and a deposed leader EXITS for
+# a clean kubelet restart + re-election — so two controllers never both provision the same Pending
+# agent. A replica that loses the Lease (a partition, a rollout) is replaced within the lease
+# duration; a peer acquires it and continues — that is the HA property this Deployment proves.
 #
 # The pod runs as the eden-orchestrator ServiceAccount, so its projected token IS the in-cluster
 # kubeconfig the kubernetesadapter (Config.Kubeconfig="" → rest.InClusterConfig) and the

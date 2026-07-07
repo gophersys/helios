@@ -54,7 +54,9 @@ jobs:
       - name: Expose the image's node toolchain (nvm) on PATH
         run: |
           . "$NVM_DIR/nvm.sh" && nvm use --silent default
-          dirname "$(command -v node)" >> "$GITHUB_PATH"
+          node_bin="$(command -v node)"
+          [ -n "$node_bin" ] || { echo "node did not resolve after nvm use — the image's nvm layout changed" >&2; exit 1; }
+          dirname "$node_bin" >> "$GITHUB_PATH"
       - name: Install workspace dependencies (yarn 4)
         run: yarn install --immutable
       - name: Install the TypeScript-libs workspace dependencies (bun)
@@ -70,10 +72,9 @@ jobs:
   # an acceptable substitute (ADR-0016 §2). Absent here too is a hard fail, not a skip.
   substrate:
     name: affected-gate (substrate · real docker+k3d)
-    # DEFERRED on GitHub-hosted runners: a privileged job container with the host docker socket +
-    # nested k3d/kind does not run reliably on ubuntu-latest. Gated OFF by default; set the repo
-    # variable EDEN_CI_SUBSTRATE=true once a CAPABLE runner exists (a self-hosted runner with docker,
-    # or a runner image that supports privileged k3d) — then this lane runs the real-substrate suites.
+    # Runs on the org ARC fleet (dind), which supports the privileged job container + k3d/kind that
+    # GitHub-hosted runners never did. Kept behind the EDEN_CI_SUBSTRATE repo variable (currently
+    # true) as the operational kill-switch while the real-substrate suites bed in on arc-org.
     if: ${{ vars.EDEN_CI_SUBSTRATE == 'true' }}
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     needs: fast
@@ -109,7 +110,9 @@ jobs:
       - name: Expose the image's node toolchain (nvm) on PATH
         run: |
           . "$NVM_DIR/nvm.sh" && nvm use --silent default
-          dirname "$(command -v node)" >> "$GITHUB_PATH"
+          node_bin="$(command -v node)"
+          [ -n "$node_bin" ] || { echo "node did not resolve after nvm use — the image's nvm layout changed" >&2; exit 1; }
+          dirname "$node_bin" >> "$GITHUB_PATH"
       - name: Install workspace dependencies (yarn 4)
         run: yarn install --immutable
       - name: Install the TypeScript-libs workspace dependencies (bun)

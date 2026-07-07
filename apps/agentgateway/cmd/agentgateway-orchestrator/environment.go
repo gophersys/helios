@@ -325,6 +325,10 @@ func superviseLeadership(ctx context.Context, lease leaseConsulter, start func(c
 			return errors.Wrap(errors.KindUnavailable, "agentgateway-orchestrator: start reconcile loop", err)
 		}
 		logger.Info("agentgateway-orchestrator: reconcile loop started (docker fallback — always leader)")
+		// Service.Start is NON-blocking (the Pool runs the loop on its own goroutine), so returning
+		// here would resolve run()'s select and exit the process, tearing the just-started loop down
+		// (the review-fleet HIGH). Park until the signal cancels ctx — the daemon stays serving.
+		<-ctx.Done()
 		return nil
 	}
 
@@ -338,6 +342,10 @@ func superviseLeadership(ctx context.Context, lease leaseConsulter, start func(c
 		}
 		switch {
 		case leader && !started:
+			// Service.Start re-consults IsLeader itself (its once-at-start gate) — a deposition in
+			// the microseconds between this poll and that consult makes Start a follower no-op, and
+			// the NEXT poll observes the deposition and exits for a clean re-election. The double
+			// consult is redundant but harmless; the poll below owns transitions.
 			if startErr := start(ctx); startErr != nil {
 				return errors.Wrap(errors.KindUnavailable, "agentgateway-orchestrator: start reconcile loop on acquired leadership", startErr)
 			}

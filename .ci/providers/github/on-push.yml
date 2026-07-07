@@ -52,7 +52,9 @@ jobs:
       - name: Expose the image's node toolchain (nvm) on PATH
         run: |
           . "$NVM_DIR/nvm.sh" && nvm use --silent default
-          dirname "$(command -v node)" >> "$GITHUB_PATH"
+          node_bin="$(command -v node)"
+          [ -n "$node_bin" ] || { echo "node did not resolve after nvm use — the image's nvm layout changed" >&2; exit 1; }
+          dirname "$node_bin" >> "$GITHUB_PATH"
       - name: Install workspace dependencies (yarn 4)
         run: yarn install --immutable
       - name: Install the TypeScript-libs workspace dependencies (bun)

@@ -100,6 +100,24 @@ func TestParseConfiguration_Defaults(t *testing.T) {
 	}
 }
 
+// TestParseConfiguration_ExplicitOverridesAreRead kills the surviving-mutant gap: every defaulted
+// field is also proven to honor a NON-default operator value (an envOr always returning the
+// fallback would pass the defaults test but fail here).
+func TestParseConfiguration_ExplicitOverridesAreRead(t *testing.T) {
+	t.Parallel()
+	environment := with(with(productionEnv(), "EDEN_GATEWAY_ADDRESS", ":9999"), "EDEN_VAULT_TOKEN_FILE", "/custom/token-path")
+	configured, err := parseConfiguration(getenvFrom(environment))
+	if err != nil {
+		t.Fatalf("parseConfiguration: unexpected error: %v", err)
+	}
+	if configured.Address != ":9999" {
+		t.Fatalf("Address = %q, want the explicit :9999 override", configured.Address)
+	}
+	if configured.VaultTokenFilePath != "/custom/token-path" {
+		t.Fatalf("VaultTokenFilePath = %q, want the explicit override", configured.VaultTokenFilePath)
+	}
+}
+
 func TestParseConfiguration_MissingRequiredIsInvalid(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

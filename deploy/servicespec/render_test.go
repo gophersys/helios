@@ -1,6 +1,8 @@
 package servicespec
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -149,6 +151,38 @@ func TestRenderStageScopedCredentialRef(t *testing.T) {
 	compose := RenderCompose(RenderTarget{Plane: PlaneLocal}, services)
 	if !strings.Contains(compose, `EDEN_CREDENTIAL_REF: "vault://eden/development#setup-token"`) {
 		t.Errorf("compose did not pin the development credential reference:\n%s", compose)
+	}
+}
+
+// TestCommittedManifestsMatchCatalog is the DRIFT GATE between the typed Catalog and the COMMITTED
+// generated manifests (the render-verify analog of verify-openapi): it re-renders the Catalog with
+// the exact defaults cmd/render uses and byte-compares against deploy/plane. A catalog/renderer
+// change whose regen was forgotten — or a hand-edit of a generated file — fails HERE instead of
+// shipping stale manifests. Fix a failure by regenerating (go run ./cmd/render), never by editing
+// the committed yamls.
+func TestCommittedManifestsMatchCatalog(t *testing.T) {
+	t.Parallel()
+	services := Catalog()
+
+	// The cmd/render defaults (main.go flags): registry/tag/namespace/stage.
+	helmTarget := RenderTarget{Plane: PlaneProduction, Registry: "ghcr.io/gophersys/eden", Tag: "latest", Namespace: "eden", Stage: "production"}
+	for _, f := range RenderHelm(helmTarget, services) {
+		committedPath := filepath.Join("..", "plane", "production", "chart", f.Path)
+		committed, err := os.ReadFile(committedPath)
+		if err != nil {
+			t.Fatalf("read the committed chart file %s: %v (regenerate: go run ./cmd/render)", f.Path, err)
+		}
+		if string(committed) != f.Content {
+			t.Errorf("committed %s DRIFTED from the catalog render — regenerate via `go run ./cmd/render` (never hand-edit)", f.Path)
+		}
+	}
+
+	committedCompose, err := os.ReadFile(filepath.Join("..", "plane", "local", "platform.yaml"))
+	if err != nil {
+		t.Fatalf("read the committed compose overlay: %v", err)
+	}
+	if string(committedCompose) != RenderCompose(RenderTarget{Plane: PlaneLocal}, services) {
+		t.Error("committed deploy/plane/local/platform.yaml DRIFTED from the catalog render — regenerate via `go run ./cmd/render`")
 	}
 }
 

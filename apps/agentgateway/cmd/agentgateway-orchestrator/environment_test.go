@@ -103,6 +103,30 @@ func TestParseConfiguration_Defaults(t *testing.T) {
 	}
 }
 
+// TestParseConfiguration_ExplicitOverridesAreRead kills the surviving-mutant gap the review fleet
+// found: every defaulted field is also proven to honor a NON-default operator value (an envOr that
+// always returned the fallback would pass the defaults test but fail here).
+func TestParseConfiguration_ExplicitOverridesAreRead(t *testing.T) {
+	t.Parallel()
+	environment := with(with(with(kubernetesEnv(),
+		"EDEN_ORCHESTRATOR_ADDRESS", ":9999"),
+		"EDEN_VAULT_TOKEN_FILE", "/custom/token-path"),
+		"EDEN_HARNESS", "omp")
+	configured, err := parseConfiguration(getenvFrom(environment))
+	if err != nil {
+		t.Fatalf("parseConfiguration: unexpected error: %v", err)
+	}
+	if configured.Address != ":9999" {
+		t.Fatalf("Address = %q, want the explicit :9999 override", configured.Address)
+	}
+	if configured.VaultTokenFilePath != "/custom/token-path" {
+		t.Fatalf("VaultTokenFilePath = %q, want the explicit override", configured.VaultTokenFilePath)
+	}
+	if configured.Harness != "omp" {
+		t.Fatalf("Harness = %q, want the explicit omp override", configured.Harness)
+	}
+}
+
 func TestParseConfiguration_UnknownSubstrateFoldsToDocker(t *testing.T) {
 	t.Parallel()
 	// A non-"kubernetes" substrate token folds to the docker-first zero; the lease fields are then
@@ -174,17 +198,43 @@ func (c *countingStart) calls() int {
 
 const testPollInterval = 2 * time.Millisecond
 
-// TestSuperviseLeadership_NilLeaseStartsImmediately proves the docker fallback: no election, the
-// loop starts exactly once and the supervisor returns nil.
-func TestSuperviseLeadership_NilLeaseStartsImmediately(t *testing.T) {
+// TestSuperviseLeadership_NilLeaseStartsAndParks proves the docker fallback is a DAEMON: the loop
+// starts exactly once and the supervisor then BLOCKS until ctx cancels (the review-fleet HIGH: an
+// early nil return resolved run()'s select and exited the process, tearing the loop down — the
+// original version of this very test had encoded that bug by asserting the early return).
+func TestSuperviseLeadership_NilLeaseStartsAndParks(t *testing.T) {
 	t.Parallel()
 	starter := &countingStart{}
-	err := superviseLeadership(context.Background(), nil, starter.start, testPollInterval, discardLogger())
-	if err != nil {
-		t.Fatalf("nil-lease supervise: unexpected error: %v", err)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- superviseLeadership(ctx, nil, starter.start, testPollInterval, discardLogger()) }()
+
+	// The loop must start promptly…
+	deadline := time.After(2 * time.Second)
+	for starter.calls() == 0 {
+		select {
+		case <-deadline:
+			t.Fatal("the docker-fallback loop never started")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	// …and the supervisor must NOT return while ctx is live (the daemon parks).
+	select {
+	case err := <-done:
+		t.Fatalf("supervisor returned (%v) while ctx was live — the docker-fallback daemon must park", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("graceful cancel: unexpected error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("supervisor did not return after ctx cancel")
 	}
 	if starter.calls() != 1 {
-		t.Fatalf("start calls = %d, want exactly 1 (the docker always-leader path)", starter.calls())
+		t.Fatalf("start calls = %d, want exactly 1", starter.calls())
 	}
 }
 
@@ -223,7 +273,11 @@ func TestSuperviseLeadership_DeposedLeaderExits(t *testing.T) {
 	t.Parallel()
 	lease := &scriptedLease{script: []bool{true, true, false}} // leader, then deposed
 	starter := &countingStart{}
-	err := superviseLeadership(context.Background(), lease, starter.start, testPollInterval, discardLogger())
+	// Bounded: were the deposition-exit branch removed, this test must FAIL on the deadline
+	// rather than hang the suite (the supervisor would poll forever).
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := superviseLeadership(ctx, lease, starter.start, testPollInterval, discardLogger())
 	if err == nil {
 		t.Fatal("deposed leader: want the restart-for-re-election error, got nil")
 	}
