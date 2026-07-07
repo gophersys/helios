@@ -25,7 +25,7 @@ spec:
           # NOTE: ghcr package is private on first publish — flip it public
           # (package settings) or the pull backs off, exactly like
           # zephyr-devbox did on day one.
-          image: ghcr.io/gophersys/workspaces-api:latest
+          image: ghcr.io/gophersys/workspaces-api:d8c52a6606231be40c70e3e8884b2990d1b85a6a
           imagePullPolicy: Always
           env:
             # GitOps automation: create/destroy workspaces open PRs against this
