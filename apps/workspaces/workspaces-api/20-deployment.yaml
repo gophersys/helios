@@ -26,7 +26,7 @@ spec:
           # (package settings) or the pull backs off, exactly like
           # zephyr-devbox did on day one.
           image: ghcr.io/gophersys/workspaces-api:d8c52a6606231be40c70e3e8884b2990d1b85a6a
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             # GitOps automation: create/destroy workspaces open PRs against this
             # infra repo. OPTIONAL — without the token the API is read-only and
