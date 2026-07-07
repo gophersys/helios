@@ -8,7 +8,7 @@ import (
 // in its Exporter-backed mode, from a full Config/Deps. This is the factory the
 // conformance suite (Run) drives, so the fake proven substitutable against the
 // real adapter is the very fake consumers use — not a private duplicate of
-// impl.go. It honors DefaultPlane, MinSeverity, resource stamping, Scope
+// state.go. It honors DefaultPlane, MinSeverity, resource stamping, Scope
 // correlation, and ships resource-stamped Records to Deps.Exporter on Flush, and
 // returns a *ConfigError on the same validation failures the real New rejects
 // (empty ServiceName, nil Exporter, nil Clock) so the NewValidationErrors property
@@ -36,7 +36,7 @@ func newFakeFromDeps(configuration observability.Config, dependencies observabil
 		"deployment.environment.name": configuration.Environment,
 	}
 	for k, v := range configuration.ResourceAttrs {
-		// ResourceAttrs never override the reserved OTel keys above (mirrors impl.go).
+		// ResourceAttrs never override the reserved OTel keys above (mirrors state.go).
 		if _, reserved := resource[k]; reserved {
 			continue
 		}

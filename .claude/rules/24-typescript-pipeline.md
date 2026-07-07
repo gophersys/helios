@@ -47,9 +47,10 @@ suite per mutant. The run FAILS if the mutation score dips below the per-lib **`
 (Stryker's `break` threshold). **`75` mirrors the Go leaf floor (gremlins ≥ 0.75)**; a
 substrate/large-surface lib records a lower CURRENT baseline that **ratchets** toward 75 — the
 bench-baseline model: pin the floor, never regress below it, raise it as test gaps close. Set the
-floor per-lib in the dispatcher `ctl.sh` (`EDEN_MUTATION_FLOOR=...`), not in shared `lib.sh`. Today:
-`@eden/scale` = 75 (score 77.78%), `@eden/theme` = 65 (score 66.24%; ratchets toward 75 as the
-generative-surface gaps in findings idx 60-67 close). `mutate` is a qa-gate dimension.
+floor per-lib in the dispatcher `ctl.sh` (`EDEN_MUTATION_FLOOR=...`), not in shared `lib.sh`. Today
+(the four-lib roster this rule governs): `@eden/scale` = 75 (score 77.78%), `@eden/theme` = 65
+(score 66.24%; ratchets toward 75 as the generative-surface gaps in findings idx 60-67 close),
+`@eden/primitives` = 75, `@eden/visualization` = 75. `mutate` is a qa-gate dimension.
 
 **When a mutant survives, strengthen the TEST to kill it — never lower the floor to pass.** Lowering
 `EDEN_MUTATION_FLOOR` is a recorded, reviewed re-baseline (like bench/apidiff), only ever DOWNWARD as

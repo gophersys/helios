@@ -39,7 +39,7 @@ func (e *recordingExporter) Export(ctx context.Context, records []observability.
 		case <-time.After(e.delay):
 		case <-ctx.Done():
 			// %w via fmt.Errorf IS the wrap; wrapcheck fires only because the shared
-			// config's custom ignore-sigs omits fmt.Errorf (same as impl.go Flush).
+			// config's custom ignore-sigs omits fmt.Errorf (same as state.go Flush).
 			//nolint:wrapcheck // %w via fmt.Errorf IS the wrap (stdlib-only leaf).
 			return fmt.Errorf("recordingExporter: %w", ctx.Err())
 		}
