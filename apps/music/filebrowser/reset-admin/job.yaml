@@ -32,7 +32,7 @@ spec:
         runAsUser: 0
       containers:
         - name: reset
-          image: filebrowser/filebrowser:v2
+          image: filebrowser/filebrowser:v2.31.2
           command:
             - sh
             - -c
