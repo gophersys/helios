@@ -64,6 +64,15 @@ jobs:
         run: yarn install --immutable
       - name: Install the TypeScript-libs workspace dependencies (bun)
         run: cd libs/typescript && bun install --frozen-lockfile
+      # The @eden/* package exports resolve through each lib's gitignored dist/ (built .js + .d.ts).
+      # Locally dist exists from dev builds, but a fresh checkout has none — without this step every
+      # affected TS lane (and the frontend, which consumes @eden/* via workspace:*) fails typecheck/
+      # lint with error-typed imports. Dependency order: scale → theme → visualization/primitives.
+      - name: Build the TypeScript libs (dist/ is gitignored; @eden/* exports resolve through it)
+        run: |
+          for lib in scale theme visualization primitives; do
+            (cd "libs/typescript/$lib" && bash ./ctl.sh build)
+          done
       - name: Run affected-check
         env:
           NX_BASE: ${{ github.event.before }}
