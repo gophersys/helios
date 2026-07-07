@@ -1,0 +1,53 @@
+# Daily tar of the hard-to-reproduce config PVCs (qBittorrent/Prowlarr/filebrowser
+# runtime state) onto the replicated Longhorn backup volume, 14-day retention.
+# Pinned to k3s-w-1 where the local-path config PVCs live (RWO, same node = OK).
+# Read-only mounts; a live SQLite/BoltDB tar is crash-consistent enough for a
+# homelab (the configs are also reproducible via config-enforce/SETUP.md/initC).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: config-backup
+  namespace: media
+  labels:
+    app.kubernetes.io/part-of: music
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            kubernetes.io/hostname: k3s-w-1
+          securityContext:
+            runAsUser: 0
+          containers:
+            - name: backup
+              image: busybox:1.36
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -e
+                  TS=$(date +%Y%m%d-%H%M)
+                  for src in qbittorrent-config prowlarr-config filebrowser-config; do
+                    tar czf "/backups/${src}-${TS}.tar.gz" -C "/src/${src}" . && echo "backed up ${src}"
+                  done
+                  find /backups -name '*.tar.gz' -mtime +14 -delete
+                  echo "backup complete: $(ls /backups/*.tar.gz 2>/dev/null | wc -l) archives on disk"
+              resources:
+                requests: { cpu: 25m, memory: 32Mi }
+                limits: { memory: 128Mi }
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+                - { name: qbit, mountPath: /src/qbittorrent-config, readOnly: true }
+                - { name: prowlarr, mountPath: /src/prowlarr-config, readOnly: true }
+                - { name: filebrowser, mountPath: /src/filebrowser-config, readOnly: true }
+          volumes:
+            - { name: backups, persistentVolumeClaim: { claimName: media-config-backups } }
+            - { name: qbit, persistentVolumeClaim: { claimName: qbittorrent-config } }
+            - { name: prowlarr, persistentVolumeClaim: { claimName: prowlarr-config } }
+            - { name: filebrowser, persistentVolumeClaim: { claimName: filebrowser-config } }
