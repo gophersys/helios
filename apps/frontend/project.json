@@ -29,6 +29,16 @@
       "executor": "nx:run-commands",
       "options": { "command": "bash ./ctl.sh typecheck", "cwd": "{projectRoot}" },
       "cache": false
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh unit", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh e2e", "cwd": "{projectRoot}" },
+      "cache": false
     }
   }
 }
