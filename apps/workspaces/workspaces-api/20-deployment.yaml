@@ -29,14 +29,27 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             # GitOps automation: create/destroy workspaces open PRs against this
-            # infra repo. OPTIONAL — without the token the API is read-only and
-            # create/delete return 503. Provide it via the `workspaces-github`
-            # Secret (a fine-grained bot PAT) — see docs/runtime-secrets.md.
-            - name: GITHUB_TOKEN
+            # infra repo. Auth via the gophersys-arc GitHub App — the API mints
+            # short-lived installation tokens at runtime (no static PAT). OPTIONAL:
+            # without the secret the API is read-only and create/delete return 503.
+            # Recreate from bw shared/github/arc-app — see docs/runtime-secrets.md.
+            - name: GITHUB_APP_ID
               valueFrom:
                 secretKeyRef:
-                  name: workspaces-github
-                  key: token
+                  name: workspaces-github-app
+                  key: github_app_id
+                  optional: true
+            - name: GITHUB_APP_INSTALLATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: workspaces-github-app
+                  key: github_app_installation_id
+                  optional: true
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: workspaces-github-app
+                  key: github_app_private_key
                   optional: true
             - name: GITHUB_OWNER
               value: gophersys
