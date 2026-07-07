@@ -23,8 +23,8 @@ jobs:
     container:
       image: ghcr.io/gophersys/base:latest
       credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: mateosegura
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
