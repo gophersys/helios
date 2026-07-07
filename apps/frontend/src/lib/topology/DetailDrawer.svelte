@@ -160,7 +160,7 @@
     border: 0;
     color: var(--eden-app-muted);
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--font-size-label);
   }
   header {
     display: flex;
@@ -173,11 +173,11 @@
   }
   .nm {
     font-weight: 700;
-    font-size: 16px;
+    font-size: var(--font-size-body);
   }
   .sub {
     color: var(--eden-app-muted);
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     font-family: var(--font-code);
   }
   .statusline {
@@ -188,13 +188,13 @@
   }
   .ready,
   .exp {
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     font-family: var(--font-code);
   }
   section h4 {
     margin: 0 0 8px;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--eden-app-muted);
@@ -211,7 +211,7 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     flex-wrap: wrap;
     margin-bottom: 6px;
   }
@@ -226,12 +226,12 @@
   }
   dt {
     color: var(--eden-app-muted);
-    font-size: 12px;
+    font-size: var(--font-size-caption);
   }
   dd {
     margin: 0;
     text-align: end;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -253,7 +253,7 @@
     border: 0;
     border-radius: 7px;
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-fg);
     cursor: pointer;
     text-align: start;
@@ -264,7 +264,7 @@
   .rel {
     color: var(--eden-app-muted);
     font-family: var(--font-code);
-    font-size: 11px;
+    font-size: var(--font-size-caption);
   }
   .other {
     font-weight: 500;
@@ -272,7 +272,7 @@
   .rns {
     margin-inline-start: auto;
     color: var(--eden-app-muted);
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     font-family: var(--font-code);
   }
   .mono {
@@ -287,7 +287,7 @@
     color: var(--eden-app-accent);
     font: inherit;
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--font-size-label);
     cursor: pointer;
   }
   .k9s:hover {

@@ -32,7 +32,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
   }
   .grp {
@@ -41,7 +41,7 @@
     gap: 5px;
   }
   .cap {
-    font-size: 10px;
+    font-size: var(--font-size-caption);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--eden-app-muted);

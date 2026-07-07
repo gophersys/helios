@@ -45,7 +45,7 @@
     border-radius: 9px;
     color: var(--eden-app-fg);
     box-shadow: 0 1px 2px color-mix(in oklab, var(--eden-app-fg) 8%, transparent);
-    font: 12px/1.3 var(--font-text);
+    font: var(--font-size-caption)/1.3 var(--font-text);
     position: relative;
     transition: opacity 140ms ease;
   }
@@ -75,7 +75,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     font-family: var(--font-code);
   }
   .st {

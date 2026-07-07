@@ -100,11 +100,11 @@
   }
   .word {
     font-weight: 700;
-    font-size: 16px;
+    font-size: var(--font-size-body);
     color: var(--eden-app-fg);
   }
   .sub {
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
   }
   .chips {
@@ -123,7 +123,7 @@
     background: color-mix(in oklab, var(--c) 9%, var(--eden-app-panel-bg));
     color: var(--eden-app-fg);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     cursor: pointer;
   }
   .chip b {
@@ -144,7 +144,7 @@
     border: 0;
     color: var(--eden-app-muted);
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     text-decoration: underline;
     cursor: pointer;
   }
@@ -160,12 +160,12 @@
     line-height: 1.1;
   }
   .tot b {
-    font-size: 16px;
+    font-size: var(--font-size-body);
     color: var(--eden-app-fg);
     font-variant-numeric: tabular-nums;
   }
   .tot span {
-    font-size: 10.5px;
+    font-size: var(--font-size-caption);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--eden-app-muted);
@@ -174,7 +174,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     font-family: var(--font-code);
   }

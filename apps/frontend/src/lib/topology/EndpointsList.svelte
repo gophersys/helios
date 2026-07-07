@@ -81,7 +81,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     cursor: pointer;
   }
@@ -111,7 +111,7 @@
   }
   .host {
     font-family: var(--font-code);
-    font-size: 13px;
+    font-size: var(--font-size-label);
     font-weight: 600;
     color: var(--eden-app-fg);
     text-decoration: none;
@@ -125,7 +125,7 @@
     border: 0;
     color: var(--eden-app-muted);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
   }
   .arr {
     color: var(--eden-app-muted);
@@ -138,7 +138,7 @@
     border-radius: 7px;
     padding: 3px 9px;
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--font-size-label);
     color: var(--eden-app-fg);
     cursor: pointer;
   }
@@ -151,7 +151,7 @@
   }
   .ns {
     margin-inline-start: auto;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     font-family: var(--font-code);
   }

@@ -139,13 +139,13 @@
   }
   .titles h1 {
     margin: 0;
-    font-size: 21px;
+    font-size: var(--font-size-body-large);
     font-weight: 700;
   }
   .titles p {
     margin: 3px 0 0;
     color: var(--eden-app-muted);
-    font-size: 13px;
+    font-size: var(--font-size-label);
   }
   .switch {
     display: inline-flex;
@@ -165,7 +165,7 @@
     background: none;
     color: var(--eden-app-muted);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--font-size-label);
     font-weight: 600;
     cursor: pointer;
   }
@@ -192,7 +192,7 @@
     border-bottom: 2px solid transparent;
     padding: 9px 14px;
     font: inherit;
-    font-size: 13.5px;
+    font-size: var(--font-size-label);
     font-weight: 600;
     color: var(--eden-app-muted);
     cursor: pointer;
@@ -220,7 +220,7 @@
     background: var(--eden-app-panel-bg);
     color: var(--eden-app-fg);
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--font-size-label);
   }
   .search input:focus {
     outline: 2px solid color-mix(in oklab, var(--eden-app-accent) 55%, transparent);
@@ -231,7 +231,7 @@
     border: 0;
     color: var(--eden-app-muted);
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     text-decoration: underline;
     cursor: pointer;
   }
@@ -256,7 +256,7 @@
     gap: 8px;
   }
   .cap {
-    font-size: 10px;
+    font-size: var(--font-size-caption);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--eden-app-muted);
@@ -276,7 +276,7 @@
     border: 0;
     border-radius: 7px;
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-fg);
     cursor: pointer;
     text-align: start;
@@ -296,7 +296,7 @@
   .nsc {
     color: var(--eden-app-muted);
     font-family: var(--font-code);
-    font-size: 11px;
+    font-size: var(--font-size-caption);
   }
   .surface {
     display: flex;

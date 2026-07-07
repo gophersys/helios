@@ -35,11 +35,11 @@
   }
   .sm {
     padding: 1px 8px 1px 6px;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
   }
   .md {
     padding: 3px 11px 3px 8px;
-    font-size: 12.5px;
+    font-size: var(--font-size-label);
   }
   .word {
     letter-spacing: 0.01em;

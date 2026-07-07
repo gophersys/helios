@@ -111,14 +111,14 @@
   .chev {
     color: var(--eden-app-muted);
     transition: transform 120ms ease;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
   }
   .chev.open {
     transform: rotate(90deg);
   }
   .nm {
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--font-size-label);
   }
   .spacer {
     flex: 1;
@@ -131,7 +131,7 @@
     padding: 0 14px 12px 34px;
   }
   .bd {
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     font-family: var(--font-code);
   }
@@ -140,7 +140,7 @@
     gap: 6px;
   }
   .badge {
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     border: 1px solid var(--eden-app-line);
     border-radius: 999px;
@@ -167,7 +167,7 @@
     border: 0;
     border-radius: 7px;
     font: inherit;
-    font-size: 12.5px;
+    font-size: var(--font-size-label);
     color: var(--eden-app-fg);
     cursor: pointer;
     text-align: start;
@@ -190,21 +190,21 @@
   .mk {
     color: var(--eden-app-muted);
     font-family: var(--font-code);
-    font-size: 11px;
+    font-size: var(--font-size-caption);
   }
   .pub {
-    font-size: 10px;
+    font-size: var(--font-size-caption);
   }
   .rep {
     margin-inline-start: auto;
     font-family: var(--font-code);
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
   }
   .none {
     list-style: none;
     color: var(--eden-app-muted);
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     padding: 6px 8px;
   }
   .ingraph {
@@ -215,7 +215,7 @@
     border-radius: 8px;
     color: var(--eden-app-accent);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     font-weight: 600;
     cursor: pointer;
   }

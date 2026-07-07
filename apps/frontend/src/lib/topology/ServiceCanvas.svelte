@@ -116,13 +116,13 @@
   }
   .hint {
     color: var(--eden-app-muted);
-    font-size: 12px;
+    font-size: var(--font-size-caption);
   }
   .scope {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-fg);
   }
   .scope button {
@@ -131,7 +131,7 @@
     border-radius: 7px;
     padding: 3px 8px;
     font: inherit;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     cursor: pointer;
   }
@@ -141,7 +141,7 @@
     gap: 5px;
   }
   .tlabel {
-    font-size: 10.5px;
+    font-size: var(--font-size-caption);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--eden-app-muted);
@@ -153,7 +153,7 @@
     border-radius: 999px;
     padding: 3px 11px;
     font: inherit;
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     cursor: pointer;
   }

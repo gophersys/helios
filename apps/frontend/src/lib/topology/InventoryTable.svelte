@@ -101,21 +101,21 @@
     overflow: auto;
   }
   .count {
-    font-size: 12px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
     padding: 6px 2px;
   }
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12.5px;
+    font-size: var(--font-size-label);
   }
   th {
     text-align: start;
     padding: 8px 10px;
     color: var(--eden-app-muted);
     font-weight: 600;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     border-bottom: 1px solid var(--eden-app-line);
@@ -129,7 +129,7 @@
     color: var(--eden-app-fg);
   }
   .caret {
-    font-size: 8px;
+    font-size: var(--font-size-caption);
     margin-inline-start: 4px;
   }
   td {
@@ -151,7 +151,7 @@
   }
   .mono {
     font-family: var(--font-code);
-    font-size: 11.5px;
+    font-size: var(--font-size-caption);
     color: var(--eden-app-muted);
   }
   .nm {
@@ -159,7 +159,7 @@
   }
   .pub {
     margin-inline-start: 6px;
-    font-size: 10px;
+    font-size: var(--font-size-caption);
   }
   .img {
     max-width: 280px;

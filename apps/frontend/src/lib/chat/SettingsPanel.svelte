@@ -4,14 +4,15 @@
   // dialog over a scrim (role="dialog", aria-modal, Escape + close + scrim-click dismiss, the panel
   // takes focus on open). Token-driven from @eden/theme — every color/size is a var().
   //
-  // Color mode: the +layout emits the dark token block ONLY under @media (prefers-color-scheme:
-  // dark), so an explicit Light/Dark choice can't be expressed by the layout alone. We honour the
-  // user's choice by writing data-theme on <html> and injecting an override stylesheet built from
-  // the SAME generated token blocks (edenLight/DarkCss) — math is still the one source, we just
-  // re-scope it under [data-theme='…']. 'System' clears the attribute and falls back to the media
-  // query the layout already ships.
+  // Color mode: this control is now a thin view over the app-wide ThemeProvider store
+  // (themePreference.svelte) — the ONE home for the light/dark/system choice (doc 17 §3). The store
+  // persists to the 'eden-theme' key and reflects onto <html data-theme>; the +layout's CSS is
+  // authored so that attribute switches the token block (light at :root+[data-theme='light'], dark
+  // at [data-theme='dark'] and under the OS media query when no explicit light choice is set). The
+  // panel keeps its user-visible 'System'/'Light'/'Dark' copy and its data-testids unchanged; it
+  // just maps them to the store's lowercase preference. Density remains panel-local.
   import type { Theme } from '@eden/theme';
-  import { edenLightCss, edenDarkCss } from '$lib/theme/edenTheme';
+  import { themePreference, type ThemePreference } from '$lib/theme/themePreference.svelte';
 
   let { open = $bindable(false), theme: _theme }: { open?: boolean; theme?: Theme } = $props();
 
@@ -21,14 +22,17 @@
   const COLOR_MODES: readonly ColorMode[] = ['System', 'Light', 'Dark'];
   const DENSITIES: readonly Density[] = ['Comfortable', 'Compact'];
 
-  const COLORMODE_KEY = 'eden.colormode';
   const DENSITY_KEY = 'eden.density';
 
-  // The override stylesheet that makes an explicit Light/Dark choice win over the layout's
-  // prefers-color-scheme block. Injected once, lazily; data-theme on <html> activates a block.
-  const OVERRIDE_STYLE_ID = 'eden-colormode-override';
-  const overrideCss = `:root[data-theme='light']{${edenLightCss.replace(/^:root\s*\{|\}\s*$/g, '')}}
-:root[data-theme='dark']{${edenDarkCss.replace(/^:root\s*\{|\}\s*$/g, '')}}`;
+  // The store speaks lowercase ('light'|'dark'|'system'); the panel's user-visible copy is
+  // capitalized. These two helpers translate between the display label and the store value.
+  const modeToPreference = (mode: ColorMode): ThemePreference =>
+    mode.toLowerCase() as ThemePreference;
+  const preferenceToMode = (preference: ThemePreference): ColorMode =>
+    (preference.charAt(0).toUpperCase() + preference.slice(1)) as ColorMode;
+
+  // The displayed color mode mirrors the store (reactive), so the active pill is correct on open.
+  const colorMode = $derived<ColorMode>(preferenceToMode(themePreference.value));
 
   function readStored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
     if (typeof localStorage === 'undefined') return fallback;
@@ -37,33 +41,9 @@
   }
 
   // svelte-ignore state_referenced_locally
-  let colorMode = $state<ColorMode>(readStored(COLORMODE_KEY, COLOR_MODES, 'System'));
-  // svelte-ignore state_referenced_locally
   let density = $state<Density>(readStored(DENSITY_KEY, DENSITIES, 'Comfortable'));
 
   let dialog = $state<HTMLDivElement | null>(null);
-
-  function ensureOverrideStyle(): void {
-    if (typeof document === 'undefined') return;
-    if (document.getElementById(OVERRIDE_STYLE_ID)) return;
-    const el = document.createElement('style');
-    el.id = OVERRIDE_STYLE_ID;
-    el.textContent = overrideCss;
-    document.head.appendChild(el);
-  }
-
-  function applyColorMode(mode: ColorMode): void {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    if (mode === 'System') {
-      root.removeAttribute('data-theme');
-      root.classList.remove('dark');
-      return;
-    }
-    ensureOverrideStyle();
-    root.setAttribute('data-theme', mode.toLowerCase());
-    root.classList.toggle('dark', mode === 'Dark');
-  }
 
   function applyDensity(value: Density): void {
     if (typeof document === 'undefined') return;
@@ -80,9 +60,8 @@
   }
 
   function chooseColorMode(mode: ColorMode): void {
-    colorMode = mode;
-    persist(COLORMODE_KEY, mode);
-    applyColorMode(mode);
+    // Delegate to the app-wide store: it persists + reflects onto <html data-theme> in one step.
+    themePreference.set(modeToPreference(mode));
   }
 
   function chooseDensity(value: Density): void {
@@ -91,11 +70,8 @@
     applyDensity(value);
   }
 
-  // Apply persisted preferences on mount (and keep them applied if they change) — the panel is the
-  // one home for these attributes, so it owns reflecting them onto <html> the moment it exists.
-  $effect(() => {
-    applyColorMode(colorMode);
-  });
+  // Keep density applied while the panel exists — it owns reflecting that attribute onto <html>.
+  // (Color mode is the store's job; the store reflects it on set + on the layout's mount.)
   $effect(() => {
     applyDensity(density);
   });

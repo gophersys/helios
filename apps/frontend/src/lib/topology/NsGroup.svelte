@@ -23,7 +23,7 @@
     justify-content: space-between;
     padding: 9px 12px;
     color: var(--eden-app-fg);
-    font: 600 12px/1 var(--font-text);
+    font: 600 var(--font-size-caption)/1 var(--font-text);
     letter-spacing: 0.02em;
   }
   .nm {
@@ -35,7 +35,7 @@
     border: 1px solid var(--eden-app-line);
     border-radius: 999px;
     padding: 2px 8px;
-    font-size: 11px;
+    font-size: var(--font-size-caption);
     font-weight: 600;
     font-family: var(--font-code);
   }
