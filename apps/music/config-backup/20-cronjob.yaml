@@ -1,5 +1,8 @@
 # Daily tar of the hard-to-reproduce config PVCs (qBittorrent/Prowlarr/filebrowser
-# runtime state) onto the replicated Longhorn backup volume, 14-day retention.
+# runtime state) onto the NVMe at /mnt/media/backups, 14-day retention. The NVMe is
+# a SEPARATE physical disk from the OS-disk local-path the config lives on, so an
+# OS-disk failure is recoverable. (Node-level/off-site backup is a future tier —
+# Longhorn couldn't co-schedule with the k3s-w-1-pinned local-path config PVCs.)
 # Pinned to k3s-w-1 where the local-path config PVCs live (RWO, same node = OK).
 # Read-only mounts; a live SQLite/BoltDB tar is crash-consistent enough for a
 # homelab (the configs are also reproducible via config-enforce/SETUP.md/initC).
@@ -47,7 +50,10 @@ spec:
                 - { name: prowlarr, mountPath: /src/prowlarr-config, readOnly: true }
                 - { name: filebrowser, mountPath: /src/filebrowser-config, readOnly: true }
           volumes:
-            - { name: backups, persistentVolumeClaim: { claimName: media-config-backups } }
+            - name: backups
+              hostPath:
+                path: /mnt/media/backups
+                type: DirectoryOrCreate
             - { name: qbit, persistentVolumeClaim: { claimName: qbittorrent-config } }
             - { name: prowlarr, persistentVolumeClaim: { claimName: prowlarr-config } }
             - { name: filebrowser, persistentVolumeClaim: { claimName: filebrowser-config } }
