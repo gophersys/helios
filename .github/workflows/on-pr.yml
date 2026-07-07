@@ -15,8 +15,8 @@ permissions:
   packages: read
 
 jobs:
-  # The minutes lane: lint/typecheck/test/leak/maintainability/vuln/sast/secretscan over the
-  # affected projects. Runs inside ghcr.io/gophersys/base, where every linter + Go tool is
+  # The minutes lane: lint/typecheck/test/leak/property/maintainability/vuln/sast/secretscan over
+  # the affected projects. Runs inside ghcr.io/gophersys/base, where every linter + Go tool is
   # present, so a missing tool is a HARD FAIL (each ctl.sh verb require_cmds it → exit 127),
   # never a silent skip (ADR-0020 §enforcement).
   fast:
@@ -27,21 +27,37 @@ jobs:
       credentials:
         username: mateosegura
         password: ${{ secrets.GHCR_PULL_TOKEN }}
+      # Job containers run as root (the GitHub Actions convention): the runner's file-command temp
+      # files are host-runner-owned, so the image's non-root dev user EACCESes them. The Go gate
+      # toolchain stays reachable — the image bakes it onto ENV PATH (uid-independent).
+      options: --user root
+    env:
+      # Keep the dev-user layout even as root: the nvm/corepack caches live under /home/dev and
+      # the image's ENV PATH carries the dev-homed tool dirs; root can write there.
+      HOME: /home/dev
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
+      # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
+      # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
+      - name: Expose the image's node toolchain (nvm) on PATH
+        run: |
+          . "$NVM_DIR/nvm.sh" && nvm use --silent default
+          dirname "$(command -v node)" >> "$GITHUB_PATH"
+      - name: Install workspace dependencies (yarn 4)
+        run: yarn install --immutable
       - name: Run affected-gate (fast)
         env:
           NX_BASE: origin/${{ github.base_ref }}
         run: bash .ci/ctl.sh affected-gate-fast
 
-  # The careful-orchestration lane: integration/load/lifecycle/bench-guard on the REAL
-  # docker + k3d host (ADR-0020 dimension (d)/(e)). The base image carries docker-cli + k3d +
-  # kind; the job starts the docker host and runs the real-substrate suites — mocks are not an
-  # acceptable substitute (ADR-0016 §2). Absent here too is a hard fail, not a skip.
+  # The careful-orchestration lane: integration/load/lifecycle/bench-guard/cover-floor/mutate on
+  # the REAL docker + k3d host (ADR-0020 dimension (d)/(e)). The base image carries docker-cli +
+  # k3d + kind; the job starts the docker host and runs the real-substrate suites — mocks are not
+  # an acceptable substitute (ADR-0016 §2). Absent here too is a hard fail, not a skip.
   substrate:
     name: affected-gate (substrate · real docker+k3d)
     # DEFERRED on GitHub-hosted runners: a privileged job container with the host docker socket +
@@ -57,14 +73,27 @@ jobs:
         username: mateosegura
         password: ${{ secrets.GHCR_PULL_TOKEN }}
       # Privileged + the docker socket so the real daemon and k3d/kind clusters come up inside
-      # the job (the careful-orchestration lane runs the substrate, it does not mock it).
-      options: --privileged -v /var/run/docker.sock:/var/run/docker.sock
+      # the job (the careful-orchestration lane runs the substrate, it does not mock it). Runs as
+      # root like every job container (the runner's file commands are host-runner-owned).
+      options: --privileged -v /var/run/docker.sock:/var/run/docker.sock --user root
+    env:
+      # Keep the dev-user layout even as root: the nvm/corepack caches live under /home/dev and
+      # the image's ENV PATH carries the dev-homed tool dirs; root can write there.
+      HOME: /home/dev
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
+      # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
+      # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
+      - name: Expose the image's node toolchain (nvm) on PATH
+        run: |
+          . "$NVM_DIR/nvm.sh" && nvm use --silent default
+          dirname "$(command -v node)" >> "$GITHUB_PATH"
+      - name: Install workspace dependencies (yarn 4)
+        run: yarn install --immutable
       - name: Start docker host (if not already provided by the runner)
         run: |
           if ! docker info >/dev/null 2>&1; then

@@ -25,12 +25,28 @@ jobs:
       credentials:
         username: mateosegura
         password: ${{ secrets.GHCR_PULL_TOKEN }}
+      # Job containers run as root (the GitHub Actions convention): the runner's file-command temp
+      # files are host-runner-owned, so the image's non-root dev user EACCESes them. The Go gate
+      # toolchain stays reachable — the image bakes it onto ENV PATH (uid-independent).
+      options: --user root
+    env:
+      # Keep the dev-user layout even as root: the nvm/corepack caches live under /home/dev and
+      # the image's ENV PATH carries the dev-homed tool dirs; root can write there.
+      HOME: /home/dev
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
+      # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
+      # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
+      - name: Expose the image's node toolchain (nvm) on PATH
+        run: |
+          . "$NVM_DIR/nvm.sh" && nvm use --silent default
+          dirname "$(command -v node)" >> "$GITHUB_PATH"
+      - name: Install workspace dependencies (yarn 4)
+        run: yarn install --immutable
       - name: Run affected-check
         env:
           NX_BASE: ${{ github.event.before }}
