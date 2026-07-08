@@ -62,12 +62,7 @@
           <span class="tree__name">{node.name}</span>
         </button>
         {#if !collapsed[node.path]}
-          <Self
-            nodes={node.children}
-            {selectedPath}
-            {onSelect}
-            depth={depth + 1}
-          />
+          <Self nodes={node.children} {selectedPath} {onSelect} depth={depth + 1} />
         {/if}
       </li>
     {:else}

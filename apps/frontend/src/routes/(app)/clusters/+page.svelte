@@ -43,7 +43,11 @@
     </div>
     <div class="switch" role="tablist" aria-label="cluster">
       {#each clusterList as c}
-        <button class="seg" class:active={clusters.clusterId === c.id} onclick={() => clusters.setCluster(c.id)}>
+        <button
+          class="seg"
+          class:active={clusters.clusterId === c.id}
+          onclick={() => clusters.setCluster(c.id)}
+        >
           <StatusGlyph status={c.status} size={10} />
           <span>{c.name}</span>
         </button>
@@ -57,7 +61,11 @@
     <nav class="tabs">
       <div class="lenses">
         {#each LENSES as l}
-          <button class="tab" class:active={clusters.lens === l.id} onclick={() => clusters.setLens(l.id)}>
+          <button
+            class="tab"
+            class:active={clusters.lens === l.id}
+            onclick={() => clusters.setLens(l.id)}
+          >
             {l.title}
           </button>
         {/each}

@@ -19,7 +19,10 @@
     model.namespaces.filter((ns) => {
       if (clusters.namespaces.size && !clusters.namespaces.has(ns.name)) return false;
       if (!filtering) return true;
-      return ns.members.some((m) => clusters.matches(m)) || ns.name.toLowerCase().includes(clusters.query.trim().toLowerCase());
+      return (
+        ns.members.some((m) => clusters.matches(m)) ||
+        ns.name.toLowerCase().includes(clusters.query.trim().toLowerCase())
+      );
     }),
   );
 

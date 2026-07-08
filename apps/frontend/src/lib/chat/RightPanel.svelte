@@ -21,7 +21,12 @@
   }: { session: ChatSession; agentType: AgentTypeDescriptor; theme: Theme } = $props();
 </script>
 
-<aside class="panel" data-testid="agent-panel" data-agent-type={agentType.id} aria-label="agent workspace panel">
+<aside
+  class="panel"
+  data-testid="agent-panel"
+  data-agent-type={agentType.id}
+  aria-label="agent workspace panel"
+>
   <header class="panel__head">
     <span class="panel__type" data-testid="panel-agent-type">
       <span class="panel__glyph" aria-hidden="true">{agentType.glyph}</span>
@@ -46,7 +51,11 @@
         <ProgressWidget {session} {theme} />
       {:else}
         <!-- any future widget id falls back to a labeled placeholder until its component lands -->
-        <section class="panel__placeholder" data-testid="panel-widget-placeholder" data-widget={widget}>
+        <section
+          class="panel__placeholder"
+          data-testid="panel-widget-placeholder"
+          data-widget={widget}
+        >
           <span class="panel__placeholder-title">{widget}</span>
           <span class="panel__placeholder-note">coming online</span>
         </section>

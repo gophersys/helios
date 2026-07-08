@@ -12,10 +12,15 @@
   let { data }: { data: { node: TopoNode; dimmed?: boolean } } = $props();
   const n = $derived(data.node);
   const sub = $derived(
-    n.meta.replicas ? `${n.meta.kind ?? classOf(n)} · ${n.meta.replicas}` :
-    n.meta.type ? `${n.meta.kind ?? classOf(n)} · ${n.meta.type}` :
-    n.meta.hosts ? n.meta.hosts :
-    n.meta.capacity ? `${n.meta.kind ?? classOf(n)} · ${n.meta.capacity}` : (n.meta.kind ?? classOf(n)),
+    n.meta.replicas
+      ? `${n.meta.kind ?? classOf(n)} · ${n.meta.replicas}`
+      : n.meta.type
+        ? `${n.meta.kind ?? classOf(n)} · ${n.meta.type}`
+        : n.meta.hosts
+          ? n.meta.hosts
+          : n.meta.capacity
+            ? `${n.meta.kind ?? classOf(n)} · ${n.meta.capacity}`
+            : (n.meta.kind ?? classOf(n)),
   );
 </script>
 

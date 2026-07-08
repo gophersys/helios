@@ -46,7 +46,8 @@
               <span class="file__dot" data-status={artifact.status} aria-hidden="true"></span>
               <span class="file__name">
                 {fileName(artifact.path)}
-                {#if dirName(artifact.path)}<span class="file__dir">{dirName(artifact.path)}</span>{/if}
+                {#if dirName(artifact.path)}<span class="file__dir">{dirName(artifact.path)}</span
+                  >{/if}
               </span>
               <span class="file__ops">
                 {#each artifact.operations as op (op)}<span class="file__op">{op}</span>{/each}

@@ -26,9 +26,7 @@
   // The Theme OBJECT handed to @eden/primitives tracks the RESOLVED colour mode, so a component whose
   // chrome is derived from the Theme (the Settings sheet, the ⌘K palette — not just the CSS cascade)
   // flips WITH the app when Appearance switches light/dark/system (doc 17 §3, "must actually retheme").
-  const theme = $derived(
-    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
-  );
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
   // The ONE Settings surface (doc 17 §7). `settingsSection` deep-links which section opens: the
   // sidebar user affordance (`user-settings-open`) lands on Agents; ⌘K's Settings lands on Agents too
   // (the platform-preference default). The Build view's top-bar `settings-open` lands on Appearance.
@@ -48,8 +46,12 @@
   const palette = new PaletteBus();
   provizePaletteBus(palette);
 
-  // The gateway-health chip surfaced on the shell header (once, per doc 17 §5). A distinct testid so
-  // the Build view's rail chip (the e2e-asserted `gateway-health`) stays the single canonical one.
+  // W5 (doc 17 §2 dedup): gateway health had THREE homes — this shell rail chip, the Build rail's
+  // e2e-asserted `gateway-health` chip, and the Settings→Connections status. The shell chip and the
+  // Build-rail chip said the same thing in the same place (both foot of a left rail), so the shell
+  // chip is removed; the canonical live indicator is the Build rail's `gateway-health` ('gateway up'),
+  // and Settings→Connections is the deliberate read-only detail surface (§7). The Settings surface
+  // still needs the live health, so we keep the probe here and feed it in below.
   let healthy = $state<boolean | null>(null);
   $effect(() => {
     void (async () => {
@@ -126,15 +128,6 @@
 <div class="shell" data-testid="app-shell">
   <aside class="shell__nav">
     <SideNav user={currentUser.user} nav={NAV} onSettings={() => openSettings('agents')} {theme} />
-    <div class="shell__health">
-      <span
-        class="shell__chip shell__chip--{healthy === null ? 'muted' : healthy ? 'ok' : 'warn'}"
-        data-testid="shell-gateway-health"
-        title="Agent gateway"
-      >
-        {healthy === null ? '…' : healthy ? 'gateway up' : 'gateway down'}
-      </span>
-    </div>
   </aside>
   <main class="shell__main">
     {@render children()}
@@ -179,36 +172,9 @@
     background: var(--eden-app-rail-bg);
     overflow-y: auto;
   }
-  /* The SideNav flexes to fill; the health chip pins at the foot of the rail. */
+  /* The SideNav flexes to fill the rail. */
   .shell__nav :global(.nav) {
     flex: 1;
-  }
-  .shell__health {
-    padding: var(--space-2, 8px) var(--space-4, 16px) var(--space-4, 16px);
-  }
-  .shell__chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35em;
-    font-family: var(--font-code);
-    font-size: var(--font-size-caption, 12px);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border-radius: 999px;
-    padding: 0.18rem 0.6rem;
-    line-height: 1.4;
-    white-space: nowrap;
-    background: color-mix(in oklab, var(--color-on-surface) 8%, var(--color-surface));
-    color: var(--eden-app-muted);
-  }
-  .shell__chip--ok {
-    background: var(--color-primary);
-    color: var(--color-on-primary);
-  }
-  .shell__chip--warn {
-    background: color-mix(in oklab, var(--color-warning) 22%, var(--color-surface));
-    color: var(--color-warning);
   }
   .shell__main {
     overflow-y: auto;

@@ -16,7 +16,8 @@
 <div class="tool" data-testid="tool-card" data-status={tool.status}>
   <div class="tool__call">
     <span class="tool__marker" data-status={tool.status} aria-hidden="true">⏺</span>
-    <span class="tool__name">{tool.name}</span>{#if args}<span class="tool__args">({args})</span>{/if}
+    <span class="tool__name">{tool.name}</span>{#if args}<span class="tool__args">({args})</span
+      >{/if}
     {#if tool.isHostTool}<span class="tool__tag">host</span>{/if}
     {#if tool.grantId}<span class="tool__tag" title="grant {tool.grantId}">grant</span>{/if}
   </div>

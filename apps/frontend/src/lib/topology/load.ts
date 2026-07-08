@@ -6,7 +6,10 @@ import type { ClusterSummary, Topology } from './contract';
 import { deriveCluster, type ClusterModel } from './model';
 import { worstOf } from './status';
 
-const modules = import.meta.glob<Topology>('./snapshots/*.json', { eager: true, import: 'default' });
+const modules = import.meta.glob<Topology>('./snapshots/*.json', {
+  eager: true,
+  import: 'default',
+});
 
 const topologies: Topology[] = Object.values(modules).sort((a, b) =>
   a.clusterName.localeCompare(b.clusterName),

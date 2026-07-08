@@ -16,9 +16,7 @@
   import ProjectSpineNav from '$lib/dashboard/ProjectSpineNav.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = $derived(
-    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
-  );
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
   const projectId = $derived(page.params.id ?? '');
 
   type Phase = 'loading' | 'ready' | 'empty' | 'error';
@@ -84,7 +82,8 @@
       return 'Eden analyzed this project but found nothing to chart yet — there is no analyzable source in the worktree. Once the build writes code, the hotspot map fills in.';
     }
     const kind = reason?.kind ?? 'unknown';
-    if (kind === 'not-found') return 'This project has no insight report — it may not exist, or its worktree is not on this node.';
+    if (kind === 'not-found')
+      return 'This project has no insight report — it may not exist, or its worktree is not on this node.';
     if (kind === 'unavailable')
       return 'The insight report is not available yet: the project has no materialized worktree, or the analysis exceeded its time budget. Try again once the build has run.';
     return reason?.message ?? 'The insight report could not be loaded.';
@@ -94,7 +93,7 @@
 <svelte:head><title>Eden — Insight</title></svelte:head>
 
 <div class="spine-page">
-  <ProjectSpineNav projectId={projectId} />
+  <ProjectSpineNav {projectId} />
 
   <div class="insight" data-testid="project-insight">
     {#if phase === 'loading'}
@@ -132,7 +131,11 @@
           body={degradeBody()}
         >
           {#snippet action()}
-            <Button variant="primary" {theme} onclick={() => goto(`/projects/${encodeURIComponent(projectId)}`)}>
+            <Button
+              variant="primary"
+              {theme}
+              onclick={() => goto(`/projects/${encodeURIComponent(projectId)}`)}
+            >
               Back to overview
             </Button>
           {/snippet}

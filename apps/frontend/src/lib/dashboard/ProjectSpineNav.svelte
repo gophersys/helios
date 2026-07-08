@@ -65,7 +65,11 @@
     font-weight: 500;
     border-block-end: 2px solid transparent;
     margin-block-end: -1px;
-    transition: color 120ms ease;
+    /* W5: the tab underline/colour move rides the theme motion tokens (nearest ladder step +
+       the standard on-screen easing), not a hand-set duration/curve. */
+    transition:
+      color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      border-block-end-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .spine__tab:hover {
     color: var(--eden-app-fg, var(--color-on-surface));

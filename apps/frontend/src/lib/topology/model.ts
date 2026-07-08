@@ -25,7 +25,15 @@ export interface ClusterModel {
 }
 
 const WORKLOAD_KINDS = new Set([
-  'deploy', 'deployment', 'sts', 'statefulset', 'ds', 'daemonset', 'cronjob', 'rollout', 'job',
+  'deploy',
+  'deployment',
+  'sts',
+  'statefulset',
+  'ds',
+  'daemonset',
+  'cronjob',
+  'rollout',
+  'job',
 ]);
 
 /** The robust resource CLASS — keyed off the authoritative k8s type (`meta.kind`) so a Deployment
@@ -78,7 +86,13 @@ function hostsOf(n: TopoNode): string[] {
     .filter(Boolean);
 }
 
-const blankByStatus = (): Record<Status, number> => ({ ok: 0, warn: 0, down: 0, progressing: 0, unknown: 0 });
+const blankByStatus = (): Record<Status, number> => ({
+  ok: 0,
+  warn: 0,
+  down: 0,
+  progressing: 0,
+  unknown: 0,
+});
 
 /** Derive the whole catalog from a raw Topology. */
 export function deriveCluster(topo: Topology): ClusterModel {
@@ -135,7 +149,12 @@ export function deriveCluster(topo: Topology): ClusterModel {
   }
   const namespaces: NamespaceSummary[] = [...byNs.entries()].map(([name, mem]) => {
     const byClass: Record<ResourceClass, number> = {
-      workload: 0, service: 0, ingress: 0, volume: 0, config: 0, other: 0,
+      workload: 0,
+      service: 0,
+      ingress: 0,
+      volume: 0,
+      config: 0,
+      other: 0,
     };
     const byStatus = blankByStatus();
     const hosts: string[] = [];
@@ -163,12 +182,20 @@ export function deriveCluster(topo: Topology): ClusterModel {
     } satisfies NamespaceSummary;
   });
   namespaces.sort(
-    (a, b) => severity(b.rollup) - severity(a.rollup) || b.total - a.total || a.name.localeCompare(b.name),
+    (a, b) =>
+      severity(b.rollup) - severity(a.rollup) || b.total - a.total || a.name.localeCompare(b.name),
   );
 
   // ── whole-cluster rollup ──────────────────────────────────────────────────────────────────────
   const byStatus = blankByStatus();
-  const totals = { workloads: 0, services: 0, ingresses: 0, namespaces: byNs.size, hosts: endpoints.length, volumes: 0 };
+  const totals = {
+    workloads: 0,
+    services: 0,
+    ingresses: 0,
+    namespaces: byNs.size,
+    hosts: endpoints.length,
+    volumes: 0,
+  };
   for (const m of members) {
     byStatus[m.status ?? 'unknown'] += 1;
     const c = classOf(m);

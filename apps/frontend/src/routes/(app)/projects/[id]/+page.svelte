@@ -33,9 +33,7 @@
   import { createGatewayWizardSource } from '$lib/chat/wizard/wizardSource';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = $derived(
-    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
-  );
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
 
   // The route id is reactive (the param can change without a remount on a client-side nav between
   // two project ids), so the poll re-targets when it does.
@@ -182,9 +180,7 @@
   // home here: the spine tab nav + ProjectOverview. Non-ready statuses fall through to the loading/
   // wizard/fault chrome below.
   const showOverview = $derived(
-    Boolean(project) &&
-      PROJECT_READY_STATUSES.has(displayStatus) &&
-      project?.status !== 'wizard',
+    Boolean(project) && PROJECT_READY_STATUSES.has(displayStatus) && project?.status !== 'wizard',
   );
 
   // The wizard's I/O seam, bound to the LIVE gateway: the supervisor session's workspace file
@@ -235,7 +231,7 @@
   <!-- W4: the OVERVIEW — the project spine's home (doc 17 §5). The spine tab nav (Overview | Build |
        Workspace | Insight) + the real Overview (status Badge · coordinates · summary). -->
   <div class="spine-page">
-    <ProjectSpineNav projectId={projectId} />
+    <ProjectSpineNav {projectId} />
     <ProjectOverview {project} {theme} />
   </div>
 {:else}

@@ -94,7 +94,15 @@ function captureCreateProjectRequest(
 ): Promise<{ name?: string; idea?: string; sessionId?: string; product?: ProductConfig }> {
   return page
     .waitForRequest((r: Request) => r.url().endsWith('/projects') && r.method() === 'POST')
-    .then((r) => r.postDataJSON() as { name?: string; idea?: string; sessionId?: string; product?: ProductConfig });
+    .then(
+      (r) =>
+        r.postDataJSON() as {
+          name?: string;
+          idea?: string;
+          sessionId?: string;
+          product?: ProductConfig;
+        },
+    );
 }
 
 // ── the UI-MATH audit: a mechanical, NON-VACUOUS a11y + contrast check on the LIVE rendered flow.
@@ -272,7 +280,10 @@ function assertCleanAudit(audit: AuditResult, where: string): void {
     audit.accentPainted,
     `${where}: the accent control must be painted (orphan-token guard)`,
   ).toBe(true);
-  expect(audit.samples, `${where}: the contrast audit must judge real text (non-vacuous)`).toBeGreaterThan(0);
+  expect(
+    audit.samples,
+    `${where}: the contrast audit must judge real text (non-vacuous)`,
+  ).toBeGreaterThan(0);
   expect(
     audit.unnamedControls,
     `${where}: every interactive control needs an accessible name`,
@@ -448,9 +459,10 @@ test.describe('create a new project — full-stack journey against a real dev-se
     const persistedProject = await projectBody;
     expect(persistedProject.product?.productName).toBe(EDITED_NAME);
     expect(persistedProject.sessionId).toBe(createdRes.id);
-    expect((await projectResponse).status(), 'the Project must actually persist (POST /projects 201)').toBe(
-      201,
-    );
+    expect(
+      (await projectResponse).status(),
+      'the Project must actually persist (POST /projects 201)',
+    ).toBe(201);
 
     // ── the flow closes and the chat view opens bound to the chosen harness ──────.
     await expect(flow).toBeHidden();
@@ -486,9 +498,9 @@ test.describe('create a new project — full-stack journey against a real dev-se
     // The opening turn is driven once, by the gateway — the client never fires a redundant second
     // prompt, so NO illegal-prompt conflict notice renders (the regression guard for the double-send
     // 409 that used to be filtered away above).
-    await expect(
-      page.getByTestId('notice').filter({ hasText: /illegal|conflict/i }),
-    ).toHaveCount(0);
+    await expect(page.getByTestId('notice').filter({ hasText: /illegal|conflict/i })).toHaveCount(
+      0,
+    );
     await expect(page.getByTestId('assistant-text')).toContainText('Hello, world', {
       timeout: 15_000,
     });
@@ -571,7 +583,9 @@ test.describe('create a new project — full-stack journey against a real dev-se
 
   // ── the THINKING screen (the "nice animation" while Eden scopes) is shown between SPARK and SCOPE.
   //    Delay the real propose just enough to OBSERVE it deterministically, then let it resolve. ──.
-  test('the scoping animation shows while Eden proposes, then resolves to scope', async ({ page }) => {
+  test('the scoping animation shows while Eden proposes, then resolves to scope', async ({
+    page,
+  }) => {
     await openChat(page);
     await page.getByTestId('new-session').first().click();
     await expect(page.getByTestId('create-flow')).toBeVisible();
@@ -717,7 +731,9 @@ test.describe('create a new project — full-stack journey against a real dev-se
   // ── the dashboard's Settings → Agents tab is a REAL editor: edit a per-agent-type config, save it
   //    (the PUT carries the parsed config), and prove it PERSISTS across a reload (loaded from the
   //    dev-serve's real AgentConfigStore — the same surface liveserve backs with Postgres). ──.
-  test('settings → agents: edit a per-agent-type config, save, and persist it', async ({ page }) => {
+  test('settings → agents: edit a per-agent-type config, save, and persist it', async ({
+    page,
+  }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', (e) => pageErrors.push(e.message));
 
@@ -761,8 +777,12 @@ test.describe('create a new project — full-stack journey against a real dev-se
     // (proving the round-trip persisted, not just an in-memory UI edit).
     await page.reload();
     await page.getByTestId('user-settings-open').click();
-    const reloaded = page.locator('[data-testid="agent-type-config"][data-agent-type="implementer"]');
-    await expect(reloaded.getByTestId('agent-type-config-model-input')).toHaveValue('claude-sonnet-4-6');
+    const reloaded = page.locator(
+      '[data-testid="agent-type-config"][data-agent-type="implementer"]',
+    );
+    await expect(reloaded.getByTestId('agent-type-config-model-input')).toHaveValue(
+      'claude-sonnet-4-6',
+    );
     await expect(reloaded.getByTestId('agent-type-config-grants-input')).toHaveValue('Read, Write');
     await expect(reloaded.getByTestId('agent-type-config-posture-input')).toHaveValue('strict');
 

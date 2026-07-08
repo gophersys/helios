@@ -49,7 +49,9 @@
 
 <section class="config" data-testid="agent-config" aria-label="agent session configuration">
   <header class="config__head">
-    <span class="config__glyph" data-testid="config-glyph" aria-hidden="true">{agentType.glyph}</span>
+    <span class="config__glyph" data-testid="config-glyph" aria-hidden="true"
+      >{agentType.glyph}</span
+    >
     <div class="config__heading">
       <h2 class="config__title">Agent configuration</h2>
       <p class="config__subtitle">What Eden knows about this session</p>

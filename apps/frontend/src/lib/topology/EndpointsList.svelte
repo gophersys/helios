@@ -15,7 +15,13 @@
       if (onlyBroken && e.status === 'ok') return false;
       if (clusters.namespaces.size && !clusters.namespaces.has(e.namespace)) return false;
       const q = clusters.query.trim().toLowerCase();
-      if (q && !`${e.host} ${e.namespace} ${e.service?.name ?? ''} ${e.workload?.name ?? ''}`.toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        !`${e.host} ${e.namespace} ${e.service?.name ?? ''} ${e.workload?.name ?? ''}`
+          .toLowerCase()
+          .includes(q)
+      )
+        return false;
       return true;
     }),
   );
@@ -52,7 +58,10 @@
           {e.service?.name ?? '—'}{#if e.port}<span class="port">:{e.port}</span>{/if}
         </button>
         <span class="arr">→</span>
-        <button class="seg wl" onclick={() => clusters.focus((e.workload ?? e.service ?? e.ingress).id)}>
+        <button
+          class="seg wl"
+          onclick={() => clusters.focus((e.workload ?? e.service ?? e.ingress).id)}
+        >
           {e.workload?.name ?? e.service?.name ?? e.ingress.name}
         </button>
         <span class="ns">{e.namespace}</span>

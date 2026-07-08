@@ -470,7 +470,10 @@ export class ChatSession {
     // retry is still allowed.
     const index = this.permissionIndex.get(requestId);
     const current = index != null ? this.entries[index] : undefined;
-    if (current?.role === 'permission' && (current.permission.resolving || current.permission.decision !== 'pending')) {
+    if (
+      current?.role === 'permission' &&
+      (current.permission.resolving || current.permission.decision !== 'pending')
+    ) {
       return;
     }
     this.markResolving(requestId, true);

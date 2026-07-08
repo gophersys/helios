@@ -17,7 +17,11 @@
   const metaRows = $derived(
     node ? Object.entries(node.meta).filter(([k, v]) => v && k !== 'hosts' && k !== 'kind') : [],
   );
-  const hosts = $derived(model.endpoints.filter((e) => e.ingress.id === node?.id || e.service?.id === node?.id || e.workload?.id === node?.id));
+  const hosts = $derived(
+    model.endpoints.filter(
+      (e) => e.ingress.id === node?.id || e.service?.id === node?.id || e.workload?.id === node?.id,
+    ),
+  );
 
   // 1-hop neighbours from the edges (excluding the grouping `contains`).
   const links = $derived(
@@ -43,7 +47,11 @@
   import { buildK9sUrl } from './k9s';
   function openK9s(): void {
     if (!node) return;
-    const url = buildK9sUrl({ hostname: window.location.hostname, clusterId: model.topo.clusterId, node });
+    const url = buildK9sUrl({
+      hostname: window.location.hostname,
+      clusterId: model.topo.clusterId,
+      node,
+    });
     // Open a FULL TAB, not a popup: passing a window-features string (even 'noopener') makes the
     // browser open a small popup window (the k9s terminal then can't fill the viewport / steals
     // focus poorly). Omit features → a real tab; null the opener to keep the same isolation.
@@ -63,7 +71,9 @@
       <span class="ic"><KindIcon kind={node.kind} size={22} /></span>
       <div>
         <div class="nm">{node.name}</div>
-        <div class="sub">{node.meta.kind ?? classOf(node)}{node.namespace ? ` · ${node.namespace}` : ''}</div>
+        <div class="sub">
+          {node.meta.kind ?? classOf(node)}{node.namespace ? ` · ${node.namespace}` : ''}
+        </div>
       </div>
     </header>
 
@@ -79,7 +89,9 @@
         {#each hosts as e}
           <div class="chain">
             <StatusGlyph status={e.status} size={11} />
-            <span class="mono">{e.host}{#if e.port}:{e.port}{/if}</span>
+            <span class="mono"
+              >{e.host}{#if e.port}:{e.port}{/if}</span
+            >
             <span class="arr">→</span>
             <span>{e.service?.name ?? '—'}</span>
             <span class="arr">→</span>
@@ -119,7 +131,11 @@
       </section>
     {/if}
 
-    <button class="k9s" onclick={openK9s} title="Open a live k9s session for this resource (new tab)">
+    <button
+      class="k9s"
+      onclick={openK9s}
+      title="Open a live k9s session for this resource (new tab)"
+    >
       ⎈ Open in k9s
     </button>
   </aside>

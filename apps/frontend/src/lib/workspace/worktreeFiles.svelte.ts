@@ -196,9 +196,7 @@ export class WorktreeStore {
 /** defaultSelection picks the most salient generated asset to open first: the project's PRODUCT.md
  *  (or any markdown under init/product/), else the first markdown, else the first file. Pure. */
 export function defaultSelection(files: readonly WorktreeFile[]): string {
-  const productMd = files.find(
-    (f) => /(^|\/)product\//i.test(f.path) && /\.md$/i.test(f.path),
-  );
+  const productMd = files.find((f) => /(^|\/)product\//i.test(f.path) && /\.md$/i.test(f.path));
   if (productMd) return productMd.path;
   const anyMd = files.find((f) => /\.md$/i.test(f.path));
   if (anyMd) return anyMd.path;

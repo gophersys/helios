@@ -104,7 +104,10 @@ async function stubGateway(page: Page, insightMode: 'report' | 'unavailable'): P
         } else {
           await route.fulfill({
             status: 503,
-            json: { kind: 'unavailable', message: 'no worktree is materialized for this project yet' },
+            json: {
+              kind: 'unavailable',
+              message: 'no worktree is materialized for this project yet',
+            },
           });
         }
         return;
@@ -185,7 +188,9 @@ test.describe('project spine — Overview + Insight over a fake project + report
     // the endpoint 503s → the Insight view renders the explanatory EmptyState, NEVER a hung spinner or
     // a fake chart (P-D6).
     await expect(page.getByTestId('insight-empty')).toBeVisible();
-    await expect(page.getByTestId('insight-empty')).toContainText(/not available|time budget|worktree/i);
+    await expect(page.getByTestId('insight-empty')).toContainText(
+      /not available|time budget|worktree/i,
+    );
     await expect(page.getByTestId('insight-hotspot')).toBeHidden();
     await expect(page.getByTestId('insight-loading')).toBeHidden();
 

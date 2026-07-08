@@ -53,11 +53,30 @@ export function deriveTargets(config: ProductConfig): PlatformTarget[] {
   if (
     kind === 'ui' ||
     kind === 'application' ||
-    includesAny(frameworks, ['svelte', 'react', 'vue', 'next', 'astro', 'solid', 'angular', 'remix'])
+    includesAny(frameworks, [
+      'svelte',
+      'react',
+      'vue',
+      'next',
+      'astro',
+      'solid',
+      'angular',
+      'remix',
+    ])
   ) {
     selected.add('web');
   }
-  if (includesAny(frameworks, ['flutter', 'react-native', 'expo', 'swiftui', 'kotlin', 'ionic', 'capacitor'])) {
+  if (
+    includesAny(frameworks, [
+      'flutter',
+      'react-native',
+      'expo',
+      'swiftui',
+      'kotlin',
+      'ionic',
+      'capacitor',
+    ])
+  ) {
     selected.add('mobile');
   }
   if (includesAny(frameworks, ['electron', 'tauri', 'wails', 'qt'])) {

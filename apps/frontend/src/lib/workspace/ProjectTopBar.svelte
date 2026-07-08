@@ -84,7 +84,9 @@
       <span class="ptbar__brand-name">Eden</span>
     </button>
     <span class="ptbar__sep" aria-hidden="true">/</span>
-    <span class="ptbar__project" data-testid="project-name" title={project.name}>{project.name}</span>
+    <span class="ptbar__project" data-testid="project-name" title={project.name}
+      >{project.name}</span
+    >
   </div>
 
   <!-- center: git info — branch · last commit · repo -->

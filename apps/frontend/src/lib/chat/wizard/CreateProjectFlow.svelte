@@ -191,7 +191,9 @@
             <span class="orbit__dot orbit__dot--2"></span>
             <span class="orbit__dot orbit__dot--3"></span>
           </div>
-          <p class="thinking-line" data-testid="create-thinking-line" role="status">{thinkingLine}</p>
+          <p class="thinking-line" data-testid="create-thinking-line" role="status">
+            {thinkingLine}
+          </p>
         </div>
       {:else}
         <div class="spark-body">
@@ -275,7 +277,9 @@
 
   {#snippet footer()}
     {#if step === 'spark'}
-      <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}>Cancel</button>
+      <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}
+        >Cancel</button
+      >
       <button
         type="button"
         class="btn btn--accent"
@@ -285,9 +289,13 @@
       >
     {:else if step === 'thinking'}
       <span class="nav-spacer"></span>
-      <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}>Cancel</button>
+      <button type="button" class="btn" data-testid="create-cancel" onclick={oncancel}
+        >Cancel</button
+      >
     {:else if step === 'review'}
-      <button type="button" class="btn" data-testid="create-back" onclick={backToSpark}>← Back</button>
+      <button type="button" class="btn" data-testid="create-back" onclick={backToSpark}
+        >← Back</button
+      >
       <button
         type="button"
         class="btn btn--accent"
@@ -594,10 +602,11 @@
     background: var(--panel-bg);
     color: var(--fg);
     cursor: pointer;
+    /* W5: the wizard buttons ride the theme motion tokens (nearest ladder step + standard easing). */
     transition:
-      border-color 0.12s ease,
-      background 0.12s ease,
-      transform 0.08s ease;
+      border-color var(--duration-short-2, 0.12s) var(--ease-standard, ease),
+      background var(--duration-short-2, 0.12s) var(--ease-standard, ease),
+      transform var(--duration-short-1, 0.08s) var(--ease-standard, ease);
   }
   .btn:hover:not(:disabled) {
     border-color: var(--accent);

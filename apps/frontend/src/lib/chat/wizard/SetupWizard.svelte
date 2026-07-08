@@ -341,11 +341,14 @@
           </div>
         {:else}
           <p class="lead">
-            The supervisor committed {questions.length} question{questions.length === 1
-              ? ''
-              : 's'}. Review them, then answer.
+            The supervisor committed {questions.length} question{questions.length === 1 ? '' : 's'}.
+            Review them, then answer.
           </p>
-          <ul class="questions questions--preview" role="list" data-testid="setup-question-preview-list">
+          <ul
+            class="questions questions--preview"
+            role="list"
+            data-testid="setup-question-preview-list"
+          >
             {#each questions as state (state.question.id)}
               <li
                 class="question"
@@ -436,7 +439,9 @@
         onclick={toDescribe}>Continue →</button
       >
     {:else if step === 'describe'}
-      <button type="button" class="btn" data-testid="setup-back" onclick={backToStacks}>← Back</button>
+      <button type="button" class="btn" data-testid="setup-back" onclick={backToStacks}
+        >← Back</button
+      >
       <button
         type="button"
         class="btn btn--accent"
@@ -445,7 +450,9 @@
         onclick={submitBrief}>{sending ? 'Sending…' : 'Send to supervisor →'}</button
       >
     {:else if step === 'questionnaire'}
-      <button type="button" class="btn" data-testid="setup-back" onclick={backToDescribe}>← Back</button>
+      <button type="button" class="btn" data-testid="setup-back" onclick={backToDescribe}
+        >← Back</button
+      >
       <button
         type="button"
         class="btn btn--accent"
@@ -534,10 +541,11 @@
     cursor: pointer;
     text-align: start;
     font: inherit;
+    /* W5: the stack toggles ride the theme motion tokens (nearest ladder step + standard easing). */
     transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      transform 0.08s ease;
+      border-color var(--duration-short-3, 0.15s) var(--ease-standard, ease),
+      background var(--duration-short-3, 0.15s) var(--ease-standard, ease),
+      transform var(--duration-short-1, 0.08s) var(--ease-standard, ease);
   }
   .stack:hover {
     border-color: color-mix(in oklab, var(--accent) 55%, var(--panel-line));
@@ -742,9 +750,9 @@
     color: var(--fg);
     cursor: pointer;
     transition:
-      border-color 0.12s ease,
-      background 0.12s ease,
-      transform 0.08s ease;
+      border-color var(--duration-short-2, 0.12s) var(--ease-standard, ease),
+      background var(--duration-short-2, 0.12s) var(--ease-standard, ease),
+      transform var(--duration-short-1, 0.08s) var(--ease-standard, ease);
   }
   .btn:hover:not(:disabled) {
     border-color: var(--accent);

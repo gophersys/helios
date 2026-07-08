@@ -37,8 +37,13 @@ export interface BuildOptions {
   focusId?: string | null;
 }
 
-const CELL_W = 190, CELL_H = 74, GAP = 14, HEADER = 34, PAD = 14;
-const SHELF_W = 1680, NS_GAP = 28;
+const CELL_W = 190,
+  CELL_H = 74,
+  GAP = 14,
+  HEADER = 34,
+  PAD = 14;
+const SHELF_W = 1680,
+  NS_GAP = 28;
 
 // Edge styling reads ONLY generated tokens — meaning, not decoration.
 const EDGE_STYLE: Record<EdgeKind, string> = {
@@ -49,7 +54,10 @@ const EDGE_STYLE: Record<EdgeKind, string> = {
   contains: '',
 };
 
-export function buildFlow(topo: Topology, opts: BuildOptions): { nodes: FlowNode[]; edges: FlowEdge[] } {
+export function buildFlow(
+  topo: Topology,
+  opts: BuildOptions,
+): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const scope = opts.scope && opts.scope.size ? opts.scope : null;
   const keepMember = (n: TopoNode) =>
     n.kind !== 'namespace' && (!scope || (n.namespace != null && scope.has(n.namespace)));
@@ -83,7 +91,9 @@ export function buildFlow(topo: Topology, opts: BuildOptions): { nodes: FlowNode
   const namespaces = [...byNs.entries()].sort((a, b) => b[1].length - a[1].length);
 
   const nodes: FlowNode[] = [];
-  let shelfX = 0, shelfY = 0, shelfMaxH = 0;
+  let shelfX = 0,
+    shelfY = 0,
+    shelfMaxH = 0;
 
   for (const [ns, mem] of namespaces) {
     const cols = Math.min(4, Math.ceil(Math.sqrt(mem.length)));
@@ -98,16 +108,29 @@ export function buildFlow(topo: Topology, opts: BuildOptions): { nodes: FlowNode
     }
     const gid = `ns/${ns}`;
     nodes.push({
-      id: gid, type: 'nsgroup', position: { x: shelfX, y: shelfY },
-      data: { name: ns, count: mem.length }, width: w, height: h,
-      draggable: false, selectable: false, style: `width:${w}px;height:${h}px;`,
+      id: gid,
+      type: 'nsgroup',
+      position: { x: shelfX, y: shelfY },
+      data: { name: ns, count: mem.length },
+      width: w,
+      height: h,
+      draggable: false,
+      selectable: false,
+      style: `width:${w}px;height:${h}px;`,
     });
     mem.forEach((m, i) => {
-      const c = i % cols, r = Math.floor(i / cols);
+      const c = i % cols,
+        r = Math.floor(i / cols);
       nodes.push({
-        id: m.id, type: 'service', parentId: gid, extent: 'parent',
+        id: m.id,
+        type: 'service',
+        parentId: gid,
+        extent: 'parent',
         position: { x: PAD + c * (CELL_W + GAP), y: HEADER + PAD + r * (CELL_H + GAP) },
-        data: { node: m, dimmed: dim(m.id) }, draggable: false, width: CELL_W, height: CELL_H,
+        data: { node: m, dimmed: dim(m.id) },
+        draggable: false,
+        width: CELL_W,
+        height: CELL_H,
       });
     });
     shelfX += w + NS_GAP;
@@ -117,8 +140,12 @@ export function buildFlow(topo: Topology, opts: BuildOptions): { nodes: FlowNode
   return {
     nodes,
     edges: linkEdges.map((e) => ({
-      id: e.id, source: e.source, target: e.target, type: 'bezier',
-      animated: false, data: { kind: e.kind },
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: 'bezier',
+      animated: false,
+      data: { kind: e.kind },
       style: `${EDGE_STYLE[e.kind] || EDGE_STYLE.selects}${dim(e.source) || dim(e.target) ? ';opacity:.12' : ''}`,
     })),
   };

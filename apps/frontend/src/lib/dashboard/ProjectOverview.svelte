@@ -101,13 +101,21 @@
         <dt>Repository</dt>
         <dd>
           {#if project.repoUrl}
-            <a class="mono link" href={project.repoUrl} target="_blank" rel="noreferrer noopener" data-testid="overview-repo">{project.repoUrl}</a>
+            <a
+              class="mono link"
+              href={project.repoUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              data-testid="overview-repo">{project.repoUrl}</a
+            >
           {:else}
             <span class="mono muted" data-testid="overview-repo">not provisioned yet</span>
           {/if}
         </dd>
         <dt>Branch</dt>
-        <dd><code class="mono" data-testid="overview-branch">{project.defaultBranch || '—'}</code></dd>
+        <dd>
+          <code class="mono" data-testid="overview-branch">{project.defaultBranch || '—'}</code>
+        </dd>
         <dt>Build session</dt>
         <dd><code class="mono" data-testid="overview-session">{sessionId || '—'}</code></dd>
       </dl>

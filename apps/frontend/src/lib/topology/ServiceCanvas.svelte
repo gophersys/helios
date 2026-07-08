@@ -70,7 +70,11 @@
     <div class="toggles">
       <span class="tlabel">edges</span>
       {#each EDGE_TOGGLES as t}
-        <button class="tg" class:on={clusters.mapEdges.has(t.kind)} onclick={() => clusters.toggleEdge(t.kind)}>
+        <button
+          class="tg"
+          class:on={clusters.mapEdges.has(t.kind)}
+          onclick={() => clusters.toggleEdge(t.kind)}
+        >
           {t.label}
         </button>
       {/each}
@@ -92,7 +96,12 @@
     >
       <Background gap={20} bgColor="var(--eden-app-bg)" patternColor={mm.outline} />
       <Controls showLock={false} />
-      <MiniMap pannable zoomable nodeColor={mm.outline} maskColor="color-mix(in oklab, var(--eden-app-bg) 65%, transparent)" />
+      <MiniMap
+        pannable
+        zoomable
+        nodeColor={mm.outline}
+        maskColor="color-mix(in oklab, var(--eden-app-bg) 65%, transparent)"
+      />
     </SvelteFlow>
   </div>
 </div>

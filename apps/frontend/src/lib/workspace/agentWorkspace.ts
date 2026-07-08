@@ -29,9 +29,24 @@ export const AGENT_TYPES: Record<string, AgentTypeDescriptor> = {
   // "less is more": each type mounts only the widgets it needs (live activity already lives in the
   // conversation's status bars, so it is not duplicated as a panel widget). 'workspace' is the
   // tool-derived (instant) file view; 'files' is the on-disk ground-truth tree (it starts collapsed).
-  implementer: { id: 'implementer', label: 'Implementer', glyph: '⚙', widgets: ['workspace', 'files'] },
-  architect: { id: 'architect', label: 'Architect', glyph: '◳', widgets: ['documents', 'decisions', 'files'] },
-  supervisor: { id: 'supervisor', label: 'Supervisor', glyph: '⌖', widgets: ['agents', 'progress'] },
+  implementer: {
+    id: 'implementer',
+    label: 'Implementer',
+    glyph: '⚙',
+    widgets: ['workspace', 'files'],
+  },
+  architect: {
+    id: 'architect',
+    label: 'Architect',
+    glyph: '◳',
+    widgets: ['documents', 'decisions', 'files'],
+  },
+  supervisor: {
+    id: 'supervisor',
+    label: 'Supervisor',
+    glyph: '⌖',
+    widgets: ['agents', 'progress'],
+  },
   entrypoint: { id: 'entrypoint', label: 'Entry point', glyph: '⎈', widgets: ['files'] },
 };
 

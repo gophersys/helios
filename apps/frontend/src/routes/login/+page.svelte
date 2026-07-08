@@ -9,7 +9,6 @@
   // it works. The screen is a real brand moment (◆ + serif display, the platform line) over the
   // @eden/primitives Field/Input/Button, with a SOLID accent submit (no washed-out look).
   import { goto } from '$app/navigation';
-  import { browser } from '$app/environment';
   import { Field, Input, Button } from '@eden/primitives';
   import { currentUser } from '$lib/platform/currentUser.svelte';
   import { PlatformClient, PlatformError, type PlatformUser } from '$lib/platform/client';
@@ -20,21 +19,11 @@
 
   // The @eden/primitives Field/Input/Button derive their appearance from the theme OBJECT handed in
   // (not the runtime data-theme CSS switch), so on the login — a bare route outside the shell — we
-  // resolve the ACTIVE mode reactively (the persisted light/dark choice, or the OS when 'system') and
-  // hand the matching generated theme. That keeps the honest chrome tracking dark mode (doc 17 §3/§7).
-  let systemDark = $state(false);
-  $effect(() => {
-    if (!browser) return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    systemDark = mq.matches;
-    const onChange = (e: MediaQueryListEvent) => (systemDark = e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  });
-  const isDark = $derived(
-    themePreference.value === 'dark' || (themePreference.value === 'system' && systemDark),
-  );
-  const theme = $derived(isDark ? edenDarkTheme : edenLightTheme);
+  // resolve the ACTIVE mode reactively and hand the matching generated theme. W5: the OS/preference
+  // resolution lives in ONE home — themePreference.resolvedMode (W4 added it, folding light/dark/system
+  // and the live OS-dark signal); the login no longer re-implements its own matchMedia $effect. That
+  // keeps the honest chrome tracking dark mode (doc 17 §3/§7) off the single source of truth.
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
 
   // The seeded default user (the public bootstrap) names the dev shortcut. A LOCAL hint only (not the
   // authenticated session) — login() establishes the real session. A failure leaves the shortcut hidden.

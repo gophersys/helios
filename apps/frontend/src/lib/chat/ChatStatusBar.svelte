@@ -88,7 +88,9 @@
   {/if}
   {#if busy}
     <span class="statusbar__sep" aria-hidden="true">·</span>
-    <span class="statusbar__elapsed" data-testid="agent-status-elapsed">{formatElapsed(elapsedMs)}</span>
+    <span class="statusbar__elapsed" data-testid="agent-status-elapsed"
+      >{formatElapsed(elapsedMs)}</span
+    >
     <span class="statusbar__hint">esc to interrupt</span>
   {/if}
 </div>

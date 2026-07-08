@@ -68,7 +68,8 @@
   // Setting it rethemes LIVE (the store persists + reflects onto <html data-theme> in one step).
   type ColorMode = 'System' | 'Light' | 'Dark';
   const COLOR_MODES: readonly ColorMode[] = ['System', 'Light', 'Dark'];
-  const modeToPreference = (mode: ColorMode): ThemePreference => mode.toLowerCase() as ThemePreference;
+  const modeToPreference = (mode: ColorMode): ThemePreference =>
+    mode.toLowerCase() as ThemePreference;
   const preferenceToMode = (preference: ThemePreference): ColorMode =>
     (preference.charAt(0).toUpperCase() + preference.slice(1)) as ColorMode;
   const colorMode = $derived<ColorMode>(preferenceToMode(themePreference.value));
@@ -249,7 +250,9 @@
       <section class="pane" data-testid="settings-panel-agents">
         <header class="pane__intro">
           <h3 class="pane__title">Agent defaults</h3>
-          <p class="pane__subtitle">The out-of-the-box configuration each agent type starts from.</p>
+          <p class="pane__subtitle">
+            The out-of-the-box configuration each agent type starts from.
+          </p>
         </header>
 
         {#if loadError}
@@ -380,7 +383,11 @@
           <dt>Agent gateway</dt>
           <dd>
             <span class="conn conn--{gatewayState}" data-testid="settings-connection-gateway">
-              {gatewayState === 'unknown' ? 'checking…' : gatewayState === 'up' ? 'connected' : 'unreachable'}
+              {gatewayState === 'unknown'
+                ? 'checking…'
+                : gatewayState === 'up'
+                  ? 'connected'
+                  : 'unreachable'}
             </span>
             <code class="mono endpoint">{gatewayLabel}</code>
           </dd>
@@ -489,7 +496,10 @@
     display: inline-flex;
     gap: var(--space-1, 4px);
     padding: var(--space-1, 4px);
-    background: var(--eden-app-rail-bg, color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface)));
+    background: var(
+      --eden-app-rail-bg,
+      color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
+    );
     border: 1px solid var(--eden-app-line, var(--color-outline));
     border-radius: var(--eden-app-radius, 8px);
     inline-size: fit-content;
@@ -504,10 +514,11 @@
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 14px);
     cursor: pointer;
+    /* W5: the colour-mode segmented control rides the theme motion tokens. */
     transition:
-      color 120ms ease,
-      background 120ms ease,
-      border-color 120ms ease;
+      color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .seg__opt:hover {
     color: var(--eden-app-fg, var(--color-on-surface));
@@ -556,7 +567,10 @@
     flex: none;
     border: 1px solid var(--eden-app-line, var(--color-outline));
     border-radius: var(--eden-app-radius, 4px);
-    background: var(--eden-app-rail-bg, color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface)));
+    background: var(
+      --eden-app-rail-bg,
+      color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
+    );
     color: var(--color-primary);
     font-size: var(--font-size-body-large, 15px);
   }
@@ -565,12 +579,16 @@
     font-weight: 600;
     color: var(--eden-app-fg, var(--color-on-surface));
   }
+  /* W5: the config grid previously used a `gap: 1px` over a line-coloured background to draw the cell
+     separators — but a `max-content` key column leaves a wide strip of that background exposed between
+     the label and value columns (the "odd darker column band"). Draw the separators as real cell
+     borders instead (gap: 0), so every cell fills its track flush and no band shows in either theme.
+     The key column is a fixed fraction, not `max-content`, so the seam sits at a stable position. */
   .agent__grid {
     margin: 0;
     display: grid;
-    grid-template-columns: minmax(8rem, max-content) 1fr;
-    gap: 1px;
-    background: var(--eden-app-line, var(--color-outline));
+    grid-template-columns: minmax(8rem, 0.4fr) 1fr;
+    gap: 0;
     border: 1px solid var(--eden-app-line, var(--color-outline));
     border-radius: var(--eden-app-radius, 4px);
     overflow: hidden;
@@ -583,11 +601,18 @@
     background: var(--eden-app-panel-bg, var(--color-surface));
     padding: var(--space-2, 8px) var(--space-3, 12px);
     min-inline-size: 0;
+    border-block-start: 1px solid var(--eden-app-line, var(--color-outline));
+  }
+  /* the first row (Panel widgets · key + val) sits flush under the card border — no top rule. */
+  .row:first-child .row__key,
+  .row:first-child .row__val {
+    border-block-start: none;
   }
   .row__key {
     font-size: var(--font-size-label, 13px);
     color: var(--eden-app-muted, var(--color-outline));
     white-space: nowrap;
+    border-inline-end: 1px solid var(--eden-app-line, var(--color-outline));
   }
   .row__val {
     display: flex;
@@ -619,7 +644,10 @@
     padding: 2px var(--space-2, 8px);
     border: 1px solid var(--eden-app-line, var(--color-outline));
     border-radius: var(--eden-app-radius, 4px);
-    background: var(--eden-app-rail-bg, color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface)));
+    background: var(
+      --eden-app-rail-bg,
+      color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
+    );
     color: var(--eden-app-fg, var(--color-on-surface));
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-caption, 12px);
@@ -666,7 +694,7 @@
     font-size: var(--font-size-label, 13px);
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 120ms ease;
+    transition: opacity var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .save-btn:hover:not(:disabled) {
     opacity: 0.9;
@@ -714,7 +742,11 @@
     color: var(--eden-app-muted, var(--color-outline));
   }
   .conn--up {
-    background: color-mix(in oklab, var(--color-success, var(--color-primary)) 22%, var(--color-surface));
+    background: color-mix(
+      in oklab,
+      var(--color-success, var(--color-primary)) 22%,
+      var(--color-surface)
+    );
     color: var(--color-success, var(--color-primary));
   }
   .conn--down {

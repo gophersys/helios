@@ -12,9 +12,7 @@
   import type { AgentView } from '$lib/gateway/types';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = $derived(
-    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
-  );
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
 
   let sessions = $state<AgentView[]>([]);
   let listError = $state<string | null>(null);
@@ -83,12 +81,19 @@
           body="Start a project and the agent session that builds it appears here."
         >
           {#snippet action()}
-            <Button variant="primary" {theme} onclick={() => goto('/chat?new=1')}>＋ New session</Button>
+            <Button variant="primary" {theme} onclick={() => goto('/chat?new=1')}
+              >＋ New session</Button
+            >
           {/snippet}
           {#snippet content()}
             <p class="pointer">
               Sessions are born from a build. Head to
-              <button type="button" class="pointer__link" data-testid="sessions-to-projects" onclick={() => goto('/projects')}>Projects</button>
+              <button
+                type="button"
+                class="pointer__link"
+                data-testid="sessions-to-projects"
+                onclick={() => goto('/projects')}>Projects</button
+              >
               and start one.
             </p>
           {/snippet}
@@ -188,8 +193,11 @@
     font-size: var(--font-size-label, 13px);
     border-block-end: 1px solid var(--eden-app-line);
   }
+  /* W5 density pass (P-D5, vs the Clusters north star): the sessions list is a working surface — the
+     rows ride a tighter working-density height (space-2 block / space-3 inline) rather than a loose
+     even 12px inset, so the table reads like the north star's inventory, not a marketing table. */
   .sessions td {
-    padding: var(--space-3, 12px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
     border-block-end: 1px solid var(--eden-app-line);
     vertical-align: middle;
   }
@@ -229,7 +237,7 @@
     border-radius: var(--eden-app-radius, 8px);
     cursor: pointer;
     font: inherit;
-    transition: border-color 120ms ease;
+    transition: border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .open:hover {
     border-color: var(--eden-app-accent);

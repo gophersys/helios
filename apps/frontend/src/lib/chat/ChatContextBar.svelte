@@ -65,7 +65,8 @@
   </span>
   <span class="contextbar__metric" title="tool uses">
     <span class="contextbar__icon" aria-hidden="true">⚒</span>
-    {#key meter.toolUses}<span class="flash" data-testid="context-tools">{meter.toolUses}</span>{/key}
+    {#key meter.toolUses}<span class="flash" data-testid="context-tools">{meter.toolUses}</span
+      >{/key}
     <span class="contextbar__unit">tools</span>
   </span>
 </div>

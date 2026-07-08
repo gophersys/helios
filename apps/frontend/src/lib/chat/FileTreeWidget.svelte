@@ -84,7 +84,12 @@
   }
 </script>
 
-<div class="filetree" data-testid="filetree-widget" data-count={files.length} aria-label="files on disk">
+<div
+  class="filetree"
+  data-testid="filetree-widget"
+  data-count={files.length}
+  aria-label="files on disk"
+>
   <PanelWidget title="Files" count={files.length} defaultOpen={false} {theme}>
     {#snippet children()}
       {#if error}

@@ -11,9 +11,7 @@
   import ProjectCard, { type ProjectSummary } from '$lib/dashboard/ProjectCard.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = $derived(
-    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
-  );
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
 
   let projects = $state<ProjectSummary[]>([]);
   let listError = $state<string | null>(null);
@@ -205,9 +203,10 @@
     font: inherit;
     font-size: var(--font-size-label, 13px);
     cursor: pointer;
+    /* W5: hover rides the theme motion tokens (nearest ladder step + standard easing). */
     transition:
-      border-color 140ms ease,
-      color 140ms ease;
+      border-color var(--duration-short-3, 140ms) var(--ease-standard, ease),
+      color var(--duration-short-3, 140ms) var(--ease-standard, ease);
   }
   .spark:hover {
     border-color: var(--color-primary);
@@ -217,13 +216,16 @@
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
+  /* W5 density pass (P-D5, vs the Clusters north star): the populated grid is a WORKING surface, not
+     a marketing page — tighten the gutter to the space-3 step (the north star's card gutter grade) so
+     the cards read as a dense, scannable board rather than floating tiles. */
   .grid {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--space-4, 16px);
+    gap: var(--space-3, 12px);
     max-inline-size: 80rem;
   }
   .newcard {
@@ -241,8 +243,8 @@
     color: var(--eden-app-muted);
     cursor: pointer;
     transition:
-      border-color 140ms ease,
-      color 140ms ease;
+      border-color var(--duration-short-3, 140ms) var(--ease-standard, ease),
+      color var(--duration-short-3, 140ms) var(--ease-standard, ease);
   }
   .newcard:hover {
     border-color: var(--eden-app-accent);

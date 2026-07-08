@@ -8,8 +8,11 @@
   import { lexMarkdown } from '$lib/markdown/tokens';
   import BlockList from '$lib/components/blocks/BlockList.svelte';
 
-  let { text, streaming = false, theme: _theme }: { text: string; streaming?: boolean; theme?: Theme } =
-    $props();
+  let {
+    text,
+    streaming = false,
+    theme: _theme,
+  }: { text: string; streaming?: boolean; theme?: Theme } = $props();
 
   // Re-lex the accreted text on each update; marked tolerates partial markdown (an unclosed **bold
   // renders literally until it closes), so streaming reads cleanly.

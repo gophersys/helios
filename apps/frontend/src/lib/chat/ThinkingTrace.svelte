@@ -27,13 +27,15 @@
   });
 </script>
 
-<section class="thinking" data-testid="thinking-block" data-streaming={streaming} data-open={expanded}>
-  <button
-    class="thinking__head"
-    aria-expanded={expanded}
-    onclick={() => (expanded = !expanded)}
-  >
-    <span class="thinking__glyph" class:thinking__glyph--live={streaming} aria-hidden="true">✦</span>
+<section
+  class="thinking"
+  data-testid="thinking-block"
+  data-streaming={streaming}
+  data-open={expanded}
+>
+  <button class="thinking__head" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>
+    <span class="thinking__glyph" class:thinking__glyph--live={streaming} aria-hidden="true">✦</span
+    >
     <span class="thinking__label">Thinking{streaming ? '…' : ''}</span>
     <span class="thinking__chevron" data-open={expanded} aria-hidden="true">▸</span>
   </button>

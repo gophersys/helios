@@ -55,9 +55,7 @@
   const gatewayUrl = resolveGatewayUrl();
   // The Theme OBJECT tracks the resolved colour mode so a component derived from it (the Settings sheet)
   // flips WITH the app when Appearance switches (doc 17 §3). Light-first (the founder's paper anchor).
-  const theme = $derived(
-    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
-  );
+  const theme = $derived(themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme);
   const palette = usePaletteBus();
 
   // ── session-list state ───────────────────────────────────────────────────────.
@@ -135,7 +133,9 @@
   // The active session's AGENT TYPE drives the right panel's widget stack. Derived from the
   // session's template (carried on the session-list record); defaults to implementer.
   const activeType = $derived(
-    active ? agentTypeFor(sessions.find((s) => s.id === active?.id)?.template, active.harness) : null,
+    active
+      ? agentTypeFor(sessions.find((s) => s.id === active?.id)?.template, active.harness)
+      : null,
   );
 
   /** The command model the ⌘K palette renders for THIS build (an Actions group gated on whether a
@@ -146,11 +146,23 @@
       value: 'build-actions',
       heading: 'Build',
       items: [
-        { value: 'new-product', label: 'New project…', keywords: ['create', 'start', 'session', 'product'] },
-        { value: 'build-settings', label: 'Settings', keywords: ['preferences', 'theme', 'dark', 'density'] },
+        {
+          value: 'new-product',
+          label: 'New project…',
+          keywords: ['create', 'start', 'session', 'product'],
+        },
+        {
+          value: 'build-settings',
+          label: 'Settings',
+          keywords: ['preferences', 'theme', 'dark', 'density'],
+        },
         ...(active
           ? [
-              { value: 'agent-config', label: 'Agent configuration', keywords: ['config', 'model', 'tools', 'details'] },
+              {
+                value: 'agent-config',
+                label: 'Agent configuration',
+                keywords: ['config', 'model', 'tools', 'details'],
+              },
               { value: 'stop', label: 'Stop session', keywords: ['end', 'kill'] },
               // The control items DERIVE disabled from the same allowed-set as the inline buttons —
               // one source of truth, two render sites — so the palette can never dispatch an illegal
@@ -454,210 +466,225 @@
       ? 'minmax(240px, 280px)'
       : '0'} minmax(0, 1fr) {active && panelOpen ? 'clamp(300px, 26vw, 380px)' : '0'};"
   >
-  <!-- ── left rail: sessions (collapsible) ─────────────────────────────────── -->
-  {#if railOpen}
-  <aside class="rail">
-    <header class="rail__head">
-      <div>
-        <p class="eyebrow">Eden · agent gateway</p>
-        <h1 class="rail__title">Sessions</h1>
-      </div>
-      <span
-        class="chip chip--{healthy === null ? 'muted' : healthy ? 'ok' : 'warn'}"
-        data-testid="gateway-health"
-      >
-        {healthy === null ? '…' : healthy ? 'gateway up' : 'gateway down'}
-      </span>
-    </header>
-
-    <div class="rail__new" data-testid="new-session">
-      <Button variant="primary" {theme} onclick={() => (showWizard = true)}>＋ New project</Button>
-    </div>
-
-    {#if listError}
-      <p class="rail__error">{listError}</p>
-    {/if}
-
-    <ul class="rail__list" data-testid="session-list">
-      {#each sessions as agent (agent.id)}
-        <li>
-          <button
-            class="session"
-            class:session--active={active?.id === agent.id}
-            data-testid="session-item"
-            data-session-id={agent.id}
-            onclick={() => openSession(agent)}
+    <!-- ── left rail: sessions (collapsible) ─────────────────────────────────── -->
+    {#if railOpen}
+      <aside class="rail">
+        <!-- W5 (doc 17 §2 dedup): the shell rail already labels "Sessions" (the nav item), so this rail's
+         own "Sessions" title + "Eden · agent gateway" eyebrow were a duplicate header. Removed; the
+         rail now leads with the live gateway-health chip + the New-project action + the session list.
+         The gateway-health chip (the e2e-asserted `gateway-health` / 'gateway up' — DO NOT weaken) is
+         kept where it still reads at a glance as the rail's live status. -->
+        <header class="rail__head">
+          <span
+            class="chip chip--{healthy === null ? 'muted' : healthy ? 'ok' : 'warn'}"
+            data-testid="gateway-health"
           >
-            <span class="session__id">
-              <span
-                class="session__dot"
-                data-testid="session-dot"
-                data-state={sessionDotState(agent)}
-                aria-hidden="true"
-              ></span>
-              {agent.id}
-            </span>
-            <span class="session__meta">
-              <span class="chip chip--muted">{agent.status}</span>
-              <span class="session__template">{agent.template}</span>
-            </span>
-          </button>
-        </li>
-      {/each}
-      {#if sessions.length === 0}
-        <li class="rail__empty">No sessions yet — create one to start.</li>
-      {/if}
-    </ul>
-  </aside>
-  {:else}
-    <div class="collapsed-col" aria-hidden="true"></div>
-  {/if}
+            {healthy === null ? '…' : healthy ? 'gateway up' : 'gateway down'}
+          </span>
+        </header>
 
-  <!-- ── main: chat view ──────────────────────────────────────────────────── -->
-  <main class="view">
-    {#if !active}
-      <div class="empty" data-testid="empty-state">
-        <h2>Build a project with Eden</h2>
-        <p>
-          Every project is something Eden builds through its 10-phase SDLC. Start one — say what
-          you're building in a sentence, watch Eden scope it, then watch the agent stream every event
-          live: reasoning, tool calls, permission gates, and a token/cost meter.
-        </p>
-        <div class="empty__cta">
+        <div class="rail__new" data-testid="new-session">
           <Button variant="primary" {theme} onclick={() => (showWizard = true)}
             >＋ New project</Button
           >
         </div>
-      </div>
+
+        {#if listError}
+          <p class="rail__error">{listError}</p>
+        {/if}
+
+        <ul class="rail__list" data-testid="session-list">
+          {#each sessions as agent (agent.id)}
+            <li>
+              <button
+                class="session"
+                class:session--active={active?.id === agent.id}
+                data-testid="session-item"
+                data-session-id={agent.id}
+                onclick={() => openSession(agent)}
+              >
+                <span class="session__id">
+                  <span
+                    class="session__dot"
+                    data-testid="session-dot"
+                    data-state={sessionDotState(agent)}
+                    aria-hidden="true"
+                  ></span>
+                  {agent.id}
+                </span>
+                <span class="session__meta">
+                  <span class="chip chip--muted">{agent.status}</span>
+                  <span class="session__template">{agent.template}</span>
+                </span>
+              </button>
+            </li>
+          {/each}
+          {#if sessions.length === 0}
+            <li class="rail__empty">No sessions yet — create one to start.</li>
+          {/if}
+        </ul>
+      </aside>
     {:else}
-      <header class="view__head">
-        <div class="view__id">
-          <h2>{active.id}</h2>
-          <span class="chip chip--info" data-testid="active-harness">{activeHarness}</span>
-          <span class="chip chip--muted" data-testid="session-state">{active.sessionState}</span>
-          <span class="chip chip--{connectionTone(active.connection)}" data-testid="sse-status">
-            {active.connection}
-          </span>
+      <div class="collapsed-col" aria-hidden="true"></div>
+    {/if}
+
+    <!-- ── main: chat view ──────────────────────────────────────────────────── -->
+    <main class="view">
+      {#if !active}
+        <div class="empty" data-testid="empty-state">
+          <h2>Build a project with Eden</h2>
+          <p>
+            Every project is something Eden builds through its 10-phase SDLC. Start one — say what
+            you're building in a sentence, watch Eden scope it, then watch the agent stream every
+            event live: reasoning, tool calls, permission gates, and a token/cost meter.
+          </p>
+          <div class="empty__cta">
+            <Button variant="primary" {theme} onclick={() => (showWizard = true)}
+              >＋ New project</Button
+            >
+          </div>
         </div>
-        <!-- Every control DERIVES its enablement from the session's projected allowed-set (the one
+      {:else}
+        <header class="view__head">
+          <div class="view__id">
+            <h2>{active.id}</h2>
+            <span class="chip chip--info" data-testid="active-harness">{activeHarness}</span>
+            <span class="chip chip--muted" data-testid="session-state">{active.sessionState}</span>
+            <span class="chip chip--{connectionTone(active.connection)}" data-testid="sse-status">
+              {active.connection}
+            </span>
+          </div>
+          <!-- Every control DERIVES its enablement from the session's projected allowed-set (the one
              source of truth, the agentsession (state × command) matrix) — never a hand-guessed
              condition. A control absent from the set is disabled, so an illegal action (e.g. steer in
              awaiting-permission) is impossible to trigger. -->
-        <div class="view__controls">
-          <span class="control" data-testid="request-tool">
+          <div class="view__controls">
+            <span class="control" data-testid="request-tool">
+              <Button
+                variant="secondary"
+                {theme}
+                disabled={!active.allowed.has('prompt')}
+                onclick={requestOutOfGrantTool}>request tool</Button
+              >
+            </span>
+            <span class="control" data-testid="steer">
+              <Button
+                variant="ghost"
+                {theme}
+                disabled={!active.allowed.has('steer')}
+                onclick={steer}>steer</Button
+              >
+            </span>
+            <span class="control" data-testid="abort">
+              <Button
+                variant="ghost"
+                {theme}
+                disabled={!active.allowed.has('abort')}
+                onclick={abort}>abort</Button
+              >
+            </span>
+            <span class="control" data-testid="resume">
+              <Button variant="ghost" {theme} disabled={!active.canResume} onclick={resumeSession}
+                >resume</Button
+              >
+            </span>
+            <span class="control" data-testid="stop">
+              <Button variant="danger" {theme} onclick={stopSession}>stop</Button>
+            </span>
+          </div>
+        </header>
+
+        <div class="view__body">
+          <div class="transcript" bind:this={scroller} data-testid="transcript">
+            <ul class="turns" role="list">
+              {#each active.entries as entry (entry.id)}
+                <li class="turn" data-role={entry.role} data-testid="turn">
+                  <span class="turn__rail" aria-hidden="true">
+                    <span class="turn__node" data-role={entry.role}>{railGlyph(entry.role)}</span>
+                  </span>
+                  <div class="turn__main">
+                    {#if entry.role === 'user'}
+                      <div class="turn--user" data-testid="user-message">
+                        <Message role="user" {theme}>{entry.text}</Message>
+                      </div>
+                    {:else if entry.role === 'assistant'}
+                      <ChatMessage
+                        text={entry.text}
+                        thinking={entry.thinking}
+                        streaming={entry.streaming}
+                        {theme}
+                      />
+                    {:else if entry.role === 'tool'}
+                      <ChatTool tool={entry.tool} {theme} />
+                    {:else if entry.role === 'permission'}
+                      <ChatPermission
+                        permission={entry.permission}
+                        {theme}
+                        onresolve={(requestId, verdict, scope) =>
+                          active?.resolve(requestId, verdict, scope)}
+                      />
+                    {:else if entry.role === 'notice'}
+                      <div class="notice notice--{entry.tone}" data-testid="notice">
+                        {entry.text}
+                      </div>
+                    {:else if entry.role === 'terminal'}
+                      <div
+                        class="terminal"
+                        data-testid="terminal-banner"
+                        data-outcome={entry.outcome}
+                      >
+                        <span class="chip chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
+                          {entry.outcome}
+                        </span>
+                        {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}
+                        {#if entry.reason}<span class="chip chip--warn">{entry.reason}</span>{/if}
+                      </div>
+                    {/if}
+                  </div>
+                </li>
+              {/each}
+            </ul>
+            {#if active.entries.length === 0}
+              <p class="transcript__waiting" data-testid="transcript-waiting">
+                Waiting for the first events…
+              </p>
+            {/if}
+          </div>
+        </div>
+
+        <!-- the live agent status bar (the TUI status line): spinner + verb + thinking tokens + clock -->
+        <ChatStatusBar session={active} {theme} />
+        <!-- the context/observability bar (Claude-Code-style): model · ctx gauge · tokens · cost · live turns/tools -->
+        <ChatContextBar meter={active.meter} {theme} />
+
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="composer" data-testid="composer-input" onkeydown={onComposerKey}>
+          <div class="composer__input">
+            <Input
+              bind:value={composer}
+              placeholder="Send a prompt…"
+              aria-label="Send a prompt"
+              {theme}
+            />
+          </div>
+          <span class="control" data-testid="composer-send">
             <Button
-              variant="secondary"
+              variant="primary"
               {theme}
               disabled={!active.allowed.has('prompt')}
-              onclick={requestOutOfGrantTool}>request tool</Button
+              onclick={sendComposer}>Send</Button
             >
-          </span>
-          <span class="control" data-testid="steer">
-            <Button variant="ghost" {theme} disabled={!active.allowed.has('steer')} onclick={steer}
-              >steer</Button
-            >
-          </span>
-          <span class="control" data-testid="abort">
-            <Button variant="ghost" {theme} disabled={!active.allowed.has('abort')} onclick={abort}
-              >abort</Button
-            >
-          </span>
-          <span class="control" data-testid="resume">
-            <Button variant="ghost" {theme} disabled={!active.canResume} onclick={resumeSession}
-              >resume</Button
-            >
-          </span>
-          <span class="control" data-testid="stop">
-            <Button variant="danger" {theme} onclick={stopSession}>stop</Button>
           </span>
         </div>
-      </header>
+      {/if}
+    </main>
 
-      <div class="view__body">
-        <div class="transcript" bind:this={scroller} data-testid="transcript">
-          <ul class="turns" role="list">
-            {#each active.entries as entry (entry.id)}
-              <li class="turn" data-role={entry.role} data-testid="turn">
-                <span class="turn__rail" aria-hidden="true">
-                  <span class="turn__node" data-role={entry.role}>{railGlyph(entry.role)}</span>
-                </span>
-                <div class="turn__main">
-                  {#if entry.role === 'user'}
-                    <div class="turn--user" data-testid="user-message">
-                      <Message role="user" {theme}>{entry.text}</Message>
-                    </div>
-                  {:else if entry.role === 'assistant'}
-                    <ChatMessage
-                      text={entry.text}
-                      thinking={entry.thinking}
-                      streaming={entry.streaming}
-                      {theme}
-                    />
-                  {:else if entry.role === 'tool'}
-                    <ChatTool tool={entry.tool} {theme} />
-                  {:else if entry.role === 'permission'}
-                    <ChatPermission
-                      permission={entry.permission}
-                      {theme}
-                      onresolve={(requestId, verdict, scope) =>
-                        active?.resolve(requestId, verdict, scope)}
-                    />
-                  {:else if entry.role === 'notice'}
-                    <div class="notice notice--{entry.tone}" data-testid="notice">{entry.text}</div>
-                  {:else if entry.role === 'terminal'}
-                    <div class="terminal" data-testid="terminal-banner" data-outcome={entry.outcome}>
-                      <span class="chip chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
-                        {entry.outcome}
-                      </span>
-                      {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}
-                      {#if entry.reason}<span class="chip chip--warn">{entry.reason}</span>{/if}
-                    </div>
-                  {/if}
-                </div>
-              </li>
-            {/each}
-          </ul>
-          {#if active.entries.length === 0}
-            <p class="transcript__waiting" data-testid="transcript-waiting">
-              Waiting for the first events…
-            </p>
-          {/if}
-        </div>
-      </div>
-
-      <!-- the live agent status bar (the TUI status line): spinner + verb + thinking tokens + clock -->
-      <ChatStatusBar session={active} {theme} />
-      <!-- the context/observability bar (Claude-Code-style): model · ctx gauge · tokens · cost · live turns/tools -->
-      <ChatContextBar meter={active.meter} {theme} />
-
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="composer" data-testid="composer-input" onkeydown={onComposerKey}>
-        <div class="composer__input">
-          <Input
-            bind:value={composer}
-            placeholder="Send a prompt…"
-            aria-label="Send a prompt"
-            {theme}
-          />
-        </div>
-        <span class="control" data-testid="composer-send">
-          <Button
-            variant="primary"
-            {theme}
-            disabled={!active.allowed.has('prompt')}
-            onclick={sendComposer}>Send</Button
-          >
-        </span>
-      </div>
+    <!-- ── right panel: the agent-type-aware workspace (collapsible) ─────────────── -->
+    {#if active && activeType && panelOpen}
+      <RightPanel session={active} agentType={activeType} {theme} />
+    {:else}
+      <div class="collapsed-col" aria-hidden="true"></div>
     {/if}
-  </main>
-
-  <!-- ── right panel: the agent-type-aware workspace (collapsible) ─────────────── -->
-  {#if active && activeType && panelOpen}
-    <RightPanel session={active} agentType={activeType} {theme} />
-  {:else}
-    <div class="collapsed-col" aria-hidden="true"></div>
-  {/if}
 
     <!-- ── product wizard (the create flow) ───────────────────────────────────── -->
     {#if showWizard}
@@ -751,22 +778,7 @@
   }
   .rail__head {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-2, 8px);
-  }
-  .eyebrow {
-    font-family: var(--font-code);
-    font-size: var(--font-size-caption, 12px);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--eden-app-muted);
-    margin: 0 0 var(--space-1, 4px);
-  }
-  .rail__title {
-    font-size: var(--font-size-title, 23px);
-    margin: 0;
+    align-items: center;
   }
   .rail__new {
     display: flex;

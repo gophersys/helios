@@ -54,7 +54,10 @@
   // The muted secondary line: "kind · harness", dropping either half when absent so it never reads
   // as a dangling separator. Empty when neither is known (the line is then hidden).
   const metaLine = $derived(
-    [project.kind, project.harness].map((part) => (part ?? '').trim()).filter(Boolean).join(' · '),
+    [project.kind, project.harness]
+      .map((part) => (part ?? '').trim())
+      .filter(Boolean)
+      .join(' · '),
   );
 
   const stacks = $derived((project.stacks ?? []).filter((stack) => stack.trim().length > 0));
@@ -108,10 +111,11 @@
     border-radius: var(--eden-app-radius, 8px);
     cursor: pointer;
     font-family: inherit;
+    /* W5: the hover lift rides the theme motion tokens (nearest ladder step + standard easing). */
     transition:
-      transform 160ms ease,
-      border-color 160ms ease,
-      box-shadow 160ms ease;
+      transform var(--duration-short-3, 160ms) var(--ease-standard, ease),
+      border-color var(--duration-short-3, 160ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-3, 160ms) var(--ease-standard, ease);
   }
   /* The subtle hover lift — a small translate + tinted border + shadow that reads "clickable" without
      shouting. Focus-visible mirrors the lift so keyboard users get the same affordance. */

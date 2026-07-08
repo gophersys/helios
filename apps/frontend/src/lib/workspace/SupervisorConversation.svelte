@@ -124,19 +124,20 @@
               <ChatPermission
                 permission={entry.permission}
                 {theme}
-                onresolve={(requestId, verdict, scope) => session.resolve(requestId, verdict, scope)}
+                onresolve={(requestId, verdict, scope) =>
+                  session.resolve(requestId, verdict, scope)}
               />
             {:else if entry.role === 'notice'}
               <div class="notice notice--{entry.tone}" data-testid="supervisor-notice">
                 {entry.text}
               </div>
             {:else if entry.role === 'terminal'}
-              <div
-                class="terminal"
-                data-testid="supervisor-terminal"
-                data-outcome={entry.outcome}
-              >
-                <span class="conversation__chip conversation__chip--{entry.outcome === 'completed' ? 'ok' : 'warn'}">
+              <div class="terminal" data-testid="supervisor-terminal" data-outcome={entry.outcome}>
+                <span
+                  class="conversation__chip conversation__chip--{entry.outcome === 'completed'
+                    ? 'ok'
+                    : 'warn'}"
+                >
                   {entry.outcome}
                 </span>
                 {#if entry.text}<span class="terminal__text">{entry.text}</span>{/if}

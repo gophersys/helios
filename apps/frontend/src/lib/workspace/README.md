@@ -13,16 +13,16 @@ carries no app coupling.
 
 ## Components (all token-driven from `@eden/theme`; one-concept-one-home)
 
-| File | Role |
-| --- | --- |
-| `WorkspaceShell.svelte` | The pure 3-pane LAYOUT (top bar over left + center). Zero domain coupling — content arrives as snippets. Promotes unchanged. |
-| `ProjectTopBar.svelte` | The TOP BAR: git info (branch · last commit · repo link from `project.repoUrl`) + project settings (status · stacks · supervisor agent). Pure presentation over the `ProjectView` read model. |
+| File                            | Role                                                                                                                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WorkspaceShell.svelte`         | The pure 3-pane LAYOUT (top bar over left + center). Zero domain coupling — content arrives as snippets. Promotes unchanged.                                                                                                                |
+| `ProjectTopBar.svelte`          | The TOP BAR: git info (branch · last commit · repo link from `project.repoUrl`) + project settings (status · stacks · supervisor agent). Pure presentation over the `ProjectView` read model.                                               |
 | `SupervisorConversation.svelte` | The LEFT pane: the live conversation with the supervisor. REUSES the chat SSE rails (`ChatSession` + `$lib/chat` components) — renders the agentsession Event taxonomy. One home for the fold is `session.svelte.ts`; this only renders it. |
-| `WorktreePane.svelte` | The CENTER pane: the worktree tree beside the file viewer, both driven by one `WorktreeStore`. |
-| `WorktreeTree.svelte` | The nested, file-browser-style file tree (recurses on itself). |
-| `FileViewer.svelte` | The viewer: markdown / JSON pretty-render (reuses the `$lib/markdown` pipeline) + plaintext fallback; honest loading/error/empty states. |
-| `worktreeFiles.svelte.ts` | The data layer: the `WorktreeFileSource` PORT (real `GatewayWorktreeSource` + fake-able) and `WorktreeStore` (the runes reducer). |
-| `worktreeTree.ts` | The pure flat-list → nested-tree fold (`buildTree`). |
+| `WorktreePane.svelte`           | The CENTER pane: the worktree tree beside the file viewer, both driven by one `WorktreeStore`.                                                                                                                                              |
+| `WorktreeTree.svelte`           | The nested, file-browser-style file tree (recurses on itself).                                                                                                                                                                              |
+| `FileViewer.svelte`             | The viewer: markdown / JSON pretty-render (reuses the `$lib/markdown` pipeline) + plaintext fallback; honest loading/error/empty states.                                                                                                    |
+| `worktreeFiles.svelte.ts`       | The data layer: the `WorktreeFileSource` PORT (real `GatewayWorktreeSource` + fake-able) and `WorktreeStore` (the runes reducer).                                                                                                           |
+| `worktreeTree.ts`               | The pure flat-list → nested-tree fold (`buildTree`).                                                                                                                                                                                        |
 
 ## Backend contracts the workspace binds
 

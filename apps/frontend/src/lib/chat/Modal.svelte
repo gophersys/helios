@@ -118,7 +118,8 @@
     justify-content: center;
     padding: var(--space-4, 16px);
     background: color-mix(in oklab, var(--color-on-surface) 44%, transparent);
-    animation: scrim-in 140ms ease-out;
+    /* W5: the dialog enter rides the theme motion tokens — the decelerate curve is the "enter" easing. */
+    animation: scrim-in var(--duration-short-3, 140ms) var(--ease-standard-decelerate, ease-out);
   }
   /* Square-ish centered panel sized by `size`: sm ~420px, md ~560px, lg ~760px. Caps at the viewport
      so it never overflows; the body scrolls under a ~80vh ceiling so the header/footer stay pinned. */
@@ -135,7 +136,7 @@
     border: 1px solid var(--eden-app-line);
     border-radius: var(--eden-app-radius, 8px);
     box-shadow: 0 12px 40px color-mix(in oklab, var(--color-on-surface) 18%, transparent);
-    animation: panel-in 180ms ease-out;
+    animation: panel-in var(--duration-short-4, 180ms) var(--ease-standard-decelerate, ease-out);
   }
   .panel[data-size='sm'] {
     --modal-inline: 420px;
@@ -176,8 +177,8 @@
     cursor: pointer;
     font-size: var(--font-size-label, 14px);
     transition:
-      color 120ms ease,
-      border-color 120ms ease;
+      color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .panel__close:hover {
     color: var(--eden-app-fg);

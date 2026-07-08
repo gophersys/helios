@@ -165,9 +165,10 @@
     text-decoration: none;
     color: var(--eden-app-muted);
     font-size: var(--font-size-body, 15px);
+    /* W5: nav-link hover rides the theme motion tokens (nearest ladder step + standard easing). */
     transition:
-      background 120ms ease,
-      color 120ms ease;
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .nav__link:hover {
     background: color-mix(in oklab, var(--eden-app-fg) 6%, transparent);
@@ -198,7 +199,7 @@
     color: inherit;
     cursor: pointer;
     text-align: start;
-    transition: border-color 120ms ease;
+    transition: border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .nav__user:hover {
     border-color: var(--eden-app-accent);

@@ -43,7 +43,10 @@
       .sort((a, b) => {
         const va = val(a, sortKey);
         const vb = val(b, sortKey);
-        let c = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb));
+        let c =
+          typeof va === 'number' && typeof vb === 'number'
+            ? va - vb
+            : String(va).localeCompare(String(vb));
         if (c === 0) c = a.name.localeCompare(b.name);
         return asc ? c : -c;
       }),
@@ -82,9 +85,15 @@
     <tbody>
       {#each rows as n (n.id)}
         <tr onclick={() => clusters.focus(n.id)}>
-          <td class="st"><StatusGlyph status={(n.status ?? 'unknown') as Status} size={11} /> {STATUS[n.status ?? 'unknown'].label}</td>
+          <td class="st"
+            ><StatusGlyph status={(n.status ?? 'unknown') as Status} size={11} />
+            {STATUS[n.status ?? 'unknown'].label}</td
+          >
           <td class="mono">{kindOf(n)}</td>
-          <td class="nm">{n.name}{#if model.publicIds.has(n.id)}<span class="pub" title="public">🌐</span>{/if}</td>
+          <td class="nm"
+            >{n.name}{#if model.publicIds.has(n.id)}<span class="pub" title="public">🌐</span
+              >{/if}</td
+          >
           <td>{n.namespace ?? '—'}</td>
           <td class="mono">{n.meta.replicas ?? '—'}</td>
           <td class="mono pts">{n.meta.ports ?? '—'}</td>

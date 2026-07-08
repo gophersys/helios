@@ -89,7 +89,8 @@ export class ClustersState {
     if (this.statuses.size && !this.statuses.has(n.status ?? 'unknown')) return false;
     const q = this.query.trim().toLowerCase();
     if (q) {
-      const hay = `${n.name} ${n.namespace ?? ''} ${n.kind} ${n.meta.image ?? ''} ${n.meta.hosts ?? ''}`.toLowerCase();
+      const hay =
+        `${n.name} ${n.namespace ?? ''} ${n.kind} ${n.meta.image ?? ''} ${n.meta.hosts ?? ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -113,9 +114,7 @@ export class ClustersState {
     const lens = p.get('lens') as Lens | null;
     if (lens && LENSES.some((l) => l.id === lens)) this.lens = lens;
     this.namespaces = new Set((p.get('ns') ?? '').split(',').filter(Boolean));
-    this.statuses = new Set(
-      (p.get('status') ?? '').split(',').filter(Boolean) as Status[],
-    );
+    this.statuses = new Set((p.get('status') ?? '').split(',').filter(Boolean) as Status[]);
     this.query = p.get('q') ?? '';
     this.focusId = p.get('focus');
   }

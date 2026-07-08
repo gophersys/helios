@@ -20,13 +20,13 @@
   style="display:block;flex:none"
 >
   {#if spec.shape === 'circle'}
-    <circle cx="8" cy="8" r="6" fill={fill} />
+    <circle cx="8" cy="8" r="6" {fill} />
   {:else if spec.shape === 'triangle'}
-    <path d="M8 1.5 L14.5 13.5 L1.5 13.5 Z" fill={fill} />
+    <path d="M8 1.5 L14.5 13.5 L1.5 13.5 Z" {fill} />
   {:else if spec.shape === 'octagon'}
-    <path d="M5 1.5 H11 L14.5 5 V11 L11 14.5 H5 L1.5 11 V5 Z" fill={fill} />
+    <path d="M5 1.5 H11 L14.5 5 V11 L11 14.5 H5 L1.5 11 V5 Z" {fill} />
   {:else if spec.shape === 'diamond'}
-    <path d="M8 1 L15 8 L8 15 L1 8 Z" fill={fill} />
+    <path d="M8 1 L15 8 L8 15 L1 8 Z" {fill} />
   {:else}
     <circle cx="8" cy="8" r="5.5" fill="none" stroke={fill} stroke-width="2" />
   {/if}

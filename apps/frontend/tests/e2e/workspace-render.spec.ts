@@ -81,7 +81,13 @@ function sseTranscript(): string {
     {
       kind: 'message-start',
       seq: 2,
-      data: { sessionId: SUPERVISOR_ID, seq: 2, kind: 'message-start', turnId: 't1', time: '2026-06-22T10:05:02Z' },
+      data: {
+        sessionId: SUPERVISOR_ID,
+        seq: 2,
+        kind: 'message-start',
+        turnId: 't1',
+        time: '2026-06-22T10:05:02Z',
+      },
     },
     {
       kind: 'text-delta',
@@ -98,7 +104,13 @@ function sseTranscript(): string {
     {
       kind: 'message-end',
       seq: 4,
-      data: { sessionId: SUPERVISOR_ID, seq: 4, kind: 'message-end', turnId: 't1', time: '2026-06-22T10:05:04Z' },
+      data: {
+        sessionId: SUPERVISOR_ID,
+        seq: 4,
+        kind: 'message-end',
+        turnId: 't1',
+        time: '2026-06-22T10:05:04Z',
+      },
     },
     {
       kind: 'tool-start',
@@ -121,7 +133,13 @@ function sseTranscript(): string {
         kind: 'tool-end',
         turnId: 't1',
         time: '2026-06-22T10:05:06Z',
-        tool: { callId: 'c1', name: 'Write', outcome: 'ok', resultDigest: 'wrote 412 bytes', durationMs: 12 },
+        tool: {
+          callId: 'c1',
+          name: 'Write',
+          outcome: 'ok',
+          resultDigest: 'wrote 412 bytes',
+          durationMs: 12,
+        },
       },
     },
     {
@@ -185,43 +203,49 @@ async function stubGateway(page: Page): Promise<void> {
   // live at /src/lib/gateway/*.ts, which that glob also matches — the stub then 404s the app's JS,
   // the route chunk fails its dynamic import, and SvelteKit shows its 500 page (the long-standing
   // "workspace-render 500" flake). Only the same-origin API prefix /gateway/ is the stub's business.
-  await page.route((url) => url.pathname.startsWith('/gateway/'), async (route: Route) => {
-    const url = new URL(route.request().url());
-    const path = url.pathname.replace(/^.*\/gateway/, '');
+  await page.route(
+    (url) => url.pathname.startsWith('/gateway/'),
+    async (route: Route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^.*\/gateway/, '');
 
-    if (path === `/projects/${PROJECT_ID}`) {
-      await route.fulfill({ json: FAKE_PROJECT });
-      return;
-    }
-    if (path === `/sessions/${SUPERVISOR_ID}/workspace`) {
-      await route.fulfill({ json: FAKE_WORKTREE });
-      return;
-    }
-    if (path === `/sessions/${SUPERVISOR_ID}/workspace/file`) {
-      const wanted = url.searchParams.get('path') ?? '';
-      const found = FAKE_CONTENT[wanted];
-      if (!found) {
-        await route.fulfill({ status: 404, json: { kind: 'not-found', message: 'no such file' } });
+      if (path === `/projects/${PROJECT_ID}`) {
+        await route.fulfill({ json: FAKE_PROJECT });
         return;
       }
-      await route.fulfill({ json: { path: wanted, kind: found.kind, text: found.text } });
-      return;
-    }
-    if (path === `/sessions/${SUPERVISOR_ID}/events`) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/event-stream',
-        headers: { 'cache-control': 'no-cache' },
-        body: sseTranscript(),
-      });
-      return;
-    }
-    if (path === '/healthz') {
-      await route.fulfill({ json: { status: 'ok' } });
-      return;
-    }
-    await route.fulfill({ status: 404, json: { kind: 'not-found', message: path } });
-  });
+      if (path === `/sessions/${SUPERVISOR_ID}/workspace`) {
+        await route.fulfill({ json: FAKE_WORKTREE });
+        return;
+      }
+      if (path === `/sessions/${SUPERVISOR_ID}/workspace/file`) {
+        const wanted = url.searchParams.get('path') ?? '';
+        const found = FAKE_CONTENT[wanted];
+        if (!found) {
+          await route.fulfill({
+            status: 404,
+            json: { kind: 'not-found', message: 'no such file' },
+          });
+          return;
+        }
+        await route.fulfill({ json: { path: wanted, kind: found.kind, text: found.text } });
+        return;
+      }
+      if (path === `/sessions/${SUPERVISOR_ID}/events`) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'text/event-stream',
+          headers: { 'cache-control': 'no-cache' },
+          body: sseTranscript(),
+        });
+        return;
+      }
+      if (path === '/healthz') {
+        await route.fulfill({ json: { status: 'ok' } });
+        return;
+      }
+      await route.fulfill({ status: 404, json: { kind: 'not-found', message: path } });
+    },
+  );
 }
 
 test.describe('project workspace — 3-pane render over a fake project + worktree', () => {
@@ -240,19 +264,19 @@ test.describe('project workspace — 3-pane render over a fake project + worktre
     await expect(page.getByTestId('project-name')).toHaveText('Aurora Ledger');
     await expect(page.getByTestId('project-branch')).toContainText('init/seed');
     const repoLink = page.getByTestId('project-repo-link');
-    await expect(repoLink).toHaveAttribute(
-      'href',
-      'https://github.com/eden-demo/aurora-ledger',
-    );
+    await expect(repoLink).toHaveAttribute('href', 'https://github.com/eden-demo/aurora-ledger');
     await expect(page.getByTestId('project-status')).toHaveText('building');
     await expect(page.getByTestId('project-stack').first()).toHaveText('go');
     await expect(page.getByTestId('project-supervisor')).toContainText(SUPERVISOR_ID);
 
     // ── LEFT — the supervisor conversation renders the streamed taxonomy (real SSE parser) ──.
     await expect(page.getByTestId('supervisor-session-id')).toHaveText(SUPERVISOR_ID);
-    await expect(page.getByTestId('assistant-text')).toContainText('Scaffolding the ledger service', {
-      timeout: 15_000,
-    });
+    await expect(page.getByTestId('assistant-text')).toContainText(
+      'Scaffolding the ledger service',
+      {
+        timeout: 15_000,
+      },
+    );
     const toolCard = page.getByTestId('tool-card').first();
     await expect(toolCard).toContainText('Write');
     await expect(page.getByTestId('supervisor-terminal')).toHaveAttribute(
@@ -278,9 +302,15 @@ test.describe('project workspace — 3-pane render over a fake project + worktre
   test('a not-found project shows an honest fault, not a blank shell', async ({ page }) => {
     // Pathname predicate, not '**/gateway/**' — see stubGateway: the glob would also 404 the
     // app's own /src/lib/gateway/*.ts modules under `vite dev`.
-    await page.route((url) => url.pathname.startsWith('/gateway/'), async (route: Route) => {
-      await route.fulfill({ status: 404, json: { kind: 'not-found', message: 'no such project' } });
-    });
+    await page.route(
+      (url) => url.pathname.startsWith('/gateway/'),
+      async (route: Route) => {
+        await route.fulfill({
+          status: 404,
+          json: { kind: 'not-found', message: 'no such project' },
+        });
+      },
+    );
     await page.goto('/projects/does-not-exist/workspace');
     await expect(page.getByTestId('workspace-fault')).toBeVisible();
     await expect(page.getByTestId('workspace-fault')).toContainText('not-found');

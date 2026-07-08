@@ -48,7 +48,7 @@
     <span class="chev" class:open={expanded}>▸</span>
     <span class="nm">{ns.name}</span>
     <span class="spacer"></span>
-    <StatusChip status={ns.rollup} fraction={fraction} />
+    <StatusChip status={ns.rollup} {fraction} />
   </button>
 
   <div class="meta">
@@ -72,7 +72,8 @@
             <span class="mi"><KindIcon kind={m.kind} size={14} /></span>
             <span class="mn">{m.name}</span>
             <span class="mk">{m.meta.kind ?? classOf(m)}</span>
-            {#if publicIds.has(m.id)}<span class="pub" title="reachable from the internet">🌐</span>{/if}
+            {#if publicIds.has(m.id)}<span class="pub" title="reachable from the internet">🌐</span
+              >{/if}
             {#if m.meta.replicas}<span class="rep">{m.meta.replicas}</span>{/if}
           </button>
         </li>
