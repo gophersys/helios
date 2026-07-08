@@ -584,7 +584,7 @@ release_cut() {
 
   # 6. Tag + push. The tag push is what triggers release.yml.
   log "cutting release ${version} from ${branch} @ ${head:0:7} (Claude Code pin ${claude_pin}) ..."
-  git -C "${REPO_ROOT}" tag "${version}" || die "git tag ${version} failed"
+  git -C "${REPO_ROOT}" tag -a "${version}" -m "eden release ${version}" || die "git tag ${version} failed"
   if ! git -C "${REPO_ROOT}" push origin "${version}"; then
     git -C "${REPO_ROOT}" tag -d "${version}" >/dev/null 2>&1 || true
     die "git push origin ${version} failed (the local tag was rolled back)"
