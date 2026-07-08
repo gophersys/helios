@@ -41,6 +41,8 @@ trap cleanup EXIT INT TERM
 
 extra=""
 [ "$BOARD" = "nucleo_h743zi" ] && extra="-Dmcuboot_EXTRA_DTC_OVERLAY_FILE=$OVERLAY"
+# ESP32: large-app filler + its own device id (0x000C)
+case "$BOARD" in esp32*) extra="-Dota_node_CONFIG_OTA_FILLER_KB=512 -Dota_node_CONFIG_CIPHER_DEVICE_ID=0xC";; esac
 
 : > "$RESULTS"
 echo "soak: $N runs on $BOARD (dev $NODEDEV @ $NODEIP); disk guard @ ${MAXDISK}%"
