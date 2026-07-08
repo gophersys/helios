@@ -1,0 +1,27 @@
+# Dockerfile-scoped ignore for the frontend production image (buildx reads
+# `<dockerfile>.dockerignore` in preference to the repo-root .dockerignore). It mirrors the root
+# exclusions but RE-INCLUDES the prebuilt @eden/* library dist (libs/typescript/*/dist), which the
+# frontend vite build consumes — the root .dockerignore strips **/dist, and this image needs those
+# emitted artifacts (the libs' Svelte build toolchain is not reproducible in the lean build image, so
+# the release workflow builds them in the devcontainer and ships the dist in — see the Dockerfile).
+.git
+**/node_modules
+**/.svelte-kit
+**/.nx
+**/test-results
+**/playwright-report
+docs/architecture/*.html
+deploy/plane/local/.state
+
+# Strip build outputs and dist by default …
+**/dist
+**/build
+# … but KEEP the prebuilt @eden/* workspace-library dist the frontend consumes.
+!libs/typescript/*/dist
+!libs/typescript/*/dist/**
+
+# SECRET SAFETY: never copy a real env file into a build context / image layer.
+.env
+.env.*
+!.env.example
+!.env.*.example

@@ -114,7 +114,41 @@ func deploymentTemplate(service ServiceSpec) string {
 	renderHelmEnv(&b, service)
 	renderHelmResources(&b, service)
 	renderHelmProbes(&b, service)
+	renderHelmTokenFileMount(&b, service)
+	renderHelmTokenFileVolume(&b, service)
 	return b.String()
+}
+
+// renderHelmTokenFileMount projects the Vault token-file Secret as a read-only volumeMount on the
+// container (production only). The projected key is mounted at the mount directory with subPath = the
+// key's filename, so ONLY the token file lands there (an unrelated file in the same dir survives).
+func renderHelmTokenFileMount(b *strings.Builder, service ServiceSpec) {
+	m := service.TokenFileSecret
+	if m == nil {
+		return
+	}
+	b.WriteString("          volumeMounts:\n")
+	fmt.Fprintf(b, "            - name: %s\n", m.volumeName())
+	fmt.Fprintf(b, "              mountPath: %s\n", m.mountDir())
+	fmt.Fprintf(b, "              subPath: %s\n", m.mountFile())
+	b.WriteString("              readOnly: true\n")
+}
+
+// renderHelmTokenFileVolume declares the pod volume that projects the Vault token-file Secret's key
+// as a single item. The Secret is materialized out-of-band (External Secrets / an operator); the
+// manifest names it, never a value (the secrets no-leak contract).
+func renderHelmTokenFileVolume(b *strings.Builder, service ServiceSpec) {
+	m := service.TokenFileSecret
+	if m == nil {
+		return
+	}
+	b.WriteString("      volumes:\n")
+	fmt.Fprintf(b, "        - name: %s\n", m.volumeName())
+	b.WriteString("          secret:\n")
+	fmt.Fprintf(b, "            secretName: %s\n", m.SecretName)
+	b.WriteString("            items:\n")
+	fmt.Fprintf(b, "              - key: %s\n", m.Key)
+	fmt.Fprintf(b, "                path: %s\n", m.mountFile())
 }
 
 func renderHelmPorts(b *strings.Builder, service ServiceSpec) {
@@ -143,6 +177,13 @@ func renderHelmEnv(b *strings.Builder, service ServiceSpec) {
 			// Stage-scoped: the segment is the Helm `{{ .Values.stage }}` placeholder (defaulted to
 			// production in values.yaml), so the production chart never carries the development path.
 			fmt.Fprintf(b, "            - name: %s\n              value: %q\n", e.Name, vaultStageRef(vaultHelmStagePlaceholder, e.FromVaultField))
+			continue
+		}
+		if e.FromFieldRef != "" {
+			// The pod downward API: a per-replica value the render cannot know (the lease identity is
+			// the pod name; the lease namespace is the pod's namespace).
+			fmt.Fprintf(b, "            - name: %s\n", e.Name)
+			fmt.Fprintf(b, "              valueFrom:\n                fieldRef:\n                  fieldPath: %s\n", e.FromFieldRef)
 			continue
 		}
 		fmt.Fprintf(b, "            - name: %s\n              value: %q\n", e.Name, e.Value)

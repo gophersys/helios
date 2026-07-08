@@ -186,6 +186,126 @@ func TestCommittedManifestsMatchCatalog(t *testing.T) {
 	}
 }
 
+// TestCatalogRostersFiveServices pins the deployable surface: the render catalog models exactly the
+// five units the release channel builds + deploys (agent-runtime, agentgateway, orchestrator,
+// platformgateway, frontend). A silent add/drop — a service that stops rendering, or a stray one that
+// starts — fails here before it ships.
+func TestCatalogRostersFiveServices(t *testing.T) {
+	t.Parallel()
+	want := map[string]bool{
+		"agent-runtime": true, "agentgateway": true, "orchestrator": true,
+		"platformgateway": true, "frontend": true,
+	}
+	got := map[string]bool{}
+	for _, s := range Catalog() {
+		got[s.Name] = true
+	}
+	if len(got) != len(want) {
+		t.Fatalf("catalog rosters %d services %v, want %d %v", len(got), got, len(want), want)
+	}
+	for name := range want {
+		if !got[name] {
+			t.Errorf("catalog is missing service %q", name)
+		}
+	}
+}
+
+// TestTokenFileMountRenders proves the Vault token-file projection: every Vault-consuming service
+// (agentgateway, orchestrator, agent-runtime, platformgateway) mounts the `eden-vault-token` Secret
+// read-only at /vault/secrets/token (matching its EDEN_VAULT_TOKEN_FILE), and the frontend — which
+// reaches no Vault — does NOT. The Secret is named, never a value (the no-leak contract).
+func TestTokenFileMountRenders(t *testing.T) {
+	t.Parallel()
+	files := RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, Catalog())
+	byName := map[string]string{}
+	for _, f := range files {
+		byName[f.Path] = f.Content
+	}
+
+	for _, svc := range []string{"agentgateway", "orchestrator", "agent-runtime", "platformgateway"} {
+		content := byName["templates/"+svc+"-deployment.yaml"]
+		if content == "" {
+			t.Fatalf("no deployment rendered for %q", svc)
+		}
+		// The mount references the Secret name + key + path, read-only. No value is ever inlined.
+		for _, want := range []string{
+			"volumeMounts:", "name: eden-vault-token", "mountPath: /vault/secrets",
+			"subPath: token", "readOnly: true", "secretName: eden-vault-token", "key: token",
+		} {
+			if !strings.Contains(content, want) {
+				t.Errorf("%s deployment missing token-file mount fragment %q", svc, want)
+			}
+		}
+	}
+
+	// The frontend is a static SPA with no Vault access — it must carry no token-file mount/volume.
+	front := byName["templates/frontend-deployment.yaml"]
+	if front == "" {
+		t.Fatal("no deployment rendered for frontend")
+	}
+	if strings.Contains(front, "eden-vault-token") || strings.Contains(front, "volumeMounts:") {
+		t.Error("frontend deployment must NOT mount the Vault token file (it reaches no Vault)")
+	}
+}
+
+// TestPlatformGatewayVaultReferencesAreStageScoped proves the platformgateway catalog entry names the
+// unified vault://eden/{{ .Values.stage }}#… mount (reconciled from the app spec's old
+// vault://platformgateway/production#… path) for BOTH its secrets, and never inlines a value nor
+// carries the old platformgateway mount.
+func TestPlatformGatewayVaultReferencesAreStageScoped(t *testing.T) {
+	t.Parallel()
+	helm := joinHelm(RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, Catalog()))
+	for _, want := range []string{
+		`vault://eden/{{ .Values.stage }}#platformgateway-jwt-signing-key`,
+		`vault://eden/{{ .Values.stage }}#platformgateway-database-dsn`,
+	} {
+		if !strings.Contains(helm, want) {
+			t.Errorf("platformgateway did not render the unified stage-scoped reference %q", want)
+		}
+	}
+	// The OLD platformgateway mount path must be gone (reconciled to the eden mount).
+	if strings.Contains(helm, "vault://platformgateway/") {
+		t.Error("the old vault://platformgateway/… mount path is still rendered (reconcile to eden/)")
+	}
+}
+
+// TestOrchestratorSpecShape proves the orchestrator entry: the agentgateway image with a command
+// override selecting the second binary, the downward-API lease identity/namespace (fieldRef, never a
+// literal), the Postgres password as a secretKeyRef with the DATABASE_URL interpolation, the bound
+// ServiceAccount for leader election, and no inlined secret value.
+func TestOrchestratorSpecShape(t *testing.T) {
+	t.Parallel()
+	files := RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, Catalog())
+	var orch string
+	for _, f := range files {
+		if f.Path == "templates/orchestrator-deployment.yaml" {
+			orch = f.Content
+		}
+	}
+	if orch == "" {
+		t.Fatal("no orchestrator deployment rendered")
+	}
+	for _, want := range []string{
+		`image: "{{ .Values.registry }}/agentgateway:{{ .Values.tag }}"`, // the SAME agentgateway image
+		`command: ["/usr/local/bin/agentgateway-orchestrator"]`,          // the second binary
+		"serviceAccountName: eden-orchestrator",                          // leader-election identity
+		"fieldPath: metadata.name",                                       // per-replica lease identity
+		"fieldPath: metadata.namespace",                                  // the lease namespace
+		"secretKeyRef",                                                   // the Postgres password
+		"name: eden-orchestrator-postgres",                               // the ONE plain k8s Secret
+		"$(POSTGRES_PASSWORD)",                                           // the DATABASE_URL interpolation
+		`value: "vault://eden/{{ .Values.stage }}#setup-token"`,          // the stage-scoped credential ref
+	} {
+		if !strings.Contains(orch, want) {
+			t.Errorf("orchestrator deployment missing %q", want)
+		}
+	}
+	// The Postgres password is a reference, never a value; no DSN password is ever inlined.
+	if strings.Contains(orch, "password: ") && strings.Contains(orch, "password: eden") {
+		t.Error("orchestrator inlined a Postgres password value")
+	}
+}
+
 func joinHelm(files []HelmFile) string {
 	var b strings.Builder
 	for _, f := range files {

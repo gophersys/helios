@@ -11,6 +11,8 @@
 #   bash deploy/ctl.sh demo ssh-editor-config  # print the ~/.ssh/config alias for the desktop ssh-remote editor
 #                                              # (set EDEN_EDITOR_SSH_HOST first; opt-in — the demo is web-only without it)
 #   bash deploy/ctl.sh production render # render the Helm chart from the typed ServiceSpec
+#   bash deploy/ctl.sh release v<semver> # cut a stable release: tag → release.yml (build+push+promote)
+#   bash deploy/ctl.sh release-status v<semver> # watch the cut: the CI runs, the infra PR, the Argo app
 #
 # Two-axis (ADR-0022 #2): `deploy/<plane>/{local,production}`; one typed Go ServiceSpec renders to
 # BOTH compose and Helm; the supporting stack stands up out-of-band; `local` loads .env.development
@@ -518,6 +520,162 @@ production_render() {
   log "rendered into deploy/plane/production (Helm) — apply with: helm install eden deploy/plane/production/chart"
 }
 
+# ── RELEASE: cut a stable release → tag → the release.yml build+push+promote flow ─────────────────
+# `bash deploy/ctl.sh release v<semver>` validates the version, the tree, and the branch, confirms
+# the harness pin is committed (the agent-runtime build needs it), then tags + pushes — the `v*` tag
+# triggers .github/workflows/release.yml (multi-arch build+push of the four images to
+# ghcr.io/gophersys/eden/* + the digest-pin promotion PR against gophersys/infrastructure). It NEVER
+# prints a secret value; the whole cut is one verb (the AI-instrumentation seam).
+EDEN_GHCR_OWNER="gophersys/eden"
+EDEN_RELEASE_WORKFLOW="release.yml"
+
+release_cut() {
+  local version="${1:-}"
+  command -v git >/dev/null 2>&1 || die "git is required to cut a release"
+  [ -n "${version}" ] || die "usage: deploy release v<semver>  (e.g. deploy release v0.1.0)"
+
+  # 1. The version MUST be a v-prefixed semver (the release.yml `v*` tag contract + the render drift
+  # test's ghcr.io/gophersys/eden/<service>:<semver> expectation). A pre-release/build suffix is allowed.
+  if ! printf '%s' "${version}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+    die "version '${version}' is not a v-semver (want vMAJOR.MINOR.PATCH, e.g. v0.1.0)"
+  fi
+
+  # 2. The tag must not already exist (locally or on origin) — a re-tag needs an explicit delete first.
+  if git -C "${REPO_ROOT}" rev-parse -q --verify "refs/tags/${version}" >/dev/null 2>&1; then
+    die "tag ${version} already exists locally (delete it first: git tag -d ${version})"
+  fi
+  if git -C "${REPO_ROOT}" ls-remote --exit-code --tags origin "refs/tags/${version}" >/dev/null 2>&1; then
+    die "tag ${version} already exists on origin (a released version is immutable)"
+  fi
+
+  # 3. The working tree must be clean (no uncommitted changes ride into a release).
+  if [ -n "$(git -C "${REPO_ROOT}" status --porcelain)" ]; then
+    warn "working tree is dirty:"
+    git -C "${REPO_ROOT}" status --short >&2
+    die "commit or stash your changes before cutting a release"
+  fi
+
+  # 4. The current branch must be up-to-date with its origin counterpart. The repo's working branch is
+  # init/seed today (NOT main) — assert the CURRENT branch, whatever it is, matches origin/<branch>.
+  local branch
+  branch="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD)"
+  [ "${branch}" != "HEAD" ] || die "detached HEAD — check out the release branch first"
+  log "fetching origin to compare ${branch} with its upstream ..."
+  git -C "${REPO_ROOT}" fetch --quiet origin || die "git fetch origin failed"
+  if ! git -C "${REPO_ROOT}" rev-parse -q --verify "refs/remotes/origin/${branch}" >/dev/null 2>&1; then
+    die "origin/${branch} does not exist — push ${branch} first"
+  fi
+  local head remote
+  head="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+  remote="$(git -C "${REPO_ROOT}" rev-parse "origin/${branch}")"
+  if [ "${head}" != "${remote}" ]; then
+    die "${branch} (${head:0:7}) is not up-to-date with origin/${branch} (${remote:0:7}) — push/pull first"
+  fi
+
+  # 5. The harness pin MUST be committed — the agent-runtime image build sources CLAUDE_CODE_VERSION
+  # from harnesses/versions.env (ADR-0021), so an uncommitted pin would build a different harness than
+  # HEAD claims. (Tree-clean already implies this; assert the file is TRACKED for a precise message.)
+  if ! git -C "${REPO_ROOT}" ls-files --error-unmatch harnesses/versions.env >/dev/null 2>&1; then
+    die "harnesses/versions.env is not tracked — the agent-runtime build needs the committed pin (ADR-0021)"
+  fi
+  local claude_pin
+  claude_pin="$(grep -E '^CLAUDE_CODE_VERSION=' "${REPO_ROOT}/harnesses/versions.env" | cut -d= -f2)"
+  [ -n "${claude_pin}" ] || die "CLAUDE_CODE_VERSION is empty in harnesses/versions.env"
+
+  # 6. Tag + push. The tag push is what triggers release.yml.
+  log "cutting release ${version} from ${branch} @ ${head:0:7} (Claude Code pin ${claude_pin}) ..."
+  git -C "${REPO_ROOT}" tag "${version}" || die "git tag ${version} failed"
+  if ! git -C "${REPO_ROOT}" push origin "${version}"; then
+    git -C "${REPO_ROOT}" tag -d "${version}" >/dev/null 2>&1 || true
+    die "git push origin ${version} failed (the local tag was rolled back)"
+  fi
+
+  local origin_url actions_url
+  origin_url="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || echo '')"
+  actions_url="$(gh_actions_url "${origin_url}")"
+  log ""
+  log "  ============================================================"
+  log "  RELEASE ${version} TAGGED + PUSHED."
+  log "  → release.yml now builds+pushes the 4 images multi-arch to ghcr.io/${EDEN_GHCR_OWNER}/*"
+  log "    and opens the digest-pin PR against gophersys/infrastructure (apps/eden)."
+  log "  Watch the run:   ${actions_url}"
+  log "  Then poll:       bash deploy/ctl.sh release-status ${version}"
+  log "  On PR merge, Argo CD reconciles apps/eden onto the home cluster."
+  log "  ============================================================"
+}
+
+# gh_actions_url derives the Actions page URL from the origin remote (ssh or https form), degrading to
+# a bare hint when the remote is not a recognizable GitHub URL. Never prints a credential.
+gh_actions_url() {
+  local url="${1:-}" slug=""
+  case "${url}" in
+    git@github.com:*) slug="${url#git@github.com:}" ;;
+    https://github.com/*) slug="${url#https://github.com/}" ;;
+    ssh://git@github.com/*) slug="${url#ssh://git@github.com/}" ;;
+  esac
+  slug="${slug%.git}"
+  if [ -n "${slug}" ]; then
+    printf 'https://github.com/%s/actions/workflows/%s' "${slug}" "${EDEN_RELEASE_WORKFLOW}"
+  else
+    printf '(the %s workflow run in your repo Actions tab)' "${EDEN_RELEASE_WORKFLOW}"
+  fi
+}
+
+# ── RELEASE-STATUS: watch a cut without leaving the verb ───────────────────────────────────────────
+# `bash deploy/ctl.sh release-status v<semver>` reports: the release.yml runs for the tag (gh run
+# list), the open infra promotion PR, and (read-only) the Argo Application on the home cluster when a
+# kubeconfig is present. Every step degrades HONESTLY when its tool/credential is absent — it never
+# fabricates a status and never prints a secret.
+EDEN_HOME_KUBECONFIG="${EDEN_HOME_KUBECONFIG:-${HOME}/.kube/eden-clusters.yaml}"
+
+release_status() {
+  local version="${1:-}"
+  [ -n "${version}" ] || die "usage: deploy release-status v<semver>"
+
+  # 1. The release.yml runs for this tag (needs the gh CLI + auth; degrade if absent).
+  log "── release.yml runs for ${version} ──"
+  if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+      gh run list --workflow "${EDEN_RELEASE_WORKFLOW}" --branch "${version}" --limit 5 \
+        2>/dev/null || warn "  gh run list failed (is ${EDEN_RELEASE_WORKFLOW} present on the remote yet?)"
+    else
+      warn "  gh is installed but not authenticated (run: gh auth login) — cannot list runs"
+    fi
+  else
+    warn "  gh CLI not installed — see the Actions tab for the ${EDEN_RELEASE_WORKFLOW} run on tag ${version}"
+  fi
+
+  # 2. The open infra promotion PR (title `chore(deploy): eden -> <version>`).
+  log "── infrastructure promotion PR ──"
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    local pr_json
+    pr_json="$(gh pr list --repo gophersys/infrastructure --state open \
+      --search "chore(deploy): eden -> ${version} in:title" --json url,title 2>/dev/null || echo '')"
+    if [ -n "${pr_json}" ] && [ "${pr_json}" != "[]" ]; then
+      printf '%s\n' "${pr_json}" | (jq -r '.[] | "  \(.title)\n  \(.url)"' 2>/dev/null || printf '  %s\n' "${pr_json}")
+    else
+      warn "  no open promotion PR for ${version} yet (the promote job opens it after all 4 builds pass)"
+    fi
+  else
+    warn "  gh unavailable/unauthenticated — check gophersys/infrastructure PRs for 'eden -> ${version}'"
+  fi
+
+  # 3. The Argo Application on the home cluster (READ-ONLY), only if a kubeconfig is present + reachable.
+  log "── Argo Application 'eden' on the home cluster (read-only) ──"
+  if [ ! -f "${EDEN_HOME_KUBECONFIG}" ]; then
+    warn "  no home kubeconfig at ${EDEN_HOME_KUBECONFIG} — skipping the live Argo read (set EDEN_HOME_KUBECONFIG to override)"
+  elif ! command -v kubectl >/dev/null 2>&1; then
+    warn "  kubectl not installed — cannot read the Argo Application"
+  else
+    if KUBECONFIG="${EDEN_HOME_KUBECONFIG}" kubectl --context home get application -n argocd eden \
+         -o wide 2>/dev/null; then
+      : # printed above
+    else
+      warn "  could not read Application/eden (cluster unreachable, context 'home' absent, or app not yet registered) — reporting honestly, not fabricating a status"
+    fi
+  fi
+}
+
 usage() {
   sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 1
@@ -552,8 +710,10 @@ main() {
         *) die "unknown 'production' verb: ${verb}" ;;
       esac
       ;;
+    release) release_cut "$@" ;;
+    release-status) release_status "$@" ;;
     ""|-h|--help|help) usage ;;
-    *) die "unknown plane: ${plane} (local|demo|production)" ;;
+    *) die "unknown plane: ${plane} (local|demo|production|release|release-status)" ;;
   esac
 }
 

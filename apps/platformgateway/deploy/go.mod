@@ -10,7 +10,7 @@
 // servicespec is neither a sibling lib nor a go.work member.
 module github.com/gophersys/eden/apps/platformgateway/deploy
 
-go 1.26
+go 1.26.4
 
 require github.com/gophersys/eden/deploy/servicespec v0.0.0
 

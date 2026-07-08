@@ -26,20 +26,28 @@ func Spec() servicespec.ServiceSpec {
 		Env: []servicespec.EnvVar{
 			{Name: "EDEN_STAGE", Value: "production"},
 			{Name: "EDEN_GATEWAY_ADDRESS", Value: ":8080"},
-			{Name: "VAULT_ADDR", Value: "http://vault:8200"},
+			{Name: "VAULT_ADDR", Value: "http://vault.eden.svc.cluster.local:8200"},
 			{Name: "EDEN_VAULT_MODE", Value: "token-file"},
 			{Name: "EDEN_VAULT_TOKEN_FILE", Value: "/vault/secrets/token"},
 			// The JWT signing key + the Postgres DSN are Vault references resolved at runtime; the
-			// manifest carries the REFERENCE, never the value (the secrets no-leak contract).
-			{Name: "EDEN_GATEWAY_JWT_SECRET_REF", Value: "vault://platformgateway/production#jwt-signing-key"},
-			{Name: "EDEN_GATEWAY_DATABASE_DSN_REF", Value: "vault://platformgateway/production#database-dsn"},
+			// manifest carries the REFERENCE, never the value (the secrets no-leak contract). The mount
+			// path is UNIFIED onto vault://eden/<stage># (reconciled from the old platformgateway mount)
+			// so the whole platform seeds one Vault path; the field names carry the platformgateway
+			// prefix to disambiguate them within that shared path. The mount is NOT baked into the Go
+			// code — cmd/gateway parses these values via secrets.ParseReference at boot — so this is a
+			// pure env reconciliation. This Spec() is kept in agreement with the eden render catalog's
+			// platformGatewaySpec() (deploy/servicespec/catalog.go), which is what actually renders the
+			// production plane; this app-local Spec() is the typed home the catalog entry mirrors.
+			{Name: "EDEN_GATEWAY_JWT_SECRET_REF", Value: "vault://eden/production#platformgateway-jwt-signing-key"},
+			{Name: "EDEN_GATEWAY_DATABASE_DSN_REF", Value: "vault://eden/production#platformgateway-database-dsn"},
 		},
-		Replicas:       2, // stateless behind the JWT gate — scales horizontally
-		Resources:      servicespec.ResourceEnvelope{CPUMillis: 500, MemoryMiB: 512, EphemeralMiB: 1024},
-		Liveness:       &servicespec.Probe{Path: "/healthz/live", Port: 8080},
-		Readiness:      &servicespec.Probe{Path: "/healthz/ready", Port: 8080},
-		DependsOn:      []string{"vault", "postgres"},
-		ServiceAccount: "platformgateway",
+		Replicas:        2, // stateless behind the JWT gate — scales horizontally
+		Resources:       servicespec.ResourceEnvelope{CPUMillis: 500, MemoryMiB: 512, EphemeralMiB: 1024},
+		Liveness:        &servicespec.Probe{Path: "/healthz/live", Port: 8080},
+		Readiness:       &servicespec.Probe{Path: "/healthz/ready", Port: 8080},
+		DependsOn:       []string{"vault", "postgres"},
+		ServiceAccount:  "platformgateway",
+		TokenFileSecret: &servicespec.SecretMount{SecretName: "eden-vault-token", Key: "token", MountPath: "/vault/secrets/token"},
 	}
 }
 

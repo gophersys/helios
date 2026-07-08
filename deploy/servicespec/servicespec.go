@@ -54,12 +54,66 @@ type EnvVar struct {
 	// stage). vaultStageRef is the one home for the reference shape — the renderers build it, the
 	// catalog only names the field. Mutually exclusive with Value/FromSecret.
 	FromVaultField string
+	// FromFieldRef, when set, names a pod downward-API field path (e.g. "metadata.namespace",
+	// "metadata.name") the production manifest references via valueFrom.fieldRef. The orchestrator's
+	// leader-election identity (its pod name) and lease namespace arrive this way — a per-replica
+	// value the render cannot know. Production-only: the local compose plane has no downward API, so a
+	// FromFieldRef entry is OMITTED from the overlay (the orchestrator role runs only in production).
+	// Mutually exclusive with Value/FromSecret/FromVaultField.
+	FromFieldRef string
 }
 
 // SecretKeyRef names a kubernetes Secret and the key within it (the production secret seam).
 type SecretKeyRef struct {
 	SecretName string
 	Key        string
+}
+
+// SecretMount projects a kubernetes Secret onto a file inside the container (production only). It is
+// the typed seam for the Vault token-file the production pods read: External Secrets / an operator
+// materializes the named Secret out-of-band, and the render mounts it read-only at MountPath so the
+// dual-mode Vault provider's token-file mode (EDEN_VAULT_TOKEN_FILE) resolves it. The rendered
+// manifest names the Secret + key + path only — never a value. The local compose plane ignores it
+// (locally the Vault provider authenticates via userpass, not a mounted token file), so a
+// SecretMount is a production-only concern that never touches the committed overlay.
+type SecretMount struct {
+	// SecretName is the kubernetes Secret the token file is projected from (e.g. "eden-vault-token").
+	SecretName string
+	// Key is the field within the Secret projected as the file (e.g. "token").
+	Key string
+	// MountPath is the absolute file path the projected key is mounted at (e.g.
+	// "/vault/secrets/token"). It matches the EDEN_VAULT_TOKEN_FILE env the service reads.
+	MountPath string
+}
+
+// volumeName is the deterministic volume name a SecretMount renders under (the Secret name is a
+// valid DNS-1123 label, so it doubles as the volume name — one Secret, one volume). Keeping the
+// derivation here (not spelled at the call site) means the Deployment volume and volumeMount always
+// agree on the name.
+func (m SecretMount) volumeName() string { return m.SecretName }
+
+// mountDir is the directory the projected key is mounted into (a Secret volume mounts a directory;
+// the projected file lands at mountDir/<subPath-basename>). It is MountPath's parent.
+func (m SecretMount) mountDir() string {
+	i := len(m.MountPath) - 1
+	for i >= 0 && m.MountPath[i] != '/' {
+		i--
+	}
+	if i <= 0 {
+		return "/"
+	}
+	return m.MountPath[:i]
+}
+
+// mountFile is the basename of MountPath — the projected key's filename (the Secret volume's item
+// path). Splitting file from dir lets the render project ONLY this key into the dir (subPath) so an
+// unrelated file in the same dir is not clobbered.
+func (m SecretMount) mountFile() string {
+	i := len(m.MountPath) - 1
+	for i >= 0 && m.MountPath[i] != '/' {
+		i--
+	}
+	return m.MountPath[i+1:]
 }
 
 // ResourceEnvelope is the CPU/memory request+limit (production only; compose ignores it locally).
@@ -105,6 +159,13 @@ type ServiceSpec struct {
 	// ServiceAccount is the kubernetes ServiceAccount the pod runs as (production; the Vault
 	// sidecar's token-file auth path binds to it — ADR-0022 #1). Empty == "default".
 	ServiceAccount string
+	// TokenFileSecret, when set, projects a kubernetes Secret onto a file the production pod reads —
+	// the Vault token-file (EDEN_VAULT_TOKEN_FILE) the dual-mode Vault provider resolves in token-file
+	// mode. Every Vault-consuming service (agentgateway, orchestrator, agent-runtime, platformgateway)
+	// declares it; the frontend (a static SPA with no Vault access) does not. Production-only: the
+	// local compose overlay ignores it (local Vault auth is userpass, not a mounted token). Nil == no
+	// projected token file.
+	TokenFileSecret *SecretMount
 }
 
 // RenderTarget bundles the cross-cutting knobs a render needs that are NOT per-service: the image

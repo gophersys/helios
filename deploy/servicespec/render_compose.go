@@ -57,6 +57,11 @@ func renderComposeService(b *strings.Builder, target RenderTarget, service Servi
 				fmt.Fprintf(b, "      %s: %q\n", e.Name, vaultStageRef("development", e.FromVaultField))
 				continue
 			}
+			if e.FromFieldRef != "" {
+				// The pod downward API has no compose analog; the entries that use it (the
+				// orchestrator's lease identity/namespace) are production-only, so omit them locally.
+				continue
+			}
 			fmt.Fprintf(b, "      %s: %q\n", e.Name, e.Value)
 		}
 	}
