@@ -27,7 +27,7 @@ spec:
       containers:
         - name: frontend
           # v0.1.4
-          image: "ghcr.io/gophersys/eden/frontend@sha256:72f0c705fce8228a9a717ab9b22487b0f7a4ddf5af44f540e0615e84316c0b99"
+          image: "ghcr.io/gophersys/eden/frontend@sha256:fe867c88af224448cecb63b9cc8637ac9b1d5f00d05670e35af6bc15aa7088b0"
           ports:
             - name: http
               containerPort: 8080
