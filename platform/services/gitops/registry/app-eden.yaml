@@ -1,0 +1,33 @@
+# AppProject `apps` (Mateo's own codebases): the Eden platform's namespaced
+# manifests on homelab — the backing stack (Postgres/NATS/Vault), RBAC, the Vault
+# seed Job, the bootstrap ExternalSecret, and the ingress. The workload
+# Deployments the eden Helm chart promotion later commits into apps/eden/ are
+# picked up by this same Application (all flat, numbered files).
+#
+# recurse:false — the cluster-scoped rbac-cluster/ subdir is owned by a
+# platform-project Application (app-eden-rbac), NOT this namespace-scoped project.
+# exclude 00-namespace.yaml — the Namespace is cluster-scoped and belongs to the
+# platform-project app-eden-namespace (the `apps` project has no cluster grant).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eden
+  namespace: argocd
+spec:
+  project: apps
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/eden
+    directory:
+      recurse: false
+      exclude: "00-namespace.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eden
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - ServerSideApply=true

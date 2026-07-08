@@ -1,0 +1,136 @@
+# Eden desired-state Postgres (deploy design §1). The orchestrator's DesiredStore
+# and platformgateway's users/RBAC tables both live here. A StatefulSet (not a
+# Deployment) because the store is durable: a stable identity + a PVC survive a
+# pod restart, so a reschedule never loses the agent ledger or the user table.
+# ONE replica at v0 (the single writer the leader reconciles through); clustered
+# replication is a later concern behind the same Service names.
+#
+# TWO addressing forms, both satisfied so the eden chart's workloads connect on
+# first deploy regardless of which they emit:
+#   - `postgres:5432` — the plain ClusterIP Service (the locked-decision DNS the
+#     seed Job's DSN uses: postgres.eden.svc:5432).
+#   - `eden-postgres-0.eden-postgres.eden.svc` — the stable pod FQDN via the
+#     headless governing Service `eden-postgres` (the form the orchestrator +
+#     platformgateway chart templates emit).
+# Both select the same pod; the StatefulSet is `eden-postgres` so its pod is
+# `eden-postgres-0`.
+#
+# Storage is `local-path` (homelab default SC; Longhorn is intentionally avoided
+# for the DB PVC — WaitForFirstConsumer pins the volume to the scheduled node).
+#
+# The password rides a kubernetes Secret reference, NEVER an inlined value. The
+# `eden-orchestrator-postgres` Secret is IMPERATIVE (created out-of-band, never in
+# git) — see README.md "Bring-up runbook". The seed Job (08) interpolates the same
+# password into the platformgateway DSN it writes into Vault.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: eden-postgres
+    app.kubernetes.io/part-of: eden
+spec:
+  selector:
+    app.kubernetes.io/name: eden-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+# Headless governing Service — gives the StatefulSet pod its stable DNS
+# (eden-postgres-0.eden-postgres.eden.svc), which the chart's DSN/POSTGRES_HOST use.
+apiVersion: v1
+kind: Service
+metadata:
+  name: eden-postgres
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: eden-postgres
+    app.kubernetes.io/part-of: eden
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: eden-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: eden-postgres
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: eden-postgres
+    app.kubernetes.io/part-of: eden
+spec:
+  serviceName: eden-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eden-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eden-postgres
+        app.kubernetes.io/part-of: eden
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999 # the postgres image's postgres user
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: eden
+            - name: POSTGRES_DB
+              value: eden
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eden-orchestrator-postgres
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "eden", "-d", "eden"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "eden", "-d", "eden"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 5Gi

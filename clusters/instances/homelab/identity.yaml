@@ -50,6 +50,7 @@ projects_hosted:
   - music                 # the media/music platform (decision 3)
   - embedded              # Zephyr embedded dev envs (apps/embedded/); env=lab → ns embedded-lab, pinned to k3s-w-4 (USB passthrough)
   - workspaces            # workspaces.mateosegura.com UI/API (apps/workspaces/); env=prod → ns workspaces-prod
+  - eden                  # the Eden agentic-engineering platform (apps/eden/); ns eden, eden.mateosegura.com — apps AppProject
 
 namespace_provisioning:
   default_quota_tier_by_env:

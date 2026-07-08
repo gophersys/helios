@@ -1,0 +1,27 @@
+# Owns the long-lived `eden` Namespace (platform project — same rationale as
+# app-workspaces-namespace.yaml / app-embedded-namespace.yaml: a namespace-scoped
+# project cannot create the cluster-scoped Namespace object, so a platform-project
+# Application does). prune:false so a bad sync can never delete the namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eden-namespace
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/eden
+    directory:
+      recurse: false
+      include: "00-namespace.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eden
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      - ServerSideApply=true

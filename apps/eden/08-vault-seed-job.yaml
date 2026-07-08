@@ -1,0 +1,223 @@
+# Eden Vault seed Job (deploy design §2). ONE-SHOT, IDEMPOTENT, re-runnable: it
+# populates the app-Vault's `eden/data/production` with Eden's runtime secrets and
+# mints the read token every Eden pod consumes. Runs AFTER the operator has init'd
+# + unsealed Vault (README "Vault init & unseal") and created the imperative
+# `eden-vault-init` Secret holding the root token.
+#
+# What it does (all only-if-absent where a value must never rotate):
+#   1. enables kv-v2 at `eden/` if not already mounted.
+#   2. GENERATES `agentgateway-jwt-signing-key` + `platformgateway-jwt-signing-key`
+#      (vault sys/tools/random, hex) ONLY IF ABSENT — a re-run NEVER rotates them,
+#      so existing `eden_token` sessions survive a reseed.
+#   3. sets `platformgateway-database-dsn` pointing at postgres.eden.svc:5432,
+#      interpolating the password from the mounted eden-orchestrator-postgres.
+#   4. copies OPTIONAL harness fields (setup-token, gh-token, openrouter-api-key)
+#      from the ESO-materialized `eden-bootstrap` Secret IF present (skips silently
+#      when a key is absent — chat + login work without them).
+#   5. creates policy `eden-read` (read on eden/data/production).
+#   6. mints a RENEWABLE PERIODIC ORPHAN token with that policy and hands it to the
+#      publish container, which writes k8s Secret `eden-vault-token` (key `token`)
+#      — the Secret the eden chart mounts at /vault/secrets/token.
+#
+# THREE containers, because of what the images actually carry (verified by
+# RUNNING them, not assuming): hashicorp/vault is busybox-only (no GNU wget
+# --method, no openssl, no kubectl) so it cannot write a k8s Secret; the official
+# registry.k8s.io/kubectl image is DISTROLESS (no shell at all) so it can only run
+# single argv commands. Hence: the SEED initContainer (vault, has sh) does the
+# Vault work and leaves the minted token on a shared tmpfs; the UNPUBLISH
+# initContainer deletes any stale Secret (argv-only, --ignore-not-found); the
+# PUBLISH container creates it fresh. delete→create is the shell-free idempotent
+# create-or-update (running pods keep their mounted copy during the gap).
+#
+# Re-run after a token TTL lapse or a reseed:
+#   kubectl -n eden delete job eden-vault-seed && kubectl apply -f 08-vault-seed-job.yaml
+#
+# The Job's ServiceAccount (eden-vault-seed, in 20-rbac.yaml) has EXACTLY the
+# secret get/create/patch it needs on the eden namespace — nothing more.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eden-vault-seed
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: eden-vault-seed
+    app.kubernetes.io/part-of: eden
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eden-vault-seed
+        app.kubernetes.io/part-of: eden
+    spec:
+      restartPolicy: Never
+      serviceAccountName: eden-vault-seed
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # ── 1. SEED: all Vault operations; leaves the minted read token on the
+        #      shared tmpfs for the publish container. Never touches the k8s API.
+        - name: seed
+          image: hashicorp/vault:1.18
+          securityContext:
+            runAsUser: 100
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault.eden.svc:8200"
+            # Root token: from the imperative eden-vault-init Secret (operator-created).
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: eden-vault-init
+                  key: root-token
+            # Postgres password → interpolated into the platformgateway DSN.
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eden-orchestrator-postgres
+                  key: password
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+            # eden-bootstrap is OPTIONAL: mounted optional so the Job runs whether
+            # or not the ESO ExternalSecret (10) has materialized any harness creds.
+            - name: bootstrap
+              mountPath: /var/run/eden-bootstrap
+              readOnly: true
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+
+              # kv_get <field>: echo the field's value, or empty if the path/field is absent.
+              kv_get() { vault kv get -mount=eden -field="$1" production 2>/dev/null || true; }
+              # rand_hex32: 32 random bytes, hex, from Vault itself (the image has no openssl).
+              rand_hex32() { vault write -field=random_bytes sys/tools/random/32 format=hex; }
+
+              echo "==> enable kv-v2 at eden/ (if absent)"
+              vault secrets list -format=table 2>/dev/null | grep -q '^eden/' \
+                || vault secrets enable -path=eden -version=2 kv
+
+              echo "==> JWT signing keys (generate only-if-absent — NEVER rotate on reseed)"
+              AGW_KEY="$(kv_get agentgateway-jwt-signing-key)"
+              [ -n "$AGW_KEY" ] || AGW_KEY="$(rand_hex32)"
+              PGW_KEY="$(kv_get platformgateway-jwt-signing-key)"
+              [ -n "$PGW_KEY" ] || PGW_KEY="$(rand_hex32)"
+
+              echo "==> database DSN (interpolate the postgres password)"
+              DSN="postgres://eden:${PG_PASSWORD}@postgres.eden.svc:5432/eden?sslmode=disable"
+
+              echo "==> optional harness creds from eden-bootstrap (skip absent keys)"
+              BS=/var/run/eden-bootstrap
+              read_bs() { [ -f "$BS/$1" ] && cat "$BS/$1" || true; }
+              SETUP_TOKEN="$(read_bs setup-token)"
+              GH_TOKEN="$(read_bs gh-token)"
+              OPENROUTER="$(read_bs openrouter-api-key)"
+
+              echo "==> merge-write eden/data/production (patch keeps untouched fields)"
+              # kv patch requires an existing path; create it first if this is the initial seed.
+              vault kv get -mount=eden production >/dev/null 2>&1 \
+                || vault kv put -mount=eden production placeholder=seeded
+              set -- \
+                agentgateway-jwt-signing-key="$AGW_KEY" \
+                platformgateway-jwt-signing-key="$PGW_KEY" \
+                platformgateway-database-dsn="$DSN"
+              [ -n "$SETUP_TOKEN" ] && set -- "$@" setup-token="$SETUP_TOKEN"
+              [ -n "$GH_TOKEN" ] && set -- "$@" gh-token="$GH_TOKEN"
+              [ -n "$OPENROUTER" ] && set -- "$@" openrouter-api-key="$OPENROUTER"
+              vault kv patch -mount=eden production "$@"
+
+              echo "==> policy eden-read (read eden/data/production)"
+              vault policy write eden-read - <<'POLICY'
+              path "eden/data/production" {
+                capabilities = ["read"]
+              }
+              path "eden/metadata/production" {
+                capabilities = ["read"]
+              }
+              POLICY
+
+              echo "==> mint renewable periodic orphan token → /shared/token (0640)"
+              # 0640, not 0600: the publish container runs as a different uid and reads
+              # via the pod's fsGroup(1000) supplemental group. The volume is a
+              # pod-private tmpfs, gone when the Job pod ends.
+              umask 027
+              vault token create -orphan -policy=eden-read -period=768h -renewable=true -field=token > /shared/token
+
+              echo "==> seed done"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+        # ── 2. UNPUBLISH: drop any stale token Secret (argv-only — the distroless
+        #      kubectl image has no shell; --ignore-not-found makes this a no-op on
+        #      first run). The in-cluster ServiceAccount provides auth.
+        - name: unpublish
+          image: registry.k8s.io/kubectl:v1.31.4
+          securityContext:
+            runAsUser: 65534
+            runAsGroup: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          args:
+            - delete
+            - secret
+            - eden-vault-token
+            - --namespace=eden
+            - --ignore-not-found
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      containers:
+        # ── 3. PUBLISH: create the token Secret fresh from the seeded tmpfs file
+        #      (argv-only; delete→create above makes the pair idempotent).
+        - name: publish
+          image: registry.k8s.io/kubectl:v1.31.4
+          securityContext:
+            runAsUser: 65534
+            runAsGroup: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+              readOnly: true
+          args:
+            - create
+            - secret
+            - generic
+            - eden-vault-token
+            - --namespace=eden
+            - --from-file=token=/shared/token
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: shared
+          emptyDir:
+            medium: Memory
+        - name: bootstrap
+          secret:
+            secretName: eden-bootstrap
+            optional: true

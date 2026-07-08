@@ -17,6 +17,8 @@ spec:
   destinations:
     - namespace: apps-*
       server: https://kubernetes.default.svc
+    - namespace: eden               # the Eden platform (apps/eden — backing stack, RBAC, seed, ingress)
+      server: https://kubernetes.default.svc
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

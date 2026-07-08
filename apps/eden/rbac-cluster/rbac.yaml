@@ -1,0 +1,62 @@
+# Eden orchestrator CLUSTER-SCOPED authority (deploy design §5 gap 2), ported from
+# apps/agentgateway/deploy/kubernetes/10-rbac.yaml. Kept OUTSIDE the `apps`
+# AppProject on purpose — the `apps` project is namespace-scoped and cannot grant
+# cluster-scoped resources, so a platform-project Application (app-eden-rbac)
+# applies this (same split as workspaces' rbac-embedded/).
+#
+# This is the orchestrator's runtime authority to CREATE PROJECT NAMESPACES
+# (eden-<prefix>-<projectUUID>) and the workspace pod + its Secrets/NetworkPolicy/
+# ResourceQuota inside them. Cluster-scoped because a project namespace can be
+# created anywhere; the verbs are EXACTLY what the kubernetesadapter Create/Destroy
+# issue. No broader grant (no nodes, no cluster-admin). The subject SA is
+# eden-orchestrator in the `eden` namespace (declared in ../20-rbac.yaml).
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eden-orchestrator-workspaces
+  labels:
+    app.kubernetes.io/name: eden-orchestrator
+    app.kubernetes.io/part-of: eden
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    # The workspace pod's exec/attach plane (Run/Exec/Files tar-over-exec) the
+    # kubernetesadapter drives over the pod, plus the pod logs (CapLogStream).
+    resources: ["pods/exec", "pods/attach", "pods/log"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    # The resolved credential material the adapter materializes as native Secrets
+    # BEFORE the pod (MountSecret volumes + the dockerconfigjson pull secret).
+    resources: ["secrets"]
+    verbs: ["get", "create", "delete"]
+  - apiGroups: [""]
+    # The per-project ResourceQuota the namespace template applies.
+    resources: ["resourcequotas"]
+    verbs: ["get", "create", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    # The default-deny + declared-allow egress NetworkPolicy per workspace and the
+    # per-project default-deny the namespace template stamps.
+    resources: ["networkpolicies"]
+    verbs: ["get", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eden-orchestrator-workspaces
+  labels:
+    app.kubernetes.io/name: eden-orchestrator
+    app.kubernetes.io/part-of: eden
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: eden-orchestrator-workspaces
+subjects:
+  - kind: ServiceAccount
+    name: eden-orchestrator
+    namespace: eden
