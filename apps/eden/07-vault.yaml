@@ -10,8 +10,10 @@
 #
 # A StatefulSet with a durable `local-path` PVC because Vault's file storage
 # backend (unseal keys' encrypted root, the kv data) MUST survive a pod restart.
-# ONE replica (file storage is not HA — Raft/HA is a later concern). IPC_LOCK lets
-# Vault mlock its memory so secrets never swap to disk.
+# ONE replica (file storage is not HA — Raft/HA is a later concern).
+# mlock is DISABLED: k3s pods cannot effectively mlock (24-restart crashloop proved
+# it live) — the standard k8s posture (the official Helm chart defaults the same);
+# swap is off on the nodes, so the protection mlock buys is moot here.
 #
 # ONE-TIME init/unseal is an operator action (never automated, never in git) —
 # see README.md "Vault init & unseal". Until unsealed the pod is deliberately
@@ -30,7 +32,7 @@ data:
     # File-storage single node. NO dev mode: the server boots SEALED and must be
     # init'd + unsealed once by an operator (README "Vault init & unseal").
     ui = false
-    disable_mlock = false
+    disable_mlock = true
     storage "file" {
       path = "/vault/file"
     }
