@@ -1,0 +1,123 @@
+# Eden orchestrator — the per-project workspace reconciler (deploy design §1 /
+# ADR-0022). Runs the agentgateway IMAGE with a command override to the
+# orchestrator binary. Promoted from the eden Helm chart on release v0.1.4; image
+# digest-pinned. Holds the eden-orchestrator lease, talks to Postgres
+# (eden-postgres-0.eden-postgres.eden.svc) + nats + vault, and mounts the
+# eden-vault-token Secret at /vault/secrets/token. serviceAccountName
+# eden-orchestrator (declared in 20-rbac.yaml; namespace-create authority in
+# rbac-cluster/). Picked up by the app-eden Application; Argo reconciles.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/part-of: eden
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orchestrator
+    spec:
+      serviceAccountName: eden-orchestrator
+      containers:
+        - name: orchestrator
+          # v0.1.4 — the agentgateway image, orchestrator entrypoint override
+          image: "ghcr.io/gophersys/eden/agentgateway@sha256:1e0fabbb24cf966c2eb0da4ab8e869e1a9b1ed714ace5c49e3b77259e6f69b75"
+          command: ["/usr/local/bin/agentgateway-orchestrator"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: EDEN_WORKSPACE_SUBSTRATE
+              value: "kubernetes"
+            - name: EDEN_LEASE_NAME
+              value: "eden-orchestrator"
+            - name: EDEN_LEASE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: EDEN_LEASE_IDENTITY
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POSTGRES_HOST
+              value: "eden-postgres-0.eden-postgres.eden.svc.cluster.local"
+            - name: POSTGRES_USER
+              value: "eden"
+            - name: POSTGRES_DB
+              value: "eden"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eden-orchestrator-postgres
+                  key: password
+            - name: DATABASE_URL
+              value: "postgres://eden:$(POSTGRES_PASSWORD)@eden-postgres-0.eden-postgres.eden.svc.cluster.local:5432/eden?sslmode=disable"
+            - name: EDEN_NATS_URL
+              value: "nats://nats.eden.svc.cluster.local:4222"
+            - name: EDEN_LABEL_NAMESPACE
+              value: "central"
+            - name: EDEN_VAULT_MODE
+              value: "token-file"
+            - name: EDEN_VAULT_TOKEN_FILE
+              value: "/vault/secrets/token"
+            - name: VAULT_ADDR
+              value: "http://vault.eden.svc.cluster.local:8200"
+            - name: EDEN_HARNESS
+              value: "claude-code"
+            - name: EDEN_CREDENTIAL_REF
+              value: "vault://eden/production#setup-token"
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+              ephemeral-storage: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: eden-vault-token
+              mountPath: /vault/secrets
+              subPath: token
+              readOnly: true
+      volumes:
+        - name: eden-vault-token
+          secret:
+            secretName: eden-vault-token
+            items:
+              - key: token
+                path: token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/part-of: eden
+spec:
+  selector:
+    app.kubernetes.io/name: orchestrator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

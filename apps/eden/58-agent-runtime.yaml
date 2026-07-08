@@ -1,0 +1,95 @@
+# Eden agent-runtime — the per-agent harness runtime that publishes the normalized
+# event stream to JetStream and subscribes to the control subject (deploy design
+# §1 / ADR-0022 #1). The chart renders ONE replica as the baseline runtime; the
+# orchestrator provisions additional agent pods dynamically. Promoted from the
+# eden Helm chart on release v0.1.4; image digest-pinned. Talks to nats:4222 +
+# vault:8200 and mounts the eden-vault-token Secret at /vault/secrets/token.
+# serviceAccountName eden-agent (declared in 20-rbac.yaml). Picked up by the
+# app-eden Application; Argo reconciles.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-runtime
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: agent-runtime
+    app.kubernetes.io/part-of: eden
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-runtime
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent-runtime
+    spec:
+      serviceAccountName: eden-agent
+      containers:
+        - name: agent-runtime
+          # v0.1.4
+          image: "ghcr.io/gophersys/eden/agent-runtime@sha256:71c2948107425fb38af389696b81778a2fb3d178c7c2bed301e2674c4c7b2690"
+          ports:
+            - name: probe
+              containerPort: 8081
+          env:
+            - name: EDEN_NATS_URL
+              value: "nats://nats:4222"
+            - name: EDEN_VAULT_MODE
+              value: "token-file"
+            - name: EDEN_VAULT_TOKEN_FILE
+              value: "/vault/secrets/token"
+            - name: VAULT_ADDR
+              value: "http://vault:8200"
+            - name: EDEN_HARNESS
+              value: "claude-code"
+            - name: EDEN_CREDENTIAL_REF
+              value: "vault://eden/production#setup-token"
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2048Mi
+            limits:
+              cpu: 1000m
+              memory: 2048Mi
+              ephemeral-storage: 4096Mi
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /live
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: eden-vault-token
+              mountPath: /vault/secrets
+              subPath: token
+              readOnly: true
+      volumes:
+        - name: eden-vault-token
+          secret:
+            secretName: eden-vault-token
+            items:
+              - key: token
+                path: token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-runtime
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: agent-runtime
+    app.kubernetes.io/part-of: eden
+spec:
+  selector:
+    app.kubernetes.io/name: agent-runtime
+  ports:
+    - name: probe
+      port: 8081
+      targetPort: 8081
