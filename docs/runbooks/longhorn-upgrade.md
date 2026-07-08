@@ -56,3 +56,20 @@ Top risks: (1) no backup target — mitigate first; (2) the 1.9→1.10 CRD gate;
 per-step engine upgrade. **~20–40 min/step, ~3–4.5h total** — recommended spread over multiple
 sessions (one minor per evening) so each version soaks and any regression is easy to attribute.
 Data at risk: ~45Gi observability history (Prometheus/Loki/Tempo) — replaceable given backups.
+
+---
+## ✅ COMPLETED 2026-07-08 — 1.7.2 → 1.12.0 (all 5 minors)
+Executed autonomously with MinIO as the backup target. Zero data loss, observability
+never went down. Path: 1.7.2 → 1.8.2 → 1.9.2 → 1.10.2 → 1.11.3 → 1.12.0.
+
+### ⚠️ CRITICAL LESSON (supersedes the "server-side apply" note above)
+**Apply Longhorn's CRDs CLIENT-side (`kubectl apply -f`), NOT `--server-side`.**
+The longhorn-manager sets each CRD's `spec.conversion` (webhook) at runtime.
+`kubectl apply --server-side --force-conflicts` of the manifest — whose CRDs carry
+no `conversion` block — produces an invalid CRD (`spec.conversion.webhookClientConfig
+Forbidden ... strategy Required`), so the CRD schema silently stays on the old
+version while the new manager rolls → **manager CrashLoopBackOff** with
+`strict decoding error: unknown field spec.backupBlockSize`. Fix that bit us on the
+1.10.2 step: split the manifest, `kubectl apply -f <crds>` (client-side) + apply the
+rest server-side. The remaining steps used this split from the start and were clean.
+The `v1beta1` CRD-migration gate was a no-op (cluster born at 1.7.2 = native v1beta2).
