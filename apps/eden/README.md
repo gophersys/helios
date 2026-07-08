@@ -14,10 +14,10 @@ eden Helm chart promotion (see "What the release pipeline promotes").
 | `00-namespace.yaml` | Namespace `eden` | `eden-namespace` (**platform**) | Cluster-scoped → platform project owns it; `app-eden` excludes it. |
 | `05-postgres.yaml` | StatefulSet + Service `postgres:5432` | `eden` (**apps**) | pg16, `local-path` PVC, password from Secret `eden-orchestrator-postgres`. |
 | `06-nats.yaml` | StatefulSet + Service `nats:4222` | `eden` (**apps**) | nats 2.14.2 + JetStream, PVC `eden-nats-data`. |
-| `07-vault.yaml` | StatefulSet + Service `vault:8200` + ConfigMap | `eden` (**apps**) | Single-node file storage, `IPC_LOCK`, boots SEALED. |
+| `07-vault.yaml` | StatefulSet + Service `vault:8200` + ConfigMap | `eden` (**apps**) | Single-node file storage, `disable_mlock=true` (no IPC_LOCK cap), boots SEALED. |
 | `08-vault-seed-job.yaml` | Job `eden-vault-seed` | `eden` (**apps**) | Seeds `eden/data/production`, mints `eden-vault-token`. Idempotent. |
 | `10-external-secret-bootstrap.yaml` | ExternalSecret → Secret `eden-bootstrap` | `eden` (**apps**) | Optional harness creds from Vaultwarden. |
-| `20-rbac.yaml` | SAs + Roles + RoleBindings | `eden` (**apps**) | `eden-agent`, `eden-orchestrator` (lease), `eden-vault-seed`. |
+| `20-rbac.yaml` | SAs + Roles + RoleBindings | `eden` (**apps**) | `eden-agent`, `platformgateway`, `eden-frontend`, `eden-orchestrator` (lease), `eden-vault-seed`; workload SAs carry the `ghcr-pull` imagePullSecret. |
 | `40-ingress.yaml` | Ingress `eden.mateosegura.com` | `eden` (**apps**) | nginx + `letsencrypt-homelab` TLS, all paths → `frontend:8080`. |
 | `rbac-cluster/rbac.yaml` | ClusterRole + ClusterRoleBinding | `eden-rbac` (**platform**) | Orchestrator's create-project-namespace authority. |
 
@@ -38,9 +38,11 @@ in the `apps` + `platform` AppProject destinations.
   `agentgateway-jwt-signing-key`, `platformgateway-jwt-signing-key`,
   `platformgateway-database-dsn`, and optional `setup-token`, `gh-token`,
   `openrouter-api-key` (resolved as `vault://eden/production#<field>`).
-- **ServiceAccounts:** `eden-agent` (agentgateway · agent-runtime · frontend),
-  `platformgateway` (platformgateway), `eden-orchestrator` (orchestrator) — every
-  chart Deployment's `serviceAccountName` is declared in `20-rbac.yaml`.
+- **ServiceAccounts:** `eden-agent` (agentgateway · agent-runtime),
+  `platformgateway` (platformgateway), `eden-frontend` (frontend),
+  `eden-orchestrator` (orchestrator) — every chart Deployment's
+  `serviceAccountName` is declared in `20-rbac.yaml`, and each carries the
+  `ghcr-pull` imagePullSecret for the private registry.
 - **Postgres:** user/db `eden`, password in Secret `eden-orchestrator-postgres`
   (key `password`).
 
@@ -52,6 +54,21 @@ Run against the homelab cluster (`kubectl` context `home`). The Namespace and th
 backing stack (Postgres/NATS/Vault) sync via Argo automatically once these
 manifests reach `main`; the steps below are the OUT-OF-BAND actions Argo cannot
 do (secret material + the Vault ceremony).
+
+### 0. ghcr image-pull secret (never in git)
+
+The Eden workload images live in the PRIVATE `ghcr.io/gophersys/eden/*`
+registry, so the cluster needs a docker-registry pull credential BEFORE any
+workload pod schedules (otherwise `ImagePullBackOff`). Every workload SA in
+`20-rbac.yaml` references it by name (`ghcr-pull`). Create it once with a GHCR
+`read:packages` PAT:
+
+```sh
+kubectl -n eden create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io \
+  --docker-username=mateosegura \
+  --docker-password=<a GHCR read:packages PAT>
+```
 
 ### 1. Imperative secrets (never in git)
 
@@ -144,7 +161,9 @@ A parallel release workflow (in the **eden monorepo**) builds
 multi-arch images on a `v<semver>` tag and opens a **digest-pin PR against THIS
 repo** that adds the workload Deployments/Services into `apps/eden/` (flat,
 numbered above `40-`, e.g. `50-agentgateway.yaml` …) pinned to the new image
-**digest**. Those manifests set `serviceAccountName: eden-agent`, talk to
-`nats:4222` / `postgres:5432` / `vault:8200`, and mount `eden-vault-token` at
-`/vault/secrets/token`. The `app-eden` Application (recurse:false, flat dir) picks
-them up automatically; Argo (`selfHeal + prune + ServerSideApply`) reconciles.
+**digest**. Those manifests set their per-service `serviceAccountName`
+(`eden-agent` for agentgateway · agent-runtime; `platformgateway`; `eden-frontend`
+for the frontend), talk to `nats:4222` / `postgres:5432` / `vault:8200`, and mount
+`eden-vault-token` at `/vault/secrets/token`. The `app-eden` Application
+(recurse:false, flat dir) picks them up automatically; Argo (`selfHeal + prune +
+ServerSideApply`) reconciles.

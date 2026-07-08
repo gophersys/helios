@@ -4,10 +4,18 @@
 # lives in rbac-cluster/ under the platform project — the `apps` AppProject is
 # namespace-scoped and cannot grant cluster-scoped resources.
 #
-# Three identities:
+# Every WORKLOAD ServiceAccount here (eden-agent, platformgateway, eden-frontend,
+# eden-orchestrator) carries `imagePullSecrets: [ghcr-pull]` — the Eden workload
+# images live in the PRIVATE ghcr.io/gophersys/eden/* registry, so each pod's SA
+# must reference the `ghcr-pull` docker-registry Secret (created imperatively
+# out-of-band; README step 0) for the kubelet to authenticate the pull. SA-level
+# imagePullSecrets propagate to every pod that runs as the SA. The seed-Job SA
+# (eden-vault-seed) needs none — it runs the public hashicorp/vault image.
+#
+# Four workload identities:
 #   1. eden-agent          — the ServiceAccount the eden chart's stateless
-#                            Deployments run as (agentgateway, agent-runtime,
-#                            frontend set serviceAccountName: eden-agent, per
+#                            Deployments run as (agentgateway, agent-runtime set
+#                            serviceAccountName: eden-agent, per
 #                            deploy/plane/production/chart/templates/*). Declared
 #                            here so the Deployments have an SA to bind to.
 #   1b. platformgateway    — the platformgateway Deployment's own SA (the chart's
@@ -16,6 +24,10 @@
 #                            Deployment binds; no RBAC rules (it needs none — Vault
 #                            + Postgres are its only dependencies, both off-cluster
 #                            of the k8s API).
+#   1c. eden-frontend      — the frontend Deployment's own SA (the chart's
+#                            frontend-deployment.yaml sets serviceAccountName:
+#                            eden-frontend). Declared so that Deployment binds; no
+#                            RBAC rules (a static+proxy SPA reaches no k8s API).
 #   2. eden-orchestrator   — the orchestrator pods' identity; its projected token
 #                            is the in-cluster kubeconfig (leaderelection + the
 #                            kubernetesadapter). The LEASE Role is namespaced here;
@@ -31,6 +43,8 @@ metadata:
   labels:
     app.kubernetes.io/name: eden-agent
     app.kubernetes.io/part-of: eden
+imagePullSecrets:
+  - name: ghcr-pull
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -40,6 +54,19 @@ metadata:
   labels:
     app.kubernetes.io/name: platformgateway
     app.kubernetes.io/part-of: eden
+imagePullSecrets:
+  - name: ghcr-pull
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eden-frontend
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: eden-frontend
+    app.kubernetes.io/part-of: eden
+imagePullSecrets:
+  - name: ghcr-pull
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -49,6 +76,8 @@ metadata:
   labels:
     app.kubernetes.io/name: eden-orchestrator
     app.kubernetes.io/part-of: eden
+imagePullSecrets:
+  - name: ghcr-pull
 ---
 # The LEASE Role: leader election contends for a coordination.k8s.io/v1 Lease in
 # `eden`. Replicas get/create/update it; watch lets the elector observe a peer's

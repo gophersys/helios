@@ -2,8 +2,9 @@
 # agentgateway and /platform -> platformgateway internally, so the browser sees
 # ONE same-origin surface (deploy design §1; the 40-ingress routes all paths
 # here). Promoted from the eden Helm chart on release v0.1.4; image digest-pinned.
-# No vault mount and no dedicated SA (uses the namespace default). Picked up by
-# the app-eden Application; Argo reconciles.
+# No vault mount. Runs as its OWN dedicated SA eden-frontend (declared in
+# 20-rbac.yaml) — the SA carries the ghcr-pull imagePullSecret the private image
+# needs. Picked up by the app-eden Application; Argo reconciles.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,6 +23,7 @@ spec:
       labels:
         app.kubernetes.io/name: frontend
     spec:
+      serviceAccountName: eden-frontend
       containers:
         - name: frontend
           # v0.1.4

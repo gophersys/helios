@@ -13,7 +13,9 @@
 # ONE replica (file storage is not HA — Raft/HA is a later concern).
 # mlock is DISABLED: k3s pods cannot effectively mlock (24-restart crashloop proved
 # it live) — the standard k8s posture (the official Helm chart defaults the same);
-# swap is off on the nodes, so the protection mlock buys is moot here.
+# swap is off on the nodes, so the protection mlock buys is moot here. Because
+# disable_mlock=true, the container needs NO IPC_LOCK capability (it never calls
+# mlock), so it drops ALL caps and stays inside the baseline PodSecurityStandard.
 #
 # ONE-TIME init/unseal is an operator action (never automated, never in git) —
 # see README.md "Vault init & unseal". Until unsealed the pod is deliberately
@@ -103,7 +105,10 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
-              add: ["IPC_LOCK"] # mlock: keep secrets out of swap
+              # No IPC_LOCK: disable_mlock=true is set in vault.hcl above, so Vault
+              # never calls mlock and the capability is unneeded — dropping it keeps
+              # the pod inside the baseline PodSecurityStandard (Kyverno flagged the
+              # add). swap is off on the nodes, so the protection mlock buys is moot.
               drop: ["ALL"]
           resources:
             requests:
