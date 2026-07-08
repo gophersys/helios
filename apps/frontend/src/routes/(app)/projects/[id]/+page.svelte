@@ -18,7 +18,8 @@
   import { onDestroy } from 'svelte';
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
-  import { edenTheme } from '$lib/theme/edenTheme';
+  import { edenLightTheme, edenDarkTheme } from '$lib/theme/edenTheme';
+  import { themePreference } from '$lib/theme/themePreference.svelte';
   import {
     PROJECT_LOADING_STATUSES,
     PROJECT_READY_STATUSES,
@@ -26,11 +27,15 @@
     type ProjectView,
   } from '$lib/gateway/types';
   import ProjectLoading from '$lib/dashboard/ProjectLoading.svelte';
+  import ProjectOverview from '$lib/dashboard/ProjectOverview.svelte';
+  import ProjectSpineNav from '$lib/dashboard/ProjectSpineNav.svelte';
   import SetupWizard from '$lib/chat/wizard/SetupWizard.svelte';
   import { createGatewayWizardSource } from '$lib/chat/wizard/wizardSource';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = edenTheme;
+  const theme = $derived(
+    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
+  );
 
   // The route id is reactive (the param can change without a remount on a client-side nav between
   // two project ids), so the poll re-targets when it does.
@@ -80,16 +85,18 @@
 
       // The SETUP WIZARD step is in-route: when the saga reaches `wizard` the supervisor is up and
       // driving the product-scoping interview, so we render SetupWizard HERE (the template branches
-      // on the status) rather than routing on — the wizard runs its own worktree poll, so the
-      // status poll stops. Only the OTHER ready statuses (supervisor_ready/building) route straight
-      // into the build workspace.
+      // on the status) rather than routing on — the wizard runs its own worktree poll, so the status
+      // poll stops.
       if (next.status === 'wizard') {
         clearPoll();
         return;
       }
+      // W4 (doc 17 §5): a READY project (supervisor_ready / building) now lands on its OVERVIEW — the
+      // project spine's home — rather than auto-bouncing into the Build view. The Overview + the spine
+      // tab nav (Overview | Build | Workspace | Insight) give the project a navigable home; Build is
+      // one click away. The poll stops (the project has reached a stable, navigable state).
       if (PROJECT_READY_STATUSES.has(next.status)) {
         clearPoll();
-        enterWorkspace(next);
         return;
       }
       if (isLoadingStatus(next.status)) {
@@ -119,13 +126,6 @@
     pollTimer = setTimeout(() => void fetchOnce(), POLL_INTERVAL_MS);
   }
 
-  /** Route into the project's Build view IN-SHELL once the supervisor is up (doc 17 §5). The project
-   *  maps to its own /projects/<id>/build surface, which resolves the build session (supervisor agent
-   *  or legacy link) and streams it inside the one shell. */
-  function enterWorkspace(ready: ProjectView): void {
-    void goto(`/projects/${encodeURIComponent(ready.id)}/build`);
-  }
-
   /** Retry a failed build: re-POST the create (the saga is idempotency-keyed, so it resumes), then
    *  resume polling from the refreshed status. A retry fault surfaces on the same screen. */
   async function retry(): Promise<void> {
@@ -137,11 +137,10 @@
       project = refreshed;
       if (isLoadingStatus(refreshed.status)) {
         schedulePoll();
-      } else if (refreshed.status === 'wizard') {
-        // The setup wizard renders in-route (the template branches on status); stop polling.
+      } else {
+        // W4: wizard → SetupWizard, ready → the Overview, both render in-route off the `project` state
+        // (the template branches on status); stop polling either way.
         clearPoll();
-      } else if (PROJECT_READY_STATUSES.has(refreshed.status)) {
-        enterWorkspace(refreshed);
       }
     } catch (cause) {
       loadError = cause instanceof GatewayError ? `${cause.kind}: ${cause.message}` : String(cause);
@@ -178,6 +177,15 @@
   // True once the saga reached the wizard step AND the supervisor session id is known (the wizard
   // drives that live session + reads the project's worktree). The template branches on this.
   const inWizard = $derived(project?.status === 'wizard' && Boolean(project.supervisorAgentId));
+
+  // W4: the OVERVIEW (doc 17 §5) — a READY project (supervisor_ready / building) renders its project
+  // home here: the spine tab nav + ProjectOverview. Non-ready statuses fall through to the loading/
+  // wizard/fault chrome below.
+  const showOverview = $derived(
+    Boolean(project) &&
+      PROJECT_READY_STATUSES.has(displayStatus) &&
+      project?.status !== 'wizard',
+  );
 
   // The wizard's I/O seam, bound to the LIVE gateway: the supervisor session's workspace file
   // surface (the committed init/product/* interview artifacts) + its control channel. Derived from
@@ -223,6 +231,13 @@
     onfinish={enterFromWizard}
     {theme}
   />
+{:else if showOverview && project}
+  <!-- W4: the OVERVIEW — the project spine's home (doc 17 §5). The spine tab nav (Overview | Build |
+       Workspace | Insight) + the real Overview (status Badge · coordinates · summary). -->
+  <div class="spine-page">
+    <ProjectSpineNav projectId={projectId} />
+    <ProjectOverview {project} {theme} />
+  </div>
 {:else}
   <ProjectLoading
     status={displayStatus}
@@ -236,6 +251,12 @@
 {/if}
 
 <style>
+  /* W4: the spine page — the tab nav pinned above the routed Overview content. */
+  .spine-page {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100%;
+  }
   .fault {
     display: flex;
     flex-direction: column;

@@ -4,13 +4,16 @@
   // lists them, "＋ New project" starts the creation flow. Token-driven; cards are reusable components.
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
-  import { edenTheme } from '$lib/theme/edenTheme';
+  import { edenLightTheme, edenDarkTheme } from '$lib/theme/edenTheme';
+  import { themePreference } from '$lib/theme/themePreference.svelte';
   import { goto } from '$app/navigation';
-  import { Button } from '@eden/primitives';
+  import { Button, EmptyState } from '@eden/primitives';
   import ProjectCard, { type ProjectSummary } from '$lib/dashboard/ProjectCard.svelte';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = edenTheme;
+  const theme = $derived(
+    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
+  );
 
   let projects = $state<ProjectSummary[]>([]);
   let listError = $state<string | null>(null);
@@ -58,6 +61,17 @@
     // The create-flow → saga handoff (route into /projects/<id>) is wired in BuildWorkspace itself.
     void goto('/chat?new=1');
   }
+
+  // W4: the empty state is a PRODUCT SURFACE, not a void (doc 17 §1.2/§4). Its content slot seeds a
+  // few example "spark" ideas — what Eden can build — as clickable chips that open the create flow, so
+  // the empty case OFFERS a starting point instead of an apology. (The flow opens on SPARK where the
+  // user refines the idea; a pre-filled spark param is not yet a wired end-to-end contract, so a chip
+  // honestly starts the flow rather than faking a filled input.)
+  const SPARK_IDEAS: readonly string[] = [
+    'A payments service in Go',
+    'A REST API with Postgres',
+    'A CLI that scaffolds projects',
+  ];
 </script>
 
 <svelte:head><title>Eden — Projects</title></svelte:head>
@@ -76,10 +90,38 @@
     {/if}
 
     {#if loaded && projects.length === 0}
+      <!-- W4: the empty state is a product surface (@eden/primitives EmptyState) — serif headline ·
+           body · primary action · a CONTENT SLOT of spark-idea chips that open the create flow. The
+           `dash-empty` testid stays on the rendered EmptyState root (the DO-NOT-BREAK contract). -->
       <div class="page__empty" data-testid="dash-empty">
-        <h2>Build something with Eden</h2>
-        <p>An agent will scope it with you in a few quick steps, then build it.</p>
-        <Button variant="primary" {theme} onclick={newProject}>＋ New project</Button>
+        <EmptyState
+          {theme}
+          headline="Build something with Eden"
+          body="An agent will scope it with you in a few quick steps, then build it."
+        >
+          {#snippet action()}
+            <Button variant="primary" {theme} onclick={newProject}>＋ New project</Button>
+          {/snippet}
+          {#snippet content()}
+            <div class="sparks">
+              <p class="sparks__caption">Try starting from an idea</p>
+              <ul class="sparks__list" role="list">
+                {#each SPARK_IDEAS as idea (idea)}
+                  <li>
+                    <button
+                      type="button"
+                      class="spark"
+                      data-testid="dash-spark"
+                      onclick={newProject}
+                    >
+                      {idea}
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/snippet}
+        </EmptyState>
       </div>
     {:else}
       <ul class="grid" role="list" data-testid="project-grid">
@@ -125,18 +167,55 @@
     color: var(--color-error);
     font-size: var(--font-size-label, 13px);
   }
+  /* W4: the wrapper only vertically positions the EmptyState (which owns its own reading measure,
+     centering, headline/body voices, and content slot). No hand-set painted roles here. */
   .page__empty {
-    max-inline-size: 46ch;
-    margin: 12vh auto 0;
-    text-align: center;
+    margin-block-start: 10vh;
+  }
+  /* the spark-idea chips in the EmptyState content slot — clickable ideas that open the create flow. */
+  .sparks {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4, 16px);
     align-items: center;
+    gap: var(--space-3, 12px);
   }
-  .page__empty p {
-    color: var(--eden-app-muted);
+  .sparks__caption {
     margin: 0;
+    font-size: var(--font-size-caption, 12px);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--eden-app-muted, var(--color-outline));
+  }
+  .sparks__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2, 8px);
+  }
+  .spark {
+    padding: var(--space-2, 8px) var(--space-4, 16px);
+    min-block-size: 44px;
+    background: var(--eden-app-panel-bg, var(--color-surface));
+    border: 1px solid var(--eden-app-line, var(--color-outline));
+    border-radius: 999px;
+    color: var(--eden-app-fg, var(--color-on-surface));
+    font: inherit;
+    font-size: var(--font-size-label, 13px);
+    cursor: pointer;
+    transition:
+      border-color 140ms ease,
+      color 140ms ease;
+  }
+  .spark:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+  .spark:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
   .grid {
     list-style: none;
@@ -174,7 +253,8 @@
     color: var(--eden-app-accent);
   }
   @media (prefers-reduced-motion: reduce) {
-    .newcard {
+    .newcard,
+    .spark {
       transition: none;
     }
   }

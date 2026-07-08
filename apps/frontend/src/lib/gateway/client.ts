@@ -4,6 +4,7 @@
 // GatewayError carrying the gateway's stable Kind token). The live SSE stream is a separate
 // seam (sse.ts) — this client covers create / list / get / control / stop / resume / transcript.
 
+import type { Report } from '@eden/visualization';
 import type {
   AgentConfigView,
   AgentView,
@@ -170,6 +171,17 @@ export class GatewayClient {
       `/projects/${encodeURIComponent(id)}`,
     );
     return envelope.data;
+  }
+
+  /** GET /projects/{id}/insight — the codeinsight Report over the project's worktree (the self-feeding
+   *  seam; apps/agentgateway insight_handler.go). NOT enveloped: the handler writes the bare Report at
+   *  200 (a redaction-safe projection @eden/visualization renders). It throws a typed GatewayError on the
+   *  documented fault arms (not-found 404 when the project id is unknown; unavailable 503 when no worktree
+   *  is materialized, the analysis exceeds its 60s budget, or persistence is unconfigured) — the Insight
+   *  view branches on `kind` to degrade honestly (an EmptyState, never a spinner-forever). The analysis is
+   *  synchronous and can be slow on a large repo, so it is bounded server-side (60s) not here. */
+  async insight(id: string): Promise<Report> {
+    return this.requestJSON<Report>('GET', `/projects/${encodeURIComponent(id)}/insight`);
   }
 
   /** GET /sessions/{id}/editor — read-only VS Code coordinates for the session's project worktree.

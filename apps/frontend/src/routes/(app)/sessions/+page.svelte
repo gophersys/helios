@@ -5,13 +5,16 @@
   // backend connection, the management counterpart to the chat workspace.
   import { GatewayClient, GatewayError } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
-  import { edenTheme } from '$lib/theme/edenTheme';
+  import { edenLightTheme, edenDarkTheme } from '$lib/theme/edenTheme';
+  import { themePreference } from '$lib/theme/themePreference.svelte';
   import { goto } from '$app/navigation';
-  import { Button } from '@eden/primitives';
+  import { Button, EmptyState } from '@eden/primitives';
   import type { AgentView } from '$lib/gateway/types';
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = edenTheme;
+  const theme = $derived(
+    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
+  );
 
   let sessions = $state<AgentView[]>([]);
   let listError = $state<string | null>(null);
@@ -70,11 +73,26 @@
     {/if}
 
     {#if loaded && sessions.length === 0}
+      <!-- W4: the empty state is a product surface (@eden/primitives EmptyState) — serif headline ·
+           body · primary action · a CONTENT SLOT pointing at where sessions come from (a project's
+           build). The `sessions-empty` testid stays on the rendered EmptyState root (DO-NOT-BREAK). -->
       <div class="page__empty" data-testid="sessions-empty">
-        <h2>No sessions yet</h2>
-        <p>Start a project and the agent session that builds it appears here.</p>
-        <Button variant="primary" {theme} onclick={() => goto('/chat?new=1')}>＋ New session</Button
+        <EmptyState
+          {theme}
+          headline="No sessions yet"
+          body="Start a project and the agent session that builds it appears here."
         >
+          {#snippet action()}
+            <Button variant="primary" {theme} onclick={() => goto('/chat?new=1')}>＋ New session</Button>
+          {/snippet}
+          {#snippet content()}
+            <p class="pointer">
+              Sessions are born from a build. Head to
+              <button type="button" class="pointer__link" data-testid="sessions-to-projects" onclick={() => goto('/projects')}>Projects</button>
+              and start one.
+            </p>
+          {/snippet}
+        </EmptyState>
       </div>
     {:else if loaded}
       <table class="sessions" data-testid="sessions-table">
@@ -133,18 +151,28 @@
     color: var(--color-error);
     font-size: var(--font-size-label, 13px);
   }
+  /* W4: the wrapper only vertically positions the EmptyState (which owns its own reading measure,
+     centering, headline/body voices, and content slot). No hand-set painted roles here. */
   .page__empty {
-    max-inline-size: 46ch;
-    margin: 12vh auto 0;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4, 16px);
-    align-items: center;
+    margin-block-start: 10vh;
   }
-  .page__empty p {
-    color: var(--eden-app-muted);
+  .pointer {
     margin: 0;
+    color: var(--eden-app-muted, var(--color-outline));
+    font-size: var(--font-size-label, 13px);
+  }
+  .pointer__link {
+    padding: 0;
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .pointer__link:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
   .sessions {
     inline-size: 100%;

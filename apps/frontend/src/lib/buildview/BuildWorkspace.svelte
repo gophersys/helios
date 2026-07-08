@@ -3,7 +3,7 @@
   // parallel `/chat` app, now a REUSABLE view mounted INSIDE the one (app) shell. It hosts the
   // session rail, the transcript timeline, the composer, the agent-type-aware RightPanel, the live
   // status/context bars, the docked usage meter, the create-project wizard, the per-session config
-  // modal, and the workspace SettingsPanel. It talks to the agentgateway backend over REAL REST +
+  // modal, and (via `settings-open`) the ONE Settings surface. It talks to the agentgateway backend over REAL REST +
   // SSE (a "session" IS a PRODUCT Eden builds via its 10-phase SDLC), streaming the agent event
   // taxonomy through @eden/primitives (Message, StreamingText, ThinkingBlock, ToolCall, UsageMeter,
   // and the interactive PermissionRequest gate).
@@ -21,7 +21,8 @@
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
   import { ChatSession } from '$lib/gateway/session.svelte';
   import type { AgentView, Harness, ProductConfig, ProductHarness } from '$lib/gateway/types';
-  import { edenTheme } from '$lib/theme/edenTheme';
+  import { edenLightTheme, edenDarkTheme } from '$lib/theme/edenTheme';
+  import { themePreference } from '$lib/theme/themePreference.svelte';
   import ChatMessage from '$lib/chat/ChatMessage.svelte';
   import ChatTool from '$lib/chat/ChatTool.svelte';
   import ChatPermission from '$lib/chat/ChatPermission.svelte';
@@ -29,13 +30,14 @@
   import ChatContextBar from '$lib/chat/ChatContextBar.svelte';
   import RightPanel from '$lib/chat/RightPanel.svelte';
   import TopBar from '$lib/chat/TopBar.svelte';
-  import SettingsPanel from '$lib/chat/SettingsPanel.svelte';
+  import SettingsSurface from '$lib/settings/SettingsSurface.svelte';
   import UsageDock from '$lib/chat/UsageDock.svelte';
   import Modal from '$lib/chat/Modal.svelte';
   import AgentConfigView from '$lib/chat/AgentConfigView.svelte';
   import CreateProjectFlow from '$lib/chat/wizard/CreateProjectFlow.svelte';
   import { agentTypeFor } from '$lib/workspace/agentWorkspace';
   import { usePaletteBus, type PaletteProvider } from '$lib/buildview/paletteBus.svelte';
+  import { currentUser } from '$lib/platform/currentUser.svelte';
 
   // ── deep-link intent (the ?new / ?session / ?harness contract, resolved by the host route) ──
   //    A host route (/chat, /projects/[id]/build, /sessions/[id]) resolves the URL into this intent
@@ -50,7 +52,12 @@
   } = $props();
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = edenTheme;
+  const gatewayUrl = resolveGatewayUrl();
+  // The Theme OBJECT tracks the resolved colour mode so a component derived from it (the Settings sheet)
+  // flips WITH the app when Appearance switches (doc 17 §3). Light-first (the founder's paper anchor).
+  const theme = $derived(
+    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
+  );
   const palette = usePaletteBus();
 
   // ── session-list state ───────────────────────────────────────────────────────.
@@ -61,7 +68,11 @@
   // ── product-wizard state ─────────────────────────────────────────────────────.
   let showWizard = $state(false);
   // ── settings + per-session config overlays (the palette lives in the shell now) ─────────────.
+  // The Build top bar's `settings-open` opens the ONE Settings surface on Appearance (colour mode —
+  // the setting the Build view's affordance historically surfaced). The per-session agent-config
+  // detail (configOpen) is a distinct overlay (this session's model/grants), left as-is.
   let settingsOpen = $state(false);
+  let settingsSection = $state<string>('appearance');
   let configOpen = $state(false);
 
   // ── collapsible columns: the rail + the right panel fold away (top-bar toggles) so the chat can
@@ -191,6 +202,7 @@
       return true;
     }
     if (value === 'build-settings') {
+      settingsSection = 'appearance';
       settingsOpen = true;
       return true;
     }
@@ -427,7 +439,10 @@
     onToggleRail={() => (railOpen = !railOpen)}
     onTogglePanel={() => (panelOpen = !panelOpen)}
     onPalette={openPalette}
-    onSettings={() => (settingsOpen = true)}
+    onSettings={() => {
+      settingsSection = 'appearance';
+      settingsOpen = true;
+    }}
     onConfig={active ? () => (configOpen = true) : undefined}
     {theme}
   />
@@ -672,7 +687,17 @@
   />
 {/if}
 
-<SettingsPanel bind:open={settingsOpen} {theme} />
+<SettingsSurface
+  bind:open={settingsOpen}
+  bind:section={settingsSection}
+  {theme}
+  loadConfigs={() => client.listAgentConfigs()}
+  saveConfig={(agentType, body) => client.saveAgentConfig(agentType, body)}
+  gatewayHealthy={healthy}
+  platformSignedIn={currentUser.signedIn}
+  gatewayLabel={gatewayUrl}
+  platformLabel="/platform"
+/>
 
 <!-- ── the agent-config detail view in the global modal shell ─────────────────── -->
 {#if active && activeType}

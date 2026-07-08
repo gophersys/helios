@@ -11,18 +11,35 @@
   import { goto } from '$app/navigation';
   import { CommandPalette, type CommandPaletteGroup } from '@eden/primitives';
   import SideNav, { type NavItem } from '$lib/shell/SideNav.svelte';
-  import SettingsModal from '$lib/dashboard/SettingsModal.svelte';
+  import SettingsSurface from '$lib/settings/SettingsSurface.svelte';
   import { GatewayClient } from '$lib/gateway/client';
   import { resolveGatewayUrl } from '$lib/gateway/configuration';
-  import { edenTheme } from '$lib/theme/edenTheme';
+  import { edenLightTheme, edenDarkTheme } from '$lib/theme/edenTheme';
+  import { themePreference } from '$lib/theme/themePreference.svelte';
   import { currentUser } from '$lib/platform/currentUser.svelte';
   import { PaletteBus, provizePaletteBus } from '$lib/buildview/paletteBus.svelte';
 
   let { children } = $props();
 
   const client = new GatewayClient(resolveGatewayUrl());
-  const theme = edenTheme;
+  const gatewayUrl = resolveGatewayUrl();
+  // The Theme OBJECT handed to @eden/primitives tracks the RESOLVED colour mode, so a component whose
+  // chrome is derived from the Theme (the Settings sheet, the ⌘K palette — not just the CSS cascade)
+  // flips WITH the app when Appearance switches light/dark/system (doc 17 §3, "must actually retheme").
+  const theme = $derived(
+    themePreference.resolvedMode === 'dark' ? edenDarkTheme : edenLightTheme,
+  );
+  // The ONE Settings surface (doc 17 §7). `settingsSection` deep-links which section opens: the
+  // sidebar user affordance (`user-settings-open`) lands on Agents; ⌘K's Settings lands on Agents too
+  // (the platform-preference default). The Build view's top-bar `settings-open` lands on Appearance.
   let settingsOpen = $state(false);
+  let settingsSection = $state<string>('agents');
+
+  /** Open the Settings surface at a given section (the deep-link entry points). */
+  function openSettings(section: string): void {
+    settingsSection = section;
+    settingsOpen = true;
+  }
 
   // ── the shared ⌘K palette bus (doc 17 §5) ──────────────────────────────────────.
   // The bus is provided to the whole subtree so the Build view can REGISTER its session commands;
@@ -84,7 +101,7 @@
     palette.open = false;
     if (palette.runProvider(value)) return;
     if (value === 'settings') {
-      settingsOpen = true;
+      openSettings('agents');
       return;
     }
     if (value.startsWith('nav:')) {
@@ -108,7 +125,7 @@
 
 <div class="shell" data-testid="app-shell">
   <aside class="shell__nav">
-    <SideNav user={currentUser.user} nav={NAV} onSettings={() => (settingsOpen = true)} {theme} />
+    <SideNav user={currentUser.user} nav={NAV} onSettings={() => openSettings('agents')} {theme} />
     <div class="shell__health">
       <span
         class="shell__chip shell__chip--{healthy === null ? 'muted' : healthy ? 'ok' : 'warn'}"
@@ -134,11 +151,16 @@
   placeholder="Type a command, search sessions, or jump to a page…"
 />
 
-<SettingsModal
+<SettingsSurface
   bind:open={settingsOpen}
+  bind:section={settingsSection}
   {theme}
   loadConfigs={() => client.listAgentConfigs()}
   saveConfig={(agentType, body) => client.saveAgentConfig(agentType, body)}
+  gatewayHealthy={healthy}
+  platformSignedIn={currentUser.signedIn}
+  gatewayLabel={gatewayUrl}
+  platformLabel="/platform"
 />
 
 <style>

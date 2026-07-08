@@ -697,13 +697,19 @@ test.describe('create a new project — full-stack journey against a real dev-se
     page.on('pageerror', (e) => pageErrors.push(e.message));
     await openChat(page);
 
-    // The settings affordance in the top bar opens the dismissible settings panel.
+    // W4: the Build top-bar `settings-open` and the dashboard `user-settings-open` now open the ONE
+    // Settings surface (doc 17 §7, @eden/primitives SettingsSurface) — the two legacy surfaces
+    // (chat/SettingsPanel + dashboard/SettingsModal) are deleted. The unified sheet root testid is
+    // `settings-surface`; the top-bar entry deep-links to the Appearance section (the colour mode this
+    // affordance historically surfaced). Every FUNCTIONAL assertion below is preserved unweakened:
+    // the surface opens, the colour-mode control (`settings-colormode`, unchanged) is visible, and
+    // Escape dismisses (the bits-ui Dialog behavior the SettingsSurface composes).
     await page.getByTestId('settings-open').click();
-    await expect(page.getByTestId('settings-panel')).toBeVisible();
+    await expect(page.getByTestId('settings-surface')).toBeVisible();
     // It surfaces the real settings (colour mode), and Escape dismisses it.
     await expect(page.getByTestId('settings-colormode')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('settings-panel')).toBeHidden();
+    await expect(page.getByTestId('settings-surface')).toBeHidden();
 
     expect(pageErrors, `uncaught exceptions: ${pageErrors.join(' | ')}`).toEqual([]);
   });
@@ -717,10 +723,14 @@ test.describe('create a new project — full-stack journey against a real dev-se
 
     await page.goto('/projects');
     await expect(page.getByTestId('projects-dashboard')).toBeVisible();
+    // W4: `user-settings-open` now opens the ONE Settings surface (`settings-surface`) deep-linked to
+    // the Agents section (was the dashboard's `settings-modal`, deleted). The agent-config CRUD testids
+    // + the PUT wire shape ({model, toolGrants[], sandboxPosture}) + the reload-persistence walk are all
+    // UNCHANGED — every functional assertion below survives the merge.
     await page.getByTestId('user-settings-open').click();
-    await expect(page.getByTestId('settings-modal')).toBeVisible();
+    await expect(page.getByTestId('settings-surface')).toBeVisible();
 
-    // Edit the implementer card (Agents is the default tab).
+    // Edit the implementer card (Agents is the deep-linked section).
     const card = page.locator('[data-testid="agent-type-config"][data-agent-type="implementer"]');
     await card.getByTestId('agent-type-config-model-input').fill('claude-opus-4-8');
     await card.getByTestId('agent-type-config-grants-input').fill('Read, Write');

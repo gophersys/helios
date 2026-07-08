@@ -21,6 +21,11 @@ import { browser } from '$app/environment';
 /** The three preference states. 'system' defers to the OS via prefers-color-scheme. */
 export type ThemePreference = 'light' | 'dark' | 'system';
 
+/** The RESOLVED mode — the concrete surface the tokens paint (system collapses to the OS choice). A
+ *  surface that hands a generated Theme OBJECT to @eden/primitives (not just the CSS cascade) reads
+ *  this to pick the light/dark Theme, so the component chrome flips WITH the app (doc 17 §3). */
+export type ResolvedMode = 'light' | 'dark';
+
 /** The localStorage key the inline app.html bootstrap and this store share. One name, one home. */
 export const THEME_STORAGE_KEY = 'eden-theme';
 
@@ -60,9 +65,31 @@ function applyToDocument(preference: ThemePreference): void {
 class ThemeStore {
   // svelte-ignore state_referenced_locally — the initial read is intentional (hydration seed).
   #preference = $state<ThemePreference>(readStored());
+  // The live OS dark-mode signal (reactive), tracked so `resolvedMode` re-derives when the OS flips
+  // and the preference is 'system'. Seeded from matchMedia on mount; a listener keeps it current.
+  #osDark = $state<boolean>(false);
+
+  constructor() {
+    if (browser && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+      this.#osDark = mql.matches;
+      // A change listener keeps the resolved mode live when the OS theme flips under 'system'.
+      mql.addEventListener('change', (e) => {
+        this.#osDark = e.matches;
+      });
+    }
+  }
 
   /** The current preference (reactive). */
   get value(): ThemePreference {
+    return this.#preference;
+  }
+
+  /** The RESOLVED concrete mode (reactive): light/dark pass through; 'system' collapses to the live OS
+   *  choice. A surface handing a Theme OBJECT to @eden/primitives reads this to flip the component
+   *  chrome WITH the app (the sheet/overlay tokens are derived from the passed Theme, not the cascade). */
+  get resolvedMode(): ResolvedMode {
+    if (this.#preference === 'system') return this.#osDark ? 'dark' : 'light';
     return this.#preference;
   }
 
