@@ -213,10 +213,13 @@ jobs:
         run: echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u mateosegura --password-stdin
       - name: Build the @eden/* libraries (dist/ the frontend image consumes)
         run: |
+          # bun is on the image ENV PATH (uid-independent); yarn/nvm are profile-gated
+          # and NOT needed here — the @eden/* libs are a self-contained bun workspace
+          # (v0.1.3 proved bash -l as root+HOME=/home/dev still misses nvm's yarn).
           docker run --rm -u root -e HOME=/home/dev -v "${{ github.workspace }}":/workspace -w /workspace \
             "${{ env.BASE_IMAGE }}" bash -lc '
               git config --global --add safe.directory "*"
-              yarn install --immutable
+              cd libs/typescript && bun install --frozen-lockfile && cd /workspace
               bash apps/frontend/deploy/build-libs.sh
             '
       - name: Build + push frontend (multi-arch)
