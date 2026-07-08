@@ -13,6 +13,7 @@ body?: Snippet;
 body?: string;
 budget: number;
 children: Snippet;
+content: Snippet<[string]>;
 content?: Snippet;
 control: Snippet<[FieldControlProps]>;
 cost?: string;
@@ -32,6 +33,7 @@ declare const Kbd: import("svelte").Component<KbdProps, {}, "">;
 declare const Message: import("svelte").Component<MessageProps, {}, "">;
 declare const PermissionRequest: import("svelte").Component<PermissionRequestProps, {}, "">;
 declare const Popover: import("svelte").Component<PopoverProps, {}, "open">;
+declare const SettingsSurface: import("svelte").Component<SettingsSurfaceProps, {}, "open" | "active">;
 declare const Spinner: import("svelte").Component<SpinnerProps, {}, "">;
 declare const StatRow: import("svelte").Component<StatRowProps, {}, "">;
 declare const StreamingText: import("svelte").Component<StreamingTextProps, {}, "">;
@@ -74,6 +76,7 @@ export declare function deriveKbdTokens(theme: Theme): KbdTokens;
 export declare function deriveMessageTokens(role: MessageRole, theme: Theme): MessageTokens;
 export declare function deriveOverlayTokens(layer: OverlayLayer, theme: Theme): OverlayTokens;
 export declare function derivePermissionRequestTokens(theme: Theme): PermissionRequestTokens;
+export declare function deriveSettingsSurfaceTokens(theme: Theme): SettingsSurfaceTokens;
 export declare function deriveSpinnerTokens(variant: SpinnerVariant, theme: Theme): SpinnerTokens;
 export declare function deriveStatRowTokens(theme: Theme): StatRowTokens;
 export declare function deriveStreamingTextTokens(theme: Theme): StreamingTextTokens;
@@ -99,6 +102,7 @@ export declare function proseSurface(theme: Theme): SurfacePair;
 export declare function quietSurface(theme: Theme): SurfacePair;
 export declare function radiusPx(theme: Theme, radius: Radius): number;
 export declare function rampPx(theme: Theme): readonly number[];
+export declare function settingsSurfaceStyleVars(tokens: SettingsSurfaceTokens): string;
 export declare function space(theme: Theme, index: number): number;
 export declare function spinnerStyleVars(tokens: SpinnerTokens): string;
 export declare function statRowStyleVars(tokens: StatRowTokens): string;
@@ -133,6 +137,7 @@ export default Kbd;
 export default Message;
 export default PermissionRequest;
 export default Popover;
+export default SettingsSurface;
 export default Spinner;
 export default StatRow;
 export default StreamingText;
@@ -161,6 +166,8 @@ export interface MessageTokens {
 export interface OverlayTokens {
 export interface PermissionRequestTokens {
 export interface ProportionPick {
+export interface SettingsSection {
+export interface SettingsSurfaceTokens {
 export interface SpinnerTokens {
 export interface Stat {
 export interface StatRowTokens {
@@ -207,6 +214,7 @@ export { Kbd, deriveKbdTokens, kbdStyleVars, type KbdTokens } from './kbd/index.
 export { Message, deriveMessageTokens, messageStyleVars, type MessageRole, type MessageTokens, } from './message/index.js';
 export { PermissionRequest, derivePermissionRequestTokens, permissionRequestStyleVars, permissionHeadingPairOklch, type PermissionRequestTokens, } from './permission-request/index.js';
 export { Popover } from './popover/index.js';
+export { SettingsSurface, deriveSettingsSurfaceTokens, settingsSurfaceStyleVars, type SettingsSurfaceTokens, type SettingsSection, } from './settings-surface/index.js';
 export { Spinner, deriveSpinnerTokens, spinnerStyleVars, type SpinnerVariant, type SpinnerTokens, } from './spinner/index.js';
 export { StatRow, deriveStatRowTokens, statRowStyleVars, type Stat, type StatRowTokens, } from './stat-row/index.js';
 export { StreamingText, deriveStreamingTextTokens, streamingTextStyleVars, appendChunk, streamProgress, type StreamingTextTokens, } from './streaming-text/index.js';
@@ -232,6 +240,7 @@ export { default as Kbd } from './kbd.svelte';
 export { default as Message } from './message.svelte';
 export { default as PermissionRequest } from './permission-request.svelte';
 export { default as Popover } from './popover.svelte';
+export { default as SettingsSurface } from './settings-surface.svelte';
 export { default as Spinner } from './spinner.svelte';
 export { default as StatRow } from './stat-row.svelte';
 export { default as StreamingText } from './streaming-text.svelte';
@@ -257,6 +266,7 @@ export { deriveMessageTokens, messageStyleVars, type MessageRole, type MessageTo
 export { deriveOverlayTokens, overlayStyleVars, defaultOverlayTheme, type OverlayLayer, type OverlayTokens, } from './overlay/index.js';
 export { deriveOverlayTokens, overlayStyleVars, defaultOverlayTheme, type OverlayLayer, type OverlayTokens, } from './tokens.js';
 export { derivePermissionRequestTokens, permissionRequestStyleVars, permissionHeadingPairOklch, type PermissionRequestTokens, } from './tokens.js';
+export { deriveSettingsSurfaceTokens, settingsSurfaceStyleVars, type SettingsSurfaceTokens, type SettingsSection, } from './tokens.js';
 export { deriveSpinnerTokens, spinnerStyleVars, type SpinnerVariant, type SpinnerTokens, } from './tokens.js';
 export { deriveStatRowTokens, statRowStyleVars, type Stat, type StatRowTokens } from './tokens.js';
 export { deriveStreamingTextTokens, streamingTextStyleVars, appendChunk, streamProgress, type StreamingTextTokens, } from './tokens.js';
@@ -293,6 +303,7 @@ interface KbdProps {
 interface MessageProps {
 interface PermissionRequestProps {
 interface PopoverProps {
+interface SettingsSurfaceProps {
 interface SpinnerProps {
 interface StatRowProps {
 interface StreamingTextProps {
@@ -313,6 +324,7 @@ onDecision?: (decision: PermissionDecision) => void;
 onExit?: () => void;
 onOpenChange?: (open: boolean) => void;
 onRemove?: () => void;
+onSectionChange?: (id: string) => void;
 onSelect?: (value: string) => void;
 onValueChange?: (value: string) => void;
 onclick?: (event: MouseEvent) => void;
@@ -326,6 +338,7 @@ readonly accentOklch: OkLch;
 readonly actionGapPx: number;
 readonly active: string;
 readonly activeOklch: OkLch;
+readonly activeTint: string;
 readonly arc: string;
 readonly arcOklch: OkLch;
 readonly background: string;
@@ -396,6 +409,8 @@ readonly itemForeground: string;
 readonly itemForegroundOklch: OkLch;
 readonly itemHeightPx: number;
 readonly itemPaddingInlinePx: number;
+readonly itemPaddingPx: number;
+readonly itemRadiusPx: number;
 readonly itemSelectedBackground: string;
 readonly itemSelectedBackgroundOklch: OkLch;
 readonly itemSelectedForeground: string;
@@ -403,8 +418,12 @@ readonly itemSelectedForegroundOklch: OkLch;
 readonly items: readonly CommandPaletteItem[];
 readonly keywords?: readonly string[];
 readonly label: string;
+readonly labelActive: string;
+readonly labelActiveOklch: OkLch;
 readonly labelFontFamily: string;
 readonly labelFontSizePx: number;
+readonly labelInactive: string;
+readonly labelInactiveOklch: OkLch;
 readonly labelLineHeightPx: number;
 readonly labelOklch: OkLch;
 readonly lead: string;
@@ -443,6 +462,7 @@ readonly proseLineHeightPx: number;
 readonly proseSizePx: number;
 readonly radiusPx: number;
 readonly rail: string;
+readonly railWidthPx: number;
 readonly readoutFontFamily: string;
 readonly readoutLineHeightPx: number;
 readonly readoutSizePx: number;
@@ -481,6 +501,7 @@ reason?: string;
 removeLabel?: string;
 role?: MessageRole;
 rows?: number;
+sections: readonly SettingsSection[];
 stats: readonly Stat[];
 status?: ToolCallStatus;
 status?: boolean;
@@ -491,6 +512,7 @@ tabs: readonly Tab[];
 text?: string;
 theme?: Theme;
 title: string;
+title?: string;
 tool: string;
 trigger: Snippet;
 type Badge = ReturnType<typeof Badge>;
@@ -510,6 +532,7 @@ type Message = ReturnType<typeof Message>;
 type PermissionDecision = 'allow-once' | 'allow-session' | 'deny';
 type PermissionRequest = ReturnType<typeof PermissionRequest>;
 type Popover = ReturnType<typeof Popover>;
+type SettingsSurface = ReturnType<typeof SettingsSurface>;
 type Spinner = ReturnType<typeof Spinner>;
 type StatRow = ReturnType<typeof StatRow>;
 type StreamingText = ReturnType<typeof StreamingText>;

@@ -30,6 +30,7 @@ export default defineConfig({
         chat: here('./chat.html'),
         wave1: here('./wave1.html'),
         'wizard-shell': here('./wizard-shell.html'),
+        'settings-surface': here('./settings-surface.html'),
       },
     },
   },

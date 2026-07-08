@@ -82,7 +82,7 @@ describe('UsageMeter.svelte — the real component', () => {
 
   it('the bar fill width reflects the usage fraction (a derived percentage, not a literal)', () => {
     const { container } = render(UsageMeter, { props: { used: 30, budget: 120 } });
-    const fill = container.querySelector('.eden-usage-meter-fill') as HTMLElement;
+    const fill = container.querySelector<HTMLElement>('.eden-usage-meter-fill')!;
     expect(fill.getAttribute('style')).toContain('inline-size: 25%');
   });
 
@@ -97,9 +97,9 @@ describe('UsageMeter.svelte — the real component', () => {
       const used = tier === 'over' ? 100 : tier === 'near' ? 85 : 10;
       const { getByRole, unmount } = render(UsageMeter, { props: { used, budget: 100, theme } });
       const tokens = deriveUsageMeterTokens(usageTier(used / 100), theme);
-      expect(getByRole('progressbar').closest('[data-eden-usage-meter]')!.getAttribute('style')).toContain(
-        `--eden-usage-meter-fill: ${tokens.fill}`,
-      );
+      expect(
+        getByRole('progressbar').closest('[data-eden-usage-meter]')!.getAttribute('style'),
+      ).toContain(`--eden-usage-meter-fill: ${tokens.fill}`);
       unmount();
     }
   });

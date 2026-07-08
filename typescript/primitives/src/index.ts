@@ -256,3 +256,20 @@ export {
   type WizardShellTokens,
   type WizardStep,
 } from './wizard-shell/index.js';
+
+// ── SettingsSurface — the sheet-hosted SETTINGS organism (doc 17 §4 organisms · §7 Settings) ───────
+// A left SECTION RAIL (mono/eyebrow section labels + an active state) beside a CONTENT AREA rendered
+// per active section via a snippet. It is a SELECTION of the existing overlay behavior — the focus
+// trap / scroll lock / Escape / focus-return are the bits-ui Dialog layer (reinvented nowhere); the
+// APPEARANCE is DERIVED from @eden/theme (settings-surface/tokens.ts: the shared overlay sheet surface
+// + the rail's outline→primary active label + the accent tint + the sans section title), carries no
+// hardcoded literal, and is proven by a design-correctness test (contrast on the inactive/active label
+// + the section title, the mono voice, the rail width on the scale, the 44px floor) and an a11y-evidence
+// record (axe ZERO serious/critical on Chromium+WebKit, keyboard trap + Escape through the portal).
+export {
+  SettingsSurface,
+  deriveSettingsSurfaceTokens,
+  settingsSurfaceStyleVars,
+  type SettingsSurfaceTokens,
+  type SettingsSection,
+} from './settings-surface/index.js';

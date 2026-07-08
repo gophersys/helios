@@ -86,7 +86,7 @@ describe('ThinkingBlock.svelte — the real component', () => {
     const { container } = render(ThinkingBlock, {
       props: { theme, children: makeProse('x') },
     });
-    const block = container.querySelector('.eden-thinking-block') as HTMLElement;
+    const block = container.querySelector<HTMLElement>('.eden-thinking-block')!;
     const tokens = deriveThinkingBlockTokens(theme);
     expect(block.getAttribute('style')).toContain(`--eden-thinking-block-fg: ${tokens.foreground}`);
   });
