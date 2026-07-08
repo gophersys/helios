@@ -103,3 +103,16 @@ phase-by-phase; never declare a library done before `bash ./ctl.sh phase-gate qa
   enforces the full taxonomy before commit/push; and the **Stop hook** `stop-phase-check.sh` blocks
   ending a turn while a touched lib's `phase-gate qa` is red.
 - Canonical spec: `docs/architecture/14-library-engineering-pipeline.md` (ADR-0020).
+
+## Release & home deploy (ADR-0028)
+
+Cut a stable release with ONE verb — `bash deploy/ctl.sh release v<semver>` — a `v<semver>` tag
+triggers `release.yml` (byte-identical pair in `.ci/providers/github/`), which builds+pushes the
+four images to `ghcr.io/gophersys/eden/*` and opens a **digest-pin** promotion PR against
+`gophersys/infrastructure` so **Argo CD** reconciles `apps/eden/` onto the home cluster (ns `eden`,
+`https://eden.mateosegura.com`). Watch it with `deploy/ctl.sh release-status v<semver>`. App secrets
+are **Vault-native** (`vault://eden/production#…`, `token-file` mode) — never fold JWT/harness creds
+to k8s Secrets. Do NOT confuse `deploy demo` (LOCAL, in-container) with `release` (home cluster). The
+ruling is **ADR-0028**; the operational runbook is `docs/architecture/18-release-and-home-deploy.md`;
+the backing stack + the four imperative secrets + the Vault ceremony live in
+`infrastructure/apps/eden/README.md`.

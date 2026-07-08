@@ -63,6 +63,8 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 13 | [Versioning & git workflow](13-versioning-and-git-workflow.md) | One workflow machine for all artifact classes; branch/commit grammar; worktrees; merge agents; per-class versioning | Draft |
 | 14 | [Library engineering pipeline](14-library-engineering-pipeline.md) | The four-phase library SDLC + the 8-dimension test taxonomy + per-phase gates | Draft |
 | 16 | [Application template system](16-application-template-system.md) | Templates in `libs/templates/` (ADR-0026 folds them into libs); sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
+| 17 | [Design language](17-design-language.md) | The Eden UI ruling: tokens, atomic hierarchy, information architecture, motion, the one-shell ruling, wizard/settings/theming patterns (grounds the ADR-0024 UI track) | Draft |
+| 18 | [Release and home deploy](18-release-and-home-deploy.md) | The stable-release runbook: the one-verb cut, `release.yml` job-by-job, digest-pin GitOps promotion → Argo, the backing-stack prerequisites, verification, the six pipeline lessons, demo-vs-release (ADR-0028) | Accepted |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
 | — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
@@ -72,13 +74,14 @@ The former root planning docs (`/LIBRARIES.md`, `/LIBRARY-SYSTEM.md`) are absorb
 research notes (see `docs/research/README.md`). Doc 10 sits last in the reading order but is
 migrated *foundational* material — when working on libraries, read 10 §1–§5 alongside 01–02.
 
-The **TypeScript/Svelte UI track** does not (yet) have its own numbered `NN-` spec; it lives as
-**ADR-0024** (the TS/Svelte library-engineering pipeline + the design system re-homed in-repo,
-amending ADR-0005; resolves OD-1) plus its empirical foundation, the research note
+The **TypeScript/Svelte UI track** is homed in **ADR-0024** (the TS/Svelte library-engineering
+pipeline + the design system re-homed in-repo, amending ADR-0005; resolves OD-1) plus its empirical
+foundation, the research note
 [`docs/research/05-design-foundations.md`](../research/05-design-foundations.md) (the
-`@eden/theme` proportion/color/contrast/motion/density math). Read both when working on
-`libs/typescript/`. *(The canonical `NN-` series currently skips 15; the next unused slots are 15
-and 17 — the UI track was homed in the ADR + research-note classes instead, per ADR-0010.)*
+`@eden/theme` proportion/color/contrast/motion/density math), and its interface ruling **doc 17**
+(the Eden design language — tokens, atomic hierarchy, IA, the one-shell ruling). Read all three when
+working on `libs/typescript/`. *(The canonical `NN-` series still skips 15 — a deliberate gap; the
+next unused slot is 19.)*
 
 ## 3. Epistemic legend (mandatory on claims — build-system invariant I12)
 
@@ -111,6 +114,8 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | TypeScript/Svelte library-engineering pipeline (the `libs/typescript/` `@eden/*` set, the UI test-taxonomy recast + design-correctness dimension, the Bits-UI-primary behavior layer); the design system re-homed in-repo | ADR-0024 (amends ADR-0005); the `@eden/theme` math foundation = `docs/research/05-design-foundations.md` |
 | Agent permission system (grants → human → advisor → default-deny; `Decision.Scope` once\|session; the `PermissionAdvisor` port + the data-derived risk-class wall; the native control-channel protocol obligation per adapter) | ADR-0025 (realizes the `agentsession` permission round-trip on the live path) |
 | Read-only editor system (the gateway `GET /sessions/{id}/editor` seam in `editor_handler.go`; the `workspaceprovider` editor SIDECAR — additive `WorkspaceSpec.Editor *EditorSpec` + `CapEditorSidecar`, host-per-agent `<agent-id>.editor.<domain>` ingress on kubernetes, the `--volumes-from …:ro` sibling on docker; desktop ssh-remote read-only is OD-EDITOR-2, still open) | ADR-0027 (extends the `workspaceprovider` contract ADR-0016 + the `Entrypoint`/`CapWorkloadPod` precedent ADR-0022 §4; grounded in `docs/research/07-*`) |
+| Interface design language (tokens, atomic hierarchy, information architecture, motion, the one-shell ruling, the wizard/settings/theming patterns) | 17 (grounds the ADR-0024 UI track; `@eden/theme` math = `docs/research/05-design-foundations.md`) |
+| Stable release channel + home deploy (the tag-driven cut, `ghcr.io/gophersys/eden/*` prefix, the single `eden` namespace, the Vault-native token-file app-secret plane, static+nginx same-origin serving, digest-pinned GitOps promotion) — the RULING; the operational runbook (one-verb flow, `release.yml` job-by-job, promotion→Argo, backing-stack prerequisites, the six pipeline lessons, demo-vs-release) | ADR-0028 (ruling); 18 (runbook; builds on the ADR-0022 render catalog + dual-mode Vault; home backing stack = `infrastructure/apps/eden/README.md`) |
 | Workstreams, interface negotiation protocol, milestones | 09 |
 | Evidence interface, Spec envelope, harness senses | upstream spec-driven (cited via 02) |
 | Cell parameter vector D1–D5, **cell invariants I1–I10**, topology selector | upstream corpus doc 04 |
