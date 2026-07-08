@@ -52,7 +52,7 @@ static struct {
     uint32_t backoff_ms;
     uint32_t attempt;
 
-    struct k_work connect_work;        /* runs the actual net_mgmt connect */
+    struct k_work_delayable connect_work;  /* runs the actual net_mgmt connect */
     struct k_work ps_off_work;         /* disable power save (off the event thread) */
     struct k_work_delayable retry_work;    /* backoff re-entry */
     struct k_work_delayable timeout_work;  /* attempt watchdog */
@@ -106,7 +106,7 @@ static void retry_work_handler(struct k_work *work)
     ARG_UNUSED(work);
     if (atomic_get(&ctx.wanted) && !atomic_get(&ctx.have_ip) &&
         !atomic_get(&ctx.in_progress)) {
-        k_work_submit_to_queue(&wifi_wq, &ctx.connect_work);
+        k_work_schedule_for_queue(&wifi_wq, &ctx.connect_work, K_NO_WAIT);
     }
 }
 
@@ -141,20 +141,23 @@ static void timeout_work_handler(struct k_work *work)
 
 /* Query the driver and tear down any half-open state — a previous incomplete
  * attempt leaves the ESP32 driver "associating"/"associated" and a fresh
- * WIFI_CONNECT then fails or wedges. (Ported from netctl wifi_ensure_clean_state.) */
-static void ensure_clean_state(void)
+ * WIFI_CONNECT then fails or wedges. Fully async: when a teardown was issued the
+ * caller reschedules itself instead of sleeping on the workqueue.
+ * (Ported from netctl wifi_ensure_clean_state.) */
+static bool ensure_clean_state(void)
 {
     struct wifi_iface_status status = {0};
 
     if (net_mgmt(NET_REQUEST_WIFI_IFACE_STATUS, ctx.iface, &status, sizeof(status)) < 0) {
-        return; /* can't query — proceed and let the attempt sort it out */
+        return false; /* can't query — proceed and let the attempt sort it out */
     }
     if (status.state != WIFI_STATE_INACTIVE && status.state != WIFI_STATE_DISCONNECTED &&
         status.state != WIFI_STATE_INTERFACE_DISABLED) {
         LOG_INF("wifi: clearing stale driver state (%d) before connect", status.state);
         (void)net_mgmt(NET_REQUEST_WIFI_DISCONNECT, ctx.iface, NULL, 0);
-        k_sleep(K_MSEC(300)); /* let the teardown settle (wifi_wq thread, safe) */
+        return true; /* teardown issued — let it settle asynchronously */
     }
+    return false;
 }
 
 static void connect_work_handler(struct k_work *work)
@@ -165,9 +168,13 @@ static void connect_work_handler(struct k_work *work)
         return;
     }
     atomic_set(&ctx.in_progress, 1);
-    ctx.attempt++;
 
-    ensure_clean_state();
+    if (ensure_clean_state()) {
+        /* Re-enter after the teardown settles — no blocking on the workqueue. */
+        k_work_schedule_for_queue(&wifi_wq, &ctx.connect_work, K_MSEC(300));
+        return;
+    }
+    ctx.attempt++;
 
     struct ssid_pick p = {0};
     wifi_credentials_for_each_ssid(pick_first_ssid, &p);
@@ -288,7 +295,7 @@ static int wifi_conn_connect(struct conn_mgr_conn_binding *const binding)
     ctx.backoff_ms = BACKOFF_BASE_MS;
     /* Async: the attempt runs on the WiFi workqueue; failures self-retry with
      * backoff, so conn_mgr never sees a fatal error for a transient problem. */
-    k_work_submit_to_queue(&wifi_wq, &ctx.connect_work);
+    k_work_schedule_for_queue(&wifi_wq, &ctx.connect_work, K_NO_WAIT);
     return 0;
 }
 
@@ -314,7 +321,7 @@ static void wifi_conn_init(struct conn_mgr_conn_binding *const binding)
         wifi_wq_started = true;
     }
 
-    k_work_init(&ctx.connect_work, connect_work_handler);
+    k_work_init_delayable(&ctx.connect_work, connect_work_handler);
     k_work_init(&ctx.ps_off_work, ps_off_work_handler);
     k_work_init_delayable(&ctx.retry_work, retry_work_handler);
     k_work_init_delayable(&ctx.timeout_work, timeout_work_handler);
