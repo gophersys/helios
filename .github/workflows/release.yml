@@ -245,6 +245,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Eden itself first: release-meta.sh lives HERE (v0.1.4's promote hit 127 — the job had
+      # checked out only the infrastructure repo, into a subdir, so .ci/ did not exist).
+      - name: Checkout eden (release-meta.sh)
+        uses: actions/checkout@v4
       - name: Resolve the release version
         id: meta
         run: bash .ci/release-meta.sh >> "$GITHUB_OUTPUT"
