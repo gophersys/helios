@@ -197,7 +197,7 @@ jobs:
         run: echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u mateosegura --password-stdin
       - name: Build the @eden/* libraries (dist/ the frontend image consumes)
         run: |
-          docker run --rm -u root -v "${{ github.workspace }}":/workspace -w /workspace \
+          docker run --rm -u root -e HOME=/home/dev -v "${{ github.workspace }}":/workspace -w /workspace \
             "${{ env.BASE_IMAGE }}" bash -lc '
               git config --global --add safe.directory "*"
               yarn install --immutable
