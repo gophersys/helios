@@ -92,6 +92,18 @@ config CK_IFACE_WIFI_CONNECTIVITY_LOG_LEVEL
     int "Log level for the WiFi connectivity backend"
     default 3
 
+config CK_IFACE_WIFI_CONNECT_TIMEOUT_SEC
+    int "Seconds a connect attempt (association + DHCP) may take before retry"
+    default 25
+
+config CK_IFACE_WIFI_WQ_STACK_SIZE
+    int "Stack for the dedicated WiFi workqueue (net_mgmt blocks on ESP32)"
+    default 3072
+
+config CK_IFACE_WIFI_WQ_PRIORITY
+    int "Priority for the dedicated WiFi workqueue"
+    default 8
+
 # ---------------------------------------------------------------------------
 # Networking memory <-> throughput profile.
 #
