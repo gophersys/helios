@@ -17,6 +17,7 @@ spec:
       labels:
         app.kubernetes.io/name: frontend
     spec:
+      serviceAccountName: eden-frontend
       containers:
         - name: frontend
           image: "{{ .Values.registry }}/frontend:{{ .Values.tag }}"

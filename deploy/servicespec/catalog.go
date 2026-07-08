@@ -200,7 +200,10 @@ func platformGatewaySpec() ServiceSpec {
 // frontendSpec is the production SPA image (apps/frontend): the built static SvelteKit bundle served
 // by nginx, which ALSO same-origin-proxies /gateway → agentgateway and /platform → platformgateway
 // (apps/frontend/deploy/nginx.conf). It holds no secret and reaches no Vault — a pure static+proxy
-// front door — so it declares no Env, no Vault plane, and no token-file mount. Port 8080 (nginx).
+// front door — so it declares no Env, no Vault plane, and no token-file mount. Port 8080 (nginx). It
+// runs as its OWN dedicated ServiceAccount `eden-frontend` (not the namespace default) so the pod
+// has a discrete identity to attach the ghcr image-pull secret to (the images are private) — every
+// other service already binds a dedicated SA, so the frontend matches that posture.
 func frontendSpec() ServiceSpec {
 	return ServiceSpec{
 		Name:     "frontend",
@@ -211,8 +214,9 @@ func frontendSpec() ServiceSpec {
 			// gateways' 8080; in production nginx listens on container 8080 behind the frontend Service.
 			{Name: "http", Container: 8080, Host: 5173},
 		},
-		Resources: ResourceEnvelope{CPUMillis: 250, MemoryMiB: 128, EphemeralMiB: 256},
-		Liveness:  &Probe{Path: "/", Port: 8080},
-		Readiness: &Probe{Path: "/", Port: 8080},
+		Resources:      ResourceEnvelope{CPUMillis: 250, MemoryMiB: 128, EphemeralMiB: 256},
+		Liveness:       &Probe{Path: "/", Port: 8080},
+		Readiness:      &Probe{Path: "/", Port: 8080},
+		ServiceAccount: "eden-frontend",
 	}
 }
