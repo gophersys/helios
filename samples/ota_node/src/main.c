@@ -76,6 +76,7 @@ static cipher_service_entry_t node_services[] = {
 /*---- OTA stream sink: firmware bytes -> secondary slot -> swap ----*/
 static struct flash_img_context ota_ctx;
 static bool ota_active;
+static atomic_t ota_rebooting;   /* swap armed, reboot imminent: reject new OTAs */
 static struct k_work_delayable reboot_work;
 
 static void do_reboot(struct k_work *w) { ARG_UNUSED(w); sys_reboot(SYS_REBOOT_COLD); }
@@ -94,6 +95,16 @@ static void ota_sink(uint16_t stream_id, uint8_t phase, const uint8_t *data, uin
 
     switch (phase) {
     case CIPHER_STREAM_PHASE_START: {
+        /* A swap is armed and the reboot is imminent: starting another OTA now
+         * would race the teardown (daemon threads + flash_img + reboot) and can
+         * wedge the node. Reject the stream; the sender retries after the boot. */
+        if (atomic_get(&ota_rebooting)) {
+            n = snprintk(j, sizeof(j),
+                "{\"kind\":\"ota\",\"node\":\"0x%04x\",\"phase\":\"rejected\",\"reason\":\"reboot pending\"}",
+                CONFIG_CIPHER_DEVICE_ID);
+            metrics_emit(j, n);
+            return;
+        }
         /* Erase the WHOLE secondary bank first — flash_img only erases the
          * sectors it writes, leaving stale bytes in slot1's MCUboot trailer.
          * boot_request_upgrade() then can't cleanly set the swap magic (flash
@@ -138,9 +149,9 @@ static void ota_sink(uint16_t stream_id, uint8_t phase, const uint8_t *data, uin
         metrics_emit(j, n);
         ota_active = false;
         if (upgrade_rc == 0) {
-            /* Give the UDP report + the trailer flash write time to settle
-             * before the reset — a short delay made the swap non-deterministic. */
-            k_work_schedule(&reboot_work, K_MSEC(1500));
+            /* Just long enough for the UDP report + trailer write to land. */
+            atomic_set(&ota_rebooting, 1);
+            k_work_schedule(&reboot_work, K_MSEC(800));
         }
         break;
     }
@@ -193,7 +204,7 @@ int main(void)
     emit_version();   /* announce this boot's version immediately */
 
     while (true) {
-        k_sleep(K_SECONDS(3));
+        k_sleep(K_SECONDS(1));   /* 1 Hz heartbeat: harnesses detect boot fast */
         emit_version();
     }
     return 0;

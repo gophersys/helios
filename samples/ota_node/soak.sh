@@ -45,6 +45,8 @@ extra=""
 case "$BOARD" in esp32*) extra="-Dota_node_CONFIG_OTA_FILLER_KB=512 -Dota_node_CONFIG_CIPHER_DEVICE_ID=0xC";; esac
 
 : > "$RESULTS"
+# fresh ground truth: imgver history from prior soaks would false-positive verify
+ssh_node "sudo -n truncate -s0 /tmp/ck-metrics.jsonl 2>/dev/null || true"
 echo "soak: $N runs on $BOARD (dev $NODEDEV @ $NODEIP); disk guard @ ${MAXDISK}%"
 
 ok_count=0; fail_count=0
@@ -78,13 +80,17 @@ for i in $(seq 2 $((N + 1))); do
   fwsize=$(wc -c < /tmp/ota_soak_fw.bin 2>/dev/null || echo 0)
   scp -q /tmp/ota_soak_fw.bin "$NODE:/tmp/ota_soak_fw.bin" 2>/dev/null
 
-  # 3. OTA it, with retries (a transient link drop should not fail the run).
+  # 3. OTA it, with retries. Before each attempt, wait until the node is emitting
+  #    FRESH heartbeats — streaming into a mid-swap-rebooting node races its
+  #    teardown and can wedge it (found the hard way on run 3).
   t0=$(date +%s.%N); attempts=0
   for attempt in 1 2 3; do
     attempts=$attempt
-    out=$(ssh_node "timeout 90 /tmp/cipher-ota -host $NODEIP -node-dev $NODEDEV -firmware /tmp/ota_soak_fw.bin -chunk 512 2>&1")
+    # event-driven gate: block until ONE fresh heartbeat arrives (node alive and
+    # not mid-swap-reboot), returning the instant it lands — no polling.
+    ssh_node "timeout 90 tail -n0 -F /tmp/ck-metrics.jsonl 2>/dev/null | grep --line-buffered -m1 ota_boot >/dev/null"
+    out=$(ssh_node "timeout 90 /tmp/cipher-ota -host $NODEIP -node-dev $NODEDEV -firmware /tmp/ota_soak_fw.bin -chunk 1024 2>&1")
     echo "$out" | grep -q "OTA stream complete" && break
-    sleep 3
   done
   ota_s=$(awk "BEGIN{printf \"%.1f\", $(date +%s.%N)-$t0}")
   rate=$(echo "$out" | grep -oE "[0-9.]+ KiB/s" | head -1 | grep -oE "[0-9.]+")
@@ -93,12 +99,13 @@ for i in $(seq 2 $((N + 1))); do
   #    Check the MCUboot IMAGE VERSION (this run signs image i.0.0), which is the
   #    field the OTA actually bumps and MCUboot swaps on.
   want_ver="$i.0.0"
+  # event-driven verify: returns the instant the new image heartbeats after the
+  # swap + reboot + WiFi rejoin (covers history too, in case it already booted).
   swap_ok=false
-  for w in $(seq 1 25); do
-    cur=$(ssh_node "grep '\"ota_boot\"' /tmp/ck-metrics.jsonl 2>/dev/null | tail -1")
-    echo "$cur" | grep -q "\"imgver\":\"$want_ver\"" && { swap_ok=true; break; }
-    sleep 2
-  done
+  if ssh_node "grep -q '\"imgver\":\"$want_ver\"' /tmp/ck-metrics.jsonl 2>/dev/null || \
+      timeout 150 tail -n0 -F /tmp/ck-metrics.jsonl 2>/dev/null | grep --line-buffered -m1 '\"imgver\":\"$want_ver\"' >/dev/null"; then
+    swap_ok=true
+  fi
   sink=$(ssh_node "grep '\"phase\":\"end\"' /tmp/ck-metrics.jsonl 2>/dev/null | tail -1")
   csum=$(echo "$sink" | grep -oE '"csum_ok":(true|false)' | cut -d: -f2)
 
