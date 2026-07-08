@@ -79,6 +79,7 @@ jobs:
 
   # ── agent-runtime (the PID-1 agent pod; bakes the pinned Claude Code harness) ──────────────────────
   agent-runtime:
+    needs: agentgateway # serial: the ARC fleet provisions one runner at a time (v0.1.1: 3 concurrent jobs never got runners)
     name: build+push agent-runtime
     runs-on: arc-org
     permissions:
@@ -124,6 +125,7 @@ jobs:
 
   # ── platformgateway (Eden's platform HTTP API: users + login + RBAC) ───────────────────────────────
   platformgateway:
+    needs: agent-runtime # serial (see agent-runtime)
     name: build+push platformgateway
     runs-on: arc-org
     permissions:
@@ -165,6 +167,7 @@ jobs:
 
   # ── frontend (the static SvelteKit SPA + nginx same-origin proxy) ──────────────────────────────────
   frontend:
+    needs: platformgateway # serial (see agent-runtime); heaviest last
     name: build+push frontend
     runs-on: arc-org
     permissions:
