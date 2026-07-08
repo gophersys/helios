@@ -115,11 +115,14 @@ function cmd_e2e() {
 # unit runs the vitest unit suite (the openEditor desktop/web branch-selection test lives here). The
 # frontend is a yarn workspace member, so `bun x vitest` resolves the workspace-hoisted vitest (the same
 # pin the @eden/* TS libs gate against). jsdom is wired in vitest.config.unit.ts for the window/location
-# mocking the branch test needs. Run-once (no watch) so it is a clean gate.
+# mocking the branch test needs. Run-once (no watch) so it is a clean gate. svelte-kit sync first:
+# tsconfig.json extends the GENERATED .svelte-kit/tsconfig.json, which a fresh checkout (CI) does not
+# have — without the sync, vite-tsconfig parsing fails before a single test runs (self-sufficient
+# gate; locally the file exists from dev, which hid this).
 function cmd_unit() {
   require_cmd bun
-  log_info "unit: $YARN_DISPLAY vitest run --config vitest.config.unit.ts"
-  (cd "$PROJECT_ROOT" && "${YARN[@]}" vitest run --config vitest.config.unit.ts "$@")
+  log_info "unit: $YARN_DISPLAY svelte-kit sync && vitest run --config vitest.config.unit.ts"
+  (cd "$PROJECT_ROOT" && "${YARN[@]}" svelte-kit sync && "${YARN[@]}" vitest run --config vitest.config.unit.ts "$@")
   log_success "unit: OK"
 }
 
