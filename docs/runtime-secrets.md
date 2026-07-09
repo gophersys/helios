@@ -78,6 +78,15 @@ kubectl -n minio create secret generic minio-creds \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
+### MinIO IAM: `music-studio` user (no k8s secret) — music-studio restic
+Not a k8s Secret — imperative MinIO-internal IAM state (user `music-studio` +
+policy `music-backups-rw`, RW on bucket `music-backups` only), created via an
+ad-hoc `mc` pod (pattern in `apps/minio/README.md`). Consumed only by restic on
+Mateo's Mac (via tailnet-private `s3.mateosegura.com`). Vault:
+`project/music-studio/minio/{access-key,secret-key}` (+
+`project/music-studio/restic/password` for repo encryption). On a MinIO
+rebuild, recreate with `mc admin user add` / `policy create` / `policy attach`.
+
 ### `longhorn-minio-backup` (ns `longhorn-system`) — Longhorn → MinIO S3 creds
 The S3 credentials Longhorn's `BackupTarget/default` uses to reach MinIO (same
 Vault item; access-key = MinIO root user, secret = root password).

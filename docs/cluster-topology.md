@@ -59,10 +59,13 @@ engine-image DaemonSet). Available for RWO volumes that must survive a node, but
 the media/embedded workloads deliberately use **local-path** (node-local,
 re-downloadable data) instead.
 
-### `minio` — Longhorn S3 backup target
+### `minio` — S3 backup target
 A single MinIO (hostPath NVMe on k3s-w-1, deliberately off-Longhorn so backups
-don't depend on the thing they protect) backing Longhorn's `BackupTarget/default`
-(`s3://longhorn-backups`). Network-isolated — only `longhorn-system` may reach
+don't depend on the thing they protect) with two buckets:
+- `longhorn-backups` — Longhorn's `BackupTarget/default`.
+- `music-backups` — restic repository for the music-studio workspace on
+  Mateo's Mac (scoped user, tailnet-private `s3.mateosegura.com`).
+Network-isolated — only `longhorn-system` and `ingress-nginx` may reach
 `:9000`. See `apps/minio/README.md`.
 
 ### `observability` — metrics/logs/traces
