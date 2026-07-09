@@ -94,6 +94,9 @@ typedef struct
                                If type is SERVER, the port to which the listening socket will bind to */
     int listening_socket; /**< Socket used for listening (server only) */
     int client_socket;    /**< Socket used for client connections */
+    bool socket_bound;    /**< Internal: server listener already bound. Managed by the
+                               socket backend; leave zero-initialized. Distinguishes
+                               "never bound" from a listener that landed on fd 0. */
 
     // Uart
     const struct device *const p_uart_dev;

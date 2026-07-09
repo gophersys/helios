@@ -92,6 +92,17 @@ config CK_IFACE_WIFI_CONNECTIVITY_LOG_LEVEL
     int "Log level for the WiFi connectivity backend"
     default 3
 
+config CK_IFACE_WIFI_MAX_BINDINGS
+    int "Maximum conn_mgr WiFi bindings (per-binding contexts to allocate)"
+    default 1
+    help
+      One connectivity context is allocated per conn_mgr binding from a static
+      pool of this size. Each WiFi station iface that binds CONNECTIVITY_WIFI_MGMT
+      claims one slot, with its own work items and its own net_mgmt callback
+      nodes (a shared node registered twice would form an slist cycle and hang
+      the net_mgmt event thread). The usual single-STA case needs 1; raise it
+      only for boards that bind more than one WiFi station iface.
+
 config CK_IFACE_WIFI_CONNECT_TIMEOUT_SEC
     int "Seconds a connect attempt (association + DHCP) may take before retry"
     default 25
@@ -130,9 +141,15 @@ config CK_IFACE_NET_FOOTPRINT
 endchoice
 
 # TCP receive window is the single biggest throughput lever (default is tiny ->
-# no in-flight pipelining). Espressif: 0 -> 50000 gives +44% TCP download.
+# no in-flight pipelining). Espressif's guidance suggests 50000, but the window
+# MUST NOT exceed what the RX buffer pool can actually hold or the stack drops
+# in-flight segments under load and throughput collapses. The THROUGHPUT RX pool
+# is NET_BUF_RX_COUNT(24) * NET_BUF_DATA_SIZE(1500) = 36 KB, so cap the advertised
+# window at 32000 (under the pool, with headroom for headers/reassembly). This is
+# the RAM-safe choice: covering a full 50 KB window instead would need
+# NET_BUF_RX_COUNT ~34, ~15 KB more RAM the ESP32 can't spare.
 configdefault NET_TCP_MAX_RECV_WINDOW_SIZE
-    default 50000 if CK_IFACE_NET_THROUGHPUT
+    default 32000 if CK_IFACE_NET_THROUGHPUT
     default 16384 if CK_IFACE_NET_BALANCED
 
 configdefault NET_TCP_MAX_SEND_WINDOW_SIZE

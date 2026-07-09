@@ -28,6 +28,20 @@ static void set_tcp_nodelay(int sock)
     LOG_INF("TCP_NODELAY on fd %d: rc=%d%s", sock, rc, rc == 0 ? "" : " (errno set)");
 }
 
+// Drop the per-connection client socket and leave a -1 sentinel. Called on every
+// socket_connect() failure path: previously a failed DNS/connect left the fd open
+// and the next socket_create()/socket_connect() overwrote it, leaking one fd per
+// retry until the pool was exhausted. The -1 sentinel lets socket_connect()
+// recreate the socket on the next attempt.
+static void close_client_socket(iface_t *iface)
+{
+    if (iface->client_socket >= 0)
+    {
+        zsock_close(iface->client_socket);
+        iface->client_socket = -1;
+    }
+}
+
 // Optional packet-analyzer hooks (no-ops when the analyzer is absent/disabled)
 #ifdef CONFIG_CK_PKT_ANALYZER
 #include <corekinect/analyzer/analyzer.h>
@@ -84,7 +98,14 @@ bool socket_create(iface_t *iface)
     // per-connection client_socket is recycled.
     iface->client_socket = -1;  // Set by accept()
 
-    if (iface->listening_socket > 0)
+    // Persist the listener across reconnects. A zero-initialized iface_t leaves
+    // both fds at 0, and 0 is a VALID socket fd on Zephyr (nothing reserves
+    // 0/1/2), so an fd-sign test (`> 0` / `>= 0`) cannot tell "never bound" from
+    // "bound on fd 0" — the old `> 0` check re-created the listener every
+    // reconnect when it happened to land on fd 0, leaking the pooled socket.
+    // Track "bound" explicitly: socket_bound is false after zero-init, so the
+    // first create() always binds; later creates skip.
+    if (iface->socket_bound)
     {
         return true;  // already listening
     }
@@ -117,6 +138,7 @@ bool socket_create(iface_t *iface)
         return false;
     }
 
+    iface->socket_bound = true;  // listener is live — persist it across reconnects
     return true;
 }
 
@@ -161,6 +183,23 @@ bool socket_connect(iface_t *iface, bool *timeout)
     __ASSERT(iface->p_host, "Interface host cannot be NULL");
     __ASSERT(iface->port != 0, "Interface port cannot be zero");
 
+    *timeout = false;
+
+    // A previous failed attempt closes the socket and leaves a -1 sentinel, so
+    // recreate it here — the caller (cipher's connection thread) retries
+    // iface_connect() on the same iface_t without re-running socket_create(). On
+    // the first attempt socket_create() already supplied a valid fd, so this is
+    // a no-op.
+    if (iface->client_socket < 0)
+    {
+        iface->client_socket = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (iface->client_socket < 0)
+        {
+            LOG_WRN("Socket creation failed: %s", strerror(errno));
+            return false;
+        }
+    }
+
     struct sockaddr_in remote_addr = {0};
     remote_addr.sin_family = AF_INET;
     remote_addr.sin_port = net_htons(iface->port);
@@ -180,6 +219,7 @@ bool socket_connect(iface_t *iface, bool *timeout)
         if (err != 0 || p_res == NULL)
         {
             LOG_WRN("DNS resolution failed for '%s': err %d", iface->p_host, err);
+            close_client_socket(iface);  // don't leak the fd across the retry
             return false;
         }
 
@@ -192,9 +232,14 @@ bool socket_connect(iface_t *iface, bool *timeout)
         if (errno == EINPROGRESS || errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)    // These indicate a timeout.
         {
             *timeout = true;
-            return false;
         }
-        LOG_WRN("Socket connect failed: %s", strerror(errno));
+        else
+        {
+            LOG_WRN("Socket connect failed: %s", strerror(errno));
+        }
+        // Close on BOTH the timeout and the hard-error path: a half-open connect
+        // must not linger on the fd, and the caller recreates it on retry.
+        close_client_socket(iface);
         return false;
     }
 
@@ -296,6 +341,12 @@ bool socket_recv(const iface_t *iface, void *buffer, const size_t buffer_size,
     __ASSERT(recv_count, "Receive count pointer cannot be NULL");
     __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
     __ASSERT(timeout, "Timeout pointer cannot be NULL");
+
+    // Initialize BOTH flags up front (as socket_send does). The EAGAIN/timeout
+    // arm below only touched *timeout, leaving *conn_closed uninitialized, so
+    // callers tore down healthy connections on a garbage stack value.
+    *conn_closed = false;
+    *timeout = false;
 
     int socket_recv_count = zsock_recv(iface->client_socket, buffer, buffer_size, 0);
 
