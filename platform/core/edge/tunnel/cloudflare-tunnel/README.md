@@ -1,66 +1,47 @@
 # edge/tunnel/cloudflare-tunnel
 
-**Default public-traffic entry for free-tier clusters.** No public IP on
-the cluster; Cloudflare's edge accepts traffic, a `cloudflared` DaemonSet
-pod keeps outbound persistent connections to CF, and public requests are
-tunneled through to the in-cluster ingress controller (`traefik`).
+Public-traffic entry for clusters with no public IP: Cloudflare's edge accepts
+traffic and a `cloudflared` pod keeps outbound persistent connections to CF,
+tunnelling public requests through to the in-cluster ingress controller. No
+inbound firewall holes; DDoS/WAF soak at CF's edge; works behind NAT.
 
-## Why this is the default
+---
 
-- **Zero public IP.** OCI + AWS free-tier instances often don't have
-  stable public IPs or adequate bandwidth — tunnels sidestep that.
-- **Free.** Unlimited tunnels, unlimited bandwidth through CF's edge.
-- **DDoS + WAF.** CF's edge soaks attack traffic before it reaches the
-  cluster. Zero config.
-- **Works behind NAT.** Homelab-friendly for future lab clusters.
+## Deployed today (homelab) — the source of truth
 
-## How it works
+The live homelab edge is **not** the operator-based design described under
+"Target design" below. What actually runs:
 
-1. A `cloudflared` DaemonSet runs on every cluster node (or as a
-   Deployment — DaemonSet chosen for outbound-connection redundancy).
-2. Each pod opens 4 outbound TLS connections to CF's edge (no inbound
-   firewall holes needed).
-3. CF routes public requests matching the tunnel's configured hostnames
-   through the persistent connection to a cluster-local Service (the
-   cluster's `traefik` ingress controller, at `platform-ingress` namespace).
-4. Traefik routes to the app's Service based on `Ingress` rules.
+- **`deployment.yaml`** — a plain `cloudflared` Deployment (2 replicas) in ns
+  `cloudflare-tunnel`, image `cloudflare/cloudflared:2026.6.1`, hardened
+  (non-root 65532, read-only rootfs, all caps dropped). Vendored here so the
+  edge is reproducible from git. Registered as the `cloudflared` Argo
+  Application (`registry/app-cloudflared.yaml`) with **manual sync** — Argo
+  makes it visible/git-owned but never mutates the edge on its own. Adopt with
+  `argocd app sync cloudflared` (a no-op rollout; the spec matches live).
+- **Tunnel type:** a Zero-Trust **token** tunnel (`eden-home`). The token is the
+  imperative `tunnel-token` Secret (see `docs/runtime-secrets.md`).
+- **Routing + SSO live in the CF dashboard, not git.** A single catch-all rule
+  forwards to `ingress-nginx:80`; per-hostname routes and Cloudflare Access
+  (Google SSO) apps are configured in the CF Zero-Trust dashboard — out-of-band
+  by design for a token tunnel. Only `home.` and `workspaces.` are public
+  through the tunnel; everything else (`argocd.`, `files.`, `prowlarr.`,
+  `torrent.`, `grafana.`) is tailnet-private via the MetalLB nginx VIP. The
+  authoritative map is **`docs/cluster-topology.md` → "Exposure model at a
+  glance."**
 
-## Configuration
+There is **no** `cloudflare-operator`, no `cloudflare-api-token`, and TLS is
+**not** terminated here (the tunnel enters nginx on `:80`).
 
-One `cloudflared` tunnel per cluster. The tunnel has a Route table
-managed by the `cloudflare-operator` (Helm chart: `strrl.dev/cloudflare-tunnel-ingress-controller`) which watches `Ingress` objects and
-creates CF tunnel routes automatically.
+---
 
-Secrets (from Bitwarden via ESO):
-- `cloudflare-tunnel-token` — the tunnel's credentials (issued by CF).
-- `cloudflare-api-token` — for the operator to create tunnel routes
-  via CF API (scoped to zone + tunnel edit permissions).
+## Target design (prod, not yet deployed)
 
-## Compatibility
-
-| DNS provider           | OK?  | Notes                                    |
-|------------------------|------|------------------------------------------|
-| `cloudflare`           | Yes  | Natural pairing (same account)           |
-| `route53`              | No   | CF Tunnel routes require CF DNS          |
-| `tailscale-magicdns`   | N/A  | MagicDNS is internal only                |
-| `external-dns`         | Yes  | Via CF provider in external-dns          |
-
-| TLS provider           | OK?  | Notes                                    |
-|------------------------|------|------------------------------------------|
-| `cloudflare-origin`    | Yes  | Natural pairing                          |
-| `letsencrypt-dns01`    | Yes  | via CF DNS API; cluster-issued certs     |
-| `letsencrypt-http01`   | No   | HTTP-01 needs port 80 on public IP       |
-| `acm`                  | No   | ACM terminates at AWS ELB, not cluster   |
-
-## Limits (as of 2026-04)
-
-- Free plan: 100 public hostnames per tunnel, 1,000 tunnels per account.
-- Bandwidth: unlimited on CF free plan; requests are rate-limited by CF
-  WAF defaults (configurable).
-- Latency: +10–30ms vs direct public ingress, depending on edge PoP
-  proximity.
-
-## Status
-
-STUB. Cloudflared install + operator wiring lands when `prod` cluster
-bootstraps its public edge.
+For a future managed/prod cluster, the intended shape is an operator that turns
+`Ingress` objects into CF tunnel routes automatically
+(`strrl.dev/cloudflare-tunnel-ingress-controller`), with the tunnel token +
+a scoped `cloudflare-api-token` sourced from Bitwarden via ESO. Compatibility:
+CF Tunnel requires CF DNS (route53/ACM won't pair); TLS pairs naturally with
+`cloudflare-origin` or cluster-issued `letsencrypt-dns01`. Free plan limits (as
+of 2026-04): 100 hostnames/tunnel, unlimited bandwidth, +10–30ms edge latency.
+This operator wiring lands when a `prod` cluster bootstraps its public edge.

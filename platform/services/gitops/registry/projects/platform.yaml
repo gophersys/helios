@@ -22,6 +22,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: longhorn-system
       server: https://kubernetes.default.svc
+    - namespace: cloudflare-tunnel       # the public edge (app-cloudflared, manual-sync)
+      server: https://kubernetes.default.svc
     - namespace: monitoring
       server: https://kubernetes.default.svc
     - namespace: kube-system

@@ -1,0 +1,26 @@
+# cloudflared — the public internet edge, reconciled into GitOps.
+#
+# MANUAL SYNC ON PURPOSE: no `automated` block, so the root app-of-apps creates
+# this Application (making the edge visible + git-owned) but Argo will NOT sync
+# it on its own. Adopting the live edge is a deliberate, human-initiated action:
+#   argocd app sync cloudflared
+# The vendored spec matches live exactly, so that first sync is a no-op rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudflared
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: platform/core/edge/tunnel/cloudflare-tunnel
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare-tunnel
+  syncPolicy:
+    # intentionally no `automated` — see header
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true

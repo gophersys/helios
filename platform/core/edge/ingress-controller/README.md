@@ -1,32 +1,37 @@
 # platform/core/ingress
 
-HTTP(S) ingress controller. Terminates external traffic; apps declare
-`Ingress` or `IngressRoute` resources to become reachable.
+HTTP(S) ingress controller. Terminates in-cluster traffic; apps declare
+`Ingress` resources to become reachable.
 
-## Default implementation
+---
 
-**Traefik** (Helm chart: `traefik/traefik`) chosen for:
-- First-class CRD-based routing (IngressRoute, Middleware).
-- Built-in Let's Encrypt support if we ever need it without cert-manager.
-- Dashboard good enough for fleet-of-one ops.
+## Deployed today (homelab) — the source of truth
 
-Alternative: `ingress-nginx` if an app needs strict upstream nginx semantics.
+**`ingress-nginx`** is the live controller (the single `IngressClass: nginx`).
+Everything HTTP enters here — from the Cloudflare tunnel (public `home.` /
+`workspaces.`, on `:80`) or the MetalLB VIP `10.168.0.240` (tailnet-private
+hostnames, TLS via cert-manager DNS-01). Installed via **raw upstream manifests
+(`kubectl apply`)**, not Helm, and not currently Argo-managed — its pinned
+version is tracked in `docs/debt-register.md` (D9) with the reinstall command.
+Traefik was evaluated and **removed**. See `docs/cluster-topology.md`.
+
+---
+
+## Target design (prod, not yet deployed)
+
+The original prod intent was **Traefik** (`traefik/traefik`) for CRD-based
+routing (IngressRoute/Middleware) and a built-in ACME resolver, with
+`ingress-nginx` as the alternative when strict upstream-nginx semantics are
+needed. The homelab went the other way (ingress-nginx) — this section records
+the design option, not what runs.
 
 ## Fulfills
-- `contracts/ingress.md` — how apps expose HTTPS routes with automatic TLS
-  + DNS via the platform.
+- `contracts/ingress.md` — how apps expose HTTPS routes with automatic TLS + DNS.
 
 ## Dependencies
 - `platform/core/cni/` (pod networking)
-- `platform/core/cert-manager/` (TLS issuance; this component creates the
-  ingress, cert-manager issues the cert)
+- `platform/core/cert-manager/` (TLS issuance for the tailnet-private hosts)
 
-## Status
-
-STUB. Only the README is here — no chart wiring yet.
-
-## TODO (when populating)
-- Pin traefik chart version.
-- Parameterize default TLS resolver per cluster (DNS-01 when a DNS provider
-  credential is wired, HTTP-01 otherwise).
-- Wire Dashboard behind the `identity-sso` service (future).
+## TODO (when a prod cluster bootstraps)
+- Pin the chart version + parameterize the default TLS resolver per cluster.
+- Put the controller dashboard behind the `identity-sso` service (future).
