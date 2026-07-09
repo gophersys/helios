@@ -20,6 +20,11 @@ const ProtocolVersion uint16 = 1
 // MaxPayloadSize bounds a single encoded packet (CONFIG_MAX_PAYLOAD_SIZE).
 const MaxPayloadSize = 1024
 
+// MaxPacketPayload is the largest value the 10-bit payload-length header field
+// can carry (2^10 - 1 = 1023). A payload longer than this cannot be framed
+// without silently truncating the length on the wire, so encoders reject it.
+const MaxPacketPayload = 0x3FF
+
 // ServiceMaxNameLength matches CONFIG_CK_CIPHER_SERVICE_MAX_NAME_LEN.
 const ServiceMaxNameLength = 32
 
@@ -96,6 +101,12 @@ type Header struct {
 func (h *Header) EncodeHeader(buffer []byte) error {
 	if len(buffer) < HeaderSize {
 		return fmt.Errorf("cipher: buffer too small for header: %d < %d", len(buffer), HeaderSize)
+	}
+	// The payload length is a 10-bit field. Masking it (as the old code did)
+	// silently truncates any payload larger than 1023 bytes, corrupting framing
+	// on the wire. Reject it here so callers surface the error instead.
+	if h.PayloadLength > MaxPacketPayload {
+		return fmt.Errorf("cipher: payload length %d exceeds 10-bit max %d", h.PayloadLength, MaxPacketPayload)
 	}
 
 	binary.BigEndian.PutUint16(buffer[0:2], h.SourceID)

@@ -119,16 +119,25 @@ type streamReassembly struct {
 	start     time.Time
 }
 
+// streamKey scopes a reassembly to the sending device AND the stream id.
+// Keying by stream id alone let two peers streaming the same id clobber each
+// other's in-flight reassembly.
+func streamKey(sourceID, streamID uint16) uint32 {
+	return uint32(sourceID)<<16 | uint32(streamID)
+}
+
 func (d *Daemon) handleStreamPacket(header Header, payload []byte) {
 	d.streamMutex.Lock()
 	defer d.streamMutex.Unlock()
+
+	key := streamKey(header.SourceID, header.ServiceID)
 
 	switch {
 	case header.Flags&FlagStreamStart != 0:
 		if len(payload) < 6 {
 			return
 		}
-		d.streamRx[header.ServiceID] = &streamReassembly{
+		d.streamRx[key] = &streamReassembly{
 			streamID: binary.LittleEndian.Uint16(payload[4:6]),
 			totalLen: binary.LittleEndian.Uint32(payload[0:4]),
 			checksum: fnv1aOffsetBasis,
@@ -136,14 +145,14 @@ func (d *Daemon) handleStreamPacket(header Header, payload []byte) {
 		}
 
 	case header.Flags&FlagStreamData != 0:
-		if reassembly := d.streamRx[header.ServiceID]; reassembly != nil {
+		if reassembly := d.streamRx[key]; reassembly != nil {
 			reassembly.received += uint32(len(payload))
 			reassembly.numChunks++
 			reassembly.checksum = FNV1a(reassembly.checksum, payload)
 		}
 
 	case header.Flags&FlagStreamEnd != 0:
-		reassembly := d.streamRx[header.ServiceID]
+		reassembly := d.streamRx[key]
 		if reassembly == nil || len(payload) < 8 {
 			return
 		}
@@ -163,7 +172,7 @@ func (d *Daemon) handleStreamPacket(header Header, payload []byte) {
 		stats.CompletionID = d.streamCompletions
 		d.lastStreamRx = stats
 		d.lastStreamSet = true
-		delete(d.streamRx, header.ServiceID)
+		delete(d.streamRx, key)
 
 		kibs := int64(0)
 		if stats.DurationMs > 0 {

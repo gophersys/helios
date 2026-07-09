@@ -53,6 +53,18 @@ type rpcReply struct {
 	rpcErr  RPCError
 }
 
+// rpcPendingEntry is one in-flight client RPC awaiting its reply. The pending
+// map is keyed by a per-call unique token (not svc<<8|op) so concurrent calls
+// to the same service/op never collide: each call deletes only its own token,
+// and completeRPC delivers a reply only to a waiter whose target device matches
+// the responder's SourceID.
+type rpcPendingEntry struct {
+	deviceID  uint16
+	serviceID uint16
+	opID      uint8
+	replyCh   chan rpcReply
+}
+
 // CallRPC invokes a remote RPC and blocks for the response or timeout.
 // request/response payloads are opaque bytes — the caller owns their layout
 // (raw little-endian packed structs interoperate with the firmware).
@@ -62,15 +74,23 @@ func (d *Daemon) CallRPC(deviceID, serviceID uint16, opID uint8, request []byte,
 		return nil, fmt.Errorf("cipher: no route to device 0x%04x", deviceID)
 	}
 
-	key := RPCKey(serviceID, opID)
 	replyCh := make(chan rpcReply, 1)
 
 	d.rpcMutex.Lock()
-	d.rpcPending[key] = replyCh
+	d.rpcToken++
+	token := d.rpcToken
+	d.rpcPending[token] = &rpcPendingEntry{
+		deviceID:  deviceID,
+		serviceID: serviceID,
+		opID:      opID,
+		replyCh:   replyCh,
+	}
 	d.rpcMutex.Unlock()
 	defer func() {
+		// Delete only our own token. Keying by svc<<8|op let a concurrent
+		// same-op caller's cleanup evict the winner's channel.
 		d.rpcMutex.Lock()
-		delete(d.rpcPending, key)
+		delete(d.rpcPending, token)
 		d.rpcMutex.Unlock()
 	}()
 
@@ -141,11 +161,29 @@ func (d *Daemon) serveRPC(header Header, payload []byte) {
 }
 
 func (d *Daemon) completeRPC(header Header, payload []byte) {
+	// Find the waiter whose target device matches the responder (header.SourceID)
+	// and whose service/op match. Without the device match, a late reply from
+	// device X could complete a call still waiting on device Y.
 	d.rpcMutex.Lock()
-	replyCh := d.rpcPending[RPCKey(header.ServiceID, header.OperationID)]
+	var (
+		match      *rpcPendingEntry
+		matchToken uint64
+	)
+	for token, entry := range d.rpcPending {
+		if entry.deviceID == header.SourceID &&
+			entry.serviceID == header.ServiceID &&
+			entry.opID == header.OperationID {
+			match = entry
+			matchToken = token
+			break
+		}
+	}
+	if match != nil {
+		delete(d.rpcPending, matchToken)
+	}
 	d.rpcMutex.Unlock()
-	if replyCh == nil {
-		return
+	if match == nil {
+		return // no matching waiter (already timed out / duplicate) — drop
 	}
 
 	var reply rpcReply
@@ -159,7 +197,7 @@ func (d *Daemon) completeRPC(header Header, payload []byte) {
 	}
 
 	select {
-	case replyCh <- reply:
+	case match.replyCh <- reply:
 	default: // caller already gave up (timeout); drop
 	}
 }

@@ -19,6 +19,7 @@ func startPair(t *testing.T, port uint16, serverCfg, clientCfg Config) (*Daemon,
 	}
 	server := NewDaemon(serverCfg)
 	server.Start()
+	t.Cleanup(server.Stop)
 	time.Sleep(150 * time.Millisecond)
 
 	clientCfg.ClientIfaces = []*iface.Interface{{
@@ -30,6 +31,7 @@ func startPair(t *testing.T, port uint16, serverCfg, clientCfg Config) (*Daemon,
 	}
 	client := NewDaemon(clientCfg)
 	client.Start()
+	t.Cleanup(client.Stop)
 
 	// Wait until the client has learned a route to the server device.
 	deadline := time.Now().Add(3 * time.Second)

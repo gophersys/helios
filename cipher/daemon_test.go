@@ -23,6 +23,7 @@ func TestGoToGoE2E(t *testing.T) {
 		LocalServices: []Service{{ID: 88, Name: "go-echo", AllowedHops: 1}},
 	})
 	server.Start()
+	t.Cleanup(server.Stop)
 	time.Sleep(200 * time.Millisecond) // listener up
 
 	client := NewDaemon(Config{
@@ -37,6 +38,7 @@ func TestGoToGoE2E(t *testing.T) {
 		LocalServices: []Service{{ID: 77, Name: "go-probe", AllowedHops: 1}},
 	})
 	client.Start()
+	t.Cleanup(client.Stop)
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {

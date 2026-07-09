@@ -44,15 +44,21 @@ type Daemon struct {
 	routes      map[uint16]*iface.Interface // device id -> transport that reaches it
 
 	rpcMutex   sync.Mutex
-	rpcPending map[uint32]chan rpcReply // key: rpcKey(service, op)
+	rpcPending map[uint64]*rpcPendingEntry // key: per-call unique token
+	rpcToken   uint64                      // monotonic token generator (under rpcMutex)
 
 	streamMutex       sync.Mutex
-	streamRx          map[uint16]*streamReassembly // key: stream id
+	streamRx          map[uint32]*streamReassembly // key: streamKey(src, stream id)
 	lastStreamRx      StreamStats
 	lastStreamSet     bool
 	streamCompletions uint32
 
 	waitGroup sync.WaitGroup
+
+	// Shutdown coordination: Stop closes done once, which lets the uplink
+	// reconnect loops and downlink accept loops exit so Wait can return.
+	stopOnce sync.Once
+	done     chan struct{}
 }
 
 type remoteService struct {
@@ -66,8 +72,9 @@ func NewDaemon(config Config) *Daemon {
 		config:     config,
 		registry:   make(map[uint16]remoteService),
 		routes:     make(map[uint16]*iface.Interface),
-		rpcPending: make(map[uint32]chan rpcReply),
-		streamRx:   make(map[uint16]*streamReassembly),
+		rpcPending: make(map[uint64]*rpcPendingEntry),
+		streamRx:   make(map[uint32]*streamReassembly),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -84,8 +91,48 @@ func (d *Daemon) Start() {
 	}
 }
 
-// Wait blocks until every interface goroutine has exited.
+// Wait blocks until every interface goroutine has exited. Without Stop the
+// uplink reconnect loops run forever, so Wait only returns after Stop.
 func (d *Daemon) Wait() { d.waitGroup.Wait() }
+
+// Stop signals every interface goroutine to exit and closes the transports to
+// unblock any in-flight Accept/Recv. It is safe to call more than once. After
+// Stop, Wait returns once all goroutines have drained.
+func (d *Daemon) Stop() {
+	d.stopOnce.Do(func() {
+		close(d.done)
+		// Closing the transports unblocks a goroutine parked in Accept/Recv.
+		// Interface.Close is now internally synchronized, so this is race-free
+		// against the owning goroutine's own Create/Connect/Recv/Close calls.
+		for _, serverInterface := range d.config.ServerIfaces {
+			_ = serverInterface.Close()
+		}
+		for _, clientInterface := range d.config.ClientIfaces {
+			_ = clientInterface.Close()
+		}
+	})
+}
+
+// stopped reports whether Stop has been called (non-blocking).
+func (d *Daemon) stopped() bool {
+	select {
+	case <-d.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// sleepOrStop waits for the given backoff but returns true immediately if Stop
+// is called, so shutdown never has to wait out a reconnect backoff.
+func (d *Daemon) sleepOrStop(backoff time.Duration) (stopped bool) {
+	select {
+	case <-d.done:
+		return true
+	case <-time.After(backoff):
+		return false
+	}
+}
 
 // Services returns a snapshot of the learned remote services.
 func (d *Daemon) Services() map[uint16]uint16 {
@@ -113,7 +160,21 @@ func (d *Daemon) runDownlink(index int, transport *iface.Interface) {
 	defer transport.Close()
 
 	for {
-		if _, err := transport.Accept(); err != nil {
+		if d.stopped() {
+			return
+		}
+		timedOut, err := transport.Accept()
+		if err != nil {
+			// A listener deadline (idle timeout) is not fatal — the server must
+			// stay reachable, so keep accepting instead of going deaf.
+			if timedOut {
+				continue
+			}
+			// Stop closes the listener, which surfaces here as a non-timeout
+			// error; treat that as a clean shutdown rather than a crash.
+			if d.stopped() {
+				return
+			}
 			log.Printf("downlink %d: accept: %v", index, err)
 			return
 		}
@@ -125,6 +186,9 @@ func (d *Daemon) runDownlink(index int, transport *iface.Interface) {
 
 		d.broadcastLocalServices(transport)
 		d.receiveLoop(index, transport)
+		// The peer that used this transport is gone; drop its routes so senders
+		// fail cleanly instead of racing a transport that is about to be reused.
+		d.invalidateRoutesVia(transport)
 	}
 }
 
@@ -135,16 +199,23 @@ func (d *Daemon) runUplink(index int, transport *iface.Interface) {
 	// ARP on a WiFi peer, the peer rebooting) or a dropped connection recovers on
 	// its own, instead of the route being lost for the process lifetime.
 	for {
+		if d.stopped() {
+			return
+		}
 		if err := transport.Create(); err != nil {
 			log.Printf("uplink %d: create: %v", index, err)
-			time.Sleep(2 * time.Second)
+			if d.sleepOrStop(2 * time.Second) {
+				return
+			}
 			continue
 		}
 
 		if _, err := transport.Connect(); err != nil {
 			log.Printf("uplink %d: connect: %v (retrying)", index, err)
 			transport.Close()
-			time.Sleep(2 * time.Second)
+			if d.sleepOrStop(2 * time.Second) {
+				return
+			}
 			continue
 		}
 		d.config.Analyzer.IfaceEvent("connect", int32(index))
@@ -153,8 +224,14 @@ func (d *Daemon) runUplink(index int, transport *iface.Interface) {
 			d.broadcastLocalServices(transport)
 			d.receiveLoop(index, transport)
 		}
+		// Invalidate routes BEFORE closing so an in-flight sender observes "no
+		// route" (under routesMutex) instead of touching a transport that is
+		// being closed and re-dialed on this goroutine.
+		d.invalidateRoutesVia(transport)
 		transport.Close()
-		time.Sleep(1 * time.Second) // brief backoff before re-dialing
+		if d.sleepOrStop(1 * time.Second) { // brief backoff before re-dialing
+			return
+		}
 	}
 }
 
@@ -174,10 +251,11 @@ func (d *Daemon) handshakeUplink(transport *iface.Interface) bool {
 		return false
 	}
 
+	// readFull loops across reads: TCP may split even a 1-byte reply behind
+	// coalesced follow-on data, and a single Recv is not guaranteed to fill it.
 	response := make([]byte, 1)
-	received, _, _, err := transport.Recv(response)
-	if err != nil || received != 1 {
-		log.Printf("uplink handshake recv (%d bytes): %v", received, err)
+	if err := readFull(transport, response); err != nil {
+		log.Printf("uplink handshake recv: %v", err)
 		return false
 	}
 	if response[0] == 0 {
@@ -194,12 +272,12 @@ func (d *Daemon) handshakeUplink(transport *iface.Interface) bool {
 func (d *Daemon) handshakeDownlink(transport *iface.Interface) bool {
 	log.Printf("Handshaking downlink node")
 
-	// Read EXACTLY the 2 version bytes so TCP cannot hand back coalesced
-	// follow-on data (the peer's SD broadcast) and break framing.
+	// Read EXACTLY the 2 version bytes. A single Recv can return fewer than 2
+	// bytes (TCP segmentation), so loop with readFull; reading past the 2 bytes
+	// would also swallow the peer's coalesced SD broadcast and break framing.
 	version := make([]byte, 2)
-	received, _, _, err := transport.Recv(version)
-	if err != nil || received != 2 {
-		log.Printf("downlink handshake recv (%d bytes): %v", received, err)
+	if err := readFull(transport, version); err != nil {
+		log.Printf("downlink handshake recv: %v", err)
 		return false
 	}
 
@@ -269,6 +347,32 @@ func (d *Daemon) broadcastLocalServices(transport *iface.Interface) {
  *                                                                                         Receive Loop
  *---------------------------------------------------------------------------------------------------*/
 
+// readFull reads exactly len(buffer) bytes from the transport, looping across
+// multiple Recv calls because TCP may split a fixed-size message over several
+// segments. Idle read timeouts are retried; a closed connection or a real error
+// is returned. It is used only for the fixed-size handshake reads — the packet
+// receiveLoop keeps its own stream accumulator and must NOT use this.
+func readFull(transport *iface.Interface, buffer []byte) error {
+	filled := 0
+	for filled < len(buffer) {
+		received, connClosed, timedOut, err := transport.Recv(buffer[filled:])
+		filled += received // count bytes even when they arrive alongside EOF
+		if filled >= len(buffer) {
+			return nil
+		}
+		if connClosed || err == io.EOF {
+			return fmt.Errorf("cipher: connection closed after %d/%d bytes", filled, len(buffer))
+		}
+		if timedOut {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // receiveLoop reads packets, decodes headers, and dispatches. One TCP read
 // may carry several packets back to back (the firmware coalesces SD
 // broadcasts), so the loop walks the buffer by header+payload strides.
@@ -280,7 +384,40 @@ func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
 
 	for {
 		received, connClosed, timedOut, err := transport.Recv(readBuf)
-		if connClosed || (err != nil && err == io.EOF) {
+
+		// Append received bytes BEFORE acting on EOF/timeout. Recv can return
+		// data together with io.EOF (or a timeout); handling the terminal
+		// condition first would discard those bytes, losing the final packet(s)
+		// and desyncing framing on the next connection.
+		if received > 0 {
+			acc = append(acc, readBuf[:received]...)
+
+			// Frame every complete packet currently buffered.
+			offset := 0
+			for len(acc)-offset >= HeaderSize {
+				header, decodeErr := DecodeHeader(acc[offset:])
+				if decodeErr != nil {
+					offset = len(acc) // desync guard: drop the buffer
+					break
+				}
+				packetEnd := offset + HeaderSize + int(header.PayloadLength)
+				if packetEnd > len(acc) {
+					break // rest of this packet has not arrived yet
+				}
+
+				d.config.Analyzer.CipherPacket(DirectionRX, header)
+				d.recordRoute(header.SourceID, transport)
+				d.dispatch(header, acc[offset+HeaderSize:packetEnd])
+				offset = packetEnd
+			}
+
+			// Slide any trailing partial packet to the front.
+			if offset > 0 {
+				acc = append(acc[:0], acc[offset:]...)
+			}
+		}
+
+		if connClosed || err == io.EOF {
 			log.Printf("iface %d: connection closed by peer", index)
 			d.config.Analyzer.IfaceEvent("close", int32(index))
 			return
@@ -293,32 +430,6 @@ func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
 			d.config.Analyzer.IfaceEvent("error", int32(index))
 			return
 		}
-
-		acc = append(acc, readBuf[:received]...)
-
-		// Frame every complete packet currently buffered.
-		offset := 0
-		for len(acc)-offset >= HeaderSize {
-			header, decodeErr := DecodeHeader(acc[offset:])
-			if decodeErr != nil {
-				offset = len(acc) // desync guard: drop the buffer
-				break
-			}
-			packetEnd := offset + HeaderSize + int(header.PayloadLength)
-			if packetEnd > len(acc) {
-				break // rest of this packet has not arrived yet
-			}
-
-			d.config.Analyzer.CipherPacket(DirectionRX, header)
-			d.recordRoute(header.SourceID, transport)
-			d.dispatch(header, acc[offset+HeaderSize:packetEnd])
-			offset = packetEnd
-		}
-
-		// Slide any trailing partial packet to the front.
-		if offset > 0 {
-			acc = append(acc[:0], acc[offset:]...)
-		}
 	}
 }
 
@@ -327,6 +438,20 @@ func (d *Daemon) receiveLoop(index int, transport *iface.Interface) {
 func (d *Daemon) recordRoute(deviceID uint16, transport *iface.Interface) {
 	d.routesMutex.Lock()
 	d.routes[deviceID] = transport
+	d.routesMutex.Unlock()
+}
+
+// invalidateRoutesVia drops every route that points at transport. It runs under
+// routesMutex (the same lock senders take in route()) so that once a transport
+// is about to be closed/re-dialed, in-flight senders observe "no route" and
+// fail cleanly instead of racing the transport's connection state.
+func (d *Daemon) invalidateRoutesVia(transport *iface.Interface) {
+	d.routesMutex.Lock()
+	for deviceID, routed := range d.routes {
+		if routed == transport {
+			delete(d.routes, deviceID)
+		}
+	}
 	d.routesMutex.Unlock()
 }
 
@@ -341,6 +466,9 @@ func (d *Daemon) route(deviceID uint16) *iface.Interface {
 
 // sendPacket encodes a header + raw payload and writes it to the transport.
 func (d *Daemon) sendPacket(transport *iface.Interface, header Header, payload []byte) error {
+	if len(payload) > MaxPacketPayload {
+		return fmt.Errorf("cipher: payload length %d exceeds 10-bit max %d", len(payload), MaxPacketPayload)
+	}
 	header.PayloadLength = uint16(len(payload))
 	packet := make([]byte, HeaderSize+len(payload))
 	if err := header.EncodeHeader(packet); err != nil {

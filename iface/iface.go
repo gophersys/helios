@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -49,8 +50,27 @@ type Interface struct {
 	SendTimeout time.Duration // Zero means block forever
 	RecvTimeout time.Duration // Zero means block forever
 
+	// mu guards listener/connection so a Close from another goroutine (the
+	// daemon's Stop) is race-free against the owning goroutine's Connect/
+	// Accept/Send/Recv. Only the pointer fields are guarded; the underlying
+	// net.Conn is itself safe for concurrent Read/Write/Close.
+	mu         sync.Mutex
 	listener   net.Listener
 	connection net.Conn
+}
+
+// conn returns the current connection under the lock.
+func (i *Interface) conn() net.Conn {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.connection
+}
+
+// setConn stores the connection under the lock.
+func (i *Interface) setConn(c net.Conn) {
+	i.mu.Lock()
+	i.connection = c
+	i.mu.Unlock()
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -74,7 +94,9 @@ func (i *Interface) Create() error {
 		if err != nil {
 			return fmt.Errorf("iface: bind/listen failed: %w", err)
 		}
+		i.mu.Lock()
 		i.listener = listener
+		i.mu.Unlock()
 	} else if i.Host == "" {
 		return errors.New("iface: remote host cannot be empty")
 	}
@@ -105,25 +127,28 @@ func (i *Interface) Connect() (timedOut bool, err error) {
 		return false, fmt.Errorf("iface: connect failed: %w", err)
 	}
 
-	i.connection = connection
+	i.setConn(connection)
 	return false, nil
 }
 
 // Accept blocks for one inbound connection (listen backlog of 1 in the C
 // implementation; Go's listener queue behaves equivalently for this use).
 func (i *Interface) Accept() (timedOut bool, err error) {
-	if i.listener == nil {
+	i.mu.Lock()
+	listener := i.listener
+	i.mu.Unlock()
+	if listener == nil {
 		return false, errors.New("iface: Accept before Create")
 	}
 
 	if i.RecvTimeout > 0 {
 		type deadliner interface{ SetDeadline(time.Time) error }
-		if d, ok := i.listener.(deadliner); ok {
+		if d, ok := listener.(deadliner); ok {
 			_ = d.SetDeadline(time.Now().Add(i.RecvTimeout))
 		}
 	}
 
-	connection, err := i.listener.Accept()
+	connection, err := listener.Accept()
 	if err != nil {
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {
@@ -132,48 +157,57 @@ func (i *Interface) Accept() (timedOut bool, err error) {
 		return false, fmt.Errorf("iface: accept failed: %w", err)
 	}
 
-	i.connection = connection
+	i.setConn(connection)
 	return false, nil
 }
 
 // Send writes buffer to the connection. Reports (sent, connClosed, timedOut).
 func (i *Interface) Send(buffer []byte) (sent int, connClosed bool, timedOut bool, err error) {
-	if i.connection == nil {
+	connection := i.conn()
+	if connection == nil {
 		return 0, false, false, errors.New("iface: Send before Connect/Accept")
 	}
 	if i.SendTimeout > 0 {
-		_ = i.connection.SetWriteDeadline(time.Now().Add(i.SendTimeout))
+		_ = connection.SetWriteDeadline(time.Now().Add(i.SendTimeout))
 	}
 
-	sent, err = i.connection.Write(buffer)
+	sent, err = connection.Write(buffer)
 	return sent, isClosed(err), isTimeout(err), err
 }
 
 // Recv reads up to len(buffer) bytes. Reports (received, connClosed, timedOut).
 func (i *Interface) Recv(buffer []byte) (received int, connClosed bool, timedOut bool, err error) {
-	if i.connection == nil {
+	connection := i.conn()
+	if connection == nil {
 		return 0, false, false, errors.New("iface: Recv before Connect/Accept")
 	}
 	if i.RecvTimeout > 0 {
-		_ = i.connection.SetReadDeadline(time.Now().Add(i.RecvTimeout))
+		_ = connection.SetReadDeadline(time.Now().Add(i.RecvTimeout))
 	}
 
-	received, err = i.connection.Read(buffer)
+	received, err = connection.Read(buffer)
 	return received, isClosed(err), isTimeout(err), err
 }
 
 // Close releases the connection and, for servers, the listener.
 func (i *Interface) Close() error {
-	var firstErr error
-	if i.connection != nil {
-		firstErr = i.connection.Close()
-		i.connection = nil
+	i.mu.Lock()
+	connection := i.connection
+	listener := i.listener
+	i.connection = nil
+	if i.Link == LinkTypeServer {
+		i.listener = nil
 	}
-	if i.Link == LinkTypeServer && i.listener != nil {
-		if err := i.listener.Close(); err != nil && firstErr == nil {
+	i.mu.Unlock()
+
+	var firstErr error
+	if connection != nil {
+		firstErr = connection.Close()
+	}
+	if i.Link == LinkTypeServer && listener != nil {
+		if err := listener.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
-		i.listener = nil
 	}
 	return firstErr
 }
