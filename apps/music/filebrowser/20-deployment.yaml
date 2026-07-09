@@ -1,12 +1,13 @@
 # Filebrowser — web UI to browse / download / upload media from any computer's
 # browser. Mounts the same storage the media stack writes to:
-#   /srv/downloads  <- qBittorrent's completed downloads (read-only)
+#   /srv/downloads  <- qBittorrent's downloads (hostPath /mnt/media/downloads, read-only)
 #   /srv/media      <- /mnt/media on the node (the 100GB NVMe volume, read-write)
 #
-# Node pinning: mounting the RWO qbittorrent-downloads PVC forces this pod onto
-# k3s-w-1 (that PV is node-bound), which is exactly where /mnt/media lives too.
-# RWO is per-NODE, so sharing it with qBittorrent (same node) is fine; mounted
-# read-only here so there's no chance of racing qBit's writes.
+# Node pinning: explicit hostname pin to k3s-w-1 — both mounts are hostPaths
+# that only exist there. (Historically the pin was implicit via the RWO
+# qbittorrent-downloads PVC; that PVC became a hostPath on 2026-07-09, so the
+# pin must be explicit.) Downloads are mounted read-only so there's no chance
+# of racing qBit's writes.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +29,8 @@ spec:
         app: filebrowser
         app.kubernetes.io/part-of: music
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-w-1
       securityContext:
         runAsUser: 0          # read files owned by qBit's abc(1000) + node root
       initContainers:
@@ -125,8 +128,9 @@ spec:
           persistentVolumeClaim:
             claimName: filebrowser-config
         - name: downloads
-          persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+          hostPath:
+            path: /mnt/media/downloads   # qBit's download dir (moved off the PVC 2026-07-09)
+            type: Directory
         - name: media
           hostPath:
             path: /mnt/media

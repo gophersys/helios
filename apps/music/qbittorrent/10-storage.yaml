@@ -1,9 +1,14 @@
 # Storage for qBittorrent.
 #
-# Both PVCs use `local-path` (NOT Longhorn) on purpose: media is re-downloadable,
-# so replicating it 3x across the laptops' small disks is wasteful. local-path
-# binds on the node where the pod schedules (WaitForFirstConsumer), and the
-# Deployment pins the pod to pve-00 — the node with the 954 GB NVMe.
+# Config: a small local-path PVC (WaitForFirstConsumer binds it on k3s-w-1,
+# where the Deployment is hostname-pinned). NOT Longhorn on purpose — the
+# config is enforced/reproducible (config-enforce initContainer) and backed up
+# nightly (apps/music/config-backup/).
+#
+# Downloads: NOT a PVC. They live on the /mnt/media NVMe as a hostPath
+# (see 20-deployment.yaml) — a large-nominal local-path PVC sat on the 58G OS
+# disk, where one big torrent could fill the root disk and DiskPressure-evict
+# the node. Migrated 2026-07-09.
 #
 # NOTE: local-path does not enforce the requested size (it provisions a hostPath
 # dir), so `storage:` here is a nominal label; actual limit is the disk itself.
@@ -19,15 +24,3 @@ spec:
   resources:
     requests:
       storage: 2Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: qbittorrent-downloads
-  namespace: media
-spec:
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-path
-  resources:
-    requests:
-      storage: 300Gi
