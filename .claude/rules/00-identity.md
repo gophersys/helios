@@ -1,13 +1,24 @@
 # infrastructure — identity
 
-`gophersys/infrastructure` is the shared infrastructure-as-code source for
-the brain ecosystem. It is consumed as a git submodule at two locations in
-every monorepo that uses it:
+> **Reality check (2026-07): read this first.** This repo is BOTH:
+> 1. **The live homelab GitOps source (what you'll usually touch).** Argo CD
+>    reconciles the running k3s cluster from `platform/services/gitops/registry/`
+>    (app-of-apps) with workloads under `apps/` and platform add-ons under
+>    `platform/`. The live map is `docs/cluster-topology.md`; the working
+>    agreement + imperative-state ledger is `docs/debt-register.md`. Changes go
+>    branch → PR → merge (CI: `.github/workflows/validate.yml`).
+> 2. **An aspirational IDP framework (the Nx scaffolding described below).**
+>    `machines/`, `clusters/templates/`, `providers/`, `charts/`, `contracts/`
+>    are the multi-cluster design — mostly skeletons/STUBs, not what runs.
+> The parent monorepo is **`helios`** (the Eden monorepo): this repo is the git
+> submodule `helios/infrastructure`. The "brain" ecosystem below is the ORIGINAL
+> design framing and predates helios — those paths don't exist.
 
-- `brain/shared/infrastructure/` — canonical editable copy (in brain).
-- `brain/projects/<project>/infrastructure/` — pinned per-project copy.
+`gophersys/infrastructure` is the shared infrastructure-as-code source,
+consumed as a git submodule by the parent monorepo (today: `helios/infrastructure`;
+originally designed for `brain/shared/infrastructure/` + per-project pins).
 
-## Purpose
+## Purpose (framework design)
 
 Model every real-world piece of infrastructure — hosts, clusters, platform
 services, reusable modules — as a small, self-contained Nx project following

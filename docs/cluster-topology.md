@@ -17,7 +17,11 @@ on the Tailscale mesh.
   nginx on :80; TLS there 308-loops).
 - **Tailnet-private** — DNS-only A records → `10.168.0.240` (the MetalLB nginx
   VIP), reachable only on the tailnet/LAN, TLS via cert-manager: `torrent.`,
-  `prowlarr.`, `files.`, `argocd.`, `grafana.`.
+  `prowlarr.`, `files.`, `argocd.`, `s3.` (MinIO API).
+- **Grafana is the exception**: `grafana.` → its **own** MetalLB LoadBalancer at
+  `10.168.0.241`, plain **HTTP :80** — no Ingress, no cert-manager cert (managed
+  by the `obs` Helm release). Tailnet-private like the rest, just a different
+  path and no TLS.
 
 ---
 

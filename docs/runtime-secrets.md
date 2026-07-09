@@ -69,6 +69,30 @@ The same App key is also set as repo secrets on `gophersys/workspaces`
 
 ## Platform / backup / edge Secrets
 
+### `bw-cli-credentials` (ns `external-secrets`) — THE seed secret
+The one secret that anchors the whole ESO↔Vaultwarden chain (personal API key +
+master password). Hand-created; full recreation + security notes:
+`platform/core/secrets-operator/manifests/README.md` ("The one seed secret").
+
+### `cloudflare-api-token` (ns `cert-manager`) — DNS-01 solver token
+Cloudflare API token (Zone:DNS:Edit) used by the `letsencrypt-homelab`
+ClusterIssuer (see `platform/core/edge/tls/cert-manager/cluster-issuer.yaml`'s
+header). It was created from `$CLOUDFLARE_API_TOKEN` at bootstrap; **no vault
+item is confirmed for it** — if it isn't in Vaultwarden yet, re-issue from the
+Cloudflare dashboard (or vault it as `shared/cloudflare/dns-api-token`), then:
+```sh
+kubectl -n cert-manager create secret generic cloudflare-api-token \
+  --from-literal=api-token="$CLOUDFLARE_API_TOKEN" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### `grafana-admin` (ns `observability`) — Grafana admin login
+Consumed by the `obs` Helm release (`admin.existingSecret=grafana-admin`, keys
+`admin-user`/`admin-password`). The password is **generated at creation**
+(`openssl rand`), not vaulted — recreating it just mints a new one; retrieve the
+current one with `kubectl -n observability get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d`.
+Recreation: `platform/services/observability/chart/README.md`.
+
 ### `minio-creds` (ns `minio`) — MinIO root credentials
 Backs the Longhorn S3 backup target (`apps/minio/`). Vault: `shared/minio/longhorn-backups`.
 ```sh

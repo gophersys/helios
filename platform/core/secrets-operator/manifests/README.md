@@ -41,9 +41,10 @@ kubectl -n external-secrets create secret generic bw-cli-credentials \
 
 ## Activation (after the seed secret exists)
 
-1. Add an Argo Application `external-secrets-bridge` (project platform, path
-   `kubernetes/apps/external-secrets`) — deploys bw-serve + NetworkPolicy + the
-   ClusterSecretStore.
+1. The Argo Application `secrets-bridge` (project platform, path
+   `platform/core/secrets-operator/manifests`, registered at
+   `platform/services/gitops/registry/app-secrets-bridge.yaml`) deploys
+   bw-serve + NetworkPolicy + the ClusterSecretStore.
 2. Verify the bridge unlocks (`kubectl -n external-secrets logs deploy/bw-serve`)
    and the ClusterSecretStore reports `Ready`.
 3. Migrate a real secret: write an `ExternalSecret` (e.g. re-provision

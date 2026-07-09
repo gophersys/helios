@@ -43,8 +43,9 @@ Every script in `machines/scripts/` that touches secrets:
 - Reading a secret value into any interactive shell transcript. Scripts
   pipe secrets into consumers; their stdout never contains secret values.
 - Storing secrets in Ansible vaults, Terraform state files, or Kubernetes
-  Secret manifests committed to git. Use external-secrets with Bitwarden
-  as the provider (see `platform/secrets-external-operator/`).
+  Secret manifests committed to git. Use external-secrets with the vault
+  (Vaultwarden — Bitwarden-compatible) as the provider
+  (see `platform/core/secrets-operator/` + `docs/runtime-secrets.md`).
 
 ## Rotation
 
