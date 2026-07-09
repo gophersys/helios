@@ -15,7 +15,7 @@ metadata:
     app: prowlarr
     app.kubernetes.io/part-of: music
 spec:
-  replicas: 1
+  replicas: 0   # TRANSIENT: config-PV migration k3s-w-0 -> k3s-w-1 in flight; the follow-up PR restores 1
   strategy:
     type: Recreate            # RWO config volume, single writer
   selector:
@@ -27,15 +27,13 @@ spec:
         app: prowlarr
         app.kubernetes.io/part-of: music
     spec:
-      # Same node as qBittorrent (local-path config binds there).
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: topology.kubernetes.io/zone
-                    operator: In
-                    values: ["pve-00"]
+      # Pin to k3s-w-1 — the media node (qBittorrent, /mnt/media NVMe, and the
+      # nightly config-backup CronJob all live there). The old zone pin (pve-00)
+      # also matched k3s-w-0, so the scheduler put Prowlarr + its node-bound
+      # local-path PV on the wrong node, out of the backup job's reach
+      # (debt-register D2).
+      nodeSelector:
+        kubernetes.io/hostname: k3s-w-1
       containers:
         - name: prowlarr
           image: lscr.io/linuxserver/prowlarr:nightly-2.5.1.5460-ls4  # 2.5.x: fixes qBittorrent 5.x download-client compat (2.4.0 NREs)

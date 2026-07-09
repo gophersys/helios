@@ -1,5 +1,6 @@
 # Prowlarr config PVC — local-path (config only, small, re-creatable index defs).
-# WaitForFirstConsumer + the Deployment's pve-00 pin keep it on the media node.
+# WaitForFirstConsumer + the Deployment's k3s-w-1 pin bind it to the media node,
+# where the nightly config-backup CronJob can reach it.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
