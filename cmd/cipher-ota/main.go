@@ -70,5 +70,5 @@ func main() {
 	rate := float64(sent) / 1024 / dt.Seconds()
 	fmt.Printf("OTA stream complete: %d bytes in %.1fs = %.1f KiB/s\n", sent, dt.Seconds(), rate)
 	fmt.Println("node will verify checksum, write slot1, and reboot to swap A/B.")
-	time.Sleep(2 * time.Second) // let the END packet flush before we exit
+	time.Sleep(500 * time.Millisecond) // graceful-close flush margin for the END packet
 }
