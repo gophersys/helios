@@ -1,0 +1,41 @@
+# Ingress for the MinIO S3 API — consumed by off-cluster restic clients
+# (today: the music-studio workspace backup from Mateo's Mac; see
+# github.com/MateoSegura/music-studio docs/backup.md).
+#
+# EXPOSURE MODEL: tailnet-private, same as qbittorrent/argocd. The DNS record
+# is a **DNS-only (grey-cloud) A record**:
+#   s3.mateosegura.com  A  10.168.0.240
+# Public name (so LE DNS-01 issues a real cert), private target — only
+# reachable over the Tailscale tailnet / home LAN.
+#
+# Only the S3 API (:9000) is exposed. The console (:9001) stays
+# port-forward-only. NetworkPolicy additionally gates who reaches the pod:
+# see 25-networkpolicy.yaml (allow-ingress-nginx).
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-s3
+  namespace: minio
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-homelab
+    # restic pushes multi-GB pack files; don't buffer or cap them.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - s3.mateosegura.com
+      secretName: minio-s3-tls
+  rules:
+    - host: s3.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000

@@ -1,6 +1,8 @@
 # MinIO holds the ONLY off-cluster-ish backup copy (Longhorn's S3 target). It had
 # zero network isolation. Lock ingress to who actually needs it:
 #   - longhorn-system  -> :9000  (the backup/restore traffic)
+#   - ingress-nginx    -> :9000  (tailnet-private s3.mateosegura.com for off-cluster
+#                                 restic clients; see 30-ingress.yaml)
 #   - same namespace   -> any    (an ad-hoc `mc` admin pod; see apps/minio/README.md)
 # The console (:9001) stays reachable only via `kubectl port-forward` (node-local
 # traffic, not subject to NetworkPolicy). Egress is left open (MinIO is a sink).
@@ -32,6 +34,26 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: longhorn-system
+      ports:
+        - port: 9000
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx
+  namespace: minio
+spec:
+  podSelector:
+    matchLabels:
+      app: minio
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
       ports:
         - port: 9000
           protocol: TCP
