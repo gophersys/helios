@@ -62,6 +62,13 @@ cipher_registry_rpc_entry_t *cipher_rpc_get_entry_from_timer(cipher_daemon_t *d,
     for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
         cipher_registry_rpc_entry_t *current_entry = d->rpc_registry.entries[i];
 
+        // A late RPC reply may unregister an entry (slot set to NULL) while a
+        // TIMER_EXPIRED event for it is still queued. Guard against the NULL
+        // slot before dereferencing, exactly like cipher_rpc_get_entry().
+        if (current_entry == NULL) {
+            continue;
+        }
+
         if (!current_entry->_used) {
             continue;
         }
@@ -83,8 +90,16 @@ void send_rpc_cancel_request(cipher_daemon_t *d, cipher_registry_rpc_entry_t *en
 }
 
 void signal_rpc_caller(cipher_daemon_t *d, cipher_registry_rpc_entry_t *entry) {
+    // Tolerate a NULL entry: the timer may fire for an RPC that already
+    // completed and was unregistered before this event was processed.
+    if (entry == NULL) {
+        return;
+    }
+
     cipher_unary_rpc_user_info_t *info = entry->user_info;
-    info->error = CIPHER_RPC_ERR_TIMEOUT;
+    if (info != NULL) {
+        info->error = CIPHER_RPC_ERR_TIMEOUT;
+    }
     k_sem_give(&entry->await_sem);
 }
 
@@ -92,7 +107,12 @@ void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event) {
 
     rpc_event_opt_timer_expired_t *opts = (rpc_event_opt_timer_expired_t *)event->options;
     cipher_registry_rpc_entry_t *entry = cipher_rpc_get_entry_from_timer(d, opts->timer);
-    __ASSERT(entry, "No entry available for timer %p", opts->timer);
+    if (entry == NULL) {
+        // The RPC replied and was unregistered before this queued timeout was
+        // handled — nothing to cancel. Not an error, just a lost race.
+        WARN("No active RPC entry for expired timer %p — already completed", opts->timer);
+        return;
+    }
 
     send_rpc_cancel_request(d, entry);
     signal_rpc_caller(d, entry);

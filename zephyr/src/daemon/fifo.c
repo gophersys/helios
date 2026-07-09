@@ -19,15 +19,24 @@
 
 // TODO: For this file put all the heaps at the top of the allocation
 
-inline cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, size_t payload_size) {
+// Core packet-item allocator. The timeout is chosen by the caller:
+//   - Send / local-origin paths pass K_FOREVER: they may block until the shared
+//     local_packets_heap drains, which is the intended back-pressure on senders.
+//   - The per-iface RX/dispatch path passes K_NO_WAIT: it must never block the
+//     receive thread (doing so head-of-line-blocks every packet on that iface,
+//     including the drains that would free the heap). On exhaustion it returns
+//     NULL and the caller drops + logs the packet.
+cipher_packet_fifo_item_t *alloc_packet_fifo_item_to(cipher_daemon_t *d, size_t payload_size,
+                                                     k_timeout_t timeout) {
 
-    cipher_packet_fifo_item_t *fifo_item = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_packet_fifo_item_t), K_FOREVER);
+    cipher_packet_fifo_item_t *fifo_item =
+        k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_packet_fifo_item_t), timeout);
     if (!fifo_item) {
         return NULL;
     }
 
     if (payload_size != 0) {
-        fifo_item->packet.payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, payload_size, K_FOREVER);
+        fifo_item->packet.payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, payload_size, timeout);
         if (!fifo_item->packet.payload) {
             k_heap_free(&d->local_packets_heap, fifo_item);
             return NULL;
@@ -35,6 +44,17 @@ inline cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, siz
     }
 
     return fifo_item;
+}
+
+// Blocking allocator for send / local-origin paths (K_FOREVER back-pressure).
+inline cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, size_t payload_size) {
+    return alloc_packet_fifo_item_to(d, payload_size, K_FOREVER);
+}
+
+// Non-blocking allocator for the RX/dispatch path. Returns NULL (drop the
+// packet) instead of stalling the receive thread when the heap is exhausted.
+inline cipher_packet_fifo_item_t *alloc_packet_fifo_item_nowait(cipher_daemon_t *d, size_t payload_size) {
+    return alloc_packet_fifo_item_to(d, payload_size, K_NO_WAIT);
 }
 
 inline void free_packet_fifo_item(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {

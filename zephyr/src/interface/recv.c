@@ -149,8 +149,14 @@ static void dispatch_framed_packet(cipher_daemon_t *d, cipher_iface_t *iface,
     }
 
     size_t payload_size = packet_size - sizeof(cipher_header_t);
-    cipher_packet_fifo_item_t *fifo_item = alloc_packet_fifo_item(d, payload_size);
-    CHECK_MALLOC(fifo_item);
+    // RX path: never block the receive thread on heap exhaustion. Drop + log
+    // (backpressure) instead of dead-locking every subsequent packet on this iface.
+    cipher_packet_fifo_item_t *fifo_item = alloc_packet_fifo_item_nowait(d, payload_size);
+    if (fifo_item == NULL) {
+        WARN("local packet heap exhausted — dropping packet from 0x%04x on iface %d",
+             header->source_id, iface->id);
+        return;
+    }
 
     serdes_decode_args_t args = {
         .header = header,

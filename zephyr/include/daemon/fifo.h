@@ -35,7 +35,13 @@ typedef struct {
     cipher_registry_rpc_entry_t *entry;
 } cipher_local_rpc_request_fifo_item_t;
 
+// Explicit-timeout allocator. K_FOREVER for back-pressured send paths;
+// K_NO_WAIT for the RX/dispatch path that must not block its receive thread.
+cipher_packet_fifo_item_t *alloc_packet_fifo_item_to(cipher_daemon_t *d, size_t payload_size, k_timeout_t timeout);
+// Blocking (K_FOREVER) — send / local-origin paths.
 cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, size_t payload_size);
+// Non-blocking (K_NO_WAIT) — RX/dispatch path; returns NULL to signal "drop".
+cipher_packet_fifo_item_t *alloc_packet_fifo_item_nowait(cipher_daemon_t *d, size_t payload_size);
 void free_packet_fifo_item(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
 
 cipher_router_packet_fifo_item_t *alloc_router_packet_fifo_item(cipher_daemon_t *d, size_t packet_size);

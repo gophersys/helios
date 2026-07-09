@@ -21,21 +21,40 @@
  * Owned by the daemon (not file-scope globals) so multiple daemon instances in
  * one image each track their own inbound stream independently.
  */
+/**
+ * @brief Number of concurrent inbound stream reassemblies a daemon can track.
+ *
+ * Each in-flight (source_id, stream_id) transfer occupies one slot. A START
+ * from a new pair claims a free slot; when the pool is full the new START is
+ * dropped and logged rather than clobbering another peer's in-flight transfer.
+ */
+#define CIPHER_STREAM_MAX_CONCURRENT 4
+
+/**
+ * @brief One in-flight inbound stream reassembly, keyed by (source_id, stream_id).
+ */
 typedef struct {
-    struct {
-        bool in_progress;
-        uint16_t stream_id;
-        uint32_t total_len;
-        uint32_t received_len;
-        uint32_t num_chunks;
-        uint32_t checksum;
-        int64_t start_time;
-    } rx;                              /*!< Single in-flight inbound stream */
+    bool in_progress;
+    uint16_t source_id;   /*!< Peer that sent START — owns this reassembly */
+    uint16_t stream_id;   /*!< Stream id (carried in header.service_id) */
+    uint32_t total_len;
+    uint32_t received_len;
+    uint32_t num_chunks;
+    uint32_t checksum;
+    int64_t start_time;
+} cipher_stream_rx_slot_t;
+
+typedef struct {
+    /* Fixed pool of concurrent inbound reassemblies. Each transfer is matched
+     * by BOTH source_id and stream_id, so interleaved streams from different
+     * peers (or different streams from one peer) no longer corrupt each other's
+     * reassembly or checksum. */
+    cipher_stream_rx_slot_t rx[CIPHER_STREAM_MAX_CONCURRENT];
 
     cipher_stream_rx_stats_t last_rx;  /*!< Last completed stream, published to readers */
     bool last_rx_valid;
     uint32_t completion_id;            /*!< Monotonic id so readers can dedupe completions */
-    struct k_mutex mutex;              /*!< Guards rx + last_rx */
+    struct k_mutex mutex;              /*!< Guards rx[] + last_rx */
 
     cipher_stream_rx_sink_t rx_sink;   /*!< Optional consumer of stream bytes (e.g. OTA) */
     void *rx_sink_ctx;

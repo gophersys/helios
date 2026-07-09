@@ -208,45 +208,101 @@ bool cipher_stream_get_last_rx(cipher_daemon_t *d, cipher_stream_rx_stats_t *out
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Receive (Reassy)
  *---------------------------------------------------------------------------------------------------*/
+
+// Locate the in-flight reassembly owned by (source_id, stream_id). Returns NULL
+// when no active transfer matches. Caller must hold s->mutex.
+static cipher_stream_rx_slot_t *find_rx_slot(cipher_stream_state_t *s, uint16_t source_id,
+                                             uint16_t stream_id) {
+    for (size_t i = 0; i < ARRAY_SIZE(s->rx); i++) {
+        cipher_stream_rx_slot_t *slot = &s->rx[i];
+        if (slot->in_progress && slot->source_id == source_id && slot->stream_id == stream_id) {
+            return slot;
+        }
+    }
+    return NULL;
+}
+
+// Claim a free reassembly slot from the pool. Returns NULL when all slots are
+// busy. Caller must hold s->mutex.
+static cipher_stream_rx_slot_t *alloc_rx_slot(cipher_stream_state_t *s) {
+    for (size_t i = 0; i < ARRAY_SIZE(s->rx); i++) {
+        if (!s->rx[i].in_progress) {
+            return &s->rx[i];
+        }
+    }
+    return NULL;
+}
+
 static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
     cipher_stream_state_t *s = &d->stream_state;
     const uint8_t *payload = (const uint8_t *)packet->payload;
     const uint16_t flags = packet->header.flags;
+
+    // Every stream packet carries its stream id in header.service_id (set by
+    // send_stream_packet for START/DATA/END alike) and its origin in
+    // header.source_id. Reassembly is keyed on this (source_id, stream_id) pair
+    // so concurrent transfers from different peers, or different streams from
+    // the same peer, never share a reassembly slot or a checksum.
+    const uint16_t source_id = packet->header.source_id;
+    const uint16_t stream_id = packet->header.service_id;
 
     if (flags & CIPHER_FLAG_STREAM_START) {
         if (packet->header.payload_len < 6) {   /* total_len(4) + stream_id(2) */
             LOG_WRN("stream START payload too short (%u) — dropping", packet->header.payload_len);
             return;
         }
+
+        uint32_t total_len = 0;
+        memcpy(&total_len, &payload[0], sizeof(uint32_t));
+
         k_mutex_lock(&s->mutex, K_FOREVER);
-        s->rx.in_progress = true;
-        memcpy(&s->rx.total_len, &payload[0], sizeof(uint32_t));
-        memcpy(&s->rx.stream_id, &payload[4], sizeof(uint16_t));
-        s->rx.received_len = 0;
-        s->rx.num_chunks = 0;
-        s->rx.checksum = FNV1A_OFFSET_BASIS;
-        s->rx.start_time = k_uptime_get();
+        // A repeat START for an already-tracked transfer restarts it in place;
+        // a genuinely new transfer claims a free slot. A full pool means we drop
+        // the new START rather than evict another peer's healthy transfer.
+        cipher_stream_rx_slot_t *slot = find_rx_slot(s, source_id, stream_id);
+        if (slot == NULL) {
+            slot = alloc_rx_slot(s);
+        }
+        if (slot == NULL) {
+            k_mutex_unlock(&s->mutex);
+            LOG_WRN("stream %u START from 0x%04x dropped — reassembly pool full",
+                    stream_id, source_id);
+            return;
+        }
+        slot->in_progress = true;
+        slot->source_id = source_id;
+        slot->stream_id = stream_id;
+        slot->total_len = total_len;
+        slot->received_len = 0;
+        slot->num_chunks = 0;
+        slot->checksum = FNV1A_OFFSET_BASIS;
+        slot->start_time = k_uptime_get();
         cipher_stream_rx_sink_t sink = s->rx_sink;
         void *sink_ctx = s->rx_sink_ctx;
-        uint16_t sid = s->rx.stream_id;
         k_mutex_unlock(&s->mutex);
-        LOG_INF("stream %u START: expecting %u bytes", sid, s->rx.total_len);
+        LOG_INF("stream %u START from 0x%04x: expecting %u bytes", stream_id, source_id, total_len);
         if (sink) {
-            sink(sid, CIPHER_STREAM_PHASE_START, NULL, 0, sink_ctx);
+            sink(stream_id, CIPHER_STREAM_PHASE_START, NULL, 0, sink_ctx);
         }
 
     } else if (flags & CIPHER_FLAG_STREAM_DATA) {
         k_mutex_lock(&s->mutex, K_FOREVER);
-        s->rx.received_len += packet->header.payload_len;
-        s->rx.num_chunks++;
-        s->rx.checksum = cipher_stream_fnv1a(s->rx.checksum, payload, packet->header.payload_len);
+        cipher_stream_rx_slot_t *slot = find_rx_slot(s, source_id, stream_id);
+        if (slot == NULL) {
+            k_mutex_unlock(&s->mutex);
+            LOG_WRN("stream %u DATA from 0x%04x with no active transfer — dropping",
+                    stream_id, source_id);
+            return;
+        }
+        slot->received_len += packet->header.payload_len;
+        slot->num_chunks++;
+        slot->checksum = cipher_stream_fnv1a(slot->checksum, payload, packet->header.payload_len);
         cipher_stream_rx_sink_t sink = s->rx_sink;
         void *sink_ctx = s->rx_sink_ctx;
-        uint16_t sid = s->rx.stream_id;
         k_mutex_unlock(&s->mutex);
         // Deliver the chunk to a consumer (e.g. OTA -> flash) outside the lock.
         if (sink) {
-            sink(sid, CIPHER_STREAM_PHASE_DATA, payload, packet->header.payload_len, sink_ctx);
+            sink(stream_id, CIPHER_STREAM_PHASE_DATA, payload, packet->header.payload_len, sink_ctx);
         }
 
     } else if (flags & CIPHER_FLAG_STREAM_END) {
@@ -260,18 +316,25 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
         memcpy(&declared_checksum, &payload[4], sizeof(uint32_t));
 
         k_mutex_lock(&s->mutex, K_FOREVER);
-        int64_t duration = k_uptime_get() - s->rx.start_time;
+        cipher_stream_rx_slot_t *slot = find_rx_slot(s, source_id, stream_id);
+        if (slot == NULL) {
+            k_mutex_unlock(&s->mutex);
+            LOG_WRN("stream %u END from 0x%04x with no active transfer — dropping",
+                    stream_id, source_id);
+            return;
+        }
+        int64_t duration = k_uptime_get() - slot->start_time;
         s->last_rx.completion_id = ++s->completion_id;
-        s->last_rx.stream_id = s->rx.stream_id;
-        s->last_rx.total_len = s->rx.total_len;
-        s->last_rx.received_len = s->rx.received_len;
-        s->last_rx.num_chunks = s->rx.num_chunks;
-        s->last_rx.checksum = s->rx.checksum;
+        s->last_rx.stream_id = slot->stream_id;
+        s->last_rx.total_len = slot->total_len;
+        s->last_rx.received_len = slot->received_len;
+        s->last_rx.num_chunks = slot->num_chunks;
+        s->last_rx.checksum = slot->checksum;
         s->last_rx.checksum_ok =
-            (s->rx.checksum == declared_checksum) && (s->rx.received_len == declared_len);
+            (slot->checksum == declared_checksum) && (slot->received_len == declared_len);
         s->last_rx.duration_ms = duration;
         s->last_rx_valid = true;
-        s->rx.in_progress = false;
+        slot->in_progress = false;  // release the slot back to the pool
         cipher_stream_rx_stats_t snapshot = s->last_rx;
         cipher_stream_rx_sink_t sink = s->rx_sink;
         void *sink_ctx = s->rx_sink_ctx;
