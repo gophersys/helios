@@ -119,8 +119,3 @@ data:
             - abbr: PV
               icon: proton-vpn
               href: https://account.protonvpn.com
-
-  docker.yaml: ""
-  kubernetes.yaml: ""
-  custom.css: ""
-  custom.js: ""
