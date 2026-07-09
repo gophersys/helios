@@ -50,6 +50,15 @@ spec:
               memory: 256Mi
             limits:
               memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]          # MinIO needs no caps
+            seccompProfile:
+              type: RuntimeDefault
+            # runAsNonRoot / readOnlyRootFilesystem deliberately NOT set: MinIO
+            # writes the hostPath /data as root; that hardening needs a pre-chown
+            # and a writable /tmp — deferred (see docs/debt-register.md).
           volumeMounts:
             - name: data
               mountPath: /data

@@ -4,9 +4,21 @@ Longhorn is on **v1.7.2 (EOL)**, installed via **raw manifests** (`kubectl apply
 Latest is **v1.12.0**. Longhorn enforces **one-minor-at-a-time** upgrades and
 **downgrades are unsupported** — the safety posture is **backup + fix-forward**, never rollback.
 
-> ⚠️ **BLOCKER: no backup target is configured** (`settings.longhorn.io backup-target` is empty).
-> There are **no off-cluster backups**. Configure an S3/NFS target and take full backups of all
-> 4 volumes **before** starting. In-cluster snapshots do NOT survive a Longhorn/etcd/disk failure.
+> ✅ **RESOLVED (2026-07-08): backup target configured** — in-cluster MinIO (see
+> "Backup target" below). Full backups of all 4 volumes completed before the upgrade.
+> (Historical blocker: this cluster originally had no off-cluster backups; in-cluster
+> snapshots do NOT survive a Longhorn/etcd/disk failure, so a target was mandatory first.)
+
+## Backup target (as configured)
+Longhorn 1.12 holds this in the **`BackupTarget/default` CR** (ns `longhorn-system`),
+not the legacy `settings.longhorn.io backup-target` (which is empty — expected):
+- `spec.backupTargetURL: s3://longhorn-backups@us-east-1/` (bucket `longhorn-backups`,
+  region label is a formality — MinIO ignores it).
+- `spec.credentialSecret: longhorn-minio-backup` — keys `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`, and `AWS_ENDPOINTS: http://minio.minio.svc.cluster.local:9000`.
+- Backing store: `apps/minio/` (hostPath NVMe on k3s-w-1, off-Longhorn by design).
+Recreate the secret + bucket per `apps/minio/README.md` and `docs/runtime-secrets.md`;
+then reapply the BackupTarget CR (or set it in the Longhorn UI → Settings → Backup Target).
 
 ## State (as of 2026-07-07)
 - 8 nodes (k3s v1.35.5), all Longhorn nodes Ready+Schedulable.
