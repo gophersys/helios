@@ -27,11 +27,18 @@ RESULTS="/tmp/ota_soak.jsonl"        # local, on this host
 SIGNED="$BUILD/ota_node/zephyr/zephyr.signed.bin"
 MAXDISK=83                           # abort if devbox / exceeds this %
 
+# single-instance lock: two concurrent soaks OTA-storm the node and corrupt stats
+LOCK="/tmp/ota_soak.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "another soak holds $LOCK — refusing to double-run"; exit 1
+fi
+
 ssh_dev()  { ssh -o BatchMode=yes -o ServerAliveInterval=10 -o ConnectTimeout=15 "$DEVBOX" "$@"; }
 ssh_node() { ssh -o BatchMode=yes -o ConnectTimeout=15 "$NODE" "$@"; }
 disk_pct() { ssh_dev "df --output=pcent / | tail -1 | tr -dc 0-9" 2>/dev/null; }
 
 cleanup() {
+  rmdir "$LOCK" 2>/dev/null
   echo "cleanup: removing build dir + staged files"
   ssh_dev "rm -rf $BUILD /tmp/ota_soak_fw.bin" 2>/dev/null
   ssh_node "rm -f /tmp/ota_soak_fw.bin" 2>/dev/null
@@ -49,9 +56,11 @@ case "$BOARD" in esp32*) extra="-Dota_node_CONFIG_OTA_FILLER_KB=512 -Dota_node_C
 ssh_node "sudo -n truncate -s0 /tmp/ck-metrics.jsonl 2>/dev/null || true"
 echo "soak: $N runs on $BOARD (dev $NODEDEV @ $NODEIP); disk guard @ ${MAXDISK}%"
 
+SOAKID=$(( $(date +%s) % 100 ))   # soak-unique minor version (see verify)
+echo "soak id: $SOAKID (images signed <run+1>.$SOAKID.0)"
 ok_count=0; fail_count=0
 for i in $(seq 2 $((N + 1))); do
-  run=$((i - 1)); ver="v$i"; signver="$i.0.0"; ts=$(date +%s)
+  run=$((i - 1)); ver="v$i"; signver="$i.$SOAKID.0"; ts=$(date +%s)
 
   # --- DISK GUARD: never push the devbox toward DiskPressure ---
   d=$(disk_pct); d=${d:-100}
@@ -86,9 +95,9 @@ for i in $(seq 2 $((N + 1))); do
   t0=$(date +%s.%N); attempts=0
   for attempt in 1 2 3; do
     attempts=$attempt
-    # event-driven gate: block until ONE fresh heartbeat arrives (node alive and
-    # not mid-swap-reboot), returning the instant it lands — no polling.
-    ssh_node "timeout 90 tail -n0 -F /tmp/ck-metrics.jsonl 2>/dev/null | grep --line-buffered -m1 ota_boot >/dev/null"
+    # gate: block until a FRESH heartbeat lands (node alive, not mid-swap-reboot).
+    # Node-local 1s loop: race-free (no tail-vs-history gap), one ssh total.
+    ssh_node "timeout 90 sh -c 'n=\$(grep -c ota_boot /tmp/ck-metrics.jsonl 2>/dev/null || echo 0); while [ \$(grep -c ota_boot /tmp/ck-metrics.jsonl 2>/dev/null || echo 0) -le \$n ]; do sleep 1; done'"
     out=$(ssh_node "timeout 90 /tmp/cipher-ota -host $NODEIP -node-dev $NODEDEV -firmware /tmp/ota_soak_fw.bin -chunk 1024 2>&1")
     echo "$out" | grep -q "OTA stream complete" && break
   done
@@ -98,19 +107,18 @@ for i in $(seq 2 $((N + 1))); do
   # 4. Verify the swap via the UDP heartbeat = ground-truth proof it booted.
   #    Check the MCUboot IMAGE VERSION (this run signs image i.0.0), which is the
   #    field the OTA actually bumps and MCUboot swaps on.
-  want_ver="$i.0.0"
-  # event-driven verify: returns the instant the new image heartbeats after the
-  # swap + reboot + WiFi rejoin (covers history too, in case it already booted).
+  want_ver="$i.$SOAKID.0"
+  # verify: node-local 1s loop over the full history — race-free, returns within
+  # a second of the new image heartbeating after swap + reboot + WiFi rejoin.
   swap_ok=false
-  if ssh_node "grep -q '\"imgver\":\"$want_ver\"' /tmp/ck-metrics.jsonl 2>/dev/null || \
-      timeout 150 tail -n0 -F /tmp/ck-metrics.jsonl 2>/dev/null | grep --line-buffered -m1 '\"imgver\":\"$want_ver\"' >/dev/null"; then
+  if ssh_node "timeout 150 sh -c 'while ! grep -q \"imgver.:.$want_ver\" /tmp/ck-metrics.jsonl 2>/dev/null; do sleep 1; done'"; then
     swap_ok=true
   fi
   sink=$(ssh_node "grep '\"phase\":\"end\"' /tmp/ck-metrics.jsonl 2>/dev/null | tail -1")
   csum=$(echo "$sink" | grep -oE '"csum_ok":(true|false)' | cut -d: -f2)
 
   if [ "$swap_ok" = true ]; then ok_count=$((ok_count+1)); else fail_count=$((fail_count+1)); fi
-  echo "{\"run\":$run,\"version\":\"$ver\",\"ts\":$ts,\"build_s\":$build_s,\"fw_bytes\":$fwsize,\"ota_s\":$ota_s,\"kib_s\":${rate:-0},\"ota_attempts\":$attempts,\"csum_ok\":${csum:-false},\"swap_ok\":$swap_ok,\"flash_writes\":$run,\"disk_pct\":$d}" >> "$RESULTS"
+  echo "{\"run\":$run,\"version\":\"$ver\",\"ts\":$ts,\"build_s\":$build_s,\"fw_bytes\":$fwsize,\"ota_s\":$ota_s,\"kib_s\":${rate:-0},\"ota_attempts\":$attempts,\"csum_ok\":${csum:-false},\"imgver\":\"$want_ver\",\"swap_ok\":$swap_ok,\"flash_writes\":$run,\"disk_pct\":$d}" >> "$RESULTS"
   echo "run $run/$N ver=$ver build=${build_s}s ota=${ota_s}s ${rate:-?}KiB/s csum=${csum:-?} swap=$swap_ok disk=${d}% [$ok_count ok/$fail_count fail]"
 done
 
