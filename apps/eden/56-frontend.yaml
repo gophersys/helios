@@ -27,6 +27,12 @@ spec:
       containers:
         - name: frontend
           # v0.1.4
+          env:
+            # k3s cluster DNS: nginx's lazy resolver for the /gateway + /platform proxies.
+            # The image default (127.0.0.11) is docker-only; the next image release derives
+            # this from /etc/resolv.conf and this override can drop.
+            - name: NGINX_LOCAL_RESOLVERS
+              value: "10.43.0.10"
           image: "ghcr.io/gophersys/eden/frontend@sha256:fe867c88af224448cecb63b9cc8637ac9b1d5f00d05670e35af6bc15aa7088b0"
           ports:
             - name: http

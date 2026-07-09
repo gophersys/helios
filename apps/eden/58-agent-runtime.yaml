@@ -15,7 +15,7 @@ metadata:
     app.kubernetes.io/name: agent-runtime
     app.kubernetes.io/part-of: eden
 spec:
-  replicas: 1
+  replicas: 0  # a per-agent TEMPLATE — the orchestrator instantiates pods with EDEN_AGENT_ID; a standing replica exits immediately
   selector:
     matchLabels:
       app.kubernetes.io/name: agent-runtime
