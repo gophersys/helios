@@ -104,11 +104,15 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
+              # openresty's root master chowns its temp dirs (CHOWN) and setuids
+              # its workers down to `nobody` (SETUID/SETGID) at startup — a bare
+              # drop-ALL makes it abort with "chown ... Operation not permitted".
+              # These 3 keep the unprivileged-worker posture while dropping ~35 others.
+              add: ["CHOWN", "SETUID", "SETGID"]
             seccompProfile:
               type: RuntimeDefault
-            # cd-proxy is a pure reverse proxy (reads no media files), so cap-drop
-            # is safe. runAsNonRoot/readOnlyRootFilesystem deferred: openresty needs
-            # a writable pid/temp tree, which would need emptyDir wiring first.
+            # runAsNonRoot/readOnlyRootFilesystem deferred: openresty needs a
+            # writable pid/temp tree, which would need emptyDir wiring first.
           volumeMounts:
             - name: cd-proxy-conf
               mountPath: /usr/local/openresty/nginx/conf/nginx.conf
