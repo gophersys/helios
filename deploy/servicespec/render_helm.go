@@ -120,8 +120,11 @@ func deploymentTemplate(service ServiceSpec) string {
 }
 
 // renderHelmTokenFileMount projects the Vault token-file Secret as a read-only volumeMount on the
-// container (production only). The projected key is mounted at the mount directory with subPath = the
-// key's filename, so ONLY the token file lands there (an unrelated file in the same dir survives).
+// container (production only). The volume mounts at the DIRECTORY (no subPath): kubelet lays each
+// Secret key out as a file inside it, so the token lands at <dir>/<file> — with subPath the key's
+// CONTENT became the file AT the mount path itself and the app's open("<dir>/<file>") failed with
+// ENOTDIR (the exact live crash on the home cluster). A directory mount also keeps receiving Secret
+// updates (subPath mounts never do), so a reseed's re-minted token propagates without a pod restart.
 func renderHelmTokenFileMount(b *strings.Builder, service ServiceSpec) {
 	m := service.TokenFileSecret
 	if m == nil {
@@ -130,7 +133,6 @@ func renderHelmTokenFileMount(b *strings.Builder, service ServiceSpec) {
 	b.WriteString("          volumeMounts:\n")
 	fmt.Fprintf(b, "            - name: %s\n", m.volumeName())
 	fmt.Fprintf(b, "              mountPath: %s\n", m.mountDir())
-	fmt.Fprintf(b, "              subPath: %s\n", m.mountFile())
 	b.WriteString("              readOnly: true\n")
 }
 

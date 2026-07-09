@@ -228,13 +228,19 @@ func TestTokenFileMountRenders(t *testing.T) {
 			t.Fatalf("no deployment rendered for %q", svc)
 		}
 		// The mount references the Secret name + key + path, read-only. No value is ever inlined.
+		// DIRECTORY mount, deliberately NO subPath: with subPath the key's content became the file AT
+		// /vault/secrets and open("/vault/secrets/token") crashed ENOTDIR live; a directory mount lays
+		// the key out as /vault/secrets/token and keeps receiving Secret updates (subPath never does).
 		for _, want := range []string{
 			"volumeMounts:", "name: eden-vault-token", "mountPath: /vault/secrets",
-			"subPath: token", "readOnly: true", "secretName: eden-vault-token", "key: token",
+			"readOnly: true", "secretName: eden-vault-token", "key: token",
 		} {
 			if !strings.Contains(content, want) {
 				t.Errorf("%s deployment missing token-file mount fragment %q", svc, want)
 			}
+		}
+		if strings.Contains(content, "subPath:") {
+			t.Errorf("%s deployment renders a subPath token mount (the ENOTDIR regression)", svc)
 		}
 	}
 

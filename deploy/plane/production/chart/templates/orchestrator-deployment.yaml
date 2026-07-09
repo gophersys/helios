@@ -88,7 +88,6 @@ spec:
           volumeMounts:
             - name: eden-vault-token
               mountPath: /vault/secrets
-              subPath: token
               readOnly: true
       volumes:
         - name: eden-vault-token
