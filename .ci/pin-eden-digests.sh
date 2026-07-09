@@ -15,6 +15,10 @@
 # Inputs (env, set by the promote job from the per-service build outputs):
 #   AGENTGATEWAY_DIGEST / AGENT_RUNTIME_DIGEST / PLATFORMGATEWAY_DIGEST / FRONTEND_DIGEST — each a
 #   bare `sha256:...` digest (docker/build-push-action's `digest` output).
+#   VERSION — the release version string (e.g. `v0.1.5`), from release-meta.sh. Each `image:` line is
+#   preceded by a human-readable `# <version>` marker comment; when set, that comment is refreshed to
+#   the new VERSION alongside the digest so the manifest never reads a stale version. Optional: if
+#   VERSION is unset/empty the comment is left untouched (digest pinning is unaffected).
 #
 set -Eeuo pipefail
 
@@ -22,6 +26,9 @@ INFRA_DIR="${INFRA_DIR:-infrastructure}"
 APPS_DIR="${INFRA_DIR}/apps/eden"
 
 REGISTRY_PREFIX="ghcr.io/gophersys/eden"
+
+# VERSION marks the human-readable `# <version>` comment above each image line; empty = leave alone.
+VERSION="${VERSION:-}"
 
 log() { printf '[pin-eden-digests] %s\n' "$*" >&2; }
 die() { printf '[pin-eden-digests] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -54,6 +61,14 @@ pin_service() {
       sed -i -E "s|(image:[[:space:]]*[\"']?)${escaped}(@sha256:[a-f0-9]+\|:[A-Za-z0-9._-]+)|\\1${ref}@${digest}|g" "$file"
       hits=$((hits + 1))
       log "pinned ${image} in ${file##*/} -> @${digest}"
+
+      # Refresh the `# <version>` marker comment that sits on the line ABOVE each pinned image line,
+      # preserving its indentation. Scoped to THIS service's image line via the two-line window, so
+      # only the comment belonging to the pin we just wrote is touched. Skipped when VERSION is empty.
+      if [ -n "$VERSION" ]; then
+        sed -i -E "/^([[:space:]]*)#[[:space:]].*\$/{N;s|^([[:space:]]*)#[[:space:]].*(\n[[:space:]]*image:[[:space:]]*[\"']?${escaped}@)|\\1# ${VERSION}\\2|}" "$file"
+        log "  version comment -> # ${VERSION}"
+      fi
     fi
   done < <(find "$APPS_DIR" -type f \( -name '*.yaml' -o -name '*.yml' \))
 
