@@ -214,6 +214,10 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
     const uint16_t flags = packet->header.flags;
 
     if (flags & CIPHER_FLAG_STREAM_START) {
+        if (packet->header.payload_len < 6) {   /* total_len(4) + stream_id(2) */
+            LOG_WRN("stream START payload too short (%u) — dropping", packet->header.payload_len);
+            return;
+        }
         k_mutex_lock(&s->mutex, K_FOREVER);
         s->rx.in_progress = true;
         memcpy(&s->rx.total_len, &payload[0], sizeof(uint32_t));
@@ -246,6 +250,10 @@ static void handle_stream_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
         }
 
     } else if (flags & CIPHER_FLAG_STREAM_END) {
+        if (packet->header.payload_len < 8) {   /* declared_len(4) + checksum(4) */
+            LOG_WRN("stream END payload too short (%u) — dropping", packet->header.payload_len);
+            return;
+        }
         uint32_t declared_len = 0;
         uint32_t declared_checksum = 0;
         memcpy(&declared_len, &payload[0], sizeof(uint32_t));

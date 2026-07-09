@@ -62,6 +62,15 @@ serdes_error_t serdes_decode_packet(cipher_daemon_t *d, serdes_decode_args_t *ar
         return err;
     }
 
+    /* SECURITY: payload_len is a 10-bit field supplied by the remote peer over
+     * TCP. It must not exceed the framed payload actually received (the decoded
+     * buffer size). Without this a peer sets payload_len larger than the frame
+     * and every downstream memcpy(dst, payload, payload_len) over-reads the heap
+     * buffer / desyncs framing. Reject the packet here, at the trust boundary. */
+    if (args->header->payload_len > args->decoded_payload_size) {
+        return SERDES_ERROR_INVALID_PAYLOAD_SIZE;
+    }
+
     if (args->header->payload_len == 0) {
         return SERDES_ERROR_OK;
     }

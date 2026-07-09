@@ -1,3 +1,4 @@
+#include <zephyr/sys/util.h>
 // Standard includes
 #include <stdio.h>
 
@@ -93,8 +94,10 @@ static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_it
     // Stop the timeout timer
     k_timer_stop(&entry->timer);
 
-    // Copy the payload
-    memcpy(entry->response, fifo_item->packet.payload, entry->response_size);
+    // Copy the payload — never read past what the peer actually sent.
+    size_t resp_copy = MIN((size_t)entry->response_size,
+                           (size_t)fifo_item->packet.header.payload_len);
+    memcpy(entry->response, fifo_item->packet.payload, resp_copy);
 
     // Find remote service with RPC
     cipher_unary_rpc_user_info_t *info = entry->user_info;

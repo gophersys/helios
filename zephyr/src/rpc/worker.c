@@ -1,3 +1,4 @@
+#include <zephyr/sys/util.h>
 // Standard includes
 #include <stdio.h>
 
@@ -66,7 +67,11 @@ void cipher_rpc_worker_thread(void *arg0, void *arg1, void *arg2) {
         if (entry->op.rpc.request_size > 0) {
             request_memory = k_heap_aligned_alloc(&d->rpc.heap, 8, entry->op.rpc.request_size, K_FOREVER);
             CHECK_MALLOC(request_memory);
-            memcpy(request_memory, fifo_item->packet.payload, fifo_item->packet.header.payload_len);
+            /* Clamp to the handler's declared request_size: a peer may send a
+             * shorter or (post-serdes-gate) equal payload, never larger. */
+            size_t req_copy = MIN((size_t)fifo_item->packet.header.payload_len,
+                                  (size_t)entry->op.rpc.request_size);
+            memcpy(request_memory, fifo_item->packet.payload, req_copy);
         }
 
         if (entry->op.rpc.response_size > 0) {
@@ -140,7 +145,7 @@ static void handle_entry_not_found(cipher_daemon_t *d, cipher_packet_t *packet) 
     CHECK_MALLOC(fifo_item);
 
     // Copy payload
-    memcpy(&fifo_item->packet.payload, &err_payload, sizeof(cipher_payload_rpc_err_t));
+    memcpy(fifo_item->packet.payload, &err_payload, sizeof(cipher_payload_rpc_err_t));
 
     // Populate the header
     cipher_header_t *header = &fifo_item->packet.header;
