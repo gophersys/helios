@@ -100,6 +100,15 @@ spec:
               memory: 24Mi
             limits:
               memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+            # cd-proxy is a pure reverse proxy (reads no media files), so cap-drop
+            # is safe. runAsNonRoot/readOnlyRootFilesystem deferred: openresty needs
+            # a writable pid/temp tree, which would need emptyDir wiring first.
           volumeMounts:
             - name: cd-proxy-conf
               mountPath: /usr/local/openresty/nginx/conf/nginx.conf

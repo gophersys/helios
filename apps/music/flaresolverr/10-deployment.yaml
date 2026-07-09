@@ -28,3 +28,12 @@ spec:
           resources:
             requests: { cpu: 50m, memory: 256Mi }
             limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+            # Stays root: FlareSolverr runs headless Chrome with --no-sandbox, so
+            # runAsNonRoot/readOnlyRootFilesystem would break it. Cap-drop + seccomp
+            # are the safe hardening for a browser rendering untrusted CF pages.
