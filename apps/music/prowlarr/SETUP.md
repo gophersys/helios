@@ -23,6 +23,19 @@ UI → **Indexers → Add Indexer** → pick public torrent indexers, e.g.
 tests the site; public ones need no credentials). Prowlarr's **Search** tab is
 now functional.
 
+## 1b. FlareSolverr proxy  (for Cloudflare-protected indexers)
+Some public indexers (1337x, LimeTorrents, EZTV, …) sit behind a Cloudflare
+challenge Prowlarr can't solve directly. `apps/music/flaresolverr/` runs a
+headless-Chrome solver for them. Wire it as an indexer proxy — **this lives only
+in the `prowlarr-config` PVC SQLite (debt-register D2), so recreate it here:**
+UI → **Settings → Indexers → + (Add Indexer Proxy) → FlareSolverr**:
+- **Name** `flaresolverr`  ·  **Tags** `flaresolverr`
+- **Host** `http://flaresolverr.media.svc.cluster.local:8191`  → **Test → Save.**
+
+Then tag each Cloudflare-protected indexer with the `flaresolverr` tag (edit the
+indexer → **Tags** `flaresolverr`) so Prowlarr routes its requests through the
+solver. Untagged indexers are unaffected.
+
 ## 2. qBittorrent download client  (auto-push grabs to qBit)
 UI → **Settings → Download Clients → + → qBittorrent**:
 - **Host** `qbittorrent`  ·  **Port** `8080`  ·  **Category** `prowlarr`

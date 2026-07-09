@@ -67,6 +67,38 @@ kubectl -n arc-runners create secret generic arc-github-app \
 The same App key is also set as repo secrets on `gophersys/workspaces`
 (`ARC_APP_ID`, `ARC_APP_PRIVATE_KEY`) so its build can promote the deployment.
 
+## Platform / backup / edge Secrets
+
+### `minio-creds` (ns `minio`) — MinIO root credentials
+Backs the Longhorn S3 backup target (`apps/minio/`). Vault: `shared/minio/longhorn-backups`.
+```sh
+kubectl -n minio create secret generic minio-creds \
+  --from-literal=MINIO_ROOT_USER="$(bw get username shared/minio/longhorn-backups)" \
+  --from-literal=MINIO_ROOT_PASSWORD="$(bw get password shared/minio/longhorn-backups)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### `longhorn-minio-backup` (ns `longhorn-system`) — Longhorn → MinIO S3 creds
+The S3 credentials Longhorn's `BackupTarget/default` uses to reach MinIO (same
+Vault item; access-key = MinIO root user, secret = root password).
+```sh
+kubectl -n longhorn-system create secret generic longhorn-minio-backup \
+  --from-literal=AWS_ACCESS_KEY_ID="$(bw get username shared/minio/longhorn-backups)" \
+  --from-literal=AWS_SECRET_ACCESS_KEY="$(bw get password shared/minio/longhorn-backups)" \
+  --from-literal=AWS_ENDPOINTS="http://minio.minio.svc.cluster.local:9000" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### `tunnel-token` (ns `cloudflare-tunnel`) — Cloudflare tunnel token
+The `eden-home` Zero-Trust tunnel's token (issued in the CF dashboard). Consumed by
+`platform/core/edge/tunnel/cloudflare-tunnel/deployment.yaml`. Store the token at
+`shared/cloudflare/tunnel-token` (notes field):
+```sh
+kubectl -n cloudflare-tunnel create secret generic tunnel-token \
+  --from-literal=token="$(bw get notes shared/cloudflare/tunnel-token)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
 ## App-managed passwords (not k8s Secrets)
 
 ### qBittorrent WebUI password

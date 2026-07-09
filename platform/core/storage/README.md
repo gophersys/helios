@@ -1,36 +1,45 @@
 # platform/core/storage
 
-Persistent volume provisioner. Without this, stateful workloads can't
-schedule.
+Persistent volume provisioning. Without this, stateful workloads can't schedule.
 
-## Default implementation
+---
 
-Pick per cluster based on topology:
+## Deployed today (homelab) — the source of truth
 
-- **k3s clusters** (like `prod`): `local-path-provisioner` (default in
-  k3s) for single-node-pinned volumes; **Longhorn** when HA is needed across
-  multiple agent nodes.
-- **managed clusters** (EKS, OKE, AKS): the cloud's native CSI driver
-  (`ebs.csi.aws.com`, `blockstorage.csi.oci.oracle.com`, `disk.csi.azure.com`).
+Two provisioners run side by side:
 
-StorageClass naming convention (stable across clusters):
+- **local-path** (k3s default) — node-local volumes for data that is either
+  re-downloadable or already node-pinned (the whole `media` + `embedded-lab`
+  stacks use this deliberately; a lost node just re-pulls).
+- **Longhorn v1.12.0** — replicated (3-replica) storage for volumes that must
+  survive a node. In use by `observability` (grafana/prometheus/loki/tempo).
+  Installed via **raw upstream manifests (`kubectl apply`)**, not Helm — its
+  pinned version + reinstall command are tracked in `docs/debt-register.md` (D9);
+  the staged 1.7.2→1.12.0 upgrade runbook is `docs/runbooks/longhorn-upgrade.md`.
+
+**Backups:** Longhorn's `BackupTarget/default` writes to in-cluster **MinIO**
+(`apps/minio/`, hostPath NVMe on k3s-w-1 — off-Longhorn by design). Separately, a
+daily `config-backup` CronJob tars the media config PVCs to the NVMe.
+
+> Note: this cluster does **not** use the `standard`/`fast`/`replicated`
+> StorageClass naming below — that's the multi-cluster target convention, not
+> what k3s ships. `local-path` and `longhorn` are the live StorageClasses.
+
+---
+
+## Target design (multi-cluster, not yet deployed)
+
+StorageClass naming convention (stable across future clusters):
 - `standard` — default, balanced perf/cost
 - `fast` — SSD/NVMe, high IOPS
 - `replicated` — HA-replicated (Longhorn) when available
 
+Per-substrate: k3s → local-path + Longhorn; managed clusters (EKS/OKE/AKS) → the
+cloud's native CSI driver.
+
 ## Fulfills
 - Implicit: PVC/StorageClass API. No app-visible contract file (K8s standard).
 
-## Dependencies
-- `platform/core/cni/` (for distributed provisioners that need pod traffic).
-
-## Status
-
-STUB.
-
-## TODO (when populating)
-- Write per-cluster StorageClass overlays.
-- Pick Longhorn vs local-path for `prod` (likely start local-path, move
-  to Longhorn when adding stateful workloads beyond development).
-- Document backup integration (platform/services/backup via Velero with
-  CSI snapshot support).
+## TODO (when a prod cluster bootstraps)
+- Write per-cluster StorageClass overlays mapping the names above onto the
+  substrate's provisioner.

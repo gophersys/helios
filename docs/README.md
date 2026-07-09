@@ -13,3 +13,5 @@ Documentation index for `infrastructure/`.
 | `runtime-secrets.md`      | Imperative k8s Secrets + their Vaultwarden recreation   |
 | `cluster-topology.md`     | What runs in each namespace and why (live reference) |
 | `migration-homelab-to-idp.md` | Historical: the homelab→IDP relocation + 9 decisions |
+| `audit-2026-07.md`        | Point-in-time cluster audit + backlog (2026-07)         |
+| `runbooks/`               | Operational runbooks (e.g. Longhorn staged upgrade)     |

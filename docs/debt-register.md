@@ -9,7 +9,7 @@ here as accepted-imperative with recreation steps.
 Status legend: 🔴 open (reliability/security risk) · 🟠 open (reproducibility) ·
 🟡 minor / accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-07-07 (full cluster audit — see docs/audit-2026-07.md).
+Last updated: 2026-07-09 (session reconciliation pass — see docs/audit-2026-07.md).
 
 ---
 
@@ -70,6 +70,15 @@ migrated by 2.5.1 so we stay there rather than risk a downgrade. Exact working
 payload in `apps/music/prowlarr/SETUP.md`. Indexers still added via the UI
 (PVC-resident); search→grab now works end-to-end once indexers exist.
 
+**FlareSolverr proxy** (for CF-protected indexers) is also PVC-resident config — the
+`flaresolverr` indexer-proxy + per-indexer tags live only in the Prowlarr SQLite;
+recreation is in `apps/music/prowlarr/SETUP.md` (§1b).
+
+**Backup gap (needs-you):** the daily `config-backup` CronJob runs on k3s-w-1 and
+cannot see Prowlarr's config (Prowlarr is node-affine to k3s-w-0), so Prowlarr is
+**not** in the nightly tars — only reproducible via SETUP.md. Closing it needs a PV
+move to k3s-w-1 (data copy + re-pin) or a per-node backup DaemonSet.
+
 ### D3 ✅ Host-level changes made over SSH, not in IaC — RESOLVED (PR #30)
 None of these are in Ansible or any tracked config:
 - **pve-01** (Proxmox / ThinkPad P1): lid-suspend disabled
@@ -88,11 +97,12 @@ agent, udev slot rules) and `clusters/instances/homelab/hypervisors/pve-01/`
 ops (USB passthrough, subnet-router advertise) are documented in each README.
 
 ### D4 ✅ Secrets created imperatively — DOCUMENTED (PR #32)
-**Resolved-as-doc:** `docs/runtime-secrets.md` inventories every imperative
-k8s Secret (`gluetun-wireguard`, `homepage-secrets`, `filebrowser-admin`,
-`operator-oauth`) with its Vaultwarden source and exact recreation command, and
-explains why single-value logins stay imperative (the ESO store returns an
-item's `notes` blob, not individual fields).
+**Resolved-as-doc:** `docs/runtime-secrets.md` is the **live inventory** of every
+imperative k8s Secret — spanning `media`, `workspaces-prod`, `arc-runners`,
+`minio`, `longhorn-system`, and `cloudflare-tunnel` — each with its Vaultwarden
+source and exact recreation command, and explains why single-value logins stay
+imperative (the ESO store returns an item's `notes` blob, not individual fields).
+Consult that file for the current set rather than an inline list here (which drifts).
 
 ### D5 ✅ Default / unset credentials — RESOLVED (PR #32, #36-#38)
 - **qBittorrent** — ✅ strong password (`shared/qbittorrent/webui`), set via API,
@@ -125,18 +135,28 @@ and the READMEs no longer dangle.
 
 ---
 
-### D9 🟢 Version drift on imperative platform components — LARGELY RESOLVED
-Full audit 2026-07-07 (`docs/audit-2026-07.md`). Progress:
-- ✅ **cloudflared** 2025.5.0 → 2026.6.1 + hardened (non-root, RO-rootfs, drop-ALL, seccomp).
-- ✅ **cert-manager** 1.16.3 → 1.20.3 (certs undisrupted; ships the DNS-01 cleanup fix — D10).
-- ✅ **MetalLB** 0.14.9 → 0.16.1 (VIP stayed up).
-- ✅ **ingress-nginx** 1.12.1 → 1.15.1 (all 7 routes stayed up).
-- ⬜ **Tempo** 2.9→3.0 + observability minors — these live in the **eden-observability
-  Helm chart** (`obs` release, currently in **failed** helm state), so they're the Eden
-  agent's domain, not an imperative upgrade. Flag for that chart's owner.
-- ✅ **Longhorn** 1.7.2 → **1.12.0** (EOL cleared). Backup target set up (in-cluster MinIO,
-  `apps/minio/`), all 4 volumes backed up, staged 5-minor upgrade done autonomously with zero
-  data loss / downtime. See `docs/runbooks/longhorn-upgrade.md` (incl. the client-side-CRD lesson).
+### D9 🟠 Version drift on imperative platform components — OPEN (reproducibility)
+All the 2026-07 audit versions were upgraded (undisrupted), but **four are still
+installed by raw `kubectl apply` of upstream manifests, unmanaged by Argo** — so the
+running versions live only in prose, not reproducibly in git. Versions are current;
+the open gap is DR/reproducibility. **cloudflared is now reconciled into git** (PR
+#81, manual-sync). Pin table (canonical upstream manifest for the pinned version):
+
+| Component | Version | In git/Argo? | Reinstall |
+|---|---|---|---|
+| cloudflared | 2026.6.1 | ✅ git (manual-sync) | `platform/core/edge/tunnel/cloudflare-tunnel/` |
+| cert-manager | v1.20.3 | ❌ raw manifest | `.../cert-manager/releases/download/v1.20.3/cert-manager.yaml` |
+| ingress-nginx | v1.15.1 | ❌ raw manifest | `ingress-nginx` tag `controller-v1.15.1`, `deploy/static/provider/cloud` (MetalLB-backed LB) |
+| MetalLB | v0.16.1 | ❌ raw manifest | `metallb` v0.16.1 `config/manifests/metallb-native.yaml` |
+| Longhorn | v1.12.0 | ❌ raw manifest | staged — `docs/runbooks/longhorn-upgrade.md` (client-side CRDs) |
+
+Upgrade notes: cert-manager ships the DNS-01 cleanup fix (D10); MetalLB VIP stayed
+up; ingress-nginx all 7 routes stayed up; Longhorn cleared EOL via a staged 5-minor
+upgrade, zero data loss (in-cluster MinIO backup target, `apps/minio/`). **Follow-up:**
+vendor the four raw-manifest components into Argo Applications like cloudflared, or
+formally accept-imperative via this pin table.
+- ⬜ **Tempo** 2.9→3.0 + observability minors live in the **eden-observability Helm
+  chart** (`obs` release, **failed** helm state) — the Eden agent's domain, not this.
 
 ### D10 ✅ cert-manager DNS-01 cleanup — RESOLVED
 The 5 orphaned `_acme-challenge` TXT records were deleted from Cloudflare, and the
@@ -148,6 +168,12 @@ The vault bridge is hardened to caps-drop + seccomp, but the
 `charlesthomas/bitwarden-cli` image's entrypoint crashloops under
 non-root/read-only-rootfs (verified). Full hardening needs a vendored non-root
 bitwarden-cli image. Accepted ceiling for now.
+
+### D12 🟡 MinIO backup target runs root (deferred non-root)
+`apps/minio/` drops ALL caps + seccomp but keeps root + a writable rootfs — it writes
+the hostPath NVMe as root. Full non-root/RO-rootfs needs a pre-chown of
+`/mnt/media/minio` + a writable `/tmp`; deferred. Accepted for a homelab backup sink
+that is network-isolated to `longhorn-system` (NetworkPolicy in `apps/minio/`).
 
 ## Resolved
 

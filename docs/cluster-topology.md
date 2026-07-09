@@ -4,7 +4,7 @@ What actually runs in the `homelab` k3s cluster, namespace by namespace, and
 why. Everything is reconciled by Argo CD from this repo's
 `platform/services/gitops/registry/` (the `root` app-of-apps). This is the
 "what/why" companion to `.claude/rules/50-cluster-architecture.md` (the
-vocabulary) and reflects the live cluster as of 2026-07-06.
+vocabulary) and reflects the live cluster as of 2026-07-09.
 
 Cluster: 8 k3s VMs on 3 Proxmox hosts (pve-00 MS-A2, pve-01 ThinkPad P1,
 pve-03 Yoga). CNI flannel + kube-router (NetworkPolicy IS enforced). All nodes
@@ -59,6 +59,12 @@ engine-image DaemonSet). Available for RWO volumes that must survive a node, but
 the media/embedded workloads deliberately use **local-path** (node-local,
 re-downloadable data) instead.
 
+### `minio` — Longhorn S3 backup target
+A single MinIO (hostPath NVMe on k3s-w-1, deliberately off-Longhorn so backups
+don't depend on the thing they protect) backing Longhorn's `BackupTarget/default`
+(`s3://longhorn-backups`). Network-isolated — only `longhorn-system` may reach
+`:9000`. See `apps/minio/README.md`.
+
 ### `observability` — metrics/logs/traces
 kube-prometheus-stack (prometheus-server, kube-state-metrics, node-exporter
 DaemonSet) + Grafana + Loki (StatefulSet) + Tempo (StatefulSet) + Alloy
@@ -77,6 +83,14 @@ The Tailscale k8s operator + one `ts-*` proxy StatefulSet **per** env Service
 that opts in (`loadBalancerClass: tailscale`). Gives each Zephyr devbox its own
 MagicDNS name (`zephyr-<env>`). Needs the imperative `operator-oauth` Secret.
 
+## Platform — CI
+
+### `arc-systems` / `arc-runners` — self-hosted GitHub Actions
+Actions Runner Controller (`arc-systems`: the controller) drives an org-wide
+runner scale set (`arc-runners`: `arc-org`, dind, minRunners 0 / maxRunners 4)
+that serves Eden, infrastructure, and workspaces (`runs-on: arc-org`).
+Authenticates as the **gophersys-arc** GitHub App (`arc-github-app` Secret).
+
 ## Apps
 
 ### `media` — self-hosted media/portal stack (project `music`)
@@ -86,6 +100,9 @@ MagicDNS name (`zephyr-<env>`). Needs the imperative `operator-oauth` Secret.
   `torrent.mateosegura.com`.
 - **prowlarr** — indexer manager / search (`prowlarr.`). Setup runbook:
   `apps/music/prowlarr/SETUP.md`.
+- **flaresolverr** — headless-Chrome proxy that solves Cloudflare challenges for
+  CF-protected indexers; Prowlarr drives it via an indexer-proxy tag (ClusterIP,
+  no ingress).
 - **filebrowser** — web file access to `/mnt/media` + downloads (`files.`).
 - **homepage** — the single-pane portal (`home.`), live widgets over qBit /
   Prowlarr / disk. The one public app besides workspaces.
@@ -101,7 +118,13 @@ an env down).
 ### `workspaces-prod` — the workspace manager (project `workspaces`)
 `workspaces-api` — Go + Svelte app at `workspaces.mateosegura.com` (public,
 Access-gated). Read-only view of the `embedded-lab` envs plus create/destroy
-that opens GitOps PRs (token-gated via the optional `workspaces-github` Secret).
+that opens GitOps PRs — authenticated as the **gophersys-arc** GitHub App via the
+optional `workspaces-github-app` Secret (absent → read-only, 503).
+
+### `eden` — the Eden platform (project `apps`)
+The Eden agentic-engineering stack (`apps/eden/`: backing services + RBAC + seed
++ ingress) at `eden.mateosegura.com`, a separate workstream. Owned by the Eden
+build; noted here for completeness — see `apps/eden/README.md`.
 
 ---
 

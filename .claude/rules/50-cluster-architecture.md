@@ -124,9 +124,16 @@ every cluster. Policies:
 - Require NetworkPolicy presence in every app namespace.
 - Reject hostNetwork/hostPath/privileged.
 
-See `platform/core/policy/CATALOG.md` for the full list. Policies roll
-out in `Audit` mode for 7 days, then promote to `Enforce`. Overrides
-via `platform.gophersys/policy-override` annotation with TTL.
+See `platform/core/policy/CATALOG.md` for the full list. The target rollout is
+`Audit` mode for 7 days, then promote to `Enforce`, with overrides via a
+`platform.gophersys/policy-override` annotation + TTL.
+
+> **Homelab today:** this is the *design*, not the running state. Kyverno runs
+> **audit-only** — one `pod-security-baseline` ClusterPolicy that *excludes* the
+> namespaces needing elevated pods (media, tailscale, embedded-lab,
+> longhorn-system, observability, metallb-system). No namespace enforces
+> baseline/restricted yet; the staged Audit→Enforce promotion is future work.
+> See `docs/cluster-topology.md`.
 
 ## 5. Observability contract (brief, cross-ref)
 
@@ -155,7 +162,9 @@ Break-glass override procedure (future): annotate with
 ## 7. Security posture (baseline)
 
 - **Pod-level:** non-root, read-only root FS, dropped caps, seccomp
-  `RuntimeDefault`. Enforced at admission (restricted PSS).
+  `RuntimeDefault`. This is the target enforced-at-admission (restricted PSS)
+  posture; **homelab today** applies it per-workload in manifests, with Kyverno
+  in audit-only mode (see §4) rather than admission enforcement.
 - **Network:** default-deny NetworkPolicy everywhere. Egress to DNS +
   same-namespace + metrics scrape by default. Additional allows per
   app.
