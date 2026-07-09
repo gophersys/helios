@@ -47,7 +47,8 @@ created imperatively instead (see `docs/runtime-secrets.md`).
 Admission/background/cleanup/reports controllers. Runs **audit-only**
 (`policy_profile: audit-only`); the one ClusterPolicy `pod-security-baseline`
 excludes the namespaces that legitimately need elevated pods (media, tailscale,
-embedded-lab, longhorn-system, observability, metallb-system).
+embedded-lab, longhorn-system, observability, metallb-system, arc-runners,
+minio).
 
 ### `metallb-system` — bare-metal LoadBalancer
 controller + speaker DaemonSet, L2 mode, pool `10.168.0.240-250`. Backs the

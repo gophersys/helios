@@ -176,6 +176,14 @@ the hostPath NVMe as root. Full non-root/RO-rootfs needs a pre-chown of
 `/mnt/media/minio` + a writable `/tmp`; deferred. Accepted for a homelab backup sink
 that is network-isolated to `longhorn-system` (NetworkPolicy in `apps/minio/`).
 
+### D13 🟡 arc-runners egress is unrestricted (ingress now default-denied)
+The privileged dind CI runners can dial anything (cluster pod network + internet).
+Ingress default-deny landed (`platform/services/ci/arc-runners/`), but a default-deny
+EGRESS needs a curated allowlist (GitHub, ghcr, package registries, Go proxy, apt,
+k3d pulls, DNS) to avoid breaking builds — deferred until someone wants to enumerate
+it. Related non-repo guardrails (GitHub runner group scoping, dedicated build node
+taint) also remain open.
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
