@@ -24,7 +24,7 @@ metadata:
   labels:
     app: qbittorrent
 spec:
-  replicas: 1
+  replicas: 0   # TRANSIENT: downloads migration OS-disk -> /mnt/media NVMe in flight; follow-up PR restores 1
   strategy:
     type: Recreate            # RWO volumes + stateful singleton
   selector:
