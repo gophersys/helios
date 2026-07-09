@@ -74,10 +74,11 @@ payload in `apps/music/prowlarr/SETUP.md`. Indexers still added via the UI
 `flaresolverr` indexer-proxy + per-indexer tags live only in the Prowlarr SQLite;
 recreation is in `apps/music/prowlarr/SETUP.md` (§1b).
 
-**Backup gap (needs-you):** the daily `config-backup` CronJob runs on k3s-w-1 and
-cannot see Prowlarr's config (Prowlarr is node-affine to k3s-w-0), so Prowlarr is
-**not** in the nightly tars — only reproducible via SETUP.md. Closing it needs a PV
-move to k3s-w-1 (data copy + re-pin) or a per-node backup DaemonSet.
+**Backup gap — RESOLVED 2026-07-09 (PRs #88 + follow-up):** Prowlarr's config PV
+was migrated k3s-w-0 → k3s-w-1 (backup-first: pre-migration tar taken, ApiKey
+verified identical after restore) and the deployment hostname-pinned there. All
+three media configs now live on k3s-w-1 and `prowlarr-config` is a **required**
+archive in the nightly config-backup — a future miss fails the Job loudly.
 
 ### D3 ✅ Host-level changes made over SSH, not in IaC — RESOLVED (PR #30)
 None of these are in Ansible or any tracked config:

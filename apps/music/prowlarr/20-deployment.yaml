@@ -15,7 +15,7 @@ metadata:
     app: prowlarr
     app.kubernetes.io/part-of: music
 spec:
-  replicas: 0   # TRANSIENT: config-PV migration k3s-w-0 -> k3s-w-1 in flight; the follow-up PR restores 1
+  replicas: 1
   strategy:
     type: Recreate            # RWO config volume, single writer
   selector:

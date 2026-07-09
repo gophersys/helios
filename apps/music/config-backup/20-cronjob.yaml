@@ -6,12 +6,10 @@
 # tar) — fine for a homelab, and the configs are independently reproducible
 # (config-enforce / SETUP.md / initC).
 #
-# SCOPE (honest): this job runs on k3s-w-1 and can only see config that lives on
-# k3s-w-1's disk — qBittorrent + filebrowser. A missing one of THOSE is a real
-# fault (PVC gone / wrong node) and fails the Job loudly. Prowlarr's config is
-# node-affine to k3s-w-0, so this job cannot reach it; it is backed up
-# best-effort (auto-covered iff its PV ever lands here). The Prowlarr coverage
-# gap is tracked in docs/debt-register.md (D2) pending a PV move to k3s-w-1.
+# SCOPE: this job runs on k3s-w-1, where ALL three media config PVs now live —
+# qBittorrent, filebrowser, and Prowlarr (its PV was migrated from k3s-w-0 on
+# 2026-07-09; the deployment is hostname-pinned here since). A missing config is
+# a real fault (PVC gone / wrong node) and fails the Job loudly.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -50,13 +48,9 @@ spec:
                     tar czf "/backups/$1-${TS}.tar.gz" -C "$dir" . \
                       && echo "backed up $1 ($(du -sh "$dir" | cut -f1))"
                   }
-                  # Required on this node — a miss is a real fault, fail the Job.
-                  for name in qbittorrent-config filebrowser-config; do
+                  # All three are required on this node — a miss is a real fault, fail the Job.
+                  for name in qbittorrent-config filebrowser-config prowlarr-config; do
                     backup "$name" || { echo "ERROR: required config '$name' not found under /storage — backup INCOMPLETE"; fail=1; }
-                  done
-                  # Best-effort — node-affine elsewhere; absence here is expected (see header).
-                  for name in prowlarr-config; do
-                    backup "$name" || echo "NOTE: '$name' not on this node (expected — see header); skipped"
                   done
                   find /backups -name '*.tar.gz' -mtime +14 -delete
                   echo "backup complete: $(ls /backups/*.tar.gz 2>/dev/null | wc -l) archives on disk"
