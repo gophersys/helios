@@ -31,9 +31,18 @@ jobs:
       - name: kubeconform — raw manifests
         run: |
           set -euo pipefail
-          find apps platform/services/gitops/registry platform/core/policy/policies platform/core/secrets-operator/manifests \
+          # Static roots + every path an Argo registry Application actually deploys,
+          # so a new Application source dir (e.g. platform/core/edge/...) can never
+          # silently escape validation.
+          roots="apps platform/services/gitops/registry platform/core/policy/policies platform/core/secrets-operator/manifests"
+          while IFS= read -r p; do
+            case "$p" in *'{{'*|'') continue;; esac
+            [ -d "$p" ] && roots="$roots $p"
+          done < <(grep -hE '^[[:space:]]*path:' platform/services/gitops/registry/*.yaml | sed -E "s/.*path:[[:space:]]*//; s/['\"]//g" | sort -u)
+          # shellcheck disable=SC2086  # intentional word-splitting of the roots list
+          find $roots \
             -name '*.yaml' -not -path '*/config-enforce/*' -not -path '*/zephyr-devbox/*' -not -path '*/envs/*' -not -name 'kustomization.yaml' \
-            -print0 | xargs -0 -r kubeconform -strict -ignore-missing-schemas -summary
+            -print0 | sort -zu | xargs -0 -r kubeconform -strict -ignore-missing-schemas -summary
 
       - name: kubeconform — kustomize overlays
         run: |
