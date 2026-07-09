@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: agent-runtime
     app.kubernetes.io/part-of: eden
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: agent-runtime

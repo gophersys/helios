@@ -92,8 +92,11 @@ func deploymentTemplate(service ServiceSpec) string {
 	b.WriteString("  namespace: {{ .Values.namespace }}\n")
 	fmt.Fprintf(&b, "  labels:\n    app.kubernetes.io/name: %s\n    app.kubernetes.io/part-of: eden\n", service.Name)
 	b.WriteString("spec:\n")
+	// A negative count folds to 1 (defensive), but an EXPLICIT 0 is legitimate: the
+	// agent-runtime spec is a per-agent TEMPLATE the orchestrator instantiates — a
+	// standing replica exits immediately (EDEN_AGENT_ID is required, proven live).
 	replicas := service.Replicas
-	if replicas <= 0 {
+	if replicas < 0 {
 		replicas = 1
 	}
 	fmt.Fprintf(&b, "  replicas: %d\n", replicas)
