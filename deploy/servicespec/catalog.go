@@ -41,7 +41,7 @@ func agentRuntimeSpec() ServiceSpec {
 	return ServiceSpec{
 		Name:     "agent-runtime",
 		Image:    "agent-runtime",
-		Replicas: 1, // one per agent in production (the orchestrator provisions N); the spec is the template
+		Replicas: 0, // a TEMPLATE, not a standing workload: the orchestrator provisions one pod per agent with EDEN_AGENT_ID; a standing replica exits immediately (proven live)
 		Ports: []Port{
 			{Name: "probe", Container: 8081, Host: 0}, // the kubelet probe; not host-published
 		},

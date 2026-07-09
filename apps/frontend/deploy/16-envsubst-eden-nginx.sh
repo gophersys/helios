@@ -12,7 +12,11 @@ set -e
 # Fall back to docker's embedded DNS (127.0.0.11) when the base image's resolver detection yields an
 # empty value (unset OR set-but-empty) — an empty `resolver` directive is a fatal nginx config error.
 if [ -z "${NGINX_LOCAL_RESOLVERS:-}" ]; then
-    NGINX_LOCAL_RESOLVERS="127.0.0.11"
+    # Derive the pod's real resolver: /etc/resolv.conf works on BOTH substrates (k8s
+    # cluster DNS / docker embedded DNS). The old hardcoded 127.0.0.11 default was
+    # docker-only and broke the /gateway + /platform proxies on the home cluster.
+    NGINX_LOCAL_RESOLVERS="$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf 2>/dev/null)"
+    [ -n "$NGINX_LOCAL_RESOLVERS" ] || NGINX_LOCAL_RESOLVERS="127.0.0.11"
     export NGINX_LOCAL_RESOLVERS
 fi
 
