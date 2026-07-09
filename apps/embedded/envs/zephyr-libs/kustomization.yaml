@@ -41,3 +41,4 @@ patches:
         path: /data/authorized_keys
         value: |
           ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnd2FD5uPKsnCDt9+/JRsYSOn6y0n4gAjtAyEOVeyj0 mateo.segura413@gmail.com
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIsRkC3U4fiK9qqMZRrnBizt+eLp+ZZA4Og95MHH37NK gophersys-ci
