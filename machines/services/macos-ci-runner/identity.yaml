@@ -1,0 +1,33 @@
+# identity.yaml — macos-ci-runner
+#
+# The living-room MacBook as a self-hosted GitHub Actions runner for the
+# gophersys org (macOS builds/tests: audiomotion-visualizer DMGs + deep
+# macOS-only tests that hosted runners can't do — TCC/screen-capture flows).
+#
+# PLANNED — not yet enrolled. Blockers: Remote Login not enabled; vault item
+# shared/macos-ci-runner/account-credentials not yet created. Until enrolled,
+# the release workflow runs on GitHub-hosted macos-14 (see the runbook).
+
+name: macos-ci-runner
+os: macos
+purpose: "Self-hosted GitHub Actions runner (gophersys org) — macOS CI for music apps"
+tailscale_hostname: macos-ci-runner
+status: planned
+location: home-living-room
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - networking-tailscale
+  - secrets-bitwarden-client
+
+hardware:
+  provider: bare-metal
+  model: MacBook (living room)
+  cpu_arch: arm64   # TODO verify on enrollment
+
+runner:
+  kind: github-actions
+  scope: org         # gophersys
+  labels: [self-hosted, macOS, music-ci]
+  service: launchd   # ./svc.sh install (runs in the user GUI session)
