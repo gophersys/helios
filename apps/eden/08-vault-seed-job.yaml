@@ -9,7 +9,8 @@
 #   2. GENERATES `agentgateway-jwt-signing-key` + `platformgateway-jwt-signing-key`
 #      (vault sys/tools/random, hex) ONLY IF ABSENT — a re-run NEVER rotates them,
 #      so existing `eden_token` sessions survive a reseed.
-#   3. sets `platformgateway-database-dsn` pointing at postgres.eden.svc:5432,
+#   3. sets `platformgateway-database-dsn` AND the generic `database-dsn` (the
+#      agentgateway record + dashboard store) pointing at postgres.eden.svc:5432,
 #      interpolating the password from the mounted eden-orchestrator-postgres.
 #   4. copies OPTIONAL harness fields (setup-token, gh-token, openrouter-api-key)
 #      from the ESO-materialized `eden-bootstrap` Secret IF present (skips silently
@@ -113,6 +114,10 @@ spec:
               [ -n "$PGW_KEY" ] || PGW_KEY="$(rand_hex32)"
 
               echo "==> database DSN (interpolate the postgres password)"
+              # ONE derived DSN, written under BOTH the platformgateway-scoped field (historical) and
+              # the GENERIC database-dsn field (the agentgateway's record + dashboard store resolves
+              # EDEN_GATEWAY_DATABASE_DSN_REF -> vault://eden/production#database-dsn). Both point at the
+              # SAME eden Postgres; the value is DERIVED from the mounted password, never printed.
               DSN="postgres://eden:${PG_PASSWORD}@postgres.eden.svc:5432/eden?sslmode=disable"
 
               echo "==> optional harness creds from eden-bootstrap (skip absent keys)"
@@ -129,7 +134,8 @@ spec:
               set -- \
                 agentgateway-jwt-signing-key="$AGW_KEY" \
                 platformgateway-jwt-signing-key="$PGW_KEY" \
-                platformgateway-database-dsn="$DSN"
+                platformgateway-database-dsn="$DSN" \
+                database-dsn="$DSN"
               [ -n "$SETUP_TOKEN" ] && set -- "$@" setup-token="$SETUP_TOKEN"
               [ -n "$GH_TOKEN" ] && set -- "$@" gh-token="$GH_TOKEN"
               [ -n "$OPENROUTER" ] && set -- "$@" openrouter-api-key="$OPENROUTER"

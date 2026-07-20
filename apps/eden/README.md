@@ -15,7 +15,7 @@ eden Helm chart promotion (see "What the release pipeline promotes").
 | `05-postgres.yaml` | StatefulSet + Service `postgres:5432` | `eden` (**apps**) | pg16, `local-path` PVC, password from Secret `eden-orchestrator-postgres`. |
 | `06-nats.yaml` | StatefulSet + Service `nats:4222` | `eden` (**apps**) | nats 2.14.2 + JetStream, PVC `eden-nats-data`. |
 | `07-vault.yaml` | StatefulSet + Service `vault:8200` + ConfigMap | `eden` (**apps**) | Single-node file storage, `disable_mlock=true` (no IPC_LOCK cap), boots SEALED. |
-| `08-vault-seed-job.yaml` | Job `eden-vault-seed` | `eden` (**apps**) | Seeds `eden/data/production`, mints `eden-vault-token`. Idempotent. |
+| `08-vault-seed-job.yaml` | Job `eden-vault-seed` | `eden` (**apps**) | Seeds `eden/data/production` (JWT keys only-if-absent; `platformgateway-database-dsn` + the generic `database-dsn` derived from the pg password), mints `eden-vault-token`. Idempotent. |
 | `10-external-secret-bootstrap.yaml` | ExternalSecret → Secret `eden-bootstrap` | `eden` (**apps**) | Optional harness creds from Vaultwarden. |
 | `20-rbac.yaml` | SAs + Roles + RoleBindings | `eden` (**apps**) | `eden-agent`, `platformgateway`, `eden-frontend`, `eden-orchestrator` (lease), `eden-vault-seed` (Secrets Role includes **`delete`** — the seed Job's unpublish step); workload SAs carry the `ghcr-pull` imagePullSecret. |
 | `40-ingress.yaml` | Ingress `eden.mateosegura.com` | `eden` (**apps**) | nginx + `letsencrypt-homelab` TLS, all paths → `frontend:8080`. |
@@ -36,8 +36,12 @@ in the `apps` + `platform` AppProject destinations.
   `VAULT_ADDR=http://vault:8200`. This directory's seed Job mints that token.
 - **Vault kv-v2 mount `eden/`, path `production`** — fields:
   `agentgateway-jwt-signing-key`, `platformgateway-jwt-signing-key`,
-  `platformgateway-database-dsn`, and optional `setup-token`, `gh-token`,
-  `openrouter-api-key` (resolved as `vault://eden/production#<field>`).
+  `platformgateway-database-dsn`, the generic `database-dsn` (the agentgateway's
+  record + dashboard store — SAME eden Postgres, derived from the mounted
+  password), and optional `setup-token`, `gh-token`, `openrouter-api-key`
+  (resolved as `vault://eden/production#<field>`). The seed Job writes the two
+  DSN fields deterministically (a re-run rewrites the identical derived value);
+  the JWT keys are generated only-if-absent and NEVER rotate on a reseed.
 - **ServiceAccounts:** `eden-agent` (agentgateway · agent-runtime),
   `platformgateway` (platformgateway), `eden-frontend` (frontend),
   `eden-orchestrator` (orchestrator) — every chart Deployment's

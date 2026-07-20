@@ -1,10 +1,15 @@
-# Eden agentgateway — the stateless agent-session API (deploy design §1 / ADR-0022).
+# Eden agentgateway — the agent-session API (deploy design §1 / ADR-0022).
 # Promoted from the eden Helm chart (deploy/plane/production/chart) on release
-# v0.1.4; image digest-pinned so Argo reconciles the EXACT artifact. Talks to
-# nats:4222, resolves its JWT signing key from vault://eden/production, and mounts
-# the eden-vault-token Secret at /vault/secrets/token. serviceAccountName
-# eden-agent (declared in 20-rbac.yaml). Picked up by the app-eden Application
-# (recurse:false, flat dir); Argo selfHeal + prune + ServerSideApply reconciles.
+# v0.1.4; image digest-pinned so Argo reconciles the EXACT artifact (the release
+# workflow re-pins the digest on each cut). Mounts a COMBINED surface: the stateless
+# NATS→SSE bridge AND the FULL REST/record plane the UI consumes (propose · projects
+# · insight · agent-configs · sessions). Talks to nats:4222 + postgres:5432, resolves
+# its JWT signing key + the record/dashboard Postgres DSN + the propose credential
+# from vault://eden/production, and mounts the eden-vault-token Secret at
+# /vault/secrets/token. STATELESS: POST /sessions writes desired state; the
+# orchestrator reconciles the pod. serviceAccountName eden-agent (declared in
+# 20-rbac.yaml). Picked up by the app-eden Application (recurse:false, flat dir);
+# Argo selfHeal + prune + ServerSideApply reconciles.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,8 +47,20 @@ spec:
               value: "/vault/secrets/token"
             - name: VAULT_ADDR
               value: "http://vault:8200"
+            - name: EDEN_HARNESS
+              value: "claude-code"
             - name: EDEN_GATEWAY_JWT_SECRET_REF
               value: "vault://eden/production#agentgateway-jwt-signing-key"
+            # The FULL REST/record plane (prodserve): the record + dashboard Postgres DSN and the
+            # propose harness credential, resolved from Vault at boot (the manifest carries the
+            # REFERENCE, never the value). When the DSN ref is present the gateway wires prodserve
+            # in addition to the NATS bridge; absent it, it serves the bridge alone (partial-rollout
+            # degrade-honest). The generic database-dsn field points at the SAME eden Postgres the
+            # orchestrator's DesiredStore runs on (seeded by 08-vault-seed-job.yaml).
+            - name: EDEN_GATEWAY_DATABASE_DSN_REF
+              value: "vault://eden/production#database-dsn"
+            - name: EDEN_CREDENTIAL_REF
+              value: "vault://eden/production#setup-token"
           resources:
             requests:
               cpu: 500m
