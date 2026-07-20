@@ -7,8 +7,9 @@
 # What it does (all only-if-absent where a value must never rotate):
 #   1. enables kv-v2 at `eden/` if not already mounted.
 #   2. GENERATES `agentgateway-jwt-signing-key` + `platformgateway-jwt-signing-key`
-#      (vault sys/tools/random, hex) ONLY IF ABSENT — a re-run NEVER rotates them,
-#      so existing `eden_token` sessions survive a reseed.
+#      + `connectors-kek` (vault sys/tools/random, hex) ONLY IF ABSENT — a re-run
+#      NEVER rotates them, so existing `eden_token` sessions survive a reseed and
+#      stored user connectors (envelope-wrapped under the KEK, ADR-0029) stay openable.
 #   3. sets `platformgateway-database-dsn` AND the generic `database-dsn` (the
 #      agentgateway record + dashboard store) pointing at postgres.eden.svc:5432,
 #      interpolating the password from the mounted eden-orchestrator-postgres.
@@ -113,6 +114,16 @@ spec:
               PGW_KEY="$(kv_get platformgateway-jwt-signing-key)"
               [ -n "$PGW_KEY" ] || PGW_KEY="$(rand_hex32)"
 
+              echo "==> connectors KEK (generate only-if-absent — NEVER rotate on reseed; ADR-0029)"
+              # The 32-byte AES-256 key-encryption-key the platformgateway's envelope library wraps
+              # every user connector's data key under (docs/architecture/19). Generated ONCE and never
+              # rotated on reseed: a reseed that rotated it would orphan every stored connector (its
+              # wrapped DEK would no longer open). A real KEK rotation is the caller-driven re-wrap pass
+              # (ADR-0029 §rotation), NOT a reseed. platformgateway resolves it via
+              # vault://eden/production#connectors-kek.
+              CONNECTORS_KEK="$(kv_get connectors-kek)"
+              [ -n "$CONNECTORS_KEK" ] || CONNECTORS_KEK="$(rand_hex32)"
+
               echo "==> database DSN (interpolate the postgres password)"
               # ONE derived DSN, written under BOTH the platformgateway-scoped field (historical) and
               # the GENERIC database-dsn field (the agentgateway's record + dashboard store resolves
@@ -134,6 +145,7 @@ spec:
               set -- \
                 agentgateway-jwt-signing-key="$AGW_KEY" \
                 platformgateway-jwt-signing-key="$PGW_KEY" \
+                connectors-kek="$CONNECTORS_KEK" \
                 platformgateway-database-dsn="$DSN" \
                 database-dsn="$DSN"
               [ -n "$SETUP_TOKEN" ] && set -- "$@" setup-token="$SETUP_TOKEN"
