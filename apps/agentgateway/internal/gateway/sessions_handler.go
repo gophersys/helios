@@ -60,6 +60,18 @@ func (g *Gateway) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// STATELESS PRODUCTION POSTURE (Config.RecordOnlyCreate, ADR-0022 #3): the desired record is
+	// written — that is the whole job. The gateway does NOT open a harness in-process; the
+	// separately-deployed orchestrator reconciles this record into a pod, whose live event/control
+	// plane is served over NATS by the stateless bridge (the same /sessions/{id}/events + /control
+	// routes the production composition mounts ahead of the full handler). Return the recorded agent
+	// at StatusPending; the UI streams the live tail once the pod is up.
+	if g.configuration.RecordOnlyCreate {
+		g.logInfo("gateway: session recorded (stateless — orchestrator reconciles)", "agent", string(agent.ID), "status", agent.Status.String())
+		g.writeJSON(w, http.StatusCreated, createResponse{ID: string(agent.ID), Status: agent.Status.String()})
+		return
+	}
+
 	// Open the LIVE session the gateway tails and controls. The credential rides the Spec
 	// as an opaque reference; agentsession.Open resolves it server-side. On a failure the
 	// recorded intent is rolled back via Stop so no orphan record lingers.

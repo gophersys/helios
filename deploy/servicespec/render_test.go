@@ -95,6 +95,53 @@ func TestAgentGatewayJWTSecretIsVaultReference(t *testing.T) {
 	}
 }
 
+// TestAgentGatewayFullSurfaceReferences proves the v0.1.7 combined surface env: the agentgateway
+// spec renders the FULL REST/record plane's stage-scoped Vault references (the Postgres DSN + the
+// propose credential) ALONGSIDE the JWT signing key, plus the propose harness knob and the Postgres
+// dependency — every credential a REFERENCE, never an inlined value (the no-leak contract). Driven
+// through the REAL Catalog so a future regression (a dropped ref / an inlined value) fails here.
+func TestAgentGatewayFullSurfaceReferences(t *testing.T) {
+	t.Parallel()
+	services := Catalog()
+
+	helm := ""
+	for _, f := range RenderHelm(RenderTarget{Plane: PlaneProduction, Registry: "r", Tag: "t"}, services) {
+		if f.Path == "templates/agentgateway-deployment.yaml" {
+			helm = f.Content
+		}
+	}
+	if helm == "" {
+		t.Fatal("no agentgateway deployment rendered")
+	}
+	for _, want := range []string{
+		`vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key`, // the dev-JWT signing key (unchanged)
+		`vault://eden/{{ .Values.stage }}#database-dsn`,                 // the record + dashboard Postgres DSN (NEW)
+		`vault://eden/{{ .Values.stage }}#setup-token`,                  // the propose harness credential (NEW)
+		"name: EDEN_GATEWAY_DATABASE_DSN_REF",
+		"name: EDEN_CREDENTIAL_REF",
+		`value: "claude-code"`, // EDEN_HARNESS
+	} {
+		if !strings.Contains(helm, want) {
+			t.Errorf("agentgateway deployment missing %q:\n%s", want, helm)
+		}
+	}
+	// No secret VALUE is ever inlined: the DSN carries a password, so a rendered plaintext DSN (a
+	// postgres://user:pass@… literal) or a raw env-secret form would be a leak. The manifest carries
+	// the vault:// REFERENCE only.
+	if strings.Contains(helm, "postgres://") {
+		t.Errorf("agentgateway deployment inlined a plaintext Postgres DSN (must be a vault:// reference):\n%s", helm)
+	}
+	if strings.Contains(helm, "$(POSTGRES_PASSWORD)") {
+		t.Error("agentgateway deployment interpolates a raw Postgres password (the DSN must be a vault:// reference, not a $(…) form)")
+	}
+
+	// Local: the development stage is correct here (the local plane IS development).
+	compose := RenderCompose(RenderTarget{Plane: PlaneLocal}, services)
+	if !strings.Contains(compose, `EDEN_GATEWAY_DATABASE_DSN_REF: "vault://eden/development#database-dsn"`) {
+		t.Errorf("compose did not pin the development DSN reference for agentgateway:\n%s", compose)
+	}
+}
+
 // TestRenderComposeOmitsEmptyPortsBlock proves a probe-only (unpublished) service does not emit an
 // empty `ports:` block (invalid compose).
 func TestRenderComposeOmitsEmptyPortsBlock(t *testing.T) {

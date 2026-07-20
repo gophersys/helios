@@ -1,17 +1,24 @@
-// Command agentgateway is the PRODUCTION composition root for the stateless agentsession gateway
-// (ADR-0022 #3): it dials the REAL NATS/JetStream bus, builds the edenhttp dev-JWT spine (the
-// identity gate whose HMAC signing key is resolved from Vault — behind auth even locally), the
-// natssse JetStream→SSE bridge, and the natscontrol publisher, wires them onto the stateless.Gateway
-// handler, and serves it over HTTP until a signal. The gateway is STATELESS — any replica serves any
-// session via JetStream durable replay; it holds no per-session state.
+// Command agentgateway is the PRODUCTION composition root for the STATELESS agentsession gateway
+// (ADR-0022 #3). It mounts a COMBINED HTTP surface over one listener:
 //
-// The kernel/library code owns all behavior; this command owns only the wiring (the listener, the
-// NATS dial, the env parse, the JWT verifier, graceful shutdown). Like every OTHER Eden credential,
-// the JWT signing key is NEVER a raw env value: EDEN_GATEWAY_JWT_SECRET_REF names an opaque vault://
-// reference (environment.go) resolved through the dual-mode Vault secrets provider point-of-use, and
-// zeroized immediately — it never reaches a log or a field. The dev counterpart is
-// cmd/agentgateway-dev (the in-process Pool over fakes), which imports NO real bus and NO test fakes
-// into THIS command.
+//   - the pod LIVE plane — the stateless NATS/JetStream→SSE bridge (internal/stateless): any replica
+//     serves any pod's session via JetStream durable replay; it holds no per-session state. This owns
+//     /sessions/{id}/events + /control|/prompt|/steer|/abort|/stop|/kill behind the edenhttp dev-JWT.
+//   - the REST / RECORD plane — the FULL internal/gateway surface the SvelteKit UI consumes
+//     (internal/prodserve): POST /product/propose (a real claude turn), POST/GET /projects,
+//     /projects/{id}/insight, GET/PUT /agent-configs, and POST/GET /sessions. It is wired over REAL
+//     cluster substrates — a Postgres-backed orchestrator DesiredStore (the record plane) + the
+//     dashboard/Settings Postgres stores + the dual-mode Vault provider in token-file mode. STATELESS:
+//     POST /sessions writes DESIRED state and returns; the separately-deployed orchestrator reconciles
+//     the record into a pod, whose live plane is served by the bridge above. No workload runs here.
+//
+// The full REST plane is wired only when EDEN_GATEWAY_DATABASE_DSN_REF is set (FullSurfaceConfigured);
+// absent it, the command serves the bridge ALONE (the pre-v0.1.7 behavior), so a partial rollout
+// degrades honestly rather than failing to boot. The DSN and the JWT signing key are NEVER raw env
+// values: each is an opaque vault:// reference (environment.go) resolved through the Vault provider
+// point-of-use and zeroized immediately — never a log or a field. The dev counterpart is
+// cmd/agentgateway-dev / the live-local sibling internal/liveserve (which imports test fakes and is
+// NOT the production path); THIS command imports no test fakes.
 package main
 
 import (
@@ -31,7 +38,9 @@ import (
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 
+	"github.com/gophersys/eden/apps/agentgateway/internal/gateway"
 	"github.com/gophersys/eden/apps/agentgateway/internal/natscontrol"
+	"github.com/gophersys/eden/apps/agentgateway/internal/prodserve"
 	"github.com/gophersys/eden/apps/agentgateway/internal/stateless"
 )
 
@@ -90,9 +99,27 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer connection.Close()
 
-	gateway, err := build(configured, verifier, jetStream, connection, logAdapter{logger: logger})
+	bridge, err := build(&configured, verifier, jetStream, connection, logAdapter{logger: logger})
 	if err != nil {
 		return err
+	}
+
+	// The FULL REST/record plane (prodserve) is wired only when the DSN reference is configured; absent
+	// it the command serves the NATS→SSE bridge ALONE. The DSN is resolved point-of-use (a secret: it
+	// carries the Postgres password) and never logged; the built gateway owns the durable pools and is
+	// drained on shutdown via the returned teardown.
+	handler := bridge.Handler()
+	if configured.FullSurfaceConfigured() {
+		restGateway, teardown, restErr := buildRestPlane(ctx, &configured, provider, logAdapter{logger: logger})
+		if restErr != nil {
+			return restErr
+		}
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = teardown(shutdownCtx) //nolint:errcheck // best-effort store drain on shutdown; the process is exiting.
+		}()
+		handler = combinedHandler(bridge, restGateway)
 	}
 
 	listener, err := net.Listen("tcp", configured.Address)
@@ -101,18 +128,84 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	logger.Info(
-		"agentgateway: serving stateless NATS→SSE gateway",
+		"agentgateway: serving agentsession gateway",
 		slog.String("address", listener.Addr().String()),
 		slog.String("jwtSecretReference", configured.JWTSecretReference), // an opaque path, never a value
+		slog.Bool("fullSurface", configured.FullSurfaceConfigured()),
 	)
-	return serve(ctx, gateway.Handler(), listener)
+	return serve(ctx, handler, listener)
+}
+
+// buildRestPlane resolves the Postgres DSN from its opaque Vault reference (point-of-use, never
+// logged) and builds the STATELESS full REST/record-plane gateway (prodserve) over the real cluster
+// substrates. It returns the gateway, the teardown that drains its owned pools, and a wrapped error.
+func buildRestPlane(ctx context.Context, configured *configuration, provider secrets.Provider, logger prodserve.Logger) (*gateway.Gateway, func(context.Context) error, error) {
+	dsn, err := resolveDSN(ctx, provider, secrets.Ref(configured.DatabaseDSNReference))
+	if err != nil {
+		return nil, nil, err
+	}
+	restGateway, teardown, err := prodserve.BuildProductionGateway(prodserve.Config{
+		Provider:            provider,
+		DatabaseURL:         dsn,
+		CredentialReference: configured.CredentialReference,
+		Harness:             configured.Harness,
+		Model:               configured.Model,
+		Workspace:           configured.Workspace,
+		Logger:              logger,
+	})
+	if err != nil {
+		return nil, nil, errors.Wrap(errors.KindOf(err), "agentgateway: build production rest plane", err)
+	}
+	return restGateway, teardown, nil
+}
+
+// combinedHandler composes the two planes onto ONE http.ServeMux: the stateless NATS→SSE bridge owns
+// the pod LIVE-plane routes (events + the control verbs, behind the dev-JWT), and the full prodserve
+// gateway owns EVERYTHING ELSE via the "/" catch-all (the REST/record plane). Go 1.22's ServeMux
+// gives the specific bridge patterns precedence over the catch-all, so a pod-live request routes to
+// the bridge (JetStream replay / control publish) and every REST request falls through to the full
+// gateway — one surface, no per-route ambiguity. The bridge's own /healthz is a specific pattern too,
+// so liveness stays the bridge's unauthenticated probe.
+func combinedHandler(bridge *stateless.Gateway, restGateway *gateway.Gateway) http.Handler {
+	return composeMux(bridge.Handler(), restGateway.Handler())
+}
+
+// livePlanePatterns is the closed set of pod LIVE-plane routes the stateless NATS→SSE bridge owns —
+// the JetStream events stream + the NATS control verbs. Everything NOT in this set is the REST/record
+// plane the full gateway serves via the "/" catch-all. Kept as ONE named list so composeMux and its
+// test agree on the exact bridge surface (10 §9: one home).
+var livePlanePatterns = []string{
+	"GET /sessions/{id}/events",
+	"POST /sessions/{id}/control",
+	"POST /sessions/{id}/prompt",
+	"POST /sessions/{id}/steer",
+	"POST /sessions/{id}/abort",
+	"POST /sessions/{id}/stop",
+	"POST /sessions/{id}/kill",
+}
+
+// composeMux is the pure route-composition seam combinedHandler delegates to (so a test drives it
+// with cheap stub handlers, no real substrates): the bridge handler owns livePlanePatterns; the rest
+// handler owns everything else via the "/" catch-all. Go 1.22's ServeMux gives the specific bridge
+// patterns precedence over the catch-all, so a pod-live request routes to the bridge and every REST
+// request falls through — one surface, no per-route ambiguity. A pattern conflict would panic HERE at
+// registration, so the composition is proven conflict-free the instant it is built.
+func composeMux(bridgeHandler, restHandler http.Handler) *http.ServeMux {
+	mux := http.NewServeMux()
+	for _, pattern := range livePlanePatterns {
+		mux.Handle(pattern, bridgeHandler)
+	}
+	// Everything else — the REST/record plane (propose, projects, insight, agent-configs, sessions
+	// create/list/get, workspace, transcript, editor, healthz) — falls through to the full gateway.
+	mux.Handle("/", restHandler)
+	return mux
 }
 
 // build wires the edenhttp spine (the dev-JWT identity gate) over the ALREADY-RESOLVED verifier, the
 // natssse JetStream→SSE bridge, and the natscontrol publisher into the stateless.Gateway. PURE in the
 // gateway sense (no listen, no goroutine, no secret resolution) — the JWT signing key was resolved +
 // zeroized by run() before this is called; build only assembles the ports over the verifier.
-func build(configured configuration, verifier *edenhttp.HMACVerifier, jetStream nats.JetStreamContext, connection *nats.Conn, logger edenhttp.Logger) (*stateless.Gateway, error) {
+func build(configured *configuration, verifier *edenhttp.HMACVerifier, jetStream nats.JetStreamContext, connection *nats.Conn, logger edenhttp.Logger) (*stateless.Gateway, error) {
 	spine, err := edenhttp.New(
 		edenhttp.Config{},
 		edenhttp.Deps{Verifier: verifier, Clock: systemClock{}, Logger: logger},
@@ -131,14 +224,14 @@ func build(configured configuration, verifier *edenhttp.HMACVerifier, jetStream 
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "agentgateway: build control publisher", err)
 	}
-	gateway, err := stateless.New(
+	statelessGateway, err := stateless.New(
 		stateless.Config{EventsStream: configured.EventsStream},
 		stateless.Deps{Spine: spine, Bridge: bridge, Control: control, Logger: logger},
 	)
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInvalid, "agentgateway: build stateless gateway", err)
 	}
-	return gateway, nil
+	return statelessGateway, nil
 }
 
 // dialBus dials the NATS server (the configured URL, or the SDK default when empty) and derives a

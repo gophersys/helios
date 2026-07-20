@@ -35,8 +35,14 @@ spec:
               value: "/vault/secrets/token"
             - name: VAULT_ADDR
               value: "http://vault:8200"
+            - name: EDEN_HARNESS
+              value: "claude-code"
             - name: EDEN_GATEWAY_JWT_SECRET_REF
               value: "vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key"
+            - name: EDEN_GATEWAY_DATABASE_DSN_REF
+              value: "vault://eden/{{ .Values.stage }}#database-dsn"
+            - name: EDEN_CREDENTIAL_REF
+              value: "vault://eden/{{ .Values.stage }}#setup-token"
           resources:
             requests:
               cpu: 500m

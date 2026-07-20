@@ -34,10 +34,14 @@ services:
       EDEN_VAULT_MODE: "token-file"
       EDEN_VAULT_TOKEN_FILE: "/vault/secrets/token"
       VAULT_ADDR: "http://vault:8200"
+      EDEN_HARNESS: "claude-code"
       EDEN_GATEWAY_JWT_SECRET_REF: "vault://eden/development#agentgateway-jwt-signing-key"
+      EDEN_GATEWAY_DATABASE_DSN_REF: "vault://eden/development#database-dsn"
+      EDEN_CREDENTIAL_REF: "vault://eden/development#setup-token"
     depends_on:
       - nats
       - vault
+      - postgres
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/healthz"]
       interval: 5s

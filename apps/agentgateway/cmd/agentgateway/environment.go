@@ -13,6 +13,14 @@ import (
 // the production path (matches the agent-runtime / orchestrator deployment's EDEN_VAULT_TOKEN_FILE).
 const vaultTokenFilePath = "/vault/secrets/token" // #nosec G101 -- a sidecar output PATH, not a credential value.
 
+// defaultHarness is the propose turn's harness when EDEN_HARNESS is unset (the account default is
+// claude-code — the standing Opus directive routes it to the Opus model).
+const defaultHarness = "claude-code"
+
+// defaultWorkspace is the propose harness CWD when EDEN_WORKSPACE is unset. In a pod this is a
+// writable ephemeral path (the container's own filesystem); the propose turn reads/reasons only.
+const defaultWorkspace = "/tmp/eden-gateway-workspace" // #nosec G101 -- a directory path, not a credential.
+
 // configuration is the fully-resolved composition input read ONCE from the environment (the
 // configuration pattern). It holds NO secret VALUE — the JWT signing key is an opaque, loggable
 // vault:// Reference (JWTSecretReference) resolved through the secrets provider at build. run()
@@ -30,6 +38,28 @@ type configuration struct {
 	// (EDEN_GATEWAY_JWT_SECRET_REF). Required — the gateway is behind auth even locally (ADR-0022 #3).
 	// An opaque path, safe to log; the VALUE it resolves to is used point-of-use and zeroized.
 	JWTSecretReference string
+
+	// ── The FULL production surface (prodserve): the REST/record plane the SvelteKit UI consumes
+	// (propose · projects · insight · agent-configs · sessions list/get). Each field is OPTIONAL —
+	// when the whole set is absent the gateway serves the NATS→SSE bridge ALONE (the pre-v0.1.7
+	// behavior), so a partial rollout never breaks. FullSurfaceConfigured() gates the wiring on the
+	// two load-bearing seams (the DSN reference + the workspace); the rest carry sane defaults. ──
+
+	// DatabaseDSNReference is the opaque vault:// reference the record + dashboard Postgres DSN
+	// resolves from (EDEN_GATEWAY_DATABASE_DSN_REF, e.g. vault://eden/production#database-dsn). The
+	// VALUE is resolved point-of-use at boot and never logged. Empty == the full surface is OFF (the
+	// gateway serves only the stateless bridge).
+	DatabaseDSNReference string
+	// CredentialReference is the opaque vault:// reference the propose harness turn's credential
+	// resolves from (EDEN_CREDENTIAL_REF). Empty == the propose route degrades to a classified 503.
+	CredentialReference string
+	// Harness / Model are the propose turn's adapter key + model (EDEN_HARNESS / EDEN_MODEL). Harness
+	// defaults to claude-code; Model empty folds to the account default.
+	Harness string
+	Model   string
+	// Workspace is the propose harness turn's CWD (EDEN_WORKSPACE, default defaultWorkspace). Required
+	// when the full surface is wired (the harness subprocess needs a real, writable directory).
+	Workspace string
 
 	// VaultMode / VaultAddress / VaultTokenFilePath / VaultUsername / VaultPassword are the dual-mode
 	// Vault bootstrap the secrets provider is built over (EDEN_VAULT_MODE selects the production
@@ -62,6 +92,12 @@ func parseConfiguration(getenv func(string) string) (configuration, error) {
 		VaultTokenFilePath: envOr(getenv, "EDEN_VAULT_TOKEN_FILE", vaultTokenFilePath),
 		VaultUsername:      getenv("VAULT_USERNAME"),
 		VaultPassword:      getenv("VAULT_PASSWORD"),
+
+		DatabaseDSNReference: getenv("EDEN_GATEWAY_DATABASE_DSN_REF"),
+		CredentialReference:  getenv("EDEN_CREDENTIAL_REF"),
+		Harness:              envOr(getenv, "EDEN_HARNESS", defaultHarness),
+		Model:                getenv("EDEN_MODEL"),
+		Workspace:            envOr(getenv, "EDEN_WORKSPACE", defaultWorkspace),
 	}
 
 	if err := configured.validate(); err != nil {
@@ -92,6 +128,15 @@ func (c *configuration) validate() error {
 		}
 	}
 	return nil
+}
+
+// FullSurfaceConfigured reports whether the command wires the FULL production surface (prodserve: the
+// REST/record plane) IN ADDITION to the stateless NATS→SSE bridge. The load-bearing seam is the
+// Postgres DSN reference — the record plane + every dashboard/Settings store is durable, so no DSN
+// means no full surface. When false the command serves the bridge ALONE (the pre-v0.1.7 behavior), so
+// a partial rollout (the manifest without the new env) degrades honestly rather than failing to boot.
+func (c *configuration) FullSurfaceConfigured() bool {
+	return c.DatabaseDSNReference != ""
 }
 
 // buildSecretsProvider builds the secrets Mediator over the dual-mode Vault backend: the PRODUCTION
@@ -153,6 +198,30 @@ func resolveVerifier(ctx context.Context, provider secrets.Provider, ref secrets
 		return nil, errors.Wrap(errors.KindInvalid, "agentgateway: build jwt verifier", useErr)
 	}
 	return verifier, nil
+}
+
+// resolveDSN resolves the Postgres DSN VALUE from its opaque vault:// reference through the secrets
+// port, point-of-use — the same seam resolveVerifier uses for the JWT signing key. The DSN carries an
+// embedded password, so it is treated as a secret: it is copied out of the Secret.Use scope into the
+// returned string ONLY so the pgx pool can dial (pgxpool.New takes a plain DSN), and the Secret is
+// zeroized immediately after. The reference is loggable; the resolved DSN is NOT logged. A
+// missing/denied secret is a wrapped, inspectable error; the value never appears in it.
+func resolveDSN(ctx context.Context, provider secrets.Provider, ref secrets.Reference) (string, error) {
+	secret, err := provider.Resolve(ctx, ref)
+	if err != nil {
+		return "", errors.Wrap(errors.KindOf(err), "agentgateway: resolve database dsn", err)
+	}
+	defer secret.Zeroize()
+
+	var dsn string
+	useErr := secret.Use(func(plaintext []byte) error {
+		dsn = string(plaintext)
+		return nil
+	})
+	if useErr != nil {
+		return "", errors.Wrap(errors.KindInvalid, "agentgateway: use database dsn", useErr)
+	}
+	return dsn, nil
 }
 
 // envOr returns the environment value for key, or fallback when it is unset/empty.

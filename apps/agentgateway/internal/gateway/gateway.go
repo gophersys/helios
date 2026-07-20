@@ -118,6 +118,18 @@ type Config struct {
 	// domain). When BOTH this and EditorURLBase are empty the editor route is a 503 (unchanged).
 	EditorIngressDomain string
 
+	// RecordOnlyCreate makes POST /sessions write DESIRED state ONLY: the create handler records the
+	// spawn intent through the Manager (the durable DesiredStore) and returns immediately, WITHOUT
+	// opening an in-process agentsession.Session. It is the STATELESS PRODUCTION posture (ADR-0022 #3,
+	// the ratified split): the gateway does not spawn a harness in-process — the separately-deployed
+	// orchestrator reconciles the desired record into a pod, and that pod's event/control plane is
+	// served over NATS/JetStream by the stateless bridge (the SAME /sessions/{id}/events + /control
+	// routes, mounted by the production composition root ahead of this handler). Default false == the
+	// live-local/dev behavior (open + tail the harness in-process), so every existing composition is
+	// unchanged. When true the create response is the recorded agent at StatusPending; the live stream
+	// arrives once the orchestrator provisions the pod and the pod publishes to the bus.
+	RecordOnlyCreate bool
+
 	// MaxPageSize caps the session-list page size (REQ-0022). 0 == DefaultPageSize.
 	MaxPageSize int
 

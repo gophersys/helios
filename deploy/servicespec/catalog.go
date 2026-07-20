@@ -64,12 +64,17 @@ func agentRuntimeSpec() ServiceSpec {
 	}
 }
 
-// agentGatewaySpec is the stateless NATS→SSE gateway (apps/agentgateway, cmd/agentgateway): any
-// replica serves any session via JetStream durable replay, so it scales horizontally. Behind the
-// dev-JWT auth even locally (ADR-0022 #3); like every OTHER Eden credential the JWT signing key is a
-// stage-scoped Vault reference (EDEN_GATEWAY_JWT_SECRET_REF) the gateway resolves through the
-// dual-mode Vault provider at boot, never an inlined value or a raw env secret. The Vault plane env
-// mirrors agentRuntimeSpec's (the production token-file sidecar path).
+// agentGatewaySpec is the agentsession gateway (apps/agentgateway, cmd/agentgateway). It mounts a
+// COMBINED surface: the stateless NATS→SSE bridge (any replica serves any pod session via JetStream
+// durable replay, so it scales horizontally) AND the FULL REST/record plane the UI consumes (propose ·
+// projects · insight · agent-configs · sessions). Behind the dev-JWT auth even locally (ADR-0022 #3);
+// like every OTHER Eden credential the JWT signing key + the Postgres DSN + the propose credential are
+// stage-scoped Vault references (EDEN_GATEWAY_JWT_SECRET_REF / EDEN_GATEWAY_DATABASE_DSN_REF /
+// EDEN_CREDENTIAL_REF) the gateway resolves through the dual-mode Vault provider at boot — never an
+// inlined value or a raw env secret. The full REST plane is STATELESS: POST /sessions writes desired
+// state and the separately-deployed orchestrator reconciles the pod. The Vault plane env mirrors
+// agentRuntimeSpec's (the production token-file sidecar path); the Postgres dependency is the record +
+// dashboard store (the SAME eden Postgres the orchestrator's DesiredStore runs on).
 func agentGatewaySpec() ServiceSpec {
 	return ServiceSpec{
 		Name:     "agentgateway",
@@ -84,14 +89,21 @@ func agentGatewaySpec() ServiceSpec {
 			{Name: "EDEN_VAULT_MODE", Value: "token-file"}, // production: the K8s-SA sidecar token
 			{Name: "EDEN_VAULT_TOKEN_FILE", Value: "/vault/secrets/token"},
 			{Name: "VAULT_ADDR", Value: "http://vault:8200"},
-			// Stage-scoped: production renders vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key
-			// (stage defaults to production), local pins the development stage — never the dev path in prod.
+			{Name: "EDEN_HARNESS", Value: "claude-code"}, // the propose turn's harness (the standing Opus route)
+			// Stage-scoped Vault references (production renders vault://eden/{{ .Values.stage }}#<field>,
+			// local pins the development stage — never the dev path in prod):
+			//   · the dev-JWT HMAC signing key (the identity gate),
+			//   · the record + dashboard Postgres DSN (the FULL REST plane — when set the gateway wires
+			//     prodserve; absent it serves the NATS bridge alone, so a partial rollout degrades honestly),
+			//   · the propose harness credential (the one real claude turn behind POST /product/propose).
 			{Name: "EDEN_GATEWAY_JWT_SECRET_REF", FromVaultField: "agentgateway-jwt-signing-key"},
+			{Name: "EDEN_GATEWAY_DATABASE_DSN_REF", FromVaultField: "database-dsn"},
+			{Name: "EDEN_CREDENTIAL_REF", FromVaultField: "setup-token"},
 		},
 		Resources:       ResourceEnvelope{CPUMillis: 500, MemoryMiB: 512, EphemeralMiB: 1024},
 		Liveness:        &Probe{Path: "/healthz", Port: 8080},
 		Readiness:       &Probe{Path: "/healthz", Port: 8080},
-		DependsOn:       []string{"nats", "vault"},
+		DependsOn:       []string{"nats", "vault", "postgres"},
 		ServiceAccount:  "eden-agent",
 		TokenFileSecret: edenVaultTokenSecret(),
 	}
