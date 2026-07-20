@@ -27,8 +27,8 @@ spec:
       serviceAccountName: eden-agent
       containers:
         - name: agent-runtime
-          # v0.1.6
-          image: "ghcr.io/gophersys/eden/agent-runtime@sha256:e14af8dcd23a6a5361a55bf8a228b9bafa9a2848f068e55492be5c5f5d0322d4"
+          # v0.1.7
+          image: "ghcr.io/gophersys/eden/agent-runtime@sha256:69b90d27e8f5567746f995c6baaa105d7d5020244b20a1fc55df117df5dda401"
           ports:
             - name: probe
               containerPort: 8081
