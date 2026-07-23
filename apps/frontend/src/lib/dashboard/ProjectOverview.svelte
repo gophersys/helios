@@ -148,21 +148,21 @@
     font-family: var(--font-display, var(--font-serif, serif));
     font-size: var(--font-size-headline, var(--font-size-title, 28px));
     font-weight: 600;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .overview__idea {
     margin: 0;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-size: var(--font-size-body-large, 15px);
     max-inline-size: 60ch;
   }
   .card__title {
     font-size: var(--font-size-body-large, 15px);
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .card__foot {
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .chips {
     list-style: none;
@@ -180,7 +180,7 @@
     align-items: baseline;
   }
   .coords dt {
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-size: var(--font-size-caption, 12px);
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -193,10 +193,10 @@
   .mono {
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .muted {
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .link {
     color: var(--color-primary);
@@ -206,7 +206,7 @@
     text-decoration: underline;
   }
   .link:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring, var(--color-primary));
     outline-offset: 2px;
   }
 </style>

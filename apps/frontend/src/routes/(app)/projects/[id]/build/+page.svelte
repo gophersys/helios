@@ -79,7 +79,7 @@
     max-inline-size: 34rem;
     margin: 12vh auto 0;
     padding: var(--space-6, 24px);
-    color: var(--eden-app-fg);
+    color: var(--foreground, var(--eden-app-fg));
   }
   .fault h1 {
     margin: 0;
@@ -87,10 +87,12 @@
   }
   .fault__detail {
     margin: 0;
-    color: var(--color-error);
+    color: var(--destructive, var(--color-error));
     font-size: var(--font-size-label, 13px);
     overflow-wrap: anywhere;
   }
+  /* The recover action reads as a shadcn "outline" button — a --card fill, 1px --border, --radius-md;
+     hover raises the --border-strong edge + --accent-surface tint. */
   .fault__action {
     appearance: none;
     font-family: inherit;
@@ -98,17 +100,21 @@
     font-weight: 600;
     padding: var(--space-2, 8px) var(--space-5, 20px);
     min-block-size: 44px;
-    border-radius: var(--eden-app-radius, 8px);
-    border: 1px solid var(--eden-app-line);
-    background: none;
-    color: var(--eden-app-fg);
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--border, var(--eden-app-line));
+    background: var(--card, none);
+    color: var(--foreground, var(--eden-app-fg));
     cursor: pointer;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .fault__action:hover {
-    border-color: var(--eden-app-accent);
+    border-color: var(--border-strong, var(--eden-app-accent));
+    background: var(--accent-surface, transparent);
   }
   .fault__action:focus-visible {
-    outline: 2px solid var(--eden-app-accent);
+    outline: 2px solid var(--ring, var(--eden-app-accent));
     outline-offset: 2px;
   }
 </style>

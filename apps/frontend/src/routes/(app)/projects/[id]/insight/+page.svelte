@@ -167,17 +167,17 @@
   }
   .insight__loading-line {
     margin: 0;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-size: var(--font-size-label, 13px);
   }
   .card__title {
     font-size: var(--font-size-body-large, 15px);
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .card__foot {
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .insight__map {
     overflow: auto;

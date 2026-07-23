@@ -48,10 +48,12 @@
 </nav>
 
 <style>
+  /* The spine is a shadcn underline tab-strip — a 1px --border baseline, --muted-foreground rest
+     tabs, a full-ink hover, and a --primary underline + label on the active tab. */
   .spine {
     display: flex;
     gap: var(--space-1, 4px);
-    border-block-end: 1px solid var(--eden-app-line, var(--color-outline));
+    border-block-end: 1px solid var(--border, var(--color-outline));
     padding-inline: var(--space-6, 24px);
   }
   .spine__tab {
@@ -59,7 +61,7 @@
     align-items: center;
     min-block-size: 44px;
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     text-decoration: none;
     font-size: var(--font-size-label, 14px);
     font-weight: 500;
@@ -72,14 +74,14 @@
       border-block-end-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .spine__tab:hover {
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .spine__tab[data-active='true'] {
     color: var(--color-primary);
     border-block-end-color: var(--color-primary);
   }
   .spine__tab:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring, var(--color-primary));
     outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {

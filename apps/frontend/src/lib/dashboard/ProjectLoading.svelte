@@ -197,8 +197,8 @@
     justify-content: center;
     min-block-size: 100%;
     padding: var(--space-6, 24px);
-    background: var(--eden-app-bg);
-    color: var(--eden-app-fg);
+    background: var(--background, var(--background, var(--eden-app-bg)));
+    color: var(--foreground, var(--foreground, var(--eden-app-fg)));
   }
   .loading__inner {
     inline-size: 100%;
@@ -211,12 +211,12 @@
     margin: 0;
     font-size: var(--font-size-title, 23px);
     line-height: 1.2;
-    color: var(--eden-app-fg);
+    color: var(--foreground, var(--foreground, var(--eden-app-fg)));
     overflow-wrap: anywhere;
   }
   .loading__subtitle {
     margin: 0;
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground, var(--muted-foreground, var(--eden-app-muted)));
     font-size: var(--font-size-body, 15px);
     line-height: 1.4;
   }
@@ -230,15 +230,18 @@
     flex-direction: column;
     gap: var(--space-1, 4px);
   }
+  /* Each step is a shadcn Card — a --card surface, 1px --border, --radius-lg corners, --shadow-xs;
+     the active/error steps ride the accent/destructive tint. */
   .step {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: var(--space-3, 12px);
     padding: var(--space-3, 12px) var(--space-4, 16px);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    background: var(--eden-app-panel-bg);
+    border: 1px solid var(--border, var(--border, var(--eden-app-line)));
+    border-radius: var(--radius-lg, 8px);
+    background: var(--card, var(--eden-app-panel-bg));
+    box-shadow: var(--shadow-xs);
     /* The connector spine between markers: a thin line through the marker column, dimmed by default. */
     position: relative;
     transition:
@@ -246,12 +249,26 @@
       background var(--duration-2, 160ms) var(--ease-out, ease);
   }
   .step[data-tone='active'] {
-    border-color: color-mix(in oklab, var(--eden-app-accent) 55%, var(--eden-app-line));
-    background: color-mix(in oklab, var(--eden-app-accent) 6%, var(--eden-app-panel-bg));
+    border-color: color-mix(
+      in oklab,
+      var(--primary, var(--primary, var(--eden-app-accent))) 55%,
+      var(--border, var(--border, var(--eden-app-line)))
+    );
+    background: var(
+      --accent-surface,
+      color-mix(in oklab, var(--primary, var(--eden-app-accent)) 6%, var(--eden-app-panel-bg))
+    );
   }
   .step[data-tone='error'] {
-    border-color: color-mix(in oklab, var(--color-error) 55%, var(--eden-app-line));
-    background: color-mix(in oklab, var(--color-error) 6%, var(--eden-app-panel-bg));
+    border-color: color-mix(
+      in oklab,
+      var(--color-error) 55%,
+      var(--border, var(--border, var(--eden-app-line)))
+    );
+    background: var(
+      --destructive-surface,
+      color-mix(in oklab, var(--color-error) 6%, var(--eden-app-panel-bg))
+    );
   }
 
   .step__marker {
@@ -262,9 +279,9 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    border: 1.5px solid var(--eden-app-line);
-    background: var(--eden-app-bg);
-    color: var(--eden-app-muted);
+    border: 1.5px solid var(--border, var(--border, var(--eden-app-line)));
+    background: var(--background, var(--background, var(--eden-app-bg)));
+    color: var(--muted-foreground, var(--muted-foreground, var(--eden-app-muted)));
     font-size: var(--font-size-caption, 12px);
     font-weight: 600;
   }
@@ -277,14 +294,14 @@
     background: color-mix(
       in oklab,
       var(--color-success, var(--color-info)) 12%,
-      var(--eden-app-bg)
+      var(--background, var(--eden-app-bg))
     );
     color: var(--color-success, var(--color-info));
   }
   .step__marker[data-tone='active'] {
-    border-color: var(--eden-app-accent);
-    color: var(--eden-app-accent);
-    background: var(--eden-app-bg);
+    border-color: var(--primary, var(--eden-app-accent));
+    color: var(--primary, var(--eden-app-accent));
+    background: var(--background, var(--eden-app-bg));
   }
   .step__marker[data-tone='error'] {
     border-color: var(--color-error);
@@ -301,15 +318,15 @@
     inline-size: 14px;
     block-size: 14px;
     border-radius: 50%;
-    border: 2px solid color-mix(in oklab, var(--eden-app-accent) 28%, transparent);
-    border-block-start-color: var(--eden-app-accent);
+    border: 2px solid color-mix(in oklab, var(--primary, var(--eden-app-accent)) 28%, transparent);
+    border-block-start-color: var(--primary, var(--eden-app-accent));
     animation: project-loading-spin 0.7s linear infinite;
   }
   .step__dot {
     inline-size: 7px;
     block-size: 7px;
     border-radius: 50%;
-    background: var(--eden-app-muted);
+    background: var(--muted-foreground, var(--eden-app-muted));
     opacity: 0.55;
   }
 
@@ -322,15 +339,15 @@
   .step__label {
     font-size: var(--font-size-body, 15px);
     font-weight: 600;
-    color: var(--eden-app-fg);
+    color: var(--foreground, var(--eden-app-fg));
   }
   .step[data-tone='pending'] .step__label {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground, var(--eden-app-muted));
     font-weight: 500;
   }
   .step__detail {
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground, var(--eden-app-muted));
     overflow-wrap: anywhere;
   }
 
@@ -339,11 +356,11 @@
     font-size: var(--font-size-caption, 12px);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground, var(--eden-app-muted));
     white-space: nowrap;
   }
   .step__status[data-tone='active'] {
-    color: var(--eden-app-accent);
+    color: var(--primary, var(--eden-app-accent));
   }
   .step__status[data-tone='done'] {
     color: var(--color-success, var(--color-info));
@@ -356,10 +373,14 @@
   .loading__error {
     margin: 0;
     padding: var(--space-3, 12px) var(--space-4, 16px);
-    border-radius: var(--eden-app-radius, 8px);
-    border: 1px solid color-mix(in oklab, var(--color-error) 45%, var(--eden-app-line));
-    background: color-mix(in oklab, var(--color-error) 8%, var(--eden-app-panel-bg));
-    color: var(--color-error);
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid
+      color-mix(in oklab, var(--color-error) 45%, var(--border, var(--eden-app-line)));
+    background: var(
+      --destructive-surface,
+      color-mix(in oklab, var(--color-error) 8%, var(--eden-app-panel-bg))
+    );
+    color: var(--destructive, var(--color-error));
     font-size: var(--font-size-label, 13px);
     line-height: 1.4;
     overflow-wrap: anywhere;
@@ -376,34 +397,40 @@
     font-weight: 600;
     padding: var(--space-2, 8px) var(--space-5, 20px);
     min-block-size: 44px;
-    border-radius: var(--eden-app-radius, 8px);
+    border-radius: var(--radius-md, 8px);
     cursor: pointer;
     transition:
       filter var(--duration-2, 160ms) var(--ease-out, ease),
+      background var(--duration-2, 160ms) var(--ease-out, ease),
+      box-shadow var(--duration-2, 160ms) var(--ease-out, ease),
       border-color var(--duration-2, 160ms) var(--ease-out, ease);
   }
+  /* Retry is the shadcn solid button; Back is the shadcn outline button. */
   .action--primary {
-    border: 1px solid transparent;
-    background: var(--eden-app-accent);
-    color: var(--color-on-primary, #fff);
+    border: 1px solid var(--primary, var(--eden-app-accent));
+    background: var(--primary, var(--eden-app-accent));
+    color: var(--primary-foreground, var(--color-on-primary, #fff));
+    box-shadow: var(--shadow-sm);
   }
   .action--primary:hover:not(:disabled) {
-    filter: brightness(1.05);
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .action--primary:disabled {
     cursor: default;
     opacity: 0.6;
   }
   .action--ghost {
-    border: 1px solid var(--eden-app-line);
-    background: none;
-    color: var(--eden-app-fg);
+    border: 1px solid var(--border, var(--eden-app-line));
+    background: var(--card, none);
+    color: var(--foreground, var(--eden-app-fg));
   }
   .action--ghost:hover {
-    border-color: var(--eden-app-accent);
+    border-color: var(--border-strong, var(--eden-app-accent));
+    background: var(--accent-surface, transparent);
   }
   .action:focus-visible {
-    outline: 2px solid var(--eden-app-accent);
+    outline: 2px solid var(--ring, var(--eden-app-accent));
     outline-offset: 2px;
   }
 
@@ -418,7 +445,7 @@
     }
     .step__spinner {
       animation: none;
-      border-block-start-color: var(--eden-app-accent);
+      border-block-start-color: var(--primary, var(--eden-app-accent));
     }
     .action {
       transition: none;
