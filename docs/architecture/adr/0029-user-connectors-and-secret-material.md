@@ -76,8 +76,15 @@ genuine un-printable `*secrets.Secret`. **Neither the `secrets` port nor `vaulta
 `.apibaseline` changes** — this is the load-bearing win. `vault://` is not overloaded (it maps 1:1 to
 a KV-v2 read; a user connector is an envelope-sealed Postgres row with an org authorization check — a
 distinct concept, a distinct scheme). *This adapter + the project→owner→`eden://connector/<id>`
-derivation is specified here and built as a follow-on (Brief A3); it is not part of the first backend
-cut, which lands the domain + the KEK + the `envelope` lib.*
+derivation is **IMPLEMENTED** (Brief A3): the adapter is `libs/go/secrets/platformconnectoradapter`
+(resident in the `secrets` module so it mints through the internal seam; it loads the sealed row via a
+consumer-defined `SealedRowLoader` port — the real binding reads the connectors Postgres directly — and
+unseals via `envelope` under the `vault://…#connectors-kek` KEK), bound under `"eden"` alongside
+`"vault"` in the agentgateway secrets mediator. The org→credential derivation
+(`apps/agentgateway/internal/connectorcredential`) picks `eden://connector/<id>` when the project's org
+has a `claude-api` connector, else the platform `EDEN_CREDENTIAL_REF` (the fallback is never regressed).
+Both the `secrets` port and `vaultadapter`'s `.apibaseline` are UNCHANGED (additive-only surface). The
+first backend cut landed the domain + the KEK + the `envelope` lib.*
 
 ### 5. v1 connector kinds, default scope — locked defaults
 

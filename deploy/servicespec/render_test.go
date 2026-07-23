@@ -117,8 +117,12 @@ func TestAgentGatewayFullSurfaceReferences(t *testing.T) {
 		`vault://eden/{{ .Values.stage }}#agentgateway-jwt-signing-key`, // the dev-JWT signing key (unchanged)
 		`vault://eden/{{ .Values.stage }}#database-dsn`,                 // the record + dashboard Postgres DSN (NEW)
 		`vault://eden/{{ .Values.stage }}#setup-token`,                  // the propose harness credential (NEW)
+		`vault://eden/{{ .Values.stage }}#platformgateway-database-dsn`, // the connectors DSN (ADR-0029 §4 / A3)
+		`vault://eden/{{ .Values.stage }}#connectors-kek`,               // the envelope KEK (ADR-0029 §4 / A3)
 		"name: EDEN_GATEWAY_DATABASE_DSN_REF",
 		"name: EDEN_CREDENTIAL_REF",
+		"name: EDEN_GATEWAY_CONNECTORS_DSN_REF", // the connector-credential seam env
+		"name: EDEN_GATEWAY_CONNECTORS_KEK_REF",
 		`value: "claude-code"`, // EDEN_HARNESS
 	} {
 		if !strings.Contains(helm, want) {

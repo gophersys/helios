@@ -99,6 +99,13 @@ func agentGatewaySpec() ServiceSpec {
 			{Name: "EDEN_GATEWAY_JWT_SECRET_REF", FromVaultField: "agentgateway-jwt-signing-key"},
 			{Name: "EDEN_GATEWAY_DATABASE_DSN_REF", FromVaultField: "database-dsn"},
 			{Name: "EDEN_CREDENTIAL_REF", FromVaultField: "setup-token"},
+			// The connector-credential seam (ADR-0029 §4 / A3): the platformgateway connectors database DSN
+			// (the SAME field platformGatewaySpec uses — the connectors table is the platform's) + the
+			// envelope KEK reference (the platform-Vault key the connectors domain seals under). When set,
+			// the gateway binds the "eden" scheme so a session CONSUMES a user-uploaded connector
+			// (eden://connector/<id>); absent them it falls back to EDEN_CREDENTIAL_REF (never regressed).
+			{Name: "EDEN_GATEWAY_CONNECTORS_DSN_REF", FromVaultField: "platformgateway-database-dsn"},
+			{Name: "EDEN_GATEWAY_CONNECTORS_KEK_REF", FromVaultField: "connectors-kek"},
 		},
 		Resources:       ResourceEnvelope{CPUMillis: 500, MemoryMiB: 512, EphemeralMiB: 1024},
 		Liveness:        &Probe{Path: "/healthz", Port: 8080},

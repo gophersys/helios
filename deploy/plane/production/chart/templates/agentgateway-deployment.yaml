@@ -43,6 +43,10 @@ spec:
               value: "vault://eden/{{ .Values.stage }}#database-dsn"
             - name: EDEN_CREDENTIAL_REF
               value: "vault://eden/{{ .Values.stage }}#setup-token"
+            - name: EDEN_GATEWAY_CONNECTORS_DSN_REF
+              value: "vault://eden/{{ .Values.stage }}#platformgateway-database-dsn"
+            - name: EDEN_GATEWAY_CONNECTORS_KEK_REF
+              value: "vault://eden/{{ .Values.stage }}#connectors-kek"
           resources:
             requests:
               cpu: 500m

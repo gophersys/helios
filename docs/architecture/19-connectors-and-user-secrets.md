@@ -128,8 +128,15 @@ bound under the `"eden"` scheme in the orchestrator's composition root next to `
 a genuine un-printable `*secrets.Secret`. The orchestrator derives the per-session reference from the
 project's owning org/user (project → owner → `eden://connector/<id>`), with the
 `EDEN_CREDENTIAL_REF` manifest constant as the graceful fallback when an org has no uploaded
-connector. *This adapter + derivation is the ADR-0029 §4 follow-on (Brief A3); the first backend cut
-lands the domain + the KEK seed + the `envelope` lib.*
+connector. *This adapter + derivation is **IMPLEMENTED** (the ADR-0029 §4 follow-on, Brief A3): the
+adapter is `libs/go/secrets/platformconnectoradapter` (a `secrets.Provider` resident in the `secrets`
+module — it loads the sealed row through a consumer-defined `SealedRowLoader` port over the connectors
+Postgres and unseals via `envelope` under the `vault://…#connectors-kek` KEK, minting inside the Unseal
+`Use` window through the module-internal seam), bound under `"eden"` in the agentgateway secrets
+mediator; the org→credential derivation lives in `apps/agentgateway/internal/connectorcredential`
+(`claude-api` connector → `eden://connector/<id>`, else the platform reference — the fallback never
+regresses). Neither the `secrets` port nor `vaultadapter`'s `.apibaseline` changed (additive-only). The
+first backend cut landed the domain + the KEK seed + the `envelope` lib.*
 
 ## 5. Template bake-in ✅
 

@@ -7,6 +7,8 @@ import (
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
+
+	"github.com/gophersys/eden/apps/agentgateway/internal/connectorcredential"
 )
 
 // vaultTokenFilePath is the default sidecar token-file path when EDEN_VAULT_TOKEN_FILE is unset on
@@ -20,6 +22,12 @@ const defaultHarness = "claude-code"
 // defaultWorkspace is the propose harness CWD when EDEN_WORKSPACE is unset. In a pod this is a
 // writable ephemeral path (the container's own filesystem); the propose turn reads/reasons only.
 const defaultWorkspace = "/tmp/eden-gateway-workspace" // #nosec G101 -- a directory path, not a credential.
+
+// defaultConnectorsKEKRef is the platform-Vault reference the envelope KEK resolves from when
+// EDEN_GATEWAY_CONNECTORS_KEK_REF is unset — the SAME only-if-absent-minted reference the
+// platformgateway connectors domain seals under (ADR-0029 §2). Meaningful only when the connectors DSN
+// reference is set (else no "eden" scheme is bound).
+const defaultConnectorsKEKRef = "vault://eden/production#connectors-kek" // #nosec G101 -- an opaque vault REFERENCE (path), not a credential value.
 
 // configuration is the fully-resolved composition input read ONCE from the environment (the
 // configuration pattern). It holds NO secret VALUE — the JWT signing key is an opaque, loggable
@@ -70,6 +78,20 @@ type configuration struct {
 	VaultTokenFilePath string
 	VaultUsername      string
 	VaultPassword      string
+
+	// ── The connector-credential seam (OPTIONAL, ADR-0029 §4 / A3): when the connectors DSN reference
+	// is set, the gateway binds the "eden" scheme so a session can CONSUME a user-uploaded connector
+	// (eden://connector/<id>). When empty the "eden" scheme is not bound and every session gets the
+	// platform EDEN_CREDENTIAL_REF exactly as today — the fallback is never regressed. ──
+
+	// ConnectorsDatabaseDSNReference is the opaque vault:// reference the platformgateway connectors
+	// database DSN resolves from (EDEN_GATEWAY_CONNECTORS_DSN_REF). Empty ⇒ no connector resolution.
+	ConnectorsDatabaseDSNReference string
+	// ConnectorsKEKReference is the opaque vault:// reference the envelope KEK resolves from
+	// (EDEN_GATEWAY_CONNECTORS_KEK_REF, default vault://eden/production#connectors-kek — the SAME
+	// reference the platformgateway connectors domain seals under). Meaningful only when the connectors
+	// DSN reference is set.
+	ConnectorsKEKReference string
 }
 
 // parseConfiguration resolves the composition configuration from env ONCE (the configuration
@@ -98,6 +120,9 @@ func parseConfiguration(getenv func(string) string) (configuration, error) {
 		Harness:              envOr(getenv, "EDEN_HARNESS", defaultHarness),
 		Model:                getenv("EDEN_MODEL"),
 		Workspace:            envOr(getenv, "EDEN_WORKSPACE", defaultWorkspace),
+
+		ConnectorsDatabaseDSNReference: getenv("EDEN_GATEWAY_CONNECTORS_DSN_REF"),
+		ConnectorsKEKReference:         envOr(getenv, "EDEN_GATEWAY_CONNECTORS_KEK_REF", defaultConnectorsKEKRef),
 	}
 
 	if err := configured.validate(); err != nil {
@@ -148,8 +173,8 @@ func (c *configuration) FullSurfaceConfigured() bool {
 // briefly unreachable at startup does not fail construction.
 //
 //nolint:ireturn // returns the secrets.Provider port the verifier resolution holds (the frozen surface).
-func buildSecretsProvider(configured *configuration) (secrets.Provider, error) {
-	adapter, err := vaultadapter.New(
+func buildSecretsProvider(ctx context.Context, configured *configuration) (secrets.Provider, error) {
+	vault, err := vaultadapter.New(
 		vaultadapter.Config{
 			Address:       configured.VaultAddress,
 			Mode:          configured.VaultMode,
@@ -163,9 +188,43 @@ func buildSecretsProvider(configured *configuration) (secrets.Provider, error) {
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "agentgateway: build vault backend", err)
 	}
+
+	resolvers := map[string]secrets.Provider{"vault": vault}
+
+	// The connector-credential seam (ADR-0029 §4 / A3): when the connectors DSN reference is configured,
+	// resolve it point-of-use (a secret — it carries the Postgres password) through the Vault backend and
+	// bind the "eden" scheme (platformconnectoradapter) so eden://connector/<id> resolves. The KEK is the
+	// SAME vault:// reference the platformgateway connectors domain seals under. Absent the DSN reference,
+	// the "eden" scheme is not bound and every session gets the platform EDEN_CREDENTIAL_REF exactly as
+	// today — the fallback is never regressed.
+	if configured.ConnectorsDatabaseDSNReference != "" {
+		connectorsDSN, dsnErr := resolveDSN(ctx, vault, secrets.Ref(configured.ConnectorsDatabaseDSNReference))
+		if dsnErr != nil {
+			return nil, errors.Wrap(errors.KindOf(dsnErr), "agentgateway: resolve connectors database dsn", dsnErr)
+		}
+		seam, seamErr := connectorcredential.Build(
+			ctx,
+			connectorcredential.Config{
+				ConnectorsDSN: connectorsDSN,
+				KEK:           secrets.Ref(configured.ConnectorsKEKReference),
+				Fallback:      secrets.Ref(configured.CredentialReference),
+			},
+			connectorcredential.Deps{Secrets: vault},
+		)
+		if seamErr != nil {
+			return nil, errors.Wrap(errors.KindOf(seamErr), "agentgateway: build connector-credential seam", seamErr)
+		}
+		if seam.Adapter != nil {
+			resolvers["eden"] = seam.Adapter // eden://connector/<id> routes to the connector adapter
+		}
+		// The connectors pool is process-lifetime (resolution runs for the process's life); the seam's
+		// Close rides the process, mirroring the record-plane pool's lifetime.
+		_ = seam.Close
+	}
+
 	mediator, err := secrets.New(
 		secrets.Config{DefaultScheme: "vault"},
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": adapter}},
+		secrets.Deps{Resolvers: resolvers},
 	)
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "agentgateway: build secrets mediator", err)

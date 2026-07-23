@@ -80,7 +80,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 
-	provider, err := buildSecretsProvider(&configured)
+	provider, err := buildSecretsProvider(ctx, &configured)
 	if err != nil {
 		return err
 	}

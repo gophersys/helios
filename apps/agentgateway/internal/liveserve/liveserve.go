@@ -34,6 +34,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -52,6 +53,7 @@ import (
 
 	"github.com/gophersys/eden/apps/agentgateway/internal/agentconfigpersistence"
 	"github.com/gophersys/eden/apps/agentgateway/internal/auditpersistence"
+	"github.com/gophersys/eden/apps/agentgateway/internal/connectorcredential"
 	"github.com/gophersys/eden/apps/agentgateway/internal/createsteppersistence"
 	"github.com/gophersys/eden/apps/agentgateway/internal/gateway"
 	"github.com/gophersys/eden/apps/agentgateway/internal/orchestratorservice"
@@ -125,6 +127,27 @@ type Config struct {
 	// when the saga is wired.
 	SupervisorManualSourceDir string
 
+	// ── The connector-credential seam (OPTIONAL, ADR-0029 §4 / A3): when ConnectorsDatabaseDSN is set,
+	// the gateway binds the "eden" scheme (platformconnectoradapter) so a session can CONSUME a
+	// user-uploaded connector, and derives the supervisor's harness credential from the project's owning
+	// org (a `claude-api` connector → eden://connector/<id>, else the platform CredentialReference). When
+	// empty, every session gets CredentialReference exactly as today — the fallback is never regressed. ──
+
+	// ConnectorsDatabaseDSN is the resolved DSN of the platformgateway connectors database (distinct from
+	// DatabaseDSN, the record plane). Empty ⇒ no connector resolution (the platform fallback for every
+	// session). The value is resolved point-of-use at the edge, never logged.
+	ConnectorsDatabaseDSN string
+	// ConnectorsKEKReference is the opaque vault:// reference the envelope KEK resolves from (the SAME
+	// reference the platformgateway connectors domain seals under, e.g. vault://eden/production#connectors-kek).
+	// Required when ConnectorsDatabaseDSN is set.
+	ConnectorsKEKReference string
+	// ConnectorsKEKVersion is the KEK generation stamp (>= 1; defaults to 1 when unset).
+	ConnectorsKEKVersion int
+	// ConnectorsOrganizationID is the platformgateway organization UUID the supervisor's credential is
+	// derived against (the org that owns the connectors). Empty ⇒ the platform fallback (no org to
+	// resolve a connector for). A non-UUID value degrades to the fallback (never a hard failure).
+	ConnectorsOrganizationID string
+
 	// Logger, when non-nil, is wired onto the gateway so live requests emit structured lines.
 	Logger Logger
 }
@@ -152,13 +175,20 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 	}
 	clock := systemClock{}
 
-	// The credential plane: the secrets Mediator over the REAL Vault backend (userpass), routed
-	// under the "vault" scheme. agentsession.Open resolves the opaque Reference through this,
-	// server-side, into the harness child env — the value never reaches this package's surface.
-	provider, err := buildSecretsProvider(&configuration)
+	// The credential plane: the secrets Mediator over the REAL Vault backend (userpass, "vault" scheme)
+	// AND — when a connectors DSN is configured — the platformconnectoradapter ("eden" scheme, ADR-0029
+	// §4). agentsession.Open resolves the opaque Reference through this, server-side, into the harness
+	// child env — the value never reaches this package's surface. The Deriver picks the supervisor's
+	// credential from the project's owning org (a claude-api connector → eden://connector/<id>, else the
+	// platform CredentialReference); connectorClose releases the owned connectors pool.
+	provider, connectorDeriver, connectorClose, err := buildSecretsAndConnectors(&configuration)
 	if err != nil {
 		return nil, nil, err
 	}
+	// The connectors pool is process-lifetime (the gateway/saga resolve through it for the process's
+	// life); a runnable-lifetime resource has no teardown seam in this builder, so it rides the process.
+	// A degraded (no-DSN) seam's Close is a no-op. Referenced here so the linter sees the seam is owned.
+	_ = connectorClose
 
 	// The durable Run log: ONE in-process Transcript injected into BOTH the Pool (where the harness
 	// stream is appended + the Seq assigned) AND the gateway (the post-mortem transcript route), so a
@@ -227,7 +257,7 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 		liveSessions      gateway.LiveSessions // nil interface unless the saga's orchestrator is built (avoid the typed-nil trap)
 	)
 	if configuration.createSagaConfigured() {
-		saga, service, sagaErr := buildCreateSaga(&configuration, provider, pool, projectStore, createStepStore, clock)
+		saga, service, sagaErr := buildCreateSaga(&configuration, provider, connectorDeriver, pool, projectStore, createStepStore, clock)
 		if sagaErr != nil {
 			return nil, nil, sagaErr
 		}
@@ -296,8 +326,28 @@ func BuildLiveGateway(configuration Config) (*gateway.Gateway, *orchestratorserv
 // (ForgeCredentialReference) and the claude token (CredentialReference). The caller Starts/Closes the
 // returned Service's reconcile loop. The pool is process-lifetime (released on exit; the Service.Close
 // stops the loop first).
+// deriveSupervisorCredential picks the supervisor session's harness credential (ADR-0029 §4 / A3): the
+// project owning-org's `claude-api` connector (eden://connector/<id>) when one exists, else the platform
+// CredentialReference. It maps ConnectorsOrganizationID (the platformgateway org UUID) to the derivation;
+// an empty or unparsable org id, or the absence of a connector, all yield the fallback — the fallback is
+// never regressed. The deriver's own nil-pool path already degrades to the fallback, so this only adds
+// the org-id parse guard.
+func deriveSupervisorCredential(ctx context.Context, deriver *connectorcredential.Deriver, configuration *Config) secrets.Reference {
+	fallback := secrets.Ref(configuration.CredentialReference)
+	if deriver == nil || configuration.ConnectorsOrganizationID == "" {
+		return fallback
+	}
+	organizationID, err := uuid.Parse(configuration.ConnectorsOrganizationID)
+	if err != nil {
+		// A non-UUID org id names no platformgateway org — degrade to the platform credential.
+		return fallback
+	}
+	return deriver.DeriveClaudeCredential(ctx, organizationID)
+}
+
 func buildCreateSaga(
-	configuration *Config, provider secrets.Provider, sessions agentsession.Factory,
+	configuration *Config, provider secrets.Provider, connectorDeriver *connectorcredential.Deriver,
+	sessions agentsession.Factory,
 	projectStore gateway.ProjectStore, stepStore gateway.CreateStepStore, clock systemClock,
 ) (*projectcreate.Saga, *orchestratorservice.Service, error) {
 	ctx := context.Background()
@@ -391,6 +441,14 @@ func buildCreateSaga(
 		organizationID = "eden"
 	}
 
+	// The supervisor's harness credential, DERIVED from the project's owning org (ADR-0029 §4 / A3): a
+	// `claude-api` connector the org uploaded → eden://connector/<id> (resolved by the "eden" adapter
+	// bound above), else the platform CredentialReference — the fallback is NEVER regressed. The org key
+	// is the platformgateway organization UUID (ConnectorsOrganizationID); an empty/unparsable value or
+	// no connector both derive the fallback. The reference is loggable; the value is resolved server-side
+	// at agentsession.Open and never reaches this surface.
+	supervisorCredential := deriveSupervisorCredential(ctx, connectorDeriver, configuration)
+
 	// The supervisor's controller host-tools, built PER launched project over its materialized workspace
 	// + the forge push credential: the eden_commit_transition tool the supervisor calls to commit+push a
 	// staged transition and project its FSM state onto Project.Status. The git backend, the credential,
@@ -438,7 +496,7 @@ func buildCreateSaga(
 			RepositoryOwner:        configuration.RepositoryOwner,
 			PrivateRepository:      true,
 			ForgeCredential:        forgeCredential,
-			SupervisorCredential:   secrets.Ref(configuration.CredentialReference),
+			SupervisorCredential:   supervisorCredential,
 			TemplateRepositoryURL:  configuration.TemplateRepositoryURL,
 			TemplateReference:      configuration.TemplateRepositoryURL,
 			SupervisorTemplate:     orchestrator.TemplateRef{Name: "supervisor", Version: "0.1.0"},
@@ -464,27 +522,54 @@ func buildCreateSaga(
 	return saga, service, nil
 }
 
-// buildSecretsProvider builds the secrets Mediator over the REAL Vault backend (ModeUserpass —
-// the local bootstrap, ADR-0022 #1). The bootstrap login is lazy (first Resolve), so New stays
-// cheap and a Vault that is briefly unreachable at startup does not fail construction.
-//
-//nolint:ireturn // returns the secrets.Provider port the agentsession Pool holds (the frozen surface).
-func buildSecretsProvider(configuration *Config) (secrets.Provider, error) {
-	adapter, err := vaultadapter.New(
+// buildSecretsAndConnectors builds the secrets Mediator over the REAL Vault backend (userpass, "vault"
+// scheme) AND — when a connectors DSN is configured — the platformconnectoradapter under the "eden"
+// scheme (ADR-0029 §4), returning the org→credential Deriver and a Close for the owned connectors pool.
+// The "eden" adapter resolves its KEK through the SAME Vault backend (a direct provider, so the KEK
+// path is the existing vault:// seam). When no connectors DSN is configured the "eden" scheme is not
+// bound and the Deriver is fallback-only — every session gets CredentialReference exactly as today.
+func buildSecretsAndConnectors(configuration *Config) (secrets.Provider, *connectorcredential.Deriver, func(), error) {
+	vault, err := vaultadapter.New(
 		vaultadapter.Config{Address: configuration.VaultAddress, Mode: vaultadapter.ModeUserpass},
 		vaultadapter.Deps{Username: configuration.VaultUsername, Password: configuration.VaultPassword},
 	)
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "liveserve: build vault backend", err)
+		return nil, nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build vault backend", err)
+	}
+
+	// The connector seam resolves its KEK through the Vault backend directly (the KEK is a vault://
+	// reference), so it is built BEFORE the mediator and its adapter joins the mediator's resolver table.
+	var kekRef secrets.Reference
+	if configuration.ConnectorsKEKReference != "" {
+		kekRef = secrets.Ref(configuration.ConnectorsKEKReference)
+	}
+	seam, err := connectorcredential.Build(
+		context.Background(),
+		connectorcredential.Config{
+			ConnectorsDSN: configuration.ConnectorsDatabaseDSN,
+			KEK:           kekRef,
+			KEKVersion:    configuration.ConnectorsKEKVersion,
+			Fallback:      secrets.Ref(configuration.CredentialReference),
+		},
+		connectorcredential.Deps{Secrets: vault},
+	)
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(errors.KindOf(err), "liveserve: build connector-credential seam", err)
+	}
+
+	resolvers := map[string]secrets.Provider{"vault": vault}
+	if seam.Adapter != nil {
+		resolvers["eden"] = seam.Adapter // ADR-0029 §4: eden://connector/<id> routes to the connector adapter
 	}
 	mediator, err := secrets.New(
 		secrets.Config{DefaultScheme: "vault"},
-		secrets.Deps{Resolvers: map[string]secrets.Provider{"vault": adapter}},
+		secrets.Deps{Resolvers: resolvers},
 	)
 	if err != nil {
-		return nil, errors.Wrap(errors.KindInternal, "liveserve: build secrets mediator", err)
+		seam.Close()
+		return nil, nil, nil, errors.Wrap(errors.KindInternal, "liveserve: build secrets mediator", err)
 	}
-	return mediator, nil
+	return mediator, seam.Deriver, seam.Close, nil
 }
 
 // DefaultCreateTemplate exposes the template Name/Version a create request must name so the seeded

@@ -38,6 +38,8 @@ services:
       EDEN_GATEWAY_JWT_SECRET_REF: "vault://eden/development#agentgateway-jwt-signing-key"
       EDEN_GATEWAY_DATABASE_DSN_REF: "vault://eden/development#database-dsn"
       EDEN_CREDENTIAL_REF: "vault://eden/development#setup-token"
+      EDEN_GATEWAY_CONNECTORS_DSN_REF: "vault://eden/development#platformgateway-database-dsn"
+      EDEN_GATEWAY_CONNECTORS_KEK_REF: "vault://eden/development#connectors-kek"
     depends_on:
       - nats
       - vault
