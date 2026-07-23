@@ -27,8 +27,8 @@ spec:
       serviceAccountName: eden-orchestrator
       containers:
         - name: orchestrator
-          # v0.1.7
-          image: "ghcr.io/gophersys/eden/agentgateway@sha256:b369d0fc3a6a2868be74b065c709cc8a6f09c45a5ebb8e1c0e52047263ecc672"
+          # v0.1.9
+          image: "ghcr.io/gophersys/eden/agentgateway@sha256:fa85c1f666b88c72f9129fc4587a08f4ff79f8c32d6aaa94224189e3d9864c34"
           command: ["/usr/local/bin/agentgateway-orchestrator"]
           ports:
             - name: http

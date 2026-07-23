@@ -33,7 +33,7 @@ spec:
             # this from /etc/resolv.conf and this override can drop.
             - name: NGINX_LOCAL_RESOLVERS
               value: "10.43.0.10"
-          image: "ghcr.io/gophersys/eden/frontend@sha256:16fbd8e973e0977a7557dcb8b6c70f10b3ae63ae0f4f83bb481be0606e6d93d8"
+          image: "ghcr.io/gophersys/eden/frontend@sha256:3bc05a6476a0d8b8705d9e96e250db2e19337e1358f994c4d3e43fec05699d5c"
           ports:
             - name: http
               containerPort: 8080
