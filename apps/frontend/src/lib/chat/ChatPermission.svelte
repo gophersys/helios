@@ -105,16 +105,21 @@
     flex-direction: column;
     gap: var(--space-2, 8px);
     padding: var(--space-5, 20px);
-    border-radius: var(--space-3, 12px);
-    color: var(--color-on-surface);
-    background: var(--color-surface);
-    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-lg, 12px);
+    color: var(--foreground, var(--color-on-surface));
+    background: var(--card, var(--color-surface));
+    border: 1px solid var(--border, var(--color-outline));
+    box-shadow: var(--shadow-xs);
   }
   .resolved[data-state='ok'] {
-    border-color: var(--color-success);
+    border-color: color-mix(
+      in oklab,
+      var(--color-success) 45%,
+      var(--border, var(--color-outline))
+    );
   }
   .resolved[data-state='denied'] {
-    border-color: var(--color-error);
+    border-color: color-mix(in oklab, var(--color-error) 45%, var(--border, var(--color-outline)));
   }
   .resolved__head {
     display: flex;
@@ -131,28 +136,45 @@
   .resolved__tool {
     font-family: var(--font-code);
     font-size: var(--font-size-caption, 12px);
-    background: color-mix(in oklab, var(--color-on-surface) 8%, var(--color-surface));
-    border-radius: var(--space-1, 4px);
+    background: var(
+      --surface-muted,
+      color-mix(in oklab, var(--color-on-surface) 8%, var(--color-surface))
+    );
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
     padding: 0.15em 0.5em;
   }
+  /* Shadcn outline status pill — a status-tinted fill, a 1px status border, --radius-sm corners. */
   .resolved__chip {
     font-family: var(--font-code);
     font-size: var(--font-size-caption, 12px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    border-radius: 999px;
+    border-radius: var(--radius-sm, 7px);
     padding: 0.18rem 0.6rem;
-    background: color-mix(in oklab, var(--color-info) 18%, var(--color-surface));
+    background: var(
+      --info-surface,
+      color-mix(in oklab, var(--color-info) 18%, var(--color-surface))
+    );
+    border: 1px solid color-mix(in oklab, var(--color-info) 30%, transparent);
     color: var(--color-info);
   }
   .resolved__chip[data-state='ok'] {
-    background: var(--color-primary);
-    color: var(--color-on-primary);
+    background: var(
+      --success-surface,
+      color-mix(in oklab, var(--color-success) 18%, var(--color-surface))
+    );
+    border-color: color-mix(in oklab, var(--color-success) 30%, transparent);
+    color: var(--color-success);
   }
   .resolved__chip[data-state='denied'] {
-    background: color-mix(in oklab, var(--color-error) 16%, var(--color-surface));
-    color: var(--color-error);
+    background: var(
+      --destructive-surface,
+      color-mix(in oklab, var(--color-error) 16%, var(--color-surface))
+    );
+    border-color: color-mix(in oklab, var(--color-error) 30%, transparent);
+    color: var(--destructive, var(--color-error));
   }
   .resolved__reason,
   .resolved__rationale,

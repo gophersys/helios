@@ -123,6 +123,8 @@
   }
   /* Square-ish centered panel sized by `size`: sm ~420px, md ~560px, lg ~760px. Caps at the viewport
      so it never overflows; the body scrolls under a ~80vh ceiling so the header/footer stay pinned. */
+  /* The shadcn dialog panel — a --card surface, a 1px --border hairline, --radius-lg geometry, and
+     the refined --shadow-lg elevation. */
   .panel {
     --modal-inline: 560px;
     inline-size: min(var(--modal-inline), 100%);
@@ -131,11 +133,14 @@
     flex-direction: column;
     gap: var(--space-4, 16px);
     padding: var(--space-5, 20px);
-    background: var(--eden-app-panel-bg);
-    color: var(--eden-app-fg);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    box-shadow: 0 12px 40px color-mix(in oklab, var(--color-on-surface) 18%, transparent);
+    background: var(--card, var(--eden-app-panel-bg));
+    color: var(--foreground, var(--eden-app-fg));
+    border: 1px solid var(--border, var(--eden-app-line));
+    border-radius: var(--radius-lg, 8px);
+    box-shadow: var(
+      --shadow-lg,
+      0 12px 40px color-mix(in oklab, var(--color-on-surface) 18%, transparent)
+    );
     animation: panel-in var(--duration-short-4, 180ms) var(--ease-standard-decelerate, ease-out);
   }
   .panel[data-size='sm'] {
@@ -148,7 +153,7 @@
     --modal-inline: 760px;
   }
   .panel:focus-visible {
-    outline: 2px solid var(--eden-app-accent);
+    outline: 2px solid var(--ring, var(--eden-app-accent));
     outline-offset: 2px;
   }
   .panel__head {
@@ -161,8 +166,9 @@
   .panel__title {
     margin: 0;
     font-size: var(--font-size-title, 23px);
-    color: var(--eden-app-fg);
+    color: var(--foreground, var(--eden-app-fg));
   }
+  /* The close ✕ reads as a shadcn "ghost/outline" icon button. */
   .panel__close {
     flex: none;
     inline-size: var(--space-7, 28px);
@@ -171,21 +177,23 @@
     align-items: center;
     justify-content: center;
     background: none;
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 6px);
-    color: var(--eden-app-muted);
+    border: 1px solid var(--border, var(--eden-app-line));
+    border-radius: var(--radius-sm, 6px);
+    color: var(--muted-foreground, var(--eden-app-muted));
     cursor: pointer;
     font-size: var(--font-size-label, 14px);
     transition:
       color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease),
       border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .panel__close:hover {
-    color: var(--eden-app-fg);
-    border-color: var(--eden-app-accent);
+    color: var(--foreground, var(--eden-app-fg));
+    border-color: var(--border-strong, var(--eden-app-accent));
+    background: var(--accent-surface, transparent);
   }
   .panel__close:focus-visible {
-    outline: 2px solid var(--eden-app-accent);
+    outline: 2px solid var(--ring, var(--eden-app-accent));
     outline-offset: 1px;
   }
   /* The scrolling region — header + footer stay pinned, only the body scrolls under the 80vh cap. */
@@ -204,7 +212,7 @@
     justify-content: flex-end;
     gap: var(--space-3, 12px);
     padding-block-start: var(--space-2, 8px);
-    border-block-start: 1px solid var(--eden-app-line);
+    border-block-start: 1px solid var(--border, var(--eden-app-line));
   }
   @keyframes scrim-in {
     from {

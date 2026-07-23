@@ -48,17 +48,21 @@ ${darkBody}  }
   --font-text: 'Inter Variable', Inter, -apple-system, 'Segoe UI', sans-serif;
   --font-code: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
 
-  /* App-chrome aliases — every value is one of the GENERATED role tokens (never a new hue). The
-     chat shell (rails, chips, lines) reads these so the chrome and the primitives share one source. */
-  --eden-app-bg: var(--color-surface);
-  --eden-app-fg: var(--color-on-surface);
-  --eden-app-muted: color-mix(in oklab, var(--color-on-surface) 58%, var(--color-surface));
-  --eden-app-line: color-mix(in oklab, var(--color-on-surface) 14%, var(--color-surface));
-  --eden-app-accent: var(--color-primary);
-  --eden-app-rail-bg: color-mix(in oklab, var(--color-primary) 6%, var(--color-surface));
-  --eden-app-panel-bg: var(--color-surface);
-  --eden-app-panel-line: var(--color-outline);
-  --eden-app-radius: var(--space-2);
+  /* App-chrome aliases — the older chat-internal chrome (rails, chips, lines, the Build view's dense
+     working surfaces) reads these. As of the shadcn transposition they are RE-POINTED at the SHADCN
+     SKIN MAPPING below (one concept, one home): every chat-internal consumer inherits the shadcn skin
+     — the 1px subtle hairline, the muted surface/text tones, the --radius-md geometry — for free,
+     with no per-component edit. Custom properties resolve at use-time, so the forward reference to
+     the shadcn block (defined further down at this same :root) is well-defined. */
+  --eden-app-bg: var(--background);
+  --eden-app-fg: var(--foreground);
+  --eden-app-muted: var(--muted-foreground);
+  --eden-app-line: var(--border);
+  --eden-app-accent: var(--primary);
+  --eden-app-rail-bg: var(--surface-muted);
+  --eden-app-panel-bg: var(--card);
+  --eden-app-panel-line: var(--border);
+  --eden-app-radius: var(--radius-md);
 
   /* ── SHADCN SKIN MAPPING (doc 17 §skin — the ratified shadcn transposition) ─────────────────
      The shadcn-svelte variable vocabulary, DERIVED from the generated @eden/theme role tokens —
