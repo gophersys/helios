@@ -34,10 +34,10 @@
     inline-size: var(--space-7, 28px);
     block-size: var(--space-7, 28px);
     flex: none;
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 4px);
+    border: 1px solid var(--border, var(--color-outline));
+    border-radius: var(--radius-sm, 4px);
     background: var(
-      --eden-app-rail-bg,
+      --surface-muted,
       color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
     );
     color: var(--color-primary);

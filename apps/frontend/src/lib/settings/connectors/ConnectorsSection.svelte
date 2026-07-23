@@ -196,9 +196,10 @@
   .connectors__error {
     margin: 0;
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    border: 1px solid var(--color-error);
-    border-radius: var(--eden-app-radius, 6px);
-    color: var(--color-error);
+    border: 1px solid color-mix(in oklab, var(--color-error) 30%, transparent);
+    border-radius: var(--radius-md, 6px);
+    background: var(--destructive-surface);
+    color: var(--destructive, var(--color-error));
     font-size: var(--font-size-label, 13px);
   }
   /* The available-providers offer in the empty state — mono data voice (P-D4). */
@@ -214,11 +215,11 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .connectors__available-list {
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
 </style>

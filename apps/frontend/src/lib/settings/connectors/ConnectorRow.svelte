@@ -97,6 +97,11 @@
     align-items: center;
     gap: var(--space-3, 12px) var(--space-4, 16px);
     padding: var(--space-3, 12px) var(--space-4, 16px);
+    /* Shadcn list-row hover: a faint --surface-muted highlight. */
+    transition: background var(--duration-short-2, 120ms) var(--ease-standard, ease);
+  }
+  .connector-row:hover {
+    background: var(--surface-muted);
   }
   .connector-row__lead {
     display: flex;
@@ -113,7 +118,7 @@
   .connector-row__name {
     font-size: var(--font-size-body-large, 15px);
     font-weight: 600;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .connector-row__meta {
     display: flex;
@@ -130,7 +135,7 @@
   }
   .connector-row__unset {
     font-family: var(--font-code, monospace);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-size: var(--font-size-label, 13px);
   }
   .connector-row__actions {

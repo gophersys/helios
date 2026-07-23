@@ -455,7 +455,7 @@
     flex-direction: column;
     gap: var(--space-4, 16px);
     min-inline-size: 0;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
     font-size: var(--font-size-body-large, 15px);
   }
   .pane__intro {
@@ -467,16 +467,16 @@
     margin: 0;
     font-size: var(--font-size-title, 20px);
     font-weight: 600;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .pane__subtitle {
     margin: 0;
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .quiet {
     margin: 0;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-size: var(--font-size-label, 13px);
   }
 
@@ -489,7 +489,7 @@
     align-items: baseline;
   }
   .rows dt {
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-size: var(--font-size-caption, 12px);
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -500,7 +500,7 @@
     align-items: center;
     gap: var(--space-3, 12px);
     flex-wrap: wrap;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .val {
     font-size: var(--font-size-body-large, 15px);
@@ -508,7 +508,7 @@
   .mono {
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
 
   /* ── Appearance: the colour-mode segmented control ── */
@@ -522,23 +522,25 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .field__hint {
     margin: 0;
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
+  /* The shadcn segmented control — a --surface-muted trough, --radius-md geometry, a raised --card
+     selected pill with a subtle shadow. */
   .seg {
     display: inline-flex;
     gap: var(--space-1, 4px);
     padding: var(--space-1, 4px);
     background: var(
-      --eden-app-rail-bg,
+      --surface-muted,
       color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
     );
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 8px);
+    border: 1px solid var(--border, var(--color-outline));
+    border-radius: var(--radius-md, 8px);
     inline-size: fit-content;
   }
   .seg__opt {
@@ -546,10 +548,11 @@
     min-block-size: 44px;
     background: none;
     border: 1px solid transparent;
-    border-radius: var(--eden-app-radius, 6px);
-    color: var(--eden-app-muted, var(--color-outline));
+    border-radius: var(--radius-sm, 6px);
+    color: var(--muted-foreground, var(--color-outline));
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 14px);
+    font-weight: 500;
     cursor: pointer;
     /* W5: the colour-mode segmented control rides the theme motion tokens. */
     transition:
@@ -558,16 +561,17 @@
       border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .seg__opt:hover {
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .seg__opt:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring, var(--color-primary));
     outline-offset: 1px;
   }
   .seg__opt--on {
-    background: var(--eden-app-panel-bg, var(--color-surface));
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+    background: var(--card, var(--color-surface));
+    border-color: var(--border, var(--color-primary));
+    color: var(--foreground, var(--color-on-surface));
+    box-shadow: var(--shadow-xs);
   }
 
   /* ── Agents: the per-agent-type cards ── */
@@ -579,21 +583,24 @@
     flex-direction: column;
     gap: var(--space-4, 16px);
   }
+  /* Each agent config is a shadcn Card — a --card surface, 1px --border hairline, --radius-lg
+     corners, and the resting --shadow-xs. */
   .agent {
     display: flex;
     flex-direction: column;
     gap: var(--space-3, 12px);
     padding: var(--space-4, 16px);
-    background: var(--eden-app-panel-bg, var(--color-surface));
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 6px);
+    background: var(--card, var(--color-surface));
+    border: 1px solid var(--border, var(--color-outline));
+    border-radius: var(--radius-lg, 6px);
+    box-shadow: var(--shadow-xs);
   }
   .agent__head {
     display: flex;
     align-items: center;
     gap: var(--space-3, 12px);
     padding-block-end: var(--space-2, 8px);
-    border-block-end: 1px solid var(--eden-app-line, var(--color-outline));
+    border-block-end: 1px solid var(--border, var(--color-outline));
   }
   .agent__glyph {
     display: inline-flex;
@@ -602,10 +609,10 @@
     inline-size: var(--space-7, 28px);
     block-size: var(--space-7, 28px);
     flex: none;
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 4px);
+    border: 1px solid var(--border, var(--color-outline));
+    border-radius: var(--radius-sm, 4px);
     background: var(
-      --eden-app-rail-bg,
+      --surface-muted,
       color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
     );
     color: var(--color-primary);
@@ -614,7 +621,7 @@
   .agent__label {
     font-size: var(--font-size-body-large, 15px);
     font-weight: 600;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   /* W5: the config grid previously used a `gap: 1px` over a line-coloured background to draw the cell
      separators — but a `max-content` key column leaves a wide strip of that background exposed between
@@ -626,8 +633,8 @@
     display: grid;
     grid-template-columns: minmax(8rem, 0.4fr) 1fr;
     gap: 0;
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 4px);
+    border: 1px solid var(--border, var(--color-outline));
+    border-radius: var(--radius-md, 4px);
     overflow: hidden;
   }
   .row {
@@ -635,10 +642,10 @@
   }
   .row__key,
   .row__val {
-    background: var(--eden-app-panel-bg, var(--color-surface));
+    background: var(--card, var(--color-surface));
     padding: var(--space-2, 8px) var(--space-3, 12px);
     min-inline-size: 0;
-    border-block-start: 1px solid var(--eden-app-line, var(--color-outline));
+    border-block-start: 1px solid var(--border, var(--color-outline));
   }
   /* the first row (Panel widgets · key + val) sits flush under the card border — no top rule. */
   .row:first-child .row__key,
@@ -647,16 +654,17 @@
   }
   .row__key {
     font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     white-space: nowrap;
-    border-inline-end: 1px solid var(--eden-app-line, var(--color-outline));
+    background: var(--surface-muted, var(--color-surface));
+    border-inline-end: 1px solid var(--border, var(--color-outline));
   }
   .row__val {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: var(--space-2, 8px);
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
     overflow-wrap: anywhere;
   }
   .row--wide .row__val {
@@ -664,7 +672,7 @@
   }
   .unset {
     font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     font-style: italic;
   }
   .chips {
@@ -675,39 +683,44 @@
     flex-wrap: wrap;
     gap: var(--space-2, 8px);
   }
+  /* Shadcn outline badges — a --surface-muted fill, a 1px --border, --radius-sm corners. */
   .chip {
     display: inline-flex;
     align-items: center;
     padding: 2px var(--space-2, 8px);
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 4px);
+    border: 1px solid var(--border, var(--color-outline));
+    border-radius: var(--radius-sm, 4px);
     background: var(
-      --eden-app-rail-bg,
+      --surface-muted,
       color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface))
     );
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--muted-foreground, var(--color-on-surface));
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-caption, 12px);
     letter-spacing: 0.02em;
   }
+  /* Shadcn input geometry — a 1px --input edge, --radius-sm corners, a --ring focus halo. */
   .cfg-field {
     flex: 1 1 14rem;
     min-inline-size: 0;
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    background: var(--eden-app-bg, var(--color-surface));
-    color: var(--eden-app-fg, var(--color-on-surface));
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 4px);
+    background: var(--background, var(--color-surface));
+    color: var(--foreground, var(--color-on-surface));
+    border: 1px solid var(--input, var(--color-outline));
+    border-radius: var(--radius-sm, 4px);
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .cfg-field:focus-visible {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    border-color: var(--ring, var(--color-primary));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring, var(--color-primary)) 30%, transparent);
   }
   .cfg-field:disabled {
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
     cursor: not-allowed;
     opacity: 0.7;
   }
@@ -721,23 +734,29 @@
   .agent__save {
     align-items: center;
   }
+  /* The Save action gets the shadcn solid-button geometry — a solid --primary fill, --radius-md,
+     the --shadow-sm lift. */
   .save-btn {
     padding: var(--space-2, 8px) var(--space-4, 16px);
-    border: 1px solid var(--color-primary);
-    border-radius: var(--eden-app-radius, 6px);
-    background: var(--color-primary);
-    color: var(--color-on-primary);
+    border: 1px solid var(--primary, var(--color-primary));
+    border-radius: var(--radius-md, 6px);
+    background: var(--primary, var(--color-primary));
+    color: var(--primary-foreground, var(--color-on-primary));
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
     font-weight: 600;
     cursor: pointer;
-    transition: opacity var(--duration-short-2, 120ms) var(--ease-standard, ease);
+    box-shadow: var(--shadow-sm);
+    transition:
+      filter var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .save-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .save-btn:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring, var(--color-primary));
     outline-offset: 2px;
   }
   .save-btn:disabled {
@@ -752,46 +771,47 @@
     color: var(--color-success, var(--color-primary));
   }
   .save-status--error {
-    color: var(--color-error);
+    color: var(--destructive, var(--color-error));
   }
   .load-error {
     margin: 0;
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    border: 1px solid var(--color-error);
-    border-radius: var(--eden-app-radius, 6px);
-    color: var(--color-error);
+    border: 1px solid color-mix(in oklab, var(--color-error) 30%, transparent);
+    border-radius: var(--radius-md, 6px);
+    background: var(--destructive-surface);
+    color: var(--destructive, var(--color-error));
     font-size: var(--font-size-label, 13px);
   }
 
   /* ── Connections: the read-only status pills ── */
+  /* Shadcn outline status pills — a --surface-muted fill, a 1px --border, --radius-sm corners. */
   .conn {
     display: inline-flex;
     align-items: center;
     gap: 0.35em;
     padding: 0.15rem 0.6rem;
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-caption, 12px);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    background: color-mix(in oklab, var(--color-on-surface) 8%, var(--color-surface));
-    color: var(--eden-app-muted, var(--color-outline));
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    color: var(--muted-foreground, var(--color-outline));
   }
   .conn--up {
-    background: color-mix(
-      in oklab,
-      var(--color-success, var(--color-primary)) 22%,
-      var(--color-surface)
-    );
+    background: var(--success-surface);
+    border-color: color-mix(in oklab, var(--color-success) 30%, transparent);
     color: var(--color-success, var(--color-primary));
   }
   .conn--down {
-    background: color-mix(in oklab, var(--color-error) 22%, var(--color-surface));
-    color: var(--color-error);
+    background: var(--destructive-surface);
+    border-color: color-mix(in oklab, var(--color-error) 30%, transparent);
+    color: var(--destructive, var(--color-error));
   }
   .endpoint {
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
 
   @media (prefers-reduced-motion: reduce) {

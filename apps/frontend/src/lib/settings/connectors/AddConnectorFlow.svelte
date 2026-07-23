@@ -152,20 +152,30 @@
 <style>
   /* Token-bridge only — zero px/hex on a painted role (P-D3). The dialog body is a focus moment
      (generous, P-D5): one field per step, the SecretField owns the write-only entry. */
+  /* The add trigger reads as the shadcn solid button — a solid --primary fill, --radius-md, the
+     --shadow-sm lift. */
   .add-trigger {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2, 8px);
     padding: var(--space-2, 8px) var(--space-4, 16px);
     min-block-size: 44px;
-    border: 1px solid var(--color-primary);
-    border-radius: var(--eden-app-radius, 6px);
-    background: var(--color-primary);
-    color: var(--color-on-primary);
+    border: 1px solid var(--primary, var(--color-primary));
+    border-radius: var(--radius-md, 6px);
+    background: var(--primary, var(--color-primary));
+    color: var(--primary-foreground, var(--color-on-primary));
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
     font-weight: 600;
     cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition:
+      filter var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
+  }
+  .add-trigger:hover {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .add-flow {
     display: flex;
@@ -183,23 +193,27 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
+  /* Shadcn select geometry — a 1px --input edge, --radius-sm corners, a --ring focus halo. */
   .add-flow__select {
     padding: var(--space-2, 8px) var(--space-3, 12px);
     min-block-size: 44px;
-    background: var(--eden-app-bg, var(--color-surface));
-    color: var(--eden-app-fg, var(--color-on-surface));
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: var(--eden-app-radius, 4px);
+    background: var(--background, var(--color-surface));
+    color: var(--foreground, var(--color-on-surface));
+    border: 1px solid var(--input, var(--color-outline));
+    border-radius: var(--radius-sm, 4px);
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
     cursor: pointer;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .add-flow__select:focus-visible {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    border-color: var(--ring, var(--color-primary));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring, var(--color-primary)) 30%, transparent);
   }
   .add-flow__actions {
     display: flex;
