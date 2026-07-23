@@ -138,6 +138,15 @@ func componentName(t reflect.Type) string {
 	if strings.HasSuffix(t.PkgPath(), "/users/view") {
 		return t.Name() // the shared wire row: "User".
 	}
+	if strings.HasSuffix(t.PkgPath(), "/connectors/view") {
+		// The shared connectors wire types: "Connector" → "ConnectorView", "Scope" → "ConnectorScope"
+		// (readable, collision-free names distinct from any create-route input type). "ConnectorView"
+		// is the name the frontend A↔B contract cites.
+		if t.Name() == "Connector" {
+			return "ConnectorView"
+		}
+		return "Connector" + t.Name()
+	}
 	if strings.HasSuffix(t.PkgPath(), "/me/view") {
 		// The /me profile projection: "Profile" → "MeProfile", "Organization" → "MeOrganization" (a
 		// readable, collision-free name distinct from a future top-level organizations resource).
@@ -153,6 +162,14 @@ func operationPrefix(pkg string) string {
 		return "GetUser"
 	case strings.Contains(pkg, "/users/list"):
 		return "ListUsers"
+	case strings.Contains(pkg, "/connectors/create"):
+		return "CreateConnector"
+	case strings.Contains(pkg, "/connectors/list"):
+		return "ListConnectors"
+	case strings.Contains(pkg, "/connectors/update"):
+		return "ReplaceConnectorCredential"
+	case strings.Contains(pkg, "/connectors/removal"):
+		return "DeleteConnector"
 	case strings.HasSuffix(pkg, "/ping"):
 		return "Ping"
 	default:

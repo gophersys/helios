@@ -150,6 +150,9 @@
   {theme}
   loadConfigs={() => client.listAgentConfigs()}
   saveConfig={(agentType, body) => client.saveAgentConfig(agentType, body)}
+  loadConnectors={() => client.listConnectors()}
+  connectProvider={(kind, credential, scope) => client.connectConnector(kind, credential, scope)}
+  disconnectConnector={(id) => client.deleteConnector(id)}
   gatewayHealthy={healthy}
   platformSignedIn={currentUser.signedIn}
   gatewayLabel={gatewayUrl}

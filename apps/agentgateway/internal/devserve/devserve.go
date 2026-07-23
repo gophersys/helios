@@ -151,6 +151,10 @@ func BuildDevGateway(configuration Config) (*gateway.Gateway, error) {
 			Audit:       newInMemoryAuditStore(),
 			// The Settings → Agents per-agent-type config seam: an in-memory fake.
 			AgentConfigs: newInMemoryAgentConfigStore(),
+			// The Settings → Connectors user-secrets seam: an in-memory fake (never holds a plaintext
+			// value — only the one-way fingerprint), so the write-only connectors section is exercised
+			// by the same E2E the live demo runs (design §2 wire shape).
+			Connectors: newInMemoryConnectorStore(),
 		},
 	)
 	if err != nil {

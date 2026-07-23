@@ -6,6 +6,12 @@
 
 import type { Report } from '@eden/visualization';
 import type {
+  ConnectorKind,
+  ConnectorView,
+  ListConnectorsResponse,
+  ScopeInput,
+} from '$lib/settings/connectors/connectors';
+import type {
   AgentConfigView,
   AgentView,
   ControlResponse,
@@ -249,6 +255,44 @@ export class GatewayClient {
     return envelope.data;
   }
 
+  // ── Connectors (the user-secrets manager, design §2) ─────────────────────────────────────────.
+  // The connector surface is served by the dev-serve's in-memory connector fake here (mirroring the
+  // agent-config fake) so the e2e drives the REAL create→save→list→delete flow over a real backend,
+  // not a page.route stub. In production this seam points at platformgateway's /v1/connectors
+  // (Brief A); the WIRE SHAPE is identical (§2 ConnectorView never carries the value). The credential
+  // crosses `connectProvider` exactly ONCE; every read returns fingerprint + accountHint only.
+
+  /** GET /connectors — the caller-org connectors (never a value; the §2 view shape). Enveloped;
+   *  unwraps `.data.connectors`. */
+  async listConnectors(): Promise<ConnectorView[]> {
+    const envelope = await this.requestJSON<Envelope<ListConnectorsResponse>>('GET', '/connectors');
+    return envelope.data.connectors;
+  }
+
+  /** POST /connectors — connect a provider. The plaintext credential crosses HERE, exactly once
+   *  (the ONLY path it travels). Enveloped; unwraps `.data` (the stored ConnectorView — fingerprint
+   *  + accountHint only, NEVER the value). */
+  async connectConnector(
+    kind: ConnectorKind,
+    credential: string,
+    scope: ScopeInput,
+  ): Promise<ConnectorView> {
+    const envelope = await this.requestJSON<Envelope<ConnectorView>>('POST', '/connectors', {
+      kind,
+      // The §2 create body field is `value` (the plaintext, crosses once). `name` defaults to the
+      // provider label server-side when omitted.
+      value: credential,
+      scope,
+    });
+    return envelope.data;
+  }
+
+  /** DELETE /connectors/{id} — revoke (disconnect) a connector. Answers 204 with NO body, so this
+   *  uses the void request path (never parses an empty body — that would throw). */
+  async deleteConnector(id: string): Promise<void> {
+    await this.requestVoid('DELETE', `/connectors/${encodeURIComponent(id)}`);
+  }
+
   /** GET /sessions — the project-scoped session list. `active` narrows to live sessions. */
   async listSessions(options: { active?: boolean; cursor?: string } = {}): Promise<ListResponse> {
     const query = new URLSearchParams({
@@ -332,6 +376,24 @@ export class GatewayClient {
       `/sessions/${encodeURIComponent(id)}/control`,
       body,
     );
+  }
+
+  /** requestVoid issues one request expecting NO response body (a 204 revoke). It throws a typed
+   *  GatewayError on a non-2xx, but never parses the (empty) body. */
+  private async requestVoid(method: string, path: string, body?: unknown): Promise<void> {
+    let response: Response;
+    try {
+      response = await fetch(this.url(path), {
+        method,
+        headers: body !== undefined ? { 'content-type': 'application/json' } : undefined,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (cause) {
+      throw new GatewayError('unavailable', `gateway unreachable: ${String(cause)}`, 0);
+    }
+    if (!response.ok) {
+      throw await this.toError(response);
+    }
   }
 
   /** requestJSON issues one request and decodes the JSON body, or throws a typed GatewayError

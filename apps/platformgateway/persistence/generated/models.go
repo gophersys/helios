@@ -18,6 +18,28 @@ type Account struct {
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
+type Connector struct {
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	Kind           string             `json:"kind"`
+	Name           string             `json:"name"`
+	AccountHint    string             `json:"account_hint"`
+	Fingerprint    string             `json:"fingerprint"`
+	CreatedBy      pgtype.UUID        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ConnectorSecret struct {
+	ConnectorID     pgtype.UUID `json:"connector_id"`
+	Ciphertext      []byte      `json:"ciphertext"`
+	WrappedDek      []byte      `json:"wrapped_dek"`
+	NonceCiphertext []byte      `json:"nonce_ciphertext"`
+	NonceDek        []byte      `json:"nonce_dek"`
+	KekVersion      int32       `json:"kek_version"`
+}
+
 type Organization struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`

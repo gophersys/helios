@@ -51,6 +51,11 @@ architecture/bootstrap phase (no production code yet; the kernel is the first bu
   `infrastructure/platform/core/secrets-operator/` +
   `infrastructure/platform/services/gitops/registry/app-external-secrets.yaml` (the ESO/bridge
   wiring) and `infrastructure/docs/secrets-guide.md` + `infrastructure/docs/runtime-secrets.md`.
+- **User connectors (per-user/org secrets):** a user's third-party credentials (`claude-api`,
+  `github`, `openrouter`) live in the `platformgateway` **connectors** domain, envelope-encrypted in
+  Postgres (`libs/go/envelope` seals a per-secret DEK under a platform-Vault KEK); the value is
+  write-once, never read back, never in git. Agents resolve one via the `eden://connector/<id>`
+  scheme behind the frozen `secrets.Provider`. See ADR-0029 + `docs/architecture/19-connectors-and-user-secrets.md`.
 
 ## Devcontainer-first + harness versions
 

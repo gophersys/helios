@@ -52,6 +52,15 @@ const (
 	defaultMembershipIDFallback     = "00000000-0000-0000-0000-00000000003b" // "mb" (member) — the default membership.
 )
 
+// defaultConnectorsKEKRefFallback is the platform-Vault reference the envelope KEK resolves from when
+// EDEN_GATEWAY_CONNECTORS_KEK_REF is unset — the same Vault (Plane 2) the JWT signing key lives in,
+// minted only-if-absent by the seed Job (ADR-0029). #nosec G101 -- a secrets.Reference URI (loggable),
+// never a secret value.
+const defaultConnectorsKEKRefFallback = "vault://eden/production#connectors-kek" // #nosec G101
+
+// defaultConnectorsKEKVersionFallback is the KEK generation new seals record when unset (ADR-0029 §rotation).
+const defaultConnectorsKEKVersionFallback = 1
+
 // Environment is the parsed, fully-resolved process environment (the configuration pattern: read
 // ONCE at the edge). A missing REQUIRED value is a typed startup error, not a silent default. The
 // libraries downstream read no env of their own — everything arrives through this value.
@@ -77,6 +86,9 @@ type Environment struct {
 	DefaultOrganizationName string    // EDEN_PLATFORM_DEFAULT_ORG_NAME — the seeded default organization's display name.
 	AdminPermissionSetID    uuid.UUID // EDEN_PLATFORM_ADMIN_PERMISSION_SET_ID — the seeded admin permission set's stable id.
 	DefaultMembershipID     uuid.UUID // EDEN_PLATFORM_DEFAULT_MEMBERSHIP_ID — the seeded default membership's stable id.
+
+	ConnectorsKEKRef     secrets.Reference // EDEN_GATEWAY_CONNECTORS_KEK_REF — the secrets Reference the envelope KEK resolves from (default vault://eden/production#connectors-kek, ADR-0029).
+	ConnectorsKEKVersion int               // EDEN_GATEWAY_CONNECTORS_KEK_VERSION — the KEK generation new seals record (default 1).
 
 	RateLimit       int           // EDEN_GATEWAY_RATE_LIMIT — per-client request budget per window; 0 → unlimited.
 	RateLimitWindow time.Duration // EDEN_GATEWAY_RATE_LIMIT_WINDOW — the rolling window the budget is measured over.
@@ -134,6 +146,24 @@ func loadEnvironment() (Environment, error) {
 		}
 	}
 
+	// The envelope KEK reference for the connectors domain (ADR-0029): a secrets Reference (loggable;
+	// the KEK value resolves through the platform Vault at seal/unseal time), defaulting to the
+	// only-if-absent-minted vault://eden/production#connectors-kek. The version new seals record
+	// defaults to 1.
+	kekRef, err := secrets.ParseReference(getenvOr("EDEN_GATEWAY_CONNECTORS_KEK_REF", defaultConnectorsKEKRefFallback))
+	if err != nil {
+		return Environment{}, errors.Wrap(errors.KindInvalid, "gateway: parse EDEN_GATEWAY_CONNECTORS_KEK_REF", err)
+	}
+	kekVersion := defaultConnectorsKEKVersionFallback
+	if raw := os.Getenv("EDEN_GATEWAY_CONNECTORS_KEK_VERSION"); raw != "" {
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || parsed < 1 {
+			return Environment{}, errors.New(errors.KindInvalid,
+				"gateway: EDEN_GATEWAY_CONNECTORS_KEK_VERSION must be a positive integer")
+		}
+		kekVersion = parsed
+	}
+
 	rateLimit, err := parseNonNegativeInt("EDEN_GATEWAY_RATE_LIMIT")
 	if err != nil {
 		return Environment{}, err
@@ -174,6 +204,9 @@ func loadEnvironment() (Environment, error) {
 		DefaultOrganizationName: getenvOr("EDEN_PLATFORM_DEFAULT_ORG_NAME", defaultOrganizationNameFallback),
 		AdminPermissionSetID:    ids.adminPermissionSet,
 		DefaultMembershipID:     ids.membership,
+
+		ConnectorsKEKRef:     kekRef,
+		ConnectorsKEKVersion: kekVersion,
 
 		RateLimit:       rateLimit,
 		RateLimitWindow: rateWindow,

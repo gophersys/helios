@@ -103,6 +103,135 @@ paths:
                 $ref: "#/components/schemas/Envelope_MeProfile"
         "401":
           description: Missing or invalid bearer token (the gateway is behind auth even locally).
+  /connectors:
+    post:
+      operationId: createConnector
+      summary: "Create a connector (upload a third-party credential — the value crosses ONCE)."
+      description: "Requires the `connectors:write` grant. The credential value crosses this seam exactly once; it is envelope-encrypted at rest and NEVER returned. The 201 response carries only the connector metadata (kind, name, scope, fingerprint, accountHint) — never the value."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConnectorRequest"
+      responses:
+        "201":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_ConnectorView"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `connectors:write` grant.
+    get:
+      operationId: listConnectors
+      summary: "List the caller's org connectors (paginated, oldest-first). Never the value."
+      description: "Requires the `connectors:read` grant. Returns the caller's ORGANIZATION's connectors only (tenant-scoped); never a credential value."
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: "Page size (default 50, max 200)."
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          required: false
+          description: "Page offset (0-based)."
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_ListConnectorsPayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `connectors:read` grant.
+  /connectors/{id}:
+    get:
+      operationId: getConnector
+      summary: "Get a connector by id (tenant-scoped). Never the value."
+      description: "Requires the `connectors:read` grant. A connector owned by another org is a 404 (never a cross-tenant leak); never returns a credential value."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The connector id (a uuid)."
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_ConnectorView"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `connectors:read` grant.
+        "404":
+          description: The resource does not exist.
+    put:
+      operationId: replaceConnectorCredential
+      summary: "Replace a connector's credential (rotation). The value crosses ONCE."
+      description: "Requires the `connectors:write` grant. The new credential value crosses once and is re-sealed under a fresh key; the response carries only metadata, never the value. Tenant-scoped (another org's connector is a 404)."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The connector id (a uuid)."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceConnectorCredentialRequest"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_ConnectorView"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `connectors:write` grant.
+        "404":
+          description: The resource does not exist.
+    delete:
+      operationId: deleteConnector
+      summary: "Revoke a connector by id (tenant-scoped)."
+      description: "Requires the `connectors:write` grant. Revoking purges the sealed material atomically. A delete of an absent/other-org connector is a 404 (never a silent success)."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The connector id (a uuid)."
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_DeleteConnectorPayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `connectors:write` grant.
+        "404":
+          description: The resource does not exist.
 components:
   securitySchemes:
     bearerAuth:
@@ -110,6 +239,103 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    ConnectorScope:
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: string
+        targetId:
+          type: string
+    ConnectorScopeInput:
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: string
+        targetId:
+          type: string
+    ConnectorView:
+      type: object
+      required: [accountHint, createdAt, fingerprint, id, kind, name, scope, state, updatedAt]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        scope:
+          $ref: "#/components/schemas/ConnectorScope"
+        state:
+          type: string
+        accountHint:
+          type: string
+        fingerprint:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    CreateConnectorRequest:
+      type: object
+      required: [kind, name, scope, value]
+      properties:
+        kind:
+          type: string
+        name:
+          type: string
+        value:
+          type: string
+        accountHint:
+          type: string
+        scope:
+          $ref: "#/components/schemas/ConnectorScopeInput"
+    DeleteConnectorPayload:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+    Envelope_ConnectorView:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/ConnectorView"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_DeleteConnectorPayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/DeleteConnectorPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_ListConnectorsPayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/ListConnectorsPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
     Envelope_ListUsersPayload:
       type: object
       description: "The uniform edenhttp success Envelope wrapping the resource payload."
@@ -162,6 +388,20 @@ components:
             type: string
         kind:
           type: string
+    ListConnectorsPayload:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorView"
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32
     ListUsersPayload:
       type: object
       required: [items, limit, offset]
@@ -215,6 +455,14 @@ components:
         subject:
           type: string
         observedAt:
+          type: string
+    ReplaceConnectorCredentialRequest:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+        accountHint:
           type: string
     User:
       type: object

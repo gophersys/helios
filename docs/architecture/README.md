@@ -65,6 +65,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 16 | [Application template system](16-application-template-system.md) | Templates in `libs/templates/` (ADR-0026 folds them into libs); sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
 | 17 | [Design language](17-design-language.md) | The Eden UI ruling: tokens, atomic hierarchy, information architecture, motion, the one-shell ruling, wizard/settings/theming patterns (grounds the ADR-0024 UI track) | Draft |
 | 18 | [Release and home deploy](18-release-and-home-deploy.md) | The stable-release runbook: the one-verb cut, `release.yml` job-by-job, digest-pin GitOps promotion → Argo, the backing-stack prerequisites, verification, the six pipeline lessons, demo-vs-release (ADR-0028) | Accepted |
+| 19 | [Connectors and user secret material](19-connectors-and-user-secrets.md) | The `platformgateway` `connectors` domain: per-user/org third-party credentials, envelope-encrypted in Postgres (`envelope` leaf lib, platform-Vault KEK), the write-once/fingerprint-only API, the `eden://connector/<id>` agent-resolution seam (ADR-0029) | Accepted |
 | — | [Open decisions](open-decisions.md) | Register of unruled items | Living |
 | — | [adr/](adr/) | Decision records (ADR-0001…) | Living |
 | — | [contracts/](contracts/README.md) | WS1 contract negotiation drafts (not frozen) | Drafts |
@@ -81,7 +82,7 @@ foundation, the research note
 `@eden/theme` proportion/color/contrast/motion/density math), and its interface ruling **doc 17**
 (the Eden design language — tokens, atomic hierarchy, IA, the one-shell ruling). Read all three when
 working on `libs/typescript/`. *(The canonical `NN-` series still skips 15 — a deliberate gap; the
-next unused slot is 19.)*
+next unused slot is 20.)*
 
 ## 3. Epistemic legend (mandatory on claims — build-system invariant I12)
 

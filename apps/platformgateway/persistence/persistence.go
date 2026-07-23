@@ -55,6 +55,7 @@ type Persistence struct {
 	users         *Users
 	rbac          *RBAC
 	accounts      *Accounts
+	connectors    *Connectors
 	observability observability.Provider
 }
 
@@ -119,6 +120,7 @@ func New(ctx context.Context, configuration Configuration, dependencies Dependen
 		users:         &Users{queries: queries},
 		rbac:          &RBAC{queries: queries},
 		accounts:      &Accounts{queries: queries},
+		connectors:    &Connectors{pool: pool, queries: queries},
 		observability: dependencies.Observability,
 	}, nil
 }
@@ -138,6 +140,12 @@ func (p *Persistence) RBAC() *RBAC { return p.rbac }
 // read by (provider, provider_account_id) (maps pgx's not-found to a typed errors.KindNotFound) and the
 // idempotent find-or-create seed — the OAuth-ready authentication seam.
 func (p *Persistence) Accounts() *Accounts { return p.accounts }
+
+// Connectors returns the typed connector store the /v1/connectors routes call (accept-interfaces,
+// return-concrete — a usable store, not another port). It owns the envelope-sealed user-credential
+// storage (two-write create/replace in one transaction), the tenant-scoped reads, and the pgx-not-found
+// → KindNotFound / unique-violation → KindConflict mappings (ADR-0029, doc 19).
+func (p *Persistence) Connectors() *Connectors { return p.connectors }
 
 // Close releases the pool. Idempotent: a second Close is a no-op (a nil pool short-circuits), so the
 // composition root may defer it unconditionally. It logs the close on the observability stream.

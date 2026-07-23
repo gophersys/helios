@@ -13,8 +13,10 @@ package v1
 import (
 	"net/http"
 
+	"github.com/gophersys/libs/go/envelope"
 	"github.com/gophersys/libs/go/observability"
 
+	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/ping"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users"
@@ -34,6 +36,17 @@ type Deps struct {
 	// RBAC is the typed RBAC store the `me` route reads memberships through (the me.MembershipReader
 	// port; *persistence.RBAC satisfies it). Nil → the me route is not mounted (no-DB boot).
 	RBAC me.MembershipReader
+	// Connectors is the typed connector store the `connectors` routes' execute stages call (the
+	// consumer-defined connectors.Store port; *persistence.Connectors satisfies it). Nil → the
+	// connectors routes are not mounted (no-DB boot, or no envelope Sealer wired — ADR-0029).
+	Connectors connectors.Store
+	// Tenants resolves the caller's owning organization for every connectors query (the tenancy key;
+	// connectors.TenantResolver port). Nil → the connectors routes are not mounted.
+	Tenants connectors.TenantResolver
+	// Sealer is the envelope-encryption port the connectors create/update stages seal a credential
+	// with (the KEK resolved from the platform Vault at composition). Nil → the connectors routes are
+	// not mounted (there is nothing to seal credentials with — a hard requirement, ADR-0029).
+	Sealer envelope.Sealer
 }
 
 // Mount registers every v1 resource's routes onto mux. Each resource owns a Register that mounts its
@@ -49,5 +62,11 @@ func Mount(mux *http.ServeMux, dependencies Deps) {
 		if dependencies.RBAC != nil {
 			me.Register(mux, dependencies.Users, dependencies.RBAC, dependencies.Observability)
 		}
+	}
+	// The connectors routes mount only when the store, the tenant resolver, AND the envelope Sealer
+	// are all wired — a connector cannot be sealed without the Sealer, so the resource is absent
+	// rather than half-wired (ADR-0029).
+	if dependencies.Connectors != nil && dependencies.Tenants != nil && dependencies.Sealer != nil {
+		connectors.Register(mux, dependencies.Connectors, dependencies.Tenants, dependencies.Sealer, dependencies.Observability)
 	}
 }

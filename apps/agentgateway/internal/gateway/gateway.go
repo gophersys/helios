@@ -230,6 +230,13 @@ type Deps struct {
 	// Postgres adapter in liveserve, in-memory fake in devserve.
 	AgentConfigs AgentConfigStore
 
+	// Connectors is the user-secrets manager seam the Settings → Connectors section (GET/POST/DELETE
+	// /connectors) reads and writes. OPTIONAL — when nil those routes are a 503. The CANONICAL home is
+	// platformgateway's envelope-encrypted /v1/connectors (design §2); this dev seam is the faithful
+	// in-memory counterpart (the same real-vs-fake mirror AgentConfigs uses) so the Settings section is
+	// exercised by the same E2E the live demo runs. A connector NEVER carries a plaintext value.
+	Connectors ConnectorStore
+
 	// ProjectCreator is the DB-first create-saga the POST /projects handler kicks (async) after writing
 	// the DRAFT row. OPTIONAL — when nil, POST /projects persists the project WITHOUT provisioning (the
 	// pre-saga behavior). The live root binds it to a projectcreate.Saga over real forge/git/orchestrator

@@ -109,3 +109,49 @@ CREATE TABLE IF NOT EXISTS accounts (
     -- find-or-create seed's ON CONFLICT targets, so a re-seed on every boot is a safe no-op.
     UNIQUE (provider, provider_account_id)
 );
+
+-- User/org connectors (migration 0004), Eden's per-user third-party credential manager (ADR-0029,
+-- doc 19). A connector is a user's Claude API token / GitHub token / OpenRouter key that an agent
+-- session resolves and uses. The value is NEVER stored here in plaintext: the `connectors` row holds
+-- only the loggable metadata (kind, name, scope, account_hint, fingerprint), and the sealed material
+-- lives in a SEPARATE `connector_secrets` table so a list query never SELECTs ciphertext. The sealed
+-- columns are the libs/go/envelope Sealed record. A connector is ORG-scoped by default (user_id NULL);
+-- a per-user connector sets user_id. Every query filters WHERE organization_id = $callerOrg — the
+-- cross-tenant isolation invariant.
+
+CREATE TABLE IF NOT EXISTS connectors (
+    -- id is the server-minted primary key (uuid); the create route generates it (no database default).
+    id              uuid        PRIMARY KEY,
+    -- organization_id is the tenancy key every query filters on (WHERE organization_id = $callerOrg).
+    organization_id uuid        NOT NULL REFERENCES organizations (id),
+    -- user_id is the owning user for a USER-scoped connector; NULL means ORG-scoped (the default).
+    user_id         uuid        REFERENCES users (id),
+    -- kind is the closed v1 connector kind: 'claude-api' | 'github' | 'openrouter' (honest chrome).
+    kind            text        NOT NULL,
+    -- name is the connector's human label (shown in the Connectors settings row).
+    name            text        NOT NULL,
+    -- account_hint is a NON-secret display crumb (an account handle / masked email); never the value.
+    account_hint    text        NOT NULL DEFAULT '',
+    -- fingerprint is a one-way truncated SHA-256 of the credential (envelope.Fingerprint) — safe to
+    -- store and show, used only for the UI's write-only display and change-detection. Never the value.
+    fingerprint     text        NOT NULL,
+    -- created_by is the user who created the connector (the audit actor).
+    created_by      uuid        NOT NULL REFERENCES users (id),
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    -- A connector is single-valued per (org, kind, name): a re-create conflicts here → 409.
+    UNIQUE (organization_id, kind, name)
+);
+
+CREATE TABLE IF NOT EXISTS connector_secrets (
+    -- connector_id is the 1:1 owning connector; ON DELETE CASCADE purges the sealed material on revoke.
+    connector_id     uuid    PRIMARY KEY REFERENCES connectors (id) ON DELETE CASCADE,
+    -- ciphertext is AES-256-GCM(DEK, credential); wrapped_dek is AES-256-GCM(KEK, DEK).
+    ciphertext       bytea   NOT NULL,
+    wrapped_dek      bytea   NOT NULL,
+    -- the two 12-byte GCM nonces (one per AEAD layer).
+    nonce_ciphertext bytea   NOT NULL,
+    nonce_dek        bytea   NOT NULL,
+    -- kek_version is the KEK generation that wrapped the DEK (rotation coexistence).
+    kek_version      integer NOT NULL
+);

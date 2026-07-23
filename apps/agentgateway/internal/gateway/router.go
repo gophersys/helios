@@ -30,6 +30,9 @@ import (
 //	GET    /projects/{id}/insight            codeinsight Report over the project's worktree (self-feeding)
 //	GET    /agent-configs                    list the saved per-agent-type configurations (Settings)
 //	PUT    /agent-configs/{agentType}        upsert one agent type's configuration
+//	GET    /connectors                       list the caller's connectors (Settings → Connectors; never a value)
+//	POST   /connectors                       connect a provider (the credential crosses ONCE) -> write-only
+//	DELETE /connectors/{id}                  disconnect (revoke) a connector
 //	GET    /healthz                          liveness
 func (g *Gateway) routes() *http.ServeMux {
 	mux := http.NewServeMux()
@@ -41,6 +44,9 @@ func (g *Gateway) routes() *http.ServeMux {
 	mux.HandleFunc("GET /projects/{id}/insight", g.handleProjectInsight)
 	mux.HandleFunc("GET /agent-configs", g.handleListAgentConfigs)
 	mux.HandleFunc("PUT /agent-configs/{agentType}", g.handlePutAgentConfig)
+	mux.HandleFunc("GET /connectors", g.handleListConnectors)
+	mux.HandleFunc("POST /connectors", g.handleCreateConnector)
+	mux.HandleFunc("DELETE /connectors/{id}", g.handleDeleteConnector)
 	mux.HandleFunc("POST /sessions", g.handleCreateSession)
 	mux.HandleFunc("GET /sessions", g.handleListSessions)
 	mux.HandleFunc("GET /sessions/{id}", g.handleGetSession)

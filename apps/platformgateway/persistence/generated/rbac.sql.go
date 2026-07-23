@@ -29,8 +29,7 @@ type EnsureMembershipParams struct {
 // keys on the UNIQUE (organization_id, user_id) pair, so re-seeding the same user in the same org is a
 // no-op (the user's existing role/permission set is left untouched).
 func (q *Queries) EnsureMembership(ctx context.Context, arg EnsureMembershipParams) error {
-	_, err := q.db.Exec(
-		ctx, ensureMembership,
+	_, err := q.db.Exec(ctx, ensureMembership,
 		arg.ID,
 		arg.OrganizationID,
 		arg.UserID,
@@ -85,8 +84,7 @@ type EnsurePermissionSetParams struct {
 // The idempotent seed of an org-level permission set (e.g. the admin set with permissions {*}). ON
 // CONFLICT on the fixed id makes a re-run a no-op.
 func (q *Queries) EnsurePermissionSet(ctx context.Context, arg EnsurePermissionSetParams) error {
-	_, err := q.db.Exec(
-		ctx, ensurePermissionSet,
+	_, err := q.db.Exec(ctx, ensurePermissionSet,
 		arg.ID,
 		arg.OrganizationID,
 		arg.Name,

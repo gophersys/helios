@@ -23,6 +23,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/gophersys/libs/go/agentsession v0.0.0 // indirect
 	github.com/gophersys/libs/go/dependencies v0.0.0 // indirect
+	github.com/gophersys/libs/go/envelope v0.0.0
 	github.com/gophersys/libs/go/workspaceprovider v0.0.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -46,3 +47,4 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 )
 
+replace github.com/gophersys/libs/go/envelope v0.0.0 => ../../libs/go/envelope

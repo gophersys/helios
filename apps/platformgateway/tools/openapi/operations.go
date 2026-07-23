@@ -17,6 +17,11 @@ package main
 import (
 	"reflect"
 
+	createconnectorroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors/create"
+	getconnectorroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors/get"
+	listconnectorroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors/list"
+	removalconnectorroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors/removal"
+	updateconnectorroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors/update"
 	meroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	pingroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/ping"
 	getroute "github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users/get"
@@ -115,5 +120,71 @@ func operations() []operation {
 			successStatus: 200,
 			responseType:  reflect.TypeOf(meroute.Response{}),
 		},
+		{
+			method:        "POST",
+			path:          "/connectors",
+			operationID:   "createConnector",
+			summary:       "Create a connector (upload a third-party credential — the value crosses ONCE).",
+			description:   "Requires the `connectors:write` grant. The credential value crosses this seam exactly once; it is envelope-encrypted at rest and NEVER returned. The 201 response carries only the connector metadata (kind, name, scope, fingerprint, accountHint) — never the value.",
+			grant:         "connectors:write",
+			successStatus: 201,
+			requestType:   reflect.TypeOf(createconnectorroute.Request{}),
+			responseType:  reflect.TypeOf(createconnectorroute.Response{}),
+		},
+		{
+			method:        "GET",
+			path:          "/connectors",
+			operationID:   "listConnectors",
+			summary:       "List the caller's org connectors (paginated, oldest-first). Never the value.",
+			description:   "Requires the `connectors:read` grant. Returns the caller's ORGANIZATION's connectors only (tenant-scoped); never a credential value.",
+			grant:         "connectors:read",
+			successStatus: 200,
+			responseType:  reflect.TypeOf(listconnectorroute.Response{}),
+			queryParams: []parameter{
+				{name: "limit", required: false, schemaType: "integer", description: "Page size (default 50, max 200)."},
+				{name: "offset", required: false, schemaType: "integer", description: "Page offset (0-based)."},
+			},
+		},
+		{
+			method:        "GET",
+			path:          "/connectors/{id}",
+			operationID:   "getConnector",
+			summary:       "Get a connector by id (tenant-scoped). Never the value.",
+			description:   "Requires the `connectors:read` grant. A connector owned by another org is a 404 (never a cross-tenant leak); never returns a credential value.",
+			grant:         "connectors:read",
+			successStatus: 200,
+			responseType:  reflect.TypeOf(getconnectorroute.Response{}),
+			pathParams:    []parameter{connectorIDPathParam},
+		},
+		{
+			method:        "PUT",
+			path:          "/connectors/{id}",
+			operationID:   "replaceConnectorCredential",
+			summary:       "Replace a connector's credential (rotation). The value crosses ONCE.",
+			description:   "Requires the `connectors:write` grant. The new credential value crosses once and is re-sealed under a fresh key; the response carries only metadata, never the value. Tenant-scoped (another org's connector is a 404).",
+			grant:         "connectors:write",
+			successStatus: 200,
+			requestType:   reflect.TypeOf(updateconnectorroute.Request{}),
+			responseType:  reflect.TypeOf(updateconnectorroute.Response{}),
+			pathParams:    []parameter{connectorIDPathParam},
+		},
+		{
+			method:        "DELETE",
+			path:          "/connectors/{id}",
+			operationID:   "deleteConnector",
+			summary:       "Revoke a connector by id (tenant-scoped).",
+			description:   "Requires the `connectors:write` grant. Revoking purges the sealed material atomically. A delete of an absent/other-org connector is a 404 (never a silent success).",
+			grant:         "connectors:write",
+			successStatus: 200,
+			responseType:  reflect.TypeOf(removalconnectorroute.Response{}),
+			pathParams:    []parameter{connectorIDPathParam},
+		},
 	}
+}
+
+// connectorIDPathParam is the {id} path parameter the connectors get/update/removal routes use —
+// declared once (one home).
+var connectorIDPathParam = parameter{
+	name: "id", required: true, schemaType: "string",
+	description: "The connector id (a uuid).",
 }

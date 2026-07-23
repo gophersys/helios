@@ -9,6 +9,8 @@
   //   • Appearance   — theme light/dark/system driving the REAL themePreference store (live retheme).
   //   • Agents       — the existing per-agent-type config cards (GET/PUT /agent-configs), with the
   //                    EXACT testids + PUT wire shape the e2e pins ({model, toolGrants[], sandboxPosture}).
+  //   • Connectors   — the user-secrets manager (design §3): a write-only connector list + add flow.
+  //                    The credential crosses connectProvider ONCE; a row shows only fingerprint/hint.
   //   • Connections  — the gateway/platform endpoint status, read-only + honest (real health, no fake
   //                    controls per P-D6).
   //
@@ -23,6 +25,8 @@
   import { AGENT_TYPES, type AgentTypeDescriptor } from '$lib/workspace/agentWorkspace';
   import { currentUser } from '$lib/platform/currentUser.svelte';
   import { themePreference, type ThemePreference } from '$lib/theme/themePreference.svelte';
+  import ConnectorsSection from './connectors/ConnectorsSection.svelte';
+  import type { ConnectorKind, ConnectorView, ScopeInput } from './connectors/connectors';
 
   // The configuration seam is injected as callbacks (the host wires them to its GatewayClient), so this
   // component stays decoupled from the gateway value layer — the same seam the create flow uses. When
@@ -38,6 +42,9 @@
     theme,
     loadConfigs,
     saveConfig,
+    loadConnectors,
+    connectProvider,
+    disconnectConnector,
     gatewayHealthy = null,
     platformSignedIn = false,
     gatewayLabel = 'gateway',
@@ -48,6 +55,16 @@
     theme?: Theme;
     loadConfigs?: () => Promise<AgentConfigView[]>;
     saveConfig?: (agentType: string, body: SaveBody) => Promise<AgentConfigView>;
+    // The Connectors data seam (design §3.1), injected the same way as loadConfigs/saveConfig. The
+    // credential crosses connectProvider ONCE; a ConnectorView NEVER carries the value. Absent ⇒ the
+    // Connectors section degrades read-only (graceful, P-D6).
+    loadConnectors?: () => Promise<ConnectorView[]>;
+    connectProvider?: (
+      kind: ConnectorKind,
+      credential: string,
+      scope: ScopeInput,
+    ) => Promise<ConnectorView>;
+    disconnectConnector?: (id: string) => Promise<void>;
     gatewayHealthy?: boolean | null;
     platformSignedIn?: boolean;
     gatewayLabel?: string;
@@ -60,6 +77,9 @@
     { id: 'profile', label: 'Profile' },
     { id: 'appearance', label: 'Appearance' },
     { id: 'agents', label: 'Agents' },
+    // Connectors (design §3.1) — the user-secrets manager: connect Eden to the tools agents use.
+    // Sits after Agents, before the read-only Connections catch-all.
+    { id: 'connectors', label: 'Connectors' },
     { id: 'connections', label: 'Connections' },
   ];
 
@@ -371,6 +391,23 @@
             </li>
           {/each}
         </ul>
+      </section>
+    {:else if active === 'connectors'}
+      <!-- CONNECTORS — the user-secrets manager (design §3): the write-only connector list + add flow.
+           Sits ABOVE the Connections catch-all. The section content lives app-local under
+           settings/connectors/ (P-D7 promotion candidates), composing @eden/primitives only. -->
+      <section class="pane" data-testid="settings-panel-connectors">
+        <header class="pane__intro">
+          <h3 class="pane__title">Connectors</h3>
+          <p class="pane__subtitle">Connect Eden to the tools your agents use.</p>
+        </header>
+        <ConnectorsSection
+          {open}
+          {theme}
+          {loadConnectors}
+          {connectProvider}
+          {disconnectConnector}
+        />
       </section>
     {:else}
       <!-- CONNECTIONS — the real endpoint status, read-only + honest (P-D6: no fake controls). -->

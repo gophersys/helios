@@ -31,8 +31,7 @@ type EnsureAccountParams struct {
 // no-op (the existing account's hash is left untouched). It is the password-account seed AND the shape an
 // OAuth find-or-create would reuse (provider 'google'/'github', a NULL password_hash).
 func (q *Queries) EnsureAccount(ctx context.Context, arg EnsureAccountParams) error {
-	_, err := q.db.Exec(
-		ctx, ensureAccount,
+	_, err := q.db.Exec(ctx, ensureAccount,
 		arg.ID,
 		arg.UserID,
 		arg.Provider,

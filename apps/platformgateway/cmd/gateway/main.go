@@ -29,12 +29,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/gophersys/libs/go/envelope"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/observability/slogadapter"
 	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/vaultadapter"
 
+	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server"
@@ -140,6 +144,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	var accountStore login.AccountReader
 	var defaultUserProvider loginbootstrap.DefaultProvider
 	var defaultMembershipProvider loginbootstrap.MembershipProvider
+	var connectorStore connectors.Store
+	var tenantResolver connectors.TenantResolver
+	var connectorSealer envelope.Sealer
 	if !environment.PersistenceDSNRef.IsZero() {
 		dataStore, dataErr := persistence.New(
 			ctx,
@@ -169,6 +176,21 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		accountStore = dataStore.Accounts()
 		defaultUserProvider = usersFacade
 		defaultMembershipProvider = rbacFacade
+
+		// The connectors domain (ADR-0029): the envelope Sealer (KEK from the platform Vault via the
+		// same mediator the DSN/JWT resolve through) + the connector store + the tenant resolver over
+		// RBAC. All three are wired together or not at all — a credential cannot be stored without the
+		// Sealer, so the resource mounts only when the whole set is present.
+		sealer, sealerErr := envelope.New(
+			envelope.Config{KEK: environment.ConnectorsKEKRef, KEKVersion: environment.ConnectorsKEKVersion},
+			envelope.Deps{Secrets: mediator},
+		)
+		if sealerErr != nil {
+			return errors.Wrap(errors.KindInvalid, "gateway: build connectors envelope sealer", sealerErr)
+		}
+		connectorSealer = sealer
+		connectorStore = dataStore.Connectors()
+		tenantResolver = rbacTenantResolver{rbac: rbacFacade}
 	}
 
 	// 6. server.New — the pure constructor that assembles the edenhttp spine + the v1 routes, with
@@ -193,6 +215,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			Accounts:          accountStore,
 			DefaultUser:       defaultUserProvider,
 			DefaultMembership: defaultMembershipProvider,
+			Connectors:        connectorStore,
+			Tenants:           tenantResolver,
+			Sealer:            connectorSealer,
 		},
 	)
 	if err != nil {
@@ -271,6 +296,27 @@ func postgresProbe(dataStore *persistence.Persistence) healthcheck.NamedProbe {
 		},
 	}
 }
+
+// rbacTenantResolver adapts the *persistence.RBAC facade onto the connectors.TenantResolver port: it
+// resolves a caller (user id) to their owning organization id via MembershipFor. It is the
+// composition root's adaptation seam (the connectors routes depend on the narrow OrganizationFor
+// method, not the whole RBAC facade). A membership-less caller surfaces the facade's typed
+// KindNotFound, which the route renders as 404 (they own no connectors).
+type rbacTenantResolver struct {
+	rbac *persistence.RBAC
+}
+
+// OrganizationFor resolves the caller's owning organization id from their first/default membership.
+func (r rbacTenantResolver) OrganizationFor(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	membership, err := r.rbac.MembershipFor(ctx, userID)
+	if err != nil {
+		return uuid.UUID{}, errors.Wrap(errors.KindOf(err), "gateway: resolve caller organization", err)
+	}
+	return membership.OrganizationID, nil
+}
+
+// compile-time: the adapter satisfies the connectors tenant-resolution port.
+var _ connectors.TenantResolver = rbacTenantResolver{}
 
 // buildSecrets wires the secrets Mediator over the REAL Vault backend (the IOTEA way, mirroring
 // agent-runtime's composition). The mode is chosen by EDEN_VAULT_MODE: "token-file" (the

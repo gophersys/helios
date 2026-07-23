@@ -11,6 +11,27 @@ import (
 )
 
 type Querier interface {
+	// Queries for the user/org connector store (connectors + connector_secrets). sqlc emits one typed Go
+	// method per `-- name:` directive into ../../generated; the :one/:many/:exec suffix selects the return
+	// shape. These are the queries the connectors facade calls through the injected Querier (never string
+	// SQL). The value is NEVER read back: there is NO query that SELECTs the plaintext (there is no
+	// plaintext at rest); the sealed material (connector_secrets) is read only by the agent-resolution
+	// path, and the metadata reads NEVER touch connector_secrets so a list never SELECTs ciphertext.
+	//
+	// EVERY read/update/delete is TENANT-SCOPED: it carries `organization_id = $callerOrg` in its WHERE
+	// clause (ADR-0029 §2.3), so a caller in one org can never touch another org's connector — a
+	// cross-org id yields pgx.ErrNoRows, which the facade maps to a typed errors.KindNotFound (404).
+	// Insert a connector's metadata row and return it. The sealed material is inserted separately
+	// (CreateConnectorSecret) inside the same transaction. A (organization_id, kind, name) collision
+	// violates the UNIQUE constraint → pgx unique-violation, which the facade maps to KindConflict (409).
+	CreateConnector(ctx context.Context, arg CreateConnectorParams) (Connector, error)
+	// Insert the sealed material for a connector (the libs/go/envelope Sealed record). Written in the same
+	// transaction as CreateConnector so a connector never exists without its sealed secret.
+	CreateConnectorSecret(ctx context.Context, arg CreateConnectorSecretParams) error
+	// Revoke a connector by id, TENANT-SCOPED. The ON DELETE CASCADE on connector_secrets purges the
+	// sealed material atomically. RETURNING id makes a delete of an absent/other-org connector yield no
+	// row (pgx.ErrNoRows → KindNotFound, 404) — a delete is never a silent success.
+	DeleteConnector(ctx context.Context, arg DeleteConnectorParams) (pgtype.UUID, error)
 	// The idempotent find-or-create seed: plant the provider identity (with its linked user + optional
 	// password_hash) if absent, do nothing if the (provider, provider_account_id) pair already exists. ON
 	// CONFLICT keys on the UNIQUE (provider, provider_account_id) pair so a re-run on every boot is a safe
@@ -61,6 +82,10 @@ type Querier interface {
 	// (provider, provider_account_id) pair is UNIQUE, so this is a :one read; a missing pair is pgx.ErrNoRows
 	// (→ the facade's KindNotFound → a 401 the Authenticator renders, never revealing which half was wrong).
 	GetAccountByProvider(ctx context.Context, arg GetAccountByProviderParams) (Account, error)
+	// Read a single connector's metadata by id, TENANT-SCOPED. A row owned by another org is invisible
+	// (the organization_id predicate excludes it) → pgx.ErrNoRows → KindNotFound (404). Never SELECTs the
+	// sealed material.
+	GetConnector(ctx context.Context, arg GetConnectorParams) (Connector, error)
 	GetDefaultUser(ctx context.Context) (User, error)
 	// The membership read the /v1/me route and the login bootstrap project a profile from: the member row
 	// joined to its organization and permission set, returning the organization id+name, the role, and the
@@ -75,7 +100,18 @@ type Querier interface {
 	// A not-found is surfaced by the :one query returning pgx.ErrNoRows, which the persistence port maps
 	// to a typed errors.KindNotFound. Create/update/delete are deferred to a later backend piece.
 	GetUser(ctx context.Context, id pgtype.UUID) (User, error)
+	// List a page of the caller's org connectors, oldest-first, TENANT-SCOPED. Never SELECTs the sealed
+	// material. limit/offset are the validated pagination window.
+	ListConnectors(ctx context.Context, arg ListConnectorsParams) ([]Connector, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	// Re-seal a connector's credential (rotation/replace): update the account_hint + fingerprint + bump
+	// updated_at, TENANT-SCOPED. Returns the updated metadata row; a row owned by another org matches
+	// nothing → pgx.ErrNoRows → KindNotFound (404). The sealed material is replaced separately
+	// (ReplaceConnectorSecret) in the same transaction.
+	ReplaceConnectorCredential(ctx context.Context, arg ReplaceConnectorCredentialParams) (Connector, error)
+	// Replace the sealed material for an existing connector (the new Sealed record after a re-seal). Run
+	// in the same transaction as ReplaceConnectorCredential.
+	ReplaceConnectorSecret(ctx context.Context, arg ReplaceConnectorSecretParams) error
 }
 
 var _ Querier = (*Queries)(nil)

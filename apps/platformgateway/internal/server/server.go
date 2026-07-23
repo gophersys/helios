@@ -13,11 +13,13 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gophersys/libs/go/edenhttp"
+	"github.com/gophersys/libs/go/envelope"
 	"github.com/gophersys/libs/go/errors"
 	"github.com/gophersys/libs/go/observability"
 	"github.com/gophersys/libs/go/secrets"
 
 	apiv1 "github.com/gophersys/eden/apps/platformgateway/internal/api/v1"
+	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/connectors"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/me"
 	"github.com/gophersys/eden/apps/platformgateway/internal/api/v1/users"
 	"github.com/gophersys/eden/apps/platformgateway/internal/server/authlogin"
@@ -89,6 +91,16 @@ type Deps struct {
 	// boot) the spine authenticates but resolves no grants (every grant-bearing route is then 403). A
 	// test injects a fake resolver here to drive the DB-driven authz paths without a database.
 	GrantResolver identity.GrantResolver
+	// Connectors is the typed connector store the `connectors` routes call (connectors.Store port;
+	// *persistence.Connectors satisfies it). Nil → the connectors routes are not mounted (ADR-0029).
+	Connectors connectors.Store
+	// Tenants resolves the caller's owning organization for every connectors query (the tenancy key;
+	// connectors.TenantResolver port). Nil → the connectors routes are not mounted.
+	Tenants connectors.TenantResolver
+	// Sealer is the envelope-encryption port the connectors create/update stages seal credentials with
+	// (the KEK resolved from the platform Vault at composition). Nil → the connectors routes are not
+	// mounted (a credential cannot be stored without it, ADR-0029).
+	Sealer envelope.Sealer
 }
 
 // Server is the concrete value New returns (return-concrete): it owns the assembled http.Handler the
@@ -232,6 +244,9 @@ func route(configuration Config, spine *edenhttp.Spine, minter authlogin.TokenMi
 		Observability: dependencies.Observability,
 		Users:         dependencies.Users,
 		RBAC:          dependencies.RBAC,
+		Connectors:    dependencies.Connectors,
+		Tenants:       dependencies.Tenants,
+		Sealer:        dependencies.Sealer,
 	})
 	mux.Handle("/v1/", http.StripPrefix("/v1", spine.Middleware(apiMux)))
 
