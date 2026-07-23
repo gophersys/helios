@@ -108,22 +108,22 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .secret-field__digest {
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
     letter-spacing: 0.08em;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    color: var(--foreground, var(--color-on-surface));
   }
   .secret-field__hint-mono {
     font-family: var(--font-code, monospace);
     font-size: var(--font-size-label, 13px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
   .secret-field__hint {
     margin: 0;
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground, var(--color-outline));
   }
 </style>
