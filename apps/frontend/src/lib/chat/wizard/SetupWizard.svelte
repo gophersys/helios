@@ -492,14 +492,16 @@
   .btn {
     --accent: var(--color-primary);
     --on-accent: var(--color-on-primary);
-    --fg: var(--color-on-surface);
+    --fg: var(--foreground, var(--color-on-surface));
     --muted: var(
-      --eden-app-muted,
+      --muted-foreground,
       color-mix(in oklab, var(--color-on-surface) 62%, var(--color-surface))
     );
-    --panel-bg: var(--color-surface);
-    --panel-line: var(--color-outline);
-    --radius: var(--eden-app-radius, var(--space-2, 8px));
+    --panel-bg: var(--card, var(--color-surface));
+    --panel-line: var(--border, var(--color-outline));
+    --panel-input: var(--input, var(--color-outline));
+    --focus-ring: var(--ring, var(--color-primary));
+    --radius: var(--radius-md, var(--space-2, 8px));
     --micro: var(--font-size-caption, 12px);
     --warn: var(--color-warning);
   }
@@ -528,15 +530,18 @@
     flex-direction: column;
     gap: 0.6rem;
   }
+  /* Each stack toggle is a shadcn selectable Card — a --card fill, 1px --border, --radius-lg corners,
+     resting --shadow-xs; hover raises the --border-strong edge, the selected card rides the accent tint. */
   .stack {
     inline-size: 100%;
     display: flex;
     align-items: center;
     gap: 0.85rem;
     padding: 0.9rem 1rem;
-    border: 1.5px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.25);
-    background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--panel-bg);
+    box-shadow: var(--shadow-xs);
     color: var(--fg);
     cursor: pointer;
     text-align: start;
@@ -545,21 +550,23 @@
     transition:
       border-color var(--duration-short-3, 0.15s) var(--ease-standard, ease),
       background var(--duration-short-3, 0.15s) var(--ease-standard, ease),
+      box-shadow var(--duration-short-3, 0.15s) var(--ease-standard, ease),
       transform var(--duration-short-1, 0.08s) var(--ease-standard, ease);
   }
   .stack:hover {
-    border-color: color-mix(in oklab, var(--accent) 55%, var(--panel-line));
+    border-color: var(--border-strong, color-mix(in oklab, var(--accent) 55%, var(--panel-line)));
+    box-shadow: var(--shadow-sm);
   }
   .stack:active {
     transform: translateY(1px);
   }
   .stack:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
   .stack--on {
     border-color: var(--accent);
-    background: color-mix(in oklab, var(--accent) 12%, var(--panel-bg));
+    background: var(--accent-surface, color-mix(in oklab, var(--accent) 12%, var(--panel-bg)));
   }
   .stack__glyph {
     font-size: 1.3rem;
@@ -597,25 +604,29 @@
     flex-direction: column;
     gap: 0.5rem;
   }
+  /* Shadcn textarea — a 1px --input edge, --radius-lg corners, a --ring focus halo. */
   .brief {
     font: inherit;
     font-size: 1.05rem;
     padding: 0.9rem 1.1rem;
-    border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.25);
-    background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
+    border: 1px solid var(--panel-input);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--background, color-mix(in oklab, var(--fg) 2%, var(--panel-bg)));
     color: var(--fg);
     resize: vertical;
     line-height: 1.5;
     min-height: 7rem;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .brief::placeholder {
     color: color-mix(in oklab, var(--muted) 85%, transparent);
   }
   .brief:focus-visible {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 30%, transparent);
   }
   .brief__count {
     margin: 0;
@@ -659,10 +670,12 @@
     flex-direction: column;
     gap: 0.6rem;
   }
+  /* Each question is a shadcn Card — a --card fill, 1px --border, --radius-lg corners, --shadow-xs. */
   .question {
     border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.25);
-    background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
+    border-radius: var(--radius-lg, 14px);
+    background: var(--panel-bg);
+    box-shadow: var(--shadow-xs);
     padding: 0.85rem 1rem;
     display: flex;
     flex-direction: column;
@@ -686,8 +699,8 @@
   .question__answer {
     margin: 0;
     padding: 0.5rem 0.7rem;
-    border-radius: var(--radius);
-    background: color-mix(in oklab, var(--accent) 10%, var(--panel-bg));
+    border-radius: var(--radius-sm, 7px);
+    background: var(--accent-surface, color-mix(in oklab, var(--accent) 10%, var(--panel-bg)));
     color: var(--fg);
     line-height: 1.5;
   }
@@ -700,18 +713,21 @@
     font: inherit;
     font-size: 0.98rem;
     padding: 0.65rem 0.8rem;
-    border: 1px solid var(--panel-line);
-    border-radius: var(--radius);
-    background: var(--panel-bg);
+    border: 1px solid var(--panel-input);
+    border-radius: var(--radius-sm, 7px);
+    background: var(--background, var(--panel-bg));
     color: var(--fg);
     resize: vertical;
     line-height: 1.5;
     min-height: 3rem;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .qa__input:focus-visible {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 30%, transparent);
   }
   .qa__send {
     align-self: flex-end;
@@ -726,9 +742,9 @@
   .flow__error {
     margin: 0.6rem 0 0;
     padding: 0.5rem 0.8rem;
-    border-radius: var(--radius);
+    border-radius: var(--radius-md, 10px);
     color: var(--warn);
-    background: color-mix(in oklab, var(--warn) 12%, var(--panel-bg));
+    background: var(--warning-surface, color-mix(in oklab, var(--warn) 12%, var(--panel-bg)));
     border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent);
     font-size: 0.88rem;
   }
@@ -739,12 +755,14 @@
   .nav-spacer {
     flex: 1;
   }
+  /* Footer buttons in the shadcn vocabulary — the default is an "outline" button; the accent is the
+     solid --primary button with the --shadow-sm lift. */
   .btn {
     font: inherit;
     font-size: 0.95rem;
     font-weight: 600;
     padding: 0.65rem 1.2rem;
-    border-radius: calc(var(--radius) * 1.25);
+    border-radius: var(--radius-md, 10px);
     border: 1px solid var(--panel-line);
     background: var(--panel-bg);
     color: var(--fg);
@@ -752,16 +770,18 @@
     transition:
       border-color var(--duration-short-2, 0.12s) var(--ease-standard, ease),
       background var(--duration-short-2, 0.12s) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 0.12s) var(--ease-standard, ease),
       transform var(--duration-short-1, 0.08s) var(--ease-standard, ease);
   }
   .btn:hover:not(:disabled) {
-    border-color: var(--accent);
+    border-color: var(--border-strong, var(--accent));
+    background: var(--accent-surface, var(--panel-bg));
   }
   .btn:active:not(:disabled) {
     transform: translateY(1px);
   }
   .btn:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
   .btn:disabled {
@@ -772,6 +792,12 @@
     background: var(--accent);
     color: var(--on-accent);
     border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn--accent:hover:not(:disabled) {
+    filter: brightness(1.08);
+    background: var(--accent);
+    box-shadow: var(--shadow-md);
   }
 
   @keyframes setup-spin {

@@ -314,23 +314,28 @@
      the review cards) and the FOOTER buttons, bridging the generated @eden/theme role tokens to the
      --accent/--fg/--panel-* vocabulary this content reads — the same math-sourced bridge the app's
      overlays use. One hue source, no hand-set hex or px on a painted role. */
+  /* The local bridge now points at the SHADCN SKIN MAPPING (from +layout.svelte) — the same skin the
+     rest of the app rides. --radius seeds the shadcn --radius-md geometry; --line/--input/--ring the
+     shadcn hairline + focus vocabulary. */
   .spark-body,
   .review {
     --accent: var(--color-primary);
     --on-accent: var(--color-on-primary);
-    --fg: var(--color-on-surface);
+    --fg: var(--foreground, var(--color-on-surface));
     --muted: var(
-      --eden-app-muted,
+      --muted-foreground,
       color-mix(in oklab, var(--color-on-surface) 62%, var(--color-surface))
     );
-    --panel-bg: var(--color-surface);
-    --panel-line: var(--color-outline);
-    --radius: var(--eden-app-radius, var(--space-2, 8px));
+    --panel-bg: var(--card, var(--color-surface));
+    --panel-line: var(--border, var(--color-outline));
+    --panel-input: var(--input, var(--color-outline));
+    --focus-ring: var(--ring, var(--color-primary));
+    --radius: var(--radius-md, var(--space-2, 8px));
     --micro: var(--font-size-caption, 12px);
     --warn: var(--color-warning);
   }
 
-  /* ── SPARK input ── */
+  /* ── SPARK input ── the shadcn textarea: a 1px --input edge, --radius-lg corners, --ring focus halo. */
   .spark-body {
     display: flex;
     flex-direction: column;
@@ -340,24 +345,27 @@
     font: inherit;
     font-size: 1.2rem;
     padding: 1rem 1.15rem;
-    border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.5);
-    background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
+    border: 1px solid var(--panel-input);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--background, color-mix(in oklab, var(--fg) 2%, var(--panel-bg)));
     color: var(--fg);
     resize: vertical;
     line-height: 1.5;
     min-height: 7.5rem;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .spark::placeholder {
     color: color-mix(in oklab, var(--muted) 85%, transparent);
   }
   .spark:focus-visible {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 30%, transparent);
   }
 
-  /* ── REVIEW cards ── */
+  /* ── REVIEW cards ── shadcn Cards: a --card surface, 1px --border, --radius-lg corners, --shadow-xs. */
   .review {
     display: flex;
     flex-direction: column;
@@ -369,8 +377,9 @@
     gap: 0.6rem;
     padding: 1.1rem 1.2rem;
     border: 1px solid var(--panel-line);
-    border-radius: calc(var(--radius) * 1.5);
-    background: color-mix(in oklab, var(--fg) 2%, var(--panel-bg));
+    border-radius: var(--radius-lg, 14px);
+    background: var(--panel-bg);
+    box-shadow: var(--shadow-xs);
   }
   .card__caption {
     margin: 0;
@@ -399,8 +408,8 @@
   }
   .name:focus-visible {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 30%, transparent);
   }
   .summary {
     margin: 0;
@@ -460,15 +469,16 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+  /* Shadcn "outline" badges — a --surface-muted fill, a 1px --border, --radius-md corners. */
   .chip {
     display: inline-flex;
     align-items: center;
     padding: 0.4rem 0.75rem;
-    border-radius: 999px;
+    border-radius: var(--radius-md, 10px);
     font-size: 0.88rem;
     font-family: var(--font-code);
     border: 1px solid var(--panel-line);
-    background: color-mix(in oklab, var(--fg) 4%, var(--panel-bg));
+    background: var(--surface-muted, color-mix(in oklab, var(--fg) 4%, var(--panel-bg)));
     color: var(--fg);
   }
   .chip--language {
@@ -571,9 +581,9 @@
   .flow__error {
     margin: 0.2rem 0 0;
     padding: 0.5rem 0.8rem;
-    border-radius: var(--radius);
+    border-radius: var(--radius-md, 10px);
     color: var(--warn);
-    background: color-mix(in oklab, var(--warn) 12%, var(--panel-bg));
+    background: var(--warning-surface, color-mix(in oklab, var(--warn) 12%, var(--panel-bg)));
     border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent);
     font-size: 0.88rem;
   }
@@ -585,19 +595,21 @@
   .nav-spacer {
     flex: 1;
   }
+  /* Footer buttons in the shadcn vocabulary — the default is an "outline" button (--card fill,
+     1px --border, --radius-md); the accent is the solid --primary button with the --shadow-sm lift. */
   .btn {
     --accent: var(--color-primary);
     --on-accent: var(--color-on-primary);
-    --fg: var(--color-on-surface);
-    --panel-bg: var(--color-surface);
-    --panel-line: var(--color-outline);
-    --radius: var(--eden-app-radius, var(--space-2, 8px));
+    --fg: var(--foreground, var(--color-on-surface));
+    --panel-bg: var(--card, var(--color-surface));
+    --panel-line: var(--border, var(--color-outline));
+    --focus-ring: var(--ring, var(--color-primary));
 
     font: inherit;
     font-size: 0.95rem;
     font-weight: 600;
     padding: 0.65rem 1.2rem;
-    border-radius: calc(var(--radius) * 1.25);
+    border-radius: var(--radius-md, 10px);
     border: 1px solid var(--panel-line);
     background: var(--panel-bg);
     color: var(--fg);
@@ -606,16 +618,18 @@
     transition:
       border-color var(--duration-short-2, 0.12s) var(--ease-standard, ease),
       background var(--duration-short-2, 0.12s) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 0.12s) var(--ease-standard, ease),
       transform var(--duration-short-1, 0.08s) var(--ease-standard, ease);
   }
   .btn:hover:not(:disabled) {
-    border-color: var(--accent);
+    border-color: var(--border-strong, var(--accent));
+    background: var(--accent-surface, var(--panel-bg));
   }
   .btn:active:not(:disabled) {
     transform: translateY(1px);
   }
   .btn:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
   .btn:disabled {
@@ -626,6 +640,12 @@
     background: var(--accent);
     color: var(--on-accent);
     border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn--accent:hover:not(:disabled) {
+    filter: brightness(1.08);
+    background: var(--accent);
+    box-shadow: var(--shadow-md);
   }
 
   @media (prefers-reduced-motion: reduce) {
