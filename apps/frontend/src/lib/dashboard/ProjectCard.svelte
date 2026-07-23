@@ -97,35 +97,39 @@
 </button>
 
 <style>
+  /* The card is a shadcn Card — a --card surface, a 1px --border hairline, --radius-lg geometry, and
+     the refined --shadow ramp (resting xs → hover md). All tokens derive from @eden/theme (via the
+     +layout.svelte SHADCN SKIN MAPPING). */
   .card {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-2, 8px);
     inline-size: 100%;
-    padding: var(--space-4, 16px);
+    min-block-size: 7.5rem;
+    padding: var(--space-5, 20px);
     text-align: start;
-    background: var(--eden-app-panel-bg);
-    color: var(--eden-app-fg);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
     cursor: pointer;
     font-family: inherit;
-    /* W5: the hover lift rides the theme motion tokens (nearest ladder step + standard easing). */
     transition:
       transform var(--duration-short-3, 160ms) var(--ease-standard, ease),
       border-color var(--duration-short-3, 160ms) var(--ease-standard, ease),
       box-shadow var(--duration-short-3, 160ms) var(--ease-standard, ease);
   }
-  /* The subtle hover lift — a small translate + tinted border + shadow that reads "clickable" without
-     shouting. Focus-visible mirrors the lift so keyboard users get the same affordance. */
+  /* The shadcn hover lift — a small translate, a --border-strong edge, and the --shadow-md ramp
+     step. Focus-visible mirrors the lift so keyboard users get the same affordance. */
   .card:hover {
     transform: translateY(-2px);
-    border-color: color-mix(in oklab, var(--eden-app-accent) 60%, var(--eden-app-line));
-    box-shadow: 0 8px 24px color-mix(in oklab, var(--color-on-surface) 14%, transparent);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
   }
   .card:focus-visible {
-    outline: 2px solid var(--eden-app-accent);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
   .card:active {
@@ -133,9 +137,10 @@
   }
 
   .card__name {
-    font-size: var(--font-size-body-large, 16px);
+    font-size: 1.05rem;
     font-weight: 600;
-    color: var(--eden-app-fg);
+    letter-spacing: -0.01em;
+    color: var(--card-foreground);
     line-height: 1.25;
     overflow-wrap: anywhere;
   }
@@ -148,35 +153,40 @@
     font-size: var(--font-size-caption, 12px);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
   }
   .card__dot {
-    inline-size: 8px;
-    block-size: 8px;
+    inline-size: 7px;
+    block-size: 7px;
     border-radius: 50%;
     flex: none;
-    background: var(--eden-app-muted);
+    background: var(--muted-foreground);
+    /* A soft halo so the status dot reads as a live indicator, not a period. */
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--muted-foreground) 16%, transparent);
   }
   .card__dot[data-tone='active'] {
     background: var(--color-info);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-info) 18%, transparent);
   }
   .card__dot[data-tone='busy'] {
-    background: var(--eden-app-accent);
+    background: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 20%, transparent);
     animation: card-pulse 1.4s ease-in-out infinite;
   }
   .card__dot[data-tone='error'] {
-    background: var(--color-error);
+    background: var(--destructive);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 18%, transparent);
   }
   .card__status[data-tone='busy'] .card__status-text {
-    color: var(--eden-app-accent);
+    color: var(--primary);
   }
   .card__status[data-tone='error'] .card__status-text {
-    color: var(--color-error);
+    color: var(--destructive);
   }
 
   .card__meta {
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
     overflow-wrap: anywhere;
   }
 
@@ -184,18 +194,21 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1, 4px);
-    margin-block-start: var(--space-1, 4px);
+    margin-block-start: auto;
+    padding-block-start: var(--space-1, 4px);
   }
+  /* Shadcn "outline" badges — a --muted fill, a 1px --border, --radius-sm corners, mono micro-label. */
   .card__chip {
     display: inline-flex;
     align-items: center;
     padding: 2px var(--space-2, 8px);
-    border-radius: var(--eden-app-radius, 6px);
-    background: color-mix(in oklab, var(--eden-app-accent) 12%, transparent);
-    color: color-mix(in oklab, var(--eden-app-accent) 80%, var(--eden-app-fg));
+    border-radius: var(--radius-sm);
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
     font-family: var(--font-code);
-    font-size: var(--font-size-caption, 12px);
-    line-height: 1.4;
+    font-size: 11px;
+    line-height: 1.5;
   }
 
   @keyframes card-pulse {

@@ -156,27 +156,29 @@
   .nav__role[data-role='admin'] {
     background: color-mix(in oklab, var(--color-info, var(--eden-app-accent)) 28%, transparent);
   }
+  /* The rail links read as shadcn sidebar rows — --radius-sm corners, a --muted-foreground rest
+     state, a --muted hover fill, and a solid --accent-surface selected state with a full-ink label. */
   .nav__link {
     display: flex;
     align-items: center;
     gap: var(--space-3, 12px);
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    border-radius: var(--eden-app-radius, 8px);
+    border-radius: var(--radius-sm, 7px);
     text-decoration: none;
-    color: var(--eden-app-muted);
-    font-size: var(--font-size-body, 15px);
-    /* W5: nav-link hover rides the theme motion tokens (nearest ladder step + standard easing). */
+    color: var(--muted-foreground, var(--eden-app-muted));
+    font-size: 0.9rem;
+    font-weight: 500;
     transition:
       background var(--duration-short-2, 120ms) var(--ease-standard, ease),
       color var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .nav__link:hover {
-    background: color-mix(in oklab, var(--eden-app-fg) 6%, transparent);
-    color: var(--eden-app-fg);
+    background: var(--surface-muted, color-mix(in oklab, var(--eden-app-fg) 6%, transparent));
+    color: var(--foreground, var(--eden-app-fg));
   }
   .nav__link--active {
-    background: color-mix(in oklab, var(--eden-app-accent) 16%, transparent);
-    color: var(--eden-app-fg);
+    background: var(--accent-surface, color-mix(in oklab, var(--eden-app-accent) 16%, transparent));
+    color: var(--foreground, var(--eden-app-fg));
     font-weight: 600;
   }
   .nav__glyph {
@@ -187,22 +189,27 @@
   .nav__spacer {
     flex: 1;
   }
+  /* The pinned user card — a shadcn selectable row: a --card fill, 1px --border, --radius corners,
+     hover raises the --accent-surface tint + --border-strong edge. */
   .nav__user {
     display: flex;
     align-items: center;
     gap: var(--space-2, 8px);
     inline-size: 100%;
     padding: var(--space-2, 8px);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    background: none;
+    border: 1px solid var(--border, var(--eden-app-line));
+    border-radius: var(--radius-md, 10px);
+    background: var(--card, none);
     color: inherit;
     cursor: pointer;
     text-align: start;
-    transition: border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .nav__user:hover {
-    border-color: var(--eden-app-accent);
+    border-color: var(--border-strong, var(--eden-app-accent));
+    background: var(--accent-surface, transparent);
   }
   .nav__avatar {
     display: grid;
@@ -210,8 +217,12 @@
     inline-size: 32px;
     block-size: 32px;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--eden-app-accent) 24%, var(--eden-app-panel-bg));
-    color: var(--eden-app-fg);
+    background: color-mix(
+      in oklab,
+      var(--primary, var(--eden-app-accent)) 22%,
+      var(--card, var(--eden-app-panel-bg))
+    );
+    color: var(--foreground, var(--eden-app-fg));
     font-size: 0.78rem;
     font-weight: 600;
     flex-shrink: 0;

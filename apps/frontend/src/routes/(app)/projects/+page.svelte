@@ -138,31 +138,60 @@
 </div>
 
 <style>
+  /* The Projects surface styles against the SHADCN SKIN MAPPING (--background, --border,
+     --muted-foreground, --primary, --radius-*, --shadow-*) — all derived from @eden/theme role
+     tokens in +layout.svelte, proving the math pipeline feeds the new skin. */
   .page {
     display: flex;
     flex-direction: column;
     min-block-size: 100%;
+    background: var(--background);
   }
+  /* A sticky shadcn app-header: tighter density, a 1px --border baseline, slight backdrop. */
   .page__head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: var(--space-4, 16px);
-    padding: var(--space-5, 20px) var(--space-6, 24px);
-    border-block-end: 1px solid var(--eden-app-line);
+    padding: var(--space-4, 16px) var(--space-6, 24px);
+    border-block-end: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 85%, transparent);
+    backdrop-filter: saturate(180%) blur(8px);
   }
   .page__title {
     margin: 0;
-    font-size: var(--font-size-title, 23px);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
   .page__action {
     margin-inline-start: auto;
+  }
+  /* The header's primary action gets the shadcn solid-button geometry (solid --primary, --radius,
+     --shadow-sm, weight bump), overriding the primitive's pill radius. */
+  .page__action :global(.eden-button) {
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    transition:
+      filter var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
+  }
+  .page__action :global(.eden-button:hover:not(:disabled)) {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .page__body {
     flex: 1;
     padding: var(--space-6, 24px);
   }
   .page__error {
-    color: var(--color-error);
+    color: var(--destructive);
     font-size: var(--font-size-label, 13px);
   }
   /* W4: the wrapper only vertically positions the EmptyState (which owns its own reading measure,
@@ -182,7 +211,7 @@
     font-size: var(--font-size-caption, 12px);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground);
   }
   .sparks__list {
     list-style: none;
@@ -193,66 +222,84 @@
     justify-content: center;
     gap: var(--space-2, 8px);
   }
+  /* Shadcn "secondary" chips: a --muted fill, a 1px --border, --radius corners (not a full pill),
+     hover lifts the tint + strengthens the edge. */
   .spark {
+    display: inline-flex;
+    align-items: center;
     padding: var(--space-2, 8px) var(--space-4, 16px);
-    min-block-size: 44px;
-    background: var(--eden-app-panel-bg, var(--color-surface));
-    border: 1px solid var(--eden-app-line, var(--color-outline));
-    border-radius: 999px;
-    color: var(--eden-app-fg, var(--color-on-surface));
+    min-block-size: 40px;
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
     font: inherit;
     font-size: var(--font-size-label, 13px);
+    font-weight: 500;
     cursor: pointer;
-    /* W5: hover rides the theme motion tokens (nearest ladder step + standard easing). */
     transition:
       border-color var(--duration-short-3, 140ms) var(--ease-standard, ease),
+      background var(--duration-short-3, 140ms) var(--ease-standard, ease),
       color var(--duration-short-3, 140ms) var(--ease-standard, ease);
   }
   .spark:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+    border-color: var(--border-strong);
+    background: var(--accent-surface);
+    color: var(--primary);
   }
   .spark:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
   /* W5 density pass (P-D5, vs the Clusters north star): the populated grid is a WORKING surface, not
-     a marketing page — tighten the gutter to the space-3 step (the north star's card gutter grade) so
-     the cards read as a dense, scannable board rather than floating tiles. */
+     a marketing page — tighten the gutter so the cards read as a dense, scannable board. */
   .grid {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--space-3, 12px);
-    max-inline-size: 80rem;
+    grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+    gap: var(--space-4, 16px);
+    max-inline-size: 82rem;
   }
+  /* The "new project" tile: a shadcn dashed-border ghost card — --radius-lg corners matching the
+     real cards, a --muted-foreground glyph, hover raises a faint --accent-surface wash + --ring edge. */
   .newcard {
     inline-size: 100%;
     block-size: 100%;
-    min-block-size: 7rem;
+    min-block-size: 7.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--space-2, 8px);
-    background: none;
-    border: 1.5px dashed var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    color: var(--eden-app-muted);
+    background: var(--card);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--muted-foreground);
     cursor: pointer;
     transition:
       border-color var(--duration-short-3, 140ms) var(--ease-standard, ease),
+      background var(--duration-short-3, 140ms) var(--ease-standard, ease),
       color var(--duration-short-3, 140ms) var(--ease-standard, ease);
   }
   .newcard:hover {
-    border-color: var(--eden-app-accent);
-    color: var(--eden-app-fg);
+    border-color: var(--primary);
+    background: var(--accent-surface);
+    color: var(--foreground);
+  }
+  .newcard:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   .newcard__plus {
-    font-size: var(--font-size-title, 23px);
-    color: var(--eden-app-accent);
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--primary);
+  }
+  .newcard__label {
+    font-size: var(--font-size-label, 13px);
+    font-weight: 500;
   }
   @media (prefers-reduced-motion: reduce) {
     .newcard,

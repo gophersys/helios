@@ -129,31 +129,54 @@
 </div>
 
 <style>
+  /* The Sessions surface styles against the SHADCN SKIN MAPPING — a sticky shadcn app-header, a
+     --card table, outline status pills, and a shadcn "outline" Open button. */
   .page {
     display: flex;
     flex-direction: column;
     min-block-size: 100%;
+    background: var(--background);
   }
   .page__head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: var(--space-4, 16px);
-    padding: var(--space-5, 20px) var(--space-6, 24px);
-    border-block-end: 1px solid var(--eden-app-line);
+    padding: var(--space-4, 16px) var(--space-6, 24px);
+    border-block-end: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 85%, transparent);
+    backdrop-filter: saturate(180%) blur(8px);
   }
   .page__title {
     margin: 0;
-    font-size: var(--font-size-title, 23px);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
   .page__action {
     margin-inline-start: auto;
+  }
+  /* The header's primary action gets the shadcn solid-button geometry. */
+  .page__action :global(.eden-button) {
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+  .page__action :global(.eden-button:hover:not(:disabled)) {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .page__body {
     flex: 1;
     padding: var(--space-6, 24px);
   }
   .page__error {
-    color: var(--color-error);
+    color: var(--destructive);
     font-size: var(--font-size-label, 13px);
   }
   /* W4: the wrapper only vertically positions the EmptyState (which owns its own reading measure,
@@ -163,7 +186,7 @@
   }
   .pointer {
     margin: 0;
-    color: var(--eden-app-muted, var(--color-outline));
+    color: var(--muted-foreground);
     font-size: var(--font-size-label, 13px);
   }
   .pointer__link {
@@ -176,70 +199,101 @@
     cursor: pointer;
   }
   .pointer__link:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  /* The sessions table is a shadcn Card — a --card surface, a 1px --border hairline, --radius-lg
+     corners, a --surface-muted header row. */
   .sessions {
     inline-size: 100%;
     max-inline-size: 64rem;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: var(--font-size-body, 15px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
   }
   .sessions th {
     text-align: start;
-    padding: var(--space-2, 8px) var(--space-3, 12px);
-    color: var(--eden-app-muted);
+    padding: var(--space-3, 12px) var(--space-3, 12px);
+    color: var(--muted-foreground);
     font-weight: 600;
     font-size: var(--font-size-label, 13px);
-    border-block-end: 1px solid var(--eden-app-line);
+    background: var(--surface-muted);
+    border-block-end: 1px solid var(--border);
   }
   /* W5 density pass (P-D5, vs the Clusters north star): the sessions list is a working surface — the
      rows ride a tighter working-density height (space-2 block / space-3 inline) rather than a loose
      even 12px inset, so the table reads like the north star's inventory, not a marketing table. */
   .sessions td {
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    border-block-end: 1px solid var(--eden-app-line);
+    border-block-end: 1px solid var(--border);
     vertical-align: middle;
   }
+  .sessions tbody tr:last-child td {
+    border-block-end: none;
+  }
+  .sessions tbody tr:hover td {
+    background: var(--surface-muted);
+  }
   .sessions__id {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
     font-family: var(--font-code);
   }
   .sessions__age {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
   }
   .sessions__actions-col {
     text-align: end;
   }
+  /* Shadcn outline status pills — a subtle status-tinted fill, a --radius-sm corner, mono weight. */
   .status {
     display: inline-block;
     padding: 1px var(--space-2, 8px);
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     font-size: var(--font-size-caption, 12px);
     font-weight: 600;
-    background: color-mix(in oklab, var(--eden-app-fg) 10%, transparent);
-    color: var(--eden-app-fg);
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
   }
   .status--running {
-    background: color-mix(in oklab, var(--color-info) 22%, transparent);
+    background: var(--info-surface);
+    border-color: color-mix(in oklab, var(--color-info) 30%, transparent);
+    color: var(--color-info);
   }
   .status--completed {
-    background: color-mix(in oklab, var(--color-success, var(--eden-app-accent)) 22%, transparent);
+    background: var(--success-surface);
+    border-color: color-mix(in oklab, var(--color-success) 30%, transparent);
+    color: var(--color-success);
   }
   .status--failed {
-    background: color-mix(in oklab, var(--color-error) 22%, transparent);
+    background: var(--destructive-surface);
+    border-color: color-mix(in oklab, var(--color-error) 30%, transparent);
+    color: var(--destructive);
   }
+  /* The Open button reads as a shadcn "outline" button — a --card fill, 1px --border, --radius-sm. */
   .open {
-    border: 1px solid var(--eden-app-line);
-    background: none;
-    color: var(--eden-app-fg);
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--foreground);
     padding: var(--space-1, 4px) var(--space-3, 12px);
-    border-radius: var(--eden-app-radius, 8px);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font: inherit;
-    transition: border-color var(--duration-short-2, 120ms) var(--ease-standard, ease);
+    font-weight: 500;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .open:hover {
-    border-color: var(--eden-app-accent);
+    border-color: var(--border-strong);
+    background: var(--accent-surface);
+  }
+  .open:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 </style>

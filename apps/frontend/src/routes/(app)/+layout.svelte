@@ -160,19 +160,21 @@
 />
 
 <style>
+  /* The shell reads against the SHADCN SKIN MAPPING — a --muted sidebar tone against the
+     --background canvas, a 1px --border divider (the shadcn app-shell). */
   .shell {
     display: grid;
     grid-template-columns: 248px 1fr;
     height: 100vh;
     overflow: hidden;
-    background: var(--eden-app-bg);
-    color: var(--eden-app-fg);
+    background: var(--background, var(--eden-app-bg));
+    color: var(--foreground, var(--eden-app-fg));
   }
   .shell__nav {
     display: flex;
     flex-direction: column;
-    border-inline-end: 1px solid var(--eden-app-line);
-    background: var(--eden-app-rail-bg);
+    border-inline-end: 1px solid var(--border, var(--eden-app-line));
+    background: var(--surface-muted, var(--eden-app-rail-bg));
     overflow-y: auto;
   }
   /* The SideNav flexes to fill the rail. */

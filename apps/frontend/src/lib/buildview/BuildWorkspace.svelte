@@ -766,10 +766,10 @@
     overflow: hidden;
   }
 
-  /* ── rail ── */
+  /* ── rail ── the shadcn sidebar: a --surface-muted tone against the --border divider. */
   .rail {
-    background: var(--eden-app-rail-bg);
-    border-inline-end: 1px solid var(--eden-app-line);
+    background: var(--surface-muted, var(--eden-app-rail-bg));
+    border-inline-end: 1px solid var(--border, var(--eden-app-line));
     padding: var(--space-5, 20px) var(--space-4, 16px);
     display: flex;
     flex-direction: column;
@@ -783,11 +783,22 @@
   .rail__new {
     display: flex;
   }
+  /* The rail's primary action gets the shadcn solid-button geometry (overriding the pill radius). */
   .rail__new :global(button) {
     inline-size: 100%;
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+  .rail__new :global(button:hover:not(:disabled)) {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .rail__error {
-    color: var(--color-error);
+    color: var(--destructive);
     font-size: var(--font-size-label, 13px);
     margin: 0;
   }
@@ -800,16 +811,18 @@
     gap: var(--space-2, 8px);
   }
   .rail__empty {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
     font-size: var(--font-size-label, 13px);
     padding: var(--space-2, 8px) 0;
   }
+  /* A session row is a shadcn selectable card — a --card fill, 1px --border, --radius-md corners;
+     hover raises the --border-strong edge, the active row rides a --ring 1px ring + tint. */
   .session {
     inline-size: 100%;
     text-align: start;
-    background: var(--eden-app-panel-bg);
-    border: 1px solid var(--eden-app-panel-line);
-    border-radius: var(--eden-app-radius, 8px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     padding: var(--space-3, 12px);
     cursor: pointer;
     display: flex;
@@ -817,17 +830,20 @@
     gap: var(--space-1, 4px);
     transition:
       border-color var(--duration-short-3, 150ms) var(--ease-standard, ease),
+      background var(--duration-short-3, 150ms) var(--ease-standard, ease),
       transform var(--duration-short-3, 150ms) var(--ease-standard, ease);
     color: inherit;
     font: inherit;
   }
   .session:hover {
-    border-color: var(--eden-app-accent);
+    border-color: var(--border-strong);
+    background: var(--accent-surface);
     transform: translateY(-1px);
   }
   .session--active {
-    border-color: var(--eden-app-accent);
-    box-shadow: 0 0 0 1px var(--eden-app-accent);
+    border-color: var(--primary);
+    background: var(--accent-surface);
+    box-shadow: 0 0 0 1px var(--ring);
   }
   .session__id {
     font-family: var(--font-code);
@@ -843,20 +859,20 @@
     block-size: 8px;
     border-radius: 50%;
     flex: none;
-    background: var(--eden-app-muted);
+    background: var(--muted-foreground);
   }
   .session__dot[data-state='working'] {
-    background: var(--eden-app-accent);
+    background: var(--primary);
     animation: session-dot-pulse 1.1s ease-in-out infinite;
   }
   .session__dot[data-state='ready'] {
     background: var(--color-info);
   }
   .session__dot[data-state='done'] {
-    background: color-mix(in oklab, var(--color-info) 60%, var(--eden-app-muted));
+    background: color-mix(in oklab, var(--color-info) 60%, var(--muted-foreground));
   }
   .session__dot[data-state='error'] {
-    background: var(--color-error);
+    background: var(--destructive);
   }
   .session__dot[data-state='connecting'] {
     background: var(--color-warning);
@@ -880,7 +896,7 @@
   }
   .session__template {
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
     font-family: var(--font-code);
   }
 
@@ -906,10 +922,23 @@
     align-items: center;
   }
   .empty p {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
   }
   .empty__cta {
     display: flex;
+  }
+  /* The empty-state primary CTA gets the shadcn solid-button geometry. */
+  .empty__cta :global(.eden-button) {
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+  .empty__cta :global(.eden-button:hover:not(:disabled)) {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
   .view__head {
     display: flex;
@@ -917,7 +946,7 @@
     justify-content: space-between;
     gap: var(--space-4, 16px);
     padding: var(--space-4, 16px) var(--space-6, 24px);
-    border-block-end: 1px solid var(--eden-app-line);
+    border-block-end: 1px solid var(--border, var(--eden-app-line));
     flex-wrap: wrap;
   }
   .view__id {
@@ -987,7 +1016,7 @@
     inset-block: calc(-1 * var(--space-3, 12px));
     inset-inline-start: 50%;
     inline-size: 1px;
-    background: var(--eden-app-line);
+    background: var(--border, var(--eden-app-line));
     transform: translateX(-50%);
   }
   /* the first turn's line should not run above the first node, the last's not below — masked by the
@@ -1006,20 +1035,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--eden-app-bg);
+    background: var(--background, var(--eden-app-bg));
     border-radius: 50%;
     font-family: var(--font-code);
     font-size: var(--font-size-caption, 12px);
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
   }
   .turn__node[data-role='assistant'] {
-    color: var(--eden-app-accent);
+    color: var(--primary);
   }
   .turn__node[data-role='user'] {
-    color: var(--eden-app-fg);
+    color: var(--foreground, var(--eden-app-fg));
   }
   .turn__node[data-role='tool'] {
-    color: color-mix(in oklab, var(--eden-app-muted) 80%, var(--eden-app-bg));
+    color: color-mix(in oklab, var(--muted-foreground) 80%, var(--background));
     font-size: var(--font-size-label, 13px);
   }
   .turn__main {
@@ -1030,24 +1059,24 @@
     max-inline-size: 70ch;
   }
   .transcript__waiting {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
     font-style: italic;
   }
 
   .notice {
-    border-radius: var(--eden-app-radius, 8px);
+    border-radius: var(--radius-md, 8px);
     padding: var(--space-2, 8px) var(--space-3, 12px);
     font-size: var(--font-size-label, 13px);
-    border: 1px dashed var(--eden-app-line);
+    border: 1px dashed var(--border, var(--eden-app-line));
     max-width: 78ch;
   }
   .notice--warn {
-    border-color: var(--color-error);
-    color: var(--color-error);
-    background: color-mix(in oklab, var(--color-error) 8%, var(--color-surface));
+    border-color: var(--destructive);
+    color: var(--destructive);
+    background: var(--destructive-surface);
   }
   .notice--info {
-    color: var(--eden-app-muted);
+    color: var(--muted-foreground);
   }
 
   .terminal {
@@ -1056,28 +1085,57 @@
     gap: var(--space-3, 12px);
     flex-wrap: wrap;
     padding: var(--space-3, 12px) var(--space-4, 16px);
-    border: 1px solid var(--eden-app-line);
-    border-radius: var(--eden-app-radius, 8px);
-    background: var(--eden-app-panel-bg);
+    border: 1px solid var(--border, var(--eden-app-line));
+    border-radius: var(--radius-md, 8px);
+    background: var(--card, var(--eden-app-panel-bg));
     max-width: 78ch;
   }
   .terminal__text {
     font-weight: 600;
   }
 
-  /* ── composer ── */
+  /* ── composer ── the shadcn input-row footer: a --border top divider, a --card ground, and the
+     shadcn input geometry (a 1px --input edge, --radius-sm corners, a --ring focus halo). */
   .composer {
     display: flex;
     align-items: center;
     gap: var(--space-3, 12px);
     padding: var(--space-4, 16px) var(--space-6, 24px);
-    border-block-start: 1px solid var(--eden-app-line);
+    border-block-start: 1px solid var(--border, var(--eden-app-line));
+    background: var(--card);
   }
   .composer__input {
     flex: 1;
   }
-  .composer__input :global(input) {
+  .composer__input :global(input),
+  .composer__input :global(.eden-input) {
     inline-size: 100%;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--input);
+    background: var(--background);
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
+  }
+  .composer__input :global(input:focus-visible),
+  .composer__input :global(input:focus),
+  .composer__input :global(.eden-input:focus-visible) {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
+  }
+  /* The composer Send button gets the shadcn solid-button geometry. */
+  .composer :global(.eden-button) {
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+  .composer :global(.eden-button:hover:not(:disabled)) {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
   }
 
   /* ── chips (app-chrome micro-labels, token-driven off the generated roles) ── */
@@ -1110,8 +1168,9 @@
     color: var(--color-warning);
   }
   .chip--muted {
-    background: color-mix(in oklab, var(--color-on-surface) 8%, var(--color-surface));
-    color: var(--eden-app-muted);
+    background: var(--surface-muted);
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
   }
 
   @media (max-width: 760px) {
