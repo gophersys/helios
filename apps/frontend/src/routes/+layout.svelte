@@ -137,20 +137,33 @@ ${darkBody}  }
   /* ── MIGRATION BRIDGE (doc 17 §2/§3) ───────────────────────────────────────────────────────
      An entire legacy component world (src/lib/components/ + blocks/ + /p/[slug]) styles itself
      with custom properties that were DEFINED NOWHERE — they only rendered via fallbacks or not at
-     all. This block aliases each ONE-WAY onto the real generated @eden role tokens so that world
-     renders coherently in BOTH themes without touching the components. Every value here is a
-     var(--color-* / --space-*) — never a new hue or px. This block DIES when that world migrates
-     to real tokens directly (doc 17 §9, a later wave: W-UI-4 surfaces / the /p[slug] ruling). Do
-     not extend it; migrate the consumer instead. */
+     all. This block aliases each ONE-WAY onto real tokens so that world renders coherently in BOTH
+     themes without touching the components.
 
-  /* Base ink/ground/accent + geometry. */
-  --fg: var(--color-on-surface);
-  --bg: var(--color-surface);
-  --muted: color-mix(in oklab, var(--color-on-surface) 55%, var(--color-surface));
-  --accent: var(--color-primary);
-  --line: color-mix(in oklab, var(--color-on-surface) 14%, var(--color-surface));
-  --radius: var(--space-2);
-  --navbg: color-mix(in oklab, var(--color-primary) 6%, var(--color-surface));
+     SHADCN TRANSPOSITION — bridge retirement (the verdict's productionization item): the base
+     ink/ground/accent/hairline/geometry tokens are now RE-POINTED at the SHADCN SKIN MAPPING above,
+     so the legacy /p/[slug] document-world inherits the shadcn skin (1px subtle hairline, muted
+     text tone, --radius-md geometry) for free — the reach we can retire SAFELY without editing the
+     17 legacy consumers (src/lib/components/**, /p/[slug]). The legacy --muted IS a text tone, so it
+     maps to the shadcn --muted-foreground (NOT the shadcn --surface-muted, a surface — one concept,
+     one home, exactly the collision the spike flagged); legacy --radius (8px) maps to --radius-md.
+
+     WHAT REMAINS (cannot be re-pointed to a shadcn painted role — these are semantic DOCUMENT-RENDER
+     tokens, not chrome the reskin governs): the fenced-code surface ramp (--code-*, --codebg), the
+     quote/chip tints (--quote, --chipbg, --chip-*), the table header wash (--th, --navbg), the C21
+     named-brand seeds (--color-deep-forest/moss/sage/bone), and the SDLC tier accents (--tier-*).
+     They still derive one-way from generated @eden role tokens (never a new hue). Full retirement =
+     migrating the 17 legacy consumers to the shadcn vocabulary directly (doc 17 §9 /p/[slug] ruling,
+     a later wave) — out of scope for the visual reskin. Do not extend this block; migrate consumers. */
+
+  /* Base ink/ground/accent + geometry — RE-POINTED at the shadcn skin (bridge retirement). */
+  --fg: var(--foreground);
+  --bg: var(--background);
+  --muted: var(--muted-foreground);
+  --accent: var(--primary);
+  --line: var(--border);
+  --radius: var(--radius-md);
+  --navbg: var(--surface-muted);
   --quote: color-mix(in oklab, var(--color-primary) 8%, var(--color-surface));
   --codebg: color-mix(in oklab, var(--color-primary) 10%, var(--color-surface));
   --chipbg: color-mix(in oklab, var(--color-primary) 12%, var(--color-surface));
@@ -163,8 +176,8 @@ ${darkBody}  }
   --color-bone: var(--color-on-primary);
   --color-text-on-surface: var(--color-on-surface);
 
-  /* Table + chip + tier accents. */
-  --th: color-mix(in oklab, var(--color-on-surface) 5%, var(--color-surface));
+  /* Table + chip + tier accents. The table header wash aligns to the shadcn --surface-muted. */
+  --th: var(--surface-muted);
   --chip-info-bg: color-mix(in oklab, var(--color-info) 12%, var(--color-surface));
   --chip-warn-fg: var(--color-warning);
   --tier-product: var(--color-primary);
