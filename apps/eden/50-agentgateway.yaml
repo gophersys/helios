@@ -31,8 +31,8 @@ spec:
       serviceAccountName: eden-agent
       containers:
         - name: agentgateway
-          # v0.1.9
-          image: "ghcr.io/gophersys/eden/agentgateway@sha256:fa85c1f666b88c72f9129fc4587a08f4ff79f8c32d6aaa94224189e3d9864c34"
+          # v0.1.10
+          image: "ghcr.io/gophersys/eden/agentgateway@sha256:d948c9afac321f99079db5ca9fd54d03c844deddd23257291e11f5c31ef27ae0"
           ports:
             - name: http
               containerPort: 8080

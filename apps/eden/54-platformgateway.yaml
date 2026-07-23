@@ -25,8 +25,8 @@ spec:
       serviceAccountName: platformgateway
       containers:
         - name: platformgateway
-          # v0.1.9
-          image: "ghcr.io/gophersys/eden/platformgateway@sha256:f921b333bc5ddceae3810d92ecf026fdd19ba406943c9a30d56ef2dfb0ff712c"
+          # v0.1.10
+          image: "ghcr.io/gophersys/eden/platformgateway@sha256:8685c32319146af7507f76e8ed8b83bd661688e5a50114c36901ec6e9840c8a7"
           ports:
             - name: http
               containerPort: 8080
