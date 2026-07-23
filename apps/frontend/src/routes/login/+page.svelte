@@ -141,91 +141,153 @@
 </div>
 
 <style>
-  /* The login is a focus moment (P-D5): generous, centered, one brand moment. Every painted value is
-     a generated @eden/theme role token — no hand-set hex/px on a color role (P-D3). */
+  /* The login is a focus moment (P-D5): generous, centered, one brand moment. Design spike
+     (spike/shadcn-theme): the screen styles against the SHADCN SKIN MAPPING (--background,
+     --card, --border, --muted-foreground, --radius-*, --shadow-*, --ring) — all of which derive
+     from the generated @eden/theme role tokens (see +layout.svelte), so the math pipeline feeds
+     this skin. A faint top-lit radial washes the ground for depth without a literal gradient hue. */
   .login {
     display: grid;
     place-items: center;
     min-height: 100dvh;
     padding: var(--space-6, 32px);
-    background: var(--color-surface);
-    color: var(--color-on-surface);
+    background:
+      radial-gradient(
+        120% 80% at 50% -10%,
+        var(--accent-surface) 0%,
+        transparent 55%
+      ),
+      var(--background);
+    color: var(--foreground);
   }
+  /* The shadcn card: a barely-raised --card surface, a 1px subtle --border hairline, the refined
+     elevation ramp, and the shadcn --radius-lg geometry (tighter than the old 16px mush). */
   .login__card {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-4, 16px);
-    width: min(400px, 100%);
+    width: min(384px, 100%);
     padding: var(--space-7, 40px) var(--space-6, 32px);
-    border: 1px solid var(--color-outline);
-    border-radius: var(--eden-app-radius, 16px);
-    background: color-mix(in oklab, var(--color-on-surface) 3%, var(--color-surface));
-    box-shadow: 0 24px 60px -28px color-mix(in oklab, var(--color-on-surface) 45%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    box-shadow: var(--shadow-lg);
   }
   .login__brand {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2, 8px);
+    margin-block-end: var(--space-1, 4px);
   }
   .login__mark {
-    color: var(--color-primary);
-    font-size: 1.6rem;
+    color: var(--primary);
+    font-size: 1.5rem;
   }
   /* The brand name is the serif DISPLAY identity voice (P-D4) — the one identity moment on the screen. */
   .login__name {
     margin: 0;
     font-family: var(--font-display, var(--font-serif, serif));
     font-weight: 600;
-    font-size: 2rem;
+    font-size: 1.95rem;
     letter-spacing: -0.02em;
-    color: var(--color-on-surface);
+    color: var(--foreground);
   }
   .login__tagline {
-    margin: 0 0 var(--space-2, 8px);
+    margin: 0 0 var(--space-3, 12px);
     text-align: center;
-    color: var(--color-outline);
-    font-size: 0.95rem;
+    color: var(--muted-foreground);
+    font-size: 0.9rem;
   }
   .login__fields {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3, 12px);
+    gap: var(--space-4, 16px);
+  }
+  /* Label the fields with the shadcn form voice via the primitives Field's label (global reach:
+     the Field renders its label outside this component's scope hash). */
+  .login__fields :global(label) {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--foreground);
+    letter-spacing: -0.005em;
+  }
+  /* Shadcn input geometry — a 1px --input edge, --radius-sm corners, muted placeholder, and a
+     2px --ring focus halo. The primitives Input renders `.eden-input` globally, so reach it here. */
+  .login__fields :global(.eden-input),
+  .login__fields :global(input) {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--input);
+    background: var(--background);
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
+  }
+  .login__fields :global(.eden-input:focus-visible),
+  .login__fields :global(input:focus-visible),
+  .login__fields :global(input:focus) {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
   }
   .login__error {
     margin: 0;
-    color: var(--color-error);
+    color: var(--destructive);
     font-size: 0.85rem;
   }
-  /* A block wrapper so the primitives Button (inline-flex) spans the card width, matching the fields. */
+  /* A block wrapper so the primitives Button (inline-flex) spans the card width, matching the fields.
+     The submit gets the SHADCN button geometry: a solid --primary fill (never washed out), --radius
+     corners, a font-weight bump, and the --shadow-sm lift — overriding the primitive's pill radius. */
   .login__submit {
-    display: grid;
-  }
-  .login__submit :global(.eden-button) {
-    inline-size: 100%;
-  }
-  .login__dev-wrap {
     display: grid;
     margin-top: var(--space-1, 4px);
   }
+  .login__submit :global(.eden-button) {
+    inline-size: 100%;
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    transition:
+      filter var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      box-shadow var(--duration-short-2, 120ms) var(--ease-standard, ease);
+  }
+  .login__submit :global(.eden-button:hover:not(:disabled)) {
+    filter: brightness(1.08);
+    box-shadow: var(--shadow-md);
+  }
+  .login__dev-wrap {
+    display: grid;
+    margin-top: var(--space-2, 8px);
+    padding-top: var(--space-4, 16px);
+    border-top: 1px solid var(--border);
+  }
+  /* The dev shortcut reads as a shadcn "secondary/ghost" selectable row — a --muted surface, a
+     1px --border, --radius corners; hover raises the tint + ring. */
   .login__dev {
     display: flex;
     align-items: center;
     gap: var(--space-3, 12px);
     padding: var(--space-2, 8px) var(--space-3, 12px);
-    border: 1px dashed var(--color-outline);
-    border-radius: var(--eden-app-radius, 8px);
-    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted);
     color: inherit;
     cursor: pointer;
     text-align: start;
+    transition:
+      border-color var(--duration-short-2, 120ms) var(--ease-standard, ease),
+      background var(--duration-short-2, 120ms) var(--ease-standard, ease);
   }
   .login__dev:hover {
-    border-color: var(--color-primary);
+    border-color: var(--border-strong);
+    background: var(--accent-surface);
   }
   .login__dev:focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
   .login__dev:disabled {
@@ -238,34 +300,34 @@
     width: 34px;
     height: 34px;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--color-primary) 24%, var(--color-surface));
-    color: var(--color-on-surface);
+    background: color-mix(in oklab, var(--primary) 22%, var(--card));
+    color: var(--foreground);
     font-weight: 600;
     flex-shrink: 0;
   }
   .login__dev-identity {
     display: flex;
     flex-direction: column;
-    line-height: 1.2;
+    line-height: 1.25;
     flex: 1;
     min-width: 0;
   }
   .login__dev-name {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
   .login__dev-email {
-    font-size: 0.78rem;
-    color: var(--color-outline);
+    font-size: 0.76rem;
+    color: var(--muted-foreground);
   }
   .login__dev-tag {
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--color-outline);
-    border: 1px solid var(--color-outline);
-    border-radius: 999px;
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     padding: 1px 6px;
   }
 </style>

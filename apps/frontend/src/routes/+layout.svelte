@@ -60,6 +60,68 @@ ${darkBody}  }
   --eden-app-panel-line: var(--color-outline);
   --eden-app-radius: var(--space-2);
 
+  /* ── SHADCN SKIN MAPPING (design spike: spike/shadcn-theme) ─────────────────────────────────
+     The shadcn-svelte variable vocabulary, DERIVED from the generated @eden/theme role tokens —
+     NOT a hand-authored palette. Every value below resolves to a var(--color-* / --space-*) mix,
+     so the whole shadcn skin re-derives per mode (light↔dark flip for free, since --color-* are
+     re-scoped under html[data-theme]) — this is the math-pipeline → skin proof (color + radius).
+     The two spiked screens (/login, /projects) style against THESE, so swapping the C21 seed or
+     the mode re-paints the shadcn skin with no per-screen edits.
+
+     Surfaces: a zinc-neutral surface ladder built by mixing on-surface ink into surface — the
+     shadcn "background / card / popover / muted" ramp, but sourced from the generated ink so the
+     brand's warmth carries through (never a raw gray). */
+  /* The canvas is a hair cooler/darker than pure surface so raised --card panels (which sit at the
+     brighter --color-surface) read as elevated against it — the shadcn light-theme separation trick
+     (card brighter than background), sourced from the generated ink. */
+  --background: color-mix(in oklab, var(--color-on-surface) 3%, var(--color-surface));
+  --foreground: var(--color-on-surface);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-on-surface);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-on-surface);
+  /* NOTE: the shadcn surface-muted is named --surface-muted (NOT --muted) deliberately — the legacy
+     MIGRATION BRIDGE below squats --muted as a mid-gray TEXT color for ~16 legacy components, a
+     genuinely different concept. Colliding on --muted would either break the legacy text (if shadcn
+     won) or the spiked chips (if legacy won — the bug this spike hit). One concept, one home: the
+     shadcn surface tone gets its own name here; the text tone is --muted-foreground. */
+  --surface-muted: color-mix(in oklab, var(--color-on-surface) 4%, var(--color-surface));
+  --muted-foreground: color-mix(in oklab, var(--color-on-surface) 52%, var(--color-surface));
+  /* Accent = the shadcn subtle hover/selected tint (a whisper of primary on surface). */
+  --accent-surface: color-mix(in oklab, var(--color-primary) 8%, var(--color-surface));
+  --accent-surface-foreground: var(--color-on-surface);
+  /* Primary action pair — the solid brand button (never washed out). */
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-on-primary);
+  /* Destructive = the generated error role. */
+  --destructive: var(--color-error);
+  --destructive-foreground: var(--color-on-primary);
+  /* Hairlines: the shadcn 1px subtle border ramp + the slightly stronger input edge + focus ring. */
+  --border: color-mix(in oklab, var(--color-on-surface) 9%, var(--color-surface));
+  --border-strong: color-mix(in oklab, var(--color-on-surface) 15%, var(--color-surface));
+  --input: color-mix(in oklab, var(--color-on-surface) 13%, var(--color-surface));
+  --ring: color-mix(in oklab, var(--color-primary) 55%, var(--color-surface));
+  /* Radius scale — the shadcn geometry. The base is --radius-md (NOT --radius: the legacy bridge
+     below squats --radius at --space-2 ~ 8px for the legacy component world; a distinct name keeps
+     both intact — one concept, one home). sm/lg/xl derive as shadcn calc(base -/+ Npx). */
+  --radius-md: 10px;
+  --radius-sm: 7px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  /* Shadow ramp — the refined shadcn elevation ladder, tinted with the generated ink (not pure
+     black) so shadows read in the brand rather than as a hard drop. */
+  --shadow-xs: 0 1px 2px 0 color-mix(in oklab, var(--color-on-surface) 6%, transparent);
+  --shadow-sm:
+    0 1px 2px 0 color-mix(in oklab, var(--color-on-surface) 7%, transparent),
+    0 1px 3px 0 color-mix(in oklab, var(--color-on-surface) 5%, transparent);
+  --shadow-md:
+    0 2px 4px -1px color-mix(in oklab, var(--color-on-surface) 7%, transparent),
+    0 4px 12px -2px color-mix(in oklab, var(--color-on-surface) 9%, transparent);
+  --shadow-lg:
+    0 8px 16px -4px color-mix(in oklab, var(--color-on-surface) 10%, transparent),
+    0 16px 32px -8px color-mix(in oklab, var(--color-on-surface) 12%, transparent);
+  /* ── end SHADCN SKIN MAPPING ─────────────────────────────────────────────────────────────── */
+
   /* ── MIGRATION BRIDGE (doc 17 §2/§3) ───────────────────────────────────────────────────────
      An entire legacy component world (src/lib/components/ + blocks/ + /p/[slug]) styles itself
      with custom properties that were DEFINED NOWHERE — they only rendered via fallbacks or not at
