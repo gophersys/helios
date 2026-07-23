@@ -3,8 +3,11 @@ module github.com/gophersys/libs/go/secrets
 go 1.26
 
 require (
+	github.com/google/uuid v1.6.0
+	github.com/gophersys/libs/go/envelope v0.0.0
 	github.com/gophersys/libs/go/errors v0.0.0
 	github.com/hashicorp/vault/api v1.23.0
+	github.com/jackc/pgx/v5 v5.10.0
 )
 
 require (
@@ -21,10 +24,14 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
@@ -40,6 +47,7 @@ require (
 
 replace (
 	github.com/gophersys/libs/go/dependencies v0.0.0 => ../dependencies
+	github.com/gophersys/libs/go/envelope v0.0.0 => ../envelope
 	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
 	github.com/gophersys/libs/go/testing v0.0.0 => ../testing
 )
