@@ -39,6 +39,12 @@ RUN test -f libs/typescript/primitives/dist/index.js \
 # checkout — so `bun install` here resolves from package.json (no --frozen-lockfile: there is no
 # committed root bun.lock to freeze against). svelte-kit sync generates the .svelte-kit types tsconfig
 # a fresh checkout lacks; vite build emits the static SPA to build/ (adapter-static SPA fallback).
+#
+# Drop the yarn-4 lockfile first: it is the yarn-workspace artifact, and bun (1.3.x) cannot migrate a
+# yarn v4 lockfile — it aborts with UnsupportedYarnLockfileVersion. bun resolves cleanly from the
+# package.json exact pins instead (the devcontainer runtime uses bun.lock, which is gitignored and
+# absent from this build context).
+RUN rm -f yarn.lock
 RUN bun install
 WORKDIR /src/apps/frontend
 RUN bun x svelte-kit sync && bun x vite build
