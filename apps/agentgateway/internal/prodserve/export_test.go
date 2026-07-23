@@ -27,3 +27,12 @@ func ProposerConfigured(credentialReference string) bool {
 	configuration := Config{CredentialReference: credentialReference}
 	return buildProposer(nil, &configuration, nil) != nil
 }
+
+// BuildSessionPoolSeam re-exports the propose-pool construction (pure — adapters + routing + the
+// in-process transcript, no I/O) so the unit test proves the pool CONSTRUCTS. This is the exact
+// seam the v0.1.7 crash-loop escaped through: agentsession.New rejects a nil Transcript, and no
+// test constructed the pool. Returns the construction error (nil == the pool builds).
+func BuildSessionPoolSeam(configuration *Config) error {
+	_, err := buildSessionPool(configuration, newTranscript(), systemClock{})
+	return err
+}

@@ -112,3 +112,14 @@ func TestBuildProposer_NilWithoutCredential(t *testing.T) {
 		t.Fatal("buildProposer: want a wired proposer when a credential reference is set")
 	}
 }
+
+// TestBuildSessionPool_Constructs is the v0.1.7 crash-loop regression: the propose pool must
+// CONSTRUCT from a valid Config (agentsession.New rejects a nil Transcript — the exact boot fault
+// that CrashLooped the production pod because no test built the pool). Pure construction, no I/O.
+func TestBuildSessionPool_Constructs(t *testing.T) {
+	t.Parallel()
+	configuration := validConfig()
+	if err := prodserve.BuildSessionPoolSeam(&configuration); err != nil {
+		t.Fatalf("buildSessionPool: the propose pool must construct from a valid Config (the v0.1.7 crash-loop): %v", err)
+	}
+}

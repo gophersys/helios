@@ -158,9 +158,11 @@ func BuildProductionGateway(configuration Config) (*gateway.Gateway, func(contex
 	// The live plane the propose turn opens on: a real agentsession.Pool over the claude+omp adapters
 	// and the Vault-backed secrets provider. It is NOT tailed for chat here (the pod live plane rides
 	// the NATS bridge) — it exists so the ONE short propose turn (POST /product/propose) runs a real
-	// model call. The transcript is discarded (the record-plane transcript route is served by the
-	// stateless bridge over JetStream, not this in-process pool).
-	pool, err := buildSessionPool(&configuration, clock)
+	// model call. ONE in-process transcript backs BOTH the pool (agentsession.New REQUIRES a non-nil
+	// Transcript — the Seq assignment lives there; nil was the v0.1.7 crash-loop) AND the gateway's
+	// post-mortem transcript route, mirroring liveserve's shared-transcript wiring.
+	runLog := newTranscript()
+	pool, err := buildSessionPool(&configuration, runLog, clock)
 	if err != nil {
 		recordPool.Close()
 		return nil, nil, err
@@ -190,6 +192,7 @@ func BuildProductionGateway(configuration Config) (*gateway.Gateway, func(contex
 		gateway.Deps{
 			Manager:      manager,
 			Sessions:     pool,
+			Transcript:   runLog, // the SAME transcript the pool appends to — the post-mortem transcript route reads it
 			Clock:        clock,
 			Logger:       configuration.Logger,
 			Proposer:     buildProposer(pool, &configuration, grants),
@@ -221,12 +224,12 @@ func BuildProductionGateway(configuration Config) (*gateway.Gateway, func(contex
 }
 
 // buildSessionPool builds the agentsession.Pool the propose turn opens on: the claude + omp adapters
-// over the Vault-backed secrets provider, no transcript (the propose turn is drained to terminal and
-// reaped — the record-plane replay is the stateless bridge's JetStream tail, not this pool). It
+// over the Vault-backed secrets provider and the shared in-process transcript (REQUIRED by
+// agentsession.New — the Seq assignment lives there; the v0.1.7 nil crashed the pod at boot). It
 // routes the propose RouteKey to the configured harness/model.
 //
 //nolint:ireturn // returns the agentsession.Factory port the gateway holds (the frozen surface).
-func buildSessionPool(configuration *Config, clock systemClock) (agentsession.Factory, error) {
+func buildSessionPool(configuration *Config, runLog agentsession.Transcript, clock systemClock) (agentsession.Factory, error) {
 	claudeAdapter, err := claudeadapter.New(claudeadapter.Config{})
 	if err != nil {
 		return nil, errors.Wrap(errors.KindInternal, "prodserve: build claude adapter", err)
@@ -247,7 +250,7 @@ func buildSessionPool(configuration *Config, clock systemClock) (agentsession.Fa
 				"omp":         ompAdapter,
 			},
 			Secrets:    configuration.Provider,
-			Transcript: nil, // propose is one-shot: drained to terminal and reaped; no durable replay is read from this pool
+			Transcript: runLog,
 			Clock:      clock,
 		},
 	)
