@@ -59,6 +59,12 @@ spec:
             # orchestrator's DesiredStore runs on (seeded by 08-vault-seed-job.yaml).
             - name: EDEN_GATEWAY_DATABASE_DSN_REF
               value: "vault://eden/production#database-dsn"
+            # A3 (ADR-0029 §4): the connector-credential resolution plane — the sealed rows live in
+            # the platformgateway DB; the KEK unseals them. References only, never values.
+            - name: EDEN_GATEWAY_CONNECTORS_DSN_REF
+              value: "vault://eden/production#platformgateway-database-dsn"
+            - name: EDEN_GATEWAY_CONNECTORS_KEK_REF
+              value: "vault://eden/production#connectors-kek"
             - name: EDEN_CREDENTIAL_REF
               value: "vault://eden/production#setup-token"
           resources:
