@@ -306,6 +306,17 @@ def generate_lib_symbol_sexp(chip: ChipDef, lib_id: str) -> str:
     Returns:
         A string containing the (symbol ...) S-expression.
     """
+    # Delegate to the unified geometry source in src/ecad.
+    from src.ecad import SymbolModel
+
+    from .ecad_bridge import chipdef_to_component
+
+    model = SymbolModel.from_component(chipdef_to_component(chip))
+    return model.to_inline_sexp(lib_id)
+
+
+def _generate_lib_symbol_sexp_legacy(chip: ChipDef, lib_id: str) -> str:
+    """Pre-ecad implementation, kept temporarily for parity testing."""
     safe_name = lib_id.replace('"', '\\"')
     ref_prefix = lib_id.split(":")[0][0] if ":" in lib_id else "U"
     # Most ICs use "U" reference
