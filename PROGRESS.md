@@ -20,6 +20,14 @@
 - [x] Devcontainer bumped to KiCad 10 PPA
 - [x] Pilot restore fixed: bitcraze/crazyflie2-pcb removed upstream → crazyflie-electronics; dumbpad + VESC-controller added to clone_pilots.sh (test dependencies)
 - [x] Finding: kicad-cli 10 refuses paltatech VESC-controller's 20170922-format board ("Failed to load board", `pcb upgrade` also fails) while v9 loaded it and even (version 4)/2016 boards still load — narrow legacy-dialect regression; 3D-export tests now use dumbpad as second project
+### ecad rework (2026-07-30, PRs #2/#3 + feat/layout-engine)
+- [x] Phase A: typed design model (src/ecad) — Component/Pin/Net/Design + unified SymbolModel; 26 adversarial-review findings fixed
+- [x] Phase B: footprint index/resolver (15k installed footprints) + official-symbol ingestion with extends-resolution
+- [x] Phase C: layout engine — graph_build/rank/order/place/route/engine/lints; hard gates green (ERC 0, netlist == intended, geometric lints, byte-determinism); found+fixed latent unloadable-lib_symbols bug (lib-prefixed child names)
+- [x] Pure emitters extracted to src/ecad/emit.py (pipeline→ecad layering enforced); CI added (.github/workflows/ci.yml); docs/ecad-architecture.md
+- [ ] Phase D: ingestion factory (datasheet ∥ Zephyr ∥ crossverify ∥ codegen) + Espressif seed + COMPONENTS.md loop
+- [ ] Phase E: composer migration onto Design→layout→emit (deletes hardcoded coordinates + Custom: stubs)
+
 - [ ] Follow-up: replace hand-rolled manufacturing exports with kicad-cli 10 jobsets (works as-is; refactor is optional code-deletion, not a fix)
 - [ ] Follow-up: use `kicad-cli sch/pcb upgrade` (new in 10) as the corpus ingest normalizer — removes the old "open in GUI to convert" constraint from docs/thesis.md §4
 
