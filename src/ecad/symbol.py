@@ -41,6 +41,12 @@ def _esc(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _snap_up(v: float, grid: float) -> float:
+    """Round v UP to the next multiple of grid."""
+    import math
+    return round(math.ceil(round(v / grid, 9)) * grid, 4)
+
+
 class Side(str, Enum):
     LEFT = "left"
     RIGHT = "right"
@@ -97,11 +103,24 @@ class SymbolModel:
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def from_component(cls, component: Component) -> SymbolModel:
+    def from_component(cls, component: Component,
+                       style: str = "legacy") -> SymbolModel:
+        """Build the symbol geometry.
+
+        style="legacy": byte-parity with the pre-ecad emitters (all pins on
+        the left). style="readable": 4-side placement — power TOP, ground
+        BOTTOM, inputs LEFT, outputs RIGHT, bidirectional toward the hub —
+        the geometry the layout engine consumes.
+        """
+        place = (cls._place_unit_readable if style == "readable"
+                 else cls._place_unit)
         units = []
         for unit_id, unit_def in enumerate(component.units(), start=1):
             specs = [component.pin_by_pad(pad).spec for pad in unit_def.pads]
-            units.append(cls._place_unit(unit_id, unit_def.name, specs))
+            if style == "readable":
+                units.append(place(unit_id, unit_def.name, specs, component))
+            else:
+                units.append(place(unit_id, unit_def.name, specs))
         return cls(component, tuple(units))
 
     @staticmethod
@@ -123,6 +142,81 @@ class SymbolModel:
         return SymbolUnit(unit_id=unit_id, name=name, width=width,
                           height=height, pins=pins)
 
+    @staticmethod
+    def _side_for(spec, component: Component, single_pin_count: int,
+                  position: int) -> Side:
+        """Side-assignment rules for readable geometry."""
+        from .model import PinRole
+
+        if single_pin_count == 2:
+            return Side.LEFT if position == 0 else Side.RIGHT
+        if spec.role is PinRole.GROUND:
+            return Side.BOTTOM
+        if spec.etype is ElectricalType.POWER_IN:
+            return Side.TOP
+        if spec.etype is ElectricalType.INPUT:
+            return Side.LEFT
+        if spec.etype in (ElectricalType.OUTPUT, ElectricalType.POWER_OUT):
+            return Side.RIGHT
+        # bidirectional / passive / everything else: face the bus partner
+        return Side.RIGHT if component.orientation_hint == "hub" else Side.LEFT
+
+    @staticmethod
+    def _natural_key(name: str):
+        import re as _re
+        return [int(t) if t.isdigit() else t
+                for t in _re.split(r"(\d+)", name)]
+
+    @classmethod
+    def _place_unit_readable(cls, unit_id: int, name: str, specs,
+                             component: Component) -> SymbolUnit:
+        """4-side geometry: derived widths, pins on all four sides."""
+        n = len(specs)
+        by_side: dict[Side, list] = {s: [] for s in Side}
+        for pos, s in enumerate(specs):
+            by_side[cls._side_for(s, component, n, pos)].append(s)
+        for side in (Side.LEFT, Side.RIGHT, Side.TOP, Side.BOTTOM):
+            by_side[side].sort(key=lambda s: cls._natural_key(s.name))
+
+        max_l = max((len(s.name) for s in by_side[Side.LEFT]), default=0)
+        max_r = max((len(s.name) for s in by_side[Side.RIGHT]), default=0)
+        width = max(
+            15.24,
+            _snap_up(1.27 * (max_l + max_r) + 5.08, PIN_SPACING),
+            (max(len(by_side[Side.TOP]), len(by_side[Side.BOTTOM])) + 1)
+            * PIN_SPACING,
+        )
+        height = max(
+            5.08,
+            (max(len(by_side[Side.LEFT]), len(by_side[Side.RIGHT])) + 1)
+            * PIN_SPACING,
+        )
+        half_w, half_h = width / 2, height / 2
+
+        pins: list[PlacedPin] = []
+        for i, s in enumerate(by_side[Side.LEFT]):
+            pins.append(PlacedPin(s.pad, s.name, s.etype,
+                                  x=-half_w - PIN_LENGTH,
+                                  y=half_h - PIN_SPACING * (i + 1),
+                                  angle=0, length=PIN_LENGTH, side=Side.LEFT))
+        for i, s in enumerate(by_side[Side.RIGHT]):
+            pins.append(PlacedPin(s.pad, s.name, s.etype,
+                                  x=half_w + PIN_LENGTH,
+                                  y=half_h - PIN_SPACING * (i + 1),
+                                  angle=180, length=PIN_LENGTH, side=Side.RIGHT))
+        for row, side, y, angle in (
+            (by_side[Side.TOP], Side.TOP, half_h + PIN_LENGTH, 270),
+            (by_side[Side.BOTTOM], Side.BOTTOM, -half_h - PIN_LENGTH, 90),
+        ):
+            m = len(row)
+            for i, s in enumerate(row):
+                x = (i - (m - 1) / 2) * PIN_SPACING
+                pins.append(PlacedPin(s.pad, s.name, s.etype,
+                                      x=round(x, 4), y=y, angle=angle,
+                                      length=PIN_LENGTH, side=side))
+        return SymbolUnit(unit_id=unit_id, name=name, width=width,
+                          height=height, pins=tuple(pins))
+
     # ── queries (layout-engine contract) ────────────────────────────────────
 
     @property
@@ -142,6 +236,37 @@ class SymbolModel:
 
     def unit(self, unit_id: int) -> SymbolUnit:
         return self.units[unit_id - 1]
+
+    def node_size(self, unit_id: int) -> tuple[float, float]:
+        """Full bbox (w, h) of a unit in schematic space, pin tips included."""
+        u = self.unit(unit_id)
+        return (u.width + 2 * PIN_LENGTH, u.height + 2 * PIN_LENGTH)
+
+    def node_ports(self, unit_id: int) -> list[tuple]:
+        """Ports for the layout engine, in schematic space (+Y down).
+
+        Returns [(pad, name, etype_value, side, index, (dx, dy)), ...] where
+        (dx, dy) is the pin CONNECTION point relative to the node's top-left
+        origin, and index orders ports along their side (top→bottom for
+        left/right, left→right for top/bottom).
+        """
+        u = self.unit(unit_id)
+        half_w, half_h = u.width / 2, u.height / 2
+        ox, oy = -half_w - PIN_LENGTH, half_h + PIN_LENGTH  # lib-space origin
+        by_side: dict[Side, list[PlacedPin]] = {s: [] for s in Side}
+        for p in u.pins:
+            by_side[p.side].append(p)
+        by_side[Side.LEFT].sort(key=lambda p: -p.y)
+        by_side[Side.RIGHT].sort(key=lambda p: -p.y)
+        by_side[Side.TOP].sort(key=lambda p: p.x)
+        by_side[Side.BOTTOM].sort(key=lambda p: p.x)
+        out = []
+        for side in (Side.LEFT, Side.RIGHT, Side.TOP, Side.BOTTOM):
+            for idx, p in enumerate(by_side[side]):
+                dx = round(p.x - ox, 4)
+                dy = round(oy - p.y, 4)
+                out.append((p.pad, p.name, p.etype.value, side, idx, (dx, dy)))
+        return out
 
     @property
     def pin_count(self) -> int:
