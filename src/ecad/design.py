@@ -15,26 +15,51 @@ class Design:
         self.name = name
         self.components: list[Component] = []
         self._ref_counters: dict[str, int] = {}
+        self._nets_by_name: dict[str, Net] = {}
 
     def add(self, *components: Component) -> Component | tuple[Component, ...]:
-        """Register components, assigning sequential refs per prefix."""
+        """Register components, assigning sequential refs per prefix.
+
+        Auto-assigned refs skip any ref already taken (including manually
+        preset ones); duplicate refs are always rejected.
+        """
         for comp in components:
             if comp in self.components:
                 continue
+            taken = {c.ref for c in self.components}
             if not comp.ref:
                 prefix = comp.reference_prefix or "U"
-                n = self._ref_counters.get(prefix, 0) + 1
+                n = self._ref_counters.get(prefix, 0)
+                while True:
+                    n += 1
+                    if f"{prefix}{n}" not in taken:
+                        break
                 self._ref_counters[prefix] = n
                 comp.ref = f"{prefix}{n}"
-            elif any(c.ref == comp.ref for c in self.components):
+            elif comp.ref in taken:
                 raise ValueError(f"Duplicate ref {comp.ref!r} in design {self.name!r}")
             self.components.append(comp)
         return components[0] if len(components) == 1 else components
 
+    def net(self, name: str, *, group: str | None = None) -> Net:
+        """Get-or-create the design-registered net with this name.
+
+        Using this instead of bare Net() guarantees one Net object per name
+        within the design (bare Net() duplicates are still caught by check()).
+        """
+        existing = self._nets_by_name.get(name)
+        if existing is not None:
+            return existing
+        n = Net(name, group=group)
+        self._nets_by_name[name] = n
+        return n
+
     @property
     def nets(self) -> list[Net]:
-        """Distinct nets referenced by any registered pin, in first-seen order."""
-        seen: dict[int, Net] = {}
+        """Distinct nets: design-registered ones plus any referenced by a
+        registered pin, in first-seen order (so an empty design.net() is
+        still visible to check())."""
+        seen: dict[int, Net] = {id(n): n for n in self._nets_by_name.values()}
         for comp in self.components:
             for pin in comp.pins:
                 if pin.net is not None and id(pin.net) not in seen:
@@ -43,11 +68,16 @@ class Design:
 
     def intended_netlist(self) -> dict[str, set[str]]:
         """net name → {"REF:pad", ...} — the ground truth the schematic
-        emitters and kicad-cli netlist export are checked against."""
+        emitters and kicad-cli netlist export are checked against.
+
+        Same-named Net objects merge here (netlist semantics); check() still
+        reports duplicate-net-name so the mistake is visible.
+        """
         out: dict[str, set[str]] = {}
         for net in self.nets:
-            out[net.name] = {f"{p.owner.ref}:{p.pad}" for p in net.pins
-                             if p.owner in self.components}
+            out.setdefault(net.name, set()).update(
+                f"{p.owner.ref}:{p.pad}" for p in net.pins
+                if p.owner in self.components)
         return out
 
     # ── lint ────────────────────────────────────────────────────────────────

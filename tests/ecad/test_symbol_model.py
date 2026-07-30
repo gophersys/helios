@@ -57,9 +57,12 @@ def test_pin_position_query():
     comp = chipdef_to_component(esp32_s3_wroom_1())
     model = SymbolModel.from_component(comp)
     assert model.pin_count == 41
-    unit_id, x, y = model.pin_position("2")  # 3V3 pad
+    loc = model.pin_position("2")  # 3V3 pad
+    unit_id = loc.unit_id
     assert unit_id >= 1
-    assert x == -(15.24 / 2) - 2.54
+    assert loc.x == -(15.24 / 2) - 2.54
+    assert loc.side is Side.LEFT
+    assert loc.angle == 0 and loc.length == 2.54
     unit = model.unit(unit_id)
     assert any(p.pad == "2" for p in unit.pins)
     assert all(p.side is Side.LEFT for u in model.units for p in u.pins)

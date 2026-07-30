@@ -29,11 +29,11 @@ from .model import (
     pin,
 )
 from .net import Net
-from .symbol import PlacedPin, Side, SymbolModel, SymbolUnit
+from .symbol import PinLocation, PlacedPin, Side, SymbolModel, SymbolUnit
 
 __all__ = [
     "Component", "Design", "ElectricalType", "FootprintRef", "Issue", "Net",
-    "Pin", "PinRole", "PinSpec", "PlacedPin", "Side", "SourcingInfo",
+    "Pin", "PinLocation", "PinRole", "PinSpec", "PlacedPin", "Side", "SourcingInfo",
     "SymbolModel", "SymbolUnit", "UnitDef", "UnitStrategy", "pin",
     "sanitize_pin_name",
 ]

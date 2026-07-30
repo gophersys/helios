@@ -86,9 +86,51 @@ def test_pinspec_validation():
 
 def test_sanitize_pin_name():
     assert sanitize_pin_name("3V3") == "V3V3"
-    assert sanitize_pin_name("USB_D-") == "USB_D_"
+    assert sanitize_pin_name("USB_D-") == "USB_DN"
+    assert sanitize_pin_name("USB_D+") == "USB_DP"
+    assert sanitize_pin_name("+5V") == "P5V"
+    assert sanitize_pin_name("~RST") == "nRST"
+    assert sanitize_pin_name("~{RST}") == "nRST"
+    assert sanitize_pin_name("#CS") == "nCS"
     assert sanitize_pin_name("IO4") == "IO4"
+    assert sanitize_pin_name("SPI/CLK") == "SPI_CLK"
     assert sanitize_pin_name("class") == "class_"
+
+
+def test_usb_pair_accessors_distinct():
+    class Usb(Component):
+        footprint = FootprintRef("Connector_USB", "USB_C")
+        _PIN_SPECS = (
+            pin("1", "USB_D+", "bidirectional"),
+            pin("2", "USB_D-", "bidirectional"),
+        )
+
+    u = Usb()
+    assert u.USB_DP.pad == "1"
+    assert u.USB_DN.pad == "2"
+
+
+def test_ambiguous_ident_refused():
+    class Amb(Component):
+        footprint = FootprintRef("X", "Y")
+        _PIN_SPECS = (
+            pin("1", "IO-4", "bidirectional"),
+            pin("2", "IO_4", "bidirectional"),
+        )
+
+    a = Amb()
+    with pytest.raises(AttributeError, match="ambiguous"):
+        a.IO_4
+    assert a.pin("IO-4").pad == "1"
+    assert a.pin("IO_4").pad == "2"
+
+
+def test_active_low_pin_reachable():
+    class R(Component):
+        footprint = FootprintRef("X", "Y")
+        _PIN_SPECS = (pin("1", "~RST", "input"), pin("2", "GND", "power_in"))
+
+    assert R().nRST.pad == "1"
 
 
 def test_duplicate_pads_rejected():
@@ -247,3 +289,53 @@ def test_intended_netlist():
     Net("3V3").connect(u.VOUT, c.P1)
     nl = d.intended_netlist()
     assert nl["3V3"] == {"U1:5", "C1:1"}
+
+
+def test_preset_ref_never_collides_with_auto():
+    d = Design("t")
+    a = LDO()
+    a.ref = "U1"
+    d.add(a)
+    b = d.add(LDO())
+    assert b.ref == "U2"
+
+
+def test_duplicate_preset_ref_rejected():
+    d = Design("t")
+    a = LDO()
+    a.ref = "U7"
+    d.add(a)
+    b = LDO()
+    b.ref = "U7"
+    with pytest.raises(ValueError, match="Duplicate ref"):
+        d.add(b)
+
+
+def test_duplicate_net_name_lint_and_netlist_merge():
+    d = Design("t")
+    a, b = d.add(Cap(), Cap())
+    c, e = d.add(Cap(), Cap())
+    Net("GND").connect(a.P1, b.P1)
+    Net("GND").connect(c.P1, e.P1)  # second distinct object, same name
+    assert "duplicate-net-name" in _codes(d, "error")
+    # netlist merges rather than dropping pins
+    assert d.intended_netlist()["GND"] == {"C1:1", "C2:1", "C3:1", "C4:1"}
+
+
+def test_design_net_get_or_create():
+    d = Design("t")
+    n1 = d.net("3V3")
+    n2 = d.net("3V3")
+    assert n1 is n2
+    u, c = d.add(LDO(), Cap())
+    n1.connect(u.VOUT, c.P1)
+    assert "duplicate-net-name" not in _codes(d)
+    # an empty registered net is visible to lint
+    d.net("ORPHAN")
+    assert "single-pin-net" in _codes(d, "error")
+
+
+def test_check_ok():
+    d = Design("t")
+    d.add(LDO())
+    assert d.check_ok() is False
