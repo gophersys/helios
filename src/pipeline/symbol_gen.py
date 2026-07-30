@@ -151,6 +151,17 @@ def generate_symbol(chip: ChipDef) -> SymbolLib:
     Returns:
         A kiutils SymbolLib ready to write with to_file().
     """
+    # Delegate to the unified geometry source in src/ecad (lazy import to
+    # avoid a cycle through ecad_bridge, which imports ChipDef from here).
+    from src.ecad import SymbolModel
+
+    from .ecad_bridge import chipdef_to_component
+
+    return SymbolModel.from_component(chipdef_to_component(chip)).to_kicad_sym()
+
+
+def _generate_symbol_legacy(chip: ChipDef) -> SymbolLib:
+    """Pre-ecad implementation, kept temporarily for parity testing."""
     lib = SymbolLib()
     lib.version = 20231120
     lib.generator = "symbol_gen"
