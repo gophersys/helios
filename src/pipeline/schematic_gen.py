@@ -185,6 +185,7 @@ class NetConnection:
     net_name: str
     label_type: str  # "local", "global", "power"
     position: tuple[float, float]
+    angle: int = 0   # 0 = text extends right, 180 = text extends left
 
 
 @dataclass
@@ -300,14 +301,15 @@ def _gen_label(net: NetConnection) -> str:
         # loadable fallback rather than the invalid (power_port ...) token.
         return _gen_label(NetConnection(net.net_name, "global", net.position))
     else:
-        # local label
+        # local label; angle 180 justifies right so text extends leftward
+        justify = "right bottom" if net.angle == 180 else "left bottom"
         return f"""\t(label "{net.net_name}"
-\t\t(at {x} {y} 0)
+\t\t(at {x} {y} {net.angle})
 \t\t(effects
 \t\t\t(font
 \t\t\t\t(size 1.27 1.27)
 \t\t\t)
-\t\t\t(justify left bottom)
+\t\t\t(justify {justify})
 \t\t)
 \t\t(uuid "{label_uuid}")
 \t)"""
