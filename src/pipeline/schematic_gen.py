@@ -8,14 +8,40 @@ generation (no kiutils dependency for schematics).
 from __future__ import annotations
 
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from src.pipeline.chip_library import generate_lib_symbol_sexp, lookup_chip
 
+# Optional deterministic UUID factory (set by the layout engine so that the
+# same design always emits byte-identical files). Default: random uuid4.
+_uuid_factory = None
+_uuid_counter = 0
+
 
 def _uuid() -> str:
-    """Generate a random UUID string."""
+    """Generate a UUID string (deterministic when a factory is installed)."""
+    global _uuid_counter
+    if _uuid_factory is not None:
+        _uuid_counter += 1
+        return _uuid_factory(f"auto/{_uuid_counter}")
     return str(uuid.uuid4())
+
+
+@contextmanager
+def deterministic_uuids(design_name: str):
+    """Within this context every emitted UUID derives from the design name
+    and an emission counter — same input, byte-identical output."""
+    from src.ecad.layout.uuidgen import UuidGen
+
+    global _uuid_factory, _uuid_counter
+    gen = UuidGen(design_name)
+    prev, prev_count = _uuid_factory, _uuid_counter
+    _uuid_factory, _uuid_counter = gen.for_path, 0
+    try:
+        yield
+    finally:
+        _uuid_factory, _uuid_counter = prev, prev_count
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +176,7 @@ class ComponentPlacement:
     footprint: str
     position: tuple[float, float]
     unit: int = 1
+    rotation: int = 0  # degrees: 0/90/180/270
 
 
 @dataclass
@@ -216,7 +243,7 @@ def _gen_component(comp: ComponentPlacement, project_name: str,
 
     return f"""\t(symbol
 \t\t(lib_id "{comp.lib_id}")
-\t\t(at {x} {y} 0)
+\t\t(at {x} {y} {comp.rotation})
 \t\t(unit {comp.unit})
 \t\t(exclude_from_sim no)
 \t\t(in_bom yes)
@@ -267,16 +294,11 @@ def _gen_label(net: NetConnection) -> str:
 \t\t)
 \t)"""
     elif net.label_type == "power":
-        return f"""\t(power_port "{net.net_name}"
-\t\t(at {x} {y} 0)
-\t\t(effects
-\t\t\t(font
-\t\t\t\t(size 1.27 1.27)
-\t\t\t)
-\t\t\t(justify left)
-\t\t)
-\t\t(uuid "{label_uuid}")
-\t)"""
+        # Power nets are emitted as generated power symbols by the callers
+        # (generate_schematic / _generate_sub_sheet); reaching here means a
+        # caller forgot to split them out. Emit a global label as a safe,
+        # loadable fallback rather than the invalid (power_port ...) token.
+        return _gen_label(NetConnection(net.net_name, "global", net.position))
     else:
         # local label
         return f"""\t(label "{net.net_name}"
@@ -288,6 +310,102 @@ def _gen_label(net: NetConnection) -> str:
 \t\t\t(justify left bottom)
 \t\t)
 \t\t(uuid "{label_uuid}")
+\t)"""
+
+
+def _gen_junction(x: float, y: float) -> str:
+    """Generate a junction dot (required where 3+ wire ends meet)."""
+    return (f'\t(junction\n\t\t(at {x} {y})\n\t\t(diameter 0)\n'
+            f'\t\t(color 0 0 0 0)\n\t\t(uuid "{_uuid()}")\n\t)')
+
+
+def _gen_no_connect(x: float, y: float) -> str:
+    """Generate a no-connect marker (required on unused pins for ERC 0)."""
+    return f'\t(no_connect\n\t\t(at {x} {y})\n\t\t(uuid "{_uuid()}")\n\t)'
+
+
+def power_symbol_lib_sexp(net_name: str) -> str:
+    """lib_symbols entry for a generated power symbol ``power:<net>``.
+
+    The single hidden power_in pin is NAMED after the net — that is what
+    makes the net global in KiCad. Grounds get the triangle glyph, rails
+    the bar glyph. PWR_FLAG (net_name="PWR_FLAG") gets the flag glyph and
+    a power_out pin so ERC sees the rail as driven.
+    """
+    safe = net_name.replace('"', '\\"')
+    is_flag = net_name == "PWR_FLAG"
+    is_gnd = net_name.upper().startswith(("GND", "VSS", "AGND", "DGND", "PGND"))
+    pin_type = "power_out" if is_flag else "power_in"
+    if is_gnd:
+        graphics = (
+            '        (polyline (pts (xy -1.27 0) (xy 1.27 0)) '
+            '(stroke (width 0) (type default)) (fill (type none)))\n'
+            '        (polyline (pts (xy -0.762 0.508) (xy 0.762 0.508)) '
+            '(stroke (width 0) (type default)) (fill (type none)))\n'
+            '        (polyline (pts (xy -0.254 1.016) (xy 0.254 1.016)) '
+            '(stroke (width 0) (type default)) (fill (type none)))'
+        )
+        value_at = "(at 0 2.54 0)"
+    elif is_flag:
+        graphics = (
+            '        (polyline (pts (xy 0 0) (xy 0 -1.27) (xy -1.016 -1.905) '
+            '(xy 0 -2.54) (xy 1.016 -1.905) (xy 0 -1.27)) '
+            '(stroke (width 0) (type default)) (fill (type none)))'
+        )
+        value_at = "(at 0 -4.318 0)"
+    else:
+        graphics = (
+            '        (polyline (pts (xy 0 0) (xy 0 -1.27)) '
+            '(stroke (width 0) (type default)) (fill (type none)))\n'
+            '        (polyline (pts (xy -0.762 -1.27) (xy 0.762 -1.27)) '
+            '(stroke (width 0) (type default)) (fill (type none)))'
+        )
+        value_at = "(at 0 -2.54 0)"
+    return f"""(symbol "power:{safe}"
+      (power)
+      (pin_names (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "#PWR" (at 0 1.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Value" "{safe}" {value_at} (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "{safe}_0_1"
+{graphics})
+      (symbol "{safe}_1_1"
+        (pin {pin_type} line (at 0 0 90) (length 0) (hide yes)
+          (name "{safe}" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27))))))
+      (embedded_fonts no))"""
+
+
+def _gen_power_instance(net_name: str, ref: str, x: float, y: float,
+                        rotation: int, project_name: str,
+                        root_uuid: str) -> str:
+    """A placed power symbol instance (#PWR ref, invisible in BOM)."""
+    safe = net_name.replace('"', '\\"')
+    return f"""\t(symbol
+\t\t(lib_id "power:{safe}")
+\t\t(at {x} {y} {rotation})
+\t\t(unit 1)
+\t\t(exclude_from_sim no)
+\t\t(in_bom no)
+\t\t(on_board yes)
+\t\t(dnp no)
+\t\t(fields_autoplaced yes)
+\t\t(uuid "{_uuid()}")
+{_gen_property("Reference", ref, 0, x, y + 1.27, hide=True)}
+{_gen_property("Value", safe, 1, x, y - 2.54)}
+\t\t(pin "1"\n\t\t\t(uuid "{_uuid()}")\n\t\t)
+\t\t(instances
+\t\t\t(project "{project_name}"
+\t\t\t\t(path "/{root_uuid}"
+\t\t\t\t\t(reference "{ref}")
+\t\t\t\t\t(unit 1)
+\t\t\t\t)
+\t\t\t)
+\t\t)
 \t)"""
 
 
@@ -508,17 +626,32 @@ def generate_schematic(
     root_uuid = _uuid()
     project_name = title.replace(" ", "_")
 
+    # Power-typed nets become real generated power symbols, not labels
+    # (the old `(power_port ...)` token was not valid KiCad syntax).
+    power_nets = [n for n in nets if n.label_type == "power"]
+    label_nets = [n for n in nets if n.label_type != "power"]
+
     # Collect unique lib_ids for lib_symbols section
     lib_ids = sorted({c.lib_id for c in components})
-    lib_symbols = "\n\t\t".join(_get_lib_symbol_stub(lid) for lid in lib_ids)
+    lib_symbol_entries = [_get_lib_symbol_stub(lid) for lid in lib_ids]
+    for name in sorted({n.net_name for n in power_nets}):
+        lib_symbol_entries.append(power_symbol_lib_sexp(name))
+    lib_symbols = "\n\t\t".join(lib_symbol_entries)
 
     # Generate component placements
-    comp_lines = "\n".join(
+    comp_lines_list = [
         _gen_component(c, project_name, root_uuid) for c in components
-    )
+    ]
+    for i, n in enumerate(power_nets, start=1):
+        x, y = n.position
+        rot = 180 if n.net_name.upper().startswith(
+            ("GND", "VSS", "AGND", "DGND", "PGND")) else 0
+        comp_lines_list.append(_gen_power_instance(
+            n.net_name, f"#PWR{i:02d}", x, y, rot, project_name, root_uuid))
+    comp_lines = "\n".join(comp_lines_list)
 
     # Generate net labels
-    label_lines = "\n".join(_gen_label(n) for n in nets)
+    label_lines = "\n".join(_gen_label(n) for n in label_nets)
 
     # Generate wires connecting passives to labels
     wire_lines = "\n".join(_generate_passive_wires(components, nets))
@@ -632,19 +765,30 @@ def _generate_sub_sheet(
     """Generate a sub-sheet .kicad_sch file."""
     sheet_uuid = _uuid()
 
+    power_nets = [n for n in sc.nets if n.label_type == "power"]
+    label_nets = [n for n in sc.nets if n.label_type != "power"]
+
     # lib_symbols for components in this sheet
     sheet_lib_ids = sorted({c.lib_id for c in sc.components})
-    lib_symbols = "\n\t\t".join(
-        _get_lib_symbol_stub(lid) for lid in sheet_lib_ids
-    )
+    lib_symbol_entries = [_get_lib_symbol_stub(lid) for lid in sheet_lib_ids]
+    for name in sorted({n.net_name for n in power_nets}):
+        lib_symbol_entries.append(power_symbol_lib_sexp(name))
+    lib_symbols = "\n\t\t".join(lib_symbol_entries)
 
     # Component placements
-    comp_lines = "\n".join(
+    comp_lines_list = [
         _gen_component(c, project_name, sheet_uuid) for c in sc.components
-    )
+    ]
+    for i, n in enumerate(power_nets, start=1):
+        x, y = n.position
+        rot = 180 if n.net_name.upper().startswith(
+            ("GND", "VSS", "AGND", "DGND", "PGND")) else 0
+        comp_lines_list.append(_gen_power_instance(
+            n.net_name, f"#PWR{i:02d}", x, y, rot, project_name, sheet_uuid))
+    comp_lines = "\n".join(comp_lines_list)
 
     # Net labels
-    label_lines = "\n".join(_gen_label(n) for n in sc.nets)
+    label_lines = "\n".join(_gen_label(n) for n in label_nets)
 
     # Hierarchical labels — spread vertically along left edge
     hlabel_x = 25.4

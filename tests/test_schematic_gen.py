@@ -97,9 +97,12 @@ def test_generate_with_power_labels():
 
     content = generate_schematic(components, nets, title="Power Test")
 
-    # Power labels
-    assert '(power_port "VCC"' in content
-    assert '(power_port "GND"' in content
+    # Power nets emit real generated power symbols (the old (power_port ...)
+    # token was not valid KiCad syntax and is gone).
+    assert "(power_port" not in content
+    assert '(symbol "power:VCC"' in content
+    assert '(lib_id "power:VCC")' in content
+    assert '(lib_id "power:GND")' in content
 
     # Global label
     assert '(global_label "SPI_CLK"' in content
