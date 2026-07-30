@@ -69,18 +69,18 @@ def emit(placed: PlacedSheet, design: Design,
          title: str | None = None) -> EmittedSheet:
     """Emit a single-sheet .kicad_sch (deterministic UUIDs from the design
     name). Returns the text plus computed soft metrics."""
-    from src.pipeline.schematic_gen import (
+    from ..emit import (
         ComponentPlacement,
         NetConnection,
-        _gen_component,
         _gen_junction,
         _gen_label,
         _gen_no_connect,
         _gen_power_instance,
         _gen_wire,
-        _get_lib_symbol_stub,
         _uuid,
         deterministic_uuids,
+        gen_symbol_instance,
+        get_stub,
         power_symbol_lib_sexp,
     )
 
@@ -106,7 +106,7 @@ def emit(placed: PlacedSheet, design: Design,
             seen_libs.add(node.lib_id)
             base = node.lib_id.split(":")[-1]
             if base in ("R", "C", "L"):
-                lib_entries.append(_get_lib_symbol_stub(node.lib_id))
+                lib_entries.append(get_stub(node.lib_id) or "")
             else:
                 lib_entries.append(
                     models[node.ref].to_inline_sexp_multi(node.lib_id))
@@ -114,7 +114,7 @@ def emit(placed: PlacedSheet, design: Design,
             for s in sats:
                 if s.lib_id not in seen_libs:
                     seen_libs.add(s.lib_id)
-                    lib_entries.append(_get_lib_symbol_stub(s.lib_id))
+                    lib_entries.append(get_stub(s.lib_id) or "")
 
         body: list[str] = []
         wires: list[Wire] = []
@@ -130,11 +130,12 @@ def emit(placed: PlacedSheet, design: Design,
             w_tot, h_tot = model.node_size(node.unit)
             anchor = (snap(ox + w_tot / 2), snap(oy + h_tot / 2))
             comp = comps[node.ref]
-            body.append(_gen_component(ComponentPlacement(
+            body.append(gen_symbol_instance(ComponentPlacement(
                 lib_id=node.lib_id, ref=node.ref,
                 value=getattr(comp, "value", "") or comp.part_name,
                 footprint=comp.footprint.lib_id if comp.footprint else "",
-                position=anchor, unit=node.unit), project, root_uuid))
+                position=anchor, unit=node.unit), project, root_uuid,
+                [p.number for p in node.ports]))
             for port in node.ports:
                 placed_port_pts[(nid, port.number)] = (
                     snap(ox + port.offset[0]), snap(oy + port.offset[1]))
@@ -175,7 +176,7 @@ def emit(placed: PlacedSheet, design: Design,
                 s = sats.get(ref)
                 if s is None:
                     continue
-                body.append(_gen_component(ComponentPlacement(
+                body.append(gen_symbol_instance(ComponentPlacement(
                     lib_id=s.lib_id, ref=s.ref, value=s.value, footprint="",
                     position=(snap(cx), snap(cy))), project, root_uuid))
                 top = (snap(cx), snap(cy - _CAP_PIN_DY))
