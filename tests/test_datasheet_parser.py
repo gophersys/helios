@@ -10,7 +10,6 @@ import pytest
 from src.pipeline.datasheet_parser import (
     ParsedDatasheet,
     _auto_group_pin,
-    _extract_via_claude,
     parse_datasheet,
 )
 from src.pipeline.symbol_gen import ChipDef, PinDef

@@ -23,7 +23,10 @@ from src.pipeline.manufacturing import (
 
 DATA_RAW = Path(__file__).resolve().parent.parent / "data" / "raw"
 STM32F7_PCB = DATA_RAW / "rishikesh2715__stm32f7-fc" / "Flight_Controller.kicad_pcb"
-VESC_PCB = DATA_RAW / "paltatech__VESC-controller" / "pcb_design" / "VESC-controller.kicad_pcb"
+# Second project: dumbpad (KiCad 9 format). Previously paltatech__VESC-controller,
+# whose 20170922-format board kicad-cli 10 refuses to load (v9 loaded it fine;
+# even (version 4) boards load, so it is a narrow legacy-dialect regression).
+DUMBPAD_PCB = DATA_RAW / "imchipwood__dumbpad" / "combo_low_profile_oled" / "dumbpad.kicad_pcb"
 
 
 @pytest.fixture
@@ -85,9 +88,9 @@ class TestStepExport:
         assert len(result.errors) > 0
 
     def test_export_step_second_project(self, tmp_dir):
-        """STEP export should work on a different project (vesc/KiCad 9)."""
+        """STEP export should work on a different project (dumbpad/KiCad 9)."""
         step_path = tmp_dir / "vesc.step"
-        result = export_step(VESC_PCB, step_path)
+        result = export_step(DUMBPAD_PCB, step_path)
 
         assert result.success is True
         assert step_path.exists()
@@ -157,7 +160,7 @@ class TestVrmlExport:
     def test_export_vrml_second_project(self, tmp_dir):
         """VRML export should work on vesc (KiCad 9)."""
         wrl_path = tmp_dir / "vesc.wrl"
-        result = export_vrml(VESC_PCB, wrl_path)
+        result = export_vrml(DUMBPAD_PCB, wrl_path)
 
         assert result.success is True
         assert wrl_path.exists()

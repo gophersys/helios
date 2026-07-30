@@ -299,3 +299,76 @@ class TestPilotProjectParsing:
             pytest.skip(f"No PCB files in {project_name}")
         board = Board.from_file(str(pcb_files[0]))
         assert board.version is not None
+
+
+# ── Fix 7: KiCad 10 name-only pad net references ─────────────────────────────
+
+
+class TestKicad10NetForms:
+    """KiCad 10 boards drop the numbered net table; pads reference nets by
+    name only: (net "GND") instead of (net 2 "GND")."""
+
+    def test_numbered_net_with_name(self):
+        from kiutils.items.common import Net
+        net = Net.from_sexpr(parse_sexp('(net 2 "GND")'))
+        assert net.number == 2
+        assert net.name == "GND"
+
+    def test_name_only_net(self):
+        from kiutils.items.common import Net
+        net = Net.from_sexpr(parse_sexp('(net "GND")'))
+        assert net.number == 0
+        assert net.name == "GND"
+
+    def test_numbered_net_without_name(self):
+        from kiutils.items.common import Net
+        net = Net.from_sexpr(parse_sexp("(net 3)"))
+        assert net.number == 3
+        assert net.name == ""
+
+
+class TestKicad10BoardUpgrade:
+    """Round-trip a real board through `kicad-cli pcb upgrade` (KiCad 10+)
+    and verify the upgraded file parses to equivalent content."""
+
+    DUMBPAD_DIR = DATA_DIR / "imchipwood__dumbpad" / "combo_low_profile_oled"
+
+    @pytest.fixture()
+    def kicad10_cli(self):
+        import shutil as _shutil
+        import subprocess
+        cli = _shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
+        if not Path(cli).is_file():
+            pytest.skip("kicad-cli not available")
+        help_out = subprocess.run(
+            [cli, "pcb", "--help"], capture_output=True, text=True
+        ).stdout
+        if "upgrade" not in help_out:
+            pytest.skip("kicad-cli lacks `pcb upgrade` (needs KiCad 10+)")
+        return cli
+
+    def test_upgraded_board_parses_equivalently(self, kicad10_cli, tmp_path):
+        import shutil as _shutil
+        import subprocess
+        src = self.DUMBPAD_DIR / "dumbpad.kicad_pcb"
+        if not src.is_file():
+            pytest.skip("dumbpad pilot not cloned")
+        upgraded = tmp_path / "dumbpad.kicad_pcb"
+        _shutil.copy(src, upgraded)
+        subprocess.run(
+            [kicad10_cli, "pcb", "upgrade", str(upgraded), "--force"],
+            capture_output=True, text=True, check=True, timeout=120,
+        )
+        old_board = Board.from_file(str(src))
+        new_board = Board.from_file(str(upgraded))
+        assert len(new_board.footprints) == len(old_board.footprints)
+
+        def pad_nets(board):
+            return sorted(
+                pad.net.name
+                for fp in board.footprints
+                for pad in fp.pads
+                if pad.net is not None and pad.net.name
+            )
+
+        assert pad_nets(new_board) == pad_nets(old_board)

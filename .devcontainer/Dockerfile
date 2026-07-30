@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/root/.local/bin:$PATH"
 
 # ── Version pins ──────────────────────────────────────────────────────────────
-ARG KICAD_PPA_VERSION=9
+ARG KICAD_PPA_VERSION=10
 ARG NODE_MAJOR=24
 
 # ── Base system packages ─────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# ── KiCad 9 (CLI + libraries) ───────────────────────────────────────────────
+# ── KiCad 10 (CLI + libraries) ───────────────────────────────────────────────
 # We need kicad-cli for headless ERC, DRC, netlist export, Gerber generation.
 # The full KiCad GUI is not needed — CLI is sufficient for our pipeline.
 RUN add-apt-repository -y ppa:kicad/kicad-${KICAD_PPA_VERSION}.0-releases \

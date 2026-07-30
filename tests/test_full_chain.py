@@ -9,13 +9,12 @@ Uses real kicad-cli v9, real datasheet parsing, and real wiring patterns.
 
 from __future__ import annotations
 
-import csv
+import shutil
+
 import json
 import sys
-import tempfile
 from pathlib import Path
 
-import pytest
 
 # Ensure vendored kiutils is importable
 TOOLS_DIR = Path(__file__).resolve().parent.parent / "tools"
@@ -95,7 +94,7 @@ class TestFullChainESP32S3:
         svg_dir = tmp_path / "svg_export"
         svg_dir.mkdir()
         result = subprocess.run(
-            ["/usr/bin/kicad-cli", "sym", "export", "svg",
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sym", "export", "svg",
              str(sym_path), "-o", str(svg_dir)],
             capture_output=True, text=True, timeout=60,
         )

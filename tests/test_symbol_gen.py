@@ -1,5 +1,6 @@
 """Tests for KiCad symbol generator."""
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -222,7 +223,7 @@ def test_kicad_cli_validates():
         generate_symbol_file(chip, sym_path)
 
         result = subprocess.run(
-            ["/usr/bin/kicad-cli", "sym", "export", "svg", str(sym_path), "-o", str(svg_dir)],
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sym", "export", "svg", str(sym_path), "-o", str(svg_dir)],
             capture_output=True,
             text=True,
             timeout=30,
@@ -322,7 +323,7 @@ def test_stm32_like_symbol():
         svg_dir = Path(tempfile.mkdtemp(prefix="stm32_svg_"))
         try:
             result = subprocess.run(
-                ["/usr/bin/kicad-cli", "sym", "export", "svg", str(path), "-o", str(svg_dir)],
+                [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sym", "export", "svg", str(path), "-o", str(svg_dir)],
                 capture_output=True,
                 text=True,
                 timeout=30,

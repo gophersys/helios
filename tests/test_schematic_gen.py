@@ -1,6 +1,7 @@
 """Tests for KiCad schematic generator."""
 
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -142,7 +143,7 @@ def test_kicad_cli_validates():
         # Run kicad-cli — we just need it to parse without crashing
         # ERC violations are fine, crashes mean invalid file format
         result = subprocess.run(
-            ["/usr/bin/kicad-cli", "sch", "erc", str(sch_path),
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sch", "erc", str(sch_path),
              "--format", "json", "-o", "/dev/null"],
             capture_output=True,
             text=True,
@@ -272,7 +273,7 @@ def test_hierarchical_kicad_validates():
 
         # Run kicad-cli on root
         result_proc = subprocess.run(
-            ["/usr/bin/kicad-cli", "sch", "erc", str(root_file),
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sch", "erc", str(root_file),
              "--format", "json", "-o", "/dev/null"],
             capture_output=True,
             text=True,

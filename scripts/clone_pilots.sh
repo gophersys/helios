@@ -58,8 +58,9 @@ clone_sparse "https://github.com/vedderb/bldc-hardware.git" \
   "vedderb__bldc-hardware"
 
 # 5. Crazyflie — STM32F4 + nRF51 + BMI088 IMU + barometer
-clone_sparse "https://github.com/bitcraze/crazyflie2-pcb.git" \
-  "bitcraze__crazyflie2-pcb"
+# (bitcraze/crazyflie2-pcb was removed upstream; crazyflie-electronics is the successor)
+clone_sparse "https://github.com/bitcraze/crazyflie-electronics.git" \
+  "bitcraze__crazyflie-electronics"
 
 # 6. Cicada-GSM-HW — STM32 + SIM7600 4G modem, production-ready
 clone_sparse "https://github.com/EnAccess/Cicada-GSM-HW.git" \
@@ -80,6 +81,17 @@ clone_sparse "https://github.com/LibreSolar/mppt-2420-lc.git" \
 # 10. nrfmicro — nRF52840 BLE, USB-C, LiPo
 clone_sparse "https://github.com/joric/nrfmicro.git" \
   "joric__nrfmicro"
+
+# ── Extra projects referenced directly by the test suite ─────────────────────
+
+# dumbpad — KiCad 9 format round-trip + 3D export tests
+clone_sparse "https://github.com/imchipwood/dumbpad.git" \
+  "imchipwood__dumbpad"
+
+# VESC-controller — discovery/triage coverage (NOTE: its 20170922-format board
+# does not load in kicad-cli 10; 3D-export tests use dumbpad instead)
+clone_sparse "https://github.com/paltatech/VESC-controller.git" \
+  "paltatech__VESC-controller"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""

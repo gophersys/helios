@@ -6,6 +6,7 @@ real decoupling rules from data/patterns/decoupling_rules.json.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -234,7 +235,7 @@ def test_compose_generates_valid_kicad():
 
         # Run kicad-cli — just verify it can parse without crashing
         proc = subprocess.run(
-            ["/usr/bin/kicad-cli", "sch", "erc", str(root_file),
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sch", "erc", str(root_file),
              "--format", "json", "-o", "/dev/null"],
             capture_output=True,
             text=True,
@@ -402,7 +403,7 @@ def test_compose_gps_tracker():
         assert root_file.exists()
 
         proc = subprocess.run(
-            ["/usr/bin/kicad-cli", "sch", "erc", str(root_file),
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sch", "erc", str(root_file),
              "--format", "json", "-o", "/dev/null"],
             capture_output=True,
             text=True,

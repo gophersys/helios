@@ -542,8 +542,18 @@ class Net():
             raise Exception("Expression does not have the correct type")
 
         object = cls()
-        object.number = exp[1]
-        object.name = exp[2]
+        if len(exp) >= 3:
+            # KiCad <= 9: (net <number> "<name>")
+            object.number = exp[1]
+            object.name = exp[2]
+        elif len(exp) == 2:
+            if isinstance(exp[1], (int, float)):
+                # Degenerate numbered form: (net <number>)
+                object.number = int(exp[1])
+            else:
+                # KiCad 10 boards drop the numbered net table; pads
+                # reference nets by name only: (net "<name>")
+                object.name = exp[1]
         return object
 
     def to_sexpr(self, indent: int = 0, newline: bool = False) -> str:

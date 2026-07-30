@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from src.pipeline.lcsc import _CDN_PATTERN, download_datasheet, get_datasheet_url
 

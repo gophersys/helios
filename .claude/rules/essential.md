@@ -13,8 +13,12 @@ intent to manufacturing files.
 
 ## Key Decisions
 
-- **KiCad 9 S-expression format only** — convert everything else on ingest
-- **kiutils** is the primary parsing library (sch + pcb, typed objects, KiCad 9 tested)
+- **KiCad 10 toolchain, KiCad 9 emission format** — kicad-cli 10 is the validation
+  toolchain (resolve from PATH, not a hardcoded path); the parser accepts KiCad 3–10
+  files (KiCad 10 boards drop the numbered net table — kiutils Fix 7); generated
+  files emit the KiCad 9 version token (20250114), which KiCad 10 accepts. Old
+  files can now be normalized headlessly via `kicad-cli sch|pcb upgrade` (new in 10)
+- **kiutils** is the primary parsing library (sch + pcb, typed objects, KiCad 9/10 tested)
 - **sexpdata** is the fallback for raw S-expression access
 - **kicad-cli** for validation (ERC, DRC, netlist export) — runs headless
 - **File-level parsing**, not KiCad IPC API — works without running KiCad instance

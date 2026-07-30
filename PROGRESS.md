@@ -8,9 +8,20 @@
 
 ---
 
-## Current Phase: ALL PHASES COMPLETE
+## Current Phase: ALL PHASES COMPLETE — rebased to KiCad 10 (2026-07-30)
 
 **1005 tests passing. 110 projects parsed. 343 clean IC families. Real multi-pin symbols for ESP32/STM32. 0 ERC errors. Full manufacturing pipeline (BOM/CPL/Gerber/Drill/STEP/VRML).**
+
+### KiCad 10 rebase (branch feat/kicad10-rebase, 2026-07-30)
+- [x] Full suite validated against kicad-cli 10.0.4 on macOS (all prior failures were missing gitignored data, not KiCad 10)
+- [x] Tests resolve kicad-cli from PATH (was hardcoded /usr/bin from devcontainer)
+- [x] kiutils Fix 7: KiCad 10 boards drop the numbered net table — pads use name-only `(net "GND")`; Net.from_sexpr now accepts both forms (+4 tests, equivalence-verified vs KiCad 9 parse of same board)
+- [x] KiCad 10 files verified end-to-end: flat + hierarchical schematics upgraded via `kicad-cli sch upgrade` round-trip 37/37 and 131/131 vs kicad-cli 10 netlists
+- [x] Devcontainer bumped to KiCad 10 PPA
+- [x] Pilot restore fixed: bitcraze/crazyflie2-pcb removed upstream → crazyflie-electronics; dumbpad + VESC-controller added to clone_pilots.sh (test dependencies)
+- [x] Finding: kicad-cli 10 refuses paltatech VESC-controller's 20170922-format board ("Failed to load board", `pcb upgrade` also fails) while v9 loaded it and even (version 4)/2016 boards still load — narrow legacy-dialect regression; 3D-export tests now use dumbpad as second project
+- [ ] Follow-up: replace hand-rolled manufacturing exports with kicad-cli 10 jobsets (works as-is; refactor is optional code-deletion, not a fix)
+- [ ] Follow-up: use `kicad-cli sch/pcb upgrade` (new in 10) as the corpus ingest normalizer — removes the old "open in GUI to convert" constraint from docs/thesis.md §4
 
 ## Phase Overview
 
@@ -253,6 +264,6 @@ Manufacturing pipeline complete: BOM, CPL, Gerber, drill, STEP, VRML exports all
    - Pipeline code: src/pipeline/
    - Tests: tests/
    - Pilot data: data/raw/ (10 pilot + 100 bulk cloned KiCad projects)
-   - kicad-cli: /usr/bin/kicad-cli v9.0.7 — use for ERC, DRC, netlist export, BOM, Gerber
+   - kicad-cli: resolve from PATH (v10 verified; macOS: /Applications/KiCad.app/Contents/MacOS) — use for ERC, DRC, netlist export, BOM, Gerber, and `sch|pcb upgrade`
      Example: `kicad-cli sch erc file.kicad_sch --format json -o report.json`
    - Bulk parse script: `python3 -m src.pipeline.parse_project data/raw/project_name/`

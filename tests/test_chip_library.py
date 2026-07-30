@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -293,7 +294,7 @@ def test_schematic_with_real_chips_kicad_valid():
     try:
         sch_path.write_text(content)
         result = subprocess.run(
-            ["/usr/bin/kicad-cli", "sch", "erc", str(sch_path),
+            [(shutil.which("kicad-cli") or "/usr/bin/kicad-cli"), "sch", "erc", str(sch_path),
              "--format", "json", "-o", "/dev/null"],
             capture_output=True,
             text=True,
