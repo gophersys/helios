@@ -20,7 +20,6 @@ ALL_CHIPS = [esp32_s3_wroom_1, stm32f411ceu6, neo_6m]
 
 
 def _lib_to_text(lib) -> str:
-    import io
     import tempfile
 
     with tempfile.NamedTemporaryFile("r", suffix=".kicad_sym", delete=False) as f:

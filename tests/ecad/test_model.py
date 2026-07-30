@@ -8,7 +8,6 @@ from src.ecad import (
     ElectricalType,
     FootprintRef,
     Net,
-    PinRole,
     PinSpec,
     UnitDef,
     UnitStrategy,
