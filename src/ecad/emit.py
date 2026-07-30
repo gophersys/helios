@@ -137,6 +137,30 @@ def get_stub(lib_id: str) -> str | None:
     return _LIB_SYMBOL_STUBS.get(lib_id)
 
 
+def gen_passive_stub(lib_id: str) -> str:
+    """Minimal generated 2-pin stub (pins at (0, +-3.81)) for lib_ids with
+    no static stub — every placed symbol MUST have a lib_symbols entry."""
+    safe_name = lib_id.replace('"', '\\"')
+    ref_prefix = lib_id.split(":")[-1][0] if ":" in lib_id else "U"
+    return f"""(symbol "{safe_name}"
+      (pin_names (offset 1.016))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "{ref_prefix}" (at 0 1.27 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "{safe_name}" (at 0 -1.27 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "{safe_name.split(':')[-1]}_1_1"
+        (pin passive line (at 0 3.81 270) (length 1.27)
+          (name "~" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81 90) (length 1.27)
+          (name "~" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27))))))
+      (embedded_fonts no))"""
+
+
 @dataclass
 class ComponentPlacement:
     """A placed component in a schematic."""

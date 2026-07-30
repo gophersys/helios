@@ -20,7 +20,7 @@ from . import order as order_mod
 from . import place as place_mod
 from . import rank as rank_mod
 from . import route as route_mod
-from .graph_build import build, is_ground_net
+from .graph_build import build
 from .ir import PIN_PITCH, Metrics, PlacedSheet, SchematicGraph, Wire, snap
 
 # Satellite cap emission geometry (Device:C stub: pins at center ±3.81).
@@ -79,6 +79,7 @@ def emit(placed: PlacedSheet, design: Design,
         _gen_wire,
         _uuid,
         deterministic_uuids,
+        gen_passive_stub,
         gen_symbol_instance,
         get_stub,
         power_symbol_lib_sexp,
@@ -106,7 +107,8 @@ def emit(placed: PlacedSheet, design: Design,
             seen_libs.add(node.lib_id)
             base = node.lib_id.split(":")[-1]
             if base in ("R", "C", "L"):
-                lib_entries.append(get_stub(node.lib_id) or "")
+                lib_entries.append(get_stub(node.lib_id)
+                                   or gen_passive_stub(node.lib_id))
             else:
                 lib_entries.append(
                     models[node.ref].to_inline_sexp_multi(node.lib_id))
@@ -114,7 +116,8 @@ def emit(placed: PlacedSheet, design: Design,
             for s in sats:
                 if s.lib_id not in seen_libs:
                     seen_libs.add(s.lib_id)
-                    lib_entries.append(get_stub(s.lib_id) or "")
+                    lib_entries.append(get_stub(s.lib_id)
+                                       or gen_passive_stub(s.lib_id))
 
         body: list[str] = []
         wires: list[Wire] = []
@@ -281,6 +284,3 @@ def emit(placed: PlacedSheet, design: Design,
 """
     return EmittedSheet(text=text, metrics=metrics_of(placed))
 
-
-def is_ground(name: str) -> bool:  # re-export convenience for emitters
-    return is_ground_net(name)
