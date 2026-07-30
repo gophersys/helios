@@ -6,6 +6,8 @@ pipeline → ecad, never the reverse.
 
 from __future__ import annotations
 
+import re
+
 from src.ecad import (
     Component,
     ElectricalType,
@@ -73,8 +75,9 @@ def chipdef_to_component(chip: ChipDef) -> Component:
         plan.setdefault(p.group, []).append(str(p.number))
     unit_plan = tuple(UnitDef(name=g, pads=tuple(pads)) for g, pads in plan.items())
 
+    cls_name = "Bridged_" + (re.sub(r"[^0-9A-Za-z_]", "_", chip.name) or "Anon")
     cls = type(
-        "BridgedComponent",
+        cls_name,
         (Component,),
         {
             "part_name": chip.name,

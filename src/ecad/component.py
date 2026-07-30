@@ -25,15 +25,40 @@ from .net import Net
 
 
 def sanitize_pin_name(name: str) -> str:
-    """Deterministic pin-name → Python-identifier mapping.
+    """Deterministic pin-name → Python-identifier mapping (mirrored by codegen).
 
-    Rules (mirrored by codegen): non-alphanumerics become underscores,
-    a leading digit gets a `V` prefix (3V3 → V3V3), Python keywords get
-    a trailing underscore.
+    Rules, in order:
+    - KiCad overline syntax ``~{RST}`` and active-low markers ``~ ! #`` at the
+      start become an ``n`` prefix (``~RST`` → ``nRST``).
+    - Trailing/leading ``+``/``-`` become ``P``/``N`` (``USB_D-`` → ``USB_DN``,
+      ``+5V`` → ``P5V``) — differential pairs stay distinct.
+    - Remaining non-alphanumerics become underscores.
+    - A leading digit gets a ``V`` prefix (``3V3`` → ``V3V3``); a leading
+      underscore gets an ``X`` prefix (idents must be attribute-servable).
+    - Python keywords get a trailing underscore.
+
+    Two *different* pin names may still collide after sanitization; Component
+    marks those idents ambiguous and refuses attribute access for them
+    (``pin()`` always works) rather than silently merging distinct signals.
     """
+    m = re.fullmatch(r"~\{(.+)\}", name)
+    if m:
+        name = "n" + m.group(1)
+    elif name[:1] in ("~", "!", "#"):
+        name = "n" + name[1:]
+    if name.endswith("+"):
+        name = name[:-1] + "P"
+    elif name.endswith("-"):
+        name = name[:-1] + "N"
+    if name.startswith("+"):
+        name = "P" + name[1:]
+    elif name.startswith("-"):
+        name = "N" + name[1:]
     ident = re.sub(r"[^0-9A-Za-z_]", "_", name)
     if ident and ident[0].isdigit():
         ident = "V" + ident
+    if ident.startswith("_"):
+        ident = "X" + ident
     if keyword.iskeyword(ident):
         ident += "_"
     return ident
@@ -104,6 +129,8 @@ class Component:
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
+        if not cls.part_name:
+            cls.part_name = cls.lib_id.split(":")[-1] if cls.lib_id else cls.__name__
         if not cls._PIN_SPECS:
             return  # abstract intermediate classes are fine
         pads = [s.pad for s in cls._PIN_SPECS]
@@ -119,8 +146,6 @@ class Component:
                     f"{cls.__name__}: unit_plan must cover every pad exactly "
                     f"once (missing={sorted(missing)}, unknown={sorted(extra)})"
                 )
-        if not cls.part_name:
-            cls.part_name = cls.lib_id.split(":")[-1] if cls.lib_id else cls.__name__
 
     def __init__(self) -> None:
         self.ref: str = ""  # assigned by Design.add()
@@ -131,9 +156,21 @@ class Component:
         self._pads_by_name: dict[str, list[str]] = {}
         for spec in self._PIN_SPECS:
             self._pads_by_name.setdefault(spec.name, []).append(spec.pad)
+        # ident → pads, but ONLY when every contributing pin shares one name.
+        # Distinct names colliding on one ident (e.g. "IO-4" vs "IO_4") are
+        # electrically different signals: serving them under one attribute
+        # would silently short them, so those idents become ambiguous.
+        ident_names: dict[str, set[str]] = {}
         self._pads_by_ident: dict[str, list[str]] = {}
+        self._ambiguous_idents: dict[str, set[str]] = {}
         for name, name_pads in self._pads_by_name.items():
-            self._pads_by_ident.setdefault(sanitize_pin_name(name), []).extend(name_pads)
+            ident = sanitize_pin_name(name)
+            ident_names.setdefault(ident, set()).add(name)
+            self._pads_by_ident.setdefault(ident, []).extend(name_pads)
+        for ident, names in ident_names.items():
+            if len(names) > 1:
+                self._ambiguous_idents[ident] = names
+                del self._pads_by_ident[ident]
 
     # ── pin access ──────────────────────────────────────────────────────────
 
@@ -174,8 +211,17 @@ class Component:
     def __getattr__(self, ident: str) -> Pin | tuple[Pin, ...]:
         # Dynamic sanitized-name accessors (codegen adds explicit properties
         # on generated classes; this makes hand-written classes ergonomic too).
+        # NOTE: a codegen @property must never raise AttributeError internally
+        # (use KeyError) or this fallback would mask the real error.
         if ident.startswith("_"):
             raise AttributeError(ident)
+        ambiguous = self.__dict__.get("_ambiguous_idents", {}).get(ident)
+        if ambiguous:
+            raise AttributeError(
+                f"{type(self).__name__}.{ident} is ambiguous: distinct pins "
+                f"{sorted(ambiguous)} sanitize to the same identifier — use "
+                f"pin(name) instead"
+            )
         pads = self.__dict__.get("_pads_by_ident", {}).get(ident)
         if not pads:
             raise AttributeError(f"{type(self).__name__} has no pin {ident!r}")
@@ -189,6 +235,8 @@ class Component:
         """Effective unit plan (SINGLE strategy synthesizes one unit)."""
         if self.unit_strategy is UnitStrategy.EXPLICIT:
             return self.unit_plan
+        if not self._PIN_SPECS:
+            return ()
         return (UnitDef(name=self.part_name or type(self).__name__,
                         pads=tuple(s.pad for s in self._PIN_SPECS)),)
 

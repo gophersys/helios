@@ -55,6 +55,18 @@ class PlacedPin:
 
 
 @dataclass(frozen=True)
+class PinLocation:
+    """Where a pad connects, in library space (+Y up, origin body center)."""
+
+    unit_id: int
+    x: float
+    y: float
+    side: Side
+    angle: int
+    length: float
+
+
+@dataclass(frozen=True)
 class SymbolUnit:
     unit_id: int              # 1-based KiCad unit
     name: str                 # unit/group name (metadata; not emitted)
@@ -109,10 +121,16 @@ class SymbolModel:
     def component(self) -> Component:
         return self._component
 
-    def pin_position(self, pad: str) -> tuple[int, float, float]:
-        """(unit_id, x, y) of a pad's connection point in library space."""
+    def pin_position(self, pad: str) -> "PinLocation":
+        """Full placement of a pad's connection point in library space.
+
+        Geometry answered here matches ``to_kicad_sym()`` (multi-unit).
+        The single-unit inline embedding has its own geometry — query
+        ``flatten().pin_position(pad)`` when consuming ``to_inline_sexp()``.
+        """
         unit_id, p = self._pin_index[pad]
-        return unit_id, p.x, p.y
+        return PinLocation(unit_id=unit_id, x=p.x, y=p.y,
+                           side=p.side, angle=p.angle, length=p.length)
 
     def unit(self, unit_id: int) -> SymbolUnit:
         return self.units[unit_id - 1]
