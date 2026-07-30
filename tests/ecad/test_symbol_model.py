@@ -53,12 +53,43 @@ def test_kicad_sym_parity_all_chips():
 
 
 def test_inline_sexp_parity_all_chips():
+    """Byte-parity vs legacy EXCEPT the child-symbol names: legacy emitted
+    lib-prefixed child names ("RF_GPS:NEO-6M_0_1"), which KiCad refuses to
+    load — the new emitter uses the bare part name ("NEO-6M_0_1"). The
+    legacy output is normalized to the fixed form before comparing, which
+    proves everything else is unchanged."""
     for factory in ALL_CHIPS:
         chip = factory()
         lib_id = f"{chip.library}:{chip.name}" if chip.library else chip.name
-        assert generate_lib_symbol_sexp(chip, lib_id) == \
-            _generate_lib_symbol_sexp_legacy(chip, lib_id), \
+        legacy = _generate_lib_symbol_sexp_legacy(chip, lib_id)
+        legacy = legacy.replace(f'(symbol "{lib_id}_', f'(symbol "{chip.name}_')
+        assert generate_lib_symbol_sexp(chip, lib_id) == legacy, \
             f"inline sexp parity broken for {chip.name}"
+
+
+def test_inline_sexp_loads_in_kicad(tmp_path):
+    """Regression for the child-name bug: the inline symbol must LOAD."""
+    import shutil
+    import subprocess
+
+    cli = shutil.which("kicad-cli")
+    if cli is None:
+        import pytest
+        pytest.skip("kicad-cli not available")
+    chip = neo_6m()
+    entry = generate_lib_symbol_sexp(chip, "RF_GPS:NEO-6M")
+    text = ('(kicad_sch\n\t(version 20250114)\n\t(generator "x")\n'
+            '\t(generator_version "1.0")\n'
+            '\t(uuid "0e5e4c2e-0000-5000-8000-000000000000")\n\t(paper "A4")\n'
+            f'\t(lib_symbols\n\t\t{entry}\n\t)\n'
+            '\t(sheet_instances\n\t\t(path "/"\n\t\t\t(page "1")\n\t\t)\n\t)\n'
+            '\t(embedded_fonts no)\n)\n')
+    p = tmp_path / "inline.kicad_sch"
+    p.write_text(text)
+    r = subprocess.run([cli, "sch", "erc", str(p), "-o",
+                        str(tmp_path / "erc.json"), "--format", "json"],
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stderr[-400:]
 
 
 # ── geometry queries (the layout-engine contract) ───────────────────────────

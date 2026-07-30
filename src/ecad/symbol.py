@@ -196,13 +196,13 @@ class SymbolModel:
         pins: list[PlacedPin] = []
         for i, s in enumerate(by_side[Side.LEFT]):
             pins.append(PlacedPin(s.pad, s.name, s.etype,
-                                  x=-half_w - PIN_LENGTH,
-                                  y=half_h - PIN_SPACING * (i + 1),
+                                  x=round(-half_w - PIN_LENGTH, 4),
+                                  y=round(half_h - PIN_SPACING * (i + 1), 4),
                                   angle=0, length=PIN_LENGTH, side=Side.LEFT))
         for i, s in enumerate(by_side[Side.RIGHT]):
             pins.append(PlacedPin(s.pad, s.name, s.etype,
-                                  x=half_w + PIN_LENGTH,
-                                  y=half_h - PIN_SPACING * (i + 1),
+                                  x=round(half_w + PIN_LENGTH, 4),
+                                  y=round(half_h - PIN_SPACING * (i + 1), 4),
                                   angle=180, length=PIN_LENGTH, side=Side.RIGHT))
         for row, side, y, angle in (
             (by_side[Side.TOP], Side.TOP, half_h + PIN_LENGTH, 270),
@@ -212,7 +212,7 @@ class SymbolModel:
             for i, s in enumerate(row):
                 x = (i - (m - 1) / 2) * PIN_SPACING
                 pins.append(PlacedPin(s.pad, s.name, s.etype,
-                                      x=round(x, 4), y=y, angle=angle,
+                                      x=round(x, 4), y=round(y, 4), angle=angle,
                                       length=PIN_LENGTH, side=side))
         return SymbolUnit(unit_id=unit_id, name=name, width=width,
                           height=height, pins=tuple(pins))
@@ -354,6 +354,54 @@ class SymbolModel:
         ku.pins = pins
         return ku
 
+    def to_inline_sexp_multi(self, lib_id: str) -> str:
+        """Genuinely multi-unit lib_symbols entry for .kicad_sch embedding.
+
+        Emits one ``<name>_<unit>_1`` sub-symbol per unit, each with its own
+        body rectangle and pins — placed instances then reference units via
+        their ``(unit N)`` token. This is the layout-engine emission path
+        (the legacy ``to_inline_sexp`` flattens for old callers).
+        """
+        comp = self._component
+        safe_name = lib_id.replace('"', '\\"')
+        footprint = comp.footprint.lib_id if comp.footprint else ""
+
+        lines = [f'(symbol "{safe_name}"']
+        lines.append('      (pin_names (offset 1.016))')
+        lines.append('      (exclude_from_sim no)')
+        lines.append('      (in_bom yes)')
+        lines.append('      (on_board yes)')
+        lines.append(f'      (property "Reference" "{comp.reference_prefix or "U"}" '
+                     '(at 0 1.27 0) (effects (font (size 1.27 1.27))))')
+        lines.append(f'      (property "Value" "{comp.part_name}" (at 0 -1.27 0) '
+                     '(effects (font (size 1.27 1.27))))')
+        lines.append(f'      (property "Footprint" "{footprint}" (at 0 0 0) '
+                     '(effects (font (size 1.27 1.27)) (hide yes)))')
+        lines.append(f'      (property "Datasheet" "{comp.datasheet}" (at 0 0 0) '
+                     '(effects (font (size 1.27 1.27)) (hide yes)))')
+        child_base = safe_name.split(":")[-1]
+        for unit in self.units:
+            half_h = unit.height / 2
+            half_w = unit.width / 2
+            lines.append(f'      (symbol "{child_base}_{unit.unit_id}_1"')
+            lines.append(f'        (rectangle (start -{half_w} {half_h}) '
+                         f'(end {half_w} -{half_h})')
+            lines.append('          (stroke (width 0.254) (type default)) '
+                         '(fill (type background)))')
+            for p in unit.pins:
+                pin_name = p.name.replace('"', '\\"')
+                lines.append(
+                    f'        (pin {p.etype.value} line '
+                    f'(at {p.x} {p.y} {p.angle}) (length {p.length})'
+                    f'\n          (name "{pin_name}" '
+                    '(effects (font (size 1.27 1.27))))'
+                    f'\n          (number "{p.pad}" '
+                    '(effects (font (size 1.27 1.27)))))'
+                )
+            lines.append('      )')
+        lines.append('      (embedded_fonts no))')
+        return "\n".join(lines)
+
     def to_inline_sexp(self, lib_id: str) -> str:
         """Single-unit lib_symbols string for .kicad_sch embedding.
 
@@ -389,14 +437,15 @@ class SymbolModel:
             lines.append(f'      (property "Description" "{description}" '
                          '(at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
 
+        child_base = safe_name.split(":")[-1]
         half_h = unit.height / 2
-        lines.append(f'      (symbol "{safe_name}_0_1"')
+        lines.append(f'      (symbol "{child_base}_0_1"')
         lines.append(f'        (rectangle (start -{unit.width / 2} {half_h}) '
                      f'(end {unit.width / 2} -{half_h})')
         lines.append('          (stroke (width 0.254) (type default)) '
                      '(fill (type background))))')
 
-        lines.append(f'      (symbol "{safe_name}_1_1"')
+        lines.append(f'      (symbol "{child_base}_1_1"')
         for placed in unit.pins:
             pin_name = _esc(placed.name)
             lines.append(
