@@ -18,7 +18,6 @@ import re
 
 from ..component import Component
 from ..design import Design
-from ..model import ElectricalType
 from ..symbol import SymbolModel
 from .ir import (
     HierPort,
@@ -156,6 +155,3 @@ def _find_owner(nodes: dict[str, Node], sat_id: str, rail: str) -> str:
 
 __all__ = ["build", "is_power_net", "is_ground_net"]
 
-
-# Re-export for callers that need the electrical roles when post-processing
-_ = ElectricalType

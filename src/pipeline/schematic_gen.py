@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.ecad.emit import (  # noqa: F401  (re-exported legacy API)
-    _LIB_SYMBOL_STUBS,
     ComponentPlacement,
     NetConnection,
     _gen_junction,

@@ -139,3 +139,17 @@ def test_mcu_gps_erc_and_netlist(tmp_path):
     assert erc["success"], erc
     assert erc["errors"] == 0, erc
     assert _netlist_of(sheet.text, tmp_path) == design.intended_netlist()
+
+
+def test_unknown_passive_lib_id_gets_stub():
+    """Regression: every placed lib_id must have a lib_symbols definition
+    (the get_stub(...) or "" bug emitted empty entries for non-R/C/L)."""
+    class OddCap(Cap):
+        lib_id = "Device:C_Polarized"
+
+    d = Design("odd")
+    u, c = d.add(LDO(), OddCap())
+    d.net("VIN").connect(u.VIN, c.P1, u.EN)
+    d.net("GND").connect(u.pin("2"), c.P2)
+    sheet = emit(layout(d), d)
+    assert '(symbol "Device:C_Polarized"' in sheet.text
