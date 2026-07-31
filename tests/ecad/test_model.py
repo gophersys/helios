@@ -8,6 +8,7 @@ from src.ecad import (
     ElectricalType,
     FootprintRef,
     Net,
+    PinRole,
     PinSpec,
     UnitDef,
     UnitStrategy,
@@ -339,3 +340,91 @@ def test_check_ok():
     d = Design("t")
     d.add(LDO())
     assert d.check_ok() is False
+
+
+# ── regressions ─────────────────────────────────────────────────────────────
+
+
+def test_part_name_derived_for_grandchild_subclass():
+    """part_name resolution must not inherit an ancestor's derived name."""
+    class Passive(Component):
+        reference_prefix = "R"
+
+    class MyResistor(Passive):
+        lib_id = "Device:R"
+        footprint = FootprintRef("Resistor_SMD", "R_0402_1005Metric")
+        _PIN_SPECS = (pin("1", "A", "passive"), pin("2", "B", "passive"))
+
+    assert Passive.part_name == "Passive"
+    assert MyResistor.part_name == "R"
+
+
+def test_unit_plan_duplicate_pad_names_the_duplicate():
+    """A pad listed in two units must be reported, not shown as empty diffs."""
+    with pytest.raises(TypeError, match=r"duplicated=\['1'\]"):
+        class Bad(Component):
+            unit_strategy = UnitStrategy.EXPLICIT
+            unit_plan = (UnitDef("Power", ("1",)), UnitDef("IO", ("1", "2")))
+            _PIN_SPECS = (pin("1", "VDD", "power_in"), pin("2", "IO", "input"))
+
+
+def test_nc_lint_fires_without_explicit_nc_role():
+    """etype=no_connect alone must trip nc-connected (role defaults to SIGNAL)."""
+    class NCChip(Component):
+        lib_id = "Test:NCChip"
+        footprint = FootprintRef("Package_DFN_QFN", "QFN-8")
+        _PIN_SPECS = (
+            pin("1", "VDD", "power_in", "power"),
+            pin("2", "GND", "power_in", "ground"),
+            pin("7", "NC", "no_connect"),  # role omitted → SIGNAL
+        )
+
+    d = Design("t")
+    u, c = d.add(NCChip(), Cap())
+    assert u.pin("7").role is PinRole.SIGNAL  # the lint cannot rely on role
+    Net("OOPS").connect(u.pin("7"), c.P1)
+    assert "nc-connected" in _codes(d, "warning")
+
+
+def test_add_is_atomic_on_duplicate_ref():
+    """A rejected batch must leave the design untouched."""
+    d = Design("t")
+    good1, good2 = LDO(), LDO()
+    dup = LDO()
+    dup.ref = "U1"
+    d.add(LDO())  # occupies U1
+    with pytest.raises(ValueError, match="Duplicate ref"):
+        d.add(good1, dup, good2)
+    assert len(d.components) == 1
+    assert good1.ref == "" and good2.ref == ""
+
+
+def test_auto_ref_yields_to_preset_ref_later_in_batch():
+    """Batch order must not let an auto ref steal a preset one."""
+    d = Design("t")
+    auto = LDO()
+    preset = LDO()
+    preset.ref = "U1"
+    d.add(auto, preset)
+    assert preset.ref == "U1"
+    assert auto.ref == "U2"
+
+
+def test_add_ignores_repeats_within_one_call():
+    d = Design("t")
+    u = LDO()
+    d.add(u, u)
+    assert d.components == [u]
+
+
+def test_net_connect_rejects_string():
+    d = Design("t")
+    u = d.add(LDO())
+    with pytest.raises(TypeError, match="expected a Pin"):
+        Net("3V3").connect("VOUT")
+    assert u.VOUT.net is None
+
+
+def test_net_connect_rejects_non_pin_iterable():
+    with pytest.raises(TypeError, match="expected Pin objects"):
+        Net("3V3").connect(["VOUT", "VIN"])

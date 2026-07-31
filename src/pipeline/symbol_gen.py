@@ -38,6 +38,7 @@ class PinDef:
     name: str
     electrical_type: str  # must be in VALID_PIN_TYPES
     group: str
+    gpio: int | None = None  # logical GPIO number, MCUs only; see ecad_bridge
 
 
 @dataclass

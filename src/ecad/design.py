@@ -20,25 +20,51 @@ class Design:
     def add(self, *components: Component) -> Component | tuple[Component, ...]:
         """Register components, assigning sequential refs per prefix.
 
-        Auto-assigned refs skip any ref already taken (including manually
-        preset ones); duplicate refs are always rejected.
+        Auto-assigned refs skip any ref already taken, including ones preset
+        on components *later in the same call*; duplicate refs are always
+        rejected. All-or-nothing: if any component is rejected, the design is
+        left exactly as it was.
         """
+        seen = {id(c) for c in self.components}
+        fresh: list[Component] = []
         for comp in components:
-            if comp in self.components:
-                continue
-            taken = {c.ref for c in self.components}
+            if id(comp) in seen:
+                continue  # already registered, or repeated in this call
+            seen.add(id(comp))
+            fresh.append(comp)
+
+        # Pass 1 — reserve every preset ref before assigning any automatic one,
+        # so batch order can't let an auto ref steal a ref preset later on.
+        taken = {c.ref for c in self.components}
+        for comp in fresh:
             if not comp.ref:
-                prefix = comp.reference_prefix or "U"
-                n = self._ref_counters.get(prefix, 0)
-                while True:
-                    n += 1
-                    if f"{prefix}{n}" not in taken:
-                        break
-                self._ref_counters[prefix] = n
-                comp.ref = f"{prefix}{n}"
-            elif comp.ref in taken:
+                continue
+            if comp.ref in taken:
                 raise ValueError(f"Duplicate ref {comp.ref!r} in design {self.name!r}")
-            self.components.append(comp)
+            taken.add(comp.ref)
+
+        # Pass 2 — assign refs into a scratch counter map, still not mutating.
+        counters = dict(self._ref_counters)
+        assigned: list[tuple[Component, str]] = []
+        for comp in fresh:
+            if comp.ref:
+                continue
+            prefix = comp.reference_prefix or "U"
+            n = counters.get(prefix, 0)
+            while True:
+                n += 1
+                if f"{prefix}{n}" not in taken:
+                    break
+            counters[prefix] = n
+            ref = f"{prefix}{n}"
+            taken.add(ref)
+            assigned.append((comp, ref))
+
+        # Pass 3 — commit; nothing below here can fail.
+        self._ref_counters = counters
+        for comp, ref in assigned:
+            comp.ref = ref
+        self.components.extend(fresh)
         return components[0] if len(components) == 1 else components
 
     def net(self, name: str, *, group: str | None = None) -> Net:
@@ -112,7 +138,10 @@ class Design:
                                     f"{comp.ref} ({comp.part_name}) has no footprint",
                                     ref=comp.ref))
             for pin in comp.pins:
-                if pin.role is PinRole.NC:
+                # etype too: pin() defaults role to SIGNAL and PinSpec never
+                # derives it from etype, so a hand-written
+                # pin("7", "NC", "no_connect") would slip past a role-only test.
+                if pin.role is PinRole.NC or pin.etype is ElectricalType.NO_CONNECT:
                     if pin.net is not None:
                         issues.append(Issue("warning", "nc-connected",
                                             f"{comp.ref}.{pin.name} is NC but on "

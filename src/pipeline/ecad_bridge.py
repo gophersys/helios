@@ -24,7 +24,12 @@ from .symbol_gen import ChipDef, PinDef
 def _infer_role(pin: PinDef) -> PinRole:
     name = pin.name.upper()
     group = pin.group.lower()
-    if name.startswith(("GND", "VSS", "EP", "PAD_GND")) or group == "ground":
+    # "EP"/"EPAD" is the exposed-pad convention — match it only at a token
+    # boundary, or names like EPWM1A (TI C2000), EP0/EP1_IN (USB endpoints)
+    # and EPROM_* would be swept in as grounds.
+    if (name in ("EP", "EPAD")
+            or name.startswith(("GND", "VSS", "PAD_GND", "EP_", "EPAD_"))
+            or group == "ground"):
         return PinRole.GROUND
     etype = ElectricalType.parse(pin.electrical_type)
     if etype in (ElectricalType.POWER_IN, ElectricalType.POWER_OUT):
@@ -44,6 +49,23 @@ def _infer_role(pin: PinDef) -> PinRole:
     if etype is ElectricalType.NO_CONNECT:
         return PinRole.NC
     return PinRole.SIGNAL
+
+
+_GPIO_RE = re.compile(r"GPIO(\d+)(?![0-9A-Za-z])")
+
+
+def _infer_gpio(pin: PinDef) -> int | None:
+    """Logical GPIO number for Component.gpio(n).
+
+    Explicit PinDef.gpio wins; otherwise fall back to the leading GPIOnn in
+    the pin name ("GPIO17/ADC2_CH6/DAC1" → 17), which is how the ESP32
+    factories name their pins. Parts that don't use that convention (STM32
+    PA/PB, ...) simply have no GPIO numbers.
+    """
+    if pin.gpio is not None:
+        return pin.gpio
+    m = _GPIO_RE.match(pin.name.upper())
+    return int(m.group(1)) if m else None
 
 
 def _parse_footprint(raw: str) -> FootprintRef | None:
@@ -67,6 +89,7 @@ def chipdef_to_component(chip: ChipDef) -> Component:
             name=p.name,
             etype=ElectricalType.parse(p.electrical_type),
             role=_infer_role(p),
+            gpio=_infer_gpio(p),
         )
         for p in chip.pins
     )
@@ -112,6 +135,7 @@ def component_to_chipdef(component: Component) -> ChipDef:
                 name=p.name,
                 electrical_type=p.etype.value,
                 group=unit_names.get(p.pad, ""),
+                gpio=p.spec.gpio,
             )
             for p in component.pins
         ],

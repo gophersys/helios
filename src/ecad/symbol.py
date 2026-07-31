@@ -227,13 +227,17 @@ class SymbolModel:
 
         safe_name = lib_id.replace('"', '\\"')
         footprint = comp.footprint.lib_id if comp.footprint else ""
+        # Must match to_kicad_sym() — both emitters describe the same part.
+        # Bridged ChipDefs never set reference_prefix, so this stays "U" and
+        # preserves byte-parity with _generate_lib_symbol_sexp_legacy.
+        ref_prefix = comp.reference_prefix or "U"
 
         lines = [f'(symbol "{safe_name}"']
         lines.append('      (pin_names (offset 1.016))')
         lines.append('      (exclude_from_sim no)')
         lines.append('      (in_bom yes)')
         lines.append('      (on_board yes)')
-        lines.append('      (property "Reference" "U" (at 0 1.27 0) '
+        lines.append(f'      (property "Reference" "{ref_prefix}" (at 0 1.27 0) '
                      '(effects (font (size 1.27 1.27))))')
         lines.append(f'      (property "Value" "{safe_name}" (at 0 -1.27 0) '
                      '(effects (font (size 1.27 1.27))))')
