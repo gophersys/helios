@@ -25,6 +25,7 @@
 - [x] Phase B: footprint index/resolver (15k installed footprints) + official-symbol ingestion with extends-resolution
 - [x] Phase C: layout engine — graph_build/rank/order/place/route/engine/lints; hard gates green (ERC 0, netlist == intended, geometric lints, byte-determinism); found+fixed latent unloadable-lib_symbols bug (lib-prefixed child names)
 - [x] Pure emitters extracted to src/ecad/emit.py (pipeline→ecad layering enforced); CI added (.github/workflows/ci.yml); docs/ecad-architecture.md
+- [x] Stage 1 de-legacy (branch feat/de-legacy): legacy-parity tests replaced by golden-file snapshots (tests/ecad/golden/, byte-exact, 3 registry chips); deleted _generate_symbol_legacy + _generate_lib_symbol_sexp_legacy + 4 orphaned symbol_gen helpers; chip_library factories/lookup_chip kept as data (seed the factory until Phase D). datasheet_parser fallbacks + to_inline_sexp/flatten single-unit path deliberately left (Stage 2/3 ordering)
 - [ ] Phase D: ingestion factory (datasheet ∥ Zephyr ∥ crossverify ∥ codegen) + Espressif seed + COMPONENTS.md loop
 - [ ] Phase E: composer migration onto Design→layout→emit (deletes hardcoded coordinates + Custom: stubs)
 
