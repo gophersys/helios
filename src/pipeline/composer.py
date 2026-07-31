@@ -508,6 +508,14 @@ def _wire_interface(
                 continue
             if is_power_net(net):
                 continue                      # rails are global power symbols
+            if mcu_pin.net is not None or periph_pin.net is not None:
+                taken = mcu_pin if mcu_pin.net is not None else periph_pin
+                warnings.append(
+                    f"Wiring pattern for {peripheral.name} wants {net} on "
+                    f"{taken.owner_ref}.{taken.name} (pad {taken.pad}), which "
+                    f"already carries {taken.net.name}; net {net} skipped."
+                )
+                continue
             mcu_design.net(net).connect(mcu_pin)
             periph_design.net(net).connect(periph_pin)
             mcu_used.add(mcu_pin.pad)

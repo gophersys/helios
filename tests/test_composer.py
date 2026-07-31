@@ -659,6 +659,31 @@ def test_compose_pattern_pads_become_pins(tmp_path):
     )
 
 
+def test_compose_pattern_conflicting_pad_warns(tmp_path):
+    """A pattern that wants a pad already on a rail is reported, not fatal."""
+    patterns = {
+        "pattern_count": 1,
+        "patterns": [{
+            "ic_a_family": "ESP32-S3",
+            "ic_b_family": "NEO-6M",
+            "interface_type": "UART",
+            # pad 2 of the ESP32-S3-WROOM-1 is 3V3 — already on the rail
+            "canonical_connections": [
+                {"ic_a_pad": "2", "ic_b_pad": "20", "net_name": "GPS_CLASH"},
+            ],
+            "seen_in_projects": ["synthetic"],
+            "sample_count": 1,
+            "confidence": "low",
+        }],
+    }
+    path = tmp_path / "wiring_patterns.json"
+    path.write_text(json.dumps(patterns))
+
+    result = compose_design(_gps_tracker_spec(), patterns_path=path)
+    assert any("already carries" in w for w in result.warnings), result.warnings
+    assert "GPS_CLASH" not in result.designs["mcu.kicad_sch"].intended_netlist()
+
+
 def test_compose_pattern_with_unknown_pads_warns(tmp_path):
     """Pattern pads that do not exist on the resolved parts are reported."""
     patterns = {
