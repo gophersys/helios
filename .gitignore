@@ -27,3 +27,4 @@ Thumbs.db
 .idea/
 *.rpt
 .claude/worktrees/
+data/zephyr/
