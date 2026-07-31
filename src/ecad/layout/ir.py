@@ -131,6 +131,7 @@ class SatelliteCap:
     value: str
     rail: str                # power net it decouples
     gnd: str                 # ground net name
+    footprint: str = ""      # footprint lib_id, threaded through to emit
 
 
 # ── stage outputs ───────────────────────────────────────────────────────────

@@ -92,3 +92,14 @@ def test_micro_sheet_loads_and_erc(tmp_path):
     # The hard gate: zero ERC *errors* (warnings tolerated at this stage —
     # PWR_FLAG placement is finalized by the power stage of the engine).
     assert result["errors"] == 0, result
+
+
+def test_earth_net_gets_ground_glyph():
+    """Regression: EARTH is a ground per graph_build._GROUND_RE but the
+    emitter drew it with the (then-inverted) rail glyph."""
+    from src.ecad.emit import power_symbol_lib_sexp
+
+    earth = power_symbol_lib_sexp("EARTH")
+    # the innermost triangle stroke only exists in the ground glyph
+    assert "(xy -0.254 1.016)" in power_symbol_lib_sexp("GND")
+    assert "(xy -0.254 1.016)" in earth

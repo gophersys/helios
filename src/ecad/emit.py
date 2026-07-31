@@ -307,7 +307,10 @@ def power_symbol_lib_sexp(net_name: str) -> str:
     """
     safe = net_name.replace('"', '\\"')
     is_flag = net_name == "PWR_FLAG"
-    is_gnd = net_name.upper().startswith(("GND", "VSS", "AGND", "DGND", "PGND"))
+    # Must agree with layout.graph_build._GROUND_RE (which also taps EARTH
+    # down) or a ground net renders with the upside-down rail glyph.
+    is_gnd = net_name.upper().startswith(
+        ("GND", "VSS", "AGND", "DGND", "PGND", "EARTH"))
     pin_type = "power_out" if is_flag else "power_in"
     if is_gnd:
         graphics = (
