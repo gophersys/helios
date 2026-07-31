@@ -1,0 +1,140 @@
+{
+  "class_name": "ESP32_S3_MINI_1",
+  "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf",
+  "description": "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, onboard antenna",
+  "evidence_summary": {
+    "agreed": 102,
+    "claims": 106,
+    "conflicts": 0,
+    "single_source": 1,
+    "waived": 3
+  },
+  "footprint": {
+    "lib": "RF_Module",
+    "name": "ESP32-S2-MINI-1",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "e2a241dff54e5b2e52422499652e690c2856744d7f3477e4ed31f8a5838ca1d9",
+    "md_sha256": "e56ff7ebdebc41f1212dc7a1292b7d359cc19f160debcae61388e753283d72d8",
+    "py_sha256": "a16925ecab79ae4e9f07594259d9d9c10da1c8c7f5333bfef4b21a16fee059c2"
+  },
+  "id": "esp32_s3_mini_1",
+  "lib_id": "RF_Module:ESP32-S3-MINI-1",
+  "part_name": "ESP32-S3-MINI-1",
+  "pin_count": 65,
+  "provenance": {
+    "official_symbol": "RF_Module:ESP32-S3-MINI-1",
+    "pin_source": "datasheet",
+    "zephyr_soc": "esp32s3"
+  },
+  "source_hashes": {
+    "pdf_sha256": "71142b72ce76c5d0f34e69de45c8f4599663f2172dcd6f0380a2d7daad8d4ca4"
+  },
+  "sourcing": {
+    "datasheet_url": "https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf",
+    "lcsc": "C2913238",
+    "manufacturer": "Espressif Systems",
+    "mpn": "ESP32-S3-MINI-1"
+  },
+  "unit_plan": [
+    {
+      "name": "Power",
+      "pads": [
+        "1",
+        "2",
+        "3",
+        "42",
+        "43",
+        "46",
+        "47",
+        "48",
+        "49",
+        "50",
+        "51",
+        "52",
+        "53",
+        "54",
+        "55",
+        "56",
+        "57",
+        "58",
+        "59",
+        "60",
+        "61",
+        "62",
+        "63",
+        "64",
+        "65"
+      ]
+    },
+    {
+      "name": "Control",
+      "pads": [
+        "45"
+      ]
+    },
+    {
+      "name": "IO",
+      "pads": [
+        "23",
+        "24",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33",
+        "35",
+        "36",
+        "37",
+        "38"
+      ]
+    },
+    {
+      "name": "RXD",
+      "pads": [
+        "40"
+      ]
+    },
+    {
+      "name": "TXD",
+      "pads": [
+        "39"
+      ]
+    },
+    {
+      "name": "GPIO",
+      "pads": [
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "25",
+        "34",
+        "41",
+        "44"
+      ]
+    }
+  ]
+}

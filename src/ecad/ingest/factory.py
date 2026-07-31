@@ -225,7 +225,24 @@ def _write_evidence(record: ComponentRecord, ctx: dict,
                                     zephyr=_SocEvidence(soc),
                                     footprint_pads=footprint_pads,
                                     component=record.id)
-    crossverify.save_evidence(ev, root / record.id / "evidence.json")
+    ev_path = root / record.id / "evidence.json"
+    # Carry recorded waivers forward: rebuilding evidence must never discard
+    # a cited human decision. A waiver re-applies iff the same claim
+    # (kind:key) conflicts again with the SAME values.
+    if ev_path.is_file():
+        try:
+            prev = crossverify.load_evidence(ev_path)
+        except (ValueError, KeyError):
+            prev = None
+        if prev is not None:
+            for old in prev.claims:
+                if old.status != "waived" or not old.waiver:
+                    continue
+                cur = ev.find(old.kind, old.key)
+                if (cur is not None and cur.status == "conflict"
+                        and cur.values == old.values):
+                    ev.waive(old.kind, old.key, **old.waiver)
+    crossverify.save_evidence(ev, ev_path)
     return ev
 
 
@@ -442,6 +459,16 @@ def main(argv: list[str] | None = None) -> int:
     if args[:1] == ["status"] and len(args) == 1:
         records = status()
         sys.stdout.write(render_components_md(records))
+        return 0
+    if args[:1] == ["waive"] and len(args) == 6:
+        # waive <id> <kind:key> <reason> <cited_source> <author>
+        comp_id, claim_ref, reason, source, author = args[1:]
+        kind, _, key = claim_ref.partition(":")
+        root = REPO_ROOT / "data" / "ingest"
+        ev = crossverify.load_evidence(root / comp_id / "evidence.json")
+        ev.waive(kind, key, reason=reason, cited_source=source, author=author)
+        crossverify.save_evidence(ev, root / comp_id / "evidence.json")
+        print(f"{comp_id}: waived {claim_ref} ({ev.summary()})")
         return 0
     if args[:1] == ["step"] and len(args) == 2:
         record = step(args[1])

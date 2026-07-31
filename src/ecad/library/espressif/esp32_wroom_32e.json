@@ -1,0 +1,109 @@
+{
+  "class_name": "ESP32_WROOM_32E",
+  "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.pdf",
+  "description": "RF Module, ESP32-D0WD-V3 SoC, without PSRAM, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 2.7-3.6V, onboard antenna, SMD",
+  "evidence_summary": {
+    "agreed": 58,
+    "claims": 68,
+    "conflicts": 2,
+    "single_source": 6,
+    "waived": 2
+  },
+  "footprint": {
+    "lib": "RF_Module",
+    "name": "ESP32-WROOM-32E",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "951a84f816f88e862579c5a948adf21e049b26025af0c65e2779ea7687814f4c",
+    "md_sha256": "0ff8a91c752384729e92e6afef9028aa133ed56f56925bfb4f7f209d46eb9ca9",
+    "py_sha256": "d3b12a92b3f630df97bee07c5b60f43a6d416cf3eef0a9d7cc7484850089efa4"
+  },
+  "id": "esp32_wroom_32e",
+  "lib_id": "RF_Module:ESP32-WROOM-32E",
+  "part_name": "ESP32-WROOM-32E",
+  "pin_count": 39,
+  "provenance": {
+    "official_symbol": "RF_Module:ESP32-WROOM-32E",
+    "pin_source": "datasheet",
+    "zephyr_soc": "esp32"
+  },
+  "source_hashes": {
+    "pdf_sha256": "0ac83c833dabfd1242f202bb94a15d8439c927f3d32cc4b44ebba6b7fac7973e"
+  },
+  "sourcing": {
+    "datasheet_url": "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.pdf",
+    "lcsc": "C701341",
+    "manufacturer": "Espressif Systems",
+    "mpn": "ESP32-WROOM-32E"
+  },
+  "unit_plan": [
+    {
+      "name": "Power",
+      "pads": [
+        "1",
+        "2",
+        "15",
+        "38",
+        "39"
+      ]
+    },
+    {
+      "name": "Control",
+      "pads": [
+        "3"
+      ]
+    },
+    {
+      "name": "RXD",
+      "pads": [
+        "34"
+      ]
+    },
+    {
+      "name": "TXD",
+      "pads": [
+        "35"
+      ]
+    },
+    {
+      "name": "GPIO",
+      "pads": [
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33",
+        "36",
+        "37"
+      ]
+    }
+  ]
+}
