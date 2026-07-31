@@ -436,6 +436,9 @@ def _strip_fences(text: str) -> str:
 _PIN_TYPE_MAP = {
     "P": "power_in", "I": "input", "O": "output",
     "IO": "bidirectional", "I/O": "bidirectional", "I/O/T": "bidirectional",
+    # Module datasheets mark unconnected pads with "-" or "NC"
+    # (e.g. ESP32-C3-MINI-1 has 14 NC pads).
+    "-": "no_connect", "NC": "no_connect",
 }
 
 

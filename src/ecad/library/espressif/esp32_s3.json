@@ -1,0 +1,177 @@
+{
+  "class_name": "ESP32_S3",
+  "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf",
+  "description": "Microcontroller, Wi-Fi 802.11b/g/n, Bluetooth, 32bit",
+  "evidence_summary": {
+    "agreed": 88,
+    "claims": 89,
+    "conflicts": 0,
+    "single_source": 1,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Package_DFN_QFN",
+    "name": "QFN-56-1EP_7x7mm_P0.4mm_EP4x4mm",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "246aae3b097dbdd53df4a91570f9eb7d273ae69ba684502dd770b4192d1dd29a",
+    "md_sha256": "6feaaea5b0b50ed20c1352c91aa5dfa8d8cbe52fb2f90cc1ce823a69566bdf94",
+    "py_sha256": "c692420fc2c9158376d38ac440a62d5b480a660316c782b55f7d4be63e61f073"
+  },
+  "id": "esp32_s3",
+  "lib_id": "MCU_Espressif:ESP32-S3",
+  "part_name": "ESP32-S3",
+  "pin_count": 57,
+  "provenance": {
+    "official_symbol": "MCU_Espressif:ESP32-S3",
+    "pin_source": "datasheet",
+    "zephyr_soc": "esp32s3"
+  },
+  "source_hashes": {
+    "pdf_sha256": "97b4b3199f87c43fb060e7f0289b49ab4ecd6058985bc76c340e95a299d4e6eb"
+  },
+  "sourcing": {
+    "datasheet_url": "https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf",
+    "lcsc": "C2913196",
+    "manufacturer": "Espressif Systems",
+    "mpn": "ESP32-S3"
+  },
+  "unit_plan": [
+    {
+      "name": "Power",
+      "pads": [
+        "2",
+        "3",
+        "20",
+        "29",
+        "46",
+        "55",
+        "56",
+        "57"
+      ]
+    },
+    {
+      "name": "Control",
+      "pads": [
+        "4"
+      ]
+    },
+    {
+      "name": "MTCK",
+      "pads": [
+        "44"
+      ]
+    },
+    {
+      "name": "MTDI",
+      "pads": [
+        "47"
+      ]
+    },
+    {
+      "name": "MTDO",
+      "pads": [
+        "45"
+      ]
+    },
+    {
+      "name": "MTMS",
+      "pads": [
+        "48"
+      ]
+    },
+    {
+      "name": "SPICLK",
+      "pads": [
+        "33",
+        "36",
+        "37"
+      ]
+    },
+    {
+      "name": "SPICS",
+      "pads": [
+        "28",
+        "32"
+      ]
+    },
+    {
+      "name": "SPID",
+      "pads": [
+        "35"
+      ]
+    },
+    {
+      "name": "SPIHD",
+      "pads": [
+        "30"
+      ]
+    },
+    {
+      "name": "SPIQ",
+      "pads": [
+        "34"
+      ]
+    },
+    {
+      "name": "SPIWP",
+      "pads": [
+        "31"
+      ]
+    },
+    {
+      "name": "U0RXD",
+      "pads": [
+        "50"
+      ]
+    },
+    {
+      "name": "U0TXD",
+      "pads": [
+        "49"
+      ]
+    },
+    {
+      "name": "GPIO",
+      "pads": [
+        "1",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "51",
+        "52",
+        "53",
+        "54"
+      ]
+    }
+  ]
+}

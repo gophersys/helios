@@ -1,0 +1,84 @@
+{
+  "class_name": "ESP32_C3_WROOM_02",
+  "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf",
+  "description": "802.11 b/g/n Wi\u00adFi and Bluetooth 5 module, ESP32\u00adC3 SoC, RISC\u00adV microprocessor, On-board antenna",
+  "evidence_summary": {
+    "agreed": 37,
+    "claims": 38,
+    "conflicts": 0,
+    "single_source": 1,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "RF_Module",
+    "name": "ESP32-C3-WROOM-02",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "842e789e0b855c03975bdb817bde11f06fa891e25180ea9d8ff2cdb815a8e363",
+    "md_sha256": "e35a4ec7b5deed98d65d4e650b45d2f8277e90432b20f3e12a8a0f1fe1c7c79f",
+    "py_sha256": "a1f8b459cff82ccfb4776180583a95aca7b07e5ce5cd6cf59f82ab2b8e3a822a"
+  },
+  "id": "esp32_c3_wroom_02",
+  "lib_id": "RF_Module:ESP32-C3-WROOM-02",
+  "part_name": "ESP32-C3-WROOM-02",
+  "pin_count": 19,
+  "provenance": {
+    "official_symbol": "RF_Module:ESP32-C3-WROOM-02",
+    "pin_source": "datasheet",
+    "zephyr_soc": "esp32c3"
+  },
+  "source_hashes": {
+    "pdf_sha256": "48c931f42b44e0910657cb4a12bea05a2fc6f8e2817ecadc4efd490041419908"
+  },
+  "sourcing": {
+    "datasheet_url": "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf",
+    "lcsc": "C2934560",
+    "manufacturer": "Espressif Systems",
+    "mpn": "ESP32-C3-WROOM-02"
+  },
+  "unit_plan": [
+    {
+      "name": "Power",
+      "pads": [
+        "1",
+        "9",
+        "19"
+      ]
+    },
+    {
+      "name": "Control",
+      "pads": [
+        "2"
+      ]
+    },
+    {
+      "name": "IO",
+      "pads": [
+        "11",
+        "12",
+        "13",
+        "14"
+      ]
+    },
+    {
+      "name": "GPIO",
+      "pads": [
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "10",
+        "15",
+        "16",
+        "17",
+        "18"
+      ]
+    }
+  ]
+}
