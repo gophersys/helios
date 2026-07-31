@@ -1,4 +1,12 @@
-"""SymbolModel geometry + byte-parity against the legacy emitters."""
+"""SymbolModel geometry + golden-file snapshots of the emitter output.
+
+The golden files under tests/ecad/golden/ are byte-exact snapshots of the
+CURRENT (fixed) emitter output for the 3 registry chips. They replaced the
+old parity tests against the deleted pre-ecad legacy emitters
+(the pre-ecad legacy emitters, now deleted) and pin down
+the emission format: any change to SymbolModel.to_kicad_sym or
+to_inline_sexp must be intentional and update the snapshots.
+"""
 
 import sys
 from pathlib import Path
@@ -9,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
 
 from src.ecad import PinRole, Side, SymbolModel
 from src.pipeline.chip_library import (
-    _generate_lib_symbol_sexp_legacy,
     esp32_s3_wroom_1,
     generate_lib_symbol_sexp,
     neo_6m,
@@ -20,14 +27,10 @@ from src.pipeline.ecad_bridge import (
     chipdef_to_component,
     component_to_chipdef,
 )
-from src.pipeline.symbol_gen import (
-    ChipDef,
-    PinDef,
-    _generate_symbol_legacy,
-    generate_symbol,
-)
+from src.pipeline.symbol_gen import ChipDef, PinDef, generate_symbol
 
 ALL_CHIPS = [esp32_s3_wroom_1, stm32f411ceu6, neo_6m]
+GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
 
 
 def _lib_to_text(lib) -> str:
@@ -41,30 +44,36 @@ def _lib_to_text(lib) -> str:
     return text
 
 
-# ── parity: the shims must emit byte-identical output vs legacy ─────────────
+# ── golden snapshots: emitters must stay byte-identical ─────────────────────
 
 
-def test_kicad_sym_parity_all_chips():
+def test_kicad_sym_golden_all_chips():
     for factory in ALL_CHIPS:
         chip = factory()
-        assert _lib_to_text(generate_symbol(chip)) == _lib_to_text(
-            _generate_symbol_legacy(chip)
-        ), f"kicad_sym parity broken for {chip.name}"
+        golden = (GOLDEN_DIR / f"{chip.name}.kicad_sym").read_text()
+        assert _lib_to_text(generate_symbol(chip)) == golden, \
+            f"kicad_sym snapshot changed for {chip.name}"
 
 
-def test_inline_sexp_parity_all_chips():
-    """Byte-parity vs legacy EXCEPT the child-symbol names: legacy emitted
-    lib-prefixed child names ("RF_GPS:NEO-6M_0_1"), which KiCad refuses to
-    load — the new emitter uses the bare part name ("NEO-6M_0_1"). The
-    legacy output is normalized to the fixed form before comparing, which
-    proves everything else is unchanged."""
+def test_inline_sexp_golden_all_chips():
     for factory in ALL_CHIPS:
         chip = factory()
         lib_id = f"{chip.library}:{chip.name}" if chip.library else chip.name
-        legacy = _generate_lib_symbol_sexp_legacy(chip, lib_id)
-        legacy = legacy.replace(f'(symbol "{lib_id}_', f'(symbol "{chip.name}_')
-        assert generate_lib_symbol_sexp(chip, lib_id) == legacy, \
-            f"inline sexp parity broken for {chip.name}"
+        golden = (GOLDEN_DIR / f"{chip.name}.inline.sexp").read_text()
+        assert generate_lib_symbol_sexp(chip, lib_id) == golden, \
+            f"inline sexp snapshot changed for {chip.name}"
+
+
+def test_inline_golden_uses_bare_child_names():
+    """Regression for the legacy child-name bug: children must be named by
+    bare part name ("NEO-6M_0_1"), never lib-prefixed ("RF_GPS:NEO-6M_0_1"),
+    which KiCad refuses to load."""
+    for factory in ALL_CHIPS:
+        chip = factory()
+        lib_id = f"{chip.library}:{chip.name}" if chip.library else chip.name
+        golden = (GOLDEN_DIR / f"{chip.name}.inline.sexp").read_text()
+        assert f'(symbol "{chip.name}_' in golden
+        assert f'(symbol "{lib_id}_' not in golden
 
 
 def test_inline_sexp_loads_in_kicad(tmp_path):
@@ -110,14 +119,14 @@ def test_pin_position_query():
     assert all(p.side is Side.LEFT for u in model.units for p in u.pins)
 
 
-def test_units_match_legacy_groups():
+def test_units_match_chipdef_groups():
     chip = stm32f411ceu6()
     model = SymbolModel.from_component(chipdef_to_component(chip))
-    legacy_groups = []
+    chip_groups = []
     for p in chip.pins:
-        if p.group not in legacy_groups:
-            legacy_groups.append(p.group)
-    assert [u.name for u in model.units] == legacy_groups
+        if p.group not in chip_groups:
+            chip_groups.append(p.group)
+    assert [u.name for u in model.units] == chip_groups
 
 
 def test_flatten_preserves_pin_order():
@@ -191,12 +200,9 @@ def test_inline_sexp_escapes_every_interpolated_field():
     assert props["Datasheet"] == 'http://x/a"b'
     assert props["Footprint"] == 'fp:C_0402"odd'
 
-    # and the legacy oracle agrees, once its child-symbol names are normalized
-    # (see test_inline_sexp_parity_all_chips: legacy emitted lib-prefixed child
-    # names, which KiCad refuses to load)
-    legacy = _generate_lib_symbol_sexp_legacy(chip, 'Lib:T"X')
-    legacy = legacy.replace('(symbol "Lib:T\\"X_', '(symbol "T\\"X_')
-    assert out == legacy
+    # The pin name is escaped too, and the child symbols use the bare part
+    # name — a quote there would otherwise terminate the child block early.
+    assert '(symbol "T\\"X_0_1"' in out
 
 
 def test_inline_sexp_escapes_backslashes():
@@ -205,9 +211,14 @@ def test_inline_sexp_escapes_backslashes():
     ])
     out = generate_lib_symbol_sexp(chip, "Lib:T")
     assert "C:\\\\parts" in out
-    legacy = _generate_lib_symbol_sexp_legacy(chip, "Lib:T")
-    legacy = legacy.replace('(symbol "Lib:T_', '(symbol "T_')
-    assert out == legacy
+
+    # Same contract as the quote case: still one parseable S-expression, with
+    # the backslash surviving the round trip rather than escaping a delimiter.
+    import sexpdata
+    parsed = sexpdata.loads(out)
+    props = {p[1]: p[2] for p in parsed
+             if isinstance(p, list) and str(p[0]) == "property"}
+    assert props["Description"] == "path C:\\parts"
 
 
 def test_zero_pin_component_emits_without_crashing():

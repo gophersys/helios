@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
 
-from kiutils.items.common import Effects, Fill, Font, Position, Property, Stroke
+from kiutils.items.common import Fill, Position, Stroke
 from kiutils.items.syitems import SyRect
 from kiutils.symbol import Symbol, SymbolLib, SymbolPin
 
@@ -159,57 +159,6 @@ def generate_symbol(chip: ChipDef) -> SymbolLib:
     from .ecad_bridge import chipdef_to_component
 
     return SymbolModel.from_component(chipdef_to_component(chip)).to_kicad_sym()
-
-
-def _generate_symbol_legacy(chip: ChipDef) -> SymbolLib:
-    """Pre-ecad implementation, kept temporarily for parity testing."""
-    lib = SymbolLib()
-    lib.version = 20231120
-    lib.generator = "symbol_gen"
-
-    # Create parent symbol
-    sym = Symbol()
-    sym.entryName = chip.name
-    sym.libId = chip.name
-    sym.inBom = True
-    sym.onBoard = True
-
-    # Standard properties
-    sym.properties = [
-        Property(
-            key="Reference", value="U", id=0,
-            effects=Effects(font=Font(width=TEXT_SIZE, height=TEXT_SIZE)),
-        ),
-        Property(
-            key="Value", value=chip.name, id=1,
-            effects=Effects(font=Font(width=TEXT_SIZE, height=TEXT_SIZE)),
-        ),
-        Property(
-            key="Footprint", value=chip.footprint, id=2,
-            effects=Effects(font=Font(width=TEXT_SIZE, height=TEXT_SIZE), hide=True),
-        ),
-        Property(
-            key="Datasheet", value=chip.datasheet_url or "", id=3,
-            effects=Effects(font=Font(width=TEXT_SIZE, height=TEXT_SIZE), hide=True),
-        ),
-    ]
-
-    if chip.description:
-        sym.properties.append(Property(
-            key="Description", value=chip.description, id=4,
-            effects=Effects(font=Font(width=TEXT_SIZE, height=TEXT_SIZE), hide=True),
-        ))
-
-    # Group pins and create units
-    groups = _group_pins(chip.pins)
-    units = []
-    for unit_id, (group_name, group_pins) in enumerate(groups.items(), start=1):
-        unit = _make_unit(chip.name, unit_id, group_name, group_pins)
-        units.append(unit)
-
-    sym.units = units
-    lib.symbols = [sym]
-    return lib
 
 
 def generate_symbol_file(chip: ChipDef, output_path: Path) -> Path:
