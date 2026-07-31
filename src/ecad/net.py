@@ -25,8 +25,21 @@ class Net:
     def connect(self, *items: "Pin | Iterable[Pin]") -> "Net":
         """Attach pins (or iterables of pins) to this net. Idempotent."""
         for item in items:
+            # A str is iterable but is not an iterable of Pins — without this
+            # guard connect("VOUT") silently becomes ["V","O","U","T"] and
+            # fails deep inside the loop with an unhelpful AttributeError.
+            if isinstance(item, (str, bytes)):
+                raise TypeError(
+                    f"Net.connect() expected a Pin or iterable of Pins, "
+                    f"got {type(item).__name__} {item!r}"
+                )
             pins = [item] if hasattr(item, "spec") else list(item)
             for p in pins:
+                if not hasattr(p, "spec"):
+                    raise TypeError(
+                        f"Net.connect() expected Pin objects, got "
+                        f"{type(p).__name__} {p!r}"
+                    )
                 if p.net is self:
                     continue
                 if p.net is not None:

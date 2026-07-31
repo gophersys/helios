@@ -129,7 +129,10 @@ class Component:
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
-        if not cls.part_name:
+        # Own dict, not the resolved attribute: a plain `cls.part_name` walks
+        # the MRO, so a grandchild would inherit its parent's derived name
+        # instead of deriving its own from lib_id.
+        if not cls.__dict__.get("part_name"):
             cls.part_name = cls.lib_id.split(":")[-1] if cls.lib_id else cls.__name__
         if not cls._PIN_SPECS:
             return  # abstract intermediate classes are fine
@@ -142,9 +145,13 @@ class Component:
             if sorted(plan_pads) != sorted(pads):
                 missing = set(pads) - set(plan_pads)
                 extra = set(plan_pads) - set(pads)
+                # Both set-diffs are empty when a pad is merely listed twice,
+                # so report duplicates separately or the error says nothing.
+                dupes = sorted({p for p in plan_pads if plan_pads.count(p) > 1})
                 raise TypeError(
                     f"{cls.__name__}: unit_plan must cover every pad exactly "
-                    f"once (missing={sorted(missing)}, unknown={sorted(extra)})"
+                    f"once (missing={sorted(missing)}, unknown={sorted(extra)}, "
+                    f"duplicated={dupes})"
                 )
 
     def __init__(self) -> None:

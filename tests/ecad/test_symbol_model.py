@@ -3,9 +3,11 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
 
-from src.ecad import Side, SymbolModel
+from src.ecad import PinRole, Side, SymbolModel
 from src.pipeline.chip_library import (
     _generate_lib_symbol_sexp_legacy,
     esp32_s3_wroom_1,
@@ -13,8 +15,17 @@ from src.pipeline.chip_library import (
     neo_6m,
     stm32f411ceu6,
 )
-from src.pipeline.ecad_bridge import chipdef_to_component, component_to_chipdef
-from src.pipeline.symbol_gen import _generate_symbol_legacy, generate_symbol
+from src.pipeline.ecad_bridge import (
+    _infer_role,
+    chipdef_to_component,
+    component_to_chipdef,
+)
+from src.pipeline.symbol_gen import (
+    ChipDef,
+    PinDef,
+    _generate_symbol_legacy,
+    generate_symbol,
+)
 
 ALL_CHIPS = [esp32_s3_wroom_1, stm32f411ceu6, neo_6m]
 
@@ -94,3 +105,48 @@ def test_chipdef_roundtrip():
     ]
     assert back.footprint == chip.footprint
     assert back.name == chip.name
+
+
+# ── regressions ─────────────────────────────────────────────────────────────
+
+
+def test_ep_prefix_does_not_swallow_non_ground_pins():
+    """"EP"/"EPAD" is the exposed pad — EPWM/EP0/EPROM are not grounds."""
+    assert _infer_role(PinDef("9", "EP", "power_in", "Power")) is PinRole.GROUND
+    assert _infer_role(PinDef("9", "EPAD", "power_in", "Power")) is PinRole.GROUND
+    assert _infer_role(PinDef("9", "EP_1", "power_in", "Power")) is PinRole.GROUND
+    for name in ("EPWM1A", "EP0", "EP1_IN", "EPROM_A0", "EPS_5V"):
+        role = _infer_role(PinDef("9", name, "output", "pwm"))
+        assert role is not PinRole.GROUND, f"{name} misclassified as ground"
+
+
+def test_gpio_helper_works_on_bridged_mcu():
+    """The documented mcu.gpio(n) workflow must work on shipped factories."""
+    mcu = chipdef_to_component(esp32_s3_wroom_1())
+    assert mcu.gpio(17).pad == "19"     # GPIO17/ADC2_CH6/DAC1
+    assert mcu.gpio(0).name == "GPIO0"  # strapping pin, still addressable
+    with pytest.raises(KeyError):
+        mcu.gpio(999)
+
+
+def test_explicit_pindef_gpio_survives_roundtrip():
+    chip = ChipDef("T", "Test", "", "fp:FP", "", [
+        PinDef("1", "PA5", "bidirectional", "GPIO", gpio=5),
+    ])
+    comp = chipdef_to_component(chip)
+    assert comp.gpio(5).pad == "1"
+    assert component_to_chipdef(comp).pins[0].gpio == 5
+
+
+def test_both_emitters_agree_on_reference_prefix():
+    """to_kicad_sym and to_inline_sexp describe the same part."""
+    chip = ChipDef("Cap", "Device", "", "Capacitor_SMD:C_0402_1005Metric", "", [
+        PinDef("1", "P1", "passive", "Passive"),
+        PinDef("2", "P2", "passive", "Passive"),
+    ])
+    comp = chipdef_to_component(chip)
+    comp.__class__.reference_prefix = "C"
+    model = SymbolModel.from_component(comp)
+    sym_ref = model.to_kicad_sym().symbols[0].properties[0].value
+    assert sym_ref == "C"
+    assert f'(property "Reference" "{sym_ref}"' in model.to_inline_sexp("Device:Cap")
