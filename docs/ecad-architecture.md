@@ -25,6 +25,25 @@ corpus/legacy world; pipeline imports ecad, never the reverse.**
 
 All five run in `tests/ecad/test_layout_engine.py` on every fixture.
 
+## Multi-sheet contract (who owns what)
+
+`src/ecad` lays out and emits ONE sheet. Hierarchy belongs to the
+composer (`src/pipeline/composer.py`):
+
+- one `Design` per sheet; a net that leaves the sheet has a single pin on
+  it, and the router labels it at a stub (`engine.label_anchors`);
+- the composer renders the hierarchical label for that anchor and passes
+  the S-expression text to `engine.emit(hier_labels=…)`, which emits it
+  and suppresses its own local label — text keeps pipeline → ecad;
+- power symbols are global across the project, so exactly one sheet may
+  flag a given undriven rail: `engine.emit(flag_rails=…)`;
+- the root sheet wires every sheet pin to a same-named label, and a sheet
+  pin's shape must equal the sub-sheet label's shape.
+
+Consequence: a sub-sheet ERC'd on its own reports hierarchical-label and
+undriven-rail errors by construction. The ERC-0 oracle is the ROOT
+schematic (violations are reported per sheet).
+
 ## Key invariants
 
 - Emitted lib_symbols child names use the bare part name (`NEO-6M_0_1`),

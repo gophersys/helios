@@ -79,3 +79,15 @@ src/ecad/library/espressif/); remaining 14 seed parts + datasheet-LLM
 runs (FACTORY_LLM=1) still to pipeline. Stage-1 deferrals per plan:
 datasheet_parser fallbacks (after Stage 2), to_inline_sexp/flatten
 single-unit path (callers remain until Stage 3).
+Stage 3 composer migration complete (branch feat/composer-migration-wf1,
+base feat/ingest-factory): compose_design builds a typed Design per sheet
+→ layout() → emit(); hardcoded coordinates, Custom: stubs and empty IC
+footprints deleted; root sheet wires its sheet pins; gates green (lint
+clean, kicad-cli loads every sub-sheet, project ERC errors == 0, netlist
+== intended incl. the GPS-tracker MCU sheet, byte-deterministic). Known
+gaps: wiring_patterns.json / decoupling_rules.json are still absent from
+this checkout, so the three pattern-data tests keep failing exactly as
+before (missing-data semantics preserved); DCDC regulators resolve to a
+warned placeholder (no verified pinout, and the composer does not
+synthesize the inductor/feedback network); a sub-sheet ERC'd alone is
+not a valid oracle (hierarchical labels + per-project PWR_FLAG).
