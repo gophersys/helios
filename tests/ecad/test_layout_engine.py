@@ -141,6 +141,109 @@ def test_mcu_gps_erc_and_netlist(tmp_path):
     assert _netlist_of(sheet.text, tmp_path) == design.intended_netlist()
 
 
+class Res(Component):
+    part_name = "R"
+    lib_id = "Device:R"
+    reference_prefix = "R"
+    footprint = FootprintRef("Resistor_SMD", "R_0402_1005Metric")
+    _PIN_SPECS = (
+        pin("1", "P1", "passive", "passive"),
+        pin("2", "P2", "passive", "passive"),
+    )
+
+
+class Header1(Component):
+    part_name = "CONN_1X01"
+    lib_id = "Connector_Generic:Conn_01x01"
+    reference_prefix = "J"
+    footprint = FootprintRef("Connector_PinHeader_2.54mm",
+                             "PinHeader_1x01_P2.54mm_Vertical")
+    _PIN_SPECS = (pin("1", "P1", "passive", "passive"),)
+
+
+def test_satellite_caps_keep_footprint():
+    """Regression: satellites were emitted with an empty Footprint property,
+    so Update-PCB-from-Schematic saw every decoupling cap as unassigned."""
+    design = _ldo_stage()
+    sheet = emit(layout(design), design)
+    assert sheet.text.count(
+        '(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"') == 2
+
+
+def test_single_rank_design_routes_via_labels():
+    """Regression: a one-rank graph has no wiring channel (channel_x == [])
+    and route() crashed with IndexError instead of falling back to labels."""
+    d = Design("two-headers")
+    j1, j2 = d.add(Header1(), Header1())
+    d.net("SIG").connect(j1.P1, j2.P1)
+    placed, _sheet = _gates(d)
+    assert "SIG" in placed.routing.labeled_nets
+
+
+def test_no_ic_design_keeps_caps_placed():
+    """Regression: with zero IC units _find_owner self-owned a node that was
+    then deleted from the graph, and place.coordinates KeyError'd on it."""
+    d = Design("caps-only")
+    c1, c2 = d.add(Cap(), Cap())
+    d.net("3V3").connect(c1.P1, c2.P1)
+    d.net("GND").connect(c1.P2, c2.P2)
+    placed, _sheet = _gates(d)
+    assert not placed.graph.satellites
+    assert set(placed.graph.nodes) == {"C1#1", "C2#1"}
+
+
+def _series_cap_design() -> Design:
+    """MCU with a coupling cap in a signal path plus a decoupling cap —
+    both are Device:C but only the latter is a satellite."""
+    d = Design("mixed-caps")
+    mcu, cs, cd = d.add(TinyMCU(), Cap(), Cap())
+    d.net("A").connect(mcu.gpio(0), cs.P1)
+    d.net("B").connect(mcu.gpio(1), cs.P2)
+    d.net("3V3").connect(mcu.VDD, cd.P1)
+    d.net("GND").connect(mcu.pin("8"), cd.P2)
+    return d
+
+
+def test_signal_path_passive_uses_router_geometry():
+    """Regression: placed R/C/L emitted the vertical Device stub (pins at
+    (0, ±3.81)) while the router wired the readable LEFT/RIGHT ports —
+    every wire missed its pin by ~10 mm."""
+    d = Design("series-r")
+    mcu, r = d.add(TinyMCU(), Res())
+    d.net("A").connect(mcu.gpio(0), r.P1)
+    d.net("B").connect(mcu.gpio(1), r.P2)
+    placed, sheet = _gates(d)
+    assert "R1#1" in placed.graph.nodes
+    assert '(symbol "Device:R"' in sheet.text
+    # no satellites in this design → no vertical stub pins anywhere
+    assert "(at 0 3.81 270)" not in sheet.text
+
+
+def test_placed_and_satellite_same_lib_id_split():
+    """A signal-path cap and a satellite cap share Device:C: the satellite
+    stub (vertical pins, row wiring depends on them) must be emitted under
+    an alias instead of silently reusing the readable symbol."""
+    placed, sheet = _gates(_series_cap_design())
+    assert "C1#1" in placed.graph.nodes            # signal cap stays placed
+    assert '(symbol "Device:C"' in sheet.text      # readable geometry
+    assert '(symbol "Device:C_dec"' in sheet.text  # satellite stub alias
+    assert '(lib_id "Device:C_dec")' in sheet.text
+
+
+@skip_no_kicad
+def test_signal_passive_erc_and_netlist(tmp_path):
+    from src.pipeline.validate import run_erc
+
+    design = _series_cap_design()
+    _placed, sheet = _gates(design)
+    sch = tmp_path / "mixed.kicad_sch"
+    sch.write_text(sheet.text)
+    erc = run_erc(sch)
+    assert erc["success"], erc
+    assert erc["errors"] == 0, erc
+    assert _netlist_of(sheet.text, tmp_path) == design.intended_netlist()
+
+
 def test_unknown_passive_lib_id_gets_stub():
     """Regression: every placed lib_id must have a lib_symbols definition
     (the get_stub(...) or "" bug emitted empty entries for non-R/C/L)."""

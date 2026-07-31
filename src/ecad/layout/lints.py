@@ -22,6 +22,38 @@ def _on_grid(v: float) -> bool:
     return abs(v / GRID - round(v / GRID)) < 1e-6
 
 
+def _on_segment(x: float, y: float, w, eps: float) -> bool:
+    return (min(w.x1, w.x2) - eps <= x <= max(w.x1, w.x2) + eps
+            and min(w.y1, w.y2) - eps <= y <= max(w.y1, w.y2) + eps)
+
+
+def _wires_short(wa, wb, eps: float) -> bool:
+    """True when two orthogonal wires of different nets would connect in
+    KiCad: colinear overlap of positive length, or either wire's endpoint
+    lying on the other wire (mid-segment + crossings do not connect)."""
+    a_h, b_h = wa.y1 == wa.y2, wb.y1 == wb.y2
+    if a_h == b_h:  # parallel: short iff colinear with positive overlap
+        if a_h:
+            if abs(wa.y1 - wb.y1) > eps:
+                return False
+            lo = max(min(wa.x1, wa.x2), min(wb.x1, wb.x2))
+            hi = min(max(wa.x1, wa.x2), max(wb.x1, wb.x2))
+        else:
+            if abs(wa.x1 - wb.x1) > eps:
+                return False
+            lo = max(min(wa.y1, wa.y2), min(wb.y1, wb.y2))
+            hi = min(max(wa.y1, wa.y2), max(wb.y1, wb.y2))
+        if hi - lo > eps:
+            return True
+    return any(
+        _on_segment(x, y, other, eps)
+        for (x, y), other in (
+            ((wa.x1, wa.y1), wb), ((wa.x2, wa.y2), wb),
+            ((wb.x1, wb.y1), wa), ((wb.x2, wb.y2), wa),
+        )
+    )
+
+
 def lint_placed(placed: PlacedSheet) -> list[str]:
     """IR-level geometric violations (empty list == pass)."""
     errors: list[str] = []
@@ -55,6 +87,21 @@ def lint_placed(placed: PlacedSheet) -> list[str]:
                 if not _on_grid(v):
                     errors.append(f"off-grid-wire: net {net} coordinate {v}")
                     break
+
+    # wires of DIFFERENT nets must never short: no colinear overlap, and no
+    # endpoint of one net's wire on another net's wire (KiCad connects a
+    # wire end touching a segment; plain mid-segment crossings are fine)
+    eps = 1e-6
+    net_wires = sorted(placed.routing.wires.items())
+    for i, (net_a, segs_a) in enumerate(net_wires):
+        for net_b, segs_b in net_wires[i + 1:]:
+            for wa in segs_a:
+                for wb in segs_b:
+                    if _wires_short(wa, wb, eps):
+                        errors.append(
+                            f"net-short: {net_a} ({wa.x1},{wa.y1})->"
+                            f"({wa.x2},{wa.y2}) touches {net_b} "
+                            f"({wb.x1},{wb.y1})->({wb.x2},{wb.y2})")
 
     # junctions must touch at least two wire segments of their net
     for net, pts in placed.routing.junctions.items():

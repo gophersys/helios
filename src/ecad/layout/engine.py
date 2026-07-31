@@ -98,6 +98,10 @@ def emit(placed: PlacedSheet, design: Design,
         project = name.replace(" ", "_")
 
         # ── lib_symbols ────────────────────────────────────────────────────
+        # Placed nodes always get the readable SymbolModel geometry — the
+        # router computed port points from it, so the emitted symbol must
+        # match (the vertical Device:R/C/L stubs put pins at (0, ±3.81),
+        # nowhere near the LEFT/RIGHT ports the router wired to).
         lib_entries: list[str] = []
         seen_libs: set[str] = set()
         power_names: set[str] = set()
@@ -105,19 +109,25 @@ def emit(placed: PlacedSheet, design: Design,
             if not node.ref or node.lib_id in seen_libs:
                 continue
             seen_libs.add(node.lib_id)
-            base = node.lib_id.split(":")[-1]
-            if base in ("R", "C", "L"):
-                lib_entries.append(get_stub(node.lib_id)
-                                   or gen_passive_stub(node.lib_id))
-            else:
-                lib_entries.append(
-                    models[node.ref].to_inline_sexp_multi(node.lib_id))
+            lib_entries.append(
+                models[node.ref].to_inline_sexp_multi(node.lib_id))
+        # Satellites keep the vertical stub (row wiring assumes pins at
+        # ±_CAP_PIN_DY). When a placed node already claimed the lib_id with
+        # readable geometry, the satellite stub is emitted under an alias.
+        sat_lib: dict[str, str] = {}
         for sats in g.satellites.values():
             for s in sats:
-                if s.lib_id not in seen_libs:
-                    seen_libs.add(s.lib_id)
+                if s.lib_id in sat_lib:
+                    continue
+                if s.lib_id in seen_libs:
+                    alias = f"{s.lib_id}_dec"
+                    lib_entries.append(gen_passive_stub(alias))
+                else:
+                    alias = s.lib_id
                     lib_entries.append(get_stub(s.lib_id)
                                        or gen_passive_stub(s.lib_id))
+                seen_libs.add(alias)
+                sat_lib[s.lib_id] = alias
 
         body: list[str] = []
         wires: list[Wire] = []
@@ -180,7 +190,8 @@ def emit(placed: PlacedSheet, design: Design,
                 if s is None:
                     continue
                 body.append(gen_symbol_instance(ComponentPlacement(
-                    lib_id=s.lib_id, ref=s.ref, value=s.value, footprint="",
+                    lib_id=sat_lib[s.lib_id], ref=s.ref, value=s.value,
+                    footprint=s.footprint,
                     position=(snap(cx), snap(cy))), project, root_uuid))
                 top = (snap(cx), snap(cy - _CAP_PIN_DY))
                 bot = (snap(cx), snap(cy + _CAP_PIN_DY))
@@ -210,8 +221,7 @@ def emit(placed: PlacedSheet, design: Design,
         for net in sorted(rt.label_at):
             for _anchor, lx, ly, angle in rt.label_at[net]:
                 label_lines.append(_gen_label(NetConnection(
-                    net, "local", (snap(lx), snap(ly)),
-                    angle=180 if angle == 180 else 0)))
+                    net, "local", (snap(lx), snap(ly)), angle=angle)))
 
         # ── PWR_FLAG once per rail, but never on a rail that already has a
         # real power_out driver (two power outputs on one net is an ERC

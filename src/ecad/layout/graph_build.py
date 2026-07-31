@@ -122,11 +122,14 @@ def build(design: Design, sheet: str = "main",
         gnds = [t.rail for t in node.power_taps if t.down]
         rail = rails[0] if rails else (gnds[0] if gnds else "")
         owner = _find_owner(nodes, node_id, rail)
+        if owner is None:
+            continue  # no IC unit to anchor to: stays a regular placed node
         comp = next(c for c in design.components if c.ref == node.ref)
         satellites.setdefault(owner, []).append(SatelliteCap(
             ref=node.ref, lib_id=node.lib_id,
             value=getattr(comp, "value", "") or comp.part_name,
-            rail=rail, gnd=gnds[0] if gnds else "GND"))
+            rail=rail, gnd=gnds[0] if gnds else "GND",
+            footprint=comp.footprint.lib_id if comp.footprint else ""))
         doomed.append(node_id)
     for node_id in doomed:
         del nodes[node_id]
@@ -137,10 +140,11 @@ def build(design: Design, sheet: str = "main",
                           hier_ports=list(hier_ports or []))
 
 
-def _find_owner(nodes: dict[str, Node], sat_id: str, rail: str) -> str:
+def _find_owner(nodes: dict[str, Node], sat_id: str, rail: str) -> str | None:
     """Owner of a satellite cap: the IC unit with a power tap on the same
-    rail (lowest ref, then lowest unit); fallback: first IC unit; fallback:
-    the satellite's own id (kept in sat_rows under itself)."""
+    rail (lowest ref, then lowest unit); fallback: first IC unit; None when
+    the graph has no IC unit at all (caller keeps the cap as a normal node —
+    a deleted-but-self-owned satellite would KeyError in place/route)."""
     candidates = []
     for node in nodes.values():
         if node.kind is not NodeKind.IC_UNIT or node.id == sat_id:
@@ -150,7 +154,7 @@ def _find_owner(nodes: dict[str, Node], sat_id: str, rail: str) -> str:
     if not candidates:
         candidates = [n.id for n in nodes.values()
                       if n.kind is NodeKind.IC_UNIT and n.id != sat_id]
-    return sorted(candidates)[0] if candidates else sat_id
+    return sorted(candidates)[0] if candidates else None
 
 
 __all__ = ["build", "is_power_net", "is_ground_net"]

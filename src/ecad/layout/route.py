@@ -19,7 +19,9 @@ Algorithm
    sits at ``left + (k + 1) / (n + 1)`` of the channel width, snapped.
 3. GEOMETRY per routed net: a horizontal stub from each port to the trunk
    x; a port facing away from its channel routes over its node (2.54 out,
-   vertical to bbox top - PIN_PITCH, then across). One vertical trunk
+   vertical to bbox top - PIN_PITCH, then across); each further escape
+   over the same node steps one 2.54 increment outward and upward so
+   different nets never share an escape track. One vertical trunk
    spans all stub ys. A 2-port net whose ports face each other across the
    channel at equal y collapses to a single straight wire. Junctions sit
    at T meets strictly inside the trunk and wherever >= 3 same-net wire
@@ -182,9 +184,13 @@ def _add(ws: list[Wire], x1: float, y1: float, x2: float, y2: float) -> None:
 
 
 def _emit(
-    plan: dict, tx: float, placement: Placement
+    plan: dict, tx: float, placement: Placement, esc: dict[str, int]
 ) -> tuple[list[Wire], list[tuple[float, float]], int]:
-    """Wires, junctions, and bend count for one routed net."""
+    """Wires, junctions, and bend count for one routed net.
+
+    ``esc`` counts far-side escapes per node across nets: each escape over
+    the same node takes the next offset step outward/upward so two nets
+    never share an escape track (colinear overlap would short them)."""
     ports: list[_PortPlan] = plan["ports"]
     if plan["straight"]:
         p, q = ports
@@ -204,8 +210,11 @@ def _emit(
             conn_ys.append(sy)
             bends += 1
         else:  # far-side LEFT/RIGHT port: route over the node body
-            sx = snap(px + _STUB) if port.side is Side.RIGHT else snap(px - _STUB)
-            yt = snap(placement.origin[nid][1] - PIN_PITCH)
+            k = esc.get(nid, 0)
+            esc[nid] = k + 1
+            off = _STUB * (k + 1)
+            sx = snap(px + off) if port.side is Side.RIGHT else snap(px - off)
+            yt = snap(placement.origin[nid][1] - PIN_PITCH * (k + 1))
             _add(ws, px, py, sx, py)
             _add(ws, sx, py, sx, yt)
             _add(ws, sx, yt, tx, yt)
@@ -258,7 +267,9 @@ def route(
     plans: dict[str, dict] = {}
     per_channel: dict[int, list[str]] = {}
     for edge in sorted(graph.edges, key=lambda e: e.net):
-        if _needs_labels(edge, ranking, backward):
+        # A single-rank graph has no channel to route through: every net
+        # falls back to labels (channel_x is empty, _track_x would crash).
+        if n_channels == 0 or _needs_labels(edge, ranking, backward):
             labeled_nets.append(edge.net)
             stubs: list[Wire] = []
             labels: list[tuple[str, float, float, int]] = []
@@ -282,8 +293,9 @@ def route(
         for net, k in track_of.items():
             track_x[net] = _track_x(placement, ch, k, n)
 
+    esc: dict[str, int] = {}
     for net in sorted(plans):
-        ws, js, b = _emit(plans[net], track_x.get(net, 0.0), placement)
+        ws, js, b = _emit(plans[net], track_x.get(net, 0.0), placement, esc)
         wires[net] = ws
         if js:
             junctions[net] = js
