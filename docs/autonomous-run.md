@@ -72,6 +72,10 @@ PRs stacked; write a summary of what shipped + known gaps; instruct the
 user to run `/code-review ultra` from ~/code/hardware on the top branch.
 
 STATUS: stage 1 complete (feat/de-legacy, PR open → feat/layout-engine);
-stage 2 next. Stage-1 deferrals per plan: datasheet_parser fallbacks
-(after Stage 2), to_inline_sexp/flatten single-unit path (callers remain
-until Stage 3).
+stage 2 factory orchestrator complete (feat/ingest-factory): factory CLI
+(status | step) + ESP32-S3-WROOM-1 through discovered→validated (0
+evidence conflicts, ERC 0, generated part committed in
+src/ecad/library/espressif/); remaining 14 seed parts + datasheet-LLM
+runs (FACTORY_LLM=1) still to pipeline. Stage-1 deferrals per plan:
+datasheet_parser fallbacks (after Stage 2), to_inline_sexp/flatten
+single-unit path (callers remain until Stage 3).
