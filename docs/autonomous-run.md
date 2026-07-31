@@ -71,4 +71,7 @@ Update PROGRESS.md + this doc's status line; ensure branches pushed with
 PRs stacked; write a summary of what shipped + known gaps; instruct the
 user to run `/code-review ultra` from ~/code/hardware on the top branch.
 
-STATUS: stage 1 starting.
+STATUS: stage 1 complete (feat/de-legacy, PR open → feat/layout-engine);
+stage 2 next. Stage-1 deferrals per plan: datasheet_parser fallbacks
+(after Stage 2), to_inline_sexp/flatten single-unit path (callers remain
+until Stage 3).
