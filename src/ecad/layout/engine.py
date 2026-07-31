@@ -12,6 +12,7 @@ a no_connect marker (the ERC==0 gate demands it).
 
 from __future__ import annotations
 
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
 from ..design import Design
@@ -46,6 +47,20 @@ def layout(design: Design, sheet: str = "main",
                        placement=placement, routing=routing)
 
 
+def label_anchors(placed: PlacedSheet) -> dict[str, list[tuple[float, float, int]]]:
+    """net name → [(x, y, angle)] of every label the router placed for it.
+
+    A net that leaves the sheet has exactly one anchor (its single port's
+    stub end). Callers that replace those labels with hierarchical ports
+    (the composer) render their own S-expressions at these points and pass
+    them back to :func:`emit` as ``hier_labels``.
+    """
+    return {
+        net: [(snap(x), snap(y), angle) for _anchor, x, y, angle in entries]
+        for net, entries in sorted(placed.routing.label_at.items())
+    }
+
+
 def metrics_of(placed: PlacedSheet) -> Metrics:
     two_pin_routed = straight = 0
     for e in placed.graph.edges:
@@ -66,9 +81,23 @@ def metrics_of(placed: PlacedSheet) -> Metrics:
 
 
 def emit(placed: PlacedSheet, design: Design,
-         title: str | None = None) -> EmittedSheet:
+         title: str | None = None,
+         hier_labels: Mapping[str, str] | None = None,
+         flag_rails: Collection[str] | None = None) -> EmittedSheet:
     """Emit a single-sheet .kicad_sch (deterministic UUIDs from the design
-    name). Returns the text plus computed soft metrics."""
+    name). Returns the text plus computed soft metrics.
+
+    ``hier_labels`` maps a net name to a PRE-RENDERED hierarchical-label
+    S-expression supplied by the caller (the composer owns hierarchy; ecad
+    never imports pipeline). Those lines are emitted verbatim and the
+    router's own local label for the same net is suppressed, so the net is
+    named exactly once — at the stub end reported by :func:`label_anchors`.
+
+    ``flag_rails`` restricts PWR_FLAG emission to the named rails (default:
+    every undriven rail on the sheet). Power symbols are GLOBAL across a
+    hierarchical project, so exactly one sheet may flag a given rail —
+    two flags on one net is a power-output conflict at project ERC.
+    """
     from ..emit import (
         ComponentPlacement,
         NetConnection,
@@ -131,6 +160,7 @@ def emit(placed: PlacedSheet, design: Design,
 
         body: list[str] = []
         wires: list[Wire] = []
+        extra_junctions: list[tuple[float, float]] = []
         pwr_instances: list[tuple[str, float, float, bool]] = []
 
         # ── placed units ───────────────────────────────────────────────────
@@ -209,6 +239,12 @@ def emit(placed: PlacedSheet, design: Design,
                     wires.append(Wire(x, y, x, rail_y))
                 if len(xs) > 1:
                     wires.append(Wire(min(xs), rail_y, max(xs), rail_y))
+                    # A cap between the ends meets the rail wire mid-segment:
+                    # KiCad only joins a wire END to a wire BODY where a
+                    # junction dot exists, so the middle caps would float.
+                    extra_junctions.extend(
+                        (x, rail_y) for x in sorted(xs)
+                        if min(xs) < x < max(xs))
                 pwr_instances.append((rail, min(xs), rail_y, False))
                 power_names.add(rail)
 
@@ -216,12 +252,16 @@ def emit(placed: PlacedSheet, design: Design,
         for net in sorted(rt.wires):
             wires.extend(rt.wires[net])
         junctions = [pt for net in sorted(rt.junctions)
-                     for pt in rt.junctions[net]]
+                     for pt in rt.junctions[net]] + sorted(extra_junctions)
+        hier = dict(hier_labels or {})
         label_lines: list[str] = []
         for net in sorted(rt.label_at):
+            if net in hier:
+                continue        # the caller's hierarchical port names it
             for _anchor, lx, ly, angle in rt.label_at[net]:
                 label_lines.append(_gen_label(NetConnection(
                     net, "local", (snap(lx), snap(ly)), angle=angle)))
+        label_lines.extend(hier[net] for net in sorted(hier))
 
         # ── PWR_FLAG once per rail, but never on a rail that already has a
         # real power_out driver (two power outputs on one net is an ERC
@@ -232,11 +272,14 @@ def emit(placed: PlacedSheet, design: Design,
                 if p.etype.value == "power_out":
                     driven.add(net.name)
                     break
+        allowed = None if flag_rails is None else set(flag_rails)
         flagged: set[str] = set()
         flag_extra: list[tuple[str, float, float, bool]] = []
         flag_wires: list[Wire] = []
         for rail, x, y, down in pwr_instances:
             if rail in flagged or rail in driven:
+                continue
+            if allowed is not None and rail not in allowed:
                 continue
             flagged.add(rail)
             # offset the flag one pitch sideways so its glyph/text doesn't

@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from src.ecad import Component, Design, FootprintRef, pin
-from src.ecad.layout.engine import emit, layout
+from src.ecad.layout.engine import emit, label_anchors, layout
 from src.ecad.layout.lints import lint_placed, lint_schematic_text
 from tests.ecad.test_model import Cap, LDO, TinyMCU
 
@@ -237,6 +237,89 @@ def test_signal_passive_erc_and_netlist(tmp_path):
     design = _series_cap_design()
     _placed, sheet = _gates(design)
     sch = tmp_path / "mixed.kicad_sch"
+    sch.write_text(sheet.text)
+    erc = run_erc(sch)
+    assert erc["success"], erc
+    assert erc["errors"] == 0, erc
+    assert _netlist_of(sheet.text, tmp_path) == design.intended_netlist()
+
+
+def _sheet_exit_design() -> Design:
+    """An MCU whose TX leaves the sheet: a net with exactly one pin on it."""
+    d = Design("sheet-exit")
+    mcu, gps, c1 = d.add(TinyMCU(), GPS(), Cap())
+    d.net("3V3").connect(mcu.VDD, gps.VCC, c1.P1)
+    d.net("GND").connect(mcu.pin("8"), gps.pin("2"), c1.P2)
+    d.net("GPS_TX").connect(gps.TX, mcu.gpio(0))
+    d.net("UART_OUT").connect(mcu.TX)          # leaves the sheet
+    return d
+
+
+def test_single_port_net_is_labeled_not_dropped():
+    """Regression: a net with one port on the sheet skipped both routing
+    branches (route() only routes >= 2 ports) and vanished from the file."""
+    design = _sheet_exit_design()
+    placed, sheet = _gates(design)
+    assert "UART_OUT" in placed.routing.labeled_nets
+    assert "UART_OUT" in placed.routing.wires        # got its stub
+    assert '(label "UART_OUT"' in sheet.text
+
+
+def test_hier_labels_replace_local_labels_at_anchors():
+    """emit(hier_labels=...) emits the caller's lines and drops its own."""
+    design = _sheet_exit_design()
+    placed = layout(design)
+    anchors = label_anchors(placed)
+    assert len(anchors["UART_OUT"]) == 1
+    x, y, angle = anchors["UART_OUT"][0]
+
+    line = f'\t(hierarchical_label "UART_OUT" (at {x} {y} {angle}))'
+    sheet = emit(placed, design, hier_labels={"UART_OUT": line})
+    assert line in sheet.text
+    assert '(label "UART_OUT"' not in sheet.text   # suppressed, not duplicated
+    assert '(label "GPS_TX"' in sheet.text or "GPS_TX" in sheet.text
+
+
+def test_flag_rails_restricts_pwr_flag():
+    """Only the named rails may carry a PWR_FLAG (one per rail per project:
+    power symbols are global, two flags on a net is a driver conflict)."""
+    design = _mcu_gps()
+    placed = layout(design)
+    everything = emit(placed, design).text
+    assert everything.count('(lib_id "power:PWR_FLAG")') == 2   # 3V3 + GND
+
+    only_gnd = emit(placed, design, flag_rails=["GND"]).text
+    assert only_gnd.count('(lib_id "power:PWR_FLAG")') == 1
+    none = emit(placed, design, flag_rails=[]).text
+    assert "PWR_FLAG" not in none
+
+
+def _three_cap_rail() -> Design:
+    """One IC decoupled by three caps on the same rail → one satellite row."""
+    d = Design("three-caps")
+    mcu, c1, c2, c3 = d.add(TinyMCU(), Cap(), Cap(), Cap())
+    d.net("3V3").connect(mcu.VDD, c1.P1, c2.P1, c3.P1)
+    d.net("GND").connect(mcu.pin("8"), c1.P2, c2.P2, c3.P2)
+    d.net("SIG").connect(mcu.gpio(0), mcu.gpio(1))
+    return d
+
+
+def test_satellite_row_junctions_middle_caps():
+    """Regression: the middle cap of a 3-cap rail row ended its wire on the
+    MIDDLE of the rail wire; without a junction dot KiCad leaves it floating
+    (the net lost that pin and ERC reported a not-connected pin)."""
+    design = _three_cap_rail()
+    _placed, sheet = _gates(design)
+    assert sheet.text.count("(junction") >= 1
+
+
+@skip_no_kicad
+def test_satellite_row_netlist_keeps_every_cap(tmp_path):
+    from src.pipeline.validate import run_erc
+
+    design = _three_cap_rail()
+    _placed, sheet = _gates(design)
+    sch = tmp_path / "caps.kicad_sch"
     sch.write_text(sheet.text)
     erc = run_erc(sch)
     assert erc["success"], erc

@@ -75,8 +75,16 @@ def _port_point(
 
 
 def _needs_labels(edge: NetEdge, ranking: Ranking, backward: set[str]) -> bool:
-    """Label-fallback policy: fanout > 4, rank span > 2, backward, preset."""
-    if edge.use_labels or len(edge.ports) > 4 or edge.net in backward:
+    """Label-fallback policy: single port, fanout > 4, rank span > 2,
+    backward, preset.
+
+    A single-port net has nothing to route to on this sheet (it leaves it —
+    the composer turns those labels into hierarchical ports), so it MUST be
+    labeled: the routed branch below skips edges with < 2 ports and the net
+    would vanish from the emitted file.
+    """
+    if (edge.use_labels or len(edge.ports) < 2 or len(edge.ports) > 4
+            or edge.net in backward):
         return True
     ranks = [ranking.rank_of[nid] for nid, _ in edge.ports]
     return max(ranks) - min(ranks) > 2
