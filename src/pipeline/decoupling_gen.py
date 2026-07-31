@@ -101,6 +101,25 @@ def _load_rules(rules_path: Path | None) -> dict:
         return json.load(f)
 
 
+def decoupling_values(
+    ic_lib_id: str,
+    power_nets: list[str],
+    rules_path: Path | None = None,
+) -> list[tuple[str, str]]:
+    """Cap (value, footprint token) pairs for an IC — no geometry.
+
+    The coordinate-free half of :func:`generate_decoupling_caps`: the
+    composer builds typed ``Device:C`` components from these and lets the
+    layout engine's satellite rule place them.
+    """
+    rules = _load_rules(rules_path)
+    family = _extract_ic_family(ic_lib_id)
+    family_data = rules.get("by_ic_family", {}).get(family)
+    if family_data is not None:
+        return _caps_from_rules(family_data, len(power_nets))
+    return _default_caps(power_nets)
+
+
 def generate_decoupling_caps(
     ic_lib_id: str,
     ic_position: tuple[float, float],

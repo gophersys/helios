@@ -263,6 +263,30 @@ def neo_6m() -> ChipDef:
 
 
 # ---------------------------------------------------------------------------
+# AP2112K-3.3 (600 mA LDO, SOT-23-5)
+# ---------------------------------------------------------------------------
+# Source: Diodes/BCD AP2112 datasheet + KiCad Regulator_Linear:AP2112K-3.3
+
+def ap2112k_33() -> ChipDef:
+    """Return ChipDef for the AP2112K-3.3 LDO regulator (SOT-23-5)."""
+    pins = [
+        PinDef(number="1", name="VIN", electrical_type="power_in", group="Power"),
+        PinDef(number="2", name="GND", electrical_type="power_in", group="Power"),
+        PinDef(number="3", name="EN", electrical_type="input", group="Power"),
+        PinDef(number="4", name="NC", electrical_type="no_connect", group="Power"),
+        PinDef(number="5", name="VOUT", electrical_type="power_out", group="Power"),
+    ]
+    return ChipDef(
+        name="AP2112K-3.3",
+        library="Regulator_Linear",
+        description="600mA low-dropout 3.3V regulator, SOT-23-5",
+        footprint="Package_TO_SOT_SMD:SOT-23-5",
+        datasheet_url="https://www.diodes.com/assets/Datasheets/AP2112.pdf",
+        pins=pins,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registry: maps lib_id fragments to chip definition functions
 # ---------------------------------------------------------------------------
 
@@ -270,6 +294,7 @@ _CHIP_REGISTRY: dict[str, callable] = {
     "ESP32-S3-WROOM-1": esp32_s3_wroom_1,
     "STM32F411CEU6": stm32f411ceu6,
     "NEO-6M": neo_6m,
+    "AP2112K-3.3": ap2112k_33,
 }
 
 

@@ -80,8 +80,14 @@ class SheetContent:
 
 
 def _gen_hierarchical_label(name: str, direction: str,
-                            x: float = 25.4, y: float = 25.4) -> str:
-    """Generate a hierarchical_label S-expression for a sub-sheet."""
+                            x: float = 25.4, y: float = 25.4,
+                            angle: int = 180) -> str:
+    """Generate a hierarchical_label S-expression for a sub-sheet.
+
+    ``angle`` follows the router's stub convention (0 right, 90 up,
+    180 left, 270 down); the text justification mirrors it so the glyph
+    always points away from the wire it terminates.
+    """
     shape_map = {
         "input": "input",
         "output": "output",
@@ -89,17 +95,49 @@ def _gen_hierarchical_label(name: str, direction: str,
         "passive": "passive",
     }
     shape = shape_map.get(direction, "bidirectional")
+    justify = "right" if angle == 180 else "left"
     return f"""\t(hierarchical_label "{name}"
 \t\t(shape {shape})
-\t\t(at {x} {y} 180)
+\t\t(at {x} {y} {angle})
 \t\t(effects
 \t\t\t(font
 \t\t\t\t(size 1.27 1.27)
 \t\t\t)
-\t\t\t(justify right)
+\t\t\t(justify {justify})
 \t\t)
 \t\t(uuid "{_uuid()}")
 \t)"""
+
+
+_SHEET_PIN_SHAPES = frozenset(
+    {"input", "output", "bidirectional", "tri_state", "passive"})
+
+_SHEET_WIDTH = 20.32      # mm — sheet symbol box width in the root schematic
+_SHEET_PIN_DY = 2.54      # mm — vertical pitch of sheet pins
+_SHEET_STUB = 2.54        # mm — pin → label stub on the root sheet
+
+
+def _sheet_pin_point(x: float, y: float, index: int) -> tuple[float, float]:
+    """Absolute position of sheet pin ``index`` of a sheet drawn at (x, y)."""
+    return (x + _SHEET_WIDTH, y + _SHEET_PIN_DY + index * _SHEET_PIN_DY)
+
+
+def _gen_sheet_pin_nets(pins: list[tuple[str, str]],
+                        x: float, y: float) -> list[str]:
+    """Wire + label every sheet pin so the hierarchy is actually connected.
+
+    A sheet pin that touches nothing is an ERC error ("Pin not connected")
+    and the sub-sheets never join. Each pin gets a short stub ending in a
+    label carrying the net name: identically-named labels on the root sheet
+    are one net, which is how sheet A's ``GPS_TX`` reaches sheet B's.
+    """
+    lines: list[str] = []
+    for i, (pin_name, _dir) in enumerate(pins):
+        px, py = _sheet_pin_point(x, y, i)
+        lines.append(_gen_wire(px, py, px + _SHEET_STUB, py))
+        lines.append(_gen_label(
+            NetConnection(pin_name, "local", (px + _SHEET_STUB, py))))
+    return lines
 
 
 def _gen_sheet_ref(filename: str, sheet_name: str,
@@ -107,16 +145,22 @@ def _gen_sheet_ref(filename: str, sheet_name: str,
                    x: float, y: float,
                    project_name: str, root_uuid: str,
                    page: int) -> str:
-    """Generate a sheet reference S-expression in the root schematic."""
+    """Generate a sheet reference S-expression in the root schematic.
+
+    The pin SHAPE must equal the shape of the matching hierarchical label
+    inside the sub-sheet or KiCad ERC reports a hierarchical-label
+    mismatch, so the caller's declared direction is emitted verbatim.
+    """
     sheet_uuid = _uuid()
-    width = 20.32
-    height = max(10.16, (len(pins) + 1) * 2.54)
+    width = _SHEET_WIDTH
+    height = max(10.16, (len(pins) + 1) * _SHEET_PIN_DY)
 
     pin_lines = []
     for i, (pin_name, pin_dir) in enumerate(pins):
-        pin_y = y + 2.54 + i * 2.54
+        _px, pin_y = _sheet_pin_point(x, y, i)
+        shape = pin_dir if pin_dir in _SHEET_PIN_SHAPES else "bidirectional"
         pin_lines.append(
-            f'\t\t(pin "{pin_name}" input\n'
+            f'\t\t(pin "{pin_name}" {shape}\n'
             f'\t\t\t(at {x + width} {pin_y} 0)\n'
             f'\t\t\t(uuid "{_uuid()}")\n'
             f'\t\t\t(effects\n'
@@ -337,22 +381,33 @@ def generate_schematic(
 def generate_hierarchical_project(
     sheets: dict[str, SheetContent],
     root_title: str = "Root",
+    rendered_sheets: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Generate a complete hierarchical KiCad project.
 
-    Creates a root schematic with sheet references and sub-sheet files
-    with hierarchical labels.
+    Creates a root schematic with sheet references (each sheet pin wired to
+    a same-named label, so the sub-sheets are really connected) plus the
+    sub-sheet files.
 
     Args:
         sheets: Dict mapping filename (e.g., "power.kicad_sch") to content.
+            ``SheetContent.hierarchical_labels`` defines the sheet pins.
         root_title: Title for the root schematic.
+        rendered_sheets: Optional filename → complete .kicad_sch text,
+            supplied by a caller that already laid the sheet out (the
+            composer hands over ``src.ecad.layout.engine.emit`` output).
+            Filenames absent from this mapping fall back to the legacy
+            placement-list renderer.
 
     Returns:
         Dict mapping filename -> file content string for all sheets
         including the root.
+
+    UUIDs derive from ``root_title`` (own namespace), so the same project
+    regenerates byte-identically.
     """
-    root_uuid = _uuid()
     project_name = root_title.replace(" ", "_")
+    pre_rendered = rendered_sheets or {}
 
     # Collect all lib_ids across all sheets
     all_lib_ids: set[str] = set()
@@ -360,23 +415,26 @@ def generate_hierarchical_project(
         for c in sc.components:
             all_lib_ids.add(c.lib_id)
 
-    # Generate root schematic with sheet references
-    sheet_refs = []
-    x_offset = 50.8
-    for page_num, (filename, sc) in enumerate(sheets.items(), start=2):
-        pins = sc.hierarchical_labels
-        ref = _gen_sheet_ref(
-            filename, sc.title, pins,
-            x_offset, 40.64,
-            project_name, root_uuid,
-            page_num,
-        )
-        sheet_refs.append(ref)
-        x_offset += 30.48
+    with deterministic_uuids(f"{root_title}/root"):
+        root_uuid = _uuid()
+        # Generate root schematic with sheet references
+        sheet_refs = []
+        x_offset = 50.8
+        for page_num, (filename, sc) in enumerate(sheets.items(), start=2):
+            pins = sc.hierarchical_labels
+            ref = _gen_sheet_ref(
+                filename, sc.title, pins,
+                x_offset, 40.64,
+                project_name, root_uuid,
+                page_num,
+            )
+            sheet_refs.append(ref)
+            sheet_refs.extend(_gen_sheet_pin_nets(pins, x_offset, 40.64))
+            x_offset += 30.48
 
-    sheet_refs_str = "\n".join(sheet_refs)
+        sheet_refs_str = "\n".join(sheet_refs)
 
-    root_content = f"""(kicad_sch
+        root_content = f"""(kicad_sch
 \t(version 20250114)
 \t(generator "hardware-pipeline")
 \t(generator_version "1.0")
@@ -398,10 +456,13 @@ def generate_hierarchical_project(
     root_filename = project_base + ".kicad_sch"
     result[root_filename] = root_content
 
-    # Generate sub-sheets
+    # Generate sub-sheets (pre-rendered engine output wins)
     for filename, sc in sheets.items():
-        content = _generate_sub_sheet(sc, project_name, all_lib_ids)
-        result[filename] = content
+        if filename in pre_rendered:
+            result[filename] = pre_rendered[filename]
+            continue
+        with deterministic_uuids(f"{root_title}/{filename}"):
+            result[filename] = _generate_sub_sheet(sc, project_name, all_lib_ids)
 
     # Generate .kicad_pro (minimal project file)
     result[project_base + ".kicad_pro"] = _gen_project_file()
