@@ -28,3 +28,6 @@ Thumbs.db
 *.rpt
 .claude/worktrees/
 data/zephyr/
+data/ingest/
+data/datasheets/
+data/footprint_index.json
