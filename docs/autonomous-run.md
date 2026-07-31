@@ -91,3 +91,10 @@ before (missing-data semantics preserved); DCDC regulators resolve to a
 warned placeholder (no verified pinout, and the composer does not
 synthesize the inductor/feedback network); a sub-sheet ERC'd alone is
 not a valid oracle (hierarchical labels + per-project PWR_FLAG).
+
+STATUS: ALL THREE STAGES COMPLETE (2026-07-31). Stage 1 → PR #5,
+Stage 2 → PR #6 + seed batch (13/15 parts validated), Stage 3 →
+feat/composer-migration. Handed off for `/code-review ultra`.
+Open follow-ups: custom-footprint escape hatch (esp32-c3-mini-1,
+esp32-c6-wroom-1), DCDC regulator part + inductor/feedback synthesis,
+human `approved` gate on the 13 validated parts.
