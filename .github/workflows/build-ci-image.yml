@@ -1,0 +1,78 @@
+# Builds and publishes the KiCad 10 CI image used by ci.yml.
+#
+# Runs only when the image definition changes, plus a weekly rebuild so the
+# Ubuntu/KiCad security patches land without anyone remembering to ask, and
+# workflow_dispatch for manual rebuilds.
+name: build-ci-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ci/Dockerfile'
+      - '.github/workflows/build-ci-image.yml'
+  pull_request:
+    paths:
+      - 'ci/Dockerfile'
+      - '.github/workflows/build-ci-image.yml'
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write         # push to ghcr.io/gophersys/hardware-ci
+
+env:
+  IMAGE: ghcr.io/gophersys/hardware-ci
+
+jobs:
+  build:
+    runs-on: arc-org      # self-hosted (ARC), dind sidecar provides Docker
+    steps:
+      - uses: actions/checkout@v4
+
+      # On a PR the image is built but NOT pushed: a fork or an in-progress
+      # change must never overwrite the tag that ci.yml pulls.
+      - name: Decide whether to push
+        id: mode
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        if: steps.mode.outputs.push == 'true'
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          docker build -f ci/Dockerfile -t "$IMAGE:${{ github.sha }}" ci/
+
+      # The image is worthless if kicad-cli is missing, so prove it before the
+      # tag moves. Also surfaces the exact version into the run log.
+      - name: Verify KiCad in the built image
+        run: |
+          set -euo pipefail
+          version=$(docker run --rm "$IMAGE:${{ github.sha }}" kicad-cli version)
+          echo "kicad-cli version: $version"
+          case "$version" in
+            10.*) ;;
+            *) echo "::error::expected KiCad 10.x, got '$version'"; exit 1 ;;
+          esac
+
+      - name: Push
+        if: steps.mode.outputs.push == 'true'
+        run: |
+          set -euo pipefail
+          docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+          echo "pushed $IMAGE:${{ github.sha }} and :latest"

@@ -3,6 +3,8 @@
 TDD — tests written first, then implementation.
 """
 
+import pytest
+
 import json
 import math
 import subprocess
@@ -25,6 +27,8 @@ RULES_PATH = Path(__file__).resolve().parent.parent / "data" / "patterns" / "dec
 # Test 1: Known IC family should produce caps matching decoupling_rules.json
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_generate_caps_known_family():
     """STM32F7 family should generate caps matching decoupling_rules.json."""
     caps = generate_decoupling_caps(
@@ -198,6 +202,7 @@ def test_integration_with_schematic_gen():
 # Test 7: KiCad CLI ERC validation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_integration_kicad_validates():
     """Generate caps + schematic, run kicad-cli ERC — should not crash."""
     ic_pos = (100.0, 80.0)

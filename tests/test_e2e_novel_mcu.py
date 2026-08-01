@@ -70,6 +70,7 @@ class TestNovelMCUE2E:
             f"Symbol has {pin_count} pins but datasheet parsed {len(result.pins)}"
         )
 
+    @pytest.mark.requires_kicad
     def test_full_pipeline_datasheet_to_project(self, tmp_path):
         """Full chain: datasheet PDF -> symbol -> project -> kicad-cli ERC."""
         # Step 1: Parse datasheet

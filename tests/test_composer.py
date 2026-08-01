@@ -6,6 +6,8 @@ real decoupling rules from data/patterns/decoupling_rules.json.
 
 from __future__ import annotations
 
+import pytest
+
 import shutil
 import subprocess
 import tempfile
@@ -83,6 +85,8 @@ def test_compose_simple_design():
 # Test 2: SPI peripheral — STM32F + W5500, wiring pattern applied
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_compose_with_spi_peripheral():
     """STM32F + W5500 (SPI) → wiring pattern applied, net labels match."""
     spec = DesignSpec(
@@ -131,6 +135,8 @@ def test_compose_with_spi_peripheral():
 # Test 3: I2C peripheral — ESP32-S3 + RTC (PCF8563T), SDA/SCL nets created
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_compose_with_i2c_peripheral():
     """ESP32-S3 + RTC (I2C) → SDA/SCL nets created from pattern."""
     spec = DesignSpec(
@@ -211,6 +217,7 @@ def test_compose_unknown_peripheral():
 # Test 5: Generated output passes kicad-cli ERC without crash
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_compose_generates_valid_kicad():
     """Write composed output, run kicad-cli ERC — should not crash."""
     spec = DesignSpec(
@@ -331,6 +338,8 @@ def test_compose_bom_complete():
 # Test 8: Full GPS tracker spec → valid project
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_compose_gps_tracker():
     """Full GPS tracker spec → valid project with multiple peripherals."""
     spec = DesignSpec(

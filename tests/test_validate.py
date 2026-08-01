@@ -1,5 +1,7 @@
 """Tests for kicad-cli validation module against pilot data in data/raw/."""
 
+import pytest
+
 import csv
 import tempfile
 from pathlib import Path
@@ -30,6 +32,7 @@ VESC_DIR = DATA_DIR / "vedderb__bldc-hardware" / "design"
 # Test 1: ERC on STM32F7 FC
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_erc_stm32f7():
     """Run ERC on STM32F7 FC, verify structured results."""
     result = run_erc(STM32_SCH)
@@ -46,6 +49,7 @@ def test_erc_stm32f7():
 # Test 2: ERC on HackRF
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_erc_hackrf():
     """Run ERC on HackRF (KiCad 6 format)."""
     result = run_erc(HACKRF_SCH)
@@ -58,6 +62,7 @@ def test_erc_hackrf():
 # Test 3: ERC on Antmicro Jetson (KiCad 9)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_erc_antmicro():
     """Run ERC on Antmicro Jetson baseboard (KiCad 9 format)."""
     result = run_erc(ANTMICRO_SCH)
@@ -69,6 +74,7 @@ def test_erc_antmicro():
 # Test 4: DRC on STM32F7 PCB
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_drc_stm32f7():
     """Run DRC on STM32F7 PCB, verify structured results."""
     result = run_drc(STM32_PCB)
@@ -84,6 +90,7 @@ def test_drc_stm32f7():
 # Test 5: DRC on nrfmicro PCB
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_drc_nrfmicro():
     """Run DRC on nrfmicro PCB."""
     result = run_drc(NRFMICRO_PCB)
@@ -98,6 +105,7 @@ def test_drc_nrfmicro():
 # Test 6: Export netlist
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_export_netlist():
     """Export netlist, verify output file exists and is non-empty."""
     with tempfile.NamedTemporaryFile(suffix=".net", delete=False) as tmp:
@@ -119,6 +127,7 @@ def test_export_netlist():
 # Test 7: Export BOM
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_export_bom():
     """Export BOM, verify CSV output."""
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
@@ -146,6 +155,7 @@ def test_export_bom():
 # Test 8: Full project validation (e2e)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_validate_project_e2e():
     """Full validation on nrfmicro (simplest project)."""
     report = validate_project(NRFMICRO_DIR)
@@ -168,6 +178,7 @@ def test_validate_project_e2e():
 # Test 9: Legacy format graceful handling
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_legacy_format_graceful():
     """VESC (KiCad 4 PCB, no schematic) should not crash."""
     # DRC on legacy PCB should still succeed (kicad-cli handles upgrades)

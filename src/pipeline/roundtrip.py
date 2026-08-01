@@ -14,16 +14,14 @@ Flow:
 from __future__ import annotations
 
 import logging
-import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from .hierarchy import walk_hierarchy
+from .kicad_cli import find_kicad_cli
 
 logger = logging.getLogger(__name__)
-
-KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
 
 
 def parse_kicad_netlist_xml(netlist_path: Path) -> dict:
@@ -80,9 +78,9 @@ def _export_netlist(sch_path: Path, output_dir: Path) -> Path | None:
 
     Returns the path to the exported XML file, or None on failure.
     """
-    kicad_cli = Path(KICAD_CLI)
-    if not kicad_cli.is_file():
-        logger.warning("kicad-cli not found at %s", KICAD_CLI)
+    kicad_cli = find_kicad_cli()
+    if kicad_cli is None:
+        logger.warning("kicad-cli not found on PATH; skipping netlist export")
         return None
 
     output_dir.mkdir(parents=True, exist_ok=True)

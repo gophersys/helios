@@ -7,18 +7,24 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
-KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
+from .kicad_cli import require_kicad_cli
+
 TIMEOUT = 120  # seconds
 
 
 def _run_kicad_cli(args: list[str], timeout: int = TIMEOUT) -> subprocess.CompletedProcess:
-    """Run a kicad-cli command, returning the CompletedProcess."""
-    cmd = [KICAD_CLI] + args
+    """Run a kicad-cli command, returning the CompletedProcess.
+
+    Resolves the binary per call rather than at import: a module-level constant
+    bakes in whatever PATH looked like when the module was first imported, which
+    made "KiCad is not installed" surface as a FileNotFoundError on a hardcoded
+    path instead of a clear message.
+    """
+    cmd = [require_kicad_cli()] + args
     return subprocess.run(
         cmd,
         capture_output=True,

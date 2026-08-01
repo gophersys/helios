@@ -1,5 +1,7 @@
 """Tests for KiCad schematic generator."""
 
+import pytest
+
 import re
 import shutil
 import subprocess
@@ -112,6 +114,7 @@ def test_generate_with_power_labels():
 # Test 3: kicad-cli validation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_kicad_cli_validates():
     """Write generated .kicad_sch, run kicad-cli sch erc — should not crash."""
     components = [
@@ -240,6 +243,7 @@ def test_hierarchical_project():
 # Test 5: Hierarchical project kicad-cli validation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_hierarchical_kicad_validates():
     """Write hierarchical project, run kicad-cli on root — should not crash."""
     sheets = {

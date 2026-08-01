@@ -4,6 +4,8 @@ Verifies that circuit templates can be instantiated into KiCad schematics
 and validated with kicad-cli ERC without crashing.
 """
 
+import pytest
+
 import json
 from pathlib import Path
 
@@ -79,6 +81,7 @@ class TestValidateSingleTemplate:
         assert '"C1"' in sch_content
         assert '"VCC"' in sch_content
 
+    @pytest.mark.requires_kicad
     def test_validate_single_template_erc_runs(self):
         """ERC runs on a single decoupling template without crashing."""
         tpl = _make_decoupling_template()
@@ -114,6 +117,7 @@ class TestValidateBatch:
             with_passives.append(_make_decoupling_template(f"synthetic_{idx}"))
         return with_passives[:count]
 
+    @pytest.mark.requires_kicad
     def test_validate_batch_five_templates(self):
         """Validate 5 templates, verify all produce ERC results."""
         templates = self._get_templates_with_passives(5)

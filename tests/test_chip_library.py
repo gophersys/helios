@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import re
 import shutil
 import subprocess
@@ -253,6 +255,7 @@ def test_gps_tracker_uses_real_pins():
 # Test 9: Schematic with chip library passes kicad-cli
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_schematic_with_real_chips_kicad_valid():
     """Schematic using chip library definitions can be parsed by kicad-cli."""
     from src.pipeline.schematic_gen import (

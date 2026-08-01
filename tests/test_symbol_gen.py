@@ -1,5 +1,7 @@
 """Tests for KiCad symbol generator."""
 
+import pytest
+
 import shutil
 import subprocess
 import sys
@@ -200,6 +202,7 @@ def test_bga_pin_numbers():
 # Test 5: kicad-cli validation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_kicad_cli_validates():
     """Write generated .kicad_sym, verify kicad-cli can process it."""
     chip = ChipDef(
@@ -245,6 +248,7 @@ def test_kicad_cli_validates():
 # Test 6: STM32-like 64-pin symbol
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
 def test_stm32_like_symbol():
     """Generate a 64-pin LQFP STM32-like symbol with multiple groups."""
     pins = []

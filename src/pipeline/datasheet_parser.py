@@ -122,8 +122,15 @@ _PIN_TYPE_MAP = {
 }
 
 
-def _map_pin_type(raw: str) -> str:
-    """Map a datasheet pin type abbreviation to a KiCad electrical type."""
+def _map_pin_type(raw: str | None) -> str:
+    """Map a datasheet pin type abbreviation to a KiCad electrical type.
+
+    Accepts None: the input is model-extracted from a PDF, so a field can be
+    absent, null, or a non-string. Guessing "bidirectional" is what this
+    function already does for every unrecognised value.
+    """
+    if not isinstance(raw, str):
+        return "bidirectional"
     return _PIN_TYPE_MAP.get(raw.upper().strip(), "bidirectional")
 
 
@@ -476,12 +483,17 @@ def parse_datasheet(pdf_path: Path) -> ParsedDatasheet:
     pins: list[PinDef] = []
     for p in data.get("pins", []):
         group = p.get("group") or _auto_group_pin(
-            p["name"], p.get("functions", [])
+            p["name"], p.get("functions") or []
         )
         pins.append(PinDef(
             number=str(p["number"]),
             name=p["name"],
-            electrical_type=_map_pin_type(p.get("type", "IO")),
+            # `or` not a get() default: the extraction is model-generated, so a
+            # pin can carry an explicit "type": null. get(key, default) returns
+            # the default only when the key is ABSENT, so a null value reached
+            # _map_pin_type and crashed on None.upper(). Mirrors the `group`
+            # line above, which already uses this idiom.
+            electrical_type=_map_pin_type(p.get("type") or "IO"),
             group=group,
         ))
 

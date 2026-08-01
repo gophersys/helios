@@ -166,6 +166,7 @@ class TestInventory:
 class TestBomExport:
     """Test BOM export using real kicad-cli on STM32F7 FC project."""
 
+    @pytest.mark.requires_kicad
     def test_export_bom_produces_entries(self, tmp_dir):
         bom_path = tmp_dir / "bom.csv"
         entries = export_bom(STM32F7_SCH, bom_path)
@@ -174,6 +175,7 @@ class TestBomExport:
         assert len(entries) > 50  # STM32F7 FC has ~130 components
         assert all(isinstance(e, BomEntry) for e in entries)
 
+    @pytest.mark.requires_kicad
     def test_export_bom_has_expected_refs(self, tmp_dir):
         bom_path = tmp_dir / "bom.csv"
         entries = export_bom(STM32F7_SCH, bom_path)
@@ -184,6 +186,7 @@ class TestBomExport:
         assert "C1" in refs
         assert "R1" in refs
 
+    @pytest.mark.requires_kicad
     def test_export_bom_footprints_populated(self, tmp_dir):
         bom_path = tmp_dir / "bom.csv"
         entries = export_bom(STM32F7_SCH, bom_path)
@@ -192,6 +195,7 @@ class TestBomExport:
         with_fp = [e for e in entries if e.footprint]
         assert len(with_fp) > 0
 
+    @pytest.mark.requires_kicad
     def test_export_bom_values_populated(self, tmp_dir):
         bom_path = tmp_dir / "bom.csv"
         entries = export_bom(STM32F7_SCH, bom_path)
@@ -199,6 +203,7 @@ class TestBomExport:
         u8 = [e for e in entries if e.ref == "U8"][0]
         assert "STM32F722" in u8.value
 
+    @pytest.mark.requires_kicad
     def test_export_bom_nonexistent_file(self, tmp_dir):
         with pytest.raises(RuntimeError, match="BOM export failed"):
             export_bom(Path("/nonexistent/file.kicad_sch"), tmp_dir / "bom.csv")
@@ -253,6 +258,7 @@ class TestBomMatching:
         assert len(result.matched) == 0
         assert len(result.unmatched) == 1
 
+    @pytest.mark.requires_kicad
     def test_match_real_bom_to_inventory(self, tmp_dir, sample_inventory):
         """Match real BOM from STM32F7 FC against sample inventory."""
         bom_path = tmp_dir / "bom.csv"
@@ -274,6 +280,7 @@ class TestBomMatching:
 class TestCplExport:
     """Test component placement export on real project."""
 
+    @pytest.mark.requires_kicad
     def test_export_placement_produces_entries(self, tmp_dir):
         cpl_path = tmp_dir / "pos.csv"
         entries = export_placement(STM32F7_PCB, cpl_path)
@@ -282,6 +289,7 @@ class TestCplExport:
         assert len(entries) > 50
         assert all(isinstance(e, CplEntry) for e in entries)
 
+    @pytest.mark.requires_kicad
     def test_export_placement_has_coordinates(self, tmp_dir):
         cpl_path = tmp_dir / "pos.csv"
         entries = export_placement(STM32F7_PCB, cpl_path)
@@ -292,6 +300,7 @@ class TestCplExport:
             assert isinstance(entry.y_mm, float)
             assert isinstance(entry.rotation, float)
 
+    @pytest.mark.requires_kicad
     def test_export_placement_has_sides(self, tmp_dir):
         cpl_path = tmp_dir / "pos.csv"
         entries = export_placement(STM32F7_PCB, cpl_path)
@@ -301,6 +310,7 @@ class TestCplExport:
         assert "top" in sides
         assert "bottom" in sides
 
+    @pytest.mark.requires_kicad
     def test_export_placement_known_components(self, tmp_dir):
         cpl_path = tmp_dir / "pos.csv"
         entries = export_placement(STM32F7_PCB, cpl_path)
@@ -308,6 +318,7 @@ class TestCplExport:
         refs = {e.ref for e in entries}
         assert "U8" in refs  # STM32F722
 
+    @pytest.mark.requires_kicad
     def test_export_placement_nonexistent_file(self, tmp_dir):
         with pytest.raises(RuntimeError, match="Position export failed"):
             export_placement(Path("/nonexistent/file.kicad_pcb"), tmp_dir / "pos.csv")
@@ -328,6 +339,7 @@ class TestCplExport:
         assert ",T," in lines[1]  # top
         assert ",B," in lines[2]  # bottom
 
+    @pytest.mark.requires_kicad
     def test_generate_lumen_pnp_from_real_data(self, tmp_dir):
         """Generate LumenPNP CSV from real STM32F7 FC placement data."""
         cpl_path = tmp_dir / "pos.csv"
@@ -362,6 +374,7 @@ class TestCplExport:
 class TestGerberExport:
     """Test Gerber export on real project."""
 
+    @pytest.mark.requires_kicad
     def test_export_gerbers_produces_files(self, tmp_dir):
         gerber_dir = tmp_dir / "gerbers"
         result = export_gerbers(STM32F7_PCB, gerber_dir)
@@ -371,6 +384,7 @@ class TestGerberExport:
         assert len(result.gerber_files) > 10  # STM32F7 FC has many layers
         assert len(result.errors) == 0
 
+    @pytest.mark.requires_kicad
     def test_export_gerbers_file_extensions(self, tmp_dir):
         gerber_dir = tmp_dir / "gerbers"
         result = export_gerbers(STM32F7_PCB, gerber_dir)
@@ -396,6 +410,7 @@ class TestGerberExport:
 class TestDrillExport:
     """Test drill file export on real project."""
 
+    @pytest.mark.requires_kicad
     def test_export_drill_produces_files(self, tmp_dir):
         drill_dir = tmp_dir / "drill"
         result = export_drill(STM32F7_PCB, drill_dir)
@@ -412,6 +427,7 @@ class TestDrillExport:
         for f in result.drill_files:
             assert f.stat().st_size > 0, f"Drill file {f.name} is empty"
 
+    @pytest.mark.requires_kicad
     def test_export_drill_has_drl_extension(self, tmp_dir):
         drill_dir = tmp_dir / "drill"
         result = export_drill(STM32F7_PCB, drill_dir)
@@ -433,6 +449,7 @@ class TestDrillExport:
 class TestManufacturingPackage:
     """Test complete manufacturing package export."""
 
+    @pytest.mark.requires_kicad
     def test_export_manufacturing_package(self, tmp_dir):
         out = tmp_dir / "mfg_output"
         summary = export_manufacturing_package(STM32F7_PCB, STM32F7_SCH, out)
@@ -448,6 +465,7 @@ class TestManufacturingPackage:
         assert summary["vrml"]["size_bytes"] > 0
         assert len(summary["errors"]) == 0
 
+    @pytest.mark.requires_kicad
     def test_manufacturing_package_creates_all_files(self, tmp_dir):
         out = tmp_dir / "mfg_output"
         export_manufacturing_package(STM32F7_PCB, STM32F7_SCH, out)
@@ -460,6 +478,7 @@ class TestManufacturingPackage:
         assert (out / "board.step").is_file()
         assert (out / "board.wrl").is_file()
 
+    @pytest.mark.requires_kicad
     def test_manufacturing_package_gerbers_directory(self, tmp_dir):
         out = tmp_dir / "mfg_output"
         export_manufacturing_package(STM32F7_PCB, STM32F7_SCH, out)
@@ -467,6 +486,7 @@ class TestManufacturingPackage:
         gerber_files = list((out / "gerbers").iterdir())
         assert len(gerber_files) > 10
 
+    @pytest.mark.requires_kicad
     def test_manufacturing_package_bom_csv_readable(self, tmp_dir):
         out = tmp_dir / "mfg_output"
         export_manufacturing_package(STM32F7_PCB, STM32F7_SCH, out)

@@ -61,6 +61,8 @@ def big_ic_family(decoupling):
 # 1. Template from cluster — has center IC + passives
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_template_from_cluster(big_cluster):
     tpl = build_template_from_cluster(big_cluster)
     assert tpl is not None
@@ -88,6 +90,8 @@ def test_template_from_cluster(big_cluster):
 # 2. Template passive values — most common values selected
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_template_passive_values(big_ic_family):
     ic_family, family_data = big_ic_family
     tpl = build_decoupling_template(ic_family, family_data)
@@ -111,6 +115,8 @@ def test_template_passive_values(big_ic_family):
 # 3. Decoupling template
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_decoupling_template(big_ic_family):
     ic_family, family_data = big_ic_family
     tpl = build_decoupling_template(ic_family, family_data)
@@ -221,6 +227,8 @@ def test_template_serialization():
 # 6. Generate all templates — at least 5 from real data
 # ---------------------------------------------------------------------------
 
+@pytest.mark.requires_kicad
+@pytest.mark.requires_patterns
 def test_generate_all_templates():
     templates = generate_all_templates(
         clusters_path=CLUSTERS_PATH,

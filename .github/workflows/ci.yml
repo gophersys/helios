@@ -1,0 +1,124 @@
+# Lint + test for gophersys/hardware.
+#
+# Runs on the org's self-hosted ARC runners (defined in the infrastructure repo,
+# platform/services/gitops/registry/app-arc-runners-org.yaml). Those runners are
+# a stock actions-runner image with a privileged dind sidecar and NO sudo, so
+# anything KiCad-shaped has to come from a container rather than apt.
+#
+# The whole point of this workflow is that ghcr.io/gophersys/hardware-ci carries
+# KiCad 10: without it the ERC/DRC/Gerber/netlist half of the suite skips, which
+# is exactly the blind spot this repo had before CI existed.
+#
+# Single job on purpose: the org has 4 runner slots shared across every repo,
+# and this project runs a tall stack of PRs. Two jobs would double contention
+# for no extra signal, since lint is seconds and both need the same image.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read          # pull the CI image from GHCR
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/gophersys/hardware-ci:latest
+
+jobs:
+  ci:
+    runs-on: arc-org      # self-hosted (ARC)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # Pull normally; build locally when the tag is missing. That covers the
+      # bootstrap run (before build-ci-image.yml has ever pushed), a PR that
+      # changes ci/Dockerfile (where :latest is deliberately stale), and a GHCR
+      # outage — none of which should look like a code failure.
+      - name: Ensure CI image
+        run: |
+          set -euo pipefail
+          if docker pull -q "$IMAGE" 2>/dev/null; then
+            echo "pulled $IMAGE"
+          else
+            echo "::notice::$IMAGE unavailable — building from ci/Dockerfile"
+            docker build -q -f ci/Dockerfile -t "$IMAGE" ci/
+          fi
+
+      - name: Report toolchain
+        run: |
+          set -euo pipefail
+          docker run --rm "$IMAGE" kicad-cli version
+          docker run --rm "$IMAGE" python3 --version
+
+      - name: ruff
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/workspace -w /workspace "$IMAGE" \
+            ruff check src/ tests/
+
+      # data/raw is gitignored (188MB of upstream KiCad projects) but 16 of the
+      # 33 test modules read from it. The clones are pinned by commit in
+      # clone_pilots.sh, so this key only changes when that script does — a cache
+      # hit and a cold clone produce byte-identical corpora.
+      - name: Cache pilot corpus
+        id: corpus
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: pilots-${{ hashFiles('scripts/clone_pilots.sh') }}
+
+      - name: Clone pilot projects
+        if: steps.corpus.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          bash scripts/clone_pilots.sh data/raw
+
+      # clone_pilots.sh falls back to the default branch when a host refuses a
+      # SHA fetch. Tolerable locally, not in CI: assertions would be made
+      # against whatever upstream last pushed.
+      - name: Assert corpus is pinned
+        run: |
+          set -euo pipefail
+          bash scripts/check_pilot_pins.sh data/raw
+
+      - name: pytest
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/workspace -w /workspace "$IMAGE" \
+            python3 -m pytest tests/ -q --junitxml=junit.xml
+
+      # Skips matter here: one means a capability the runner was meant to
+      # provide (KiCad, pilot corpus) quietly went missing, which is the exact
+      # failure mode this workflow exists to make visible.
+      - name: Summarise results
+        if: always()
+        run: |
+          set -euo pipefail
+          [ -f junit.xml ] || { echo "no junit.xml produced"; exit 0; }
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          root = ET.parse("junit.xml").getroot()
+          ts = root if root.tag == "testsuite" else root.find("testsuite")
+          get = lambda k: int(ts.get(k, 0))
+          skipped = get("skipped")
+          print("| metric | count |")
+          print("|---|---|")
+          print(f"| tests | {get('tests')} |")
+          print(f"| failures | {get('failures')} |")
+          print(f"| errors | {get('errors')} |")
+          print(f"| skipped | {skipped} |")
+          if skipped:
+              print(f"\n> {skipped} skipped — confirm none are KiCad-capability skips.")
+          PY

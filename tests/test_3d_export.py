@@ -44,6 +44,7 @@ def tmp_dir():
 class TestStepExport:
     """Test STEP 3D model export on real projects."""
 
+    @pytest.mark.requires_kicad
     def test_export_step_produces_file(self, tmp_dir):
         """STEP export should create a .step file."""
         step_path = tmp_dir / "board.step"
@@ -54,6 +55,7 @@ class TestStepExport:
         assert result.output_path == step_path
         assert step_path.exists()
 
+    @pytest.mark.requires_kicad
     def test_export_step_file_nonempty(self, tmp_dir):
         """STEP file should contain valid ISO-10303 data."""
         step_path = tmp_dir / "board.step"
@@ -64,6 +66,7 @@ class TestStepExport:
         content = step_path.read_text(errors="replace")[:200]
         assert "ISO-10303" in content
 
+    @pytest.mark.requires_kicad
     def test_export_step_board_only(self, tmp_dir):
         """Board-only STEP should be smaller than full export."""
         full_path = tmp_dir / "full.step"
@@ -87,6 +90,7 @@ class TestStepExport:
         assert result.success is False
         assert len(result.errors) > 0
 
+    @pytest.mark.requires_kicad
     def test_export_step_second_project(self, tmp_dir):
         """STEP export should work on a different project (dumbpad/KiCad 9)."""
         step_path = tmp_dir / "vesc.step"
@@ -96,6 +100,7 @@ class TestStepExport:
         assert step_path.exists()
         assert result.file_size_bytes > 0
 
+    @pytest.mark.requires_kicad
     def test_export_step_overwrite(self, tmp_dir):
         """Re-exporting should overwrite existing file."""
         step_path = tmp_dir / "board.step"
@@ -116,6 +121,7 @@ class TestStepExport:
 class TestVrmlExport:
     """Test VRML 3D model export on real projects."""
 
+    @pytest.mark.requires_kicad
     def test_export_vrml_produces_file(self, tmp_dir):
         """VRML export should create a .wrl file."""
         wrl_path = tmp_dir / "board.wrl"
@@ -126,6 +132,7 @@ class TestVrmlExport:
         assert result.output_path == wrl_path
         assert wrl_path.exists()
 
+    @pytest.mark.requires_kicad
     def test_export_vrml_file_nonempty(self, tmp_dir):
         """VRML file should contain valid VRML97 header."""
         wrl_path = tmp_dir / "board.wrl"
@@ -136,6 +143,7 @@ class TestVrmlExport:
         content = wrl_path.read_text(errors="replace")[:100]
         assert "#VRML V2.0" in content
 
+    @pytest.mark.requires_kicad
     def test_export_vrml_larger_than_step(self, tmp_dir):
         """VRML embeds models, so should be larger than STEP for same board."""
         step_path = tmp_dir / "board.step"
@@ -157,6 +165,7 @@ class TestVrmlExport:
         assert result.success is False
         assert len(result.errors) > 0
 
+    @pytest.mark.requires_kicad
     def test_export_vrml_second_project(self, tmp_dir):
         """VRML export should work on vesc (KiCad 9)."""
         wrl_path = tmp_dir / "vesc.wrl"
@@ -166,6 +175,7 @@ class TestVrmlExport:
         assert wrl_path.exists()
         assert result.file_size_bytes > 0
 
+    @pytest.mark.requires_kicad
     def test_export_vrml_units_mm(self, tmp_dir):
         """VRML export with mm units should succeed."""
         wrl_path = tmp_dir / "board_mm.wrl"

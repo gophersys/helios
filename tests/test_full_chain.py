@@ -9,6 +9,8 @@ Uses real kicad-cli v9, real datasheet parsing, and real wiring patterns.
 
 from __future__ import annotations
 
+import pytest
+
 import shutil
 
 import json
@@ -63,6 +65,7 @@ def _write_kicad_pro(project_dir: Path, project_name: str) -> Path:
 class TestFullChainESP32S3:
     """Full pipeline from datasheet PDF to validated KiCad project."""
 
+    @pytest.mark.requires_kicad
     def test_full_chain_esp32s3(self, tmp_path):
         """Exercise the ENTIRE pipeline with zero hardcoded data."""
 
@@ -291,6 +294,8 @@ class TestSymbolMatchesDatasheet:
 class TestComposerUsesRealPatterns:
     """Verify the composer picks up learned wiring patterns from wiring_patterns.json."""
 
+    @pytest.mark.requires_kicad
+    @pytest.mark.requires_patterns
     def test_composer_uses_real_patterns(self, tmp_path):
         """STM32F + W5500 SPI — verify pattern-based net labels appear."""
         spec = DesignSpec(

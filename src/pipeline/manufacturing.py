@@ -16,18 +16,22 @@ import csv
 import io
 import json
 import re
-import shutil
 import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
+from .kicad_cli import require_kicad_cli
+
 TIMEOUT = 120  # seconds
 
 
 def _run_kicad_cli(args: list[str], timeout: int = TIMEOUT) -> subprocess.CompletedProcess:
-    """Run a kicad-cli command, returning the CompletedProcess."""
-    cmd = [KICAD_CLI] + args
+    """Run a kicad-cli command, returning the CompletedProcess.
+
+    See src/pipeline/kicad_cli.py — resolved per call, never from a stale
+    module-level constant or a hardcoded path.
+    """
+    cmd = [require_kicad_cli()] + args
     return subprocess.run(
         cmd,
         capture_output=True,

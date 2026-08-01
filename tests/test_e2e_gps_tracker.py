@@ -8,6 +8,8 @@ Uses real kicad-cli v9 for validation (ERC, BOM export).
 
 from __future__ import annotations
 
+import pytest
+
 import json
 
 
@@ -163,6 +165,7 @@ def _build_gps_tracker_sheets() -> dict[str, SheetContent]:
 class TestGPSTrackerE2E:
     """Full pipeline: define → generate → validate → parse."""
 
+    @pytest.mark.requires_kicad
     def test_gps_tracker_e2e(self, tmp_path):
         """Generate a complete GPS tracker project and validate it."""
         project_dir = tmp_path / "gps_tracker"
@@ -291,6 +294,7 @@ class TestGPSTrackerE2E:
         if "C1" in comp_map:
             assert comp_map["C1"].value == "100nF"
 
+    @pytest.mark.requires_kicad
     def test_decoupling_from_template(self, tmp_path):
         """Use a decoupling template to generate bypass caps."""
         # Create a synthetic decoupling template

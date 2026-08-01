@@ -4,6 +4,7 @@ Provides paths to pilot project data in ~/hardware/data/raw/.
 All paths are absolute and resolved from this file's location.
 """
 
+import shutil
 import sys
 from pathlib import Path
 
@@ -13,6 +14,49 @@ import pytest
 TOOLS_DIR = Path(__file__).resolve().parent.parent / "tools"
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
+
+# Whether the KiCad CLI is available in this environment. Tests that drive
+# kicad-cli (ERC, DRC, netlist export, Gerber/STEP generation) are marked
+# `requires_kicad` and skip when it is absent, rather than failing with a
+# subprocess error that looks like a code defect. CI runs them for real inside
+# ghcr.io/gophersys/hardware-ci — see docs/ci.md.
+HAS_KICAD = shutil.which("kicad-cli") is not None
+
+# Derived pattern data (data/patterns/*.json) is produced by the extraction
+# pipeline from the corpus — it is not in git and nothing in CI regenerates it
+# yet, because no generator exists for decoupling_rules.json. Tests that consume
+# it are marked `requires_patterns` so the gap is visible as a named skip rather
+# than hidden in a wall of red. See docs/ci.md "Known gaps".
+PATTERNS_DIR = Path(__file__).resolve().parent.parent / "data" / "patterns"
+HAS_PATTERNS = (PATTERNS_DIR / "subcircuit_clusters.json").is_file() and \
+               (PATTERNS_DIR / "decoupling_rules.json").is_file()
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "requires_kicad: needs the kicad-cli binary on PATH (runs in CI)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "requires_patterns: needs extracted data/patterns/*.json (not yet in CI)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    skip_kicad = pytest.mark.skip(
+        reason="kicad-cli not on PATH — install KiCad 10, use the devcontainer, "
+               "or see docs/ci.md. CI runs these for real."
+    )
+    skip_patterns = pytest.mark.skip(
+        reason="data/patterns/*.json missing — run the extraction pipeline "
+               "(scripts/bulk_subcircuits.py); see docs/ci.md 'Known gaps'."
+    )
+    for item in items:
+        if not HAS_KICAD and "requires_kicad" in item.keywords:
+            item.add_marker(skip_kicad)
+        if not HAS_PATTERNS and "requires_patterns" in item.keywords:
+            item.add_marker(skip_patterns)
 
 # Root of all pilot project data
 DATA_RAW = Path(__file__).resolve().parent.parent / "data" / "raw"
