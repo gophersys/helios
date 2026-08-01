@@ -14,23 +14,31 @@ rules land with the layout engine.
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
-
-from kiutils.items.common import Effects, Fill, Font, Position, Property, Stroke
-from kiutils.items.syitems import SyRect
-from kiutils.symbol import Symbol, SymbolLib, SymbolPin
+from typing import TYPE_CHECKING
 
 from .component import Component
 from .model import ElectricalType
 
+if TYPE_CHECKING:
+    from kiutils.symbol import Symbol, SymbolLib
+
 PIN_LENGTH = 2.54
 PIN_SPACING = 2.54
 TEXT_SIZE = 1.27
+
+
+def _esc(value: str) -> str:
+    """Escape a value for a KiCad S-expression string literal.
+
+    Backslash first, then quote — the other order would re-escape the
+    backslash the quote rule just introduced. Every interpolated field must
+    go through this: descriptions come from parsed datasheets and routinely
+    contain quotes (``2.5" display``), which otherwise close the literal
+    early and make the whole .kicad_sch unparseable.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 class Side(str, Enum):
@@ -92,7 +100,7 @@ class SymbolModel:
     def from_component(cls, component: Component) -> SymbolModel:
         units = []
         for unit_id, unit_def in enumerate(component.units(), start=1):
-            specs = [component._pin(pad).spec for pad in unit_def.pads]
+            specs = [component.pin_by_pad(pad).spec for pad in unit_def.pads]
             units.append(cls._place_unit(unit_id, unit_def.name, specs))
         return cls(component, tuple(units))
 
@@ -150,8 +158,11 @@ class SymbolModel:
 
     # ── emitters ────────────────────────────────────────────────────────────
 
-    def to_kicad_sym(self) -> SymbolLib:
+    def to_kicad_sym(self) -> "SymbolLib":
         """Multi-unit kiutils SymbolLib (legacy generate_symbol format)."""
+        # Lazy: only this emitter needs kiutils (and the tools/ path insert).
+        from ._kicad import Effects, Font, Property, Symbol, SymbolLib
+
         comp = self._component
         name = comp.part_name
 
@@ -189,7 +200,9 @@ class SymbolModel:
         return lib
 
     @staticmethod
-    def _unit_to_kiutils(parent_name: str, unit: SymbolUnit) -> Symbol:
+    def _unit_to_kiutils(parent_name: str, unit: SymbolUnit) -> "Symbol":
+        from ._kicad import Fill, Position, Stroke, SyRect, Symbol, SymbolPin
+
         ku = Symbol()
         ku.entryName = parent_name
         ku.libId = parent_name
@@ -225,12 +238,14 @@ class SymbolModel:
         comp = self._component
         unit = self.flatten().units[0]
 
-        safe_name = lib_id.replace('"', '\\"')
-        footprint = comp.footprint.lib_id if comp.footprint else ""
+        safe_name = _esc(lib_id)
+        footprint = _esc(comp.footprint.lib_id if comp.footprint else "")
+        datasheet = _esc(comp.datasheet)
+        description = _esc(comp.description)
         # Must match to_kicad_sym() — both emitters describe the same part.
         # Bridged ChipDefs never set reference_prefix, so this stays "U" and
         # preserves byte-parity with _generate_lib_symbol_sexp_legacy.
-        ref_prefix = comp.reference_prefix or "U"
+        ref_prefix = _esc(comp.reference_prefix or "U")
 
         lines = [f'(symbol "{safe_name}"']
         lines.append('      (pin_names (offset 1.016))')
@@ -243,10 +258,10 @@ class SymbolModel:
                      '(effects (font (size 1.27 1.27))))')
         lines.append(f'      (property "Footprint" "{footprint}" (at 0 0 0) '
                      '(effects (font (size 1.27 1.27)) (hide yes)))')
-        lines.append(f'      (property "Datasheet" "{comp.datasheet}" (at 0 0 0) '
+        lines.append(f'      (property "Datasheet" "{datasheet}" (at 0 0 0) '
                      '(effects (font (size 1.27 1.27)) (hide yes)))')
         if comp.description:
-            lines.append(f'      (property "Description" "{comp.description}" '
+            lines.append(f'      (property "Description" "{description}" '
                          '(at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
 
         half_h = unit.height / 2
@@ -258,12 +273,12 @@ class SymbolModel:
 
         lines.append(f'      (symbol "{safe_name}_1_1"')
         for placed in unit.pins:
-            pin_name = placed.name.replace('"', '\\"')
+            pin_name = _esc(placed.name)
             lines.append(
                 f'        (pin {placed.etype.value} line '
                 f'(at {placed.x} {placed.y} 0) (length 2.54)'
                 f'\n          (name "{pin_name}" (effects (font (size 1.27 1.27))))'
-                f'\n          (number "{placed.pad}" '
+                f'\n          (number "{_esc(placed.pad)}" '
                 f'(effects (font (size 1.27 1.27)))))'
             )
         lines.append('      )')

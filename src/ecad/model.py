@@ -28,8 +28,14 @@ class ElectricalType(str, Enum):
     NO_CONNECT = "no_connect"
 
     @classmethod
-    def parse(cls, raw: str) -> ElectricalType:
-        """Normalize a free-form pin type string (legacy-compatible)."""
+    def parse(cls, raw: str, *, strict: bool = False) -> ElectricalType:
+        """Normalize a free-form pin type string (legacy-compatible).
+
+        Lenient by default: unknown values become UNSPECIFIED, matching
+        symbol_gen._normalize_pin_type so corpus ingestion never hard-fails.
+        Pass strict=True on hand-authored paths, where a typo silently
+        becoming UNSPECIFIED would also disable that pin's design lint.
+        """
         value = raw.lower().strip()
         aliases = {
             "power": "power_in",
@@ -46,6 +52,11 @@ class ElectricalType(str, Enum):
         try:
             return cls(value)
         except ValueError:
+            if strict:
+                raise ValueError(
+                    f"unknown electrical type {raw!r}; expected one of "
+                    f"{sorted(m.value for m in cls)}"
+                ) from None
             return cls.UNSPECIFIED
 
 
@@ -146,9 +157,14 @@ class Issue:
 def pin(pad: str, name: str, etype: str | ElectricalType,
         role: str | PinRole = PinRole.SIGNAL, gpio: int | None = None,
         functions: tuple[str, ...] = ()) -> PinSpec:
-    """Terse PinSpec constructor accepting legacy string types."""
+    """Terse PinSpec constructor accepting legacy string types.
+
+    Strict on etype: this is the hand-authoring path, and PinRole below
+    already rejects unknown roles — silently downgrading a typo'd etype to
+    UNSPECIFIED would be the odd one out, and would mute lint on that pin.
+    """
     if isinstance(etype, str):
-        etype = ElectricalType.parse(etype)
+        etype = ElectricalType.parse(etype, strict=True)
     if isinstance(role, str):
         role = PinRole(role)
     return PinSpec(pad=pad, name=name, etype=etype, role=role,
