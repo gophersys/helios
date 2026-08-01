@@ -70,8 +70,13 @@ the cluster. The standard mitigations before enabling it are:
    turns node compromise back into job compromise.
 3. Keep `maxRunners` low on that group so an abusive PR cannot exhaust org capacity.
 
-As of writing, the org has two public repos — `hardware` and `esp32-starter` — and the
-policy remains disabled.
+When `hardware` needed these runners it was public and hit exactly this. Rather than
+weaken the policy for one repo, the repo was made **private** — the cheapest correct
+fix, and reversible. If it ever needs to be public again, do option 2 first; do not
+simply flip the flag.
+
+As of writing the org has one public repo, `esp32-starter`, which does not use CI, and
+the policy remains disabled.
 
 ## Consumers
 
@@ -80,7 +85,7 @@ policy remains disabled.
 | `infrastructure` | `arc-org` | `validate.yml` — kubeconform + kustomize; installs tools to `$HOME/bin` because there is no sudo |
 | `eden` | `arc-org` | needs dind for k3d-based gates |
 | `workspaces` | `arc-org` | |
-| `hardware` | `arc-org` | **blocked**: public repo, see above. Needs KiCad 10, supplied by `ghcr.io/gophersys/hardware-ci` (built from `ci/Dockerfile` in that repo) rather than a custom runner image |
+| `hardware` | `arc-org` | Needs KiCad 10, supplied by `ghcr.io/gophersys/hardware-ci` (built from `ci/Dockerfile` in that repo) rather than a custom runner image. Made private specifically to use these runners — see the public-repo section |
 
 ### KiCad / EDA workloads
 
