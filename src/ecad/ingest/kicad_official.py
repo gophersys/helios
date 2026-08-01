@@ -64,20 +64,39 @@ class OfficialLibrary:
             raise KeyError(f"{self.library} has no symbol {name!r}")
 
         extends = getattr(sym, "extends", None)
-        pin_source = sym
-        if extends:
-            parent = self._by_name.get(extends)
+
+        # Walk the WHOLE extends chain. A derived symbol may itself be derived
+        # (INA281A2 -> INA281A1 -> AD8211): stopping after one hop leaves
+        # pin_source on an intermediate that carries no units, producing a
+        # symbol with zero pins that silently passes as a real part. 177 of the
+        # installed official symbols are multi-level like this.
+        chain = [sym]
+        visited = {name}
+        cursor = sym
+        while parent_name := getattr(cursor, "extends", None):
+            if parent_name in visited:
+                raise KeyError(
+                    f"{self.library}:{name} has a cyclic extends chain "
+                    f"through {parent_name!r}")
+            parent = self._by_name.get(parent_name)
             if parent is None:
                 raise KeyError(
-                    f"{self.library}:{name} extends unknown symbol {extends!r}")
-            pin_source = parent
+                    f"{self.library}:{name} extends unknown symbol "
+                    f"{parent_name!r}")
+            visited.add(parent_name)
+            chain.append(parent)
+            cursor = parent
 
-        props = {p.key: p.value for p in (sym.properties or [])}
-        if extends:
-            parent_props = {p.key: p.value
-                            for p in (self._by_name[extends].properties or [])}
-            for k, v in parent_props.items():
-                props.setdefault(k, v)
+        # Pins come from the nearest ancestor that actually defines units.
+        pin_source = next((s for s in chain if s.units), chain[-1])
+
+        # Properties resolve nearest-first: the derived symbol overrides its
+        # parent, which overrides the grandparent. setdefault over the chain in
+        # order gives exactly that precedence.
+        props: dict[str, str] = {}
+        for link in chain:
+            for p in link.properties or []:
+                props.setdefault(p.key, p.value)
 
         pins = []
         seen: dict[str, str] = {}
@@ -88,10 +107,20 @@ class OfficialLibrary:
                     # Official symbols may stack same-numbered pins (parallel
                     # pads); keep the first, they are electrically identical.
                     continue
-                seen[pad] = p.name
+                # KiCad writes (name "") for pins it draws unnamed — every
+                # logic gate in 4xxx/74xx does this, 2,739 of 22,776 installed
+                # symbols in total. PinSpec requires a non-empty name, so
+                # passing it straight through raised ValueError out of a
+                # function documented to return `OfficialSymbol | None` and
+                # aborted any corpus-wide ingest on the first logic gate.
+                # Fall back to the pad, which is unique and honest.
+                pin_name = (p.name or "").strip()
+                if not pin_name or pin_name == "~":
+                    pin_name = pad
+                seen[pad] = pin_name
                 pins.append(PinSpec(
                     pad=pad,
-                    name=p.name,
+                    name=pin_name,
                     etype=ElectricalType.parse(p.electricalType),
                 ))
 
