@@ -182,6 +182,7 @@ def emit(placed: PlacedSheet, design: Design,
 
         # ── satellite rows (caps grouped per rail — one row may decouple
         # several different rails) ─────────────────────────────────────────
+        sat_junctions: list[tuple[float, float]] = []
         for owner, row in sorted(pl.sat_rows.items()):
             sats = {s.ref: s for s in g.satellites.get(owner, [])}
             rail_tops: dict[str, list[tuple[float, float]]] = {}
@@ -209,6 +210,15 @@ def emit(placed: PlacedSheet, design: Design,
                     wires.append(Wire(x, y, x, rail_y))
                 if len(xs) > 1:
                     wires.append(Wire(min(xs), rail_y, max(xs), rail_y))
+                    # Every cap stub T-s into that shared span. KiCad does not
+                    # connect a wire endpoint that lands MID-segment without a
+                    # junction dot, so without these the middle caps of a row
+                    # are electrically floating: a rail with 3+ decoupling caps
+                    # exported a netlist missing C2 and failed ERC with
+                    # pin_not_connected. The endpoints also carry the rail's
+                    # power-symbol pin, so junction every stub rather than only
+                    # the interior ones.
+                    sat_junctions.extend((x, rail_y) for x in sorted(set(xs)))
                 pwr_instances.append((rail, min(xs), rail_y, False))
                 power_names.add(rail)
 
@@ -217,6 +227,7 @@ def emit(placed: PlacedSheet, design: Design,
             wires.extend(rt.wires[net])
         junctions = [pt for net in sorted(rt.junctions)
                      for pt in rt.junctions[net]]
+        junctions.extend(sat_junctions)
         label_lines: list[str] = []
         for net in sorted(rt.label_at):
             for _anchor, lx, ly, angle in rt.label_at[net]:

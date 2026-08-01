@@ -256,3 +256,64 @@ def test_unknown_passive_lib_id_gets_stub():
     d.net("GND").connect(u.pin("2"), c.P2)
     sheet = emit(layout(d), d)
     assert '(symbol "Device:C_Polarized"' in sheet.text
+
+
+# ── regressions from the adversarial review ─────────────────────────────────
+
+
+def _three_cap_rail() -> Design:
+    """One rail decoupled by three caps — the middle one T-s into the span."""
+    d = Design("three-cap-rail")
+    u, c1, c2, c3 = d.add(TinyMCU(), Cap(), Cap(), Cap())
+    d.net("3V3").connect(u.VDD, c1.P1, c2.P1, c3.P1)
+    d.net("GND").connect(u.GND, c1.P2, c2.P2, c3.P2)
+    return d
+
+
+def test_satellite_rail_emits_a_junction_per_cap():
+    """Middle caps land mid-segment on the shared rail wire.
+
+    KiCad does not connect a wire endpoint that lands mid-segment without a
+    junction dot, so without these the middle cap of a row is electrically
+    floating — the exported netlist dropped C2 entirely and ERC reported
+    pin_not_connected.
+    """
+    d = _three_cap_rail()
+    pl = layout(d)
+    text = emit(pl, d, "three_cap_rail").text
+
+    caps = [c for c in d.components if isinstance(c, Cap)]
+    assert len(caps) == 3
+
+    # Every cap stub meeting the rail needs a junction; with 3 caps sharing a
+    # rail there must be at least one junction per cap on that row.
+    junction_count = text.count("(junction")
+    assert junction_count >= len(caps), (
+        f"expected >= {len(caps)} junctions for a 3-cap rail, got {junction_count}"
+    )
+
+
+@skip_no_kicad
+def test_three_cap_rail_netlist_keeps_every_cap(tmp_path):
+    """The real gate: kicad-cli must see all three caps on the rail."""
+    d = _three_cap_rail()
+    pl = layout(d)
+    text = emit(pl, d, "three_cap_rail").text
+    p = tmp_path / "three_cap_rail.kicad_sch"
+    p.write_text(text)
+
+    from src.pipeline.roundtrip import _export_netlist, parse_kicad_netlist_xml
+
+    xml = _export_netlist(p, tmp_path)
+    assert xml is not None, "netlist export failed"
+    nets = {}
+    for net in parse_kicad_netlist_xml(xml)["nets"]:
+        name = net["name"].lstrip("/").split("/")[-1]
+        if "unconnected-" in net["name"]:
+            continue
+        nets.setdefault(name, set()).update(
+            f"{n['ref']}:{n['pin']}" for n in net["nodes"]
+            if not n["ref"].startswith("#"))
+    rail = nets.get("3V3", set())
+    cap_pins = {p for p in rail if p.startswith("C")}
+    assert len(cap_pins) == 3, f"all three caps must be on 3V3, got {sorted(rail)}"
