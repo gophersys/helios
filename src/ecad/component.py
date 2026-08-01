@@ -185,6 +185,11 @@ class Component:
     def pins(self) -> tuple[Pin, ...]:
         return tuple(self._pins_by_pad.values())
 
+    def pin_by_pad(self, pad: str) -> Pin:
+        """Pin at a physical pad. Public counterpart of pin() for callers
+        (SymbolModel, layout) that already work in pad space."""
+        return self._pins_by_pad[pad]
+
     def _pin(self, pad: str) -> Pin:
         return self._pins_by_pad[pad]
 

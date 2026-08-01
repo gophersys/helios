@@ -315,13 +315,19 @@ def generate_lib_symbol_sexp(chip: ChipDef, lib_id: str) -> str:
     return model.to_inline_sexp(lib_id)
 
 
+def _esc_legacy(value: str) -> str:
+    """S-expression string escaping for the parity oracle.
+
+    Intentionally a separate copy of src.ecad.symbol._esc: an oracle that
+    imports the implementation's helper stops being an independent check.
+    Keep the two in sync by behaviour, not by import.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _generate_lib_symbol_sexp_legacy(chip: ChipDef, lib_id: str) -> str:
     """Pre-ecad implementation, kept temporarily for parity testing."""
-    safe_name = lib_id.replace('"', '\\"')
-    ref_prefix = lib_id.split(":")[0][0] if ":" in lib_id else "U"
-    # Most ICs use "U" reference
-    if ref_prefix in ("R", "C", "L"):
-        ref_prefix = "U"
+    safe_name = _esc_legacy(lib_id)
 
     lines = [f'(symbol "{safe_name}"']
     lines.append('      (pin_names (offset 1.016))')
@@ -330,10 +336,10 @@ def _generate_lib_symbol_sexp_legacy(chip: ChipDef, lib_id: str) -> str:
     lines.append('      (on_board yes)')
     lines.append('      (property "Reference" "U" (at 0 1.27 0) (effects (font (size 1.27 1.27))))')
     lines.append(f'      (property "Value" "{safe_name}" (at 0 -1.27 0) (effects (font (size 1.27 1.27))))')
-    lines.append(f'      (property "Footprint" "{chip.footprint}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
-    lines.append(f'      (property "Datasheet" "{chip.datasheet_url}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
+    lines.append(f'      (property "Footprint" "{_esc_legacy(chip.footprint)}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
+    lines.append(f'      (property "Datasheet" "{_esc_legacy(chip.datasheet_url)}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
     if chip.description:
-        lines.append(f'      (property "Description" "{chip.description}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
+        lines.append(f'      (property "Description" "{_esc_legacy(chip.description)}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
 
     # Group pins by functional group
     groups: dict[str, list[PinDef]] = {}
@@ -365,8 +371,8 @@ def _generate_lib_symbol_sexp_legacy(chip: ChipDef, lib_id: str) -> str:
         y = start_y - i * spacing
         x = -(width / 2) - 2.54  # pin length = 2.54mm
         pin_type = pin_def.electrical_type
-        pin_name = pin_def.name.replace('"', '\\"')
-        pin_num = str(pin_def.number)
+        pin_name = _esc_legacy(pin_def.name)
+        pin_num = _esc_legacy(str(pin_def.number))
         lines.append(
             f'        (pin {pin_type} line (at {x} {y} 0) (length 2.54)'
             f'\n          (name "{pin_name}" (effects (font (size 1.27 1.27))))'

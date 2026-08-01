@@ -99,12 +99,18 @@ class Design:
         Same-named Net objects merge here (netlist semantics); check() still
         reports duplicate-net-name so the mistake is visible.
         """
+        registered = self._registered_ids()
         out: dict[str, set[str]] = {}
         for net in self.nets:
             out.setdefault(net.name, set()).update(
                 f"{p.owner.ref}:{p.pad}" for p in net.pins
-                if p.owner in self.components)
+                if id(p.owner) in registered)
         return out
+
+    def _registered_ids(self) -> set[int]:
+        """Identity set of registered components — membership by id() keeps
+        the per-pin ownership test O(1) instead of scanning the list."""
+        return {id(c) for c in self.components}
 
     # ── lint ────────────────────────────────────────────────────────────────
 
@@ -112,6 +118,7 @@ class Design:
         """Definition-time lint. Errors mean the design is not emittable."""
         issues: list[Issue] = []
         net_names: dict[str, Net] = {}
+        registered = self._registered_ids()
 
         for net in self.nets:
             if net.name in net_names and net_names[net.name] is not net:
@@ -119,7 +126,7 @@ class Design:
                                     f"Two distinct Net objects named {net.name!r}",
                                     net=net.name))
             net_names.setdefault(net.name, net)
-            design_pins = [p for p in net.pins if p.owner in self.components]
+            design_pins = [p for p in net.pins if id(p.owner) in registered]
             if len(design_pins) < 2:
                 issues.append(Issue("error", "single-pin-net",
                                     f"Net {net.name!r} has {len(design_pins)} pin(s)",
