@@ -10,6 +10,7 @@ from src.ecad.footprints import (
     kicad_share_dir,
     validate_footprint,
 )
+from src.ecad.ingest.kicad_official import load_official_symbol
 from src.ecad.model import FootprintRef
 
 pytestmark = pytest.mark.skipif(
@@ -87,3 +88,55 @@ def test_validate_surplus_pads_rule(index):
         index, FootprintRef("Resistor_SMD", "R_0402_1005Metric"), {"1"})
     assert not v.ok
     assert "extra pads" in v.errors[0]
+
+
+# ── regressions from the adversarial review ─────────────────────────────────
+
+
+def test_pitch_matches_zero_padded_kicad_spellings():
+    """KiCad spells one pitch several ways: P1mm, P1.0mm, P1.00mm, P0.50mm.
+
+    Building the token as f"P{pitch:g}MM" and substring-testing it dropped
+    4,087 of 15,435 installed footprints.
+    """
+    idx = FootprintIndex.build()
+    # C_Radial's real pitches are all zero-padded (P2.00mm, P2.50mm, P5.00mm)
+    assert idx.candidates(PackageSpec(family="C_Radial", pitch=2.0)), \
+        "P2.00mm must match pitch=2.0"
+    # BGA-1023 exists only as P1.0mm
+    assert idx.candidates(PackageSpec(family="BGA-1023", pitch=1.0)), \
+        "P1.0mm must match pitch=1.0"
+
+
+def test_multi_ep_footprints_are_not_reported_as_ep_free():
+    """Matching only "1EP" made 2EP/5EP parts read as having no exposed pad."""
+    idx = FootprintIndex.build()
+    ep_free = idx.candidates(
+        PackageSpec(family="Infineon_PQFN-44-31-5EP", ep=False))
+    assert not ep_free, "a 5EP footprint must not satisfy ep=False"
+
+
+def test_numeric_thermal_pad_is_not_a_surplus_error():
+    """KiCad numbers thermal pads after the signal pins (pad 9 on DFN-8-1EP).
+
+    A symbol that does not model the thermal pad is KiCad's own convention —
+    740 of its canonical symbol/footprint pairings look like this.
+    """
+    idx = FootprintIndex.build()
+    sym = load_official_symbol("Amplifier_Audio:PAM8302AAY")
+    assert sym is not None
+    v = validate_footprint(
+        idx,
+        FootprintRef("Package_DFN_QFN", "DFN-8-1EP_3x3mm_P0.65mm_EP1.55x2.4mm"),
+        {p.pad for p in sym.pins},
+    )
+    assert v.ok, v.errors
+
+
+def test_share_dir_is_platform_aware(monkeypatch):
+    """Hardcoding the macOS bundle made this module inert on Linux/CI."""
+    monkeypatch.setenv("KICAD_SHARE", "/tmp/some-share")
+    assert str(kicad_share_dir()) == "/tmp/some-share"
+    monkeypatch.delenv("KICAD_SHARE")
+    # whatever the platform, the resolved dir must actually hold libraries
+    assert (kicad_share_dir() / "footprints").is_dir()
