@@ -2,9 +2,8 @@
 
 The golden files under tests/ecad/golden/ are byte-exact snapshots of the
 CURRENT (fixed) emitter output for the 3 registry chips. They replaced the
-old parity tests against the deleted pre-ecad legacy emitters
-(the pre-ecad legacy emitters, now deleted) and pin down
-the emission format: any change to SymbolModel.to_kicad_sym or
+old parity tests against the pre-ecad legacy emitters, now deleted, and
+pin down the emission format: any change to SymbolModel.to_kicad_sym or
 to_inline_sexp must be intentional and update the snapshots.
 """
 
