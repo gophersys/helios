@@ -12,6 +12,7 @@ one confident winner or it fails asking for an explicit choice.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +30,62 @@ _SURPLUS_OK_RE = re.compile(r"^$|^EP\d*$|^MP\d*$|^SH\d*$|^PAD$", re.IGNORECASE)
 
 
 def kicad_share_dir() -> Path:
-    return Path("/Applications/KiCad.app/Contents/SharedSupport")
+    """Installed KiCad share directory.
+
+    Honors a ``KICAD_SHARE`` override, then probes the platform-standard
+    locations. Hardcoding the macOS bundle made this module — and everything
+    built on it — inert on Linux, which is what CI and the project's own
+    devcontainer run.
+    """
+    if override := os.environ.get("KICAD_SHARE"):
+        return Path(override)
+    for p in ("/usr/share/kicad", "/usr/share/kicad-10",
+              "/Applications/KiCad.app/Contents/SharedSupport"):
+        if Path(p).is_dir():
+            return Path(p)
+    return Path("/usr/share/kicad")
+
+
+_PITCH_RE = re.compile(r"P(\d+(?:\.\d+)?)MM")
+_EP_RE = re.compile(r"(\d+)EP")
+
+
+def _pitch_matches(name_u: str, pitch: float) -> bool:
+    """Does an upper-cased footprint name carry this pitch?
+
+    Compares NUMERICALLY, not as a formatted token. KiCad spells the same
+    pitch several ways — P1mm, P1.0mm, P1.00mm, P0.50mm — so the obvious
+    f"P{pitch:g}MM" substring test silently drops 4,087 of the 15,447
+    installed footprints, including every C_Radial and most BGA parts.
+    """
+    return any(abs(float(m) - pitch) < 1e-9
+               for m in _PITCH_RE.findall(name_u.replace("_", "")))
+
+
+def _thermal_pad_allowance(name: str) -> int:
+    """How many sequentially-numbered thermal pads this footprint may carry.
+
+    KiCad numbers thermal pads after the signal pins instead of naming them
+    "EP", so a symbol that does not model them looks like it is missing pads.
+    "1EP"/"5EP" state the count; slug and tab packages (ST_PowerSSO-24_SlugDown,
+    TO-263 tabs) carry exactly one and say so in words.
+    """
+    name_u = name.upper().replace("_", "")
+    if m := _EP_RE.search(name_u):
+        return int(m.group(1))
+    if any(t in name_u for t in ("SLUG", "TAB", "THERMALPAD")):
+        return 1
+    return 0
+
+
+def _has_exposed_pad(name_u: str) -> bool:
+    """True when the name declares any exposed pad count.
+
+    Matching only "1EP" misclassifies the 14 installed multi-EP footprints
+    (2EP/3EP/4EP/5EP) as having no exposed pad, so an explicit ep=False
+    request could return a part with five of them.
+    """
+    return _EP_RE.search(name_u.replace("_", "")) is not None
 
 
 @dataclass(frozen=True)
@@ -157,13 +213,11 @@ class FootprintIndex:
                 continue
             if spec.pads is not None and len(info.pad_numbers) != spec.pads:
                 continue
-            if spec.pitch is not None:
-                token = f"P{spec.pitch:g}MM"
-                if token not in name_u.replace("_", ""):
-                    continue
+            if spec.pitch is not None and not _pitch_matches(name_u, spec.pitch):
+                continue
             if spec.body is not None and f"{spec.body.upper()}MM" not in name_u:
                 continue
-            if spec.ep is not None and ("1EP" in name_u) != spec.ep:
+            if spec.ep is not None and _has_exposed_pad(name_u) != spec.ep:
                 continue
             if "THERMALVIAS" in name_u or "HANDSOLDER" in name_u:
                 continue  # variants; the base footprint is the canonical pick
@@ -225,6 +279,16 @@ def validate_footprint(index: FootprintIndex, ref: FootprintRef,
         errors.append(f"symbol pins with no footprint pad: {missing}")
     surplus = sorted(pad_set - pin_pads)
     bad_surplus = [p for p in surplus if not _SURPLUS_OK_RE.match(p)]
+    # KiCad numbers thermal pads sequentially rather than naming them "EP":
+    # QFN-56-1EP carries pad "57", DFN-8-1EP carries "9". A symbol that does
+    # not model the thermal pad is perfectly normal — 740 of KiCad's own
+    # symbol/footprint pairings look like this — so allow as many numeric
+    # surplus pads as the footprint name declares exposed pads.
+    allowance = _thermal_pad_allowance(info.name)
+    if allowance and bad_surplus:
+        numeric = [p for p in bad_surplus if p.isdigit()]
+        for p in sorted(numeric, key=int)[-allowance:]:
+            bad_surplus.remove(p)
     if bad_surplus:
         errors.append(f"footprint has unexplained extra pads: {bad_surplus}")
     if not info.has_step and ref.source != "custom":
