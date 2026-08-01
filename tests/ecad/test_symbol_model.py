@@ -191,8 +191,12 @@ def test_inline_sexp_escapes_every_interpolated_field():
     assert props["Datasheet"] == 'http://x/a"b'
     assert props["Footprint"] == 'fp:C_0402"odd'
 
-    # and the legacy oracle agrees byte-for-byte
-    assert out == _generate_lib_symbol_sexp_legacy(chip, 'Lib:T"X')
+    # and the legacy oracle agrees, once its child-symbol names are normalized
+    # (see test_inline_sexp_parity_all_chips: legacy emitted lib-prefixed child
+    # names, which KiCad refuses to load)
+    legacy = _generate_lib_symbol_sexp_legacy(chip, 'Lib:T"X')
+    legacy = legacy.replace('(symbol "Lib:T\\"X_', '(symbol "T\\"X_')
+    assert out == legacy
 
 
 def test_inline_sexp_escapes_backslashes():
@@ -201,7 +205,9 @@ def test_inline_sexp_escapes_backslashes():
     ])
     out = generate_lib_symbol_sexp(chip, "Lib:T")
     assert "C:\\\\parts" in out
-    assert out == _generate_lib_symbol_sexp_legacy(chip, "Lib:T")
+    legacy = _generate_lib_symbol_sexp_legacy(chip, "Lib:T")
+    legacy = legacy.replace('(symbol "Lib:T_', '(symbol "T_')
+    assert out == legacy
 
 
 def test_zero_pin_component_emits_without_crashing():
