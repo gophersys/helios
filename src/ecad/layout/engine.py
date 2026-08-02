@@ -223,10 +223,17 @@ def emit(placed: PlacedSheet, design: Design,
                 wires.append(Wire(bot[0], bot[1], bot[0], snap(bot[1] + _STUB)))
                 pwr_instances.append((s.gnd, bot[0], snap(bot[1] + _STUB), True))
                 power_names.add(s.gnd)
-            for rail, tops in sorted(rail_tops.items()):
-                if not rail:
-                    continue
-                rail_y = snap(tops[0][1] - _STUB)
+            # One row may decouple SEVERAL rails. Every cap in a row shares the
+            # same cy, so deriving rail_y from tops[0] gave every rail the
+            # identical y — their horizontal spans then overlapped in x and
+            # KiCad merged them into one net, shorting e.g. 3V3 to 5V whenever
+            # their caps interleaved. Give each rail its own track. Stubs that
+            # cross a lower track are safe: crossing wires do not connect in
+            # KiCad without a junction, and junctions are only ever emitted at
+            # a rail's own cap x-positions.
+            for track, (rail, tops) in enumerate(
+                    (r, t) for r, t in sorted(rail_tops.items()) if r):
+                rail_y = snap(tops[0][1] - _STUB * (track + 1))
                 xs = [t[0] for t in tops]
                 for x, y in tops:
                     wires.append(Wire(x, y, x, rail_y))

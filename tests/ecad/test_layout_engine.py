@@ -389,3 +389,45 @@ def test_same_lib_id_different_geometry_gets_its_own_symbol():
         f"R2 references {lib!r}, whose symbol does not define R2's own pins "
         f"— its geometry is another component's"
     )
+
+
+def test_rails_in_one_satellite_row_get_distinct_tracks():
+    """A row may decouple several rails; each needs its own horizontal track.
+
+    rail_y was derived from tops[0], and every cap in a row shares the same
+    cy, so every rail landed on the SAME y. Two rails' horizontal spans then
+    overlapped in x and KiCad merged them into one net — shorting the rails
+    whenever their caps interleaved.
+    """
+    import re
+
+    d = Design("two-rail-row")
+    u, a1, a2, b1 = d.add(LDO(), Cap(), Cap(), Cap())
+    d.net("VIN").connect(u.VIN, a1.P1, a2.P1, u.EN)
+    d.net("3V3").connect(u.VOUT, b1.P1)
+    d.net("GND").connect(u.pin("2"), a1.P2, a2.P2, b1.P2)
+
+    pl = layout(d)
+    # both rails must actually share one satellite row for this to be a test
+    rails = {s.rail for sats in pl.graph.satellites.values() for s in sats}
+    assert {"VIN", "3V3"} <= rails, f"fixture lost its two rails: {rails}"
+
+    # Rail tracks sit just ABOVE the cap row; the component's own power taps
+    # live elsewhere, so restrict to that band or the assertion picks them up.
+    row_cy = next(iter(pl.placement.sat_rows.values()))[0][2]
+    lo, hi = row_cy - 4 * 2.54, row_cy
+
+    text = emit(pl, d, "two_rail_row").text
+    ys: dict[str, set[float]] = {}
+    for m in re.finditer(r'\(lib_id "power:([^"]+)"\)\s*\n\s*\(at ([-\d.]+) ([-\d.]+)',
+                         text):
+        y = float(m.group(3))
+        if lo <= y < hi:
+            ys.setdefault(m.group(1), set()).add(y)
+
+    assert ys.get("VIN") and ys.get("3V3"), f"no rail tracks found in band: {ys}"
+    shared = ys["VIN"] & ys["3V3"]
+    assert not shared, (
+        f"VIN and 3V3 share horizontal track(s) at y={sorted(shared)} — their "
+        f"spans can overlap and merge the two rails into one net"
+    )
