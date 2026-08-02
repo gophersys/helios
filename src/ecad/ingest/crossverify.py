@@ -79,7 +79,8 @@ class Evidence:
 
     def summary(self) -> dict[str, int]:
         counts = {"claims": len(self.claims), "agreed": 0,
-                  "single_source": 0, "conflicts": 0, "waived": 0}
+                  "single_source": 0, "conflicts": 0, "unverified": 0,
+                  "waived": 0}
         for c in self.claims:
             if c.status == "agreed":
                 counts["agreed"] += 1
@@ -87,6 +88,11 @@ class Evidence:
                 counts["single_source"] += 1
             elif c.status == "waived":
                 counts["waived"] += 1
+            elif c.status == "unverified":
+                # Counted apart from conflicts: a conflict means two sources
+                # disagree, unverified means nobody checked. Both block the
+                # gate, but reporting them as the same thing hides which.
+                counts["unverified"] += 1
             else:
                 counts["conflicts"] += 1
         return counts
@@ -109,10 +115,28 @@ class Evidence:
 
 
 def _add(claims: list[Claim], kind: str, key: str, values: dict[str, str],
-         ok: bool | None, detail: str = "") -> None:
-    """Append a claim; ok=None means only one source could weigh in."""
+         ok: bool | None, detail: str = "", *, informational: bool = False) -> None:
+    """Append a claim.
+
+    ``ok=None`` means no verdict was reached, and that splits two ways:
+
+    - ``informational=True`` — only one source can ever weigh in on this
+      claim (a pad that exists in the datasheet but not the official symbol).
+      Recorded as ``single_source``; the gate ignores it.
+    - ``informational=False`` (the DEFAULT) — a comparison was expected and
+      did not happen. Recorded as ``unverified``, and the gate FAILS on it.
+
+    Defaulting to fail-closed is deliberate. A check that cannot fail reports
+    "clean" for a part nobody verified, which is worse than having no check at
+    all: the next person builds on the number. This codebase has produced that
+    shape three times (a file lint that iterated the wrong collection, a
+    netlist gate covering one sheet of several, and the strapping check whose
+    verdict was always None). Making no-verdict fail unless a caller
+    explicitly declares the claim one-sided turns the fourth instance from
+    unlikely into impossible.
+    """
     if ok is None:
-        status = "single_source"
+        status = "single_source" if informational else "unverified"
     else:
         status = "agreed" if ok else "conflict"
     claims.append(Claim(kind=kind, key=key, values=values, status=status,
@@ -166,8 +190,11 @@ def build_evidence(extracted: Sequence[PinSpec],
                     values[source] = pins[pad].name
                     norm.append(normalize_name(pins[pad].name))
             ok = None if len(norm) < 2 else norm[0] == norm[1]
+            # Genuinely one-sided: a pad the datasheet lists and the official
+            # symbol does not (or the reverse) has nothing to compare against.
             _add(claims, "pin_name", pad, values,
-                 ok, "" if ok is not False else f"{norm[0]} != {norm[1]}")
+                 ok, "" if ok is not False else f"{norm[0]} != {norm[1]}",
+                 informational=len(norm) < 2)
 
     # ── datasheet vs Zephyr ─────────────────────────────────────────────────
     if zephyr is not None:
@@ -212,9 +239,17 @@ def build_evidence(extracted: Sequence[PinSpec],
                       "zephyr": _set_repr(set(strapping))},
                      ds_strap == set(strapping), detail)
             else:
+                # No verdict, and NOT informational: the SoC publishes a
+                # strapping table and this part is that SoC, so the pin data
+                # should have carried strapping roles. An empty set means the
+                # extraction lost them, not that the question is one-sided.
+                # Recorded as unverified so the gate blocks — previously this
+                # was single_source, which the gate ignored, so the check
+                # reported clean no matter how badly the two disagreed.
                 _add(claims, "strapping", "set",
                      {"zephyr": _set_repr(set(strapping))}, None,
-                     "datasheet extraction has no strapping-role pins")
+                     "no strapping-role pins in the part model, but the SoC "
+                     "defines a strapping table — roles were not assigned")
 
     # ── pin set vs footprint pads ───────────────────────────────────────────
     if footprint_pads is not None:

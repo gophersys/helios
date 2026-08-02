@@ -27,7 +27,8 @@ class ESP32_S3_WROOM_1(Component):
     unit_strategy = UnitStrategy.EXPLICIT
     unit_plan = (  # frozen at generation time
         UnitDef(name='Power', pads=('1', '2', '40', '41')),
-        UnitDef(name='GPIO', pads=('3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39')),
+        UnitDef(name='Strapping', pads=('15', '16', '26', '27')),
+        UnitDef(name='GPIO', pads=('3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '17', '18', '19', '20', '21', '22', '23', '24', '25', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39')),
     )
     _PIN_SPECS = (
         PinSpec(pad='1', name='GND', etype=ElectricalType.POWER_IN, role=PinRole.GROUND),
@@ -44,8 +45,8 @@ class ESP32_S3_WROOM_1(Component):
         PinSpec(pad='12', name='IO8', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=8),
         PinSpec(pad='13', name='USB_D-', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.SIGNAL),
         PinSpec(pad='14', name='USB_D+', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.SIGNAL),
-        PinSpec(pad='15', name='IO3', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=3),
-        PinSpec(pad='16', name='IO46', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=46),
+        PinSpec(pad='15', name='IO3', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.STRAPPING, gpio=3),
+        PinSpec(pad='16', name='IO46', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.STRAPPING, gpio=46),
         PinSpec(pad='17', name='IO9', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=9),
         PinSpec(pad='18', name='IO10', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=10),
         PinSpec(pad='19', name='IO11', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=11),
@@ -55,8 +56,8 @@ class ESP32_S3_WROOM_1(Component):
         PinSpec(pad='23', name='IO21', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=21),
         PinSpec(pad='24', name='IO47', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=47),
         PinSpec(pad='25', name='IO48', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=48),
-        PinSpec(pad='26', name='IO45', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=45),
-        PinSpec(pad='27', name='IO0', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=0),
+        PinSpec(pad='26', name='IO45', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.STRAPPING, gpio=45),
+        PinSpec(pad='27', name='IO0', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.STRAPPING, gpio=0),
         PinSpec(pad='28', name='IO35', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=35),
         PinSpec(pad='29', name='IO36', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=36),
         PinSpec(pad='30', name='IO37', etype=ElectricalType.BIDIRECTIONAL, role=PinRole.GPIO, gpio=37),

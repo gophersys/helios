@@ -3,10 +3,11 @@
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf",
   "description": "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD",
   "evidence_summary": {
-    "agreed": 33,
+    "agreed": 34,
     "claims": 34,
     "conflicts": 0,
-    "single_source": 1,
+    "single_source": 0,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -18,9 +19,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "866f2ea3c3fa3dbb126cd5efcde47b6b33550e43e1b1739bbf8ba04b7d3e76ea",
-    "md_sha256": "e6d09d96e7ea2ff1007e390226735bb567fb96ad6fcaf72566f0497644de3d53",
-    "py_sha256": "4bac075181344815dafc3ba6373b55d26c076bf20858ebcaa48f4d4cc9af928b"
+    "kicad_sym_sha256": "123e64725d68fa3d2d3b060ae866ce37a22e43575e66a9dd9df6de2c1e844a4b",
+    "md_sha256": "8271c8694bf717a6e5a1a47e5b7b70ededa920c6e25858a5e6b49b820441623d",
+    "py_sha256": "ad36a0faf395c5f1978801584b634b473b6d7721ff60f63e623fbe1f4d2a4ce0"
   },
   "id": "esp32_s3_wroom_1",
   "lib_id": "RF_Module:ESP32-S3-WROOM-1",
@@ -51,6 +52,15 @@
       ]
     },
     {
+      "name": "Strapping",
+      "pads": [
+        "15",
+        "16",
+        "26",
+        "27"
+      ]
+    },
+    {
       "name": "GPIO",
       "pads": [
         "3",
@@ -65,8 +75,6 @@
         "12",
         "13",
         "14",
-        "15",
-        "16",
         "17",
         "18",
         "19",
@@ -76,8 +84,6 @@
         "23",
         "24",
         "25",
-        "26",
-        "27",
         "28",
         "29",
         "30",

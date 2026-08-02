@@ -66,6 +66,20 @@ def soc_for(comp_id: str) -> str:
     return "esp32"
 
 
+def strapping_for(comp_id: str) -> frozenset[int]:
+    """Strapping GPIOs for a component id, empty when the SoC is unknown.
+
+    Deliberately NOT soc_for(): that falls back to "esp32" for anything it
+    does not recognize, which is survivable for a GPIO count but not for
+    strapping — it would stamp IO0/IO2/IO5 as strapping pins on a part that
+    is not an ESP32 at all. An unknown SoC has no strapping table, and
+    inventing one is how a check starts asserting things nobody verified.
+    """
+    if not comp_id.lower().startswith("esp32"):
+        return frozenset()
+    return frozenset(zephyr_mod.STRAPPING.get(soc_for(comp_id), ()))
+
+
 def lib_id_for(record: ComponentRecord) -> str:
     """Official-symbol lib_id: modules -> RF_Module, SoCs -> MCU_Espressif."""
     library = "RF_Module" if record.kind == "module" else "MCU_Espressif"
@@ -86,8 +100,15 @@ def _pin_from_json(d: dict) -> PinSpec:
                    functions=tuple(d.get("functions") or ()))
 
 
-def _enrich(p: PinSpec) -> PinSpec:
-    """Derive gpio number and role for an official-symbol pin (role=SIGNAL)."""
+def _enrich(p: PinSpec, strapping: frozenset[int] = frozenset()) -> PinSpec:
+    """Derive gpio number and role for an official-symbol pin (role=SIGNAL).
+
+    ``strapping`` is the SoC's strapping GPIO set. Without it no pin ever
+    received PinRole.STRAPPING, which made three things dead at once: the
+    strapping cross-check could only ever return "no verdict",
+    codegen.auto_unit_plan never emitted a Strapping unit, and the generated
+    markdown printed "Strapping warnings: none" for parts that have them.
+    """
     up = p.name.split("/", 1)[0].strip().upper()
     m = _IO_RE.fullmatch(up)
     gpio = int(m.group(1)) if m else None
@@ -100,7 +121,9 @@ def _enrich(p: PinSpec) -> PinSpec:
         elif p.etype in (ElectricalType.POWER_IN, ElectricalType.POWER_OUT):
             role = PinRole.POWER
         elif gpio is not None:
-            role = PinRole.GPIO
+            # Strapping beats plain GPIO: these pins must be free at boot, so
+            # the distinction has to survive into the generated part.
+            role = PinRole.STRAPPING if gpio in strapping else PinRole.GPIO
     return PinSpec(pad=p.pad, name=p.name, etype=p.etype, role=role,
                    gpio=gpio, functions=p.functions)
 
@@ -174,10 +197,12 @@ def _build_extracted(record: ComponentRecord, ctx: dict) -> None:
     lib_id = lib_id_for(record)
     official = load_official_symbol(lib_id)
     if official is not None:
+        strapping = strapping_for(record.id)
         payload = {"lib_id": lib_id, "footprint": official.footprint,
                    "datasheet": official.datasheet,
                    "description": official.description,
-                   "pins": [_pin_to_json(_enrich(p)) for p in official.pins]}
+                   "pins": [_pin_to_json(_enrich(p, strapping))
+                            for p in official.pins]}
         (d / "official.json").write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n")
         record.meta["official_symbol"] = lib_id
@@ -218,11 +243,18 @@ def _write_evidence(record: ComponentRecord, ctx: dict,
     official = None
     if source == "datasheet" and record.meta.get("official_symbol"):
         official = load_official_symbol(str(record.meta["official_symbol"]))
-    tree = zephyr_mod.ensure(Path(ctx["repo"]))
-    soc = tree.soc(soc_for(record.id))
-    record.meta["soc"] = soc.name
+    # Only bring Zephyr silicon data to bear on a part it actually describes.
+    # soc_for falls back to "esp32" for anything unrecognized, so a non-ESP32
+    # part was being cross-checked against ESP32 GPIO counts, input-only lists
+    # and strapping tables — assertions about silicon nobody confirmed it has.
+    zephyr_view = None
+    if record.id.lower().startswith("esp32"):
+        tree = zephyr_mod.ensure(Path(ctx["repo"]))
+        soc = tree.soc(soc_for(record.id))
+        record.meta["soc"] = soc.name
+        zephyr_view = _SocEvidence(soc)
     ev = crossverify.build_evidence(pins, official=official,
-                                    zephyr=_SocEvidence(soc),
+                                    zephyr=zephyr_view,
                                     footprint_pads=footprint_pads,
                                     component=record.id)
     ev_path = root / record.id / "evidence.json"
