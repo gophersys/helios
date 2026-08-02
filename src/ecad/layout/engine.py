@@ -12,7 +12,7 @@ a no_connect marker (the ERC==0 gate demands it).
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from ..design import Design
@@ -82,16 +82,21 @@ def metrics_of(placed: PlacedSheet) -> Metrics:
 
 def emit(placed: PlacedSheet, design: Design,
          title: str | None = None,
-         hier_labels: Mapping[str, str] | None = None,
+         hier_labels: Mapping[str, str | Sequence[str]] | None = None,
          flag_rails: Collection[str] | None = None) -> EmittedSheet:
     """Emit a single-sheet .kicad_sch (deterministic UUIDs from the design
     name). Returns the text plus computed soft metrics.
 
-    ``hier_labels`` maps a net name to a PRE-RENDERED hierarchical-label
-    S-expression supplied by the caller (the composer owns hierarchy; ecad
+    ``hier_labels`` maps a net name to PRE-RENDERED hierarchical-label
+    S-expression(s) supplied by the caller (the composer owns hierarchy; ecad
     never imports pipeline). Those lines are emitted verbatim and the
-    router's own local label for the same net is suppressed, so the net is
-    named exactly once — at the stub end reported by :func:`label_anchors`.
+    router's own local label for the same net is suppressed.
+
+    Pass a LIST when the net has several label anchors — any net with more
+    than 4 ports falls back to labels and gets one anchor per port. Naming
+    only one of them leaves the rest with a stub connected to nothing, since
+    a labeled net is joined solely through its labels. A bare string remains
+    valid for the single-anchor case.
 
     ``flag_rails`` restricts PWR_FLAG emission to the named rails (default:
     every undriven rail on the sheet). Power symbols are GLOBAL across a
@@ -261,7 +266,16 @@ def emit(placed: PlacedSheet, design: Design,
             for _anchor, lx, ly, angle in rt.label_at[net]:
                 label_lines.append(_gen_label(NetConnection(
                     net, "local", (snap(lx), snap(ly)), angle=angle)))
-        label_lines.extend(hier[net] for net in sorted(hier))
+        for net in sorted(hier):
+            entry = hier[net]
+            # A net may leave the sheet at SEVERAL ports (any net with >4
+            # ports falls back to labels, one anchor each). Accept a list so
+            # every anchor is named; a bare string stays valid for the common
+            # single-anchor case.
+            if isinstance(entry, str):
+                label_lines.append(entry)
+            else:
+                label_lines.extend(entry)
 
         # ── PWR_FLAG once per rail, but never on a rail that already has a
         # real power_out driver (two power outputs on one net is an ERC

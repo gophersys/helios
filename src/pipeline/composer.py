@@ -610,14 +610,18 @@ def _render_sheet(plan: _SheetPlan, flag_rails: list[str]) -> tuple[str, list[st
     placed = layout(plan.design, sheet=plan.title)
     issues = lint_placed(placed)
     anchors = label_anchors(placed)
-    hier_lines: dict[str, str] = {}
+    # One rendered label PER ANCHOR, not per net. emit() suppresses the
+    # router's own local labels for any net in hier_labels, and a labeled net
+    # is connected only through its labels — so keeping a single slot per net
+    # left every port but the last with a stub ending in nothing.
+    hier_lines: dict[str, list[str]] = {}
     # Own UUID namespace: same design → same label UUIDs (determinism), but
     # never colliding with the counter emit() runs inside its own context.
     with deterministic_uuids(f"{plan.design.name}/hier"):
         for net, direction in sorted(plan.hier.items()):
             for x, y, angle in anchors.get(net, []):
-                hier_lines[net] = _gen_hierarchical_label(
-                    net, direction, x, y, angle)
+                hier_lines.setdefault(net, []).append(
+                    _gen_hierarchical_label(net, direction, x, y, angle))
     missing = sorted(set(plan.hier) - set(hier_lines))
     for net in missing:
         issues.append(f"unrouted-hierarchical-net: {net}")

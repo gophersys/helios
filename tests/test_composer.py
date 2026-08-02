@@ -818,3 +818,59 @@ def test_no_design_pin_is_orphaned(tmp_path):
     assert not stranded, (
         f"pins the design wired came back unconnected: {stranded}"
     )
+
+
+def test_every_label_anchor_gets_a_hierarchical_label():
+    """A hier net with N label anchors must emit N hierarchical labels.
+
+    ``_render_sheet`` stores the rendered label in ``hier_lines[net]`` — a
+    single slot — while looping over every anchor, so only the LAST one
+    survived. ``emit`` then skips the router's own local labels for that net
+    entirely, and a labeled net is connected ONLY through its labels, so every
+    other port was left with a stub ending in nothing.
+
+    Not reachable through DesignSpec today: compose_design puts each
+    peripheral on its own sheet, and a net needs >4 ports on ONE sheet to fall
+    back to labels. An I2C bus with five devices on a sheet is not exotic
+    though, so this is gated at the level where it IS observable rather than
+    left until the shape becomes expressible.
+
+    The pre-existing ``missing`` check cannot see it: it only fires when a net
+    has ZERO anchors.
+    """
+    from src.ecad import Component, Design, FootprintRef, pin
+    from src.ecad.layout.engine import label_anchors, layout
+    from src.pipeline.composer import _render_sheet, _SheetPlan
+
+    class Sensor(Component):
+        part_name = "SENS"
+        lib_id = "Sensor:SENS"
+        footprint = FootprintRef("Package_DFN_QFN", "QFN-8")
+        _PIN_SPECS = (
+            pin("1", "VCC", "power_in", "power"),
+            pin("2", "GND", "power_in", "ground"),
+            pin("3", "SDA", "bidirectional", "comm"),
+            pin("4", "SCL", "input", "comm"),
+        )
+
+    design = Design("i2c-bus")
+    parts = design.add(*[Sensor() for _ in range(6)])
+    design.net("SDA").connect(*[p.SDA for p in parts])   # 6 ports -> labels
+    design.net("SCL").connect(*[p.SCL for p in parts])
+    design.net("3V3").connect(*[p.VCC for p in parts])
+    design.net("GND").connect(*[p.GND for p in parts])
+
+    anchors = label_anchors(layout(design, sheet="Bus"))
+    assert len(anchors.get("SDA", [])) > 1, "fixture must produce a multi-anchor net"
+
+    plan = _SheetPlan(filename="bus.kicad_sch", title="Bus", design=design,
+                      hier={"SDA": "bidirectional", "SCL": "input"})
+    text, _issues = _render_sheet(plan, flag_rails=[])
+
+    for net in ("SDA", "SCL"):
+        want = len(anchors[net])
+        got = text.count(f'(hierarchical_label "{net}"')
+        assert got == want, (
+            f"{net}: {want} label anchors but {got} hierarchical labels — "
+            f"{want - got} port(s) left with a stub connected to nothing"
+        )
