@@ -105,12 +105,34 @@ def emit(placed: PlacedSheet, design: Design,
         lib_entries: list[str] = []
         seen_libs: set[str] = set()
         power_names: set[str] = set()
-        for node in g.nodes.values():
-            if not node.ref or node.lib_id in seen_libs:
+        # ref -> the lib_id its symbol instance must reference. Usually
+        # node.lib_id, but see the alias below.
+        node_lib: dict[str, str] = {}
+        # Geometry is computed PER COMPONENT (readable width depends on pin-name
+        # lengths), so two components sharing a lib_id can need different
+        # symbols. Deduping on lib_id alone emitted only the first, and the
+        # second was drawn with the first's geometry while the router had wired
+        # to its own — leaving its pins millimetres from every wire and silently
+        # dropping its connections. Key on the emitted geometry instead, and
+        # alias any genuine divergence.
+        by_geometry: dict[str, str] = {}
+        for node in sorted(g.nodes.values(), key=lambda n: (n.ref or "")):
+            if not node.ref:
                 continue
-            seen_libs.add(node.lib_id)
+            entry = models[node.ref].to_inline_sexp_multi(node.lib_id)
+            if node.lib_id not in seen_libs:
+                seen_libs.add(node.lib_id)
+                by_geometry[node.lib_id] = entry
+                node_lib[node.ref] = node.lib_id
+                lib_entries.append(entry)
+                continue
+            if entry == by_geometry[node.lib_id]:
+                node_lib[node.ref] = node.lib_id     # identical geometry, share
+                continue
+            alias = f"{node.lib_id}_{node.ref}"
+            node_lib[node.ref] = alias
             lib_entries.append(
-                models[node.ref].to_inline_sexp_multi(node.lib_id))
+                models[node.ref].to_inline_sexp_multi(alias))
         # Satellites keep the vertical stub (row wiring assumes pins at
         # ±_CAP_PIN_DY). When a placed node already claimed the lib_id with
         # readable geometry, the satellite stub is emitted under an alias.
@@ -144,7 +166,7 @@ def emit(placed: PlacedSheet, design: Design,
             anchor = (snap(ox + w_tot / 2), snap(oy + h_tot / 2))
             comp = comps[node.ref]
             body.append(gen_symbol_instance(ComponentPlacement(
-                lib_id=node.lib_id, ref=node.ref,
+                lib_id=node_lib.get(node.ref, node.lib_id), ref=node.ref,
                 value=getattr(comp, "value", "") or comp.part_name,
                 footprint=comp.footprint.lib_id if comp.footprint else "",
                 position=anchor, unit=node.unit), project, root_uuid,

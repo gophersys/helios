@@ -317,3 +317,75 @@ def test_three_cap_rail_netlist_keeps_every_cap(tmp_path):
     rail = nets.get("3V3", set())
     cap_pins = {p for p in rail if p.startswith("C")}
     assert len(cap_pins) == 3, f"all three caps must be on 3V3, got {sorted(rail)}"
+
+
+class ShuntRes(Component):
+    """Same lib_id as a plain resistor but much wider readable geometry."""
+    part_name = "R_shunt"
+    lib_id = "Device:R"
+    reference_prefix = "R"
+    footprint = FootprintRef("Resistor_SMD", "R_0805_2012Metric")
+    _PIN_SPECS = (
+        pin("1", "SENSE_HIGH", "passive", "passive"),
+        pin("2", "SENSE_LOW_X", "passive", "passive"),
+    )
+
+
+class PlainRes(Component):
+    part_name = "R"
+    lib_id = "Device:R"
+    reference_prefix = "R"
+    footprint = FootprintRef("Resistor_SMD", "R_0402_1005Metric")
+    _PIN_SPECS = (
+        pin("1", "P1", "passive", "passive"),
+        pin("2", "P2", "passive", "passive"),
+    )
+
+
+def test_same_lib_id_different_geometry_gets_its_own_symbol():
+    """Two components sharing a lib_id may need different symbol geometry.
+
+    Readable width depends on pin-name lengths, so deduping lib_symbols on
+    lib_id alone drew the second component with the first's geometry while
+    the router had wired to its own — putting its pins millimetres from
+    every wire and silently dropping both of its connections.
+    """
+    d = Design("shared-lib-id")
+    u, r1, r2 = d.add(TinyMCU(), PlainRes(), ShuntRes())
+    d.net("A").connect(u.TX, r1.P1)
+    d.net("B").connect(r1.P2, r2.SENSE_HIGH)
+    d.net("C").connect(r2.SENSE_LOW_X, u.IO0)
+
+    text = emit(layout(d), d, "shared_lib_id").text
+
+    import re
+
+    # Map each placed instance's ref -> the lib_id it references.
+    ref_to_lib = {}
+    for block in text.split("(symbol\n")[1:]:
+        lib = re.search(r'\(lib_id "([^"]+)"\)', block)
+        ref = re.search(r'\(property "Reference" "([^"]+)"', block)
+        if lib and ref:
+            ref_to_lib[ref.group(1)] = lib.group(1)
+    assert {"R1", "R2"} <= set(ref_to_lib), f"missing instances: {ref_to_lib}"
+
+    # Slice out the lib_symbols entry R2 points at. Child symbols carry the
+    # pins and are named by BARE part name ("R_R2_1_1"), while top-level
+    # entries are library-qualified ("Device:R_R2") — so the next name
+    # containing a colon starts the following entry.
+    lib = ref_to_lib["R2"]
+    start = text.find(f'(symbol "{lib}"\n')
+    assert start >= 0, f"no lib_symbols entry named {lib!r}"
+    end = len(text)
+    for m in re.finditer(r'\(symbol "([^"]+)"\n', text[start + 1:]):
+        if ":" in m.group(1):
+            end = start + 1 + m.start()
+            break
+    shunt_entry = text[start:end]
+
+    # Before the fix R2 pointed at the plain resistor's entry, so its pins sat
+    # millimetres from every wire and both connections were lost.
+    assert "SENSE_HIGH" in shunt_entry, (
+        f"R2 references {lib!r}, whose symbol does not define R2's own pins "
+        f"— its geometry is another component's"
+    )
