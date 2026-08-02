@@ -44,12 +44,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # but is empty, so src/ecad/footprints.py builds a zero-entry index and every
 # resolver test fails with `assert 0 > 10000` — which reads like a code bug, not
 # a missing package. Name them explicitly.
+#
+# kicad-packages3d carries the STEP models. FootprintInfo.has_step records their
+# presence and validate_footprint warns when a part lacks one, so without this
+# package every footprint looks 3D-less and the manufacturing phase exports a
+# board with no component geometry.
 RUN add-apt-repository -y ppa:kicad/kicad-${KICAD_PPA_VERSION}.0-releases \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         kicad \
         kicad-symbols \
         kicad-footprints \
+        kicad-packages3d \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python test stack ────────────────────────────────────────────────────────
@@ -70,8 +76,10 @@ RUN set -eu; \
     kicad-cli version; python3 --version; ruff --version; \
     fp=$(find /usr/share/kicad/footprints -name '*.kicad_mod' 2>/dev/null | wc -l); \
     sym=$(find /usr/share/kicad/symbols -name '*.kicad_sym' 2>/dev/null | wc -l); \
-    echo "installed: footprints=$fp symbol-libs=$sym"; \
+    step=$(find /usr/share/kicad/3dmodels -name '*.step' 2>/dev/null | wc -l); \
+    echo "installed: footprints=$fp symbol-libs=$sym step-models=$step"; \
     if [ "$fp" -lt 10000 ]; then echo "ERROR: only $fp footprints"; exit 1; fi; \
-    if [ "$sym" -lt 100 ]; then echo "ERROR: only $sym symbol libs"; exit 1; fi
+    if [ "$sym" -lt 100 ]; then echo "ERROR: only $sym symbol libs"; exit 1; fi; \
+    if [ "$step" -lt 1000 ]; then echo "ERROR: only $step STEP models"; exit 1; fi
 
 WORKDIR /workspace
