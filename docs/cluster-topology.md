@@ -18,15 +18,6 @@ on the Tailscale mesh.
 - **Tailnet-private** — DNS-only A records → `10.168.0.240` (the MetalLB nginx
   VIP), reachable only on the tailnet/LAN, TLS via cert-manager: `torrent.`,
   `prowlarr.`, `files.`, `argocd.`, `s3.` (MinIO API).
-- **Workstation-hosted (NOT in the cluster)** — the **studio dashboard** runs
-  on Mateo's MacBook Air at `http://100.89.71.64:8737` (launchd agent
-  `com.mateosegura.studio-dashboard`, source in `MateoSegura/music-studio`
-  → `tools/studio`). It is linked from `home.` under **Studio** but never
-  routed through the tunnel. It lives there because it needs Ableton Live 12,
-  AbletonOSC (localhost UDP) and the 2.5 GB `~/Music` tree — none of which
-  exist in k3s. Expect its Homepage cards to read offline when the laptop is
-  asleep; that is correct, not a fault. See
-  `music-studio/docs/architecture.md` → "The studio dashboard".
 - **Grafana is the exception**: `grafana.` → its **own** MetalLB LoadBalancer at
   `10.168.0.241`, plain **HTTP :80** — no Ingress, no cert-manager cert (managed
   by the `obs` Helm release). Tailnet-private like the rest, just a different

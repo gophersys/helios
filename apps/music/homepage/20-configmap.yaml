@@ -26,10 +26,6 @@ data:
         style: row
         columns: 3
         icon: mdi-kubernetes
-      Studio:
-        style: row
-        columns: 2
-        icon: mdi-music-note-eighth
       Monitoring:
         style: row
         columns: 2
@@ -94,21 +90,6 @@ data:
             icon: minio
             siteMonitor: http://minio.minio.svc.cluster.local:9000/minio/health/ready
 
-    - Studio:
-        # Runs ON the MacBook Air, not in the cluster: it needs Ableton Live,
-        # AbletonOSC (localhost UDP) and ~/Music, none of which exist here.
-        # Tailnet-only by design — these links work on the tailnet, and the
-        # cards show offline whenever the laptop is asleep. That is expected.
-        - Studio Dashboard:
-            href: http://100.89.71.64:8737/
-            description: Productions, drum tabs, chord charts · MacBook Air
-            icon: mdi-tune-vertical
-            siteMonitor: http://100.89.71.64:8737/
-        - Practice Library:
-            href: http://100.89.71.64:8737/library
-            description: Play-along stems · streams to phone
-            icon: mdi-drum
-
     - Monitoring:
         - Grafana:
             href: https://grafana.mateosegura.com
@@ -121,16 +102,6 @@ data:
             siteMonitor: http://prometheus-server.observability.svc.cluster.local
 
   bookmarks.yaml: |
-    - Studio:
-        - Tabs & Charts:
-            - abbr: TAB
-              icon: mdi-music-clef-treble
-              href: http://100.89.71.64:8737/tabs
-        - Music repo:
-            - abbr: MU
-              icon: github
-              href: https://github.com/MateoSegura/music-studio
-
     - Admin:
         - GitHub:
             - abbr: GH
