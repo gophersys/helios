@@ -508,13 +508,40 @@ def _wire_interface(
                 continue
             if is_power_net(net):
                 continue                      # rails are global power symbols
-            if mcu_pin.net is not None or periph_pin.net is not None:
-                taken = mcu_pin if mcu_pin.net is not None else periph_pin
+            if periph_pin.net is not None:
                 warnings.append(
                     f"Wiring pattern for {peripheral.name} wants {net} on "
-                    f"{taken.owner_ref}.{taken.name} (pad {taken.pad}), which "
-                    f"already carries {taken.net.name}; net {net} skipped."
+                    f"{periph_pin.owner_ref}.{periph_pin.name} (pad "
+                    f"{periph_pin.pad}), which already carries "
+                    f"{periph_pin.net.name}; net {net} skipped."
                 )
+                continue
+            if mcu_pin.net is not None:
+                shared = mcu_pin.net.name
+                if is_power_net(shared):
+                    # The pattern maps a signal onto a pin already on a rail.
+                    # That is a bad pattern, not a bus: rails are global power
+                    # symbols with no label anchor, so exposing one as a
+                    # hierarchical net yields unrouted-hierarchical-net.
+                    warnings.append(
+                        f"Wiring pattern for {peripheral.name} wants {net} on "
+                        f"{mcu_pin.owner_ref}.{mcu_pin.name} (pad "
+                        f"{mcu_pin.pad}), which already carries the rail "
+                        f"{shared}; net {net} skipped."
+                    )
+                    continue
+                # Otherwise the MCU pad is already wired because this is a BUS
+                # (I2C, shared SPI clock) and a second device joins the line —
+                # the normal case. Skipping both sides instead left the
+                # peripheral's bus pin unconnected, so emit() wrote a
+                # no_connect marker on it and intended_netlist() never
+                # mentioned it: a powered, decoupled sensor with its bus
+                # deliberately marked unconnected, which both ERC and netlist
+                # equivalence report as perfectly clean.
+                periph_design.net(shared).connect(periph_pin)
+                periph_used.add(periph_pin.pad)
+                mcu_hier[shared] = _direction_of(mcu_pin)
+                periph_hier[shared] = _direction_of(periph_pin)
                 continue
             mcu_design.net(net).connect(mcu_pin)
             periph_design.net(net).connect(periph_pin)

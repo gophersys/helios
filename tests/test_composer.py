@@ -874,3 +874,56 @@ def test_every_label_anchor_gets_a_hierarchical_label():
             f"{net}: {want} label anchors but {got} hierarchical labels — "
             f"{want - got} port(s) left with a stub connected to nothing"
         )
+
+
+def test_second_bus_device_shares_the_line_instead_of_being_no_connected(tmp_path):
+    """A bus is shared, not skipped, when its MCU pad is already wired.
+
+    When a learned pattern named an MCU pad that already carried a net, the
+    whole connection was dropped — including the peripheral side. The
+    peripheral's bus pin was then left with pin.net is None, so emit() wrote a
+    no_connect marker on it and intended_netlist() never mentioned it: a
+    powered, decoupled sensor with its bus deliberately marked unconnected.
+    Both ERC and netlist equivalence call that clean, which is exactly why it
+    needs its own gate.
+
+    A rail is still not shareable — see test_compose_pattern_conflicting_pad_warns.
+    """
+    shared_pads = [
+        {"ic_a_pad": "6", "ic_b_pad": "3", "net_name": "I2C_SDA"},
+        {"ic_a_pad": "7", "ic_b_pad": "4", "net_name": "I2C_SCL"},
+    ]
+    patterns = {
+        "pattern_count": 2,
+        "patterns": [
+            {
+                "ic_a_family": "ESP32-S3", "ic_b_family": chip,
+                "interface_type": "I2C", "canonical_connections": shared_pads,
+                "seen_in_projects": ["synthetic"], "sample_count": 1,
+                "confidence": "high",
+            }
+            for chip in ("PCF8563T", "BMP280")
+        ],
+    }
+    path = tmp_path / "wiring_patterns.json"
+    path.write_text(json.dumps(patterns))
+
+    spec = DesignSpec(
+        name="TwoBus", mcu_family="ESP32-S3", mcu_chip="ESP32-S3-WROOM-1",
+        peripherals=[
+            PeripheralSpec(name="RTC", chip="PCF8563T", interface="I2C"),
+            PeripheralSpec(name="Baro", chip="BMP280", interface="I2C"),
+        ],
+        power=_default_power(),
+    )
+    result = compose_design(spec, patterns_path=path)
+
+    # Both peripheral sheets must carry the bus nets, and neither may have a
+    # no_connect marker sitting on a pin the bus was supposed to reach.
+    for filename in ("rtc.kicad_sch", "baro.kicad_sch"):
+        design = result.designs[filename]
+        nets = design.intended_netlist()
+        on_bus = {n for n in nets if n.startswith("I2C_")}
+        assert on_bus, (
+            f"{filename}: bus pins were dropped — nets are {sorted(nets)}"
+        )
