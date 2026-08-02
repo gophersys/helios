@@ -15,47 +15,23 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "tools"))
 
-from .ir import GRID, PlacedSheet
+from .ir import GRID, PlacedSheet, point_on_wire, wires_short
 
 
 def _on_grid(v: float) -> bool:
     return abs(v / GRID - round(v / GRID)) < 1e-6
 
 
-def _on_segment(x: float, y: float, w, eps: float) -> bool:
-    return (min(w.x1, w.x2) - eps <= x <= max(w.x1, w.x2) + eps
-            and min(w.y1, w.y2) - eps <= y <= max(w.y1, w.y2) + eps)
+def lint_placed(placed: PlacedSheet, emitted=None) -> list[str]:
+    """IR-level geometric violations (empty list == pass).
 
-
-def _wires_short(wa, wb, eps: float) -> bool:
-    """True when two orthogonal wires of different nets would connect in
-    KiCad: colinear overlap of positive length, or either wire's endpoint
-    lying on the other wire (mid-segment + crossings do not connect)."""
-    a_h, b_h = wa.y1 == wa.y2, wb.y1 == wb.y2
-    if a_h == b_h:  # parallel: short iff colinear with positive overlap
-        if a_h:
-            if abs(wa.y1 - wb.y1) > eps:
-                return False
-            lo = max(min(wa.x1, wa.x2), min(wb.x1, wb.x2))
-            hi = min(max(wa.x1, wa.x2), max(wb.x1, wb.x2))
-        else:
-            if abs(wa.x1 - wb.x1) > eps:
-                return False
-            lo = max(min(wa.y1, wa.y2), min(wb.y1, wb.y2))
-            hi = min(max(wa.y1, wa.y2), max(wb.y1, wb.y2))
-        if hi - lo > eps:
-            return True
-    return any(
-        _on_segment(x, y, other, eps)
-        for (x, y), other in (
-            ((wa.x1, wa.y1), wb), ((wa.x2, wa.y2), wb),
-            ((wb.x1, wb.y1), wa), ((wb.x2, wb.y2), wa),
-        )
-    )
-
-
-def lint_placed(placed: PlacedSheet) -> list[str]:
-    """IR-level geometric violations (empty list == pass)."""
+    ``emitted`` is the :class:`~.engine.EmittedSheet` for this placement.
+    Pass it whenever it is available: power-tap stubs, satellite rows and
+    PWR_FLAG ties are built by ``engine.emit`` AFTER the PlacedSheet exists
+    and are absent from ``placed.routing``, so without it the wire rules
+    (orthogonality, grid, net-short, junction sanity) only cover the
+    router's own wires — roughly half the wires in the emitted file.
+    """
     errors: list[str] = []
     g, pl = placed.graph, placed.placement
 
@@ -78,7 +54,12 @@ def lint_placed(placed: PlacedSheet) -> list[str]:
         if not (_on_grid(x) and _on_grid(y)):
             errors.append(f"off-grid-origin: {nid} at ({x}, {y})")
 
-    for net, segs in placed.routing.wires.items():
+    all_wires = (emitted.wires if emitted is not None
+                 else placed.routing.wires)
+    all_junctions = (emitted.junctions if emitted is not None
+                     else placed.routing.junctions)
+
+    for net, segs in all_wires.items():
         for w in segs:
             if not w.is_orthogonal():
                 errors.append(f"diagonal-wire: net {net} "
@@ -92,26 +73,35 @@ def lint_placed(placed: PlacedSheet) -> list[str]:
     # endpoint of one net's wire on another net's wire (KiCad connects a
     # wire end touching a segment; plain mid-segment crossings are fine)
     eps = 1e-6
-    net_wires = sorted(placed.routing.wires.items())
+    net_wires = sorted(all_wires.items())
     for i, (net_a, segs_a) in enumerate(net_wires):
         for net_b, segs_b in net_wires[i + 1:]:
             for wa in segs_a:
                 for wb in segs_b:
-                    if _wires_short(wa, wb, eps):
+                    if wires_short(wa, wb, eps):
                         errors.append(
                             f"net-short: {net_a} ({wa.x1},{wa.y1})->"
                             f"({wa.x2},{wa.y2}) touches {net_b} "
                             f"({wb.x1},{wb.y1})->({wb.x2},{wb.y2})")
 
+    # A label attaches to EVERY wire passing through its point, so a label
+    # sitting on a foreign net's wire silently merges the two nets — even
+    # where the wires themselves only cross (which is otherwise legal).
+    for net, entries in sorted(placed.routing.label_at.items()):
+        for _anchor, lx, ly, _angle in entries:
+            for other, segs in sorted(all_wires.items()):
+                if other == net:
+                    continue
+                if any(point_on_wire(lx, ly, w) for w in segs):
+                    errors.append(f"label-on-foreign-wire: {net} at "
+                                  f"({lx},{ly}) on net {other}")
+                    break
+
     # junctions must touch at least two wire segments of their net
-    for net, pts in placed.routing.junctions.items():
-        segs = placed.routing.wires.get(net, [])
+    for net, pts in all_junctions.items():
+        segs = all_wires.get(net, [])
         for (jx, jy) in pts:
-            touching = sum(
-                1 for w in segs
-                if (min(w.x1, w.x2) - 1e-6 <= jx <= max(w.x1, w.x2) + 1e-6
-                    and min(w.y1, w.y2) - 1e-6 <= jy <= max(w.y1, w.y2) + 1e-6)
-            )
+            touching = sum(1 for w in segs if point_on_wire(jx, jy, w))
             if touching < 2:
                 errors.append(f"floating-junction: net {net} at ({jx},{jy})")
     return errors
@@ -131,13 +121,13 @@ def lint_schematic_text(text: str) -> list[str]:
         Path(path).unlink(missing_ok=True)
 
     errors: list[str] = []
-    for wire in getattr(sch, "graphicalItems", []) or []:
-        pts = getattr(wire, "points", None)
-        if pts is None or not hasattr(pts, "points"):
+    for item in getattr(sch, "graphicalItems", []) or []:
+        # kiutils models `(wire ...)`/`(bus ...)` as Connection, whose
+        # `.points` is a plain list[Position] — NOT a wrapper object.
+        if getattr(item, "type", None) not in ("wire", "bus"):
             continue
-        xy = [(p.X, p.Y) for p in pts.points]
-        if len(xy) == 2:
-            (x1, y1), (x2, y2) = xy
+        xy = [(p.X, p.Y) for p in (item.points or [])]
+        for (x1, y1), (x2, y2) in zip(xy, xy[1:]):
             if x1 != x2 and y1 != y2:
                 errors.append(f"diagonal-wire-in-file: ({x1},{y1})->({x2},{y2})")
             for v in (x1, y1, x2, y2):

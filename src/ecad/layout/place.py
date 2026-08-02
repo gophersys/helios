@@ -61,6 +61,21 @@ CHANNEL_MAX = 63.5    # mm — widest inter-rank wiring channel
 SAT_GAP = 7.62        # mm — owner bottom edge → satellite row top
 SAT_PITCH = 7.62      # mm — cap-to-cap x pitch within a row
 SAT_SIZE = (5.08, 7.62)   # mm — nominal decoupling-cap bbox (w, h)
+# half-height of what engine.emit actually draws BELOW a cap centre: the body
+# plus the ground symbol one pin pitch under the bottom pin
+SAT_BAND = SAT_SIZE[1] / 2 + PIN_PITCH
+
+
+def sat_band_up(n_rails: int) -> float:
+    """Height engine.emit draws ABOVE a satellite row's cap centres.
+
+    One row may decouple several rails, and emit gives each rail its OWN
+    horizontal track stepped by one pin pitch above the cap top pins. A
+    fixed band only ever matched a single-rail row: with two rails the
+    upper track ran a pitch outside the reserved space, back through the
+    pins of whatever `clear` had allowed to sit there.
+    """
+    return SAT_SIZE[1] / 2 + PIN_PITCH * max(1, n_rails)
 
 
 def _grid_up(v: float) -> float:
@@ -157,14 +172,23 @@ def coordinates(
         """One Sander pass over rank r, targeting neighbours in rank nbr."""
         ids = ranks[r]
         pos = {nid: i for i, nid in enumerate(ids)}
-        final: set[str] = set()
-        for nid in sorted(ids, key=prio_key):
-            own = pos[nid]
-            targets = [
+
+        def sweep_targets(nid: str) -> list[float]:
+            return [
                 ys[o] + port_dy.get((net, o), 0.0) - port_dy.get((net, nid), 0.0)
                 for net, o in incident[nid]
                 if rank_of[o] == nbr
             ]
+
+        # A node with no neighbour in the swept rank is never repositioned,
+        # so it is a WALL from the start: the bound scans below only stop at
+        # nodes already in `final`, and without seeding them the first node
+        # refined in a rank lands straight on top of a rank-mate that will
+        # never move away.
+        final: set[str] = {nid for nid in ids if not sweep_targets(nid)}
+        for nid in sorted(ids, key=prio_key):
+            own = pos[nid]
+            targets = sweep_targets(nid)
             if targets:
                 lb, ub = -math.inf, math.inf
                 need = 0.0
@@ -208,11 +232,23 @@ def coordinates(
         row_w = (len(caps) - 1) * SAT_PITCH + sat_w
         row_y = snap(oy + nodes[owner].size[1] + SAT_GAP)
         rank_ids = ranks[rank_of[owner]]
+        band_up = sat_band_up(len({c.rail for c in caps if c.rail}))
 
-        def clear(y: float, ox: float = ox, row_w: float = row_w) -> bool:
+        def clear(y: float, ox: float = ox, row_w: float = row_w,
+                  band_up: float = band_up) -> bool:
+            # `y` is the cap CENTRE (that is what engine.emit places the
+            # symbol at), and the emitted row is taller than the cap body:
+            # one rail wire per rail above the top pin, stepped a pin pitch
+            # apart, and the ground symbol one pitch below the bottom pin.
+            # Reserving only the body left the rail stub running through the
+            # pins of the node above — a signal pin silently tied to the rail.
+            band = (ox, y - band_up, row_w, band_up + SAT_BAND)
             for nid in rank_ids:
                 nx, ny = origin[nid]
-                if _overlaps((ox, y, row_w, sat_h), (nx, ny, *nodes[nid].size)):
+                nw, nh = nodes[nid].size
+                # nodes carry power stubs one pitch outside their bbox
+                if _overlaps(band, (nx - PIN_PITCH, ny - PIN_PITCH,
+                                    nw + 2 * PIN_PITCH, nh + 2 * PIN_PITCH)):
                     return False
             return True
 

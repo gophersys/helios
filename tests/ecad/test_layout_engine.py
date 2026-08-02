@@ -12,6 +12,7 @@ import pytest
 
 from src.ecad import Component, Design, FootprintRef, pin
 from src.ecad.layout.engine import emit, layout
+from src.ecad.layout.ir import PIN_PITCH
 from src.ecad.layout.lints import lint_placed, lint_schematic_text
 from tests.ecad.test_model import Cap, LDO, TinyMCU
 
@@ -57,6 +58,10 @@ def _gates(design: Design):
     geo = lint_placed(placed)
     assert geo == [], geo
     sheet = emit(placed, design)
+    # emit() generates power-tap, satellite-row and PWR_FLAG wires that never
+    # reach the IR — re-run the geometric gate over the FULL wire set.
+    geo = lint_placed(placed, sheet)
+    assert geo == [], geo
     file_lints = lint_schematic_text(sheet.text)
     assert file_lints == [], file_lints
     return placed, sheet
@@ -431,3 +436,140 @@ def test_rails_in_one_satellite_row_get_distinct_tracks():
         f"VIN and 3V3 share horizontal track(s) at y={sorted(shared)} — their "
         f"spans can overlap and merge the two rails into one net"
     )
+
+
+def test_multi_rail_row_stays_inside_the_reserved_band():
+    """place must reserve the row as emit actually draws it.
+
+    The two guards against the interleaved-rail short compose: caps are kept
+    contiguous per rail AND each rail gets its own track a pin pitch higher.
+    The clearance scan therefore has to grow with the rail count — a fixed
+    band only ever matched a single-rail row, and the second rail's track ran
+    a pitch above it, back through the pins of whatever place let sit there.
+    """
+    from src.ecad.layout.place import sat_band_up
+
+    d = Design("two-rail-row")
+    u, a1, a2, b1 = d.add(LDO(), Cap(), Cap(), Cap())
+    d.net("VIN").connect(u.VIN, a1.P1, a2.P1, u.EN)
+    d.net("3V3").connect(u.VOUT, b1.P1)
+    d.net("GND").connect(u.pin("2"), a1.P2, a2.P2, b1.P2)
+
+    pl = layout(d)
+    sheet = emit(pl, d, "two_rail_row")
+    for owner, row in pl.placement.sat_rows.items():
+        if not row:
+            continue
+        rails = {s.rail for s in pl.graph.satellites[owner] if s.rail}
+        assert len(rails) >= 2, f"fixture lost its two rails: {rails}"
+        cy = row[0][2]
+        xs = [x for _ref, x, _y in row]
+        lo_x, hi_x = min(xs) - PIN_PITCH, max(xs) + PIN_PITCH
+        # window around the row, wide enough to still catch a track drawn
+        # outside the reserved band (the owner's own taps sit far above it)
+        lo_y, hi_y = cy - 6 * PIN_PITCH, cy + 6 * PIN_PITCH
+        top = cy - sat_band_up(len(rails))
+        for rail in sorted(rails):
+            for w in sheet.wires.get(rail, []):
+                if not (lo_x <= w.x1 <= hi_x and lo_x <= w.x2 <= hi_x):
+                    continue        # a tap stub elsewhere on the sheet
+                if not (lo_y <= w.y1 <= hi_y and lo_y <= w.y2 <= hi_y):
+                    continue
+                assert min(w.y1, w.y2) >= top, (
+                    f"{rail} wire ({w.x1},{w.y1})->({w.x2},{w.y2}) rises above "
+                    f"the band place reserved for the row (top {top})"
+                )
+
+
+class DualRailMCU(Component):
+    part_name = "DUAL1"
+    lib_id = "MCU_Test:DUAL1"
+    footprint = FootprintRef("Package_DFN_QFN", "QFN-8")
+    _PIN_SPECS = (
+        pin("1", "VDD", "power_in", "power"),
+        pin("2", "VDDA", "power_in", "power"),
+        pin("8", "GND", "power_in", "ground"),
+        pin("3", "TX", "output", "comm"),
+        pin("4", "IO0", "bidirectional", "gpio", gpio=0),
+    )
+
+
+def _mixed_rail_row() -> Design:
+    """One satellite row decoupling two rails, caps interleaved in the
+    design (C2 on +1V8 sits between C1 and C3 on +3V3)."""
+    d = Design("mixed-rail-row")
+    mcu, c1, c2, c3 = d.add(DualRailMCU(), Cap(), Cap(), Cap())
+    d.net("+3V3").connect(mcu.VDD, c1.P1, c3.P1)
+    d.net("+1V8").connect(mcu.VDDA, c2.P1)
+    d.net("GND").connect(mcu.pin("8"), c1.P2, c2.P2, c3.P2)
+    return d
+
+
+def _swapped_cap() -> Design:
+    d = Design("swapped-cap")
+    mcu, c1 = d.add(TinyMCU(), Cap())
+    d.net("3V3").connect(mcu.VDD, c1.P2)
+    d.net("GND").connect(mcu.pin("8"), c1.P1)
+    return d
+
+
+@skip_no_kicad
+@pytest.mark.parametrize(
+    "factory", [_mixed_rail_row, _three_cap_rail, _swapped_cap],
+    ids=["mixed-rails", "three-caps", "swapped-pads"])
+def test_satellite_rows_erc_and_netlist(factory, tmp_path):
+    """Satellite rows must survive the electrical gates: middle caps
+    connected, rails never merged, cap pads as the design wired them."""
+    from src.pipeline.validate import run_erc
+
+    design = factory()
+    _placed, sheet = _gates(design)
+    sch = tmp_path / "sat.kicad_sch"
+    sch.write_text(sheet.text)
+    erc = run_erc(sch)
+    assert erc["success"], erc
+    assert erc["errors"] == 0, erc["details"]
+    assert _netlist_of(sheet.text, tmp_path) == design.intended_netlist()
+
+
+class SingleUnitMCU(Component):
+    part_name = "TINY2"
+    lib_id = "MCU_Test:TINY2"
+    footprint = FootprintRef("Package_DFN_QFN", "QFN-8")
+    _PIN_SPECS = (
+        pin("1", "VDD", "power_in", "power"),
+        pin("2", "GND", "power_in", "ground"),
+        pin("3", "TX", "output", "comm"),
+        pin("4", "RX", "input", "comm"),
+    )
+
+
+def _shared_lib_id_design() -> Design:
+    d = Design("shared-lib-id")
+    mcu, r1, r2 = d.add(SingleUnitMCU(), Res(), ShuntRes())
+    d.net("3V3").connect(mcu.VDD)
+    d.net("GND").connect(mcu.pin("2"))
+    d.net("A").connect(mcu.TX, r1.P1)
+    d.net("B").connect(r1.P2, r2.SENSE_HIGH)
+    d.net("C").connect(r2.SENSE_LOW_X, mcu.RX)
+    return d
+
+
+def test_shared_lib_id_gets_one_entry_per_geometry():
+    """Two components declaring the same lib_id with different pin names
+    have different readable widths: one lib_symbols entry would draw the
+    second's pins where the first's are."""
+    design = _shared_lib_id_design()
+    sheet = emit(layout(design), design)
+    assert sheet.text.count('(symbol "Device:R"\n') == 1
+    assert sheet.text.count('(symbol "Device:R_2"\n') == 1
+    # and the two instances reference different entries
+    assert '(lib_id "Device:R")' in sheet.text
+    assert '(lib_id "Device:R_2")' in sheet.text
+
+
+@skip_no_kicad
+def test_shared_lib_id_netlist(tmp_path):
+    design = _shared_lib_id_design()
+    _placed, sheet = _gates(design)
+    assert _netlist_of(sheet.text, tmp_path) == design.intended_netlist()
