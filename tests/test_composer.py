@@ -69,21 +69,37 @@ def _erc(root: Path, directory: Path) -> tuple[list[dict], str]:
 
 def _project_netlist(root: Path, directory: Path) -> dict[str, set[str]]:
     """Exported netlist of a whole project: net name → {"REF:pad"}."""
+    return _project_netlist_full(root, directory)[0]
+
+
+def _project_netlist_full(
+    root: Path, directory: Path
+) -> tuple[dict[str, set[str]], set[str]]:
+    """Exported netlist plus the pins KiCad put on ``unconnected-*`` nets.
+
+    The orphan set matters as much as the netlist. When a pin loses its
+    connection — a label that was never emitted, a stub ending in nothing —
+    KiCad does not drop the pin, it parks it on a pseudo-net. Discarding
+    those silently converts "this pin is wired to nothing" into "this pin
+    does not appear", which reads the same as a pin the design never had.
+    """
     from src.pipeline.roundtrip import _export_netlist, parse_kicad_netlist_xml
 
     xml = _export_netlist(root, directory)
     assert xml is not None, "netlist export failed"
     out: dict[str, set[str]] = {}
+    orphans: set[str] = set()
     for net in parse_kicad_netlist_xml(xml)["nets"]:
         name = net["name"]
-        if "unconnected-" in name:
-            continue          # KiCad pseudo-nets for no_connect pins
-        name = name.lstrip("/").split("/")[-1]
         pins = {f"{n['ref']}:{n['pin']}" for n in net["nodes"]
                 if not n["ref"].startswith("#")}
+        if "unconnected-" in name:
+            orphans |= pins
+            continue
+        name = name.lstrip("/").split("/")[-1]
         if pins:
             out.setdefault(name, set()).update(pins)
-    return out
+    return out, orphans
 
 
 def _gps_tracker_spec() -> DesignSpec:
@@ -739,3 +755,66 @@ def test_compose_temp_dir_write_roundtrip():
         for f in tmp_dir.glob("*"):
             f.unlink(missing_ok=True)
         tmp_dir.rmdir()
+
+
+@skip_no_kicad
+def test_every_sheet_netlist_matches_intended(tmp_path):
+    """EVERY sub-sheet's exported netlist equals its Design.intended_netlist().
+
+    This is the load-bearing oracle for the composer. Layout bugs are
+    geometric and ERC catches them; composer bugs are wrong parts and wrong
+    nets, which ERC reports as perfectly clean. Netlist equivalence is the
+    only gate that sees them.
+
+    It is deliberately PER SHEET. The pre-existing project-wide assertion
+    compares the union of every sheet's intended netlist against the whole
+    exported netlist, and a union hides a per-sheet defect whenever another
+    sheet contributes the same pin under the same net name — e.g. a rail
+    that every sheet touches. Restricting to each sheet's own refs removes
+    that cover.
+    """
+    result = compose_design(_gps_tracker_spec(), patterns_path=PATTERNS_PATH)
+    root = _write_project(result, tmp_path)
+    actual, orphans = _project_netlist_full(root, tmp_path)
+
+    problems: dict[str, dict] = {}
+    for filename, design in sorted(result.designs.items()):
+        refs = {c.ref for c in design.components}
+        restricted: dict[str, set[str]] = {}
+        for net, pins in actual.items():
+            mine = {p for p in pins if p.split(":")[0] in refs}
+            if mine:
+                restricted[net] = mine
+        intended = design.intended_netlist()
+        if restricted != intended:
+            problems[filename] = {
+                "missing": {k: sorted(v) for k, v in intended.items()
+                            if restricted.get(k) != v},
+                "unexpected": {k: sorted(v) for k, v in restricted.items()
+                               if intended.get(k) != v},
+            }
+    assert not problems, problems
+
+
+@skip_no_kicad
+def test_no_design_pin_is_orphaned(tmp_path):
+    """No pin the design wired may land on a KiCad ``unconnected-*`` net.
+
+    A dropped label or a stub ending in nothing does not remove the pin from
+    the netlist — KiCad parks it on a pseudo-net, which the netlist helper
+    filters out. Without this assertion such a pin simply disappears from
+    the comparison and looks like a pin the design never declared.
+    """
+    result = compose_design(_gps_tracker_spec(), patterns_path=PATTERNS_PATH)
+    root = _write_project(result, tmp_path)
+    _actual, orphans = _project_netlist_full(root, tmp_path)
+
+    wired: set[str] = set()
+    for design in result.designs.values():
+        for pins in design.intended_netlist().values():
+            wired |= pins
+
+    stranded = sorted(orphans & wired)
+    assert not stranded, (
+        f"pins the design wired came back unconnected: {stranded}"
+    )
