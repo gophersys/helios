@@ -554,6 +554,19 @@ def _wire_interface(
     iface = peripheral.interface.upper()
     signals = _INTERFACE_SIGNALS.get(iface, _DEFAULT_SIGNALS)
     prefix = peripheral.name.upper().replace(" ", "_")
+    # A peripheral called "VBAT Monitor" yields the prefix VBAT_MONITOR, and
+    # is_power_net matches VBAT\w* — so the signal net VBAT_MONITOR_IO would be
+    # turned into global power taps instead of a NetEdge. No label anchor is
+    # produced, hier_lines stays empty for it, yet the root sheet's pins come
+    # from plan.hier, so both sheet symbols declare a hierarchical pin with no
+    # matching label and the rail ends up undriven. The pattern branch above
+    # already guards with is_power_net; this one did not.
+    if is_power_net(f"{prefix}_X"):
+        prefix = f"NET_{prefix}"
+        warnings.append(
+            f"Peripheral name {peripheral.name!r} produces net names that read "
+            f"as a power rail; prefixing them with NET_ so they stay signals."
+        )
     for role, candidates in signals:
         net = f"{prefix}_{role}"
         periph_matches = _candidate_pins(periph, candidates, periph_used)
@@ -730,6 +743,8 @@ def compose_design(
     # 3. Peripheral sheets ──────────────────────────────────────────────────
     mcu_used: set[str] = {p.pad for p in mcu.pins if p.net is not None}
     plans: list[_SheetPlan] = [power_plan, mcu_plan]
+    # Seeded with the fixed sheets so a peripheral cannot take their names.
+    taken_filenames: set[str] = {p.filename for p in plans}
 
     for peripheral in spec.peripherals:
         periph_family = extract_ic_family(peripheral.chip)
@@ -776,7 +791,25 @@ def compose_design(
                 f"({', '.join(sorted(periph_hier)) or 'no nets'})"
             )
 
-        filename = f"{peripheral.name.lower().replace(' ', '_')}.kicad_sch"
+        # Sheets are keyed by filename in `rendered`, `sheets` and `designs`,
+        # so a collision silently overwrites a whole sheet while _collect_bom
+        # still walks `plans` and lists the discarded parts — the fab gets a
+        # BOM naming components that appear in no netlist. "Temp Sensor" and
+        # "temp_sensor" collide; a peripheral called "Power" or "MCU" replaces
+        # the power or MCU sheet outright, taking the regulator with it.
+        stem = peripheral.name.lower().replace(" ", "_") or "peripheral"
+        filename = f"{stem}.kicad_sch"
+        if filename in taken_filenames:
+            n = 2
+            while f"{stem}_{n}.kicad_sch" in taken_filenames:
+                n += 1
+            filename = f"{stem}_{n}.kicad_sch"
+            warnings.append(
+                f"Two sheets resolved to {stem}.kicad_sch "
+                f"(peripheral {peripheral.name!r}); using {filename} instead. "
+                f"Give peripherals distinct names to keep filenames stable."
+            )
+        taken_filenames.add(filename)
         plans.append(_SheetPlan(filename=filename, title=peripheral.name,
                                 design=design, hier=periph_hier))
 

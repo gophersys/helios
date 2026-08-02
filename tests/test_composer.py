@@ -927,3 +927,93 @@ def test_second_bus_device_shares_the_line_instead_of_being_no_connected(tmp_pat
         assert on_bus, (
             f"{filename}: bus pins were dropped — nets are {sorted(nets)}"
         )
+
+
+def test_peripheral_named_like_a_rail_stays_a_signal():
+    """A peripheral name that reads as a power rail must not become one.
+
+    The pattern branch guards net names with is_power_net; the name-based
+    fallback did not. "VBAT Monitor" yields the prefix VBAT_MONITOR and the
+    net VBAT_MONITOR_IO, which is_power_net matches as VBAT\\w* — so the pins
+    were wired to a generated global power symbol instead of a NetEdge. No
+    label anchor exists for that, hier_lines stays empty, yet the root sheet
+    still declares a hierarchical pin from plan.hier: a pin with no matching
+    label on two sheets, plus an undriven rail.
+    """
+    from src.ecad.layout.graph_build import is_power_net
+
+    spec = DesignSpec(
+        name="BattBoard", mcu_family="ESP32-S3", mcu_chip="ESP32-S3-WROOM-1",
+        peripherals=[PeripheralSpec(name="VBAT Monitor", chip="MAX17048",
+                                    interface="GPIO")],
+        power=_default_power(),
+    )
+    result = compose_design(spec, patterns_path=PATTERNS_PATH)
+
+    sheet = next(fn for fn in result.designs if fn.startswith("vbat"))
+    signal_nets = {
+        n for n in result.designs[sheet].intended_netlist()
+        if n not in ("+3.3V", "GND", "VBUS")
+    }
+    assert signal_nets, f"{sheet} has no signal nets: {result.designs[sheet].intended_netlist()}"
+    for net in signal_nets:
+        assert not is_power_net(net), (
+            f"signal net {net!r} reads as a power rail — it will be emitted as "
+            f"global power taps with no hierarchical label"
+        )
+
+    # and no sheet may report an unrouted hierarchical net
+    unrouted = {fn: [i for i in issues if "unrouted-hierarchical-net" in i]
+                for fn, issues in result.layout_issues.items()}
+    assert not any(unrouted.values()), unrouted
+
+
+def test_colliding_peripheral_names_do_not_drop_a_sheet():
+    """Two peripherals whose names normalize alike must get distinct sheets.
+
+    `rendered`, `sheets` and `designs` are all keyed by filename, so a
+    collision silently overwrote a whole sheet — while _collect_bom kept
+    walking `plans` and listing the discarded parts. The fab would receive a
+    BOM naming components that appear in no netlist, and the MCU sheet would
+    still carry hierarchical labels for the vanished device.
+    """
+    spec = DesignSpec(
+        name="Collide", mcu_family="ESP32-S3", mcu_chip="ESP32-S3-WROOM-1",
+        peripherals=[
+            PeripheralSpec(name="Temp Sensor", chip="BME280", interface="I2C"),
+            PeripheralSpec(name="temp_sensor", chip="ICM-42688", interface="SPI"),
+        ],
+        power=_default_power(),
+    )
+    result = compose_design(spec, patterns_path=PATTERNS_PATH)
+
+    # one sheet per peripheral, plus power and mcu
+    assert len(result.designs) == 4, sorted(result.designs)
+
+    # every part in the BOM must live on some emitted sheet
+    on_sheets = {c.ref for d in result.designs.values() for c in d.components}
+    bom_refs = {row["ref"] for row in result.bom if "ref" in row}
+    missing = sorted(bom_refs - on_sheets)
+    assert not missing, (
+        f"BOM lists parts that are on no sheet: {missing} — a sheet was "
+        f"silently overwritten"
+    )
+
+
+def test_peripheral_cannot_overwrite_the_power_sheet():
+    """A peripheral named "Power" must not replace power.kicad_sch.
+
+    That collision removed the regulator outright and left the rail undriven.
+    """
+    spec = DesignSpec(
+        name="PowerClash", mcu_family="ESP32-S3", mcu_chip="ESP32-S3-WROOM-1",
+        peripherals=[PeripheralSpec(name="Power", chip="INA219", interface="I2C")],
+        power=_default_power(),
+    )
+    result = compose_design(spec, patterns_path=PATTERNS_PATH)
+
+    power = result.designs["power.kicad_sch"]
+    values = {(getattr(c, "part_name", "") or "") for c in power.components}
+    assert any("AP2112" in v or "Regulator" in v or "TPS" in v for v in values), (
+        f"power.kicad_sch lost its regulator: {sorted(values)}"
+    )
