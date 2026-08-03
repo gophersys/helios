@@ -1,0 +1,29 @@
+{
+  "_comment": "Cited waivers for the ESP32-S3-WROOM-1 reference design's PER-SHEET rule runs. Each entry is scoped to one sheet's Design name; the merged-board pass needs none of them. Run: python -m src.ecad.rules check examples.esp32_s3_reference --waivers examples/esp32_s3_reference/rule_waivers.json",
+  "waivers": [
+    {
+      "rule_id": "PWR-001",
+      "target": "VBUS",
+      "reason": "VBUS is driven by the USB-C receptacle J1 on the usb sheet",
+      "cited_source": "examples/esp32_s3_reference/design.py, 'Cross-sheet net convention': +3V3, GND and VBUS are KiCad global power symbols, which are global across a hierarchy \u2014 the rail is driven on another sheet of the same project. The merged-board pass (RuleContext.merged) reports it clean.",
+      "author": "stage-g",
+      "scope": "esp32-s3-ref-power"
+    },
+    {
+      "rule_id": "PWR-001",
+      "target": "+3V3",
+      "reason": "+3V3 is driven by the AP2112K-3.3 on the power sheet",
+      "cited_source": "examples/esp32_s3_reference/design.py, 'Cross-sheet net convention': +3V3, GND and VBUS are KiCad global power symbols, which are global across a hierarchy \u2014 the rail is driven on another sheet of the same project. The merged-board pass (RuleContext.merged) reports it clean.",
+      "author": "stage-g",
+      "scope": "esp32-s3-ref-mcu"
+    },
+    {
+      "rule_id": "PWR-006",
+      "target": "VBUS",
+      "reason": "the 10 uF at the power entrance is C1, the LDO input capacitor on the power sheet; VBUS is one net across both sheets",
+      "cited_source": "examples/esp32_s3_reference/design.py, 'Cross-sheet net convention': +3V3, GND and VBUS are KiCad global power symbols, which are global across a hierarchy \u2014 the rail is driven on another sheet of the same project. The merged-board pass (RuleContext.merged) reports it clean. Corroborated by the design's own note: 'HDG Power Supply: at least 10 uF at the main power entrance. The 10 uF is fitted (C1, the LDO input capacitor).'",
+      "author": "stage-g",
+      "scope": "esp32-s3-ref-usb"
+    }
+  ]
+}
