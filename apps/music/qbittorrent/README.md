@@ -68,6 +68,42 @@ kubectl -n media delete pod -l app=qbittorrent
 
 Then re-run the VPN check above; expect `3/3 Running` with 0 restarts.
 
+### Prowlarr shows a red cloud: "Failed to connect to qBittorrent, check your settings"
+
+**That message is misleading — it is usually not a connection problem.** Check
+Prowlarr's log for the real status code:
+
+```
+HTTP request failed: [409:Conflict] [POST] at [http://qbittorrent:8080/api/v2/torrents/add]
+```
+
+**409 Conflict with an 8-byte `Conflict` body means the torrent is already in
+qBittorrent** — matched by *info-hash*, not by name. Two indexers routinely list
+the same torrent under different titles, so a release that looks new can be a
+byte-identical duplicate of something already downloaded. qBittorrent names the
+culprit explicitly:
+
+```bash
+POD=$(kubectl -n media get pod -l app=qbittorrent -o jsonpath='{.items[0].metadata.name}')
+kubectl -n media exec "$POD" -c qbittorrent -- grep -i "duplicate" /config/qBittorrent/logs/qbittorrent.log | tail -3
+# -> "Detected an attempt to add a duplicate torrent. ... Existing torrent: <name>"
+```
+
+The fix is to remove the existing torrent (or accept that you already have it);
+there is **no setting that makes a duplicate add succeed**. Verified 2026-08-02:
+enabling `merge_trackers` does merge the new trackers into the existing torrent,
+but the API still returns 409. Prowlarr v2.5.1 does not special-case 409 and
+reports every one as a connection failure.
+
+Confirm the connection is genuinely fine before chasing settings:
+
+```bash
+PRO=$(kubectl -n media get pod -l app=prowlarr -o jsonpath='{.items[0].metadata.name}')
+kubectl -n media exec "$PRO" -- sh -c 'K=$(sed -n "s:.*<ApiKey>\(.*\)</ApiKey>.*:\1:p" /config/config.xml); \
+  curl -s -X POST -H "X-Api-Key: $K" http://localhost:9696/api/v1/downloadclient/testall'
+# -> "isValid": true  means auth + reachability are fine; the 409 is about the torrent
+```
+
 ## Known follow-ups
 - **Port sync:** Proton's forwarded port (NAT-PMP, dynamic) is not yet pushed into
   qBittorrent's listen port — downloads work; seeding is suboptimal until wired.
