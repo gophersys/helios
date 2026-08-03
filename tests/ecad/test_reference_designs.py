@@ -50,7 +50,7 @@ SHEETS = ref.SHEETS
 
 @pytest.fixture(scope="module")
 def sheets() -> dict[str, Design]:
-    return ref.build()
+    return ref.sheets()
 
 
 def _gates(name: str, design: Design):
@@ -494,8 +494,8 @@ def test_provenance_table_renders():
 @pytest.mark.parametrize("name", SHEETS)
 def test_byte_determinism(name):
     """Build twice from scratch → byte-identical schematic text."""
-    a = ref.build()[name]
-    b = ref.build()[name]
+    a = ref.sheets()[name]
+    b = ref.sheets()[name]
     ta = emit(ref.layout_sheet(name, a), a, title=a.name).text
     tb = emit(ref.layout_sheet(name, b), b, title=b.name).text
     assert ta == tb

@@ -70,18 +70,58 @@ def rendered_build(tmp_path_factory):
 # Discovery + the KiCad project
 # ---------------------------------------------------------------------------
 
-def test_gps_tracker_is_discovered():
+def test_every_example_is_discovered():
     names = [e.name for e in builder.discover_examples(REPO_ROOT / "examples")]
     assert "gps_tracker" in names
+    assert "esp32_s3_reference" in names
 
 
 def test_example_module_honours_the_build_contract():
-    """Every example must expose build() -> GeneratedProject; nothing else."""
+    """Every example must expose build() -> GeneratedProject; nothing else.
+
+    One contract, and it is checked as the *builder consumes it* rather than
+    by name: a composed project and an authored one both arrive here, and a
+    module returning some other shape — a bare ``dict[str, Design]``, say —
+    must fail this test instead of blowing up 15 tests downstream when the
+    shared fixture builds it.
+    """
+    from src.ecad import Design
+
     for example in builder.discover_examples(REPO_ROOT / "examples"):
-        assert callable(example.module.build), example.name
+        name = example.name
+        assert callable(example.module.build), name
         project = example.module.build()
-        for attr in ("name", "files", "bom", "warnings", "designs", "layout_issues"):
-            assert hasattr(project, attr), f"{example.name}.build() lacks {attr}"
+        for attr in ("name", "files", "bom", "wiring_notes", "warnings",
+                     "designs", "layout_issues"):
+            assert hasattr(project, attr), f"{name}.build() lacks {attr}"
+
+        # files: a project that opens in KiCad, keyed by filename
+        assert project.name, name
+        assert isinstance(project.files, dict) and project.files, name
+        assert any(f.endswith(".kicad_pro") for f in project.files), name
+        sch = [f for f in project.files if f.endswith(".kicad_sch")]
+        assert sch, name
+        for filename in sch:
+            assert project.files[filename].startswith("(kicad_sch"), \
+                f"{name}: {filename} is not a schematic"
+
+        # bom: the columns the README renderer indexes, on every row
+        assert project.bom, f"{name} has an empty BOM"
+        for entry in project.bom:
+            assert {"ref", "value", "lib_id", "footprint", "sheet"} <= set(entry), \
+                f"{name}: BOM row {entry}"
+
+        # designs: the netlist oracle, one typed Design per emitted sheet
+        assert project.designs, f"{name} exposes no typed designs"
+        for filename, design in project.designs.items():
+            assert filename in project.files, f"{name}: {filename} has no file"
+            assert isinstance(design, Design), f"{name}: {filename}"
+            assert design.intended_netlist(), f"{name}: {filename} has no nets"
+
+        # the reporting fields are iterable, so an honest README can be built
+        assert isinstance(project.layout_issues, dict), name
+        assert list(project.warnings) == list(project.warnings), name
+        assert list(project.wiring_notes) == list(project.wiring_notes), name
 
 
 def test_project_dir_has_the_expected_files(dry_build):
@@ -102,6 +142,59 @@ def test_project_dir_has_the_expected_files(dry_build):
     assert len(list(project.glob("*.kicad_sch"))) == 4
     assert "(kicad_sch" in (project / "gps_tracker.kicad_sch").read_text()
     json.loads((project / "gps_tracker.kicad_pro").read_text())
+
+
+def test_the_authored_reference_design_builds_the_same_way(dry_build):
+    """The hand-authored example lands in the bundle exactly like the
+    composed one: same file set, same hierarchy, one project to open."""
+    project = dry_build / "examples" / "esp32_s3_reference"
+    names = {p.name for p in project.iterdir()}
+    assert {
+        "esp32_s3_reference.kicad_pro",
+        "esp32_s3_reference.kicad_sch",
+        "power.kicad_sch",
+        "mcu.kicad_sch",
+        "usb.kicad_sch",
+        "sym-lib-table",
+        "fp-lib-table",
+        "README.md",
+        "erc.json",
+    } <= names
+    assert len(list(project.glob("*.kicad_sch"))) == 4
+    json.loads((project / "esp32_s3_reference.kicad_pro").read_text())
+
+    root = (project / "esp32_s3_reference.kicad_sch").read_text()
+    for filename in ("power.kicad_sch", "mcu.kicad_sch", "usb.kicad_sch"):
+        assert filename in root, f"root does not reference {filename}"
+    # the two signals that cross sheets are wired through the root
+    assert root.count('"USB_D+"') >= 2 and root.count('"USB_D-"') >= 2
+
+
+def test_the_reference_design_readme_cites_its_provenance(dry_build):
+    """`blocks()` provenance is what makes this example worth shipping."""
+    readme = (dry_build / "examples" / "esp32_s3_reference" / "README.md").read_text()
+    assert "## Circuit block provenance" in readme
+    assert "documentation.espressif.com" in readme
+    assert "ldo_regulator" in readme
+    assert "does not use `src.ecad.circuits` blocks" not in readme
+    # BOM and nets are the real ones
+    assert "ESP32-S3-WROOM-1" in readme
+    assert "USB_C_Receptacle_USB2.0_16P" in readme
+    assert "`+3V3`" in readme and "`GND`" in readme
+
+
+def test_project_wide_reference_designators_are_unique(dry_build):
+    """A KiCad hierarchy is one designator namespace. The authored sheets
+    each number from C1 on their own; the project must not ship duplicates,
+    which ERC reports as an error."""
+    readme = (dry_build / "examples" / "esp32_s3_reference" / "README.md").read_text()
+    rows = [line for line in readme.splitlines()
+            if line.startswith("| ") and line.count("|") == 6]
+    refs = [line.split("|")[1].strip() for line in rows]
+    refs = [r for r in refs if r and r != "ref"]
+    assert len(refs) > 20, refs
+    assert len(refs) == len(set(refs)), sorted(
+        r for r in refs if refs.count(r) > 1)
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +319,16 @@ def test_gallery_lists_parts_with_pins_footprint_and_status(dry_build):
     assert "validated" in text, "COMPONENTS.md status is not surfaced"
 
 
+def test_gallery_lists_every_example(dry_build):
+    """One page, every example — the composed one and the authored one."""
+    text = (dry_build / "gallery.html").read_text()
+    assert "GPS Tracker" in text
+    assert "ESP32-S3 Reference Design" in text
+    assert "examples/gps_tracker/gps_tracker.kicad_pro" in text
+    assert "examples/esp32_s3_reference/esp32_s3_reference.kicad_pro" in text
+    assert "<code>2</code> examples" in text
+
+
 def test_gallery_says_so_when_nothing_was_rendered(dry_build):
     text = (dry_build / "gallery.html").read_text()
     assert "<svg" not in text, "gallery shows renders that were never produced"
@@ -253,6 +356,9 @@ def test_zip_contains_what_it_claims(dry_build):
         assert "gallery.html" in names
         assert "examples/gps_tracker/README.md" in names
         assert "examples/gps_tracker/gps_tracker.kicad_sch" in names
+        # both examples ship, not just the composed one
+        assert "examples/esp32_s3_reference/README.md" in names
+        assert "examples/esp32_s3_reference/esp32_s3_reference.kicad_sch" in names
         # contents are real, not stubs
         assert b"Bill of materials" in zf.read("examples/gps_tracker/README.md")
         # entries carry the bundle date, not the wall clock
@@ -415,6 +521,35 @@ def test_rendered_build_produces_svgs(rendered_build):
 
 @requires_kicad
 @pytest.mark.requires_kicad
+def test_rendered_reference_design_produces_svgs(rendered_build):
+    """The authored design renders too — one SVG per sheet plus the root."""
+    render_dir = rendered_build / "examples" / "esp32_s3_reference" / "render"
+    names = {p.name for p in render_dir.glob("*.svg")}
+    assert names == {"root.svg", "power.svg", "mcu.svg", "usb.svg"}, names
+    for svg in render_dir.glob("*.svg"):
+        text = svg.read_text()
+        assert text.startswith("<svg"), f"{svg.name} kept its XML prologue"
+        assert svg.stat().st_size > 2_000, f"{svg.name} looks empty"
+        assert not re.search(r"date \d{4}-\d\d-\d\dT", text), f"{svg.name} is stamped"
+    # the root really is the hierarchy: three sheet symbols, drawn
+    assert "power.kicad_sch" in (render_dir / "root.svg").read_text()
+
+
+@requires_kicad
+@pytest.mark.requires_kicad
+def test_rendered_reference_design_erc_is_clean(rendered_build):
+    """Whole-project ERC, not the per-sheet runs `test_reference_designs.py`
+    gates: the hierarchy, the shared designator namespace and the one
+    PWR_FLAG per rail are only exercised here."""
+    data = json.loads((rendered_build / "examples" / "esp32_s3_reference"
+                       / "erc.json").read_text())
+    assert data["available"] is True
+    assert data["errors"] == 0, data["by_type"]
+    assert data["schematic"] == "esp32_s3_reference.kicad_sch"
+
+
+@requires_kicad
+@pytest.mark.requires_kicad
 def test_rendered_build_erc_is_clean(rendered_build):
     """The gate: the GPS tracker composes to a schematic with 0 ERC errors."""
     data = json.loads(
@@ -459,9 +594,18 @@ def test_rendered_parts_are_rendered(rendered_build):
 # The committed surfaces
 # ---------------------------------------------------------------------------
 
-def test_committed_example_surfaces_exist():
-    """`examples/gps_tracker/` carries the README + renders that git diffs."""
-    example = REPO_ROOT / "examples" / "gps_tracker"
+@pytest.mark.parametrize("name,sheets", [
+    ("gps_tracker", {"root.svg", "power.svg", "mcu.svg", "gps.svg"}),
+    ("esp32_s3_reference", {"root.svg", "power.svg", "mcu.svg", "usb.svg"}),
+])
+def test_committed_example_surfaces_exist(name, sheets):
+    """`examples/<name>/` carries the README + renders that git diffs.
+
+    Both examples, on the same terms: the committed surface is what makes a
+    schematic change visible in review, and an example that skipped it would
+    be a second class of example.
+    """
+    example = REPO_ROOT / "examples" / name
     assert (example / "design.py").is_file()
     readme = example / "README.md"
     assert readme.is_file(), "run: python scripts/build_examples.py --sync-repo"
@@ -469,6 +613,6 @@ def test_committed_example_surfaces_exist():
     assert "## Bill of materials" in text
     assert "ESP32-S3-WROOM-1" in text
     renders = {p.name for p in (example / "render").glob("*.svg")}
-    assert renders == {"root.svg", "power.svg", "mcu.svg", "gps.svg"}, renders
-    for name in sorted(renders):
-        assert f"](render/{name})" in text, f"README does not show {name}"
+    assert renders == sheets, renders
+    for svg in sorted(renders):
+        assert f"](render/{svg})" in text, f"README does not show {svg}"

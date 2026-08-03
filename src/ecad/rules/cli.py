@@ -7,8 +7,9 @@
     FAILED (1 errors, 0 warnings, 0 waived)
 
 The module argument is anything that exposes ``build()`` returning a
-``Design`` or a ``{sheet: Design}`` mapping — the shape every example in
-``examples/`` already has.
+``Design``, a ``{sheet: Design}`` mapping, or a ``GeneratedProject`` — the
+last being the contract every example in ``examples/`` honours, whose
+``.designs`` are the sheets.
 
 A multi-sheet design is checked **twice**: once per sheet, and once over
 the merged board. Both are meaningful and they answer different questions.
@@ -41,7 +42,15 @@ _SEV_ORDER = {Severity.ERROR: 0, Severity.WARNING: 1, Severity.INFO: 2}
 
 
 def _load_designs(target: str) -> dict[str, Design]:
-    """Import ``target`` and pull the design(s) out of it."""
+    """Import ``target`` and pull the design(s) out of it.
+
+    Three shapes are accepted and all three normalise to ``{name: Design}``
+    immediately, so nothing downstream sees a union: a bare ``Design``, a
+    ``{sheet: Design}`` mapping, and anything carrying a ``designs`` mapping
+    — which is what the examples' ``build() -> GeneratedProject`` contract
+    returns (``src/pipeline/composer.py``). The rules run on the typed
+    designs either way; the project layer around them is irrelevant here.
+    """
     try:
         module = importlib.import_module(target)
     except ImportError as e:
@@ -50,14 +59,18 @@ def _load_designs(target: str) -> dict[str, Design]:
     if build is None:
         raise SystemExit(
             f"{target!r} has no build(); expected a module exposing "
-            f"build() -> Design | dict[str, Design]")
+            f"build() -> Design | dict[str, Design] | GeneratedProject")
     built = build()
     if isinstance(built, Design):
         return {built.name: built}
     if isinstance(built, dict) and built:
         return dict(built)
+    designs = getattr(built, "designs", None)
+    if isinstance(designs, dict) and designs:
+        return dict(designs)
     raise SystemExit(f"{target}.build() returned {type(built).__name__}, "
-                     f"expected Design or dict[str, Design]")
+                     f"expected Design, dict[str, Design] or a project with "
+                     f"a non-empty .designs mapping")
 
 
 def _print(report: Report, *, show_info: bool, out) -> None:

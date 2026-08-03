@@ -23,8 +23,8 @@ SUMMARY = "One line about it."       # optional
 def build() -> GeneratedProject:     # REQUIRED
     ...
 
-def blocks() -> Sequence[Block]:     # optional — src.ecad.circuits blocks,
-    ...                              # whose .provenance is cited in the README
+def blocks() -> Sequence[Any]:       # optional — anything with .name and
+    ...                              # .provenance; cited in the README
 ```
 
 `build()` must return a `src.pipeline.composer.GeneratedProject` (or anything
@@ -32,6 +32,21 @@ with the same shape: `name`, `files`, `bom`, `wiring_notes`, `warnings`,
 `designs`, `layout_issues`). Nothing else is registered anywhere — discovery is
 by directory scan, so the new example appears in the gallery, the zip and the
 per-example README automatically.
+
+**One contract, two ways to satisfy it** — an example is either *composed* or
+*authored*, and both end at the same type:
+
+| the design is | `build()` calls | example |
+|---|---|---|
+| derived from a spec (MCU + peripherals + power) | `src.pipeline.composer.compose_design(spec)` | `gps_tracker` |
+| authored sheet by sheet as typed `Design` objects | `src.pipeline.project_assembly.assemble_project(name, sheets)` | `esp32_s3_reference` |
+
+`assemble_project` is the project layer on its own: it renumbers references
+into one namespace (a KiCad hierarchy is one designator namespace), promotes
+the non-power nets carried by more than one sheet to hierarchical labels,
+flags each undriven rail on exactly one sheet, and emits the root. Returning
+the raw sheets instead — a `dict[str, Design]` — is **not** the contract; the
+builder has one code path on purpose.
 
 Then regenerate the committed surfaces:
 
