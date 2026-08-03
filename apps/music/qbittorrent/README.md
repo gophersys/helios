@@ -42,6 +42,32 @@ kubectl -n media exec "$POD" -c gluetun -- wget -qO- http://127.0.0.1:8000/v1/pu
 # expect a ProtonVPN datacenter IP, never the home WAN IP
 ```
 
+## Troubleshooting
+
+### 503 from the Web UI / Prowlarr can't push a download
+
+The pod sits at `2/3` and gluetun CrashLoopBackOffs with:
+
+```
+ERROR [vpn] adding IPv6 rule: adding ip rule 101: from all to all table 51820: file exists
+```
+
+**Why it never self-heals:** Kubernetes shares ip rules across the whole
+pod, and the pod's *network namespace survives a container restart*. One
+abrupt gluetun exit leaves rule 101 behind, and every restart after it hits
+the same "file exists" — forever. (Seen 2026-08-02 at 937 restarts.)
+
+The `lifecycle.postStart` hook on the gluetun container now clears the rule
+before it installs its own, so this should not recur. If it ever does, the
+fix is to **delete the pod** — not restart the container — because only a
+new pod gets a fresh network namespace:
+
+```bash
+kubectl -n media delete pod -l app=qbittorrent
+```
+
+Then re-run the VPN check above; expect `3/3 Running` with 0 restarts.
+
 ## Known follow-ups
 - **Port sync:** Proton's forwarded port (NAT-PMP, dynamic) is not yet pushed into
   qBittorrent's listen port — downloads work; seeding is suboptimal until wired.
