@@ -339,3 +339,49 @@ def test_unknown_passive_lib_id_gets_stub():
     d.net("GND").connect(u.pin("2"), c.P2)
     sheet = emit(layout(d), d)
     assert '(symbol "Device:C_Polarized"' in sheet.text
+
+
+def _power_symbol_points(text: str) -> dict[tuple[str, str], str]:
+    """(x, y) → rail, for every power symbol instance in the emitted file."""
+    import re
+
+    out: dict[tuple[str, str], str] = {}
+    pattern = r'\(lib_id "power:([^"]+)"\)\s*\n\s*\(at ([-\d.]+) ([-\d.]+)'
+    for m in re.finditer(pattern, text):
+        out.setdefault((m.group(2), m.group(3)), m.group(1))
+    return out
+
+
+def test_power_taps_never_share_a_point_with_another_rail():
+    """Regression: two power symbols on one point silently MERGE their nets.
+
+    A USB-C receptacle stacks GND, SHIELD and four VBUS pads on one side.
+    The tap renderer offsets grounds down and rails up by a single pitch, so
+    the shield's GND symbol landed exactly where the VBUS symbol of the pad
+    two rows below had already gone — and kicad-cli exported VBUS and GND as
+    ONE net. Every geometric lint stayed clean: lint_placed never sees these
+    wires, because emit() builds them.
+    """
+    from src.ecad.circuits import pull_resistor
+    from src.ecad.library import get as registry_get
+
+    d = Design("usb-c-taps")
+    j = registry_get("USB_C_Receptacle_USB2.0_16P")()
+    d.add(j)
+    d.net("VBUS").connect(j.VBUS)
+    d.net("GND").connect(j.GND, j.SHIELD)
+    pull_resistor(d, j.CC1, "GND", value="5.1k", net_name="CC1")
+    pull_resistor(d, j.CC2, "GND", value="5.1k", net_name="CC2")
+
+    text = emit(layout(d), d).text
+    points = _power_symbol_points(text)
+    rails = [rail for rail in points.values()]
+    assert "VBUS" in rails and "GND" in rails
+    # one point, one rail — the dict above collapses duplicates, so compare
+    # counts against the raw instance count for the two real rails
+    for rail in ("VBUS", "GND"):
+        instances = text.count(f'(lib_id "power:{rail}")')
+        placed_here = sum(1 for v in points.values() if v == rail)
+        assert placed_here == instances, (
+            f"{rail}: {instances} symbols emitted but only {placed_here} "
+            f"distinct positions — two share a point and their nets merge")

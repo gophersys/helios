@@ -49,6 +49,7 @@ __all__ = [
     "LedResistor",
     "MissingPartError",
     "Provenance",
+    "bypass_capacitor",
     "decoupling",
     "e24_nearest",
     "en_reset_rc",
@@ -542,6 +543,53 @@ def decoupling(design: Design, ic: Component, rail: Net | str | Pin,
     )
 
 
+def bypass_capacitor(design: Design, rail: Net | str | Pin,
+                     gnd: Net | str | Pin, *, value: str = "10uF",
+                     package: str = "0805") -> Block:
+    """One capacitor from ``rail`` to ``gnd``, attached to no particular pin.
+
+    :func:`decoupling` hangs a ceramic off every power *pin* of an IC. This
+    block is the other half of the same guideline: the bulk / entrance
+    capacitors that belong to a *rail*, not to a pin — "add an extra 10 uF
+    capacitor at the main power entrance" and the HF ceramic that pairs with
+    it. Both nets must already have (or will get) other pins on them; a
+    capacitor alone on a rail is a two-single-pin-net design that
+    ``Design.check()`` rejects, which is the intended feedback.
+    """
+    added: list[Component] = []
+    rail_net = _as_net(design, rail, default_name="VCC",
+                       what="bypass_capacitor rail")
+    gnd_net = _as_net(design, gnd, default_name="GND",
+                      what="bypass_capacitor gnd")
+    if rail_net is gnd_net:
+        raise ValueError(
+            f"bypass_capacitor: {rail_net.name!r} cannot be bypassed to itself"
+        )
+
+    cap = _capacitor(value, package,
+                     needed_by=f"bypass_capacitor({rail_net.name})")
+    _register(design, added, cap)
+    rail_net.connect(cap.pin("1"))
+    gnd_net.connect(cap.pin("2"))
+
+    return Block(
+        name=f"bypass_capacitor:{rail_net.name}:{value}",
+        components=tuple(added),
+        nets={"rail": rail_net, "gnd": gnd_net},
+        provenance=PROV_DECOUPLING,
+        notes=(
+            f"{value} from {rail_net.name} to {gnd_net.name}. \"It is "
+            f"suggested to add an ESD protection diode and at least 10 uF "
+            f"capacitor at the main power entrance (where the external power "
+            f"supply enters the PCB)\" (ESP32-S3 HDG, Power Supply).",
+            f"NOT VERIFIED: {value} is this call's choice. The guideline "
+            f"states a 10 uF *minimum* at the power entrance and 0.1 uF for "
+            f"high-frequency bypass; it does not specify a value for every "
+            f"rail. package={package!r} is an assembly choice.",
+        ),
+    )
+
+
 def en_reset_rc(design: Design, en: Net | str | Pin, rail: Net | str | Pin,
                 gnd: Net | str | Pin, *, r: str = "10k", c: str = "1uF",
                 package: str = "0402", net_name: str = "EN") -> Block:
@@ -621,10 +669,12 @@ def pull_resistor(design: Design, net: Net | str | Pin,
         notes=(
             "\"It is recommended to place a pull-up resistor at the GPIO0 "
             "pin\" (ESP32-S3 HDG, Strapping Pins).",
-            f"NOT VERIFIED: that guideline states no resistance value. The "
-            f"{value} default is the value Espressif's own ESP32-S3-DevKitC-1 "
-            f"V1.1 schematic uses for strapping pull-ups (R14, 10K 1%, "
-            f"fitted as DNP). Override `value` when the pin's leakage or "
+            f"NOT VERIFIED: that guideline states no resistance value, and "
+            f"the ESP32-S3-DevKitC-1 V1.1 schematic fits NO pull-up at GPIO0 "
+            f"at all (it leans on the chip's internal weak pull-up). The "
+            f"{value} default is the value that same schematic uses for the "
+            f"pull-up it does fit on a strap-like input — R5, 10K(1%), from "
+            f"ESP_3V3 to CHIP_PU. Override `value` when the pin's leakage or "
             f"switching speed calls for something else.",
         ),
     )
@@ -795,13 +845,20 @@ def indicator_led(design: Design, net: Net | str | Pin,
                   gnd: Net | str | Pin, *, color: str = "green",
                   supply_v: float = 3.3, vf: float = 2.0,
                   current_ma: float = 5.0, package: str = "0402",
-                  net_name: str = "LED") -> Block:
+                  net_name: str = "LED",
+                  series_net: str | None = None) -> Block:
     """An LED plus its computed series resistor, from ``net`` to ``gnd``.
 
     The resistor is ``(supply_v - vf) / current_ma`` snapped to the nearest
     E24 value; the full arithmetic lands in ``Block.notes``. Call
     :func:`led_series_resistor` directly to get the number without building
     anything.
+
+    ``series_net`` names the short net between the resistor and the LED
+    anode; it defaults to ``"<net>_LED"``. Name it explicitly when ``net``
+    is a power rail: ``"+3V3"`` would derive ``"+3V3_LED"``, which the
+    layout engine's rail classifier reads as *another power rail* and draws
+    as a global power symbol instead of a two-component stub.
 
     The diode is ``Device:LED``, generated into ``src/ecad/library/generic/``
     from the installed KiCad symbol — pad 1 = K, pad 2 = A, which is why the
@@ -830,7 +887,8 @@ def indicator_led(design: Design, net: Net | str | Pin,
     anode = _named_pin(led, ("A", "ANODE", "+"), fallback=1)
     cathode = _named_pin(led, ("K", "C", "CATHODE", "-"), fallback=0)
     signal.connect(res.pin("1"))
-    design.net(f"{signal.name}_LED").connect(res.pin("2"), anode)
+    mid = design.net(series_net or f"{signal.name}_LED")
+    mid.connect(res.pin("2"), anode)
     gnd_net.connect(cathode)
 
     return Block(
@@ -843,7 +901,8 @@ def indicator_led(design: Design, net: Net | str | Pin,
             f"NOT a datasheet value: vf={vf:g} V is a generic {color} LED "
             f"typical and current_ma={current_ma:g} an indicator-brightness "
             f"choice. Substitute the Vf and If of the LED you actually buy.",
-            "For scale, the ESP32-S3-DevKitC-1 V1.1 schematic uses a 1K(1%) "
-            "series resistor for its 3V3 power LED.",
+            "For scale, the ESP32-S3-DevKitC-1 V1.1 schematic runs its power "
+            "LED (D5, RED) off VCC_3V3 through R11, 5.1K(1%) — about 0.3 mA, "
+            "an order of magnitude dimmer than this block's 5 mA default.",
         ),
     )

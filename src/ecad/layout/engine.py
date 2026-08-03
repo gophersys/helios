@@ -61,6 +61,20 @@ def label_anchors(placed: PlacedSheet) -> dict[str, list[tuple[float, float, int
     }
 
 
+def _free_tap(reserved: set[tuple[float, float]],
+              candidates: list[tuple[float, float]]) -> tuple[float, float]:
+    """First candidate point nobody has claimed, else the last one.
+
+    Falling back to the last candidate rather than raising keeps emission
+    total: a design so dense that every candidate is taken still produces a
+    file, and the netlist-equivalence gate is what reports the damage.
+    """
+    for point in candidates:
+        if point not in reserved:
+            return point
+    return candidates[-1]
+
+
 def metrics_of(placed: PlacedSheet) -> Metrics:
     two_pin_routed = straight = 0
     for e in placed.graph.edges:
@@ -189,29 +203,47 @@ def emit(placed: PlacedSheet, design: Design,
                     snap(ox + port.offset[0]), snap(oy + port.offset[1]))
 
         # ── power taps ─────────────────────────────────────────────────────
+        # A power symbol may not land on a point something else already
+        # owns. Two symbols sharing a point silently MERGE their nets — a
+        # USB-C receptacle's shield tap landed on a VBUS tap and KiCad
+        # exported GND and VBUS as one net, with every geometric lint clean
+        # (lint_placed never sees these wires; they are built right here).
+        # So: collect the points routing has already claimed, and give each
+        # tap the first candidate position nobody else wants.
+        reserved: set[tuple[float, float]] = set()
+        for segs in rt.wires.values():
+            for w in segs:
+                reserved.add((snap(w.x1), snap(w.y1)))
+                reserved.add((snap(w.x2), snap(w.y2)))
+        for entries in rt.label_at.values():
+            for _anchor, lx, ly, _angle in entries:
+                reserved.add((snap(lx), snap(ly)))
+
         for nid, node in sorted(g.nodes.items()):
             for tap in sorted(node.power_taps, key=lambda t: t.port_number):
                 px, py = placed_port_pts[(nid, tap.port_number)]
                 port = node.port(tap.port_number)
-                dx, dy = 0.0, 0.0
-                if port.side is Side.TOP:
-                    dy = -_STUB
-                elif port.side is Side.BOTTOM:
-                    dy = _STUB
-                elif port.side is Side.LEFT:
-                    dx = -_STUB
+                if port.side in (Side.TOP, Side.BOTTOM):
+                    dy = -_STUB if port.side is Side.TOP else _STUB
+                    ex, ey = _free_tap(reserved, [
+                        (snap(px), snap(py + dy * k)) for k in range(1, 6)])
+                    wires.append(Wire(px, py, ex, ey))
                 else:
-                    dx = _STUB
-                # grounds hang down, rails point up: extend vertically after
-                # the stub when the pin exits horizontally
-                ex, ey = px + dx, py + dy
-                if dx != 0.0:
+                    dx = -_STUB if port.side is Side.LEFT else _STUB
+                    # grounds hang down, rails point up: the stepped point is
+                    # preferred, the plain stub end is the fallback, then the
+                    # same pair one column further out.
                     vy = _STUB if tap.down else -_STUB
-                    wires.append(Wire(px, py, ex, ey))
-                    wires.append(Wire(ex, ey, ex, ey + vy))
-                    ex, ey = ex, ey + vy
-                else:
-                    wires.append(Wire(px, py, ex, ey))
+                    cands: list[tuple[float, float]] = []
+                    for k in range(1, 4):
+                        cx = snap(px + dx * k)
+                        cands.append((cx, snap(py + vy)))
+                        cands.append((cx, snap(py)))
+                    ex, ey = _free_tap(reserved, cands)
+                    wires.append(Wire(px, py, ex, py))
+                    if ey != py:
+                        wires.append(Wire(ex, py, ex, ey))
+                reserved.add((ex, ey))
                 pwr_instances.append((tap.rail, ex, ey, tap.down))
                 power_names.add(tap.rail)
 
@@ -296,11 +328,15 @@ def emit(placed: PlacedSheet, design: Design,
             if allowed is not None and rail not in allowed:
                 continue
             flagged.add(rail)
-            # offset the flag one pitch sideways so its glyph/text doesn't
-            # overlap the rail symbol; tie it back with a short wire
-            fx = snap(x + PIN_PITCH)
-            flag_extra.append(("PWR_FLAG", fx, y, False))
-            flag_wires.append(Wire(x, y, fx, y))
+            # offset the flag sideways so its glyph/text doesn't overlap the
+            # rail symbol, and keep stepping while that spot is taken (a
+            # dense connector puts a rail symbol on every pitch); tie it back
+            # with a short wire.
+            fx, fy = _free_tap(reserved, [
+                (snap(x + PIN_PITCH * k), snap(y)) for k in range(1, 6)])
+            reserved.add((fx, fy))
+            flag_extra.append(("PWR_FLAG", fx, fy, False))
+            flag_wires.append(Wire(x, y, fx, fy))
         if flag_extra:
             power_names.add("PWR_FLAG")
         pwr_instances.extend(flag_extra)
