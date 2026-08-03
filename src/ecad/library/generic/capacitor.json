@@ -1,0 +1,65 @@
+{
+  "class_name": "Capacitor",
+  "datasheet": "",
+  "default_value": "100nF",
+  "description": "Unpolarized capacitor",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 3,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 2,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Capacitor_SMD",
+    "name": "C_0402_1005Metric",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "270634ae003d1b8fed5040c1a49a407ab8afed4a7c6f771eabd0f640724c90a9",
+    "md_sha256": "0eba0a9889b07a10ca8bfa8f9d934afb64a19797798fc9399be13d3c9e3a3589",
+    "py_sha256": "efe4fe32c8756635d0d34ef63b3ff55eb43d0dbb55df31ac9d35cff5520035ef"
+  },
+  "id": "capacitor",
+  "lib_id": "Device:C",
+  "part_name": "Capacitor",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='C_0402')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "Pins are unnamed in Device:C; P1/P2 are synthesized labels.",
+      "Value and footprint are per instance: Capacitor('10uF', FootprintRef('Capacitor_SMD', 'C_0805_2012Metric'))."
+    ],
+    "official_symbol": "Device:C",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": [
+      "P1",
+      "P2"
+    ]
+  },
+  "source_hashes": {
+    "footprint_sha256": "0403382fc4583ed510b461b1fa4a36dfaec6f4c0d9b1a67e6b0027837a54e1b5",
+    "pdf_sha256": "",
+    "symbol_sha256": "07a56f4341c3a1c22e93cafdebfc6d2eff88a9acbfcb211adc540f324c722915"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "Capacitor",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

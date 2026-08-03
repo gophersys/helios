@@ -5,10 +5,13 @@ other thing present is the device it serves, whose own power pins anchor the
 rails — and gated on: definition lint has no errors, the exact
 ``intended_netlist()``, and unique reference designators.
 
-The blocks that need a part Stage F1 has not generated yet (``Device:LED``,
-``Switch:SW_Push``) have their full contract written here behind
-``xfail(raises=MissingPartError)``: the tests report XFAIL today and XPASS
-the moment F1 lands, at which point the marker comes off.
+``push_button`` and ``indicator_led`` were written here behind
+``xfail(raises=MissingPartError)`` while their parts did not exist. Stage F1
+generated ``Switch:SW_Push`` and ``Device:LED`` into
+``src/ecad/library/generic/``, the tests XPASSed, and the markers came off —
+so the netlist assertions below are now live gates. In particular the LED
+one pins the polarity contract: KiCad's ``Device:LED`` is pad 1 = K, pad 2 =
+A, so the resistor faces pad 2 and GND takes pad 1.
 
 Everything except the one ``skip_no_kicad`` integration test is pure model —
 no layout, no kicad-cli — so it runs anywhere.
@@ -369,35 +372,30 @@ def test_missing_part_error_names_the_lib_id():
     assert "a test" in str(err)
 
 
-def test_push_button_reports_the_part_it_needs():
-    """Until F1 lands this is the whole observable contract of push_button."""
-    d = Design("btn")
-    with pytest.raises(MissingPartError) as excinfo:
-        push_button(d, "BOOT", "GND")
-    assert excinfo.value.lib_id == "Switch:SW_Push"
-    assert d.components == [] and d.nets == []
+@pytest.mark.parametrize("lib_id", ["Switch:SW_Push", "Device:LED"])
+def test_the_parts_these_blocks_need_are_served_by_the_registry(lib_id):
+    """Stage F1 generated both; the registry — not a pipeline fallback —
+    serves them, which is what let the xfail markers below come off."""
+    cls = blocks_mod._registry_class(lib_id, needed_by="a test")
+    assert cls.lib_id == lib_id
+    assert cls.footprint is not None, "a generated part carries a footprint"
 
 
-def test_indicator_led_reports_the_part_it_needs():
-    d = Design("led")
+def test_a_block_still_refuses_to_invent_a_part():
+    """The all-or-nothing contract survives F1: an uncatalogued part raises
+    before the design is touched."""
+    d = Design("nope")
     with pytest.raises(MissingPartError) as excinfo:
-        indicator_led(d, "+3V3", "GND")
-    assert excinfo.value.lib_id == "Device:LED"
+        ldo_regulator(d, "VBUS", "+3V3", "GND", part="Switch:NoSuchSwitch")
+    assert excinfo.value.lib_id == "Switch:NoSuchSwitch"
     assert d.components == [] and d.nets == []
 
 
 # ---------------------------------------------------------------------------
-# Pending Stage F1 — the contract is fixed now, the parts arrive later
+# Stage F1 landed — these were xfail(raises=MissingPartError) until the
+# generated Device:LED / Switch:SW_Push arrived in src/ecad/library/generic/
 # ---------------------------------------------------------------------------
 
-pending_f1 = pytest.mark.xfail(
-    raises=MissingPartError,
-    reason="needs a typed part Stage F1 generates (Device:LED / "
-           "Switch:SW_Push); XPASSes when F1 lands, then drop this marker",
-)
-
-
-@pending_f1
 def test_push_button_alone():
     d = Design("button-only")
     mcu = _rails(d, _mcu(), tie_en=True)
@@ -415,7 +413,6 @@ def test_push_button_alone():
     assert sorted(block.nets) == ["gnd", "net"]
 
 
-@pending_f1
 def test_push_button_with_series_resistor_and_debounce():
     d = Design("button-rc")
     mcu = _rails(d, _mcu(), tie_en=True)
@@ -426,7 +423,6 @@ def test_push_button_with_series_resistor_and_debounce():
     assert "470R" in values and "100nF" in values
 
 
-@pending_f1
 def test_indicator_led_alone():
     d = Design("led-only")
     _rails(d, _mcu(), tie_en=True)
@@ -446,7 +442,6 @@ def test_indicator_led_alone():
     }
 
 
-@pending_f1
 def test_indicator_led_resistor_follows_its_parameters():
     d = Design("led-5v")
     block = indicator_led(d, "+5V", "GND", color="red", supply_v=5.0,

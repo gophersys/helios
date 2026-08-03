@@ -1,0 +1,64 @@
+{
+  "class_name": "Resistor",
+  "datasheet": "",
+  "default_value": "10k",
+  "description": "Resistor",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 3,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 2,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Resistor_SMD",
+    "name": "R_0402_1005Metric",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "493f88a3d2178631421fee5b1c70b134eed7c40be9796ac7bc7ee7d6d9591733",
+    "md_sha256": "f7528e7135238bdde336806c968a6d71f250bd6d3a623bb1d94f4fdad818af9d",
+    "py_sha256": "b424fa2fb322a6f563dfde9f782210222dbf3f51063695a00bfc6f20d24ec1ed"
+  },
+  "id": "resistor",
+  "lib_id": "Device:R",
+  "part_name": "Resistor",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='R_0402')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "Pins are unnamed in Device:R; P1/P2 are synthesized labels."
+    ],
+    "official_symbol": "Device:R",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": [
+      "P1",
+      "P2"
+    ]
+  },
+  "source_hashes": {
+    "footprint_sha256": "e05c7605248c220836f642ed1f526133edf0374acdfd5bb2631e58b4e377acfb",
+    "pdf_sha256": "",
+    "symbol_sha256": "9a2077f7e22baf441f947f794b9c481614ac5fd9573288d47f9d4c6eee6018a8"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "Resistor",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

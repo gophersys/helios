@@ -19,16 +19,17 @@ Rules this module holds itself to:
 
 Dependency-direction note
 -------------------------
-``src/ecad`` is meant to be importable without ``src/pipeline``. Two part
-sources still live on the pipeline side — the typed passives
-(``src.pipeline.stock_parts``) and the seed IC library
-(``src.pipeline.chip_library``) — so :func:`_registry_class` reaches for
-them through *deferred, function-local* imports, the same escape hatch
-``src/ecad/ingest/factory.py`` already uses for ``src.pipeline.validate``.
-Importing this module never pulls ``src.pipeline`` in. Stage F1 generates
-``Device:C``/``Device:R`` (and the rest) into ``src/ecad/library/generic/``,
-at which point the registry lookup wins and the fallback becomes dead code
-that can simply be deleted.
+``src/ecad`` is meant to be importable without ``src/pipeline``. Stage F1
+generated ``Device:C``, ``Device:R`` and the rest of the jellybeans into
+``src/ecad/library/generic/``, so the passive fallback that used to reach
+across to ``src.pipeline.stock_parts`` is gone — the registry serves them.
+
+One part source still lives on the pipeline side: the seed IC library
+(``src.pipeline.chip_library``), which :func:`ldo_regulator` needs for parts
+like ``AP2112K-3.3`` that no ingest has generated yet. :func:`_registry_class`
+reaches for it through a *deferred, function-local* import, the same escape
+hatch ``src/ecad/ingest/factory.py`` uses for ``src.pipeline.validate``.
+Importing this module never pulls ``src.pipeline`` in.
 """
 
 from __future__ import annotations
@@ -312,9 +313,9 @@ def _registry_class(lib_id: str, *, needed_by: str,
                     hint: str = "") -> type[Component]:
     """Resolve a ``lib_id`` to a typed Component class, or raise.
 
-    Order: generated-part registry → the composer's typed passives → the
-    seed ``chip_library``. The last two are deferred imports across the
-    ``ecad``/``pipeline`` boundary; see this module's docstring.
+    Order: generated-part registry → the seed ``chip_library``. The second is
+    a deferred import across the ``ecad``/``pipeline`` boundary; see this
+    module's docstring.
     """
     from ..library import get as registry_get
 
@@ -325,18 +326,7 @@ def _registry_class(lib_id: str, *, needed_by: str,
         except (KeyError, LookupError, ImportError):
             pass
 
-    # Transitional source 1: the composer's typed passives.
-    stock: dict[str, type[Component]] = {}
-    try:
-        from src.pipeline.stock_parts import Capacitor, Resistor
-    except ImportError:  # pragma: no cover - pipeline always ships with ecad
-        pass
-    else:
-        stock = {"Device:C": Capacitor, "Device:R": Resistor}
-    if lib_id in stock:
-        return stock[lib_id]
-
-    # Transitional source 2: the seed chip library (ICs with real pinouts).
+    # Transitional source: the seed chip library (ICs with real pinouts).
     try:
         from src.pipeline.chip_library import lookup_chip
         from src.pipeline.ecad_bridge import chipdef_to_component
@@ -350,8 +340,9 @@ def _registry_class(lib_id: str, *, needed_by: str,
     raise MissingPartError(
         lib_id, needed_by=needed_by,
         hint=hint or (
-            "Stage F1 ingests it into src/ecad/library/generic/ via "
-            "src.ecad.ingest; until then this block cannot be built."
+            "Add it to src/ecad/library/generic/ with "
+            "src.ecad.ingest.library_parts (installed KiCad symbol, no "
+            "datasheet) or run the datasheet factory for it."
         ),
     )
 
@@ -750,13 +741,13 @@ def push_button(design: Design, net: Net | str | Pin, gnd: Net | str | Pin, *,
     ``net``; optional ``debounce_c`` sits from ``net`` to ``gnd``. Both
     default to absent, which is what Espressif's own DevKit does.
 
-    Raises :class:`MissingPartError` until ``Switch:SW_Push`` exists as a
-    typed component (Stage F1).
+    The switch is ``Switch:SW_Push``, generated into
+    ``src/ecad/library/generic/`` from the installed KiCad symbol.
     """
     cls = _registry_class(
         "Switch:SW_Push", needed_by=f"push_button({net!r})",
-        hint="Stage F1 ingests Switch:SW_Push into "
-             "src/ecad/library/generic/ from the installed KiCad symbol.",
+        hint="Re-run python -m src.ecad.ingest.library_parts ingest "
+             "Switch:SW_Push to regenerate it.",
     )
 
     added: list[Component] = []
@@ -812,15 +803,16 @@ def indicator_led(design: Design, net: Net | str | Pin,
     :func:`led_series_resistor` directly to get the number without building
     anything.
 
-    Raises :class:`MissingPartError` until ``Device:LED`` exists as a typed
-    component (Stage F1).
+    The diode is ``Device:LED``, generated into ``src/ecad/library/generic/``
+    from the installed KiCad symbol — pad 1 = K, pad 2 = A, which is why the
+    wiring below resolves both ends by NAME.
     """
     calc = led_series_resistor(supply_v=supply_v, vf=vf,
                                current_ma=current_ma)
     cls = _registry_class(
         "Device:LED", needed_by=f"indicator_led({color})",
-        hint="Stage F1 ingests Device:LED into src/ecad/library/generic/ "
-             "from the installed KiCad symbol.",
+        hint="Re-run python -m src.ecad.ingest.library_parts ingest "
+             "Device:LED to regenerate it.",
     )
 
     added: list[Component] = []

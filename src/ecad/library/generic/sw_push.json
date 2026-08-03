@@ -1,0 +1,62 @@
+{
+  "class_name": "SW_Push",
+  "datasheet": "",
+  "default_value": "SW_Push",
+  "description": "Push button switch, generic, two pins",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 2,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 1,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Button_Switch_SMD",
+    "name": "SW_SPST_TL3342",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "ecca81e98b789ce56c21fadc784fb6fef236a382c3dae5332ea504a77e1fea52",
+    "md_sha256": "ce4660bd355f6cfbd67afe354e5a8c05d5d695605d82790a13c2e47ed3fee5c2",
+    "py_sha256": "12ec1fd3152b8a7814f51934c1ca7219713c6434b159686fbf1008c2d0919843"
+  },
+  "id": "sw_push",
+  "lib_id": "Switch:SW_Push",
+  "part_name": "SW_Push",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='SW_SPST_TL3342')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "SPST-NO: the two pads are interchangeable, so this is one of the few parts a caller MAY wire by position.",
+      "TL3342 is a mainstream 4.5x3.5mm SMD tactile switch with a STEP model; any 2-pad Button_Switch_SMD footprint substitutes."
+    ],
+    "official_symbol": "Switch:SW_Push",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": []
+  },
+  "source_hashes": {
+    "footprint_sha256": "577769688431da794711a13d96a801907e1d9cb997b32f0d623e0bbd4e2e7884",
+    "pdf_sha256": "",
+    "symbol_sha256": "e78b5c38b506e9540978e2432403d5f48d50138deabb8103aa6fd3f67309716f"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "SW_Push",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

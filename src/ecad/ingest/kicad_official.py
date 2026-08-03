@@ -7,6 +7,10 @@ the footprint). This module is deterministic: kiutils parse only, no LLM.
 Derived symbols (``(extends "Parent")``) are resolved within their
 library: pins and body geometry come from the parent; properties
 (Footprint, Datasheet, Description, Value) come from the child where set.
+
+Pins KiCad draws unnamed get a synthesized ``P<pad>`` name, listed in
+``OfficialSymbol.synthesized_names`` so a consumer can tell an invented
+label from one the symbol really carries.
 """
 
 from __future__ import annotations
@@ -32,6 +36,13 @@ class OfficialSymbol:
     datasheet: str
     description: str
     extends: str | None           # parent symbol name if derived
+    reference: str = ""           # KiCad Reference property prefix: "C", "D", …
+    # Pin names this module INVENTED because KiCad drew the pin unnamed.
+    # Downstream ingest must not present a synthesized name as symbol-sourced
+    # truth: for Device:C the pads really are anonymous, so "P1"/"P2" is our
+    # label, not KiCad's. Names here map 1:1 onto pads; find the pads with
+    # ``[p.pad for p in sym.pins if p.name in sym.synthesized_names]``.
+    synthesized_names: tuple[str, ...] = ()
 
     @property
     def lib_id(self) -> str:
@@ -98,31 +109,50 @@ class OfficialLibrary:
             for p in link.properties or []:
                 props.setdefault(p.key, p.value)
 
-        pins = []
-        seen: dict[str, str] = {}
+        # Pass 1: collect (pad, raw name, etype), de-duplicating stacked pads.
+        # Official symbols may stack same-numbered pins (parallel pads); keep
+        # the first, they are electrically identical.
+        raw: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
         for unit in pin_source.units or []:
             for p in unit.pins or []:
                 pad = str(p.number)
                 if pad in seen:
-                    # Official symbols may stack same-numbered pins (parallel
-                    # pads); keep the first, they are electrically identical.
                     continue
-                # KiCad writes (name "") for pins it draws unnamed — every
-                # logic gate in 4xxx/74xx does this, 2,739 of 22,776 installed
-                # symbols in total. PinSpec requires a non-empty name, so
-                # passing it straight through raised ValueError out of a
-                # function documented to return `OfficialSymbol | None` and
-                # aborted any corpus-wide ingest on the first logic gate.
-                # Fall back to the pad, which is unique and honest.
-                pin_name = (p.name or "").strip()
-                if not pin_name or pin_name == "~":
-                    pin_name = pad
-                seen[pad] = pin_name
-                pins.append(PinSpec(
-                    pad=pad,
-                    name=pin_name,
-                    etype=ElectricalType.parse(p.electricalType),
-                ))
+                seen.add(pad)
+                raw.append((pad, (p.name or "").strip(), p.electricalType))
+
+        # Pass 2: name the pins KiCad drew unnamed.
+        #
+        # KiCad writes (name "") or (name "~") for pins it draws unnamed —
+        # every logic gate in 4xxx/74xx does this, and so do Device:C,
+        # Device:R and Device:FerriteBead. PinSpec requires a non-empty name,
+        # so passing one straight through raised ValueError out of a function
+        # documented to return `OfficialSymbol | None` and aborted any
+        # corpus-wide ingest on the first logic gate.
+        #
+        # The synthesized form is "P<pad>", not the bare pad: a bare pad
+        # collides in meaning with the pins KiCad genuinely NAMES "1"/"2"
+        # (Device:L, Switch:SW_Push), so a consumer could not tell an invented
+        # label from a real one. Every synthesized name is recorded in
+        # ``synthesized_names`` so the ingest ledger can say so out loud.
+        real_names = {n for _, n, _ in raw if n and n != "~"}
+        synthesized: list[str] = []
+        pins = []
+        for pad, pin_name, etype in raw:
+            if not pin_name or pin_name == "~":
+                # Fall back through candidates so a synthesized label can
+                # never collide with a name the symbol really carries.
+                for candidate in (f"P{pad}", pad, f"PIN{pad}"):
+                    if candidate not in real_names:
+                        pin_name = candidate
+                        break
+                else:                             # pragma: no cover - pathological
+                    pin_name = f"PIN_{pad}"
+                real_names.add(pin_name)
+                synthesized.append(pin_name)
+            pins.append(PinSpec(pad=pad, name=pin_name,
+                                etype=ElectricalType.parse(etype)))
 
         return OfficialSymbol(
             library=self.library,
@@ -132,6 +162,8 @@ class OfficialLibrary:
             datasheet=props.get("Datasheet", "") or "",
             description=props.get("Description", "") or "",
             extends=extends or None,
+            reference=props.get("Reference", "") or "",
+            synthesized_names=tuple(synthesized),
         )
 
 

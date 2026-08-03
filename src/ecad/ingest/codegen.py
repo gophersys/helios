@@ -202,16 +202,41 @@ def _accessor_lines(pins: Sequence[PinSpec]) -> tuple[list[str], bool]:
     return lines, emitted
 
 
+def _value_ctor_lines(default_value: str) -> list[str]:
+    """``__init__(value=…, footprint=None)`` for a part valued per instance.
+
+    A jellybean passive is one symbol standing for thousands of orderable
+    parts: ``Device:C`` is a 100nF 0402 only once a caller says so. Generated
+    classes therefore need the same ergonomics the hand-written composer
+    passives had — ``Capacitor("100nF", cap_footprint("C_0402"))`` — or every
+    consumer has to construct-then-mutate, and the class-level footprint
+    silently becomes a lie for the instances that overrode it.
+    """
+    return [
+        "",
+        f"    value = {default_value!r}",
+        "",
+        f"    def __init__(self, value: str = {default_value!r},",
+        "                 footprint: FootprintRef | None = None) -> None:",
+        '        """Per-instance value and footprint (see class docstring)."""',
+        "        super().__init__()",
+        "        self.value = value",
+        "        if footprint is not None:",
+        "            self.footprint = footprint",
+    ]
+
+
 def _render_py(part_id: str, cls_name: str, name: str, lib_id: str,
                description: str, datasheet: str,
                footprint: FootprintRef | None, sourcing: SourcingInfo | None,
                unit_plan: tuple[UnitDef, ...],
-               pins: Sequence[PinSpec], reference_prefix: str) -> str:
+               pins: Sequence[PinSpec], reference_prefix: str,
+               default_value: str = "") -> str:
     accessors, uses_pin = _accessor_lines(pins)
 
     model_names = ["ElectricalType", "PinRole", "PinSpec", "UnitDef",
                    "UnitStrategy"]
-    if footprint is not None:
+    if footprint is not None or default_value:
         model_names.append("FootprintRef")
     if sourcing is not None:
         model_names.append("SourcingInfo")
@@ -258,6 +283,8 @@ def _render_py(part_id: str, cls_name: str, name: str, lib_id: str,
     for s in pins:
         lines.append("        " + _pin_literal(s))
     lines.append("    )")
+    if default_value:
+        lines += _value_ctor_lines(default_value)
     lines += accessors
     return "\n".join(lines) + "\n"
 
@@ -375,7 +402,10 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
     pins (PinSpec list), optional unit_plan (auto-planned when empty),
     footprint (FootprintRef|None), sourcing (SourcingInfo|None), datasheet,
     description, evidence_summary, and optional provenance / source_hashes
-    for the sidecar. Deterministic; clobber-safe (see ``ClobberError``).
+    for the sidecar. A non-empty ``default_value`` marks the part as valued
+    per instance and emits ``__init__(value=…, footprint=None)`` — the
+    jellybean-passive ergonomics. Deterministic; clobber-safe (see
+    ``ClobberError``).
     """
     name = _get(part, "name") or ""
     if not name:
@@ -392,6 +422,9 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
     provenance: Mapping = _get(part, "provenance") or {}
     source_hashes: Mapping = _get(part, "source_hashes") or {}
     reference_prefix = _get(part, "reference_prefix") or "U"
+    # Non-empty => the part is valued per instance and gets a
+    # ``__init__(value=…, footprint=None)``; see _value_ctor_lines.
+    default_value = _get(part, "default_value") or ""
     unit_plan = tuple(_get(part, "unit_plan") or ()) or auto_unit_plan(pins)
 
     part_id = part_id_for(name)
@@ -406,7 +439,7 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
 
     py_text = _render_py(part_id, cls_name, name, lib_id, description,
                          datasheet, footprint, sourcing, unit_plan, pins,
-                         reference_prefix)
+                         reference_prefix, default_value)
 
     # Prove the generated source is importable and use ITS class for the
     # symbol, so .py and .kicad_sym can never drift apart.
@@ -435,6 +468,7 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
             "lcsc": sourcing.lcsc, "datasheet_url": sourcing.datasheet_url,
         },
         "pin_count": len(pins),
+        "default_value": default_value,
         "unit_plan": [{"name": u.name, "pads": list(u.pads)} for u in unit_plan],
         "evidence_summary": dict(evidence_summary),
         "provenance": dict(provenance),
