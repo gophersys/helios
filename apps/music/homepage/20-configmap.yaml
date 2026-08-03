@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/part-of: music
 data:
   settings.yaml: |
-    title: Segura Homelab
+    title: Mateo Homelab
     theme: dark
     color: slate
     headerStyle: boxed
@@ -38,7 +38,7 @@ data:
   widgets.yaml: |
     - greeting:
         text_size: xl
-        text: Segura Homelab
+        text: Mateo Homelab
     - datetime:
         text_size: l
         format:
