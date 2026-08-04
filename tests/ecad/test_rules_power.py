@@ -747,7 +747,7 @@ def test_shipped_waiver_ledger_matches_the_documented_one() -> None:
 
 
 def test_reference_design_sheets_report_exactly_the_known_cross_sheet_errors():
-    for name, design in ref.build().items():
+    for name, design in ref.sheets().items():
         report = check(design)
         got = {(f.rule_id, f.target) for f in report.errors}
         assert got == REFERENCE_SHEET_ERRORS[design.name], (
@@ -755,7 +755,7 @@ def test_reference_design_sheets_report_exactly_the_known_cross_sheet_errors():
 
 
 def test_reference_design_merged_board_is_clean() -> None:
-    report = check(ref.build(), name="esp32-s3-reference (merged)")
+    report = check(ref.sheets(), name="esp32-s3-reference (merged)")
     assert report.ok, [f.message for f in report.errors]
     # Be suspicious of a clean run: prove the rules actually had data to work
     # with rather than skipping everything as "no data".
@@ -765,14 +765,14 @@ def test_reference_design_merged_board_is_clean() -> None:
 
 
 def test_reference_design_passes_with_the_documented_waivers() -> None:
-    for design in ref.build().values():
+    for design in ref.sheets().values():
         report = check(design, waivers=REFERENCE_WAIVERS)
         assert report.ok, [f.message for f in report.errors]
         assert not [f for f in report.findings if f.rule_id == WAIVER_STALE]
 
 
 def test_reference_facts_come_from_the_real_datasheet_numbers() -> None:
-    ctx = RuleContext.merged(ref.build(), name="m")
+    ctx = RuleContext.merged(ref.sheets(), name="m")
     module = next(c for c in ctx.components
                   if c.part_name == "ESP32-S3-WROOM-1")
     facts = ctx.facts_for(module)

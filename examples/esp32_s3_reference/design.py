@@ -1,9 +1,20 @@
 """ESP32-S3-WROOM-1 reference design — three sheets you can open in KiCad.
 
-``build()`` returns one :class:`~src.ecad.design.Design` per schematic sheet::
+This module honours the example contract (``examples/README.md``): ``build()``
+returns a :class:`~src.pipeline.composer.GeneratedProject`, the same shape a
+composed design returns, so ``scripts/build_examples.py`` renders, ERCs and
+bundles this design exactly as it does the GPS tracker::
 
-    from examples.esp32_s3_reference.design import build
-    sheets = build()          # {"power": Design, "mcu": Design, "usb": Design}
+    from examples.esp32_s3_reference.design import build, sheets
+    project = build()         # GeneratedProject: files, bom, designs, ...
+    per_sheet = sheets()      # {"power": Design, "mcu": Design, "usb": Design}
+
+:func:`sheets` is the circuit itself — one :class:`~src.ecad.design.Design`
+per schematic sheet, which is what the per-sheet gates and the rule engine
+work on. :func:`build` adds only the project layer:
+:func:`src.pipeline.project_assembly.assemble_project` renumbers references
+into one namespace, promotes the cross-sheet signals to hierarchical labels,
+and emits the root sheet plus the project files.
 
 The circuit is *authored*, not scraped: a datasheet's typical-application
 figure is a drawing, and no text extractor reads topology out of a drawing.
@@ -50,8 +61,7 @@ The three sheets
 Cross-sheet net convention
 --------------------------
 A sheet is a standalone ``Design``; nothing in ``src/ecad`` models a sheet
-port. Nets therefore cross sheets in exactly two ways, and this module
-declares both:
+port. Nets therefore cross sheets in exactly two ways:
 
 1. **Power and ground cross as KiCad global power symbols.** ``+3V3``,
    ``GND`` and ``VBUS`` are classified as rails by
@@ -60,13 +70,20 @@ declares both:
    pin that touches them. Power symbols are global across a KiCad hierarchy
    — same name, same net, no hierarchical label needed. That is real KiCad
    semantics, not a convention invented here.
-2. **Cross-sheet signal nets share a name and are declared in**
-   :data:`HIER_NETS` (sheet → net → direction). Today that is ``USB_D+``
-   and ``USB_D-`` leaving the ``mcu`` sheet.
+2. **Cross-sheet signal nets share a name.** Today that is ``USB_D+`` and
+   ``USB_D-``, which leave the ``mcu`` sheet and arrive on ``usb``.
    :func:`src.ecad.layout.engine.label_anchors` reports where the engine
-   named each one, and a hierarchy stage promotes that anchor to a
+   named each one, and the project layer promotes that anchor to a
    ``hierarchical_label`` — the same handshake ``src/pipeline/composer.py``
    already uses.
+
+   Which nets those are is **derived**, not declared:
+   :func:`src.pipeline.project_assembly.cross_sheet_nets` calls a net a sheet
+   exit exactly when a second sheet carries the same name and the name is not
+   a rail. A declaration would have to be written twice — once per end — and
+   the ``usb`` end was exactly the half nobody wrote. :data:`HIER_NETS` still
+   declares the ``mcu`` end, for two narrower jobs: the hierarchical
+   *direction*, and the ``check()`` waiver below.
 
 Consequence, stated plainly: a net declared in :data:`HIER_NETS` has exactly
 one pin on the sheet it leaves, and ``Design.check()`` calls a one-pin net an
@@ -119,24 +136,40 @@ from src.ecad.circuits import (
 from src.ecad.layout.graph_build import build as build_graph
 from src.ecad.layout.ir import PlacedSheet
 from src.ecad.library import get as registry_get
+from src.pipeline.composer import GeneratedProject
+from src.pipeline.project_assembly import SheetSource, assemble_project
 
 __all__ = [
     "HIER_NETS",
     "LABEL_NETS",
     "MODULE",
+    "PROJECT",
     "PROVENANCE",
     "RAIL",
     "REGULATOR",
     "SHEETS",
+    "SHEET_TITLES",
     "STRAPPING",
+    "SUMMARY",
+    "TITLE",
     "Citation",
     "StrappingDecision",
+    "blocks",
     "build",
     "check_errors",
     "layout_sheet",
     "provenance_table",
+    "sheets",
     "usb_pads",
 ]
+
+TITLE = "ESP32-S3 Reference Design"
+SUMMARY = (
+    "The ESP32-S3-WROOM-1 typical application circuit, authored from the "
+    "datasheet rather than scraped: USB-C in, AP2112K-3.3 LDO, the module "
+    "with its decoupling, power-on-reset RC, RESET/BOOT buttons, strapping "
+    "plan and indicator LEDs. Every value carries a citation."
+)
 
 # ---------------------------------------------------------------------------
 # Names the design is built from
@@ -152,12 +185,24 @@ VBUS = "VBUS"
 
 SHEETS = ("power", "mcu", "usb")
 
+#: Project name — the root files take its lower-cased form
+#: (``esp32_s3_reference.kicad_pro``), which is what the bundle opens.
+PROJECT = "ESP32_S3_Reference"
+
+#: sheet → the title KiCad shows on the root sheet symbol. It is also what
+#: ``kicad-cli sch export svg`` names the per-sheet SVG after.
+SHEET_TITLES: dict[str, str] = {"power": "Power", "mcu": "MCU", "usb": "USB"}
+
 #: GPIO the user LED hangs off. DevKitC-1 V1.1 drives its addressable RGB
 #: LED (D6, SK68XXMINI-HS) from GPIO38 through R17 0(1%); this design reuses
 #: that same free pin for a plain LED.
 USER_LED_GPIO = 38
 
-#: sheet → {net: hierarchical direction}. See "Cross-sheet net convention".
+#: sheet → {net: hierarchical direction} for the nets that leave the sheet
+#: *with only one pin on this side*. Two narrow jobs, both documented under
+#: "Cross-sheet net convention": it gives the hierarchical direction, and it
+#: is the exact set of ``single-pin-net`` errors :func:`check_errors` waives.
+#: It does NOT decide which nets cross — that is derived from the sheets.
 HIER_NETS: dict[str, dict[str, str]] = {
     "power": {},
     "mcu": {"USB_D+": "bidirectional", "USB_D-": "bidirectional"},
@@ -224,6 +269,11 @@ class Citation:
     refs: tuple[str, ...]
     provenance: Provenance
     notes: tuple[str, ...]
+
+    @property
+    def name(self) -> str:
+        """Display name for the README's provenance list: ``sheet/block``."""
+        return f"{self.sheet}/{self.block}"
 
     @property
     def unverified(self) -> tuple[str, ...]:
@@ -588,7 +638,7 @@ def _build_all() -> tuple[dict[str, Design], list[Citation]]:
     return designs, ledger.citations
 
 
-def build() -> dict[str, Design]:
+def sheets() -> dict[str, Design]:
     """The reference design: one :class:`Design` per sheet.
 
     Calling this twice produces two independent, structurally identical
@@ -596,6 +646,51 @@ def build() -> dict[str, Design]:
     emitted schematic text is byte-identical between calls.
     """
     return _build_all()[0]
+
+
+def blocks() -> list[Citation]:
+    """Every cited decision, for the example README's provenance section.
+
+    ``scripts/build_examples.py`` reads ``.name`` and ``.provenance`` off
+    whatever this returns. A :class:`Citation` carries both, plus the sheet
+    it was made on, so the README cites the design at the granularity the
+    design actually records it.
+    """
+    return list(PROVENANCE)
+
+
+def build() -> GeneratedProject:
+    """The whole project: three sheets, a root, and the KiCad project files.
+
+    The example contract (``examples/README.md``). The circuit is
+    :func:`sheets`; everything added here is the project layer — one
+    designator namespace, hierarchical labels for the signals that cross,
+    one PWR_FLAG per undriven rail — and it is
+    :func:`~src.pipeline.project_assembly.assemble_project` that adds it,
+    the same job ``compose_design`` does for a spec-driven design.
+
+    Deterministic: the same sheets in, the same bytes out.
+    """
+    designs = sheets()
+    sources = [
+        SheetSource(
+            name=name,
+            title=SHEET_TITLES[name],
+            design=designs[name],
+            # The design's own label policy, not the stock layout: see
+            # "Label-drawn nets" above.
+            place=lambda d, _n=name: layout_sheet(_n, d),
+            directions=HIER_NETS[name],
+        )
+        for name in SHEETS
+    ]
+    return assemble_project(PROJECT, sources, wiring_notes=[
+        "Power: USB-C VBUS through an AP2112K-3.3 LDO to +3V3.",
+        f"Rails ({RAIL}, {GND}, {VBUS}) cross sheets as KiCad global power "
+        f"symbols, so they need no hierarchical labels.",
+        "USB_D+/USB_D- cross from the mcu sheet to the usb sheet as "
+        "hierarchical labels wired through the root sheet.",
+    ])
 
 
 def layout_sheet(name: str, design: Design | None = None) -> PlacedSheet:
@@ -609,7 +704,7 @@ def layout_sheet(name: str, design: Design | None = None) -> PlacedSheet:
 
     if name not in SHEETS:
         raise KeyError(f"no sheet {name!r}; known sheets: {list(SHEETS)}")
-    d = design if design is not None else build()[name]
+    d = design if design is not None else sheets()[name]
     graph = build_graph(d, sheet=name)
     labelled = LABEL_NETS[name]
     for edge in graph.edges:
