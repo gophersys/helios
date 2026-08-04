@@ -61,13 +61,23 @@ class PageFit:
         return round(max(0.0, (x1 - x0) * (y1 - y0)) / usable, 4)
 
 
+def _intrudes(content: tuple[float, float, float, float]) -> str:
+    """Whether the drawing starts inside the frame's top-left border.
+
+    Reported separately from a size clash because no page size can fix it —
+    the drawing has to move, not the paper.
+    """
+    x0, y0 = content[0], content[1]
+    if x0 < MARGIN - 1e-6 or y0 < MARGIN - 1e-6:
+        return (f"content starts at ({x0:.1f}, {y0:.1f}), inside the "
+                f"{MARGIN} mm border; no page size can fix that")
+    return ""
+
+
 def _clash(content: tuple[float, float, float, float],
            width: float, height: float) -> str:
     """Why ``content`` does not fit this page, or ``""`` if it does."""
     x0, y0, x1, y1 = content
-    if x0 < MARGIN - 1e-6 or y0 < MARGIN - 1e-6:
-        return (f"content starts at ({x0:.1f}, {y0:.1f}), inside the "
-                f"{MARGIN} mm border")
     if x1 > width - MARGIN + 1e-6 or y1 > height - MARGIN + 1e-6:
         return (f"content is {x1 - x0:.1f} x {y1 - y0:.1f} mm and reaches "
                 f"({x1:.1f}, {y1:.1f}); the usable area is "
@@ -87,11 +97,13 @@ def fit_page(content: tuple[float, float, float, float]) -> PageFit:
     fits none of them — the caller is expected to say so out loud rather
     than emit a sheet whose bottom is missing.
     """
+    intrusion = _intrudes(content)
     reason = ""
     for name, w, h in PAGE_SIZES:
         reason = _clash(content, w, h)
         if not reason:
-            return PageFit(name=name, width=w, height=h, content=content)
+            return PageFit(name=name, width=w, height=h, content=content,
+                           overflow=intrusion)
     name, w, h = PAGE_SIZES[-1]
     return PageFit(name=name, width=w, height=h, content=content,
-                   overflow=reason)
+                   overflow="; ".join(r for r in (intrusion, reason) if r))

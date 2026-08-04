@@ -47,6 +47,9 @@ _STUB = PIN_PITCH  # power-tap stub length
 #: and left visible collisions the checker called clean.
 _CHAR_W = 1.4
 _TEXT_HALF_H = 0.9   # mm — half the drawn height of a 1.27 mm text line
+#: Room emission needs beyond the routed geometry: a power tap steps up to
+#: five pin pitches away from its pin before it plants a symbol and a name.
+_HEADROOM = 6 * PIN_PITCH
 
 
 class PageOverflow(UserWarning):
@@ -119,14 +122,78 @@ def layout(design: Design, sheet: str = "main",
     for budget in place_mod.WRAP_BUDGETS:
         placement = place_mod.coordinates(g, ranking, ordering, budget)
         routing = route_mod.route(g, ranking, ordering, placement)
-        candidate = PlacedSheet(graph=g, ranking=ranking, ordering=ordering,
-                                placement=placement, routing=routing)
+        candidate = _onto_frame(PlacedSheet(
+            graph=g, ranking=ranking, ordering=ordering,
+            placement=placement, routing=routing))
         errors = len(lints.lint_placed(candidate))
         if errors == 0:
             return candidate
         if best is None or errors < best[0]:
             best = (errors, candidate)
     return best[1]
+
+
+def drawing_extent(placed: PlacedSheet) -> tuple[float, float, float, float]:
+    """Everything routing produced, INCLUDING the width of its net labels.
+
+    Placement can only normalise what it knows about — node bodies — and a
+    node at the left margin still has a label hanging 20 mm further left.
+    Only after routing is the label text and its direction known.
+    """
+    boxes: list[tuple[float, float, float, float]] = []
+    for nid, node in placed.graph.nodes.items():
+        if not node.ref:
+            continue
+        x, y = placed.placement.origin[nid]
+        w, h = node.size
+        boxes.append((x, y, x + w, y + h))
+    for row in placed.placement.sat_rows.values():
+        for _ref, cx, cy in row:
+            boxes.append((cx - _CAP_PITCH / 2, cy - _CAP_PIN_DY - _STUB,
+                          cx + _CAP_PITCH / 2, cy + _CAP_PIN_DY + _STUB))
+    for segs in placed.routing.wires.values():
+        for w in segs:
+            boxes.append((min(w.x1, w.x2), min(w.y1, w.y2),
+                          max(w.x1, w.x2), max(w.y1, w.y2)))
+    for net, entries in placed.routing.label_at.items():
+        for _anchor, lx, ly, angle in entries:
+            just = "right" if angle == 180 else "left"
+            boxes.append(_text_box(lx, ly, net, just, angle))
+    return _content_box(boxes)
+
+
+def _onto_frame(placed: PlacedSheet) -> PlacedSheet:
+    """Slide the whole drawing clear of the frame's top-left border.
+
+    A pure translation by a grid multiple: relative geometry, and therefore
+    every connection, is untouched. ``_HEADROOM`` is the room emission still
+    needs beyond what routing produced — a rail tap steps up to five pitches
+    away from its pin and then writes its name.
+    """
+    x0, y0, _x1, _y1 = drawing_extent(placed)
+    dx = max(0.0, snap(MARGIN + _HEADROOM - x0 + GRID / 2))
+    dy = max(0.0, snap(MARGIN + _HEADROOM - y0 + GRID / 2))
+    if not dx and not dy:
+        return placed
+    pl, rt = placed.placement, placed.routing
+    pl.origin = {k: (snap(x + dx), snap(y + dy)) for k, (x, y) in pl.origin.items()}
+    pl.col_x = [snap(v + dx) for v in pl.col_x]
+    pl.channel_x = [(snap(a + dx), snap(b + dx)) for a, b in pl.channel_x]
+    pl.sat_rows = {
+        owner: [(ref, snap(x + dx), snap(y + dy)) for ref, x, y in row]
+        for owner, row in pl.sat_rows.items()}
+    rt.wires = {
+        net: [Wire(snap(w.x1 + dx), snap(w.y1 + dy),
+                   snap(w.x2 + dx), snap(w.y2 + dy)) for w in segs]
+        for net, segs in rt.wires.items()}
+    rt.junctions = {
+        net: [(snap(x + dx), snap(y + dy)) for x, y in pts]
+        for net, pts in rt.junctions.items()}
+    rt.label_at = {
+        net: [(a, snap(x + dx), snap(y + dy), ang)
+              for a, x, y, ang in entries]
+        for net, entries in rt.label_at.items()}
+    return placed
 
 
 def label_anchors(placed: PlacedSheet) -> dict[str, list[tuple[float, float, int]]]:

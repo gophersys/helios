@@ -225,19 +225,24 @@ def test_page_overflow_is_reported_loudly():
 # ── defect 4: the drawing uses the sheet ────────────────────────────────────
 
 
-def test_placement_never_starts_above_the_page():
+def test_the_drawing_starts_inside_the_frame():
     """The y refinement used to push nodes to negative coordinates.
 
-    Nothing downstream can rescue content placed off the top of the paper,
-    so placement normalises the drawing onto the frame's top-left corner.
+    Nothing downstream can rescue content placed off the top of the paper.
+    Placement normalises the node bodies onto the frame corner and the engine
+    then slides the whole drawing again, because a node ON the margin still
+    has a net label hanging 20 mm further left.
     """
+    from src.ecad.layout.engine import drawing_extent
     from src.ecad.layout.place import X_START, Y_START
 
     for design in (_ldo_stage(), _mcu_gps()):
         placed = layout(design)
-        xs = [p[0] for p in placed.placement.origin.values()]
-        ys = [p[1] for p in placed.placement.origin.values()]
-        assert min(xs) == X_START and min(ys) == Y_START
+        x0, y0, _x1, _y1 = drawing_extent(placed)
+        assert x0 >= MARGIN and y0 >= MARGIN, (x0, y0)
+        origins = list(placed.placement.origin.values())
+        assert min(x for x, _y in origins) >= X_START
+        assert min(y for _x, y in origins) >= Y_START
 
 
 def test_a_long_column_of_loose_parts_wraps_into_the_page():
