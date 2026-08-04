@@ -66,6 +66,20 @@ def soc_for(comp_id: str) -> str:
     return "esp32"
 
 
+def strapping_for(comp_id: str) -> frozenset[int]:
+    """Strapping GPIOs for a component id, empty when the SoC is unknown.
+
+    Deliberately NOT soc_for(): that falls back to "esp32" for anything it
+    does not recognize, which is survivable for a GPIO count but not for
+    strapping — it would stamp IO0/IO2/IO5 as strapping pins on a part that
+    is not an ESP32 at all. An unknown SoC has no strapping table, and
+    inventing one is how a check starts asserting things nobody verified.
+    """
+    if not comp_id.lower().startswith("esp32"):
+        return frozenset()
+    return frozenset(zephyr_mod.STRAPPING.get(soc_for(comp_id), ()))
+
+
 def lib_id_for(record: ComponentRecord) -> str:
     """Official-symbol lib_id: modules -> RF_Module, SoCs -> MCU_Espressif."""
     library = "RF_Module" if record.kind == "module" else "MCU_Espressif"
@@ -86,8 +100,15 @@ def _pin_from_json(d: dict) -> PinSpec:
                    functions=tuple(d.get("functions") or ()))
 
 
-def _enrich(p: PinSpec) -> PinSpec:
-    """Derive gpio number and role for an official-symbol pin (role=SIGNAL)."""
+def _enrich(p: PinSpec, strapping: frozenset[int] = frozenset()) -> PinSpec:
+    """Derive gpio number and role for an official-symbol pin (role=SIGNAL).
+
+    ``strapping`` is the SoC's strapping GPIO set. Without it no pin ever
+    received PinRole.STRAPPING, which made three things dead at once: the
+    strapping cross-check could only ever return "no verdict",
+    codegen.auto_unit_plan never emitted a Strapping unit, and the generated
+    markdown printed "Strapping warnings: none" for parts that have them.
+    """
     up = p.name.split("/", 1)[0].strip().upper()
     m = _IO_RE.fullmatch(up)
     gpio = int(m.group(1)) if m else None
@@ -100,9 +121,36 @@ def _enrich(p: PinSpec) -> PinSpec:
         elif p.etype in (ElectricalType.POWER_IN, ElectricalType.POWER_OUT):
             role = PinRole.POWER
         elif gpio is not None:
-            role = PinRole.GPIO
+            # Strapping beats plain GPIO: these pins must be free at boot, so
+            # the distinction has to survive into the generated part.
+            role = PinRole.STRAPPING if gpio in strapping else PinRole.GPIO
     return PinSpec(pad=p.pad, name=p.name, etype=p.etype, role=role,
                    gpio=gpio, functions=p.functions)
+
+
+def _power_to_json(p: datasheet_mod.PowerSpec) -> dict:
+    """Serialize the extracted supply envelope + decoupling recommendation."""
+    return {
+        "voltage_min": p.voltage_min,
+        "voltage_typ": p.voltage_typ,
+        "voltage_max": p.voltage_max,
+        "power_pins": list(p.power_pins),
+        "decoupling_caps": [{"value": c.value, "purpose": c.purpose}
+                            for c in p.decoupling_caps],
+    }
+
+
+def _power_from_json(d: dict) -> datasheet_mod.PowerSpec:
+    return datasheet_mod.PowerSpec(
+        voltage_min=float(d.get("voltage_min", 0.0)),
+        voltage_typ=float(d.get("voltage_typ", 0.0)),
+        voltage_max=float(d.get("voltage_max", 0.0)),
+        power_pins=tuple(d.get("power_pins") or ()),
+        decoupling_caps=tuple(
+            datasheet_mod.CapSpec(value=c.get("value", ""),
+                                  purpose=c.get("purpose", ""))
+            for c in (d.get("decoupling_caps") or [])),
+    )
 
 
 def _read_json(path: Path) -> dict:
@@ -174,10 +222,12 @@ def _build_extracted(record: ComponentRecord, ctx: dict) -> None:
     lib_id = lib_id_for(record)
     official = load_official_symbol(lib_id)
     if official is not None:
+        strapping = strapping_for(record.id)
         payload = {"lib_id": lib_id, "footprint": official.footprint,
                    "datasheet": official.datasheet,
                    "description": official.description,
-                   "pins": [_pin_to_json(_enrich(p)) for p in official.pins]}
+                   "pins": [_pin_to_json(_enrich(p, strapping))
+                            for p in official.pins]}
         (d / "official.json").write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n")
         record.meta["official_symbol"] = lib_id
@@ -186,7 +236,14 @@ def _build_extracted(record: ComponentRecord, ctx: dict) -> None:
         part = datasheet_mod.extract(pdf)   # real `claude` CLI runner
         payload = {
             "chip_name": part.chip_name, "package": part.package,
+            "manufacturer": part.manufacturer,
+            "description": part.description,
             "pins": [_pin_to_json(p.spec) for p in part.pins],
+            "power": _power_to_json(part.power),
+            # datasheet.py extracts and validates a PowerSpec that used to
+            # stop here: the electrical rules keyed on supply voltage and
+            # decoupling (PWR-004/005/007) could only ever answer "no data",
+            # because the one source that has it never reached the artifact.
             "strapping_pins": list(part.strapping_pins),
             "strapping_notes": list(part.strapping_notes),
             "provenance": {"pdf_sha256": part.provenance.pdf_sha256,
@@ -218,11 +275,18 @@ def _write_evidence(record: ComponentRecord, ctx: dict,
     official = None
     if source == "datasheet" and record.meta.get("official_symbol"):
         official = load_official_symbol(str(record.meta["official_symbol"]))
-    tree = zephyr_mod.ensure(Path(ctx["repo"]))
-    soc = tree.soc(soc_for(record.id))
-    record.meta["soc"] = soc.name
+    # Only bring Zephyr silicon data to bear on a part it actually describes.
+    # soc_for falls back to "esp32" for anything unrecognized, so a non-ESP32
+    # part was being cross-checked against ESP32 GPIO counts, input-only lists
+    # and strapping tables — assertions about silicon nobody confirmed it has.
+    zephyr_view = None
+    if record.id.lower().startswith("esp32"):
+        tree = zephyr_mod.ensure(Path(ctx["repo"]))
+        soc = tree.soc(soc_for(record.id))
+        record.meta["soc"] = soc.name
+        zephyr_view = _SocEvidence(soc)
     ev = crossverify.build_evidence(pins, official=official,
-                                    zephyr=_SocEvidence(soc),
+                                    zephyr=zephyr_view,
                                     footprint_pads=footprint_pads,
                                     component=record.id)
     ev_path = root / record.id / "evidence.json"
@@ -246,8 +310,27 @@ def _write_evidence(record: ComponentRecord, ctx: dict,
     return ev
 
 
+def _footprint_pads_for(record: ComponentRecord) -> set[str] | None:
+    """Pads of the record's resolved footprint, or None if none is resolved."""
+    ref = str(record.meta.get("footprint", ""))
+    if ":" not in ref:
+        return None
+    lib, name = ref.split(":", 1)
+    info = FootprintIndex.cached(
+        REPO_ROOT / "data" / "footprint_index.json").get(f"{lib}:{name}")
+    return set(info.pad_numbers) if info is not None else None
+
+
 def _build_cross_verified(record: ComponentRecord, ctx: dict) -> None:
-    _write_evidence(record, ctx, footprint_pads=None)
+    # Pass the pads back in when the record already has a footprint.
+    # _write_evidence rebuilds the ledger from scratch, so passing None here
+    # ERASED the pins_vs_footprint claim that _build_footprint had written —
+    # and nothing restored it: the footprint_resolved gate passes on the mere
+    # presence of meta["footprint"], so a `factory status` recompute
+    # re-promotes the record without ever re-running that comparison. The
+    # symbol's pin set then stops being checked against the footprint's pads
+    # for good, and a KiCad library bump could break the pairing unnoticed.
+    _write_evidence(record, ctx, footprint_pads=_footprint_pads_for(record))
 
 
 def _component_class(record: ComponentRecord,
@@ -317,6 +400,21 @@ def _build_validated(record: ComponentRecord, ctx: dict) -> None:
         raise StageBlocked("meta.footprint unset (run footprint_resolved first)")
     lib, fp_name = fp_id.split(":", 1)
     evidence = crossverify.load_evidence(root / record.id / "evidence.json")
+    # Re-check the ledger HERE, immediately before generating into
+    # src/ecad/library/. The cross_verified gate ran at a different point in
+    # time and `step` does not re-run it before this builder, so a ledger that
+    # regressed in between still shipped code: the committed
+    # esp32_wroom_32e.json records evidence_summary conflicts=2, meaning a part
+    # was generated while its ledger had two unresolved disagreements. And
+    # because next_stage() after `validated` is `approved`, which has no
+    # builder, that artifact is never regenerated — the stale claim is
+    # permanent.
+    summary = evidence.summary()
+    if summary["conflicts"] or summary.get("unverified"):
+        raise StageBlocked(
+            f"refusing to generate library code: {summary['conflicts']} "
+            f"unresolved conflict(s), {summary.get('unverified', 0)} "
+            f"unverified claim(s) — waive with a citation or fix the source")
     name = str(record.meta.get("chip", record.id))
     part = {
         "name": name,

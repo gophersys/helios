@@ -16,6 +16,6 @@ Generated projection of `data/ingest/*/record.json` — do not edit.
 | esp32-s2-wroom | espressif | module | validated | 7/8 → approved | awaiting human approval | 2026-07-31T09:02:10+00:00 |
 | esp32-s3 | espressif | soc | validated | 7/8 → approved | awaiting human approval | 2026-07-31T09:02:10+00:00 |
 | esp32-s3-mini-1 | espressif | module | validated | 7/8 → approved | awaiting human approval | 2026-07-31T09:05:03+00:00 |
-| esp32-s3-wroom-1 | espressif | module | validated | 7/8 → approved |  | 2026-08-02T22:38:49+00:00 |
+| esp32-s3-wroom-1 | espressif | module | validated | 7/8 → approved |  | 2026-08-04T04:10:25+00:00 |
 | esp32-wroom-32 | espressif | module | validated | 7/8 → approved | awaiting human approval | 2026-07-31T09:02:10+00:00 |
 | esp32-wroom-32e | espressif | module | validated | 7/8 → approved | awaiting human approval | 2026-07-31T09:05:24+00:00 |

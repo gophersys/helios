@@ -20,6 +20,7 @@ from src.ecad import library
 from src.ecad.footprints import FootprintIndex, FootprintInfo, kicad_share_dir
 from src.ecad.ingest import factory
 from src.ecad.ingest import zephyr as zephyr_mod
+from src.ecad.ingest import crossverify
 from src.ecad.ingest.crossverify import load_evidence
 from src.ecad.ingest.kicad_official import OfficialSymbol
 from src.ecad.ingest.state import ComponentRecord, Stage
@@ -306,3 +307,106 @@ def test_acceptance_esp32_s3_wroom_1(monkeypatch):
 
     md = (REPO / "COMPONENTS.md").read_text()
     assert f"| {comp} | espressif | module | validated |" in md
+
+
+# ── extracted.json must carry everything the extraction produced ────────────
+
+
+def test_power_survives_into_extracted_json(wired, monkeypatch):
+    """datasheet.extract() produces a PowerSpec; it must reach the artifact.
+
+    _build_extracted serialized pins and strapping but dropped `power`, so
+    every downstream consumer of supply voltage and recommended decoupling
+    (the PWR-004/005/007 rules) could only ever answer "no data" — not
+    because the datasheet lacked it, but because the one artifact carrying it
+    never wrote the field. A rule that cannot fire is a gate that cannot fail.
+    """
+    from src.ecad.ingest import datasheet as dsmod
+    from src.ecad.ingest import factory as fac
+
+    part = dsmod.ExtractedPart(
+        chip_name="WIDGET-1", manufacturer="ACME",
+        description="test part", package="QFN-8",
+        pins=(), power=dsmod.PowerSpec(
+            voltage_min=3.0, voltage_typ=3.3, voltage_max=3.6,
+            power_pins=("2",),
+            decoupling_caps=(dsmod.CapSpec("22uF", "bulk"),
+                             dsmod.CapSpec("0.1uF", "hf"))),
+        strapping_pins=(), strapping_notes=(),
+        provenance=dsmod.Provenance(pdf_name="w.pdf", pdf_sha256="deadbeef",
+                                    page_count=1, pages_used=(1,)),
+    )
+    monkeypatch.setenv("FACTORY_LLM", "1")
+    monkeypatch.setattr(dsmod, "extract", lambda pdf: part)
+
+    factory.status(wired)
+    factory.step("widget-1", wired)
+
+    payload = json.loads(
+        (wired / "data" / "ingest" / "widget-1" / "extracted.json").read_text())
+    assert "power" in payload, (
+        f"extracted.json dropped the power envelope: {sorted(payload)}"
+    )
+    power = fac._power_from_json(payload["power"])
+    assert power == part.power, "power did not survive the round trip"
+
+    # every non-empty field the extraction produced must be represented
+    assert payload["manufacturer"] == "ACME"
+    assert payload["description"] == "test part"
+
+
+def test_cross_verified_keeps_the_footprint_claim(wired, monkeypatch):
+    """Re-running cross_verified must not erase pins_vs_footprint.
+
+    _write_evidence rebuilds the ledger from scratch, and _build_cross_verified
+    passed footprint_pads=None — so a record that had already resolved its
+    footprint lost that claim on the next recompute. Nothing restored it: the
+    footprint_resolved gate passes on the mere presence of meta["footprint"],
+    so `factory status` re-promotes the record without re-running the
+    comparison, and the symbol's pins stop being checked against the
+    footprint's pads permanently.
+    """
+    factory.status(wired)
+    for _ in range(4):                      # -> footprint_resolved
+        factory.step("widget-1", wired)
+    root = wired / "data" / "ingest"
+    ev = load_evidence(root / "widget-1" / "evidence.json")
+    assert ev.find("pad_set", "pins_vs_footprint") is not None, (
+        "fixture did not reach a footprint-resolved state"
+    )
+
+    # Re-run the cross_verified builder directly, as a status recompute does.
+    rec = ComponentRecord.load(root, "widget-1")
+    factory._build_cross_verified(rec, factory.make_ctx(wired))
+
+    ev2 = load_evidence(root / "widget-1" / "evidence.json")
+    assert ev2.find("pad_set", "pins_vs_footprint") is not None, (
+        "rebuilding evidence erased the pins-vs-footprint claim"
+    )
+
+
+def test_validated_refuses_to_ship_with_open_conflicts(wired):
+    """Codegen must not write into src/ecad/library while the ledger is red.
+
+    The cross_verified gate runs at a different point in time than this
+    builder and `step` does not re-run it in between, so a ledger that
+    regressed still produced shipped artifacts — the committed
+    esp32_wroom_32e.json records conflicts=2. Once a record reaches
+    `validated`, next_stage() is `approved`, which has no builder, so that
+    artifact is never regenerated.
+    """
+    factory.status(wired)
+    for _ in range(5):                      # -> sourcing_linked
+        factory.step("widget-1", wired)
+
+    root = wired / "data" / "ingest"
+    ev_path = root / "widget-1" / "evidence.json"
+    ev = load_evidence(ev_path)
+    ev.claims.append(crossverify.Claim(
+        kind="pin_name", key="99", values={"datasheet": "A", "official": "B"},
+        status="conflict", detail="synthetic"))
+    crossverify.save_evidence(ev, ev_path)
+
+    rec = ComponentRecord.load(root, "widget-1")
+    with pytest.raises(factory.StageBlocked, match="unresolved conflict"):
+        factory._build_validated(rec, factory.make_ctx(wired))

@@ -235,6 +235,16 @@ def _gate_cross_verified(record: ComponentRecord, ctx: dict) -> GateResult:
     summary = crossverify.load_evidence(path).summary()
     if summary["conflicts"]:
         return GateResult(False, f"{summary['conflicts']} unresolved conflicts")
+    # A check that reached no verdict blocks too. Previously those were
+    # recorded as single_source, which the gate ignored — so the strapping
+    # cross-check reported the part clean no matter how badly the pin table
+    # disagreed with the Zephyr strapping list, because its verdict was
+    # always None.
+    if summary.get("unverified"):
+        return GateResult(
+            False,
+            f"{summary['unverified']} checks reached no verdict "
+            f"(unverified — a check that cannot fail is not a passing check)")
     return GateResult(True, f"{summary['claims']} claims, 0 conflicts"
                             f" ({summary['waived']} waived)")
 

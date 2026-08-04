@@ -132,6 +132,8 @@ class SatelliteCap:
     rail: str                # power net it decouples
     gnd: str                 # ground net name
     footprint: str = ""      # footprint lib_id, threaded through to emit
+    rail_pad: str = "1"      # pad the DESIGN connects to `rail`
+    gnd_pad: str = "2"       # pad the DESIGN connects to `gnd`
 
 
 # ── stage outputs ───────────────────────────────────────────────────────────
@@ -178,6 +180,40 @@ class Wire:
 
     def is_orthogonal(self) -> bool:
         return self.x1 == self.x2 or self.y1 == self.y2
+
+
+def point_on_wire(x: float, y: float, w: Wire, eps: float = 1e-6) -> bool:
+    """True when (x, y) lies on wire ``w`` (endpoints included)."""
+    return (min(w.x1, w.x2) - eps <= x <= max(w.x1, w.x2) + eps
+            and min(w.y1, w.y2) - eps <= y <= max(w.y1, w.y2) + eps)
+
+
+def wires_short(wa: Wire, wb: Wire, eps: float = 1e-6) -> bool:
+    """True when two orthogonal wires of DIFFERENT nets would connect in
+    KiCad: colinear overlap of positive length, or either wire's endpoint
+    lying on the other wire. A plain mid-segment crossing does not connect
+    and is not reported."""
+    a_h, b_h = wa.y1 == wa.y2, wb.y1 == wb.y2
+    if a_h == b_h:  # parallel: short iff colinear with positive overlap
+        if a_h:
+            if abs(wa.y1 - wb.y1) > eps:
+                return False
+            lo = max(min(wa.x1, wa.x2), min(wb.x1, wb.x2))
+            hi = min(max(wa.x1, wa.x2), max(wb.x1, wb.x2))
+        else:
+            if abs(wa.x1 - wb.x1) > eps:
+                return False
+            lo = max(min(wa.y1, wa.y2), min(wb.y1, wb.y2))
+            hi = min(max(wa.y1, wa.y2), max(wb.y1, wb.y2))
+        if hi - lo > eps:
+            return True
+    return any(
+        point_on_wire(x, y, other, eps)
+        for (x, y), other in (
+            ((wa.x1, wa.y1), wb), ((wa.x2, wa.y2), wb),
+            ((wb.x1, wb.y1), wa), ((wb.x2, wb.y2), wa),
+        )
+    )
 
 
 @dataclass

@@ -118,9 +118,21 @@ def build(design: Design, sheet: str = "main",
             continue
         if signal_degree[node_id] > 0 or not node.power_taps:
             continue
-        rails = [t.rail for t in node.power_taps if not t.down]
-        gnds = [t.rail for t in node.power_taps if t.down]
-        rail = rails[0] if rails else (gnds[0] if gnds else "")
+        rail_taps = [t for t in node.power_taps if not t.down]
+        gnd_taps = [t for t in node.power_taps if t.down]
+        # Which PAD goes to the rail is a property of the DESIGN, not a
+        # convention: a cap wired P2->rail / P1->gnd must be emitted that
+        # way round (polarized parts and the PCB netlist both care).
+        if rail_taps:
+            rail_tap = rail_taps[0]
+            gnd_tap = gnd_taps[0] if gnd_taps else None
+        elif gnd_taps:
+            rail_tap = gnd_taps[0]
+            gnd_tap = gnd_taps[1] if len(gnd_taps) > 1 else None
+        else:
+            rail_tap = gnd_tap = None
+        rail = rail_tap.rail if rail_tap else ""
+        rail_pad = rail_tap.port_number if rail_tap else "1"
         owner = _find_owner(nodes, node_id, rail)
         if owner is None:
             continue  # no IC unit to anchor to: stays a regular placed node
@@ -128,11 +140,21 @@ def build(design: Design, sheet: str = "main",
         satellites.setdefault(owner, []).append(SatelliteCap(
             ref=node.ref, lib_id=node.lib_id,
             value=getattr(comp, "value", "") or comp.part_name,
-            rail=rail, gnd=gnds[0] if gnds else "GND",
-            footprint=comp.footprint.lib_id if comp.footprint else ""))
+            rail=rail, gnd=gnd_tap.rail if gnd_tap else "GND",
+            footprint=comp.footprint.lib_id if comp.footprint else "",
+            rail_pad=rail_pad,
+            gnd_pad=(gnd_tap.port_number if gnd_tap
+                     else ("2" if rail_pad == "1" else "1"))))
         doomed.append(node_id)
     for node_id in doomed:
         del nodes[node_id]
+
+    # A row may decouple several rails. Keep each rail's caps CONTIGUOUS in
+    # the row so its shared trunk wire spans only its own caps — otherwise a
+    # foreign cap's stub endpoint lands on that trunk and KiCad shorts the
+    # two rails. Stable sort: single-rail rows keep their original order.
+    for caps in satellites.values():
+        caps.sort(key=lambda s: s.rail)
 
     edges.sort(key=lambda e: e.net)
     return SchematicGraph(sheet=sheet, nodes=nodes, edges=edges,

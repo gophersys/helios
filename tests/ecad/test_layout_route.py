@@ -164,14 +164,15 @@ def test_same_rank_net_at_rightmost_rank_uses_left_channel():
 
 def test_far_side_port_routes_over_its_node():
     routing = route(*_over_node_scene())
-    # B's LEFT port escapes -x, climbs over B (top - 2.54), then heads to
-    # the trunk at x=17.78; A's stub is direct.
+    # B's LEFT port escapes -x, climbs over B (top - GRID: escape tracks
+    # step by one grid so several fit in the free band), then heads to the
+    # trunk at x=17.78; A's stub is direct.
     assert routing.wires["OV"] == [
         Wire(10.16, 2.54, 17.78, 2.54),    # A direct stub
         Wire(0.0, 17.78, -2.54, 17.78),    # B escape stub
-        Wire(-2.54, 17.78, -2.54, 12.7),   # up over B (origin y - 2.54)
-        Wire(-2.54, 12.7, 17.78, 12.7),    # across to trunk
-        Wire(17.78, 2.54, 17.78, 12.7),    # trunk
+        Wire(-2.54, 17.78, -2.54, 13.97),  # up over B (origin y - GRID)
+        Wire(-2.54, 13.97, 17.78, 13.97),  # across to trunk
+        Wire(17.78, 2.54, 17.78, 13.97),   # trunk
     ]
     assert routing.bends == 4  # 2 on the over-route + 2 trunk corners
     assert routing.junctions == {}
@@ -293,3 +294,47 @@ def test_determinism_and_edge_order_independence():
     assert r3 == r1
     assert list(r3.wires) == list(r1.wires)
     assert GRID == 1.27  # contract sanity
+
+
+def test_escape_ladder_stops_below_the_node_above():
+    """Regression: the far-side escape offset grew without bound, so the
+    third track over a node ran along the bottom edge of the rank-mate
+    above it — straight through that node's BOTTOM-side pin points. The
+    ladder is now clamped to the free band and the overflow nets take
+    labels instead."""
+    from src.ecad.layout.ir import PlacedSheet
+    from src.ecad.layout.lints import lint_placed
+
+    # ABOVE sits directly over B with the standard 7.62 rank-mate gap.
+    above = _mk_node("ABOVE", left=[("1", 2.54)])
+    # B's ports face AWAY from the channel, so each one escapes over B
+    b = _mk_node("B", right=[("1", 2.54), ("2", 3.81), ("3", 5.08),
+                             ("4", 6.35)])
+    srcs = [_mk_node(f"A{i}", right=[("1", 2.54)]) for i in range(1, 5)]
+    edges = [
+        NetEdge(net=f"E{i}", named=False,
+                ports=[(f"A{i}", "1"), ("B", str(i))])
+        for i in range(1, 5)
+    ]
+    scene = _scene(
+        [*srcs, above, b], [["A1", "A2", "A3", "A4"], ["ABOVE", "B"]],
+        {"A1": (0.0, 0.0), "A2": (0.0, 12.7), "A3": (0.0, 25.4),
+         "A4": (0.0, 38.1), "ABOVE": (25.4, 0.0), "B": (25.4, 17.78)},
+        edges)
+    graph, ranking, ordering, placement = scene
+    routing = route(*scene)
+
+    # ABOVE's bbox is x 25.4..35.56, bottom y = 10.16; no wire crossing
+    # that column may reach it or the power stubs hanging one pin pitch
+    # under its BOTTOM pins
+    for ws in routing.wires.values():
+        for w in ws:
+            if max(w.x1, w.x2) >= 25.4:
+                assert min(w.y1, w.y2) > 10.16 + GRID, w
+
+    placed = PlacedSheet(graph=graph, ranking=ranking, ordering=ordering,
+                         placement=placement, routing=routing)
+    assert lint_placed(placed) == []
+    # the free band above B does not fit three tracks, so the overflow
+    # falls back to labels rather than being drawn through ABOVE
+    assert routing.labeled_nets

@@ -46,14 +46,30 @@ jobs:
       # bootstrap run (before build-ci-image.yml has ever pushed), a PR that
       # changes ci/Dockerfile (where :latest is deliberately stale), and a GHCR
       # outage — none of which should look like a code failure.
+      # Pull normally, then CHECK THE PULLED IMAGE IS USABLE and rebuild if not.
+      #
+      # A pull alone is not enough. `:latest` is published by build-ci-image on
+      # main, so between merging a Dockerfile change and that build finishing,
+      # every branch pulls the previous image — which is how a run on a branch
+      # with correct code failed with `assert 0 > 10_000`: it got the image from
+      # before the KiCad libraries were added. Verifying capability rather than
+      # mere presence also covers the bootstrap run, a PR that edits
+      # ci/Dockerfile (where :latest is deliberately stale), and a GHCR outage.
       - name: Ensure CI image
         run: |
           set -euo pipefail
-          if docker pull -q "$IMAGE" 2>/dev/null; then
-            echo "pulled $IMAGE"
+          usable() {
+            docker run --rm "$1" sh -c \
+              'command -v kicad-cli >/dev/null &&
+               [ "$(find /usr/share/kicad/footprints -name "*.kicad_mod" 2>/dev/null | wc -l)" -gt 10000 ]' \
+              2>/dev/null
+          }
+          if docker pull -q "$IMAGE" 2>/dev/null && usable "$IMAGE"; then
+            echo "pulled $IMAGE (kicad-cli + libraries present)"
           else
-            echo "::notice::$IMAGE unavailable — building from ci/Dockerfile"
+            echo "::notice::$IMAGE missing or lacks KiCad libraries — building from ci/Dockerfile"
             docker build -q -f ci/Dockerfile -t "$IMAGE" ci/
+            usable "$IMAGE" || { echo "::error::built image still lacks KiCad libraries"; exit 1; }
           fi
 
       - name: Report toolchain

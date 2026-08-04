@@ -25,7 +25,16 @@ RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboar
 | 40 | GND | passive | ground | — | — |
 | 41 | GND | passive | ground | — | — |
 
-### Unit 2: GPIO
+### Unit 2: Strapping
+
+| Pad | Name | Type | Role | GPIO | Functions |
+|---|---|---|---|---|---|
+| 15 | IO3 | bidirectional | strapping | 3 | — |
+| 16 | IO46 | bidirectional | strapping | 46 | — |
+| 26 | IO45 | bidirectional | strapping | 45 | — |
+| 27 | IO0 | bidirectional | strapping | 0 | — |
+
+### Unit 3: GPIO
 
 | Pad | Name | Type | Role | GPIO | Functions |
 |---|---|---|---|---|---|
@@ -41,8 +50,6 @@ RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboar
 | 12 | IO8 | bidirectional | gpio | 8 | — |
 | 13 | USB_D- | bidirectional | signal | — | — |
 | 14 | USB_D+ | bidirectional | signal | — | — |
-| 15 | IO3 | bidirectional | gpio | 3 | — |
-| 16 | IO46 | bidirectional | gpio | 46 | — |
 | 17 | IO9 | bidirectional | gpio | 9 | — |
 | 18 | IO10 | bidirectional | gpio | 10 | — |
 | 19 | IO11 | bidirectional | gpio | 11 | — |
@@ -52,8 +59,6 @@ RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboar
 | 23 | IO21 | bidirectional | gpio | 21 | — |
 | 24 | IO47 | bidirectional | gpio | 47 | — |
 | 25 | IO48 | bidirectional | gpio | 48 | — |
-| 26 | IO45 | bidirectional | gpio | 45 | — |
-| 27 | IO0 | bidirectional | gpio | 0 | — |
 | 28 | IO35 | bidirectional | gpio | 35 | — |
 | 29 | IO36 | bidirectional | gpio | 36 | — |
 | 30 | IO37 | bidirectional | gpio | 37 | — |
@@ -69,12 +74,16 @@ RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboar
 
 ## Strapping warnings
 
-- none
+- `IO3` (pad 15): strapping pin — the level sampled at reset selects boot/config options; verify pull resistors and boot-time bus activity before reusing it.
+- `IO46` (pad 16): strapping pin — the level sampled at reset selects boot/config options; verify pull resistors and boot-time bus activity before reusing it.
+- `IO45` (pad 26): strapping pin — the level sampled at reset selects boot/config options; verify pull resistors and boot-time bus activity before reusing it.
+- `IO0` (pad 27): strapping pin — the level sampled at reset selects boot/config options; verify pull resistors and boot-time bus activity before reusing it.
 
 ## Evidence
 
-- **agreed**: 33
+- **agreed**: 34
 - **claims**: 34
 - **conflicts**: 0
-- **single_source**: 1
+- **single_source**: 0
+- **unverified**: 0
 - **waived**: 0

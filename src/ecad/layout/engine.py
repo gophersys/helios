@@ -13,7 +13,7 @@ a no_connect marker (the ERC==0 gate demands it).
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..design import Design
 from ..symbol import Side, SymbolModel
@@ -22,7 +22,15 @@ from . import place as place_mod
 from . import rank as rank_mod
 from . import route as route_mod
 from .graph_build import build
-from .ir import PIN_PITCH, Metrics, PlacedSheet, SchematicGraph, Wire, snap
+from .ir import (
+    PIN_PITCH,
+    Metrics,
+    PlacedSheet,
+    SchematicGraph,
+    Wire,
+    snap,
+    wires_short,
+)
 
 # Satellite cap emission geometry (Device:C stub: pins at center ±3.81).
 _CAP_PIN_DY = 3.81
@@ -34,6 +42,14 @@ _STUB = PIN_PITCH  # power-tap stub length
 class EmittedSheet:
     text: str
     metrics: Metrics
+    wires: dict[str, list[Wire]] = field(default_factory=dict)
+    """EVERY wire in the emitted file, keyed by net — the router's wires
+    plus the ones :func:`emit` generates itself (power-tap stubs, satellite
+    rows, PWR_FLAG ties). Those never appear in the IR, so
+    :func:`~.lints.lint_placed` can only gate them when handed this."""
+    junctions: dict[str, list[tuple[float, float]]] = field(
+        default_factory=dict)
+    """Likewise every junction in the file, keyed by net."""
 
 
 def layout(design: Design, sheet: str = "main",
@@ -62,16 +78,43 @@ def label_anchors(placed: PlacedSheet) -> dict[str, list[tuple[float, float, int
 
 
 def _free_tap(reserved: set[tuple[float, float]],
-              candidates: list[tuple[float, float]]) -> tuple[float, float]:
-    """First candidate point nobody has claimed, else the last one.
+              candidates: list[tuple[float, float]],
+              *, net: str = "", frm: tuple[float, float] | None = None,
+              gen_wires: Mapping[str, list[Wire]] | None = None
+              ) -> tuple[float, float]:
+    """First acceptable candidate point, else the last one.
+
+    A candidate must satisfy BOTH conditions, because a point can be free of
+    every placed symbol and still sit on another net's wire — and a symbol
+    pin landing on a wire merges those nets silently, the same mechanism as a
+    label dropped on a foreign wire:
+
+    1. unreserved — no other power symbol has claimed the point. Without this
+       a USB-C shell's GND symbol lands where a VBUS pad's symbol already
+       went and the two rails export as one net.
+    2. its tie wire (``frm`` → candidate) shorts no OTHER net's wire. Without
+       this a PWR_FLAG tie lands on an adjacent rail's tap stub when two
+       power pins sit one pitch apart.
+
+    Each condition closes a hole the other leaves open, so they belong in one
+    allocation path rather than two mechanisms racing to place one symbol.
+    ``net``/``frm``/``gen_wires`` are optional: omit them and only condition
+    1 applies, which is correct for a point with no tie wire.
 
     Falling back to the last candidate rather than raising keeps emission
     total: a design so dense that every candidate is taken still produces a
     file, and the netlist-equivalence gate is what reports the damage.
     """
     for point in candidates:
-        if point not in reserved:
-            return point
+        if point in reserved:
+            continue
+        if gen_wires is not None and frm is not None:
+            tie = Wire(frm[0], frm[1], point[0], point[1])
+            if any(wires_short(tie, w)
+                   for other, ws in gen_wires.items() if other != net
+                   for w in ws):
+                continue
+        return point
     return candidates[-1]
 
 
@@ -150,15 +193,31 @@ def emit(placed: PlacedSheet, design: Design,
         # router computed port points from it, so the emitted symbol must
         # match (the vertical Device:R/C/L stubs put pins at (0, ±3.81),
         # nowhere near the LEFT/RIGHT ports the router wired to).
+        # Dedup key is the GEOMETRY, not the lib_id: readable widths derive
+        # from pin-name lengths, so two components declaring the same lib_id
+        # with different pins need two different entries — sharing one would
+        # draw the second component's pins where the first's are, metres from
+        # the wires the router placed against its own geometry.
         lib_entries: list[str] = []
         seen_libs: set[str] = set()
+        claimed: dict[str, str] = {}        # emitted lib name → geometry
+        lib_alias: dict[str, str] = {}      # component ref → emitted lib name
         power_names: set[str] = set()
-        for node in g.nodes.values():
-            if not node.ref or node.lib_id in seen_libs:
+        for node in g.nodes.values():   # insertion order == deterministic
+            if not node.ref or node.ref in lib_alias:
                 continue
-            seen_libs.add(node.lib_id)
-            lib_entries.append(
-                models[node.ref].to_inline_sexp_multi(node.lib_id))
+            geom = models[node.ref].to_inline_sexp_multi("\x00")
+            name = node.lib_id
+            n = 1
+            while name in claimed and claimed[name] != geom:
+                n += 1
+                name = f"{node.lib_id}_{n}"
+            lib_alias[node.ref] = name
+            if name not in claimed:
+                claimed[name] = geom
+                seen_libs.add(name)
+                lib_entries.append(
+                    models[node.ref].to_inline_sexp_multi(name))
         # Satellites keep the vertical stub (row wiring assumes pins at
         # ±_CAP_PIN_DY). When a placed node already claimed the lib_id with
         # readable geometry, the satellite stub is emitted under an alias.
@@ -179,7 +238,15 @@ def emit(placed: PlacedSheet, design: Design,
 
         body: list[str] = []
         wires: list[Wire] = []
-        extra_junctions: list[tuple[float, float]] = []
+        # Every wire emit() builds itself, keyed by the net it belongs to, so
+        # lints.lint_placed can gate them exactly like the router's wires.
+        gen_wires: dict[str, list[Wire]] = {}
+        gen_junctions: dict[str, list[tuple[float, float]]] = {}
+
+        def add_wire(net: str, w: Wire) -> None:
+            wires.append(w)
+            gen_wires.setdefault(net, []).append(w)
+
         pwr_instances: list[tuple[str, float, float, bool]] = []
 
         # ── placed units ───────────────────────────────────────────────────
@@ -193,7 +260,7 @@ def emit(placed: PlacedSheet, design: Design,
             anchor = (snap(ox + w_tot / 2), snap(oy + h_tot / 2))
             comp = comps[node.ref]
             body.append(gen_symbol_instance(ComponentPlacement(
-                lib_id=node.lib_id, ref=node.ref,
+                lib_id=lib_alias[node.ref], ref=node.ref,
                 value=getattr(comp, "value", "") or comp.part_name,
                 footprint=comp.footprint.lib_id if comp.footprint else "",
                 position=anchor, unit=node.unit), project, root_uuid,
@@ -225,9 +292,11 @@ def emit(placed: PlacedSheet, design: Design,
                 port = node.port(tap.port_number)
                 if port.side in (Side.TOP, Side.BOTTOM):
                     dy = -_STUB if port.side is Side.TOP else _STUB
-                    ex, ey = _free_tap(reserved, [
-                        (snap(px), snap(py + dy * k)) for k in range(1, 6)])
-                    wires.append(Wire(px, py, ex, ey))
+                    ex, ey = _free_tap(
+                        reserved,
+                        [(snap(px), snap(py + dy * k)) for k in range(1, 6)],
+                        net=tap.rail, frm=(px, py), gen_wires=gen_wires)
+                    add_wire(tap.rail, Wire(px, py, ex, ey))
                 else:
                     dx = -_STUB if port.side is Side.LEFT else _STUB
                     # grounds hang down, rails point up: the stepped point is
@@ -239,16 +308,18 @@ def emit(placed: PlacedSheet, design: Design,
                         cx = snap(px + dx * k)
                         cands.append((cx, snap(py + vy)))
                         cands.append((cx, snap(py)))
-                    ex, ey = _free_tap(reserved, cands)
-                    wires.append(Wire(px, py, ex, py))
+                    ex, ey = _free_tap(reserved, cands, net=tap.rail,
+                                       frm=(px, py), gen_wires=gen_wires)
+                    add_wire(tap.rail, Wire(px, py, ex, py))
                     if ey != py:
-                        wires.append(Wire(ex, py, ex, ey))
+                        add_wire(tap.rail, Wire(ex, py, ex, ey))
                 reserved.add((ex, ey))
                 pwr_instances.append((tap.rail, ex, ey, tap.down))
                 power_names.add(tap.rail)
 
         # ── satellite rows (caps grouped per rail — one row may decouple
         # several different rails) ─────────────────────────────────────────
+        sat_junctions: list[tuple[float, float]] = []
         for owner, row in sorted(pl.sat_rows.items()):
             sats = {s.ref: s for s in g.satellites.get(owner, [])}
             rail_tops: dict[str, list[tuple[float, float]]] = {}
@@ -256,40 +327,66 @@ def emit(placed: PlacedSheet, design: Design,
                 s = sats.get(ref)
                 if s is None:
                     continue
+                # the stub geometry puts pad 1 on top; when the DESIGN wires
+                # pad 2 to the rail, rotate the body 180 so the rail pad is
+                # the one that meets the rail wire
+                flip = s.rail_pad != "1"
                 body.append(gen_symbol_instance(ComponentPlacement(
                     lib_id=sat_lib[s.lib_id], ref=s.ref, value=s.value,
-                    footprint=s.footprint,
+                    footprint=s.footprint, rotation=180 if flip else 0,
                     position=(snap(cx), snap(cy))), project, root_uuid))
                 top = (snap(cx), snap(cy - _CAP_PIN_DY))
                 bot = (snap(cx), snap(cy + _CAP_PIN_DY))
                 rail_tops.setdefault(s.rail, []).append(top)
                 # per-cap ground below
-                wires.append(Wire(bot[0], bot[1], bot[0], snap(bot[1] + _STUB)))
+                add_wire(s.gnd,
+                         Wire(bot[0], bot[1], bot[0], snap(bot[1] + _STUB)))
                 pwr_instances.append((s.gnd, bot[0], snap(bot[1] + _STUB), True))
                 power_names.add(s.gnd)
-            for rail, tops in sorted(rail_tops.items()):
-                if not rail:
-                    continue
-                rail_y = snap(tops[0][1] - _STUB)
+            # One row may decouple SEVERAL rails, and every cap in a row shares
+            # the same cy. Two independent guards keep the rails apart:
+            #  * graph_build keeps each rail's caps CONTIGUOUS in the row, so a
+            #    rail's trunk spans only its own caps and no foreign cap stub
+            #    can end on it;
+            #  * each rail additionally gets its OWN horizontal track, stepped
+            #    by _STUB, so the trunks are not even colinear.
+            # Deriving rail_y from tops[0] alone put every rail on the identical
+            # y; their spans then overlapped in x and KiCad merged them into one
+            # net, shorting e.g. 3V3 to 5V whenever their caps interleaved.
+            # Stubs that cross a lower track stay safe: crossing wires do not
+            # connect in KiCad without a junction, and junctions are only ever
+            # emitted at a rail's own cap x-positions.
+            for track, (rail, tops) in enumerate(
+                    (r, t) for r, t in sorted(rail_tops.items()) if r):
+                rail_y = snap(tops[0][1] - _STUB * (track + 1))
                 xs = [t[0] for t in tops]
                 for x, y in tops:
-                    wires.append(Wire(x, y, x, rail_y))
+                    add_wire(rail, Wire(x, y, x, rail_y))
                 if len(xs) > 1:
-                    wires.append(Wire(min(xs), rail_y, max(xs), rail_y))
-                    # A cap between the ends meets the rail wire mid-segment:
-                    # KiCad only joins a wire END to a wire BODY where a
-                    # junction dot exists, so the middle caps would float.
-                    extra_junctions.extend(
-                        (x, rail_y) for x in sorted(xs)
-                        if min(xs) < x < max(xs))
+                    add_wire(rail, Wire(min(xs), rail_y, max(xs), rail_y))
+                    # Every cap stub T-s into that shared span. KiCad does not
+                    # connect a wire endpoint that lands MID-segment without a
+                    # junction dot, so without these the middle caps of a row
+                    # are electrically floating: a rail with 3+ decoupling caps
+                    # exported a netlist missing C2 and failed ERC with
+                    # pin_not_connected. The endpoints also carry the rail's
+                    # power-symbol pin, so junction every stub rather than only
+                    # the interior ones.
+                    pts = [(x, rail_y) for x in sorted(set(xs))]
+                    sat_junctions.extend(pts)
+                    gen_junctions.setdefault(rail, []).extend(pts)
                 pwr_instances.append((rail, min(xs), rail_y, False))
                 power_names.add(rail)
 
         # ── routed wires, junctions, labels ────────────────────────────────
         for net in sorted(rt.wires):
-            wires.extend(rt.wires[net])
+            for w in rt.wires[net]:
+                add_wire(net, w)
         junctions = [pt for net in sorted(rt.junctions)
-                     for pt in rt.junctions[net]] + sorted(extra_junctions)
+                     for pt in rt.junctions[net]]
+        junctions.extend(sat_junctions)
+        for net in sorted(rt.junctions):
+            gen_junctions.setdefault(net, []).extend(rt.junctions[net])
         hier = dict(hier_labels or {})
         label_lines: list[str] = []
         for net in sorted(rt.label_at):
@@ -321,7 +418,6 @@ def emit(placed: PlacedSheet, design: Design,
         allowed = None if flag_rails is None else set(flag_rails)
         flagged: set[str] = set()
         flag_extra: list[tuple[str, float, float, bool]] = []
-        flag_wires: list[Wire] = []
         for rail, x, y, down in pwr_instances:
             if rail in flagged or rail in driven:
                 continue
@@ -332,15 +428,21 @@ def emit(placed: PlacedSheet, design: Design,
             # rail symbol, and keep stepping while that spot is taken (a
             # dense connector puts a rail symbol on every pitch); tie it back
             # with a short wire.
-            fx, fy = _free_tap(reserved, [
-                (snap(x + PIN_PITCH * k), snap(y)) for k in range(1, 6)])
+            # Try right then left at each step, matching the ordering the
+            # per-rail wire check used, so a blocked side falls back rather
+            # than marching outward on one side only.
+            cands = []
+            for k in range(1, 9):
+                cands.append((snap(x + PIN_PITCH * k), snap(y)))
+                cands.append((snap(x - PIN_PITCH * k), snap(y)))
+            fx, fy = _free_tap(reserved, cands, net=rail, frm=(x, y),
+                               gen_wires=gen_wires)
             reserved.add((fx, fy))
             flag_extra.append(("PWR_FLAG", fx, fy, False))
-            flag_wires.append(Wire(x, y, fx, fy))
+            add_wire(rail, Wire(x, y, fx, fy))
         if flag_extra:
             power_names.add("PWR_FLAG")
         pwr_instances.extend(flag_extra)
-        wires.extend(flag_wires)
 
         for pname in sorted(power_names):
             lib_entries.append(power_symbol_lib_sexp(pname))
@@ -385,5 +487,6 @@ def emit(placed: PlacedSheet, design: Design,
 \t(embedded_fonts no)
 )
 """
-    return EmittedSheet(text=text, metrics=metrics_of(placed))
+    return EmittedSheet(text=text, metrics=metrics_of(placed),
+                        wires=gen_wires, junctions=gen_junctions)
 

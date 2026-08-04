@@ -260,8 +260,11 @@ def test_satellite_row_below_owner():
     rk = Ranking(rank_of={"U1#1": 0}, ranks=[["U1#1"]], segments=[])
     od = Ordering(order=[["U1#1"]], crossings=0)
     p = coordinates(g, rk, od)
-    # Row top = owner bottom (25.4 + 10.16) + 7.62; pitch 7.62 in x.
-    assert p.sat_rows == {"U1#1": [("C1", 25.4, 43.18), ("C2", 33.02, 43.18)]}
+    # Nominal cap centre = owner bottom (25.4 + 10.16) + 7.62 = 43.18, but
+    # the reserved band is the row as EMITTED (cap body + rail wire above +
+    # ground symbol below = centre ± 6.35) against the owner's bbox inflated
+    # by its own power stubs, so the row steps one pitch down. Pitch 7.62 x.
+    assert p.sat_rows == {"U1#1": [("C1", 25.4, 45.72), ("C2", 33.02, 45.72)]}
 
 
 def test_satellite_row_pushed_past_collision():
@@ -273,9 +276,10 @@ def test_satellite_row_pushed_past_collision():
                  ranks=[["U1#1", "R9#1"]], segments=[])
     od = Ordering(order=[["U1#1", "R9#1"]], crossings=0)
     p = coordinates(g, rk, od)
-    # Nominal row top 43.18 collides with R9#1 (43.18..53.34): pushed down
-    # in 2.54 steps until clear of its bottom edge.
-    assert p.sat_rows == {"U1#1": [("C1", 25.4, 53.34), ("C2", 33.02, 53.34)]}
+    # The nominal row collides with R9#1 (43.18..53.34): pushed down in 2.54
+    # steps until the emitted band (centre ± 6.35) clears R9#1's bbox plus
+    # the pin pitch its power stubs occupy below it.
+    assert p.sat_rows == {"U1#1": [("C1", 25.4, 63.5), ("C2", 33.02, 63.5)]}
     # Ranked nodes are NEVER moved to make room for satellites.
     assert p.origin["R9#1"] == (25.4, 43.18)
 
