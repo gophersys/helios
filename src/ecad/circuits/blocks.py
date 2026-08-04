@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import inspect
 import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -169,9 +170,16 @@ PROV_LED = Provenance(
     source="Ohm's law; IEC 60063 E24 preferred number series",
     section="series-resistor computation (see Block.notes for the arithmetic)",
 )
+#: Checked against the document itself: the word "Figure" appears ZERO
+#: times in DS39724, so there is no "Figure 21" to cite. The typical
+#: application circuit is an unnumbered drawing on p. 2 captioned "Typical
+#: Applications Circuit (Note 4)", and the revision printed on every page is
+#: "DS39724 Rev. 2 - 2", June 2017 — matching the string
+#: ``src/ecad/rules/power.py`` already uses.
 PROV_AP2112 = Provenance(
-    source="Diodes/BCD AP2112 datasheet, Rev. 2.0 (DS39724)",
-    section="Typical Application, Figure 21 + Note 4",
+    source="Diodes/BCD AP2112 datasheet, DS39724 Rev. 2 - 2 (June 2017)",
+    section="\"Typical Applications Circuit (Note 4)\", p. 2 — an unnumbered "
+            "drawing; the document contains no numbered figures",
     url=_AP2112_URL,
 )
 
@@ -422,6 +430,65 @@ def _adopt(design: Design, ic: Component, added: list[Component]) -> None:
         added.append(ic)
 
 
+def _norm_pin_name(name: str) -> str:
+    """``"V_IN" -> "VIN"``, ``"pgnd" -> "PGND"`` — separators are not signal."""
+    return re.sub(r"[\s_.\-/]+", "", name).upper()
+
+
+#: Names a regulator's *input supply* pin may carry. This block classifies
+#: POWER_IN pins **positively**: a POWER_IN pin whose name is not here is
+#: refused, not wired. Vocabulary from the KiCad ``Regulator_Linear``
+#: library's own pin names plus the AP2112 datasheet's Pin Descriptions
+#: table (VIN).
+_LDO_VIN_NAMES = frozenset({
+    "VIN", "VIN1", "VIN2", "VINA", "IN", "IN1", "IN2", "VI", "VCC", "VDD",
+    "VDDIN", "VS", "VBAT", "VBUS", "PVIN", "AVIN", "V+", "VP",
+})
+
+#: Names that read as a ground return. A POWER_IN pin with one of these
+#: names whose role is *not* :attr:`PinRole.GROUND` is a mis-roled part
+#: model — the case that used to weld the regulator's ground to VIN.
+_GROUND_NAME_HINTS = frozenset({
+    "GND", "AGND", "DGND", "PGND", "SGND", "GNDA", "GNDD", "GNDP", "GNDS",
+    "VSS", "VSSA", "VSSD", "0V", "COM", "COMMON", "RTN", "RETURN",
+    "SUB", "SUBSTRATE", "EP", "EPAD", "PAD", "THERMALPAD", "VEE",
+})
+
+
+def _reads_as_ground(name: str) -> bool:
+    norm = _norm_pin_name(name)
+    return (norm in _GROUND_NAME_HINTS
+            or norm.startswith(("GND", "VSS", "PADGND", "EPGND"))
+            or norm.endswith("GND"))
+
+
+def _classify_ldo_supply_pin(p: Pin, part_label: str) -> str:
+    """``"vin"`` for a POWER_IN pin positively identified as the input.
+
+    Raises :class:`ValueError` naming the pin and the part otherwise. There
+    is deliberately no fall-through: the old ``else: vin_net.connect(p)``
+    turned every POWER_IN pin the block did not understand — including a
+    ground pin the part model had failed to role — into a short.
+    """
+    if _norm_pin_name(p.name) in _LDO_VIN_NAMES:
+        return "vin"
+    if _reads_as_ground(p.name):
+        raise ValueError(
+            f"ldo_regulator: {part_label} pin {p.name!r} (pad {p.pad}) is "
+            f"typed {p.etype.value} but its name reads as a ground return, "
+            f"and its role is {p.role.value!r}, not {PinRole.GROUND.value!r}. "
+            f"Wiring it as the input supply would short VIN to GND. Give the "
+            f"pin role=PinRole.GROUND in the part model."
+        )
+    raise ValueError(
+        f"ldo_regulator: {part_label} pin {p.name!r} (pad {p.pad}) is typed "
+        f"{p.etype.value} and this block cannot tell whether it is the input "
+        f"supply or a return, so it refuses to wire it. Give the pin "
+        f"role=PinRole.GROUND (a return) or one of the recognised input "
+        f"names {sorted(_LDO_VIN_NAMES)} in the part model."
+    )
+
+
 def _power_pins(ic: Component) -> list[Pin]:
     return [p for p in ic.pins
             if p.role is PinRole.POWER
@@ -432,23 +499,52 @@ def _ground_pins(ic: Component) -> list[Pin]:
     return [p for p in ic.pins if p.role is PinRole.GROUND]
 
 
+def _distinct_names(pins: Sequence[Pin]) -> list[str]:
+    """Supply pin names in first-seen order, deduplicated."""
+    seen: dict[str, None] = {}
+    for p in pins:
+        seen.setdefault(p.name, None)
+    return list(seen)
+
+
+def _rail_key(name: str) -> str:
+    """Comparison key for "is this rail named after that pin?".
+
+    ``"+3V3"`` and ``"3V3"`` are the same rail; ``"VDD_SPI"`` and
+    ``"VDD-SPI"`` are the same pin. Nothing weaker: ``VDD3P3`` must NOT
+    match ``VDD3P3_RTC``, which is a different domain.
+    """
+    return _norm_pin_name(name.lstrip("+"))
+
+
 def _label(ic: Component) -> str:
     return ic.ref or ic.part_name or type(ic).__name__
 
 
-def _named_pin(comp: Component, names: Sequence[str], fallback: int) -> Pin:
-    """First pin matching one of ``names``, else the pin at ``fallback``.
+def _named_pin(comp: Component, names: Sequence[str], *,
+               fallback_pad: str) -> Pin:
+    """First pin matching one of ``names``, else the pin at ``fallback_pad``.
 
-    Polarised two-pin parts must not be wired by position: KiCad's
-    ``Device:LED`` puts the *cathode* on pad 1 and the anode on pad 2, so
-    ``pins[0]`` would silently reverse the diode.
+    Polarised two-pin parts must not be wired by position. KiCad's
+    ``Device:LED`` puts the *cathode* on pad 1 and the anode on pad 2, and
+    that contract is about **pads**: the fallback used to be an index into
+    ``comp.pins`` — i.e. into the declaration order of ``_PIN_SPECS`` — which
+    is the same thing as position and reverses the diode for any part that
+    declares its anode first.
     """
     for name in names:
         try:
             return comp.pin(name)
         except KeyError:
             continue
-    return comp.pins[fallback]
+    try:
+        return comp.pin_by_pad(fallback_pad)
+    except KeyError:
+        raise KeyError(
+            f"{type(comp).__name__}: no pin named any of {list(names)} and no "
+            f"pad {fallback_pad!r} to fall back on; polarity cannot be "
+            f"resolved without guessing, so this part is not wireable here"
+        ) from None
 
 
 # ---------------------------------------------------------------------------
@@ -467,6 +563,17 @@ def decoupling(design: Design, ic: Component, rail: Net | str | Pin,
     are connected to ``gnd`` — without that the design would not lint, and a
     decoupling cap with no return path is not a decoupling cap.
 
+    **Multi-supply ICs must be explicit.** When the pins this block would
+    sweep carry more than one distinct name, it refuses rather than tie them
+    all to one rail, and the error lists the names it found. Two ways out:
+    pass ``pins=`` naming the pins that really belong on this rail, or name
+    the rail after one of them (``decoupling(d, chip, "VDD_SPI", "GND")``
+    takes only the ``VDD_SPI`` pins). Merging is not a safe default: a bare
+    ESP32-S3's ``VDD_SPI`` is fed from ``VDD3P3_RTC`` through 14 Ω and is
+    eFuse/GPIO45-selectable 1.8 V or 3.3 V, so hard-tying it to 3V3
+    back-drives the internal flash LDO and destroys the 1.8 V option.
+    Single-supply parts (the WROOM-1 module: ``3V3`` only) are unaffected.
+
     Pass ``bulk=None`` to place only the per-pin ceramics (e.g. a second IC
     sharing a rail that already has its bulk).
     """
@@ -478,6 +585,25 @@ def decoupling(design: Design, ic: Component, rail: Net | str | Pin,
     if pins is None:
         candidates = _power_pins(ic)
         targets = [p for p in candidates if p.net is rail_net or p.net is None]
+        names = _distinct_names(targets)
+        if len(names) > 1:
+            matched = [p for p in targets
+                       if _rail_key(p.name) == _rail_key(rail_net.name)]
+            if len(_distinct_names(matched)) == 1:
+                targets = matched
+            else:
+                raise ValueError(
+                    f"decoupling: {_label(ic)} has {len(names)} distinct "
+                    f"supply pin names free for {rail_net.name!r} "
+                    f"({', '.join(names)}) and this block will not sweep them "
+                    f"onto one rail — they are not guaranteed to sit at the "
+                    f"same voltage (the ESP32-S3's VDD_SPI is "
+                    f"eFuse/GPIO45-selectable 1.8 V or 3.3 V and is fed from "
+                    f"VDD3P3_RTC through 14 ohm; tying it to 3V3 back-drives "
+                    f"the internal flash LDO). Pass pins=[...] naming the pins "
+                    f"that belong on {rail_net.name!r}, or name the rail after "
+                    f"one of them."
+                )
     else:
         targets = list(pins)
     if not targets:
@@ -621,6 +747,12 @@ def en_reset_rc(design: Design, en: Net | str | Pin, rail: Net | str | Pin,
         "10K(1%) pull-up and 1uF/16V to GND on CHIP_PU.",
         "Time constant tau = R*C = 10 ms at the defaults; raise C if the "
         "rail's ramp is slower than that.",
+        "Escalation, from the same section: an RC is not always enough. For "
+        "\"Slow power rise or fall\" or an \"Unstable power supply\" the HDG "
+        "says to \"reserve a power monitor chip to reset the chip when the "
+        "power supply is abnormal, and the threshold of the power monitor "
+        "chip is recommended to be around 3.0 V\". This block fits no "
+        "monitor — reserve one if the rail is slow or noisy.",
     ]
     if (r, c) != ("10k", "1uF"):
         notes.append(
@@ -671,11 +803,18 @@ def pull_resistor(design: Design, net: Net | str | Pin,
             "pin\" (ESP32-S3 HDG, Strapping Pins).",
             f"NOT VERIFIED: that guideline states no resistance value, and "
             f"the ESP32-S3-DevKitC-1 V1.1 schematic fits NO pull-up at GPIO0 "
-            f"at all (it leans on the chip's internal weak pull-up). The "
-            f"{value} default is the value that same schematic uses for the "
-            f"pull-up it does fit on a strap-like input — R5, 10K(1%), from "
-            f"ESP_3V3 to CHIP_PU. Override `value` when the pin's leakage or "
-            f"switching speed calls for something else.",
+            f"at all — SW1 goes GPIO0 -> GND and the high level is held by "
+            f"the chip's own internal weak pull-up (HDG, IO Pin Default "
+            f"Configuration: GPIO0 is \"IE, WPU\"). So neither source gives a "
+            f"number for this resistor. The {value} default is the value that "
+            f"same schematic uses for the pull-up it does fit on a strap-like "
+            f"input — R5, 10K(1%), from ESP_3V3 to CHIP_PU. Override `value` "
+            f"when the pin's leakage or switching speed calls for something "
+            f"else.",
+            "Same section, a warning that travels with any strapping "
+            "network: \"Do not add high-value capacitors at GPIO0, or the "
+            "chip may enter download mode\" (ESP32-S3 HDG, Strapping Pins). "
+            "This block fits no capacitor; do not add one here.",
         ),
     )
 
@@ -690,14 +829,25 @@ def ldo_regulator(design: Design, vin: Net | str | Pin,
     the seed chip library) — this block never invents a regulator; an
     unresolvable ``part`` raises :class:`MissingPartError`.
 
-    Pin roles decide the wiring: ``power_in`` pins go to ``vin``,
-    ``power_out`` to ``vout``, ground-role pins to ``gnd``, and an ``EN`` /
-    ``ENABLE`` input is tied to ``vin`` (always-on).
+    Pin roles decide the wiring: ``power_out`` pins go to ``vout``,
+    ground-role pins to ``gnd``, a positively-identified input-supply pin to
+    ``vin``, and an ``EN`` / ``ENABLE`` input is tied to ``vin`` (always-on).
+
+    A ``power_in`` pin the block cannot positively classify raises
+    :class:`ValueError` naming the pin and the part. It used to fall through
+    to ``vin``, which meant a regulator whose ground pin was typed
+    ``power_in`` and named ``AGND`` / ``PGND`` / ``0V`` / ``COM`` / ``SUB``
+    — none of which
+    :func:`src.pipeline.ecad_bridge._infer_role` recognises as a ground —
+    had its ground welded to VIN. That short passes every structural gate,
+    because the emitted netlist matches the (wrong) intent exactly;
+    ``PWR-003(a)`` in :mod:`src.ecad.rules.power` catches it at design level.
     """
     cls = _registry_class(part, needed_by=f"ldo_regulator(part={part!r})",
                           hint="Add it to src/ecad/library or to "
                                "src.pipeline.chip_library.")
     reg = cls()
+    label = reg.part_name or part
     outputs = [p for p in reg.pins if p.etype is ElectricalType.POWER_OUT]
     if not outputs:
         raise ValueError(
@@ -705,24 +855,32 @@ def ldo_regulator(design: Design, vin: Net | str | Pin,
             f"regulator model this block can wire"
         )
 
+    # Classify every pin BEFORE the design is touched: this block is
+    # all-or-nothing (module docstring), and an unclassifiable power_in pin
+    # must abort rather than leave a half-wired regulator behind.
+    plan: list[tuple[Pin, str]] = []
+    enable_pins: list[Pin] = []
+    for p in reg.pins:
+        if p.role is PinRole.GROUND:
+            plan.append((p, "gnd"))
+        elif p.etype is ElectricalType.POWER_OUT:
+            plan.append((p, "vout"))
+        elif p.etype is ElectricalType.POWER_IN:
+            plan.append((p, _classify_ldo_supply_pin(p, label)))
+        elif (p.etype is ElectricalType.INPUT
+              and p.name.upper().replace("_", "") in ("EN", "ENABLE")):
+            plan.append((p, "vin"))
+            enable_pins.append(p)
+
     added: list[Component] = []
     vin_net = _as_net(design, vin, default_name="VIN", what="ldo vin")
     vout_net = _as_net(design, vout, default_name="VOUT", what="ldo vout")
     gnd_net = _as_net(design, gnd, default_name="GND", what="ldo gnd")
     _register(design, added, reg)
 
-    enable_pins: list[Pin] = []
-    for p in reg.pins:
-        if p.role is PinRole.GROUND:
-            gnd_net.connect(p)
-        elif p.etype is ElectricalType.POWER_OUT:
-            vout_net.connect(p)
-        elif p.etype is ElectricalType.POWER_IN:
-            vin_net.connect(p)
-        elif (p.etype is ElectricalType.INPUT
-              and p.name.upper().replace("_", "") in ("EN", "ENABLE")):
-            vin_net.connect(p)
-            enable_pins.append(p)
+    rails = {"vin": vin_net, "vout": vout_net, "gnd": gnd_net}
+    for p, where in plan:
+        rails[where].connect(p)
 
     needed_by = f"ldo_regulator({part})"
     c_in = _capacitor(cin, package, needed_by=needed_by)
@@ -744,14 +902,24 @@ def ldo_regulator(design: Design, vin: Net | str | Pin,
     ]
     if is_ap2112:
         notes.append(
-            "AP2112 datasheet Rev. 2.0, Typical Application (Figure 21, "
-            "Note 4): CIN = COUT = 1 uF ceramic, X7R or X5R dielectric. That "
-            "is the datasheet minimum."
+            "AP2112 datasheet DS39724 Rev. 2 - 2 (June 2017), \"Typical "
+            "Applications Circuit (Note 4)\" on p. 2: CIN = COUT = 1 uF "
+            "ceramic. Note 4 reads \"It is recommended to use X7R or X5R "
+            "dielectric capacitor if 1.0uF ceramic capacitor is selected as "
+            "input/output capacitors.\""
         )
         notes.append(
-            f"The {cin}/{cout} defaults deliberately exceed it, following "
-            f"\"add an extra 10 uF capacitor at the main power entrance\" "
-            f"(ESP32-S3 HDG, Analog Power Supply). Pass cin='1uF', "
+            "That 1 uF is NOT a stated minimum — the datasheet never uses the "
+            "word about capacitance. Its feature list says \"Stable with "
+            "1.0uF Flexible Cap: Ceramic, Tantalum and Aluminum "
+            "Electrolytic\", and every Electrical Characteristics table is "
+            "measured at CIN = COUT = 1.0uF (Ceramic). 1 uF is the "
+            "characterized configuration, and the part is stable there."
+        )
+        notes.append(
+            f"The {cin}/{cout} defaults deliberately exceed that characterized "
+            f"1 uF, following \"add an extra 10 uF capacitor at the main power "
+            f"entrance\" (ESP32-S3 HDG, Analog Power Supply). Pass cin='1uF', "
             f"cout='1uF' for the bare datasheet configuration."
         )
     else:
@@ -823,21 +991,32 @@ def push_button(design: Design, net: Net | str | Pin, gnd: Net | str | Pin, *,
         signal.connect(cap.pin("1"))
         gnd_net.connect(cap.pin("2"))
 
+    notes = [
+        "ESP32-S3-DevKitC-1 V1.1 schematic: SW1 (BOOT -> IO0) and SW2 "
+        "(RST -> CHIP_PU) are bare SPST-NO switches to GND with no "
+        "series resistor, and their 0.1uF/50V debounce capacitors "
+        "(C13, C14) are marked (NC) = not populated. Hence series_r and "
+        "debounce_c both default to None.",
+        "The pin the button pulls low is expected to be held high by a "
+        "pull-up — pair this with pull_resistor() or the MCU's internal "
+        "pull-up.",
+        "Why C13 is (NC): \"Do not add high-value capacitors at GPIO0, or "
+        "the chip may enter download mode\" (ESP32-S3 HDG, Strapping Pins). "
+        "A debounce capacitor belongs on EN — DS Figure 9-1 fits C8 0.1uF "
+        "there — not on a strapping pin.",
+    ]
+    if debounce_c:
+        notes.append(
+            f"CAUTION: this call fits debounce_c={debounce_c} on "
+            f"{signal.name!r}. Check that net is not a strapping pin before "
+            f"building it — see the GPIO0 warning above."
+        )
     return Block(
         name=f"push_button:{signal.name}",
         components=tuple(added),
         nets={"net": signal, "gnd": gnd_net},
         provenance=PROV_BUTTON,
-        notes=(
-            "ESP32-S3-DevKitC-1 V1.1 schematic: SW1 (BOOT -> IO0) and SW2 "
-            "(RST -> CHIP_PU) are bare SPST-NO switches to GND with no "
-            "series resistor, and their 0.1uF/50V debounce capacitors "
-            "(C13, C14) are marked (NC) = not populated. Hence series_r and "
-            "debounce_c both default to None.",
-            "The pin the button pulls low is expected to be held high by a "
-            "pull-up — pair this with pull_resistor() or the MCU's internal "
-            "pull-up.",
-        ),
+        notes=tuple(notes),
     )
 
 
@@ -862,7 +1041,8 @@ def indicator_led(design: Design, net: Net | str | Pin,
 
     The diode is ``Device:LED``, generated into ``src/ecad/library/generic/``
     from the installed KiCad symbol — pad 1 = K, pad 2 = A, which is why the
-    wiring below resolves both ends by NAME.
+    wiring below resolves both ends by NAME, falling back to the PAD (never
+    to a position in the part's pin tuple).
     """
     calc = led_series_resistor(supply_v=supply_v, vf=vf,
                                current_ma=current_ma)
@@ -883,9 +1063,10 @@ def indicator_led(design: Design, net: Net | str | Pin,
     res = _resistor(calc.value, package,
                     needed_by=f"indicator_led({signal.name})")
     _register(design, added, res, led)
-    # Device:LED is pad 1 = K, pad 2 = A — never wire this one by position.
-    anode = _named_pin(led, ("A", "ANODE", "+"), fallback=1)
-    cathode = _named_pin(led, ("K", "C", "CATHODE", "-"), fallback=0)
+    # Device:LED is pad 1 = K, pad 2 = A — never wire this one by position;
+    # the fallback is the PAD, not an index into the declaration order.
+    anode = _named_pin(led, ("A", "ANODE", "+"), fallback_pad="2")
+    cathode = _named_pin(led, ("K", "C", "CATHODE", "-"), fallback_pad="1")
     signal.connect(res.pin("1"))
     mid = design.net(series_net or f"{signal.name}_LED")
     mid.connect(res.pin("2"), anode)

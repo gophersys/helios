@@ -41,7 +41,10 @@ DevKitC-1
     USB-C.
     https://dl.espressif.com/dl/schematics/SCH_ESP32-S3-DevKitC-1_V1.1_20220413.pdf
 AP2112
-    Diodes/BCD *AP2112* datasheet Rev. 2.0 (DS39724).
+    Diodes/BCD *AP2112* datasheet, **DS39724 Rev. 2 - 2** (June 2017). Its
+    typical application circuit is the unnumbered drawing on p. 2 captioned
+    "Typical Applications Circuit (Note 4)" — the document contains no
+    numbered figures.
 Type-C
     *USB Type-C Cable and Connector Specification*, Release 2.0 (Aug 2019),
     §4.11.1, Table 4-25 "Sink CC Termination (Rd) Requirements", p. 236.

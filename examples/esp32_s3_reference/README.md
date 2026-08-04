@@ -117,7 +117,7 @@ None.
 ## Circuit block provenance
 
 - **power/ldo_regulator:AP2112K-3.3**
-  - source: Diodes/BCD AP2112 datasheet, Rev. 2.0 (DS39724), section: Typical Application, Figure 21 + Note 4, url: https://www.diodes.com/assets/Datasheets/AP2112.pdf
+  - source: Diodes/BCD AP2112 datasheet, DS39724 Rev. 2 - 2 (June 2017), section: "Typical Applications Circuit (Note 4)", p. 2 — an unnumbered drawing; the document contains no numbered figures, url: https://www.diodes.com/assets/Datasheets/AP2112.pdf
 - **power/bypass_capacitor:VBUS:100nF**
   - source: Espressif ESP32-S3 Hardware Design Guidelines — Schematic Checklist, section: Power Supply (Analog Power Supply / Digital Power Supply), url: https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html
 - **power/bypass_capacitor:+3V3:100nF**

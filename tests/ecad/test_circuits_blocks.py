@@ -40,6 +40,8 @@ from src.ecad.circuits import (
 )
 from src.ecad.circuits import blocks as blocks_mod
 from src.ecad.library import get as registry_get
+from src.ecad.model import FootprintRef
+from src.ecad.model import pin as pinspec
 
 KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
 skip_no_kicad = pytest.mark.skipif(
@@ -84,6 +86,36 @@ def _refs_unique(design: Design) -> None:
     refs = [c.ref for c in design.components]
     assert all(refs), f"unassigned refs: {refs}"
     assert len(refs) == len(set(refs)), f"duplicate refs: {sorted(refs)}"
+
+
+def _fake_part(name, specs, *, prefix: str = "U") -> type[Component]:
+    """A throwaway Component subclass, for pinouts no shipped part has.
+
+    The blocks below are advertised as generic over ``part``; the shipped
+    parts are the only pinouts that happen to exist today, so a defect that
+    needs a *different* pinout to show itself needs a part like this one.
+    """
+    return type(name.replace("-", "_"), (Component,), {
+        "part_name": name,
+        "lib_id": f"Test:{name}",
+        "reference_prefix": prefix,
+        # Design.check() calls a footprintless component an error, and these
+        # fixtures are meant to exercise wiring, not that lint.
+        "footprint": FootprintRef("Package_TO_SOT_SMD", "SOT-23-5"),
+        "_PIN_SPECS": tuple(specs),
+    })
+
+
+def _serve(monkeypatch, lib_id: str, cls: type[Component]) -> None:
+    """Make ``_registry_class(lib_id)`` return ``cls``; pass everything else
+    through to the real registry, since a block usually needs its passives
+    too."""
+    real = blocks_mod._registry_class
+
+    def fake(requested: str, **kwargs):
+        return cls if requested == lib_id else real(requested, **kwargs)
+
+    monkeypatch.setattr(blocks_mod, "_registry_class", fake)
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +229,66 @@ def test_decoupling_rejects_unknown_package():
         decoupling(Design("bad"), _mcu(), "+3V3", "GND", package="C_9999")
 
 
+# --- the merged-rail short --------------------------------------------------
+#
+# _power_pins() returns every PinRole.POWER / non-ground POWER_IN pin, and
+# decoupling() tied all of them to the one `rail`. Real cases in the seed
+# library alone: STM32F411CEU6 ties VBAT + VDDA + VDD_1..4, NEO-6M ties
+# V_BCKP to VCC. The hazard is not theoretical: on a bare ESP32-S3, VDD_SPI
+# is driven from VDD3P3_RTC through 14 ohm and is eFuse/GPIO45-selectable
+# 1.8 V or 3.3 V (DS Table 7 "VDD_SPI Voltage Control"), so hard-tying it to
+# 3V3 back-drives the internal flash LDO and destroys the 1.8 V option.
+# PWR-003(b) in src/ecad/rules/power.py reports the same merge at design
+# level.
+
+def _bare_s3() -> Component:
+    """The bare ESP32-S3 die, not the WROOM-1 module: five distinct supply
+    pin names (VDD3P3, VDD3P3_RTC, VDD3P3_CPU, VDD_SPI, VDDA)."""
+    return registry_get("ESP32-S3")()
+
+
+def test_decoupling_refuses_to_merge_distinct_supply_pins():
+    d = Design("bare-s3")
+    with pytest.raises(ValueError) as excinfo:
+        decoupling(d, _bare_s3(), "+3V3", "GND")
+    message = str(excinfo.value)
+    # It must LIST what it found, not just say no.
+    for name in ("VDD3P3", "VDD3P3_RTC", "VDD3P3_CPU", "VDD_SPI", "VDDA"):
+        assert name in message, message
+    assert "pins=" in message, message
+
+
+def test_decoupling_explicit_pins_override_the_refusal():
+    """``pins=`` is the caller taking responsibility, and it still works."""
+    d = Design("bare-s3-explicit")
+    chip = _bare_s3()
+    targets = [p for p in chip.pins if p.name == "VDD3P3"]
+    block = decoupling(d, chip, "+3V3", "GND", pins=targets, bulk=None)
+    netlist = d.intended_netlist()
+    assert {"U1:2", "U1:3"} <= netlist["+3V3"], netlist
+    # VDD_SPI (pad 29) is NOT swept onto the rail.
+    assert "U1:29" not in netlist["+3V3"], netlist
+    assert len(block.components) == 3      # the IC + two 100nF
+
+
+def test_decoupling_rail_name_selects_its_own_supply_pins():
+    """Naming the rail after the pin is the other way to disambiguate."""
+    d = Design("bare-s3-vdd-spi")
+    chip = _bare_s3()
+    decoupling(d, chip, "VDD_SPI", "GND", bulk=None)
+    netlist = d.intended_netlist()
+    assert netlist["VDD_SPI"] == {"U1:29", "C1:1"}, netlist
+
+
+def test_decoupling_still_works_on_a_single_rail_part():
+    """The WROOM-1 module has one supply pin name (3V3), so nothing to
+    disambiguate — the reference design must keep building."""
+    d = Design("wroom-single-rail")
+    decoupling(d, _mcu(), "+3V3", "GND")
+    _no_errors(d)
+    assert d.intended_netlist()["+3V3"] == {"U1:2", "C1:1", "C2:1"}
+
+
 def test_decoupling_with_no_free_power_pin_raises():
     d = Design("busy")
     mcu = _mcu()
@@ -242,6 +334,19 @@ def test_en_reset_rc_provenance_and_notes():
     assert block.provenance.url.startswith("https://docs.espressif.com/")
     assert any("10 kOhm" in n and "1 uF" in n for n in block.notes)
     assert any("10 ms" in n for n in block.notes)
+
+
+def test_en_reset_rc_carries_the_power_monitor_escalation():
+    """Same HDG section, escalation clause: for "Slow power rise or fall"
+    or an "Unstable power supply" it says to "reserve a power monitor chip
+    to reset the chip when the power supply is abnormal, and the threshold
+    of the power monitor chip is recommended to be around 3.0 V". The RC is
+    not always enough, and the block cited the section without the clause."""
+    d = Design("en-rc-escalation")
+    mcu = _rails(d, _mcu())
+    block = en_reset_rc(d, mcu.EN, "+3V3", "GND")
+    assert any("power monitor chip" in n and "3.0 V" in n
+               for n in block.notes), block.notes
 
 
 def test_en_reset_rc_accepts_a_bare_net_name():
@@ -296,6 +401,39 @@ def test_pull_resistor_is_honest_about_its_value():
     assert any(n.startswith("NOT VERIFIED") for n in block.notes)
 
 
+def test_pull_resistor_does_not_claim_the_devkit_pulls_gpio0_up():
+    """Pins the corrected GPIO0 citation against the primary sources.
+
+    ESP32-S3-DevKitC-1 V1.1 fits NO external pull-up on GPIO0: SW1 goes
+    GPIO0 -> GND and the level is held by the chip's internal weak pull-up,
+    which the HDG's *IO Pin Default Configuration* table gives for GPIO0 as
+    "IE, WPU". The DevKit's R14 10K(1%) is a (NC) pull-DOWN on pin 12
+    (SUSPEND) of the CP2102N USB-UART bridge — it is not a strapping
+    pull-up and must never be cited as one. The HDG's Strapping Pins
+    section recommends a GPIO0 pull-up but states no resistance.
+    """
+    d = Design("gpio0-citation")
+    mcu = _rails(d, _mcu())
+    block = pull_resistor(d, mcu.gpio(0), "+3V3", net_name="IO0")
+    joined = " ".join(block.notes)
+    assert "R14" not in joined, joined
+    assert "fits NO pull-up at GPIO0" in joined, joined
+    assert "IE, WPU" in joined, joined
+    assert "states no resistance value" in joined, joined
+    assert any(n.startswith("NOT VERIFIED") for n in block.notes)
+
+
+def test_pull_resistor_carries_the_gpio0_capacitor_warning():
+    """HDG, Strapping Pins: "Do not add high-value capacitors at GPIO0, or
+    the chip may enter download mode." The section is cited; the warning it
+    contains was omitted."""
+    d = Design("gpio0-cap-warning")
+    mcu = _rails(d, _mcu())
+    block = pull_resistor(d, mcu.gpio(0), "+3V3", net_name="IO0")
+    assert any("Do not add high-value capacitors at GPIO0" in n
+               for n in block.notes), block.notes
+
+
 def test_pull_resistor_refuses_to_pull_a_net_to_itself():
     d = Design("silly")
     _rails(d, _mcu())
@@ -328,11 +466,43 @@ def test_ldo_regulator_cites_the_part_datasheet():
     block = ldo_regulator(d, "VBUS", "+3V3", "GND", part="AP2112K-3.3")
     assert "AP2112" in block.provenance.source
     assert block.provenance.url.endswith("AP2112.pdf")
-    # The datasheet minimum is 1 uF; the 10 uF default exceeds it on purpose
-    # and the block says so rather than pretending 10 uF is the cited value.
+    # The datasheet characterizes the part at 1 uF; the 10 uF default exceeds
+    # that on purpose and the block says so rather than pretending 10 uF is
+    # the cited value. (It is NOT a stated minimum — see
+    # test_ldo_regulator_does_not_call_1uf_a_datasheet_minimum.)
     assert any("1 uF ceramic" in n for n in block.notes)
     assert any("deliberately exceed" in n for n in block.notes)
     assert any(n.startswith("NOT VERIFIED") for n in block.notes)
+
+
+def test_ap2112_provenance_cites_no_figure_number():
+    """Verified against the primary source (DS39724, downloaded from
+    diodes.com): the word "Figure" appears ZERO times in the document. The
+    typical application circuit is an unnumbered drawing on p. 2 captioned
+    "Typical Applications Circuit (Note 4)". The revision printed on every
+    page is "DS39724 Rev. 2 - 2", dated June 2017 — not "Rev. 2.0"."""
+    prov = blocks_mod.PROV_AP2112
+    assert "Figure" not in prov.section, prov.section
+    assert "Figure" not in prov.source, prov.source
+    assert "Typical Applications Circuit" in prov.section, prov.section
+    assert "DS39724 Rev. 2 - 2" in prov.source, prov.source
+    assert "June 2017" in prov.source, prov.source
+
+
+def test_ldo_regulator_does_not_call_1uf_a_datasheet_minimum():
+    """DS39724 never uses the word "minimum" about capacitance. Its feature
+    list says "Stable with 1.0uF Flexible Cap: Ceramic, Tantalum and
+    Aluminum Electrolytic", Note 4 says X7R/X5R "if 1.0uF ceramic capacitor
+    is selected", and every Electrical Characteristics table is measured at
+    CIN = COUT = 1.0uF (Ceramic). 1 uF is the characterized configuration,
+    not a floor."""
+    d = Design("ap2112-caps")
+    block = ldo_regulator(d, "VBUS", "+3V3", "GND", part="AP2112K-3.3")
+    joined = " ".join(block.notes)
+    assert "datasheet minimum" not in joined, joined
+    assert "Figure 21" not in joined, joined
+    assert "Stable with 1.0uF" in joined, joined
+    assert "DS39724 Rev. 2 - 2" in joined, joined
 
 
 def test_ldo_regulator_datasheet_capacitor_values():
@@ -356,6 +526,78 @@ def test_ldo_regulator_rejects_a_part_with_no_output():
     with pytest.raises(ValueError, match="no power_out pin"):
         ldo_regulator(d, "VBUS", "+3V3", "GND", part=MODULE)
     assert d.components == []
+
+
+# --- the VIN-to-GND short ---------------------------------------------------
+#
+# This block advertises itself as generic over ``part``, but it classified a
+# regulator's ground pin by NAME (GND*/VSS*/PAD_GND/EP_ or group=="ground",
+# in src/pipeline/ecad_bridge._infer_role) and wired every *other* POWER_IN
+# pin to VIN as a fall-through. AP2112K-3.3 is safe only because its ground
+# pin happens to be called "GND". A regulator whose ground pin is typed
+# power_in and named AGND / PGND / 0V / COM / SUB gets its ground welded to
+# VIN — a dead short that every structural gate passes, because the netlist
+# matches the (wrong) intent exactly. Complementary evidence: PWR-003(a) in
+# src/ecad/rules/power.py reports the same short at design level.
+
+#: SOT-23-5 LDO, AP2112 pinout, ground pin named "AGND" — which
+#: ``_infer_role`` does not recognise, so the model types it power_in/POWER.
+_AGND_LDO = (
+    pinspec("1", "VIN", "power_in", "power"),
+    pinspec("2", "AGND", "power_in", "power"),
+    pinspec("3", "EN", "input", "control"),
+    pinspec("4", "NC", "no_connect", "nc"),
+    pinspec("5", "VOUT", "power_out", "power"),
+)
+
+
+@pytest.mark.parametrize("gnd_name", ["AGND", "PGND", "0V", "COM", "SUB"])
+def test_ldo_regulator_refuses_to_wire_an_unclassifiable_power_in_pin(
+        monkeypatch, gnd_name):
+    """A ground pin the part model failed to role must ABORT, not reach VIN."""
+    specs = tuple(pinspec(p.pad, gnd_name if p.name == "AGND" else p.name,
+                          p.etype, p.role)
+                  for p in _AGND_LDO)
+    _serve(monkeypatch, "MisroledLDO", _fake_part("MisroledLDO", specs))
+
+    d = Design("agnd-ldo")
+    with pytest.raises(ValueError) as excinfo:
+        ldo_regulator(d, "VBUS", "+3V3", "GND", part="MisroledLDO")
+    message = str(excinfo.value)
+    assert gnd_name in message, message          # names the pin
+    assert "MisroledLDO" in message, message     # names the part
+    # All-or-nothing: nothing was registered and no net was created.
+    assert d.components == [] and d.nets == []
+
+
+def test_ldo_regulator_refuses_an_unknown_power_in_pin_name(monkeypatch):
+    """Not only ground-looking names: anything it cannot positively call the
+    input supply is refused rather than guessed onto VIN."""
+    specs = tuple(pinspec(p.pad, "VMYSTERY" if p.name == "AGND" else p.name,
+                          p.etype, p.role)
+                  for p in _AGND_LDO)
+    _serve(monkeypatch, "MysteryLDO", _fake_part("MysteryLDO", specs))
+
+    d = Design("mystery-ldo")
+    with pytest.raises(ValueError, match="VMYSTERY"):
+        ldo_regulator(d, "VBUS", "+3V3", "GND", part="MysteryLDO")
+    assert d.components == [] and d.nets == []
+
+
+def test_ldo_regulator_wires_a_correctly_roled_ground_whatever_its_name(
+        monkeypatch):
+    """The role is the contract. A pin roled GROUND goes to GND even when
+    its name is one this block would otherwise refuse."""
+    specs = tuple(pinspec(p.pad, "PGND" if p.name == "AGND" else p.name,
+                          p.etype, "ground" if p.name == "AGND" else p.role)
+                  for p in _AGND_LDO)
+    _serve(monkeypatch, "PGNDLDO", _fake_part("PGNDLDO", specs))
+
+    d = Design("pgnd-ldo")
+    ldo_regulator(d, "VBUS", "+3V3", "GND", part="PGNDLDO")
+    netlist = d.intended_netlist()
+    assert "U1:2" in netlist["GND"], netlist
+    assert "U1:2" not in netlist["VBUS"], netlist
 
 
 # ---------------------------------------------------------------------------
@@ -414,13 +656,40 @@ def test_push_button_alone():
 
 
 def test_push_button_with_series_resistor_and_debounce():
+    """series_r + debounce_c on a plain GPIO — deliberately NOT IO0.
+
+    This used to be exercised on ``mcu.gpio(0)``, which gated in the exact
+    thing the cited section warns against: HDG, Strapping Pins — "Do not add
+    high-value capacitors at GPIO0, or the chip may enter download mode."
+    DevKitC-1 V1.1 marks C13, the debounce capacitor on IO0, as (NC) for
+    that reason. A debounce capacitor belongs on EN (DS Figure 9-1 fits C8
+    0.1uF there) or on a plain GPIO, so that is what this models.
+    """
     d = Design("button-rc")
     mcu = _rails(d, _mcu(), tie_en=True)
-    block = push_button(d, mcu.gpio(0), "GND", series_r="470R",
-                        debounce_c="100nF", net_name="IO0")
+    block = push_button(d, mcu.gpio(38), "GND", series_r="470R",
+                        debounce_c="100nF", net_name="IO38")
     _no_errors(d)
     values = [getattr(c, "value", None) for c in block.components]
     assert "470R" in values and "100nF" in values
+
+
+def test_push_button_carries_the_gpio0_capacitor_warning():
+    """The block cites the DevKit's SW1 (BOOT -> IO0) but omitted the HDG
+    warning that decides whether debounce_c may be fitted there at all."""
+    d = Design("button-warning")
+    mcu = _rails(d, _mcu(), tie_en=True)
+    block = push_button(d, mcu.gpio(0), "GND", net_name="IO0")
+    assert any("Do not add high-value capacitors at GPIO0" in n
+               for n in block.notes), block.notes
+
+
+def test_push_button_flags_a_fitted_debounce_capacitor():
+    d = Design("button-caution")
+    mcu = _rails(d, _mcu(), tie_en=True)
+    plain = push_button(d, mcu.gpio(38), "GND", debounce_c="100nF",
+                        net_name="IO38")
+    assert any(n.startswith("CAUTION") for n in plain.notes), plain.notes
 
 
 def test_indicator_led_alone():
@@ -440,6 +709,54 @@ def test_indicator_led_alone():
         "+3V3_LED": {f"{res.ref}:2", f"{led.ref}:2"},
         "GND": {"U1:1", "U1:40", "U1:41", f"{led.ref}:1"},
     }
+
+
+def test_indicator_led_cites_the_devkit_power_led_at_its_real_scale():
+    """Verified against the DevKitC-1 V1.1 schematic: the 3V3 power LED is
+    VCC_3V3 -> R11 5.1K(1%) -> D5 (RED) -> GND, which is about 0.3 mA —
+    roughly 16x BELOW the 4.8 mA this block's defaults deliver, not "1K".
+    The 1K(1%) on that sheet is R16, the CP2102N reset pull-up."""
+    d = Design("led-citation")
+    _rails(d, _mcu(), tie_en=True)
+    block = indicator_led(d, "+3V3", "GND")
+    joined = " ".join(block.notes)
+    assert "R11, 5.1K(1%)" in joined, joined
+    assert "D5" in joined and "RED" in joined, joined
+    assert "0.3 mA" in joined, joined
+    assert "R16" not in joined, joined
+
+
+# --- the positional polarity fallback ---------------------------------------
+#
+# _named_pin(led, ("A", "ANODE", "+"), fallback=1) resolved to comp.pins[1] —
+# an index into the DECLARATION ORDER of _PIN_SPECS, not comp.pin_by_pad("2").
+# The generated Device:LED happens to declare pad 1 (K) first, so pins[1] is
+# the anode by luck. Reverse the declaration order and the same code wires the
+# diode backwards — exactly the failure its own docstring warns about.
+
+#: A Device:LED-shaped part with unhelpful pin names (so the name lookup
+#: misses and the fallback is what decides polarity) declared ANODE-FIRST.
+_REVERSED_LED = (
+    pinspec("2", "~", "passive", "passive"),
+    pinspec("1", "~", "passive", "passive"),
+)
+
+
+def test_indicator_led_polarity_is_resolved_by_pad_not_position(monkeypatch):
+    """Pad 2 is the anode and pad 1 the cathode however the part declares
+    them: the KiCad Device:LED contract is about PADS."""
+    cls = _fake_part("ReversedLED", _REVERSED_LED, prefix="D")
+    assert cls().pins[1].pad == "1", "the fixture must be declared anode-first"
+    _serve(monkeypatch, "Device:LED", cls)
+
+    d = Design("reversed-led")
+    _rails(d, _mcu(), tie_en=True)
+    block = indicator_led(d, "+3V3", "GND", color="green")
+    res, led = block.components
+    netlist = d.intended_netlist()
+    assert netlist["+3V3_LED"] == {f"{res.ref}:2", f"{led.ref}:2"}, netlist
+    assert f"{led.ref}:1" in netlist["GND"], netlist
+    _no_errors(d)
 
 
 def test_indicator_led_resistor_follows_its_parameters():
