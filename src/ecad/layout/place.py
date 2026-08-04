@@ -58,8 +58,26 @@ Y_START = 25.4        # mm — top of every initial rank stack
 MIN_GAP = max(PIN_PITCH, 2 * GRID) + 5.08   # vertical node gap incl. text margin
 CHANNEL_MIN = 12.7    # mm — narrowest inter-rank wiring channel
 CHANNEL_MAX = 63.5    # mm — widest inter-rank wiring channel
-SAT_GAP = 7.62        # mm — owner bottom edge → satellite row top
-SAT_PITCH = 7.62      # mm — cap-to-cap x pitch within a row
+#: A rank taller than this wraps into another sub-column. Before wrapping,
+#: the ESP32-S3 MCU sheet was 308 mm of content in a 65 mm column — off the
+#: bottom of an A3, with 80% of the sheet blank.
+#:
+#: Wrapping is NOT unconditionally safe, so this is a budget to try, not a
+#: rule: moving a node sideways moves its net-label stub with it, and that
+#: stub can land on another net's trunk wire. ``engine.layout`` therefore
+#: tries :data:`WRAP_BUDGETS` in order and keeps the first that passes the
+#: geometric lint, ending at ``inf`` — the unwrapped layout, which is the
+#: behaviour that shipped before.
+WRAP_HEIGHT = 120.0
+WRAP_BUDGETS: tuple[float, ...] = (120.0, 165.0, math.inf)
+WRAP_GAP = 15.24      # mm — gap between a rank's sub-columns
+#: Owner bottom edge → satellite row centre. 7.62 mm left the row's shared
+#: rail wire and its rail symbol's name drawn along the owner's own Value.
+SAT_GAP = 12.7
+#: Cap-to-cap x pitch within a satellite row. 7.62 mm packed the caps so
+#: tightly that each one's value ("100nF" is ~5 mm of text) was drawn across
+#: its neighbour's plates; a cap plus its fields needs ~10 mm.
+SAT_PITCH = 10.16
 SAT_SIZE = (5.08, 7.62)   # mm — nominal decoupling-cap bbox (w, h)
 # half-height of what engine.emit actually draws BELOW a cap centre: the body
 # plus the ground symbol one pin pitch under the bottom pin
@@ -106,8 +124,56 @@ def _overlaps(
     )
 
 
+def _wrap_rank(ids: list[str], nodes, loose: set[str],
+               budget: float) -> list[list[str]]:
+    """Split one rank's stack into sub-columns so it stops running off the page.
+
+    Only ``loose`` nodes — those with no routed edge at all, i.e. a passive
+    whose two ends are a power tap and a net label — may leave the first
+    sub-column. Those are exactly the nodes lengthening the column without
+    contributing to the left-to-right flow, and they carry no trunk wire
+    that a sideways move would drag across their old neighbours.
+
+    They do still carry a 2.54 mm label stub, which CAN land on another
+    net's trunk. That is why ``budget`` is offered by the caller rather than
+    fixed here: the engine tries the budgets in turn and keeps the first
+    whose routing passes the geometric lint.
+    """
+    stacks: list[list[str]] = [[]]
+    heights: list[float] = [0.0]
+
+    def add(col: int, nid: str) -> None:
+        while len(stacks) <= col:
+            stacks.append([])
+            heights.append(0.0)
+        heights[col] += nodes[nid].size[1] + (MIN_GAP if stacks[col] else 0.0)
+        stacks[col].append(nid)
+
+    for nid in ids:
+        if nid not in loose:
+            add(0, nid)
+    if heights[0] <= budget:
+        # Refill the first column with loose nodes until it is full, then
+        # open the next one. Ordering within a column stays the rank order.
+        col = 0
+        for nid in ids:
+            if nid not in loose:
+                continue
+            need = nodes[nid].size[1] + (MIN_GAP if stacks[col] else 0.0)
+            if stacks[col] and heights[col] + need > budget:
+                col += 1
+            add(col, nid)
+    else:
+        for nid in ids:                 # column 0 is already over budget
+            if nid in loose:
+                add(0, nid)
+    # Restore rank order inside each column (add() above preserves it).
+    return [s for s in stacks if s]
+
+
 def coordinates(
-    graph: SchematicGraph, ranking: Ranking, ordering: Ordering
+    graph: SchematicGraph, ranking: Ranking, ordering: Ordering,
+    wrap_height: float = WRAP_HEIGHT,
 ) -> Placement:
     """Assign snapped schematic-space coordinates (see module docstring)."""
     ranks = ordering.order
@@ -115,13 +181,41 @@ def coordinates(
     nodes = graph.nodes
     rank_of = ranking.rank_of
 
+    # ── incidence + port-dy lookup for refinement ───────────────────────────
+    port_dy: dict[tuple[str, str], float] = {}
+    for edge in graph.edges:
+        for nid, pnum in edge.ports:
+            key = (edge.net, nid)
+            if key not in port_dy and nid in nodes:
+                port_dy[key] = nodes[nid].port(pnum).offset[1]
+
+    incident: dict[str, list[tuple[str, str]]] = {i: [] for ids in ranks for i in ids}
+    for net, a, b in ranking.segments:
+        incident[a].append((net, b))
+        incident[b].append((net, a))
+
+    # ── sub-columns: keep a rank from growing past the page ─────────────────
+    loose = {nid for ids in ranks for nid in ids if not incident[nid]}
+    sub_cols: list[list[list[str]]] = [
+        _wrap_rank(ids, nodes, loose, wrap_height) for ids in ranks]
+    sub_of: dict[str, int] = {}
+    for cols in sub_cols:
+        for j, col in enumerate(cols):
+            for nid in col:
+                sub_of[nid] = j
+
     # ── columns: widths, channels, x origins ────────────────────────────────
+    sub_width: list[list[float]] = []
     col_width: list[float] = []
-    for ids in ranks:
+    for cols in sub_cols:
         widths = [
-            nodes[i].size[0] for i in ids if nodes[i].kind is not NodeKind.VIRTUAL
+            max((nodes[i].size[0] for i in col
+                 if nodes[i].kind is not NodeKind.VIRTUAL), default=0.0)
+            for col in cols
         ]
-        col_width.append(max(widths, default=0.0))
+        sub_width.append(widths)
+        span = sum(widths) + WRAP_GAP * max(len(widths) - 1, 0)
+        col_width.append(span)
 
     tracks = [0] * max(n - 1, 0)
     for _net, a, b in ranking.segments:
@@ -139,38 +233,36 @@ def coordinates(
     ]
 
     xs: dict[str, float] = {}
-    for r, ids in enumerate(ranks):
-        for nid in ids:
-            xs[nid] = snap(col_x_raw[r] + (col_width[r] - nodes[nid].size[0]) / 2.0)
+    for r, cols in enumerate(sub_cols):
+        left = col_x_raw[r]
+        for j, col in enumerate(cols):
+            for nid in col:
+                xs[nid] = snap(
+                    left + (sub_width[r][j] - nodes[nid].size[0]) / 2.0)
+            left += sub_width[r][j] + WRAP_GAP
 
-    # ── initial y: stack each rank in ordering order ────────────────────────
+    # ── initial y: stack each sub-column in ordering order ──────────────────
     ys: dict[str, float] = {}
-    for ids in ranks:
-        y = Y_START
-        for nid in ids:
-            ys[nid] = snap(y)
-            y = ys[nid] + nodes[nid].size[1] + MIN_GAP
-
-    # ── incidence + port-dy lookup for refinement ───────────────────────────
-    port_dy: dict[tuple[str, str], float] = {}
-    for edge in graph.edges:
-        for nid, pnum in edge.ports:
-            key = (edge.net, nid)
-            if key not in port_dy and nid in nodes:
-                port_dy[key] = nodes[nid].port(pnum).offset[1]
-
-    incident: dict[str, list[tuple[str, str]]] = {i: [] for ids in ranks for i in ids}
-    for net, a, b in ranking.segments:
-        incident[a].append((net, b))
-        incident[b].append((net, a))
+    for cols in sub_cols:
+        for col in cols:
+            y = Y_START
+            for nid in col:
+                ys[nid] = snap(y)
+                y = ys[nid] + nodes[nid].size[1] + MIN_GAP
 
     def prio_key(nid: str) -> tuple[int, int, str]:
         virt = nodes[nid].kind is NodeKind.VIRTUAL
         return (0 if virt else 1, -len(incident[nid]), nid)
 
     def refine(r: int, nbr: int) -> None:
-        """One Sander pass over rank r, targeting neighbours in rank nbr."""
-        ids = ranks[r]
+        """One Sander pass over rank r, targeting neighbours in rank nbr.
+
+        Only the rank's FIRST sub-column: everything wrapped into a later one
+        is loose by construction, has no neighbour to align to, and would
+        otherwise act as a phantom wall on nodes it no longer shares a
+        column with.
+        """
+        ids = sub_cols[r][0]
         pos = {nid: i for i, nid in enumerate(ids)}
 
         def sweep_targets(nid: str) -> list[float]:
@@ -217,6 +309,24 @@ def coordinates(
         refine(r, r - 1)
     for r in range(n - 2, -1, -1):  # up sweep: east neighbours
         refine(r, r + 1)
+
+    # ── normalise: the drawing starts at the top-left of the frame ──────────
+    # The y refinement sweeps are free to move a node above Y_START, and on
+    # the ESP32-S3 MCU sheet they moved two of them 12.7 mm ABOVE the page
+    # origin — off the top of the paper, where no page size can rescue them.
+    # Shifting every origin by one constant preserves relative geometry
+    # exactly (routing is computed from these origins afterwards), so this
+    # cannot change a single connection.
+    if xs and ys:
+        dx = X_START - min(xs.values())
+        dy = Y_START - min(ys.values())
+        if dx or dy:
+            for nid in xs:
+                xs[nid] = snap(xs[nid] + dx)
+                ys[nid] = snap(ys[nid] + dy)
+            col_x = [snap(v + dx) for v in col_x]
+            col_x_raw = [v + dx for v in col_x_raw]
+            channel_x = [(snap(a + dx), snap(b + dx)) for a, b in channel_x]
 
     origin = {nid: (xs[nid], ys[nid]) for ids in ranks for nid in ids}
 

@@ -12,6 +12,7 @@ a no_connect marker (the ERC==0 gate demands it).
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -23,6 +24,7 @@ from . import rank as rank_mod
 from . import route as route_mod
 from .graph_build import build
 from .ir import (
+    GRID,
     PIN_PITCH,
     Metrics,
     PlacedSheet,
@@ -31,11 +33,24 @@ from .ir import (
     snap,
     wires_short,
 )
+from .page import MARGIN, PageFit, fit_page
 
 # Satellite cap emission geometry (Device:C stub: pins at center ±3.81).
 _CAP_PIN_DY = 3.81
 _CAP_PITCH = 7.62
 _STUB = PIN_PITCH  # power-tap stub length
+
+#: Advance width of one character at the 1.27 mm text size everything here
+#: emits, MEASURED off kicad-cli's own SVG rather than assumed:
+#: "ESP32-S3-WROOM-1" comes out 22.4 mm wide, i.e. 1.4 mm per character.
+#: Guessing 0.72 em from the font metrics under-measured every field by half
+#: and left visible collisions the checker called clean.
+_CHAR_W = 1.4
+_TEXT_HALF_H = 0.9   # mm — half the drawn height of a 1.27 mm text line
+
+
+class PageOverflow(UserWarning):
+    """The drawing does not fit the largest standard sheet."""
 
 
 @dataclass
@@ -50,17 +65,68 @@ class EmittedSheet:
     junctions: dict[str, list[tuple[float, float]]] = field(
         default_factory=dict)
     """Likewise every junction in the file, keyed by net."""
+    page: PageFit | None = None
+    #: Human-readable notes about the sheet's draughting (page overflow).
+    warnings: tuple[str, ...] = field(default_factory=tuple)
+
+
+def _text_box(x: float, y: float, text: str, justify: str = "",
+              angle: int = 0) -> tuple[float, float, float, float]:
+    """Bounding box of a drawn text item, from its anchor and rotation.
+
+    Net labels on a top or bottom pin stub are drawn at 90/270 and run UP
+    the page, so their box is tall and thin — measuring them as if they were
+    horizontal is how a rail name ends up written through one.
+    """
+    w = len(text) * _CHAR_W
+    if angle in (90, 270):
+        lo, hi = ((y - w, y) if angle == 270 else (y, y + w))
+        return (x - _TEXT_HALF_H, lo, x + _TEXT_HALF_H, hi)
+    if "left" in justify:
+        x0, x1 = x, x + w
+    elif "right" in justify:
+        x0, x1 = x - w, x
+    else:
+        x0, x1 = x - w / 2, x + w / 2
+    return (x0, y - _TEXT_HALF_H, x1, y + _TEXT_HALF_H)
+
+
+def _hits(box: tuple[float, float, float, float],
+          taken: list[tuple[float, float, float, float]]) -> bool:
+    ax0, ay0, ax1, ay1 = box
+    return any(ax0 < bx1 and bx0 < ax1 and ay0 < by1 and by0 < ay1
+               for bx0, by0, bx1, by1 in taken)
 
 
 def layout(design: Design, sheet: str = "main",
            graph: SchematicGraph | None = None) -> PlacedSheet:
+    """Rank → order → place → route one sheet.
+
+    Placement is tried at each wrap budget in turn (tightest first) and the
+    first result that passes the geometric lint wins; the last budget is
+    "do not wrap", the pre-existing behaviour, so a sheet can only ever come
+    out as good as it did before. Wrapping is what stops a long column of
+    strapping resistors running off the bottom of the page, but it moves
+    their net-label stubs with them, and a stub can land on another net's
+    trunk wire — a short. Verifying beats assuming.
+    """
+    from . import lints
+
     g = graph if graph is not None else build(design, sheet=sheet)
     ranking = rank_mod.assign(g)
     ordering = order_mod.minimize(g, ranking)
-    placement = place_mod.coordinates(g, ranking, ordering)
-    routing = route_mod.route(g, ranking, ordering, placement)
-    return PlacedSheet(graph=g, ranking=ranking, ordering=ordering,
-                       placement=placement, routing=routing)
+    best: tuple[int, PlacedSheet] | None = None
+    for budget in place_mod.WRAP_BUDGETS:
+        placement = place_mod.coordinates(g, ranking, ordering, budget)
+        routing = route_mod.route(g, ranking, ordering, placement)
+        candidate = PlacedSheet(graph=g, ranking=ranking, ordering=ordering,
+                                placement=placement, routing=routing)
+        errors = len(lints.lint_placed(candidate))
+        if errors == 0:
+            return candidate
+        if best is None or errors < best[0]:
+            best = (errors, candidate)
+    return best[1]
 
 
 def label_anchors(placed: PlacedSheet) -> dict[str, list[tuple[float, float, int]]]:
@@ -118,6 +184,46 @@ def _free_tap(reserved: set[tuple[float, float]],
     return candidates[-1]
 
 
+def _content_box(boxes: list[tuple[float, float, float, float]],
+                 ) -> tuple[float, float, float, float]:
+    """Union of every drawn thing, padded by the drawing-sheet border.
+
+    The pad is what makes the result answerable by :func:`fit_page`: a page
+    "fits" only when the whole drawing sits inside the frame, and the union
+    of the content alone says nothing about the frame.
+    """
+    if not boxes:
+        return (MARGIN, MARGIN, MARGIN, MARGIN)
+    return (round(min(b[0] for b in boxes), 4),
+            round(min(b[1] for b in boxes), 4),
+            round(max(b[2] for b in boxes), 4),
+            round(max(b[3] for b in boxes), 4))
+
+
+def _satellite_lib_entry(alias: str, model: SymbolModel | None,
+                         lib_id: str) -> str:
+    """lib_symbols entry for a decoupling cap placed in a satellite row.
+
+    Row wiring assumes the vertical two-pin stub geometry (pins at
+    ``(0, ±3.81)``), so the part's own symbol may only be used when it
+    really has that geometry — which a preserved ``Device:C`` does, because
+    that IS where KiCad puts its pins. Using it matters: the alias branch
+    used to emit ``gen_passive_stub``, a symbol with two pins and NO body,
+    so every satellite cap on a sheet that also placed a ``Device:C`` in the
+    signal path rendered as two floating wire ends.
+    """
+    from ..emit import gen_passive_stub, get_stub
+
+    if model is not None:
+        pins = model.units[0].pins if len(model.units) == 1 else ()
+        if len(pins) == 2 and all(
+                p.x == 0 and abs(p.y) == _CAP_PIN_DY for p in pins):
+            return model.to_inline_sexp_multi(alias)
+    if alias == lib_id:
+        return get_stub(lib_id) or gen_passive_stub(lib_id)
+    return gen_passive_stub(alias)
+
+
 def metrics_of(placed: PlacedSheet) -> Metrics:
     two_pin_routed = straight = 0
     for e in placed.graph.edges:
@@ -161,6 +267,7 @@ def emit(placed: PlacedSheet, design: Design,
     two flags on one net is a power-output conflict at project ERC.
     """
     from ..emit import (
+        DEFAULT_FIELDS,
         ComponentPlacement,
         NetConnection,
         _gen_junction,
@@ -170,9 +277,8 @@ def emit(placed: PlacedSheet, design: Design,
         _gen_wire,
         _uuid,
         deterministic_uuids,
-        gen_passive_stub,
         gen_symbol_instance,
-        get_stub,
+        power_label_offset,
         power_symbol_lib_sexp,
     )
 
@@ -183,6 +289,12 @@ def emit(placed: PlacedSheet, design: Design,
     comps = {c.ref: c for c in design.components}
     models = {ref: SymbolModel.from_component(c, style="readable")
               for ref, c in comps.items()}
+    # Satellite caps hang vertically between a rail wire and a ground symbol,
+    # so they need the source symbol's own upright geometry, not the
+    # laid-flat one the signal path uses.
+    upright = {ref: SymbolModel.from_component(c, style="readable",
+                                               lay_flat=False)
+               for ref, c in comps.items()}
 
     with deterministic_uuids(name):
         root_uuid = _uuid()
@@ -226,13 +338,18 @@ def emit(placed: PlacedSheet, design: Design,
             for s in sats:
                 if s.lib_id in sat_lib:
                     continue
-                if s.lib_id in seen_libs:
-                    alias = f"{s.lib_id}_dec"
-                    lib_entries.append(gen_passive_stub(alias))
-                else:
-                    alias = s.lib_id
-                    lib_entries.append(get_stub(s.lib_id)
-                                       or gen_passive_stub(s.lib_id))
+                # The alias exists whenever the row's upright geometry is not
+                # what this sheet already published under that lib_id — either
+                # because a placed part claimed the name, or because the
+                # signal-path variant is laid flat and this one is not. One
+                # lib_id must never name two different drawings.
+                flat, up = models.get(s.ref), upright.get(s.ref)
+                differs = flat is not up and (
+                    flat is None or up is None
+                    or flat.units[0].pins != up.units[0].pins)
+                alias = (f"{s.lib_id}_dec"
+                         if s.lib_id in seen_libs or differs else s.lib_id)
+                lib_entries.append(_satellite_lib_entry(alias, up, s.lib_id))
                 seen_libs.add(alias)
                 sat_lib[s.lib_id] = alias
 
@@ -248,6 +365,49 @@ def emit(placed: PlacedSheet, design: Design,
             gen_wires.setdefault(net, []).append(w)
 
         pwr_instances: list[tuple[str, float, float, bool]] = []
+        # Every text item already committed to the sheet. Power-symbol names
+        # are placed last and steered clear of these.
+        text_boxes: list[tuple[float, float, float, float]] = []
+        # Everything drawn, for choosing the page size.
+        extent: list[tuple[float, float, float, float]] = []
+
+        def claim_fields(pos: tuple[float, float], model: SymbolModel,
+                         unit: int, ref: str, value: str):
+            """Reference/Value offsets for one instance, nudged clear.
+
+            The symbol says where its fields belong; this says where they
+            actually fit. Each field starts at the symbol's offset and steps
+            FURTHER FROM the body along the axis that separates it from its
+            partner — the reference away above, the value away below — until
+            it clears everything already drawn. A field that cannot be
+            cleared in 8 steps keeps its last position: an overlapping label
+            is bad, one dragged 20 mm from the part it names is worse.
+            """
+            placed = []
+            x, y = pos
+            for dx, dy, just, text in (
+                    (*model.field_offsets(unit)[0], ref),
+                    (*model.field_offsets(unit)[1], value)):
+                step = GRID if dy >= 0 else -GRID
+                for k in range(9):
+                    ndy = dy + step * k
+                    box = _text_box(x + dx, y - ndy, text, just)
+                    if not _hits(box, text_boxes):
+                        break
+                dy = ndy
+                text_boxes.append(box)
+                extent.append(box)
+                placed.append((dx, dy, just))
+            return (tuple(placed[0]), tuple(placed[1]))
+
+        # Labels are anchored to wire ends and cannot move, so they are the
+        # fixed obstacles every movable field is measured against.
+        for _net, entries in sorted(rt.label_at.items()):
+            for _anchor, lx, ly, angle in entries:
+                just = "right" if angle == 180 else "left"
+                text_boxes.append(
+                    _text_box(snap(lx), snap(ly), _net, just, angle))
+                extent.append(text_boxes[-1])
 
         # ── placed units ───────────────────────────────────────────────────
         placed_port_pts: dict[tuple[str, str], tuple[float, float]] = {}
@@ -256,15 +416,21 @@ def emit(placed: PlacedSheet, design: Design,
                 continue
             ox, oy = pl.origin[nid]
             model = models[node.ref]
-            w_tot, h_tot = model.node_size(node.unit)
-            anchor = (snap(ox + w_tot / 2), snap(oy + h_tot / 2))
+            # The symbol's own origin, not the middle of its bbox: preserved
+            # artwork is routinely off-centre, and placing it by the centre
+            # would slide every pin off the wires the router computed.
+            ax, ay = model.node_anchor(node.unit)
+            anchor = (snap(ox + ax), snap(oy + ay))
             comp = comps[node.ref]
+            value = getattr(comp, "value", "") or comp.part_name
             body.append(gen_symbol_instance(ComponentPlacement(
-                lib_id=lib_alias[node.ref], ref=node.ref,
-                value=getattr(comp, "value", "") or comp.part_name,
+                lib_id=lib_alias[node.ref], ref=node.ref, value=value,
                 footprint=comp.footprint.lib_id if comp.footprint else "",
-                position=anchor, unit=node.unit), project, root_uuid,
-                [p.number for p in node.ports]))
+                position=anchor, unit=node.unit,
+                fields=claim_fields(anchor, model, node.unit, node.ref, value)),
+                project, root_uuid, [p.number for p in node.ports]))
+            w_tot, h_tot = model.node_size(node.unit)
+            extent.append((ox, oy, ox + w_tot, oy + h_tot))
             for port in node.ports:
                 placed_port_pts[(nid, port.number)] = (
                     snap(ox + port.offset[0]), snap(oy + port.offset[1]))
@@ -286,9 +452,20 @@ def emit(placed: PlacedSheet, design: Design,
             for _anchor, lx, ly, _angle in entries:
                 reserved.add((snap(lx), snap(ly)))
 
+        # Official symbols STACK parallel pads on one coordinate — KiCad's
+        # USB-C receptacle draws its four VBUS pads and its four GND pads at
+        # a single point each, which is precisely how it says "one wire
+        # serves all of these". Emitting a power symbol per pad put four
+        # glyphs and four names on top of each other. One tap per
+        # (point, rail) is the same netlist — a wire end at that point
+        # connects every pin there — and one readable symbol.
+        stacked: set[tuple[float, float, str]] = set()
         for nid, node in sorted(g.nodes.items()):
             for tap in sorted(node.power_taps, key=lambda t: t.port_number):
                 px, py = placed_port_pts[(nid, tap.port_number)]
+                if (px, py, tap.rail) in stacked:
+                    continue
+                stacked.add((px, py, tap.rail))
                 port = node.port(tap.port_number)
                 if port.side in (Side.TOP, Side.BOTTOM):
                     dy = -_STUB if port.side is Side.TOP else _STUB
@@ -331,10 +508,15 @@ def emit(placed: PlacedSheet, design: Design,
                 # pad 2 to the rail, rotate the body 180 so the rail pad is
                 # the one that meets the rail wire
                 flip = s.rail_pad != "1"
+                sat_model = upright.get(s.ref)
+                sat_pos = (snap(cx), snap(cy))
                 body.append(gen_symbol_instance(ComponentPlacement(
                     lib_id=sat_lib[s.lib_id], ref=s.ref, value=s.value,
                     footprint=s.footprint, rotation=180 if flip else 0,
-                    position=(snap(cx), snap(cy))), project, root_uuid))
+                    position=sat_pos,
+                    fields=(claim_fields(sat_pos, sat_model, 1, s.ref, s.value)
+                            if sat_model else DEFAULT_FIELDS)),
+                    project, root_uuid))
                 top = (snap(cx), snap(cy - _CAP_PIN_DY))
                 bot = (snap(cx), snap(cy + _CAP_PIN_DY))
                 rail_tops.setdefault(s.rail, []).append(top)
@@ -446,10 +628,25 @@ def emit(placed: PlacedSheet, design: Design,
 
         for pname in sorted(power_names):
             lib_entries.append(power_symbol_lib_sexp(pname))
+        # A power symbol's NAME is the only thing that says which rail it is,
+        # so two of them overlapping is a correctness-grade defect, not a
+        # cosmetic one. Each name starts at its natural offset and is stepped
+        # further from its glyph until it clears every text already on the
+        # sheet. Order is the emission order, which is deterministic.
         for i, (rail, x, y, down) in enumerate(pwr_instances, start=1):
+            base = power_label_offset(rail, down)
+            step = GRID if base >= 0 else -GRID
+            dy = base
+            for k in range(0, 8):
+                dy = round(base + step * k, 4)
+                if not _hits(_text_box(x, y + dy, rail), text_boxes):
+                    break
+            text_boxes.append(_text_box(x, y + dy, rail))
+            extent.append(text_boxes[-1])
+            extent.append((x - 1.27, y - 2.54, x + 1.27, y + 2.54))
             body.append(_gen_power_instance(
                 rail, f"#PWR{i:02d}", x, y, 180 if down else 0,
-                project, root_uuid))
+                project, root_uuid, label_dy=dy))
 
         # ── no_connect on every untouched pin ──────────────────────────────
         touched: set[tuple[str, str]] = set()
@@ -466,6 +663,18 @@ def emit(placed: PlacedSheet, design: Design,
         wire_lines = [_gen_wire(w.x1, w.y1, w.x2, w.y2) for w in wires]
         junction_lines = [_gen_junction(x, y) for x, y in junctions]
 
+        # ── page: the smallest standard sheet the drawing actually fits ────
+        for w in wires:
+            extent.append((min(w.x1, w.x2), min(w.y1, w.y2),
+                           max(w.x1, w.x2), max(w.y1, w.y2)))
+        page = fit_page(_content_box(extent))
+        notes: list[str] = []
+        if not page.fits:
+            notes.append(
+                f"{name}: drawing does not fit any standard sheet — "
+                f"{page.overflow}; emitted on {page.name} anyway")
+            warnings.warn(notes[-1], PageOverflow, stacklevel=2)
+
         lib_symbols = "\n\t\t".join(lib_entries)
         parts = "\n".join(label_lines + wire_lines + junction_lines
                           + body + nc_lines)
@@ -474,7 +683,7 @@ def emit(placed: PlacedSheet, design: Design,
 \t(generator "hardware-pipeline")
 \t(generator_version "1.0")
 \t(uuid "{root_uuid}")
-\t(paper "A3")
+\t(paper "{page.name}")
 \t(lib_symbols
 \t\t{lib_symbols}
 \t)
@@ -488,5 +697,6 @@ def emit(placed: PlacedSheet, design: Design,
 )
 """
     return EmittedSheet(text=text, metrics=metrics_of(placed),
-                        wires=gen_wires, junctions=gen_junctions)
+                        wires=gen_wires, junctions=gen_junctions,
+                        page=page, warnings=tuple(notes))
 
