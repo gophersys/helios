@@ -4,11 +4,14 @@
     report = check(design)
     report.ok          # errors == 0 after waivers
 
-Importing this package registers every shipped rule pack (power today), so
-:func:`rules` is populated without the caller naming a domain module.
+Importing this package registers every shipped rule pack (``power`` and
+``gpio`` today), so :func:`rules` is populated without the caller naming a
+domain module.
 
 See :mod:`src.ecad.rules.engine` for the contract (context, waivers,
-report) and :mod:`src.ecad.rules.power` for the rules and their citations.
+report), :mod:`src.ecad.rules.power` for the power rules and
+:mod:`src.ecad.rules.gpio` for the strapping / GPIO rules, each with their
+citations.
 """
 
 from __future__ import annotations
@@ -34,8 +37,11 @@ from .engine import (
     rules,
 )
 
-# Registers the power pack (rules + its cited datasheet-facts provider).
-from . import power  # noqa: E402,F401  (import for side effect, must come last)
+# Registers the shipped packs: power (rules + its cited datasheet-facts
+# provider) and gpio (strapping / input-only / ADC). Import for side effect,
+# so these must come last.
+from . import gpio  # noqa: E402,F401
+from . import power  # noqa: E402,F401
 
 __all__ = [
     "CapView",
@@ -52,6 +58,7 @@ __all__ = [
     "Waiver",
     "check",
     "get_rule",
+    "gpio",
     "load_waivers",
     "power",
     "register_facts",
