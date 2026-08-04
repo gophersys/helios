@@ -10,6 +10,7 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 1,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,7 +23,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "f0046776979601cc4a36c848f284745e6f7bfefc761fcbd9dcf631f75fa5a659",
-    "md_sha256": "9c096e556fb0123028d92db723e5102dc67d1b4f40cceef1e002959ea6d240e9",
+    "md_sha256": "9332a1f7e305461600ef4aebedd734a8fc3fc96ff541f8d999ee456af5931ef5",
     "py_sha256": "76b5bc9aa17747258ada458a686b4e4f462e4a23609b686f2f9b4ae6156b8f04"
   },
   "id": "inductor",

@@ -10,6 +10,7 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 2,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,7 +23,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "c33f2111b32a16ad19c5c669874d9df026ea506c9e33830cac46e1eed1a46362",
-    "md_sha256": "5ff2328b04b8e9c24acc22bf37b0d2c84611fbf307dcbe03df6dbabcf33b1b4b",
+    "md_sha256": "009a796ea8d53e62b87953f6b1cb8afa802b0256dbcd323d10fa41784d36728a",
     "py_sha256": "db7555b83a2f1322c6cfaa11b3c774f76d98ee7b09745c061c0ee41cd3c0aecf"
   },
   "id": "ferritebead",

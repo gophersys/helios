@@ -10,6 +10,7 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 1,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,7 +23,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "0e7c87bbf3b9f76db2058be3a319994106a0c6c0e84254150c6262a6d56af6f0",
-    "md_sha256": "2377f59bc211019f31937be74e8562afa4608b56ff0b13696ecddca144ee44da",
+    "md_sha256": "e1bf9101491149728ee492f8189170096e94e71e63407ca1e4337a9ba7308b19",
     "py_sha256": "49f67598bd0b56aecdd8c486fdac175e182305fc67c797ef892955b00b924019"
   },
   "id": "usb_c_receptacle_usb2_0_16p",
