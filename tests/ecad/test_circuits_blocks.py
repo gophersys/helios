@@ -336,6 +336,19 @@ def test_en_reset_rc_provenance_and_notes():
     assert any("10 ms" in n for n in block.notes)
 
 
+def test_en_reset_rc_carries_the_power_monitor_escalation():
+    """Same HDG section, escalation clause: for "Slow power rise or fall"
+    or an "Unstable power supply" it says to "reserve a power monitor chip
+    to reset the chip when the power supply is abnormal, and the threshold
+    of the power monitor chip is recommended to be around 3.0 V". The RC is
+    not always enough, and the block cited the section without the clause."""
+    d = Design("en-rc-escalation")
+    mcu = _rails(d, _mcu())
+    block = en_reset_rc(d, mcu.EN, "+3V3", "GND")
+    assert any("power monitor chip" in n and "3.0 V" in n
+               for n in block.notes), block.notes
+
+
 def test_en_reset_rc_accepts_a_bare_net_name():
     """Without a pin, the block still builds the RC on a named net."""
     d = Design("named")
@@ -388,6 +401,39 @@ def test_pull_resistor_is_honest_about_its_value():
     assert any(n.startswith("NOT VERIFIED") for n in block.notes)
 
 
+def test_pull_resistor_does_not_claim_the_devkit_pulls_gpio0_up():
+    """Pins the corrected GPIO0 citation against the primary sources.
+
+    ESP32-S3-DevKitC-1 V1.1 fits NO external pull-up on GPIO0: SW1 goes
+    GPIO0 -> GND and the level is held by the chip's internal weak pull-up,
+    which the HDG's *IO Pin Default Configuration* table gives for GPIO0 as
+    "IE, WPU". The DevKit's R14 10K(1%) is a (NC) pull-DOWN on pin 12
+    (SUSPEND) of the CP2102N USB-UART bridge — it is not a strapping
+    pull-up and must never be cited as one. The HDG's Strapping Pins
+    section recommends a GPIO0 pull-up but states no resistance.
+    """
+    d = Design("gpio0-citation")
+    mcu = _rails(d, _mcu())
+    block = pull_resistor(d, mcu.gpio(0), "+3V3", net_name="IO0")
+    joined = " ".join(block.notes)
+    assert "R14" not in joined, joined
+    assert "fits NO pull-up at GPIO0" in joined, joined
+    assert "IE, WPU" in joined, joined
+    assert "states no resistance value" in joined, joined
+    assert any(n.startswith("NOT VERIFIED") for n in block.notes)
+
+
+def test_pull_resistor_carries_the_gpio0_capacitor_warning():
+    """HDG, Strapping Pins: "Do not add high-value capacitors at GPIO0, or
+    the chip may enter download mode." The section is cited; the warning it
+    contains was omitted."""
+    d = Design("gpio0-cap-warning")
+    mcu = _rails(d, _mcu())
+    block = pull_resistor(d, mcu.gpio(0), "+3V3", net_name="IO0")
+    assert any("Do not add high-value capacitors at GPIO0" in n
+               for n in block.notes), block.notes
+
+
 def test_pull_resistor_refuses_to_pull_a_net_to_itself():
     d = Design("silly")
     _rails(d, _mcu())
@@ -420,11 +466,43 @@ def test_ldo_regulator_cites_the_part_datasheet():
     block = ldo_regulator(d, "VBUS", "+3V3", "GND", part="AP2112K-3.3")
     assert "AP2112" in block.provenance.source
     assert block.provenance.url.endswith("AP2112.pdf")
-    # The datasheet minimum is 1 uF; the 10 uF default exceeds it on purpose
-    # and the block says so rather than pretending 10 uF is the cited value.
+    # The datasheet characterizes the part at 1 uF; the 10 uF default exceeds
+    # that on purpose and the block says so rather than pretending 10 uF is
+    # the cited value. (It is NOT a stated minimum — see
+    # test_ldo_regulator_does_not_call_1uf_a_datasheet_minimum.)
     assert any("1 uF ceramic" in n for n in block.notes)
     assert any("deliberately exceed" in n for n in block.notes)
     assert any(n.startswith("NOT VERIFIED") for n in block.notes)
+
+
+def test_ap2112_provenance_cites_no_figure_number():
+    """Verified against the primary source (DS39724, downloaded from
+    diodes.com): the word "Figure" appears ZERO times in the document. The
+    typical application circuit is an unnumbered drawing on p. 2 captioned
+    "Typical Applications Circuit (Note 4)". The revision printed on every
+    page is "DS39724 Rev. 2 - 2", dated June 2017 — not "Rev. 2.0"."""
+    prov = blocks_mod.PROV_AP2112
+    assert "Figure" not in prov.section, prov.section
+    assert "Figure" not in prov.source, prov.source
+    assert "Typical Applications Circuit" in prov.section, prov.section
+    assert "DS39724 Rev. 2 - 2" in prov.source, prov.source
+    assert "June 2017" in prov.source, prov.source
+
+
+def test_ldo_regulator_does_not_call_1uf_a_datasheet_minimum():
+    """DS39724 never uses the word "minimum" about capacitance. Its feature
+    list says "Stable with 1.0uF Flexible Cap: Ceramic, Tantalum and
+    Aluminum Electrolytic", Note 4 says X7R/X5R "if 1.0uF ceramic capacitor
+    is selected", and every Electrical Characteristics table is measured at
+    CIN = COUT = 1.0uF (Ceramic). 1 uF is the characterized configuration,
+    not a floor."""
+    d = Design("ap2112-caps")
+    block = ldo_regulator(d, "VBUS", "+3V3", "GND", part="AP2112K-3.3")
+    joined = " ".join(block.notes)
+    assert "datasheet minimum" not in joined, joined
+    assert "Figure 21" not in joined, joined
+    assert "Stable with 1.0uF" in joined, joined
+    assert "DS39724 Rev. 2 - 2" in joined, joined
 
 
 def test_ldo_regulator_datasheet_capacitor_values():
@@ -578,13 +656,40 @@ def test_push_button_alone():
 
 
 def test_push_button_with_series_resistor_and_debounce():
+    """series_r + debounce_c on a plain GPIO — deliberately NOT IO0.
+
+    This used to be exercised on ``mcu.gpio(0)``, which gated in the exact
+    thing the cited section warns against: HDG, Strapping Pins — "Do not add
+    high-value capacitors at GPIO0, or the chip may enter download mode."
+    DevKitC-1 V1.1 marks C13, the debounce capacitor on IO0, as (NC) for
+    that reason. A debounce capacitor belongs on EN (DS Figure 9-1 fits C8
+    0.1uF there) or on a plain GPIO, so that is what this models.
+    """
     d = Design("button-rc")
     mcu = _rails(d, _mcu(), tie_en=True)
-    block = push_button(d, mcu.gpio(0), "GND", series_r="470R",
-                        debounce_c="100nF", net_name="IO0")
+    block = push_button(d, mcu.gpio(38), "GND", series_r="470R",
+                        debounce_c="100nF", net_name="IO38")
     _no_errors(d)
     values = [getattr(c, "value", None) for c in block.components]
     assert "470R" in values and "100nF" in values
+
+
+def test_push_button_carries_the_gpio0_capacitor_warning():
+    """The block cites the DevKit's SW1 (BOOT -> IO0) but omitted the HDG
+    warning that decides whether debounce_c may be fitted there at all."""
+    d = Design("button-warning")
+    mcu = _rails(d, _mcu(), tie_en=True)
+    block = push_button(d, mcu.gpio(0), "GND", net_name="IO0")
+    assert any("Do not add high-value capacitors at GPIO0" in n
+               for n in block.notes), block.notes
+
+
+def test_push_button_flags_a_fitted_debounce_capacitor():
+    d = Design("button-caution")
+    mcu = _rails(d, _mcu(), tie_en=True)
+    plain = push_button(d, mcu.gpio(38), "GND", debounce_c="100nF",
+                        net_name="IO38")
+    assert any(n.startswith("CAUTION") for n in plain.notes), plain.notes
 
 
 def test_indicator_led_alone():
@@ -604,6 +709,21 @@ def test_indicator_led_alone():
         "+3V3_LED": {f"{res.ref}:2", f"{led.ref}:2"},
         "GND": {"U1:1", "U1:40", "U1:41", f"{led.ref}:1"},
     }
+
+
+def test_indicator_led_cites_the_devkit_power_led_at_its_real_scale():
+    """Verified against the DevKitC-1 V1.1 schematic: the 3V3 power LED is
+    VCC_3V3 -> R11 5.1K(1%) -> D5 (RED) -> GND, which is about 0.3 mA —
+    roughly 16x BELOW the 4.8 mA this block's defaults deliver, not "1K".
+    The 1K(1%) on that sheet is R16, the CP2102N reset pull-up."""
+    d = Design("led-citation")
+    _rails(d, _mcu(), tie_en=True)
+    block = indicator_led(d, "+3V3", "GND")
+    joined = " ".join(block.notes)
+    assert "R11, 5.1K(1%)" in joined, joined
+    assert "D5" in joined and "RED" in joined, joined
+    assert "0.3 mA" in joined, joined
+    assert "R16" not in joined, joined
 
 
 # --- the positional polarity fallback ---------------------------------------

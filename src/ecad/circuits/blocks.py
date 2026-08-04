@@ -170,9 +170,16 @@ PROV_LED = Provenance(
     source="Ohm's law; IEC 60063 E24 preferred number series",
     section="series-resistor computation (see Block.notes for the arithmetic)",
 )
+#: Checked against the document itself: the word "Figure" appears ZERO
+#: times in DS39724, so there is no "Figure 21" to cite. The typical
+#: application circuit is an unnumbered drawing on p. 2 captioned "Typical
+#: Applications Circuit (Note 4)", and the revision printed on every page is
+#: "DS39724 Rev. 2 - 2", June 2017 — matching the string
+#: ``src/ecad/rules/power.py`` already uses.
 PROV_AP2112 = Provenance(
-    source="Diodes/BCD AP2112 datasheet, Rev. 2.0 (DS39724)",
-    section="Typical Application, Figure 21 + Note 4",
+    source="Diodes/BCD AP2112 datasheet, DS39724 Rev. 2 - 2 (June 2017)",
+    section="\"Typical Applications Circuit (Note 4)\", p. 2 — an unnumbered "
+            "drawing; the document contains no numbered figures",
     url=_AP2112_URL,
 )
 
@@ -740,6 +747,12 @@ def en_reset_rc(design: Design, en: Net | str | Pin, rail: Net | str | Pin,
         "10K(1%) pull-up and 1uF/16V to GND on CHIP_PU.",
         "Time constant tau = R*C = 10 ms at the defaults; raise C if the "
         "rail's ramp is slower than that.",
+        "Escalation, from the same section: an RC is not always enough. For "
+        "\"Slow power rise or fall\" or an \"Unstable power supply\" the HDG "
+        "says to \"reserve a power monitor chip to reset the chip when the "
+        "power supply is abnormal, and the threshold of the power monitor "
+        "chip is recommended to be around 3.0 V\". This block fits no "
+        "monitor — reserve one if the rail is slow or noisy.",
     ]
     if (r, c) != ("10k", "1uF"):
         notes.append(
@@ -790,11 +803,18 @@ def pull_resistor(design: Design, net: Net | str | Pin,
             "pin\" (ESP32-S3 HDG, Strapping Pins).",
             f"NOT VERIFIED: that guideline states no resistance value, and "
             f"the ESP32-S3-DevKitC-1 V1.1 schematic fits NO pull-up at GPIO0 "
-            f"at all (it leans on the chip's internal weak pull-up). The "
-            f"{value} default is the value that same schematic uses for the "
-            f"pull-up it does fit on a strap-like input — R5, 10K(1%), from "
-            f"ESP_3V3 to CHIP_PU. Override `value` when the pin's leakage or "
-            f"switching speed calls for something else.",
+            f"at all — SW1 goes GPIO0 -> GND and the high level is held by "
+            f"the chip's own internal weak pull-up (HDG, IO Pin Default "
+            f"Configuration: GPIO0 is \"IE, WPU\"). So neither source gives a "
+            f"number for this resistor. The {value} default is the value that "
+            f"same schematic uses for the pull-up it does fit on a strap-like "
+            f"input — R5, 10K(1%), from ESP_3V3 to CHIP_PU. Override `value` "
+            f"when the pin's leakage or switching speed calls for something "
+            f"else.",
+            "Same section, a warning that travels with any strapping "
+            "network: \"Do not add high-value capacitors at GPIO0, or the "
+            "chip may enter download mode\" (ESP32-S3 HDG, Strapping Pins). "
+            "This block fits no capacitor; do not add one here.",
         ),
     )
 
@@ -882,14 +902,24 @@ def ldo_regulator(design: Design, vin: Net | str | Pin,
     ]
     if is_ap2112:
         notes.append(
-            "AP2112 datasheet Rev. 2.0, Typical Application (Figure 21, "
-            "Note 4): CIN = COUT = 1 uF ceramic, X7R or X5R dielectric. That "
-            "is the datasheet minimum."
+            "AP2112 datasheet DS39724 Rev. 2 - 2 (June 2017), \"Typical "
+            "Applications Circuit (Note 4)\" on p. 2: CIN = COUT = 1 uF "
+            "ceramic. Note 4 reads \"It is recommended to use X7R or X5R "
+            "dielectric capacitor if 1.0uF ceramic capacitor is selected as "
+            "input/output capacitors.\""
         )
         notes.append(
-            f"The {cin}/{cout} defaults deliberately exceed it, following "
-            f"\"add an extra 10 uF capacitor at the main power entrance\" "
-            f"(ESP32-S3 HDG, Analog Power Supply). Pass cin='1uF', "
+            "That 1 uF is NOT a stated minimum — the datasheet never uses the "
+            "word about capacitance. Its feature list says \"Stable with "
+            "1.0uF Flexible Cap: Ceramic, Tantalum and Aluminum "
+            "Electrolytic\", and every Electrical Characteristics table is "
+            "measured at CIN = COUT = 1.0uF (Ceramic). 1 uF is the "
+            "characterized configuration, and the part is stable there."
+        )
+        notes.append(
+            f"The {cin}/{cout} defaults deliberately exceed that characterized "
+            f"1 uF, following \"add an extra 10 uF capacitor at the main power "
+            f"entrance\" (ESP32-S3 HDG, Analog Power Supply). Pass cin='1uF', "
             f"cout='1uF' for the bare datasheet configuration."
         )
     else:
@@ -961,21 +991,32 @@ def push_button(design: Design, net: Net | str | Pin, gnd: Net | str | Pin, *,
         signal.connect(cap.pin("1"))
         gnd_net.connect(cap.pin("2"))
 
+    notes = [
+        "ESP32-S3-DevKitC-1 V1.1 schematic: SW1 (BOOT -> IO0) and SW2 "
+        "(RST -> CHIP_PU) are bare SPST-NO switches to GND with no "
+        "series resistor, and their 0.1uF/50V debounce capacitors "
+        "(C13, C14) are marked (NC) = not populated. Hence series_r and "
+        "debounce_c both default to None.",
+        "The pin the button pulls low is expected to be held high by a "
+        "pull-up — pair this with pull_resistor() or the MCU's internal "
+        "pull-up.",
+        "Why C13 is (NC): \"Do not add high-value capacitors at GPIO0, or "
+        "the chip may enter download mode\" (ESP32-S3 HDG, Strapping Pins). "
+        "A debounce capacitor belongs on EN — DS Figure 9-1 fits C8 0.1uF "
+        "there — not on a strapping pin.",
+    ]
+    if debounce_c:
+        notes.append(
+            f"CAUTION: this call fits debounce_c={debounce_c} on "
+            f"{signal.name!r}. Check that net is not a strapping pin before "
+            f"building it — see the GPIO0 warning above."
+        )
     return Block(
         name=f"push_button:{signal.name}",
         components=tuple(added),
         nets={"net": signal, "gnd": gnd_net},
         provenance=PROV_BUTTON,
-        notes=(
-            "ESP32-S3-DevKitC-1 V1.1 schematic: SW1 (BOOT -> IO0) and SW2 "
-            "(RST -> CHIP_PU) are bare SPST-NO switches to GND with no "
-            "series resistor, and their 0.1uF/50V debounce capacitors "
-            "(C13, C14) are marked (NC) = not populated. Hence series_r and "
-            "debounce_c both default to None.",
-            "The pin the button pulls low is expected to be held high by a "
-            "pull-up — pair this with pull_resistor() or the MCU's internal "
-            "pull-up.",
-        ),
+        notes=tuple(notes),
     )
 
 
