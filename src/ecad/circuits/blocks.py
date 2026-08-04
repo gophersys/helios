@@ -514,19 +514,30 @@ def _label(ic: Component) -> str:
     return ic.ref or ic.part_name or type(ic).__name__
 
 
-def _named_pin(comp: Component, names: Sequence[str], fallback: int) -> Pin:
-    """First pin matching one of ``names``, else the pin at ``fallback``.
+def _named_pin(comp: Component, names: Sequence[str], *,
+               fallback_pad: str) -> Pin:
+    """First pin matching one of ``names``, else the pin at ``fallback_pad``.
 
-    Polarised two-pin parts must not be wired by position: KiCad's
-    ``Device:LED`` puts the *cathode* on pad 1 and the anode on pad 2, so
-    ``pins[0]`` would silently reverse the diode.
+    Polarised two-pin parts must not be wired by position. KiCad's
+    ``Device:LED`` puts the *cathode* on pad 1 and the anode on pad 2, and
+    that contract is about **pads**: the fallback used to be an index into
+    ``comp.pins`` — i.e. into the declaration order of ``_PIN_SPECS`` — which
+    is the same thing as position and reverses the diode for any part that
+    declares its anode first.
     """
     for name in names:
         try:
             return comp.pin(name)
         except KeyError:
             continue
-    return comp.pins[fallback]
+    try:
+        return comp.pin_by_pad(fallback_pad)
+    except KeyError:
+        raise KeyError(
+            f"{type(comp).__name__}: no pin named any of {list(names)} and no "
+            f"pad {fallback_pad!r} to fall back on; polarity cannot be "
+            f"resolved without guessing, so this part is not wireable here"
+        ) from None
 
 
 # ---------------------------------------------------------------------------
@@ -989,7 +1000,8 @@ def indicator_led(design: Design, net: Net | str | Pin,
 
     The diode is ``Device:LED``, generated into ``src/ecad/library/generic/``
     from the installed KiCad symbol — pad 1 = K, pad 2 = A, which is why the
-    wiring below resolves both ends by NAME.
+    wiring below resolves both ends by NAME, falling back to the PAD (never
+    to a position in the part's pin tuple).
     """
     calc = led_series_resistor(supply_v=supply_v, vf=vf,
                                current_ma=current_ma)
@@ -1010,9 +1022,10 @@ def indicator_led(design: Design, net: Net | str | Pin,
     res = _resistor(calc.value, package,
                     needed_by=f"indicator_led({signal.name})")
     _register(design, added, res, led)
-    # Device:LED is pad 1 = K, pad 2 = A — never wire this one by position.
-    anode = _named_pin(led, ("A", "ANODE", "+"), fallback=1)
-    cathode = _named_pin(led, ("K", "C", "CATHODE", "-"), fallback=0)
+    # Device:LED is pad 1 = K, pad 2 = A — never wire this one by position;
+    # the fallback is the PAD, not an index into the declaration order.
+    anode = _named_pin(led, ("A", "ANODE", "+"), fallback_pad="2")
+    cathode = _named_pin(led, ("K", "C", "CATHODE", "-"), fallback_pad="1")
     signal.connect(res.pin("1"))
     mid = design.net(series_net or f"{signal.name}_LED")
     mid.connect(res.pin("2"), anode)

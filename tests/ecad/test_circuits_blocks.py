@@ -40,6 +40,7 @@ from src.ecad.circuits import (
 )
 from src.ecad.circuits import blocks as blocks_mod
 from src.ecad.library import get as registry_get
+from src.ecad.model import FootprintRef
 from src.ecad.model import pin as pinspec
 
 KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
@@ -98,6 +99,9 @@ def _fake_part(name, specs, *, prefix: str = "U") -> type[Component]:
         "part_name": name,
         "lib_id": f"Test:{name}",
         "reference_prefix": prefix,
+        # Design.check() calls a footprintless component an error, and these
+        # fixtures are meant to exercise wiring, not that lint.
+        "footprint": FootprintRef("Package_TO_SOT_SMD", "SOT-23-5"),
         "_PIN_SPECS": tuple(specs),
     })
 
@@ -600,6 +604,39 @@ def test_indicator_led_alone():
         "+3V3_LED": {f"{res.ref}:2", f"{led.ref}:2"},
         "GND": {"U1:1", "U1:40", "U1:41", f"{led.ref}:1"},
     }
+
+
+# --- the positional polarity fallback ---------------------------------------
+#
+# _named_pin(led, ("A", "ANODE", "+"), fallback=1) resolved to comp.pins[1] —
+# an index into the DECLARATION ORDER of _PIN_SPECS, not comp.pin_by_pad("2").
+# The generated Device:LED happens to declare pad 1 (K) first, so pins[1] is
+# the anode by luck. Reverse the declaration order and the same code wires the
+# diode backwards — exactly the failure its own docstring warns about.
+
+#: A Device:LED-shaped part with unhelpful pin names (so the name lookup
+#: misses and the fallback is what decides polarity) declared ANODE-FIRST.
+_REVERSED_LED = (
+    pinspec("2", "~", "passive", "passive"),
+    pinspec("1", "~", "passive", "passive"),
+)
+
+
+def test_indicator_led_polarity_is_resolved_by_pad_not_position(monkeypatch):
+    """Pad 2 is the anode and pad 1 the cathode however the part declares
+    them: the KiCad Device:LED contract is about PADS."""
+    cls = _fake_part("ReversedLED", _REVERSED_LED, prefix="D")
+    assert cls().pins[1].pad == "1", "the fixture must be declared anode-first"
+    _serve(monkeypatch, "Device:LED", cls)
+
+    d = Design("reversed-led")
+    _rails(d, _mcu(), tie_en=True)
+    block = indicator_led(d, "+3V3", "GND", color="green")
+    res, led = block.components
+    netlist = d.intended_netlist()
+    assert netlist["+3V3_LED"] == {f"{res.ref}:2", f"{led.ref}:2"}, netlist
+    assert f"{led.ref}:1" in netlist["GND"], netlist
+    _no_errors(d)
 
 
 def test_indicator_led_resistor_follows_its_parameters():
