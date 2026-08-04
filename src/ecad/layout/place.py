@@ -6,23 +6,26 @@ inputs, fully deterministic, every emitted coordinate snapped to GRID.
 
 X — columns
 -----------
-Each rank becomes a column.  ``col_width[r]`` is the widest non-virtual node
-in rank ``r`` (0.0 when the rank is empty or virtual-only).  Between adjacent
-ranks a wiring channel is reserved, sized from the number of proper 1-rank
-segments crossing that gap::
+Each rank becomes a column, which may be split into SUB-COLUMNS when its
+stack would run past ``wrap_height`` (see :func:`_wrap_rank`); only nodes
+with no routed edge are moved.  ``col_width[r]`` spans the whole wrapped
+rank, sub-columns separated by ``WRAP_GAP``.  Between adjacent ranks a wiring
+channel is reserved, sized from the number of proper 1-rank segments crossing
+that gap::
 
     channel_width = clamp((tracks + 2) * PIN_PITCH, 12.7, 63.5)
 
 ``col_x[0] = 25.4`` and columns accumulate left-to-right.  Nodes are centred
-horizontally within their column.  ``channel_x[r]`` records the (left, right)
-bounds of the gap between ranks r and r+1 for the router.
+horizontally within their sub-column.  ``channel_x[r]`` records the (left,
+right) bounds of the gap between ranks r and r+1 for the router.
 
 Y — Sander priority/median refinement
 -------------------------------------
 Nodes are first stacked top-to-bottom in ordering order starting at 25.4,
 separated by ``MIN_GAP`` (pin pitch + text margin).  Two refinement sweeps
-follow: down (ranks left-to-right, each node targeting its west neighbours)
-then up (right-to-left, targeting east neighbours).  Within a rank, nodes
+follow over each rank's FIRST sub-column: down (ranks left-to-right, each
+node targeting its west neighbours) then up (right-to-left, targeting east
+neighbours).  Within a sub-column, nodes
 move in priority order — virtual nodes first (so long edges straighten),
 then by incident-segment count descending, ties broken by node id.  The
 target is the mean over sweep-side segments of ``neighbour port absolute y
@@ -30,12 +33,17 @@ target is the mean over sweep-side segments of ``neighbour port absolute y
 is clamped so that MIN_GAP to already-finalised rank-mates is preserved,
 reserving room for not-yet-final nodes sitting between.
 
+Finally the whole drawing is translated so its top-left corner sits on
+``(X_START, Y_START)``: the refinement is free to move a node above the page
+origin, and nothing downstream can rescue content placed off the paper.
+
 Satellite rows
 --------------
-Decoupling-cap rows are placed under their owner (owner bottom + 7.62),
-pitched 7.62 in x, each cap nominally 5.08 x 7.62.  A row that intersects
-any ranked node bbox in the owner's column is pushed down in PIN_PITCH
-steps until clear.  Ranked nodes are never moved for satellites.
+Decoupling-cap rows are placed under their owner (owner bottom + ``SAT_GAP``),
+pitched ``SAT_PITCH`` in x, each cap nominally ``SAT_SIZE``.  The row y is the
+caps' CENTRE, which is how the engine consumes it.  A row that intersects any
+ranked node bbox in the owner's column is pushed down in PIN_PITCH steps until
+clear.  Ranked nodes are never moved for satellites.
 """
 
 from __future__ import annotations
@@ -198,11 +206,6 @@ def coordinates(
     loose = {nid for ids in ranks for nid in ids if not incident[nid]}
     sub_cols: list[list[list[str]]] = [
         _wrap_rank(ids, nodes, loose, wrap_height) for ids in ranks]
-    sub_of: dict[str, int] = {}
-    for cols in sub_cols:
-        for j, col in enumerate(cols):
-            for nid in col:
-                sub_of[nid] = j
 
     # ── columns: widths, channels, x origins ────────────────────────────────
     sub_width: list[list[float]] = []
