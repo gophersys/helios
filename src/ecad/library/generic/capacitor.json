@@ -10,6 +10,7 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 2,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,7 +23,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "270634ae003d1b8fed5040c1a49a407ab8afed4a7c6f771eabd0f640724c90a9",
-    "md_sha256": "0eba0a9889b07a10ca8bfa8f9d934afb64a19797798fc9399be13d3c9e3a3589",
+    "md_sha256": "1503e1c3cf9ad5cc4226a60d398c8aa4ceebb5a9110e93709d0e97a31ee677a8",
     "py_sha256": "efe4fe32c8756635d0d34ef63b3ff55eb43d0dbb55df31ac9d35cff5520035ef"
   },
   "id": "capacitor",

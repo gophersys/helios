@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_C6",
   "datasheet": "",
+  "default_value": "",
   "description": "",
   "evidence_summary": {
     "agreed": 10,
     "claims": 11,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "a99397ead789a075461feaa31ec6b556589e9639dc804d97ad7553ec6a2e5de8",
-    "md_sha256": "652dc83aed284354e4c5d95e2eb4cc08793c8f8cdf59052cd530a41bc00bed1f",
+    "md_sha256": "6f95cbf939489a70246382eeca2243d6d78c5843a5f0469e12d8bf463cd111c7",
     "py_sha256": "7713181a1b7863fadd5c775d9ad459f08cdd3943321913412b54c087cd61194f"
   },
   "id": "esp32_c6",

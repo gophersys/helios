@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_H2_MINI_1",
   "datasheet": "",
+  "default_value": "",
   "description": "",
   "evidence_summary": {
     "agreed": 18,
     "claims": 19,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "cddae4629961a9dbdab0be162c82b0f6932bf75a622ae6e64a9825086fd77217",
-    "md_sha256": "d56579cbd2a932a646f96e63c1890b6957d49dff1d408e1bf420846a75746cf4",
+    "md_sha256": "59e0b39a3b136de801311b559b56d4676abcb00b60986b41bb04962b00475c13",
     "py_sha256": "6f7e5d18ac81886241d23b1de28295d8c5f305c87897428c9f26fa3ab3d3ac00"
   },
   "id": "esp32_h2_mini_1",

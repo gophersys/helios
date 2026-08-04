@@ -87,7 +87,8 @@ RF Module, ESP32-D0WD-V3 SoC, without PSRAM, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 
 ## Evidence
 
 - **agreed**: 58
-- **claims**: 68
-- **conflicts**: 2
+- **claims**: 67
+- **conflicts**: 0
 - **single_source**: 6
-- **waived**: 2
+- **unverified**: 0
+- **waived**: 3

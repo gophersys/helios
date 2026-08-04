@@ -32,4 +32,5 @@ Unpolarized capacitor
 - **datasheet**: none - ingested without a datasheet
 - **single_source**: 2
 - **source_mode**: 2-source: official symbol pins x installed footprint pads
+- **unverified**: 0
 - **waived**: 0

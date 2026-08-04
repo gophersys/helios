@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_C3_WROOM_02",
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf",
+  "default_value": "",
   "description": "802.11 b/g/n Wi\u00adFi and Bluetooth 5 module, ESP32\u00adC3 SoC, RISC\u00adV microprocessor, On-board antenna",
   "evidence_summary": {
     "agreed": 37,
     "claims": 38,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "842e789e0b855c03975bdb817bde11f06fa891e25180ea9d8ff2cdb815a8e363",
-    "md_sha256": "e35a4ec7b5deed98d65d4e650b45d2f8277e90432b20f3e12a8a0f1fe1c7c79f",
+    "md_sha256": "9612858d0a841010eb40aca2a4364d3344f5dda5bce26cb971ceeca5d007d12f",
     "py_sha256": "a1f8b459cff82ccfb4776180583a95aca7b07e5ce5cd6cf59f82ab2b8e3a822a"
   },
   "id": "esp32_c3_wroom_02",

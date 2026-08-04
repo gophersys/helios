@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_WROOM_32",
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf",
+  "default_value": "",
   "description": "RF Module, ESP32-D0WDQ6 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 2.7-3.6V, onboard antenna, SMD",
   "evidence_summary": {
     "agreed": 66,
     "claims": 67,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "638baf5e19625c2a9f1ffe38f5faaa680103f29334a4388c721f13e246ad4ea9",
-    "md_sha256": "9369086487f37713c375f20072a632c0f7cf2b30837e6966c9e28e347fee41f2",
+    "md_sha256": "c02f7d3d1ff6fd27b9271bab2d020006f352689f83d81480cb237f01cd825963",
     "py_sha256": "6efc572163d012b52fc70f134d79359f4fa83f6b516f06ba82d4d2a102e98b89"
   },
   "id": "esp32_wroom_32",

@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_S3_MINI_1",
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf",
+  "default_value": "",
   "description": "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, onboard antenna",
   "evidence_summary": {
     "agreed": 102,
     "claims": 106,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 3
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "e2a241dff54e5b2e52422499652e690c2856744d7f3477e4ed31f8a5838ca1d9",
-    "md_sha256": "e56ff7ebdebc41f1212dc7a1292b7d359cc19f160debcae61388e753283d72d8",
+    "md_sha256": "9d681645a71571db609686bd6916b3e4b84d669febda61c3f9bae1e65821373f",
     "py_sha256": "a16925ecab79ae4e9f07594259d9d9c10da1c8c7f5333bfef4b21a16fee059c2"
   },
   "id": "esp32_s3_mini_1",

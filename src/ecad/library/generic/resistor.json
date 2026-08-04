@@ -10,6 +10,7 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 2,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,7 +23,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "493f88a3d2178631421fee5b1c70b134eed7c40be9796ac7bc7ee7d6d9591733",
-    "md_sha256": "f7528e7135238bdde336806c968a6d71f250bd6d3a623bb1d94f4fdad818af9d",
+    "md_sha256": "a66e1eab2592396dc0b4b435aafd9ad08e6fd02b0a1272531822e33a32343895",
     "py_sha256": "b424fa2fb322a6f563dfde9f782210222dbf3f51063695a00bfc6f20d24ec1ed"
   },
   "id": "resistor",

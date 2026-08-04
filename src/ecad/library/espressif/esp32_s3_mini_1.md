@@ -121,4 +121,5 @@ RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, o
 - **claims**: 106
 - **conflicts**: 0
 - **single_source**: 1
+- **unverified**: 0
 - **waived**: 3

@@ -1,13 +1,15 @@
 {
   "class_name": "ESP32_WROOM_32E",
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.pdf",
+  "default_value": "",
   "description": "RF Module, ESP32-D0WD-V3 SoC, without PSRAM, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 2.7-3.6V, onboard antenna, SMD",
   "evidence_summary": {
     "agreed": 58,
-    "claims": 68,
-    "conflicts": 2,
+    "claims": 67,
+    "conflicts": 0,
     "single_source": 6,
-    "waived": 2
+    "unverified": 0,
+    "waived": 3
   },
   "footprint": {
     "lib": "RF_Module",
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "951a84f816f88e862579c5a948adf21e049b26025af0c65e2779ea7687814f4c",
-    "md_sha256": "0ff8a91c752384729e92e6afef9028aa133ed56f56925bfb4f7f209d46eb9ca9",
+    "md_sha256": "a1524f2a1f1c5e7ea92055861044bac18062624da8dddf750a5fc6af771e5628",
     "py_sha256": "d3b12a92b3f630df97bee07c5b60f43a6d416cf3eef0a9d7cc7484850089efa4"
   },
   "id": "esp32_wroom_32e",

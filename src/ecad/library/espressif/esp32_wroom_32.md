@@ -120,4 +120,5 @@ RF Module, ESP32-D0WDQ6 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 2.7-3.6V
 - **claims**: 67
 - **conflicts**: 0
 - **single_source**: 1
+- **unverified**: 0
 - **waived**: 0

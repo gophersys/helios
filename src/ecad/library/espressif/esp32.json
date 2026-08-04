@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32",
   "datasheet": "",
+  "default_value": "",
   "description": "",
   "evidence_summary": {
     "agreed": 15,
     "claims": 16,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "cfb72ce9d2344c5ce57bf01d884ed9c5b90d91ed4db7a1759107cffd81ac33d5",
-    "md_sha256": "621b18a1ed047068085fa45141f9ae492066fc468f2d2a789d3c6b5a8b6d6ec2",
+    "md_sha256": "406501592502b5cc26aad1e072016519fb437d423869d4f0acaa96774baaca54",
     "py_sha256": "30cf0a0152a0197ab44a8c5ec680456c9be3baabd120aff801c0ad8186b4212d"
   },
   "id": "esp32",

@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_S2",
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-s2_datasheet_en.pdf",
+  "default_value": "",
   "description": "Microcontroller, Wi-Fi 802.11b/g/n, Bluetooth, 32bit",
   "evidence_summary": {
     "agreed": 84,
     "claims": 88,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 3
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "ad88cb2f743848b2261ae4f0854dedc7f6d0db383144271a00935275b8d01a03",
-    "md_sha256": "2c1369b5c126c0f75814042df65b3a4a0d83f79bda64bb54b97303ed2347aaa5",
+    "md_sha256": "ecf244c1b063902d59b6ae84e2791b09076b91ee478aed6c43fe32a58b4b9b4e",
     "py_sha256": "cb704eeab38f918ff2b627c10d59fe97f8195bc07e604116e91c549d7541766a"
   },
   "id": "esp32_s2",

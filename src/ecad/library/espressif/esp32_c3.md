@@ -134,4 +134,5 @@ RF Module, ESP32 SoC, RISC-V, WiFi 802.11b/n/g, Bluetooth LE 5, QFN32
 - **claims**: 44
 - **conflicts**: 0
 - **single_source**: 1
+- **unverified**: 0
 - **waived**: 0

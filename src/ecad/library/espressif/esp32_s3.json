@@ -1,12 +1,14 @@
 {
   "class_name": "ESP32_S3",
   "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf",
+  "default_value": "",
   "description": "Microcontroller, Wi-Fi 802.11b/g/n, Bluetooth, 32bit",
   "evidence_summary": {
     "agreed": 88,
     "claims": 89,
     "conflicts": 0,
     "single_source": 1,
+    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -19,7 +21,7 @@
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
     "kicad_sym_sha256": "246aae3b097dbdd53df4a91570f9eb7d273ae69ba684502dd770b4192d1dd29a",
-    "md_sha256": "6feaaea5b0b50ed20c1352c91aa5dfa8d8cbe52fb2f90cc1ce823a69566bdf94",
+    "md_sha256": "75c986e5024dc746aea205b82dfe89ff55aad271d3cda4232b227dffae9a67b6",
     "py_sha256": "c692420fc2c9158376d38ac440a62d5b480a660316c782b55f7d4be63e61f073"
   },
   "id": "esp32_s3",
