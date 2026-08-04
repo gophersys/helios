@@ -306,3 +306,49 @@ def test_acceptance_esp32_s3_wroom_1(monkeypatch):
 
     md = (REPO / "COMPONENTS.md").read_text()
     assert f"| {comp} | espressif | module | validated |" in md
+
+
+# ── extracted.json must carry everything the extraction produced ────────────
+
+
+def test_power_survives_into_extracted_json(wired, monkeypatch):
+    """datasheet.extract() produces a PowerSpec; it must reach the artifact.
+
+    _build_extracted serialized pins and strapping but dropped `power`, so
+    every downstream consumer of supply voltage and recommended decoupling
+    (the PWR-004/005/007 rules) could only ever answer "no data" — not
+    because the datasheet lacked it, but because the one artifact carrying it
+    never wrote the field. A rule that cannot fire is a gate that cannot fail.
+    """
+    from src.ecad.ingest import datasheet as dsmod
+    from src.ecad.ingest import factory as fac
+
+    part = dsmod.ExtractedPart(
+        chip_name="WIDGET-1", manufacturer="ACME",
+        description="test part", package="QFN-8",
+        pins=(), power=dsmod.PowerSpec(
+            voltage_min=3.0, voltage_typ=3.3, voltage_max=3.6,
+            power_pins=("2",),
+            decoupling_caps=(dsmod.CapSpec("22uF", "bulk"),
+                             dsmod.CapSpec("0.1uF", "hf"))),
+        strapping_pins=(), strapping_notes=(),
+        provenance=dsmod.Provenance(pdf_name="w.pdf", pdf_sha256="deadbeef",
+                                    page_count=1, pages_used=(1,)),
+    )
+    monkeypatch.setenv("FACTORY_LLM", "1")
+    monkeypatch.setattr(dsmod, "extract", lambda pdf: part)
+
+    factory.status(wired)
+    factory.step("widget-1", wired)
+
+    payload = json.loads(
+        (wired / "data" / "ingest" / "widget-1" / "extracted.json").read_text())
+    assert "power" in payload, (
+        f"extracted.json dropped the power envelope: {sorted(payload)}"
+    )
+    power = fac._power_from_json(payload["power"])
+    assert power == part.power, "power did not survive the round trip"
+
+    # every non-empty field the extraction produced must be represented
+    assert payload["manufacturer"] == "ACME"
+    assert payload["description"] == "test part"

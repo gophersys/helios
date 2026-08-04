@@ -128,6 +128,31 @@ def _enrich(p: PinSpec, strapping: frozenset[int] = frozenset()) -> PinSpec:
                    gpio=gpio, functions=p.functions)
 
 
+def _power_to_json(p: datasheet_mod.PowerSpec) -> dict:
+    """Serialize the extracted supply envelope + decoupling recommendation."""
+    return {
+        "voltage_min": p.voltage_min,
+        "voltage_typ": p.voltage_typ,
+        "voltage_max": p.voltage_max,
+        "power_pins": list(p.power_pins),
+        "decoupling_caps": [{"value": c.value, "purpose": c.purpose}
+                            for c in p.decoupling_caps],
+    }
+
+
+def _power_from_json(d: dict) -> datasheet_mod.PowerSpec:
+    return datasheet_mod.PowerSpec(
+        voltage_min=float(d.get("voltage_min", 0.0)),
+        voltage_typ=float(d.get("voltage_typ", 0.0)),
+        voltage_max=float(d.get("voltage_max", 0.0)),
+        power_pins=tuple(d.get("power_pins") or ()),
+        decoupling_caps=tuple(
+            datasheet_mod.CapSpec(value=c.get("value", ""),
+                                  purpose=c.get("purpose", ""))
+            for c in (d.get("decoupling_caps") or [])),
+    )
+
+
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text()) if path.is_file() else {}
 
@@ -211,7 +236,14 @@ def _build_extracted(record: ComponentRecord, ctx: dict) -> None:
         part = datasheet_mod.extract(pdf)   # real `claude` CLI runner
         payload = {
             "chip_name": part.chip_name, "package": part.package,
+            "manufacturer": part.manufacturer,
+            "description": part.description,
             "pins": [_pin_to_json(p.spec) for p in part.pins],
+            "power": _power_to_json(part.power),
+            # datasheet.py extracts and validates a PowerSpec that used to
+            # stop here: the electrical rules keyed on supply voltage and
+            # decoupling (PWR-004/005/007) could only ever answer "no data",
+            # because the one source that has it never reached the artifact.
             "strapping_pins": list(part.strapping_pins),
             "strapping_notes": list(part.strapping_notes),
             "provenance": {"pdf_sha256": part.provenance.pdf_sha256,
