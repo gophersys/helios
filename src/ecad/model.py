@@ -116,6 +116,64 @@ class UnitDef:
 
 
 @dataclass(frozen=True)
+class PinArt:
+    """Where the SOURCE symbol puts one pin, in library space (+Y up).
+
+    ``x``/``y`` is the pin's CONNECTION point (the tip a wire attaches to);
+    ``angle`` is KiCad's pin rotation, from which the body side follows:
+    0 = LEFT, 180 = RIGHT, 270 = TOP, 90 = BOTTOM.
+    """
+
+    pad: str
+    x: float
+    y: float
+    angle: int
+    length: float
+    style: str = "line"
+    #: True when the SOURCE symbol draws this pin unnamed (``~``). The typed
+    #: model still needs a name to address the pad by, and ingest synthesizes
+    #: ``P<pad>`` — but drawing that invented label is what put a "P1" and a
+    #: "P2" on every resistor. Emitters write ``~`` for these.
+    unnamed: bool = False
+
+
+@dataclass(frozen=True)
+class SymbolArt:
+    """The drawing of a symbol as its SOURCE library draws it.
+
+    A generated part that was ingested from an official KiCad symbol carries
+    this so the pipeline can emit KiCad's own artwork instead of a generic
+    body rectangle — a ``Device:R`` looks like a resistor because it *is*
+    KiCad's resistor.
+
+    ``children`` mirrors KiCad's own sub-symbol split: ``(suffix, draw
+    commands)`` where suffix is ``"<unit>_<style>"`` (``"0_1"`` = shared by
+    every unit of body style 1) and each draw command is a one-line
+    S-expression in library space.
+
+    ``pins`` is the SOURCE pin geometry. It is the geometry, not a hint: the
+    art and the pins must agree or the wires would meet nothing, so whoever
+    consumes the art must place pins here too.
+
+    ``bbox`` is ``(x0, y0, x1, y1)`` in library space over the art *and* the
+    pin connection points.
+    """
+
+    children: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    pins: tuple[PinArt, ...] = ()
+    bbox: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    hide_pin_numbers: bool = False
+    hide_pin_names: bool = False
+    pin_names_offset: float = 1.016
+
+    def pin(self, pad: str) -> PinArt | None:
+        for p in self.pins:
+            if p.pad == pad:
+                return p
+        return None
+
+
+@dataclass(frozen=True)
 class FootprintRef:
     """Reference to a footprint, either from the installed KiCad library
     or a custom .kicad_mod (the escape hatch)."""

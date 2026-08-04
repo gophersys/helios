@@ -10,7 +10,6 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 1,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
-    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,9 +21,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "07af1f2e60b7d07572c40e43b950e4e7e20a0bb72f31b5b78e6ba7dcf20588c6",
-    "md_sha256": "e83d32df0ee3510f54565a80a85de5e766a820b1e523f11b638cf6ead5b970b9",
-    "py_sha256": "3d08c6c18ed29db9dc70ac425f83fe4620ac84f66760d75fec06b2ffbe64f2da"
+    "kicad_sym_sha256": "1d09c50ab1c42ef8e91de38ca0d11c7613a267d04150d5393712cb179a4392c5",
+    "md_sha256": "ea9888cf4a5fe542ef6f3bf7a0188f679f517d2d34961e811b2f0076e0f3f46d",
+    "py_sha256": "f104faf044f110e773a070c09781bdf03b09bef18440135bcc8bb639b0804f4f"
   },
   "id": "led",
   "lib_id": "Device:LED",
@@ -47,7 +46,7 @@
   "source_hashes": {
     "footprint_sha256": "7931ed1efba34cb13c8d74a60eb1dca4b0be57d950c38e08c3e7f007db500a1c",
     "pdf_sha256": "",
-    "symbol_sha256": "2348f1bcf8951d8e062f48a0796b80208d7b691a34d18192f4ba8e3f8b85f864"
+    "symbol_sha256": "04ad062aef5b21b6583671de7f6a1eb0ab8248a6ca4627555ffe464b5a633844"
   },
   "sourcing": null,
   "unit_plan": [

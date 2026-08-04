@@ -322,9 +322,11 @@ def _symbol_content_sha256(symbol: OfficialSymbol) -> str:
     that reading changed. ``provenance.synthesized_pin_names`` is where a
     reader sees which labels are ours.
 
-    Symbol graphics are not covered: nothing downstream reads them. The
-    emitted symbol's own geometry is already hashed as
-    ``generated.kicad_sym_sha256``.
+    Symbol graphics ARE covered, and must be: the generated part now carries
+    the source symbol's own draw commands and pin coordinates
+    (``Component.symbol_art``), so a redrawn upstream symbol changes what
+    this repo emits. Leaving the artwork out of the hash would let that
+    change land silently while the sidecar still claimed the old provenance.
     """
     lines = [
         f"lib_id={symbol.lib_id}",
@@ -338,6 +340,15 @@ def _symbol_content_sha256(symbol: OfficialSymbol) -> str:
     # order. Pads are unique within a symbol, so the sort is total.
     lines += [f"pin={p.pad}\t{p.name}\t{p.etype.value}"
               for p in sorted(symbol.pins, key=lambda p: p.pad)]
+    art = symbol.art
+    lines.append(f"art_bbox={art.bbox}")
+    lines.append(f"art_flags={art.hide_pin_numbers},{art.hide_pin_names},"
+                 f"{art.pin_names_offset}")
+    lines += [f"art_pin={p.pad}\t{p.x}\t{p.y}\t{p.angle}\t{p.length}\t"
+              f"{p.style}\t{p.unnamed}"
+              for p in sorted(art.pins, key=lambda p: p.pad)]
+    for suffix, items in art.children:
+        lines += [f"art={suffix}\t{item}" for item in items]
     return hashlib.sha256("\n".join(lines).encode()).hexdigest()
 
 
@@ -457,6 +468,9 @@ def ingest(lib_id: str, *, out_dir: Path | None = None,
         "description": symbol.description,
         "reference_prefix": symbol.reference or "U",
         "default_value": part.default_value or symbol.name,
+        # KiCad already drew this part; keeping its drawing is the whole
+        # difference between a resistor and an unlabelled rectangle.
+        "symbol_art": symbol.art,
         # The two string keys ride along in the summary on purpose: codegen
         # renders evidence_summary into <id>.md, and that is the one place a
         # human reads a part's evidence. A 4-source Espressif ledger and this

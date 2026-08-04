@@ -36,6 +36,7 @@ from ..model import (
     PinRole,
     PinSpec,
     SourcingInfo,
+    SymbolArt,
     UnitDef,
 )
 from ..symbol import SymbolModel
@@ -202,6 +203,37 @@ def _accessor_lines(pins: Sequence[PinSpec]) -> tuple[list[str], bool]:
     return lines, emitted
 
 
+def _symbol_art_lines(art: SymbolArt) -> list[str]:
+    """``symbol_art = SymbolArt(...)`` for the generated class.
+
+    Written out in full rather than referenced by lib_id: a generated part is
+    source, and a part whose drawing is fetched from whatever KiCad happens
+    to be installed is not reproducible. The literal is verbose, and that is
+    the correct trade — it is reviewable in a diff and it pins the artwork
+    the committed symbol was built from.
+    """
+    lines = ["", "    symbol_art = SymbolArt("]
+    lines.append("        children=(")
+    for suffix, items in art.children:
+        lines.append(f"            ({suffix!r}, (")
+        for item in items:
+            lines.append(f"                {item!r},")
+        lines.append("            )),")
+    lines.append("        ),")
+    lines.append("        pins=(")
+    for p in art.pins:
+        lines.append(f"            PinArt(pad={p.pad!r}, x={p.x}, y={p.y}, "
+                     f"angle={p.angle}, length={p.length}, style={p.style!r}, "
+                     f"unnamed={p.unnamed!r}),")
+    lines.append("        ),")
+    lines.append(f"        bbox={art.bbox!r},")
+    lines.append(f"        hide_pin_numbers={art.hide_pin_numbers!r},")
+    lines.append(f"        hide_pin_names={art.hide_pin_names!r},")
+    lines.append(f"        pin_names_offset={art.pin_names_offset!r},")
+    lines.append("    )")
+    return lines
+
+
 def _value_ctor_lines(default_value: str) -> list[str]:
     """``__init__(value=…, footprint=None)`` for a part valued per instance.
 
@@ -231,7 +263,8 @@ def _render_py(part_id: str, cls_name: str, name: str, lib_id: str,
                footprint: FootprintRef | None, sourcing: SourcingInfo | None,
                unit_plan: tuple[UnitDef, ...],
                pins: Sequence[PinSpec], reference_prefix: str,
-               default_value: str = "") -> str:
+               default_value: str = "",
+               symbol_art: SymbolArt | None = None) -> str:
     accessors, uses_pin = _accessor_lines(pins)
 
     model_names = ["ElectricalType", "PinRole", "PinSpec", "UnitDef",
@@ -240,6 +273,8 @@ def _render_py(part_id: str, cls_name: str, name: str, lib_id: str,
         model_names.append("FootprintRef")
     if sourcing is not None:
         model_names.append("SourcingInfo")
+    if symbol_art is not None:
+        model_names += ["PinArt", "SymbolArt"]
     comp_names = ["Component"] + (["Pin"] if uses_pin else [])
 
     lines = [
@@ -283,6 +318,8 @@ def _render_py(part_id: str, cls_name: str, name: str, lib_id: str,
     for s in pins:
         lines.append("        " + _pin_literal(s))
     lines.append("    )")
+    if symbol_art is not None:
+        lines += _symbol_art_lines(symbol_art)
     if default_value:
         lines += _value_ctor_lines(default_value)
     lines += accessors
@@ -425,6 +462,10 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
     # Non-empty => the part is valued per instance and gets a
     # ``__init__(value=…, footprint=None)``; see _value_ctor_lines.
     default_value = _get(part, "default_value") or ""
+    # The source symbol's own drawing, when the ingest had one to preserve.
+    symbol_art: SymbolArt | None = _get(part, "symbol_art")
+    if symbol_art is not None and not symbol_art.children:
+        symbol_art = None
     unit_plan = tuple(_get(part, "unit_plan") or ()) or auto_unit_plan(pins)
 
     part_id = part_id_for(name)
@@ -439,7 +480,7 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
 
     py_text = _render_py(part_id, cls_name, name, lib_id, description,
                          datasheet, footprint, sourcing, unit_plan, pins,
-                         reference_prefix, default_value)
+                         reference_prefix, default_value, symbol_art)
 
     # Prove the generated source is importable and use ITS class for the
     # symbol, so .py and .kicad_sym can never drift apart.
@@ -447,7 +488,7 @@ def generate(part: Any, out_dir: Path) -> GeneratedPart:
     exec(compile(py_text, str(py_path), "exec"), namespace)  # noqa: S102
     cls: type[Component] = namespace[cls_name]
     sym_text = (SymbolModel.from_component(cls(), style="readable")
-                .to_kicad_sym().to_sexpr())
+                .kicad_sym_text())
     md_text = _render_md(part_id, name, lib_id, description, datasheet,
                          footprint, sourcing, unit_plan, pins,
                          evidence_summary)

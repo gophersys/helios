@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -31,6 +33,31 @@ class Crystal_GND24(Component):
         PinSpec(pad='2', name='G', etype=ElectricalType.PASSIVE, role=PinRole.GROUND),
         PinSpec(pad='3', name='3', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='4', name='G', etype=ElectricalType.PASSIVE, role=PinRole.GROUND),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(polyline (pts (xy -2.54 2.286) (xy -2.54 3.556) (xy 2.54 3.556) (xy 2.54 2.286)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -2.54 0) (xy -2.032 0)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -2.54 -2.286) (xy -2.54 -3.556) (xy 2.54 -3.556) (xy 2.54 -2.286)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -2.032 -1.27) (xy -2.032 1.27)) (stroke (width 0.508) (type default)) (fill (type none)))',
+                '(rectangle (start -1.143 2.54) (end 1.143 -2.54) (stroke (width 0.3048) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 0 -3.81) (xy 0 -3.556)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 2.032 0) (xy 2.54 0)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 2.032 -1.27) (xy 2.032 1.27)) (stroke (width 0.508) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=-3.81, y=0, angle=0, length=1.27, style='line', unnamed=False),
+            PinArt(pad='2', x=0, y=-5.08, angle=90, length=1.27, style='line', unnamed=False),
+            PinArt(pad='3', x=3.81, y=0, angle=180, length=1.27, style='line', unnamed=False),
+            PinArt(pad='4', x=0, y=-5.08, angle=90, length=1.27, style='line', unnamed=False),
+        ),
+        bbox=(-3.81, -5.08, 3.81, 3.556),
+        hide_pin_numbers=False,
+        hide_pin_names=True,
+        pin_names_offset=1.016,
     )
 
     value = '40MHz'

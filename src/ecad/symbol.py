@@ -10,16 +10,30 @@ representation the pipeline needs:
 Phase A geometry is byte-compatible with the legacy `symbol_gen` /
 `chip_library` algorithms (all pins on the left side); the 4-side layout
 rules land with the layout engine.
+
+Preserved artwork
+-----------------
+A component ingested from an official KiCad symbol carries that symbol's
+drawing on ``Component.symbol_art`` (:class:`~.model.SymbolArt`). For those
+parts the readable style does not synthesize anything: the pins sit where
+the SOURCE puts them, the body is the SOURCE's draw commands, and the node
+bbox the layout engine consumes is measured off that same geometry. A
+``Device:R`` therefore looks like a resistor because it *is* KiCad's
+resistor — and, critically, the layout engine wires to the pin coordinates
+the artwork was drawn around rather than to a guess. Parts with no source
+artwork (datasheet-only ingests, hand-written test parts) keep the
+synthesized body rectangle.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from .component import Component
-from .model import ElectricalType
+from .model import ElectricalType, SymbolArt
 
 if TYPE_CHECKING:
     from kiutils.symbol import Symbol, SymbolLib
@@ -27,6 +41,80 @@ if TYPE_CHECKING:
 PIN_LENGTH = 2.54
 PIN_SPACING = 2.54
 TEXT_SIZE = 1.27
+#: Horizontal room reserved beside a narrow symbol for its Reference/Value.
+#: A preserved ``Device:R`` body is 2 mm wide; without an allowance the node
+#: bbox would be 2 mm too and "10k" would be drawn over the neighbour.
+TEXT_ALLOWANCE = 7.62
+#: A symbol at most this wide carries its fields beside the body (KiCad's own
+#: convention for two-terminal parts); wider ones get them above/below.
+NARROW_BODY = 3 * PIN_SPACING
+
+#: KiCad pin rotation → the body side the pin sticks out of.
+_ANGLE_SIDE = {0: "left", 180: "right", 270: "top", 90: "bottom"}
+
+#: Coordinate pairs inside a symbol draw command. Rotating a symbol means
+#: rotating exactly these; radii and stroke widths are rotation-invariant.
+_COORD_RE = re.compile(
+    r"\((xy|start|end|mid|center)\s+(-?[\d.]+)\s+(-?[\d.]+)\)")
+_TEXT_AT_RE = re.compile(r"\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)")
+
+
+def _num(v: float) -> str:
+    """Render a coordinate the way KiCad does: no trailing ``.0`` noise."""
+    r = round(v, 4)
+    return str(int(r)) if r == int(r) else str(r)
+
+
+def _rotate_art(art: SymbolArt) -> SymbolArt:
+    """The same drawing turned a quarter turn counter-clockwise.
+
+    ``(x, y) -> (-y, x)`` in library space, applied to the artwork AND to the
+    pins so the two cannot drift apart. Used to lay a two-terminal part on
+    its side: KiCad draws ``Device:R`` and ``Device:C`` vertically, but a
+    series element in a left-to-right signal flow reads horizontally, and a
+    vertical one also forces the router to escape over the body and to set
+    its net labels on their side.
+    """
+    def rot(x: float, y: float) -> tuple[float, float]:
+        return (round(-y, 4), round(x, 4))
+
+    def fix(text: str) -> str:
+        def one(m):
+            nx, ny = rot(float(m.group(2)), float(m.group(3)))
+            return f"({m.group(1)} {_num(nx)} {_num(ny)})"
+
+        def at(m):
+            nx, ny = rot(float(m.group(1)), float(m.group(2)))
+            angle = (float(m.group(3)) + 90) % 360
+            return f"(at {_num(nx)} {_num(ny)} {_num(angle)})"
+
+        return _TEXT_AT_RE.sub(at, _COORD_RE.sub(one, text))
+
+    x0, y0, x1, y1 = art.bbox
+    return SymbolArt(
+        children=tuple((suffix, tuple(fix(i) for i in items))
+                       for suffix, items in art.children),
+        pins=tuple(
+            type(p)(pad=p.pad, x=rot(p.x, p.y)[0], y=rot(p.x, p.y)[1],
+                    angle=int((p.angle + 90) % 360), length=p.length,
+                    style=p.style, unnamed=p.unnamed)
+            for p in art.pins),
+        bbox=(round(-y1, 4), round(x0, 4), round(-y0, 4), round(x1, 4)),
+        hide_pin_numbers=art.hide_pin_numbers,
+        hide_pin_names=art.hide_pin_names,
+        pin_names_offset=art.pin_names_offset)
+
+
+def _fields_beside(box: tuple[float, float, float, float]) -> bool:
+    """True when Reference/Value belong beside the body rather than above it.
+
+    Only for a body that is both narrow and taller than it is wide — a
+    standing two-terminal part. Anything wider (an IC, a connector, a
+    resistor lying on its side) reads better with the reference above and
+    the value below, which is also where a draughtsman puts them.
+    """
+    x0, y0, x1, y1 = box
+    return (x1 - x0) <= NARROW_BODY and (y1 - y0) > (x1 - x0)
 
 
 def _esc(value: str) -> str:
@@ -66,6 +154,15 @@ class PlacedPin:
     angle: int
     length: float
     side: Side
+    style: str = "line"      # KiCad pin graphical style (line, inverted, …)
+    #: True when the source symbol draws this pin unnamed; `name` is then a
+    #: label this pipeline invented for addressing, and must not be drawn.
+    unnamed: bool = False
+
+    @property
+    def draw_name(self) -> str:
+        """The name to EMIT — ``~`` where the source drew none."""
+        return "~" if self.unnamed else self.name
 
 
 @dataclass(frozen=True)
@@ -87,6 +184,33 @@ class SymbolUnit:
     width: float
     height: float
     pins: tuple[PlacedPin, ...]
+    #: Source draw commands, ``(("0_1", ("(rectangle …)", …)), …)``. Empty
+    #: means "synthesize a body rectangle from width/height".
+    art: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    #: Full node extent in library space (x0, y0, x1, y1), art + pin tips +
+    #: text allowance. None means "derive it from width/height + PIN_LENGTH",
+    #: which is what every synthesized unit does.
+    bbox: tuple[float, float, float, float] | None = None
+    #: Body extent in library space, art + pin tips, WITHOUT text allowance —
+    #: where Reference/Value must not land.
+    body: tuple[float, float, float, float] | None = None
+    hide_pin_numbers: bool = False
+    hide_pin_names: bool = False
+    pin_names_offset: float = 1.016
+
+    def extent(self) -> tuple[float, float, float, float]:
+        """Node bbox in library space (+Y up), explicit or derived."""
+        if self.bbox is not None:
+            return self.bbox
+        hw, hh = self.width / 2 + PIN_LENGTH, self.height / 2 + PIN_LENGTH
+        return (-hw, -hh, hw, hh)
+
+    def body_extent(self) -> tuple[float, float, float, float]:
+        """Body bbox in library space (+Y up) — no text allowance."""
+        if self.body is not None:
+            return self.body
+        hw, hh = self.width / 2, self.height / 2
+        return (-hw, -hh, hw, hh)
 
 
 class SymbolModel:
@@ -103,25 +227,90 @@ class SymbolModel:
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def from_component(cls, component: Component,
-                       style: str = "legacy") -> SymbolModel:
+    def from_component(cls, component: Component, style: str = "legacy",
+                       lay_flat: bool = True) -> SymbolModel:
         """Build the symbol geometry.
 
         style="legacy": byte-parity with the pre-ecad emitters (all pins on
         the left). style="readable": 4-side placement — power TOP, ground
         BOTTOM, inputs LEFT, outputs RIGHT, bidirectional toward the hub —
         the geometry the layout engine consumes.
+
+        ``lay_flat`` turns a standing two-terminal part (KiCad draws R, C, L
+        and beads vertically) onto its side so it reads along the signal
+        flow. Pass False where the caller needs the source's own upright
+        geometry — a decoupling cap in a satellite row hangs vertically
+        between its rail and its ground by construction.
         """
         place = (cls._place_unit_readable if style == "readable"
                  else cls._place_unit)
+        art = cls._usable_art(component) if style == "readable" else None
+        if art is not None and lay_flat and cls._stands_upright(art):
+            art = _rotate_art(art)
         units = []
         for unit_id, unit_def in enumerate(component.units(), start=1):
             specs = [component.pin_by_pad(pad).spec for pad in unit_def.pads]
-            if style == "readable":
+            if art is not None:
+                units.append(cls._place_unit_from_art(
+                    unit_id, unit_def.name, specs, art))
+            elif style == "readable":
                 units.append(place(unit_id, unit_def.name, specs, component))
             else:
                 units.append(place(unit_id, unit_def.name, specs))
         return cls(component, tuple(units))
+
+    @staticmethod
+    def _usable_art(component: Component) -> SymbolArt | None:
+        """The component's source artwork, when it really describes this part.
+
+        Three things must hold or the art is a lie: it must exist, it must
+        place EVERY pad the component declares (a partial drawing would leave
+        pins with no coordinates), and the component must be single-unit —
+        a datasheet-derived multi-unit plan slices pads across units the
+        source symbol never split, so its one drawing cannot serve them.
+        """
+        art = getattr(component, "symbol_art", None)
+        if art is None or not art.children or not art.pins:
+            return None
+        if len(component.units()) != 1:
+            return None
+        pads = {p.pad for p in component.pins}
+        if pads != {p.pad for p in art.pins}:
+            return None
+        return art
+
+    @staticmethod
+    def _stands_upright(art: SymbolArt) -> bool:
+        """A two-terminal symbol whose pins both point up/down."""
+        return (len(art.pins) == 2
+                and all(p.angle in (90, 270) for p in art.pins))
+
+    @classmethod
+    def _place_unit_from_art(cls, unit_id: int, name: str, specs,
+                             art: SymbolArt) -> SymbolUnit:
+        """Geometry straight off the source symbol — nothing is invented."""
+        pins = []
+        for s in specs:
+            a = art.pin(s.pad)
+            side = Side(_ANGLE_SIDE.get(a.angle, "left"))
+            pins.append(PlacedPin(pad=s.pad, name=s.name, etype=s.etype,
+                                  x=a.x, y=a.y, angle=a.angle,
+                                  length=a.length, side=side, style=a.style,
+                                  unnamed=a.unnamed))
+        x0, y0, x1, y1 = art.bbox
+        beside = _fields_beside(art.bbox)
+        pad_x = TEXT_ALLOWANCE if beside else 0.0
+        pad_y = 0.0 if beside else PIN_SPACING
+        return SymbolUnit(
+            unit_id=unit_id, name=name,
+            width=round(x1 - x0, 4), height=round(y1 - y0, 4),
+            pins=tuple(pins), art=art.children,
+            bbox=(x0, round(y0 - pad_y, 4), round(x1 + pad_x, 4),
+                  round(y1 + pad_y, 4)),
+            body=(x0, y0, x1, y1),
+            hide_pin_numbers=art.hide_pin_numbers,
+            hide_pin_names=art.hide_pin_names,
+            pin_names_offset=art.pin_names_offset)
 
     @staticmethod
     def _place_unit(unit_id: int, name: str, specs) -> SymbolUnit:
@@ -180,10 +369,16 @@ class SymbolModel:
 
         max_l = max((len(s.name) for s in by_side[Side.LEFT]), default=0)
         max_r = max((len(s.name) for s in by_side[Side.RIGHT]), default=0)
+        # Top and bottom pins are pitched at TWICE the pin spacing and the two
+        # rows are staggered by one, so a top pin and a bottom pin never share
+        # an x. They would otherwise draw their names up and down the same
+        # line inside the body: the AP2112K's VIN and GND rendered as one
+        # unreadable "GNDVIN", and so did every ESP32 module's power unit.
+        top_pitch = 2 * PIN_SPACING
         width = max(
             15.24,
             _snap_up(1.27 * (max_l + max_r) + 5.08, PIN_SPACING),
-            (max(len(by_side[Side.TOP]), len(by_side[Side.BOTTOM])) + 1)
+            (max(len(by_side[Side.TOP]), len(by_side[Side.BOTTOM])) * 2 + 1)
             * PIN_SPACING,
         )
         height = max(
@@ -204,13 +399,15 @@ class SymbolModel:
                                   x=round(half_w + PIN_LENGTH, 4),
                                   y=round(half_h - PIN_SPACING * (i + 1), 4),
                                   angle=180, length=PIN_LENGTH, side=Side.RIGHT))
-        for row, side, y, angle in (
-            (by_side[Side.TOP], Side.TOP, half_h + PIN_LENGTH, 270),
-            (by_side[Side.BOTTOM], Side.BOTTOM, -half_h - PIN_LENGTH, 90),
+        for row, side, y, angle, stagger in (
+            (by_side[Side.TOP], Side.TOP, half_h + PIN_LENGTH, 270,
+             -PIN_SPACING / 2),
+            (by_side[Side.BOTTOM], Side.BOTTOM, -half_h - PIN_LENGTH, 90,
+             PIN_SPACING / 2),
         ):
             m = len(row)
             for i, s in enumerate(row):
-                x = (i - (m - 1) / 2) * PIN_SPACING
+                x = (i - (m - 1) / 2) * top_pitch + stagger
                 pins.append(PlacedPin(s.pad, s.name, s.etype,
                                       x=round(x, 4), y=round(y, 4), angle=angle,
                                       length=PIN_LENGTH, side=side))
@@ -239,8 +436,60 @@ class SymbolModel:
 
     def node_size(self, unit_id: int) -> tuple[float, float]:
         """Full bbox (w, h) of a unit in schematic space, pin tips included."""
-        u = self.unit(unit_id)
-        return (u.width + 2 * PIN_LENGTH, u.height + 2 * PIN_LENGTH)
+        x0, y0, x1, y1 = self.unit(unit_id).extent()
+        return (round(x1 - x0, 4), round(y1 - y0, 4))
+
+    def node_anchor(self, unit_id: int) -> tuple[float, float]:
+        """Offset from the node's top-left origin to the symbol's own origin.
+
+        KiCad places a symbol by its library origin, which is only the centre
+        of the node bbox when the bbox was derived from a centred rectangle.
+        Preserved artwork is routinely off-centre (``Device:LED`` reaches
+        4.6 mm left of origin and 3.8 mm right), so callers must ask rather
+        than halve the size.
+        """
+        x0, _y0, _x1, y1 = self.unit(unit_id).extent()
+        return (round(-x0, 4), round(y1, 4))
+
+    def body_box(self, unit_id: int) -> tuple[float, float, float, float]:
+        """Body extent in SCHEMATIC space relative to the symbol origin:
+        ``(left, top, right, bottom)`` with top < bottom (+Y down)."""
+        x0, y0, x1, y1 = self.unit(unit_id).body_extent()
+        return (x0, round(-y1, 4), x1, round(-y0, 4))
+
+    def field_offsets(self, unit_id: int = 1) -> tuple[
+            tuple[float, float, str], tuple[float, float, str]]:
+        """Where Reference and Value go, in LIBRARY space (+Y up).
+
+        Returns ``((rx, ry, justify), (vx, vy, justify))``. Both sit outside
+        the body and clear of the pins, which is the whole point: the
+        previous fixed ``+2.54/±1.27`` offsets put both fields *inside*
+        anything taller than 2.5 mm, so every IC rendered its reference on
+        top of its own pin names.
+
+        Which side is free is decided by the pins, not by taste. A field
+        placed under a symbol whose pins leave the bottom is drawn across
+        those pins' stubs and across the power symbols they end in — which
+        is what "AP2112K-3.3" did to the LDO's ground tap.
+        """
+        unit = self.unit(unit_id)
+        box = unit.body_extent()
+        x0, y0, x1, y1 = box
+        right = round(x1 + 1.27, 4)
+        if _fields_beside(box):
+            return ((right, 1.27, "left"), (right, -1.27, "left"))
+        sides = {p.side for p in unit.pins}
+        top_free = Side.TOP not in sides
+        bottom_free = Side.BOTTOM not in sides
+        mid = round((x0 + x1) / 2, 4)
+        above, below = round(y1 + 1.27, 4), round(y0 - 1.27, 4)
+        if top_free and bottom_free:
+            return ((mid, above, ""), (mid, below, ""))
+        if bottom_free:
+            return ((mid, below, ""), (mid, round(y0 - 3.81, 4), ""))
+        if top_free:
+            return ((mid, above, ""), (mid, round(y1 + 3.81, 4), ""))
+        return ((right, 1.27, "left"), (right, -1.27, "left"))
 
     def node_ports(self, unit_id: int) -> list[tuple]:
         """Ports for the layout engine, in schematic space (+Y down).
@@ -251,8 +500,8 @@ class SymbolModel:
         left/right, left→right for top/bottom).
         """
         u = self.unit(unit_id)
-        half_w, half_h = u.width / 2, u.height / 2
-        ox, oy = -half_w - PIN_LENGTH, half_h + PIN_LENGTH  # lib-space origin
+        x0, _y0, _x1, y1 = u.extent()
+        ox, oy = x0, y1                                  # lib-space bbox corner
         by_side: dict[Side, list[PlacedPin]] = {s: [] for s in Side}
         for p in u.pins:
             by_side[p.side].append(p)
@@ -365,41 +614,127 @@ class SymbolModel:
         comp = self._component
         safe_name = lib_id.replace('"', '\\"')
         footprint = comp.footprint.lib_id if comp.footprint else ""
+        head = self.units[0]
+        (rx, ry, rjust), (vx, vy, vjust) = self.field_offsets(head.unit_id)
+
+        def just(j: str) -> str:
+            return f" (justify {j})" if j else ""
 
         lines = [f'(symbol "{safe_name}"']
-        lines.append('      (pin_names (offset 1.016))')
+        if head.hide_pin_numbers:
+            lines.append('      (pin_numbers (hide yes))')
+        names = f'      (pin_names (offset {head.pin_names_offset})'
+        lines.append(names + (' (hide yes))' if head.hide_pin_names else ')'))
         lines.append('      (exclude_from_sim no)')
         lines.append('      (in_bom yes)')
         lines.append('      (on_board yes)')
         lines.append(f'      (property "Reference" "{comp.reference_prefix or "U"}" '
-                     '(at 0 1.27 0) (effects (font (size 1.27 1.27))))')
-        lines.append(f'      (property "Value" "{comp.part_name}" (at 0 -1.27 0) '
-                     '(effects (font (size 1.27 1.27))))')
+                     f'(at {rx} {ry} 0) (effects (font (size 1.27 1.27))'
+                     f'{just(rjust)}))')
+        lines.append(f'      (property "Value" "{comp.part_name}" '
+                     f'(at {vx} {vy} 0) (effects (font (size 1.27 1.27))'
+                     f'{just(vjust)}))')
         lines.append(f'      (property "Footprint" "{footprint}" (at 0 0 0) '
                      '(effects (font (size 1.27 1.27)) (hide yes)))')
         lines.append(f'      (property "Datasheet" "{comp.datasheet}" (at 0 0 0) '
                      '(effects (font (size 1.27 1.27)) (hide yes)))')
         child_base = safe_name.split(":")[-1]
-        for unit in self.units:
-            half_h = unit.height / 2
-            half_w = unit.width / 2
-            lines.append(f'      (symbol "{child_base}_{unit.unit_id}_1"')
-            lines.append(f'        (rectangle (start -{half_w} {half_h}) '
-                         f'(end {half_w} -{half_h})')
-            lines.append('          (stroke (width 0.254) (type default)) '
-                         '(fill (type background)))')
-            for p in unit.pins:
-                pin_name = p.name.replace('"', '\\"')
-                lines.append(
-                    f'        (pin {p.etype.value} line '
-                    f'(at {p.x} {p.y} {p.angle}) (length {p.length})'
-                    f'\n          (name "{pin_name}" '
-                    '(effects (font (size 1.27 1.27))))'
-                    f'\n          (number "{p.pad}" '
-                    '(effects (font (size 1.27 1.27)))))'
-                )
+        for suffix, items in self._child_blocks():
+            lines.append(f'      (symbol "{child_base}_{suffix}"')
+            lines.extend(f"        {item}" for item in items)
             lines.append('      )')
         lines.append('      (embedded_fonts no))')
+        return "\n".join(lines)
+
+    def _child_blocks(self) -> list[tuple[str, list[str]]]:
+        """``(suffix, draw/pin commands)`` per KiCad sub-symbol, sorted.
+
+        Preserved artwork keeps the source's own ``<unit>_<style>`` split
+        (``0_0`` = every unit and every body style); a synthesized unit
+        contributes one body rectangle. Pins always land in
+        ``<unit>_1`` — merged into the art block when the source used the
+        same suffix, so a symbol never gets two blocks with one name.
+        """
+        blocks: dict[str, list[str]] = {}
+        for unit in self.units:
+            if unit.art:
+                for suffix, items in unit.art:
+                    blocks.setdefault(suffix, []).extend(items)
+            else:
+                half_w, half_h = unit.width / 2, unit.height / 2
+                blocks.setdefault(f"{unit.unit_id}_1", []).append(
+                    f"(rectangle (start -{half_w} {half_h}) "
+                    f"(end {half_w} -{half_h}) "
+                    "(stroke (width 0.254) (type default)) "
+                    "(fill (type background)))")
+            pin_lines = blocks.setdefault(f"{unit.unit_id}_1", [])
+            for p in unit.pins:
+                pin_name = _esc(p.draw_name)
+                pin_lines.append(
+                    f"(pin {p.etype.value} {p.style} "
+                    f"(at {p.x} {p.y} {p.angle}) (length {p.length}) "
+                    f'(name "{pin_name}" (effects (font (size 1.27 1.27)))) '
+                    f'(number "{_esc(p.pad)}" '
+                    "(effects (font (size 1.27 1.27)))))")
+        return sorted(blocks.items())
+
+    def kicad_sym_text(self) -> str:
+        """Serialized ``.kicad_sym`` library for this part.
+
+        Parts with no preserved artwork keep the kiutils emitter byte for
+        byte — every already-generated symbol in the tree came from it, and
+        a formatting change there would rewrite files this work has no
+        business touching.
+        """
+        if not any(u.art for u in self.units):
+            return self.to_kicad_sym().to_sexpr()
+        return self._art_kicad_sym_text()
+
+    def _art_kicad_sym_text(self) -> str:
+        """``.kicad_sym`` text for a part that carries source artwork.
+
+        Text rather than a kiutils object graph because preserved artwork
+        arrives as source S-expressions: round-tripping arbitrary draw
+        commands through typed classes would mean re-implementing every
+        graphic KiCad can draw, and losing whichever ones this vendored
+        kiutils does not model.
+        """
+        comp = self._component
+        name = _esc(comp.part_name)
+        footprint = _esc(comp.footprint.lib_id if comp.footprint else "")
+        head = self.units[0]
+        (rx, ry, rjust), (vx, vy, vjust) = self.field_offsets(head.unit_id)
+
+        def just(j: str) -> str:
+            return f" (justify {j})" if j else ""
+
+        lines = ["(kicad_symbol_lib (version 20231120) (generator symbol_gen)",
+                 f'  (symbol "{name}" (in_bom yes) (on_board yes)']
+        if head.hide_pin_numbers:
+            lines.append("    (pin_numbers (hide yes))")
+        names = f"    (pin_names (offset {head.pin_names_offset})"
+        lines.append(names + (" (hide yes))" if head.hide_pin_names else ")"))
+        fields = [
+            ("Reference", _esc(comp.reference_prefix or "U"), 0,
+             f"(at {rx} {ry} 0)", just(rjust), False),
+            ("Value", name, 1, f"(at {vx} {vy} 0)", just(vjust), False),
+            ("Footprint", footprint, 2, "(at 0.0 0.0 0)", "", True),
+            ("Datasheet", _esc(comp.datasheet or ""), 3, "(at 0.0 0.0 0)",
+             "", True),
+        ]
+        if comp.description:
+            fields.append(("Description", _esc(comp.description), 4,
+                           "(at 0.0 0.0 0)", "", True))
+        for key, value, fid, at, justify, hide in fields:
+            lines.append(f'    (property "{key}" "{value}" (id {fid}) {at}')
+            lines.append(f"      (effects (font (size {TEXT_SIZE} {TEXT_SIZE}))"
+                         f"{justify}{' hide' if hide else ''})")
+            lines.append("    )")
+        for suffix, items in self._child_blocks():
+            lines.append(f'    (symbol "{name}_{suffix}"')
+            lines.extend(f"      {item}" for item in items)
+            lines.append("    )")
+        lines += ["  )", ")", ""]
         return "\n".join(lines)
 
     def to_inline_sexp(self, lib_id: str) -> str:

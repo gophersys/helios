@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -29,6 +31,26 @@ class LED(Component):
     _PIN_SPECS = (
         PinSpec(pad='1', name='K', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='2', name='A', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(polyline (pts (xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -1.27 0) (xy 1.27 0)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -1.27 -1.27) (xy -1.27 1.27)) (stroke (width 0.254) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)) (stroke (width 0.254) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=-3.81, y=0, angle=0, length=2.54, style='line', unnamed=False),
+            PinArt(pad='2', x=3.81, y=0, angle=180, length=2.54, style='line', unnamed=False),
+        ),
+        bbox=(-4.572, -2.286, 3.81, 1.27),
+        hide_pin_numbers=True,
+        hide_pin_names=True,
+        pin_names_offset=1.016,
     )
 
     value = 'LED'

@@ -10,7 +10,6 @@
     "datasheet": "none - ingested without a datasheet",
     "single_source": 2,
     "source_mode": "2-source: official symbol pins x installed footprint pads",
-    "unverified": 0,
     "waived": 0
   },
   "footprint": {
@@ -22,9 +21,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "270634ae003d1b8fed5040c1a49a407ab8afed4a7c6f771eabd0f640724c90a9",
-    "md_sha256": "1503e1c3cf9ad5cc4226a60d398c8aa4ceebb5a9110e93709d0e97a31ee677a8",
-    "py_sha256": "efe4fe32c8756635d0d34ef63b3ff55eb43d0dbb55df31ac9d35cff5520035ef"
+    "kicad_sym_sha256": "8557d1bf8b7aaed77f041983cfc057be443a0a3a20cbbe99938d4db550f5819b",
+    "md_sha256": "0eba0a9889b07a10ca8bfa8f9d934afb64a19797798fc9399be13d3c9e3a3589",
+    "py_sha256": "cfbb3f6edd322b7fa0f6d1df71a718b1a2d8445ab12718281d99781ac7d626c2"
   },
   "id": "capacitor",
   "lib_id": "Device:C",
@@ -51,7 +50,7 @@
   "source_hashes": {
     "footprint_sha256": "0403382fc4583ed510b461b1fa4a36dfaec6f4c0d9b1a67e6b0027837a54e1b5",
     "pdf_sha256": "",
-    "symbol_sha256": "07a56f4341c3a1c22e93cafdebfc6d2eff88a9acbfcb211adc540f324c722915"
+    "symbol_sha256": "267ed5a33259a061b46add3054a7835ebd2f6e7646c15ddc3604cbacd489195c"
   },
   "sourcing": null,
   "unit_plan": [

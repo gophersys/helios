@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -29,6 +31,25 @@ class SW_Push(Component):
     _PIN_SPECS = (
         PinSpec(pad='1', name='1', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='2', name='2', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(circle (center -2.032 0) (radius 0.508) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 0 1.27) (xy 0 3.048)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(circle (center 2.032 0) (radius 0.508) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 2.54 1.27) (xy -2.54 1.27)) (stroke (width 0) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=-5.08, y=0, angle=0, length=2.54, style='line', unnamed=False),
+            PinArt(pad='2', x=5.08, y=0, angle=180, length=2.54, style='line', unnamed=False),
+        ),
+        bbox=(-5.08, -0.508, 5.08, 3.048),
+        hide_pin_numbers=True,
+        hide_pin_names=True,
+        pin_names_offset=1.016,
     )
 
     value = 'SW_Push'

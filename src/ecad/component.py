@@ -18,6 +18,7 @@ from .model import (
     PinRole,
     PinSpec,
     SourcingInfo,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -111,6 +112,10 @@ class Component:
         unit_strategy     UnitStrategy.SINGLE | EXPLICIT
         unit_plan         tuple[UnitDef, ...] (EXPLICIT only)
         orientation_hint  "" | "hub"  (layout: bidirectional pin side)
+        symbol_art        SymbolArt | None — the source symbol's own drawing
+                          and pin geometry, when the part was ingested from
+                          an official KiCad symbol. SymbolModel draws and
+                          places from it instead of synthesizing a rectangle.
         _PIN_SPECS        tuple[PinSpec, ...]
     """
 
@@ -125,6 +130,7 @@ class Component:
     unit_strategy: UnitStrategy = UnitStrategy.SINGLE
     unit_plan: tuple[UnitDef, ...] = ()
     orientation_hint: str = ""
+    symbol_art: SymbolArt | None = None
     _PIN_SPECS: tuple[PinSpec, ...] = ()
 
     def __init_subclass__(cls, **kwargs) -> None:

@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -29,6 +31,23 @@ class Capacitor(Component):
     _PIN_SPECS = (
         PinSpec(pad='1', name='P1', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='2', name='P2', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(polyline (pts (xy -2.032 0.762) (xy 2.032 0.762)) (stroke (width 0.508) (type default)) (fill (type none)))',
+                '(polyline (pts (xy -2.032 -0.762) (xy 2.032 -0.762)) (stroke (width 0.508) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=0, y=3.81, angle=270, length=2.794, style='line', unnamed=True),
+            PinArt(pad='2', x=0, y=-3.81, angle=90, length=2.794, style='line', unnamed=True),
+        ),
+        bbox=(-2.032, -3.81, 2.032, 3.81),
+        hide_pin_numbers=True,
+        hide_pin_names=False,
+        pin_names_offset=0.254,
     )
 
     value = '100nF'
