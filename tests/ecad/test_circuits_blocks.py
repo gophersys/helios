@@ -225,6 +225,66 @@ def test_decoupling_rejects_unknown_package():
         decoupling(Design("bad"), _mcu(), "+3V3", "GND", package="C_9999")
 
 
+# --- the merged-rail short --------------------------------------------------
+#
+# _power_pins() returns every PinRole.POWER / non-ground POWER_IN pin, and
+# decoupling() tied all of them to the one `rail`. Real cases in the seed
+# library alone: STM32F411CEU6 ties VBAT + VDDA + VDD_1..4, NEO-6M ties
+# V_BCKP to VCC. The hazard is not theoretical: on a bare ESP32-S3, VDD_SPI
+# is driven from VDD3P3_RTC through 14 ohm and is eFuse/GPIO45-selectable
+# 1.8 V or 3.3 V (DS Table 7 "VDD_SPI Voltage Control"), so hard-tying it to
+# 3V3 back-drives the internal flash LDO and destroys the 1.8 V option.
+# PWR-003(b) in src/ecad/rules/power.py reports the same merge at design
+# level.
+
+def _bare_s3() -> Component:
+    """The bare ESP32-S3 die, not the WROOM-1 module: five distinct supply
+    pin names (VDD3P3, VDD3P3_RTC, VDD3P3_CPU, VDD_SPI, VDDA)."""
+    return registry_get("ESP32-S3")()
+
+
+def test_decoupling_refuses_to_merge_distinct_supply_pins():
+    d = Design("bare-s3")
+    with pytest.raises(ValueError) as excinfo:
+        decoupling(d, _bare_s3(), "+3V3", "GND")
+    message = str(excinfo.value)
+    # It must LIST what it found, not just say no.
+    for name in ("VDD3P3", "VDD3P3_RTC", "VDD3P3_CPU", "VDD_SPI", "VDDA"):
+        assert name in message, message
+    assert "pins=" in message, message
+
+
+def test_decoupling_explicit_pins_override_the_refusal():
+    """``pins=`` is the caller taking responsibility, and it still works."""
+    d = Design("bare-s3-explicit")
+    chip = _bare_s3()
+    targets = [p for p in chip.pins if p.name == "VDD3P3"]
+    block = decoupling(d, chip, "+3V3", "GND", pins=targets, bulk=None)
+    netlist = d.intended_netlist()
+    assert {"U1:2", "U1:3"} <= netlist["+3V3"], netlist
+    # VDD_SPI (pad 29) is NOT swept onto the rail.
+    assert "U1:29" not in netlist["+3V3"], netlist
+    assert len(block.components) == 3      # the IC + two 100nF
+
+
+def test_decoupling_rail_name_selects_its_own_supply_pins():
+    """Naming the rail after the pin is the other way to disambiguate."""
+    d = Design("bare-s3-vdd-spi")
+    chip = _bare_s3()
+    decoupling(d, chip, "VDD_SPI", "GND", bulk=None)
+    netlist = d.intended_netlist()
+    assert netlist["VDD_SPI"] == {"U1:29", "C1:1"}, netlist
+
+
+def test_decoupling_still_works_on_a_single_rail_part():
+    """The WROOM-1 module has one supply pin name (3V3), so nothing to
+    disambiguate — the reference design must keep building."""
+    d = Design("wroom-single-rail")
+    decoupling(d, _mcu(), "+3V3", "GND")
+    _no_errors(d)
+    assert d.intended_netlist()["+3V3"] == {"U1:2", "C1:1", "C2:1"}
+
+
 def test_decoupling_with_no_free_power_pin_raises():
     d = Design("busy")
     mcu = _mcu()

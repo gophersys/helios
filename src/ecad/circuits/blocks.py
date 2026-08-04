@@ -492,6 +492,24 @@ def _ground_pins(ic: Component) -> list[Pin]:
     return [p for p in ic.pins if p.role is PinRole.GROUND]
 
 
+def _distinct_names(pins: Sequence[Pin]) -> list[str]:
+    """Supply pin names in first-seen order, deduplicated."""
+    seen: dict[str, None] = {}
+    for p in pins:
+        seen.setdefault(p.name, None)
+    return list(seen)
+
+
+def _rail_key(name: str) -> str:
+    """Comparison key for "is this rail named after that pin?".
+
+    ``"+3V3"`` and ``"3V3"`` are the same rail; ``"VDD_SPI"`` and
+    ``"VDD-SPI"`` are the same pin. Nothing weaker: ``VDD3P3`` must NOT
+    match ``VDD3P3_RTC``, which is a different domain.
+    """
+    return _norm_pin_name(name.lstrip("+"))
+
+
 def _label(ic: Component) -> str:
     return ic.ref or ic.part_name or type(ic).__name__
 
@@ -527,6 +545,17 @@ def decoupling(design: Design, ic: Component, rail: Net | str | Pin,
     are connected to ``gnd`` — without that the design would not lint, and a
     decoupling cap with no return path is not a decoupling cap.
 
+    **Multi-supply ICs must be explicit.** When the pins this block would
+    sweep carry more than one distinct name, it refuses rather than tie them
+    all to one rail, and the error lists the names it found. Two ways out:
+    pass ``pins=`` naming the pins that really belong on this rail, or name
+    the rail after one of them (``decoupling(d, chip, "VDD_SPI", "GND")``
+    takes only the ``VDD_SPI`` pins). Merging is not a safe default: a bare
+    ESP32-S3's ``VDD_SPI`` is fed from ``VDD3P3_RTC`` through 14 Ω and is
+    eFuse/GPIO45-selectable 1.8 V or 3.3 V, so hard-tying it to 3V3
+    back-drives the internal flash LDO and destroys the 1.8 V option.
+    Single-supply parts (the WROOM-1 module: ``3V3`` only) are unaffected.
+
     Pass ``bulk=None`` to place only the per-pin ceramics (e.g. a second IC
     sharing a rail that already has its bulk).
     """
@@ -538,6 +567,25 @@ def decoupling(design: Design, ic: Component, rail: Net | str | Pin,
     if pins is None:
         candidates = _power_pins(ic)
         targets = [p for p in candidates if p.net is rail_net or p.net is None]
+        names = _distinct_names(targets)
+        if len(names) > 1:
+            matched = [p for p in targets
+                       if _rail_key(p.name) == _rail_key(rail_net.name)]
+            if len(_distinct_names(matched)) == 1:
+                targets = matched
+            else:
+                raise ValueError(
+                    f"decoupling: {_label(ic)} has {len(names)} distinct "
+                    f"supply pin names free for {rail_net.name!r} "
+                    f"({', '.join(names)}) and this block will not sweep them "
+                    f"onto one rail — they are not guaranteed to sit at the "
+                    f"same voltage (the ESP32-S3's VDD_SPI is "
+                    f"eFuse/GPIO45-selectable 1.8 V or 3.3 V and is fed from "
+                    f"VDD3P3_RTC through 14 ohm; tying it to 3V3 back-drives "
+                    f"the internal flash LDO). Pass pins=[...] naming the pins "
+                    f"that belong on {rail_net.name!r}, or name the rail after "
+                    f"one of them."
+                )
     else:
         targets = list(pins)
     if not targets:
