@@ -310,8 +310,27 @@ def _write_evidence(record: ComponentRecord, ctx: dict,
     return ev
 
 
+def _footprint_pads_for(record: ComponentRecord) -> set[str] | None:
+    """Pads of the record's resolved footprint, or None if none is resolved."""
+    ref = str(record.meta.get("footprint", ""))
+    if ":" not in ref:
+        return None
+    lib, name = ref.split(":", 1)
+    info = FootprintIndex.cached(
+        REPO_ROOT / "data" / "footprint_index.json").get(f"{lib}:{name}")
+    return set(info.pad_numbers) if info is not None else None
+
+
 def _build_cross_verified(record: ComponentRecord, ctx: dict) -> None:
-    _write_evidence(record, ctx, footprint_pads=None)
+    # Pass the pads back in when the record already has a footprint.
+    # _write_evidence rebuilds the ledger from scratch, so passing None here
+    # ERASED the pins_vs_footprint claim that _build_footprint had written —
+    # and nothing restored it: the footprint_resolved gate passes on the mere
+    # presence of meta["footprint"], so a `factory status` recompute
+    # re-promotes the record without ever re-running that comparison. The
+    # symbol's pin set then stops being checked against the footprint's pads
+    # for good, and a KiCad library bump could break the pairing unnoticed.
+    _write_evidence(record, ctx, footprint_pads=_footprint_pads_for(record))
 
 
 def _component_class(record: ComponentRecord,
@@ -381,6 +400,21 @@ def _build_validated(record: ComponentRecord, ctx: dict) -> None:
         raise StageBlocked("meta.footprint unset (run footprint_resolved first)")
     lib, fp_name = fp_id.split(":", 1)
     evidence = crossverify.load_evidence(root / record.id / "evidence.json")
+    # Re-check the ledger HERE, immediately before generating into
+    # src/ecad/library/. The cross_verified gate ran at a different point in
+    # time and `step` does not re-run it before this builder, so a ledger that
+    # regressed in between still shipped code: the committed
+    # esp32_wroom_32e.json records evidence_summary conflicts=2, meaning a part
+    # was generated while its ledger had two unresolved disagreements. And
+    # because next_stage() after `validated` is `approved`, which has no
+    # builder, that artifact is never regenerated — the stale claim is
+    # permanent.
+    summary = evidence.summary()
+    if summary["conflicts"] or summary.get("unverified"):
+        raise StageBlocked(
+            f"refusing to generate library code: {summary['conflicts']} "
+            f"unresolved conflict(s), {summary.get('unverified', 0)} "
+            f"unverified claim(s) — waive with a citation or fix the source")
     name = str(record.meta.get("chip", record.id))
     part = {
         "name": name,
