@@ -30,6 +30,7 @@ from src.ecad.component import Component
 from src.ecad.model import FootprintRef, PinRole, pin
 from src.ecad.rules import (
     PartFacts,
+    power,
     RegulatorFacts,
     RuleContext,
     Severity,
@@ -39,6 +40,7 @@ from src.ecad.rules import (
     rules,
 )
 from src.ecad.rules import cli as rules_cli
+from tests.ecad.test_rules_gpio import MERGED_CONTEXT, REFERENCE_STRAP_TARGETS
 from src.ecad.rules.engine import (
     WAIVER_STALE,
     is_ground_pin,
@@ -363,9 +365,17 @@ def test_rule_clean(rule_id: str) -> None:
 
 
 def test_every_registered_rule_has_fixtures() -> None:
-    """Rule N+1 cannot merge without a firing AND a clean fixture."""
-    registered = {r.id for r in rules()}
-    assert registered, "no rules are registered at all"
+    """Rule N+1 of the POWER pack cannot merge without both fixtures.
+
+    Scoped to this pack's own domain now that a second pack exists. The
+    registry-wide version of this assertion — no rule id in ANY domain may
+    exist without a firing fixture somewhere — lives in
+    ``tests/ecad/test_rules_gpio.py``
+    (``test_every_registered_rule_has_a_firing_fixture``), so nothing was
+    given up by narrowing this one.
+    """
+    registered = {r.id for r in rules(power.DOMAIN)}
+    assert registered, "no power rules are registered at all"
     assert registered <= set(FIRING), (
         f"rules with no FIRING fixture: {sorted(registered - set(FIRING))}")
     assert registered <= set(CLEAN), (
@@ -702,12 +712,20 @@ def test_ground_classification_uses_name_and_role() -> None:
 # The reference design — the truth, whatever it is
 # ---------------------------------------------------------------------------
 
-#: Errors the reference design produces per sheet, and why each is the
-#: documented cross-sheet convention rather than a defect. Kept as data so
-#: the test asserts the EXACT set: a new error cannot hide among them.
+#: Errors the reference design produces per sheet, and why each is either the
+#: documented cross-sheet convention or a documented strapping decision rather
+#: than a defect. Kept as data so the test asserts the EXACT set: a new error
+#: cannot hide among them.
+#:
+#: The GPIO-001 entries are the three strapping pins the design deliberately
+#: leaves on the chip's internal pull-ups/pull-downs — exactly the three its
+#: own ``STRAPPING`` table marks ``waiver=True``. That correspondence, and the
+#: cited waivers covering them, are asserted in
+#: ``tests/ecad/test_rules_gpio.py``.
 REFERENCE_SHEET_ERRORS = {
     "esp32-s3-ref-power": {("PWR-001", "VBUS")},
-    "esp32-s3-ref-mcu": {("PWR-001", "+3V3")},
+    "esp32-s3-ref-mcu": ({("PWR-001", "+3V3")}
+                         | {("GPIO-001", t) for t in REFERENCE_STRAP_TARGETS}),
     "esp32-s3-ref-usb": {("PWR-006", "VBUS")},
 }
 
@@ -742,8 +760,19 @@ REFERENCE_LEDGER = (Path(ref.__file__).parent / "rule_waivers.json")
 
 
 def test_shipped_waiver_ledger_matches_the_documented_one() -> None:
-    """The JSON next to the design and the ledger under test are one thing."""
-    assert load_waivers(REFERENCE_LEDGER) == REFERENCE_WAIVERS
+    """The JSON next to the design and the ledger under test are one thing.
+
+    Restricted to this pack's own entries. The ledger is shared between packs;
+    the GPIO-001 entries in it are owned — and asserted verbatim, against the
+    reference design's own ``StrappingDecision`` rationales — by
+    ``tests/ecad/test_rules_gpio.py``. The final assertion keeps that split
+    honest: a waiver for some third rule id could not slip into the ledger
+    unowned by either file.
+    """
+    shipped = load_waivers(REFERENCE_LEDGER)
+    assert [w for w in shipped if w.rule_id.startswith("PWR-")] == \
+        REFERENCE_WAIVERS
+    assert {w.rule_id.split("-")[0] for w in shipped} == {"PWR", "GPIO"}
 
 
 def test_reference_design_sheets_report_exactly_the_known_cross_sheet_errors():
@@ -755,7 +784,21 @@ def test_reference_design_sheets_report_exactly_the_known_cross_sheet_errors():
 
 
 def test_reference_design_merged_board_is_clean() -> None:
-    report = check(ref.sheets(), name="esp32-s3-reference (merged)")
+    """The board, as opposed to a sheet: every rail is driven somewhere.
+
+    No longer finding-free, and the test says so rather than being relaxed:
+    the merged board still carries the three strapping pins the design leaves
+    on the chip's internal pulls, because merging sheets does not connect an
+    unconnected pad. Every POWER rule passes with no waiver at all, which is
+    what this test has always been about.
+    """
+    bare = check(ref.sheets(), name=MERGED_CONTEXT)
+    assert {(f.rule_id, f.target) for f in bare.errors} == \
+        {("GPIO-001", t) for t in REFERENCE_STRAP_TARGETS}, \
+        [f.message for f in bare.errors]
+
+    report = check(ref.sheets(), name=MERGED_CONTEXT,
+                   waivers=load_waivers(REFERENCE_LEDGER))
     assert report.ok, [f.message for f in report.errors]
     # Be suspicious of a clean run: prove the rules actually had data to work
     # with rather than skipping everything as "no data".
@@ -765,10 +808,12 @@ def test_reference_design_merged_board_is_clean() -> None:
 
 
 def test_reference_design_passes_with_the_documented_waivers() -> None:
+    ledger = load_waivers(REFERENCE_LEDGER)
     for design in ref.sheets().values():
-        report = check(design, waivers=REFERENCE_WAIVERS)
+        report = check(design, waivers=ledger)
         assert report.ok, [f.message for f in report.errors]
-        assert not [f for f in report.findings if f.rule_id == WAIVER_STALE]
+        assert not [f for f in report.findings if f.rule_id == WAIVER_STALE], \
+            [f.message for f in report.findings if f.rule_id == WAIVER_STALE]
 
 
 def test_reference_facts_come_from_the_real_datasheet_numbers() -> None:
@@ -821,10 +866,25 @@ def test_cli_list_shows_every_rule_with_its_citation() -> None:
 
 def test_cli_json_output_is_machine_readable() -> None:
     out = io.StringIO()
-    rules_cli.main(["check", "examples.esp32_s3_reference", "--json"], out=out)
+    rules_cli.main(["check", "examples.esp32_s3_reference", "--json",
+                    "--waivers", str(REFERENCE_LEDGER)], out=out)
     payload = json.loads(out.getvalue())
     assert set(payload["reports"]) >= {"merged"}
     assert payload["reports"]["merged"]["ok"] is True
+    # Waived findings survive into the JSON with their citation attached —
+    # the machine-readable form has to carry the ledger, not hide it.
+    waived = payload["reports"]["merged"]["waived"]
+    assert {w["waiver"]["target"] for w in waived} == REFERENCE_STRAP_TARGETS
+
+
+def test_cli_json_output_reports_the_merged_board_failing_unwaived() -> None:
+    """Without the ledger the merged board is NOT ok, and the JSON says so."""
+    out = io.StringIO()
+    rules_cli.main(["check", "examples.esp32_s3_reference", "--json"], out=out)
+    merged = json.loads(out.getvalue())["reports"]["merged"]
+    assert merged["ok"] is False
+    assert {f["target"] for f in merged["findings"]
+            if f["rule_id"] == "GPIO-001"} == REFERENCE_STRAP_TARGETS
 
 
 def test_cli_rejects_a_module_with_no_build() -> None:
