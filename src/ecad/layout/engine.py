@@ -186,11 +186,12 @@ def _free_tap(reserved: set[tuple[float, float]],
 
 def _content_box(boxes: list[tuple[float, float, float, float]],
                  ) -> tuple[float, float, float, float]:
-    """Union of every drawn thing, padded by the drawing-sheet border.
+    """Union of every drawn thing, in absolute sheet coordinates.
 
-    The pad is what makes the result answerable by :func:`fit_page`: a page
-    "fits" only when the whole drawing sits inside the frame, and the union
-    of the content alone says nothing about the frame.
+    Absolute, not relative: :func:`fit_page` tests the drawing against the
+    frame's border and title block, so it needs to know where on the sheet
+    the drawing actually starts, not merely how big it is. An empty sheet
+    degenerates to a point on the frame corner.
     """
     if not boxes:
         return (MARGIN, MARGIN, MARGIN, MARGIN)
