@@ -40,6 +40,7 @@ from src.ecad.circuits import (
 )
 from src.ecad.circuits import blocks as blocks_mod
 from src.ecad.library import get as registry_get
+from src.ecad.model import pin as pinspec
 
 KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
 skip_no_kicad = pytest.mark.skipif(
@@ -84,6 +85,33 @@ def _refs_unique(design: Design) -> None:
     refs = [c.ref for c in design.components]
     assert all(refs), f"unassigned refs: {refs}"
     assert len(refs) == len(set(refs)), f"duplicate refs: {sorted(refs)}"
+
+
+def _fake_part(name, specs, *, prefix: str = "U") -> type[Component]:
+    """A throwaway Component subclass, for pinouts no shipped part has.
+
+    The blocks below are advertised as generic over ``part``; the shipped
+    parts are the only pinouts that happen to exist today, so a defect that
+    needs a *different* pinout to show itself needs a part like this one.
+    """
+    return type(name.replace("-", "_"), (Component,), {
+        "part_name": name,
+        "lib_id": f"Test:{name}",
+        "reference_prefix": prefix,
+        "_PIN_SPECS": tuple(specs),
+    })
+
+
+def _serve(monkeypatch, lib_id: str, cls: type[Component]) -> None:
+    """Make ``_registry_class(lib_id)`` return ``cls``; pass everything else
+    through to the real registry, since a block usually needs its passives
+    too."""
+    real = blocks_mod._registry_class
+
+    def fake(requested: str, **kwargs):
+        return cls if requested == lib_id else real(requested, **kwargs)
+
+    monkeypatch.setattr(blocks_mod, "_registry_class", fake)
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +384,78 @@ def test_ldo_regulator_rejects_a_part_with_no_output():
     with pytest.raises(ValueError, match="no power_out pin"):
         ldo_regulator(d, "VBUS", "+3V3", "GND", part=MODULE)
     assert d.components == []
+
+
+# --- the VIN-to-GND short ---------------------------------------------------
+#
+# This block advertises itself as generic over ``part``, but it classified a
+# regulator's ground pin by NAME (GND*/VSS*/PAD_GND/EP_ or group=="ground",
+# in src/pipeline/ecad_bridge._infer_role) and wired every *other* POWER_IN
+# pin to VIN as a fall-through. AP2112K-3.3 is safe only because its ground
+# pin happens to be called "GND". A regulator whose ground pin is typed
+# power_in and named AGND / PGND / 0V / COM / SUB gets its ground welded to
+# VIN — a dead short that every structural gate passes, because the netlist
+# matches the (wrong) intent exactly. Complementary evidence: PWR-003(a) in
+# src/ecad/rules/power.py reports the same short at design level.
+
+#: SOT-23-5 LDO, AP2112 pinout, ground pin named "AGND" — which
+#: ``_infer_role`` does not recognise, so the model types it power_in/POWER.
+_AGND_LDO = (
+    pinspec("1", "VIN", "power_in", "power"),
+    pinspec("2", "AGND", "power_in", "power"),
+    pinspec("3", "EN", "input", "control"),
+    pinspec("4", "NC", "no_connect", "nc"),
+    pinspec("5", "VOUT", "power_out", "power"),
+)
+
+
+@pytest.mark.parametrize("gnd_name", ["AGND", "PGND", "0V", "COM", "SUB"])
+def test_ldo_regulator_refuses_to_wire_an_unclassifiable_power_in_pin(
+        monkeypatch, gnd_name):
+    """A ground pin the part model failed to role must ABORT, not reach VIN."""
+    specs = tuple(pinspec(p.pad, gnd_name if p.name == "AGND" else p.name,
+                          p.etype, p.role)
+                  for p in _AGND_LDO)
+    _serve(monkeypatch, "MisroledLDO", _fake_part("MisroledLDO", specs))
+
+    d = Design("agnd-ldo")
+    with pytest.raises(ValueError) as excinfo:
+        ldo_regulator(d, "VBUS", "+3V3", "GND", part="MisroledLDO")
+    message = str(excinfo.value)
+    assert gnd_name in message, message          # names the pin
+    assert "MisroledLDO" in message, message     # names the part
+    # All-or-nothing: nothing was registered and no net was created.
+    assert d.components == [] and d.nets == []
+
+
+def test_ldo_regulator_refuses_an_unknown_power_in_pin_name(monkeypatch):
+    """Not only ground-looking names: anything it cannot positively call the
+    input supply is refused rather than guessed onto VIN."""
+    specs = tuple(pinspec(p.pad, "VMYSTERY" if p.name == "AGND" else p.name,
+                          p.etype, p.role)
+                  for p in _AGND_LDO)
+    _serve(monkeypatch, "MysteryLDO", _fake_part("MysteryLDO", specs))
+
+    d = Design("mystery-ldo")
+    with pytest.raises(ValueError, match="VMYSTERY"):
+        ldo_regulator(d, "VBUS", "+3V3", "GND", part="MysteryLDO")
+    assert d.components == [] and d.nets == []
+
+
+def test_ldo_regulator_wires_a_correctly_roled_ground_whatever_its_name(
+        monkeypatch):
+    """The role is the contract. A pin roled GROUND goes to GND even when
+    its name is one this block would otherwise refuse."""
+    specs = tuple(pinspec(p.pad, "PGND" if p.name == "AGND" else p.name,
+                          p.etype, "ground" if p.name == "AGND" else p.role)
+                  for p in _AGND_LDO)
+    _serve(monkeypatch, "PGNDLDO", _fake_part("PGNDLDO", specs))
+
+    d = Design("pgnd-ldo")
+    ldo_regulator(d, "VBUS", "+3V3", "GND", part="PGNDLDO")
+    netlist = d.intended_netlist()
+    assert "U1:2" in netlist["GND"], netlist
+    assert "U1:2" not in netlist["VBUS"], netlist
 
 
 # ---------------------------------------------------------------------------

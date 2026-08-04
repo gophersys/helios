@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import inspect
 import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -422,6 +423,65 @@ def _adopt(design: Design, ic: Component, added: list[Component]) -> None:
         added.append(ic)
 
 
+def _norm_pin_name(name: str) -> str:
+    """``"V_IN" -> "VIN"``, ``"pgnd" -> "PGND"`` — separators are not signal."""
+    return re.sub(r"[\s_.\-/]+", "", name).upper()
+
+
+#: Names a regulator's *input supply* pin may carry. This block classifies
+#: POWER_IN pins **positively**: a POWER_IN pin whose name is not here is
+#: refused, not wired. Vocabulary from the KiCad ``Regulator_Linear``
+#: library's own pin names plus the AP2112 datasheet's Pin Descriptions
+#: table (VIN).
+_LDO_VIN_NAMES = frozenset({
+    "VIN", "VIN1", "VIN2", "VINA", "IN", "IN1", "IN2", "VI", "VCC", "VDD",
+    "VDDIN", "VS", "VBAT", "VBUS", "PVIN", "AVIN", "V+", "VP",
+})
+
+#: Names that read as a ground return. A POWER_IN pin with one of these
+#: names whose role is *not* :attr:`PinRole.GROUND` is a mis-roled part
+#: model — the case that used to weld the regulator's ground to VIN.
+_GROUND_NAME_HINTS = frozenset({
+    "GND", "AGND", "DGND", "PGND", "SGND", "GNDA", "GNDD", "GNDP", "GNDS",
+    "VSS", "VSSA", "VSSD", "0V", "COM", "COMMON", "RTN", "RETURN",
+    "SUB", "SUBSTRATE", "EP", "EPAD", "PAD", "THERMALPAD", "VEE",
+})
+
+
+def _reads_as_ground(name: str) -> bool:
+    norm = _norm_pin_name(name)
+    return (norm in _GROUND_NAME_HINTS
+            or norm.startswith(("GND", "VSS", "PADGND", "EPGND"))
+            or norm.endswith("GND"))
+
+
+def _classify_ldo_supply_pin(p: Pin, part_label: str) -> str:
+    """``"vin"`` for a POWER_IN pin positively identified as the input.
+
+    Raises :class:`ValueError` naming the pin and the part otherwise. There
+    is deliberately no fall-through: the old ``else: vin_net.connect(p)``
+    turned every POWER_IN pin the block did not understand — including a
+    ground pin the part model had failed to role — into a short.
+    """
+    if _norm_pin_name(p.name) in _LDO_VIN_NAMES:
+        return "vin"
+    if _reads_as_ground(p.name):
+        raise ValueError(
+            f"ldo_regulator: {part_label} pin {p.name!r} (pad {p.pad}) is "
+            f"typed {p.etype.value} but its name reads as a ground return, "
+            f"and its role is {p.role.value!r}, not {PinRole.GROUND.value!r}. "
+            f"Wiring it as the input supply would short VIN to GND. Give the "
+            f"pin role=PinRole.GROUND in the part model."
+        )
+    raise ValueError(
+        f"ldo_regulator: {part_label} pin {p.name!r} (pad {p.pad}) is typed "
+        f"{p.etype.value} and this block cannot tell whether it is the input "
+        f"supply or a return, so it refuses to wire it. Give the pin "
+        f"role=PinRole.GROUND (a return) or one of the recognised input "
+        f"names {sorted(_LDO_VIN_NAMES)} in the part model."
+    )
+
+
 def _power_pins(ic: Component) -> list[Pin]:
     return [p for p in ic.pins
             if p.role is PinRole.POWER
@@ -690,14 +750,25 @@ def ldo_regulator(design: Design, vin: Net | str | Pin,
     the seed chip library) — this block never invents a regulator; an
     unresolvable ``part`` raises :class:`MissingPartError`.
 
-    Pin roles decide the wiring: ``power_in`` pins go to ``vin``,
-    ``power_out`` to ``vout``, ground-role pins to ``gnd``, and an ``EN`` /
-    ``ENABLE`` input is tied to ``vin`` (always-on).
+    Pin roles decide the wiring: ``power_out`` pins go to ``vout``,
+    ground-role pins to ``gnd``, a positively-identified input-supply pin to
+    ``vin``, and an ``EN`` / ``ENABLE`` input is tied to ``vin`` (always-on).
+
+    A ``power_in`` pin the block cannot positively classify raises
+    :class:`ValueError` naming the pin and the part. It used to fall through
+    to ``vin``, which meant a regulator whose ground pin was typed
+    ``power_in`` and named ``AGND`` / ``PGND`` / ``0V`` / ``COM`` / ``SUB``
+    — none of which
+    :func:`src.pipeline.ecad_bridge._infer_role` recognises as a ground —
+    had its ground welded to VIN. That short passes every structural gate,
+    because the emitted netlist matches the (wrong) intent exactly;
+    ``PWR-003(a)`` in :mod:`src.ecad.rules.power` catches it at design level.
     """
     cls = _registry_class(part, needed_by=f"ldo_regulator(part={part!r})",
                           hint="Add it to src/ecad/library or to "
                                "src.pipeline.chip_library.")
     reg = cls()
+    label = reg.part_name or part
     outputs = [p for p in reg.pins if p.etype is ElectricalType.POWER_OUT]
     if not outputs:
         raise ValueError(
@@ -705,24 +776,32 @@ def ldo_regulator(design: Design, vin: Net | str | Pin,
             f"regulator model this block can wire"
         )
 
+    # Classify every pin BEFORE the design is touched: this block is
+    # all-or-nothing (module docstring), and an unclassifiable power_in pin
+    # must abort rather than leave a half-wired regulator behind.
+    plan: list[tuple[Pin, str]] = []
+    enable_pins: list[Pin] = []
+    for p in reg.pins:
+        if p.role is PinRole.GROUND:
+            plan.append((p, "gnd"))
+        elif p.etype is ElectricalType.POWER_OUT:
+            plan.append((p, "vout"))
+        elif p.etype is ElectricalType.POWER_IN:
+            plan.append((p, _classify_ldo_supply_pin(p, label)))
+        elif (p.etype is ElectricalType.INPUT
+              and p.name.upper().replace("_", "") in ("EN", "ENABLE")):
+            plan.append((p, "vin"))
+            enable_pins.append(p)
+
     added: list[Component] = []
     vin_net = _as_net(design, vin, default_name="VIN", what="ldo vin")
     vout_net = _as_net(design, vout, default_name="VOUT", what="ldo vout")
     gnd_net = _as_net(design, gnd, default_name="GND", what="ldo gnd")
     _register(design, added, reg)
 
-    enable_pins: list[Pin] = []
-    for p in reg.pins:
-        if p.role is PinRole.GROUND:
-            gnd_net.connect(p)
-        elif p.etype is ElectricalType.POWER_OUT:
-            vout_net.connect(p)
-        elif p.etype is ElectricalType.POWER_IN:
-            vin_net.connect(p)
-        elif (p.etype is ElectricalType.INPUT
-              and p.name.upper().replace("_", "") in ("EN", "ENABLE")):
-            vin_net.connect(p)
-            enable_pins.append(p)
+    rails = {"vin": vin_net, "vout": vout_net, "gnd": gnd_net}
+    for p, where in plan:
+        rails[where].connect(p)
 
     needed_by = f"ldo_regulator({part})"
     c_in = _capacitor(cin, package, needed_by=needed_by)
