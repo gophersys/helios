@@ -53,7 +53,14 @@ from .ir import (
 
 _STUB = PIN_PITCH  # label / escape stub length, mm
 
-_ANGLE = {Side.RIGHT: 0, Side.LEFT: 180, Side.TOP: 90, Side.BOTTOM: 270}
+# Label rotation per stub direction. KiCad draws a 270 label running UP the
+# page and a 90 label running DOWN it (verified against kicad-cli's render,
+# not inferred), so a top stub takes 270 and a bottom stub 90 — each label
+# then runs AWAY from the symbol. The previous mapping was the other way
+# round, which drew a bottom pin's net name straight up through the body it
+# came out of: the USB-C shield's "CHASSIS" ran over the connector's own
+# "SHIELD" pin label.
+_ANGLE = {Side.RIGHT: 0, Side.LEFT: 180, Side.TOP: 270, Side.BOTTOM: 90}
 _DIR = {
     Side.RIGHT: (1.0, 0.0),
     Side.LEFT: (-1.0, 0.0),

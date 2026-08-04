@@ -22,9 +22,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "493f88a3d2178631421fee5b1c70b134eed7c40be9796ac7bc7ee7d6d9591733",
+    "kicad_sym_sha256": "b402be3b9d911a54b2fe629efe5c739ca155d223e6d9c52b264b636d71858b9f",
     "md_sha256": "a66e1eab2592396dc0b4b435aafd9ad08e6fd02b0a1272531822e33a32343895",
-    "py_sha256": "b424fa2fb322a6f563dfde9f782210222dbf3f51063695a00bfc6f20d24ec1ed"
+    "py_sha256": "0c086309879994dce707a346ff36c68ff3f5ecd13ab501e8086167f9e6561446"
   },
   "id": "resistor",
   "lib_id": "Device:R",
@@ -50,7 +50,7 @@
   "source_hashes": {
     "footprint_sha256": "e05c7605248c220836f642ed1f526133edf0374acdfd5bb2631e58b4e377acfb",
     "pdf_sha256": "",
-    "symbol_sha256": "9a2077f7e22baf441f947f794b9c481614ac5fd9573288d47f9d4c6eee6018a8"
+    "symbol_sha256": "33e78d7b7039d3915b35b02526ecc7e3847b56ec70a14e3442bbd1158ef6bc70"
   },
   "sourcing": null,
   "unit_plan": [

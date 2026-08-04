@@ -16,7 +16,7 @@ from src.ecad.layout.ir import (
     SatelliteCap,
     SchematicGraph,
 )
-from src.ecad.layout.place import MIN_GAP, coordinates
+from src.ecad.layout.place import MIN_GAP, SAT_GAP, SAT_PITCH, coordinates
 from src.ecad.symbol import Side
 
 
@@ -204,12 +204,14 @@ def test_fanout_min_gap_and_no_overlap():
     p = coordinates(g, rk, od)
     _assert_no_overlap(g, p)
     # Sinks pulled toward one driver: gaps compress exactly to MIN_GAP.
+    # The refinement leaves the topmost sink at 26.67; normalisation then
+    # pulls the whole drawing up by 1.27 so it starts on Y_START.
     ys = [p.origin[i][1] for i in ("Ra#1", "Rb#1", "Rc#1")]
-    assert ys == [26.67, 39.37, 52.07]
+    assert ys == [25.4, 38.1, 50.8]
     for above, below in zip(ys, ys[1:]):
         assert below - (above + 5.08) >= MIN_GAP - 1e-6
     # Up sweep centres the driver on the mean of its three sink targets.
-    assert p.origin["U1#1"] == (25.4, 35.56)
+    assert p.origin["U1#1"] == (25.4, 34.29)
 
 
 def test_virtual_node_column_width_and_priority():
@@ -260,11 +262,14 @@ def test_satellite_row_below_owner():
     rk = Ranking(rank_of={"U1#1": 0}, ranks=[["U1#1"]], segments=[])
     od = Ordering(order=[["U1#1"]], crossings=0)
     p = coordinates(g, rk, od)
-    # Nominal cap centre = owner bottom (25.4 + 10.16) + 7.62 = 43.18, but
-    # the reserved band is the row as EMITTED (cap body + rail wire above +
-    # ground symbol below = centre ± 6.35) against the owner's bbox inflated
-    # by its own power stubs, so the row steps one pitch down. Pitch 7.62 x.
-    assert p.sat_rows == {"U1#1": [("C1", 25.4, 45.72), ("C2", 33.02, 45.72)]}
+    # Cap centre = owner bottom (25.4 + 10.16) + SAT_GAP, pitch SAT_PITCH in x.
+    # The reserved band is the row as EMITTED (cap body + rail wire above +
+    # ground symbol below = centre ± 6.35) measured against the owner's bbox
+    # inflated by its own power stubs — here 41.91..54.61 against 22.86..38.1,
+    # so nothing pushes the row down and the nominal centre stands.
+    row_y = round(25.4 + 10.16 + SAT_GAP, 4)
+    assert p.sat_rows == {"U1#1": [("C1", 25.4, row_y),
+                                   ("C2", round(25.4 + SAT_PITCH, 4), row_y)]}
 
 
 def test_satellite_row_pushed_past_collision():
@@ -276,10 +281,12 @@ def test_satellite_row_pushed_past_collision():
                  ranks=[["U1#1", "R9#1"]], segments=[])
     od = Ordering(order=[["U1#1", "R9#1"]], crossings=0)
     p = coordinates(g, rk, od)
-    # The nominal row collides with R9#1 (43.18..53.34): pushed down in 2.54
-    # steps until the emitted band (centre ± 6.35) clears R9#1's bbox plus
-    # the pin pitch its power stubs occupy below it.
-    assert p.sat_rows == {"U1#1": [("C1", 25.4, 63.5), ("C2", 33.02, 63.5)]}
+    # The nominal row (centre 48.26) collides with R9#1 (43.18..53.34):
+    # pushed down in 2.54 steps until the emitted band (centre ± 6.35) clears
+    # R9#1's bbox plus the pin pitch its power stubs occupy below it, i.e.
+    # centre - 6.35 >= 55.88 -> 63.5.
+    assert p.sat_rows == {"U1#1": [("C1", 25.4, 63.5),
+                                   ("C2", round(25.4 + SAT_PITCH, 4), 63.5)]}
     # Ranked nodes are NEVER moved to make room for satellites.
     assert p.origin["R9#1"] == (25.4, 43.18)
 

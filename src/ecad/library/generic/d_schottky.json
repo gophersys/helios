@@ -22,9 +22,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "efa9bd967f1301acd5974642ee8d1e312b37dac0cab1121e7a06f45e7dddae67",
+    "kicad_sym_sha256": "be92b55296cd8165e58158e46f0fd8424bcc2ed0a682ac8f95e0353c5cd0cb9d",
     "md_sha256": "15b393e896671ae9f0616070b23472757aa68077a45c90383e45dc911a2722a3",
-    "py_sha256": "7bdf308f74d925201477fa55ba78192494413df75f49ef1b8d964af993ee03d7"
+    "py_sha256": "d43ec2903ed3812f779bf8730baa6e02dfecd01c409c62aeaa7de24b8c044097"
   },
   "id": "d_schottky",
   "lib_id": "Device:D_Schottky",
@@ -48,7 +48,7 @@
   "source_hashes": {
     "footprint_sha256": "fd16785935b01254e1076f490e12f0f096da73cf087adefce51225585c62557a",
     "pdf_sha256": "",
-    "symbol_sha256": "5eabbbdcdcc113dc4b8adbfb8e237046e5e081be8961ae1637e5c0c019d29977"
+    "symbol_sha256": "fcbf35eef855c45cfe39cf331ddf982ec677cd3f8a79b98ca575f086d6208c86"
   },
   "sourcing": null,
   "unit_plan": [

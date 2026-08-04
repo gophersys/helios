@@ -22,9 +22,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "b20bf50bbbea770bace4c770494dede145ff51a1896a4ac626c404d075a59ad6",
+    "kicad_sym_sha256": "c33f2111b32a16ad19c5c669874d9df026ea506c9e33830cac46e1eed1a46362",
     "md_sha256": "009a796ea8d53e62b87953f6b1cb8afa802b0256dbcd323d10fa41784d36728a",
-    "py_sha256": "5a47eb08fe7b4af2ec3ee1c670c10bbfd19a11febedc68e7156e81e8b640c741"
+    "py_sha256": "db7555b83a2f1322c6cfaa11b3c774f76d98ee7b09745c061c0ee41cd3c0aecf"
   },
   "id": "ferritebead",
   "lib_id": "Device:FerriteBead",
@@ -52,7 +52,7 @@
   "source_hashes": {
     "footprint_sha256": "a2a9c562208496756e22f3ab19e0bd6db2341d14da92e7c767d5eafd1bb45d38",
     "pdf_sha256": "",
-    "symbol_sha256": "4a1e70d74011bed2bbdc4b968264e36d937e2db60638eb64d19e5faeeaa98f36"
+    "symbol_sha256": "0e1bc0577d247f52ae350d08b74f11d76fe85d686f7c7189efaca9539848dcb2"
   },
   "sourcing": null,
   "unit_plan": [

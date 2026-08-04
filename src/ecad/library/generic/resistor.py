@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -29,6 +31,22 @@ class Resistor(Component):
     _PIN_SPECS = (
         PinSpec(pad='1', name='P1', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='2', name='P2', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(rectangle (start -1.016 -2.54) (end 1.016 2.54) (stroke (width 0.254) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=0, y=3.81, angle=270, length=1.27, style='line', unnamed=True),
+            PinArt(pad='2', x=0, y=-3.81, angle=90, length=1.27, style='line', unnamed=True),
+        ),
+        bbox=(-1.016, -3.81, 1.016, 3.81),
+        hide_pin_numbers=True,
+        hide_pin_names=False,
+        pin_names_offset=0.0,
     )
 
     value = '10k'

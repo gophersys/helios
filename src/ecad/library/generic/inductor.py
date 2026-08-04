@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -29,6 +31,25 @@ class Inductor(Component):
     _PIN_SPECS = (
         PinSpec(pad='1', name='1', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='2', name='2', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(arc (start 0 2.54) (mid 0.6323 1.905) (end 0 1.27) (stroke (width 0) (type default)) (fill (type none)))',
+                '(arc (start 0 1.27) (mid 0.6323 0.635) (end 0 0) (stroke (width 0) (type default)) (fill (type none)))',
+                '(arc (start 0 0) (mid 0.6323 -0.635) (end 0 -1.27) (stroke (width 0) (type default)) (fill (type none)))',
+                '(arc (start 0 -1.27) (mid 0.6323 -1.905) (end 0 -2.54) (stroke (width 0) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=0, y=3.81, angle=270, length=1.27, style='line', unnamed=False),
+            PinArt(pad='2', x=0, y=-3.81, angle=90, length=1.27, style='line', unnamed=False),
+        ),
+        bbox=(0.0, -3.81, 0.6323, 3.81),
+        hide_pin_numbers=True,
+        hide_pin_names=True,
+        pin_names_offset=1.016,
     )
 
     value = '10uH'

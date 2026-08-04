@@ -22,9 +22,9 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "ecca81e98b789ce56c21fadc784fb6fef236a382c3dae5332ea504a77e1fea52",
+    "kicad_sym_sha256": "b714f25cdc2f00b10a9411b519b61dfe9a52b4913db8d5cc974f1b2b8e3f4664",
     "md_sha256": "7f570bc41da75b3572818ebdd0c5342b8702c0607a976cce15edd8d757d4428a",
-    "py_sha256": "12ec1fd3152b8a7814f51934c1ca7219713c6434b159686fbf1008c2d0919843"
+    "py_sha256": "544dd324339af0f7905e42f1580b6a18d45923085074ca8e2dd2d3f731309e1f"
   },
   "id": "sw_push",
   "lib_id": "Switch:SW_Push",
@@ -48,7 +48,7 @@
   "source_hashes": {
     "footprint_sha256": "577769688431da794711a13d96a801907e1d9cb997b32f0d623e0bbd4e2e7884",
     "pdf_sha256": "",
-    "symbol_sha256": "e78b5c38b506e9540978e2432403d5f48d50138deabb8103aa6fd3f67309716f"
+    "symbol_sha256": "c17fcb25f395b8489a353feb993b270983e7ade609b340678268a2a521dbf407"
   },
   "sourcing": null,
   "unit_plan": [

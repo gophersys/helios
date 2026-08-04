@@ -161,6 +161,16 @@ def gen_passive_stub(lib_id: str) -> str:
       (embedded_fonts no))"""
 
 
+#: Reference/Value offsets in LIBRARY space (+Y up) relative to the symbol
+#: origin, as ``((rx, ry, justify), (vx, vy, justify))``. This default is the
+#: historical fixed offset — right of the origin, one field above the other.
+#: It only clears the body of a symbol smaller than ~2.5 mm, which is why
+#: callers that know the body extent (the layout engine, via
+#: ``SymbolModel.field_offsets``) must pass their own.
+DEFAULT_FIELDS: tuple[tuple[float, float, str], tuple[float, float, str]] = (
+    (2.54, 1.27, "left"), (2.54, -1.27, "left"))
+
+
 @dataclass
 class ComponentPlacement:
     """A placed component in a schematic."""
@@ -171,6 +181,8 @@ class ComponentPlacement:
     position: tuple[float, float]
     unit: int = 1
     rotation: int = 0  # degrees: 0/90/180/270
+    fields: tuple[tuple[float, float, str], tuple[float, float, str]] = (
+        DEFAULT_FIELDS)
 
 
 @dataclass
@@ -210,7 +222,11 @@ def gen_symbol_instance(comp: ComponentPlacement, project_name: str,
     pin_section = "\n".join(
         f'\t\t(pin "{n}"\n\t\t\t(uuid "{_uuid()}")\n\t\t)' for n in nums
     )
+    (rx, ry, rjust), (vx, vy, vjust) = comp.fields
 
+    # fields_autoplaced is NO on purpose: the positions below are computed
+    # from the symbol's real body extent, and telling KiCad they were
+    # auto-placed invites it to move them back on the next edit.
     return f"""\t(symbol
 \t\t(lib_id "{comp.lib_id}")
 \t\t(at {x} {y} {comp.rotation})
@@ -219,10 +235,12 @@ def gen_symbol_instance(comp: ComponentPlacement, project_name: str,
 \t\t(in_bom yes)
 \t\t(on_board yes)
 \t\t(dnp no)
-\t\t(fields_autoplaced yes)
+\t\t(fields_autoplaced no)
 \t\t(uuid "{sym_uuid}")
-{_gen_property("Reference", comp.ref, 0, x + 2.54, y - 1.27, justify="left")}
-{_gen_property("Value", comp.value, 1, x + 2.54, y + 1.27, justify="left")}
+{_gen_property("Reference", comp.ref, 0, round(x + rx, 4), round(y - ry, 4),
+               justify=rjust)}
+{_gen_property("Value", comp.value, 1, round(x + vx, 4), round(y - vy, 4),
+               justify=vjust)}
 {_gen_property("Footprint", comp.footprint, 2, x, y, hide=True)}
 {_gen_property("Datasheet", "~", 3, x, y, hide=True)}
 {pin_section}
@@ -356,11 +374,33 @@ def power_symbol_lib_sexp(net_name: str) -> str:
       (embedded_fonts no))"""
 
 
+def power_label_offset(net_name: str, down: bool) -> float:
+    """Signed dy from a power symbol's pin to where its name belongs.
+
+    The glyph is drawn on ONE side of the connection point and the wire
+    arrives on the other, so a single fixed offset necessarily puts every
+    second label on top of something. A ground (rotated 180, glyph hanging
+    below) gets its name below the glyph; a rail gets it above; a PWR_FLAG
+    gets it below, which is also what stops it colliding with the rail
+    symbol it is tied to a pin-pitch away.
+    """
+    if net_name == "PWR_FLAG":
+        return 2.54
+    return 3.81 if down else -2.54
+
+
 def _gen_power_instance(net_name: str, ref: str, x: float, y: float,
                         rotation: int, project_name: str,
-                        root_uuid: str) -> str:
-    """A placed power symbol instance (#PWR ref, invisible in BOM)."""
+                        root_uuid: str, label_dy: float | None = None) -> str:
+    """A placed power symbol instance (#PWR ref, invisible in BOM).
+
+    ``label_dy`` overrides where the rail name goes; callers that know what
+    else is on the sheet (the layout engine) pass a de-conflicted offset.
+    """
     safe = net_name.replace('"', '\\"')
+    if label_dy is None:
+        label_dy = power_label_offset(net_name, rotation == 180)
+    label_y = round(y + label_dy, 4)
     return f"""\t(symbol
 \t\t(lib_id "power:{safe}")
 \t\t(at {x} {y} {rotation})
@@ -369,10 +409,10 @@ def _gen_power_instance(net_name: str, ref: str, x: float, y: float,
 \t\t(in_bom no)
 \t\t(on_board yes)
 \t\t(dnp no)
-\t\t(fields_autoplaced yes)
+\t\t(fields_autoplaced no)
 \t\t(uuid "{_uuid()}")
 {_gen_property("Reference", ref, 0, x, y + 1.27, hide=True)}
-{_gen_property("Value", safe, 1, x, y - 2.54)}
+{_gen_property("Value", safe, 1, x, label_y)}
 \t\t(pin "1"\n\t\t\t(uuid "{_uuid()}")\n\t\t)
 \t\t(instances
 \t\t\t(project "{project_name}"

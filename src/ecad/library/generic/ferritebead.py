@@ -8,8 +8,10 @@ from src.ecad.component import Component, Pin
 from src.ecad.model import (
     ElectricalType,
     FootprintRef,
+    PinArt,
     PinRole,
     PinSpec,
+    SymbolArt,
     UnitDef,
     UnitStrategy,
 )
@@ -29,6 +31,24 @@ class FerriteBead(Component):
     _PIN_SPECS = (
         PinSpec(pad='1', name='P1', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
         PinSpec(pad='2', name='P2', etype=ElectricalType.PASSIVE, role=PinRole.PASSIVE),
+    )
+
+    symbol_art = SymbolArt(
+        children=(
+            ('0_1', (
+                '(polyline (pts (xy -2.7686 0.4064) (xy -1.7018 2.2606) (xy 2.7686 -0.3048) (xy 1.6764 -2.159) (xy -2.7686 0.4064)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 0 1.27) (xy 0 1.2954)) (stroke (width 0) (type default)) (fill (type none)))',
+                '(polyline (pts (xy 0 -1.27) (xy 0 -1.2192)) (stroke (width 0) (type default)) (fill (type none)))',
+            )),
+        ),
+        pins=(
+            PinArt(pad='1', x=0, y=3.81, angle=270, length=2.54, style='line', unnamed=True),
+            PinArt(pad='2', x=0, y=-3.81, angle=90, length=2.54, style='line', unnamed=True),
+        ),
+        bbox=(-2.7686, -3.81, 2.7686, 3.81),
+        hide_pin_numbers=True,
+        hide_pin_names=False,
+        pin_names_offset=0.0,
     )
 
     value = '600R@100MHz'
