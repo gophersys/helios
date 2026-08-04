@@ -20,7 +20,7 @@
   "generated": {
     "codegen_version": 1,
     "generator": "src/ecad/ingest/codegen.py",
-    "kicad_sym_sha256": "cfb72ce9d2344c5ce57bf01d884ed9c5b90d91ed4db7a1759107cffd81ac33d5",
+    "kicad_sym_sha256": "03c95ed5f47cf0f64594e50e23b17d729f6f3bbc41b32c6277ee2a868ece9e5a",
     "md_sha256": "406501592502b5cc26aad1e072016519fb437d423869d4f0acaa96774baaca54",
     "py_sha256": "30cf0a0152a0197ab44a8c5ec680456c9be3baabd120aff801c0ad8186b4212d"
   },

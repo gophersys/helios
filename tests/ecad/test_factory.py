@@ -241,14 +241,36 @@ needs_live = pytest.mark.skipif(
            "the pinned data/zephyr trees")
 
 
+@pytest.fixture
+def sandbox_repo(tmp_path):
+    """A repo-shaped temp dir sharing the real read-only inputs.
+
+    The acceptance test drives the REAL pipeline against the REAL oracles
+    (installed KiCad symbol, pinned Zephyr tree, cached datasheet), so it
+    cannot use fake_repo. It previously ran against REPO itself and rewrote
+    data/ingest/, src/ecad/library/espressif/ and COMPONENTS.md as a side
+    effect — a green test that mutated the tree it was meant to be checking.
+
+    Inputs are symlinked (read-only), outputs land under tmp_path.
+    """
+    repo = tmp_path / "repo"
+    (repo / "data").mkdir(parents=True)
+    for shared in ("datasheets", "zephyr"):
+        (repo / "data" / shared).symlink_to(REPO / "data" / shared)
+    (repo / "src" / "ecad" / "library").mkdir(parents=True)
+    yield repo
+    library.remove_search_path(repo / "src" / "ecad" / "library" / "espressif")
+    library.clear_cache()
+
+
 @needs_live
-def test_acceptance_esp32_s3_wroom_1(monkeypatch):
+def test_acceptance_esp32_s3_wroom_1(monkeypatch, sandbox_repo):
     monkeypatch.delenv("FACTORY_LLM", raising=False)
     comp = "esp32-s3-wroom-1"
-    root = REPO / "data" / "ingest"
-    shutil.rmtree(root / comp, ignore_errors=True)
+    repo = sandbox_repo
+    root = repo / "data" / "ingest"
 
-    records = factory.status(REPO)
+    records = factory.status(repo)
     assert len(records) == 15                     # all manifest entries seeded
     rec = next(r for r in records if r.id == comp)
     assert rec.stage is Stage.DISCOVERED
@@ -258,7 +280,7 @@ def test_acceptance_esp32_s3_wroom_1(monkeypatch):
                 Stage.FOOTPRINT_RESOLVED, Stage.SOURCING_LINKED,
                 Stage.VALIDATED]
     for want in expected:
-        rec = factory.step(comp, REPO)
+        rec = factory.step(comp, repo)
         assert rec.stage is want, (want, rec.blocked_on())
         assert not rec.blocked_on()
 
@@ -274,6 +296,11 @@ def test_acceptance_esp32_s3_wroom_1(monkeypatch):
     assert summary["claims"] >= 30
     assert ev.find("pad_set", "pins_vs_footprint").status == "agreed"
 
+    # the strapping check must reach a real verdict, not "no verdict"
+    assert summary["unverified"] == 0
+    strap = ev.find("strapping", "set")
+    assert strap is not None and strap.status == "agreed", strap
+
     # footprint: pre-linked official footprint with a STEP model
     assert rec.meta["footprint"] == "RF_Module:ESP32-S3-WROOM-1"
     assert rec.meta["footprint_has_step"] is True
@@ -285,6 +312,8 @@ def test_acceptance_esp32_s3_wroom_1(monkeypatch):
     # validated: generated class imports with 40+ typed pin accessors, ERC 0
     assert rec.meta["erc_errors"] == 0
     assert rec.meta["accessors"] >= 40
+    gen_dir = repo / "src" / "ecad" / "library" / "espressif"
+    library.add_search_path(gen_dir)
     library.clear_cache()
     cls = library.get("ESP32-S3-WROOM-1")
     inst = cls()
@@ -300,14 +329,27 @@ def test_acceptance_esp32_s3_wroom_1(monkeypatch):
     assert cls.footprint.lib_id == "RF_Module:ESP32-S3-WROOM-1"
     assert cls.sourcing.lcsc == "C2913202"
 
-    gen_py = REPO / "src" / "ecad" / "library" / "espressif" / "esp32_s3_wroom_1.py"
+    gen_py = gen_dir / "esp32_s3_wroom_1.py"
     assert gen_py.is_file()
     sidecar = json.loads(gen_py.with_suffix(".json").read_text())
     assert sidecar["evidence_summary"]["conflicts"] == 0
 
-    md = (REPO / "COMPONENTS.md").read_text()
+    md = (repo / "COMPONENTS.md").read_text()
     assert f"| {comp} | espressif | module | validated |" in md
 
+    # The committed artifacts are source: a fresh run must reproduce them
+    # byte-for-byte. generic/ has had this gate since Stage F
+    # (test_committed_artifacts_match_a_fresh_regeneration); without the
+    # espressif equivalent this test silently REGENERATED the tree it was
+    # supposed to be validating, so drift could never be observed.
+    committed_dir = REPO / "src" / "ecad" / "library" / "espressif"
+    for fresh in sorted(gen_dir.glob("esp32_s3_wroom_1.*")):
+        committed = committed_dir / fresh.name
+        assert committed.is_file(), f"{fresh.name} is not committed"
+        assert committed.read_text() == fresh.read_text(), (
+            f"{fresh.name} drifted — regenerate src/ecad/library/espressif/ "
+            f"on this tip and commit the result"
+        )
 
 # ── extracted.json must carry everything the extraction produced ────────────
 

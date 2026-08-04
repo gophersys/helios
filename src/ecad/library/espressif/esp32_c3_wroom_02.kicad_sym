@@ -20,9 +20,9 @@
         (stroke (width 0.254) (type default))
         (fill (type background))
       )
-      (pin power_in line (at 0.0 5.08 270) (length 2.54) (name "3V3") (number "1"))
+      (pin power_in line (at -1.27 5.08 270) (length 2.54) (name "3V3") (number "1"))
       (pin power_in line (at -1.27 -5.08 90) (length 2.54) (name "GND") (number "9"))
-      (pin power_in line (at 1.27 -5.08 90) (length 2.54) (name "GND") (number "19"))
+      (pin power_in line (at 3.81 -5.08 90) (length 2.54) (name "GND") (number "19"))
     )
     (symbol "ESP32-C3-WROOM-02_2_1"
       (rectangle (start -7.62 2.54) (end 7.62 -2.54)
