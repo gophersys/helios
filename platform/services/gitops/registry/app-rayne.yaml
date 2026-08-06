@@ -1,0 +1,30 @@
+# rayne — a single static page at rayne.mateosegura.com.
+#
+# Lands in ns `media` / project `media` deliberately: that namespace already
+# has the proven public path through the Cloudflare tunnel (homepage serves
+# home.mateosegura.com from there), so this needs no new namespace, quota tier
+# or NetworkPolicy exception. Split it out later if `media` starts to mean
+# only media.
+#
+# prune: false matches the other registry apps — Argo adds and updates, but
+# never deletes on its own.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rayne
+  namespace: argocd
+spec:
+  project: media
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/rayne
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      - ServerSideApply=true

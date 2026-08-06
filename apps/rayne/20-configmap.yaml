@@ -1,0 +1,218 @@
+# The page itself, carried in git so the app is reproducible from this repo
+# alone (one small static file — no image build, no registry round-trip).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rayne
+  namespace: media
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>for rayne</title>
+    <meta name="robots" content="noindex, nofollow">
+    <style>
+      :root{
+        --bg:#14110f;
+        --ink:#f2ece4;
+        --soft:#a99e91;
+        --accent:#e6b98f;
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0;
+        background:var(--bg);
+        color:var(--ink);
+        font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",
+                    Inter,Helvetica,Arial,sans-serif;
+        -webkit-font-smoothing:antialiased;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:7vh 6vw;
+        line-height:1.75;
+      }
+      main{width:100%;max-width:34rem}
+
+      /* ── gate ─────────────────────────────────────────
+         Its own screen: centred both ways, everything stacked
+         on one axis so it reads as a single quiet moment.     */
+      #gate{
+        min-height:74vh;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        animation:rise 1s ease both;
+      }
+      #gate p{
+        color:var(--soft);
+        font-size:1.02rem;
+        letter-spacing:.06em;
+        margin:0 0 2.2rem;
+      }
+      #form{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:1.5rem;
+      }
+      input{
+        font:inherit;font-size:1.25rem;
+        background:transparent;
+        border:none;border-bottom:1px solid #3a332c;
+        color:var(--ink);
+        padding:.6rem .4rem;
+        width:12rem;
+        text-align:center;
+        letter-spacing:.22em;
+        outline:none;transition:border-color .3s;
+      }
+      input:focus{border-bottom-color:var(--accent)}
+      button{
+        font:inherit;font-size:.98rem;
+        background:transparent;color:var(--accent);
+        border:1px solid #3a332c;border-radius:999px;
+        padding:.55rem 1.8rem;cursor:pointer;
+        letter-spacing:.04em;
+        transition:border-color .3s,color .3s;
+      }
+      button:hover{border-color:var(--accent)}
+      #hint{
+        color:var(--soft);font-size:.86rem;
+        margin-top:1.8rem;min-height:1.2em;
+        opacity:0;transition:opacity .35s;
+      }
+      #hint.show{opacity:1}
+
+      /* ── letter ───────────────────────────────────── */
+      #letter{display:none}
+      #letter.show{display:block;animation:rise 1.1s ease both}
+      @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+      #letter p{
+        margin:0 0 1.7rem;
+        font-size:1.16rem;
+        letter-spacing:.005em;
+      }
+      em{font-style:italic;color:var(--accent);opacity:.92}
+      #letter p.open{
+        font-size:1.34rem;
+        line-height:1.55;
+        margin-bottom:2rem;
+        text-wrap:balance;
+      }
+      .ask{
+        margin-top:2.4rem;
+        color:var(--accent);
+        font-size:1.2rem;
+        text-wrap:balance;
+      }
+      blockquote{
+        margin:3rem 0 0;
+        padding-left:1.1rem;
+        border-left:1px solid #3a332c;
+        color:var(--soft);
+        font-size:1.04rem;
+        font-style:italic;
+        line-height:1.7;
+      }
+      blockquote em{color:var(--ink);font-style:italic;opacity:1}
+      .sig{
+        margin-top:3rem;
+        color:var(--soft);
+        font-size:.9rem;
+        letter-spacing:.08em;
+      }
+      /* Phones: the letter is long, so stop vertically centring it (that pushes
+         the opening line off-screen) and let it start from the top and scroll. */
+      @media (max-width:560px){
+        body{
+          align-items:flex-start;
+          padding:5vh 7vw 12vh;
+          line-height:1.72;
+        }
+        #letter p{font-size:1.06rem;margin-bottom:1.45rem}
+        #letter p.open{font-size:1.22rem;margin-bottom:1.7rem}
+        .ask{font-size:1.1rem;margin-top:2rem}
+        blockquote{margin-top:2.4rem;font-size:.99rem;padding-left:.9rem}
+        .sig{margin-top:2.4rem}
+        #gate{min-height:70vh}
+        input{width:10.5rem;font-size:1.18rem}
+      }
+      /* Short landscape phones */
+      @media (max-height:520px){
+        body{align-items:flex-start;padding-top:4vh}
+      }
+    </style>
+    </head>
+    <body>
+    <main>
+
+      <section id="gate">
+        <p>one word.</p>
+        <form id="form">
+          <input id="pw" type="password" autocomplete="off" autocapitalize="off"
+                 autocorrect="off" spellcheck="false" aria-label="password">
+          <button type="submit">enter</button>
+        </form>
+        <div id="hint"></div>
+      </section>
+
+      <section id="letter">
+        <p class="open">rayne, i dont want to lose you.</p>
+
+        <p>i feel so lucky that i ran into you. i know i don’t fully know you yet - and all of the rest of the red flags that you come with, <em>*cough cough*</em>. but i’m fully willing to put in the effort and logistics. i will fly out, take nice bicep pics for you, make the distance work, whatever it takes. i want to build something real with you.</p>
+
+        <p>i like u, and i am choosing u. but it only works if we are both in it and willing to be straight with each other - a safe space for both of us.</p>
+
+        <p class="ask">do u want to work through this with me?</p>
+
+        <blockquote>“two independent spirits, together because they <em>want</em> to be, not because they <em>have</em> to be.”</blockquote>
+
+        <div class="sig">— matoe</div>
+      </section>
+
+    </main>
+
+    <script>
+      // Not security — a shared secret between two people.
+      // The word is hashed so it isn't sitting in plain sight in the source.
+      function h(s){let x=5381;for(let i=0;i<s.length;i++){x=((x<<5)+x)^s.charCodeAt(i);}return x>>>0;}
+      const KEY = 2601766897;
+
+      const gate = document.getElementById('gate');
+      const letter = document.getElementById('letter');
+      const pw = document.getElementById('pw');
+      const hint = document.getElementById('hint');
+      const nudges = ["not quite.", "try again.", "hmm. think simpler.", "it's what i called you."];
+      let tries = 0;
+
+      function open_(){
+        gate.style.display = 'none';
+        letter.classList.add('show');
+        try{ sessionStorage.setItem('r','1'); }catch(e){}
+      }
+
+      try{ if(sessionStorage.getItem('r') === '1') open_(); }catch(e){}
+
+      document.getElementById('form').addEventListener('submit', function(e){
+        e.preventDefault();
+        const v = pw.value.trim().toLowerCase();
+        if(h(v) === KEY){ open_(); }
+        else{
+          hint.textContent = nudges[Math.min(tries, nudges.length-1)];
+          hint.classList.add('show');
+          tries++;
+          pw.select();
+        }
+      });
+
+      pw.focus();
+    </script>
+    </body>
+    </html>
