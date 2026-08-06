@@ -25,7 +25,7 @@ spec:
         # Roll the pod when the page changes — a ConfigMap edit alone would
         # otherwise leave the running container serving the old file until
         # kubelet's periodic resync.
-        checksum/page: "8f2f5295c172e830"
+        checksum/page: "1763b5b6bd920ba9"
     spec:
       securityContext:
         runAsNonRoot: true
