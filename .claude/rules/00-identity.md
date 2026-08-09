@@ -41,7 +41,8 @@ infrastructure/
 ├── ctl.sh               # top-level control
 │
 ├── machines/            # hosts under Ansible + Tailscale
-│   ├── hosts/           # one directory per real machine
+│   ├── development/     # developer machines (one directory per real machine)
+│   ├── services/        # service hosts (one directory per real machine)
 │   ├── templates/       # blueprints to scaffold new hosts
 │   ├── roles/           # Ansible roles (common, platform-*, developer-*, ...)
 │   ├── scripts/         # shared bash scripts (secrets, SSH, Tailscale, index)
