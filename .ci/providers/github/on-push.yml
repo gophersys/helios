@@ -2,10 +2,8 @@ name: on-push
 
 on:
   push:
-    # init/seed is the current working branch (the repo default today); main is the future
-    # integration target. CI runs on a push to either so it fires NOW + keeps working after the
-    # main-as-integration cutover (a tracked follow-up).
-    branches: [init/seed, main]
+    # main is the integration branch (renamed from init/seed at the 2026-08-09 cutover).
+    branches: [main]
   workflow_dispatch:
 
 concurrency:

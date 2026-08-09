@@ -1,10 +1,9 @@
 name: on-pr
 
 on:
-  # init/seed is the current working branch; main is the future integration target. A PR into
-  # either runs the gate (the main-as-integration cutover is a tracked follow-up).
+  # main is the integration branch (renamed from init/seed at the 2026-08-09 cutover).
   pull_request:
-    branches: [init/seed, main]
+    branches: [main]
 
 concurrency:
   group: on-pr-${{ github.ref }}
