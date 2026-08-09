@@ -1,5 +1,9 @@
 # Org-wide runner scale set for gophersys — serves Eden, infrastructure, workspaces.
 # dind so runners can build images AND run k3d/kind (Eden's gates). runs-on: arc-org
+# Onboarding, consumers and the public-repo policy: docs/ci-runners.md
+# NOTE: the Default runner group sets allows_public_repositories=false, so jobs from
+# a PUBLIC org repo queue forever with no error. That is deliberate — this scale set
+# is privileged (dind), so fork PRs would reach the node. See the doc before changing.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
