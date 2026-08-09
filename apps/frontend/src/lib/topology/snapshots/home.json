@@ -1,9 +1,118 @@
 {
   "clusterId": "home",
   "clusterName": "Home \u00b7 k3s",
-  "generatedAt": "2026-06-19T04:58:18Z",
+  "generatedAt": "2026-07-20T06:38:52Z",
   "source": "live-introspection",
   "nodes": [
+    {
+      "id": "deploy/arc-systems/arc-gha-rs-controller",
+      "kind": "deployment",
+      "name": "arc-gha-rs-controller",
+      "namespace": "arc-systems",
+      "meta": {
+        "kind": "deploy",
+        "image": "gha-runner-scale-set-controller",
+        "replicas": "1/1",
+        "imageTag": "0.14.2",
+        "createdAt": "2026-07-07T05:32:37Z"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/arc-systems",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/argocd/argocd-applicationset-controller",
+      "kind": "deployment",
+      "name": "argocd-applicationset-controller",
+      "namespace": "argocd",
+      "meta": {
+        "kind": "deploy",
+        "image": "argocd",
+        "replicas": "1/1",
+        "imageTag": "v3.4.4",
+        "createdAt": "2026-07-05T01:32:39Z",
+        "ports": "8080,8081,7000"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/argocd/argocd-redis",
+      "kind": "cache",
+      "name": "argocd-redis",
+      "namespace": "argocd",
+      "meta": {
+        "kind": "deploy",
+        "image": "redis",
+        "replicas": "1/1",
+        "imageTag": "8.2.3-alpine",
+        "createdAt": "2026-07-05T01:32:39Z",
+        "ports": "6379"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 1
+      },
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/argocd/argocd-repo-server",
+      "kind": "deployment",
+      "name": "argocd-repo-server",
+      "namespace": "argocd",
+      "meta": {
+        "kind": "deploy",
+        "image": "argocd",
+        "replicas": "1/1",
+        "imageTag": "v3.4.4",
+        "createdAt": "2026-07-05T01:32:39Z",
+        "ports": "8081,8084"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/argocd/argocd-server",
+      "kind": "deployment",
+      "name": "argocd-server",
+      "namespace": "argocd",
+      "meta": {
+        "kind": "deploy",
+        "image": "argocd",
+        "replicas": "1/1",
+        "imageTag": "v3.4.4",
+        "createdAt": "2026-07-05T01:32:39Z",
+        "ports": "8080,8083"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/argocd",
+      "exposure": "public"
+    },
     {
       "id": "deploy/cert-manager/cert-manager",
       "kind": "deployment",
@@ -13,7 +122,7 @@
         "kind": "deploy",
         "image": "cert-manager-controller",
         "replicas": "1/1",
-        "imageTag": "v1.16.3",
+        "imageTag": "v1.20.3",
         "createdAt": "2026-06-18T00:19:05Z",
         "ports": "9402,9403"
       },
@@ -35,7 +144,7 @@
         "kind": "deploy",
         "image": "cert-manager-cainjector",
         "replicas": "1/1",
-        "imageTag": "v1.16.3",
+        "imageTag": "v1.20.3",
         "createdAt": "2026-06-18T00:19:05Z",
         "ports": "9402"
       },
@@ -57,7 +166,7 @@
         "kind": "deploy",
         "image": "cert-manager-webhook",
         "replicas": "1/1",
-        "imageTag": "v1.16.3",
+        "imageTag": "v1.20.3",
         "createdAt": "2026-06-18T00:19:05Z",
         "ports": "10250,6080,9402"
       },
@@ -79,7 +188,7 @@
         "kind": "deploy",
         "image": "cloudflared",
         "replicas": "2/2",
-        "imageTag": "2025.5.0",
+        "imageTag": "2026.6.1",
         "createdAt": "2026-06-18T06:25:11Z"
       },
       "status": "ok",
@@ -92,6 +201,248 @@
       "exposure": "internal"
     },
     {
+      "id": "deploy/eden/agent-runtime",
+      "kind": "deployment",
+      "name": "agent-runtime",
+      "namespace": "eden",
+      "meta": {
+        "kind": "deploy",
+        "image": "agent-runtime",
+        "replicas": "0/0",
+        "imageTag": "sha256:e14af8dcd23a",
+        "createdAt": "2026-07-08T07:40:16Z",
+        "ports": "8081"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 0,
+        "desired": 0,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/eden/agentgateway",
+      "kind": "deployment",
+      "name": "agentgateway",
+      "namespace": "eden",
+      "meta": {
+        "kind": "deploy",
+        "image": "agentgateway",
+        "replicas": "2/2",
+        "imageTag": "sha256:173f75779db3",
+        "createdAt": "2026-07-08T07:40:16Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/eden/frontend",
+      "kind": "deployment",
+      "name": "frontend",
+      "namespace": "eden",
+      "meta": {
+        "kind": "deploy",
+        "image": "frontend",
+        "replicas": "2/2",
+        "imageTag": "sha256:4bf9decef77e",
+        "createdAt": "2026-07-08T07:40:16Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "public"
+    },
+    {
+      "id": "deploy/eden/orchestrator",
+      "kind": "deployment",
+      "name": "orchestrator",
+      "namespace": "eden",
+      "meta": {
+        "kind": "deploy",
+        "image": "agentgateway",
+        "replicas": "3/3",
+        "imageTag": "sha256:173f75779db3",
+        "createdAt": "2026-07-08T07:40:16Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 3,
+        "desired": 3,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/eden/platformgateway",
+      "kind": "deployment",
+      "name": "platformgateway",
+      "namespace": "eden",
+      "meta": {
+        "kind": "deploy",
+        "image": "platformgateway",
+        "replicas": "2/2",
+        "imageTag": "sha256:40d42c3a2cc9",
+        "createdAt": "2026-07-08T07:40:16Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 2,
+        "desired": 2,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "kind": "deployment",
+      "name": "zephyr-devbox-nucleo-bringup",
+      "namespace": "embedded-lab",
+      "meta": {
+        "kind": "deploy",
+        "image": "zephyr-devbox",
+        "replicas": "1/1",
+        "imageTag": "latest",
+        "createdAt": "2026-07-06T01:43:37Z",
+        "ports": "22"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "kind": "deployment",
+      "name": "zephyr-devbox-zephyr-libs",
+      "namespace": "embedded-lab",
+      "meta": {
+        "kind": "deploy",
+        "image": "zephyr-devbox",
+        "replicas": "1/1",
+        "imageTag": "latest",
+        "createdAt": "2026-07-06T04:31:07Z",
+        "ports": "22"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/external-secrets/bw-serve",
+      "kind": "deployment",
+      "name": "bw-serve",
+      "namespace": "external-secrets",
+      "meta": {
+        "kind": "deploy",
+        "image": "bitwarden-cli",
+        "replicas": "1/1",
+        "imageTag": "2026.1.0",
+        "createdAt": "2026-07-05T05:03:41Z",
+        "ports": "8087"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/external-secrets",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/external-secrets/external-secrets",
+      "kind": "deployment",
+      "name": "external-secrets",
+      "namespace": "external-secrets",
+      "meta": {
+        "kind": "deploy",
+        "image": "external-secrets",
+        "replicas": "1/1",
+        "imageTag": "v2.7.0",
+        "createdAt": "2026-07-05T02:13:21Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/external-secrets",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/external-secrets/external-secrets-cert-controller",
+      "kind": "deployment",
+      "name": "external-secrets-cert-controller",
+      "namespace": "external-secrets",
+      "meta": {
+        "kind": "deploy",
+        "image": "external-secrets",
+        "replicas": "1/1",
+        "imageTag": "v2.7.0",
+        "createdAt": "2026-07-05T02:13:21Z",
+        "ports": "8080,8081"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/external-secrets",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/external-secrets/external-secrets-webhook",
+      "kind": "deployment",
+      "name": "external-secrets-webhook",
+      "namespace": "external-secrets",
+      "meta": {
+        "kind": "deploy",
+        "image": "external-secrets",
+        "replicas": "1/1",
+        "imageTag": "v2.7.0",
+        "createdAt": "2026-07-05T02:13:21Z",
+        "ports": "8080,10250,8081"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 1
+      },
+      "group": "ns/external-secrets",
+      "exposure": "internal"
+    },
+    {
       "id": "deploy/ingress-nginx/ingress-nginx-controller",
       "kind": "deployment",
       "name": "ingress-nginx-controller",
@@ -100,7 +451,7 @@
         "kind": "deploy",
         "image": "controller",
         "replicas": "1/1",
-        "imageTag": "sha256:d2fbc4ec70d8",
+        "imageTag": "sha256:594ceea76b01",
         "createdAt": "2026-06-18T00:19:05Z",
         "ports": "80,443,8443"
       },
@@ -179,6 +530,94 @@
       "exposure": "internal"
     },
     {
+      "id": "deploy/kyverno/kyverno-admission-controller",
+      "kind": "deployment",
+      "name": "kyverno-admission-controller",
+      "namespace": "kyverno",
+      "meta": {
+        "kind": "deploy",
+        "image": "kyverno",
+        "replicas": "1/1",
+        "imageTag": "v1.18.1",
+        "createdAt": "2026-07-05T05:08:50Z",
+        "ports": "9443,8000"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 1
+      },
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/kyverno/kyverno-background-controller",
+      "kind": "deployment",
+      "name": "kyverno-background-controller",
+      "namespace": "kyverno",
+      "meta": {
+        "kind": "deploy",
+        "image": "background-controller",
+        "replicas": "1/1",
+        "imageTag": "v1.18.1",
+        "createdAt": "2026-07-05T05:08:50Z",
+        "ports": "9443,8000"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 1
+      },
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/kyverno/kyverno-cleanup-controller",
+      "kind": "deployment",
+      "name": "kyverno-cleanup-controller",
+      "namespace": "kyverno",
+      "meta": {
+        "kind": "deploy",
+        "image": "cleanup-controller",
+        "replicas": "1/1",
+        "imageTag": "v1.18.1",
+        "createdAt": "2026-07-05T05:08:50Z",
+        "ports": "9443,8000"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/kyverno/kyverno-reports-controller",
+      "kind": "deployment",
+      "name": "kyverno-reports-controller",
+      "namespace": "kyverno",
+      "meta": {
+        "kind": "deploy",
+        "image": "reports-controller",
+        "replicas": "1/1",
+        "imageTag": "v1.18.1",
+        "createdAt": "2026-07-05T05:08:50Z",
+        "ports": "9443,8000"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 2
+      },
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
       "id": "deploy/longhorn-system/csi-attacher",
       "kind": "deployment",
       "name": "csi-attacher",
@@ -187,14 +626,15 @@
         "kind": "deploy",
         "image": "csi-attacher",
         "replicas": "3/3",
-        "imageTag": "v4.7.0",
-        "createdAt": "2026-06-18T00:23:16Z"
+        "imageTag": "v4.12.0",
+        "createdAt": "2026-07-08T01:36:59Z",
+        "ports": "8000"
       },
       "status": "ok",
       "health": {
         "ready": 3,
         "desired": 3,
-        "restarts": 8
+        "restarts": 1
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -208,14 +648,15 @@
         "kind": "deploy",
         "image": "csi-provisioner",
         "replicas": "3/3",
-        "imageTag": "v4.0.1-20241007",
-        "createdAt": "2026-06-18T00:23:16Z"
+        "imageTag": "v5.3.0-20260514",
+        "createdAt": "2026-07-08T01:37:00Z",
+        "ports": "8000"
       },
       "status": "ok",
       "health": {
         "ready": 3,
         "desired": 3,
-        "restarts": 8
+        "restarts": 3
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -229,14 +670,15 @@
         "kind": "deploy",
         "image": "csi-resizer",
         "replicas": "3/3",
-        "imageTag": "v1.12.0",
-        "createdAt": "2026-06-18T00:23:16Z"
+        "imageTag": "v2.1.0-20260514",
+        "createdAt": "2026-07-08T01:37:01Z",
+        "ports": "8000"
       },
       "status": "ok",
       "health": {
         "ready": 3,
         "desired": 3,
-        "restarts": 8
+        "restarts": 3
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -250,14 +692,15 @@
         "kind": "deploy",
         "image": "csi-snapshotter",
         "replicas": "3/3",
-        "imageTag": "v7.0.2-20241007",
-        "createdAt": "2026-06-18T00:23:17Z"
+        "imageTag": "v8.5.0-20260514",
+        "createdAt": "2026-07-08T01:37:02Z",
+        "ports": "8000"
       },
       "status": "ok",
       "health": {
         "ready": 3,
         "desired": 3,
-        "restarts": 5
+        "restarts": 1
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -271,7 +714,7 @@
         "kind": "deploy",
         "image": "longhorn-manager",
         "replicas": "1/1",
-        "imageTag": "v1.7.2",
+        "imageTag": "v1.12.0",
         "createdAt": "2026-06-18T00:20:28Z"
       },
       "status": "ok",
@@ -292,7 +735,7 @@
         "kind": "deploy",
         "image": "longhorn-ui",
         "replicas": "2/2",
-        "imageTag": "v1.7.2",
+        "imageTag": "v1.12.0",
         "createdAt": "2026-06-18T00:20:28Z",
         "ports": "8000"
       },
@@ -306,6 +749,116 @@
       "exposure": "internal"
     },
     {
+      "id": "deploy/media/filebrowser",
+      "kind": "deployment",
+      "name": "filebrowser",
+      "namespace": "media",
+      "meta": {
+        "kind": "deploy",
+        "image": "filebrowser",
+        "replicas": "1/1",
+        "imageTag": "v2.31.2",
+        "createdAt": "2026-07-06T21:47:09Z",
+        "ports": "80,8090"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "deploy/media/flaresolverr",
+      "kind": "deployment",
+      "name": "flaresolverr",
+      "namespace": "media",
+      "meta": {
+        "kind": "deploy",
+        "image": "flaresolverr",
+        "replicas": "1/1",
+        "imageTag": "v3.5.0",
+        "createdAt": "2026-07-09T06:03:25Z",
+        "ports": "8191"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/media",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/media/homepage",
+      "kind": "deployment",
+      "name": "homepage",
+      "namespace": "media",
+      "meta": {
+        "kind": "deploy",
+        "image": "homepage",
+        "replicas": "1/1",
+        "imageTag": "sha256:a0b71c8e7572",
+        "createdAt": "2026-07-06T21:53:52Z",
+        "ports": "3000"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "deploy/media/prowlarr",
+      "kind": "deployment",
+      "name": "prowlarr",
+      "namespace": "media",
+      "meta": {
+        "kind": "deploy",
+        "image": "prowlarr",
+        "replicas": "1/1",
+        "imageTag": "nightly-2.5.1.5460-ls4",
+        "createdAt": "2026-07-06T21:38:27Z",
+        "ports": "9696"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "deploy/media/qbittorrent",
+      "kind": "deployment",
+      "name": "qbittorrent",
+      "namespace": "media",
+      "meta": {
+        "kind": "deploy",
+        "image": "gluetun",
+        "replicas": "1/1",
+        "imageTag": "sha256:1a5bf4b4820a",
+        "createdAt": "2026-07-04T23:56:15Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
       "id": "deploy/metallb-system/controller",
       "kind": "deployment",
       "name": "controller",
@@ -314,9 +867,9 @@
         "kind": "deploy",
         "image": "controller",
         "replicas": "1/1",
-        "imageTag": "v0.14.9",
+        "imageTag": "v0.16.1",
         "createdAt": "2026-06-18T00:18:08Z",
-        "ports": "7472,9443"
+        "ports": "9120,9443"
       },
       "status": "ok",
       "health": {
@@ -326,6 +879,28 @@
       },
       "group": "ns/metallb-system",
       "exposure": "internal"
+    },
+    {
+      "id": "deploy/minio/minio",
+      "kind": "deployment",
+      "name": "minio",
+      "namespace": "minio",
+      "meta": {
+        "kind": "deploy",
+        "image": "minio",
+        "replicas": "1/1",
+        "imageTag": "RELEASE.2025-09-07T16-13-09Z",
+        "createdAt": "2026-07-07T21:50:47Z",
+        "ports": "9000,9001"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/minio",
+      "exposure": "public"
     },
     {
       "id": "deploy/observability/alloy-gateway",
@@ -416,6 +991,137 @@
       "exposure": "internal"
     },
     {
+      "id": "deploy/tailscale/operator",
+      "kind": "deployment",
+      "name": "operator",
+      "namespace": "tailscale",
+      "meta": {
+        "kind": "deploy",
+        "image": "k8s-operator",
+        "replicas": "1/1",
+        "imageTag": "v1.98.4",
+        "createdAt": "2026-07-06T01:43:03Z"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 6
+      },
+      "group": "ns/tailscale",
+      "exposure": "internal"
+    },
+    {
+      "id": "deploy/workspaces-prod/workspaces-api",
+      "kind": "deployment",
+      "name": "workspaces-api",
+      "namespace": "workspaces-prod",
+      "meta": {
+        "kind": "deploy",
+        "image": "workspaces-api",
+        "replicas": "1/1",
+        "imageTag": "62420510ef6d60e2ef2479d32aac4d3dd3a81656",
+        "createdAt": "2026-07-06T22:02:17Z",
+        "ports": "8080"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/workspaces-prod",
+      "exposure": "public"
+    },
+    {
+      "id": "sts/argocd/argocd-application-controller",
+      "kind": "statefulset",
+      "name": "argocd-application-controller",
+      "namespace": "argocd",
+      "meta": {
+        "kind": "sts",
+        "image": "argocd",
+        "replicas": "1/1",
+        "imageTag": "v3.4.4",
+        "createdAt": "2026-07-05T01:32:39Z",
+        "ports": "8082"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "sts/eden/eden-postgres",
+      "kind": "database",
+      "name": "eden-postgres",
+      "namespace": "eden",
+      "meta": {
+        "kind": "sts",
+        "image": "postgres",
+        "replicas": "1/1",
+        "imageTag": "16-alpine",
+        "createdAt": "2026-07-08T02:24:40Z",
+        "ports": "5432"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "sts/eden/nats",
+      "kind": "queue",
+      "name": "nats",
+      "namespace": "eden",
+      "meta": {
+        "kind": "sts",
+        "image": "nats",
+        "replicas": "1/1",
+        "imageTag": "2.14.2-alpine",
+        "createdAt": "2026-07-08T02:24:40Z",
+        "ports": "4222,8222"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "sts/eden/vault",
+      "kind": "secretstore",
+      "name": "vault",
+      "namespace": "eden",
+      "meta": {
+        "kind": "sts",
+        "image": "vault",
+        "replicas": "1/1",
+        "imageTag": "1.18",
+        "createdAt": "2026-07-08T02:24:40Z",
+        "ports": "8200"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
       "id": "sts/observability/loki",
       "kind": "statefulset",
       "name": "loki",
@@ -460,22 +1166,64 @@
       "exposure": "internal"
     },
     {
-      "id": "ds/longhorn-system/engine-image-ei-51cc7b9c",
+      "id": "sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "kind": "statefulset",
+      "name": "ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "namespace": "tailscale",
+      "meta": {
+        "kind": "sts",
+        "image": "tailscale",
+        "replicas": "1/1",
+        "imageTag": "v1.98.4",
+        "createdAt": "2026-07-06T03:08:19Z"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/tailscale",
+      "exposure": "internal"
+    },
+    {
+      "id": "sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "kind": "statefulset",
+      "name": "ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "namespace": "tailscale",
+      "meta": {
+        "kind": "sts",
+        "image": "tailscale",
+        "replicas": "1/1",
+        "imageTag": "v1.98.4",
+        "createdAt": "2026-07-06T04:31:08Z"
+      },
+      "status": "ok",
+      "health": {
+        "ready": 1,
+        "desired": 1,
+        "restarts": 0
+      },
+      "group": "ns/tailscale",
+      "exposure": "internal"
+    },
+    {
+      "id": "ds/longhorn-system/engine-image-ei-a4d05f02",
       "kind": "daemonset",
-      "name": "engine-image-ei-51cc7b9c",
+      "name": "engine-image-ei-a4d05f02",
       "namespace": "longhorn-system",
       "meta": {
         "kind": "ds",
         "image": "longhorn-engine",
         "replicas": "8/8",
-        "imageTag": "v1.7.2",
-        "createdAt": "2026-06-18T00:21:48Z"
+        "imageTag": "v1.12.0",
+        "createdAt": "2026-07-08T01:36:48Z"
       },
       "status": "ok",
       "health": {
         "ready": 8,
         "desired": 8,
-        "restarts": 1
+        "restarts": 0
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -489,15 +1237,15 @@
         "kind": "ds",
         "image": "csi-node-driver-registrar",
         "replicas": "8/8",
-        "imageTag": "v2.12.0",
-        "createdAt": "2026-06-18T00:23:17Z",
+        "imageTag": "v2.17.0",
+        "createdAt": "2026-07-08T01:37:05Z",
         "ports": "9808"
       },
       "status": "ok",
       "health": {
         "ready": 8,
         "desired": 8,
-        "restarts": 8
+        "restarts": 5
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -511,15 +1259,15 @@
         "kind": "ds",
         "image": "longhorn-manager",
         "replicas": "8/8",
-        "imageTag": "v1.7.2",
+        "imageTag": "v1.12.0",
         "createdAt": "2026-06-18T00:20:28Z",
-        "ports": "9500,9501,9502,9503"
+        "ports": "9500,9502,9503"
       },
       "status": "ok",
       "health": {
         "ready": 8,
         "desired": 8,
-        "restarts": 3
+        "restarts": 0
       },
       "group": "ns/longhorn-system",
       "exposure": "internal"
@@ -533,15 +1281,15 @@
         "kind": "ds",
         "image": "speaker",
         "replicas": "8/8",
-        "imageTag": "v0.14.9",
+        "imageTag": "v0.16.1",
         "createdAt": "2026-06-18T00:18:08Z",
-        "ports": "7472,7946,7946"
+        "ports": "9120,7946,7946"
       },
       "status": "ok",
       "health": {
         "ready": 8,
         "desired": 8,
-        "restarts": 1
+        "restarts": 0
       },
       "group": "ns/metallb-system",
       "exposure": "internal"
@@ -563,8 +1311,8 @@
       "health": {
         "ready": 8,
         "desired": 8,
-        "restarts": 48,
-        "reason": "48 restarts (flapping)"
+        "restarts": 44,
+        "reason": "44 restarts (flapping)"
       },
       "group": "ns/observability",
       "exposure": "internal"
@@ -586,10 +1334,66 @@
       "health": {
         "ready": 8,
         "desired": 8,
-        "restarts": 0
+        "restarts": 1
       },
       "group": "ns/observability",
       "exposure": "internal"
+    },
+    {
+      "id": "svc/argocd/argocd-applicationset-controller",
+      "kind": "service",
+      "name": "argocd-applicationset-controller",
+      "namespace": "argocd",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "7000",
+        "clusterIP": "10.43.200.33"
+      },
+      "status": "ok",
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/argocd/argocd-redis",
+      "kind": "service",
+      "name": "argocd-redis",
+      "namespace": "argocd",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "6379",
+        "clusterIP": "10.43.16.248"
+      },
+      "status": "ok",
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/argocd/argocd-repo-server",
+      "kind": "service",
+      "name": "argocd-repo-server",
+      "namespace": "argocd",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8081",
+        "clusterIP": "10.43.81.129"
+      },
+      "status": "ok",
+      "group": "ns/argocd",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/argocd/argocd-server",
+      "kind": "service",
+      "name": "argocd-server",
+      "namespace": "argocd",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "80,443",
+        "clusterIP": "10.43.68.27"
+      },
+      "status": "ok",
+      "group": "ns/argocd",
+      "exposure": "public"
     },
     {
       "id": "svc/cert-manager/cert-manager",
@@ -645,6 +1449,192 @@
       },
       "status": "ok",
       "group": "ns/default",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/agent-runtime",
+      "kind": "service",
+      "name": "agent-runtime",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8081",
+        "clusterIP": "10.43.33.155"
+      },
+      "status": "warn",
+      "group": "ns/eden",
+      "health": {
+        "ready": 0,
+        "desired": 1,
+        "reason": "no ready endpoints"
+      },
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/agentgateway",
+      "kind": "service",
+      "name": "agentgateway",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.18.82"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/eden-postgres",
+      "kind": "service",
+      "name": "eden-postgres",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "5432"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/frontend",
+      "kind": "service",
+      "name": "frontend",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.169.235"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "public"
+    },
+    {
+      "id": "svc/eden/nats",
+      "kind": "service",
+      "name": "nats",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "4222,8222",
+        "clusterIP": "10.43.231.36"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/orchestrator",
+      "kind": "service",
+      "name": "orchestrator",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.237.102"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/platformgateway",
+      "kind": "service",
+      "name": "platformgateway",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.177.45"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/postgres",
+      "kind": "service",
+      "name": "postgres",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "5432",
+        "clusterIP": "10.43.209.27"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/eden/vault",
+      "kind": "service",
+      "name": "vault",
+      "namespace": "eden",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8200",
+        "clusterIP": "10.43.210.39"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "kind": "service",
+      "name": "zephyr-devbox-nucleo-bringup",
+      "namespace": "embedded-lab",
+      "meta": {
+        "type": "LoadBalancer",
+        "ports": "22,8443",
+        "clusterIP": "10.43.34.42"
+      },
+      "status": "ok",
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/embedded-lab/zephyr-devbox-zephyr-libs",
+      "kind": "service",
+      "name": "zephyr-devbox-zephyr-libs",
+      "namespace": "embedded-lab",
+      "meta": {
+        "type": "LoadBalancer",
+        "ports": "22,8443",
+        "clusterIP": "10.43.95.218"
+      },
+      "status": "ok",
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/external-secrets/bw-serve",
+      "kind": "service",
+      "name": "bw-serve",
+      "namespace": "external-secrets",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8087",
+        "clusterIP": "10.43.132.23"
+      },
+      "status": "ok",
+      "group": "ns/external-secrets",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/external-secrets/external-secrets-webhook",
+      "kind": "service",
+      "name": "external-secrets-webhook",
+      "namespace": "external-secrets",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.32.163"
+      },
+      "status": "ok",
+      "group": "ns/external-secrets",
       "exposure": "internal"
     },
     {
@@ -704,6 +1694,90 @@
       "exposure": "internal"
     },
     {
+      "id": "svc/kyverno/kyverno-background-controller-metrics",
+      "kind": "service",
+      "name": "kyverno-background-controller-metrics",
+      "namespace": "kyverno",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8000",
+        "clusterIP": "10.43.213.103"
+      },
+      "status": "ok",
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/kyverno/kyverno-cleanup-controller",
+      "kind": "service",
+      "name": "kyverno-cleanup-controller",
+      "namespace": "kyverno",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.136.170"
+      },
+      "status": "ok",
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/kyverno/kyverno-cleanup-controller-metrics",
+      "kind": "service",
+      "name": "kyverno-cleanup-controller-metrics",
+      "namespace": "kyverno",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8000",
+        "clusterIP": "10.43.177.179"
+      },
+      "status": "ok",
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/kyverno/kyverno-reports-controller-metrics",
+      "kind": "service",
+      "name": "kyverno-reports-controller-metrics",
+      "namespace": "kyverno",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8000",
+        "clusterIP": "10.43.241.107"
+      },
+      "status": "ok",
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/kyverno/kyverno-svc",
+      "kind": "service",
+      "name": "kyverno-svc",
+      "namespace": "kyverno",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "443",
+        "clusterIP": "10.43.117.150"
+      },
+      "status": "ok",
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/kyverno/kyverno-svc-metrics",
+      "kind": "service",
+      "name": "kyverno-svc-metrics",
+      "namespace": "kyverno",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8000",
+        "clusterIP": "10.43.117.190"
+      },
+      "status": "ok",
+      "group": "ns/kyverno",
+      "exposure": "internal"
+    },
+    {
       "id": "svc/longhorn-system/longhorn-admission-webhook",
       "kind": "service",
       "name": "longhorn-admission-webhook",
@@ -741,8 +1815,13 @@
         "ports": "9501",
         "clusterIP": "10.43.141.97"
       },
-      "status": "ok",
+      "status": "warn",
       "group": "ns/longhorn-system",
+      "health": {
+        "ready": 0,
+        "desired": 1,
+        "reason": "no ready endpoints"
+      },
       "exposure": "internal"
     },
     {
@@ -774,6 +1853,76 @@
       "exposure": "internal"
     },
     {
+      "id": "svc/media/filebrowser",
+      "kind": "service",
+      "name": "filebrowser",
+      "namespace": "media",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "80",
+        "clusterIP": "10.43.217.102"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "svc/media/flaresolverr",
+      "kind": "service",
+      "name": "flaresolverr",
+      "namespace": "media",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8191",
+        "clusterIP": "10.43.16.142"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/media/homepage",
+      "kind": "service",
+      "name": "homepage",
+      "namespace": "media",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "3000",
+        "clusterIP": "10.43.154.219"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "svc/media/prowlarr",
+      "kind": "service",
+      "name": "prowlarr",
+      "namespace": "media",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9696",
+        "clusterIP": "10.43.76.37"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "svc/media/qbittorrent",
+      "kind": "service",
+      "name": "qbittorrent",
+      "namespace": "media",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.31.33"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
       "id": "svc/metallb-system/metallb-webhook-service",
       "kind": "service",
       "name": "metallb-webhook-service",
@@ -786,6 +1935,20 @@
       "status": "ok",
       "group": "ns/metallb-system",
       "exposure": "internal"
+    },
+    {
+      "id": "svc/minio/minio",
+      "kind": "service",
+      "name": "minio",
+      "namespace": "minio",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "9000,9001",
+        "clusterIP": "10.43.43.24"
+      },
+      "status": "ok",
+      "group": "ns/minio",
+      "exposure": "public"
     },
     {
       "id": "svc/observability/alloy-gateway",
@@ -926,6 +2089,128 @@
       "exposure": "internal"
     },
     {
+      "id": "svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "kind": "service",
+      "name": "ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "namespace": "tailscale",
+      "meta": {
+        "type": "ClusterIP"
+      },
+      "status": "ok",
+      "group": "ns/tailscale",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "kind": "service",
+      "name": "ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "namespace": "tailscale",
+      "meta": {
+        "type": "ClusterIP"
+      },
+      "status": "ok",
+      "group": "ns/tailscale",
+      "exposure": "internal"
+    },
+    {
+      "id": "svc/workspaces-prod/workspaces-api",
+      "kind": "service",
+      "name": "workspaces-api",
+      "namespace": "workspaces-prod",
+      "meta": {
+        "type": "ClusterIP",
+        "ports": "8080",
+        "clusterIP": "10.43.152.109"
+      },
+      "status": "ok",
+      "group": "ns/workspaces-prod",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/argocd/argocd-server",
+      "kind": "ingress",
+      "name": "argocd-server",
+      "namespace": "argocd",
+      "meta": {
+        "hosts": "argocd.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/argocd",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/eden/eden",
+      "kind": "ingress",
+      "name": "eden",
+      "namespace": "eden",
+      "meta": {
+        "hosts": "eden.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/media/filebrowser",
+      "kind": "ingress",
+      "name": "filebrowser",
+      "namespace": "media",
+      "meta": {
+        "hosts": "files.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/media/homepage",
+      "kind": "ingress",
+      "name": "homepage",
+      "namespace": "media",
+      "meta": {
+        "hosts": "home.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/media/prowlarr",
+      "kind": "ingress",
+      "name": "prowlarr",
+      "namespace": "media",
+      "meta": {
+        "hosts": "prowlarr.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/media/qbittorrent",
+      "kind": "ingress",
+      "name": "qbittorrent",
+      "namespace": "media",
+      "meta": {
+        "hosts": "torrent.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "public"
+    },
+    {
+      "id": "ing/minio/minio-s3",
+      "kind": "ingress",
+      "name": "minio-s3",
+      "namespace": "minio",
+      "meta": {
+        "hosts": "s3.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/minio",
+      "exposure": "public"
+    },
+    {
       "id": "ing/observability/grafana",
       "kind": "ingress",
       "name": "grafana",
@@ -936,6 +2221,122 @@
       "status": "ok",
       "group": "ns/observability",
       "exposure": "public"
+    },
+    {
+      "id": "ing/workspaces-prod/workspaces-api",
+      "kind": "ingress",
+      "name": "workspaces-api",
+      "namespace": "workspaces-prod",
+      "meta": {
+        "hosts": "workspaces.mateosegura.com"
+      },
+      "status": "ok",
+      "group": "ns/workspaces-prod",
+      "exposure": "public"
+    },
+    {
+      "id": "pvc/eden/eden-nats-data",
+      "kind": "pvc",
+      "name": "eden-nats-data",
+      "namespace": "eden",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "5Gi"
+      },
+      "status": "ok",
+      "group": "ns/eden",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+      "kind": "pvc",
+      "name": "zephyr-devbox-home-nucleo-bringup",
+      "namespace": "embedded-lab",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "10Gi"
+      },
+      "status": "ok",
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+      "kind": "pvc",
+      "name": "zephyr-devbox-home-zephyr-libs",
+      "namespace": "embedded-lab",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "10Gi"
+      },
+      "status": "ok",
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+      "kind": "pvc",
+      "name": "zephyr-devbox-workspace-nucleo-bringup",
+      "namespace": "embedded-lab",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "20Gi"
+      },
+      "status": "ok",
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+      "kind": "pvc",
+      "name": "zephyr-devbox-workspace-zephyr-libs",
+      "namespace": "embedded-lab",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "20Gi"
+      },
+      "status": "ok",
+      "group": "ns/embedded-lab",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/media/filebrowser-config",
+      "kind": "pvc",
+      "name": "filebrowser-config",
+      "namespace": "media",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "256Mi"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/media/prowlarr-config",
+      "kind": "pvc",
+      "name": "prowlarr-config",
+      "namespace": "media",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "1Gi"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "internal"
+    },
+    {
+      "id": "pvc/media/qbittorrent-config",
+      "kind": "pvc",
+      "name": "qbittorrent-config",
+      "namespace": "media",
+      "meta": {
+        "storageClass": "local-path",
+        "capacity": "2Gi"
+      },
+      "status": "ok",
+      "group": "ns/media",
+      "exposure": "internal"
     },
     {
       "id": "pvc/observability/grafana",
@@ -964,6 +2365,20 @@
       "exposure": "internal"
     },
     {
+      "id": "ns/arc-systems",
+      "kind": "namespace",
+      "name": "arc-systems",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/argocd",
+      "kind": "namespace",
+      "name": "argocd",
+      "meta": {},
+      "status": "ok"
+    },
+    {
       "id": "ns/cert-manager",
       "kind": "namespace",
       "name": "cert-manager",
@@ -985,6 +2400,27 @@
       "status": "ok"
     },
     {
+      "id": "ns/eden",
+      "kind": "namespace",
+      "name": "eden",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/embedded-lab",
+      "kind": "namespace",
+      "name": "embedded-lab",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/external-secrets",
+      "kind": "namespace",
+      "name": "external-secrets",
+      "meta": {},
+      "status": "ok"
+    },
+    {
       "id": "ns/ingress-nginx",
       "kind": "namespace",
       "name": "ingress-nginx",
@@ -999,9 +2435,23 @@
       "status": "ok"
     },
     {
+      "id": "ns/kyverno",
+      "kind": "namespace",
+      "name": "kyverno",
+      "meta": {},
+      "status": "ok"
+    },
+    {
       "id": "ns/longhorn-system",
       "kind": "namespace",
       "name": "longhorn-system",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/media",
+      "kind": "namespace",
+      "name": "media",
       "meta": {},
       "status": "ok"
     },
@@ -1013,14 +2463,53 @@
       "status": "ok"
     },
     {
+      "id": "ns/minio",
+      "kind": "namespace",
+      "name": "minio",
+      "meta": {},
+      "status": "ok"
+    },
+    {
       "id": "ns/observability",
       "kind": "namespace",
       "name": "observability",
       "meta": {},
       "status": "ok"
+    },
+    {
+      "id": "ns/tailscale",
+      "kind": "namespace",
+      "name": "tailscale",
+      "meta": {},
+      "status": "ok"
+    },
+    {
+      "id": "ns/workspaces-prod",
+      "kind": "namespace",
+      "name": "workspaces-prod",
+      "meta": {},
+      "status": "ok"
     }
   ],
   "edges": [
+    {
+      "id": "selects:svc/argocd/argocd-applicationset-controller->deploy/argocd/argocd-applicationset-controller",
+      "source": "svc/argocd/argocd-applicationset-controller",
+      "target": "deploy/argocd/argocd-applicationset-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/argocd/argocd-repo-server->deploy/argocd/argocd-repo-server",
+      "source": "svc/argocd/argocd-repo-server",
+      "target": "deploy/argocd/argocd-repo-server",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/argocd/argocd-server->deploy/argocd/argocd-server",
+      "source": "svc/argocd/argocd-server",
+      "target": "deploy/argocd/argocd-server",
+      "kind": "selects"
+    },
     {
       "id": "selects:svc/cert-manager/cert-manager->deploy/cert-manager/cert-manager",
       "source": "svc/cert-manager/cert-manager",
@@ -1037,6 +2526,84 @@
       "id": "selects:svc/cert-manager/cert-manager-webhook->deploy/cert-manager/cert-manager-webhook",
       "source": "svc/cert-manager/cert-manager-webhook",
       "target": "deploy/cert-manager/cert-manager-webhook",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/agent-runtime->deploy/eden/agent-runtime",
+      "source": "svc/eden/agent-runtime",
+      "target": "deploy/eden/agent-runtime",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/agentgateway->deploy/eden/agentgateway",
+      "source": "svc/eden/agentgateway",
+      "target": "deploy/eden/agentgateway",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/eden-postgres->sts/eden/eden-postgres",
+      "source": "svc/eden/eden-postgres",
+      "target": "sts/eden/eden-postgres",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/frontend->deploy/eden/frontend",
+      "source": "svc/eden/frontend",
+      "target": "deploy/eden/frontend",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/nats->sts/eden/nats",
+      "source": "svc/eden/nats",
+      "target": "sts/eden/nats",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/orchestrator->deploy/eden/orchestrator",
+      "source": "svc/eden/orchestrator",
+      "target": "deploy/eden/orchestrator",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/platformgateway->deploy/eden/platformgateway",
+      "source": "svc/eden/platformgateway",
+      "target": "deploy/eden/platformgateway",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/postgres->sts/eden/eden-postgres",
+      "source": "svc/eden/postgres",
+      "target": "sts/eden/eden-postgres",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/eden/vault->sts/eden/vault",
+      "source": "svc/eden/vault",
+      "target": "sts/eden/vault",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/embedded-lab/zephyr-devbox-nucleo-bringup->deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "source": "svc/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "target": "deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/embedded-lab/zephyr-devbox-zephyr-libs->deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "source": "svc/embedded-lab/zephyr-devbox-zephyr-libs",
+      "target": "deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/external-secrets/bw-serve->deploy/external-secrets/bw-serve",
+      "source": "svc/external-secrets/bw-serve",
+      "target": "deploy/external-secrets/bw-serve",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/external-secrets/external-secrets-webhook->deploy/external-secrets/external-secrets-webhook",
+      "source": "svc/external-secrets/external-secrets-webhook",
+      "target": "deploy/external-secrets/external-secrets-webhook",
       "kind": "selects"
     },
     {
@@ -1064,6 +2631,42 @@
       "kind": "selects"
     },
     {
+      "id": "selects:svc/kyverno/kyverno-background-controller-metrics->deploy/kyverno/kyverno-background-controller",
+      "source": "svc/kyverno/kyverno-background-controller-metrics",
+      "target": "deploy/kyverno/kyverno-background-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kyverno/kyverno-cleanup-controller->deploy/kyverno/kyverno-cleanup-controller",
+      "source": "svc/kyverno/kyverno-cleanup-controller",
+      "target": "deploy/kyverno/kyverno-cleanup-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kyverno/kyverno-cleanup-controller-metrics->deploy/kyverno/kyverno-cleanup-controller",
+      "source": "svc/kyverno/kyverno-cleanup-controller-metrics",
+      "target": "deploy/kyverno/kyverno-cleanup-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kyverno/kyverno-reports-controller-metrics->deploy/kyverno/kyverno-reports-controller",
+      "source": "svc/kyverno/kyverno-reports-controller-metrics",
+      "target": "deploy/kyverno/kyverno-reports-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kyverno/kyverno-svc->deploy/kyverno/kyverno-admission-controller",
+      "source": "svc/kyverno/kyverno-svc",
+      "target": "deploy/kyverno/kyverno-admission-controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/kyverno/kyverno-svc-metrics->deploy/kyverno/kyverno-admission-controller",
+      "source": "svc/kyverno/kyverno-svc-metrics",
+      "target": "deploy/kyverno/kyverno-admission-controller",
+      "kind": "selects"
+    },
+    {
       "id": "selects:svc/longhorn-system/longhorn-backend->ds/longhorn-system/longhorn-manager",
       "source": "svc/longhorn-system/longhorn-backend",
       "target": "ds/longhorn-system/longhorn-manager",
@@ -1076,9 +2679,45 @@
       "kind": "selects"
     },
     {
+      "id": "selects:svc/media/filebrowser->deploy/media/filebrowser",
+      "source": "svc/media/filebrowser",
+      "target": "deploy/media/filebrowser",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/media/flaresolverr->deploy/media/flaresolverr",
+      "source": "svc/media/flaresolverr",
+      "target": "deploy/media/flaresolverr",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/media/homepage->deploy/media/homepage",
+      "source": "svc/media/homepage",
+      "target": "deploy/media/homepage",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/media/prowlarr->deploy/media/prowlarr",
+      "source": "svc/media/prowlarr",
+      "target": "deploy/media/prowlarr",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/media/qbittorrent->deploy/media/qbittorrent",
+      "source": "svc/media/qbittorrent",
+      "target": "deploy/media/qbittorrent",
+      "kind": "selects"
+    },
+    {
       "id": "selects:svc/metallb-system/metallb-webhook-service->deploy/metallb-system/controller",
       "source": "svc/metallb-system/metallb-webhook-service",
       "target": "deploy/metallb-system/controller",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/minio/minio->deploy/minio/minio",
+      "source": "svc/minio/minio",
+      "target": "deploy/minio/minio",
       "kind": "selects"
     },
     {
@@ -1136,6 +2775,108 @@
       "kind": "selects"
     },
     {
+      "id": "selects:svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7->sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "source": "svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "target": "sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d->sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "source": "svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "target": "sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "kind": "selects"
+    },
+    {
+      "id": "selects:svc/workspaces-prod/workspaces-api->deploy/workspaces-prod/workspaces-api",
+      "source": "svc/workspaces-prod/workspaces-api",
+      "target": "deploy/workspaces-prod/workspaces-api",
+      "kind": "selects"
+    },
+    {
+      "id": "routes:ing/argocd/argocd-server->svc/argocd/argocd-server",
+      "source": "ing/argocd/argocd-server",
+      "target": "svc/argocd/argocd-server",
+      "kind": "routes",
+      "label": "argocd.mateosegura.com/",
+      "meta": {
+        "host": "argocd.mateosegura.com",
+        "path": "/",
+        "port": "80"
+      }
+    },
+    {
+      "id": "routes:ing/eden/eden->svc/eden/frontend",
+      "source": "ing/eden/eden",
+      "target": "svc/eden/frontend",
+      "kind": "routes",
+      "label": "eden.mateosegura.com/",
+      "meta": {
+        "host": "eden.mateosegura.com",
+        "path": "/",
+        "port": "8080"
+      }
+    },
+    {
+      "id": "routes:ing/media/filebrowser->svc/media/filebrowser",
+      "source": "ing/media/filebrowser",
+      "target": "svc/media/filebrowser",
+      "kind": "routes",
+      "label": "files.mateosegura.com/",
+      "meta": {
+        "host": "files.mateosegura.com",
+        "path": "/",
+        "port": "80"
+      }
+    },
+    {
+      "id": "routes:ing/media/homepage->svc/media/homepage",
+      "source": "ing/media/homepage",
+      "target": "svc/media/homepage",
+      "kind": "routes",
+      "label": "home.mateosegura.com/",
+      "meta": {
+        "host": "home.mateosegura.com",
+        "path": "/",
+        "port": "3000"
+      }
+    },
+    {
+      "id": "routes:ing/media/prowlarr->svc/media/prowlarr",
+      "source": "ing/media/prowlarr",
+      "target": "svc/media/prowlarr",
+      "kind": "routes",
+      "label": "prowlarr.mateosegura.com/",
+      "meta": {
+        "host": "prowlarr.mateosegura.com",
+        "path": "/",
+        "port": "9696"
+      }
+    },
+    {
+      "id": "routes:ing/media/qbittorrent->svc/media/qbittorrent",
+      "source": "ing/media/qbittorrent",
+      "target": "svc/media/qbittorrent",
+      "kind": "routes",
+      "label": "torrent.mateosegura.com/",
+      "meta": {
+        "host": "torrent.mateosegura.com",
+        "path": "/",
+        "port": "8080"
+      }
+    },
+    {
+      "id": "routes:ing/minio/minio-s3->svc/minio/minio",
+      "source": "ing/minio/minio-s3",
+      "target": "svc/minio/minio",
+      "kind": "routes",
+      "label": "s3.mateosegura.com/",
+      "meta": {
+        "host": "s3.mateosegura.com",
+        "path": "/",
+        "port": "9000"
+      }
+    },
+    {
       "id": "routes:ing/observability/grafana->svc/observability/grafana",
       "source": "ing/observability/grafana",
       "target": "svc/observability/grafana",
@@ -1148,6 +2889,60 @@
       }
     },
     {
+      "id": "routes:ing/workspaces-prod/workspaces-api->svc/workspaces-prod/workspaces-api",
+      "source": "ing/workspaces-prod/workspaces-api",
+      "target": "svc/workspaces-prod/workspaces-api",
+      "kind": "routes",
+      "label": "workspaces.mateosegura.com/",
+      "meta": {
+        "host": "workspaces.mateosegura.com",
+        "path": "/",
+        "port": "8080"
+      }
+    },
+    {
+      "id": "mounts:deploy/embedded-lab/zephyr-devbox-nucleo-bringup->pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+      "source": "deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "target": "pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/embedded-lab/zephyr-devbox-nucleo-bringup->pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+      "source": "deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "target": "pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/embedded-lab/zephyr-devbox-zephyr-libs->pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+      "source": "deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "target": "pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/embedded-lab/zephyr-devbox-zephyr-libs->pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+      "source": "deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "target": "pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/media/filebrowser->pvc/media/filebrowser-config",
+      "source": "deploy/media/filebrowser",
+      "target": "pvc/media/filebrowser-config",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/media/prowlarr->pvc/media/prowlarr-config",
+      "source": "deploy/media/prowlarr",
+      "target": "pvc/media/prowlarr-config",
+      "kind": "mounts"
+    },
+    {
+      "id": "mounts:deploy/media/qbittorrent->pvc/media/qbittorrent-config",
+      "source": "deploy/media/qbittorrent",
+      "target": "pvc/media/qbittorrent-config",
+      "kind": "mounts"
+    },
+    {
       "id": "mounts:deploy/observability/grafana->pvc/observability/grafana",
       "source": "deploy/observability/grafana",
       "target": "pvc/observability/grafana",
@@ -1158,6 +2953,42 @@
       "source": "deploy/observability/prometheus-server",
       "target": "pvc/observability/prometheus-server",
       "kind": "mounts"
+    },
+    {
+      "id": "mounts:sts/eden/nats->pvc/eden/eden-nats-data",
+      "source": "sts/eden/nats",
+      "target": "pvc/eden/eden-nats-data",
+      "kind": "mounts"
+    },
+    {
+      "id": "contains:ns/arc-systems->deploy/arc-systems/arc-gha-rs-controller",
+      "source": "ns/arc-systems",
+      "target": "deploy/arc-systems/arc-gha-rs-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->deploy/argocd/argocd-applicationset-controller",
+      "source": "ns/argocd",
+      "target": "deploy/argocd/argocd-applicationset-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->deploy/argocd/argocd-redis",
+      "source": "ns/argocd",
+      "target": "deploy/argocd/argocd-redis",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->deploy/argocd/argocd-repo-server",
+      "source": "ns/argocd",
+      "target": "deploy/argocd/argocd-repo-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->deploy/argocd/argocd-server",
+      "source": "ns/argocd",
+      "target": "deploy/argocd/argocd-server",
+      "kind": "contains"
     },
     {
       "id": "contains:ns/cert-manager->deploy/cert-manager/cert-manager",
@@ -1184,6 +3015,72 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/eden->deploy/eden/agent-runtime",
+      "source": "ns/eden",
+      "target": "deploy/eden/agent-runtime",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->deploy/eden/agentgateway",
+      "source": "ns/eden",
+      "target": "deploy/eden/agentgateway",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->deploy/eden/frontend",
+      "source": "ns/eden",
+      "target": "deploy/eden/frontend",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->deploy/eden/orchestrator",
+      "source": "ns/eden",
+      "target": "deploy/eden/orchestrator",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->deploy/eden/platformgateway",
+      "source": "ns/eden",
+      "target": "deploy/eden/platformgateway",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "source": "ns/embedded-lab",
+      "target": "deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "source": "ns/embedded-lab",
+      "target": "deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/external-secrets->deploy/external-secrets/bw-serve",
+      "source": "ns/external-secrets",
+      "target": "deploy/external-secrets/bw-serve",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/external-secrets->deploy/external-secrets/external-secrets",
+      "source": "ns/external-secrets",
+      "target": "deploy/external-secrets/external-secrets",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/external-secrets->deploy/external-secrets/external-secrets-cert-controller",
+      "source": "ns/external-secrets",
+      "target": "deploy/external-secrets/external-secrets-cert-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/external-secrets->deploy/external-secrets/external-secrets-webhook",
+      "source": "ns/external-secrets",
+      "target": "deploy/external-secrets/external-secrets-webhook",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/ingress-nginx->deploy/ingress-nginx/ingress-nginx-controller",
       "source": "ns/ingress-nginx",
       "target": "deploy/ingress-nginx/ingress-nginx-controller",
@@ -1205,6 +3102,30 @@
       "id": "contains:ns/kube-system->deploy/kube-system/metrics-server",
       "source": "ns/kube-system",
       "target": "deploy/kube-system/metrics-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->deploy/kyverno/kyverno-admission-controller",
+      "source": "ns/kyverno",
+      "target": "deploy/kyverno/kyverno-admission-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->deploy/kyverno/kyverno-background-controller",
+      "source": "ns/kyverno",
+      "target": "deploy/kyverno/kyverno-background-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->deploy/kyverno/kyverno-cleanup-controller",
+      "source": "ns/kyverno",
+      "target": "deploy/kyverno/kyverno-cleanup-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->deploy/kyverno/kyverno-reports-controller",
+      "source": "ns/kyverno",
+      "target": "deploy/kyverno/kyverno-reports-controller",
       "kind": "contains"
     },
     {
@@ -1244,9 +3165,45 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/media->deploy/media/filebrowser",
+      "source": "ns/media",
+      "target": "deploy/media/filebrowser",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->deploy/media/flaresolverr",
+      "source": "ns/media",
+      "target": "deploy/media/flaresolverr",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->deploy/media/homepage",
+      "source": "ns/media",
+      "target": "deploy/media/homepage",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->deploy/media/prowlarr",
+      "source": "ns/media",
+      "target": "deploy/media/prowlarr",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->deploy/media/qbittorrent",
+      "source": "ns/media",
+      "target": "deploy/media/qbittorrent",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/metallb-system->deploy/metallb-system/controller",
       "source": "ns/metallb-system",
       "target": "deploy/metallb-system/controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/minio->deploy/minio/minio",
+      "source": "ns/minio",
+      "target": "deploy/minio/minio",
       "kind": "contains"
     },
     {
@@ -1274,6 +3231,42 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/tailscale->deploy/tailscale/operator",
+      "source": "ns/tailscale",
+      "target": "deploy/tailscale/operator",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/workspaces-prod->deploy/workspaces-prod/workspaces-api",
+      "source": "ns/workspaces-prod",
+      "target": "deploy/workspaces-prod/workspaces-api",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->sts/argocd/argocd-application-controller",
+      "source": "ns/argocd",
+      "target": "sts/argocd/argocd-application-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->sts/eden/eden-postgres",
+      "source": "ns/eden",
+      "target": "sts/eden/eden-postgres",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->sts/eden/nats",
+      "source": "ns/eden",
+      "target": "sts/eden/nats",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->sts/eden/vault",
+      "source": "ns/eden",
+      "target": "sts/eden/vault",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/observability->sts/observability/loki",
       "source": "ns/observability",
       "target": "sts/observability/loki",
@@ -1286,9 +3279,21 @@
       "kind": "contains"
     },
     {
-      "id": "contains:ns/longhorn-system->ds/longhorn-system/engine-image-ei-51cc7b9c",
+      "id": "contains:ns/tailscale->sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "source": "ns/tailscale",
+      "target": "sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/tailscale->sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "source": "ns/tailscale",
+      "target": "sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/longhorn-system->ds/longhorn-system/engine-image-ei-a4d05f02",
       "source": "ns/longhorn-system",
-      "target": "ds/longhorn-system/engine-image-ei-51cc7b9c",
+      "target": "ds/longhorn-system/engine-image-ei-a4d05f02",
       "kind": "contains"
     },
     {
@@ -1322,6 +3327,30 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/argocd->svc/argocd/argocd-applicationset-controller",
+      "source": "ns/argocd",
+      "target": "svc/argocd/argocd-applicationset-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->svc/argocd/argocd-redis",
+      "source": "ns/argocd",
+      "target": "svc/argocd/argocd-redis",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->svc/argocd/argocd-repo-server",
+      "source": "ns/argocd",
+      "target": "svc/argocd/argocd-repo-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->svc/argocd/argocd-server",
+      "source": "ns/argocd",
+      "target": "svc/argocd/argocd-server",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/cert-manager->svc/cert-manager/cert-manager",
       "source": "ns/cert-manager",
       "target": "svc/cert-manager/cert-manager",
@@ -1346,6 +3375,84 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/eden->svc/eden/agent-runtime",
+      "source": "ns/eden",
+      "target": "svc/eden/agent-runtime",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/agentgateway",
+      "source": "ns/eden",
+      "target": "svc/eden/agentgateway",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/eden-postgres",
+      "source": "ns/eden",
+      "target": "svc/eden/eden-postgres",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/frontend",
+      "source": "ns/eden",
+      "target": "svc/eden/frontend",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/nats",
+      "source": "ns/eden",
+      "target": "svc/eden/nats",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/orchestrator",
+      "source": "ns/eden",
+      "target": "svc/eden/orchestrator",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/platformgateway",
+      "source": "ns/eden",
+      "target": "svc/eden/platformgateway",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/postgres",
+      "source": "ns/eden",
+      "target": "svc/eden/postgres",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->svc/eden/vault",
+      "source": "ns/eden",
+      "target": "svc/eden/vault",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->svc/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "source": "ns/embedded-lab",
+      "target": "svc/embedded-lab/zephyr-devbox-nucleo-bringup",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->svc/embedded-lab/zephyr-devbox-zephyr-libs",
+      "source": "ns/embedded-lab",
+      "target": "svc/embedded-lab/zephyr-devbox-zephyr-libs",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/external-secrets->svc/external-secrets/bw-serve",
+      "source": "ns/external-secrets",
+      "target": "svc/external-secrets/bw-serve",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/external-secrets->svc/external-secrets/external-secrets-webhook",
+      "source": "ns/external-secrets",
+      "target": "svc/external-secrets/external-secrets-webhook",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/ingress-nginx->svc/ingress-nginx/ingress-nginx-controller",
       "source": "ns/ingress-nginx",
       "target": "svc/ingress-nginx/ingress-nginx-controller",
@@ -1367,6 +3474,42 @@
       "id": "contains:ns/kube-system->svc/kube-system/metrics-server",
       "source": "ns/kube-system",
       "target": "svc/kube-system/metrics-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->svc/kyverno/kyverno-background-controller-metrics",
+      "source": "ns/kyverno",
+      "target": "svc/kyverno/kyverno-background-controller-metrics",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->svc/kyverno/kyverno-cleanup-controller",
+      "source": "ns/kyverno",
+      "target": "svc/kyverno/kyverno-cleanup-controller",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->svc/kyverno/kyverno-cleanup-controller-metrics",
+      "source": "ns/kyverno",
+      "target": "svc/kyverno/kyverno-cleanup-controller-metrics",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->svc/kyverno/kyverno-reports-controller-metrics",
+      "source": "ns/kyverno",
+      "target": "svc/kyverno/kyverno-reports-controller-metrics",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->svc/kyverno/kyverno-svc",
+      "source": "ns/kyverno",
+      "target": "svc/kyverno/kyverno-svc",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/kyverno->svc/kyverno/kyverno-svc-metrics",
+      "source": "ns/kyverno",
+      "target": "svc/kyverno/kyverno-svc-metrics",
       "kind": "contains"
     },
     {
@@ -1400,9 +3543,45 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/media->svc/media/filebrowser",
+      "source": "ns/media",
+      "target": "svc/media/filebrowser",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->svc/media/flaresolverr",
+      "source": "ns/media",
+      "target": "svc/media/flaresolverr",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->svc/media/homepage",
+      "source": "ns/media",
+      "target": "svc/media/homepage",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->svc/media/prowlarr",
+      "source": "ns/media",
+      "target": "svc/media/prowlarr",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->svc/media/qbittorrent",
+      "source": "ns/media",
+      "target": "svc/media/qbittorrent",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/metallb-system->svc/metallb-system/metallb-webhook-service",
       "source": "ns/metallb-system",
       "target": "svc/metallb-system/metallb-webhook-service",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/minio->svc/minio/minio",
+      "source": "ns/minio",
+      "target": "svc/minio/minio",
       "kind": "contains"
     },
     {
@@ -1466,9 +3645,123 @@
       "kind": "contains"
     },
     {
+      "id": "contains:ns/tailscale->svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "source": "ns/tailscale",
+      "target": "svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/tailscale->svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "source": "ns/tailscale",
+      "target": "svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/workspaces-prod->svc/workspaces-prod/workspaces-api",
+      "source": "ns/workspaces-prod",
+      "target": "svc/workspaces-prod/workspaces-api",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/argocd->ing/argocd/argocd-server",
+      "source": "ns/argocd",
+      "target": "ing/argocd/argocd-server",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->ing/eden/eden",
+      "source": "ns/eden",
+      "target": "ing/eden/eden",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->ing/media/filebrowser",
+      "source": "ns/media",
+      "target": "ing/media/filebrowser",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->ing/media/homepage",
+      "source": "ns/media",
+      "target": "ing/media/homepage",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->ing/media/prowlarr",
+      "source": "ns/media",
+      "target": "ing/media/prowlarr",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->ing/media/qbittorrent",
+      "source": "ns/media",
+      "target": "ing/media/qbittorrent",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/minio->ing/minio/minio-s3",
+      "source": "ns/minio",
+      "target": "ing/minio/minio-s3",
+      "kind": "contains"
+    },
+    {
       "id": "contains:ns/observability->ing/observability/grafana",
       "source": "ns/observability",
       "target": "ing/observability/grafana",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/workspaces-prod->ing/workspaces-prod/workspaces-api",
+      "source": "ns/workspaces-prod",
+      "target": "ing/workspaces-prod/workspaces-api",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/eden->pvc/eden/eden-nats-data",
+      "source": "ns/eden",
+      "target": "pvc/eden/eden-nats-data",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+      "source": "ns/embedded-lab",
+      "target": "pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+      "source": "ns/embedded-lab",
+      "target": "pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+      "source": "ns/embedded-lab",
+      "target": "pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/embedded-lab->pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+      "source": "ns/embedded-lab",
+      "target": "pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->pvc/media/filebrowser-config",
+      "source": "ns/media",
+      "target": "pvc/media/filebrowser-config",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->pvc/media/prowlarr-config",
+      "source": "ns/media",
+      "target": "pvc/media/prowlarr-config",
+      "kind": "contains"
+    },
+    {
+      "id": "contains:ns/media->pvc/media/qbittorrent-config",
+      "source": "ns/media",
+      "target": "pvc/media/qbittorrent-config",
       "kind": "contains"
     },
     {
@@ -1497,47 +3790,109 @@
       "title": "Data flow",
       "description": "The request + storage path: ingress \u2192 service \u2192 workload \u2192 volume.",
       "nodes": [
+        "deploy/arc-systems/arc-gha-rs-controller",
+        "deploy/argocd/argocd-applicationset-controller",
+        "deploy/argocd/argocd-redis",
+        "deploy/argocd/argocd-repo-server",
+        "deploy/argocd/argocd-server",
         "deploy/cert-manager/cert-manager",
         "deploy/cert-manager/cert-manager-cainjector",
         "deploy/cert-manager/cert-manager-webhook",
         "deploy/cloudflare-tunnel/cloudflared",
+        "deploy/eden/agent-runtime",
+        "deploy/eden/agentgateway",
+        "deploy/eden/frontend",
+        "deploy/eden/orchestrator",
+        "deploy/eden/platformgateway",
+        "deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+        "deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+        "deploy/external-secrets/bw-serve",
+        "deploy/external-secrets/external-secrets",
+        "deploy/external-secrets/external-secrets-cert-controller",
+        "deploy/external-secrets/external-secrets-webhook",
         "deploy/ingress-nginx/ingress-nginx-controller",
         "deploy/kube-system/coredns",
         "deploy/kube-system/local-path-provisioner",
         "deploy/kube-system/metrics-server",
+        "deploy/kyverno/kyverno-admission-controller",
+        "deploy/kyverno/kyverno-background-controller",
+        "deploy/kyverno/kyverno-cleanup-controller",
+        "deploy/kyverno/kyverno-reports-controller",
         "deploy/longhorn-system/csi-attacher",
         "deploy/longhorn-system/csi-provisioner",
         "deploy/longhorn-system/csi-resizer",
         "deploy/longhorn-system/csi-snapshotter",
         "deploy/longhorn-system/longhorn-driver-deployer",
         "deploy/longhorn-system/longhorn-ui",
+        "deploy/media/filebrowser",
+        "deploy/media/flaresolverr",
+        "deploy/media/homepage",
+        "deploy/media/prowlarr",
+        "deploy/media/qbittorrent",
         "deploy/metallb-system/controller",
+        "deploy/minio/minio",
         "deploy/observability/alloy-gateway",
         "deploy/observability/grafana",
         "deploy/observability/obs-kube-state-metrics",
         "deploy/observability/prometheus-server",
+        "deploy/tailscale/operator",
+        "deploy/workspaces-prod/workspaces-api",
+        "sts/argocd/argocd-application-controller",
+        "sts/eden/eden-postgres",
+        "sts/eden/nats",
         "sts/observability/loki",
         "sts/observability/tempo",
-        "ds/longhorn-system/engine-image-ei-51cc7b9c",
+        "sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+        "sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+        "ds/longhorn-system/engine-image-ei-a4d05f02",
         "ds/longhorn-system/longhorn-csi-plugin",
         "ds/longhorn-system/longhorn-manager",
         "ds/metallb-system/speaker",
         "ds/observability/alloy-logs",
         "ds/observability/obs-prometheus-node-exporter",
+        "svc/argocd/argocd-applicationset-controller",
+        "svc/argocd/argocd-redis",
+        "svc/argocd/argocd-repo-server",
+        "svc/argocd/argocd-server",
         "svc/cert-manager/cert-manager",
         "svc/cert-manager/cert-manager-cainjector",
         "svc/cert-manager/cert-manager-webhook",
         "svc/default/kubernetes",
+        "svc/eden/agent-runtime",
+        "svc/eden/agentgateway",
+        "svc/eden/eden-postgres",
+        "svc/eden/frontend",
+        "svc/eden/nats",
+        "svc/eden/orchestrator",
+        "svc/eden/platformgateway",
+        "svc/eden/postgres",
+        "svc/eden/vault",
+        "svc/embedded-lab/zephyr-devbox-nucleo-bringup",
+        "svc/embedded-lab/zephyr-devbox-zephyr-libs",
+        "svc/external-secrets/bw-serve",
+        "svc/external-secrets/external-secrets-webhook",
         "svc/ingress-nginx/ingress-nginx-controller",
         "svc/ingress-nginx/ingress-nginx-controller-admission",
         "svc/kube-system/kube-dns",
         "svc/kube-system/metrics-server",
+        "svc/kyverno/kyverno-background-controller-metrics",
+        "svc/kyverno/kyverno-cleanup-controller",
+        "svc/kyverno/kyverno-cleanup-controller-metrics",
+        "svc/kyverno/kyverno-reports-controller-metrics",
+        "svc/kyverno/kyverno-svc",
+        "svc/kyverno/kyverno-svc-metrics",
         "svc/longhorn-system/longhorn-admission-webhook",
         "svc/longhorn-system/longhorn-backend",
         "svc/longhorn-system/longhorn-conversion-webhook",
         "svc/longhorn-system/longhorn-frontend",
         "svc/longhorn-system/longhorn-recovery-backend",
+        "svc/media/filebrowser",
+        "svc/media/flaresolverr",
+        "svc/media/homepage",
+        "svc/media/prowlarr",
+        "svc/media/qbittorrent",
         "svc/metallb-system/metallb-webhook-service",
+        "svc/minio/minio",
         "svc/observability/alloy-gateway",
         "svc/observability/alloy-logs",
         "svc/observability/grafana",
@@ -1548,21 +3903,68 @@
         "svc/observability/obs-prometheus-node-exporter",
         "svc/observability/prometheus-server",
         "svc/observability/tempo",
+        "svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+        "svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+        "svc/workspaces-prod/workspaces-api",
+        "ing/argocd/argocd-server",
+        "ing/eden/eden",
+        "ing/media/filebrowser",
+        "ing/media/homepage",
+        "ing/media/prowlarr",
+        "ing/media/qbittorrent",
+        "ing/minio/minio-s3",
         "ing/observability/grafana",
+        "ing/workspaces-prod/workspaces-api",
+        "pvc/eden/eden-nats-data",
+        "pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+        "pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+        "pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+        "pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+        "pvc/media/filebrowser-config",
+        "pvc/media/prowlarr-config",
+        "pvc/media/qbittorrent-config",
         "pvc/observability/grafana",
         "pvc/observability/prometheus-server"
       ],
       "edges": [
+        "selects:svc/argocd/argocd-applicationset-controller->deploy/argocd/argocd-applicationset-controller",
+        "selects:svc/argocd/argocd-repo-server->deploy/argocd/argocd-repo-server",
+        "selects:svc/argocd/argocd-server->deploy/argocd/argocd-server",
         "selects:svc/cert-manager/cert-manager->deploy/cert-manager/cert-manager",
         "selects:svc/cert-manager/cert-manager-cainjector->deploy/cert-manager/cert-manager-cainjector",
         "selects:svc/cert-manager/cert-manager-webhook->deploy/cert-manager/cert-manager-webhook",
+        "selects:svc/eden/agent-runtime->deploy/eden/agent-runtime",
+        "selects:svc/eden/agentgateway->deploy/eden/agentgateway",
+        "selects:svc/eden/eden-postgres->sts/eden/eden-postgres",
+        "selects:svc/eden/frontend->deploy/eden/frontend",
+        "selects:svc/eden/nats->sts/eden/nats",
+        "selects:svc/eden/orchestrator->deploy/eden/orchestrator",
+        "selects:svc/eden/platformgateway->deploy/eden/platformgateway",
+        "selects:svc/eden/postgres->sts/eden/eden-postgres",
+        "selects:svc/eden/vault->sts/eden/vault",
+        "selects:svc/embedded-lab/zephyr-devbox-nucleo-bringup->deploy/embedded-lab/zephyr-devbox-nucleo-bringup",
+        "selects:svc/embedded-lab/zephyr-devbox-zephyr-libs->deploy/embedded-lab/zephyr-devbox-zephyr-libs",
+        "selects:svc/external-secrets/bw-serve->deploy/external-secrets/bw-serve",
+        "selects:svc/external-secrets/external-secrets-webhook->deploy/external-secrets/external-secrets-webhook",
         "selects:svc/ingress-nginx/ingress-nginx-controller->deploy/ingress-nginx/ingress-nginx-controller",
         "selects:svc/ingress-nginx/ingress-nginx-controller-admission->deploy/ingress-nginx/ingress-nginx-controller",
         "selects:svc/kube-system/kube-dns->deploy/kube-system/coredns",
         "selects:svc/kube-system/metrics-server->deploy/kube-system/metrics-server",
+        "selects:svc/kyverno/kyverno-background-controller-metrics->deploy/kyverno/kyverno-background-controller",
+        "selects:svc/kyverno/kyverno-cleanup-controller->deploy/kyverno/kyverno-cleanup-controller",
+        "selects:svc/kyverno/kyverno-cleanup-controller-metrics->deploy/kyverno/kyverno-cleanup-controller",
+        "selects:svc/kyverno/kyverno-reports-controller-metrics->deploy/kyverno/kyverno-reports-controller",
+        "selects:svc/kyverno/kyverno-svc->deploy/kyverno/kyverno-admission-controller",
+        "selects:svc/kyverno/kyverno-svc-metrics->deploy/kyverno/kyverno-admission-controller",
         "selects:svc/longhorn-system/longhorn-backend->ds/longhorn-system/longhorn-manager",
         "selects:svc/longhorn-system/longhorn-frontend->deploy/longhorn-system/longhorn-ui",
+        "selects:svc/media/filebrowser->deploy/media/filebrowser",
+        "selects:svc/media/flaresolverr->deploy/media/flaresolverr",
+        "selects:svc/media/homepage->deploy/media/homepage",
+        "selects:svc/media/prowlarr->deploy/media/prowlarr",
+        "selects:svc/media/qbittorrent->deploy/media/qbittorrent",
         "selects:svc/metallb-system/metallb-webhook-service->deploy/metallb-system/controller",
+        "selects:svc/minio/minio->deploy/minio/minio",
         "selects:svc/observability/alloy-gateway->deploy/observability/alloy-gateway",
         "selects:svc/observability/alloy-logs->ds/observability/alloy-logs",
         "selects:svc/observability/grafana->deploy/observability/grafana",
@@ -1572,9 +3974,28 @@
         "selects:svc/observability/obs-prometheus-node-exporter->ds/observability/obs-prometheus-node-exporter",
         "selects:svc/observability/prometheus-server->deploy/observability/prometheus-server",
         "selects:svc/observability/tempo->sts/observability/tempo",
+        "selects:svc/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7->sts/tailscale/ts-zephyr-devbox-nucleo-bringup-74lr7",
+        "selects:svc/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d->sts/tailscale/ts-zephyr-devbox-zephyr-libs-tsk9d",
+        "selects:svc/workspaces-prod/workspaces-api->deploy/workspaces-prod/workspaces-api",
+        "routes:ing/argocd/argocd-server->svc/argocd/argocd-server",
+        "routes:ing/eden/eden->svc/eden/frontend",
+        "routes:ing/media/filebrowser->svc/media/filebrowser",
+        "routes:ing/media/homepage->svc/media/homepage",
+        "routes:ing/media/prowlarr->svc/media/prowlarr",
+        "routes:ing/media/qbittorrent->svc/media/qbittorrent",
+        "routes:ing/minio/minio-s3->svc/minio/minio",
         "routes:ing/observability/grafana->svc/observability/grafana",
+        "routes:ing/workspaces-prod/workspaces-api->svc/workspaces-prod/workspaces-api",
+        "mounts:deploy/embedded-lab/zephyr-devbox-nucleo-bringup->pvc/embedded-lab/zephyr-devbox-home-nucleo-bringup",
+        "mounts:deploy/embedded-lab/zephyr-devbox-nucleo-bringup->pvc/embedded-lab/zephyr-devbox-workspace-nucleo-bringup",
+        "mounts:deploy/embedded-lab/zephyr-devbox-zephyr-libs->pvc/embedded-lab/zephyr-devbox-home-zephyr-libs",
+        "mounts:deploy/embedded-lab/zephyr-devbox-zephyr-libs->pvc/embedded-lab/zephyr-devbox-workspace-zephyr-libs",
+        "mounts:deploy/media/filebrowser->pvc/media/filebrowser-config",
+        "mounts:deploy/media/prowlarr->pvc/media/prowlarr-config",
+        "mounts:deploy/media/qbittorrent->pvc/media/qbittorrent-config",
         "mounts:deploy/observability/grafana->pvc/observability/grafana",
-        "mounts:deploy/observability/prometheus-server->pvc/observability/prometheus-server"
+        "mounts:deploy/observability/prometheus-server->pvc/observability/prometheus-server",
+        "mounts:sts/eden/nats->pvc/eden/eden-nats-data"
       ]
     }
   ]

@@ -1,7 +1,7 @@
 {
   "clusterId": "oracle",
   "clusterName": "Oracle \u00b7 k3s",
-  "generatedAt": "2026-06-19T04:58:19Z",
+  "generatedAt": "2026-07-20T06:38:54Z",
   "source": "live-introspection",
   "nodes": [
     {
@@ -218,7 +218,7 @@
       "health": {
         "ready": 1,
         "desired": 1,
-        "restarts": 0
+        "restarts": 1
       },
       "group": "ns/shared-services",
       "exposure": "public"
