@@ -20,7 +20,7 @@ mechanical green-making the gates score. Read `docs/architecture/13-versioning-a
    - **Implementation** (libs/apps): the ADR-0018 enforcement gate — `gofumpt -l`, `golangci-lint`
      run ALONE per touched module (default AND `--build-tags integration`), `hnslint` per touched
      `libs/go/<lib>`, `go vet`, `go test -race`, and the real integration/conformance lanes
-     (ADR-0017). Build/test under the workspace (`GOWORK=/Users/mateo/eden/go.work`) for
+     (ADR-0017). Build/test under the workspace (`GOWORK=/Users/mateo/code/eden/go.work`) for
      workspace-dependent modules, `GOWORK=off` for standalone ones (`hook_module_gowork` is the
      rule). NEVER trust a reported green — run it yourself.
    - **Document** (tier P/A): `documentvalidator` (schema + traceability T1–T7).

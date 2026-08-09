@@ -281,7 +281,7 @@ autonomously without overriding his explicit wishes:
 1. **The visual chat UI direction** (the keystone). I asked twice (terminal + mobile push + a message
    with three concrete directions: Claude-faithful / observability-dense / session-fleet) and committed
    to NOT building it blind — it is the feature he wants to shape (look/feel/UX, Eden identity C21). The
-   backend it needs is 100% ready and RUNNABLE: `GOWORK=/Users/mateo/eden/go.work go run
+   backend it needs is 100% ready and RUNNABLE: `GOWORK=/Users/mateo/code/eden/go.work go run
    ./libs/../apps/agentgateway/cmd/agentgateway-dev` (default 127.0.0.1:8080) serves the full REST + SSE
    surface over fakes — no real auth needed. When Mateo gives direction, build the SvelteKit chat UI in
    apps/frontend against that gateway, then Playwright forced-CRUD E2E.
