@@ -17,10 +17,12 @@ test('Open in k9s launches a session scoped to the focused resource', async ({ p
   });
 
   await page.goto(`${BASE}/clusters`);
-  // Atlas opens on the Overview lens; the node canvas is the Service Map lens.
-  await page.locator('.tab', { hasText: 'Service Map' }).click();
-  await page.locator('.svc').first().waitFor({ timeout: 15_000 });
-  await page.locator('.svc').first().click();
+  // Focus a node via the Inventory lens (a table — occlusion-free, unlike the Service Map canvas
+  // whose toolbar overlays the top nodes). The Detail drawer + its k9s button are lens-agnostic
+  // (they render off the shared focus state), so this exercises the same behaviour.
+  await page.locator('.tab', { hasText: 'Inventory' }).click();
+  await page.locator('td.nm').first().waitFor({ timeout: 15_000 });
+  await page.locator('td.nm').first().click();
   await expect(page.locator('.drawer')).toBeVisible();
 
   await page.locator('button.k9s').click();
