@@ -238,11 +238,15 @@ def test_gps_tracker_uses_real_pins():
         f"got {len(mcu_pin_matches)}"
     )
 
-    # lib_symbols section should contain real ESP32-S3 pin definitions
+    # lib_symbols section should contain real ESP32-S3 pin definitions.
+    # MIGRATED (composer → src.ecad): the composer now resolves the MCU from
+    # the generated-component registry (src/ecad/library/espressif), whose
+    # ESP32-S3-WROOM-1 names its I/O "IO4".."IO48" — the seed chip_library's
+    # "GPIO4/ADC1_CH3" style aliases are no longer what lands in the file.
     assert "ESP32-S3-WROOM-1" in mcu_content
-    # Pin names are on separate lines: (name "GPIO0" ...)
+    # Pin names are on separate lines: (name "IO4" ...)
     esp32_pins_in_lib = re.findall(
-        r'\(name "(?:GPIO|3V3|GND|EN|TXD|RXD)',
+        r'\(name "(?:IO\d|GPIO|3V3|GND|EN|TXD|RXD)',
         mcu_content,
     )
     assert len(esp32_pins_in_lib) > 10, (

@@ -1,121 +1,41 @@
 """KiCad schematic generator — creates .kicad_sch files from component placements.
 
-Generates valid KiCad 9 schematic files with placed components, net labels,
-wires, and hierarchical sheet references. Uses direct S-expression string
-generation (no kiutils dependency for schematics).
+Legacy/pipeline layer: chip-library-aware wrappers over the pure emission
+primitives in src.ecad.emit, plus hierarchical-project generation used by
+the composer. New code should use src.ecad.emit / src.ecad.layout.engine.
 """
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
 
+from src.ecad.emit import (  # noqa: F401  (re-exported legacy API)
+    ComponentPlacement,
+    NetConnection,
+    _gen_junction,
+    _gen_label,
+    _gen_no_connect,
+    _gen_power_instance,
+    _gen_property,
+    _gen_wire,
+    _uuid,
+    deterministic_uuids,
+    gen_symbol_instance,
+    get_stub,
+    power_symbol_lib_sexp,
+)
 from src.pipeline.chip_library import generate_lib_symbol_sexp, lookup_chip
 
 
-def _uuid() -> str:
-    """Generate a random UUID string."""
-    return str(uuid.uuid4())
-
-
-# ---------------------------------------------------------------------------
-# Minimal lib_symbols stubs for common component types
-# ---------------------------------------------------------------------------
-
-_LIB_SYMBOL_STUBS: dict[str, str] = {
-    "Device:R": """(symbol "Device:R"
-      (pin_numbers (hide yes))
-      (pin_names (offset 0))
-      (exclude_from_sim no)
-      (in_bom yes)
-      (on_board yes)
-      (property "Reference" "R" (at 2.032 0 90) (effects (font (size 1.27 1.27))))
-      (property "Value" "R" (at 0 0 90) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "" (at -1.778 0 90) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Description" "Resistor" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "R_0_1"
-        (rectangle (start -1.016 -2.54) (end 1.016 2.54)
-          (stroke (width 0.254) (type default)) (fill (type none))))
-      (symbol "R_1_1"
-        (pin passive line (at 0 3.81 270) (length 1.27)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27)))))
-        (pin passive line (at 0 -3.81 90) (length 1.27)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))))
-      (embedded_fonts no))""",
-    "Device:C": """(symbol "Device:C"
-      (pin_numbers (hide yes))
-      (pin_names (offset 0.254))
-      (exclude_from_sim no)
-      (in_bom yes)
-      (on_board yes)
-      (property "Reference" "C" (at 0.635 2.54 0) (effects (font (size 1.27 1.27)) (justify left)))
-      (property "Value" "C" (at 0.635 -2.54 0) (effects (font (size 1.27 1.27)) (justify left)))
-      (property "Footprint" "" (at 0.9652 -3.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Description" "Unpolarized capacitor" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "C_0_1"
-        (polyline (pts (xy -2.032 0.762) (xy 2.032 0.762))
-          (stroke (width 0.508) (type default)) (fill (type none)))
-        (polyline (pts (xy -2.032 -0.762) (xy 2.032 -0.762))
-          (stroke (width 0.508) (type default)) (fill (type none))))
-      (symbol "C_1_1"
-        (pin passive line (at 0 3.81 270) (length 2.794)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27)))))
-        (pin passive line (at 0 -3.81 90) (length 2.794)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))))
-      (embedded_fonts no))""",
-    "Device:L": """(symbol "Device:L"
-      (pin_numbers (hide yes))
-      (pin_names (offset 1.016))
-      (exclude_from_sim no)
-      (in_bom yes)
-      (on_board yes)
-      (property "Reference" "L" (at -1.016 0 90) (effects (font (size 1.27 1.27))))
-      (property "Value" "L" (at 1.016 0 90) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Description" "Inductor" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "L_0_1"
-        (arc (start 0 -2.54) (mid 0.6323 -1.905) (end 0 -1.27)
-          (stroke (width 0) (type default)) (fill (type none)))
-        (arc (start 0 -1.27) (mid 0.6323 -0.635) (end 0 0)
-          (stroke (width 0) (type default)) (fill (type none)))
-        (arc (start 0 0) (mid 0.6323 0.635) (end 0 1.27)
-          (stroke (width 0) (type default)) (fill (type none)))
-        (arc (start 0 1.27) (mid 0.6323 1.905) (end 0 2.54)
-          (stroke (width 0) (type default)) (fill (type none))))
-      (symbol "L_1_1"
-        (pin passive line (at 0 3.81 270) (length 1.27)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27)))))
-        (pin passive line (at 0 -3.81 90) (length 1.27)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))))
-      (embedded_fonts no))""",
-}
-
-
 def _get_lib_symbol_stub(lib_id: str) -> str:
-    """Get a lib_symbol stub for a given lib_id.
-
-    Checks the chip library for real multi-pin definitions first,
-    then falls back to known passive stubs, and finally generates
-    a minimal 2-pin stub for unknown symbols.
-    """
-    if lib_id in _LIB_SYMBOL_STUBS:
-        return _LIB_SYMBOL_STUBS[lib_id]
-
-    # Check chip library for real IC definitions
+    """lib_symbols entry: known passive stub, else chip library, else a
+    minimal generated 2-pin stub."""
+    stub = get_stub(lib_id)
+    if stub is not None:
+        return stub
     chip = lookup_chip(lib_id)
     if chip is not None:
         return generate_lib_symbol_sexp(chip, lib_id)
-
-    # Generate a minimal 2-pin passive stub for unknown symbols
     safe_name = lib_id.replace('"', '\\"')
     ref_prefix = lib_id.split(":")[-1][0] if ":" in lib_id else "U"
     return f"""(symbol "{safe_name}"
@@ -137,27 +57,12 @@ def _get_lib_symbol_stub(lib_id: str) -> str:
       (embedded_fonts no))"""
 
 
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
-@dataclass
-class ComponentPlacement:
-    """A placed component in a schematic."""
-    lib_id: str
-    ref: str
-    value: str
-    footprint: str
-    position: tuple[float, float]
-    unit: int = 1
-
-
-@dataclass
-class NetConnection:
-    """A net label placed in the schematic."""
-    net_name: str
-    label_type: str  # "local", "global", "power"
-    position: tuple[float, float]
+def _gen_component(comp: ComponentPlacement, project_name: str,
+                   root_uuid: str) -> str:
+    """Legacy wrapper: resolve real IC pin numbers via the chip library."""
+    chip = lookup_chip(comp.lib_id)
+    nums = [str(p.number) for p in chip.pins] if chip is not None else None
+    return gen_symbol_instance(comp, project_name, root_uuid, nums)
 
 
 @dataclass
@@ -173,141 +78,16 @@ class SheetContent:
 # S-expression generators
 # ---------------------------------------------------------------------------
 
-def _gen_property(key: str, value: str, prop_id: int, x: float, y: float,
-                  hide: bool = False, justify: str = "") -> str:
-    """Generate a property S-expression."""
-    effects = '(effects (font (size 1.27 1.27))'
-    if justify:
-        effects += f' (justify {justify})'
-    if hide:
-        effects += ' (hide yes)'
-    effects += ')'
-    return f'\t\t(property "{key}" "{value}"\n\t\t\t(at {x} {y} 0)\n\t\t\t{effects}\n\t\t)'
-
-
-def _gen_component(comp: ComponentPlacement, project_name: str,
-                   root_uuid: str) -> str:
-    """Generate a placed symbol S-expression."""
-    x, y = comp.position
-    sym_uuid = _uuid()
-
-    pin_section = ""
-    # Generate pin UUIDs — match pin count to actual symbol definition
-    lib_base = comp.lib_id.split(":")[-1] if ":" in comp.lib_id else comp.lib_id
-    chip = lookup_chip(comp.lib_id)
-    if chip is not None:
-        # Real IC: generate pin UUIDs for all pins
-        pin_lines = []
-        for pin_def in chip.pins:
-            pin_lines.append(
-                f'\t\t(pin "{pin_def.number}"\n\t\t\t(uuid "{_uuid()}")\n\t\t)'
-            )
-        pin_section = "\n".join(pin_lines)
-    elif lib_base in ("R", "C", "L"):
-        pin_section = (
-            f'\t\t(pin "1"\n\t\t\t(uuid "{_uuid()}")\n\t\t)\n'
-            f'\t\t(pin "2"\n\t\t\t(uuid "{_uuid()}")\n\t\t)'
-        )
-    else:
-        pin_section = (
-            f'\t\t(pin "1"\n\t\t\t(uuid "{_uuid()}")\n\t\t)\n'
-            f'\t\t(pin "2"\n\t\t\t(uuid "{_uuid()}")\n\t\t)'
-        )
-
-    return f"""\t(symbol
-\t\t(lib_id "{comp.lib_id}")
-\t\t(at {x} {y} 0)
-\t\t(unit {comp.unit})
-\t\t(exclude_from_sim no)
-\t\t(in_bom yes)
-\t\t(on_board yes)
-\t\t(dnp no)
-\t\t(fields_autoplaced yes)
-\t\t(uuid "{sym_uuid}")
-{_gen_property("Reference", comp.ref, 0, x + 2.54, y - 1.27, justify="left")}
-{_gen_property("Value", comp.value, 1, x + 2.54, y + 1.27, justify="left")}
-{_gen_property("Footprint", comp.footprint, 2, x, y, hide=True)}
-{_gen_property("Datasheet", "~", 3, x, y, hide=True)}
-{pin_section}
-\t\t(instances
-\t\t\t(project "{project_name}"
-\t\t\t\t(path "/{root_uuid}"
-\t\t\t\t\t(reference "{comp.ref}")
-\t\t\t\t\t(unit {comp.unit})
-\t\t\t\t)
-\t\t\t)
-\t\t)
-\t)"""
-
-
-def _gen_label(net: NetConnection) -> str:
-    """Generate a net label S-expression."""
-    x, y = net.position
-    label_uuid = _uuid()
-
-    if net.label_type == "global":
-        return f"""\t(global_label "{net.net_name}"
-\t\t(shape input)
-\t\t(at {x} {y} 0)
-\t\t(effects
-\t\t\t(font
-\t\t\t\t(size 1.27 1.27)
-\t\t\t)
-\t\t\t(justify left)
-\t\t)
-\t\t(uuid "{label_uuid}")
-\t\t(property "Intersheetref" "${{INTERSHEET_REFS}}"
-\t\t\t(at 0 0 0)
-\t\t\t(effects
-\t\t\t\t(font
-\t\t\t\t\t(size 1.27 1.27)
-\t\t\t\t)
-\t\t\t\t(hide yes)
-\t\t\t)
-\t\t)
-\t)"""
-    elif net.label_type == "power":
-        return f"""\t(power_port "{net.net_name}"
-\t\t(at {x} {y} 0)
-\t\t(effects
-\t\t\t(font
-\t\t\t\t(size 1.27 1.27)
-\t\t\t)
-\t\t\t(justify left)
-\t\t)
-\t\t(uuid "{label_uuid}")
-\t)"""
-    else:
-        # local label
-        return f"""\t(label "{net.net_name}"
-\t\t(at {x} {y} 0)
-\t\t(effects
-\t\t\t(font
-\t\t\t\t(size 1.27 1.27)
-\t\t\t)
-\t\t\t(justify left bottom)
-\t\t)
-\t\t(uuid "{label_uuid}")
-\t)"""
-
-
-def _gen_wire(x1: float, y1: float, x2: float, y2: float) -> str:
-    """Generate a wire S-expression."""
-    return f"""\t(wire
-\t\t(pts
-\t\t\t(xy {x1} {y1}) (xy {x2} {y2})
-\t\t)
-\t\t(stroke
-\t\t\t(width 0)
-\t\t\t(type default)
-\t\t)
-\t\t(uuid "{_uuid()}")
-\t)"""
-
 
 def _gen_hierarchical_label(name: str, direction: str,
-                            x: float = 25.4, y: float = 25.4) -> str:
-    """Generate a hierarchical_label S-expression for a sub-sheet."""
+                            x: float = 25.4, y: float = 25.4,
+                            angle: int = 180) -> str:
+    """Generate a hierarchical_label S-expression for a sub-sheet.
+
+    ``angle`` follows the router's stub convention (0 right, 90 up,
+    180 left, 270 down); the text justification mirrors it so the glyph
+    always points away from the wire it terminates.
+    """
     shape_map = {
         "input": "input",
         "output": "output",
@@ -315,17 +95,49 @@ def _gen_hierarchical_label(name: str, direction: str,
         "passive": "passive",
     }
     shape = shape_map.get(direction, "bidirectional")
+    justify = "right" if angle == 180 else "left"
     return f"""\t(hierarchical_label "{name}"
 \t\t(shape {shape})
-\t\t(at {x} {y} 180)
+\t\t(at {x} {y} {angle})
 \t\t(effects
 \t\t\t(font
 \t\t\t\t(size 1.27 1.27)
 \t\t\t)
-\t\t\t(justify right)
+\t\t\t(justify {justify})
 \t\t)
 \t\t(uuid "{_uuid()}")
 \t)"""
+
+
+_SHEET_PIN_SHAPES = frozenset(
+    {"input", "output", "bidirectional", "tri_state", "passive"})
+
+_SHEET_WIDTH = 20.32      # mm — sheet symbol box width in the root schematic
+_SHEET_PIN_DY = 2.54      # mm — vertical pitch of sheet pins
+_SHEET_STUB = 2.54        # mm — pin → label stub on the root sheet
+
+
+def _sheet_pin_point(x: float, y: float, index: int) -> tuple[float, float]:
+    """Absolute position of sheet pin ``index`` of a sheet drawn at (x, y)."""
+    return (x + _SHEET_WIDTH, y + _SHEET_PIN_DY + index * _SHEET_PIN_DY)
+
+
+def _gen_sheet_pin_nets(pins: list[tuple[str, str]],
+                        x: float, y: float) -> list[str]:
+    """Wire + label every sheet pin so the hierarchy is actually connected.
+
+    A sheet pin that touches nothing is an ERC error ("Pin not connected")
+    and the sub-sheets never join. Each pin gets a short stub ending in a
+    label carrying the net name: identically-named labels on the root sheet
+    are one net, which is how sheet A's ``GPS_TX`` reaches sheet B's.
+    """
+    lines: list[str] = []
+    for i, (pin_name, _dir) in enumerate(pins):
+        px, py = _sheet_pin_point(x, y, i)
+        lines.append(_gen_wire(px, py, px + _SHEET_STUB, py))
+        lines.append(_gen_label(
+            NetConnection(pin_name, "local", (px + _SHEET_STUB, py))))
+    return lines
 
 
 def _gen_sheet_ref(filename: str, sheet_name: str,
@@ -333,16 +145,22 @@ def _gen_sheet_ref(filename: str, sheet_name: str,
                    x: float, y: float,
                    project_name: str, root_uuid: str,
                    page: int) -> str:
-    """Generate a sheet reference S-expression in the root schematic."""
+    """Generate a sheet reference S-expression in the root schematic.
+
+    The pin SHAPE must equal the shape of the matching hierarchical label
+    inside the sub-sheet or KiCad ERC reports a hierarchical-label
+    mismatch, so the caller's declared direction is emitted verbatim.
+    """
     sheet_uuid = _uuid()
-    width = 20.32
-    height = max(10.16, (len(pins) + 1) * 2.54)
+    width = _SHEET_WIDTH
+    height = max(10.16, (len(pins) + 1) * _SHEET_PIN_DY)
 
     pin_lines = []
     for i, (pin_name, pin_dir) in enumerate(pins):
-        pin_y = y + 2.54 + i * 2.54
+        _px, pin_y = _sheet_pin_point(x, y, i)
+        shape = pin_dir if pin_dir in _SHEET_PIN_SHAPES else "bidirectional"
         pin_lines.append(
-            f'\t\t(pin "{pin_name}" input\n'
+            f'\t\t(pin "{pin_name}" {shape}\n'
             f'\t\t\t(at {x + width} {pin_y} 0)\n'
             f'\t\t\t(uuid "{_uuid()}")\n'
             f'\t\t\t(effects\n'
@@ -508,17 +326,32 @@ def generate_schematic(
     root_uuid = _uuid()
     project_name = title.replace(" ", "_")
 
+    # Power-typed nets become real generated power symbols, not labels
+    # (the old `(power_port ...)` token was not valid KiCad syntax).
+    power_nets = [n for n in nets if n.label_type == "power"]
+    label_nets = [n for n in nets if n.label_type != "power"]
+
     # Collect unique lib_ids for lib_symbols section
     lib_ids = sorted({c.lib_id for c in components})
-    lib_symbols = "\n\t\t".join(_get_lib_symbol_stub(lid) for lid in lib_ids)
+    lib_symbol_entries = [_get_lib_symbol_stub(lid) for lid in lib_ids]
+    for name in sorted({n.net_name for n in power_nets}):
+        lib_symbol_entries.append(power_symbol_lib_sexp(name))
+    lib_symbols = "\n\t\t".join(lib_symbol_entries)
 
     # Generate component placements
-    comp_lines = "\n".join(
+    comp_lines_list = [
         _gen_component(c, project_name, root_uuid) for c in components
-    )
+    ]
+    for i, n in enumerate(power_nets, start=1):
+        x, y = n.position
+        rot = 180 if n.net_name.upper().startswith(
+            ("GND", "VSS", "AGND", "DGND", "PGND")) else 0
+        comp_lines_list.append(_gen_power_instance(
+            n.net_name, f"#PWR{i:02d}", x, y, rot, project_name, root_uuid))
+    comp_lines = "\n".join(comp_lines_list)
 
     # Generate net labels
-    label_lines = "\n".join(_gen_label(n) for n in nets)
+    label_lines = "\n".join(_gen_label(n) for n in label_nets)
 
     # Generate wires connecting passives to labels
     wire_lines = "\n".join(_generate_passive_wires(components, nets))
@@ -548,22 +381,33 @@ def generate_schematic(
 def generate_hierarchical_project(
     sheets: dict[str, SheetContent],
     root_title: str = "Root",
+    rendered_sheets: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Generate a complete hierarchical KiCad project.
 
-    Creates a root schematic with sheet references and sub-sheet files
-    with hierarchical labels.
+    Creates a root schematic with sheet references (each sheet pin wired to
+    a same-named label, so the sub-sheets are really connected) plus the
+    sub-sheet files.
 
     Args:
         sheets: Dict mapping filename (e.g., "power.kicad_sch") to content.
+            ``SheetContent.hierarchical_labels`` defines the sheet pins.
         root_title: Title for the root schematic.
+        rendered_sheets: Optional filename → complete .kicad_sch text,
+            supplied by a caller that already laid the sheet out (the
+            composer hands over ``src.ecad.layout.engine.emit`` output).
+            Filenames absent from this mapping fall back to the legacy
+            placement-list renderer.
 
     Returns:
         Dict mapping filename -> file content string for all sheets
         including the root.
+
+    UUIDs derive from ``root_title`` (own namespace), so the same project
+    regenerates byte-identically.
     """
-    root_uuid = _uuid()
     project_name = root_title.replace(" ", "_")
+    pre_rendered = rendered_sheets or {}
 
     # Collect all lib_ids across all sheets
     all_lib_ids: set[str] = set()
@@ -571,23 +415,26 @@ def generate_hierarchical_project(
         for c in sc.components:
             all_lib_ids.add(c.lib_id)
 
-    # Generate root schematic with sheet references
-    sheet_refs = []
-    x_offset = 50.8
-    for page_num, (filename, sc) in enumerate(sheets.items(), start=2):
-        pins = sc.hierarchical_labels
-        ref = _gen_sheet_ref(
-            filename, sc.title, pins,
-            x_offset, 40.64,
-            project_name, root_uuid,
-            page_num,
-        )
-        sheet_refs.append(ref)
-        x_offset += 30.48
+    with deterministic_uuids(f"{root_title}/root"):
+        root_uuid = _uuid()
+        # Generate root schematic with sheet references
+        sheet_refs = []
+        x_offset = 50.8
+        for page_num, (filename, sc) in enumerate(sheets.items(), start=2):
+            pins = sc.hierarchical_labels
+            ref = _gen_sheet_ref(
+                filename, sc.title, pins,
+                x_offset, 40.64,
+                project_name, root_uuid,
+                page_num,
+            )
+            sheet_refs.append(ref)
+            sheet_refs.extend(_gen_sheet_pin_nets(pins, x_offset, 40.64))
+            x_offset += 30.48
 
-    sheet_refs_str = "\n".join(sheet_refs)
+        sheet_refs_str = "\n".join(sheet_refs)
 
-    root_content = f"""(kicad_sch
+        root_content = f"""(kicad_sch
 \t(version 20250114)
 \t(generator "hardware-pipeline")
 \t(generator_version "1.0")
@@ -609,10 +456,13 @@ def generate_hierarchical_project(
     root_filename = project_base + ".kicad_sch"
     result[root_filename] = root_content
 
-    # Generate sub-sheets
+    # Generate sub-sheets (pre-rendered engine output wins)
     for filename, sc in sheets.items():
-        content = _generate_sub_sheet(sc, project_name, all_lib_ids)
-        result[filename] = content
+        if filename in pre_rendered:
+            result[filename] = pre_rendered[filename]
+            continue
+        with deterministic_uuids(f"{root_title}/{filename}"):
+            result[filename] = _generate_sub_sheet(sc, project_name, all_lib_ids)
 
     # Generate .kicad_pro (minimal project file)
     result[project_base + ".kicad_pro"] = _gen_project_file()
@@ -632,19 +482,30 @@ def _generate_sub_sheet(
     """Generate a sub-sheet .kicad_sch file."""
     sheet_uuid = _uuid()
 
+    power_nets = [n for n in sc.nets if n.label_type == "power"]
+    label_nets = [n for n in sc.nets if n.label_type != "power"]
+
     # lib_symbols for components in this sheet
     sheet_lib_ids = sorted({c.lib_id for c in sc.components})
-    lib_symbols = "\n\t\t".join(
-        _get_lib_symbol_stub(lid) for lid in sheet_lib_ids
-    )
+    lib_symbol_entries = [_get_lib_symbol_stub(lid) for lid in sheet_lib_ids]
+    for name in sorted({n.net_name for n in power_nets}):
+        lib_symbol_entries.append(power_symbol_lib_sexp(name))
+    lib_symbols = "\n\t\t".join(lib_symbol_entries)
 
     # Component placements
-    comp_lines = "\n".join(
+    comp_lines_list = [
         _gen_component(c, project_name, sheet_uuid) for c in sc.components
-    )
+    ]
+    for i, n in enumerate(power_nets, start=1):
+        x, y = n.position
+        rot = 180 if n.net_name.upper().startswith(
+            ("GND", "VSS", "AGND", "DGND", "PGND")) else 0
+        comp_lines_list.append(_gen_power_instance(
+            n.net_name, f"#PWR{i:02d}", x, y, rot, project_name, sheet_uuid))
+    comp_lines = "\n".join(comp_lines_list)
 
     # Net labels
-    label_lines = "\n".join(_gen_label(n) for n in sc.nets)
+    label_lines = "\n".join(_gen_label(n) for n in label_nets)
 
     # Hierarchical labels — spread vertically along left edge
     hlabel_x = 25.4

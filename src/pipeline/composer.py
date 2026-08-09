@@ -1,30 +1,47 @@
 """Design composer — generates wired KiCad projects from high-level specs.
 
-Takes a design specification (MCU + peripherals + power) and produces
-a complete hierarchical KiCad project using:
-- Wiring patterns from data/patterns/wiring_patterns.json
-- Decoupling rules from data/patterns/decoupling_rules.json
-- Circuit templates from data/patterns/templates/
-- Symbol generator for custom chips
-- Schematic generator for hierarchical projects
+Takes a design specification (MCU + peripherals + power) and produces a
+complete hierarchical KiCad project. Every sheet is a typed
+:class:`src.ecad.Design`:
+
+1. parts are resolved from the generated-component registry
+   (``src.ecad.library``) first, then the seed ``chip_library``, and only
+   then synthesized as a clearly-warned generic placeholder;
+2. wiring patterns (``data/patterns/wiring_patterns.json``) or the
+   name-based interface fallback become **Design nets on real pins**;
+3. decoupling caps are real ``Device:C`` components on the rails — the
+   layout engine's satellite rule places them;
+4. the layout engine (``src.ecad.layout.engine``) ranks, orders, places,
+   routes and emits each sheet. The composer owns hierarchy: it renders
+   the hierarchical labels and hands them to ``emit`` as text.
+
+There are no hardcoded coordinates here — geometry belongs to the engine.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.ecad import Component, Design, ElectricalType, PinRole
+from src.ecad.emit import deterministic_uuids
+from src.ecad.layout.engine import emit, label_anchors, layout
+from src.ecad.layout.graph_build import is_power_net
+from src.ecad.layout.lints import lint_placed
+from src.ecad.library import get as registry_get
+from src.pipeline.chip_library import lookup_chip
+from src.pipeline.classify import extract_ic_family
+from src.pipeline.decoupling_gen import decoupling_values
+from src.pipeline.ecad_bridge import chipdef_to_component
+from src.pipeline.pattern_merge import normalize_ic_family
 from src.pipeline.schematic_gen import (
-    ComponentPlacement,
-    NetConnection,
     SheetContent,
+    _gen_hierarchical_label,
     generate_hierarchical_project,
 )
-from src.pipeline.decoupling_gen import generate_decoupling_caps, generate_decoupling_nets
-from src.pipeline.classify import extract_ic_family
-from src.pipeline.pattern_merge import normalize_ic_family
-
+from src.pipeline.stock_parts import Capacitor, cap_footprint
+from src.pipeline.symbol_gen import ChipDef, PinDef
 
 # ---------------------------------------------------------------------------
 # Data paths
@@ -34,15 +51,8 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _DEFAULT_PATTERNS_PATH = _REPO_ROOT / "data" / "patterns" / "wiring_patterns.json"
 _DEFAULT_RULES_PATH = _REPO_ROOT / "data" / "patterns" / "decoupling_rules.json"
 
-# Layout constants (mm)
-_MCU_POS = (100.0, 80.0)
-_PERIPHERAL_X_START = 100.0
-_PERIPHERAL_Y_START = 80.0
-_LABEL_OFFSET_X = 20.0
-_LABEL_OFFSET_Y = -5.0
-_LABEL_SPACING_Y = 5.0
-
-# MCU library ID templates by family
+# MCU library ID templates by family (identity only — the registry and the
+# seed chip library own the actual pin data).
 _MCU_LIB_MAP: dict[str, str] = {
     "ESP32-S3": "RF_Module:ESP32-S3-WROOM-1",
     "ESP32": "RF_Module:ESP32-WROOM-32",
@@ -52,12 +62,42 @@ _MCU_LIB_MAP: dict[str, str] = {
     "RP2040": "MCU_RaspberryPi:RP2040",
 }
 
-# Common regulator symbols
+# Common regulator symbols: (lib_id, footprint)
 _REGULATOR_MAP: dict[str, tuple[str, str]] = {
-    # (lib_id, footprint)
     "LDO": ("Regulator_Linear:AP2112K-3.3", "Package_TO_SOT_SMD:SOT-23-5"),
     "DCDC": ("Regulator_Switching:TPS563200", "Package_TO_SOT_SMD:SOT-23-6"),
 }
+
+# Interface → ordered (role, name candidates) signal plan. The first
+# candidate that matches a pin name wins; unmatched roles fall back to a
+# free GPIO on the MCU side and are warned about on the peripheral side.
+_INTERFACE_SIGNALS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "SPI": (
+        ("SCK", ("SCK", "SCLK", "SPI_CLK", "SPICLK", "CLK")),
+        ("MOSI", ("MOSI", "SPI_MOSI", "SDI", "DIN", "SDA")),
+        ("MISO", ("MISO", "SPI_MISO", "SDO", "DOUT")),
+        ("CS", ("CS", "SPI_CS", "NSS", "SSEL", "CSN", "SS")),
+    ),
+    "I2C": (
+        ("SDA", ("SDA", "DDC_SDA", "I2C_SDA", "SDIO")),
+        ("SCL", ("SCL", "DDC_SCL", "I2C_SCL", "SCK")),
+    ),
+    "UART": (
+        ("TX", ("TXD", "TX", "TXD0", "UART_TX", "TXO")),
+        ("RX", ("RXD", "RX", "RXD0", "UART_RX", "RXI")),
+    ),
+    "GPIO": (("IO", ("IO", "GPIO", "DATA", "A", "K")),),
+}
+_DEFAULT_SIGNALS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("DATA", ("DATA", "IO", "SIG")),
+)
+
+# UART is the one interface where the two ends cross over: the peripheral's
+# TX drives the MCU's RX. Every other interface links same-named roles.
+_UART_CROSSOVER = {"TX": "RX", "RX": "TX"}
+
+# Strapping GPIOs are allocated last (they must be free at boot).
+_LAST_RESORT_GPIOS = frozenset({0, 3, 45, 46})
 
 
 # ---------------------------------------------------------------------------
@@ -94,10 +134,24 @@ class DesignSpec:
 class GeneratedProject:
     """Output of the composer."""
     name: str
-    files: dict[str, str]  # filename -> content (.kicad_sch, .kicad_sym)
+    files: dict[str, str]  # filename -> content (.kicad_sch, .kicad_pro, ...)
     bom: list[dict]        # bill of materials
     wiring_notes: list[str]  # what patterns were used
     warnings: list[str]     # what couldn't be auto-wired
+    designs: dict[str, Design] = field(default_factory=dict)
+    # filename -> the typed Design that sheet was generated from; the
+    # ground truth for netlist checks (``Design.intended_netlist()``).
+    layout_issues: dict[str, list[str]] = field(default_factory=dict)
+    # filename -> geometric lint findings (empty dict == every sheet clean)
+
+
+@dataclass
+class _SheetPlan:
+    """One sub-sheet: its typed design plus the hierarchy it exposes."""
+    filename: str
+    title: str
+    design: Design
+    hier: dict[str, str] = field(default_factory=dict)   # net -> direction
 
 
 # ---------------------------------------------------------------------------
@@ -186,367 +240,434 @@ def _find_pattern(
 
 
 # ---------------------------------------------------------------------------
-# Sheet generators
+# Part resolution: registry → seed chip library → generic placeholder
 # ---------------------------------------------------------------------------
 
-def _generate_power_sheet(spec: DesignSpec) -> SheetContent:
-    """Generate power supply sub-sheet (LDO/DCDC + caps)."""
-    components: list[ComponentPlacement] = []
-    nets: list[NetConnection] = []
-    hlabels: list[tuple[str, str]] = []
+def _generic_chipdef(name: str, lib_id: str,
+                     signals: tuple[tuple[str, tuple[str, ...]], ...]) -> ChipDef:
+    """Synthesize a placeholder ChipDef: power pins + the interface signals.
 
-    reg_type = spec.power.regulator.upper()
-    reg_lib_id, reg_footprint = _REGULATOR_MAP.get(reg_type, _REGULATOR_MAP["LDO"])
-
-    # Place regulator
-    reg_pos = (100.0, 80.0)
-    components.append(ComponentPlacement(
-        lib_id=reg_lib_id,
-        ref="U1",
-        value=reg_lib_id.split(":")[-1],
-        footprint=reg_footprint,
-        position=reg_pos,
-    ))
-
-    # Input power net
-    input_net = "VIN"
-    if spec.power.input_source.upper() == "USB-C":
-        input_net = "VBUS"
-    elif spec.power.input_source.upper() == "BATTERY":
-        input_net = "VBAT"
-
-    nets.append(NetConnection(
-        net_name=input_net,
-        label_type="global",
-        position=(reg_pos[0] - 15.0, reg_pos[1]),
-    ))
-
-    # Output voltage net
-    voltage_net = f"+{spec.power.voltage}"
-    nets.append(NetConnection(
-        net_name=voltage_net,
-        label_type="global",
-        position=(reg_pos[0] + 15.0, reg_pos[1]),
-    ))
-
-    # Ground
-    nets.append(NetConnection(
-        net_name="GND",
-        label_type="global",
-        position=(reg_pos[0], reg_pos[1] + 15.0),
-    ))
-
-    # Input cap
-    components.append(ComponentPlacement(
-        lib_id="Device:C",
-        ref="C1",
-        value="10uF",
-        footprint="Capacitor_SMD:C_0805_2012Metric",
-        position=(reg_pos[0] - 15.0, reg_pos[1] + 10.0),
-    ))
-
-    # Output cap
-    components.append(ComponentPlacement(
-        lib_id="Device:C",
-        ref="C2",
-        value="10uF",
-        footprint="Capacitor_SMD:C_0805_2012Metric",
-        position=(reg_pos[0] + 15.0, reg_pos[1] + 10.0),
-    ))
-
-    # Power net labels for input/output caps
-    nets.append(NetConnection(
-        net_name=input_net, label_type="global",
-        position=(reg_pos[0] - 15.0, reg_pos[1] + 10.0 - 3.81),
-    ))
-    nets.append(NetConnection(
-        net_name="GND", label_type="global",
-        position=(reg_pos[0] - 15.0, reg_pos[1] + 10.0 + 3.81),
-    ))
-    nets.append(NetConnection(
-        net_name=voltage_net, label_type="global",
-        position=(reg_pos[0] + 15.0, reg_pos[1] + 10.0 - 3.81),
-    ))
-    nets.append(NetConnection(
-        net_name="GND", label_type="global",
-        position=(reg_pos[0] + 15.0, reg_pos[1] + 10.0 + 3.81),
-    ))
-
-    # Hierarchical labels for power connections
-    hlabels.append((voltage_net, "output"))
-    hlabels.append(("GND", "passive"))
-    hlabels.append((input_net, "input"))
-
-    return SheetContent(
-        title="Power",
-        components=components,
-        nets=nets,
-        hierarchical_labels=hlabels,
-    )
-
-
-def _generate_mcu_sheet(
-    spec: DesignSpec,
-    patterns: dict,
-    ref_counter: list[int],
-) -> SheetContent:
-    """Generate MCU sub-sheet with decoupling caps.
-
-    Args:
-        spec: Full design specification.
-        patterns: Loaded wiring patterns index.
-        ref_counter: Mutable list [cap_ref_num] for unique cap numbering.
+    Used only for parts no library knows. The footprint is deliberately
+    empty (guessing one would be worse than admitting ignorance) and the
+    caller always emits a warning naming the part.
     """
-    components: list[ComponentPlacement] = []
-    nets: list[NetConnection] = []
-    hlabels: list[tuple[str, str]] = []
-
-    # MCU component
-    mcu_lib_id = _MCU_LIB_MAP.get(spec.mcu_family, f"Custom:{spec.mcu_chip}")
-    mcu_pos = _MCU_POS
-
-    components.append(ComponentPlacement(
-        lib_id=mcu_lib_id,
-        ref="U1",
-        value=spec.mcu_chip,
+    pins = [
+        PinDef(number="1", name="VCC", electrical_type="power_in", group="Power"),
+        PinDef(number="2", name="GND", electrical_type="power_in", group="Power"),
+    ]
+    for i, (role, _cands) in enumerate(signals, start=3):
+        pins.append(PinDef(number=str(i), name=role,
+                           electrical_type="bidirectional", group="Signal"))
+    # A placeholder says so in its lib_id: "Unverified:PCF8563T" is honest
+    # where the old "Custom:PCF8563T" 2-pin stub pretended to be a part.
+    library = lib_id.split(":")[0] if ":" in lib_id else "Unverified"
+    return ChipDef(
+        name=name,
+        library=library,
+        description=f"{name} (placeholder — no verified pin data)",
         footprint="",
-        position=mcu_pos,
-    ))
-
-    # Decoupling caps for MCU
-    voltage_net = f"+{spec.power.voltage}"
-    decoupling_caps = generate_decoupling_caps(
-        ic_lib_id=mcu_lib_id,
-        ic_position=mcu_pos,
-        power_nets=[voltage_net],
-        ground_net="GND",
-        rules_path=_DEFAULT_RULES_PATH,
-        ref_start=ref_counter[0],
+        datasheet_url="",
+        pins=pins,
     )
-    ref_counter[0] += len(decoupling_caps)
-    components.extend(decoupling_caps)
 
-    # Decoupling cap nets
-    decoupling_nets = generate_decoupling_nets(
-        caps=decoupling_caps,
-        power_nets=[voltage_net],
-        ground_net="GND",
+
+def _resolve_component(
+    name: str,
+    lib_id: str,
+    signals: tuple[tuple[str, tuple[str, ...]], ...],
+    warnings: list[str],
+) -> tuple[Component, bool]:
+    """Resolve a part to a typed Component. Returns (component, is_real).
+
+    Order: generated-component registry → seed chip library → synthesized
+    placeholder (with a warning naming the part).
+    """
+    for key in (name, lib_id):
+        if not key:
+            continue
+        try:
+            return registry_get(key)(), True
+        except (KeyError, LookupError, ImportError):
+            pass
+
+    for key in (lib_id, name):
+        if not key:
+            continue
+        chip = lookup_chip(key)
+        if chip is not None:
+            return chipdef_to_component(chip), True
+
+    warnings.append(
+        f"No component definition found for {name} ({lib_id or 'no lib_id'}). "
+        f"Using a generic placeholder symbol with no footprint — replace it "
+        f"before manufacturing."
     )
-    nets.extend(decoupling_nets)
+    return chipdef_to_component(_generic_chipdef(name, lib_id, signals)), False
 
-    # Power nets for MCU
-    nets.append(NetConnection(
-        net_name=voltage_net, label_type="global",
-        position=(mcu_pos[0] - 10.0, mcu_pos[1] - 10.0),
-    ))
-    nets.append(NetConnection(
-        net_name="GND", label_type="global",
-        position=(mcu_pos[0] - 10.0, mcu_pos[1] + 10.0),
-    ))
 
-    # Generate global labels for each peripheral's wiring
-    for peripheral in spec.peripherals:
-        periph_family = extract_ic_family(peripheral.chip)
-        pattern = _find_pattern(
-            patterns, spec.mcu_family, periph_family, peripheral.interface,
+# ---------------------------------------------------------------------------
+# Pin selection
+# ---------------------------------------------------------------------------
+
+def _norm_pin(name: str) -> str:
+    return "".join(ch for ch in name.upper() if ch.isalnum())
+
+
+def _candidate_pins(comp: Component, candidates: tuple[str, ...],
+                    used: set[str]) -> list:
+    """Pins whose name matches a candidate, best match first.
+
+    Ranking: exact name, then a slash-separated alias (``SDA/DDC_SDA``),
+    then a name that merely contains the candidate. Ties break on pad order
+    so the choice is deterministic.
+    """
+    ranked: list[tuple[int, int, object]] = []
+    for order, p in enumerate(comp.pins):
+        if p.pad in used or p.role is PinRole.NC:
+            continue
+        norm = _norm_pin(p.name)
+        aliases = {_norm_pin(part) for part in p.name.replace("|", "/").split("/")}
+        aliases |= {_norm_pin(f) for f in p.spec.functions}
+        for rank_base, cand in enumerate(candidates):
+            c = _norm_pin(cand)
+            if norm == c:
+                ranked.append((0 + rank_base * 3, order, p))
+                break
+            if c in aliases:
+                ranked.append((1 + rank_base * 3, order, p))
+                break
+            if c in norm:
+                ranked.append((2 + rank_base * 3, order, p))
+                break
+    ranked.sort(key=lambda t: (t[0], t[1]))
+    return [p for _r, _o, p in ranked]
+
+
+def _free_gpio(comp: Component, used: set[str]):
+    """Lowest unused GPIO pin (strapping pins last), else None."""
+    gpios = [p for p in comp.pins
+             if p.role is PinRole.GPIO and p.pad not in used]
+    if not gpios:
+        return None
+    gpios.sort(key=lambda p: (
+        (p.spec.gpio in _LAST_RESORT_GPIOS) if p.spec.gpio is not None else True,
+        p.spec.gpio if p.spec.gpio is not None else 1 << 30,
+        p.pad,
+    ))
+    return gpios[0]
+
+
+def _pin_by_pad(comp: Component, pad: str):
+    """The pin on a physical pad, or None (pattern pads may not exist)."""
+    return next((p for p in comp.pins if p.pad == pad), None)
+
+
+def _rail_pins(comp: Component) -> list:
+    """Pins that want the positive rail: power_in that is not a ground."""
+    return [p for p in comp.pins
+            if p.etype is ElectricalType.POWER_IN and p.role is not PinRole.GROUND]
+
+
+def _ground_pins(comp: Component) -> list:
+    return [p for p in comp.pins if p.role is PinRole.GROUND]
+
+
+def _direction_of(pin) -> str:
+    """Hierarchical-label direction implied by a pin's electrical type."""
+    if pin.etype is ElectricalType.OUTPUT or pin.etype is ElectricalType.POWER_OUT:
+        return "output"
+    if pin.etype is ElectricalType.INPUT:
+        return "input"
+    return "bidirectional"
+
+
+# ---------------------------------------------------------------------------
+# Decoupling
+# ---------------------------------------------------------------------------
+
+def _add_decoupling(design: Design, owner: Component, rail: str,
+                    ground: str, rules_path: Path,
+                    refs: "_RefAllocator") -> list[Capacitor]:
+    """Attach decoupling caps (values from the learned rules) to a rail."""
+    caps: list[Capacitor] = []
+    for value, footprint_token in decoupling_values(
+            owner.lib_id, [rail], rules_path=rules_path):
+        cap = Capacitor(value=value, footprint=cap_footprint(footprint_token))
+        cap.ref = refs.take("C")
+        design.add(cap)
+        design.net(rail).connect(cap.P1)
+        design.net(ground).connect(cap.P2)
+        caps.append(cap)
+    return caps
+
+
+class _RefAllocator:
+    """Project-wide reference designators (sheets share one namespace)."""
+
+    def __init__(self) -> None:
+        self._counters: dict[str, int] = {}
+
+    def take(self, prefix: str) -> str:
+        n = self._counters.get(prefix, 0) + 1
+        self._counters[prefix] = n
+        return f"{prefix}{n}"
+
+
+# ---------------------------------------------------------------------------
+# Sheet builders
+# ---------------------------------------------------------------------------
+
+def _input_net(power: PowerSpec) -> str:
+    source = power.input_source.upper()
+    if source == "USB-C":
+        return "VBUS"
+    if source == "BATTERY":
+        return "VBAT"
+    return "VIN"
+
+
+def _build_power_sheet(spec: DesignSpec, refs: _RefAllocator,
+                       rules_path: Path, warnings: list[str]) -> _SheetPlan:
+    """Regulator + input/output bulk caps, wired on real pins."""
+    design = Design(f"{spec.name}-power")
+    reg_type = spec.power.regulator.upper()
+    reg_lib_id, _reg_footprint = _REGULATOR_MAP.get(reg_type, _REGULATOR_MAP["LDO"])
+    reg_name = reg_lib_id.split(":")[-1]
+
+    regulator, _real = _resolve_component(reg_name, reg_lib_id, (), warnings)
+    regulator.ref = refs.take("U")
+    design.add(regulator)
+
+    vin = _input_net(spec.power)
+    vout = f"+{spec.power.voltage}"
+
+    for p in _rail_pins(regulator):
+        design.net(vin).connect(p)
+    for p in regulator.pins:
+        if p.etype is ElectricalType.POWER_OUT:
+            design.net(vout).connect(p)
+        elif p.etype is ElectricalType.INPUT and _norm_pin(p.name) in ("EN", "ENABLE"):
+            design.net(vin).connect(p)          # enable tied high to the input
+    for p in _ground_pins(regulator):
+        design.net("GND").connect(p)
+
+    if not design.net(vout).pins:
+        warnings.append(
+            f"Regulator {reg_name} exposes no power_out pin; the {vout} rail "
+            f"has no driver on the power sheet."
         )
 
-        if pattern:
-            connections = pattern.get("canonical_connections", [])
-            for conn in connections:
-                net_name = conn["net_name"]
-                label_y = mcu_pos[1] + _LABEL_OFFSET_Y
-                _LABEL_OFFSET_Y_INCR = 5.0
-                nets.append(NetConnection(
-                    net_name=net_name,
-                    label_type="global",
-                    position=(mcu_pos[0] + _LABEL_OFFSET_X, label_y),
-                ))
-                hlabels.append((net_name, "bidirectional"))
-        else:
-            # No pattern — generate default net names based on interface
-            default_nets = _default_interface_nets(peripheral)
-            for net_name in default_nets:
-                nets.append(NetConnection(
-                    net_name=net_name,
-                    label_type="global",
-                    position=(mcu_pos[0] + _LABEL_OFFSET_X, mcu_pos[1]),
-                ))
-                hlabels.append((net_name, "bidirectional"))
+    # Input and output bulk caps (real Device:C parts on the rails)
+    for rail in (vin, vout):
+        cap = Capacitor(value="10uF", footprint=cap_footprint("C_0805"))
+        cap.ref = refs.take("C")
+        design.add(cap)
+        design.net(rail).connect(cap.P1)
+        design.net("GND").connect(cap.P2)
 
-    # Power labels as hierarchical
-    hlabels.append((voltage_net, "input"))
-    hlabels.append(("GND", "passive"))
+    _add_decoupling(design, regulator, vout, "GND", rules_path, refs)
 
-    # Deduplicate hierarchical labels
-    seen_labels: set[str] = set()
-    unique_hlabels: list[tuple[str, str]] = []
-    for name, direction in hlabels:
-        if name not in seen_labels:
-            seen_labels.add(name)
-            unique_hlabels.append((name, direction))
-
-    return SheetContent(
-        title="MCU",
-        components=components,
-        nets=nets,
-        hierarchical_labels=unique_hlabels,
-    )
+    return _SheetPlan(filename="power.kicad_sch", title="Power", design=design)
 
 
-def _generate_peripheral_sheet(
+def _wire_interface(
+    mcu: Component,
+    mcu_design: Design,
+    mcu_used: set[str],
+    periph: Component,
+    periph_design: Design,
+    periph_used: set[str],
     peripheral: PeripheralSpec,
     pattern: dict | None,
-    sheet_index: int,
-    ref_counter: list[int],
-    voltage_net: str,
-) -> SheetContent:
-    """Generate a peripheral sub-sheet, wired according to learned patterns.
+    warnings: list[str],
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Create the interface nets on both sheets. Returns (mcu_hier, periph_hier).
 
-    Args:
-        peripheral: The peripheral specification.
-        pattern: Matched wiring pattern (or None if unknown).
-        sheet_index: Index for positioning and unique refs.
-        ref_counter: Mutable list [cap_ref_num] for unique cap numbering.
-        voltage_net: Power voltage net name (e.g., "+3.3V").
+    With a learned pattern the pad numbers decide (``ic_a_pad`` is the MCU
+    pad, ``ic_b_pad`` the peripheral pad); without one the interface's
+    signal plan is matched against pin NAMES, falling back to free GPIOs on
+    the MCU side.
     """
-    components: list[ComponentPlacement] = []
-    nets: list[NetConnection] = []
-    hlabels: list[tuple[str, str]] = []
+    mcu_hier: dict[str, str] = {}
+    periph_hier: dict[str, str] = {}
 
-    # Peripheral IC
-    periph_pos = (_PERIPHERAL_X_START, _PERIPHERAL_Y_START)
-    periph_lib_id = f"Custom:{peripheral.chip}"
-    ic_ref = f"U{sheet_index + 2}"  # U1 is MCU, U2+ are peripherals
+    if pattern is not None:
+        for conn in pattern.get("canonical_connections", []):
+            net = conn.get("net_name")
+            if not net:
+                continue
+            a_pad, b_pad = str(conn.get("ic_a_pad", "")), str(conn.get("ic_b_pad", ""))
+            mcu_pin = _pin_by_pad(mcu, a_pad)
+            periph_pin = _pin_by_pad(periph, b_pad)
+            if mcu_pin is None or periph_pin is None:
+                warnings.append(
+                    f"Wiring pattern for {peripheral.name} references pads "
+                    f"{a_pad}/{b_pad} that do not exist on "
+                    f"{mcu.part_name}/{periph.part_name}; net {net} skipped."
+                )
+                continue
+            if is_power_net(net):
+                continue                      # rails are global power symbols
+            if periph_pin.net is not None:
+                warnings.append(
+                    f"Wiring pattern for {peripheral.name} wants {net} on "
+                    f"{periph_pin.owner_ref}.{periph_pin.name} (pad "
+                    f"{periph_pin.pad}), which already carries "
+                    f"{periph_pin.net.name}; net {net} skipped."
+                )
+                continue
+            if mcu_pin.net is not None:
+                shared = mcu_pin.net.name
+                if is_power_net(shared):
+                    # The pattern maps a signal onto a pin already on a rail.
+                    # That is a bad pattern, not a bus: rails are global power
+                    # symbols with no label anchor, so exposing one as a
+                    # hierarchical net yields unrouted-hierarchical-net.
+                    warnings.append(
+                        f"Wiring pattern for {peripheral.name} wants {net} on "
+                        f"{mcu_pin.owner_ref}.{mcu_pin.name} (pad "
+                        f"{mcu_pin.pad}), which already carries the rail "
+                        f"{shared}; net {net} skipped."
+                    )
+                    continue
+                # Otherwise the MCU pad is already wired because this is a BUS
+                # (I2C, shared SPI clock) and a second device joins the line —
+                # the normal case. Skipping both sides instead left the
+                # peripheral's bus pin unconnected, so emit() wrote a
+                # no_connect marker on it and intended_netlist() never
+                # mentioned it: a powered, decoupled sensor with its bus
+                # deliberately marked unconnected, which both ERC and netlist
+                # equivalence report as perfectly clean.
+                periph_design.net(shared).connect(periph_pin)
+                periph_used.add(periph_pin.pad)
+                mcu_hier[shared] = _direction_of(mcu_pin)
+                periph_hier[shared] = _direction_of(periph_pin)
+                continue
+            mcu_design.net(net).connect(mcu_pin)
+            periph_design.net(net).connect(periph_pin)
+            mcu_used.add(mcu_pin.pad)
+            periph_used.add(periph_pin.pad)
+            mcu_hier[net] = _direction_of(mcu_pin)
+            periph_hier[net] = _direction_of(periph_pin)
+        return mcu_hier, periph_hier
 
-    components.append(ComponentPlacement(
-        lib_id=periph_lib_id,
-        ref=ic_ref,
-        value=peripheral.chip,
-        footprint="",
-        position=periph_pos,
-    ))
-
-    # Decoupling caps for peripheral
-    decoupling_caps = generate_decoupling_caps(
-        ic_lib_id=periph_lib_id,
-        ic_position=periph_pos,
-        power_nets=[voltage_net],
-        ground_net="GND",
-        rules_path=_DEFAULT_RULES_PATH,
-        ref_start=ref_counter[0],
-    )
-    ref_counter[0] += len(decoupling_caps)
-    components.extend(decoupling_caps)
-
-    decoupling_nets = generate_decoupling_nets(
-        caps=decoupling_caps,
-        power_nets=[voltage_net],
-        ground_net="GND",
-    )
-    nets.extend(decoupling_nets)
-
-    # Power nets
-    nets.append(NetConnection(
-        net_name=voltage_net, label_type="global",
-        position=(periph_pos[0] - 10.0, periph_pos[1] - 10.0),
-    ))
-    nets.append(NetConnection(
-        net_name="GND", label_type="global",
-        position=(periph_pos[0] - 10.0, periph_pos[1] + 10.0),
-    ))
-
-    # Wire peripheral using pattern or defaults
-    if pattern:
-        connections = pattern.get("canonical_connections", [])
-        for i, conn in enumerate(connections):
-            net_name = conn["net_name"]
-            label_y = periph_pos[1] + _LABEL_OFFSET_Y + i * _LABEL_SPACING_Y
-            nets.append(NetConnection(
-                net_name=net_name,
-                label_type="global",
-                position=(periph_pos[0] + _LABEL_OFFSET_X, label_y),
-            ))
-            hlabels.append((net_name, "bidirectional"))
-    else:
-        # No pattern — use default interface nets
-        default_nets = _default_interface_nets(peripheral)
-        for i, net_name in enumerate(default_nets):
-            label_y = periph_pos[1] + _LABEL_OFFSET_Y + i * _LABEL_SPACING_Y
-            nets.append(NetConnection(
-                net_name=net_name,
-                label_type="global",
-                position=(periph_pos[0] + _LABEL_OFFSET_X, label_y),
-            ))
-            hlabels.append((net_name, "bidirectional"))
-
-    # Power hierarchical labels
-    hlabels.append((voltage_net, "input"))
-    hlabels.append(("GND", "passive"))
-
-    # Deduplicate
-    seen: set[str] = set()
-    unique_hlabels: list[tuple[str, str]] = []
-    for name, direction in hlabels:
-        if name not in seen:
-            seen.add(name)
-            unique_hlabels.append((name, direction))
-
-    return SheetContent(
-        title=peripheral.name,
-        components=components,
-        nets=nets,
-        hierarchical_labels=unique_hlabels,
-    )
-
-
-def _default_interface_nets(peripheral: PeripheralSpec) -> list[str]:
-    """Generate default net names for a peripheral based on its interface type."""
-    prefix = peripheral.name.upper().replace(" ", "_")
     iface = peripheral.interface.upper()
+    signals = _INTERFACE_SIGNALS.get(iface, _DEFAULT_SIGNALS)
+    prefix = peripheral.name.upper().replace(" ", "_")
+    # A peripheral called "VBAT Monitor" yields the prefix VBAT_MONITOR, and
+    # is_power_net matches VBAT\w* — so the signal net VBAT_MONITOR_IO would be
+    # turned into global power taps instead of a NetEdge. No label anchor is
+    # produced, hier_lines stays empty for it, yet the root sheet's pins come
+    # from plan.hier, so both sheet symbols declare a hierarchical pin with no
+    # matching label and the rail ends up undriven. The pattern branch above
+    # already guards with is_power_net; this one did not.
+    if is_power_net(f"{prefix}_X"):
+        prefix = f"NET_{prefix}"
+        warnings.append(
+            f"Peripheral name {peripheral.name!r} produces net names that read "
+            f"as a power rail; prefixing them with NET_ so they stay signals."
+        )
+    for role, candidates in signals:
+        net = f"{prefix}_{role}"
+        periph_matches = _candidate_pins(periph, candidates, periph_used)
+        periph_pin = periph_matches[0] if periph_matches else None
+        if periph_pin is None:
+            periph_pin = _free_gpio(periph, periph_used)
+        if periph_pin is None:
+            warnings.append(
+                f"{peripheral.chip} has no pin matching {role} for the "
+                f"{iface} interface; net {net} not connected on the "
+                f"{peripheral.name} sheet."
+            )
+            continue
 
-    if iface == "SPI":
-        return [
-            f"{prefix}_SCK",
-            f"{prefix}_MOSI",
-            f"{prefix}_MISO",
-            f"{prefix}_CS",
-        ]
-    elif iface == "I2C":
-        return [
-            f"{prefix}_SDA",
-            f"{prefix}_SCL",
-        ]
-    elif iface == "UART":
-        return [
-            f"{prefix}_TX",
-            f"{prefix}_RX",
-        ]
-    elif iface == "GPIO":
-        return [
-            f"{prefix}_IO",
-        ]
-    else:
-        return [f"{prefix}_DATA"]
+        mcu_role = _UART_CROSSOVER.get(role, role) if iface == "UART" else role
+        mcu_candidates = dict(signals).get(mcu_role, candidates)
+        mcu_matches = _candidate_pins(mcu, mcu_candidates, mcu_used)
+        mcu_pin = mcu_matches[0] if mcu_matches else _free_gpio(mcu, mcu_used)
+        if mcu_pin is None:
+            warnings.append(
+                f"{mcu.part_name} has no free pin for {net}; the "
+                f"{peripheral.name} {role} line is unconnected on the MCU sheet."
+            )
+            continue
+
+        periph_used.add(periph_pin.pad)
+        mcu_used.add(mcu_pin.pad)
+        periph_design.net(net).connect(periph_pin)
+        mcu_design.net(net).connect(mcu_pin)
+        periph_hier[net] = _direction_of(periph_pin)
+        mcu_hier[net] = _direction_of(mcu_pin)
+
+    return mcu_hier, periph_hier
 
 
 # ---------------------------------------------------------------------------
-# BOM generation
+# BOM
 # ---------------------------------------------------------------------------
 
-def _collect_bom(sheets: dict[str, SheetContent]) -> list[dict]:
-    """Collect bill of materials from all sheets."""
+def _collect_bom(plans: list[_SheetPlan]) -> list[dict]:
+    """Collect bill of materials from every sheet design."""
     bom: list[dict] = []
-    for sheet_file, sheet in sheets.items():
-        for comp in sheet.components:
+    for plan in plans:
+        for comp in plan.design.components:
             bom.append({
                 "ref": comp.ref,
-                "value": comp.value,
+                "value": getattr(comp, "value", "") or comp.part_name,
                 "lib_id": comp.lib_id,
-                "footprint": comp.footprint,
-                "sheet": sheet.title,
+                "footprint": comp.footprint.lib_id if comp.footprint else "",
+                "sheet": plan.title,
             })
     return bom
+
+
+# ---------------------------------------------------------------------------
+# Rendering
+# ---------------------------------------------------------------------------
+
+def _undriven_rails(plans: list[_SheetPlan]) -> dict[str, str]:
+    """rail → filename of the ONE sheet that must carry its PWR_FLAG.
+
+    A rail with a real power_out driver (the regulator output) never gets a
+    flag; every other rail gets exactly one project-wide, on the first sheet
+    that touches it — power symbols are global, so a second flag would be a
+    power-output conflict.
+    """
+    driven: set[str] = set()
+    owner: dict[str, str] = {}
+    for plan in plans:
+        for net in plan.design.nets:
+            if not is_power_net(net.name):
+                continue
+            if any(p.etype is ElectricalType.POWER_OUT for p in net.pins):
+                driven.add(net.name)
+            owner.setdefault(net.name, plan.filename)
+    return {rail: fn for rail, fn in owner.items() if rail not in driven}
+
+
+def _render_sheet(plan: _SheetPlan, flag_rails: list[str]) -> tuple[str, list[str]]:
+    """Lay out and emit one sub-sheet. Returns (text, geometric lint errors)."""
+    placed = layout(plan.design, sheet=plan.title)
+    issues = lint_placed(placed)
+    anchors = label_anchors(placed)
+    # One rendered label PER ANCHOR, not per net. emit() suppresses the
+    # router's own local labels for any net in hier_labels, and a labeled net
+    # is connected only through its labels — so keeping a single slot per net
+    # left every port but the last with a stub ending in nothing.
+    hier_lines: dict[str, list[str]] = {}
+    # Own UUID namespace: same design → same label UUIDs (determinism), but
+    # never colliding with the counter emit() runs inside its own context.
+    with deterministic_uuids(f"{plan.design.name}/hier"):
+        for net, direction in sorted(plan.hier.items()):
+            for x, y, angle in anchors.get(net, []):
+                hier_lines.setdefault(net, []).append(
+                    _gen_hierarchical_label(net, direction, x, y, angle))
+    missing = sorted(set(plan.hier) - set(hier_lines))
+    for net in missing:
+        issues.append(f"unrouted-hierarchical-net: {net}")
+    sheet = emit(placed, plan.design, title=plan.design.name,
+                 hier_labels=hier_lines, flag_rails=flag_rails)
+    return sheet.text, issues
 
 
 # ---------------------------------------------------------------------------
@@ -556,70 +677,107 @@ def _collect_bom(sheets: dict[str, SheetContent]) -> list[dict]:
 def compose_design(
     spec: DesignSpec,
     patterns_path: Path | None = None,
+    rules_path: Path | None = None,
 ) -> GeneratedProject:
     """Generate a complete KiCad project from a design spec.
 
     Steps:
-    1. Load wiring patterns for the MCU family
-    2. For each peripheral, look up the wiring pattern for MCU<->peripheral
-    3. Generate hierarchical schematic:
-       - Root sheet with sub-sheet references
-       - Power sheet (regulator + bypass caps from decoupling rules)
-       - MCU sheet (MCU symbol + decoupling caps)
-       - One sheet per peripheral (peripheral + supporting components)
-    4. Wire using patterns: create net labels matching the learned patterns
-    5. Add decoupling caps from rules
-    6. Return all files + BOM + notes
+    1. Load the learned wiring patterns.
+    2. Resolve every part to a typed Component (registry → chip library →
+       warned placeholder).
+    3. Build one :class:`src.ecad.Design` per sheet — power, mcu, and one
+       per peripheral — wiring patterns or the interface fallback onto real
+       pins and hanging real decoupling caps off the rails.
+    4. Lay each sheet out with the layout engine and emit it; the composer
+       renders the hierarchical labels at the engine's own label anchors.
+    5. Build the root sheet (sheet symbols + wired sheet pins) and the
+       project files.
 
     Args:
         spec: Complete design specification.
         patterns_path: Path to wiring_patterns.json (defaults to data/patterns/).
+        rules_path: Path to decoupling_rules.json (defaults to data/patterns/).
 
     Returns:
-        GeneratedProject with all files, BOM, notes, and warnings.
+        GeneratedProject with all files, BOM, notes, warnings, the typed
+        Design per sheet and any geometric lint findings.
     """
-    p_path = patterns_path or _DEFAULT_PATTERNS_PATH
-    patterns = _load_wiring_patterns(p_path)
+    patterns = _load_wiring_patterns(patterns_path or _DEFAULT_PATTERNS_PATH)
+    r_path = rules_path or _DEFAULT_RULES_PATH
 
     wiring_notes: list[str] = []
     warnings: list[str] = []
+    refs = _RefAllocator()
 
-    # Shared cap ref counter to avoid collisions across sheets
-    # Start at 10 to leave room for power sheet caps (C1, C2)
-    ref_counter = [10]
+    voltage_net = f"+{spec.power.voltage}"
 
-    # Build sheets dict for hierarchical project
-    sheets: dict[str, SheetContent] = {}
-
-    # 1. Power sheet
-    power_sheet = _generate_power_sheet(spec)
-    sheets["power.kicad_sch"] = power_sheet
+    # 1. Power sheet ────────────────────────────────────────────────────────
+    power_plan = _build_power_sheet(spec, refs, r_path, warnings)
     wiring_notes.append(
         f"Power: {spec.power.regulator} regulator from {spec.power.input_source} "
         f"to {spec.power.voltage}"
     )
 
-    # 2. MCU sheet
-    mcu_sheet = _generate_mcu_sheet(spec, patterns, ref_counter)
-    sheets["mcu.kicad_sch"] = mcu_sheet
+    # 2. MCU sheet ──────────────────────────────────────────────────────────
+    mcu_design = Design(f"{spec.name}-mcu")
+    mcu_lib_id = _MCU_LIB_MAP.get(spec.mcu_family, "")
+    mcu_signals = tuple(
+        sig
+        for p in spec.peripherals
+        for sig in _INTERFACE_SIGNALS.get(p.interface.upper(), _DEFAULT_SIGNALS)
+    )
+    mcu, _mcu_real = _resolve_component(
+        spec.mcu_chip, mcu_lib_id or spec.mcu_chip, mcu_signals, warnings)
+    mcu.ref = refs.take("U")
+    mcu_design.add(mcu)
+    for p in _rail_pins(mcu):
+        mcu_design.net(voltage_net).connect(p)
+    for p in _ground_pins(mcu):
+        mcu_design.net("GND").connect(p)
+    _add_decoupling(mcu_design, mcu, voltage_net, "GND", r_path, refs)
+    mcu_plan = _SheetPlan(filename="mcu.kicad_sch", title="MCU", design=mcu_design)
     wiring_notes.append(
         f"MCU: {spec.mcu_chip} ({spec.mcu_family}) with decoupling caps"
     )
 
-    # 3. Peripheral sheets
-    voltage_net = f"+{spec.power.voltage}"
-    for i, peripheral in enumerate(spec.peripherals):
+    # 3. Peripheral sheets ──────────────────────────────────────────────────
+    mcu_used: set[str] = {p.pad for p in mcu.pins if p.net is not None}
+    plans: list[_SheetPlan] = [power_plan, mcu_plan]
+    # Seeded with the fixed sheets so a peripheral cannot take their names.
+    taken_filenames: set[str] = {p.filename for p in plans}
+
+    for peripheral in spec.peripherals:
         periph_family = extract_ic_family(peripheral.chip)
         pattern = _find_pattern(
             patterns, spec.mcu_family, periph_family, peripheral.interface,
         )
+        iface = peripheral.interface.upper()
+        signals = _INTERFACE_SIGNALS.get(iface, _DEFAULT_SIGNALS)
+
+        design = Design(f"{spec.name}-{peripheral.name}")
+        comp, _real = _resolve_component(
+            peripheral.chip, "", signals, warnings)
+        comp.ref = refs.take("U")
+        design.add(comp)
+        for p in _rail_pins(comp):
+            design.net(voltage_net).connect(p)
+        for p in _ground_pins(comp):
+            design.net("GND").connect(p)
+        _add_decoupling(design, comp, voltage_net, "GND", r_path, refs)
+
+        periph_used = {p.pad for p in comp.pins if p.net is not None}
+        mcu_hier, periph_hier = _wire_interface(
+            mcu, mcu_design, mcu_used, comp, design, periph_used,
+            peripheral, pattern, warnings,
+        )
+        mcu_plan.hier.update(mcu_hier)
 
         if pattern:
-            iface = pattern.get("interface_type", "unknown")
             projects = pattern.get("seen_in_projects", [])
             wiring_notes.append(
                 f"Peripheral '{peripheral.name}' ({peripheral.chip}): "
-                f"wired using {iface} pattern from {projects}"
+                f"wired using {pattern.get('interface_type', 'unknown')} "
+                f"pattern from {projects}"
             )
         else:
             warnings.append(
@@ -627,23 +785,67 @@ def compose_design(
                 f"{peripheral.chip} ({peripheral.interface}). "
                 f"Using default {peripheral.interface} net names."
             )
+            wiring_notes.append(
+                f"Peripheral '{peripheral.name}' ({peripheral.chip}): "
+                f"wired using default {iface} net names "
+                f"({', '.join(sorted(periph_hier)) or 'no nets'})"
+            )
 
-        periph_sheet = _generate_peripheral_sheet(
-            peripheral, pattern, i, ref_counter, voltage_net,
+        # Sheets are keyed by filename in `rendered`, `sheets` and `designs`,
+        # so a collision silently overwrites a whole sheet while _collect_bom
+        # still walks `plans` and lists the discarded parts — the fab gets a
+        # BOM naming components that appear in no netlist. "Temp Sensor" and
+        # "temp_sensor" collide; a peripheral called "Power" or "MCU" replaces
+        # the power or MCU sheet outright, taking the regulator with it.
+        stem = peripheral.name.lower().replace(" ", "_") or "peripheral"
+        filename = f"{stem}.kicad_sch"
+        if filename in taken_filenames:
+            n = 2
+            while f"{stem}_{n}.kicad_sch" in taken_filenames:
+                n += 1
+            filename = f"{stem}_{n}.kicad_sch"
+            warnings.append(
+                f"Two sheets resolved to {stem}.kicad_sch "
+                f"(peripheral {peripheral.name!r}); using {filename} instead. "
+                f"Give peripherals distinct names to keep filenames stable."
+            )
+        taken_filenames.add(filename)
+        plans.append(_SheetPlan(filename=filename, title=peripheral.name,
+                                design=design, hier=periph_hier))
+
+    # 4. Render every sub-sheet with the layout engine ──────────────────────
+    flag_owner = _undriven_rails(plans)
+    rendered: dict[str, str] = {}
+    layout_issues: dict[str, list[str]] = {}
+    for plan in plans:
+        rails = sorted(r for r, fn in flag_owner.items() if fn == plan.filename)
+        text, issues = _render_sheet(plan, rails)
+        rendered[plan.filename] = text
+        if issues:
+            layout_issues[plan.filename] = issues
+            warnings.extend(f"{plan.filename}: {i}" for i in issues)
+        for issue in plan.design.check():
+            if issue.is_error and not (
+                    issue.code == "single-pin-net" and issue.net in plan.hier):
+                warnings.append(f"{plan.filename}: {issue.code}: {issue.message}")
+
+    # 5. Root sheet + project files ─────────────────────────────────────────
+    sheets = {
+        plan.filename: SheetContent(
+            title=plan.title, components=[], nets=[],
+            hierarchical_labels=[(net, plan.hier[net]) for net in sorted(plan.hier)],
         )
-        filename = f"{peripheral.name.lower().replace(' ', '_')}.kicad_sch"
-        sheets[filename] = periph_sheet
-
-    # Generate hierarchical project files
-    project_files = generate_hierarchical_project(sheets, root_title=spec.name)
-
-    # Collect BOM
-    bom = _collect_bom(sheets)
+        for plan in plans
+    }
+    project_files = generate_hierarchical_project(
+        sheets, root_title=spec.name, rendered_sheets=rendered)
 
     return GeneratedProject(
         name=spec.name,
         files=project_files,
-        bom=bom,
+        bom=_collect_bom(plans),
         wiring_notes=wiring_notes,
         warnings=warnings,
+        designs={plan.filename: plan.design for plan in plans},
+        layout_issues=layout_issues,
     )

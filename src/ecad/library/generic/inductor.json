@@ -1,0 +1,60 @@
+{
+  "class_name": "Inductor",
+  "datasheet": "",
+  "default_value": "10uH",
+  "description": "Inductor",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 2,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 1,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Inductor_SMD",
+    "name": "L_0603_1608Metric",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "f0046776979601cc4a36c848f284745e6f7bfefc761fcbd9dcf631f75fa5a659",
+    "md_sha256": "9332a1f7e305461600ef4aebedd734a8fc3fc96ff541f8d999ee456af5931ef5",
+    "py_sha256": "76b5bc9aa17747258ada458a686b4e4f462e4a23609b686f2f9b4ae6156b8f04"
+  },
+  "id": "inductor",
+  "lib_id": "Device:L",
+  "part_name": "Inductor",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='L_0603')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [],
+    "official_symbol": "Device:L",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": []
+  },
+  "source_hashes": {
+    "footprint_sha256": "a2a9c562208496756e22f3ab19e0bd6db2341d14da92e7c767d5eafd1bb45d38",
+    "pdf_sha256": "",
+    "symbol_sha256": "65d27bba63b5e2ba5d9c2372d0ddf4b9f512770a293966670e2b279525f710f3"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "Inductor",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

@@ -1,29 +1,46 @@
 """End-to-end test: GPS tracker → valid KiCad project.
 
-Proves the entire pipeline works: define chip → generate symbol → generate
-schematic → validate with kicad-cli → parse with our own parser.
+Proves the entire pipeline works: spec → typed src.ecad Designs → layout
+engine → hierarchical project → validate with kicad-cli → parse with our
+own parser.
 
-Uses real kicad-cli v9 for validation (ERC, BOM export).
+MIGRATED (Phase E): the GPS-tracker e2e used to hand-build SheetContent
+objects full of hardcoded coordinates and only assert that ERC *ran*. It
+now goes through ``compose_design`` and asserts the real oracles — ERC
+errors == 0 and exported netlist == ``Design.intended_netlist()``.
+
+Uses real kicad-cli for validation (ERC, netlist, BOM export).
 """
 
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
+from pathlib import Path
+
 import pytest
 
-import json
-
-
+from src.pipeline.composer import (
+    DesignSpec,
+    PeripheralSpec,
+    PowerSpec,
+    compose_design,
+)
 from src.pipeline.parse_project import parse_project
 from src.pipeline.schematic_gen import (
     ComponentPlacement,
     NetConnection,
-    SheetContent,
-    generate_hierarchical_project,
     generate_schematic,
 )
 from src.pipeline.symbol_gen import ChipDef, PinDef, generate_symbol_file
 from src.pipeline.templates import build_decoupling_template
 from src.pipeline.validate import run_erc
+
+KICAD_CLI = shutil.which("kicad-cli") or "/usr/bin/kicad-cli"
+skip_no_kicad = pytest.mark.skipif(
+    not Path(KICAD_CLI).is_file(), reason="kicad-cli not available"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -64,98 +81,49 @@ def _esp32_s3_chip() -> ChipDef:
     )
 
 
-def _gps_module_chip() -> ChipDef:
-    """Minimal u-blox NEO-M8N GPS module definition."""
-    pins = [
-        PinDef("1", "VCC", "power_in", "Power"),
-        PinDef("2", "GND", "power_in", "Power"),
-        PinDef("3", "TXD", "output", "UART"),
-        PinDef("4", "RXD", "input", "UART"),
-        PinDef("5", "PPS", "output", "Control"),
-        PinDef("6", "RESET", "input", "Control"),
-    ]
-    return ChipDef(
-        name="NEO-M8N",
-        library="GPS",
-        description="u-blox NEO-M8N GPS/GNSS module",
-        footprint="GPS:u-blox_NEO-M8N",
-        datasheet_url="https://www.u-blox.com/en/product/neo-m8-series",
-        pins=pins,
+def _gps_tracker_spec() -> DesignSpec:
+    """The GPS tracker as a design SPEC — the composer builds the sheets."""
+    return DesignSpec(
+        name="GPS_Tracker",
+        mcu_family="ESP32-S3",
+        mcu_chip="ESP32-S3-WROOM-1",
+        peripherals=[
+            PeripheralSpec(name="GPS", chip="NEO-6M", interface="UART"),
+        ],
+        power=PowerSpec(input_source="battery", voltage="3.3V", regulator="LDO"),
     )
 
 
-def _build_gps_tracker_sheets() -> dict[str, SheetContent]:
-    """Build hierarchical sheets for the GPS tracker."""
-    # Power sheet: LDO + decoupling caps
-    power = SheetContent(
-        title="Power",
-        components=[
-            ComponentPlacement("Device:C", "C1", "10uF", "Capacitor_SMD:C_0805", (50.8, 30.48)),
-            ComponentPlacement("Device:C", "C2", "100nF", "Capacitor_SMD:C_0402", (50.8, 45.72)),
-            ComponentPlacement("Device:C", "C3", "100nF", "Capacitor_SMD:C_0402", (76.2, 30.48)),
-            ComponentPlacement("Device:C", "C4", "10uF", "Capacitor_SMD:C_0805", (76.2, 45.72)),
-        ],
-        nets=[
-            NetConnection("VCC_3V3", "global", (40.64, 30.48)),
-            NetConnection("GND", "global", (40.64, 45.72)),
-            NetConnection("VBAT", "global", (40.64, 60.96)),
-        ],
-        hierarchical_labels=[
-            ("VCC_3V3", "output"),
-            ("GND", "passive"),
-            ("VBAT", "input"),
-        ],
+def _erc_errors(root: Path, directory: Path) -> list[dict]:
+    """Every ERC violation of severity "error" over a whole project."""
+    report = directory / "erc.json"
+    subprocess.run(
+        [KICAD_CLI, "sch", "erc", str(root), "--format", "json",
+         "-o", str(report)],
+        capture_output=True, text=True, timeout=120,
     )
+    data = json.loads(report.read_text())
+    return [v for sheet in data.get("sheets", [])
+            for v in sheet.get("violations", [])
+            if v.get("severity") == "error"]
 
-    # MCU sheet: ESP32-S3 + bypass caps
-    mcu = SheetContent(
-        title="MCU",
-        components=[
-            ComponentPlacement("Device:C", "C5", "100nF", "Capacitor_SMD:C_0402", (50.8, 30.48)),
-            ComponentPlacement("Device:C", "C6", "100nF", "Capacitor_SMD:C_0402", (50.8, 45.72)),
-            ComponentPlacement("Device:R", "R1", "10k", "Resistor_SMD:R_0402", (76.2, 30.48)),
-        ],
-        nets=[
-            NetConnection("VCC_3V3", "global", (40.64, 30.48)),
-            NetConnection("GND", "global", (40.64, 45.72)),
-            NetConnection("GPS_TX", "global", (101.6, 30.48)),
-            NetConnection("GPS_RX", "global", (101.6, 45.72)),
-        ],
-        hierarchical_labels=[
-            ("VCC_3V3", "input"),
-            ("GND", "passive"),
-            ("GPS_TX", "output"),
-            ("GPS_RX", "input"),
-        ],
-    )
 
-    # GPS sheet: NEO-M8N + bypass caps
-    gps = SheetContent(
-        title="GPS",
-        components=[
-            ComponentPlacement("Device:C", "C7", "100nF", "Capacitor_SMD:C_0402", (50.8, 30.48)),
-            ComponentPlacement("Device:C", "C8", "10uF", "Capacitor_SMD:C_0805", (50.8, 45.72)),
-            ComponentPlacement("Device:R", "R2", "100", "Resistor_SMD:R_0402", (76.2, 30.48)),
-        ],
-        nets=[
-            NetConnection("VCC_3V3", "global", (40.64, 30.48)),
-            NetConnection("GND", "global", (40.64, 45.72)),
-            NetConnection("GPS_TX", "global", (101.6, 30.48)),
-            NetConnection("GPS_RX", "global", (101.6, 45.72)),
-        ],
-        hierarchical_labels=[
-            ("VCC_3V3", "input"),
-            ("GND", "passive"),
-            ("GPS_TX", "input"),
-            ("GPS_RX", "output"),
-        ],
-    )
+def _project_netlist(root: Path, directory: Path) -> dict[str, set[str]]:
+    from src.pipeline.roundtrip import _export_netlist, parse_kicad_netlist_xml
 
-    return {
-        "power.kicad_sch": power,
-        "mcu.kicad_sch": mcu,
-        "gps.kicad_sch": gps,
-    }
+    xml = _export_netlist(root, directory)
+    assert xml is not None, "netlist export failed"
+    out: dict[str, set[str]] = {}
+    for net in parse_kicad_netlist_xml(xml)["nets"]:
+        name = net["name"]
+        if "unconnected-" in name:
+            continue
+        name = name.lstrip("/").split("/")[-1]
+        pins = {f"{n['ref']}:{n['pin']}" for n in net["nodes"]
+                if not n["ref"].startswith("#")}
+        if pins:
+            out.setdefault(name, set()).update(pins)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -167,51 +135,52 @@ class TestGPSTrackerE2E:
 
     @pytest.mark.requires_kicad
     def test_gps_tracker_e2e(self, tmp_path):
-        """Generate a complete GPS tracker project and validate it."""
+        """Compose a complete GPS tracker project and validate it.
+
+        MIGRATED: the sheets are no longer hand-placed SheetContent objects.
+        compose_design builds a typed Design per sheet, the layout engine
+        places/routes/emits them, and the gates are ERC == 0 errors plus a
+        netlist that equals the intended one.
+        """
         project_dir = tmp_path / "gps_tracker"
         project_dir.mkdir()
 
-        # Step 1: Generate symbols for both chips
-        esp32 = _esp32_s3_chip()
-        gps_mod = _gps_module_chip()
+        # Step 1: compose from the spec
+        result = compose_design(_gps_tracker_spec())
 
-        esp32_sym_path = project_dir / "ESP32-S3-MINI.kicad_sym"
-        gps_sym_path = project_dir / "NEO-M8N.kicad_sym"
+        # Root + power + mcu + gps + .kicad_pro + sym-lib-table + fp-lib-table
+        assert len(result.files) == 7
+        assert "gps_tracker.kicad_sch" in result.files
+        assert set(result.designs) == {
+            "power.kicad_sch", "mcu.kicad_sch", "gps.kicad_sch"}
 
-        generate_symbol_file(esp32, esp32_sym_path)
-        generate_symbol_file(gps_mod, gps_sym_path)
-
-        assert esp32_sym_path.is_file()
-        assert gps_sym_path.is_file()
-        assert esp32_sym_path.stat().st_size > 100
-        assert gps_sym_path.stat().st_size > 100
-
-        # Step 2: Generate hierarchical schematic
-        sheets = _build_gps_tracker_sheets()
-        file_contents = generate_hierarchical_project(sheets, root_title="GPS_Tracker")
-
-        # Should have root + 3 sub-sheets + .kicad_pro + sym-lib-table + fp-lib-table
-        assert len(file_contents) == 7
-        assert "gps_tracker.kicad_sch" in file_contents
+        # Step 2: geometric gate — every sheet came out of the layout engine
+        assert result.layout_issues == {}, result.layout_issues
 
         # Write all schematic files
-        for filename, content in file_contents.items():
-            filepath = project_dir / filename
-            filepath.write_text(content)
+        for filename, content in result.files.items():
+            (project_dir / filename).write_text(content)
 
-        # Step 3: .kicad_pro is now generated by generate_hierarchical_project
-        # (written above with all other files)
-
-        # Verify all files were written
         sch_files = list(project_dir.glob("*.kicad_sch"))
         assert len(sch_files) == 4
 
-        # Step 4: Validate with kicad-cli ERC
+        # Step 3: kicad-cli ERC — zero errors, not merely "it ran"
         root_sch = project_dir / "gps_tracker.kicad_sch"
         erc_result = run_erc(root_sch)
-
-        # ERC should run successfully (may have warnings, that's OK)
         assert erc_result["success"] is True, f"ERC failed: {erc_result['stderr']}"
+        errors = _erc_errors(root_sch, project_dir)
+        assert errors == [], [f"{e['type']}: {e.get('description')}" for e in errors]
+
+        # Step 4: exported netlist == the typed designs' intended netlist
+        actual = _project_netlist(root_sch, project_dir)
+        intended: dict[str, set[str]] = {}
+        for design in result.designs.values():
+            for net, pins in design.intended_netlist().items():
+                intended.setdefault(net, set()).update(pins)
+        assert actual == intended, {
+            "missing": {k: v for k, v in intended.items() if actual.get(k) != v},
+            "unexpected": {k: v for k, v in actual.items() if intended.get(k) != v},
+        }
 
         # Step 5: Parse with our own parser
         parsed = parse_project(project_dir)
@@ -222,6 +191,13 @@ class TestGPSTrackerE2E:
         # Check parsed structure
         project = parsed[0]
         assert project.design_unit is not None
+
+        # Every composed component survives the round trip through the files
+        parsed_refs = {c.ref for c in project.all_components if not c.is_power}
+        for entry in result.bom:
+            assert entry["ref"] in parsed_refs, (
+                f"{entry['ref']} missing from parsed project: {sorted(parsed_refs)}"
+            )
 
     def test_generated_symbol_valid(self, tmp_path):
         """Generate an ESP32-like symbol and verify kicad-cli accepts it."""

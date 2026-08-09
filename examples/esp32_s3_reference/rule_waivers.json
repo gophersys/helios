@@ -1,0 +1,77 @@
+{
+  "_comment": "Cited waivers for the ESP32-S3-WROOM-1 reference design. Each entry is scoped to one context name: a sheet's Design name for the per-sheet passes, or the merged-board context name the CLI builds (f\"{module} (merged)\"). The PWR-* entries are per-sheet only - the merged pass needs none of them. The GPIO-001 entries are needed by both, because three of the four strapping pins are genuinely unconnected on the board and rely on the chip's documented reset defaults. Run: python -m src.ecad.rules check examples.esp32_s3_reference --waivers examples/esp32_s3_reference/rule_waivers.json",
+  "waivers": [
+    {
+      "rule_id": "PWR-001",
+      "target": "VBUS",
+      "reason": "VBUS is driven by the USB-C receptacle J1 on the usb sheet",
+      "cited_source": "examples/esp32_s3_reference/design.py, 'Cross-sheet net convention': +3V3, GND and VBUS are KiCad global power symbols, which are global across a hierarchy — the rail is driven on another sheet of the same project. The merged-board pass (RuleContext.merged) reports it clean.",
+      "author": "stage-g",
+      "scope": "esp32-s3-ref-power"
+    },
+    {
+      "rule_id": "PWR-001",
+      "target": "+3V3",
+      "reason": "+3V3 is driven by the AP2112K-3.3 on the power sheet",
+      "cited_source": "examples/esp32_s3_reference/design.py, 'Cross-sheet net convention': +3V3, GND and VBUS are KiCad global power symbols, which are global across a hierarchy — the rail is driven on another sheet of the same project. The merged-board pass (RuleContext.merged) reports it clean.",
+      "author": "stage-g",
+      "scope": "esp32-s3-ref-mcu"
+    },
+    {
+      "rule_id": "PWR-006",
+      "target": "VBUS",
+      "reason": "the 10 uF at the power entrance is C1, the LDO input capacitor on the power sheet; VBUS is one net across both sheets",
+      "cited_source": "examples/esp32_s3_reference/design.py, 'Cross-sheet net convention': +3V3, GND and VBUS are KiCad global power symbols, which are global across a hierarchy — the rail is driven on another sheet of the same project. The merged-board pass (RuleContext.merged) reports it clean. Corroborated by the design's own note: 'HDG Power Supply: at least 10 uF at the main power entrance. The 10 uF is fitted (C1, the LDO input capacitor).'",
+      "author": "stage-g",
+      "scope": "esp32-s3-ref-usb"
+    },
+    {
+      "rule_id": "GPIO-001",
+      "target": "ESP32-S3-WROOM-1:IO3",
+      "reason": "GPIO3 selects the JTAG signal source and this design deliberately leaves it unconnected, so the eFuse setting decides (USB Serial/JTAG on a blank part, which is how this board is debugged)",
+      "cited_source": "Espressif ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Chapter 4 Boot Configurations, Table 4-1 'Default Configuration of Strapping Pins' (p. 13) lists GPIO3 as \"Floating\", bit value \"-\", and Sec. 4.4 (p. 15) is explicit: \"This pin does not have any internal pull resistors and the strapping value must be controlled by the external circuit that cannot be in a high impedance state.\" ACCEPTED WITH EYES OPEN: the strap is genuinely undefined here. That is tolerable only because EFUSE_STRAP_JTAG_SEL is 0 on a blank part, which DS Table 4-5 (p. 16) shows makes GPIO3 'Ignored'. Corroborated by Espressif's own ESP32-S3-DevKitC-1 V1.1, which runs GPIO3 only to a header. Drive it deliberately if you must force the JTAG source. Matches the waiver=True StrappingDecision for GPIO3 in examples/esp32_s3_reference/design.py.",
+      "author": "stage-h",
+      "scope": "esp32-s3-ref-mcu"
+    },
+    {
+      "rule_id": "GPIO-001",
+      "target": "ESP32-S3-WROOM-1:IO45",
+      "reason": "GPIO45 selects the VDD_SPI voltage and the level this design needs (0 = 3.3 V, for the module's in-package flash) is the chip's own documented reset default",
+      "cited_source": "Espressif ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Chapter 4 Boot Configurations, Table 4-1 'Default Configuration of Strapping Pins' (p. 13) lists GPIO45 as \"Weak pull-down\", bit value 0; the HDG's IO Pin Default Configuration table gives pin 51 GPIO45 \"IE, WPD\" both at and after reset. The level is held by the internal weak pull-down, not by a resistor on this schematic. Espressif's own ESP32-S3-DevKitC-1 V1.1 fits nothing on GPIO45 either. Add an external pull-down if board leakage could lift it. Matches the waiver=True StrappingDecision for GPIO45 in examples/esp32_s3_reference/design.py.",
+      "author": "stage-h",
+      "scope": "esp32-s3-ref-mcu"
+    },
+    {
+      "rule_id": "GPIO-001",
+      "target": "ESP32-S3-WROOM-1:IO46",
+      "reason": "GPIO46 selects boot mode (with GPIO0) and ROM message printing; the 0 this design wants is the chip's own documented reset default",
+      "cited_source": "Espressif ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Chapter 4 Boot Configurations, Table 4-1 'Default Configuration of Strapping Pins' (p. 13) lists GPIO46 as \"Weak pull-down\", bit value 0; the HDG's IO Pin Default Configuration table gives pin 52 GPIO46 \"IE, WPD\" both at and after reset. DS Table 4-3 needs GPIO46=0 only for Joint Download Boot; SPI Boot accepts any value, so the internal pull-down suffices for the default boot path. Espressif's own ESP32-S3-DevKitC-1 V1.1 fits no resistor here — GPIO46 runs only to a header. Add an external pull-down if you need the download path to survive a leaky board. Matches the waiver=True StrappingDecision for GPIO46 in examples/esp32_s3_reference/design.py.",
+      "author": "stage-h",
+      "scope": "esp32-s3-ref-mcu"
+    },
+    {
+      "rule_id": "GPIO-001",
+      "target": "ESP32-S3-WROOM-1:IO3",
+      "reason": "GPIO3 selects the JTAG signal source and this design deliberately leaves it unconnected, so the eFuse setting decides (USB Serial/JTAG on a blank part, which is how this board is debugged)",
+      "cited_source": "Espressif ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Chapter 4 Boot Configurations, Table 4-1 'Default Configuration of Strapping Pins' (p. 13) lists GPIO3 as \"Floating\", bit value \"-\", and Sec. 4.4 (p. 15) is explicit: \"This pin does not have any internal pull resistors and the strapping value must be controlled by the external circuit that cannot be in a high impedance state.\" ACCEPTED WITH EYES OPEN: the strap is genuinely undefined here. That is tolerable only because EFUSE_STRAP_JTAG_SEL is 0 on a blank part, which DS Table 4-5 (p. 16) shows makes GPIO3 'Ignored'. Corroborated by Espressif's own ESP32-S3-DevKitC-1 V1.1, which runs GPIO3 only to a header. Drive it deliberately if you must force the JTAG source. Matches the waiver=True StrappingDecision for GPIO3 in examples/esp32_s3_reference/design.py.",
+      "author": "stage-h",
+      "scope": "examples.esp32_s3_reference (merged)"
+    },
+    {
+      "rule_id": "GPIO-001",
+      "target": "ESP32-S3-WROOM-1:IO45",
+      "reason": "GPIO45 selects the VDD_SPI voltage and the level this design needs (0 = 3.3 V, for the module's in-package flash) is the chip's own documented reset default",
+      "cited_source": "Espressif ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Chapter 4 Boot Configurations, Table 4-1 'Default Configuration of Strapping Pins' (p. 13) lists GPIO45 as \"Weak pull-down\", bit value 0; the HDG's IO Pin Default Configuration table gives pin 51 GPIO45 \"IE, WPD\" both at and after reset. The level is held by the internal weak pull-down, not by a resistor on this schematic. Espressif's own ESP32-S3-DevKitC-1 V1.1 fits nothing on GPIO45 either. Add an external pull-down if board leakage could lift it. Matches the waiver=True StrappingDecision for GPIO45 in examples/esp32_s3_reference/design.py.",
+      "author": "stage-h",
+      "scope": "examples.esp32_s3_reference (merged)"
+    },
+    {
+      "rule_id": "GPIO-001",
+      "target": "ESP32-S3-WROOM-1:IO46",
+      "reason": "GPIO46 selects boot mode (with GPIO0) and ROM message printing; the 0 this design wants is the chip's own documented reset default",
+      "cited_source": "Espressif ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet v1.8, Chapter 4 Boot Configurations, Table 4-1 'Default Configuration of Strapping Pins' (p. 13) lists GPIO46 as \"Weak pull-down\", bit value 0; the HDG's IO Pin Default Configuration table gives pin 52 GPIO46 \"IE, WPD\" both at and after reset. DS Table 4-3 needs GPIO46=0 only for Joint Download Boot; SPI Boot accepts any value, so the internal pull-down suffices for the default boot path. Espressif's own ESP32-S3-DevKitC-1 V1.1 fits no resistor here — GPIO46 runs only to a header. Add an external pull-down if you need the download path to survive a leaky board. Matches the waiver=True StrappingDecision for GPIO46 in examples/esp32_s3_reference/design.py.",
+      "author": "stage-h",
+      "scope": "examples.esp32_s3_reference (merged)"
+    }
+  ]
+}

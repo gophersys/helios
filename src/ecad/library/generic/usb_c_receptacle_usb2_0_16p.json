@@ -1,0 +1,80 @@
+{
+  "class_name": "USB_C_Receptacle_USB2_0_16P",
+  "datasheet": "https://www.usb.org/sites/default/files/documents/usb_type-c.zip",
+  "default_value": "USB_C_Receptacle_USB2.0_16P",
+  "description": "USB 2.0-only 16P Type-C Receptacle connector",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 2,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 1,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Connector_USB",
+    "name": "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "0e7c87bbf3b9f76db2058be3a319994106a0c6c0e84254150c6262a6d56af6f0",
+    "md_sha256": "e1bf9101491149728ee492f8189170096e94e71e63407ca1e4337a9ba7308b19",
+    "py_sha256": "49f67598bd0b56aecdd8c486fdac175e182305fc67c797ef892955b00b924019"
+  },
+  "id": "usb_c_receptacle_usb2_0_16p",
+  "lib_id": "Connector:USB_C_Receptacle_USB2.0_16P",
+  "part_name": "USB_C_Receptacle_USB2.0_16P",
+  "pin_count": 17,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='USB_C_Receptacle_GCT_USB4105')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "17 distinct pads: 4x GND, 4x VBUS, CC1/CC2, 2x D+, 2x D-, SBU1/SBU2 and the shield pad SH.",
+      "SH is the connector shell. It is deliberately NOT role=ground: the shell is normally tied to GND through an RC or a bead, not shorted to it, and calling it ground would let a decoupling block treat it as a return path.",
+      "D+ appears on pads A6 and B6 and D- on A7 and B7 (flip symmetry); the generated accessors DP and DN return both pads as a tuple, which is what lets a caller short each pair as the USB 2.0 spec requires.",
+      "The 16P symbol only fits a 16-position receptacle footprint. The 24-position footprints (Amphenol 12401610E4-2A, JAE DX07S024*, Molex 105450-0101, GCT USB4115, CNCTech C-ARA1-AK51X) carry the SuperSpeed pads A2/A3/A10/A11/B2/B3/B10/B11, which this symbol does not model; validate_footprint rejects them as unexplained surplus pads, and correctly so \u2014 those pads would be left floating with nothing in the schematic to say why."
+    ],
+    "official_symbol": "Connector:USB_C_Receptacle_USB2.0_16P",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": []
+  },
+  "source_hashes": {
+    "footprint_sha256": "3b8d7da3cae5114ec83022a759a78925113bc2eeec100ea447594f6d8687e4b8",
+    "pdf_sha256": "",
+    "symbol_sha256": "a3be22eaedad2ca0e4e34d7a2533486b99969cde22819dbc55cb8004eab39d04"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "USB-C",
+      "pads": [
+        "A1",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A12",
+        "B1",
+        "B4",
+        "B5",
+        "B6",
+        "B7",
+        "B8",
+        "B9",
+        "B12",
+        "SH"
+      ]
+    }
+  ]
+}

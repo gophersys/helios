@@ -263,6 +263,30 @@ def neo_6m() -> ChipDef:
 
 
 # ---------------------------------------------------------------------------
+# AP2112K-3.3 (600 mA LDO, SOT-23-5)
+# ---------------------------------------------------------------------------
+# Source: Diodes/BCD AP2112 datasheet + KiCad Regulator_Linear:AP2112K-3.3
+
+def ap2112k_33() -> ChipDef:
+    """Return ChipDef for the AP2112K-3.3 LDO regulator (SOT-23-5)."""
+    pins = [
+        PinDef(number="1", name="VIN", electrical_type="power_in", group="Power"),
+        PinDef(number="2", name="GND", electrical_type="power_in", group="Power"),
+        PinDef(number="3", name="EN", electrical_type="input", group="Power"),
+        PinDef(number="4", name="NC", electrical_type="no_connect", group="Power"),
+        PinDef(number="5", name="VOUT", electrical_type="power_out", group="Power"),
+    ]
+    return ChipDef(
+        name="AP2112K-3.3",
+        library="Regulator_Linear",
+        description="600mA low-dropout 3.3V regulator, SOT-23-5",
+        footprint="Package_TO_SOT_SMD:SOT-23-5",
+        datasheet_url="https://www.diodes.com/assets/Datasheets/AP2112.pdf",
+        pins=pins,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registry: maps lib_id fragments to chip definition functions
 # ---------------------------------------------------------------------------
 
@@ -270,6 +294,7 @@ _CHIP_REGISTRY: dict[str, callable] = {
     "ESP32-S3-WROOM-1": esp32_s3_wroom_1,
     "STM32F411CEU6": stm32f411ceu6,
     "NEO-6M": neo_6m,
+    "AP2112K-3.3": ap2112k_33,
 }
 
 
@@ -306,63 +331,10 @@ def generate_lib_symbol_sexp(chip: ChipDef, lib_id: str) -> str:
     Returns:
         A string containing the (symbol ...) S-expression.
     """
-    safe_name = lib_id.replace('"', '\\"')
-    ref_prefix = lib_id.split(":")[0][0] if ":" in lib_id else "U"
-    # Most ICs use "U" reference
-    if ref_prefix in ("R", "C", "L"):
-        ref_prefix = "U"
+    # Delegate to the unified geometry source in src/ecad.
+    from src.ecad import SymbolModel
 
-    lines = [f'(symbol "{safe_name}"']
-    lines.append('      (pin_names (offset 1.016))')
-    lines.append('      (exclude_from_sim no)')
-    lines.append('      (in_bom yes)')
-    lines.append('      (on_board yes)')
-    lines.append('      (property "Reference" "U" (at 0 1.27 0) (effects (font (size 1.27 1.27))))')
-    lines.append(f'      (property "Value" "{safe_name}" (at 0 -1.27 0) (effects (font (size 1.27 1.27))))')
-    lines.append(f'      (property "Footprint" "{chip.footprint}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
-    lines.append(f'      (property "Datasheet" "{chip.datasheet_url}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
-    if chip.description:
-        lines.append(f'      (property "Description" "{chip.description}" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))')
+    from .ecad_bridge import chipdef_to_component
 
-    # Group pins by functional group
-    groups: dict[str, list[PinDef]] = {}
-    for pin in chip.pins:
-        groups.setdefault(pin.group, []).append(pin)
-
-    # Generate units: unit 0 has shared graphics, units 1+ have pins
-    # For simplicity, generate a single-unit symbol (unit 1) like the stubs
-    # OR multi-unit with one unit per group
-    # Using single unit to match the stub format expected by _gen_component
-    all_pins = chip.pins
-    pin_count = len(all_pins)
-
-    # Body size
-    spacing = 2.54
-    height = max((pin_count + 1) * spacing, 5.08)
-    width = 15.24
-    half_h = height / 2
-
-    # Unit 0 (shared graphics): body rectangle
-    lines.append(f'      (symbol "{safe_name}_0_1"')
-    lines.append(f'        (rectangle (start -{width / 2} {half_h}) (end {width / 2} -{half_h})')
-    lines.append('          (stroke (width 0.254) (type default)) (fill (type background))))')
-
-    # Unit 1: all pins
-    lines.append(f'      (symbol "{safe_name}_1_1"')
-    start_y = half_h - spacing
-    for i, pin_def in enumerate(all_pins):
-        y = start_y - i * spacing
-        x = -(width / 2) - 2.54  # pin length = 2.54mm
-        pin_type = pin_def.electrical_type
-        pin_name = pin_def.name.replace('"', '\\"')
-        pin_num = str(pin_def.number)
-        lines.append(
-            f'        (pin {pin_type} line (at {x} {y} 0) (length 2.54)'
-            f'\n          (name "{pin_name}" (effects (font (size 1.27 1.27))))'
-            f'\n          (number "{pin_num}" (effects (font (size 1.27 1.27)))))'
-        )
-    lines.append('      )')  # close unit 1
-
-    lines.append('      (embedded_fonts no))')
-
-    return "\n".join(lines)
+    model = SymbolModel.from_component(chipdef_to_component(chip))
+    return model.to_inline_sexp(lib_id)

@@ -1,0 +1,35 @@
+{
+  "claims": [
+    {
+      "detail": "",
+      "key": "pins_vs_footprint",
+      "kind": "pad_set",
+      "status": "agreed",
+      "values": {
+        "footprint": "1,2,3,4",
+        "pins": "1,2,3,4"
+      },
+      "waiver": null
+    },
+    {
+      "detail": "no datasheet was consulted; pin truth is the installed official symbol, corroborated only by the footprint pads",
+      "key": "no_datasheet",
+      "kind": "source_mode",
+      "status": "single_source",
+      "values": {
+        "footprint": "installed KiCad library",
+        "symbol": "Device:Crystal_GND24"
+      },
+      "waiver": null
+    }
+  ],
+  "component": "crystal_gnd24",
+  "summary": {
+    "agreed": 1,
+    "claims": 2,
+    "conflicts": 0,
+    "single_source": 1,
+    "unverified": 0,
+    "waived": 0
+  }
+}
