@@ -214,6 +214,36 @@ was renamed successfully on 2026-08-09 precisely because an agent carries no suc
 coupling. **Wanted:** add a second server node, let etcd form a real quorum, then
 roll the original — worth doing for HA regardless. Do NOT rename in place.
 
+### D17 ✅ Public exposure was undeclared and undetected — RESOLVED (2026-08-09)
+`grafana.mateosegura.com` was reachable from the internet behind only Grafana's
+own login — admin password generated-not-vaulted — while `cluster-topology.md`
+claimed it was tailnet-private. `notes` and `obsv` were public behind CouchDB
+basic auth and a Grafana login. Nothing detected any of it.
+**Resolved:** `contracts/exposure.yaml` declares every hostname's class with a
+reason; `scripts/verify-exposure.sh` (verb: `ctl.sh verify-exposure`, wired into
+CI) asserts reality matches and fails the build on drift. grafana moved to
+tailnet; notes and obsv put behind the existing oauth2-proxy. Every public
+ingress now carries a real cert with `ssl-redirect: "false"` so the tunnel keeps
+working. Verified 13/13.
+
+### D18 🟠 The prod cluster is not GitOps-reconciled — OPEN
+Argo drives the homelab only, so everything on the prod cluster (vault-backup
+CronJob, oauth2-proxy gating, the `obs` Helm release) is applied by hand. The
+manifests are in git under `clusters/instances/prod/manifests/` and documented,
+but nothing reconciles or detects drift there. Related: the homelab `obs` Helm
+release has been in `failed` state at revision 8 since 2026-06-18 and is not
+managed by Argo either — the grafana ingress change was applied with `kubectl`
+and will be reverted by the next `helm upgrade` unless it uses the updated
+`values-homelab.yaml`.
+
+### D19 🟡 `shared/cloudflare/api-token` stores the wrong zone id — OPEN
+The `CLOUDFLARE_ZONE_ID` line in that vault item is the zone for **code-kit.dev**,
+not `mateosegura.com`. Anything trusting it edits DNS in the wrong zone. Tooling
+should resolve the zone by name until the item is corrected. The token itself is
+valid (expires 2027-06-17) and can see three zones: `claude-kit.dev`,
+`code-kit.dev`, `mateosegura.com`.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured

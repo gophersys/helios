@@ -21,8 +21,9 @@ grn() { printf '\033[0;32m%s\033[0m' "$1"; }
 check() {   # host expected-class
   local host="$1" want="$2" fqdn="$1.$ZONE" ips code loc gate got note=""
   ips="$(dig +short "$fqdn" A 2>/dev/null | tr '\n' ' ')"
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 12 "https://$fqdn/" 2>/dev/null || echo 000)"
-  loc="$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 12 "https://$fqdn/" 2>/dev/null || true)"
+  # one request, both fields — two calls double-count failures as "000000"
+  local probe; probe="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 12 "https://$fqdn/" 2>/dev/null || echo "000 ")"
+  code="${probe%% *}"; loc="${probe#* }"
 
   # classify what we actually observe
   case "$ips" in

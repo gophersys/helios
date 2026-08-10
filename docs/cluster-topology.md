@@ -4,7 +4,7 @@ What actually runs in the `homelab` k3s cluster, namespace by namespace, and
 why. Everything is reconciled by Argo CD from this repo's
 `platform/services/gitops/registry/` (the `root` app-of-apps). This is the
 "what/why" companion to `.claude/rules/50-cluster-architecture.md` (the
-vocabulary) and reflects the live cluster as of 2026-07-09.
+vocabulary) and reflects the live cluster as of 2026-08-09.
 
 Cluster: 8 k3s VMs on 3 Proxmox hosts (pve-00 MS-A2, pve-01 ThinkPad P1,
 pve-03 Yoga). CNI flannel + kube-router (NetworkPolicy IS enforced). All nodes
@@ -27,10 +27,14 @@ on the Tailscale mesh.
   exist in k3s. Expect its Homepage cards to read offline when the laptop is
   asleep; that is correct, not a fault. See
   `music-studio/docs/architecture.md` → "The studio dashboard".
-- **Grafana is the exception**: `grafana.` → its **own** MetalLB LoadBalancer at
-  `10.168.0.241`, plain **HTTP :80** — no Ingress, no cert-manager cert (managed
-  by the `obs` Helm release). Tailnet-private like the rest, just a different
-  path and no TLS.
+- **Grafana** — `grafana.` is **tailnet-private with a real cert** as of
+  2026-08-09. It was *publicly reachable via the Cloudflare tunnel* behind nothing
+  but Grafana's own login (with a generated-not-vaulted admin password) while this
+  document claimed otherwise. DNS is now an A record to the nginx VIP
+  `10.168.0.240`, and the Ingress carries cert-manager + `tls:` like every other
+  tailnet host. Its own MetalLB LoadBalancer at `10.168.0.241` (plain HTTP) still
+  exists as a second path.
+  Declared in `contracts/exposure.yaml`; enforced by `bash ctl.sh verify-exposure`.
 
 ---
 

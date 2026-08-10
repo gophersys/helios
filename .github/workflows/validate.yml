@@ -79,3 +79,13 @@ jobs:
           curl -sSL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar xJ || exit 0
           cd "$GITHUB_WORKSPACE"
           find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -r /tmp/shellcheck-v0.10.0/shellcheck -S warning || true
+
+  exposure:
+    runs-on: arc-org
+    steps:
+      - uses: actions/checkout@v4
+      - name: verify declared exposure matches reality
+        # Fails the build when a hostname drifts from contracts/exposure.yaml.
+        # This check exists because grafana.mateosegura.com silently moved from
+        # tailnet to public and no document noticed for weeks.
+        run: bash scripts/verify-exposure.sh
