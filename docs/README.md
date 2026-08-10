@@ -16,6 +16,8 @@ Documentation index for `infrastructure/`.
 | `machine-inventory.md`    | Every machine, how to reach it, and whether it is declared |
 | `where-things-live.md`    | The one rule for the choice between cloud and homelab, and why |
 | `ci-runners.md`           | ARC self-hosted runners: how to onboard a repo, and the public-repo policy |
+| `ci-substrate.md`         | The pool/image interface: pools carry physical capability, images carry software |
+| `testing-standard.md`     | The standard `go test` invocation, the measured cost of each flag, and the trigger table |
 | `migration-homelab-to-idp.md` | Historical: the move from homelab to IDP, and the 9 decisions |
 | `audit-2026-07.md`        | Point-in-time cluster audit and backlog (2026-07)       |
 | `runbooks/`               | Operational runbooks (for example the staged Longhorn upgrade) |

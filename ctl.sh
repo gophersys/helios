@@ -192,6 +192,7 @@ Commands:
   validate          Lint all project.json + bash scripts (shellcheck when available)
   generate-index    Regenerate machines/README.md + machines/ledger.md from hosts/
   verify-registry   Assert every in-repo Argo Application path resolves
+  verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   help              Show this message
 EOF
@@ -218,6 +219,13 @@ function cmd_verify_registry() {
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-registry-paths.sh" "$@"
 }
 
+function cmd_verify_structure() {
+  # Assert the 2 structural rules that survived the deletion of .ci/: every
+  # contract carries its front-matter and its 5 sections, and every chart
+  # archetype has a README. Read-only.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-structure.sh" "$@"
+}
+
 function cmd_verify_exposure() {
   # Assert every hostname is exposed the way contracts/exposure.yaml declares.
   # Read-only: DNS resolution + one HTTP probe per host. Changes nothing.
@@ -234,6 +242,7 @@ function main() {
     verify-exposure) cmd_verify_exposure "$@" ;;
     verify-access)   cmd_verify_access   "$@" ;;
     verify-registry) cmd_verify_registry "$@" ;;
+    verify-structure) cmd_verify_structure "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     help|"")        usage ;;
