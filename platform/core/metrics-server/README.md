@@ -1,12 +1,14 @@
 # platform/core/metrics-server
 
-Baseline node + pod metrics. Required for `kubectl top` and Horizontal Pod
-Autoscaler. Not the monitoring stack — just the kubelet resource metrics API.
+The baseline metrics for a node and a pod. `kubectl top` and the Horizontal Pod
+Autoscaler need them. This is not the monitoring stack. It is the resource
+metrics API of the kubelet only.
 
 ## Default implementation
 
-**metrics-server** (Helm chart: `metrics-server/metrics-server`). Stock
-deployment, one replica per cluster (two on multi-node clusters for HA).
+**metrics-server**, from the Helm chart `metrics-server/metrics-server`. It is a
+standard deployment with 1 replica per cluster, and 2 replicas for HA on a
+cluster with several nodes.
 
 ## Fulfills
 - Implicit: the Kubernetes `metrics.k8s.io` API. Used by HPA and `kubectl top`.
@@ -18,8 +20,8 @@ deployment, one replica per cluster (two on multi-node clusters for HA).
 
 STUB.
 
-## TODO (when populating)
-- Pin chart version.
-- Enable host TLS verification (default-off on k3s; flip on for managed
-  clusters that expose proper kubelet certs).
-- Verify HPA works against it with a canary deployment.
+## TODO, when we populate this component
+- Pin the chart version.
+- Enable the TLS verification of the host. It is off by default on k3s. Turn it
+  on for a managed cluster that exposes correct kubelet certificates.
+- Verify that the HPA works against it, with a canary deployment.

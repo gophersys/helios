@@ -1,16 +1,16 @@
-# infrastructure — cluster & apps architecture
+# infrastructure — cluster and apps architecture
 
-Authoritative reference for the vocabulary of clusters, nodes, apps,
-namespaces, policies, and charts that sits on top of the IDP foundation.
-Load this rule whenever you touch `clusters/`, `charts/`, `platform/`,
-or write/modify an app consumer.
+The authoritative reference for the vocabulary of clusters, nodes, apps,
+namespaces, policies and charts that sits on top of the IDP foundation. Load this
+rule whenever you touch `clusters/`, `charts/` or `platform/`, or when you write
+or modify an app consumer.
 
-Detailed reference docs live with each layer — this rule is the **map**.
+The detailed reference documents live with each layer. This rule is the **map**.
 
 ## 1. Node taxonomy (authoritative)
 
-Every cluster node declares `kubernetes.cluster_role` in its
-identity.yaml. Valid values — **these are the only ones**:
+Every cluster node declares `kubernetes.cluster_role` in its identity.yaml.
+Valid values — **these are the only ones**:
 
 | Role      | Label `role=` | Taint                               | Purpose                                           |
 |-----------|---------------|-------------------------------------|---------------------------------------------------|
@@ -20,16 +20,15 @@ identity.yaml. Valid values — **these are the only ones**:
 | `build`   | `build`       | `build=true:NoSchedule`             | CI runners / build farms                          |
 | `batch`   | `batch`       | `batch=true:PreferNoSchedule`       | Jobs on preemptible/spot compute                  |
 
-Claude: before proposing a new node role, push back — the five above
-are designed to cover a broad SaaS stack. Specialization goes via
-**labels added to an existing role** (e.g., `role=ml,gpu=a100`), not a
-new top-level role.
+Before you propose a new node role, push back. The 5 roles above are designed to
+cover a wide SaaS stack. Add specialization with **labels on an existing role**,
+for example `role=ml,gpu=a100`. Do not add a new top-level role.
 
 See `clusters/CONVENTIONS.md` for the full taxonomy with examples.
 
 ## 2. App archetype taxonomy (authoritative)
 
-Every Helm chart an app uses is one of six archetypes:
+Every Helm chart that an app uses is one of 6 archetypes:
 
 | Archetype        | Use when                                            | Chart dir                          |
 |------------------|------------------------------------------------------|------------------------------------|
@@ -40,17 +39,17 @@ Every Helm chart an app uses is one of six archetypes:
 | `job`            | One-shot run-to-completion                          | `charts/job/`                      |
 | `ingress-app`    | Public stateless-app with mandatory TLS ingress     | `charts/ingress-app/`              |
 
-Every archetype ships `values.schema.json` — the enforced app-to-chart
-contract. See `charts/README.md` decision tree + `charts/CONVENTIONS.md`
-authoring rules (15 rules covering schema, labels, security, resources,
-probes, network policy, secrets, observability, SLOs, rollout, PDBs,
-ServiceAccount, and testing).
+Every archetype ships `values.schema.json`, which is the enforced contract
+between the app and the chart. See the decision tree in `charts/README.md` and
+the authoring rules in `charts/CONVENTIONS.md` (15 rules that cover the schema,
+labels, security, resources, probes, network policy, secrets, observability,
+SLOs, rollout, PDBs, ServiceAccount and testing).
 
 ## 3. Namespace strategy (authoritative)
 
-**One namespace per project-env pair.** A project's apps for a given
-environment all share one namespace. This supports both the one-cluster-
-per-project and one-cluster-for-many-projects topologies transparently.
+**One namespace per project-env pair.** All the apps of a project for a given
+environment share one namespace. This supports both topologies without a change:
+one cluster per project, and one cluster for many projects.
 
 | Pattern                | Example                       | Scope                                    |
 |------------------------|-------------------------------|------------------------------------------|
@@ -58,37 +57,40 @@ per-project and one-cluster-for-many-projects topologies transparently.
 | `platform-<component>` | `platform-ingress`, `platform-monitoring`               | One platform component installation      |
 | `kube-*`               | `kube-system`                 | Kubernetes reserved                      |
 
-**`<project>`:** kebab-case, 1–20 chars, `^[a-z][a-z0-9-]{1,20}$`. MUST
-match a project declared in the cluster's `projects_hosted:` list.
-Canonical project names today: `codectl`, `fintel`, `finances`,
-`intelligence`, `music`.
+**`<project>`:** kebab-case, 1 to 20 characters, `^[a-z][a-z0-9-]{1,20}$`. It
+MUST match a project declared in the cluster's `projects_hosted:` list. The
+canonical project names today are `codectl`, `fintel`, `finances`,
+`intelligence` and `music`.
 
-**`<env>`:** enum `prod | staging | dev | lab`. Apps outside the enum
-are rejected by schema.
+**`<env>`:** the enum `prod | staging | dev | lab`. The schema rejects an app
+outside the enum.
 
-**`<project>-<env>` namespaces auto-provision** via
-`platform/core/namespace-provisioner/`:
-- Default-deny NetworkPolicy baseline.
-- `ResourceQuota` (tier: small | medium | large — applies to the whole
-  project-env, shared by all apps within).
-- `LimitRange` with sane defaults.
+**A `<project>-<env>` namespace is provisioned automatically** by
+`platform/core/namespace-provisioner/`, with:
+- a default-deny NetworkPolicy baseline;
+- a `ResourceQuota` (tier: small, medium or large — it applies to the whole
+  project-env, and all the apps inside share it);
+- a `LimitRange` with sensible defaults;
 - `pod-security.kubernetes.io/enforce=restricted`.
-- Generated only if `<project>` is declared in the cluster's
-  `projects_hosted:`. Typo-protection by construction.
 
-**Cross-project traffic** is explicit. Apps in `codectl-prod` can talk
-freely to each other (same namespace) but not to `fintel-prod` without a
-declared `networkPolicy.allowEgressTo` entry on the source pod.
+The provisioner generates a namespace only if `<project>` is declared in the
+cluster's `projects_hosted:`. That structure prevents a typo.
 
-Tier escalation (`small` → `medium` → `large`) requires a platform PR.
-Quota applies at the project-env level, so the whole project shares.
+**Traffic between projects is explicit.** The apps in `codectl-prod` can talk
+freely to each other, because they share a namespace. They cannot talk to
+`fintel-prod` without a declared `networkPolicy.allowEgressTo` entry on the
+source pod.
 
-## 3b. Release & label conventions
+A tier escalation (`small` → `medium` → `large`) needs a platform PR. The quota
+applies at the project-env level, so the whole project shares it.
+
+## 3b. Release and label conventions
 
 Every Helm release in a `<project>-<env>` namespace uses the name
-`<project>-<app>` (e.g., `codectl-api`), deployed to `-n <project>-<env>`.
+`<project>-<app>`, for example `codectl-api`, and is deployed to
+`-n <project>-<env>`.
 
-Canonical labels on every object rendered by a chart archetype:
+These are the canonical labels on every object that a chart archetype renders:
 
 ```yaml
 app.kubernetes.io/name:        <project>-<app>       # e.g. codectl-api — unique per app per cluster
@@ -110,64 +112,68 @@ platform.gophersys/slo-tier:   <critical | high | standard | best-effort>
 
 ## 4. Policy model — REMOVED
 
-**Kyverno was removed on 2026-08-09.** It had run `audit-only` since installation
-with a single `pod-security-baseline` ClusterPolicy that excluded eight
-namespaces, so it enforced nothing while costing four controller pods and a
+**Kyverno was removed on 2026-08-09.** It had run `audit-only` since its
+installation, with a single `pod-security-baseline` ClusterPolicy that excluded 8
+namespaces. It therefore enforced nothing, while it cost 4 controller pods and a
 permanent OutOfSync line in Argo.
 
-Admission policy is not a solved problem here, it is a **deliberately unsolved**
-one: with a single operator and everything reconciled from git, code review is
-the guardrail. Re-introduce an admission controller when more than one person
-deploys to these clusters, and when you can name two policies you would actually
-enforce rather than audit. See debt-register D21.
+Admission policy is not solved here. It is **deliberately not solved**: there is
+1 operator, everything is reconciled from git, and code review is the control.
+Introduce an admission controller again when more than 1 person deploys to these
+clusters, and when you can name 2 policies that you would enforce rather than
+audit. See debt-register D21.
 
-Pod-level hardening (non-root, read-only rootfs, dropped caps, seccomp) is still
-applied **per workload in manifests** — it simply is not enforced at admission.
+Pod-level hardening (non-root, read-only root filesystem, dropped capabilities,
+seccomp) is still applied **per workload in the manifests**. It is simply not
+enforced at admission.
 
-## 5. Observability contract (brief, cross-ref)
+## 5. Observability contract (short, with a cross-reference)
 
-Apps emit:
-- JSON stdout logs — scraped by the platform's log collector.
-- `/metrics` on port 9090 with `ServiceMonitor` auto-emitted by the chart.
-- OTLP traces via `$OTEL_EXPORTER_OTLP_ENDPOINT` injected by the chart.
-- SLO recording rules emitted from `values.slo` in the chart.
+An app emits:
+- JSON logs on stdout, which the platform's log collector scrapes;
+- `/metrics` on port 9090, with a `ServiceMonitor` that the chart emits
+  automatically;
+- OTLP traces to `$OTEL_EXPORTER_OTLP_ENDPOINT`, which the chart injects;
+- SLO recording rules, which the chart emits from `values.slo`.
 
 Full detail: `contracts/observability.md`.
 
 ## 6. Change management (enterprise baseline)
 
-Today: commits directly to `infrastructure/main` after local validate
-and drift-auditor pre-commit hook. PR-style review for cross-cutting
-changes (new policies, new platform/core component, breaking contract
-changes).
+Today: a commit goes directly to `infrastructure/main` after a local validate and
+the pre-commit hook of the drift auditor. A cross-cutting change uses PR-style
+review: a new policy, a new `platform/core` component, or a breaking contract
+change.
 
-Future (when `platform/services/gitops/` lands): Flux / Argo CD
-reconciles cluster state from git; direct `kubectl apply` is banned
-outside break-glass procedures.
+Future, when `platform/services/gitops/` lands: Flux or Argo CD reconciles the
+cluster state from git, and a direct `kubectl apply` is banned outside a
+break-glass procedure.
 
-Break-glass override procedure (future): annotate with
-`platform.gophersys/gitops-bypass: "<reason>"`, TTL 24h, alert fires.
+The future break-glass override procedure: annotate the object with
+`platform.gophersys/gitops-bypass: "<reason>"`, with a TTL of 24 hours. An alert
+fires.
 
 ## 7. Security posture (baseline)
 
-- **Pod-level:** non-root, read-only root FS, dropped caps, seccomp
-  `RuntimeDefault`. This is the target enforced-at-admission (restricted PSS)
-  posture; **today** it is applied per-workload in manifests, with no admission
-  enforcement at all (see §4).
-- **Network:** default-deny NetworkPolicy everywhere. Egress to DNS +
-  same-namespace + metrics scrape by default. Additional allows per
-  app.
-- **Secrets:** Bitwarden is the only source. ESO materializes K8s
-  Secrets. Direct Secret creation bypasses policy (loud audit log).
-- **Identity:** every app has a dedicated `ServiceAccount`; RBAC is
-  empty by default, opt-in per permission.
+- **Pod level:** non-root, read-only root filesystem, dropped capabilities, and
+  seccomp `RuntimeDefault`. That is the **target** posture: enforced at admission
+  under restricted PSS. **Today** it is applied per workload in the manifests,
+  with no enforcement at admission at all. See §4.
+- **Network:** default-deny NetworkPolicy everywhere. By default, egress is
+  allowed to DNS, to the same namespace, and for the metrics scrape. Add more
+  allowances per app.
+- **Secrets:** Bitwarden is the only source. ESO materializes the Kubernetes
+  Secrets. Direct creation of a Secret bypasses the policy and writes a loud
+  audit log entry.
+- **Identity:** every app has a dedicated `ServiceAccount`. RBAC is empty by
+  default, and each permission is opt-in.
 - **Images:** allowlisted registries only (ghcr.io/gophersys/*,
-  ghcr.io/mateosegura/*, registry.k8s.io/*, official upstreams). Cosign
-  signature verification lands when CI signs images.
+  ghcr.io/mateosegura/*, registry.k8s.io/*, and the official upstreams).
+  Verification of the Cosign signature lands when CI signs the images.
 
 ## 8. SLO framework
 
-Every app declares SLOs in chart values:
+Every app declares its SLOs in the chart values:
 
 ```yaml
 slo:
@@ -177,52 +183,49 @@ slo:
   errorBudget:  { burnRateFast: 14.4, burnRateSlow: 6 }
 ```
 
-Chart emits Prometheus recording rules. Alertmanager routes by
+The chart emits Prometheus recording rules. Alertmanager routes by
 `platform.gophersys/slo-tier`:
 - `critical`: page immediately.
 - `high`: page during business hours, ticket overnight.
 - `standard`: ticket, no page.
-- `best-effort`: dashboard-only.
+- `best-effort`: dashboard only.
 
 ## 9. Cost governance
 
-Every cluster has `cost_envelope:` in identity.yaml (target + ceiling).
-`platform/services/cost/` (OpenCost) reports per-namespace, per-tenant,
-per-cluster spend. Alertmanager fires when ceiling approaches.
+Every cluster has `cost_envelope:` in its identity.yaml, with a target and a
+ceiling. `platform/services/cost/` (OpenCost) reports the spend per namespace,
+per tenant and per cluster. Alertmanager fires when the spend approaches the
+ceiling.
 
-Every app namespace has a `ResourceQuota`; tier escalation requires a
-PR.
+Every app namespace has a `ResourceQuota`. A tier escalation needs a PR.
 
 ## 10. Evolution path
 
-Today: foundation. Every layer has skeletons + docs + schemas; three
-leaves have real content (arm-builder, prod cluster declaration,
-contracts drafts).
+Today: the foundation. Every layer has skeletons, docs and schemas. 3 leaves have
+real content: arm-builder, the prod cluster declaration, and the contract drafts.
 
-Tomorrow (per cluster bring-up):
-1. Populate `providers/oracle/modules/compute` + `providers/aws/` with
-   real Terraform.
-2. Populate `clusters/instances/prod/nodes/*/` with the real fleet.
-3. Implement `platform/core/*` — Cilium, Traefik, cert-manager, ESO,
-   Kyverno, namespace-provisioner.
-4. Implement `platform/services/observability` — the first platform
-   service.
-5. Implement `charts/stateless-app/templates/*` — the first chart
-   archetype.
-6. Migrate first app (codectl-api) onto the archetype + cluster.
+Next, as each cluster is brought up:
+1. Populate `providers/oracle/modules/compute` and `providers/aws/` with real
+   Terraform.
+2. Populate `clusters/instances/prod/nodes/*/` with the real nodes.
+3. Implement `platform/core/*` — Cilium, Traefik, cert-manager, ESO, Kyverno,
+   namespace-provisioner.
+4. Implement `platform/services/observability` — the first platform service.
+5. Implement `charts/stateless-app/templates/*` — the first chart archetype.
+6. Migrate the first app (codectl-api) onto the archetype and the cluster.
 
-Next-year (enterprise-ready):
-- `platform/services/gitops/` (Flux/Argo CD) — cluster state
-  reconciled from git; manual kubectl banned.
-- `platform/services/identity-sso/` — every UI behind SSO.
+Next year (enterprise-ready):
+- `platform/services/gitops/` (Flux or Argo CD) — the cluster state is
+  reconciled from git, and manual kubectl is banned.
+- `platform/services/identity-sso/` — every UI is behind SSO.
 - `platform/services/progressive-delivery/` (Flagger) — canary rollouts.
-- Multi-cluster federation (lab cluster for CI, staging cluster for
-  pre-prod).
-- Image signature verification (Cosign + sigstore).
-- Service mesh (Cilium Service Mesh or Linkerd) when mutual TLS
-  between services becomes load-bearing.
+- Multi-cluster federation (a lab cluster for CI, a staging cluster for
+  pre-production).
+- Verification of image signatures (Cosign + sigstore).
+- A service mesh (Cilium Service Mesh or Linkerd), when mutual TLS between
+  services becomes necessary.
 
-## Where detailed docs live
+## Where the detailed docs live
 
 | Topic                          | Detail doc                                              |
 |--------------------------------|---------------------------------------------------------|

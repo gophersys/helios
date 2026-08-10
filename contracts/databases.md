@@ -8,14 +8,15 @@ fulfilled_by: platform/services/databases/*
 
 ## Abstract
 
-Apps request a database by declaring a CR; the platform provisions it and
-emits connection credentials as a Kubernetes Secret the app mounts as env
-vars. Two kinds supported today: PostgreSQL (default) and Redis.
+An app requests a database when it declares a CR. The platform provisions the
+database and emits the connection credentials as a Kubernetes Secret, which the
+app mounts as env vars. 2 kinds are supported today: PostgreSQL (the default) and
+Redis.
 
 ## Interface (TBD)
 
 ### PostgreSQL
-Apps declare a `Database` CR (CNPG):
+An app declares a `Database` CR (CNPG):
 
 ```yaml
 apiVersion: postgresql.cnpg.io/v1
@@ -30,11 +31,12 @@ spec:
   owner: <project>_<app>
 ```
 
-The platform emits Secret `<project>-<app>-db-credentials` with keys:
-`host`, `port`, `user`, `password`, `dbname`, `uri`.
+The platform emits the Secret `<project>-<app>-db-credentials` with the keys
+`host`, `port`, `user`, `password`, `dbname` and `uri`.
 
 ### Redis
-Apps declare a `Cache` CR (TBD — maps to Dragonfly operator or similar):
+An app declares a `Cache` CR (TBD — it maps to the Dragonfly operator or a
+similar operator):
 
 ```yaml
 apiVersion: platform.gophersys/v1
@@ -47,21 +49,21 @@ spec:
   persistence: false
 ```
 
-Emits Secret `<project>-<app>-cache-credentials` with `host`, `port`,
+It emits the Secret `<project>-<app>-cache-credentials` with `host`, `port` and
 `password`.
 
 ## Guarantees (TBD)
 
-- HA with primary + ≥1 replica (PostgreSQL, when cluster has ≥3 nodes).
-- PITR via WAL + daily PV snapshot (PostgreSQL only).
-- Schema migrations are the app's responsibility — platform does not run
-  them.
+- HA with a primary and 1 or more replicas (PostgreSQL, when the cluster has 3 or
+  more nodes).
+- PITR through WAL plus a daily PV snapshot (PostgreSQL only).
+- Schema migrations are the app's responsibility. The platform does not run them.
 
 ## Caveats (TBD)
 
-- `shared-postgres` is logically isolated per tenant but shares underlying
-  compute. Noisy neighbors are possible at high volume.
-- Redis is not durable by default — apps that need persistence must request
+- `shared-postgres` is isolated per tenant at the logical level, but the tenants
+  share the underlying compute. At high volume one tenant can affect another.
+- Redis is not durable by default. An app that needs persistence must request
   `persistence: true` and accept the I/O cost.
 
 ## Example (TBD)

@@ -1,14 +1,14 @@
 # platform/core/network-policies
 
-Baseline NetworkPolicy manifests applied to every namespace. The defaults
-are conservative: deny-all ingress/egress, then allow DNS + cluster-API +
-same-namespace traffic. Apps explicitly open what they need.
+The baseline NetworkPolicy manifests, applied to every namespace. The defaults
+are restrictive: deny all ingress and all egress, then allow DNS, the cluster API
+and the traffic inside the same namespace. An app opens explicitly what it needs.
 
 ## Default implementation
 
-Raw kustomize manifests (no Helm — these are plain K8s objects). Installed
-via a NamespaceClass / namespace template so every new namespace gets them
-automatically.
+Raw kustomize manifests. There is no Helm, because these are plain Kubernetes
+objects. A NamespaceClass or a namespace template installs them, so that every
+new namespace gets them automatically.
 
 Default policies per namespace:
 - `deny-all-ingress` — deny ingress unless allowed explicitly.
@@ -17,7 +17,7 @@ Default policies per namespace:
 - `allow-same-namespace` — ingress + egress within the namespace.
 - `allow-metrics-scrape` — ingress from Prometheus namespace on metrics ports.
 
-Apps override in their own Helm values with additional allow-rules.
+An app adds more allow rules in its own Helm values.
 
 ## Fulfills
 - Implicit: least-privilege networking baseline.
@@ -29,9 +29,9 @@ Apps override in their own Helm values with additional allow-rules.
 
 STUB.
 
-## TODO (when populating)
-- Write base kustomize set.
-- Wire namespace-admission-webhook (Kyverno? Gatekeeper?) that rejects
-  namespaces created without these policies.
-- Document how apps request exceptions (e.g. a Postgres namespace needs
-  ingress from multiple app namespaces).
+## TODO, when we populate this component
+- Write the base kustomize set.
+- Wire an admission webhook for namespaces, with Kyverno or Gatekeeper. It must
+  reject a namespace created without these policies. The choice of tool is open.
+- Document how an app requests an exception. An example is a Postgres namespace
+  that needs ingress from several app namespaces.

@@ -1,22 +1,23 @@
 # charts/stateful-app
 
-Services that need **stable network identity** and **per-replica
-persistent storage**. Backed by `StatefulSet` and headless `Service`.
+For a service that needs a **stable network identity** and **persistent storage
+for each replica**. A `StatefulSet` and a headless `Service` back it.
 
 ## When to pick this
 
-- Self-hosted databases or queues that **don't** yet have a dedicated
-  platform service (if it's PostgreSQL, use `contracts/databases.md`
-  which goes through `platform/services/databases/postgresql/`; don't
-  deploy your own).
-- Leader-elected singletons where pod-0 matters (control plane components,
-  metadata services).
-- Storage-bound services with large working sets kept on local PV for
-  latency (in-memory DB persisted to local NVMe, feature stores, etc.).
+- A self-hosted database or queue that does **not** yet have a dedicated platform
+  service.
+  For PostgreSQL, use `contracts/databases.md`, which goes through
+  `platform/services/databases/postgresql/`. Do not deploy your own PostgreSQL.
+- A single instance with a leader election, where pod-0 matters: a control-plane
+  component or a metadata service.
+- A service that is bound by storage and keeps a large working set on a local PV
+  for low latency: an in-memory database persisted to local NVMe, a feature
+  store, and similar services.
 
-If the service doesn't need stable identity, pick `stateless-app`. If
-storage is the primary concern and you want the platform to manage it,
-use one of the `contracts/databases.md` implementations.
+If the service does not need a stable identity, pick `stateless-app`. If storage
+is the main concern and you want the platform to manage it, use one of the
+implementations in `contracts/databases.md`.
 
 ## What the chart emits
 
@@ -42,12 +43,12 @@ metadata:
     platform.gophersys/backup-schedule: "0 2 * * *"
 ```
 
-`platform/core/policy/` denies `PersistentVolumeClaim` deletion when
-`platform.gophersys/retain=true` unless the request carries
-`platform.gophersys/allow-delete: "<reason>"` annotation on the PVC.
+`platform/core/policy/` refuses the deletion of a `PersistentVolumeClaim` when
+`platform.gophersys/retain=true`, unless the PVC carries the annotation
+`platform.gophersys/allow-delete: "<reason>"`.
 
-`platform/services/backup/` (Velero) runs the declared schedule and
-replicates snapshots to the cluster's configured object store.
+`platform/services/backup/` (Velero) runs the declared schedule and copies the
+snapshots to the object store that the cluster configured.
 
 ## Opinionated defaults
 
@@ -66,12 +67,14 @@ replicates snapshots to the cluster's configured object store.
 
 ## Scaling semantics
 
-- `stateful-app` does NOT auto-scale by default. Scaling a StatefulSet
-  involves data movement; automation is rarely the right call.
-- For sharded systems (Cassandra-style), override `podManagementPolicy:
-  Parallel` and scale via explicit values bumps reviewed in git.
-- Rolling upgrade: bump `image.tag`, set `updateStrategy.partition` to
-  stage the rollout (N-1, N-2, ..., 0) if validation-per-pod is needed.
+- `stateful-app` does NOT scale automatically by default. A change to the size of
+  a StatefulSet moves data, and automation is seldom the correct choice.
+- For a sharded system in the style of Cassandra, override
+  `podManagementPolicy: Parallel`, and scale with explicit changes to the values
+  that a reviewer approves in git.
+- To upgrade with a rolling update: change `image.tag`. If you must validate each
+  pod, set `updateStrategy.partition` to stage the rollout (N-1, N-2, and so on,
+  down to 0).
 
 ## Example values
 

@@ -1,6 +1,7 @@
 # edge — provider catalog
 
-Support matrix of edge providers + known-good combinations.
+The support matrix of the edge providers, and the combinations that are known to
+work.
 
 ## Tunnel providers (how public traffic enters the cluster)
 
@@ -22,8 +23,8 @@ Support matrix of edge providers + known-good combinations.
 | `tailscale-magicdns` | Free (ts.net only)   | `tailscale-funnel` / `tailscale` tunnel        | Zero           |
 | `external-dns`       | Free operator        | Any — supports all providers above via plugins | Medium         |
 
-**Default on `prod`:** `cloudflare` for public zones,
-`tailscale-magicdns` for internal `*.ts.net` hosts.
+**Default on `prod`:** `cloudflare` for the public zones, and
+`tailscale-magicdns` for the internal `*.ts.net` hosts.
 
 ## TLS providers (how certs are minted + terminated)
 
@@ -36,12 +37,13 @@ Support matrix of edge providers + known-good combinations.
 | `acm`                 | AWS ELB (terminated there)      | `cloud-loadbalancer` on AWS | AWS-managed |
 
 **Default on `prod`:**
-- Public: `cloudflare-origin` (paired with CF Tunnel — zero renewal ops).
-- Tailnet: `tailscale-cert` (auto-rotated by Tailscale for `*.ts.net`).
+- Public: `cloudflare-origin`, used with the Cloudflare Tunnel. There is no
+  renewal work.
+- Tailnet: `tailscale-cert`. Tailscale rotates it automatically for `*.ts.net`.
 
-## Known-good combinations
+## The combinations that are known to work
 
-### Free-tier stack (today's `prod`)
+### The free-tier stack (today's `prod`)
 ```yaml
 edge:
   public:
@@ -55,7 +57,7 @@ edge:
 ```
 Total edge cost: **$0/mo**.
 
-### Cloud-managed stack (future, when traffic justifies)
+### The cloud-managed stack (future, when the traffic justifies the cost)
 ```yaml
 edge:
   public:
@@ -81,8 +83,9 @@ edge:
     dns: tailscale-magicdns
     tls: tailscale-cert
 ```
-Use when you want Let's Encrypt certs served from the cluster (not CF's
-origin cert) — e.g., for strict end-to-end cert-chain control.
+Use this stack when the cluster must serve Let's Encrypt certificates instead of
+the Cloudflare origin certificate. An example reason is strict control of the
+certificate chain, end to end.
 
 ## Forbidden combinations
 
@@ -92,31 +95,32 @@ origin cert) — e.g., for strict end-to-end cert-chain control.
 | `cloud-loadbalancer` + `cloudflare-origin`               | CF Origin cert requires CF-fronted traffic             |
 | `tailscale-funnel` + `cloudflare` DNS for `*.ts.net`     | `*.ts.net` is Tailscale's zone; CF can't answer for it |
 
-CI validates cluster `identity.yaml:edge` combinations against this
-matrix at validate time.
+At validate time, CI checks the `identity.yaml:edge` combination of a cluster
+against this matrix.
 
 ## Migration paths
 
-### Free → Cloud-managed
-1. Stand up ELB + Route53 + ACM via `providers/aws/modules/*` (Terraform).
-2. Update cluster `identity.yaml:edge.public` to the managed stack.
-3. Apply `platform/core/edge/*` — new operators install, old tunnel
-   pods drain out.
-4. Update CF DNS records to point to ELB (or disable CF Tunnel). TTL
-   low (300s) during cutover.
-5. Decommission CF Tunnel route.
+### From free tier to cloud-managed
+1. Create the ELB, Route53 and ACM resources with Terraform, through
+   `providers/aws/modules/*`.
+2. Change the cluster's `identity.yaml:edge.public` to the managed stack.
+3. Apply `platform/core/edge/*`. The new operators install, and the old tunnel
+   pods stop.
+4. Change the Cloudflare DNS records to point at the ELB, or disable the
+   Cloudflare Tunnel. Keep the TTL low, 300s, during the cutover.
+5. Decommission the Cloudflare Tunnel route.
 
-Apps don't redeploy. `Ingress` resources are unchanged; only the cluster
-edge is different.
+No app is deployed again. The `Ingress` resources do not change. Only the edge of
+the cluster is different.
 
-### Add a new project's domain (within same cluster)
-1. Cloudflare → add the domain as a Zone.
+### Add the domain of a new project, in the same cluster
+1. In Cloudflare, add the domain as a Zone.
 2. Add the zone to `cluster.edge.public.dns.zones[]` in identity.yaml.
 3. Apply `platform/core/edge/dns/cloudflare/`.
-4. external-dns operator starts managing the new zone; Ingress objects
-   in the project namespace automatically get DNS records.
+4. The external-dns operator starts to manage the new zone. The Ingress objects
+   in the namespace of the project get their DNS records automatically.
 
 ## Status
 
-Skeleton. This catalog is authoritative — combinations not listed here
-are rejected by the edge validator.
+Skeleton. This catalog is authoritative. The edge validator rejects a combination
+that this catalog does not list.

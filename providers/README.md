@@ -1,12 +1,12 @@
 # providers
 
-Terraform — **how** to create compute. Consumed by cluster bring-up and by
-individual machine declarations that ask for a cloud-provisioned host.
+Terraform: **how** to create compute. The cluster bring-up consumes it, and so
+does an individual machine declaration that asks for a host from a cloud.
 
 ## The compute-unit abstraction
 
-Every machine (in `machines/*` or `clusters/instances/*/nodes/*`) declares
-what it needs in a provider-neutral form:
+Every machine, in `machines/*` or in `clusters/instances/*/nodes/*`, declares
+what it needs in a form that does not name a provider:
 
 ```yaml
 hardware:
@@ -19,12 +19,14 @@ hardware:
     network: "tailnet"        # "public" | "tailnet" | "private"
 ```
 
-The provider's Terraform module reads this and does the right cloud-specific
-thing. That means:
-- Swapping clouds = change the `provider:` line; platform code is untouched.
-- Free-tier stacking (OCI A1.Flex + AWS t4g + Hetzner ARM) is declarative.
+The Terraform module of the provider reads this block and performs the correct
+action for its cloud. There are 2 results:
+- To change cloud you change the `provider:` line. The platform code does not
+  change.
+- You can combine the free tiers of several clouds (OCI A1.Flex, AWS t4g and
+  Hetzner ARM) with a declaration.
 
-See `providers/compute-unit/` for the interface definition.
+See `providers/compute-unit/` for the definition of the interface.
 
 ## Provider modules
 
@@ -39,9 +41,9 @@ See `providers/compute-unit/` for the interface definition.
 | `kubernetes-manual/`  | stub   | K3s install + kubeconfig emission           |
 | `state-backend/`      | stub   | Where Terraform state itself lives          |
 
-Each provider directory is a self-contained Terraform root module library:
-multiple sibling modules that cluster roots can
+Each provider directory is a self-contained library of Terraform root modules. It
+holds several modules at the same level, and a cluster root uses one with
 `module "..." { source = "../../providers/<provider>/<module>" }`.
 
-Providers do not carry state of their own — consumers own state. Providers
-are pure libraries.
+A provider carries no state of its own. The consumer owns the state. A provider
+is a pure library.

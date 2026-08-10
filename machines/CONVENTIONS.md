@@ -2,19 +2,19 @@
 
 ## Host taxonomy
 
-Machines split into two categories at the directory level:
+At directory level, the machines split into 2 categories:
 
 | Category        | Path prefix                 | Contains                                                       |
 |-----------------|-----------------------------|----------------------------------------------------------------|
 | `development`   | `machines/development/`     | Developer workstations: laptops, desktops, WSL, macOS builders |
 | `services`      | `machines/services/`        | Service hosts: cluster nodes, bastions, ARM builders, etc.     |
 
-Templates mirror the split at `machines/templates/<category>/<template>/`.
+The templates use the same split, at `machines/templates/<category>/<template>/`.
 
-## The self-documenting principle
+## Every machine documents itself
 
-Every machine is its own source of truth. `machines/<category>/<name>/` is
-a small bundle of data files that together describe the machine completely:
+Every machine is its own source of truth. `machines/<category>/<name>/` is a
+small bundle of data files, and together they describe the machine completely:
 
 ```
 machines/<category>/<name>/
@@ -27,14 +27,14 @@ machines/<category>/<name>/
 └── notes.md               # (optional) human notes
 ```
 
-Host-local `scripts/` are for logic that's only meaningful for this
-specific machine (example: `services/arm-builder/scripts/arm-builder.sh`
-which manages that exact EC2 instance). Fleet-wide scripts — anything
-that operates across many machines — live in `machines/scripts/` instead.
-Rule of thumb: if the script name includes the machine's name or only
-makes sense for one host, it goes local; otherwise fleet-wide.
+The local `scripts/` directory holds logic that applies to this machine only. An
+example is `services/arm-builder/scripts/arm-builder.sh`, which manages that
+exact EC2 instance. A script that operates across many machines goes in
+`machines/scripts/` instead. The test: if the script name includes the name of
+the machine, or if it makes sense for 1 host only, put it in the local directory.
+Otherwise put it in `machines/scripts/`.
 
-`identity.yaml` MUST contain at least:
+`identity.yaml` MUST contain at least these fields:
 
 ```yaml
 name: <host-name>                    # same as directory name
@@ -51,25 +51,28 @@ roles:                               # Ansible roles to apply, in order
   - secrets-bitwarden-client
 ```
 
-Anything not in identity.yaml is an implementation detail of the machine's
-own subtree. Adding a new machine never requires touching any other path.
+Anything that is not in identity.yaml is an implementation detail of the
+machine's own subtree. To add a new machine you never touch another path.
 
-## Track-keeping
+## Record keeping
 
-`machines/README.md` and `machines/ledger.md` are both generated artifacts.
-Never edit them by hand — every edit is overwritten by
-`machines/scripts/generate-machine-index.sh`.
+`machines/README.md` and `machines/ledger.md` are both generated artifacts. Never
+edit them by hand, because `machines/scripts/generate-machine-index.sh`
+overwrites every edit.
 
-The ledger splits machines by lifecycle state AND by category:
+The ledger splits the machines by lifecycle state AND by category:
 
-- `planned` — file exists, machine doesn't yet.
-- `active` — reachable on the tailnet and under Ansible management.
-- `retired` — decommissioned; file kept as historical record.
+- `planned` — the file exists, but the machine does not exist yet.
+- `active` — the machine is reachable on the tailnet and under Ansible
+  management.
+- `retired` — the machine is decommissioned, and the file stays as a historical
+  record.
 
-Retirement is a soft delete: change `status: retired` in identity.yaml. The
-directory stays for audit. Hard-delete is a brain-approved operation.
+Retirement is a soft delete: set `status: retired` in identity.yaml. The
+directory stays, for the audit trail. A hard delete needs approval at brain
+level.
 
-## Creating a new machine
+## Create a new machine
 
 1. Pick a category (`development` or `services`) and a template:
    ```
@@ -81,7 +84,7 @@ directory stays for audit. Hard-delete is a brain-approved operation.
    bash machines/ctl.sh new-host services linux-server-kubernetes agent-03
    ```
 3. Edit `machines/services/agent-03/identity.yaml`. Fill in every field.
-4. Regenerate index:
+4. Regenerate the index:
    ```
    bash machines/ctl.sh generate-index
    ```
@@ -93,7 +96,7 @@ directory stays for audit. Hard-delete is a brain-approved operation.
 
 ## Ansible roles
 
-Roles live at `machines/roles/<role-name>/`. They follow the standard Ansible
+A role lives at `machines/roles/<role-name>/`. It follows the standard Ansible
 role layout:
 
 ```
@@ -104,19 +107,20 @@ roles/<role>/
 └── templates/               # (optional)
 ```
 
-A role is generic: it targets a platform (`platform-linux-debian`) or a
-capability (`developer-kubernetes-operator`). It never hard-codes a specific
+A role is generic. It targets a platform (`platform-linux-debian`) or a
+capability (`developer-kubernetes-operator`). It never hard-codes one specific
 machine.
 
-Platform roles own package install, systemd units, and OS config. Capability
-roles assume a platform role already ran.
+A platform role owns the package install, the systemd units and the OS
+configuration. A capability role assumes that a platform role already ran.
 
 ## Groups
 
-`machines/groups/by-purpose/` and `machines/groups/by-location/` are
-Ansible inventory fragments grouping hosts by dimension. They are NOT source
-of truth — identity.yaml is. Groups are regenerated from identity.yaml when
-the index generator is extended to emit inventory (not yet implemented).
+`machines/groups/by-purpose/` and `machines/groups/by-location/` are Ansible
+inventory fragments that group the hosts by 1 dimension each. They are NOT the
+source of truth; identity.yaml is. The groups are regenerated from identity.yaml
+once the index generator is extended to emit an inventory. That extension does
+not exist yet.
 
-TODO: extend `generate-machine-index.sh` to also emit
-`machines/groups/by-purpose/<purpose>.yml` and by-location equivalents.
+TODO: extend `generate-machine-index.sh` so that it also emits
+`machines/groups/by-purpose/<purpose>.yml` and the equivalent by-location files.

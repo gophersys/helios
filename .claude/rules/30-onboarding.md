@@ -1,25 +1,25 @@
 # infrastructure — onboarding procedures
 
-Canonical "how to add a new X" procedures. Future-Claude: when the user
-asks to onboard a machine / cluster / service / app, follow the procedure
-below for the matching kind.
+The canonical procedures to add a new thing. When the user asks you to onboard a
+machine, a cluster, a service or an app, follow the procedure below for that
+kind.
 
-## Onboard a new machine (individually-managed)
+## Onboard a new machine (individually managed)
 
-1. Decide category: `development` (workstation) or `services` (standalone
-   server — bastion, builder, edge).
-2. Pick a template:
+1. Choose the category: `development` (a workstation) or `services` (a standalone
+   server, for example a bastion, a builder or an edge host).
+2. Choose a template:
    - Workstations: `templates/development/{linux,macOS,windows,wsl}-*`.
-   - Services: `templates/services/linux-server-bastion` or
-     (when populated) `linux-service-generic`.
+   - Services: `templates/services/linux-server-bastion`, or
+     `linux-service-generic` when that template is populated.
 3. Scaffold:
    ```
    bash machines/ctl.sh new-host <category> <template> <host-name>
    ```
-4. Edit `machines/<category>/<host-name>/identity.yaml` — every TODO.
-5. If the host has host-local scripts (e.g. `arm-builder`), put them at
-   `machines/<category>/<host-name>/scripts/`.
-6. Regenerate index:
+4. Edit `machines/<category>/<host-name>/identity.yaml` and resolve every TODO.
+5. If the host has scripts that are local to it, for example `arm-builder`, put
+   them at `machines/<category>/<host-name>/scripts/`.
+6. Regenerate the index:
    ```
    bash machines/ctl.sh generate-index
    ```
@@ -27,68 +27,70 @@ below for the matching kind.
 
 ## Onboard a new cluster
 
-1. Pick a template from `clusters/templates/`:
+1. Choose a template from `clusters/templates/`:
    - `cluster-kubernetes-manual-k3s` — self-managed K3s on tailnet hosts.
-   - `cluster-cloud-{aws-eks,azure-aks,oracle-oke}` — managed K8s.
-2. Scaffold (future verb; for now, do manually):
+   - `cluster-cloud-{aws-eks,azure-aks,oracle-oke}` — managed Kubernetes.
+2. Scaffold. A verb will do this in the future; today do it by hand:
    ```
    mkdir -p clusters/instances/<name>/{nodes,overlays}
    cp clusters/templates/<template>/cluster-identity.yaml \
       clusters/instances/<name>/identity.yaml
    # substitute __CLUSTER_NAME__ with <name>
    ```
-3. Edit `clusters/instances/<name>/identity.yaml` — every TODO, including
-   the `platform_services` opt-in list.
-4. For self-managed (manual-k3s): declare members under
-   `clusters/instances/<name>/nodes/<host>/identity.yaml`. Use the
-   template at `clusters/templates/cluster-kubernetes-manual-k3s/nodes/`.
-5. For managed (EKS/AKS/OKE): no `nodes/` entries; node lifecycle is
-   owned by the cloud via `providers/<cloud>/modules/`.
+3. Edit `clusters/instances/<name>/identity.yaml` and resolve every TODO,
+   including the `platform_services` opt-in list.
+4. For a self-managed cluster (manual-k3s), declare the members under
+   `clusters/instances/<name>/nodes/<host>/identity.yaml`. Use the template at
+   `clusters/templates/cluster-kubernetes-manual-k3s/nodes/`.
+5. For a managed cluster (EKS, AKS, OKE), create no `nodes/` entries. The cloud
+   owns the node lifecycle through `providers/<cloud>/modules/`.
 6. Commit: `feat(clusters): onboard <name>`.
 
 ## Onboard a new platform/core component
 
-Core components are non-negotiable — adding one means EVERY cluster will
+A core component is non-negotiable: to add one means that EVERY cluster will
 install it. This should be rare.
 
-1. Justify: the new component must be strictly necessary for EVERY cluster.
-   If not, it belongs in `platform/services/`.
-2. Create `platform/core/<name>/README.md` describing purpose, default
-   impl, dependencies, contracts fulfilled.
-3. When populating: add `ctl.sh`, `project.json`, `helm/` or `manifests/`.
-4. Update `platform/core/README.md`'s install-order list.
+1. Justify it. The new component must be strictly necessary for EVERY cluster. If
+   it is not, it belongs in `platform/services/`.
+2. Create `platform/core/<name>/README.md`. Describe the purpose, the default
+   implementation, the dependencies and the contracts it fulfills.
+3. When you populate it, add `ctl.sh`, `project.json`, and `helm/` or
+   `manifests/`.
+4. Update the install-order list in `platform/core/README.md`.
 5. Commit: `feat(platform/core): add <component>`.
 
 ## Onboard a new platform/services component
 
-Services are opt-in — onboarding one means future clusters can request it
-via `platform_services:` in their identity.yaml.
+A service is opt-in. To onboard one means that a future cluster can request it
+through `platform_services:` in its identity.yaml.
 
-1. Create `platform/services/<category>/<impl>/README.md` describing
-   purpose, default impl, dependencies, contracts fulfilled.
+1. Create `platform/services/<category>/<impl>/README.md`. Describe the purpose,
+   the default implementation, the dependencies and the contracts it fulfills.
 2. If it fulfills a contract, link to the `contracts/*.md` file.
-3. When populating: add `ctl.sh`, `project.json`, Helm/kustomize.
-4. Update `platform/services/README.md`'s table.
+3. When you populate it, add `ctl.sh`, `project.json`, and Helm or kustomize.
+4. Update the table in `platform/services/README.md`.
 5. Commit: `feat(platform/services): add <category>/<impl>`.
 
 ## Onboard a new contract
 
-Contracts define what apps see. Changing a contract affects every app
-consuming it. Add contracts sparingly.
+A contract defines what an app sees. A change to a contract affects every app
+that consumes it. Add a contract only when it is necessary.
 
-1. Create `contracts/<name>.md` using the outline in `contracts/README.md`.
-2. Wire the fulfilling `platform/*` component(s) in the contract doc.
-3. If any chart archetype emits the contract's manifests, update the
-   relevant chart in `charts/`.
-4. Mark the contract's `version:` in its front-matter.
+1. Create `contracts/<name>.md` with the outline in `contracts/README.md`.
+2. Wire the `platform/*` component or components that fulfill it into the
+   contract document.
+3. If a chart archetype emits the manifests of the contract, update that chart in
+   `charts/`.
+4. Set the contract's `version:` in its front-matter.
 5. Commit: `feat(contracts): add <name>`.
 
 ## Onboard a new provider
 
-1. Create `providers/<name>/README.md` describing which cloud / substrate
-   it targets and which `compute-unit` requests it will fulfill.
-2. When populating: add Terraform modules under
+1. Create `providers/<name>/README.md`. Describe which cloud or substrate it
+   targets, and which `compute-unit` requests it will fulfill.
+2. When you populate it, add Terraform modules under
    `providers/<name>/modules/<thing>/`.
-3. Update `providers/README.md`'s table + the fulfillment matrix in
+3. Update the table in `providers/README.md` and the fulfillment matrix in
    `providers/compute-unit/README.md`.
 4. Commit: `feat(providers): add <name>`.

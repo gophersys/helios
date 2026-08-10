@@ -1,10 +1,10 @@
 # embedded — ephemeral Zephyr dev environments (homelab)
 
-Per-project Zephyr embedded dev environments on the homelab k3s cluster,
-pinned to **k3s-w-4** (the Proxmox VM on pve-01 that receives USB
-microcontrollers via QEMU passthrough). Each env is an SSH-able devbox with
-the Zephyr toolchain, raw USB access for flashing, and its own tailnet
-MagicDNS name.
+Zephyr embedded dev environments, 1 per project, on the homelab k3s cluster. They
+are pinned to **k3s-w-4**, the Proxmox VM on pve-01 that receives the USB
+microcontrollers through QEMU passthrough. Each env is a devbox that you reach
+over SSH. It carries the Zephyr toolchain, raw USB access for flashing, and its
+own MagicDNS name on the tailnet.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ apps/embedded/
 
 registry/app-zephyr-envs.yaml        ApplicationSet: envs/* -> Application zephyr-<name>
 registry/app-embedded-namespace.yaml owns the namespace (never pruned)
-registry/projects/embedded.yaml      AppProject fence: embedded-lab only, namespaced-only
+registry/projects/embedded.yaml      AppProject limit: embedded-lab only, namespaced-only
 
 Pod (ns: embedded-lab, pinned k3s-w-4, privileged)
   ├─ /dev/bus/usb + /dev/serial   hostPath — hotplug/re-enumeration-safe flashing
@@ -49,22 +49,23 @@ git commit -m "chore(embedded): retire env <name>" && git push
 # tailnet node all go away. The embedded-lab namespace stays.
 ```
 
-## Invariants (do not break)
+## Invariants — do not break these
 
 - Every env overlay MUST set a unique `nameSuffix`, a unique
-  `app.kubernetes.io/instance` label **with `includeSelectors: true`**
-  (all envs share the namespace — without it Services cross-match pods),
-  and a unique `tailscale.com/hostname`.
-- Devbox pods are privileged + hostPath by design (USB flashing); that is why
-  `embedded-lab` is on both Kyverno exclusion lists. Nothing else belongs in
-  this namespace.
+  `app.kubernetes.io/instance` label **with `includeSelectors: true`**, and a
+  unique `tailscale.com/hostname`. All the envs share the namespace, so without
+  `includeSelectors: true` a Service matches the pods of another env.
+- A devbox pod is privileged and uses a hostPath by design, because it flashes
+  over USB. That is why `embedded-lab` is on both Kyverno exclusion lists.
+  Nothing else belongs in this namespace.
 
-## Dependencies / TODOs
+## Dependencies and TODOs
 
-- Image `ghcr.io/gophersys/zephyr-devbox:latest` — built by a parallel PR in
-  gophersys/zephyr-devbox; pods ImagePullBackOff (harmlessly) until it lands.
-- Tailscale operator (`registry/app-tailscale-operator.yaml`) + its imperative
-  `operator-oauth` Secret — see
+- The image `ghcr.io/gophersys/zephyr-devbox:latest`. A parallel PR in
+  gophersys/zephyr-devbox builds it. Until that PR lands, the pods stay in
+  ImagePullBackOff, and that causes no other problem.
+- The Tailscale operator (`registry/app-tailscale-operator.yaml`) and its
+  imperative `operator-oauth` Secret. See
   `platform/services/networking/tailscale-operator/README.md`.
-- USB: QEMU passthrough of the microcontrollers into the k3s-w-4 VM, plus the
-  node's udev rules for the stable `/dev/mcu-slot-N` symlinks.
+- USB: the QEMU passthrough of the microcontrollers into the k3s-w-4 VM, plus the
+  udev rules on the node for the stable `/dev/mcu-slot-N` symlinks.

@@ -1,16 +1,16 @@
 # Cloud cluster (OCI Phoenix)
 
-What actually runs on the Oracle Cloud k3s cluster, and why it matters more than
-its size suggests: **this is where Vaultwarden lives**, so it is the root of trust
-for every credential in the ecosystem. The homelab depends on it. It depends on
+What runs on the Oracle Cloud k3s cluster, and why it matters more than its size
+suggests. **Vaultwarden runs here**, so this cluster is the root of trust for
+every credential in the ecosystem. The homelab depends on it. It depends on
 nothing.
 
 Verified against the live cluster 2026-08-09.
 
-> **Direction of dependency: `homelab` → cloud. Never the reverse.**
-> The homelab's External Secrets Operator resolves secrets from the Vaultwarden
-> that runs here. The homelab can burn down without threatening a credential.
-> This cluster going down locks every secret in the ecosystem.
+> **Direction of the dependency: `homelab` → cloud. Never the reverse.**
+> The External Secrets Operator of the homelab resolves its secrets from the
+> Vaultwarden that runs here. The homelab can burn down without a threat to a
+> credential. If this cluster goes down, every secret in the ecosystem is locked.
 
 ## Nodes
 
@@ -20,47 +20,46 @@ Verified against the live cluster 2026-08-09.
 | `agent-00` | `agent-00` | VM.Standard.A1.Flex (ARM 2/12) | worker, holds all storage |
 
 k3s `v1.34.5+k3s1`, Ubuntu 22.04.5, flannel CNI (not Cilium). Both nodes are on
-the Tailscale mesh and both sit in `FEQI:PHX-AD-1`, inside VCN `prod-vcn` /
-subnet `prod-public-subnet`.
+the Tailscale mesh. Both sit in `FEQI:PHX-AD-1`, inside VCN `prod-vcn` and subnet
+`prod-public-subnet`.
 
 Public entry is a **real public IP on the cluster — `144.24.23.2`** — not a
-Cloudflare tunnel. `*.mateosegura.com` wildcard DNS points here, `ingress-nginx`
-terminates, and cert-manager issues Let's Encrypt certs (`letsencrypt-prod`).
-This is the opposite of the homelab model and the difference is deliberate: the
-vault must stay reachable when Cloudflare is not.
+Cloudflare tunnel. The wildcard DNS record `*.mateosegura.com` points here,
+`ingress-nginx` terminates, and cert-manager issues Let's Encrypt certificates
+(`letsencrypt-prod`). This is the opposite of the homelab model, and the
+difference is deliberate: the vault must stay reachable when Cloudflare is not.
 
 > **`code-kit-server` is a legacy name.** The OCI instance, its boot volume and
-> the OS hostname are all `server-00`; only the k3s node registration still says
+> the OS hostname are all `server-00`. Only the k3s node registration still says
 > `code-kit-server`. It is **not** safe to rename in place: k3s derives its etcd
 > member identity from the node name, and on a single-member cluster a rename can
-> leave etcd refusing to start against a member list it no longer recognises. The
-> safe path is to add a second server node, let etcd form a real quorum, then roll
-> the original — worth doing for HA, not for cosmetics. `agent-00` was renamed
-> from `code-kit-agent-1` on 2026-08-09 precisely because it carried no such
-> coupling.
+> leave etcd unable to start against a member list it no longer recognises. The
+> safe procedure is to add a second server node, let etcd form a real quorum,
+> then replace the original. Do that for HA, not for appearance. `agent-00` was
+> renamed from `code-kit-agent-1` on 2026-08-09 because it had no such coupling.
 
 ## Workloads
 
 ### `shared-services`
-- **vaultwarden** (`1.35.4`) at `secrets.mateosegura.com` — see the split-ingress
-  note below. Backed by **PostgreSQL**, not SQLite: `DATABASE_URL` is injected from
-  a Secret, so an env dump reads empty and `/data` holds no `.sqlite3` file. The
-  item data lives in the `vaultwarden` database on `postgres-shared`; `/data`
-  holds `rsa_key.pem` (the JWT signing key, **not** encrypted the way items are),
-  attachments and sends.
-- **oauth2-proxy** — Google SSO in front of the vault's web UI.
+- **vaultwarden** (`1.35.4`) at `secrets.mateosegura.com` — see the note on the
+  split ingress below. It is backed by **PostgreSQL**, not SQLite: a Secret
+  injects `DATABASE_URL`, so a dump of the environment reads empty and `/data`
+  holds no `.sqlite3` file. The item data lives in the `vaultwarden` database on
+  `postgres-shared`. `/data` holds `rsa_key.pem` (the JWT signing key, which is
+  **not** encrypted the way the items are), the attachments and the sends.
+- **oauth2-proxy** — Google SSO in front of the web UI of the vault.
 - **postgres-shared**, **couchdb-shared** (`notes.mateosegura.com`),
   **prometheus-server**, **grafana** (`obsv.mateosegura.com`), **otel-collector**.
 
 ### `observability`
-Loki, Tempo, Alloy (gateway + logs DaemonSet). All telemetry data is disposable
-and was reset on 2026-08-09.
+Loki, Tempo and Alloy (gateway plus the logs DaemonSet). All telemetry data can
+be discarded, and it was reset on 2026-08-09.
 
 ### Platform
-`cert-manager` (three working ClusterIssuers), `ingress-nginx`, `sealed-secrets`,
-`tailscale` subnet-router.
+`cert-manager` (3 working ClusterIssuers), `ingress-nginx`, `sealed-secrets` and
+the `tailscale` subnet router.
 
-## The vault's two doors
+## The 2 doors of the vault
 
 ```
                     ingress-nginx
@@ -76,48 +75,54 @@ and was reset on 2026-08-09.
                 (master password on BOTH)
 ```
 
-**Web UI** takes Google SSO *then* the master password. **The API path does not** —
-it is master-password only. That is deliberate: it is what makes recovery work when
-Google, Cloudflare, Tailscale and the homelab are all unavailable. It is also the
-thinnest part of the perimeter, which is why TOTP on the vault account matters.
+The **web UI** takes Google SSO *and then* the master password. **The API path
+does not.** It takes the master password only. That is deliberate: it is what
+makes recovery work when Google, Cloudflare, Tailscale and the homelab are all
+unavailable. It is also the weakest part of the perimeter, which is why TOTP on
+the vault account matters.
 
 Hardening in place: `SIGNUPS_ALLOWED=false`, `INVITATIONS_ALLOWED=false`,
-`ORG_CREATION_USERS=none`, and `EMERGENCY_ACCESS_ALLOWED=false` — the last means
-no trusted contact can ever recover this vault. Only the account owner can.
+`ORG_CREATION_USERS=none` and `EMERGENCY_ACCESS_ALLOWED=false`. The last setting
+means that no trusted contact can ever recover this vault. Only the account owner
+can.
 
 ## Storage — `block-local`, not `local-path`
 
-Every PVC is on StorageClass **`block-local`**: hand-written `local` PVs on a
-**50 GB OCI Block Volume** attached to `agent-00`, formatted ext4 and mounted at
-`/mnt/data` via `/etc/fstab` (`nofail`). PV directories live under `/mnt/data/pv/<pvc>`.
+Every PVC is on the StorageClass **`block-local`**. These are hand-written
+`local` PVs on a **50 GB OCI Block Volume** attached to `agent-00`, formatted
+ext4 and mounted at `/mnt/data` through `/etc/fstab` (`nofail`). The PV
+directories are under `/mnt/data/pv/<pvc>`.
 
 | PVC | Namespace | Holds |
 | --- | --- | --- |
 | `data-postgres-shared-postgres-0` | shared-services | **the vault database** |
 | `vaultwarden-data` | shared-services | `rsa_key.pem`, attachments, sends |
 | `data-couchdb-shared-couchdb-0` | shared-services | notes |
-| `prometheus-server`, `storage-loki-0`, `storage-tempo-0` | — | disposable telemetry |
+| `prometheus-server`, `storage-loki-0`, `storage-tempo-0` | — | telemetry that can be discarded |
 
-**Nothing is on `local-path` any more.** That matters: `local-path` stamped each PV
-with `nodeAffinity` bound to a node-name *string* it also owned, so a node rename
-orphaned the volume permanently and a node loss destroyed the data outright. The
-volumes are now on a block device that detaches from a dead instance and reattaches
-elsewhere, and because the PVs are hand-written, `nodeAffinity` is a field we can
-edit rather than one a provisioner owns.
+**Nothing is on `local-path` any more.** That matters: `local-path` stamped each
+PV with a `nodeAffinity` bound to a node-name *string* that it also owned. A node
+rename therefore orphaned the volume permanently, and a node loss destroyed the
+data. The volumes are now on a block device that detaches from a dead instance
+and attaches elsewhere. The PVs are hand-written, so `nodeAffinity` is a field we
+can edit, not a field a provisioner owns.
 
-`reclaimPolicy` is `Retain` on every PV — deleting a PVC no longer deletes data.
+`reclaimPolicy` is `Retain` on every PV, so deletion of a PVC no longer deletes
+the data.
 
-**Renaming a node still requires recreating the PV objects** (`nodeAffinity` is
-immutable). Delete the PVC and PV, recreate both pointing at the new node name; the
-data under `/mnt/data/pv/` is untouched throughout. Expect one gotcha: a renamed
-node gets a **new pod CIDR**, and any DaemonSet pod that survives the rename keeps
-an address from the old range and silently fails its probes. Delete those pods and
-clear the stale `/var/lib/cni/networks/cbr0/<old-ip>` entries.
+**A rename of a node still requires that you recreate the PV objects**, because
+`nodeAffinity` is immutable. Delete the PVC and the PV, then create both again
+pointing at the new node name. The data under `/mnt/data/pv/` is not touched at
+any point. Expect one problem: a renamed node gets a **new pod CIDR**, and any
+DaemonSet pod that survives the rename keeps an address from the old range and
+fails its probes with no message. Delete those pods and clear the stale
+`/var/lib/cni/networks/cbr0/<old-ip>` entries.
 
 ## Backups
 
-`pg_dump` of the `vaultwarden` database plus a tar of `/data`. Both are required —
-the database without `rsa_key.pem` leaves you re-issuing every session token.
+A backup is a `pg_dump` of the `vaultwarden` database plus a tar of `/data`. Both
+are required: the database without `rsa_key.pem` makes you issue every session
+token again.
 
 ```sh
 export KUBECONFIG=~/.kube/cloud.yaml
@@ -126,8 +131,8 @@ kubectl -n shared-services exec postgres-shared-postgres-0 -- \
 kubectl -n shared-services exec deploy/vaultwarden -- tar czf - -C / data > vault-data.tar.gz
 ```
 
-Verify a dump by restoring it into a scratch database and comparing counts — an
-untested backup is a belief, not a backup:
+Verify a dump: restore it into a scratch database and compare the counts. A
+backup that nobody tested is a belief, not a backup.
 
 ```sh
 kubectl -n shared-services exec -i postgres-shared-postgres-0 -- sh -c '
@@ -138,12 +143,13 @@ kubectl -n shared-services exec -i postgres-shared-postgres-0 -- sh -c '
   psql -U postgres -tAc "drop database vw_restoretest;"' < vault.pgdump
 ```
 
-Counting `ciphers` overstates the item count: Vaultwarden **soft-deletes**, so the
-table includes trashed rows. Compare `count(*) filter (where deleted_at is null)`
-against what `bw list items` returns.
+A count of `ciphers` gives a number that is too high. Vaultwarden
+**soft-deletes**, so the table includes the rows in the trash. Compare
+`count(*) filter (where deleted_at is null)` against the result of
+`bw list items`.
 
-**Open gap:** this is manual. There is no CronJob and no off-cluster copy on a
-schedule. See debt-register D14.
+**Open gap:** this procedure is manual. There is no CronJob and no copy off the
+cluster on a schedule. See debt-register D14.
 
 ## Access
 
@@ -152,21 +158,23 @@ schedule. See debt-register D14.
 ~/.kube/cloud-tailnet.yaml   over Tailscale
 ```
 
-Tailscale SSH is enabled — `ssh ubuntu@<tailnet-ip>` needs no key. The vault item
-`shared/ssh/bastion-private-key` is stored as `SSH_PRIVATE_KEY_B64=<base64>`, an
-env-var line rather than a bare PEM, so it will not parse if fed straight to `ssh -i`.
+Tailscale SSH is enabled, so `ssh ubuntu@<tailnet-ip>` needs no key. The vault
+item `shared/ssh/bastion-private-key` is stored as `SSH_PRIVATE_KEY_B64=<base64>`.
+That is an env-var line, not a bare PEM, so it does not parse if you feed it
+straight to `ssh -i`.
 
-True break-glass is the **OCI console** (Compute → Instances → Console Connection):
-serial access needing neither SSH nor the network. That credential must never live
-in the vault it is meant to rescue.
+The true break-glass path is the **OCI console** (Compute → Instances → Console
+Connection). It gives serial access and needs neither SSH nor the network. That
+credential must never live in the vault it is meant to rescue.
 
 ## Always Free budget
 
-Four instances at ~50 GB boot each consumed the entire 200 GB storage allowance,
-leaving no room for block storage — OCI's minimum block volume is 50 GB and boot
-volumes cannot be shrunk, only expanded. Deleting the two idle `sentinel-*`
-bastions (which ran nothing but `tailscaled`, and were redundant once Tailscale SSH
-reached every node directly) freed 94 GB and made the data volume possible.
+4 instances with a boot volume of about 50 GB each used the whole 200 GB storage
+allowance and left no room for block storage. The minimum OCI block volume is
+50 GB, and you can only expand a boot volume, never shrink it. Deleting the 2
+idle `sentinel-*` bastions freed 94 GB and made the data volume possible. Those
+bastions ran nothing but `tailscaled`, and they became unnecessary once Tailscale
+SSH reached every node directly.
 
 ```
 server-00 boot    50 GB
@@ -176,5 +184,5 @@ prod-data-01      50 GB   ← the block volume
                  150 GB of 200 GB
 ```
 
-Adding an instance or a second block volume exceeds the allowance and starts
-billing. Budget before provisioning.
+An extra instance or a second block volume exceeds the allowance and starts
+billing. Calculate the budget before you provision.

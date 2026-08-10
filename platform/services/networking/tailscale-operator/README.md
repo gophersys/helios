@@ -1,40 +1,41 @@
 # platform/services/networking/tailscale-operator
 
-Tailscale Kubernetes operator — exposes in-cluster Services on the tailnet
-(MagicDNS names, tailnet-only reachability) and can provide subnet-router /
-API-server proxy functionality later.
+The Tailscale Kubernetes operator. It exposes an in-cluster Service on the
+tailnet, with a MagicDNS name and reachability from the tailnet only. It can also
+give subnet-router and API-server proxy functions at a later date.
 
 ## Purpose
 
-Give workloads a **per-Service tailnet identity** without touching MetalLB or
-ingress-nginx: any Service with `type: LoadBalancer` +
-`loadBalancerClass: tailscale` gets its own Tailscale node (a proxy pod the
-operator creates) and a MagicDNS hostname taken from the
-`tailscale.com/hostname` annotation. First consumer: the ephemeral Zephyr
-embedded dev environments (`apps/embedded/`) — each env gets its own
-`ssh zephyr-<env>` MagicDNS name.
+Give a workload its own **tailnet identity per Service**, with no change to
+MetalLB and no change to ingress-nginx. Any Service with `type: LoadBalancer` and
+`loadBalancerClass: tailscale` gets its own Tailscale node — a proxy pod that the
+operator creates — and a MagicDNS hostname from the `tailscale.com/hostname`
+annotation. The first consumer is the set of temporary Zephyr embedded dev
+environments (`apps/embedded/`). Each env gets its own `ssh zephyr-<env>`
+MagicDNS name.
 
 ## Default implementation
 
-Upstream Helm chart `tailscale-operator` from
-`https://pkgs.tailscale.com/helmcharts`, pinned per-cluster in the driving
-Argo Application (homelab:
-`platform/services/gitops/registry/app-tailscale-operator.yaml`, chart
-`1.98.4`, namespace `tailscale`, operator hostname `homelab-ts-operator`).
-Following the repo's helm-service pattern (see `app-kyverno.yaml`), the
-registry Application carries the chart reference **and** the values — this
-directory documents the service; it does not duplicate the values.
+The upstream Helm chart `tailscale-operator` from
+`https://pkgs.tailscale.com/helmcharts`. The Argo Application that drives the
+install pins the version per cluster. For the homelab that Application is
+`platform/services/gitops/registry/app-tailscale-operator.yaml`, with chart
+`1.98.4`, namespace `tailscale` and the operator hostname
+`homelab-ts-operator`. The repo uses the same pattern for every helm service;
+see `app-kyverno.yaml`. The registry Application carries the chart reference
+**and** the values. This directory documents the service, and it does not repeat
+the values.
 
-## Bootstrap secret (NOT in git)
+## The bootstrap secret (NOT in git)
 
-The operator authenticates to the Tailscale control plane with an OAuth
-client. It expects a Secret `operator-oauth` in the `tailscale` namespace.
-ESO/Vaultwarden bridge is currently broken, so — exactly like
-`media/gluetun-wireguard` — the Secret is created **imperatively**:
+The operator authenticates to the Tailscale control plane with an OAuth client.
+It expects a Secret named `operator-oauth` in the `tailscale` namespace. The
+ESO-to-Vaultwarden bridge does not work at present, so you create the Secret
+**imperatively**, exactly as for `media/gluetun-wireguard`:
 
-1. Tailscale admin console → Settings → OAuth clients → new client with the
-   **Devices: write** scope, tags `tag:k8s-operator` (owner of `tag:k8s`).
-   Ensure the tailnet ACL declares:
+1. Tailscale admin console → Settings → OAuth clients → create a new client with
+   the **Devices: write** scope and the tag `tag:k8s-operator`, which owns
+   `tag:k8s`. Check that the tailnet ACL declares:
 
    ```jsonc
    "tagOwners": {
@@ -43,10 +44,11 @@ ESO/Vaultwarden bridge is currently broken, so — exactly like
    }
    ```
 
-2. Store the client id/secret in Vaultwarden as
+2. Store the client id and the client secret in Vaultwarden as
    `tailscale-oauth-k8s-operator`.
-3. Create the Secret (before or after the Application syncs — the operator
-   pod crash-loops harmlessly until it exists):
+3. Create the Secret. You can do this before or after the Application syncs. The
+   operator pod stays in a crash loop until the Secret exists, and that causes no
+   other problem:
 
    ```bash
    kubectl -n tailscale create secret generic operator-oauth \
@@ -57,11 +59,12 @@ ESO/Vaultwarden bridge is currently broken, so — exactly like
 ## Dependencies
 
 - `platform/services/gitops/` — the Argo Application drives the install.
-- Tailnet admin access (OAuth client + ACL tagOwners) — out-of-band, one-time.
-- Kyverno exclusion: the operator's proxy pods need elevated capabilities
-  (tun device, NET_ADMIN), so the `tailscale` namespace is excluded in
-  `platform/core/policy/policies/pod-security-baseline.yaml` and in
-  `app-kyverno.yaml`'s `resourceFiltersExcludeNamespaces`.
+- Admin access to the tailnet, for the OAuth client and the ACL tagOwners. This
+  is a one-time action, and it happens outside this repo.
+- A Kyverno exclusion. The proxy pods of the operator need extra capabilities:
+  the tun device and NET_ADMIN. The `tailscale` namespace is therefore excluded
+  in `platform/core/policy/policies/pod-security-baseline.yaml` and in
+  `resourceFiltersExcludeNamespaces` of `app-kyverno.yaml`.
 
 ## Consumer interface
 
@@ -78,6 +81,6 @@ spec:
 
 ## Status
 
-Greenfield install for `homelab` (nothing Tailscale-related existed in the
-cluster before this). Opt-in via
+This is a new install for `homelab`. Nothing related to Tailscale existed in the
+cluster before it. The cluster opts in through
 `clusters/instances/homelab/identity.yaml → platform_services.networking`.
