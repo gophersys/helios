@@ -22,7 +22,15 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
+  # Devcontainer images are multi-arch: they are opened on an arm64 Mac and on
+  # amd64 Linux, so both are real consumers.
   PLATFORMS: linux/amd64,linux/arm64
+  # Runner images are NOT. A runner image only ever runs as an ARC pod, and every
+  # node in that cluster is amd64 (`kubectl get nodes -o wide`). Building its arm64
+  # half means compiling Go under QEMU for an architecture nothing runs, which
+  # measured ~13 minutes for what is otherwise a thin layer. Build the arch you
+  # deploy to.
+  PLATFORMS_RUNNER: linux/amd64
 
 jobs:
   base:
@@ -121,7 +129,7 @@ jobs:
         with:
           context: runner
           file: runner/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_RUNNER }}
           push: true
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ needs.base.outputs.short }}

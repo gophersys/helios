@@ -84,8 +84,16 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
 
 ## Multi-arch-on-push policy
 
-Every image is published multi-arch (linux/amd64 + linux/arm64). The rule
-is non-negotiable:
+Every **devcontainer** image is published multi-arch (linux/amd64 +
+linux/arm64) — both are real consumers, an arm64 Mac and amd64 Linux. For
+those the rule is non-negotiable.
+
+**Runner images build only the arch they deploy to.** `base-runner` is amd64
+only: it runs solely as an ARC pod and every node in that cluster is amd64, so
+its arm64 half was Go compiled under QEMU for an architecture nothing runs
+(~13 minutes on a thin layer). Add arm64 back when an arm64 pool exists.
+
+For devcontainer images:
 
 | Verb | Scope | Arch |
 |---|---|---|
