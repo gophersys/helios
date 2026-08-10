@@ -1,9 +1,19 @@
 # Org-wide runner scale set for gophersys — serves Eden, infrastructure, workspaces.
 # dind so runners can build images AND run k3d/kind (Eden's gates). runs-on: arc-org
-# Onboarding, consumers and the public-repo policy: docs/ci-runners.md
+# Onboarding, consumers, sizing rationale and the public-repo policy: docs/ci-runners.md
+#
 # NOTE: the Default runner group sets allows_public_repositories=false, so jobs from
 # a PUBLIC org repo queue forever with no error. That is deliberate — this scale set
 # is privileged (dind), so fork PRs would reach the node. See the doc before changing.
+#
+# WHY THE POD SPEC IS WRITTEN OUT INSTEAD OF `containerMode: dind`
+# `containerMode: dind` generates the pod spec and ignores nothing you add — it
+# APPENDS. Supplying a container named `dind` under that mode renders a second
+# container with the same name, which the API server rejects. The chart's own values
+# say the same: "If any customization is required for dind, containerMode should
+# remain empty, and configuration should be applied to the template." Resources,
+# affinity and volume limits are all customization, so the full spec lives here.
+# The spec below is the chart's documented dind spec verbatim, plus those three.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -28,8 +38,107 @@ spec:
         controllerServiceAccount:
           namespace: arc-systems
           name: arc-gha-rs-controller
-        containerMode:
-          type: dind
+
+        template:
+          spec:
+            # k3s-w-4 owns the USB-passthrough embedded lab and is the most committed
+            # node in the cluster. A build must never contend with hardware under test.
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: kubernetes.io/hostname
+                          operator: NotIn
+                          values: ["k3s-w-4"]
+              # Spread concurrent runners so four jobs do not pile onto one worker.
+              podAntiAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 100
+                    podAffinityTerm:
+                      topologyKey: kubernetes.io/hostname
+                      labelSelector:
+                        matchLabels:
+                          actions.github.com/scale-set-name: arc-org
+
+            initContainers:
+              - name: init-dind-externals
+                image: ghcr.io/actions/actions-runner:latest
+                command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
+                volumeMounts:
+                  - name: dind-externals
+                    mountPath: /home/runner/tmpDir
+
+              # Native sidecar (restartPolicy: Always). This is where image builds
+              # actually burn CPU, memory and disk — size it, not just the runner.
+              - name: dind
+                image: docker:dind
+                args:
+                  - dockerd
+                  - --host=unix:///var/run/docker.sock
+                  - --group=$(DOCKER_GROUP_GID)
+                env:
+                  - name: DOCKER_GROUP_GID
+                    value: "123"
+                securityContext:
+                  privileged: true
+                restartPolicy: Always
+                startupProbe:
+                  exec:
+                    command: ["docker", "info"]
+                  initialDelaySeconds: 0
+                  failureThreshold: 24
+                  periodSeconds: 5
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 1Gi
+                    ephemeral-storage: 8Gi   # image layers live in this container
+                  limits:
+                    # No CPU limit on purpose: CFS throttling makes builds slow and
+                    # flaky, and the request already guarantees the share.
+                    memory: 6Gi
+                    ephemeral-storage: 30Gi
+                volumeMounts:
+                  - name: work
+                    mountPath: /home/runner/_work
+                  - name: dind-sock
+                    mountPath: /var/run
+                  - name: dind-externals
+                    mountPath: /home/runner/externals
+
+            containers:
+              - name: runner
+                image: ghcr.io/actions/actions-runner:latest
+                command: ["/home/runner/run.sh"]
+                env:
+                  - name: DOCKER_HOST
+                    value: unix:///var/run/docker.sock
+                  - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
+                    value: "120"
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 1Gi
+                    ephemeral-storage: 2Gi
+                  limits:
+                    memory: 6Gi
+                    ephemeral-storage: 10Gi
+                volumeMounts:
+                  - name: work
+                    mountPath: /home/runner/_work
+                  - name: dind-sock
+                    mountPath: /var/run
+
+            volumes:
+              - name: work
+                emptyDir:
+                  sizeLimit: 10Gi
+              - name: dind-sock
+                emptyDir: {}
+              - name: dind-externals
+                emptyDir:
+                  sizeLimit: 2Gi
   destination:
     server: https://kubernetes.default.svc
     namespace: arc-runners
