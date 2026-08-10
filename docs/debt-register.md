@@ -300,6 +300,21 @@ Remedy: create a classic PAT with **only** `read:packages`, store it as
 One line, no other change.
 
 
+### D25 ✅ Argo's repo credential was hand-applied and per-repo — RESOLVED (2026-08-10)
+`repo-infrastructure` was a `kubectl apply`-ed Secret holding a classic PAT, with
+no record in git and no source of truth outside the cluster. Every new private
+repo would have needed another one by hand.
+
+Replaced with an org-wide `repo-creds` ExternalSecret at
+`platform/services/gitops/repo-credentials/`. Argo matches `repo-creds` by URL
+prefix, so one entry now covers every repository under `github.com/gophersys` —
+adding `gophersys/home`, or the next repo, needs no cluster change at all.
+
+The token was not regenerated: the existing one was moved into the vault as
+`shared/github/argocd-repo`, so the value finally has a home outside the cluster.
+Retire `repo-infrastructure` once the org-wide entry has proven itself.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured

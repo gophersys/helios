@@ -209,6 +209,7 @@ Commands:
   status            Summarize counts of hosts, clusters, providers, platform, charts
   validate          Lint all project.json + bash scripts (shellcheck when available)
   generate-index    Regenerate machines/README.md + machines/ledger.md from hosts/
+  verify-registry   Assert every in-repo Argo Application path resolves
   propagate         Print submodule-bump instructions for brain and projects
   help              Show this message
 EOF
@@ -218,6 +219,13 @@ function cmd_verify_access() {
   # Assert every machine in contracts/access.yaml is reachable by its declared
   # method. Read-only: one SSH hostname echo per host.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-access.sh" "$@"
+}
+
+function cmd_verify_registry() {
+  # Assert every Argo Application path that points at THIS repo resolves. Some
+  # registry entries deploy from a sibling repo (gophersys/home carries rayne's
+  # page); those are reported as skipped, not failed.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-registry-paths.sh" "$@"
 }
 
 function cmd_verify_exposure() {
@@ -235,6 +243,7 @@ function main() {
     validate)        cmd_validate        "$@" ;;
     verify-exposure) cmd_verify_exposure "$@" ;;
     verify-access)   cmd_verify_access   "$@" ;;
+    verify-registry) cmd_verify_registry "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     propagate)      cmd_propagate      "$@" ;;
     help|"")        usage ;;

@@ -1,5 +1,11 @@
 # rayne — a single static page at rayne.mateosegura.com.
 #
+# The CONTENT lives in gophersys/home, not here. This repo is the platform; the
+# page is Mateo's, so it belongs with the rest of his personal work, generated
+# from its own index.html by that repo's render.py and drift-checked by its CI.
+# The registry entry stays here because this directory is the single declaration
+# of what is deployed — content moves out, the declaration does not.
+#
 # Lands in ns `media` / project `media` deliberately: that namespace already
 # has the proven public path through the Cloudflare tunnel (homepage serves
 # home.mateosegura.com from there), so this needs no new namespace, quota tier
@@ -16,9 +22,9 @@ metadata:
 spec:
   project: media
   source:
-    repoURL: https://github.com/gophersys/infrastructure.git
+    repoURL: https://github.com/gophersys/home.git
     targetRevision: main
-    path: apps/rayne
+    path: sites/rayne/deploy
   destination:
     server: https://kubernetes.default.svc
     namespace: media
