@@ -42,8 +42,10 @@ command -v kubectl >/dev/null 2>&1 || { echo "missing required tool: kubectl" >&
 IMAGE="${IMAGE_REPO}:${TAG}"
 echo "verifying ${IMAGE} in the ARC pod shape (namespace ${NS})"
 
+# Remove a previous run before starting, but do NOT remove this one on exit when
+# it fails. An earlier version deleted the Job in an EXIT trap and destroyed the
+# only copy of the failure logs. A failing test must leave its evidence in place.
 cleanup() { kubectl delete job "$JOB" -n "$NS" --ignore-not-found --wait=false >/dev/null 2>&1 || true; }
-trap cleanup EXIT
 cleanup
 
 # The assertions. Each prints its own PASS/FAIL line and the script exits non-zero
@@ -57,12 +59,13 @@ bad()  { printf '  FAIL  %s\n' "$1"; fail=1; }
 
 [ "$(id -un)" = "dev" ] && ok "runs as dev" || bad "runs as $(id -un), expected dev"
 
-# /etc/group is the image's own record. `id -G` reports the process's groups,
-# which is a different thing and has produced a false pass and a false fail here.
-if getent group 123 | cut -d: -f4 | tr ',' '\n' | grep -qx dev; then
-  ok "dev is in gid 123 (/etc/group)"
+# What matters is whether THIS PROCESS holds gid 123, because that is what the
+# kernel checks against the socket. The pod grants it with supplementalGroups, so
+# it holds even when the image's /etc/group does not list the user.
+if id -G | tr " " "\n" | grep -qx 123; then
+  ok "process holds gid 123"
 else
-  bad "dev is NOT in gid 123: $(getent group 123)"
+  bad "process does NOT hold gid 123 (groups: $(id -G)); /etc/group says: $(getent group 123)"
 fi
 
 [ -O /home/runner ] && ok "/home/runner owned by dev" || bad "/home/runner not owned by dev"
@@ -108,6 +111,11 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      # The socket's gid belongs to the POD, because the dind sidecar decides it.
+      # Granting it here works whatever the image's /etc/group holds, and it is
+      # the layer where the decision actually lives.
+      securityContext:
+        supplementalGroups: [${DOCKER_GID}]
       imagePullSecrets:
         - name: ghcr-pull
       initContainers:
@@ -154,9 +162,11 @@ POD="$(kubectl get pods -n "$NS" -l "job-name=$JOB" -o jsonpath='{.items[0].meta
 [ -n "$POD" ] && kubectl logs "$POD" -n "$NS" -c runner 2>/dev/null
 
 if [ "$rc" -eq 0 ]; then
+  cleanup
   printf '\n  %s %s is fit to serve jobs\n' "$(grn PASS)" "$IMAGE"
   exit 0
 fi
 printf '\n  %s %s FAILED the pod-shape check — do not pin it\n' "$(red FAIL)" "$IMAGE"
+printf '  the Job is left in place on purpose: kubectl logs -n %s job/%s -c runner\n' "$NS" "$JOB"
 [ -n "$POD" ] && kubectl describe pod "$POD" -n "$NS" 2>/dev/null | sed -n '/Events/,$p' | head -20
 exit 1
