@@ -63,6 +63,21 @@ RUN case "${TARGETPLATFORM}" in \
 # No chown. This image runs as ROOT — see the note below — so every path under
 # /home/runner is already writable by the process that uses it.
 
+# cictl — the CI contract tool. It lives HERE and not in `base` because the image
+# that needs a tool is the image that gets it: cictl generates and drift-checks
+# workflows, which is a CI concern, and `base` stays a development environment.
+#
+# CGO_ENABLED=0 is required, not tidy: an arm64 layer builds under QEMU with an
+# x86 toolchain, and a cgo build there hands arm64 assembly to an x86 assembler.
+# cictl is pure Go, so a static binary is both buildable and the better artifact.
+#
+# gophersys/cictl is public precisely so this needs no credential.
+RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
+      go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}" \
+ && chmod 0755 /usr/local/bin/cictl \
+ && cictl help >/dev/null \
+ && rm -rf /root/go /root/.cache/go-build
+
 # THIS IMAGE RUNS AS ROOT, DELIBERATELY.
 #
 # The dev images keep the unprivileged `dev` user, because a developer bind-mounts
