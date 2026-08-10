@@ -9,7 +9,7 @@ here as accepted-imperative with recreation steps.
 Status legend: 🔴 open (reliability/security risk) · 🟠 open (reproducibility) ·
 🟡 minor / accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-07-09 (session reconciliation pass — see docs/audit-2026-07.md).
+Last updated: 2026-08-09 (cloud-cluster reconciliation — see docs/cloud-cluster.md).
 
 ---
 
@@ -183,6 +183,27 @@ EGRESS needs a curated allowlist (GitHub, ghcr, package registries, Go proxy, ap
 k3d pulls, DNS) to avoid breaking builds — deferred until someone wants to enumerate
 it. Related non-repo guardrails (GitHub runner group scoping, dedicated build node
 taint) also remain open.
+
+### D14 🔴 Vaultwarden has no automated backup — OPEN (data-loss risk)
+The vault is the root of trust for every credential in the ecosystem, and its
+backup is a manual `pg_dump` + `tar` of `/data` (procedure in
+`docs/cloud-cluster.md`). There is no CronJob, no off-cluster copy on a schedule,
+and no Velero. Until 2026-08-09 there was no backup at all and the data sat on a
+`local-path` volume — a single node-local disk with `reclaimPolicy: Delete`.
+Storage is now an OCI Block Volume (survives instance loss) and a verified dump
+exists, so this is no longer catastrophic — but it is still one manual step away
+from stale. **Wanted:** a CronJob dumping to the homelab MinIO (off-Oracle), plus
+a restore rehearsal. Note both halves are required: the database alone, without
+`/data/rsa_key.pem`, leaves every session token re-issued.
+
+### D15 🟠 `code-kit-server` node name is stale and cannot be renamed in place
+The OCI instance, boot volume and OS hostname are all `server-00`; only the k3s
+node registration still reads `code-kit-server`. k3s derives its **etcd** member
+identity from the node name, so on this single-member cluster a rename can leave
+etcd refusing to start against a member list it no longer recognises. `agent-00`
+was renamed successfully on 2026-08-09 precisely because an agent carries no such
+coupling. **Wanted:** add a second server node, let etcd form a real quorum, then
+roll the original — worth doing for HA regardless. Do NOT rename in place.
 
 ## Resolved
 

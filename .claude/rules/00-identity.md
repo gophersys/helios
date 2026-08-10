@@ -10,12 +10,14 @@
 > 2. **An aspirational IDP framework (the Nx scaffolding described below).**
 >    `machines/`, `clusters/templates/`, `providers/`, `charts/`, `contracts/`
 >    are the multi-cluster design — mostly skeletons/STUBs, not what runs.
-> The parent monorepo is **`helios`** (the Eden monorepo): this repo is the git
-> submodule `helios/infrastructure`. The "brain" ecosystem below is the ORIGINAL
-> design framing and predates helios — those paths don't exist.
+> The parent monorepo is **Eden** (`gophersys/eden`, checked out at `~/code/eden`):
+> this repo is the git submodule `eden/infrastructure`. Never write `helios` — the
+> rename is Eden invariant E7; the old checkout path `~/helios` is gone. The "brain"
+> ecosystem below is the ORIGINAL design framing and predates Eden — those paths
+> don't exist.
 
 `gophersys/infrastructure` is the shared infrastructure-as-code source,
-consumed as a git submodule by the parent monorepo (today: `helios/infrastructure`;
+consumed as a git submodule by the parent monorepo (today: `eden/infrastructure`;
 originally designed for `brain/shared/infrastructure/` + per-project pins).
 
 ## Purpose (framework design)

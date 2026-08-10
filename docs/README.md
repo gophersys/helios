@@ -12,6 +12,7 @@ Documentation index for `infrastructure/`.
 | `debt-register.md`        | Undocumented/imperative state + the engineering agreement |
 | `runtime-secrets.md`      | Imperative k8s Secrets + their Vaultwarden recreation   |
 | `cluster-topology.md`     | What runs in each namespace and why (live reference) |
+| `cloud-cluster.md`        | The OCI cluster that hosts Vaultwarden — the root of trust |
 | `ci-runners.md`           | ARC self-hosted runners: onboarding a repo, public-repo policy |
 | `migration-homelab-to-idp.md` | Historical: the homelab→IDP relocation + 9 decisions |
 | `audit-2026-07.md`        | Point-in-time cluster audit + backlog (2026-07)         |

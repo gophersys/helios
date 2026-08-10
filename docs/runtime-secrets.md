@@ -77,9 +77,10 @@ master password). Hand-created; full recreation + security notes:
 ### `cloudflare-api-token` (ns `cert-manager`) — DNS-01 solver token
 Cloudflare API token (Zone:DNS:Edit) used by the `letsencrypt-homelab`
 ClusterIssuer (see `platform/core/edge/tls/cert-manager/cluster-issuer.yaml`'s
-header). It was created from `$CLOUDFLARE_API_TOKEN` at bootstrap; **no vault
-item is confirmed for it** — if it isn't in Vaultwarden yet, re-issue from the
-Cloudflare dashboard (or vault it as `shared/cloudflare/dns-api-token`), then:
+header). Vault: **`shared/cloudflare/api-token`** (confirmed present 2026-08-09 —
+an earlier revision of this doc wrongly said no vault item existed). Related items:
+`shared/cloudflare/tunnel`, `shared/cloudflare/zone-id`,
+`shared/cloudflare/access-google-oauth`. Recreate with:
 ```sh
 kubectl -n cert-manager create secret generic cloudflare-api-token \
   --from-literal=api-token="$CLOUDFLARE_API_TOKEN" \

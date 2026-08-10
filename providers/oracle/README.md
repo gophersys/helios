@@ -35,5 +35,3 @@ Imported into terraform state against `gophersys-tfstate`:
 | `server-00` | A1.Flex ARM | protected | plan = zero-diff |
 | `agent-00` | A1.Flex ARM | protected | plan = zero-diff |
 | `agent-01` | E4.Flex x86 | destroyable | plan = zero-diff (currently STOPPED) |
-| `sentinel-00` | E2.1.Micro | destroyable | plan = zero-diff |
-| `sentinel-01` | E2.1.Micro | destroyable | plan = zero-diff |
