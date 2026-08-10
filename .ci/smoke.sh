@@ -14,30 +14,19 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The logging lives in _ctl/lib.sh, 1 time only.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=../_ctl/lib.sh
+source "$PROJECT_ROOT/../_ctl/lib.sh"
+
 IMAGE="${1:-}"
 
 if [[ -z "$IMAGE" ]]; then
-  printf '\033[0;31m[error]\033[0m usage: bash .ci/smoke.sh <image>\n' >&2
+  log_error "usage: bash .ci/smoke.sh <image>"
   exit 2
 fi
-
-# -------- logging --------
-function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
-function log_error() { printf '\033[0;31m[error]\033[0m %s\n' "$*" >&2; }
-
-# -------- cleanup --------
-BG_PIDS=()
-function on_exit() {
-  local rc=$?
-  local pid
-  if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
-    for pid in "${BG_PIDS[@]}"; do
-      kill "$pid" 2>/dev/null || true  # already exited — expected
-    done
-  fi
-  return "$rc"
-}
-trap on_exit EXIT
 
 # Common smoke-test body applied to every image. Checks both native binaries
 # (bw, gh, tailscale, kubectl, helm, terraform, k9s, go, rustc, nats) and

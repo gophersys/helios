@@ -16,8 +16,17 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
-export REPO_ROOT
+
+# The logging, the tool gate and the multi-arch guard live in _ctl/lib.sh, 1
+# time only. This script owns the repo-wide verbs, which act on the whole set.
+#
+# This script does NOT call require_buildx_and_multi_arch, and that is
+# deliberate. The guard enforces the platform list of 1 image, and the list is
+# not the same for every image: a runner image is amd64 only. `push` delegates
+# to the per-image ctl.sh, which calls the guard with its own list.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=_ctl/lib.sh
+source "$PROJECT_ROOT/_ctl/lib.sh"
 
 # Dependency order — parents first. `base` is the root of the dev-image
 # family; `flutter` and `zephyr` both layer on top of `base`, and
@@ -28,74 +37,6 @@ export REPO_ROOT
 # Dockerfile serves every parent — RUNNER_PARENT selects which — so adding
 # `zephyr-runner` is a matrix entry, never a new directory.
 BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox)
-
-# Multi-arch platforms enforced on push.
-MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"
-
-# -------- logging --------
-function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
-function log_warn()  { printf '\033[0;33m[warn]\033[0m  %s\n' "$*" >&2; }
-function log_error() { printf '\033[0;31m[error]\033[0m %s\n' "$*" >&2; }
-
-# -------- tool gate --------
-function require_cmd() {
-  local missing=()
-  local cmd
-  for cmd in "$@"; do
-    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
-  done
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    log_error "missing required tool(s): ${missing[*]}"
-    exit 127
-  fi
-}
-
-# Guard: require docker buildx available and capable of multi-arch builds.
-# Callers that push MUST invoke this first — there is no flag to downgrade
-# to single-arch push. Multi-arch on push is policy, not preference.
-function require_buildx_and_multi_arch() {
-  require_cmd docker
-  if ! docker buildx version >/dev/null 2>&1; then
-    log_error "docker buildx is not installed — multi-arch push is mandatory"
-    exit 127
-  fi
-  if ! docker buildx inspect >/dev/null 2>&1; then
-    log_error "no active buildx builder — run: docker buildx create --use --name gophersys"
-    exit 1
-  fi
-  local platforms
-  platforms="$(docker buildx inspect --bootstrap 2>/dev/null | awk -F': ' '/^Platforms/ {print $2}' | head -1)"
-  if [[ -z "$platforms" ]]; then
-    log_error "buildx builder reports no platforms; cannot enforce multi-arch"
-    exit 1
-  fi
-  local p
-  local -a _platforms
-  IFS=',' read -r -a _platforms <<< "$MULTI_ARCH_PLATFORMS"
-  for p in "${_platforms[@]}"; do
-    if ! printf '%s' "$platforms" | grep -q -- "$p"; then
-      log_error "buildx builder missing required platform: $p"
-      log_error "current builder platforms: $platforms"
-      log_error "enable via QEMU: docker run --privileged --rm tonistiigi/binfmt --install all"
-      exit 1
-    fi
-  done
-}
-
-# -------- cleanup --------
-BG_PIDS=()
-
-function on_exit() {
-  local rc=$?
-  local pid
-  if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
-    for pid in "${BG_PIDS[@]}"; do
-      kill "$pid" 2>/dev/null || true  # already exited — expected
-    done
-  fi
-  return "$rc"
-}
-trap on_exit EXIT
 
 # -------- helpers --------
 # Image name -> source directory. These are 1:1 except for the `+ runner`
@@ -202,14 +143,20 @@ function cmd_validate() {
   local name dir script
 
   log_info "shellcheck: ctl.sh"
-  shellcheck "$PROJECT_ROOT/ctl.sh" || rc=1
+  shellcheck -x "$PROJECT_ROOT/ctl.sh" || rc=1
+
+  # The shared library holds the body of every per-image verb, so it is the
+  # most important script in the repository. shellcheck it explicitly. A
+  # missing file makes shellcheck exit non-zero, which fails validate.
+  log_info "shellcheck: _ctl/lib.sh"
+  shellcheck -x "$PROJECT_ROOT/_ctl/lib.sh" || rc=1
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$(image_dir "$name")"
     # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
     for script in "$dir"/*.sh; do
       log_info "shellcheck: ${name}/$(basename "$script")"
-      shellcheck "$script" || rc=1
+      shellcheck -x "$script" || rc=1
     done
 
     log_info "jq parse: ${name}/project.json"

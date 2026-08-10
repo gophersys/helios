@@ -26,6 +26,11 @@ it as a submodule, and the parent supplies the Nx runtime. Each image obeys the
 `project.json` + `ctl.sh` pattern enforced across the ecosystem. The command
 `bash ./ctl.sh <cmd>` works with Nx and without Nx.
 
+The body of each per-image verb is in `_ctl/lib.sh`, 1 time only. A per-image
+`ctl.sh` sets its own data (the image name, and any build argument), then it
+sources the library and sends the verb to it. Add a verb in the library, and
+every image has it. See "The shared ctl library" below.
+
 ## Image inventory
 
 | Image | Intent | `GOPHERSYS_DEVCONTAINER` |
@@ -145,6 +150,18 @@ must not change it:
 | `build-multi-arch` | `docker buildx build --platform linux/amd64,linux/arm64 --load=false`. It verifies the multi-arch build and it does not push. |
 | `push` | A multi-arch push with buildx and `--push`. This is **ENFORCED**. The guard `require_buildx_and_multi_arch` runs at the start of the push verb. There is no flag that changes the push to 1 architecture. |
 
+The guard is in `_ctl/lib.sh`, 1 time only, and each per-image `push` calls it.
+The guard fails closed in 4 conditions: the platform list is empty, buildx is
+absent, no buildx builder is active, or the active builder cannot emulate 1 of
+the required platforms. The list of platforms is a property of the image. The
+default is `linux/amd64,linux/arm64`, and an image narrows it only with a
+measurement, as `runner/ctl.sh` does.
+
+The repository-root `ctl.sh` does **not** call the guard. It sends `push` to
+the per-image `ctl.sh`, which calls the guard with its own list of platforms.
+The root script cannot call the guard correctly, because the list is not the
+same for every image.
+
 The CI workflow `.github/workflows/build-and-push.yml` enforces the same policy
 on every push to `main` and on every semver tag (`v*`).
 
@@ -198,6 +215,7 @@ deploy to.** Add arm64 again on the day an arm64 pool exists, and not before.
 ├── README.md
 ├── project.json                 # repo-level Nx wiring (list, validate, propagate, release)
 ├── ctl.sh                       # repo-wide control script
+├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only
 ├── .claude/rules/               # identity + conventions
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer, no devcontainer.json
@@ -206,6 +224,52 @@ deploy to.** Add arm64 again on the day an arm64 pool exists, and not before.
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
 └── .github/workflows/build-and-push.yml
 ```
+
+### The shared ctl library
+
+`_ctl/lib.sh` holds the body of every per-image verb, 1 time only. The name
+follows `gophersys/libs`, which uses `go/_ctl/lib.sh` for the same purpose. The
+leading underscore keeps the directory out of the set of image directories.
+
+A per-image `ctl.sh` is a thin dispatcher. It sets its data, it sources the
+library, and it sends the verb to `image_main`:
+
+```sh
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IMAGE_NAME="flutter"
+source "$PROJECT_ROOT/../_ctl/lib.sh"
+image_main "$@"
+```
+
+The library reads this data. Set the first 4 items before the source line:
+
+| Name | Use |
+|---|---|
+| `PROJECT_ROOT` | The directory that holds the script. Required. |
+| `IMAGE_NAME` | The image slug, for example `flutter`. Required for the image verbs. |
+| `MULTI_ARCH_PLATFORMS` | The platforms that `push` enforces. The default is `linux/amd64,linux/arm64`. |
+| `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `runner/ctl.sh` puts `BASE_IMAGE` here. |
+| `IMAGE_USAGE_HEADER` | Extra lines below the `Image:` header of the help text. |
+| `IMAGE_USAGE_COMMANDS` | Extra lines below the command list of the help text. |
+
+An image that adds a verb handles that verb itself and sends every other verb
+to `image_main`. `base/ctl.sh` does this for `up`, `exec`, `shell`, `down` and
+`post-create`.
+
+The repository-root `ctl.sh`, `.ci/ctl.sh` and `.ci/smoke.sh` source the same
+library for the logging, the tool gate and the guard. Their own verbs act on
+the whole set of images, so they keep those verbs themselves.
+
+`validate` runs `shellcheck -x`, so shellcheck follows the source line and
+checks each script together with the library.
+
+**There is no EXIT trap in these scripts, and that is deliberate.** Each script
+carried a `BG_PIDS` array and an `on_exit` trap that killed the listed
+processes. No script ever added a process to the array. On bash 3.2, which is
+the bash of macOS, `$?` is 0 when the EXIT trap starts after the shell aborts
+on an unbound variable, so the trap made the script exit 0. It reported success
+for a fatal abort. A script that starts a background job must clean up its own
+job, and it must not add an EXIT trap that returns a status.
 
 ## Day-to-day operations
 

@@ -21,6 +21,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/ctl.sh",
+        "{projectRoot}/_ctl/lib.sh",
         "{projectRoot}/project.json",
         "{projectRoot}/*/ctl.sh",
         "{projectRoot}/*/Dockerfile",
