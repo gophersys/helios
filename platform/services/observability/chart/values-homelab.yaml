@@ -18,11 +18,22 @@ grafana:
     storageClassName: longhorn
   service:
     type: LoadBalancer        # MetalLB hands out 10.168.0.240-250 (tailnet access)
-  ingress:                    # public via the Cloudflare tunnel (catch-all -> ingress-nginx)
+  # TAILNET-ONLY as of 2026-08-09. Grafana is an admin surface — same class as
+  # argocd — but it was public via the Cloudflare tunnel with nothing in front of
+  # it but Grafana's own login, and an admin password that is generated at
+  # creation and not vaulted. DNS now points at the MetalLB VIP instead of
+  # Cloudflare, and the ingress carries a real cert like every other tailnet host.
+  # Declared in contracts/exposure.yaml; enforced by scripts/verify-exposure.sh.
+  ingress:
     enabled: true
     ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-homelab
     hosts:
       - grafana.mateosegura.com
+    tls:
+      - hosts: [grafana.mateosegura.com]
+        secretName: grafana-tls
   grafana.ini:
     server:
       root_url: "https://grafana.mateosegura.com"
