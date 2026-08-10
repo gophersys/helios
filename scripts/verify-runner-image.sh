@@ -98,6 +98,24 @@ done
 
 sudo -n true 2>/dev/null && ok "passwordless sudo" || bad "no passwordless sudo"
 
+# THE CHECK THAT MATTERS MOST, and the one this harness did not have.
+#
+# Every other assertion passed on an image whose runner died in under a second
+# with "Must not run interactively with sudo". run.sh refuses to start as root
+# unless RUNNER_ALLOW_RUNASROOT is set, and nothing here noticed.
+#
+# This asserts the CONDITION rather than the symptom. An earlier version invoked
+# run.sh and matched its output, and that version reported PASS on an image that
+# was independently proven to refuse — under `docker run` the same image printed
+# the refusal, but inside this Job it did not. The reason is unexplained, so the
+# check does not rely on it. The condition below is what run.sh itself tests:
+#   if [ $(id -u) = 0 -a -z "$RUNNER_ALLOW_RUNASROOT" ]; then refuse
+if [ "$(id -u)" = "0" ] && [ -z "${RUNNER_ALLOW_RUNASROOT:-}" ]; then
+  bad "running as root with RUNNER_ALLOW_RUNASROOT unset — run.sh will refuse to start"
+else
+  ok "run.sh will start (root with RUNNER_ALLOW_RUNASROOT=${RUNNER_ALLOW_RUNASROOT:-n/a})"
+fi
+
 [ "$fail" -eq 0 ] && echo "ALL CHECKS PASSED" || echo "CHECKS FAILED"
 exit "$fail"
 EOF
