@@ -16,7 +16,7 @@ One org-wide [actions-runner-controller][arc] scale set:
 | Chart | `gha-runner-scale-set` 0.14.2 |
 | Capacity | `minRunners: 0`, `maxRunners: 4` |
 | Runner image | stock `ghcr.io/actions/actions-runner:latest` |
-| Container mode | `dind` — privileged Docker-in-Docker sidecar |
+| Container mode | `dind` — privileged Docker-in-Docker sidecar, pod spec written out (see below) |
 | Auth | GitHub App, secret `arc-github-app` (Bitwarden: `shared/github/arc-app`) |
 
 Scale-to-zero means a cold job waits ~30–60s for a pod. Capacity is shared across
@@ -31,6 +31,77 @@ Scale-to-zero means a cold job waits ~30–60s for a pod. Capacity is shared acr
   put it in a container image and run the job's real work inside it.
 - **Ephemeral.** Each job gets a fresh pod; nothing persists between runs except what
   you push to a registry or an `actions/cache` entry.
+
+## Sizing and placement
+
+Until 2026-08-10 the pod declared **no requests and no limits at all**. Every runner
+was best-effort: the scheduler treated four concurrent builds as free, and a runaway
+`docker build` could take a node's memory or fill its disk.
+
+Per runner pod, across both containers:
+
+| | `runner` | `dind` | pod total |
+|---|---|---|---|
+| CPU request | 500m | 500m | **1 core** |
+| CPU limit | none | none | **none** |
+| Memory request | 1Gi | 1Gi | **2Gi** |
+| Memory limit | 6Gi | 6Gi | 12Gi |
+| Ephemeral request | 2Gi | 8Gi | **10Gi** |
+| Ephemeral limit | 10Gi | 30Gi | 40Gi |
+
+At `maxRunners: 4` the fleet reserves **4 cores, 8Gi RAM and 40Gi disk** — comfortable
+against four workers of 4 cores / 14Gi.
+
+Three decisions are worth keeping:
+
+- **Size `dind`, not just `runner`.** `dind` is a native sidecar (`restartPolicy:
+  Always`), and it is where image builds actually spend CPU, memory and disk. Its
+  requests count toward the pod, so leaving it unset made the pod look free.
+- **No CPU limit, on purpose.** CFS throttling makes builds slow and intermittently
+  flaky. The request already guarantees the share; a limit only adds stalls.
+- **Ephemeral-storage requests do the real placement work.** Image layers live in the
+  `dind` container's writable layer. Declaring 10Gi per pod stops the scheduler from
+  stacking builds onto a node that has no disk left — the failure mode the memory
+  numbers would never have caught.
+
+Placement is declared, not labelled: a `nodeAffinity` `NotIn [k3s-w-4]` keeps builds
+off the USB-passthrough embedded node, and a preferred `podAntiAffinity` spreads
+concurrent runners across workers. Hostnames are used directly so nothing depends on
+a label applied by hand outside git.
+
+### Why the pod spec is written out instead of `containerMode: dind`
+
+`containerMode: dind` **generates** the pod spec and **appends** anything you add
+rather than merging it. Supplying a container named `dind` under that mode renders a
+second container with the same name, which the API server rejects. The chart's own
+values file says it plainly: *"If any customization is required for dind, containerMode
+should remain empty, and configuration should be applied to the template."*
+
+So `containerMode` is gone and `template.spec` carries the chart's documented dind spec
+verbatim plus resources, affinity and volume size limits. Verify a change before merging:
+
+```bash
+yq -r '.spec.source.helm.values' \
+  platform/services/gitops/registry/app-arc-runners-org.yaml > /tmp/v.yaml
+helm template arc-org \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
+  --version 0.14.2 -n arc-runners -f /tmp/v.yaml > /tmp/r.yaml
+yq 'select(.kind=="AutoscalingRunnerSet")' /tmp/r.yaml \
+  | kubectl apply --server-side --dry-run=server -f -
+```
+
+Check the rendered `initContainers` / `containers` names are unique. A duplicate name
+is the specific way this chart fails, and Argo will report it only after it syncs.
+
+## Roadmap
+
+| Next | What it adds | Blocked on |
+|---|---|---|
+| Custom runner image | sudo, Go, Node, Python, k3d/kind baked in — removes the `docker run` indirection | nothing |
+| Split pools (`arc-light` / `arc-org` / `arc-hardware`) | right-sized capacity per job class; labels, not runner groups (Free plan has none) | nothing |
+| **Mac mini runner** | macOS builds, **iOS and Android** via two phones on USB with full device control | phones not connected yet (2026-08-10) — the machine is `macbook-mini` in `contracts/access.yaml` |
+| Windows VM runner on `pve-03` | Windows builds | licence choice |
+| Argo on the cloud cluster | closes debt D18 | nothing |
 
 ## Onboarding a repo
 
