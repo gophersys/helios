@@ -101,6 +101,12 @@ spec:
                   - --host=unix:///var/run/docker.sock
                   - --group=$(DOCKER_GROUP_GID)
                 env:
+                  # The gid dockerd gives the socket. The RUNNER IMAGE must put its
+                  # user in this group or every job that touches docker fails with
+                  # "permission denied ... unix:///var/run/docker.sock" — and only
+                  # once a job actually uses docker, long after the image builds.
+                  # Mirrored as DOCKER_GROUP_GID in .devcontainer/runner/Dockerfile,
+                  # which asserts membership at build time. Change both together.
                   - name: DOCKER_GROUP_GID
                     value: "123"
                 securityContext:
