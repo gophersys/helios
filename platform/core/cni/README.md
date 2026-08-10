@@ -1,15 +1,16 @@
 # platform/core/cni
 
-Pod networking. Installed first on every cluster — nothing else runs without
-a CNI plugin.
+Pod networking. It is installed first on every cluster, because nothing else runs
+without a CNI plugin.
 
 ## Default implementation
 
-**Cilium** (Helm chart: `cilium/cilium`). Chosen because:
-- eBPF-based datapath is fast and observable.
-- Native support for NetworkPolicy + cluster-wide L7 policies.
-- Hubble observability pairs well with our `platform/services/observability/`.
-- Works on kubeadm, k3s, OKE, EKS, AKS without custom bootstrap.
+**Cilium**, from the Helm chart `cilium/cilium`. We chose it for 4 reasons:
+- Its datapath is based on eBPF, so it is fast and you can observe it.
+- It supports NetworkPolicy and cluster-wide L7 policies natively.
+- Its Hubble observability works well with our
+  `platform/services/observability/`.
+- It works on kubeadm, k3s, OKE, EKS and AKS with no custom bootstrap.
 
 ## Fulfills
 - Implicit: all pod-to-pod networking. No app-visible contract.

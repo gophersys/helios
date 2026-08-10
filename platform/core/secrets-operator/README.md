@@ -1,18 +1,19 @@
 # platform/core/secrets-operator
 
-External Secrets Operator (ESO) with the Bitwarden Secrets Manager provider.
-Apps declare `ExternalSecret` CRs; ESO materializes Kubernetes `Secret`
-objects from the Bitwarden vault.
+The External Secrets Operator (ESO) with the Bitwarden Secrets Manager provider.
+An app declares an `ExternalSecret` CR, and ESO materializes a Kubernetes
+`Secret` object from the Bitwarden vault.
 
 ## Default implementation
 
-**external-secrets** (Helm chart: `external-secrets/external-secrets`) +
-**Bitwarden Secrets Manager backend** (separate chart/CRDs for the SDK).
+**external-secrets**, from the Helm chart
+`external-secrets/external-secrets`, plus the **Bitwarden Secrets Manager
+backend**, which has its own chart and CRDs for the SDK.
 
-Per-cluster:
-- One `ClusterSecretStore` pointing at the tenant Bitwarden organization.
-- A cluster-bootstrap secret holding the ESO service-account access token
-  (provisioned out-of-band; see `docs/secrets-guide.md`).
+For each cluster:
+- 1 `ClusterSecretStore` that points at the Bitwarden organization of the tenant.
+- 1 cluster-bootstrap secret that holds the access token of the ESO service
+  account. You provision it outside this repo. See `docs/secrets-guide.md`.
 
 ## Fulfills
 - `contracts/secrets.md` — how apps request Bitwarden items as Kubernetes
@@ -27,10 +28,10 @@ Per-cluster:
 
 STUB.
 
-## TODO (when populating)
-- Pin ESO chart version.
-- Wire the Bitwarden SDK container (runs as a sidecar to ESO).
-- Document `ExternalSecret` canonical shape — what labels/annotations the
-  chart archetypes expect.
-- Decide on refresh interval (default 1h for app secrets, 5m for cert-bearing
-  secrets).
+## TODO, when we populate this component
+- Pin the version of the ESO chart.
+- Wire the Bitwarden SDK container. It runs as a sidecar to ESO.
+- Document the canonical shape of an `ExternalSecret`: the labels and the
+  annotations that the chart archetypes expect.
+- Decide the refresh interval. The default is 1h for an app secret, and 5m for a
+  secret that carries a certificate.

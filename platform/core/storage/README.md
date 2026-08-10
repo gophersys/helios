@@ -1,45 +1,51 @@
 # platform/core/storage
 
-Persistent volume provisioning. Without this, stateful workloads can't schedule.
+The provisioning of persistent volumes. Without it, a stateful workload cannot
+schedule.
 
 ---
 
-## Deployed today (homelab) — the source of truth
+## What is deployed today on the homelab — the source of truth
 
-Two provisioners run side by side:
+2 provisioners run at the same time:
 
-- **local-path** (k3s default) — node-local volumes for data that is either
-  re-downloadable or already node-pinned (the whole `media` + `embedded-lab`
-  stacks use this deliberately; a lost node just re-pulls).
-- **Longhorn v1.12.0** — replicated (3-replica) storage for volumes that must
-  survive a node. In use by `observability` (grafana/prometheus/loki/tempo).
-  Installed via **raw upstream manifests (`kubectl apply`)**, not Helm — its
-  pinned version + reinstall command are tracked in `docs/debt-register.md` (D9);
-  the staged 1.7.2→1.12.0 upgrade runbook is `docs/runbooks/longhorn-upgrade.md`.
+- **local-path**, the k3s default. It gives node-local volumes for data that you
+  can download again, or that is already pinned to a node. The whole `media`
+  stack and the whole `embedded-lab` stack use it deliberately. If a node is
+  lost, the data is pulled again.
+- **Longhorn v1.12.0**. It gives replicated storage with 3 replicas, for a volume
+  that must survive the loss of a node. `observability` uses it for grafana,
+  prometheus, loki and tempo. It is installed from the **raw upstream manifests
+  with `kubectl apply`**, not with Helm. `docs/debt-register.md` (D9) tracks its
+  pinned version and the command to install it again. The runbook for the staged
+  upgrade from 1.7.2 to 1.12.0 is `docs/runbooks/longhorn-upgrade.md`.
 
-**Backups:** Longhorn's `BackupTarget/default` writes to in-cluster **MinIO**
-(`apps/minio/`, hostPath NVMe on k3s-w-1 — off-Longhorn by design). Separately, a
-daily `config-backup` CronJob tars the media config PVCs to the NVMe.
+**Backups:** the `BackupTarget/default` of Longhorn writes to the in-cluster
+**MinIO** (`apps/minio/`, a hostPath on the NVMe of k3s-w-1, off Longhorn by
+design). Separately, a daily `config-backup` CronJob writes a tar of the media
+config PVCs to the NVMe.
 
-> Note: this cluster does **not** use the `standard`/`fast`/`replicated`
-> StorageClass naming below — that's the multi-cluster target convention, not
-> what k3s ships. `local-path` and `longhorn` are the live StorageClasses.
+> Note: this cluster does **not** use the StorageClass names `standard`, `fast`
+> and `replicated` that the section below describes. Those names are the target
+> convention for many clusters, and they are not what k3s ships. The live
+> StorageClasses are `local-path` and `longhorn`.
 
 ---
 
-## Target design (multi-cluster, not yet deployed)
+## Target design (for many clusters, not deployed yet)
 
-StorageClass naming convention (stable across future clusters):
-- `standard` — default, balanced perf/cost
-- `fast` — SSD/NVMe, high IOPS
-- `replicated` — HA-replicated (Longhorn) when available
+The naming convention for a StorageClass, stable across every future cluster:
+- `standard` — the default, with a balance of performance and cost
+- `fast` — SSD or NVMe, with high IOPS
+- `replicated` — replicated for HA, through Longhorn, where Longhorn is available
 
-Per-substrate: k3s → local-path + Longhorn; managed clusters (EKS/OKE/AKS) → the
-cloud's native CSI driver.
+Per substrate: k3s uses local-path and Longhorn. A managed cluster (EKS, OKE or
+AKS) uses the native CSI driver of its cloud.
 
-## Fulfills
-- Implicit: PVC/StorageClass API. No app-visible contract file (K8s standard).
+## Contracts fulfilled
+- Implicit: the PVC and StorageClass API. There is no contract file that an app
+  sees, because this is a Kubernetes standard.
 
-## TODO (when a prod cluster bootstraps)
-- Write per-cluster StorageClass overlays mapping the names above onto the
-  substrate's provisioner.
+## TODO, when a prod cluster bootstraps
+- Write a StorageClass overlay for each cluster. It maps the names above onto the
+  provisioner of that substrate.

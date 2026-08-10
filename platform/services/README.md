@@ -1,8 +1,8 @@
 # platform/services
 
-Opt-in, version-pinned shared services. Each cluster declares in its
-`identity.yaml` which services it consumes; cluster-specific overrides live
-under `clusters/instances/<c>/overlays/services/<path>/values.yaml`.
+The opt-in shared services, with a pinned version. Each cluster declares the
+services that it consumes in its `identity.yaml`. The overrides for that cluster
+live under `clusters/instances/<c>/overlays/services/<path>/values.yaml`.
 
 | Service              | Provides                                   |
 |----------------------|--------------------------------------------|
@@ -11,14 +11,14 @@ under `clusters/instances/<c>/overlays/services/<path>/values.yaml`.
 | `databases/`         | PostgreSQL (cnpg), Redis                   |
 | `messaging/`         | NATS JetStream                             |
 | `registry/`          | Internal OCI registry (optional)           |
-| `admin-dashboard/`   | Single pane of glass for the fleet         |
+| `admin-dashboard/`   | One view of every machine and cluster      |
 | `identity-sso/`      | Dex/Keycloak SSO (future)                  |
 | `backup/`            | Velero                                     |
 | `cost/`              | OpenCost                                   |
 
-## Contract linkage
+## The link to the contracts
 
-Apps never consume services directly — they go through `contracts/`:
+An app never consumes a service directly. It goes through `contracts/`:
 - `contracts/observability.md` → fulfilled by `services/observability/`
 - `contracts/secrets.md` → fulfilled by `core/secrets-operator/`
 - `contracts/databases.md` → fulfilled by `services/databases/*`
@@ -26,8 +26,8 @@ Apps never consume services directly — they go through `contracts/`:
 - `contracts/identity.md` → fulfilled by `services/identity-sso/`
 - `contracts/messaging.md` → fulfilled by `services/messaging/*`
 
-Swapping implementations (e.g. Postgres → Neon, NATS → Redis Streams) is
-transparent to apps as long as the contract is preserved.
+A change of implementation, for example from Postgres to Neon, or from NATS to
+Redis Streams, is invisible to an app while the contract stays the same.
 
 ## Status
 
