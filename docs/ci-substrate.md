@@ -131,6 +131,25 @@ forever with no error — the documented failure mode in `ci-runners.md`. A
 cosmetic rename is not worth that. Pools added from here are named for capability
 from the start.
 
+### What a runner image must provide
+
+A pool's image is not just "the dev image with a runner binary". It has to satisfy
+a small contract, and every item on this list is here because breaking it produced
+a failure that was invisible until a job ran:
+
+| Requirement | Why | Where it is asserted |
+| --- | --- | --- |
+| The runner installed at `/home/runner` | the ARC chart mounts `work` and `dind-externals` there, so the stock layout needs no special-casing in the pod spec | — |
+| `/home/runner` owned by the runner user | the runner writes `.runner` and `.credentials` there at registration; root ownership fails every pod | build-time `stat` assertion + `.ci/smoke.sh` |
+| The user in gid **123** | the dind sidecar runs `dockerd --group=$DOCKER_GROUP_GID`; a user outside it cannot reach the socket | build-time `id -G` assertion + `.ci/smoke.sh` |
+| `init-dind-externals` uses the **same** image | it seeds `/home/runner/externals`, which is the runner's bundled Node; a mismatched pair ships the wrong Node to every JavaScript action | reviewed in the manifest |
+| Any CI tool a contract names, on `PATH` | a generated workflow calling a missing binary fails in the consuming repo, far from the image that omitted it | `.ci/smoke.sh` |
+
+The pattern: **assert it in the image build, because the alternative is finding out
+in someone else's repository.** A plain `docker run` smoke test cannot catch the
+docker-group case — there is no dind socket to fail against — so that one is
+checked by inspecting group membership directly rather than by using docker.
+
 ### The `+ runner` layer
 
 One parameterized Dockerfile, not one per image:
