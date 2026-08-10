@@ -56,7 +56,7 @@ Gaps against the five target domains:
 ## The measured constraints
 
 Everything below was verified on 2026-08-10 by running a probe workflow against
-`arc-org`, not inferred.
+`arc-org`, not inferred. The probe has been removed; these are its results.
 
 ### 1. Job containers work on ARC — but they are not cached
 
@@ -106,7 +106,7 @@ Actions.
 
 | Pool | Runner image | Physical capability | State |
 | --- | --- | --- | --- |
-| `arc-base` | `base` + runner | linux/amd64, general build | **planned** (today: `arc-org`, stock image) |
+| `arc-org` | `base-runner` | linux/amd64, general build | **live** |
 | `arc-zephyr` | `zephyr` + runner | linux/amd64 | planned |
 | `arc-kicad` | `kicad` + runner | linux/amd64 | planned |
 | `arc-flutter` | `flutter` + runner | linux/amd64, Android emulator needs KVM | planned |
@@ -121,6 +121,15 @@ them fast, and the kubelet caches the **pod's** image.
 
 `arc-usb` and `arc-arm64` are the pools that are genuinely physical: a USB device
 and a CPU architecture cannot be installed.
+
+**On the name `arc-org`.** It describes ownership, not capability, so by this
+document's own rule it should be `arc-base`. It is not being renamed.
+`runnerScaleSetName` *is* the `runs-on` label and a scale set has exactly one, so
+there is no aliasing and no overlap window. Seventeen workflow references across
+five repos point at `arc-org`, and a label no pool answers makes a job queue
+forever with no error — the documented failure mode in `ci-runners.md`. A
+cosmetic rename is not worth that. Pools added from here are named for capability
+from the start.
 
 ### The `+ runner` layer
 
@@ -166,19 +175,32 @@ device-attached test and release signing.
 
 Each step is independently useful and independently verifiable.
 
-1. **Add `kubeconform` to `base`** — the smallest proof that CI can consume a dev
-   image. It deletes the "Install tools (no sudo)" block from `validate.yml`.
-2. **Build the `+ runner` layer** and republish `base-runner`.
-3. **Add the `imagePullSecret`** to `arc-runners` from Vaultwarden via ESO.
-4. **Rename `arc-org` to `arc-base`** and point it at `base-runner`. Prove
-   `validate.yml` passes with no tool-install step.
+1. ~~**Add `kubeconform` to `base`.**~~ Done 2026-08-10.
+2. ~~**Build the `+ runner` layer.**~~ Done — `runner/Dockerfile` in
+   `.devcontainer`, one Dockerfile per parent via `BASE_IMAGE`.
+3. ~~**Add the `imagePullSecret`**~~ Done — `ghcr-pull`, ESO from
+   `shared/github/pat-godmode` (debt D24).
+4. ~~**Point the pool at `base-runner`**~~ Done — `arc-org` runs
+   `ghcr.io/gophersys/base-runner`, and `validate.yml` has no tool-install step.
 5. **Fold `hardware-ci` into `.devcontainer/kicad`**, then add `arc-kicad`.
 6. **Add `arc-zephyr` and `arc-usb`** (`arc-usb` pinned to `k3s-w-4`).
 7. **Mac mini** — macOS, iOS, and Android over USB. Blocked on the phones.
 8. **Windows VM** on `pve-03`. Blocked on a licence decision.
 
-Steps 1–4 are the load-bearing ones: they prove dev/CI parity end to end. Nothing
-after step 4 introduces a new idea.
+Steps 1–4 were the load-bearing ones: they prove dev/CI parity end to end.
+Nothing after step 4 introduces a new idea — each is one image and one pool,
+following the same two files.
+
+## Adding a pool
+
+1. Add a CI job in `.devcontainer/.github/workflows/build-and-push.yml` that
+   builds `runner/Dockerfile` with `BASE_IMAGE` set to the new parent, and add
+   the image to `BUILD_ORDER` in both `ctl.sh` files.
+2. Copy `platform/services/gitops/registry/app-arc-runners-org.yaml`, change
+   `runnerScaleSetName`, the two image references, and any node affinity the
+   physical capability requires.
+3. Name it for the capability, never for the owner.
+4. Prove it with a real job before pointing a repo's default at it.
 
 ## What this replaces
 

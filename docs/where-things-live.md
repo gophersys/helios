@@ -94,6 +94,23 @@ Metrics and logs do not need to outlive the house. If homelab observability come
 back, put it at home and reconcile it with Argo. Until then `obsv.mateosegura.com`
 is the only Grafana, and it is fine where it is.
 
+## Personal work — `gophersys/home`
+
+`gophersys/home` holds everything of Mateo's that is not a platform product:
+sites, documents, records, one-off tools. It is reconciled by the same Argo onto
+the same homelab cluster, and its CI runs on the same `arc-org` pool.
+
+It is a repo in the **org**, not on the personal account, because a self-hosted
+runner registers at repository, organization or enterprise scope — there is no
+user-account scope. A personally-owned repo could never use `arc-org`; the only
+alternatives were one ARC scale set per repo, or GitHub-hosted runners and the
+loss of dev/CI parity.
+
+The split with this repo: **content lives with the thing it belongs to; the
+declaration of what is deployed stays here.** `rayne.mateosegura.com` is the
+first case — its page and manifests live in `home`, while the Argo `Application`
+that deploys them stays in `platform/services/gitops/registry/`.
+
 ## Related
 
 - `contracts/exposure.yaml` — every hostname and its exposure class
