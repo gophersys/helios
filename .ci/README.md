@@ -1,11 +1,10 @@
 # .ci — CI orchestration layer
 
-This directory owns **everything that spans more than one image** in the
-gophersys/.devcontainer repo. Individual images live under `<name>/`
-and each carries its own `ctl.sh` + `project.json` + `Dockerfile`. The
-repo-level `ctl.sh` delegates to those per-image scripts. This layer sits one
-level above that and is the only entrypoint that should ever appear in a CI
-pipeline YAML.
+This directory owns **every operation that acts on more than 1 image** in the
+gophersys/.devcontainer repository. Each image has its own directory `<name>/`
+with its own `ctl.sh` + `project.json` + `Dockerfile`. The repository-level
+`ctl.sh` delegates to those per-image scripts. This layer is 1 level above
+them. It is the only entrypoint that should appear in a CI pipeline YAML.
 
 ## Layout
 
@@ -23,7 +22,8 @@ pipeline YAML.
 
 ## Invocation contract
 
-Every verb is shape-stable — no env vars, no flags. The verb IS the interface.
+Every verb has the same shape. There is no environment variable and no flag.
+The verb is the interface.
 
 ```
 bash .ci/ctl.sh <verb>
@@ -40,7 +40,7 @@ bash .ci/ctl.sh <verb>
 
 ## Nx integration
 
-All verbs are also exposed as Nx targets in `.ci/project.json`:
+`.ci/project.json` also exposes every verb as an Nx target:
 
 ```
 nx run ci-devcontainer:ci-.devcontainer-validate
@@ -50,15 +50,16 @@ nx run ci-devcontainer:ci-.devcontainer-push-all
 nx run ci-devcontainer:ci-.devcontainer-smoke-test-all
 ```
 
-## Why a separate layer?
+## Why this layer is separate
 
-Historically each image had its own `ctl.sh` and the repo-level `ctl.sh`
-delegated to those. That works for per-image operations (`build base`,
-`push flutter`) but provides no place for operations that act on **all**
-images as a set — which is exactly what CI needs to do on every push to `main`.
+In the past each image had its own `ctl.sh`, and the repository-level `ctl.sh`
+delegated to them. That structure works for an operation on 1 image
+(`build base`, `push flutter`). It gives no place for an operation that acts on
+**all** the images as a set. CI must do such an operation on every push to
+`main`.
 
-`.ci/ctl.sh` fills that gap: it knows the dependency order, it knows that
-`push-all` means "buildx --push all three, fail on any", and it knows the
-post-build smoke test is not the same as the per-image build. It is the
-contract CI pipelines consume. It is also the contract local devs consume
-when they want to mirror the CI behavior on their own laptop.
+`.ci/ctl.sh` supplies that place. It knows the dependency order. It knows that
+`push-all` does `buildx --push` on all 3 images and fails if 1 image fails. It
+knows that the smoke test after the build is not the same as the build of 1
+image. It is the contract that a CI pipeline uses. It is also the contract that
+a local developer uses to get the same behavior as CI on a personal computer.
