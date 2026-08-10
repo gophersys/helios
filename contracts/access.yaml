@@ -17,7 +17,6 @@
 #   tailscale-ssh   over the tailnet by identity — no key, no password
 #   ssh-key         local private key at `key:`
 #   password        vault item at `secret:` — break-glass, not the happy path
-#   ec2-connect     AWS EC2 Instance Connect pushes a 60s key
 #   local           this machine
 
 machines:
@@ -55,13 +54,3 @@ machines:
   # ---- cloud (OCI, tag:cloud) ----
   server-00: { address: 100.72.160.20,  user: ubuntu, method: tailscale-ssh, role: "OCI control-plane + etcd (k8s node name is still code-kit-server)" }
   agent-00:  { address: 100.81.203.110, user: ubuntu, method: tailscale-ssh, role: "OCI worker — Vaultwarden + all storage" }
-
-  # ---- AWS ----
-  arm-builder:
-    address: dynamic          # public IP changes on every start — never hardcode
-    user: ubuntu
-    method: ec2-connect
-    secret: shared/ssh/arm-builder
-    instance_id: i-01850352f2d1f2e63
-    region: us-west-2
-    role: "Graviton aarch64 builder — normally STOPPED; 50GiB gp3 bills regardless"

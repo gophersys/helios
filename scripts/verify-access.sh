@@ -48,8 +48,6 @@ for m in $(names); do
     local)
       hn="$(hostname)"
       printf '  %s %-13s %-14s %s\n' "$(grn PASS)" "$m" "$method" "$hn"; pass=$((pass+1)) ;;
-    ec2-connect)
-      printf '  %s %-13s %-14s on-demand: start + push key, see %s\n' "$(ylw SKIP)" "$m" "$method" "$(get "$m" secret)"; skip=$((skip+1)) ;;
     tailscale-ssh|ssh-key)
       out="$(probe "$user" "$addr")"
       if [ -z "$out" ]; then
