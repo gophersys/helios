@@ -130,7 +130,7 @@ function render_populated() {
     for cat in "${CATEGORIES[@]}"; do
       header_written=false
       local entry rel name os purpose ts status
-      for entry in "${HOSTS[@]}"; do
+      for entry in ${HOSTS[@]+"${HOSTS[@]}"}; do
         [[ "$entry" == "$cat/"* ]] || continue
         if ! $header_written; then
           printf '## %s\n\n' "$cat"
@@ -158,7 +158,7 @@ function render_populated() {
   local dev_active=0 dev_planned=0 dev_retired=0
   local svc_active=0 svc_planned=0 svc_retired=0
   local entry cat rel status
-  for entry in "${HOSTS[@]}"; do
+  for entry in ${HOSTS[@]+"${HOSTS[@]}"}; do
     cat="${entry%%/*}"
     rel="${entry#*/}"
     status="$(yaml_field "$MACHINES_DIR/$cat/$rel/identity.yaml" status)"

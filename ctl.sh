@@ -41,21 +41,25 @@ function require_cmd() {
 }
 
 # -------- cleanup --------
+# NOTE: the ${arr[@]+"${arr[@]}"} form below is deliberate. Under `set -u`,
+# bash 3.2 (the macOS system bash) treats "${empty[@]}" as an unbound variable
+# and aborts. CI runs bash 5 where it is fine, so the failure only ever showed
+# up locally — after on_exit had already printed a success line.
 TMPFS_MOUNTS=()
 BG_PIDS=()
 SENSITIVE_VARS=()
 
 function on_exit() {
   local rc=$?
-  for pid in "${BG_PIDS[@]}"; do
+  for pid in ${BG_PIDS[@]+"${BG_PIDS[@]}"}; do
     kill "$pid" 2>/dev/null || true  # already exited — expected
   done
-  for mnt in "${TMPFS_MOUNTS[@]}"; do
+  for mnt in ${TMPFS_MOUNTS[@]+"${TMPFS_MOUNTS[@]}"}; do
     if mountpoint -q "$mnt" 2>/dev/null; then
       umount "$mnt" 2>/dev/null || log_warn "failed to unmount $mnt"
     fi
   done
-  for var in "${SENSITIVE_VARS[@]}"; do
+  for var in ${SENSITIVE_VARS[@]+"${SENSITIVE_VARS[@]}"}; do
     unset "$var"
   done
   return "$rc"
