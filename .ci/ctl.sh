@@ -128,6 +128,19 @@ function cmd_updatability() {
   cictl updatability -C "$REPO_ROOT" "$@"
 }
 
+# ci-drift — re-render the workflows from the contract and fail if the committed
+# files differ. This is the gate that makes the "DO NOT EDIT" banner true: without
+# it, a hand-edit to a generated workflow is invisible and the contract silently
+# stops being the source of truth.
+#
+# It runs in the pr tier so a hand-edit fails the pull request that introduced it,
+# rather than surfacing later as an unexplained difference between repos.
+function cmd_ci_drift() {
+  require_cmd cictl
+  log_info "ci-drift: generated workflows match .ci/ci.contract.yaml"
+  cictl drift -C "$REPO_ROOT" "$@"
+}
+
 # ── existing meta verbs (preserved) ──────────────────────────────────────────
 function cmd_validate() {
   bash "$REPO_ROOT/ctl.sh" validate "$@"
@@ -172,6 +185,7 @@ affected-gate-fast
 affected-gate-substrate
 gate-all
 updatability
+ci-drift
 validate
 status
 release-check
@@ -187,6 +201,7 @@ Tier verbs (referenced by .ci/ci.contract.yaml; uniform local & remote):
   affected-gate-substrate  integration/lifecycle/load on real docker+k3d+kind (merge tier)
   gate-all                 phase-gate all (1->4) over affected projects (nightly tier)
   updatability             pinned-version matrix from the contract toolMatrix (nightly tier)
+  ci-drift                 generated workflows still match the contract (pr tier)
 
 Meta verbs:
   validate       Delegates to repo-level ctl.sh validate
@@ -204,6 +219,7 @@ function main() {
     affected-gate-substrate)  cmd_affected_gate_substrate  "$@" ;;
     gate-all)                 cmd_gate_all                 "$@" ;;
     updatability)             cmd_updatability             "$@" ;;
+    ci-drift)                 cmd_ci_drift                 "$@" ;;
     validate)                 cmd_validate                 "$@" ;;
     status)                   cmd_status                   "$@" ;;
     release-check)            cmd_release_check            "$@" ;;

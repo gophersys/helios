@@ -19,14 +19,8 @@ jobs:
   # The exhaustive lane: every nightly-tier verb on the full substrate, on a schedule.
   nightly:
     name: nightly tier (gate-all, updatability)
-    runs-on: ubuntu-latest
+    runs-on: arc-org
     timeout-minutes: 90
-    container:
-      image: ghcr.io/gophersys/base:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-      options: --privileged -v /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4

@@ -18,20 +18,19 @@ permissions:
 jobs:
   # Post-merge re-check: the pr-tier verbs over what the push changed.
   pr:
-    name: pr tier (affected-gate-fast)
-    runs-on: ubuntu-latest
+    name: pr tier (ci-drift, affected-gate-fast)
+    runs-on: arc-org
     timeout-minutes: 15
-    container:
-      image: ghcr.io/gophersys/base:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
+      - name: bash .ci/ctl.sh ci-drift
+        env:
+          NX_BASE: origin/main~1
+        run: bash .ci/ctl.sh ci-drift
       - name: bash .ci/ctl.sh affected-gate-fast
         env:
           NX_BASE: origin/main~1
