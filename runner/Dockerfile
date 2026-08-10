@@ -107,7 +107,12 @@ RUN if getent group "${DOCKER_GROUP_GID}" >/dev/null 2>&1; then \
 # builds an image, and Free has no org secrets for private repos to share one.
 # Go is already in the parent image, so this is a build-time-only use of it.
 USER root
-RUN GOTOOLCHAIN=local GOBIN=/usr/local/bin \
+# CGO_ENABLED=0 is required, not merely tidy. This image is built multi-arch, so
+# the arm64 layer runs under QEMU with an x86 toolchain; a cgo build there hands
+# arm64 assembly to an x86 assembler and dies with "no such instruction: stp".
+# cictl is pure Go -- yaml and jsonschema, nothing native -- so a static binary
+# is both buildable and the better artifact for a CI tool.
+RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
       go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}" \
  && chmod 0755 /usr/local/bin/cictl \
  && rm -rf /root/go /root/.cache/go-build
