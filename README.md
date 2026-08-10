@@ -1,46 +1,55 @@
 # eden
 
-Eden is a platform for building and operating software with AI agents. You describe what you
-want; Eden turns it into documents, the documents into a working system, and keeps that system
-deployed, observed, and maintained — while you make decisions instead of supervising agents.
+Eden is a platform to build software with AI agents and to operate it. You describe what you
+want. Eden turns your description into documents, then turns the documents into a working system.
+Eden keeps that system deployed, observed and maintained. You make the decisions. You do not
+supervise the agents.
 
-This repo is Eden being built — by the same process Eden will offer its users.
+This repository is the build of Eden. It uses the same process that Eden will give to its users.
 
-## Overwhelmed? Read only this section
+## If this is too much, read only this section
 
 The whole system is one loop:
 
-1. **You talk** → an agent writes it down as structured documents (requirements, workflows).
-2. **You approve** the documents (or mark them up — they version like code).
-3. **Agents build** against frozen contracts, in isolated workspaces, in parallel.
-4. **Machines verify** in clean rooms — agents never grade their own work.
-5. **You rule at gates** — short, queued decisions. Never live supervision.
-6. Repeat. Every artifact traces back to something you said.
+1. **You speak.** An agent writes your words as structured documents: requirements and workflows.
+2. **You approve the documents**, or you mark them up. The documents have versions, like code.
+3. **The agents build.** They work against frozen contracts, in isolated workspaces, at the same
+   time.
+4. **The machines verify the work** in clean rooms. An agent never verifies its own work.
+5. **You decide at the gates.** The decisions are short and they wait in a queue. You never
+   supervise the work in real time.
+6. Then the loop starts again. Every artifact traces back to something that you said.
 
-Everything in `docs/` exists to make that loop trustworthy. You do not need to read most of it.
+Everything in `docs/` makes that loop trustworthy. You do not need to read most of it.
 
-**Your three documents** (≈30 min total): [`docs/architecture/00-charter.md`](docs/architecture/00-charter.md)
-(what and why) · [`docs/architecture/06-dogfooding-bootstrap.md`](docs/architecture/06-dogfooding-bootstrap.md)
-(how it gets built) · [`docs/architecture/09-build-execution-plan.md`](docs/architecture/09-build-execution-plan.md)
-(what's next, §8 = the build list).
+**Your 3 documents** (about 30 minutes in total):
 
-**Your browser front door:** generate and open `docs/eden-atlas.html`
-(`node docs/tools/render-atlas.mjs`) — diagrams, reading paths, every open question in one place.
+- [`docs/architecture/00-charter.md`](docs/architecture/00-charter.md) — what Eden is and why.
+- [`docs/architecture/06-dogfooding-bootstrap.md`](docs/architecture/06-dogfooding-bootstrap.md) —
+  how Eden gets built.
+- [`docs/architecture/09-build-execution-plan.md`](docs/architecture/09-build-execution-plan.md) —
+  what comes next. §8 is the build list.
 
-**Everything else is reference.** It exists so agents and future sessions stay consistent — it is
-written *to be consulted, not read*. Treat it like a law library, not a novel.
+**The browser view:** generate `docs/eden-atlas.html` with `node docs/tools/render-atlas.mjs`,
+then open it. It holds the diagrams, the reading paths and every open question in one place.
 
-## The five kinds of documents (and that's all there are)
+**Everything else is reference material.** It keeps the agents and the later sessions consistent.
+Read only the part that you need at the time. Do not read it from start to end.
+
+## The 5 kinds of documents
+
+There are no other kinds.
 
 | Kind | Where | In one line |
 |---|---|---|
-| Canonical specs | `docs/architecture/` | The decided truth. Numbered 00–12 + decision records (ADRs). Conflicts resolve here. |
-| Research notes | `docs/research/` | Dated findings with sources. Promoted into specs, never edited. |
-| Upstream corpus | `docs/upstream/` | The pre-Eden research this all grew from. Imported verbatim, consulted rarely. |
-| Project documents | `documents/` | Eden's own product docs — what *you* asked for, schema-checked, versioned through gates. |
-| Attic | `docs/attic/` | Superseded material, preserved verbatim. Never authority. |
+| Canonical specs | `docs/architecture/` | The decisions that are made. The files are numbered 00–12, with the decision records (ADRs). A conflict is resolved here. |
+| Research notes | `docs/research/` | Findings with a date and the sources. They move into the specs. Never edit them. |
+| Upstream corpus | `docs/upstream/` | The research from before Eden. Imported without a change. Consulted rarely. |
+| Project documents | `documents/` | The product documents of Eden. They hold what *you* asked for. A schema checks them. They get a version at each gate. |
+| Attic | `docs/attic/` | Superseded material, kept without a change. Never an authority. |
 
-Directory `README.md`s orient; they never decide. The full rules: [`docs/README.md`](docs/README.md).
+A directory `README.md` gives orientation. It never makes a decision. The full rules are in
+[`docs/README.md`](docs/README.md).
 
 ## Layout
 
@@ -55,8 +64,9 @@ eden/
 └── libs/ infrastructure/ .devcontainer/   # submodules
 ```
 
-## Repo mechanics
+## Repository mechanics
 
-Clone with `git submodule update --init --recursive`. CI: `bash .ci/ctl.sh affected-check`
-(no-ops until `yarn install`). Conventions, naming law, and agent rules live in
-[`CLAUDE.md`](CLAUDE.md); the canonical naming standard is `docs/architecture/10-library-system.md` §5.
+Clone the repository with `git submodule update --init --recursive`. The CI command is
+`bash .ci/ctl.sh affected-check`, and it does nothing until you run `yarn install`.
+[`CLAUDE.md`](CLAUDE.md) holds the conventions, the naming law and the agent rules. The canonical
+naming standard is `docs/architecture/10-library-system.md` §5.
