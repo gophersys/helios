@@ -83,7 +83,33 @@ RUN case "${TARGETPLATFORM}" in \
 # NOTE: no --version smoke here — the runner binary is cross-arch and fails under
 # QEMU. `.ci/smoke.sh` verifies it on a native runner after the push.
 
+# cictl — the CI contract tool. It lives HERE and not in `base` because the image
+# that needs a tool is the image that gets it: cictl generates and drift-checks
+# workflows, which is a CI concern, and `base` stays a dev environment. It also
+# keeps this layer's ~2 minute rebuild instead of base's hour.
+#
+# gophersys/cictl is public precisely so this needs no credential: a private
+# module would have forced GOPRIVATE plus a build-time token in every repo that
+# builds an image, and Free has no org secrets for private repos to share one.
+# Go is already in the parent image, so this is a build-time-only use of it.
+USER root
+# CGO_ENABLED=0 is required, not merely tidy. This image is built multi-arch, so
+# the arm64 layer runs under QEMU with an x86 toolchain; a cgo build there hands
+# arm64 assembly to an x86 assembler and dies with "no such instruction: stp".
+# cictl is pure Go -- yaml and jsonschema, nothing native -- so a static binary
+# is both buildable and the better artifact for a CI tool.
+RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
+      go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}" \
+ && chmod 0755 /usr/local/bin/cictl \
+ && rm -rf /root/go /root/.cache/go-build
+
 # Put the runner user in the docker group so it can reach the dind socket.
+#
+# THIS IS THE LAST MUTATION IN THE IMAGE, ON PURPOSE. When it sat earlier in the
+# file, its assertion passed during the build and the published image still held
+# `docker:x:123:root` with no `dev`: a later cached layer carried an older copy of
+# /etc/group in its snapshot diff and reverted the change. Nothing may follow this
+# step, so nothing can undo it.
 #
 # The check reads /etc/group, NOT `id -G`. `id -G` reports the groups of the
 # CURRENT process, which is not the same thing as the group file in the image:
@@ -104,26 +130,6 @@ RUN if getent group "${DOCKER_GROUP_GID}" >/dev/null 2>&1; then \
       getent group "${DOCKER_GROUP_GID}"; \
       exit 1; \
     fi
-
-# cictl — the CI contract tool. It lives HERE and not in `base` because the image
-# that needs a tool is the image that gets it: cictl generates and drift-checks
-# workflows, which is a CI concern, and `base` stays a dev environment. It also
-# keeps this layer's ~2 minute rebuild instead of base's hour.
-#
-# gophersys/cictl is public precisely so this needs no credential: a private
-# module would have forced GOPRIVATE plus a build-time token in every repo that
-# builds an image, and Free has no org secrets for private repos to share one.
-# Go is already in the parent image, so this is a build-time-only use of it.
-USER root
-# CGO_ENABLED=0 is required, not merely tidy. This image is built multi-arch, so
-# the arm64 layer runs under QEMU with an x86 toolchain; a cgo build there hands
-# arm64 assembly to an x86 assembler and dies with "no such instruction: stp".
-# cictl is pure Go -- yaml and jsonschema, nothing native -- so a static binary
-# is both buildable and the better artifact for a CI tool.
-RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
-      go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}" \
- && chmod 0755 /usr/local/bin/cictl \
- && rm -rf /root/go /root/.cache/go-build
 
 # Identifies the image to anything that inspects it, the same way the dev images
 # do. `-runner` is appended so a job can tell CI from an interactive session.
