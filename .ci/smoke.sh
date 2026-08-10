@@ -141,6 +141,8 @@ test -w /home/runner/_work
 # when the image is correct. /etc/group is the image's own record.
 getent group 123 | cut -d: -f4 | tr "," "\n" | grep -qx dev || {
   echo "FAIL: dev is not a member of gid 123 in /etc/group"; getent group 123; exit 1; }
+# node must resolve in a NON-login shell: CI jobs run bash, not an interactive zsh.
+command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
 echo "--- CI tooling ---"
 cictl help >/dev/null
 command -v cictl

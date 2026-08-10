@@ -531,6 +531,23 @@ RUN { \
       echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'; \
     } >> /etc/zsh/zshenv
 
+# Put node, npm and npx on PATH for EVERY shell, not only zsh.
+#
+# nvm is sourced from /etc/zsh/zshenv, so `node` resolves in an interactive zsh
+# and nowhere else. CI jobs run bash, and a job that calls `node` directly failed
+# with "command not found" while the image plainly contained Node. The symlinks
+# make the resolution independent of the shell and of nvm being sourced.
+#
+# nvm stays: it is what a developer uses to change version interactively. These
+# links point at the default version the image ships.
+RUN set -eu; \
+    node_bin="/home/${USERNAME}/.nvm/versions/node/v${NODE_VERSION}/bin"; \
+    for b in node npm npx; do \
+      if [ -x "${node_bin}/${b}" ]; then ln -sfn "${node_bin}/${b}" "/usr/local/bin/${b}"; fi; \
+    done; \
+    node --version; \
+    npm --version
+
 # -------------------------------------------------------------------------
 # Final image identity.
 # -------------------------------------------------------------------------
