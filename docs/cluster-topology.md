@@ -56,13 +56,6 @@ a bridge to the cloud Vaultwarden. ClusterSecretStore `vaultwarden` resolves
 items by name and returns their `notes` field. Single-value credentials are
 created imperatively instead (see `docs/runtime-secrets.md`).
 
-### `kyverno` — policy
-Admission/background/cleanup/reports controllers. Runs **audit-only**
-(`policy_profile: audit-only`); the one ClusterPolicy `pod-security-baseline`
-excludes the namespaces that legitimately need elevated pods (media, tailscale,
-embedded-lab, longhorn-system, observability, metallb-system, arc-runners,
-minio).
-
 ### `metallb-system` — bare-metal LoadBalancer
 controller + speaker DaemonSet, L2 mode, pool `10.168.0.240-250`. Backs the
 `ingress-nginx` Service VIP (`.240`) and Grafana (`.241`).

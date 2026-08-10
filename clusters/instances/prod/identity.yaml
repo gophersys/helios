@@ -46,7 +46,7 @@ node_role_assignments:
 # Admission policies installed on this cluster. "baseline" enforces
 # everything in platform/core/policy/CATALOG.md; swap to a stricter or
 # looser profile per cluster. Lab clusters might use "audit-only".
-policy_profile: baseline        # ASPIRATIONAL — Kyverno is not installed here
+policy_profile: none            # Kyverno removed repo-wide 2026-08-09 (D21)
 
 # Projects hosted on this cluster. Namespace-provisioner enforces that
 # every <project>-<env> namespace created on this cluster has <project>
