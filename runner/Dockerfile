@@ -102,7 +102,12 @@ RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
 # do. `-runner` is appended so a job can tell CI from an interactive session.
 ENV GOPHERSYS_DEVCONTAINER_RUNNER=true \
     RUNNER_MANUALLY_TRAP_SIG=1 \
-    ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
+    ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1 \
+    RUNNER_ALLOW_RUNASROOT=1
+# RUNNER_ALLOW_RUNASROOT is REQUIRED because this image runs as root. Without it
+# run.sh prints "Must not run interactively with sudo" and exits 1 in under a
+# second, and ARC replaces the pod in a loop with no job ever starting. The
+# variable belongs in the image: the image is what decided to run as root.
 
 WORKDIR /home/runner
 # No ENTRYPOINT/CMD: the ARC scale set supplies `command: ["/home/runner/run.sh"]`.

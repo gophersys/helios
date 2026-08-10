@@ -143,6 +143,9 @@ test -w /home/runner/_work
 # real pod shape, which is the only place the answer is meaningful.
 # node must resolve in a NON-login shell: CI jobs run bash, not an interactive zsh.
 command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
+# The runner refuses to start as root without this. The image runs as root, so a
+# missing value means every pod exits 1 in under a second and no job ever runs.
+[ "${RUNNER_ALLOW_RUNASROOT:-}" = "1" ] || { echo "FAIL: RUNNER_ALLOW_RUNASROOT is not 1; run.sh will refuse to start as root"; exit 1; }
 echo "--- CI tooling ---"
 cictl help >/dev/null
 command -v cictl
