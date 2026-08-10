@@ -13,17 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install tools (no sudo — self-hosted runner)
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/bin"; cd /tmp
-          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
-          install -m0755 kubeconform "$HOME/bin/"
-          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | tar xz
-          install -m0755 kustomize "$HOME/bin/"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-          python3 -m pip install --user --quiet yamllint 2>/dev/null || echo "yamllint unavailable — advisory step will skip"
-
+      # No tool-install step. The runner image IS the `base` dev image, so
+      # kubeconform, kubectl, yq and jq are already present at the same versions
+      # an interactive session gets. kustomize is `kubectl kustomize`.
+      # See docs/ci-substrate.md.
       - name: yamllint (advisory)
         continue-on-error: true
         run: python3 -m yamllint -c .yamllint.yml apps platform clusters 2>/dev/null || echo "yamllint skipped"
@@ -52,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           for d in apps/embedded/zephyr-devbox/base apps/embedded/envs/zephyr-libs apps/embedded/envs/nucleo-bringup; do
-            echo "== $d =="; kustomize build "$d" | kubeconform -strict -ignore-missing-schemas -summary
+            echo "== $d =="; kubectl kustomize "$d" | kubeconform -strict -ignore-missing-schemas -summary
           done
 
       - name: Argo registry paths resolve
