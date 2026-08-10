@@ -1,27 +1,26 @@
 # monorepo .ci
 
-Baseline CI layer inherited by every project created from this template.
-Every verb operates across the whole monorepo via `nx run-many` or
-`nx affected`.
+Every project created from this template inherits this baseline CI layer. Every verb operates on
+the whole monorepo. A verb uses `nx run-many` or `nx affected`.
 
 ## Verbs
 
-- `validate` — shellcheck every ctl.sh + `nx run-many -t validate`.
-- `build-all` — `nx run-many -t build`.
-- `test-all` — `nx run-many -t test`.
-- `lint-all` — `nx run-many -t lint`.
-- `typecheck-all` — `nx run-many -t typecheck`.
-- `affected-build` — `nx affected -t build` (against `main`).
-- `affected-test` — `nx affected -t test`.
-- `affected-check` — `nx affected -t lint,typecheck,test`. The canonical
-  PR-gate verb.
-- `release-check` — preflight for release: clean working tree, on main,
-  up to date with origin.
+- `validate` — runs shellcheck on every ctl.sh, then runs `nx run-many -t validate`.
+- `build-all` — runs `nx run-many -t build`.
+- `test-all` — runs `nx run-many -t test`.
+- `lint-all` — runs `nx run-many -t lint`.
+- `typecheck-all` — runs `nx run-many -t typecheck`.
+- `affected-build` — runs `nx affected -t build` against `main`.
+- `affected-test` — runs `nx affected -t test`.
+- `affected-check` — runs `nx affected -t lint,typecheck,test`. This is the canonical
+  pull-request gate verb.
+- `release-check` — the preflight for a release. It checks that the working tree is clean, that
+  you are on main, and that the branch is up to date with origin.
 - `help`.
 
 ## Invocation
 
-Identical three ways, everywhere:
+These 3 commands do the same thing in every environment:
 
 ```
 # Local, inside a gophersys devcontainer
@@ -38,13 +37,13 @@ docker run --rm -v "$PWD:/workspace" \
 
 ## Providers
 
-`providers/` is the source of truth for every CI-system shim. Native
-paths (`.github/workflows/`) are symlinks into the matching subfolder.
-See `brain/.claude/rules/operations/ci-patterns.md`.
+`providers/` is the source of truth for every CI-system shim. The native paths
+(`.github/workflows/`) hold a copy of the matching subfolder. They are regular files, not symlinks: git records them with the mode `100644`. See
+`brain/.claude/rules/operations/ci-patterns.md`.
 
-Shipped providers (default for every new project):
+Every new project gets these providers by default:
 
 - `github/on-push.yml` — runs `affected-check` on every push.
-- `github/on-pr.yml` — runs `affected-check` on every PR.
+- `github/on-pr.yml` — runs `affected-check` on every pull request.
 
-Projects extend these; they don't replace them.
+A project extends these files. A project does not replace them.
