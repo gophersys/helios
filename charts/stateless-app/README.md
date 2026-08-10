@@ -1,8 +1,8 @@
 # charts/stateless-app
 
-The **reference archetype**. A 12-factor HTTP(S) service with no
-persistent local state — replicas are fungible and can be rolled
-independently.
+The **reference archetype**. It is a 12-factor HTTP or HTTPS service with no
+persistent local state. The replicas are interchangeable, and you can roll each
+replica on its own.
 
 ## When to pick this
 
@@ -13,13 +13,13 @@ independently.
   `contracts/databases.md`), queue (through `contracts/messaging.md`), or
   object store.
 
-If the service needs per-replica persistent volumes or ordered
-bring-up/tear-down, pick `stateful-app` instead. If there is no inbound
-HTTP at all, pick `worker`.
+If the service needs a persistent volume per replica, or an ordered start and an
+ordered stop, pick `stateful-app` instead. If there is no inbound HTTP at all,
+pick `worker`.
 
 ## What the chart emits
 
-Given a minimal valid `values.yaml` the chart renders:
+With a minimal valid `values.yaml`, the chart renders:
 
 - `Deployment` — RollingUpdate strategy (`maxSurge: 1, maxUnavailable: 0`),
   `minReadySeconds: 10`.
@@ -36,7 +36,7 @@ Given a minimal valid `values.yaml` the chart renders:
 - `NetworkPolicy` — baseline (deny-all + DNS + same-ns + metrics scrape)
   plus the app's declared `allowIngressFrom` / `allowEgressTo`.
 - `Ingress` — only when `values.ingress.enabled: true`. Prefer the
-  `ingress-app` archetype when ingress is central to the service.
+  `ingress-app` archetype when the ingress is the main purpose of the service.
 
 ## Opinionated defaults
 
@@ -131,17 +131,19 @@ rollout:
 
 ## Migration paths
 
-- To `ingress-app`: set `values.ingress.enabled: true` + fill ingress
-  block — stateless-app emits the ingress inline already.
-- To `worker`: drop the `service` + `probes.http` blocks, add
-  `worker.queueSignal` for KEDA. (Separate archetype because autoscale
-  semantics differ.)
-- To `stateful-app`: declarative migration isn't possible — StatefulSet
-  and Deployment aren't interchangeable. Plan a side-by-side cutover.
+- To `ingress-app`: set `values.ingress.enabled: true` and fill in the ingress
+  block. stateless-app already emits the ingress itself.
+- To `worker`: remove the `service` and `probes.http` blocks, and add
+  `worker.queueSignal` for KEDA. `worker` is a separate archetype, because the
+  autoscale semantics are different.
+- To `stateful-app`: a declarative migration is not possible, because a
+  StatefulSet and a Deployment are not interchangeable. Plan a cutover with both
+  running side by side.
 
 ## Status
 
-Skeleton: `Chart.yaml` + `values.yaml` + `values.schema.json` + `README.md`
-committed. Template files under `templates/` are stubs with inline
-comments describing what each emits. Real templates land when the first
-app (likely `codectl-api` or `fintel-api-gateway`) adopts the archetype.
+Skeleton. `Chart.yaml`, `values.yaml`, `values.schema.json` and `README.md` are
+committed. The template files under `templates/` are stubs with inline comments
+that describe what each one emits. The real templates land when the first app
+adopts the archetype. That app is probably `codectl-api` or
+`fintel-api-gateway`.

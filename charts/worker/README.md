@@ -1,7 +1,8 @@
 # charts/worker
 
-Long-running process that consumes a queue / stream / channel and produces
-side effects. No inbound HTTP — no Service, no Ingress.
+A long-running process that consumes a queue, a stream or a channel, and that
+produces side effects. It takes no inbound HTTP, so it has no Service and no
+Ingress.
 
 ## When to pick this
 
@@ -9,16 +10,16 @@ side effects. No inbound HTTP — no Service, no Ingress.
   consumers.
 - Background job processors (email senders, async exporters).
 - Event-driven side-effect workers (webhook fan-out, image resizers).
-- Data pipeline stages (ingest, parse, grade, score) — as long as each
-  stage is a long-running consumer, not a one-shot run.
+- Stages of a data pipeline (ingest, parse, grade, score), while each stage is a
+  long-running consumer and not a single run.
 
-If the workload runs to completion, pick `job`. If it's scheduled, pick
+If the workload runs to completion, pick `job`. If it runs on a schedule, pick
 `cronjob`. If it serves HTTP, pick `stateless-app`.
 
 ## What the chart emits
 
-- `Deployment` — no Service, no Ingress, no probes on HTTP (probes may
-  still be TCP or exec).
+- `Deployment` — no Service, no Ingress, and no HTTP probe. A probe can still be
+  TCP or exec.
 - `ServiceAccount`, `ExternalSecret`, `NetworkPolicy`, `PodMonitor`,
   `PodDisruptionBudget`, `PrometheusRule`.
 - `ScaledObject` (KEDA) — when `worker.autoscale.keda.enabled: true` and
@@ -26,13 +27,13 @@ If the workload runs to completion, pick `job`. If it's scheduled, pick
 
 ## Autoscaling semantics
 
-Workers often should scale to **zero** when the queue is empty, and scale
-**up** with backlog depth. That's different from HPA (which only scales
-on CPU/memory). The chart supports both:
+A worker often must scale to **zero** when the queue is empty, and scale **up**
+with the depth of the backlog. An HPA cannot do that, because it scales on CPU
+and memory only. The chart supports both methods:
 
-- **Default**: HPA on CPU (60%), `min=1 max=10`. Works everywhere.
-- **Preferred** (when KEDA is installed): `ScaledObject` with the queue
-  depth trigger. Example for NATS JetStream:
+- **Default**: an HPA on CPU (60%), `min=1 max=10`. It works on every cluster.
+- **Preferred**, when KEDA is installed: a `ScaledObject` with a trigger on the
+  queue depth. An example for NATS JetStream:
   ```yaml
   worker:
     autoscale:
@@ -47,22 +48,23 @@ on CPU/memory). The chart supports both:
         cooldownPeriod: 300s
   ```
 
-Exactly one of HPA or KEDA is enabled at a time.
+Exactly 1 of the 2, the HPA or KEDA, is enabled at any time.
 
-## Graceful shutdown
+## Shutdown without loss
 
-Workers receive SIGTERM when Kubernetes decides to evict the pod. The
-chart renders:
+A worker receives SIGTERM when Kubernetes decides to evict the pod. The chart
+renders:
 
-- `terminationGracePeriodSeconds: 60` (overridable per workload).
-- `preStop` hook running the worker's `drain` command (values-configurable),
-  so in-flight messages are completed or re-queued before the process exits.
+- `terminationGracePeriodSeconds: 60`. You can override it per workload.
+- a `preStop` hook that runs the `drain` command of the worker. You configure the
+  command in the values. The worker then completes or re-queues the messages that
+  are in progress, before the process exits.
 
-Apps are expected to:
+An app must:
 
-1. Stop accepting new work on SIGTERM.
-2. Finish current in-flight work within `gracePeriod - preStopTimeout`.
-3. Exit cleanly.
+1. Stop the acceptance of new work when it receives SIGTERM.
+2. Finish the work in progress within `gracePeriod - preStopTimeout`.
+3. Exit with no error.
 
 ## Opinionated defaults
 
@@ -77,13 +79,14 @@ Apps are expected to:
 
 ## Progressive rollout
 
-Workers often process messages with side effects that can't be undone. The
-chart's default rollout is conservative:
+A worker often processes a message with a side effect that you cannot undo. The
+default rollout of the chart is therefore careful:
 
-- `maxSurge: 1, maxUnavailable: 0` (always one more, never fewer).
-- `minReadySeconds: 30` (longer burn-in than stateless-app).
-- When Argo Rollouts lands: optional `strategy: canary` with metric-based
-  analysis on consumer lag.
+- `maxSurge: 1, maxUnavailable: 0`, so there is always 1 more replica and never
+  fewer.
+- `minReadySeconds: 30`, which is a longer test period than stateless-app uses.
+- When Argo Rollouts lands: an optional `strategy: canary`, with an analysis
+  based on the metric for consumer lag.
 
 ## Example values
 

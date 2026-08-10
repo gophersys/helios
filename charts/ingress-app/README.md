@@ -1,33 +1,35 @@
 # charts/ingress-app
 
-A `stateless-app` that's always publicly exposed via Ingress + automatic
-TLS. Opinionated wrapper — picks sane ingress defaults so every
-public-facing app looks the same to operators and attackers.
+A `stateless-app` that is always public, through an Ingress with automatic TLS.
+This archetype is an opinionated wrapper. It picks sensible ingress defaults, so
+that every public app presents the same surface to an operator and to an
+attacker.
 
 ## When to pick this
 
-- Public HTTP(S) endpoints: APIs, dashboards, marketing sites with an app
-  server, static-site-with-rewrites frontends.
+- A public HTTP or HTTPS endpoint: an API, a dashboard, a marketing site with an
+  app server, or a frontend for a static site with rewrites.
 - Any app that needs a stable `*.cluster-domain` hostname with automatic
-  cert renewal, standard rate limiting, standard security headers.
+  certificate renewal, the standard rate limit, and the standard security
+  headers.
 
-If the app is purely internal (tailnet-only), prefer `stateless-app` with
-`ingress.enabled: false` — no Ingress resource at all.
+If the app is internal only, on the tailnet, prefer `stateless-app` with
+`ingress.enabled: false`. It then renders no Ingress resource at all.
 
 ## What the chart emits
 
-Everything `stateless-app` emits, **plus** mandatory ingress wiring:
+Everything that `stateless-app` emits, **plus** the mandatory ingress wiring:
 
-- `Ingress` — `ingressClassName: platform`, cert-manager annotation for
-  `letsencrypt-prod`, redirect HTTP → HTTPS, standard security headers,
-  rate-limit middleware.
-- `Certificate` — cert-manager CR for the declared host(s).
-- `Middleware` (Traefik CRD) — security headers + rate limit +
-  optional SSO gate (when `contracts/identity.md` is active).
+- `Ingress` — `ingressClassName: platform`, the cert-manager annotation for
+  `letsencrypt-prod`, a redirect from HTTP to HTTPS, the standard security
+  headers, and the rate-limit middleware.
+- `Certificate` — the cert-manager CR for each declared host.
+- `Middleware` (a Traefik CRD) — the security headers, the rate limit, and an
+  optional SSO gate when `contracts/identity.md` is active.
 
-## Security headers (Traefik middleware)
+## Security headers (the Traefik middleware)
 
-Applied to every `ingress-app` by default:
+The chart applies these to every `ingress-app` by default:
 
 ```yaml
 headers:
@@ -43,11 +45,11 @@ headers:
     Server: ""                               # strip server signature
 ```
 
-Apps override via `values.ingress.headers.*`.
+An app overrides them through `values.ingress.headers.*`.
 
 ## Rate limiting
 
-Every ingress-app gets a baseline rate limit (Traefik middleware):
+Every ingress-app gets a baseline rate limit, through a Traefik middleware:
 
 ```yaml
 rateLimit:
@@ -56,11 +58,12 @@ rateLimit:
   period: 1s
 ```
 
-These are conservative defaults. Apps that need higher throughput
-override per-ingress via `values.ingress.rateLimit.*`. Apps that
-expect low/spiky traffic can lower to `average: 10` to shed abuse.
+These defaults are low. An app that needs more throughput overrides them for its
+own ingress, through `values.ingress.rateLimit.*`. An app that expects little
+traffic, or traffic in short peaks, can lower the value to `average: 10` to
+reject an abusive load.
 
-## SSO gate (future-friendly)
+## The SSO gate (prepared for the future)
 
 ```yaml
 ingress:
@@ -70,10 +73,10 @@ ingress:
 ```
 
 When `platform/services/identity-sso/` is installed and
-`ingress.sso.enabled: true`, the chart adds the SSO-middleware annotation
-and the ingress becomes gated. See `contracts/identity.md`.
+`ingress.sso.enabled` is `true`, the chart adds the annotation for the SSO
+middleware, and the ingress is then gated. See `contracts/identity.md`.
 
-## Redirect + canonical host
+## Redirect and canonical host
 
 ```yaml
 ingress:
@@ -89,7 +92,7 @@ ingress:
 
 | Knob                               | Default                                                        |
 |------------------------------------|----------------------------------------------------------------|
-| `ingress.enabled`                  | `true` (this archetype is for ingress — duh)                   |
+| `ingress.enabled`                  | `true` — this archetype exists for the ingress                 |
 | `ingress.ingressClassName`         | `platform`                                                     |
 | `ingress.tls.clusterIssuer`        | `letsencrypt-prod`                                             |
 | `ingress.tls.secretSuffix`         | `-tls` (full secret name: `<release>-tls`)                     |
@@ -143,6 +146,6 @@ slo:
 
 ## Status
 
-Skeleton. Templates are stubs. The primary difference vs `stateless-app`
-is that the ingress block is mandatory and defaults are stricter —
-otherwise all helpers and conventions are shared via `_common`.
+Skeleton. The templates are stubs. There are 2 differences against
+`stateless-app`: the ingress block is mandatory, and the defaults are stricter.
+`_common` supplies all the same helpers and conventions.

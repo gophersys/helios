@@ -1,17 +1,16 @@
 # infrastructure
 
-Shared infrastructure-as-code for the brain ecosystem — the Internal
-Developer Platform that every project in brain runs on top of.
+Shared infrastructure-as-code for the brain ecosystem. It is the Internal
+Developer Platform that every project in brain runs on.
 
-Consumed as a git submodule at:
+It is consumed as a git submodule at:
 
-- `brain/shared/infrastructure/` — canonical editable copy.
-- `brain/projects/<project>/infrastructure/` — pinned per-project copy.
+- `brain/shared/infrastructure/` — the canonical editable copy.
+- `brain/projects/<project>/infrastructure/` — the pinned copy for one project.
 
-This repo has no Nx workspace of its own. The parent monorepo (brain, or
-a project monorepo) provides the Nx runtime. Every runnable node is
-authored as two files — `project.json` + `ctl.sh` — per the
-`development-nx-run-command` skill.
+This repo has no Nx workspace of its own. The parent monorepo (brain, or a
+project monorepo) supplies the Nx runtime. Every runnable node is authored as 2
+files — `project.json` and `ctl.sh` — per the `development-nx-run-command` skill.
 
 ## The seven layers
 
@@ -64,56 +63,59 @@ infrastructure/
 
 ## How the layers interact
 
-- A **cluster** (layer 2) is composed of **machines** (layer 1) whose hosts
-  the **providers** (layer 3) know how to provision.
-- A cluster is bootstrapped with every `platform/core/*` (layer 4) and the
-  `platform/services/*` components its identity.yaml opts into.
-- Apps (outside this repo) shape themselves via **charts** (layer 5) and
-  consume the platform through **contracts** (layer 6) — they never couple
-  directly to platform implementations.
-- **Docs** (layer 7) is the big-picture source when a new contributor (or
-  future-you) opens this repo cold.
+- A **cluster** (layer 2) is made of **machines** (layer 1). The **providers**
+  (layer 3) know how to provision the hosts of those machines.
+- A cluster is bootstrapped with every `platform/core/*` component (layer 4),
+  plus the `platform/services/*` components that its identity.yaml opts into.
+- An app (outside this repo) shapes itself with a **chart** (layer 5) and
+  consumes the platform through the **contracts** (layer 6). An app never couples
+  directly to a platform implementation.
+- **Docs** (layer 7) is the source for the whole picture when a new contributor,
+  or you at a later date, opens this repo with no context.
 
 ## Progressive disclosure
 
-Every layer holds real content only where there's a real consumer today.
-Everywhere else is `README.md` stubs describing the intended shape. Growing
-the repo means:
+A layer holds real content only where a real consumer exists today. Everywhere
+else there is a `README.md` stub that describes the intended shape. To grow the
+repo:
 
 1. A real need appears (a new cluster, a new service, a new app).
 2. Scaffold from a template (`new-host`, `new-cluster`, `new-cluster-node`,
    `new-app`).
-3. Fill in the stubs for the layers the new thing touches.
+3. Fill in the stubs for the layers that the new thing touches.
 4. Commit.
 
 ## Entry points
 
-- `bash ./ctl.sh help` — top-level verbs (status, validate, generate-index,
+- `bash ./ctl.sh help` — the top-level verbs (status, validate, generate-index,
   propagate).
-- `bash machines/ctl.sh help` — machine-level verbs (new-host, status, ...).
-- `bash clusters/ctl.sh help` — cluster-level verbs (new-cluster, status, ...).
+- `bash machines/ctl.sh help` — the machine-level verbs (new-host, status, ...).
+- `bash clusters/ctl.sh help` — the cluster-level verbs (new-cluster, status,
+  ...).
 - `bash .ci/ctl.sh help` — CI orchestration (validate, release-check, ...).
 
-Per-layer README.md files walk you through that layer's shape. Start there
-when navigating cold.
+The `README.md` of each layer describes that layer's shape. Start there when you
+navigate the repo with no context.
 
 ## Conventions
 
-- Git identity for every commit: `Mateo Segura <mateo.segura413@gmail.com>`.
-- Conventional Commits for all messages (`feat`, `fix`, `refactor`, etc.).
-- No AI/LLM/assistant attribution anywhere in the repo.
-- Secrets are fetched from Bitwarden just-in-time onto tmpfs and scrubbed
-  on exit. See `docs/secrets-guide.md`.
-- Linux, WSL, and Windows are priority platforms. macOS support is a stub
-  and marked as such wherever it appears.
+- The git identity for every commit is
+  `Mateo Segura <mateo.segura413@gmail.com>`.
+- Use Conventional Commits for every message (`feat`, `fix`, `refactor`, and so
+  on).
+- Do not put an AI, LLM or assistant attribution anywhere in the repo.
+- A script fetches a secret from Bitwarden when it needs it, writes it to tmpfs,
+  and scrubs it on exit. See `docs/secrets-guide.md`.
+- Linux, WSL and Windows are the priority platforms. macOS support is a stub, and
+  it is marked as a stub wherever it appears.
 
 ## Status
 
-Today's shape is the **foundation** — every layer has its skeleton + docs,
-but only three leaves have real content:
+Today the repo is the **foundation**. Every layer has its skeleton and its docs,
+but only 3 leaves hold real content:
 
-- `machines/services/arm-builder/` — ported working scripts.
-- `clusters/instances/prod/identity.yaml` — real cluster declared.
+- `machines/services/arm-builder/` — working scripts, ported.
+- `clusters/instances/prod/identity.yaml` — a real cluster, declared.
 - `contracts/*.md` — drafted interfaces (v0).
 
-Everything else is a stub awaiting its first real consumer.
+Everything else is a stub that waits for its first real consumer.

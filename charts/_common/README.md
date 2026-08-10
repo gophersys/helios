@@ -1,22 +1,22 @@
 # _common
 
-Helm **library chart** — provides template helpers reused by every
-archetype under `charts/`. Not installable on its own.
+A Helm **library chart**. It supplies the template helpers that every archetype
+under `charts/` reuses. You cannot install it on its own.
 
 ## Why a library chart
 
-Every archetype (`stateless-app`, `stateful-app`, `worker`, etc.) needs
-the same canonical labels, the same security context, the same
-ExternalSecret emission pattern, and the same baseline NetworkPolicy. A
-library chart is the Helm-native way to share templates without
-copy-paste drift.
+Every archetype — `stateless-app`, `stateful-app`, `worker` and the others —
+needs the same canonical labels, the same security context, the same pattern to
+emit an ExternalSecret, and the same baseline NetworkPolicy. A library chart is
+the method that Helm supplies to share a template. It also stops the copies from
+drifting apart.
 
 ## Helpers
 
 ### `common.labels`
-Canonical labels applied to every rendered object. See
-`charts/CONVENTIONS.md` §2 for the full list. The composite identifier
-`<project>-<app.name>` is `app.kubernetes.io/name`. Consume like:
+The canonical labels, applied to every rendered object. `charts/CONVENTIONS.md`
+§2 holds the full list. The composite identifier `<project>-<app.name>` becomes
+`app.kubernetes.io/name`. Use it as follows:
 
 ```yaml
 metadata:
@@ -25,56 +25,53 @@ metadata:
 ```
 
 ### `common.selectorLabels`
-Subset of `common.labels` suitable for Deployment/StatefulSet/Service
-selectors (immutable, no version).
+A subset of `common.labels` for the selectors of a Deployment, a StatefulSet or a
+Service. The labels are immutable and carry no version.
 
 ### `common.fullname`
-Returns `<project>-<app.name>` — the canonical identifier for the app
-(e.g. `codectl-api`). Use as the default Helm release name and as the
-base for all rendered resource names (Deployment, Service, PDB, etc.).
+Returns `<project>-<app.name>`, the canonical identifier of the app, for example
+`codectl-api`. Use it as the default Helm release name, and as the base of every
+rendered resource name: the Deployment, the Service, the PDB and the others.
 
 ### `common.namespace`
-Returns `<project>-<env>` — the expected namespace for this app
-(e.g. `codectl-prod`). Templates may optionally render a hard-fail
-check that `.Release.Namespace` matches this; the platform's
-`namespace-naming-enforced` policy enforces it cluster-wide anyway.
+Returns `<project>-<env>`, the expected namespace of this app, for example
+`codectl-prod`. A template may render an optional check that fails hard if
+`.Release.Namespace` does not match. The `namespace-naming-enforced` policy of
+the platform enforces the same rule across the cluster in any case.
 
 ### `common.podSecurityContext` / `common.containerSecurityContext`
-Emit the restricted PSS security contexts from
-`charts/CONVENTIONS.md` §3. Values can override via
-`values.securityContext.{pod,container}` but the archetype's
-`values.schema.json` rejects anything weaker than restricted.
+They emit the restricted PSS security contexts from `charts/CONVENTIONS.md` §3.
+The values can override them through `values.securityContext.{pod,container}`,
+but the `values.schema.json` of the archetype rejects anything weaker than
+restricted.
 
 ### `common.externalSecret`
-Invoked per entry in `values.secrets[]`. Emits one `ExternalSecret`
-linking a Bitwarden item to a Kubernetes Secret and wires the pod's
+Called once for each entry in `values.secrets[]`. It emits 1 `ExternalSecret`
+that links a Bitwarden item to a Kubernetes Secret, and it wires the pod's
 `envFrom` (mode=env) or `volumeMounts` (mode=file).
 
 ### `common.networkPolicy.baseline`
-Emits the four baseline NetworkPolicy resources per
-`charts/CONVENTIONS.md` §6: deny-all, allow-dns-egress,
-allow-same-namespace, allow-metrics-scrape. Extension
-NetworkPolicy resources (from `values.networkPolicy.allow*`) are emitted
-alongside.
+Emits the 4 baseline NetworkPolicy resources from `charts/CONVENTIONS.md` §6:
+deny-all, allow-dns-egress, allow-same-namespace and allow-metrics-scrape. It
+also emits the extra NetworkPolicy resources from `values.networkPolicy.allow*`.
 
 ### `common.serviceMonitor`
-Emits a `ServiceMonitor` (Prometheus Operator CRD) from
-`values.observability.metrics` shape.
+Emits a `ServiceMonitor` (a Prometheus Operator CRD) from the shape of
+`values.observability.metrics`.
 
 ### `common.slo.recordingRules`
-Emits a `PrometheusRule` with availability + latency recording rules
-from `values.slo`. Consumed by `platform/services/observability/`
-dashboards.
+Emits a `PrometheusRule` with the availability and latency recording rules from
+`values.slo`. The dashboards of `platform/services/observability/` consume them.
 
 ### `common.pdb`
-Emits a `PodDisruptionBudget` with archetype-aware defaults. Invoked
-by long-running archetypes.
+Emits a `PodDisruptionBudget` with defaults that depend on the archetype. A
+long-running archetype calls it.
 
 ## Versioning
 
-Library chart follows its own semver. Bumping `_common` is a breaking
-change for every archetype; do so only with coordinated version bumps
-across all consumers.
+The library chart has its own semver. A bump of `_common` is a breaking change
+for every archetype. Do it only with a coordinated version bump across every
+consumer.
 
 Pinned in each archetype's `Chart.yaml`:
 
@@ -87,6 +84,6 @@ dependencies:
 
 ## Status
 
-Helpers are **stubbed** today — `templates/_helpers.tpl` contains the
-function signatures with `TODO:` bodies. Populated as the first archetype
-is implemented end-to-end.
+The helpers are **stubs** today. `templates/_helpers.tpl` holds the function
+signatures with `TODO:` bodies. They are populated as the first archetype is
+implemented end to end.

@@ -1,34 +1,37 @@
 # infrastructure — identity
 
-> **Reality check (2026-07): read this first.** This repo is BOTH:
-> 1. **The live homelab GitOps source (what you'll usually touch).** Argo CD
->    reconciles the running k3s cluster from `platform/services/gitops/registry/`
->    (app-of-apps) with workloads under `apps/` and platform add-ons under
->    `platform/`. The live map is `docs/cluster-topology.md`; the working
->    agreement + imperative-state ledger is `docs/debt-register.md`. Changes go
->    branch → PR → merge (CI: `.github/workflows/validate.yml`).
-> 2. **An aspirational IDP framework (the Nx scaffolding described below).**
->    `machines/`, `clusters/templates/`, `providers/`, `charts/`, `contracts/`
->    are the multi-cluster design — mostly skeletons/STUBs, not what runs.
-> The parent monorepo is **Eden** (`gophersys/eden`, checked out at `~/code/eden`):
-> this repo is the git submodule `eden/infrastructure`. Never write `helios` — the
-> rename is Eden invariant E7; the old checkout path `~/helios` is gone. The "brain"
-> ecosystem below is the ORIGINAL design framing and predates Eden — those paths
-> don't exist.
+> **Read this first (state as of 2026-07).** This repo is BOTH of the following:
+> 1. **The live homelab GitOps source. This is the part you usually touch.**
+>    Argo CD reconciles the running k3s cluster from
+>    `platform/services/gitops/registry/` (the app-of-apps), with the workloads
+>    under `apps/` and the platform add-ons under `platform/`. The live map is
+>    `docs/cluster-topology.md`. The working agreement and the ledger of
+>    imperative state are in `docs/debt-register.md`. A change goes branch → PR →
+>    merge (CI: `.github/workflows/validate.yml`).
+> 2. **A planned IDP framework — the Nx scaffolding described below.**
+>    `machines/`, `clusters/templates/`, `providers/`, `charts/` and `contracts/`
+>    are the multi-cluster design. They are mostly skeletons and STUBs. They are
+>    not what runs.
+>
+> The parent monorepo is **Eden** (`gophersys/eden`, checked out at
+> `~/code/eden`). This repo is the git submodule `eden/infrastructure`. Never
+> write `helios`: the rename is Eden invariant E7, and the old checkout path
+> `~/helios` no longer exists. The "brain" ecosystem named below is the ORIGINAL
+> design framing. It predates Eden, and those paths do not exist.
 
-`gophersys/infrastructure` is the shared infrastructure-as-code source,
-consumed as a git submodule by the parent monorepo (today: `eden/infrastructure`;
-originally designed for `brain/shared/infrastructure/` + per-project pins).
+`gophersys/infrastructure` is the shared infrastructure-as-code source. A parent
+monorepo consumes it as a git submodule: today `eden/infrastructure`, and in the
+original design `brain/shared/infrastructure/` plus a pinned copy per project.
 
 ## Purpose (framework design)
 
-Model every real-world piece of infrastructure — hosts, clusters, platform
-services, reusable modules — as a small, self-contained Nx project following
-the two-file pattern: `project.json` + `ctl.sh`.
+Model every real piece of infrastructure — a host, a cluster, a platform service,
+a reusable module — as a small, self-contained Nx project that follows the
+two-file pattern: `project.json` + `ctl.sh`.
 
-Nothing here runs on its own; the parent monorepo's Nx runtime drives
-everything. Directly invoking `bash ./ctl.sh <verb>` works from any
-project directory for authoring and troubleshooting.
+Nothing here runs on its own. The Nx runtime of the parent monorepo drives
+everything. A direct call to `bash ./ctl.sh <verb>` works from any project
+directory, for authoring and for troubleshooting.
 
 ## Structure
 
@@ -83,19 +86,19 @@ infrastructure/
 
 ## Conventions
 
-1. **Two-file projects only.** Every runnable node is a directory with
-   `project.json` + `ctl.sh` and nothing else at its root. See the
-   `development-nx-run-command` skill in brain for the full recipe.
-2. **Nx via parent monorepo.** This repo has no `nx.json`, no
-   `package.json`, no `node_modules/`. The parent monorepo provides the
-   runtime. Direct `bash ctl.sh` works anywhere.
-3. **Kebab-case paths.** Directory names are kebab-case. Project names are
-   path segments joined by hyphens, lowercase.
-4. **Self-documenting ctl.sh.** `usage()` lists every verb with a one-line
-   description. No separate README at the project level.
-5. **Templates not scaffolds.** `templates/` directories hold blueprints
-   copied by the parent's `new-*` verb. Do not put logic that runs inside
-   a template — keep them static.
-6. **Linux + Windows + WSL are priority.** macOS support is present as
-   stubs with `TODO:` markers; do not implement macOS-specific behavior
-   without an explicit directive.
+1. **Two-file projects only.** Every runnable node is a directory that holds
+   `project.json` and `ctl.sh` at its root, and nothing else. The full procedure
+   is in the `development-nx-run-command` skill in brain.
+2. **Nx comes from the parent monorepo.** This repo has no `nx.json`, no
+   `package.json` and no `node_modules/`. The parent monorepo supplies the
+   runtime. A direct `bash ctl.sh` works anywhere.
+3. **Kebab-case paths.** A directory name is kebab-case. A project name is the
+   path segments joined by hyphens, in lowercase.
+4. **`ctl.sh` documents itself.** `usage()` lists every verb with a one-line
+   description. There is no separate README at project level.
+5. **Templates, not scaffolds.** A `templates/` directory holds blueprints that
+   the parent's `new-*` verb copies. Do not put logic that runs inside a
+   template. Keep every template static.
+6. **Linux, Windows and WSL are the priority.** macOS support is present as stubs
+   with `TODO:` markers. Do not implement macOS-specific behaviour without an
+   explicit instruction.

@@ -1,36 +1,37 @@
 # charts — authoring conventions
 
-Rules every archetype under `charts/` follows. Breaking any of these makes
-the archetype non-portable across clusters or incompatible with
-`platform/` enforcement.
+Every archetype under `charts/` follows these rules. If you break one of them,
+the archetype does not move between clusters, or it does not work with the
+enforcement in `platform/`.
 
-## 1. Schema-first
+## 1. Schema first
 
-Every archetype MUST ship `values.schema.json` validated at `helm install`
-(Helm 3 validates automatically when schema is present). The schema:
+Every archetype MUST ship `values.schema.json`, and Helm validates it at
+`helm install` (Helm 3 validates automatically when a schema is present). The
+schema:
 
-- Declares `additionalProperties: false` at every object level. No hidden
-  values.
-- Marks `project`, `env`, `app.name`, `image.repository`, `image.tag`,
-  `resources.requests`, `resources.limits` as **required**. Values without
-  them are rejected at install time.
-- `project` validated as `^[a-z][a-z0-9-]{1,20}$`, `env` as enum
-  `prod | staging | dev | lab`.
-- Caps string lengths (`maxLength`) and array sizes (`maxItems`) to
-  defensive limits.
-- Includes `description` on every property. The schema IS the reference
-  docs; `README.md` summarizes.
+- declares `additionalProperties: false` at every object level, so there are no
+  hidden values;
+- marks `project`, `env`, `app.name`, `image.repository`, `image.tag`,
+  `resources.requests` and `resources.limits` as **required**. Helm rejects
+  values without them at install time.
+- validates `project` as `^[a-z][a-z0-9-]{1,20}$`, and `env` as the enum
+  `prod | staging | dev | lab`;
+- limits the string lengths (`maxLength`) and the array sizes (`maxItems`) to
+  defensive values;
+- includes a `description` on every property. The schema IS the reference
+  documentation, and `README.md` gives the summary.
 
-Schema fragments shared across archetypes live in
-`charts/_common/schema/` and are `$ref`'d (via relative path) from each
-archetype's schema.
+The schema fragments that several archetypes share live in
+`charts/_common/schema/`. Each archetype schema refers to them with `$ref` and a
+relative path.
 
-## 2. Labels are mandatory and canonical
+## 2. The labels are mandatory and canonical
 
-Every rendered object MUST carry the label set emitted by
-`common.labels` in the `_common` library chart. No exceptions.
+Every rendered object MUST carry the label set that `common.labels` in the
+`_common` library chart emits. There is no exception.
 
-Canonical labels (applied to every object):
+The canonical labels, applied to every object:
 
 ```yaml
 app.kubernetes.io/name:        <values.project>-<values.app.name>   # e.g., codectl-api
@@ -50,17 +51,17 @@ platform.gophersys/data-class: <values.dataClassification>           # public | 
 platform.gophersys/slo-tier:   <values.slo.tier>                     # critical | high | standard | best-effort
 ```
 
-The namespace the app lands in is **`<project>-<env>`** — all apps of a
-project for a given env share one namespace (e.g., `codectl-prod` holds
-both `codectl-api` and `codectl-dashboard`). Release name convention:
-`<project>-<app.name>` (e.g., `helm install codectl-api ./stateless-app
--n codectl-prod`).
+The app lands in the namespace **`<project>-<env>`**. All the apps of a project
+for a given env share one namespace. For example, `codectl-prod` holds both
+`codectl-api` and `codectl-dashboard`. The release name convention is
+`<project>-<app.name>`, for example
+`helm install codectl-api ./stateless-app -n codectl-prod`.
 
-Labels are enforced by `platform/core/policy/` — objects missing canonical
-labels are rejected at admission. `app.kubernetes.io/name` uniqueness
-across the cluster is guaranteed by the `<project>-<app>` composite.
+`platform/core/policy/` enforces the labels: admission rejects an object that
+lacks a canonical label. The composite `<project>-<app>` guarantees that
+`app.kubernetes.io/name` is unique across the cluster.
 
-## 3. Security context is non-negotiable
+## 3. The security context is non-negotiable
 
 Every Pod MUST render with:
 
@@ -83,46 +84,48 @@ securityContext:
   capabilities: { drop: [ALL] }
 ```
 
-Apps that need writes to the root filesystem declare a `volumeMounts.tmpfs:`
-entry in values; the archetype emits an `emptyDir{medium: Memory}` volume.
-Declaring `securityContext.privileged: true` is rejected by Kyverno and by
-schema.
+An app that must write to the root filesystem declares a `volumeMounts.tmpfs:`
+entry in its values, and the archetype emits an `emptyDir{medium: Memory}`
+volume. Kyverno and the schema both reject
+`securityContext.privileged: true`.
 
-## 4. Resource requests + limits required
+## 4. Resource requests and limits are required
 
-The schema enforces `resources.requests.cpu/memory` and
-`resources.limits.cpu/memory` on every container. Sidecars too.
+The schema enforces `resources.requests.cpu`, `resources.requests.memory`,
+`resources.limits.cpu` and `resources.limits.memory` on every container,
+including every sidecar.
 
-Memory limits MUST equal requests (no burstable memory — OOMs are
-predictable). CPU limits MAY exceed requests (burstable CPU is fine).
+The memory limit MUST equal the memory request, so that memory is not burstable
+and an OOM is predictable. The CPU limit MAY be higher than the CPU request,
+because burstable CPU is acceptable.
 
-Defaults per archetype are in the archetype's `values.yaml`.
+The defaults for each archetype are in that archetype's `values.yaml`.
 
-## 5. Probes required
+## 5. Probes are required
 
-`startupProbe`, `readinessProbe`, `livenessProbe` are required by schema
-for long-running workloads (stateless-app, stateful-app, worker,
-ingress-app). The archetype's `values.yaml` provides reasonable defaults
-keyed off `values.app.probe.{http,tcp,exec}` shape.
+The schema requires `startupProbe`, `readinessProbe` and `livenessProbe` for a
+long-running workload: stateless-app, stateful-app, worker and ingress-app. The
+`values.yaml` of the archetype supplies sensible defaults, keyed off the shape of
+`values.app.probe.{http,tcp,exec}`.
 
-Jobs and cronjobs have no probes (they run to completion).
+A job and a cronjob have no probes, because they run to completion.
 
-## 6. NetworkPolicy emitted by default
+## 6. A NetworkPolicy is emitted by default
 
-`templates/networkpolicy.yaml` always renders. Baseline (deny-all +
-DNS + same-ns + metrics scrape) comes from `common.networkPolicy.baseline`.
-Additional allows are `values.networkPolicy.allowIngressFrom[]` +
-`allowEgressTo[]`.
+`templates/networkpolicy.yaml` always renders. The baseline (deny all, plus DNS,
+plus the same namespace, plus the metrics scrape) comes from
+`common.networkPolicy.baseline`. Add more allowances with
+`values.networkPolicy.allowIngressFrom[]` and `allowEgressTo[]`.
 
-An app opt-out is NOT supported. If traffic is blocked, add the rule to
-values. Policy violations are loudly logged by platform observability.
+An app cannot opt out. If traffic is blocked, add the rule to the values. The
+platform observability logs a policy violation loudly.
 
-## 7. Secrets through ESO only
+## 7. Secrets come through ESO only
 
-Direct `Secret` references in env are rejected by policy. Apps list
-Bitwarden items in `values.secrets[]`; the archetype emits an
-`ExternalSecret` per entry and wires the resulting Kubernetes Secret into
-`envFrom` / `volumeMounts`.
+The policy rejects a direct `Secret` reference in an env var. An app lists its
+Bitwarden items in `values.secrets[]`. The archetype emits one `ExternalSecret`
+per entry and wires the resulting Kubernetes Secret into `envFrom` or
+`volumeMounts`.
 
 Schema:
 
@@ -135,30 +138,30 @@ secrets:
     optional: false                # if true, missing BW item is not fatal
 ```
 
-Bitwarden item naming convention:
-- `<project>-<purpose>` — project-wide items shared across the project's
-  apps (e.g., `codectl-db`, `fintel-openai`).
-- `<project>-<app>-<purpose>` — app-specific items
-  (e.g., `codectl-api-internal-token`, `fintel-grader-nats-creds`).
+The Bitwarden item naming convention:
+- `<project>-<purpose>` — an item for the whole project, shared by the apps of
+  that project, for example `codectl-db` and `fintel-openai`.
+- `<project>-<app>-<purpose>` — an item for one app, for example
+  `codectl-api-internal-token` and `fintel-grader-nats-creds`.
 
-## 8. Observability emitted, not opt-in
+## 8. Observability is emitted, not opt-in
 
-Every long-running archetype:
+Every long-running archetype does all of the following:
 
-- Emits `ServiceMonitor` (or `PodMonitor`) when `observability.metrics.enabled`
-  — default true.
-- Sets pod annotations `observability.gophersys/logs=scrape` for log
+- It emits a `ServiceMonitor` (or a `PodMonitor`) when
+  `observability.metrics.enabled` is true. The default is true.
+- It sets the pod annotation `observability.gophersys/logs=scrape` for log
   collection.
-- Injects `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`,
-  `OTEL_RESOURCE_ATTRIBUTES` env vars. Apps that don't emit traces still
-  benefit from SDK init harmlessness.
+- It injects the env vars `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` and
+  `OTEL_RESOURCE_ATTRIBUTES`. An app that emits no traces is not harmed by the
+  initialization of the SDK.
 
-Jobs/cronjobs: same, scoped to their run duration.
+A job and a cronjob do the same, for the duration of their run.
 
-## 9. SLOs declared, rules emitted
+## 9. SLOs are declared, and the rules are emitted
 
-If an archetype supports SLOs, the chart emits Prometheus recording rules
-from `values.slo`:
+If an archetype supports SLOs, the chart emits Prometheus recording rules from
+`values.slo`:
 
 ```yaml
 slo:
@@ -174,60 +177,62 @@ slo:
     burnRateSlow: 6               # 10% budget in 6 hours
 ```
 
-Recording rules materialize as `slo:availability:<app>` and
-`slo:latency:p95:<app>` time-series, consumed by Grafana dashboards
-(auto-provisioned by `platform/services/observability/`) and
-`Alertmanager` routes.
+The recording rules produce the time series `slo:availability:<app>` and
+`slo:latency:p95:<app>`. The Grafana dashboards consume them —
+`platform/services/observability/` provisions those dashboards automatically —
+and so do the `Alertmanager` routes.
 
-## 10. Progressive delivery hooks (future-friendly)
+## 10. Hooks for progressive delivery
 
-The archetypes emit `Deployment` / `StatefulSet` directly today. When
-`platform/services/progressive-delivery/` lands (Flagger or Argo Rollouts),
-the archetype will emit a `Canary` / `Rollout` resource instead when
-`values.rollout.strategy: canary` — no app changes required.
+Today the archetypes emit a `Deployment` or a `StatefulSet` directly. When
+`platform/services/progressive-delivery/` lands (Flagger or Argo Rollouts), an
+archetype will emit a `Canary` or a `Rollout` resource instead, when
+`values.rollout.strategy` is `canary`. No app will need a change.
 
-## 11. PDBs generated, not opt-in
+## 11. PDBs are generated, not opt-in
 
 Every long-running archetype emits a `PodDisruptionBudget`:
 
-- 1 replica: `minAvailable: 1` (voluntary evictions blocked; ops must
-  drain explicitly via `platform/core/policy/` override annotation).
-- 2+ replicas: `maxUnavailable: 25%` (rounded down).
+- 1 replica: `minAvailable: 1`. This blocks a voluntary eviction, so an operator
+  must drain the node explicitly, with the override annotation from
+  `platform/core/policy/`.
+- 2 or more replicas: `maxUnavailable: 25%`, rounded down.
 
-## 12. ServiceAccount per release, minimal RBAC
+## 12. One ServiceAccount per release, with minimal RBAC
 
-The archetype always creates a dedicated `ServiceAccount`. Ambient
-`default` SA is banned by policy. RBAC is opt-in via
-`values.rbac.rules[]`; empty by default.
+The archetype always creates a dedicated `ServiceAccount`. The policy bans use of
+the ambient `default` SA. RBAC is opt-in through `values.rbac.rules[]`, and it is
+empty by default.
 
-## 13. Rollout strategy encoded
+## 13. The rollout strategy is encoded
 
-Defaults per archetype (in `values.yaml`), all overridable:
+These are the defaults for each archetype, in its `values.yaml`. You can override
+all of them:
 
-- `stateless-app`, `ingress-app`, `worker`:
-  `strategy: RollingUpdate` with `maxSurge: 1, maxUnavailable: 0`.
+- `stateless-app`, `ingress-app` and `worker`: `strategy: RollingUpdate` with
+  `maxSurge: 1, maxUnavailable: 0`.
 - `stateful-app`: `strategy: RollingUpdate` with `partition: 0` and
   `podManagementPolicy: OrderedReady`.
-- `job`, `cronjob`: n/a.
+- `job` and `cronjob`: not applicable.
 
 ## 14. Chart testing
 
-Every archetype has golden-file tests under `tests/`. `helm-unittest` runs
-on every CI build:
+Every archetype has golden-file tests under `tests/`. `helm-unittest` runs on
+every CI build:
 
-- `basic.yaml` — minimal valid values, expected rendered Deployment.
-- `secrets.yaml` — secrets[] populated; expected ExternalSecrets.
-- `slo.yaml` — slo populated; expected recording rules.
-- `networkpolicy.yaml` — allowIngressFrom populated; expected policy.
+- `basic.yaml` — the minimal valid values, and the expected rendered Deployment.
+- `secrets.yaml` — `secrets[]` populated, and the expected ExternalSecrets.
+- `slo.yaml` — `slo` populated, and the expected recording rules.
+- `networkpolicy.yaml` — `allowIngressFrom` populated, and the expected policy.
 
-Drift in the rendered output without a corresponding values change fails CI.
+A change to the rendered output with no matching change to the values fails CI.
 
 ## 15. Version pinning
 
-`Chart.yaml:version` follows semver. A minor bump may change default values
-(backwards-compatible). A major bump requires a migration note in the
-archetype README. Apps pin `dependencies[].version` to a specific chart
-version.
+`Chart.yaml:version` follows semver. A minor bump may change the default values,
+and it stays backward-compatible. A major bump needs a migration note in the
+README of the archetype. An app pins `dependencies[].version` to one specific
+chart version.
 
-The shared `_common` library has its own semver. Archetypes pin against
-`_common` the same way apps pin against archetypes.
+The shared `_common` library has its own semver. An archetype pins against
+`_common` in the same way that an app pins against an archetype.

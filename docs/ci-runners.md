@@ -1,6 +1,6 @@
 # CI runners
 
-Self-hosted GitHub Actions capacity for the `gophersys` org, and what a repo has to
+Self-hosted GitHub Actions capacity for the `gophersys` org, and what a repo must
 do to use it.
 
 ## What exists
@@ -19,27 +19,29 @@ One org-wide [actions-runner-controller][arc] scale set:
 | Container mode | `dind` — privileged Docker-in-Docker sidecar, pod spec written out (see below) |
 | Auth | GitHub App, secret `arc-github-app` (Bitwarden: `shared/github/arc-app`) |
 
-Scale-to-zero means a cold job waits ~30–60s for a pod. Capacity is shared across
-**every** repo in the org, so a workflow with many parallel jobs starves everyone else.
+The pool scales to zero, so a cold job waits 30 to 60 seconds for a pod. Every
+repo in the org shares the same capacity. A workflow with many parallel jobs
+therefore leaves no capacity for the other repos.
 
 ## What a runner does and does not give you
 
-- **Sudo, and the full dev toolchain.** The runner image is the `base` dev image,
-  so a job gets Go, Node, Python, Rust, kubectl, helm, terraform, k3d, kind,
+- **Sudo, and the full dev toolchain.** The runner image is the `base` dev image.
+  A job gets Go, Node, Python, Rust, kubectl, helm, terraform, k3d, kind,
   kubeconform, shellcheck, gitleaks and the ADR-0020 gate tools at the same
-  versions an interactive session gets, and `dev` has passwordless sudo.
+  versions an interactive session gets. The `dev` user has passwordless sudo.
   Jobs no longer download their tooling into `$HOME/bin`.
-- **Docker works.** The dind sidecar is privileged, so jobs can `docker build`,
-  `docker run`, and run k3d/kind. This is how repos get tooling the base image lacks:
-  put it in a container image and run the job's real work inside it.
-- **Ephemeral.** Each job gets a fresh pod; nothing persists between runs except what
-  you push to a registry or an `actions/cache` entry.
+- **Docker works.** The dind sidecar is privileged, so a job can run
+  `docker build`, `docker run`, k3d and kind. This is how a repo gets tooling
+  that the base image lacks: put the tooling in a container image and run the
+  job's real work inside that image.
+- **Temporary.** Each job gets a new pod. Nothing persists between runs, except
+  what you push to a registry or to an `actions/cache` entry.
 
 ## Sizing and placement
 
-Until 2026-08-10 the pod declared **no requests and no limits at all**. Every runner
-was best-effort: the scheduler treated four concurrent builds as free, and a runaway
-`docker build` could take a node's memory or fill its disk.
+Until 2026-08-10 the pod declared **no requests and no limits at all**. Every
+runner was best-effort. The scheduler treated 4 concurrent builds as free, and a
+`docker build` without control could take a node's memory or fill its disk.
 
 Per runner pod, across both containers:
 
@@ -52,36 +54,41 @@ Per runner pod, across both containers:
 | Ephemeral request | 2Gi | 8Gi | **10Gi** |
 | Ephemeral limit | 10Gi | 30Gi | 40Gi |
 
-At `maxRunners: 4` the fleet reserves **4 cores, 8Gi RAM and 40Gi disk** — comfortable
-against four workers of 4 cores / 14Gi.
+At `maxRunners: 4` the pool reserves **4 cores, 8Gi RAM and 40Gi disk**. That is
+comfortable against 4 workers of 4 cores and 14Gi each.
 
-Three decisions are worth keeping:
+Keep these 3 decisions:
 
-- **Size `dind`, not just `runner`.** `dind` is a native sidecar (`restartPolicy:
-  Always`), and it is where image builds actually spend CPU, memory and disk. Its
-  requests count toward the pod, so leaving it unset made the pod look free.
-- **No CPU limit, on purpose.** CFS throttling makes builds slow and intermittently
-  flaky. The request already guarantees the share; a limit only adds stalls.
-- **Ephemeral-storage requests do the real placement work.** Image layers live in the
-  `dind` container's writable layer. Declaring 10Gi per pod stops the scheduler from
-  stacking builds onto a node that has no disk left — the failure mode the memory
-  numbers would never have caught.
+- **Size `dind`, not only `runner`.** `dind` is a native sidecar
+  (`restartPolicy: Always`), and it is where an image build spends CPU, memory
+  and disk. Its requests count toward the pod, so an unset value made the pod
+  look free.
+- **No CPU limit, on purpose.** CFS throttling makes builds slow and
+  intermittently unreliable. The request already guarantees the share. A limit
+  only adds stalls.
+- **The ephemeral-storage requests do the placement work.** Image layers live in
+  the writable layer of the `dind` container. A declaration of 10Gi per pod stops
+  the scheduler from putting more builds onto a node that has no disk left. The
+  memory numbers would never have caught that failure.
 
-Placement is declared, not labelled: a `nodeAffinity` `NotIn [k3s-w-4]` keeps builds
-off the USB-passthrough embedded node, and a preferred `podAntiAffinity` spreads
-concurrent runners across workers. Hostnames are used directly so nothing depends on
-a label applied by hand outside git.
+Declare the placement; do not use a hand-applied label. A `nodeAffinity`
+`NotIn [k3s-w-4]` keeps builds off the USB-passthrough embedded node, and a
+preferred `podAntiAffinity` spreads concurrent runners across the workers. The
+manifest uses the hostnames directly, so nothing depends on a label applied by
+hand outside git.
 
 ### Why the pod spec is written out instead of `containerMode: dind`
 
 `containerMode: dind` **generates** the pod spec and **appends** anything you add
-rather than merging it. Supplying a container named `dind` under that mode renders a
-second container with the same name, which the API server rejects. The chart's own
-values file says it plainly: *"If any customization is required for dind, containerMode
-should remain empty, and configuration should be applied to the template."*
+instead of a merge. A container named `dind` supplied under that mode renders a
+second container with the same name, and the API server rejects that. The chart's
+own values file states it: *"If any customization is required for dind,
+containerMode should remain empty, and configuration should be applied to the
+template."*
 
-So `containerMode` is gone and `template.spec` carries the chart's documented dind spec
-verbatim plus resources, affinity and volume size limits. Verify a change before merging:
+`containerMode` is therefore removed, and `template.spec` carries the chart's
+documented dind spec without change, plus the resources, the affinity and the
+volume size limits. Verify a change before you merge it:
 
 ```bash
 yq -r '.spec.source.helm.values' \
@@ -93,25 +100,28 @@ yq 'select(.kind=="AutoscalingRunnerSet")' /tmp/r.yaml \
   | kubectl apply --server-side --dry-run=server -f -
 ```
 
-Check the rendered `initContainers` / `containers` names are unique. A duplicate name
-is the specific way this chart fails, and Argo will report it only after it syncs.
+Check that the names in the rendered `initContainers` and `containers` are
+unique. A duplicate name is the specific way this chart fails, and Argo reports
+it only after it syncs.
 
 ## Roadmap
 
-The interface these steps build toward — pools for physical capability, images
-for software capability — is specified in [`ci-substrate.md`](ci-substrate.md).
+`ci-substrate.md` specifies the interface that these steps build toward: pools
+for physical capability, images for software capability. See
+[`ci-substrate.md`](ci-substrate.md).
 
 | Next | What it adds | Blocked on |
 |---|---|---|
-| Per-domain pools (`arc-zephyr`, `arc-kicad`, `arc-flutter`, `arc-usb`) | firmware, hardware, mobile | nothing — the recipe is in `ci-substrate.md` |
-| **Mac mini runner** | macOS builds, **iOS and Android** via two phones on USB with full device control | phones not connected yet (2026-08-10) — the machine is `macbook-mini` in `contracts/access.yaml` |
-| Windows VM runner on `pve-03` | Windows builds | licence choice |
+| Per-domain pools (`arc-zephyr`, `arc-kicad`, `arc-flutter`, `arc-usb`) | firmware, hardware, mobile | nothing — the procedure is in `ci-substrate.md` |
+| **Mac mini runner** | macOS builds, **iOS and Android** through 2 phones on USB with full device control | the phones are not connected yet (2026-08-10) — the machine is `macbook-mini` in `contracts/access.yaml` |
+| Windows VM runner on `pve-03` | Windows builds | the licence choice |
 | Argo on the cloud cluster | closes debt D18 | nothing |
 
 ## Onboarding a repo
 
-For a **private** repo, nothing: the Default runner group is `visibility: all`, so any
-private repo in the org can use `runs-on: arc-org` immediately.
+A **private** repo needs no action. The Default runner group is
+`visibility: all`, so any private repo in the org can use `runs-on: arc-org`
+immediately.
 
 ```yaml
 jobs:
@@ -121,10 +131,10 @@ jobs:
 
 ### Public repos are blocked by default
 
-The Default runner group has **`allows_public_repositories: false`**. A public repo's
-jobs will queue **forever** with no error — the ARC listener simply reports
-`"assigned job"=0` and never scales up, and the job shows `runner_group_name: ""`.
-There is no message in the GitHub UI explaining why.
+The Default runner group has **`allows_public_repositories: false`**. The jobs of
+a public repo queue **for ever** with no error. The ARC listener reports
+`"assigned job"=0` and never scales up, and the job shows
+`runner_group_name: ""`. The GitHub UI gives no message that explains the cause.
 
 Diagnose with:
 
@@ -134,52 +144,56 @@ gh api orgs/gophersys/actions/runner-groups/1 --jq '{allows_public_repositories}
 gh api repos/gophersys/<repo>/actions/runs/<id>/jobs --jq '.jobs[] | {labels,runner_group_name}'
 ```
 
-This default is deliberate and **should not be flipped casually**. Self-hosted runners
-on a public repo let a fork PR execute arbitrary code on our hardware, and because this
-scale set runs a *privileged* dind sidecar, that code can reach the node — which means
-the cluster. The standard mitigations before enabling it are:
+This default is deliberate. **Do not change it without care.** A self-hosted
+runner on a public repo lets a pull request from a fork run arbitrary code on our
+hardware. This scale set runs a *privileged* dind sidecar, so that code can reach
+the node, and therefore the cluster. Apply these standard controls before you
+enable it:
 
-1. Require approval for **all** outside-collaborator workflow runs, not just
-   first-time contributors.
-2. Prefer a **separate** runner group and scale set for public repos, without dind, and
-   with the toolchain baked into a custom runner image instead. A non-privileged runner
-   turns node compromise back into job compromise.
-3. Keep `maxRunners` low on that group so an abusive PR cannot exhaust org capacity.
+1. Require approval for **all** workflow runs from outside collaborators, not
+   only for first-time contributors.
+2. Prefer a **separate** runner group and scale set for public repos, without
+   dind, and with the toolchain built into a custom runner image instead. A
+   runner without privilege turns a node compromise back into a job compromise.
+3. Keep `maxRunners` low on that group, so an abusive pull request cannot use all
+   the org capacity.
 
-When `hardware` needed these runners it was public and hit exactly this. Rather than
-weaken the policy for one repo, the repo was made **private** — the cheapest correct
-fix, and reversible. If it ever needs to be public again, do option 2 first; do not
-simply flip the flag.
+The `hardware` repo was public when it needed these runners, and its jobs queued
+for this reason. The repo was made **private** instead of a change to the policy.
+That was the least expensive correct fix, and you can reverse it. If the repo
+must be public again, do option 2 first. Do not simply change the flag.
 
-As of 2026-08-09 the org has **no public repos** (`esp32-starter` was deleted; a bundle is in `~/code/.archive/`), and
-the policy remains disabled.
+As of 2026-08-09 the org has **no public repos** (`esp32-starter` was deleted; a
+bundle is in `~/code/.archive/`), and the policy stays disabled.
 
 ## Consumers
 
 | Repo | Uses | Notes |
 |---|---|---|
 | `infrastructure` | `arc-org` | `validate.yml` — kubeconform + `kubectl kustomize`, both from the runner image |
-| `eden` | `arc-org` | needs dind for k3d-based gates |
+| `eden` | `arc-org` | needs dind for the k3d-based gates |
 | `workspaces` | `arc-org` | |
-| `hardware` | `arc-org` | Needs KiCad 10, supplied by `ghcr.io/gophersys/hardware-ci` (built from `ci/Dockerfile` in that repo) rather than a custom runner image. Made private specifically to use these runners — see the public-repo section |
+| `hardware` | `arc-org` | Needs KiCad 10, supplied by `ghcr.io/gophersys/hardware-ci` (built from `ci/Dockerfile` in that repo) instead of a custom runner image. Made private specifically to use these runners — see the public-repo section |
 
 ### KiCad / EDA workloads
 
-`hardware` runs `kicad-cli` for ERC, DRC, netlist export and Gerber generation. KiCad is
-not on the runner image and cannot be apt-installed without sudo, so that repo builds
-`ghcr.io/gophersys/hardware-ci` (Ubuntu 24.04 + the `ppa:kicad/kicad-10.0-releases` PPA)
-and runs its test suite inside it via `docker run`. Any future EDA repo should reuse
-that image rather than rebuild the KiCad install.
+`hardware` runs `kicad-cli` for ERC, DRC, netlist export and Gerber generation.
+KiCad is not on the runner image, and you cannot install it with apt without
+sudo. That repo therefore builds `ghcr.io/gophersys/hardware-ci` (Ubuntu 24.04
+plus the `ppa:kicad/kicad-10.0-releases` PPA) and runs its test suite inside that
+image with `docker run`. A future EDA repo must reuse that image instead of a new
+KiCad install.
 
-If public-repo access is ever granted via a separate non-dind group (option 2 above),
-that image becomes the **runner** image and the `docker run` indirection disappears.
+If a separate group without dind ever gets public-repo access (option 2 above),
+that image becomes the **runner** image, and the `docker run` step is no longer
+necessary.
 
 ## Changing the scale set
 
-Edit `platform/services/gitops/registry/app-arc-runners-org.yaml` and let ArgoCD sync
-(`selfHeal: true`, `prune: true`). Do not `kubectl edit` the `AutoscalingRunnerSet` —
-Argo will revert it.
+Edit `platform/services/gitops/registry/app-arc-runners-org.yaml` and let ArgoCD
+sync (`selfHeal: true`, `prune: true`). Do not run `kubectl edit` on the
+`AutoscalingRunnerSet`. Argo reverts it.
 
-`.github/workflows/validate.yml` kubeconform-validates that file on every PR.
+`.github/workflows/validate.yml` runs kubeconform on that file on every PR.
 
 [arc]: https://github.com/actions/actions-runner-controller

@@ -1,6 +1,6 @@
 # clusters — conventions
 
-A cluster instance is `clusters/instances/<name>/` and contains:
+A cluster instance is `clusters/instances/<name>/`. It contains:
 
 ```
 clusters/instances/<name>/
@@ -17,12 +17,12 @@ clusters/instances/<name>/
 └── kubeconfig/               # (generated, gitignored, tmpfs only) kubeconfig shuttled via BW
 ```
 
-Managed clusters (EKS/AKS/OKE) have no `nodes/` subdir — node lifecycle
-is owned by the cloud.
+A managed cluster (EKS, AKS or OKE) has no `nodes/` subdirectory, because the
+cloud owns the node lifecycle.
 
-## identity.yaml schema
+## The identity.yaml schema
 
-Required at minimum:
+These fields are the minimum:
 
 ```yaml
 name: <cluster-name>                      # matches directory name
@@ -89,7 +89,7 @@ protection:
 
 ## Namespace taxonomy
 
-Namespaces in a cluster fall into three kinds:
+A namespace in a cluster is one of 3 kinds:
 
 | Pattern                | Example                                   | Scope                                          |
 |------------------------|-------------------------------------------|------------------------------------------------|
@@ -97,23 +97,24 @@ Namespaces in a cluster fall into three kinds:
 | `platform-<component>` | `platform-ingress`, `platform-monitoring` | One platform component installation            |
 | `kube-*`               | `kube-system`                             | Kubernetes-reserved (never touched by platform) |
 
-- `<project>` MUST be listed in the cluster's `projects_hosted:` list.
-- `<env>` MUST be `prod | staging | dev | lab`.
-- Inside `<project>-<env>`, apps talk to each other freely (same-ns
-  NetworkPolicy). Cross-project traffic requires explicit allow rules.
-- Quota applies at the `<project>-<env>` namespace level (shared by
-  all apps of that project in that env).
+- `<project>` MUST appear in the cluster's `projects_hosted:` list.
+- `<env>` MUST be `prod`, `staging`, `dev` or `lab`.
+- Inside `<project>-<env>` the apps talk to each other freely, because the
+  NetworkPolicy allows traffic in the same namespace. Traffic between projects
+  needs explicit allow rules.
+- The quota applies at the level of the `<project>-<env>` namespace, and all the
+  apps of that project in that env share it.
 
-**Single-project clusters** work the same way — their `projects_hosted:`
-has one entry, their namespaces look like `onlyproject-prod`,
-`onlyproject-staging`, etc. **Multi-project clusters** serve many
-projects side by side, each in its own `<project>-<env>` namespaces.
-No code change moves between the two topologies.
+A **single-project cluster** works the same way. Its `projects_hosted:` list has
+1 entry, and its namespaces look like `onlyproject-prod` and
+`onlyproject-staging`. A **multi-project cluster** serves many projects side by
+side, each in its own `<project>-<env>` namespaces. A move between the 2
+topologies needs no code change.
 
 ## Node role taxonomy
 
-Every cluster node declares a `kubernetes.cluster_role` in its
-identity.yaml. Valid roles + defaults:
+Every cluster node declares a `kubernetes.cluster_role` in its identity.yaml.
+The valid roles and their defaults:
 
 | Role      | Label `role=` | Taint                              | Typical workloads                          |
 |-----------|---------------|------------------------------------|--------------------------------------------|
@@ -123,86 +124,86 @@ identity.yaml. Valid roles + defaults:
 | `build`   | `build`       | `build=true:NoSchedule`            | CI job runners                             |
 | `batch`   | `batch`       | `batch=true:PreferNoSchedule`      | Short-lived jobs on preemptible compute    |
 
-The cluster's `node_role_assignments:` block and each node's
-`kubernetes.cluster_role` must agree; `bash clusters/ctl.sh validate`
-enforces.
+The `node_role_assignments:` block of the cluster and the
+`kubernetes.cluster_role` of each node must agree.
+`bash clusters/ctl.sh validate` enforces this.
 
-Ansible role `cluster-node-labels` applies the labels + taints to the
-k8s node at k3s-join time (for self-managed). For managed clusters, the
-provider's Terraform module sets them via the node group's labels /
-taints config.
+For a self-managed cluster, the Ansible role `cluster-node-labels` applies the
+labels and the taints to the k8s node at k3s-join time. For a managed cluster,
+the Terraform module of the provider sets them through the labels and taints
+configuration of the node group.
 
 ## Platform component opt-in
 
-`platform/core/*` is always installed on every cluster (see
-`platform/core/README.md` install order). `platform/services/*` is
-per-cluster opt-in via `platform_services:` in the cluster's
-identity.yaml.
+Every cluster always installs `platform/core/*`. See the install order in
+`platform/core/README.md`. A cluster opts into `platform/services/*` through
+`platform_services:` in its identity.yaml.
 
-Per-cluster value overrides live at
-`clusters/instances/<c>/overlays/{core,services}/<path>/values.yaml`
-and are merged by the platform's `apply` verb on top of the archetype's
-baseline.
+The value overrides for one cluster live at
+`clusters/instances/<c>/overlays/{core,services}/<path>/values.yaml`. The `apply`
+verb of the platform merges them on top of the baseline of the archetype.
 
 ## Cluster lifecycle
 
 ### Bootstrap
 
-1. Declare the cluster: scaffold identity.yaml, fill TODOs, commit.
-2. For self-managed: declare every node in `nodes/<host>/identity.yaml`.
-3. Provision hosts: Terraform via `providers/<cloud>/modules/` (or
-   bare-metal provider for existing hardware).
-4. Ansible: run `bootstrap.yaml` playbook across the nodes (installs
-   Tailscale, joins mesh, bootstraps BW client).
-5. K3s install: Ansible `k3s-install` + `k3s-join` playbooks
+1. Declare the cluster: scaffold identity.yaml, resolve the TODOs, and commit.
+2. For a self-managed cluster, declare every node in
+   `nodes/<host>/identity.yaml`.
+3. Provision the hosts with Terraform through `providers/<cloud>/modules/`, or
+   with the bare-metal provider for existing hardware.
+4. Run the Ansible `bootstrap.yaml` playbook across the nodes. It installs
+   Tailscale, joins the mesh and bootstraps the Bitwarden client.
+5. Install K3s with the Ansible `k3s-install` and `k3s-join` playbooks
    (`providers/kubernetes-manual/`).
-6. Apply `platform/core/*` in order (see its README).
-7. Apply `platform/services/*` per `platform_services:` opt-ins.
-8. Verify: `kubectl get pods -A` shows everything Running; policy
-   PolicyReports show no unexpected denies.
+6. Apply `platform/core/*` in order. See its README.
+7. Apply `platform/services/*` for each opt-in in `platform_services:`.
+8. Verify: `kubectl get pods -A` shows everything Running, and the policy
+   PolicyReports show no unexpected denial.
 
-### Upgrade (K8s version)
+### Upgrade (Kubernetes version)
 
-1. Bump `distribution_version` in identity.yaml.
-2. Commit + PR + merge.
-3. Run `k3s-upgrade` playbook — drains + upgrades one node at a time,
-   respecting PDBs.
-4. Verify cluster_slo.control_plane_availability unchanged across the
+1. Change `distribution_version` in identity.yaml.
+2. Commit, open a PR, and merge.
+3. Run the `k3s-upgrade` playbook. It drains and upgrades one node at a time, and
+   it respects the PDBs.
+4. Verify that `cluster_slo.control_plane_availability` did not change across the
    upgrade window.
 
 ### Teardown
 
-**Never a routine operation.** `irreplaceable_nodes:` are protected
-by Terraform `prevent_destroy`. Namespaces and PVCs are protected by
-`platform/core/policy/` (see `CATALOG.md`).
+**This is never a routine operation.** Terraform `prevent_destroy` protects the
+`irreplaceable_nodes:`. `platform/core/policy/` protects the namespaces and the
+PVCs. See `CATALOG.md`.
 
-If a cluster genuinely must be retired:
+If a cluster must genuinely be retired:
 
-1. Change `status: retired` in identity.yaml.
+1. Set `status: retired` in identity.yaml.
 2. Migrate or snapshot every PV labeled `platform.gophersys/retain=true`.
-3. Explicit platform PR documenting the teardown rationale.
-4. Remove `irreplaceable_nodes` entries one by one (requires override
-   annotation on each).
+3. Open an explicit platform PR that documents the reason for the teardown.
+4. Remove the `irreplaceable_nodes` entries one at a time. Each removal needs an
+   override annotation.
 
 ## Ownership: who manages what
 
-- **Host OS, k3s install, Tailscale, secrets client** → Ansible (via
-  `machines/roles/*`, called by `providers/kubernetes-manual/ansible/`
-  for cluster members).
-- **K8s control plane, node registration, labels+taints** → the k3s /
-  provider install step + `cluster-node-labels` Ansible role.
-- **Cluster-wide resources (NetPol baselines, PSS labels, Kyverno CRs)**
-  → `platform/core/*`.
-- **Cluster-wide shared services (observability, dbs, msg)** →
-  `platform/services/*`, opted into by this cluster.
-- **Per-cluster tuning (chart values, quotas, routes)** → this instance's
-  `overlays/` directory.
-- **App workloads** → out-of-repo; apps consume the cluster via
+- **The host OS, the k3s install, Tailscale and the secrets client** → Ansible,
+  through `machines/roles/*`, which
+  `providers/kubernetes-manual/ansible/` calls for cluster members.
+- **The Kubernetes control plane, the node registration, and the labels and
+  taints** → the k3s or provider install step, plus the `cluster-node-labels`
+  Ansible role.
+- **Cluster-wide resources (NetworkPolicy baselines, PSS labels, Kyverno CRs)** →
+  `platform/core/*`.
+- **Cluster-wide shared services (observability, databases, messaging)** →
+  `platform/services/*`, which this cluster opts into.
+- **Tuning for one cluster (chart values, quotas, routes)** → the `overlays/`
+  directory of this instance.
+- **App workloads** → outside this repo. An app consumes the cluster through
   `contracts/*`.
 
 ## Templates
 
-Cluster templates under `clusters/templates/<name>/` contain:
+A cluster template at `clusters/templates/<name>/` contains:
 
 ```
 clusters/templates/<t>/
@@ -215,17 +216,19 @@ clusters/templates/<t>/
 
 See `clusters/templates/README.md` for the catalog.
 
-## ctl.sh verbs (current + planned)
+## ctl.sh verbs (current and planned)
 
 Current:
-- `status` — counts instances + templates + nodes.
-- `validate` — schema checks on identity.yaml + shellcheck + JSON parse.
+- `status` — counts the instances, the templates and the nodes.
+- `validate` — schema checks on identity.yaml, plus shellcheck and a JSON parse.
 - `new-cluster` — scaffold an instance from a template.
 - `new-cluster-node` — scaffold a node under an existing cluster.
 
-Planned (land as the first cluster bootstraps):
-- `bootstrap <cluster>` — run the full provision + install sequence.
-- `apply <cluster>` — apply every platform/* component (core + opted services).
-- `upgrade <cluster> --distribution-version=<v>` — rolling k8s upgrade.
-- `drift <cluster>` — diff declared state vs live state.
-- `shell <cluster>` — kubectl shell with the cluster's kubeconfig from BW.
+Planned, and they land when the first cluster bootstraps:
+- `bootstrap <cluster>` — run the full provision and install sequence.
+- `apply <cluster>` — apply every `platform/*` component: core plus the services
+  that the cluster opted into.
+- `upgrade <cluster> --distribution-version=<v>` — a rolling Kubernetes upgrade.
+- `drift <cluster>` — compare the declared state with the live state.
+- `shell <cluster>` — a kubectl shell with the cluster's kubeconfig from
+  Bitwarden.

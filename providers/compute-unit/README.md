@@ -1,20 +1,20 @@
 # providers/compute-unit
 
-The **cloud-neutral compute-unit contract**. Every machine declares
-its needs in this shape; a provider-specific module (`providers/<cloud>/modules/compute/`)
-fulfills it.
+The **cloud-neutral compute-unit contract**. Every machine declares its needs in
+this shape, and a provider-specific module
+(`providers/<cloud>/modules/compute/`) fulfills the request.
 
 ## Why
 
-A single-operator setup running workloads across OCI + AWS + Hetzner
-+ bare-metal needs one abstraction to reason about compute. Without
-it, every host is cloud-specific and cross-cloud workflows (e.g.,
-OCI A1.Flex + AWS t4g hybrid K3s mesh) turn into bespoke glue.
+One operator runs workloads across OCI, AWS, Hetzner and bare metal. That needs 1
+abstraction to reason about compute. Without it, every host is specific to its
+cloud, and a workflow across clouds becomes custom code. An example of such a
+workflow is a hybrid K3s mesh of OCI A1.Flex and AWS t4g nodes.
 
-## Authoritative contract
+## The authoritative contract
 
-The machine-readable contract lives at [`contract.yaml`](./contract.yaml).
-Human-readable summary below — `contract.yaml` wins in case of drift.
+The machine-readable contract is at [`contract.yaml`](./contract.yaml). The
+summary below is for a human reader. If the 2 differ, `contract.yaml` wins.
 
 ### Required inputs (every provider declares these)
 
@@ -26,7 +26,7 @@ Human-readable summary below — `contract.yaml` wins in case of drift.
 | `memory_gb` | number | GB of RAM. |
 | `disk_gb` | number | Root disk GB. |
 
-### Optional inputs (defaults shown)
+### Optional inputs (the defaults are shown)
 
 | Name | Type | Default | Notes |
 |---|---|---|---|
@@ -50,21 +50,21 @@ Human-readable summary below — `contract.yaml` wins in case of drift.
 
 ## Provider responsibilities
 
-Given a compute-unit request, a provider's module:
+For a compute-unit request, the module of a provider must:
 
-1. Picks the **cheapest shape** in that cloud that satisfies `arch +
-   cpu_count + memory_gb + disk_gb`.
-2. Provisions with the right OS image for `os`.
-3. Attaches to a subnet consistent with `network`, attaches/declines a
-   public IP accordingly.
-4. Applies `tags` as cloud-native tags.
-5. If `tailnet_auth_key` is non-empty, pre-seeds cloud-init to run
-   `tailscale up --auth-key=...` on first boot.
-6. Outputs the contract's required outputs.
+1. Pick the **least expensive shape** in that cloud that satisfies `arch`,
+   `cpu_count`, `memory_gb` and `disk_gb`.
+2. Provision with the correct OS image for `os`.
+3. Attach the instance to a subnet that matches `network`, and attach or refuse a
+   public IP to match.
+4. Apply `tags` as native cloud tags.
+5. If `tailnet_auth_key` is not empty, prepare cloud-init to run
+   `tailscale up --auth-key=...` at the first boot.
+6. Emit every required output of the contract.
 
-Cloud-specific variables (availability domain, subnet OCID, VPC ID,
-Hetzner server type, etc.) are declared as additional variables on
-the provider module — they extend, they don't replace, the contract.
+A variable that is specific to one cloud — an availability domain, a subnet OCID,
+a VPC ID, a Hetzner server type — is declared as an extra variable on the
+provider module. Those variables extend the contract. They do not replace it.
 
 ## Fulfillment matrix
 
@@ -78,16 +78,16 @@ the provider module — they extend, they don't replace, the contract.
 
 ## Validation
 
-- This module's `./ctl.sh validate` verifies `contract.yaml` parses
-  cleanly and the README's variable/output tables agree with the
+- The `./ctl.sh validate` of this module verifies that `contract.yaml` parses
+  cleanly, and that the variable and output tables in this README agree with the
   authoritative contract.
-- Each provider module's `./ctl.sh validate` cross-checks its own
-  `variables.tf` + `outputs.tf` against `contract.yaml`, failing the
-  build if a required variable/output is missing or typed wrongly.
+- The `./ctl.sh validate` of each provider module compares its own
+  `variables.tf` and `outputs.tf` against `contract.yaml`. It fails the build if
+  a required variable or output is missing, or if the type is wrong.
 
 ## Status
 
-**v1 contract locked.** The first implementation
-(`providers/oracle/modules/compute/`) lands next. Additions to the
-contract are minor-version bumps (new optional var/output) or major
-(renaming, type change).
+**The v1 contract is locked.** The first implementation
+(`providers/oracle/modules/compute/`) lands next. An addition to the contract is
+a minor version bump (a new optional variable or output). A rename or a type
+change is a major version bump.

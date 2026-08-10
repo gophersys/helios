@@ -1,22 +1,26 @@
 # Runtime secrets
 
-Credential material that lives **only in the cluster / on app PVCs — never in
-git**. Each is recreated from Vaultwarden (items follow `shared/<service>/<purpose>`).
-This is the honest inventory behind debt-register D4/D5.
+Credential material that lives **only in the cluster or on an app PVC, never in
+git**. You recreate each one from Vaultwarden, where the items follow
+`shared/<service>/<purpose>`. This is the full inventory behind debt-register
+D4 and D5.
 
-> Why imperative? The ESO `vaultwarden` ClusterSecretStore returns an item's
-> **notes** blob (`jsonPath $.data.data[0].notes`), which fits multi-line configs
-> (e.g. WireGuard) but not single-field logins. So single-value credentials are
-> created imperatively, matching the existing `gluetun-wireguard` pattern. All
-> commands assume `BW_SESSION` is exported and `KUBECONFIG` points at homelab.
+> Why are these imperative? The ESO `vaultwarden` ClusterSecretStore returns the
+> **notes** blob of an item (`jsonPath $.data.data[0].notes`). That fits a
+> multi-line configuration, for example WireGuard, but it does not fit a login
+> with single fields. Single-value credentials are therefore created
+> imperatively, in the same way as the existing `gluetun-wireguard` secret. Every
+> command below assumes that you exported `BW_SESSION` and that `KUBECONFIG`
+> points at the homelab.
 
-## k8s Secrets (ns `media` unless noted)
+## k8s Secrets (namespace `media` unless stated otherwise)
 
 ### `gluetun-wireguard` — ProtonVPN WireGuard for the torrent VPN
-Vault: `shared/protonvpn/wireguard` (notes = the WireGuard config). Full
-recreation is in `apps/music/qbittorrent/20-deployment.yaml`'s header.
+Vault item: `shared/protonvpn/wireguard` (the notes hold the WireGuard
+configuration). The full recreation procedure is in the header of
+`apps/music/qbittorrent/20-deployment.yaml`.
 
-### `homepage-secrets` — Homepage dashboard widget credentials
+### `homepage-secrets` — credentials for the Homepage dashboard widgets
 ```sh
 PKEY=$(kubectl -n media exec deploy/prowlarr -- sh -c \
   'grep -oE "<ApiKey>[a-f0-9]+</ApiKey>" /config/config.xml | sed "s/<[^>]*>//g"')
@@ -25,77 +29,87 @@ kubectl -n media create secret generic homepage-secrets \
   --from-literal=HOMEPAGE_VAR_QBIT_PASS="bypass" \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
-(`HOMEPAGE_VAR_QBIT_PASS` is a placeholder — the qBit widget authenticates via
-the in-cluster subnet bypass, not this value.)
+`HOMEPAGE_VAR_QBIT_PASS` is a placeholder. The qBittorrent widget authenticates
+through the in-cluster subnet bypass, not through this value.
 
-### `filebrowser-admin` — Filebrowser admin password
+### `filebrowser-admin` — the Filebrowser admin password
 ```sh
 kubectl -n media create secret generic filebrowser-admin \
   --from-literal=password="$(bw get password shared/filebrowser/admin)" \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
-Then apply it to the app with `apps/music/filebrowser/reset-admin/job.yaml`
-(see its header — the running server locks the DB, so scale to 0 first).
+Then apply it to the app with `apps/music/filebrowser/reset-admin/job.yaml`. Read
+its header first: the running server locks the database, so scale the deployment
+to 0 before you run the job.
 
-### `operator-oauth` (ns `tailscale`) — Tailscale operator OAuth
-Vault: `shared/tailscale/oauth-k8s-operator`. Recreation is documented in
+### `operator-oauth` (namespace `tailscale`) — OAuth for the Tailscale operator
+Vault item: `shared/tailscale/oauth-k8s-operator`. The recreation procedure is in
 `platform/services/networking/tailscale-operator/README.md`.
 
-### `workspaces-github-app` (ns `workspaces-prod`) — GitHub App auth for create/destroy
-workspaces-api authenticates to GitHub as the **gophersys-arc** App (mints
-short-lived installation tokens at runtime) — the personal PAT (`workspaces-github`)
-is **retired**. Recreate from the App key at `shared/github/arc-app`:
+### `workspaces-github-app` (namespace `workspaces-prod`) — GitHub App auth for create and destroy
+workspaces-api authenticates to GitHub as the **gophersys-arc** App and mints
+short-lived installation tokens at runtime. The personal PAT
+(`workspaces-github`) is **retired**. Recreate the Secret from the App key at
+`shared/github/arc-app`:
 ```sh
 kubectl -n workspaces-prod create secret generic workspaces-github-app \
   --from-literal=github_app_id=4235192 \
   --from-literal=github_app_installation_id=144912786 \
   --from-file=github_app_private_key=<key.pem>   # bw: shared/github/arc-app
 ```
-Optional (deployment mounts with optional:true): without it the API is read-only.
+This Secret is optional, because the deployment mounts it with `optional: true`.
+Without it the API is read-only.
 
 
-### `arc-github-app` (ns `arc-runners`) — GitHub App for self-hosted CI + CD promotion
+### `arc-github-app` (namespace `arc-runners`) — GitHub App for self-hosted CI and CD promotion
 The **gophersys-arc** GitHub App authenticates the org self-hosted runner pool
-(`arc-org`, ARC) and the workspaces→infra image promotion. Vault:
-**`shared/github/arc-app`** (App ID, Client ID, Installation ID, private key).
+(`arc-org`, ARC) and the image promotion from workspaces into infrastructure.
+Vault item: **`shared/github/arc-app`** (App ID, Client ID, Installation ID and
+the private key).
 ```sh
 kubectl -n arc-runners create secret generic arc-github-app \
   --from-literal=github_app_id=4235192 \
   --from-literal=github_app_installation_id=144912786 \
   --from-file=github_app_private_key=<key.pem>   # from bw: shared/github/arc-app
 ```
-The same App key is also set as repo secrets on `gophersys/workspaces`
-(`ARC_APP_ID`, `ARC_APP_PRIVATE_KEY`) so its build can promote the deployment.
+The same App key is also set as repository secrets on `gophersys/workspaces`
+(`ARC_APP_ID`, `ARC_APP_PRIVATE_KEY`), so that its build can promote the
+deployment.
 
-## Platform / backup / edge Secrets
+## Secrets for the platform, the backups and the edge
 
-### `bw-cli-credentials` (ns `external-secrets`) — THE seed secret
-The one secret that anchors the whole ESO↔Vaultwarden chain (personal API key +
-master password). Hand-created; full recreation + security notes:
+### `bw-cli-credentials` (namespace `external-secrets`) — THE seed secret
+This is the one secret that anchors the whole chain from ESO to Vaultwarden. It
+holds the personal API key and the master password. It is created by hand. The
+full recreation procedure and the security notes are in
 `platform/core/secrets-operator/manifests/README.md` ("The one seed secret").
 
-### `cloudflare-api-token` (ns `cert-manager`) — DNS-01 solver token
-Cloudflare API token (Zone:DNS:Edit) used by the `letsencrypt-homelab`
-ClusterIssuer (see `platform/core/edge/tls/cert-manager/cluster-issuer.yaml`'s
-header). Vault: **`shared/cloudflare/api-token`** (confirmed present 2026-08-09 —
-an earlier revision of this doc wrongly said no vault item existed). Related items:
-`shared/cloudflare/tunnel`, `shared/cloudflare/zone-id`,
-`shared/cloudflare/access-google-oauth`. Recreate with:
+### `cloudflare-api-token` (namespace `cert-manager`) — the DNS-01 solver token
+A Cloudflare API token (Zone:DNS:Edit) that the `letsencrypt-homelab`
+ClusterIssuer uses. See the header of
+`platform/core/edge/tls/cert-manager/cluster-issuer.yaml`. Vault item:
+**`shared/cloudflare/api-token`** (confirmed present 2026-08-09 — an earlier
+revision of this document stated incorrectly that no vault item existed).
+Related items: `shared/cloudflare/tunnel`, `shared/cloudflare/zone-id` and
+`shared/cloudflare/access-google-oauth`. Recreate it with:
 ```sh
 kubectl -n cert-manager create secret generic cloudflare-api-token \
   --from-literal=api-token="$CLOUDFLARE_API_TOKEN" \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-### `grafana-admin` (ns `observability`) — Grafana admin login
-Consumed by the `obs` Helm release (`admin.existingSecret=grafana-admin`, keys
-`admin-user`/`admin-password`). The password is **generated at creation**
-(`openssl rand`), not vaulted — recreating it just mints a new one; retrieve the
-current one with `kubectl -n observability get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d`.
-Recreation: `platform/services/observability/chart/README.md`.
+### `grafana-admin` (namespace `observability`) — the Grafana admin login
+The `obs` Helm release consumes it (`admin.existingSecret=grafana-admin`, keys
+`admin-user` and `admin-password`). The password is **generated at creation**
+with `openssl rand`, and it is not in the vault. If you recreate the Secret you
+only mint a new password. Read the current one with
+`kubectl -n observability get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d`.
+The recreation procedure is in
+`platform/services/observability/chart/README.md`.
 
-### `minio-creds` (ns `minio`) — MinIO root credentials
-Backs the Longhorn S3 backup target (`apps/minio/`). Vault: `shared/minio/longhorn-backups`.
+### `minio-creds` (namespace `minio`) — the MinIO root credentials
+They back the Longhorn S3 backup target (`apps/minio/`). Vault item:
+`shared/minio/longhorn-backups`.
 ```sh
 kubectl -n minio create secret generic minio-creds \
   --from-literal=MINIO_ROOT_USER="$(bw get username shared/minio/longhorn-backups)" \
@@ -103,18 +117,21 @@ kubectl -n minio create secret generic minio-creds \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-### MinIO IAM: `music-studio` user (no k8s secret) — music-studio restic
-Not a k8s Secret — imperative MinIO-internal IAM state (user `music-studio` +
-policy `music-backups-rw`, RW on bucket `music-backups` only), created via an
-ad-hoc `mc` pod (pattern in `apps/minio/README.md`). Consumed only by restic on
-Mateo's Mac (via tailnet-private `s3.mateosegura.com`). Vault:
-`project/music-studio/minio/{access-key,secret-key}` (+
-`project/music-studio/restic/password` for repo encryption). On a MinIO
-rebuild, recreate with `mc admin user add` / `policy create` / `policy attach`.
+### MinIO IAM: the `music-studio` user (no k8s secret) — restic for music-studio
+This is not a k8s Secret. It is imperative state inside MinIO: the user
+`music-studio` and the policy `music-backups-rw`, which gives read and write on
+the bucket `music-backups` only. It was created through an ad-hoc `mc` pod (the
+pattern is in `apps/minio/README.md`). Only restic on Mateo's Mac consumes it,
+through the tailnet-private `s3.mateosegura.com`. Vault items:
+`project/music-studio/minio/{access-key,secret-key}`, plus
+`project/music-studio/restic/password` for the encryption of the repository.
+After a MinIO rebuild, recreate this state with `mc admin user add`,
+`policy create` and `policy attach`.
 
-### `longhorn-minio-backup` (ns `longhorn-system`) — Longhorn → MinIO S3 creds
-The S3 credentials Longhorn's `BackupTarget/default` uses to reach MinIO (same
-Vault item; access-key = MinIO root user, secret = root password).
+### `longhorn-minio-backup` (namespace `longhorn-system`) — Longhorn to MinIO S3 credentials
+These are the S3 credentials that Longhorn's `BackupTarget/default` uses to reach
+MinIO. They come from the same vault item: the access key is the MinIO root user,
+and the secret is the root password.
 ```sh
 kubectl -n longhorn-system create secret generic longhorn-minio-backup \
   --from-literal=AWS_ACCESS_KEY_ID="$(bw get username shared/minio/longhorn-backups)" \
@@ -123,26 +140,27 @@ kubectl -n longhorn-system create secret generic longhorn-minio-backup \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-### `tunnel-token` (ns `cloudflare-tunnel`) — Cloudflare tunnel token
-The `eden-home` Zero-Trust tunnel's token (issued in the CF dashboard). Consumed by
-`platform/core/edge/tunnel/cloudflare-tunnel/deployment.yaml`. Store the token at
-`shared/cloudflare/tunnel-token` (notes field):
+### `tunnel-token` (namespace `cloudflare-tunnel`) — the Cloudflare tunnel token
+The token of the `eden-home` Zero Trust tunnel, issued in the Cloudflare
+dashboard. `platform/core/edge/tunnel/cloudflare-tunnel/deployment.yaml` consumes
+it. Store the token at `shared/cloudflare/tunnel-token` in the notes field:
 ```sh
 kubectl -n cloudflare-tunnel create secret generic tunnel-token \
   --from-literal=token="$(bw get notes shared/cloudflare/tunnel-token)" \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-## App-managed passwords (not k8s Secrets)
+## Passwords the app manages (not k8s Secrets)
 
-### qBittorrent WebUI password
-Lives hashed in the config PVC (`qBittorrent.conf`), reset on a PVC rebuild.
-Re-apply from vault (`shared/qbittorrent/webui`):
+### The qBittorrent WebUI password
+It lives as a hash in the config PVC (`qBittorrent.conf`), and a PVC rebuild
+resets it. Apply it again from the vault (`shared/qbittorrent/webui`):
 ```sh
 bw get password shared/qbittorrent/webui | kubectl -n media exec -i \
   deploy/qbittorrent -c qbittorrent -- sh -c \
   'read -r P; curl -s -X POST http://localhost:8080/api/v2/app/setPreferences \
    --data-urlencode "json={\"web_ui_password\":\"$P\"}"'
 ```
-In-cluster access is auth-bypassed (`WebUI\AuthSubnetWhitelist`, enforced by the
-qbittorrent config initContainer); this password is only for external/UI login.
+In-cluster access bypasses the authentication (`WebUI\AuthSubnetWhitelist`,
+enforced by the qbittorrent config initContainer). This password is only for
+external and UI login.

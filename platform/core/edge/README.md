@@ -1,18 +1,17 @@
 # platform/core/edge
 
-The **edge** layer: everything between the public internet (and the
-tailnet) and the cluster's pods. Pluggable by design — a cluster picks a
-stack in its `identity.yaml:edge` block, and apps are unaware of the
-choice.
+The **edge** layer: everything between the cluster's pods and the public internet
+or the tailnet. It is pluggable by design. A cluster picks a stack in the
+`identity.yaml:edge` block, and an app does not know which stack it picked.
 
-## Why "edge"
+## Why the name "edge"
 
-Ingress, TLS, and DNS used to be three separate components (three install
-steps, three places to configure per cluster). In practice they're one
-decision: "how does traffic get to my apps?" Bundling them into an edge
-layer makes that decision explicit and swappable.
+Ingress, TLS and DNS used to be 3 separate components: 3 install steps and 3
+places to configure per cluster. In practice they are 1 decision: how does
+traffic reach my apps? A single edge layer makes that decision explicit and easy
+to change.
 
-## What's in here
+## What is in here
 
 ```
 edge/
@@ -36,15 +35,15 @@ edge/
 
 ## Traffic scopes
 
-Apps declare `ingress.scope` in their chart values:
+An app declares `ingress.scope` in its chart values:
 
 | Scope     | Who can reach it                  | Typical use                              |
 |-----------|-----------------------------------|------------------------------------------|
 | `public`  | Anyone on the internet (with TLS) | Customer-facing APIs, marketing sites    |
 | `tailnet` | Anyone on the Tailscale mesh      | Admin dashboards, internal tooling, ops  |
 
-Each cluster declares its edge stack for **each** scope. The free-tier
-default for `prod`:
+Each cluster declares its edge stack for **each** scope. The free-tier default
+for `prod`:
 
 ```yaml
 edge:
@@ -58,9 +57,9 @@ edge:
     tls:     tailscale-cert               # auto-issued, auto-rotated for ts.net hostnames
 ```
 
-## The swap path (free-tier → managed)
+## How to change from the free tier to a managed stack
 
-As the cluster grows out of free-tier:
+When the cluster grows past the free tier:
 
 ```yaml
 edge:
@@ -70,44 +69,49 @@ edge:
     tls:     acm                          # terminated at ELB
 ```
 
-**Nothing in the apps changes.** The chart archetype emits the same
-`Ingress` + `Service` resources. The cluster-level edge configuration
-decides how traffic actually flows.
+**Nothing in the apps changes.** The chart archetype emits the same `Ingress` and
+`Service` resources. The edge configuration of the cluster decides how the
+traffic flows.
 
-## Apps are unaware
+## Apps do not know the edge stack
 
-Every chart archetype emits an `Ingress` object (when `ingress.enabled`).
-The cluster's edge stack decides:
+Every chart archetype emits an `Ingress` object when `ingress.enabled` is true.
+The edge stack of the cluster decides:
 
-- Who accepts the request (CF Tunnel pod? ELB? kube-proxy NodePort?).
-- How DNS resolves the hostname (CF DNS? Route53? tailscale MagicDNS?).
-- Where the TLS cert came from (CF Origin? Let's Encrypt? ACM? TS?).
+- who accepts the request: a Cloudflare Tunnel pod, an ELB, or a kube-proxy
+  NodePort;
+- how DNS resolves the hostname: Cloudflare DNS, Route53, or Tailscale MagicDNS;
+- where the TLS certificate comes from: a Cloudflare origin cert, Let's Encrypt,
+  ACM, or Tailscale.
 
-App-level values (`ingress.host`, `ingress.tls.clusterIssuer`,
-`ingress.rateLimit`) are hints the archetype maps onto the cluster's
-edge stack. When incompatible (e.g., an app asks for `clusterIssuer:
-letsencrypt-prod` on a cluster whose `tls: acm`), admission warns +
-falls back to the cluster default.
+The app-level values (`ingress.host`, `ingress.tls.clusterIssuer`,
+`ingress.rateLimit`) are hints, and the archetype maps them onto the edge stack
+of the cluster. If a value is incompatible — for example an app asks for
+`clusterIssuer: letsencrypt-prod` on a cluster whose `tls` is `acm` — admission
+gives a warning and falls back to the cluster default.
 
 ## Install order (fixed)
 
-Runs AFTER `cni` + `storage` + `secrets-operator` (because edge needs
-secrets for API tokens), BEFORE any `platform/services/*`:
+The edge layer runs AFTER `cni`, `storage` and `secrets-operator`, because the
+edge needs secrets for its API tokens. It runs BEFORE any `platform/services/*`:
 
-1. `edge/tls/cert-manager` — operator (even if using non-LE issuers,
-   cert-manager orchestrates)
-2. `edge/ingress-controller` — traefik (for in-cluster L7 routing)
-3. `edge/tls/<issuer>` — ClusterIssuers for the declared TLS provider
-4. `edge/dns/<provider>` — DNS operator (external-dns or provider-native)
-5. `edge/tunnel/<provider>` — tunnel/LB that accepts public traffic
+1. `edge/tls/cert-manager` — the operator. cert-manager orchestrates issuance
+   even when the issuer is not Let's Encrypt.
+2. `edge/ingress-controller` — traefik, for L7 routing inside the cluster.
+3. `edge/tls/<issuer>` — the ClusterIssuers for the declared TLS provider.
+4. `edge/dns/<provider>` — the DNS operator: external-dns or a provider-native
+   one.
+5. `edge/tunnel/<provider>` — the tunnel or load balancer that accepts public
+   traffic.
 
-After edge is up, the cluster can serve `Ingress` objects end-to-end
-from declaration to publicly-resolvable TLS-terminated URL.
+After the edge is up, the cluster can serve an `Ingress` object end to end, from
+the declaration to a publicly resolvable URL with TLS termination.
 
 ## Status
 
-Skeleton. README + sub-component READMEs committed as the contract.
-Every actual install (tunnel pods, DNS operator, cert-manager manifests)
-lands as `prod` bootstraps through this tree.
+Skeleton. This README and the sub-component READMEs are committed as the
+contract. Each real install — the tunnel pods, the DNS operator, the cert-manager
+manifests — lands as `prod` bootstraps through this tree.
 
-See `CATALOG.md` for the provider support matrix + known-good combos.
+See `CATALOG.md` for the support matrix of the providers and the combinations
+that are known to work.

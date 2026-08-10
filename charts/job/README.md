@@ -1,18 +1,18 @@
 # charts/job
 
-One-shot `Job` — runs to completion, then disappears. Not scheduled, not
-long-running.
+A single-run `Job`. It runs to completion, then it is removed. It is not
+scheduled, and it does not run for a long time.
 
 ## When to pick this
 
-- Database migrations run during app deploy (as a Helm `post-install` or
-  `post-upgrade` hook).
-- One-off data backfills, schema rewrites, cache warmups.
-- Bootstrap tasks during cluster or app initialization.
-- Manually-triggered "run this thing once" operations.
+- A database migration that runs during an app deploy, as a Helm `post-install`
+  or `post-upgrade` hook.
+- A single data backfill, a schema rewrite, or a cache warmup.
+- A bootstrap task during the initialization of a cluster or an app.
+- An operation that a person starts by hand, one time.
 
-If the workload is scheduled (periodic), pick `cronjob`. If it's
-long-running, pick `worker`.
+If the workload runs on a schedule, pick `cronjob`. If it runs for a long time,
+pick `worker`.
 
 ## What the chart emits
 
@@ -23,8 +23,8 @@ long-running, pick `worker`.
 
 ## Helm hook integration
 
-Jobs that are part of another chart's lifecycle annotate themselves as
-Helm hooks:
+A job that is part of the lifecycle of another chart annotates itself as a Helm
+hook:
 
 ```yaml
 job:
@@ -43,13 +43,14 @@ annotations:
   helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 ```
 
-Use this for DB migrations paired to a `stateless-app` release, etc.
+Use this pattern for a database migration paired with a `stateless-app` release,
+and for similar cases.
 
-## Idempotency expectation
+## The requirement for idempotency
 
-Apps are expected to make job bodies idempotent whenever possible. The
-chart's `backoffLimit` default is 2 — a failing job retries, so a
-non-idempotent body causes duplicated effects on retry.
+An app must make the body of a job idempotent whenever that is possible. The
+default `backoffLimit` of the chart is 2, so a job that fails runs again. A body
+that is not idempotent therefore causes duplicate effects when it runs again.
 
 ## Run semantics
 
@@ -62,8 +63,8 @@ parallelism: 1                    # concurrent pods; for fan-out workloads
 completionMode: NonIndexed        # NonIndexed | Indexed (for work-queue patterns)
 ```
 
-For parallel fan-out jobs (e.g. "process these 100 work items across 10
-pods"), use `Indexed` mode with `parallelism: 10, completions: 100`.
+For a parallel fan-out job, for example the processing of 100 work items across
+10 pods, use the `Indexed` mode with `parallelism: 10, completions: 100`.
 
 ## Opinionated defaults
 
