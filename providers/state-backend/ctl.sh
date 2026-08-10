@@ -35,12 +35,12 @@ function on_exit() {
   local rc=$?
   local f var
   if [[ ${#TMPFS_FILES[@]} -gt 0 ]]; then
-    for f in "${TMPFS_FILES[@]}"; do
+    for f in ${TMPFS_FILES[@]+"${TMPFS_FILES[@]}"}; do
       [[ -f "$f" ]] && { shred -u "$f" 2>/dev/null || rm -f "$f"; }
     done
   fi
   if [[ ${#SENSITIVE_VARS[@]} -gt 0 ]]; then
-    for var in "${SENSITIVE_VARS[@]}"; do
+    for var in ${SENSITIVE_VARS[@]+"${SENSITIVE_VARS[@]}"}; do
       unset "$var"
     done
   fi

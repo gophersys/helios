@@ -45,7 +45,7 @@ function on_exit() {
     rm -rf "$SECRETS_DIR"
   fi
   local v
-  for v in "${EXPORTED_VARS[@]}"; do
+  for v in ${EXPORTED_VARS[@]+"${EXPORTED_VARS[@]}"}; do
     unset "$v"
   done
   return "$rc"

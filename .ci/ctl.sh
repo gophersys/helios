@@ -43,7 +43,7 @@ function on_exit() {
   local rc=$?
   if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
     local pid
-    for pid in "${BG_PIDS[@]}"; do
+    for pid in ${BG_PIDS[@]+"${BG_PIDS[@]}"}; do
       kill "$pid" 2>/dev/null || true
     done
   fi
