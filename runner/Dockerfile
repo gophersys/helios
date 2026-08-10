@@ -59,58 +59,29 @@ RUN case "${TARGETPLATFORM}" in \
       -o /tmp/runner.tar.gz \
  && tar -xzf /tmp/runner.tar.gz -C /home/runner \
  && rm -f /tmp/runner.tar.gz \
- && mkdir -p /home/runner/_work \
- && chown -R "${USER_UID}:${USER_GID}" /home/runner \
- && owner="$(stat -c %u /home/runner/run.sh)" \
- && if [ "$owner" != "${USER_UID}" ]; then \
-      echo "FATAL: /home/runner is owned by uid ${owner}, expected ${USER_UID}"; \
-      echo "The runner writes .runner and .credentials into this directory at"; \
-      echo "registration. Root ownership makes every pod fail to start."; \
-      exit 1; \
-    fi
-# Numeric ids, and an assertion. The first build of this layer silently produced a
-# root-owned /home/runner despite the chown, which would have made every runner pod
-# fail at registration — the runner writes .runner and .credentials there as an
-# unprivileged user. A build that cannot prove ownership must not produce an image.
-#
-# NOTE: no --version smoke here — the runner binary is cross-arch and fails under
-# QEMU. `.ci/smoke.sh` verifies it on a native runner after the push.
+ && mkdir -p /home/runner/_work
+# No chown. This image runs as ROOT — see the note below — so every path under
+# /home/runner is already writable by the process that uses it.
 
-# cictl — the CI contract tool. It lives HERE and not in `base` because the image
-# that needs a tool is the image that gets it: cictl generates and drift-checks
-# workflows, which is a CI concern, and `base` stays a dev environment. It also
-# keeps this layer's ~2 minute rebuild instead of base's hour.
+# THIS IMAGE RUNS AS ROOT, DELIBERATELY.
 #
-# gophersys/cictl is public precisely so this needs no credential: a private
-# module would have forced GOPRIVATE plus a build-time token in every repo that
-# builds an image, and Free has no org secrets for private repos to share one.
-# Go is already in the parent image, so this is a build-time-only use of it.
-USER root
-# CGO_ENABLED=0 is required, not merely tidy. This image is built multi-arch, so
-# the arm64 layer runs under QEMU with an x86 toolchain; a cgo build there hands
-# arm64 assembly to an x86 assembler and dies with "no such instruction: stp".
-# cictl is pure Go -- yaml and jsonschema, nothing native -- so a static binary
-# is both buildable and the better artifact for a CI tool.
-RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
-      go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}" \
- && chmod 0755 /usr/local/bin/cictl \
- && rm -rf /root/go /root/.cache/go-build
-
-# NOTE: this image does NOT put the runner user in the docker group.
+# The dev images keep the unprivileged `dev` user, because a developer bind-mounts
+# a repository into them and the files must belong to the host user. A CI runner
+# has no bind mount and no interactive user, so that reason does not apply.
 #
-# The dind sidecar owns the socket and chooses its gid, so the grant belongs to
-# the pod, not here. The ARC scale set and scripts/verify-runner-image.sh in
-# gophersys/infrastructure both set:
+# What running as `dev` DID cost: 3 classes of defect in one day, each of which
+# reached a published image and was only found by a real job failing.
+#   - /home/runner owned by root while the process ran as dev, so the runner could
+#     not write .runner or .credentials at registration;
+#   - the process outside gid 123, so it could not reach the dind socket;
+#   - node installed under /home/dev via nvm and absent from PATH for any other user.
 #
-#   securityContext:
-#     supplementalGroups: [123]
+# What it BOUGHT: nothing. The pod runs a privileged dind sidecar, so a job can
+# already `docker run --privileged -v /:/host` and take the node. An unprivileged
+# runner container beside a privileged daemon is not a boundary.
 #
-# An earlier version did it in the image with usermod. It never held: the
-# build-time assertion passed on every attempt and the published image still
-# carried `docker:x:123:root` with no `dev` member, apparently because a restored
-# BuildKit layer reverted /etc/group. The pod-level grant does not care what the
-# image file says, and it is the layer where the decision actually lives.
-# See gophersys/infrastructure docs/debt-register.md D31.
+# Reintroduce a non-root runner when the dind sidecar is gone, and not before.
+# Recorded in gophersys/infrastructure docs/debt-register.md.
 
 # Identifies the image to anything that inspects it, the same way the dev images
 # do. `-runner` is appended so a job can tell CI from an interactive session.
@@ -118,6 +89,5 @@ ENV GOPHERSYS_DEVCONTAINER_RUNNER=true \
     RUNNER_MANUALLY_TRAP_SIG=1 \
     ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=1
 
-USER ${USERNAME}
 WORKDIR /home/runner
 # No ENTRYPOINT/CMD: the ARC scale set supplies `command: ["/home/runner/run.sh"]`.

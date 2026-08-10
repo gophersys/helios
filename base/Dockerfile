@@ -531,22 +531,17 @@ RUN { \
       echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'; \
     } >> /etc/zsh/zshenv
 
-# Put node, npm and npx on PATH for EVERY shell, not only zsh.
+# Node on PATH for every user and every shell.
 #
-# nvm is sourced from /etc/zsh/zshenv, so `node` resolves in an interactive zsh
-# and nowhere else. CI jobs run bash, and a job that calls `node` directly failed
-# with "command not found" while the image plainly contained Node. The symlinks
-# make the resolution independent of the shell and of nvm being sourced.
+# nvm installs node under the dev user's home and is sourced only from
+# /etc/zsh/zshenv, so `node` resolved in an interactive zsh and nowhere else: not
+# in bash, and not for root. An earlier attempt symlinked into /usr/local/bin and
+# verified itself with `node --version` in the SAME zsh that already had nvm
+# sourced, so the check passed while creating nothing.
 #
-# nvm stays: it is what a developer uses to change version interactively. These
-# links point at the default version the image ships.
-RUN set -eu; \
-    node_bin="/home/${USERNAME}/.nvm/versions/node/v${NODE_VERSION}/bin"; \
-    for b in node npm npx; do \
-      if [ -x "${node_bin}/${b}" ]; then ln -sfn "${node_bin}/${b}" "/usr/local/bin/${b}"; fi; \
-    done; \
-    node --version; \
-    npm --version
+# ENV PATH applies to every process in the image whatever its shell or user, so
+# there is nothing to source and nothing to verify in a shell that lies.
+ENV PATH="/home/${USERNAME}/.nvm/versions/node/v${NODE_VERSION}/bin:${PATH}"
 
 # -------------------------------------------------------------------------
 # Final image identity.
