@@ -17,7 +17,7 @@ kind.
    bash machines/ctl.sh new-host <category> <template> <host-name>
    ```
 4. Edit `machines/<category>/<host-name>/identity.yaml` and resolve every TODO.
-5. If the host has scripts that are local to it, for example `arm-builder`, put
+5. If the host has scripts that are local to it, put
    them at `machines/<category>/<host-name>/scripts/`.
 6. Regenerate the index:
    ```

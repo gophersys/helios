@@ -202,7 +202,7 @@ Every app namespace has a `ResourceQuota`. A tier escalation needs a PR.
 ## 10. Evolution path
 
 Today: the foundation. Every layer has skeletons, docs and schemas. 3 leaves have
-real content: arm-builder, the prod cluster declaration, and the contract drafts.
+real content: the prod cluster declaration and the contract drafts.
 
 Next, as each cluster is brought up:
 1. Populate `providers/oracle/modules/compute` and `providers/aws/` with real

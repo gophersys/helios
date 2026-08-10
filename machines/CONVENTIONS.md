@@ -22,14 +22,14 @@ machines/<category>/<name>/
 ├── ansible/
 │   ├── host_vars.yaml     # machine-specific Ansible variables
 │   └── playbook.yaml      # (optional) machine-specific playbook
-├── scripts/               # (optional) host-local scripts (e.g. arm-builder CLI)
+├── scripts/               # (optional) host-local scripts
 ├── peripherals.yaml       # (optional) attached devices: phones, MCUs
 └── notes.md               # (optional) human notes
 ```
 
 The local `scripts/` directory holds logic that applies to this machine only. An
-example is `services/arm-builder/scripts/arm-builder.sh`, which manages that
-exact EC2 instance. A script that operates across many machines goes in
+example is a start-and-stop script for one cloud instance, which manages that
+instance and nothing else. A script that operates across many machines goes in
 `machines/scripts/` instead. The test: if the script name includes the name of
 the machine, or if it makes sense for 1 host only, put it in the local directory.
 Otherwise put it in `machines/scripts/`.

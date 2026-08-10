@@ -114,7 +114,6 @@ navigate the repo with no context.
 Today the repo is the **foundation**. Every layer has its skeleton and its docs,
 but only 3 leaves hold real content:
 
-- `machines/services/arm-builder/` — working scripts, ported.
 - `clusters/instances/prod/identity.yaml` — a real cluster, declared.
 - `contracts/*.md` — drafted interfaces (v0).
 

@@ -17,8 +17,8 @@ AWS Terraform modules. Fulfill the `compute-unit` interface for AWS.
 
 ## Free-tier leverage
 
-- `t4g.small` — free-tier eligible through 2026-12 (used by `agent-02` and
-  `arm-builder` today).
+- `t4g.small` — free-tier eligible through 2026-12. No instance uses it today:
+  `arm-builder` was terminated on 2026-08-10.
 - Recompute free-tier usage via `platform/services/cost/` (OpenCost) once
   populated; move beyond free-tier only with an explicit envelope bump in
   the consuming cluster's identity.yaml.
