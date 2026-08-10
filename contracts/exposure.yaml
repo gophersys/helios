@@ -51,15 +51,6 @@ hosts:
   prowlarr: { class: tailnet, cluster: homelab, why: "indexer manager" }
   torrent:  { class: tailnet, cluster: homelab, why: "qBittorrent WebUI" }
   s3:       { class: tailnet, cluster: homelab, why: "MinIO API — backup target" }
-  grafana:
-    class: tailnet
-    cluster: homelab
-    why: "metrics/logs — admin surface, same class as argocd"
-    # DRIFT as of 2026-08-09: currently public via the tunnel with only Grafana's
-    # own login in front, and its admin password is generated-not-vaulted. Being
-    # migrated to tailnet. Until the verifier passes for this host, treat homelab
-    # observability as internet-exposed.
-
   # ---- cloud (prod) cluster · direct, Cloudflare-bypassing ----
   secrets:
     class: direct-auth
