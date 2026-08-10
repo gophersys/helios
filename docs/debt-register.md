@@ -9,7 +9,8 @@ or recorded here as accepted-imperative with the steps to recreate it.
 Status legend: 🔴 open (reliability or security risk) · 🟠 open (reproducibility) ·
 🟡 minor or accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-08-10 (cloud-cluster reconciliation — see docs/cloud-cluster.md).
+Last updated: 2026-08-10 (`.ci/` deleted — see D38; testing standard written —
+see docs/testing-standard.md).
 
 ---
 
@@ -366,11 +367,14 @@ file had no tool-install step, which was not true.
 
 **Fix:** call `shellcheck` from PATH and delete the download.
 
-### D28 🟠 16 of 20 repositories have no `.ci/ctl.sh` — OPEN
+### D28 🟠 17 of 20 repositories have no `.ci/ctl.sh` — OPEN
 The CI contract generates workflows whose only step form is
-`bash .ci/ctl.sh <verb>`. 16 repositories have no such file, and 11 have no CI at
+`bash .ci/ctl.sh <verb>`. 17 repositories have no such file, and 11 have no CI at
 all, including the 4 `zephyr-*` repositories. The contract's language enum also
 has no C, no Shell and no JavaScript, so it cannot describe 7 repositories.
+
+The count moved from 16 to 17 on 2026-08-10: `infrastructure` deleted its own
+`.ci/`, which was unreferenced and partly broken. See D38.
 
 **Consequence:** "roll the contract out to every repository" is not possible
 today. The real number of candidates is 2.
@@ -512,6 +516,40 @@ the Dockerfile, so the 2 will drift on the next bump.
 
 Option 1 removes the duplication. Options 2 and 3 only make the duplication
 visible.
+
+### D38 ✅ The `.ci/` layer was unreferenced and broken — RESOLVED (2026-08-10)
+`infrastructure/.ci/` held 298 lines across 5 files: `ctl.sh` with 9 verbs, a
+`project.json` that named the Nx project `ci-infrastructure`, and 2 READMEs. It
+predates `.github/workflows/validate.yml` and it was superseded by it.
+
+3 facts decided the deletion:
+
+1. **Nothing invoked it.** No workflow, no script and no `ctl.sh` verb in this
+   repository called any `.ci/` verb. The only mentions were prose.
+2. **Its `validate-platform` verb failed.** It required a README in every
+   directory under `platform/core` and `platform/services`, and reported 9
+   errors. All 9 were the rule being wrong, not the tree. 2 of the 9 directories
+   hold a real script and the Argo AppProject YAML.
+3. **Its `validate-contracts` verb could not detect a renamed heading.** It used
+   `grep -F "## Guarantees"`, which `## GuaranteesXX (TBD)` satisfies. Proven:
+   the heading was renamed and the verb still printed `validate-contracts: OK`.
+
+Its 2 useful checks moved to `scripts/verify-structure.sh`, which runs from
+`validate.yml` and from `ctl.sh verify-structure`, and which uses a whole-heading
+match. The other 7 verbs were dropped: `validate-machines` and
+`validate-clusters` only wrapped `machines/ctl.sh validate` and
+`clusters/ctl.sh validate`; `validate-providers` was a README-presence rule over
+a stub tree; `status` wrapped `ctl.sh status`; `release-check` was a preflight
+for a `release.sh` in the "brain" ecosystem, and those paths do not exist.
+
+**Consequence for D28:** the count of repositories with no `.ci/ctl.sh` goes from
+16 of 20 to 17 of 20. This repository is now one of them, deliberately. Its CI
+entry point is `.github/workflows/validate.yml` calling `scripts/verify-*.sh`.
+
+**Still not covered by CI after this change:** `bash ctl.sh validate` (the
+`project.json` JSON parse and the `bash -n` syntax pass) is not a step in
+`validate.yml`. The `shellcheck` job covers the lint half of it. Nothing invoked
+`.ci`, so nothing was lost, but nothing was gained there either.
 
 
 ## Resolved

@@ -95,7 +95,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/base-runner:625924c
+                image: ghcr.io/gophersys/base-runner:66b3b53
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -159,7 +159,7 @@ spec:
                 #   3. bash ctl.sh verify-runner-image <sha> passed — it runs the
                 #      image in THIS pod shape, with the dind sidecar, and is the
                 #      only check that can see a broken Docker socket
-                image: ghcr.io/gophersys/base-runner:625924c
+                image: ghcr.io/gophersys/base-runner:66b3b53
                 command: ["/home/runner/run.sh"]
                 env:
                   - name: DOCKER_HOST

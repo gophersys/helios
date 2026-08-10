@@ -54,6 +54,13 @@ jobs:
       - name: Argo registry paths resolve
         run: bash scripts/verify-registry-paths.sh
 
+      # Took over the only 2 checks worth keeping from the deleted .ci/ layer:
+      # contract front-matter + required sections, and chart READMEs. The rest of
+      # .ci/ was unreferenced, and its validate-platform verb failed with 9
+      # errors that were all the check being wrong. See docs/debt-register.md D38.
+      - name: contracts and charts structure
+        run: bash scripts/verify-structure.sh
+
       - name: qBittorrent config-enforce — tests + drift guard
         run: |
           set -euo pipefail

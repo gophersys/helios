@@ -88,11 +88,15 @@ repo:
 ## Entry points
 
 - `bash ./ctl.sh help` — the top-level verbs (status, validate, generate-index,
-  propagate).
+  and the `verify-*` assertions).
 - `bash machines/ctl.sh help` — the machine-level verbs (new-host, status, ...).
 - `bash clusters/ctl.sh help` — the cluster-level verbs (new-cluster, status,
   ...).
-- `bash .ci/ctl.sh help` — CI orchestration (validate, release-check, ...).
+
+CI is `.github/workflows/validate.yml`. It runs the same `verify-*` scripts that
+`ctl.sh` runs, so a check that passes on your machine passes in CI. There is no
+second CI layer. The `.ci/` directory was deleted on 2026-08-10 because nothing
+invoked it — see `docs/debt-register.md` D38.
 
 The `README.md` of each layer describes that layer's shape. Start there when you
 navigate the repo with no context.
