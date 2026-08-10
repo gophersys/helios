@@ -184,17 +184,26 @@ k3d pulls, DNS) to avoid breaking builds — deferred until someone wants to enu
 it. Related non-repo guardrails (GitHub runner group scoping, dedicated build node
 taint) also remain open.
 
-### D14 🔴 Vaultwarden has no automated backup — OPEN (data-loss risk)
-The vault is the root of trust for every credential in the ecosystem, and its
-backup is a manual `pg_dump` + `tar` of `/data` (procedure in
-`docs/cloud-cluster.md`). There is no CronJob, no off-cluster copy on a schedule,
-and no Velero. Until 2026-08-09 there was no backup at all and the data sat on a
-`local-path` volume — a single node-local disk with `reclaimPolicy: Delete`.
-Storage is now an OCI Block Volume (survives instance loss) and a verified dump
-exists, so this is no longer catastrophic — but it is still one manual step away
-from stale. **Wanted:** a CronJob dumping to the homelab MinIO (off-Oracle), plus
-a restore rehearsal. Note both halves are required: the database alone, without
-`/data/rsa_key.pem`, leaves every session token re-issued.
+### D14 ✅ Vaultwarden automated backup — RESOLVED (2026-08-09)
+A nightly CronJob (`clusters/instances/prod/manifests/vault-backup/`) dumps the
+`vaultwarden` database plus `/data` (rsa_key.pem, attachments, sends), encrypts
+with a public key the cluster cannot decrypt, and uploads via a write-only OCI
+pre-authenticated request to `eden-backups/vault/`. 30-day lifecycle retention.
+**Verified end-to-end**: a produced backup was downloaded, decrypted with the
+offline private key and restored into a scratch database matching live exactly
+(`live_ciphers=96 users=1 folders=5 attachments=12`, zero errors).
+Private key held in two failure domains: `shared/backup/vault-backup-private-key`
+in the vault, and offline beside the encrypted recovery bundle.
+**Residual (tracked as D16):** single-cloud, and no alerting on failure.
+
+### D16 🟠 Backups are single-cloud and unmonitored — OPEN
+D14's backups land in OCI Object Storage: a different service and durability
+domain from the block volume, so they survive instance and disk loss, but **not
+the loss of the Oracle account**. Wanted: an off-Oracle pull leg (homelab or
+workstation fetching from `eden-backups/vault/` on a schedule). Separately, a
+CronJob that silently stops failing looks identical to one that works — nothing
+alerts today. The PAR also expires **2027-08-10**; renewal is currently a
+calendar event, not an automated one.
 
 ### D15 🟠 `code-kit-server` node name is stale and cannot be renamed in place
 The OCI instance, boot volume and OS hostname are all `server-00`; only the k3s
