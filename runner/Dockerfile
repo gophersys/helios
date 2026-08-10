@@ -84,7 +84,12 @@ RUN case "${TARGETPLATFORM}" in \
 # QEMU. `.ci/smoke.sh` verifies it on a native runner after the push.
 
 # Put the runner user in the docker group so it can reach the dind socket.
-# Assert it, because the failure mode is invisible until a job uses docker.
+#
+# The check reads /etc/group, NOT `id -G`. `id -G` reports the groups of the
+# CURRENT process, which is not the same thing as the group file in the image:
+# a container started with `docker run --user <name>` gets no supplementary
+# groups at all. An earlier version asserted with `id -G` and passed while the
+# image was in fact wrong — /etc/group held `docker:x:123:root` with no `dev`.
 RUN if getent group "${DOCKER_GROUP_GID}" >/dev/null 2>&1; then \
       docker_group="$(getent group "${DOCKER_GROUP_GID}" | cut -d: -f1)"; \
     else \
@@ -92,8 +97,11 @@ RUN if getent group "${DOCKER_GROUP_GID}" >/dev/null 2>&1; then \
       docker_group=docker; \
     fi \
  && usermod -aG "${docker_group}" "${USERNAME}" \
- && if ! id -G "${USERNAME}" | tr " " "\n" | grep -qx "${DOCKER_GROUP_GID}"; then \
-      echo "FATAL: ${USERNAME} is not in gid ${DOCKER_GROUP_GID}; the dind socket would be unreachable"; \
+ && if ! getent group "${DOCKER_GROUP_GID}" | cut -d: -f4 | tr ',' '\n' | grep -qx "${USERNAME}"; then \
+      echo "FATAL: ${USERNAME} is not a member of gid ${DOCKER_GROUP_GID} in /etc/group."; \
+      echo "The dind sidecar owns its socket by that gid, so every job that uses"; \
+      echo "docker would fail with 'permission denied'."; \
+      getent group "${DOCKER_GROUP_GID}"; \
       exit 1; \
     fi
 
