@@ -24,10 +24,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # Keep the go directive in lockstep with the module toolchain + .devcontainer ARG GO_VERSION
-# (go.work's own `go 1.26.4`); the deploy images and tools/cictl's updatability gate pin the same.
+# (go.work's own `go 1.26.4`); the deploy images pin the same.
 GO_DIRECTIVE="1.26.4"
 
-# The workspace member modules — relative dirs each holding a go.mod. Curated + ordered. tools/cictl
+# The workspace member modules — relative dirs each holding a go.mod. Curated + ordered.
 # IS a member (a normal tool module that benefits from in-repo sibling resolution); the GOWORK=off
 # renderers above are intentionally absent.
 USE_DIRS=(
@@ -53,7 +53,6 @@ USE_DIRS=(
   libs/go/testing
   libs/go/workspaceprovider
   poc/codingharness
-  tools/cictl
   tools/documentvalidator
   tools/hnslint
 )
