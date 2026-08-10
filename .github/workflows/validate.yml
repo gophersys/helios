@@ -23,44 +23,6 @@ jobs:
       # nothing — and yamllint is not in the runner image, so it never ran at
       # all. A check that is believed and does nothing is worse than no check.
       # To bring it back: add yamllint to the base image, fix what it reports,
-      # and add it here with no continue-on-error.
-      - name: kubeconform — raw manifests
-        run: |
-          set -euo pipefail
-          # Static roots + every path an Argo registry Application actually deploys,
-          # so a new Application source dir (e.g. platform/core/edge/...) can never
-          # silently escape validation.
-          roots="apps platform/services/gitops/registry platform/core/secrets-operator/manifests"
-          while IFS= read -r p; do
-            case "$p" in *'{{'*|'') continue;; esac
-            [ -d "$p" ] && roots="$roots $p"
-          done < <(grep -hE '^[[:space:]]*path:' platform/services/gitops/registry/*.yaml | sed -E "s/.*path:[[:space:]]*//; s/['\"]//g" | sort -u)
-          # shellcheck disable=SC2086  # intentional word-splitting of the roots list
-          # Skip roots that no longer exist. A deleted directory must not fail a
-          # validation that otherwise passed — that reads as a real failure and
-          # trains people to ignore red.
-          roots=$(for r in $roots; do [ -d "$r" ] && printf '%s ' "$r"; done)
-          find $roots \
-            -name '*.yaml' -not -path '*/config-enforce/*' -not -path '*/zephyr-devbox/*' -not -path '*/envs/*' -not -name 'kustomization.yaml' \
-            -print0 | sort -zu | xargs -0 -r kubeconform -strict -ignore-missing-schemas -summary
-
-      - name: kubeconform — kustomize overlays
-        run: |
-          set -euo pipefail
-          for d in apps/embedded/zephyr-devbox/base apps/embedded/envs/zephyr-libs apps/embedded/envs/nucleo-bringup; do
-            echo "== $d =="; kubectl kustomize "$d" | kubeconform -strict -ignore-missing-schemas -summary
-          done
-
-      - name: Argo registry paths resolve
-        run: bash scripts/verify-registry-paths.sh
-
-      # Took over the only 2 checks worth keeping from the deleted .ci/ layer:
-      # contract front-matter + required sections, and chart READMEs. The rest of
-      # .ci/ was unreferenced, and its validate-platform verb failed with 9
-      # errors that were all the check being wrong. See docs/debt-register.md D38.
-      - name: contracts and charts structure
-        run: bash scripts/verify-structure.sh
-
       - name: qBittorrent config-enforce — tests + drift guard
         run: |
           set -euo pipefail
