@@ -10,6 +10,11 @@ spec:
   description: Media stack — namespace-locked to `media`
   sourceRepos:
     - https://github.com/gophersys/infrastructure.git
+    # rayne's page lives with the rest of Mateo's personal work, not with the
+    # platform. An AppProject allowlist is per-repo on purpose — widening it to
+    # the whole org would let any future app deploy from anywhere, which is the
+    # blast radius this project boundary exists to hold.
+    - https://github.com/gophersys/home.git
   destinations:
     - namespace: media
       server: https://kubernetes.default.svc
