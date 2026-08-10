@@ -18,7 +18,7 @@ build target.
 
 - **Naming:** the system is Eden. Never introduce a `helios` identifier (invariant E7). Use the
   full name per HNS-1 (10 §5): `configuration` not `config`, `kubernetes` not `k8s`,
-  `dependencies` not `deps`. The names `util`, `common` and `core` are not allowed.
+  `dependencies` not `deps`. Never use the names `util`, `common` and `core`.
 - **Decisions:** `docs/architecture/adr/` holds the decisions that are made. Do not open them
   again. Put a decision that is not made in `docs/architecture/open-decisions.md`. Do not put it
   in prose.
@@ -60,8 +60,8 @@ build target.
 - **User connectors** hold a secret for one user or one organization. The third-party credentials
   of a user (`claude-api`, `github`, `openrouter`) live in the **connectors** domain of
   `platformgateway`. Postgres holds them with envelope encryption: `libs/go/envelope` seals a DEK
-  for each secret under a KEK from the platform Vault. You write the value one time. Nobody reads
-  it back. It is never in git. An agent resolves one connector through the
+  for each secret under a KEK from the platform Vault. You write the value one time. You can never
+  read it back. It is never in git. An agent resolves one connector through the
   `eden://connector/<id>` scheme behind the frozen `secrets.Provider`. See ADR-0029 and
   `docs/architecture/19-connectors-and-user-secrets.md`.
 
@@ -113,11 +113,11 @@ Go library one phase at a time. Never declare a library complete before
   environment "stage".
 - **The TDD order is mandatory.** Write the fake binding and the conformance cases first, and they
   must fail. Then write the bodies and make the tests pass. A change that breaks the exported
-  surface against the frozen `<lib>/.apibaseline` is the most serious error (10 §9), and it stops
+  surface against the frozen `<lib>/.apibaseline` is the most serious error (10 §9), and it aborts
   the gate.
-- **The test taxonomy has 8 dimensions.** Each library has a verb for each dimension: `property`
+- **The test taxonomy has 8 dimensions.** Each library has verbs for them: `property`
   (rapid), `leak` (goleak), `lifecycle`, `load`, `integration` (real docker, k3d and kind; never a
-  mock), `vuln`, `sast`, `secretscan`, `bench-guard`, `maintainability`, `mutate` and
+  mock), `vuln`/`sast`/`secretscan`, `bench-guard`, `maintainability`, `mutate` and
   `cover-floor`. The floor of `cover-floor` applies to each package: 80% for a leaf and 70% for a
   substrate. The devcontainer contains every tool, so an absent tool is a gate FAILURE. Do not
   skip the tool.

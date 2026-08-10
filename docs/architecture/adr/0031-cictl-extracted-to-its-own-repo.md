@@ -32,8 +32,8 @@ The `+ runner` layer of the devcontainer images installs it, so every CI job has
 ### Why not a submodule
 
 A submodule puts a pointer in every repository that uses it. A correction to `cictl` would then
-need 1 pull request in each of those repositories. A submodule also adds the authentication for a
-private submodule to every Actions checkout.
+need 1 pull request in each of those repositories. That is a correction that you must repeat. A
+submodule also adds the authentication for a private submodule to every Actions checkout.
 
 ### Why public
 
@@ -59,7 +59,7 @@ about 1 hour. The short build time is important while the contract changes.
   `container:` block. The runner image of a self-hosted pool already holds the toolchain.
   A `container:` image is also pulled *inside* the ephemeral pod, so it uses no cache and it
   costs more than 5 minutes for each job.
-- The `image` field is necessary only in container mode, and the contract rejects it outside
+- The `image` field is required only in container mode, and the contract rejects it outside
   container mode. If a self-hosted pool also names an image, nothing uses that image, and a
   reader can believe that something does.
 - A person writes the workflow of `cictl` by hand, and it runs on GitHub-hosted runners. The
@@ -72,6 +72,6 @@ about 1 hour. The short build time is important while the contract changes.
 
 ## Still open
 
-Causes 1 and 2 are corrected, and this decision corrects cause 3. Nobody has generated the
-workflows of `libs` again against the new contract, so the CI of `libs` still fails. Do not roll
-`cictl` out to more repositories before the CI of `libs` passes.
+Causes 1 and 2 are corrected, and this decision gives the correction for cause 3. Nobody has
+generated the workflows of `libs` again against the new contract yet, so the CI of `libs` still
+fails. No other repository should adopt `cictl` before the CI of `libs` passes.

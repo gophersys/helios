@@ -5,9 +5,9 @@ want. Eden turns your description into documents, then turns the documents into 
 Eden keeps that system deployed, observed and maintained. You make the decisions. You do not
 supervise the agents.
 
-This repository is the build of Eden. It uses the same process that Eden gives to its users.
+This repository is the build of Eden. It uses the same process that Eden will give to its users.
 
-## Read only this section first
+## If this is too much, read only this section
 
 The whole system is one loop:
 
@@ -43,7 +43,7 @@ There are no other kinds.
 | Kind | Where | In one line |
 |---|---|---|
 | Canonical specs | `docs/architecture/` | The decisions that are made. The files are numbered 00–12, with the decision records (ADRs). A conflict is resolved here. |
-| Research notes | `docs/research/` | Findings with a date and the sources. They move into the specs. Nobody edits them. |
+| Research notes | `docs/research/` | Findings with a date and the sources. They move into the specs. Never edit them. |
 | Upstream corpus | `docs/upstream/` | The research from before Eden. Imported without a change. Consulted rarely. |
 | Project documents | `documents/` | The product documents of Eden. They hold what *you* asked for. A schema checks them. They get a version at each gate. |
 | Attic | `docs/attic/` | Superseded material, kept without a change. Never an authority. |
