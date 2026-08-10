@@ -14,13 +14,16 @@ jobs:
       - uses: actions/checkout@v4
 
       # No tool-install step. The runner image IS the `base` dev image, so
-      # kubeconform, kubectl, yq and jq are already present at the same versions
-      # an interactive session gets. kustomize is `kubectl kustomize`.
-      # See docs/ci-substrate.md.
-      - name: yamllint (advisory)
-        continue-on-error: true
-        run: python3 -m yamllint -c .yamllint.yml apps platform clusters 2>/dev/null || echo "yamllint skipped"
-
+      # kubeconform, kubectl, yq, jq and shellcheck are already present at the
+      # same versions an interactive session gets. kustomize is
+      # `kubectl kustomize`. See docs/ci-substrate.md.
+      #
+      # There is no yamllint step. It was advisory, its output was sent to
+      # /dev/null, and its failure was converted to an echo, so it enforced
+      # nothing — and yamllint is not in the runner image, so it never ran at
+      # all. A check that is believed and does nothing is worse than no check.
+      # To bring it back: add yamllint to the base image, fix what it reports,
+      # and add it here with no continue-on-error.
       - name: kubeconform — raw manifests
         run: |
           set -euo pipefail
@@ -63,13 +66,15 @@ jobs:
     runs-on: arc-org
     steps:
       - uses: actions/checkout@v4
-      - name: shellcheck (advisory)
-        continue-on-error: true
+      - name: shellcheck
         run: |
-          cd /tmp
-          curl -sSL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar xJ || exit 0
-          cd "$GITHUB_WORKSPACE"
-          find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -r /tmp/shellcheck-v0.10.0/shellcheck -S warning || true
+          set -euo pipefail
+          # The runner image carries shellcheck, so there is no download to fail
+          # silently. Full strictness, no -S filter: ctl.sh states that warning,
+          # info and style findings fail the build, and this now matches it.
+          # Measured before the change: 0 findings across all 18 scripts.
+          find . -name '*.sh' -not -path './.git/*' -print0 \
+            | xargs -0 -r shellcheck
 
   exposure:
     runs-on: arc-org
