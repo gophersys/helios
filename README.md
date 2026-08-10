@@ -1,37 +1,40 @@
 # .devcontainer
 
-Shared IDP (internal developer platform) images for every project in the
-brain ecosystem. The repo produces **five** container images: one rich
-base that most projects can run directly, two domain-specific layers on
-top (flutter, zephyr), a remote dev box layered on zephyr
-(zephyr-devbox), and the `+ runner` layer that turns any of them into a
-GitHub Actions runner image (base-runner).
+This repository holds the shared IDP (internal developer platform) images for
+every project in the brain ecosystem. The repository builds **5** container
+images:
 
-Each image serves two roles:
+- 1 base image with many tools. Most projects can use it directly.
+- 2 domain-specific layers on top of the base image: flutter and zephyr.
+- 1 remote development box on top of zephyr: zephyr-devbox.
+- 1 `+ runner` layer. It changes any of the other images into a GitHub Actions
+  runner image. The result is base-runner.
 
-- **Local dev environment.** Projects reference these via the standard
-  `.devcontainer/` convention (VS Code / JetBrains Gateway / devpod / etc.).
-  You `docker pull` the image and do your work *inside* it — zsh + oh-my-zsh
-  is the default shell, `/workspace` is the bind-mount target, the
-  non-root `dev` user (uid 1000) has sudo-nopasswd.
-- **CI runtime.** The GitHub Actions workflows in each project monorepo
-  run `nx affected` inside these same images, so local and CI execute in
-  an identical environment.
+Each image has 2 roles:
 
-This repo has **no Nx workspace of its own**. It is consumed as a
-submodule by every project monorepo; the parent provides the Nx runtime.
-Each image follows the `project.json` + `ctl.sh` pattern enforced across
-the ecosystem, and `bash ./ctl.sh <cmd>` works directly with or without Nx.
+- **Local development environment.** Projects refer to these images with the
+  standard `.devcontainer/` convention (VS Code / JetBrains Gateway / devpod /
+  etc.). You do `docker pull` on the image and you do your work *inside* it.
+  The default shell is zsh with oh-my-zsh. The bind-mount target is
+  `/workspace`. The non-root `dev` user (uid 1000) has sudo-nopasswd.
+- **CI runtime.** The GitHub Actions workflows in each project monorepo run
+  `nx affected` inside these same images. Thus the local environment and the CI
+  environment are identical.
+
+This repository has **no Nx workspace of its own**. Every project monorepo uses
+it as a submodule, and the parent supplies the Nx runtime. Each image obeys the
+`project.json` + `ctl.sh` pattern used across the ecosystem. The command
+`bash ./ctl.sh <cmd>` works with Nx and without Nx.
 
 ## Image inventory
 
 | Image | Intent | `GOPHERSYS_DEVCONTAINER` |
 |---|---|---|
-| `ghcr.io/gophersys/base` | "Pick up and work" image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/terraform/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
-| `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. Linux desktop + Android targets. iOS is out of scope. | `flutter` |
+| `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/terraform/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
+| `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. The image does not support iOS. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
-| `ghcr.io/gophersys/base-runner` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. **Not a devcontainer** — it has no `devcontainer.json`. It is the image an ARC pool runs as its runner container, so the kubelet caches it per node instead of a job paying a cold pull. Built from `runner/Dockerfile`, which takes `BASE_IMAGE` and therefore serves every parent. | `base` (inherited) |
-| `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. Runs as a k8s pod, targeted with VS Code Remote-SSH; starts as root and execs sshd, logins land as `dev`. | `zephyr-devbox` |
+| `ghcr.io/gophersys/base-runner` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. **This is not a devcontainer.** It has no `devcontainer.json`. An ARC pool runs this image as its runner container, so the kubelet keeps the image in the cache on each node and a job does not wait for a cold pull. The build uses `runner/Dockerfile`. That Dockerfile takes `BASE_IMAGE`, so it serves every parent image. | `base` (inherited) |
+| `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. It runs as a k8s pod. You connect to it with VS Code Remote-SSH. It starts as root and it execs sshd. A login gets the `dev` user. | `zephyr-devbox` |
 
 ## Dependency graph
 
@@ -43,28 +46,38 @@ runner              │
               zephyr-devbox
 ```
 
-Build order: `base`, then `base-runner`, `flutter` and `zephyr` (all layer
-on `base`), then `zephyr-devbox` (layers on `zephyr`).
+Build in this order:
+
+1. `base`.
+2. `base-runner`, `flutter` and `zephyr`. All 3 layer on `base`.
+3. `zephyr-devbox`. It layers on `zephyr`.
 
 ### The `+ runner` layer
 
-`runner/` is **one** Dockerfile that adds the GitHub Actions runner to any
-parent and changes nothing else. `BASE_IMAGE` selects the parent, so a future
-`zephyr-runner` or `kicad-runner` is a build-arg and a CI job — never a second
-Dockerfile to keep in step.
+`runner/` holds **1** Dockerfile. It adds the GitHub Actions runner to any
+parent image, and it changes nothing else. `BASE_IMAGE` selects the parent
+image. Thus a future `zephyr-runner` or `kicad-runner` needs only a build
+argument and a CI job. Do not write a second Dockerfile.
 
 ```sh
 bash ./ctl.sh build base-runner              # parent defaults to base
 RUNNER_PARENT=zephyr bash runner/ctl.sh build
 ```
 
-Why the runner layer exists rather than `container:` in a workflow: a
-`container:` image is pulled inside the runner pod's dind daemon and dies with
-the pod (measured at 5m17s per job for an image this size), and pulling a
-private package with `GITHUB_TOKEN` needs a per-(package, repository) grant that
-GitHub exposes only in its UI. As the pod's own image, the kubelet pulls it,
-caches it per node, and authenticates with one in-cluster `imagePullSecret`.
-The full interface is `gophersys/infrastructure` `docs/ci-substrate.md`.
+Do not use a `container:` image in a workflow in place of the runner layer.
+There are 2 measured reasons:
+
+1. The dind daemon in the runner pod pulls a `container:` image, and the image
+   is lost when the pod stops. For an image of this size the cost is 5m17s per
+   job.
+2. To pull a private package with `GITHUB_TOKEN` you need a grant for each
+   (package, repository) pair. GitHub gives that grant only in its user
+   interface.
+
+The runner layer is the image of the pod itself. Thus the kubelet pulls it,
+keeps it in the cache on each node, and authenticates with 1 in-cluster
+`imagePullSecret`. The full interface is in `gophersys/infrastructure`
+`docs/ci-substrate.md`.
 
 ## How to use
 
@@ -77,11 +90,13 @@ docker pull ghcr.io/gophersys/zephyr:latest
 docker pull ghcr.io/gophersys/zephyr-devbox:latest
 ```
 
-As a VS Code devcontainer (inside a consuming project): this repo is
-mounted at `<project>/.devcontainer/`, and each image directory ships its
-own `devcontainer.json`. Run **Dev Containers: Reopen in Container** and
-pick `base`, `flutter`, `zephyr`, or `zephyr-devbox` — each bind-mounts
-the project to `/workspace` and runs as the `dev` user. The configs live at:
+### As a VS Code devcontainer
+
+A consuming project mounts this repository at `<project>/.devcontainer/`. Each
+image directory contains its own `devcontainer.json`. Run **Dev Containers:
+Reopen in Container** and select `base`, `flutter`, `zephyr` or
+`zephyr-devbox`. Each configuration bind-mounts the project to `/workspace` and
+runs as the `dev` user. The configuration files are at these paths:
 
 ```
 .devcontainer/base/devcontainer.json
@@ -90,7 +105,7 @@ the project to `/workspace` and runs as the `dev` user. The configs live at:
 .devcontainer/zephyr-devbox/devcontainer.json
 ```
 
-As a GitHub Actions job container:
+### As a GitHub Actions job container
 
 ```yaml
 jobs:
@@ -103,7 +118,9 @@ jobs:
       - run: npx nx affected -t build
 ```
 
-Detect the image at runtime (use in scripts / CI):
+### Detect the image at runtime
+
+Use this code in a script or in CI:
 
 ```sh
 case "${GOPHERSYS_DEVCONTAINER}" in
@@ -117,45 +134,48 @@ esac
 
 ## Multi-arch-on-push policy
 
-Every **devcontainer** image is published **multi-arch** (linux/amd64 +
-linux/arm64), because both are real consumers: the images are opened on an arm64
-Mac and on amd64 Linux. For those, the rule is non-negotiable:
+Publish every **devcontainer** image as a multi-arch image (linux/amd64 and
+linux/arm64). Both architectures have real users: developers open the images on
+an arm64 Mac and on amd64 Linux. For those images you must not change this
+rule:
 
 | Verb | Behavior |
 |---|---|
-| `build` | Native single-arch build for a fast local dev loop. |
-| `build-multi-arch` | `docker buildx build --platform linux/amd64,linux/arm64 --load=false`. Verifies multi-arch without pushing. |
-| `push` | **ENFORCED** multi-arch via buildx + `--push`. A `require_buildx_and_multi_arch` guard runs at the start of the push verb; there is no flag to downgrade to single-arch. |
+| `build` | A build for the native architecture only. Use it for a fast local development loop. |
+| `build-multi-arch` | `docker buildx build --platform linux/amd64,linux/arm64 --load=false`. It verifies the multi-arch build and it does not push. |
+| `push` | A multi-arch push with buildx and `--push`. This is **ENFORCED**. The guard `require_buildx_and_multi_arch` runs at the start of the push verb. There is no flag that changes the push to 1 architecture. |
 
-CI (`.github/workflows/build-and-push.yml`) enforces the same policy on
-every push to `main` and on every semver tag (`v*`).
+The CI workflow `.github/workflows/build-and-push.yml` applies the same policy
+on every push to `main` and on every semver tag (`v*`).
 
 ### Runner images build only the arch they deploy to
 
-`base-runner` is **amd64 only**, and this is the one carve-out. It is not a
-devcontainer — it only ever runs as an ARC pod, and every node in that cluster is
-amd64:
+`base-runner` is **amd64 only**. This is the only exception. `base-runner` is
+not a devcontainer. It runs only as an ARC pod, and every node in that cluster
+is amd64. This command shows the architecture of each node:
 
 ```sh
 kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.architecture
 ```
 
-Its arm64 half was Go compiled under QEMU for an architecture nothing runs, and
-it measured **~13 minutes** on an otherwise thin layer — the dominant cost of
-every runner fix. The principle: **build the arch you deploy to.** Add arm64 back
-the day an arm64 pool exists, and not before.
+The arm64 half compiled Go under QEMU for an architecture that no node runs.
+On a thin layer it measured **~13 minutes**. This was the largest cost of every
+correction to the runner. The rule is: **build only the architecture that you
+deploy to.** Add arm64 again on the day an arm64 pool exists, and not before.
 
 ## How to add a tool
 
-1. **Pick the latest LTS/stable**. Research via apt-cache, upstream GitHub
-   releases, or pypi. Never invent a version.
+1. **Select the latest LTS or stable release.** Do the research with
+   apt-cache, with the upstream GitHub releases, or with pypi. Never invent a
+   version.
 2. **Add an `ARG` at the top of the Dockerfile** with a comment:
    ```dockerfile
    ARG MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
    ```
-3. **Reference the ARG from the RUN line**. Hardcoded semver in `RUN` is
-   forbidden and `bash ./ctl.sh validate` greps for and fails on it.
-4. **Every binary install is `TARGETPLATFORM`-aware**:
+3. **Use the ARG in the RUN line.** Do not write a semver in a `RUN` line. The
+   command `bash ./ctl.sh validate` searches for a semver in a `RUN` line and
+   fails.
+4. **Make every binary installation read `TARGETPLATFORM`**:
    ```sh
    case "$TARGETPLATFORM" in
      linux/amd64) ARCH=amd64 ;;
@@ -163,13 +183,15 @@ the day an arm64 pool exists, and not before.
      *) echo "unsupported platform: $TARGETPLATFORM"; exit 1 ;;
    esac
    ```
-5. **Clean up in the same layer** (`rm -rf /var/lib/apt/lists/*` for apt).
-6. **Approval required.** Tool additions and version bumps go through the
-   brain-level approval gate — they affect every consuming project.
-7. Run `bash ./ctl.sh validate` until clean, then
-   `bash ./ctl.sh build base` to verify the chain still builds.
+5. **Remove the temporary files in the same layer.** For apt, use
+   `rm -rf /var/lib/apt/lists/*`.
+6. **You must get approval.** A new tool and a version change go through the
+   brain-level approval gate. They change every consuming project.
+7. Run `bash ./ctl.sh validate` until it reports no error. Then run
+   `bash ./ctl.sh build base` to make sure that the chain of images still
+   builds.
 
-## Repo layout
+## Repository layout
 
 ```
 .devcontainer/
@@ -187,7 +209,7 @@ the day an arm64 pool exists, and not before.
 
 ## Day-to-day operations
 
-From the repo root:
+Run these commands from the repository root:
 
 ```sh
 # Native single-arch build (fast dev loop).
@@ -210,7 +232,7 @@ bash ./ctl.sh list
 bash ./ctl.sh validate
 ```
 
-Per-image, from inside the image directory:
+Run these commands for 1 image, from inside the image directory:
 
 ```sh
 cd base
@@ -221,18 +243,18 @@ bash ./ctl.sh inspect
 
 ## CI
 
-`.github/workflows/build-and-push.yml` builds and publishes all five
-images on every push to `main`, tagged with both `:latest` and the short
-commit SHA. On semver tag pushes (`v*`), it additionally publishes
-`:v<semver>`. The workflow always sets up QEMU + buildx and runs
-`--platform linux/amd64,linux/arm64`. Requires the `packages: write`
-permission (configured in the workflow).
+The workflow `.github/workflows/build-and-push.yml` builds and publishes all 5
+images on every push to `main`. It tags each image with `:latest` and with the
+short commit SHA. On a push of a semver tag (`v*`) it also publishes
+`:v<semver>`. The workflow always sets up QEMU and buildx, and it builds with
+`--platform linux/amd64,linux/arm64`. The workflow needs the `packages: write`
+permission. The permission is set in the workflow.
 
 ## Shared-change propagation
 
-After a change lands on `main`, consuming projects still pin the previous
-commit until someone explicitly bumps their submodule pointer. The
-propagation flow is owned by the parent brain repo:
+After a change is merged to `main`, each consuming project keeps the previous
+commit. The project gets the change only when a person changes its submodule
+pointer. The parent brain repository owns the propagation flow:
 
 ```sh
 # From within brain:
@@ -242,5 +264,5 @@ bash brain/.claude/scripts/propagate.sh .devcontainer
 bash ./ctl.sh propagate
 ```
 
-Propagation is approval-gated — see
+Propagation needs approval. See
 `brain/.claude/rules/operations/shared-change-propagation.md`.

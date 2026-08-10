@@ -1,7 +1,7 @@
 # .ci/providers — CI-system shim layer
 
-This directory is the **source of truth** for every CI-system YAML consumed by
-this repository. Each subdirectory corresponds to one CI provider:
+This directory is the **source of truth** for every CI-system YAML that this
+repository uses. Each subdirectory holds 1 CI provider:
 
 ```
 .ci/providers/
@@ -11,20 +11,20 @@ this repository. Each subdirectory corresponds to one CI provider:
 
 ## Why this exists
 
-CI providers each insist on reading their own directory layout
-(`.github/workflows/`, `.gitlab-ci.yml`, `.buildkite/`, `.drone.yml`, …). When a
-repo needs to support more than one provider — or wants to document its CI
-pipelines in one place without four copies of effectively the same YAML — the
-simplest abstraction is a single `.ci/providers/<name>/` directory that each
-provider's expected path **symlinks into**.
+Each CI provider reads its own directory layout (`.github/workflows/`,
+`.gitlab-ci.yml`, `.buildkite/`, `.drone.yml`, …). A repository can need more
+than 1 provider. It can also need 1 place for its CI pipelines instead of 4
+copies of almost the same YAML. The simplest abstraction is 1
+`.ci/providers/<name>/` directory. The path that each provider expects is a
+symlink into that directory.
 
-The provider-specific paths (e.g. `.github/workflows/build-and-push.yml`)
-remain present so the provider still works — but they are symlinks, and the
-committed content lives under `.ci/providers/<provider>/`.
+The provider-specific paths stay in place, for example
+`.github/workflows/build-and-push.yml`, so the provider still works. Those
+paths are symlinks. The committed content is under `.ci/providers/<provider>/`.
 
-Git tracks symlinks natively on Linux/macOS; no pre-commit or generator is
-required. When adding a new workflow, edit the file under
-`.ci/providers/github/` and `ln -s` it into `.github/workflows/`.
+Git tracks a symlink on Linux and on macOS. You do not need a pre-commit hook
+or a generator. To add a new workflow, edit the file under
+`.ci/providers/github/`. Then run `ln -s` to link it into `.github/workflows/`.
 
 ## Current providers
 
@@ -34,7 +34,7 @@ required. When adding a new workflow, edit the file under
 
 ## Orchestration
 
-The bash orchestration layer that sits above these YAMLs lives at `.ci/ctl.sh`
-(see `.ci/README.md`). That layer is the entrypoint every local dev and every
-CI job ultimately delegates to — the provider YAMLs are thin shells that call
+The bash orchestration layer above these YAML files is `.ci/ctl.sh`. See
+`.ci/README.md`. Every local developer and every CI job delegates to that
+layer. The provider YAML files are thin shells that call
 `bash .ci/ctl.sh <verb>`.
