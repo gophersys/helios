@@ -244,6 +244,15 @@ valid (expires 2027-06-17) and can see three zones: `claude-kit.dev`,
 `code-kit.dev`, `mateosegura.com`.
 
 
+### D20 🟡 Cloudflare Access apps are not API-manageable — OPEN
+The API token can read DNS and the tunnel config, so publishing a service is fully
+programmatic (`scripts/cf-expose.py`). It cannot read Access apps — account scope
+returns empty, zone scope fails — so it lacks *Access: Apps and Policies*. Adding
+`public-access` to a NEW hostname still needs one dashboard visit. Fix: add
+`Account · Access: Apps and Policies · Edit` to the token (expires 2027-06-17).
+Existing public-access hosts are unaffected.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured

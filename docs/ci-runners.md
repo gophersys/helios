@@ -75,7 +75,7 @@ weaken the policy for one repo, the repo was made **private** — the cheapest c
 fix, and reversible. If it ever needs to be public again, do option 2 first; do not
 simply flip the flag.
 
-As of writing the org has one public repo, `esp32-starter`, which does not use CI, and
+As of 2026-08-09 the org has **no public repos** (`esp32-starter` was deleted; a bundle is in `~/code/.archive/`), and
 the policy remains disabled.
 
 ## Consumers
