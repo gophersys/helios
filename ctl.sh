@@ -193,6 +193,7 @@ Commands:
   validate          Lint all project.json + bash scripts (shellcheck when available)
   generate-index    Regenerate machines/README.md + machines/ledger.md from hosts/
   verify-registry   Assert every in-repo Argo Application path resolves
+  verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   help              Show this message
 EOF
 }
@@ -201,6 +202,14 @@ function cmd_verify_access() {
   # Assert every machine in contracts/access.yaml is reachable by its declared
   # method. Read-only: one SSH hostname echo per host.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-access.sh" "$@"
+}
+
+function cmd_verify_runner_image() {
+  # Assert a runner image works in the pod shape ARC uses, WITH the dind sidecar.
+  # Run this before pinning a new tag: neither the image build nor `docker run`
+  # can see a broken Docker socket, and two defects reached a published image
+  # that way.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-runner-image.sh" "$@"
 }
 
 function cmd_verify_registry() {
@@ -226,6 +235,7 @@ function main() {
     verify-exposure) cmd_verify_exposure "$@" ;;
     verify-access)   cmd_verify_access   "$@" ;;
     verify-registry) cmd_verify_registry "$@" ;;
+    verify-runner-image) cmd_verify_runner_image "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     help|"")        usage ;;
     *)              log_error "unknown command: '$cmd'"; usage; exit 1 ;;
