@@ -87,7 +87,7 @@ not fire.
 ## Flow: rotation
 
 Not implemented. Rotation is an action that needs approval, per brain's top-level
-rules. The hooks arrive as a `secrets-rotate` verb once the approval gate
+rules. The hooks **will** arrive as a `secrets-rotate` verb once the approval gate
 infrastructure exists.
 
 ## What NOT to do

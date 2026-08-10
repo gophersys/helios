@@ -132,7 +132,7 @@ jobs:
 ### Public repos are blocked by default
 
 The Default runner group has **`allows_public_repositories: false`**. The jobs of
-a public repo queue **for ever** with no error. The ARC listener reports
+a public repo queue **forever** with no error. The ARC listener reports
 `"assigned job"=0` and never scales up, and the job shows
 `runner_group_name: ""`. The GitHub UI gives no message that explains the cause.
 
