@@ -54,6 +54,15 @@ spec:
 
         template:
           spec:
+            # The dind sidecar owns the Docker socket and chooses its gid, so the
+            # runner must hold that gid to reach it. Granting it HERE and not in
+            # the image is deliberate: the image-side attempt never held, because
+            # a restored BuildKit layer reverted /etc/group while the build-time
+            # assertion still passed. See docs/debt-register.md D31.
+            # This value must equal DOCKER_GROUP_GID in the dind sidecar below.
+            securityContext:
+              supplementalGroups: [123]
+
             # k3s-w-4 owns the USB-passthrough embedded lab and is the most committed
             # node in the cluster. A build must never contend with hardware under test.
             affinity:
@@ -86,7 +95,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/base-runner:ef318d4
+                image: ghcr.io/gophersys/base-runner:da8b08e
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -140,15 +149,17 @@ spec:
               - name: runner
                 # Pin by tag, never `latest`: a rebuild must not change CI silently.
                 #
-                # Two preconditions before changing this tag, both learned the hard
+                # Three preconditions before changing this tag, all learned the hard
                 # way on 2026-08-10. Pinning a tag that did not exist yet put every
                 # pod into Init:ImagePullBackOff and took org-wide CI down; the
                 # build before this one also shipped a root-owned /home/runner,
                 # which would have failed every runner at registration.
                 #   1. docker manifest inspect ghcr.io/gophersys/base-runner:<sha>
-                #   2. the base-runner smoke job passed for that sha — it asserts
-                #      ownership of /home/runner and run.sh
-                image: ghcr.io/gophersys/base-runner:ef318d4
+                #   2. the base-runner smoke job passed for that sha
+                #   3. bash ctl.sh verify-runner-image <sha> passed — it runs the
+                #      image in THIS pod shape, with the dind sidecar, and is the
+                #      only check that can see a broken Docker socket
+                image: ghcr.io/gophersys/base-runner:da8b08e
                 command: ["/home/runner/run.sh"]
                 env:
                   - name: DOCKER_HOST
