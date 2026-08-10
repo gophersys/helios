@@ -57,7 +57,11 @@ fail=0
 ok()   { printf '  PASS  %s\n' "$1"; }
 bad()  { printf '  FAIL  %s\n' "$1"; fail=1; }
 
-[ "$(id -un)" = "dev" ] && ok "runs as dev" || bad "runs as $(id -un), expected dev"
+# The runner image runs as ROOT on purpose: it sits beside a privileged dind
+# sidecar, so an unprivileged runner was never a boundary, and running as dev
+# produced 3 classes of permission defect in 1 day. The dev images keep the dev
+# user, because a developer bind-mounts a repository into those.
+[ "$(id -u)" = "0" ] && ok "runs as root" || bad "runs as $(id -un) uid=$(id -u), expected root"
 
 # What matters is whether THIS PROCESS holds gid 123, because that is what the
 # kernel checks against the socket. The pod grants it with supplementalGroups, so
@@ -68,7 +72,7 @@ else
   bad "process does NOT hold gid 123 (groups: $(id -G)); /etc/group says: $(getent group 123)"
 fi
 
-[ -O /home/runner ] && ok "/home/runner owned by dev" || bad "/home/runner not owned by dev"
+[ -w /home/runner ] && ok "/home/runner is writable" || bad "/home/runner is not writable"
 [ -x /home/runner/run.sh ] && ok "run.sh is executable" || bad "run.sh missing or not executable"
 [ -d /home/runner/externals ] && ok "externals present" || bad "externals missing"
 [ -w /home/runner/_work ] && ok "_work is writable" || bad "_work is not writable"
