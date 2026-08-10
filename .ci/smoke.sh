@@ -135,6 +135,9 @@ test -O /home/runner/run.sh || { echo "FAIL: run.sh is not owned by $(id -un)"; 
 test -d /home/runner/externals
 test -w /home/runner/_work
 /home/runner/bin/Runner.Listener --version
+# The dind socket is group 123 (dockerd --group). A runner outside that group
+# fails only when a job touches docker, which is far from the image build.
+id -G dev | tr " " "\n" | grep -qx 123 || { echo "FAIL: dev is not in gid 123; the dind socket would be unreachable"; exit 1; }
 echo "--- CI tooling ---"
 cictl help >/dev/null
 command -v cictl

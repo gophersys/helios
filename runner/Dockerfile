@@ -29,6 +29,13 @@ ARG CICTL_VERSION=v0.1.0                                               # gophers
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
+# MUST equal DOCKER_GROUP_GID in the ARC scale set values
+# (gophersys/infrastructure platform/services/gitops/registry/app-arc-runners-org.yaml).
+# The dind sidecar runs `dockerd --group=$DOCKER_GROUP_GID`, so the socket is owned
+# by that gid. A runner user outside it gets "permission denied while trying to
+# connect to the docker API at unix:///var/run/docker.sock" — and only when a job
+# actually touches docker, which no image smoke test can reach.
+ARG DOCKER_GROUP_GID=123
 ARG TARGETPLATFORM
 
 USER root
@@ -75,6 +82,20 @@ RUN case "${TARGETPLATFORM}" in \
 #
 # NOTE: no --version smoke here — the runner binary is cross-arch and fails under
 # QEMU. `.ci/smoke.sh` verifies it on a native runner after the push.
+
+# Put the runner user in the docker group so it can reach the dind socket.
+# Assert it, because the failure mode is invisible until a job uses docker.
+RUN if getent group "${DOCKER_GROUP_GID}" >/dev/null 2>&1; then \
+      docker_group="$(getent group "${DOCKER_GROUP_GID}" | cut -d: -f1)"; \
+    else \
+      groupadd -g "${DOCKER_GROUP_GID}" docker; \
+      docker_group=docker; \
+    fi \
+ && usermod -aG "${docker_group}" "${USERNAME}" \
+ && if ! id -G "${USERNAME}" | tr " " "\n" | grep -qx "${DOCKER_GROUP_GID}"; then \
+      echo "FATAL: ${USERNAME} is not in gid ${DOCKER_GROUP_GID}; the dind socket would be unreachable"; \
+      exit 1; \
+    fi
 
 # cictl — the CI contract tool. It lives HERE and not in `base` because the image
 # that needs a tool is the image that gets it: cictl generates and drift-checks
