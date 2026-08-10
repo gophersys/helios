@@ -81,24 +81,29 @@ function run_phase_gate_over_affected() {
   local ran=0 proj proj_dir
   for proj in "${projects[@]}"; do
     [[ -z "$proj" ]] && continue
-    # The repository ROOT is not a library. `cictl affected` reports any directory
-    # holding both ctl.sh and project.json, and the root holds both — so a change
-    # to .ci/ or to the contract selects ".". The root ctl.sh dispatches repo-wide
-    # verbs and has no phase-gate, so gating it fails with
-    # "unknown command: 'phase-gate'". Libraries live under go/<lib> and
-    # typescript/<lib>; the root never is one.
-    if [[ "$proj" == "." ]]; then
-      log_info "skipping the repository root: it is not a library"
-      continue
-    fi
+    # A LIBRARY is go/<name> or typescript/<name>. Nothing else is.
+    #
+    # `cictl affected` reports any directory holding both ctl.sh and project.json.
+    # The repository root holds both, and so does .ci/, so a change to either
+    # selected a "project" whose ctl.sh has no phase-gate — the gate then failed
+    # with "unknown command: 'phase-gate'". Naming each offender in turn is a fix
+    # that has to be repeated, so the rule is structural instead: gate what is a
+    # library, not everything that looks like a project.
+    #
+    # go/_ctl holds the shared verb bodies the per-library ctl.sh files dispatch
+    # to. It is not a library either.
+    case "$proj" in
+      go/_ctl)                  log_info "skipping $proj: shared verb bodies, not a library"; continue ;;
+      go/*|typescript/*)        ;;
+      *)                        log_info "skipping $proj: not a library (libraries are go/<name> or typescript/<name>)"; continue ;;
+    esac
+
     proj_dir="$REPO_ROOT/$proj"
     if [[ ! -f "$proj_dir/ctl.sh" ]]; then
-      log_error "'$proj' has no ctl.sh but was selected as a project"
+      log_error "'$proj' is a library path but has no ctl.sh"
       exit 1
     fi
-    # No check that the verb exists: a library that cannot run phase-gate fails
-    # loudly when it is called, which is the behaviour we want. A grep for the
-    # dispatcher arm would add a second, weaker source of truth.
+
     ran=$((ran + 1))
     case "$selector" in
       substrate)
