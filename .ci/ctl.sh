@@ -25,7 +25,18 @@ REPO_ROOT="$(cd "$CI_DIR/.." && pwd)"
 export REPO_ROOT
 
 # Dependency order — parents first.
-BUILD_ORDER=(base flutter zephyr zephyr-devbox)
+BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox)
+
+# Image name -> source directory. 1:1 except the `+ runner` variants: one
+# directory (`runner/`) builds `<parent>-runner` for every parent. Mirrors the
+# resolver in the repo-level ctl.sh; both must agree.
+function image_dir() {
+  local name="$1"
+  case "$name" in
+    *-runner) printf '%s/runner' "$REPO_ROOT" ;;
+    *)        printf '%s/%s' "$REPO_ROOT" "$name" ;;
+  esac
+}
 
 # -------- logging --------
 function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
@@ -85,7 +96,7 @@ function cmd_validate() {
   shellcheck "$REPO_ROOT/ctl.sh" || rc=1
 
   for name in "${BUILD_ORDER[@]}"; do
-    dir="$REPO_ROOT/$name"
+    dir="$(image_dir "$name")"
     # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
     for script in "$dir"/*.sh; do
       log_info "shellcheck: ${name}/$(basename "$script")"
@@ -104,7 +115,7 @@ function cmd_validate() {
 
   if command -v hadolint >/dev/null 2>&1; then
     for name in "${BUILD_ORDER[@]}"; do
-      dir="$REPO_ROOT/$name"
+      dir="$(image_dir "$name")"
       log_info "hadolint: ${name}/Dockerfile"
       hadolint "$dir/Dockerfile" || rc=1
     done

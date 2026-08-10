@@ -1,6 +1,6 @@
 name: build-and-push
 
-# Publishes the 4-image IDP set (base + flutter + zephyr + zephyr-devbox)
+# Publishes the IDP image set (base + base-runner + flutter + zephyr + zephyr-devbox)
 # to the GitHub Container Registry. Every image is built multi-arch
 # (linux/amd64 + linux/arm64) on every push to main. On semver tag pushes
 # (v*) we also publish a :v<semver> tag. Flutter and zephyr consume base —
@@ -76,6 +76,65 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=base
           cache-to: type=gha,mode=max,scope=base
+
+  # The `+ runner` layer: base plus the GitHub Actions runner and nothing else.
+  # It is the image the ARC pools run as their runner container, so the kubelet
+  # pulls and caches it per node. See gophersys/infrastructure docs/ci-substrate.md.
+  #
+  # One Dockerfile (runner/) serves every parent. Adding `zephyr-runner` means
+  # copying this job with BASE_IMAGE pointed at zephyr — never a new Dockerfile.
+  base-runner:
+    needs: [base]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free up runner disk
+        # buildx materializes the multi-arch parent before layering, so this job
+        # needs the same headroom the parent build does.
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/build-push-action@v6
+        with:
+          context: runner
+          file: runner/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ needs.base.outputs.short }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/base-runner:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/base-runner:${{ needs.base.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base-runner:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
+          cache-from: type=gha,scope=base-runner
+          cache-to: type=gha,mode=max,scope=base-runner
+      - name: smoke test (native amd64)
+        # The Dockerfile deliberately runs no --version checks: they fail under
+        # QEMU. This is where kubeconform and the runner binary are actually proven.
+        run: bash .ci/smoke.sh base-runner
 
   flutter:
     needs: [base]

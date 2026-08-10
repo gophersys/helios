@@ -22,7 +22,12 @@ export REPO_ROOT
 # Dependency order — parents first. `base` is the root of the dev-image
 # family; `flutter` and `zephyr` both layer on top of `base`, and
 # `zephyr-devbox` layers on top of `zephyr`.
-BUILD_ORDER=(base flutter zephyr zephyr-devbox)
+#
+# `base-runner` is the `+ runner` layer (directory `runner/`) applied to `base`.
+# It is a CI image, not a devcontainer, so it has no devcontainer.json. One
+# Dockerfile serves every parent — RUNNER_PARENT selects which — so adding
+# `zephyr-runner` is a matrix entry, never a new directory.
+BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox)
 
 # Multi-arch platforms enforced on push.
 MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"
@@ -93,9 +98,21 @@ function on_exit() {
 trap on_exit EXIT
 
 # -------- helpers --------
+# Image name -> source directory. These are 1:1 except for the `+ runner`
+# variants: one directory (`runner/`) builds `<parent>-runner` for every parent,
+# so `base-runner` resolves to `runner`. Keeping one directory is the point —
+# a second runner Dockerfile would drift from the first.
 function image_dir() {
   local name="$1"
-  printf '%s/%s' "$PROJECT_ROOT" "$name"
+  case "$name" in
+    *-runner) printf '%s/runner' "$PROJECT_ROOT" ;;
+    *)        printf '%s/%s' "$PROJECT_ROOT" "$name" ;;
+  esac
+}
+
+# Image name -> the RUNNER_PARENT its ctl.sh expects (runner variants only).
+function runner_parent() {
+  printf '%s' "${1%-runner}"
 }
 
 function image_ctl() {
@@ -107,7 +124,12 @@ function image_ctl() {
     log_error "missing or non-executable: $dir/ctl.sh"
     return 1
   fi
-  (cd "$dir" && bash ./ctl.sh "$@")
+  # Runner variants share one directory, so the parent is passed in rather than
+  # baked into the image's own ctl.sh.
+  case "$name" in
+    *-runner) (cd "$dir" && RUNNER_PARENT="$(runner_parent "$name")" bash ./ctl.sh "$@") ;;
+    *)        (cd "$dir" && bash ./ctl.sh "$@") ;;
+  esac
 }
 
 # -------- commands --------

@@ -1,10 +1,11 @@
 # .devcontainer
 
 Shared IDP (internal developer platform) images for every project in the
-brain ecosystem. The repo produces **four** container images: one rich
+brain ecosystem. The repo produces **five** container images: one rich
 base that most projects can run directly, two domain-specific layers on
-top (flutter, zephyr), and a remote dev box layered on zephyr
-(zephyr-devbox).
+top (flutter, zephyr), a remote dev box layered on zephyr
+(zephyr-devbox), and the `+ runner` layer that turns any of them into a
+GitHub Actions runner image (base-runner).
 
 Each image serves two roles:
 
@@ -29,20 +30,41 @@ the ecosystem, and `bash ./ctl.sh <cmd>` works directly with or without Nx.
 | `ghcr.io/gophersys/base` | "Pick up and work" image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/terraform/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
 | `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. Linux desktop + Android targets. iOS is out of scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
+| `ghcr.io/gophersys/base-runner` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. **Not a devcontainer** — it has no `devcontainer.json`. It is the image an ARC pool runs as its runner container, so the kubelet caches it per node instead of a job paying a cold pull. Built from `runner/Dockerfile`, which takes `BASE_IMAGE` and therefore serves every parent. | `base` (inherited) |
 | `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. Runs as a k8s pod, targeted with VS Code Remote-SSH; starts as root and execs sshd, logins land as `dev`. | `zephyr-devbox` |
 
 ## Dependency graph
 
 ```
-       base
-     ┌──┴──┐
-flutter  zephyr
-            │
-      zephyr-devbox
+           base
+    ┌────┬──┴──┐
+base-   flutter  zephyr
+runner              │
+              zephyr-devbox
 ```
 
-Build order: `base`, then `flutter` and `zephyr` (both layer on `base`),
-then `zephyr-devbox` (layers on `zephyr`).
+Build order: `base`, then `base-runner`, `flutter` and `zephyr` (all layer
+on `base`), then `zephyr-devbox` (layers on `zephyr`).
+
+### The `+ runner` layer
+
+`runner/` is **one** Dockerfile that adds the GitHub Actions runner to any
+parent and changes nothing else. `BASE_IMAGE` selects the parent, so a future
+`zephyr-runner` or `kicad-runner` is a build-arg and a CI job — never a second
+Dockerfile to keep in step.
+
+```sh
+bash ./ctl.sh build base-runner              # parent defaults to base
+RUNNER_PARENT=zephyr bash runner/ctl.sh build
+```
+
+Why the runner layer exists rather than `container:` in a workflow: a
+`container:` image is pulled inside the runner pod's dind daemon and dies with
+the pod (measured at 5m17s per job for an image this size), and pulling a
+private package with `GITHUB_TOKEN` needs a per-(package, repository) grant that
+GitHub exposes only in its UI. As the pod's own image, the kubelet pulls it,
+caches it per node, and authenticates with one in-cluster `imagePullSecret`.
+The full interface is `gophersys/infrastructure` `docs/ci-substrate.md`.
 
 ## How to use
 
@@ -140,6 +162,7 @@ every push to `main` and on every semver tag (`v*`).
 ├── ctl.sh                       # repo-wide control script
 ├── .claude/rules/               # identity + conventions
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer, no devcontainer.json
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
@@ -153,6 +176,7 @@ From the repo root:
 ```sh
 # Native single-arch build (fast dev loop).
 bash ./ctl.sh build base
+bash ./ctl.sh build base-runner
 bash ./ctl.sh build flutter
 bash ./ctl.sh build zephyr
 bash ./ctl.sh build zephyr-devbox
@@ -181,7 +205,7 @@ bash ./ctl.sh inspect
 
 ## CI
 
-`.github/workflows/build-and-push.yml` builds and publishes all four
+`.github/workflows/build-and-push.yml` builds and publishes all five
 images on every push to `main`, tagged with both `:latest` and the short
 commit SHA. On semver tag pushes (`v*`), it additionally publishes
 `:v<semver>`. The workflow always sets up QEMU + buildx and runs
