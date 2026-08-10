@@ -46,4 +46,5 @@ jobs:
             printf '%-12s %s\n' "$t" "$(command -v "$t" || echo MISSING)"
           done
       - name: does the dind socket reach the job container
-        run: docker info >/dev/null 2>&1 && echo "docker: reachable" || echo "docker: NOT reachable"
+        run: |
+          if docker info >/dev/null 2>&1; then echo "docker reachable"; else echo "docker NOT reachable"; fi
