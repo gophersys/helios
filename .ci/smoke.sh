@@ -135,12 +135,11 @@ test -O /home/runner/run.sh || { echo "FAIL: run.sh is not owned by $(id -un)"; 
 test -d /home/runner/externals
 test -w /home/runner/_work
 /home/runner/bin/Runner.Listener --version
-# The dind socket is owned by gid 123 (dockerd --group). Read /etc/group, NOT
-# `id -G`: this script runs the image with `docker run --user dev`, and --user
-# supplies no supplementary groups, so `id -G` would report a false failure even
-# when the image is correct. /etc/group is the image's own record.
-getent group 123 | cut -d: -f4 | tr "," "\n" | grep -qx dev || {
-  echo "FAIL: dev is not a member of gid 123 in /etc/group"; getent group 123; exit 1; }
+# Deliberately NOT asserted here: membership of the docker group. The pod grants
+# it with securityContext.supplementalGroups, because the dind sidecar chooses the
+# socket's gid. A `docker run` has no dind sidecar, so this script cannot test it
+# at all. gophersys/infrastructure `ctl.sh verify-runner-image` tests it in the
+# real pod shape, which is the only place the answer is meaningful.
 # node must resolve in a NON-login shell: CI jobs run bash, not an interactive zsh.
 command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
 echo "--- CI tooling ---"

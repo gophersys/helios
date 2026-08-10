@@ -29,13 +29,6 @@ ARG CICTL_VERSION=v0.1.0                                               # gophers
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
-# MUST equal DOCKER_GROUP_GID in the ARC scale set values
-# (gophersys/infrastructure platform/services/gitops/registry/app-arc-runners-org.yaml).
-# The dind sidecar runs `dockerd --group=$DOCKER_GROUP_GID`, so the socket is owned
-# by that gid. A runner user outside it gets "permission denied while trying to
-# connect to the docker API at unix:///var/run/docker.sock" — and only when a job
-# actually touches docker, which no image smoke test can reach.
-ARG DOCKER_GROUP_GID=123
 ARG TARGETPLATFORM
 
 USER root
@@ -103,33 +96,21 @@ RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
  && chmod 0755 /usr/local/bin/cictl \
  && rm -rf /root/go /root/.cache/go-build
 
-# Put the runner user in the docker group so it can reach the dind socket.
+# NOTE: this image does NOT put the runner user in the docker group.
 #
-# THIS IS THE LAST MUTATION IN THE IMAGE, ON PURPOSE. When it sat earlier in the
-# file, its assertion passed during the build and the published image still held
-# `docker:x:123:root` with no `dev`: a later cached layer carried an older copy of
-# /etc/group in its snapshot diff and reverted the change. Nothing may follow this
-# step, so nothing can undo it.
+# The dind sidecar owns the socket and chooses its gid, so the grant belongs to
+# the pod, not here. The ARC scale set and scripts/verify-runner-image.sh in
+# gophersys/infrastructure both set:
 #
-# The check reads /etc/group, NOT `id -G`. `id -G` reports the groups of the
-# CURRENT process, which is not the same thing as the group file in the image:
-# a container started with `docker run --user <name>` gets no supplementary
-# groups at all. An earlier version asserted with `id -G` and passed while the
-# image was in fact wrong — /etc/group held `docker:x:123:root` with no `dev`.
-RUN if getent group "${DOCKER_GROUP_GID}" >/dev/null 2>&1; then \
-      docker_group="$(getent group "${DOCKER_GROUP_GID}" | cut -d: -f1)"; \
-    else \
-      groupadd -g "${DOCKER_GROUP_GID}" docker; \
-      docker_group=docker; \
-    fi \
- && usermod -aG "${docker_group}" "${USERNAME}" \
- && if ! getent group "${DOCKER_GROUP_GID}" | cut -d: -f4 | tr ',' '\n' | grep -qx "${USERNAME}"; then \
-      echo "FATAL: ${USERNAME} is not a member of gid ${DOCKER_GROUP_GID} in /etc/group."; \
-      echo "The dind sidecar owns its socket by that gid, so every job that uses"; \
-      echo "docker would fail with 'permission denied'."; \
-      getent group "${DOCKER_GROUP_GID}"; \
-      exit 1; \
-    fi
+#   securityContext:
+#     supplementalGroups: [123]
+#
+# An earlier version did it in the image with usermod. It never held: the
+# build-time assertion passed on every attempt and the published image still
+# carried `docker:x:123:root` with no `dev` member, apparently because a restored
+# BuildKit layer reverted /etc/group. The pod-level grant does not care what the
+# image file says, and it is the layer where the decision actually lives.
+# See gophersys/infrastructure docs/debt-register.md D31.
 
 # Identifies the image to anything that inspects it, the same way the dev images
 # do. `-runner` is appended so a job can tell CI from an interactive session.
