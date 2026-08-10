@@ -93,15 +93,24 @@ check() {   # host expected-class
 
 echo "verifying exposure against contracts/exposure.yaml"
 # parse "  <host>:" blocks with a class:, plus inline {class: x} form
-awk '
+total=0
+while read -r h c; do
+  total=$((total + 1))
+  check "$h" "$c"
+done < <(awk '
   /^  [a-z0-9-]+:$/            { h=$1; sub(":","",h); next }
   /^  [a-z0-9-]+: *\{/         { h=$1; sub(":","",h);
                                  if (match($0,/class: *[a-z-]+/)) { c=substr($0,RSTART+7,RLENGTH-7); gsub(/[ ,}]/,"",c); print h, c } next }
   /^    class:/                { if (h!="") print h, $2 }
-' "$DECL" | while read -r h c; do check "$h" "$c"; done
+' "$DECL")
 
-# the while loop runs in a subshell; recount from its output is not available,
-# so re-run the classification cheaply for the summary
-total=$(awk '/^  [a-z0-9-]+:( *\{)?$|^  [a-z0-9-]+: *\{/{n++} END{print n+0}' "$DECL")
+# Process substitution, NOT a pipe. A pipe runs the loop in a subshell, so every
+# increment of `fail` is discarded when it exits, and the script's last statement
+# was an echo — which always succeeds. The result: this verifier printed FAIL
+# lines and exited 0. Proven by forcing every host into drift: 13 FAIL lines,
+# exit code 0. The CI job that exists BECAUSE grafana.mateosegura.com silently
+# went public could therefore never fail. Its 2 sibling verifiers,
+# verify-access.sh and verify-registry-paths.sh, both already end on the count.
 echo
-echo "checked $total declared hosts — scroll for any FAIL lines"
+echo "  checked=$total fail=$fail"
+[ "$fail" -eq 0 ] || exit 1
