@@ -11,7 +11,6 @@ spec:
   sourceRepos:
     - https://github.com/gophersys/infrastructure.git
     - https://charts.external-secrets.io   # External Secrets Operator chart
-    - https://kyverno.github.io/kyverno/   # Kyverno policy engine
     - https://pkgs.tailscale.com/helmcharts   # Tailscale Kubernetes operator
   destinations:
     - namespace: external-secrets
@@ -27,8 +26,6 @@ spec:
     - namespace: monitoring
       server: https://kubernetes.default.svc
     - namespace: kube-system
-      server: https://kubernetes.default.svc
-    - namespace: kyverno
       server: https://kubernetes.default.svc
     - namespace: tailscale
       server: https://kubernetes.default.svc

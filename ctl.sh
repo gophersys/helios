@@ -182,23 +182,6 @@ function cmd_generate_index() {
   bash "$PROJECT_ROOT/machines/scripts/generate-machine-index.sh"
 }
 
-function cmd_propagate() {
-  local brain_root
-  brain_root="$(git -C "$PROJECT_ROOT" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
-  if [[ -z "$brain_root" ]]; then
-    log_error "propagate must be run from within brain (brain/shared/infrastructure/)"
-    log_error "this repo was not detected as a submodule of a parent worktree"
-    exit 1
-  fi
-  local prop="$brain_root/.claude/scripts/propagate.sh"
-  if [[ ! -x "$prop" ]]; then
-    log_error "brain propagate script not found or not executable at $prop"
-    exit 1
-  fi
-  bash "$prop" infrastructure "$@"
-}
-
-# -------- usage --------
 function usage() {
   cat <<EOF
 Usage: ./ctl.sh <command> [args...]
@@ -210,7 +193,6 @@ Commands:
   validate          Lint all project.json + bash scripts (shellcheck when available)
   generate-index    Regenerate machines/README.md + machines/ledger.md from hosts/
   verify-registry   Assert every in-repo Argo Application path resolves
-  propagate         Print submodule-bump instructions for brain and projects
   help              Show this message
 EOF
 }
@@ -245,7 +227,6 @@ function main() {
     verify-access)   cmd_verify_access   "$@" ;;
     verify-registry) cmd_verify_registry "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
-    propagate)      cmd_propagate      "$@" ;;
     help|"")        usage ;;
     *)              log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac

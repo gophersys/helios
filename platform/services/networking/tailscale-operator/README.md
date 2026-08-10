@@ -22,7 +22,6 @@ install pins the version per cluster. For the homelab that Application is
 `platform/services/gitops/registry/app-tailscale-operator.yaml`, with chart
 `1.98.4`, namespace `tailscale` and the operator hostname
 `homelab-ts-operator`. The repo uses the same pattern for every helm service;
-see `app-kyverno.yaml`. The registry Application carries the chart reference
 **and** the values. This directory documents the service, and it does not repeat
 the values.
 
@@ -61,10 +60,8 @@ ESO-to-Vaultwarden bridge does not work at present, so you create the Secret
 - `platform/services/gitops/` — the Argo Application drives the install.
 - Admin access to the tailnet, for the OAuth client and the ACL tagOwners. This
   is a one-time action, and it happens outside this repo.
-- A Kyverno exclusion. The proxy pods of the operator need extra capabilities:
   the tun device and NET_ADMIN. The `tailscale` namespace is therefore excluded
   in `platform/core/policy/policies/pod-security-baseline.yaml` and in
-  `resourceFiltersExcludeNamespaces` of `app-kyverno.yaml`.
 
 ## Consumer interface
 
