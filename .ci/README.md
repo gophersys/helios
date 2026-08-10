@@ -4,7 +4,7 @@ This directory owns **every operation that acts on more than 1 image** in the
 gophersys/.devcontainer repository. Each image has its own directory `<name>/`
 with its own `ctl.sh` + `project.json` + `Dockerfile`. The repository-level
 `ctl.sh` delegates to those per-image scripts. This layer is 1 level above
-them. Use only this layer in a CI pipeline YAML.
+them. It is the only entrypoint that should appear in a CI pipeline YAML.
 
 ## Layout
 

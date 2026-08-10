@@ -12,8 +12,9 @@ Code devcontainer) and as the CI runtime in which GitHub Actions runs
   brain ecosystem uses.
 - It keeps the local development environment and the CI environment identical,
   byte for byte.
-- It gives you 1 place to change a toolchain version. The change then goes to
-  every project through shared-change propagation.
+- It gives you 1 place to change a toolchain version. You make the change
+  exactly once, and the change then goes to every project through
+  shared-change propagation.
 
 ## Image model
 
@@ -65,7 +66,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
    `RUNNER_PARENT` environment variable selects the parent. The function
    `image_dir()` in **both** `./ctl.sh` and `.ci/ctl.sh` maps `*-runner` back
    to `runner/`. The 2 functions must agree. To add `zephyr-runner`, add a
-   `BUILD_ORDER` entry and a CI job. Do not write a second Dockerfile.
+   `BUILD_ORDER` entry and a CI job. Never write a second Dockerfile.
 3. **Do not add a `CLAUDE.md` file.** The conventions of this repository stay
    here, in `.claude/rules/`.
 4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
@@ -78,8 +79,8 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
 
 - **To change a version**, edit 1 ARG line and its date comment. Change nothing
   else.
-- **Do not write a version in a RUN line.** `ctl.sh validate` searches for
-  `=\d+\.\d+\.\d+` in a RUN line and fails the build.
+- **A hardcoded version in a RUN line is forbidden.** `ctl.sh validate`
+  searches for `=\d+\.\d+\.\d+` in a RUN line and fails the build.
 - To add a new tool, select its **latest LTS or stable** release. Do the
   research with apt-cache, with the upstream GitHub releases, or with pypi.
   Never invent a version.
@@ -90,7 +91,7 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
 
 Publish every **devcontainer** image as a multi-arch image (linux/amd64 and
 linux/arm64). Both architectures have real users: an arm64 Mac and amd64 Linux.
-For those images you must not change this rule.
+For those images the rule is non-negotiable. You must not change it.
 
 **Runner images build only the arch they deploy to.** `base-runner` is amd64
 only. It runs only as an ARC pod, and every node in that cluster is amd64. Its
@@ -107,11 +108,11 @@ For devcontainer images:
 
 The repository-root `ctl.sh` and each per-image `ctl.sh` contain the guard
 `require_buildx_and_multi_arch`. The guard runs at the start of every `push`
-verb. It fails in 3 conditions: buildx is absent, no buildx builder is active,
-or the active builder cannot emulate the 2 required platforms.
+verb. It fails closed in 3 conditions: buildx is absent, no buildx builder is
+active, or the active builder cannot emulate the 2 required platforms.
 
-The CI workflow applies the same policy. It always sets up QEMU and buildx, and
-it builds with `--platform linux/amd64,linux/arm64 --push`.
+The CI workflow enforces the same policy. It always sets up QEMU and buildx,
+and it builds with `--platform linux/amd64,linux/arm64 --push`.
 
 ## Dev-in-container expectation
 

@@ -35,6 +35,6 @@ or a generator. To add a new workflow, edit the file under
 ## Orchestration
 
 The bash orchestration layer above these YAML files is `.ci/ctl.sh`. See
-`.ci/README.md`. Every local developer and every CI job delegates to that
-layer. The provider YAML files are thin shells that call
+`.ci/README.md`. That layer is the entrypoint. Every local developer and every
+CI job delegates to it. The provider YAML files are thin shells that call
 `bash .ci/ctl.sh <verb>`.
