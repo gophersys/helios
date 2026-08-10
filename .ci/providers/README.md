@@ -1,46 +1,46 @@
 # monorepo .ci/providers
 
-Source of truth for every CI-system shim in this repo.
+This directory is the source of truth for every CI-system shim in this repository.
 
-## Shipped
+## The supplied providers
 
 | Provider | Subfolder | Native path |
 |---|---|---|
 | GitHub Actions | `github/` | `.github/workflows/` |
 
-Every YAML is a thin shim: checkout with submodules, provide the toolchain, run
-`bash .ci/ctl.sh <verb>`. The logic lives in `ctl.sh`, where it can be run
-locally, shellchecked and tested — not in YAML, where none of that is possible.
+Every YAML file is a thin shim. It checks out the repository with the submodules, it provides the
+toolchain, and it runs `bash .ci/ctl.sh <verb>`. The logic is in `ctl.sh`. You can run `ctl.sh`
+locally, check it with shellcheck and test it. You cannot do any of that with YAML.
 
-## The two copies are NOT symlinks
+## The 2 copies are NOT symlinks
 
-This file previously said `.github/workflows/` symlinks into `github/`, and that
-"git tracks symlinks natively, so no generator is needed". **It is not true and
-appears never to have been.** Git records every one of these as a regular file
-(mode `100644`); a symlink would be `120000`. Verify before believing either
-claim:
+An earlier version of this file said that `.github/workflows/` symlinks into `github/`. It also
+said that "git tracks symlinks natively, so no generator is needed". **That statement is not
+true, and it appears that it was never true.** Git records each of these files as a regular file,
+with the mode `100644`. A symlink has the mode `120000`. Check the modes before you accept either
+statement:
 
 ```sh
 git ls-files -s .github/workflows/ | awk '{print $1, $4}'
 ```
 
-What actually exists today is a **hand-maintained twin**: the same YAML written
-out twice and kept in step by hand. That is a defect, not a design. It has
-already drifted once — the `.devcontainer` copy sat on a stale three-image
-version while claiming to be the provider source of truth.
+Today there are 2 copies, and a person keeps them equal by hand. The same YAML is written 2 times.
+This is a defect. It is not a design. The 2 copies became different one time. The `.devcontainer`
+copy held an old version with 3 images. At the same time the document said that this copy was the
+source of truth for the provider.
 
-## Where this is going
+## The planned solution
 
-`cictl` generates both copies from `.ci/ci.contract.yaml` and `cictl drift`
-fails the build on any hand-edit. That closes the gap properly: one source, two
-outputs, a gate that proves they match.
+`cictl` generates both copies from `.ci/ci.contract.yaml`. `cictl drift` fails the build if a
+person edits a generated file. The result is 1 source, 2 outputs, and a gate that proves that the
+2 outputs match.
 
-It is not wired here yet. This repo has no contract — only `libs` does. Until it
-does, treat the twins as hand-maintained and **edit both together**, and do not
-add a third copy.
+`cictl` is not connected in this repository yet. This repository has no contract. Only `libs` has
+one. Until this repository has a contract, a person maintains the 2 copies by hand. **Edit both
+copies together.** Do not add a third copy.
 
 ## Adding a provider
 
-A second provider means a second renderer in `cictl`. The `providers` list in the
-contract is an enum with one member today; the abstraction is declared but not
-yet exercised, so do not assume it is free.
+A second provider needs a second renderer in `cictl`. Today the `providers` list in the contract
+is an enum with 1 member. The abstraction is declared, but nobody has used it yet. Do not assume
+that a second provider has no cost.
