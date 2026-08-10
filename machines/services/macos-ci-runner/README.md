@@ -1,25 +1,30 @@
 # macos-ci-runner (PLANNED)
 
-The living-room MacBook as a gophersys org GitHub Actions runner.
-Consumer: `gophersys/audiomotion-visualizer` release workflow (swap
-`build-mac`'s `runs-on: macos-14` → `[self-hosted, macOS, music-ci]`).
+The MacBook in the living room, used as a GitHub Actions runner for the gophersys
+org. The consumer is the release workflow of
+`gophersys/audiomotion-visualizer`. In that workflow, change the `runs-on` of
+`build-mac` from `macos-14` to `[self-hosted, macOS, music-ci]`.
 
-## Why self-hosted (vs the hosted macos-14 currently in use)
-- $0 Actions minutes (macOS is billed at 10× on private repos).
-- Can run macOS-only deep tests hosted runners can't: screen-recording TCC
-  flows, real loopback-audio capture (`--capture-test` with music playing).
+## Why a self-hosted runner instead of the hosted macos-14 runner used today
+- It costs 0 Actions minutes. GitHub bills macOS at 10 times the rate on a
+  private repo.
+- It can run deep tests that only macOS supports and that a hosted runner cannot
+  do: the TCC flows for screen recording, and a real capture of loopback audio
+  (`--capture-test` while music plays).
 
-## Prerequisites (owner, one-time)
-1. On the MacBook: System Settings → General → Sharing → **Remote Login ON**.
-   Note the Computer Name.
-2. Keep-awake: Settings → Displays → Advanced → prevent sleep on power
-   (or `sudo pmset -c sleep 0 displaysleep 10` after enrollment).
-3. Vault item **`shared/macos-ci-runner/account-credentials`**: admin
-   username/password; machine name or LAN IP in notes.
+## Prerequisites — the owner does these once
+1. On the MacBook: System Settings → General → Sharing → set **Remote Login** to
+   ON. Record the Computer Name.
+2. Stop the machine from sleeping: Settings → Displays → Advanced → prevent sleep
+   on power. As an alternative, run `sudo pmset -c sleep 0 displaysleep 10` after
+   the enrollment.
+3. Create the vault item **`shared/macos-ci-runner/account-credentials`** with
+   the admin username and password. Put the machine name or the LAN IP in the
+   notes.
 
-## Enrollment runbook (remote, from any enrolled machine)
-1. SSH in with the vault credentials; enroll on the tailnet
-   (`tailscale-authkey-*` pattern or interactive `tailscale up`).
+## Enrollment runbook — remote, from any enrolled machine
+1. Open SSH with the vault credentials, then enroll the machine on the tailnet.
+   Use the `tailscale-authkey-*` pattern, or run `tailscale up` interactively.
 2. Install runner (as the login user, NOT root):
    ```sh
    mkdir ~/actions-runner && cd ~/actions-runner
@@ -30,13 +35,16 @@ Consumer: `gophersys/audiomotion-visualizer` release workflow (swap
        --labels self-hosted,macOS,music-ci --unattended
    ./svc.sh install && ./svc.sh start    # launchd agent, GUI session
    ```
-3. The machine must stay logged in (GUI session) for Electron smoke tests.
-4. Node 20+ present (runner downloads toolcache otherwise).
-5. Flip the workflow's `build-mac` runs-on; keep hosted as fallback comment.
-6. Update this identity to `status: active`; regenerate the machines index.
+3. The machine must stay logged in, with a GUI session, for the Electron smoke
+   tests.
+4. Install Node 20 or later. Without it the runner downloads a toolcache.
+5. Change the `runs-on` of `build-mac` in the workflow. Keep the hosted runner in
+   a comment, as the fallback.
+6. Set `status: active` in this identity file, and regenerate the machines index.
 
 ## Notes
-- Runner user should NOT have the Bitwarden vault unlocked; CI needs no
-  vault access (GITHUB_TOKEN only).
-- Deep-test lane (future): a scheduled workflow with `--capture-test`
-  against real system audio — only meaningful on this box.
+- The runner user must NOT have the Bitwarden vault unlocked. CI needs no access
+  to the vault. It needs `GITHUB_TOKEN` only.
+- A deep-test lane in the future: a scheduled workflow that runs
+  `--capture-test` against real system audio. That test has a purpose only on
+  this machine.

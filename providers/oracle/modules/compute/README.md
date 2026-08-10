@@ -1,10 +1,10 @@
 # providers/oracle/modules/compute
 
-OCI compute-unit fulfillment — a single VM instance satisfying the
-[compute-unit v1 contract](../../../compute-unit/contract.yaml) on
-Oracle Cloud Infrastructure.
+The OCI implementation of a compute unit. It creates 1 VM instance that satisfies
+the [compute-unit v1 contract](../../../compute-unit/contract.yaml) on Oracle
+Cloud Infrastructure.
 
-Shapes covered:
+The shapes that it covers:
 
 | Shape | Arch | Flex? | Use |
 |---|---|---|---|
@@ -73,27 +73,28 @@ module "server_00" {
 
 ## Outputs
 
-All five contract outputs (`id`, `private_ip`, `public_ip`,
-`tailnet_name`, `fqdn`) plus `shape` and `availability_domain` for
-operational introspection.
+The module emits all 5 contract outputs (`id`, `private_ip`, `public_ip`,
+`tailnet_name` and `fqdn`), plus `shape` and `availability_domain` for
+operational inspection.
 
-## A1.Flex protection
+## Protection of an A1.Flex instance
 
-A1.Flex (Ampere Altra ARM, always-free) capacity is severely
-constrained in OCI and re-acquiring a destroyed instance's slot can
-take weeks or fail outright. The module enforces protection by
-duplicating the `oci_core_instance` resource into a protected and a
-destroyable variant, guarded by `count = var.prevent_destroy ? 1 : 0`.
-The protected variant carries `lifecycle { prevent_destroy = true }`.
+A1.Flex capacity (Ampere Altra ARM, always free) is very limited in OCI. To get
+the slot of a destroyed instance again can take weeks, and it can fail
+completely. The module therefore duplicates the `oci_core_instance` resource into
+a protected variant and a destroyable variant, and guards them with
+`count = var.prevent_destroy ? 1 : 0`. The protected variant carries
+`lifecycle { prevent_destroy = true }`.
 
-There is no in-place toggle — to move an A1.Flex instance between the
-two variants would require a `terraform state mv`. Don't.
+There is no switch that changes an instance in place. To move an A1.Flex instance
+between the 2 variants you would need a `terraform state mv`. Do not do that.
 
 ## Import
 
-Pre-existing instances import cleanly because `lifecycle.ignore_changes`
-covers every provision-time-only field (`source_details`, `metadata`,
-VNIC `hostname_label`, `defined_tags`). Example:
+An instance that already exists imports without an error, because
+`lifecycle.ignore_changes` covers every field that applies only at provision
+time: `source_details`, `metadata`, the VNIC `hostname_label` and `defined_tags`.
+An example:
 
 ```bash
 # For a protected A1.Flex:
@@ -107,8 +108,8 @@ terraform import \
   'ocid1.instance.oc1.phx.<instance-ocid>'
 ```
 
-After import, `terraform plan` should show zero changes — a good
-sign your module inputs match reality.
+After the import, `terraform plan` must show 0 changes. That result shows that
+the module inputs match the real instance.
 
 ## Verbs
 

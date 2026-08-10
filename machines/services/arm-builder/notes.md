@@ -2,18 +2,20 @@
 
 ## What this is
 
-An AWS `t4g.small` (Graviton2 ARM) EC2 instance that exists to build and
-push native-ARM container images to `ghcr.io`. It is **not** a Kubernetes
-node and never will be — stopping/starting it has zero cluster impact.
+An AWS `t4g.small` EC2 instance (Graviton2 ARM). It exists to build native ARM
+container images and push them to `ghcr.io`. It is **not** a Kubernetes node, and
+it never will be. A stop or a start of this instance has no effect on any
+cluster.
 
 - **Region:** us-west-2 (Oregon)
 - **Instance tag:** `Name=arm-builder`
-- **Root volume:** ~30 GB EBS, gp3. Persists Docker layer cache across
-  stop/start cycles so rebuilds are fast.
-- **Billing:** per-second. Compute is free through Dec 2026 (AWS t4g free
-  tier); storage is ~$4/mo. Post-free-tier compute is ~$0.017/hr.
-- **Idle behavior:** auto-stops after 10 idle minutes (see
-  `scripts/arm-builder.sh --idle`).
+- **Root volume:** about 30 GB of EBS, gp3. It keeps the Docker layer cache
+  across a stop and a start, so a rebuild is fast.
+- **Billing:** per second. The compute is free until December 2026, under the AWS
+  t4g free tier. The storage costs about $4 per month. After the free tier, the
+  compute costs about $0.017 per hour.
+- **Idle behaviour:** the instance stops automatically after 10 minutes with no
+  use. See `scripts/arm-builder.sh --idle`.
 
 ## Daily workflow
 
@@ -34,34 +36,37 @@ docker buildx build --platform linux/arm64 -t ghcr.io/mateosegura/foo:latest --p
 unset DOCKER_HOST
 ```
 
-Consumer projects (codectl, fintel) wrap this pattern in their own
+A consumer project, for example codectl or fintel, wraps this pattern in its own
 `ctl.sh` verbs.
 
-## Required local setup
+## The local setup that you must do
 
-The first time a dev machine uses the builder, run:
+Run this the first time that a dev machine uses the builder:
 
 ```bash
 bash scripts/arm-builder-setup.sh
 ```
 
-That:
+The script does 3 things:
 
-1. Adds `~/.ssh/config` entry for the builder (via Tailscale hostname).
-2. Verifies AWS CLI credentials resolve.
-3. Verifies the SSH key at `~/.ssh/arm-builder` exists and is loaded.
+1. It adds an entry for the builder to `~/.ssh/config`, with the Tailscale
+   hostname.
+2. It verifies that the AWS CLI credentials resolve.
+3. It verifies that the SSH key at `~/.ssh/arm-builder` exists and is loaded.
 
-Bitwarden items consumed by these scripts:
+The Bitwarden items that these scripts consume:
 
-- `ssh-key-arm-builder` — private key for SSH (placed at `~/.ssh/arm-builder`).
-- `cloud-aws-brain-admin` — AWS credentials for EC2 control.
-- (optional) GitHub token — used for `docker login ghcr.io` on the builder
-  itself. Pulled from `gh auth token` on the local machine at setup time.
+- `ssh-key-arm-builder` — the private key for SSH. The script writes it to
+  `~/.ssh/arm-builder`.
+- `cloud-aws-brain-admin` — the AWS credentials that control EC2.
+- A GitHub token, which is optional. The builder uses it for
+  `docker login ghcr.io`. The setup step takes it from `gh auth token` on the
+  local machine.
 
 ## Migration note
 
-Until 2026-04, these scripts lived at
-`infrastructure/cloud/oracle/scripts/arm-builder{,-setup}.sh`. The
-rebuild moved them to `machines/services/arm-builder/scripts/` so
-operational logic sits with the host it operates on, instead of being
-filed under the cloud provider of an unrelated cluster.
+Until 2026-04 these scripts lived at
+`infrastructure/cloud/oracle/scripts/arm-builder{,-setup}.sh`. The rebuild moved
+them to `machines/services/arm-builder/scripts/`, so that the operational logic
+sits with the host that it operates, and not under the cloud provider of an
+unrelated cluster.

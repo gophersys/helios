@@ -1,47 +1,56 @@
 # edge/tunnel/cloudflare-tunnel
 
-Public-traffic entry for clusters with no public IP: Cloudflare's edge accepts
-traffic and a `cloudflared` pod keeps outbound persistent connections to CF,
-tunnelling public requests through to the in-cluster ingress controller. No
-inbound firewall holes; DDoS/WAF soak at CF's edge; works behind NAT.
+The entry point for public traffic into a cluster that has no public IP. The
+Cloudflare edge accepts the traffic. A `cloudflared` pod keeps persistent
+outbound connections to Cloudflare, and the tunnel carries the public requests to
+the in-cluster ingress controller. There is no inbound hole in the firewall, the
+Cloudflare edge absorbs DDoS traffic and runs the WAF, and the tunnel works
+behind NAT.
 
 ---
 
-## Deployed today (homelab) — the source of truth
+## What is deployed today on the homelab — the source of truth
 
-The live homelab edge is **not** the operator-based design described under
-"Target design" below. What actually runs:
+The live homelab edge is **not** the design based on an operator that the
+"Target design" section below describes. This is what runs:
 
-- **`deployment.yaml`** — a plain `cloudflared` Deployment (2 replicas) in ns
-  `cloudflare-tunnel`, image `cloudflare/cloudflared:2026.6.1`, hardened
-  (non-root 65532, read-only rootfs, all caps dropped). Vendored here so the
-  edge is reproducible from git. Registered as the `cloudflared` Argo
-  Application (`registry/app-cloudflared.yaml`) with **manual sync** — Argo
-  makes it visible/git-owned but never mutates the edge on its own. Adopt with
-  `argocd app sync cloudflared` (a no-op rollout; the spec matches live).
-- **Tunnel type:** a Zero-Trust **token** tunnel (`eden-home`). The token is the
-  imperative `tunnel-token` Secret (see `docs/runtime-secrets.md`).
-- **Routing + SSO live in the CF dashboard, not git.** A single catch-all rule
-  forwards to `ingress-nginx:80`; per-hostname routes and Cloudflare Access
-  (Google SSO) apps are configured in the CF Zero-Trust dashboard — out-of-band
-  by design for a token tunnel. Only `home.` and `workspaces.` are public
-  through the tunnel; everything else (`argocd.`, `files.`, `prowlarr.`,
-  `torrent.`, `grafana.`) is tailnet-private via the MetalLB nginx VIP. The
-  authoritative map is **`docs/cluster-topology.md` → "Exposure model at a
-  glance."**
+- **`deployment.yaml`** — a plain `cloudflared` Deployment with 2 replicas, in
+  the namespace `cloudflare-tunnel`, image
+  `cloudflare/cloudflared:2026.6.1`, hardened (non-root user 65532, a read-only
+  root filesystem, all capabilities dropped). It is vendored here, so that the
+  edge is reproducible from git. It is registered as the `cloudflared` Argo
+  Application (`registry/app-cloudflared.yaml`) with **manual sync**. Argo makes
+  the edge visible and owned by git, and Argo never changes the edge on its own.
+  Adopt it with `argocd app sync cloudflared`. That command changes nothing,
+  because the spec matches the live state.
+- **Tunnel type:** a Zero Trust **token** tunnel named `eden-home`. The token is
+  the imperative `tunnel-token` Secret. See `docs/runtime-secrets.md`.
+- **The routing and the SSO live in the Cloudflare dashboard, not in git.** A
+  single catch-all rule forwards to `ingress-nginx:80`. The route for each
+  hostname and the Cloudflare Access apps for Google SSO are configured in the
+  Cloudflare Zero Trust dashboard. That is outside this repo by design, because
+  this is a token tunnel. Only `home.` and `workspaces.` are public through the
+  tunnel. Everything else (`argocd.`, `files.`, `prowlarr.`, `torrent.` and
+  `grafana.`) is tailnet-private through the MetalLB nginx VIP. The authoritative
+  map is **`docs/cluster-topology.md` → "The exposure model."**
 
-There is **no** `cloudflare-operator`, no `cloudflare-api-token`, and TLS is
-**not** terminated here (the tunnel enters nginx on `:80`).
+There is **no** `cloudflare-operator` and no `cloudflare-api-token`, and TLS is
+**not** terminated here, because the tunnel enters nginx on `:80`.
 
 ---
 
-## Target design (prod, not yet deployed)
+## Target design (for prod, not deployed yet)
 
-For a future managed/prod cluster, the intended shape is an operator that turns
-`Ingress` objects into CF tunnel routes automatically
-(`strrl.dev/cloudflare-tunnel-ingress-controller`), with the tunnel token +
-a scoped `cloudflare-api-token` sourced from Bitwarden via ESO. Compatibility:
-CF Tunnel requires CF DNS (route53/ACM won't pair); TLS pairs naturally with
-`cloudflare-origin` or cluster-issued `letsencrypt-dns01`. Free plan limits (as
-of 2026-04): 100 hostnames/tunnel, unlimited bandwidth, +10–30ms edge latency.
+For a future managed or prod cluster, the intended shape is an operator that
+turns an `Ingress` object into a Cloudflare tunnel route automatically
+(`strrl.dev/cloudflare-tunnel-ingress-controller`). The tunnel token and a
+scoped `cloudflare-api-token` then come from Bitwarden through ESO.
+
+Compatibility: a Cloudflare Tunnel requires Cloudflare DNS, so it does not pair
+with route53 or ACM. It pairs naturally with `cloudflare-origin` for TLS, or with
+`letsencrypt-dns01` issued by the cluster.
+
+The limits of the free plan, as of 2026-04: 100 hostnames per tunnel, unlimited
+bandwidth, and 10 to 30ms of extra latency at the edge.
+
 This operator wiring lands when a `prod` cluster bootstraps its public edge.
