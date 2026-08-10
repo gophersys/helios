@@ -78,6 +78,7 @@ ARG AWS_CLI_VERSION=2.34.32                                            # latest 
 
 # Dev QA.
 ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
+ARG KUBECONFORM_VERSION=0.8.0                                          # latest release as of 2026-08-10
 
 # Local Kubernetes substrates for the ADR-0020 host-leveraging integration/load lanes.
 ARG K3D_VERSION=5.9.0                                                  # latest LTS as of 2026-06-13
@@ -420,6 +421,21 @@ RUN case "${TARGETPLATFORM}" in \
       -o /usr/local/bin/hadolint \
  && chmod +x /usr/local/bin/hadolint
 # NOTE: no hadolint --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# kubeconform — Kubernetes manifest schema validation. Single binary tarball,
+# TARGETPLATFORM-aware. Needed by every repo that validates manifests in CI;
+# baking it here is what lets those jobs drop their no-sudo download step.
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=amd64 ;; \
+      linux/arm64) ARCH=arm64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz" \
+      -o /tmp/kubeconform.tar.gz \
+ && tar -xzf /tmp/kubeconform.tar.gz -C /usr/local/bin kubeconform \
+ && chmod +x /usr/local/bin/kubeconform \
+ && rm -f /tmp/kubeconform.tar.gz
+# NOTE: no kubeconform -v smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # NATS CLI — single binary zip, TARGETPLATFORM-aware.
 RUN case "${TARGETPLATFORM}" in \

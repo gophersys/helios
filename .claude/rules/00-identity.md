@@ -7,23 +7,25 @@ and as the CI runtime that GitHub Actions invokes `nx affected` inside.
 
 ## Purpose
 
-- Single source of truth for the four canonical container images the
-  brain ecosystem depends on.
+- Single source of truth for the canonical container images the brain
+  ecosystem depends on.
 - Keeps local dev and CI execution environments byte-for-byte identical.
 - Provides a place to bump a toolchain version exactly once and have the
   change flow to every project via shared-change propagation.
 
-## 4-image model
+## Image model
 
-The repo exposes exactly four images. All four have the
-`GOPHERSYS_DEVCONTAINER` env marker set so scripts can detect which image
-they are running inside.
+The repo exposes four **devcontainer** images plus the `+ runner` layer.
+Every devcontainer image sets the `GOPHERSYS_DEVCONTAINER` env marker so
+scripts can detect which image they are running inside; a runner variant
+inherits its parent's marker and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 
 | Image | `GOPHERSYS_DEVCONTAINER` | Intent |
 |---|---|---|
 | `ghcr.io/gophersys/base`          | `base`          | Everything most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (terraform/kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
 | `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 17 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
+| `ghcr.io/gophersys/base-runner`   | `base` + `_RUNNER=true` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. A **CI image, not a devcontainer** — no `devcontainer.json`. Built from `runner/Dockerfile`. |
 | `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules. Remote SSH-able embedded dev box for k8s pods. |
 
 ## Structure
@@ -35,6 +37,7 @@ they are running inside.
 ├── ctl.sh                       # repo-wide control
 ├── .claude/rules/00-identity.md # (this file)
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer — no devcontainer.json
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
@@ -45,12 +48,21 @@ they are running inside.
 
 1. **No Nx workspace of its own.** Every operation must be runnable as plain
    `bash ./ctl.sh <cmd>` from within this repo.
-2. **Per-image file rule.** Every image directory at the repo root
-   (`base/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
+2. **Per-image file rule.** Every devcontainer image directory at the repo
+   root (`base/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`
    (plus any scripts the image COPYs in, e.g. an entrypoint — all
    `*.sh` in an image dir are shellchecked by `validate`). No per-image
    READMEs; `ctl.sh usage()` is the spec.
+
+   **`runner/` is the one exception**, and deliberately so. It is a CI image,
+   never opened in an editor, so it ships no `devcontainer.json`. It is also
+   the only directory whose name is not its image name: one Dockerfile builds
+   `<parent>-runner` for every parent, selected by `BASE_IMAGE` / the
+   `RUNNER_PARENT` env var. `image_dir()` in **both** `./ctl.sh` and
+   `.ci/ctl.sh` maps `*-runner` back to `runner/`; the two resolvers must
+   agree. Adding `zephyr-runner` is a `BUILD_ORDER` entry and a CI job — never
+   a second Dockerfile.
 3. **No `CLAUDE.md` files.** Repo-specific conventions live here in
    `.claude/rules/`.
 4. **Human-authored voice.** Commits, comments, and docs contain no AI/LLM
@@ -138,18 +150,35 @@ devcontainer use behaves like the other layers.
 ## Dependency graph
 
 ```
-       base
-     ┌──┴──┐
-flutter  zephyr
-            │
-      zephyr-devbox
+           base
+    ┌────┬──┴──┐
+base-   flutter  zephyr
+runner              │
+              zephyr-devbox
 ```
 
-Declared in three places that MUST stay in sync:
+Declared in four places that MUST stay in sync:
 
-- `BUILD_ORDER` in `./ctl.sh`.
+- `BUILD_ORDER` in `./ctl.sh` **and** in `.ci/ctl.sh`.
 - `dependsOn` in each image's `project.json`.
 - `needs:` in `.github/workflows/build-and-push.yml`.
+- `.ci/providers/github/build-and-push.yml`, the provider source of truth —
+  it must match the workflow byte for byte. It silently drifted to a stale
+  three-image copy once; re-check it whenever the workflow changes.
+
+## Why the `+ runner` layer exists
+
+CI runs **these images**, not a parallel CI image set. The runner layer is what
+makes that possible, and it is a pod image rather than a workflow `container:`
+image for two measured reasons: a `container:` image is pulled inside the runner
+pod's dind daemon and dies with the pod (5m17s per job at this image size), and
+pulling a private package with `GITHUB_TOKEN` needs a per-(package, repository)
+grant that GitHub exposes only in its UI. As the pod's own image the kubelet
+pulls it, caches it per node, and one in-cluster `imagePullSecret` covers every
+image and every repo.
+
+The full interface — which capabilities are pools and which are images — is
+`gophersys/infrastructure` `docs/ci-substrate.md`.
 
 ## Shared-change propagation
 

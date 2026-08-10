@@ -9,7 +9,7 @@
 # QEMU is not involved here.
 #
 # Usage: bash .ci/smoke.sh <image>
-# where <image> ∈ {base, flutter, zephyr, zephyr-devbox}
+# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner}
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -73,6 +73,7 @@ gosec --version
 gremlins --version
 benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
 gitleaks version
+kubeconform -v
 EOF
 
 # Flutter adds flutter + adb checks on top of the base smoke.
@@ -121,8 +122,20 @@ sudo /usr/sbin/sshd -t
 echo "sshd config: ok"
 EOF
 
+# The `+ runner` layer adds only the GitHub Actions runner, so its smoke test is
+# the parent's plus proof that the runner unpacked and is executable by `dev`.
+read -r -d '' SMOKE_RUNNER <<'EOF' || true
+echo "--- runner smoke ---"
+test -x /home/runner/run.sh
+test -d /home/runner/externals
+test -w /home/runner/_work
+/home/runner/bin/Runner.Listener --version
+EOF
+
 case "$IMAGE" in
   base)    SCRIPT="$SMOKE_BASE" ;;
+  base-runner) SCRIPT="${SMOKE_BASE}
+${SMOKE_RUNNER}" ;;
   flutter) SCRIPT="${SMOKE_BASE}
 ${SMOKE_FLUTTER}" ;;
   zephyr)  SCRIPT="${SMOKE_BASE}
@@ -132,7 +145,7 @@ ${SMOKE_ZEPHYR}
 ${SMOKE_DEVBOX}" ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, flutter, zephyr, zephyr-devbox"
+    log_error "valid images: base, base-runner, flutter, zephyr, zephyr-devbox"
     exit 2
     ;;
 esac
