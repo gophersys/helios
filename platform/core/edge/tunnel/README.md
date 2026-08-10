@@ -1,9 +1,9 @@
 # edge/tunnel
 
 How public traffic enters the cluster. A cluster picks exactly ONE tunnel
-provider for its `edge.public` scope. Tailnet scope is always served by
-Tailscale directly (see `../../edge/ingress-controller/` binding to
-tailnet-local IPs).
+provider for its `edge.public` scope. Tailscale always serves the tailnet scope
+directly. See `../../edge/ingress-controller/`, which binds to the IPs that are
+local to the tailnet.
 
 | Provider             | Status  | Free-tier?    | Best for                                      |
 |----------------------|---------|---------------|-----------------------------------------------|

@@ -1,65 +1,64 @@
-# infrastructure — platform & contracts discipline
+# infrastructure — platform and contracts discipline
 
-Rules for touching `platform/*` and `contracts/*`. These layers are
+Rules for changes to `platform/*` and `contracts/*`. These layers are
 load-bearing for every app in the ecosystem.
 
-## Core (`platform/core/*`) rules
+## Rules for `platform/core/*`
 
-- **Non-negotiable.** Every cluster installs every core component at
-  bring-up. There's no per-cluster opt-out.
-- **Pin versions repo-wide.** A single Helm chart version per core
-  component applies to every cluster. Bumping is a deliberate, staged op.
-- **Install order is fixed.** See `platform/core/README.md`.
-- **Adding a core component is rare.** If it's not strictly needed by
-  every cluster, it belongs in `platform/services/`.
-- **Version bumps must go through the shared-change approval flow** — a
-  breaking bump affects every cluster.
+- **Non-negotiable.** Every cluster installs every core component at bring-up.
+  There is no opt-out per cluster.
+- **Pin the versions across the repo.** A single Helm chart version per core
+  component applies to every cluster. A bump is a deliberate, staged operation.
+- **The install order is fixed.** See `platform/core/README.md`.
+- **A new core component is rare.** If every cluster does not strictly need it,
+  it belongs in `platform/services/`.
+- **A version bump must go through the approval flow for shared changes**,
+  because a breaking bump affects every cluster.
 
-## Services (`platform/services/*`) rules
+## Rules for `platform/services/*`
 
-- **Opt-in per cluster** via `clusters/instances/<c>/identity.yaml`.
-- **Version-pinnable per cluster.** A cluster's identity.yaml pins the
-  version it wants; overlay supplies per-cluster values.
-- **Adding a service is lower-stakes.** No cluster is affected unless it
-  opts in.
-- **One category, multiple implementations is OK** (e.g.,
-  `databases/postgresql/` + `databases/redis/`).
+- **A cluster opts in** through `clusters/instances/<c>/identity.yaml`.
+- **The version is pinnable per cluster.** The identity.yaml of a cluster pins
+  the version it wants, and the overlay supplies the values for that cluster.
+- **A new service carries a lower risk.** No cluster is affected until it opts
+  in.
+- **One category may hold several implementations**, for example
+  `databases/postgresql/` and `databases/redis/`.
 
-## Contracts (`contracts/*`) rules
+## Rules for `contracts/*`
 
-- **Contracts describe the app-facing surface.** Changes affect every app
-  consuming the contract.
-- **Backward-compatible additions** (new optional fields) are a minor
-  version bump.
-- **Breaking changes** (renaming fields, changing semantics, removing
-  fields) require:
+- **A contract describes the app-facing surface.** A change affects every app
+  that consumes the contract.
+- **A backward-compatible addition** (a new optional field) is a minor version
+  bump.
+- **A breaking change** (a renamed field, changed semantics, or a removed field)
+  requires all of the following:
   - a `version:` bump in the contract's front-matter,
-  - a migration note inline in the contract,
-  - a corresponding change in every `charts/*` archetype that emits this
-    contract's manifests,
-  - a release cycle coordinated with consumer projects.
-- **Never invent a contract that isn't backed by at least one
-  `platform/*` component** — contracts without implementations are
-  promises we can't keep.
+  - a migration note in the contract,
+  - a matching change in every `charts/*` archetype that emits the manifests of
+    this contract,
+  - a release cycle coordinated with the consumer projects.
+- **Never invent a contract that no `platform/*` component backs.** A contract
+  with no implementation is a promise we cannot keep.
 
 ## Cross-cutting: where the switch happens
 
-Swapping `platform/services/databases/postgresql/` from CNPG to Neon (or
-anything else) should touch:
+To swap `platform/services/databases/postgresql/` from CNPG to Neon, or to
+anything else, you should touch:
 
-- `platform/services/databases/postgresql/` — new implementation.
-- `contracts/databases.md` — only if the app-facing interface changes
-  (Secret shape, CR kind, annotations). Keep it stable if at all possible.
+- `platform/services/databases/postgresql/` — the new implementation.
+- `contracts/databases.md` — only if the app-facing interface changes (the Secret
+  shape, the CR kind, or the annotations). Keep it stable if you can.
 
-Apps MUST NOT need to change. If they do, the contract changed and that's
+An app MUST NOT need a change. If it does, then the contract changed, and that is
 a breaking event.
 
 ## CI expectations
 
-The `.ci/` layer should eventually validate:
+The `.ci/` layer should eventually validate that:
 - Every `platform/<tier>/<path>/` has a README.md with the required sections.
-- Every `contracts/*.md` parses the front-matter and has the five sections
+- Every `contracts/*.md` parses its front-matter and has the 5 sections
   (Abstract, Interface, Guarantees, Caveats, Example).
 - Every claim that "this service fulfills contract X" matches a real file.
 
-Until populated, these checks are aspirational but specified.
+These checks are specified but not yet built.

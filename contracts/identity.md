@@ -9,14 +9,15 @@ status: future
 
 ## Abstract
 
-Apps gate routes behind platform-provided SSO. Users authenticate once via
-the cluster-wide identity provider; downstream apps see authenticated
-requests with user claims in headers (or via forwarded OIDC tokens).
+An app gates a route behind the SSO that the platform provides. A user
+authenticates once with the cluster-wide identity provider. The app downstream
+then sees authenticated requests, with the user claims in the headers or in a
+forwarded OIDC token.
 
 ## Interface (TBD)
 
-### Protecting a route
-Apps annotate their `IngressRoute` or `Ingress` with:
+### Protect a route
+An app annotates its `IngressRoute` or `Ingress` with:
 
 ```yaml
 metadata:
@@ -25,31 +26,31 @@ metadata:
     platform.gophersys/auth-required-groups: "admins,operators"
 ```
 
-The platform's ingress middleware intercepts, bounces to SSO, and forwards
-the user's identity as:
-- `X-Auth-User`: stable user ID
-- `X-Auth-Email`: email
-- `X-Auth-Groups`: comma-separated groups
+The ingress middleware of the platform intercepts the request, sends it to SSO,
+and forwards the identity of the user as:
+- `X-Auth-User`: the stable user ID
+- `X-Auth-Email`: the email address
+- `X-Auth-Groups`: the groups, separated by commas
 - `Authorization: Bearer <oidc-token>` (when forwarding is enabled)
 
-### Platform-issued tokens
-Apps calling other apps (service-to-service): use the platform's internal
-issuer to mint short-lived tokens; downstream apps validate via the
-platform's JWKS endpoint.
+### Tokens issued by the platform
+For an app that calls another app (service to service): use the internal issuer
+of the platform to mint short-lived tokens. The app downstream validates them
+through the JWKS endpoint of the platform.
 
 ## Guarantees (TBD)
 
-- User identity is verified at the edge (middleware); downstream apps trust
-  the forwarded headers as long as they only accept traffic via the
+- The middleware verifies the user identity at the edge. An app downstream can
+  trust the forwarded headers, as long as it accepts traffic only through the
   platform ingress.
-- Tokens are short-lived (≤15 min) with refresh via SSO provider.
+- A token is short-lived (15 minutes or less), and the SSO provider refreshes it.
 
 ## Caveats (TBD)
 
-- Service-to-service tokens require network isolation (default-deny
-  NetworkPolicy) — otherwise an attacker bypasses the edge.
-- Long-running background jobs need token refresh logic.
+- A service-to-service token requires network isolation (a default-deny
+  NetworkPolicy). Without it an attacker can bypass the edge.
+- A background job that runs for a long time needs logic to refresh the token.
 
 ## Example (TBD)
 
-Deferred — implementation is future work.
+Deferred, because the implementation is future work.

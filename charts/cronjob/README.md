@@ -1,23 +1,25 @@
 # charts/cronjob
 
-Runs on a schedule. Wraps Kubernetes `CronJob`.
+A workload that runs on a schedule. It wraps the Kubernetes `CronJob`.
 
 ## When to pick this
 
-- Nightly aggregates, daily reports, weekly rollups.
-- Periodic cleanup (log retention, tmp purge, expired-token sweep).
-- Cache warmers, index rebuilders.
-- Scheduled external syncs (pull from SaaS API, push to BI warehouse).
+- A nightly aggregate, a daily report, or a weekly rollup.
+- A periodic cleanup: log retention, a purge of tmp, or a sweep of expired
+  tokens.
+- A cache warmer or an index rebuilder.
+- A scheduled sync with an external system: a pull from a SaaS API, or a push to
+  a BI warehouse.
 
-If it runs once and you trigger it manually, pick `job`. If it's
-long-running and constantly consuming a queue, pick `worker`.
+If it runs once and you start it by hand, pick `job`. If it runs for a long time
+and consumes a queue continuously, pick `worker`.
 
 ## What the chart emits
 
-- `CronJob` — with the schedule, concurrency policy, and history limits.
-- `ServiceAccount`, `ExternalSecret`, `NetworkPolicy`, `PrometheusRule` for
-  run-success SLO (optional).
-- No Service, no Ingress, no HPA, no PDB (jobs are transient).
+- `CronJob` — with the schedule, the concurrency policy and the history limits.
+- `ServiceAccount`, `ExternalSecret`, `NetworkPolicy`, and an optional
+  `PrometheusRule` for the SLO on run success.
+- No Service, no Ingress, no HPA and no PDB, because a job is temporary.
 
 ## Schedule + concurrency
 
@@ -30,20 +32,21 @@ successfulJobsHistoryLimit: 3
 failedJobsHistoryLimit: 3
 ```
 
-`Forbid` is the default because most scheduled work shouldn't run
-concurrently. Explicitly opt into `Allow` only when overlapping runs
-are safe and desired (e.g., fan-out that parallelizes naturally).
+`Forbid` is the default, because most scheduled work should not run 2 times at
+once. Choose `Allow` explicitly only when 2 overlapping runs are safe and wanted,
+for example a fan-out that divides its work naturally.
 
 ## Run semantics
 
-Each invocation:
+Each run:
 
-- Runs in a fresh pod — no shared state between runs, no persistence
-  unless you mount a PVC (then you're not really a cronjob, you're a
-  stateful process with a schedule; reconsider).
-- Gets fresh ExternalSecrets each run — no stale-credential drift.
-- Emits structured logs and metrics (via a sidecar or in-process push
-  gateway if the process doesn't live long enough for scrape).
+- runs in a new pod. There is no shared state between runs, and there is no
+  persistence unless you mount a PVC. If you mount a PVC, the workload is not a
+  cronjob. It is a stateful process with a schedule, and you must reconsider the
+  archetype.
+- gets new ExternalSecrets, so a credential never becomes stale.
+- emits structured logs and metrics. Use a sidecar, or an in-process push
+  gateway if the process does not run long enough for a scrape.
 
 ## Timeout + retry
 
@@ -58,23 +61,24 @@ ttlSecondsAfterFinished: 86400    # cleanup completed pods after 24h
 | Knob                               | Default      | Rationale                                      |
 |------------------------------------|--------------|------------------------------------------------|
 | `concurrencyPolicy`                | `Forbid`     | Most scheduled work is unsafe concurrent       |
-| `timeZone`                         | `UTC`        | DST math is the devil                          |
+| `timeZone`                         | `UTC`        | Daylight-saving arithmetic causes errors       |
 | `activeDeadlineSeconds`            | `3600`       | Prevent runaway runs; override explicitly      |
 | `backoffLimit`                     | `3`          | Transient failures recover; real failures page |
 | `ttlSecondsAfterFinished`          | `86400`      | 24h log retention on the Job object            |
 | `nodeRole`                         | `apps`       | Switch to `batch` when preemptible pool exists |
 
-## Observability for cronjobs
+## Observability for a cronjob
 
-- Run-count metric scraped via a push gateway sidecar (or emitted to
-  NATS/stdout and reconciled by the log pipeline).
-- `PrometheusRule` with:
-  - `slo:cronjob:success_rate:<name>` — % of scheduled runs that
+- A push gateway sidecar exposes the run-count metric for the scrape. As an
+  alternative, the job emits the metric to NATS or stdout, and the log pipeline
+  reconciles it.
+- A `PrometheusRule` with:
+  - `slo:cronjob:success_rate:<name>` — the percentage of scheduled runs that
     completed successfully.
-  - `cronjob:last_success_timestamp:<name>` — age of most recent
+  - `cronjob:last_success_timestamp:<name>` — the age of the most recent
     successful run.
-- Alertmanager: "cronjob hasn't succeeded in > 2× schedule interval"
-  is the canonical stale-run alert.
+- The canonical alert in Alertmanager is: the cronjob has not succeeded for more
+  than 2 times its schedule interval.
 
 ## Example values
 

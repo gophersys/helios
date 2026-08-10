@@ -1,6 +1,6 @@
 # troubleshooting
 
-First-stop diagnostics for common issues.
+The first diagnostics to run for common problems.
 
 ## `BW_SESSION is not set`
 
@@ -8,76 +8,75 @@ First-stop diagnostics for common issues.
 export BW_SESSION=$(bw unlock --raw)
 ```
 
-If `bw unlock` itself fails, make sure `bw login` has been run at least
-once on this host. The login is separate from the per-session unlock.
+If `bw unlock` itself fails, make sure that `bw login` has run at least once on
+this host. The login is separate from the unlock of each session.
 
 ## `bitwarden vault is 'locked'`
 
-The session token expired. Re-run `bw unlock --raw` and export. Sessions
-expire silently — this is expected behavior from the CLI.
+The session token expired. Run `bw unlock --raw` again and export the result. A
+session expires without a message. That is the normal behaviour of the CLI.
 
-## `bw status` hangs
+## `bw status` does not return
 
 The CLI is trying to sync against the upstream vault. Usual causes:
-- Offline / captive portal — connect and retry.
-- Server-side rate limit — wait a minute.
-- A stale local config at `~/.config/Bitwarden CLI/data.json` — as a last
-  resort, `bw logout` and `bw login` again.
+- The host is offline, or a captive portal blocks it. Connect and try again.
+- A rate limit on the server. Wait 1 minute.
+- A stale local configuration at `~/.config/Bitwarden CLI/data.json`. As the last
+  option, run `bw logout` and then `bw login` again.
 
 ## `ssh-add refused the key`
 
-The private key was fetched correctly but `ssh-add` rejected it. Usual
-causes:
-- Key is encrypted with a passphrase (our keys should not be).
-- Key format is DSA/RSA-1 (unsupported by modern OpenSSH). Re-generate
-  as ed25519.
-- `SSH_AUTH_SOCK` is unset — run `eval "$(ssh-agent -s)"` first.
+The private key was fetched correctly, but `ssh-add` rejected it. Usual causes:
+- The key has a passphrase. Our keys should not have one.
+- The key format is DSA or RSA-1, which modern OpenSSH does not support.
+  Generate an ed25519 key instead.
+- `SSH_AUTH_SOCK` is unset. Run `eval "$(ssh-agent -s)"` first.
 
 ## `tailscale up` fails with "auth key already used"
 
-Pre-auth keys are one-shot by default. Create a fresh key in the
-Tailscale admin console, update `tailscale-authkey-<tag>` in Bitwarden,
-retry.
+By default a pre-auth key works only once. Create a new key in the Tailscale
+admin console, update `tailscale-authkey-<tag>` in Bitwarden, and try again.
 
 ## `generate-machine-index.sh` produces empty output
 
-Check that each `machines/hosts/<name>/identity.yaml` actually exists —
-the script only indexes directories that contain one. A directory with
-just a `.gitkeep` is ignored.
+Check that each `machines/hosts/<name>/identity.yaml` exists. The script indexes
+only the directories that contain one. It ignores a directory that holds only a
+`.gitkeep`.
 
-## `bash machines/ctl.sh new-host ...` says template not found
+## `bash machines/ctl.sh new-host ...` says that the template is not found
 
-List templates:
+List the templates:
 
 ```
 ls machines/templates/
 ```
 
-Make sure the template name matches exactly (kebab-case, no slashes).
+Make sure that the template name matches exactly: kebab-case, no slashes.
 
-## Shellcheck errors after editing a script
+## Shellcheck reports errors after you edit a script
 
-Run directly to see line-by-line output:
+Run it directly to see the output line by line:
 
 ```
 shellcheck machines/scripts/<script>.sh
 ```
 
-The validator only reports failures at error severity. For warning-level
-cleanup, run `shellcheck` without `-S error`.
+The validator reports failures at error severity only. To clean up the
+warning-level output, run `shellcheck` without `-S error`.
 
-## A host's Ansible run fails on platform-windows
+## The Ansible run of a host fails on platform-windows
 
-Confirm WinRM prerequisites:
+Confirm the WinRM prerequisites:
 
 ```
 Test-WSMan -ComputerName <host> -Port 5986 -UseSSL
 ```
 
-See the comment at the top of `machines/roles/platform-windows/tasks/main.yml`
-for the one-time Windows-side setup that's outside Ansible's scope.
+The comment at the top of
+`machines/roles/platform-windows/tasks/main.yml` describes the one-time setup on
+the Windows side, which is outside the scope of Ansible.
 
 ## Anything else
 
-File an issue in the parent monorepo. For infra-specific issues, tag
-`scope:infrastructure`.
+File an issue in the parent monorepo. For a problem specific to infrastructure,
+tag it `scope:infrastructure`.

@@ -1,12 +1,13 @@
 # platform
 
-Everything that runs **on** clusters. Two tiers:
+Everything that runs **on** a cluster. There are 2 tiers.
 
 ## `core/`
 
-Non-negotiable cluster bootstrap. **Every cluster gets every core component**
-at bring-up — no opt-in, no version skew. If a component is in `core/`, it's
-because nothing above can work without it.
+The non-negotiable cluster bootstrap. **Every cluster gets every core
+component** at bring-up. There is no opt-in, and there is no difference of
+version between clusters. A component is in `core/` because no layer above it can
+work without it.
 
 - `cni/` — pod networking
 - `ingress/` — HTTP(S) ingress controller
@@ -18,29 +19,29 @@ because nothing above can work without it.
 
 ## `services/`
 
-Opt-in, version-pinned shared services. A cluster declares in
-`clusters/instances/<c>/identity.yaml` which `services` it wants; the overlay
-at `clusters/instances/<c>/overlays/` supplies cluster-specific values.
+The opt-in shared services, with a pinned version. A cluster declares the
+`services` that it wants in `clusters/instances/<c>/identity.yaml`. The overlay
+at `clusters/instances/<c>/overlays/` supplies the values for that cluster.
 
 - `observability/` — Grafana + Prometheus + Loki + Tempo
 - `databases/postgresql/` + `databases/redis/`
 - `messaging/nats/`
 - `registry/` — internal OCI registry (optional)
-- `admin-dashboard/` — single pane of glass
-- `identity-sso/` — Dex/Keycloak (future)
+- `admin-dashboard/` — one view of everything
+- `identity-sso/` — Dex or Keycloak (future)
 - `backup/` — Velero
 - `cost/` — OpenCost
 
-## Contract relationship
+## The relationship to the contracts
 
-Apps never talk to platform components directly. They consume declared
-interfaces in `contracts/` (CRDs, env conventions, labels). Swapping an
-implementation in `platform/services/` is invisible to apps as long as the
-contract is preserved.
+An app never talks to a platform component directly. It consumes the declared
+interfaces in `contracts/`: the CRDs, the env var conventions and the labels. A
+change of implementation in `platform/services/` is invisible to an app, while
+the contract stays the same.
 
 ## Status
 
-Today: **every leaf is a stub** — `README.md` only, no manifests. Populated
-in later passes as real clusters demand each component. See each leaf's
-README for "default implementation we'd pick when populating" and contract
-linkage.
+Today **every leaf is a stub**. There is a `README.md` and no manifest. They are
+populated in later passes, as a real cluster needs each component. The README of
+each leaf names the default implementation that we would pick when we populate
+it, and it names the contracts that the component fulfills.

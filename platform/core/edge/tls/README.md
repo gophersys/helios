@@ -1,8 +1,8 @@
 # edge/tls
 
-How TLS certs are minted. Every cluster installs `cert-manager/` (the
-operator); the cluster's `edge.*.tls` choice selects which Issuer(s)
-are configured.
+How a TLS certificate is issued. Every cluster installs the `cert-manager/`
+operator. The `edge.*.tls` choice of the cluster selects which Issuers are
+configured.
 
 | Provider              | Status  | Works with tunnel provider               | Renewal              |
 |-----------------------|---------|------------------------------------------|----------------------|
@@ -11,21 +11,23 @@ are configured.
 | `tailscale-cert/`     | STUB    | `tailscale` / `tailscale-funnel`         | TS-managed           |
 | `acm/`                | STUB    | `cloud-loadbalancer` on AWS              | AWS-managed          |
 
-Let's Encrypt issuers (both HTTP-01 and DNS-01) are configured in
-`cert-manager/` via `ClusterIssuer` CRs — see `cert-manager/README.md`.
+The Let's Encrypt issuers, both HTTP-01 and DNS-01, are configured in
+`cert-manager/` through `ClusterIssuer` CRs. See `cert-manager/README.md`.
 
-## Default for `prod`
+## The default for `prod`
 
-- Public scope: `cloudflare-origin` — pairs with CF Tunnel. Cert is a
-  CF-issued Origin Certificate with 15-year validity; effectively
-  zero-renewal for the cluster lifetime.
-- Tailnet scope: `tailscale-cert` — auto-rotated for `*.ts.net`
-  hostnames.
+- Public scope: `cloudflare-origin`. It works with the Cloudflare Tunnel. The
+  certificate is a Cloudflare Origin Certificate with 15 years of validity, so
+  the cluster does not renew it during its lifetime.
+- Tailnet scope: `tailscale-cert`. Tailscale rotates it automatically for a
+  `*.ts.net` hostname.
 
-## Why not Let's Encrypt for public on CF-fronted?
+## Let's Encrypt for a public host behind Cloudflare
 
-You can — set `cluster.edge.public.tls: letsencrypt-dns01`. But when
-traffic is CF-fronted, the client-facing TLS is already CF's edge cert
-(free, managed by CF). The cluster→CF hop cert is commonly an Origin
-Cert for simplicity; LE DNS-01 is an option if you want end-to-end
-public-CA chain from cluster.
+You can use Let's Encrypt for such a host: set
+`cluster.edge.public.tls: letsencrypt-dns01`. When Cloudflare fronts the traffic,
+the TLS that the client sees is already the Cloudflare edge certificate, which is
+free and which Cloudflare manages. The certificate for the hop from the cluster
+to Cloudflare is usually an Origin Certificate, because that is simpler. Use LE
+DNS-01 instead when you want a chain to a public CA, end to end, from the
+cluster.

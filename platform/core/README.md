@@ -1,7 +1,7 @@
 # platform/core
 
-Non-negotiable cluster bootstrap. Every cluster installs every core
-component during bring-up, at the pinned version recorded in this tree.
+The non-negotiable cluster bootstrap. Every cluster installs every core component
+during bring-up, at the pinned version that this tree records.
 
 | Component                 | Role                                                                      |
 |---------------------------|---------------------------------------------------------------------------|
@@ -16,36 +16,38 @@ component during bring-up, at the pinned version recorded in this tree.
 
 ## The edge layer
 
-`edge/` bundles ingress-controller + tunnel + DNS + TLS into a single
-pluggable abstraction. A cluster picks its edge stack in
-`identity.yaml:edge`; apps are unaware of the choice. Free-tier default:
-Cloudflare Tunnel + CF DNS + CF Origin Cert for public, Tailscale for
-tailnet-scoped services. See `edge/README.md` + `edge/CATALOG.md` for
-the provider matrix and known-good combinations.
+`edge/` groups the ingress controller, the tunnel, the DNS and the TLS into 1
+pluggable abstraction. A cluster picks its edge stack in `identity.yaml:edge`,
+and an app does not know which stack it picked. The free-tier default is
+Cloudflare Tunnel, Cloudflare DNS and a Cloudflare Origin Certificate for the
+public scope, and Tailscale for a service scoped to the tailnet. See
+`edge/README.md` and `edge/CATALOG.md` for the provider matrix and the
+combinations that are known to work.
 
 ## Install order (fixed)
 
-1. `cni` — everything else needs pod networking.
-2. `storage` — PVs for anything stateful, including cert-manager Secrets
+1. `cni` — every other component needs pod networking.
+2. `storage` — the PVs for anything stateful, including the cert-manager Secrets
    and the observability stack.
-3. `secrets-operator` — ESO + Bitwarden backend; every later component
-   that needs credentials (API tokens for DNS providers, tunnel tokens)
-   pulls from ESO.
-4. `edge/tls/cert-manager` — cert-manager operator.
-5. `edge/ingress-controller` — traefik (in-cluster L7 routing).
-6. `edge/tls/<issuer>` — concrete TLS providers per the cluster's edge
-   config (cloudflare-origin / letsencrypt-dns01 / acm / tailscale-cert).
-7. `edge/dns/<provider>` — external-dns + provider config
-   (cloudflare / route53 / tailscale-magicdns).
-8. `edge/tunnel/<provider>` — the traffic entry point (cloudflare-tunnel
-   / cloud-loadbalancer / tailscale-funnel).
-9. `metrics-server` — HPA + `kubectl top`.
-10. `network-policies` — baseline NetworkPolicy manifests.
-11. `policy` — Kyverno install + ClusterPolicies. Comes after the above
-    so validating policies don't reject in-progress component installs.
-12. `namespace-provisioner` — Kyverno generators. Requires Kyverno (11).
+3. `secrets-operator` — ESO with the Bitwarden backend. Every later component
+   that needs a credential, for example an API token for a DNS provider or a
+   tunnel token, reads it from ESO.
+4. `edge/tls/cert-manager` — the cert-manager operator.
+5. `edge/ingress-controller` — traefik, for L7 routing inside the cluster.
+6. `edge/tls/<issuer>` — the concrete TLS providers for the edge configuration of
+   the cluster: cloudflare-origin, letsencrypt-dns01, acm or tailscale-cert.
+7. `edge/dns/<provider>` — external-dns and the provider configuration:
+   cloudflare, route53 or tailscale-magicdns.
+8. `edge/tunnel/<provider>` — the entry point for the traffic: cloudflare-tunnel,
+   cloud-loadbalancer or tailscale-funnel.
+9. `metrics-server` — the HPA and `kubectl top`.
+10. `network-policies` — the baseline NetworkPolicy manifests.
+11. `policy` — the Kyverno install and the ClusterPolicies. It comes after the
+    steps above, so that a validating policy does not reject the install of a
+    component that is still in progress.
+12. `namespace-provisioner` — the Kyverno generators. It needs Kyverno, step 11.
 
 ## Status
 
-Every component is a stub. Implementations land as `prod` is
-bootstrapped through this tree.
+Every component is a stub. An implementation lands as `prod` bootstraps through
+this tree.

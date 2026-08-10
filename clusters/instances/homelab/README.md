@@ -1,13 +1,14 @@
 # homelab cluster
 
-The live 8-node HA k3s v1.35.5 cluster on 3 Proxmox hosts — the self-hosted
-media/music platform + platform experimentation substrate. All nodes on the
-Tailscale mesh. Declared from live `kubectl` (2026-07-05).
+The live HA k3s v1.35.5 cluster: 8 nodes on 3 Proxmox hosts. It carries the
+self-hosted media and music platform, and it is the substrate for platform
+experiments. Every node is on the Tailscale mesh. This declaration was made from
+the live `kubectl` output on 2026-07-05.
 
-This is a **Phase-0 declaration** in the homelab→IDP migration
-(`docs/migration-homelab-to-idp.md`): it *describes* the running cluster in IDP
-form. Nothing here reconciles onto the cluster yet — it is read by
-`clusters/ctl.sh validate` and future provisioning, not by a live controller.
+This is a **Phase-0 declaration** in the migration from the homelab to the IDP
+(`docs/migration-homelab-to-idp.md`). It *describes* the running cluster in IDP
+form. Nothing here reconciles onto the cluster yet. `clusters/ctl.sh validate`
+reads it, and future provisioning will read it. No live controller reads it.
 
 ## Topology
 
@@ -22,12 +23,14 @@ form. Nothing here reconciles onto the cluster yet — it is read by
 | k3s-w-3 | agent | apps | pve-01 | 4 / 9Gi | |
 | k3s-w-4 | agent | apps | pve-01 | 4 / 9Gi | |
 
-## Ratified divergences from the template
-- **CNI = flannel + kube-router** (not Cilium). NetworkPolicy **is** enforced
-  (kube-router, empirically verified) — no Cilium reinstall.
-- **policy_profile = audit-only** during migration; enforce per-namespace later.
-- **edge TLS = letsencrypt-dns01** (cert-manager) not cloudflare-origin.
-- **No irreplaceable nodes** — Proxmox VMs are cattle.
-- **w-1 = apps + labels, no taint** — avoids evicting the pinned media workload.
+## Ratified differences from the template
+- **CNI = flannel + kube-router**, not Cilium. NetworkPolicy **is** enforced, by
+  kube-router, and we verified that empirically. There is no Cilium reinstall.
+- **policy_profile = audit-only** during the migration. Enforce per namespace at
+  a later date.
+- **edge TLS = letsencrypt-dns01** through cert-manager, not cloudflare-origin.
+- **There are no irreplaceable nodes.** A Proxmox VM here is replaceable.
+- **w-1 = apps plus labels, with no taint.** That prevents an eviction of the
+  media workload that is pinned to it.
 
-See `docs/migration-homelab-to-idp.md` for the full plan + all 9 decisions.
+See `docs/migration-homelab-to-idp.md` for the full plan and all 9 decisions.

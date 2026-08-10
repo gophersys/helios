@@ -8,41 +8,46 @@ fulfilled_by: platform/services/observability/
 
 ## Abstract
 
-The platform collects **logs**, **metrics**, and **traces** from every app
-automatically. Apps don't run their own Prometheus or Loki — they emit in
-standard formats (OTLP / OpenMetrics / structured logs) and the platform
-routes, stores, and surfaces the data in Grafana.
+The platform collects the **logs**, the **metrics** and the **traces** of every
+app automatically. An app does not run its own Prometheus or Loki. It emits data
+in a standard format (OTLP, OpenMetrics or structured logs), and the platform
+routes it, stores it and shows it in Grafana.
 
 ## Interface (TBD)
 
 ### Logs
-- Write structured JSON to stdout/stderr. Required fields (TBD):
-  - `ts`, `level`, `msg`, `service`, `env`, `trace_id` (optional).
-- The platform's log collector scrapes container logs; no app-side daemon.
+- Write structured JSON to stdout and stderr. Required fields (TBD): `ts`,
+  `level`, `msg`, `service`, `env`, and `trace_id` (optional).
+- The platform's log collector scrapes the container logs. The app runs no
+  daemon.
 
 ### Metrics
-- Expose Prometheus-compatible `/metrics` on port TBD (default 9090).
-- Declare a `ServiceMonitor` (or annotate the Service) with label
+- Expose a Prometheus-compatible `/metrics` endpoint on a port (TBD; the default
+  is 9090).
+- Declare a `ServiceMonitor`, or annotate the Service with the label
   `app.platform/scrape=true`.
-- Reserved label keys: `app`, `component`, `env`, `tenant`. Apps supply
-  these; the platform adds `cluster` and `namespace`.
+- These label keys are reserved: `app`, `component`, `env` and `tenant`. The app
+  supplies them, and the platform adds `cluster` and `namespace`.
 
 ### Traces
-- Emit OTLP over HTTP/gRPC to endpoint injected as `$OTEL_EXPORTER_OTLP_ENDPOINT`.
-- Resource attributes: `service.name`, `service.version`, `deployment.environment`.
+- Emit OTLP over HTTP or gRPC to the endpoint that the platform injects as
+  `$OTEL_EXPORTER_OTLP_ENDPOINT`.
+- Resource attributes: `service.name`, `service.version` and
+  `deployment.environment`.
 
 ## Guarantees (TBD)
 
-- 7-day retention for logs, 15-day for metrics, 3-day for traces (defaults,
-  per-cluster overridable).
-- Grafana access at `https://grafana.<cluster-domain>/` with SSO (once
-  `identity-sso` lands) or basic auth before.
+- Retention defaults: 7 days for logs, 15 days for metrics and 3 days for traces.
+  A cluster can override each value.
+- Grafana access at `https://grafana.<cluster-domain>/`, with SSO once
+  `identity-sso` lands, and with basic auth before that.
 
 ## Caveats (TBD)
 
-- High-cardinality labels can break storage; the platform enforces a cap.
-- Tail sampling for traces; not every span persists.
+- A label with high cardinality can break the storage, so the platform enforces a
+  cap.
+- The platform uses tail sampling for traces, so it does not keep every span.
 
 ## Example (TBD)
 
-Minimal working snippet once the contract is finalized.
+A minimal working snippet, once the contract is final.

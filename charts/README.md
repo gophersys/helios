@@ -1,23 +1,23 @@
 # charts
 
-Opinionated Helm archetypes that encode the platform's conventions so every
-app ships with enterprise-grade defaults by construction: PodSecurity
-`restricted`, default-deny NetworkPolicy, ExternalSecret integration for
-Bitwarden, ServiceMonitor for Prometheus, RED-metrics + OTLP traces
-plumbing, HPA, PodDisruptionBudget, and a resource profile appropriate to
-the app's shape.
+Opinionated Helm archetypes that encode the conventions of the platform, so that
+every app ships with enterprise-grade defaults by construction. Those defaults
+are: PodSecurity `restricted`, a default-deny NetworkPolicy, ExternalSecret
+integration with Bitwarden, a ServiceMonitor for Prometheus, the wiring for RED
+metrics and OTLP traces, an HPA, a PodDisruptionBudget, and a resource profile
+that suits the shape of the app.
 
-An app adopts an archetype by depending on it (`Chart.yaml`) or by copying
-it as a starting point at scaffold time. Either way, the archetype's
-`values.schema.json` is the contract; Helm rejects values that don't
-conform.
+An app adopts an archetype in one of 2 ways: it declares a dependency on the
+archetype in `Chart.yaml`, or it copies the archetype as a starting point at
+scaffold time. In both cases the `values.schema.json` of the archetype is the
+contract, and Helm rejects any values that do not conform to it.
 
 ## Archetype catalog
 
-Pick the archetype that matches the **shape** of the workload, not what it
-does. A data-ingestion service could be `worker` (queue consumer), `job`
-(one-shot backfill), or `stateless-app` (HTTP endpoint) depending on its
-shape.
+Pick the archetype that matches the **shape** of the workload, not what the
+workload does. A data-ingestion service could be a `worker` (a queue consumer), a
+`job` (a one-shot backfill) or a `stateless-app` (an HTTP endpoint), depending on
+its shape.
 
 | Archetype        | Use when the app…                                  | Runs as             | Typical node role |
 |------------------|----------------------------------------------------|---------------------|-------------------|
@@ -28,8 +28,9 @@ shape.
 | `job`            | Runs once to completion (migrations, one-offs)     | `Job`               | `apps` or `batch` |
 | `ingress-app`    | `stateless-app` + opinionated public ingress       | `Deployment`        | `apps`            |
 
-Future (reserved, not yet stubbed): `ml-inference` (GPU), `static-site`
-(CDN-cached), `pipeline` (multi-stage DAG, likely via Argo Workflows).
+Reserved for the future, and not yet stubbed: `ml-inference` (GPU),
+`static-site` (cached on a CDN) and `pipeline` (a multi-stage DAG, probably
+through Argo Workflows).
 
 ## Decision tree
 
@@ -45,9 +46,10 @@ Is there inbound HTTP(S) to users?
     └─ Long-running consumer of a queue/stream? → worker
 ```
 
-## Common chart skeleton
+## The common chart skeleton
 
-Every archetype has the same shape so apps migrate between them cheaply:
+Every archetype has the same shape, so that an app can move between archetypes at
+a low cost:
 
 ```
 charts/<archetype>/
@@ -75,8 +77,8 @@ charts/<archetype>/
 
 ## The `_common` library chart
 
-`charts/_common/` is a Helm **library chart** (not installable on its own).
-It centralizes the template helpers that every archetype reuses:
+`charts/_common/` is a Helm **library chart**. You cannot install it on its own.
+It holds the template helpers that every archetype reuses:
 
 - `common.labels`, `common.selectorLabels`, `common.annotations`
 - `common.podSecurityContext`, `common.containerSecurityContext` (restricted PSS)
@@ -87,7 +89,7 @@ It centralizes the template helpers that every archetype reuses:
 - `common.pdb` — `PodDisruptionBudget` with archetype-aware defaults
 - `common.resources.validated` — enforces requests+limits present
 
-Every archetype `Chart.yaml` includes:
+The `Chart.yaml` of every archetype includes:
 
 ```yaml
 dependencies:
@@ -98,9 +100,9 @@ dependencies:
 
 ## Contract integrations
 
-Apps don't write Prometheus/ExternalSecret/NetworkPolicy manifests by hand.
-The archetype emits them from declarative values, fulfilling the contracts
-in `infrastructure/contracts/`:
+An app does not write a Prometheus, ExternalSecret or NetworkPolicy manifest by
+hand. The archetype emits them from declarative values, and it fulfills the
+contracts in `infrastructure/contracts/`:
 
 | Contract           | Populated from                                | Emits                                           |
 |--------------------|-----------------------------------------------|-------------------------------------------------|
@@ -113,35 +115,36 @@ in `infrastructure/contracts/`:
 
 ## Enterprise defaults, by construction
 
-Every chart bakes in:
+Every chart includes all of these:
 
-- **Security.** Non-root, read-only root filesystem, dropped capabilities,
-  seccomp profile `RuntimeDefault`. `restricted` PodSecurityStandard is
-  admission-enforced at the namespace level.
-- **Isolation.** Default-deny NetworkPolicy baseline; egress to DNS +
-  same-namespace + metrics scrape only. App-specific allows are values.
-- **Reliability.** RollingUpdate strategy (`maxSurge: 1, maxUnavailable: 0`)
-  by default; `minReadySeconds: 10`; startup + readiness + liveness probes
-  required by values.schema.json; PodDisruptionBudget generated from
-  archetype defaults.
-- **Cost.** `resources.requests` + `resources.limits` are REQUIRED by
-  schema — no "unlimited" pods on shared clusters. Cluster-level
-  `ResourceQuota` enforces per-namespace caps.
-- **SLO.** Every archetype emits Prometheus recording rules from
-  `values.slo` so alerts and dashboards share one definition.
-- **Observability.** `ServiceMonitor` auto-emitted when metrics.enabled;
-  structured JSON logs expected on stdout; OTLP endpoint injected from
-  cluster-level env.
-- **Node placement.** `nodeSelector` + `tolerations` populated from
-  `values.nodeRole`; prevents accidental cross-role scheduling.
+- **Security.** Non-root, a read-only root filesystem, dropped capabilities, and
+  the seccomp profile `RuntimeDefault`. Admission enforces the `restricted`
+  PodSecurityStandard at namespace level.
+- **Isolation.** A default-deny NetworkPolicy baseline, with egress only to DNS,
+  to the same namespace and for the metrics scrape. The allowances specific to an
+  app are values.
+- **Reliability.** The RollingUpdate strategy (`maxSurge: 1, maxUnavailable: 0`)
+  by default; `minReadySeconds: 10`; the startup, readiness and liveness probes
+  that `values.schema.json` requires; and a PodDisruptionBudget generated from
+  the archetype defaults.
+- **Cost.** The schema REQUIRES `resources.requests` and `resources.limits`, so
+  there is no pod without a limit on a shared cluster. A cluster-level
+  `ResourceQuota` enforces the caps per namespace.
+- **SLO.** Every archetype emits Prometheus recording rules from `values.slo`, so
+  that the alerts and the dashboards share one definition.
+- **Observability.** A `ServiceMonitor` is emitted automatically when
+  `metrics.enabled` is true. The app is expected to write structured JSON logs to
+  stdout.
+  The chart injects the OTLP endpoint from the cluster-level env.
+- **Node placement.** `nodeSelector` and `tolerations` are populated from
+  `values.nodeRole`, which prevents scheduling onto the wrong role by accident.
 
-See `charts/CONVENTIONS.md` for authoring rules; per-archetype READMEs
-for the archetype-specific knobs.
+See `charts/CONVENTIONS.md` for the authoring rules, and the README of each
+archetype for the settings specific to that archetype.
 
 ## Status
 
-Every archetype is a **skeleton** — `Chart.yaml`, `values.yaml`,
-`values.schema.json`, and `README.md` are the contract, committed today.
-Template files under `templates/` are empty stubs with inline comments
-describing what they'll emit once the first real app consumes the
-archetype.
+Every archetype is a **skeleton**. `Chart.yaml`, `values.yaml`,
+`values.schema.json` and `README.md` are the contract, and they are committed
+today. The template files under `templates/` are empty stubs with inline comments
+that describe what they will emit once the first real app consumes the archetype.

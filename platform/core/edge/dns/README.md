@@ -1,9 +1,9 @@
 # edge/dns
 
-How app hostnames resolve. A cluster declares one provider per scope
-(`public` / `tailnet`). Apps don't interact with DNS directly — they
-declare `ingress.host` and the DNS provider (usually via external-dns)
-reconciles a record for them.
+How an app hostname resolves. A cluster declares 1 provider for each scope,
+`public` and `tailnet`. An app does not interact with DNS directly. It declares
+`ingress.host`, and the DNS provider reconciles a record for it, usually through
+external-dns.
 
 | Provider               | Status | Scope    | Cost          |
 |------------------------|--------|----------|---------------|
@@ -12,10 +12,11 @@ reconciles a record for them.
 | `tailscale-magicdns/`  | STUB   | tailnet  | Free          |
 | `external-dns/`        | STUB   | public   | Free operator |
 
-## How records get created
+## How a record is created
 
-Default mechanism: `external-dns` operator watches `Ingress` objects +
-cluster-level annotations, and reconciles records via the provider's API.
+The default mechanism: the `external-dns` operator watches the `Ingress` objects
+and the cluster-level annotations, and it reconciles the records through the API
+of the provider.
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -27,15 +28,16 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: api.codectl.brain.mateosegura.com
 ```
 
-For CF Tunnel clusters, the CF tunnel operator manages routes directly
-(bypassing external-dns) — faster because tunnel routes are CF-native.
+On a cluster with a Cloudflare Tunnel, the Cloudflare tunnel operator manages the
+routes directly and does not use external-dns. That is faster, because a tunnel
+route is native to Cloudflare.
 
 ## Zone ownership
 
-Zones declared in cluster `identity.yaml:edge.public.dns.zones[]`.
-Delegation must be set up out-of-band (e.g., NS records pointing to CF's
-NS for the zone). The platform assumes zones are delegated; it does NOT
-create the zone itself.
+The cluster declares its zones in `identity.yaml:edge.public.dns.zones[]`. You
+must set up the delegation outside this repo, for example with NS records that
+point at the Cloudflare name servers for the zone. The platform assumes that a
+zone is delegated. It does NOT create the zone.
 
-Apps rendering an Ingress with a hostname outside the cluster's declared
-zones → admission warns (typo protection).
+If an app renders an Ingress with a hostname outside the declared zones of the
+cluster, admission gives a warning. That protects against a typo.

@@ -1,29 +1,31 @@
 # platform/core/ingress
 
-HTTP(S) ingress controller. Terminates in-cluster traffic; apps declare
-`Ingress` resources to become reachable.
+The HTTP and HTTPS ingress controller. It terminates the traffic inside the
+cluster. An app declares an `Ingress` resource to become reachable.
 
 ---
 
-## Deployed today (homelab) — the source of truth
+## What is deployed today on the homelab — the source of truth
 
-**`ingress-nginx`** is the live controller (the single `IngressClass: nginx`).
-Everything HTTP enters here — from the Cloudflare tunnel (public `home.` /
-`workspaces.`, on `:80`) or the MetalLB VIP `10.168.0.240` (tailnet-private
-hostnames, TLS via cert-manager DNS-01). Installed via **raw upstream manifests
-(`kubectl apply`)**, not Helm, and not currently Argo-managed — its pinned
-version is tracked in `docs/debt-register.md` (D9) with the reinstall command.
-Traefik was evaluated and **removed**. See `docs/cluster-topology.md`.
+**`ingress-nginx`** is the live controller, and it holds the single
+`IngressClass: nginx`. All HTTP enters here: from the Cloudflare tunnel, for the
+public `home.` and `workspaces.` hosts on `:80`, or from the MetalLB VIP
+`10.168.0.240`, for the tailnet-private hostnames with TLS from cert-manager
+DNS-01. It is installed from the **raw upstream manifests with `kubectl
+apply`**, not with Helm, and Argo does not manage it today.
+`docs/debt-register.md` (D9) tracks its pinned version and the command to install
+it again. Traefik was evaluated and **removed**. See
+`docs/cluster-topology.md`.
 
 ---
 
-## Target design (prod, not yet deployed)
+## Target design (for prod, not deployed yet)
 
-The original prod intent was **Traefik** (`traefik/traefik`) for CRD-based
-routing (IngressRoute/Middleware) and a built-in ACME resolver, with
-`ingress-nginx` as the alternative when strict upstream-nginx semantics are
-needed. The homelab went the other way (ingress-nginx) — this section records
-the design option, not what runs.
+The original intent for prod was **Traefik** (`traefik/traefik`), for CRD-based
+routing with IngressRoute and Middleware, and for its built-in ACME resolver.
+`ingress-nginx` was the alternative for a case that needs the exact semantics of
+upstream nginx. The homelab chose ingress-nginx instead. This section records the
+design option. It is not what runs.
 
 ## Fulfills
 - `contracts/ingress.md` — how apps expose HTTPS routes with automatic TLS + DNS.
