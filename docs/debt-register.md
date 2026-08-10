@@ -453,6 +453,39 @@ The old Secret was left in place until the new one proved itself.
 **Fix:** delete `repo-infrastructure` after the org-wide credential has served a
 week without an error, and record the date here.
 
+### D36 🟠 The container user model is decided for macOS, not for Kubernetes — OPEN
+The runner image runs as root, and the dev images keep the unprivileged `dev`
+user. That split was decided on 1 piece of evidence: on macOS, a file written by
+root inside a container appears on the host as the host user, because the
+virtualization layer remaps the owner.
+
+```
+in container:  root uid=0
+on the Mac:    mateo:staff
+```
+
+**Kubernetes does no such remapping.** When these images run as a dev box in a
+pod, and an agent writes to a PersistentVolumeClaim, the owner on the volume is
+the uid of the process that wrote it. 2 failures follow from that:
+
+1. A pod that runs as root writes root-owned files. A later pod that runs as
+   `dev` cannot change or delete them.
+2. A pod that runs as `dev` writes files with uid 1000. A later root process can
+   read them, but any other uid cannot.
+
+`zephyr-devbox` already meets this: it starts as root, runs sshd, and a login
+lands as `dev`. That works because 1 user writes the files. It stops working as
+soon as 2 pods with different users share a volume.
+
+**Before agent pods write to a shared volume, decide 1 uid for every pod that
+touches it, and set `securityContext.fsGroup` on the pod so the volume is group
+owned by that id.** `fsGroup` is the field Kubernetes provides for exactly this,
+and it works whatever user the image declares.
+
+Revisit also if development ever moves to a Linux host: there, root in a
+container really does write root-owned files to the bind mount, and the macOS
+evidence above does not apply.
+
 
 ## Resolved
 
