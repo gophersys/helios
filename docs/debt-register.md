@@ -9,7 +9,7 @@ here as accepted-imperative with recreation steps.
 Status legend: 🔴 open (reliability/security risk) · 🟠 open (reproducibility) ·
 🟡 minor / accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-08-09 (cloud-cluster reconciliation — see docs/cloud-cluster.md).
+Last updated: 2026-08-10 (cloud-cluster reconciliation — see docs/cloud-cluster.md).
 
 ---
 
@@ -313,6 +313,114 @@ adding `gophersys/home`, or the next repo, needs no cluster change at all.
 The token was not regenerated: the existing one was moved into the vault as
 `shared/github/argocd-repo`, so the value finally has a home outside the cluster.
 Retire `repo-infrastructure` once the org-wide entry has proven itself.
+
+### D26 🔴 eden CI is red: 5 workflows use `container:` on a self-hosted pool — OPEN
+`eden/.github/workflows/{on-pr,on-push,harness-conformance}.yml` set
+`runs-on: arc-org` and also a `container:` block for
+`ghcr.io/gophersys/base:latest`. This is the pattern that `docs/ci-substrate.md`
+and ADR-0031 exist to remove. The pool's runner image already carries the
+toolchain, so the container block adds a second image pull inside the pod. That
+pull is measured at more than 5 minutes, it happens on every job, and it
+authenticates to a private package with `GITHUB_TOKEN`, which returns 403.
+
+**Fix:** give eden a `.ci/ci.contract.yaml` with `runner.container: false` and
+generate its workflows, as `libs` now does. Do this after `libs` is green.
+
+### D27 🟠 `validate.yml` still downloads shellcheck — OPEN
+The `manifests` job stopped installing tools when the pool moved to the dev
+image. The `shellcheck` job still runs
+`curl ... shellcheck-v0.10.0 ... | tar xJ` and calls the extracted binary. The
+runner image already carries shellcheck. `docs/ci-substrate.md` claimed the whole
+file had no tool-install step, which was not true.
+
+**Fix:** call `shellcheck` from PATH and delete the download.
+
+### D28 🟠 16 of 20 repositories have no `.ci/ctl.sh` — OPEN
+The CI contract generates workflows whose only step form is
+`bash .ci/ctl.sh <verb>`. 16 repositories have no such file, and 11 have no CI at
+all, including the 4 `zephyr-*` repositories. The contract's language enum also
+has no C, no Shell and no JavaScript, so it cannot describe 7 repositories.
+
+**Consequence:** "roll the contract out to every repository" is not possible
+today. The real number of candidates is 2.
+
+**Fix:** decide per repository whether it needs CI at all. Do not add a contract
+to a repository that has no verbs to run.
+
+### D29 🟠 No check can be required: branch protection is not on this plan — OPEN
+```
+GET /repos/gophersys/infrastructure/branches/main/protection  -> 403
+GET /repos/gophersys/infrastructure/rulesets                  -> 403
+"Upgrade to GitHub Pro or make this repository public to enable this feature."
+```
+Every gate in this organization is advisory. A red check does not stop a merge,
+and nothing enforces review. The git hooks are the other half of the story: eden's
+`core.hooksPath` pointed at `/Users/mateo/helios/.git/hooks`, a path deleted in
+the rename to `~/code/eden`, so the hooks had not run for weeks. It now points at
+the tracked `.githooks`, but `core.hooksPath` is local configuration. It is not
+tracked, so a fresh clone starts with no hooks again.
+
+**Fix options:** GitHub Pro for the private repositories; or accept that the
+gates are advisory and write that down; or add a `ctl.sh setup` verb that sets
+`core.hooksPath` so a fresh clone is one command from being gated.
+
+### D30 🟡 `node` is not on PATH in the runner image — OPEN
+`bash ctl.sh verify-runner-image` found it. The base image installs Node through
+nvm, and nvm only initializes in a login shell. A job that calls `node` directly
+fails. GitHub's own JavaScript actions are unaffected: the runner supplies its
+own Node from `/home/runner/externals`.
+
+**Fix:** put the nvm Node on PATH in the image, or state in `docs/ci-runners.md`
+that a job must use `setup-node` for a direct `node` call.
+
+### D31 🟡 A cached layer reverted `/etc/group` — OPEN, worked around
+The docker group step ran, its assertion passed, and the published image still
+held `docker:x:123:root` with no `dev` member. The likely cause is a restored
+BuildKit layer whose snapshot diff carried an older copy of `/etc/group`. The
+work-around is to make the group the last mutation in the image, so no layer can
+follow it.
+
+The root cause is not proven. If another file shows the same behaviour, this is
+the entry to read first.
+
+### D32 🟡 The provider twins are maintained by hand — OPEN
+`.github/workflows/*.yml` and `.ci/providers/github/*.yml` hold the same YAML
+twice. 9 files across eden, libs and `.devcontainer`. The documents said these
+were symlinks, and git records every one as mode `100644`. They have already
+drifted once: the `.devcontainer` copy held a stale 3-image version while it
+claimed to be the source of truth.
+
+`cictl generate` writes both copies and `cictl drift` fails a build on a hand
+edit, but only `libs` runs that gate.
+
+**Fix:** wire `ci-drift` into each repository as it adopts a contract.
+
+### D33 🟡 arm64 has no verified consumer — OPEN, decision deferred
+No arm64 consumer could be found for any image. Every Kubernetes node is amd64.
+This Mac has created 1 container in its history, `node:22-bookworm`, and has
+never run a gophersys devcontainer. `base-runner` and `zephyr-devbox` now build
+amd64 only. `base`, `flutter` and `zephyr` keep arm64 because the
+devcontainer-first rule intends them to be opened on this Mac.
+
+**Decision point:** if this Mac still has not run a devcontainer by 2026-09-10,
+drop the remaining arm64 halves. `runs-on: ubuntu-24.04-arm` gives native arm64
+in 1 line if it is ever needed.
+
+### D34 🟡 Almost half of image-build time is spent freeing disk — OPEN
+About 47% of recent CI time in `.devcontainer` goes to
+`jlumbroso/free-disk-space`, not to the build. The hosted runner has about 14 GB
+free and these images are near 10 GB.
+
+**Fix:** measure which reclaim flags actually matter, and remove the rest. A
+faster fix is to stop building what nothing consumes: see D33.
+
+### D35 🟡 The old Argo repository secret is still in the cluster — OPEN
+`repo-infrastructure` is a hand-applied Secret that holds a classic PAT. The
+org-wide `gophersys-repo-creds` ExternalSecret replaced it and is `SecretSynced`.
+The old Secret was left in place until the new one proved itself.
+
+**Fix:** delete `repo-infrastructure` after the org-wide credential has served a
+week without an error, and record the date here.
 
 
 ## Resolved
