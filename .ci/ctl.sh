@@ -81,11 +81,29 @@ function run_phase_gate_over_affected() {
   local ran=0 proj proj_dir
   for proj in "${projects[@]}"; do
     [[ -z "$proj" ]] && continue
+    # A LIBRARY is go/<name> or typescript/<name>. Nothing else is.
+    #
+    # `cictl affected` reports any directory holding both ctl.sh and project.json.
+    # The repository root holds both, and so does .ci/, so a change to either
+    # selected a "project" whose ctl.sh has no phase-gate — the gate then failed
+    # with "unknown command: 'phase-gate'". Naming each offender in turn is a fix
+    # that has to be repeated, so the rule is structural instead: gate what is a
+    # library, not everything that looks like a project.
+    #
+    # go/_ctl holds the shared verb bodies the per-library ctl.sh files dispatch
+    # to. It is not a library either.
+    case "$proj" in
+      go/_ctl)                  log_info "skipping $proj: shared verb bodies, not a library"; continue ;;
+      go/*|typescript/*)        ;;
+      *)                        log_info "skipping $proj: not a library (libraries are go/<name> or typescript/<name>)"; continue ;;
+    esac
+
     proj_dir="$REPO_ROOT/$proj"
     if [[ ! -f "$proj_dir/ctl.sh" ]]; then
-      log_warn "skipping '$proj': no ctl.sh (not a gateable project)"
-      continue
+      log_error "'$proj' is a library path but has no ctl.sh"
+      exit 1
     fi
+
     ran=$((ran + 1))
     case "$selector" in
       substrate)
@@ -126,6 +144,19 @@ function cmd_updatability() {
   require_cmd cictl
   log_info "updatability: pinned-version matrix from the contract's toolMatrix.sources"
   cictl updatability -C "$REPO_ROOT" "$@"
+}
+
+# ci-drift — re-render the workflows from the contract and fail if the committed
+# files differ. This is the gate that makes the "DO NOT EDIT" banner true: without
+# it, a hand-edit to a generated workflow is invisible and the contract silently
+# stops being the source of truth.
+#
+# It runs in the pr tier so a hand-edit fails the pull request that introduced it,
+# rather than surfacing later as an unexplained difference between repos.
+function cmd_ci_drift() {
+  require_cmd cictl
+  log_info "ci-drift: generated workflows match .ci/ci.contract.yaml"
+  cictl drift -C "$REPO_ROOT" "$@"
 }
 
 # ── existing meta verbs (preserved) ──────────────────────────────────────────
@@ -172,6 +203,7 @@ affected-gate-fast
 affected-gate-substrate
 gate-all
 updatability
+ci-drift
 validate
 status
 release-check
@@ -187,6 +219,7 @@ Tier verbs (referenced by .ci/ci.contract.yaml; uniform local & remote):
   affected-gate-substrate  integration/lifecycle/load on real docker+k3d+kind (merge tier)
   gate-all                 phase-gate all (1->4) over affected projects (nightly tier)
   updatability             pinned-version matrix from the contract toolMatrix (nightly tier)
+  ci-drift                 generated workflows still match the contract (pr tier)
 
 Meta verbs:
   validate       Delegates to repo-level ctl.sh validate
@@ -204,6 +237,7 @@ function main() {
     affected-gate-substrate)  cmd_affected_gate_substrate  "$@" ;;
     gate-all)                 cmd_gate_all                 "$@" ;;
     updatability)             cmd_updatability             "$@" ;;
+    ci-drift)                 cmd_ci_drift                 "$@" ;;
     validate)                 cmd_validate                 "$@" ;;
     status)                   cmd_status                   "$@" ;;
     release-check)            cmd_release_check            "$@" ;;

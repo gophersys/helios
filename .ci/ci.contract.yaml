@@ -4,7 +4,17 @@
 apiVersion: eden.ci/v1
 repo: libs
 kind: libraries
-image: ghcr.io/gophersys/base
+# The self-hosted pool. Its runner image IS ghcr.io/gophersys/base plus the Actions
+# runner, so there is nothing to put in a container — and `image:` is rejected here
+# for exactly that reason.
+#
+# This repo previously declared `image: ghcr.io/gophersys/base` with no runner at
+# all, which generated `runs-on: ubuntu-latest` plus a container block that
+# authenticated to a PRIVATE package with GITHUB_TOKEN. That returns 403, and it is
+# why every run since 2026-06-15 failed at "Initialize containers".
+runner:
+  runsOn: arc-org
+  container: false
 languages:
   - go
   - typescript
@@ -12,6 +22,9 @@ tiers:
   # pr — the fast lane on every push: cheap gates over the affected projects, no real substrate.
   pr:
     verbs:
+      # First, because a contract that no longer matches its generated workflows
+      # makes every later result untrustworthy.
+      - ci-drift
       - affected-gate-fast
     substrate: []
     timeoutMinutes: 15
