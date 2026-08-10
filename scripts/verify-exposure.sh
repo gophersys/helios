@@ -14,13 +14,39 @@ ZONE="$(awk '/^zone:/{print $2}' "$DECL")"
 VIP="$(awk '/homelab_vip:/{print $2}' "$DECL")"
 PUB="$(awk '/prod_public:/{print $2}' "$DECL")"
 
+# Resolvers are tried in order until one actually yields an answer. Order alone
+# is not enough: the ARC runner has no `dig` at all, and a `dig` that exists but
+# fails would otherwise make every host look like it has no DNS record — turning
+# a tooling gap into a false "drift detected".
+resolve() {
+  local out
+  if command -v dig >/dev/null 2>&1; then
+    out="$(dig +short "$1" A 2>/dev/null | tr '\n' ' ')"
+    [ -n "${out// /}" ] && { printf '%s' "$out"; return 0; }
+  fi
+  if command -v getent >/dev/null 2>&1; then
+    out="$(getent ahostsv4 "$1" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ')"
+    [ -n "${out// /}" ] && { printf '%s' "$out"; return 0; }
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    out="$(python3 -c "import socket,sys
+try: print(' '.join(sorted({i[4][0] for i in socket.getaddrinfo(sys.argv[1],None,socket.AF_INET)})))
+except Exception: pass" "$1" 2>/dev/null)"
+    [ -n "${out// /}" ] && { printf '%s' "$out"; return 0; }
+  fi
+  return 1
+}
+command -v curl >/dev/null 2>&1 || { echo "verify-exposure: curl is required" >&2; exit 127; }
+resolve mateosegura.com >/dev/null 2>&1 || {
+  echo "verify-exposure: no working resolver (tried dig, getent, python3)" >&2; exit 127; }
+
 pass=0; fail=0
 red() { printf '\033[0;31m%s\033[0m' "$1"; }
 grn() { printf '\033[0;32m%s\033[0m' "$1"; }
 
 check() {   # host expected-class
   local host="$1" want="$2" fqdn="$1.$ZONE" ips code loc gate got note=""
-  ips="$(dig +short "$fqdn" A 2>/dev/null | tr '\n' ' ')"
+  ips="$(resolve "$fqdn")"
   # one request, both fields — two calls double-count failures as "000000"
   local probe; probe="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 12 "https://$fqdn/" 2>/dev/null || echo "000 ")"
   code="${probe%% *}"; loc="${probe#* }"
