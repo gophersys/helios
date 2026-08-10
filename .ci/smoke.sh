@@ -135,6 +135,9 @@ test -O /home/runner/run.sh || { echo "FAIL: run.sh is not owned by $(id -un)"; 
 test -d /home/runner/externals
 test -w /home/runner/_work
 /home/runner/bin/Runner.Listener --version
+echo "--- CI tooling ---"
+cictl help >/dev/null
+command -v cictl
 EOF
 
 case "$IMAGE" in
