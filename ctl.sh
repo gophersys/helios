@@ -214,6 +214,12 @@ Commands:
 EOF
 }
 
+function cmd_verify_access() {
+  # Assert every machine in contracts/access.yaml is reachable by its declared
+  # method. Read-only: one SSH hostname echo per host.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-access.sh" "$@"
+}
+
 function cmd_verify_exposure() {
   # Assert every hostname is exposed the way contracts/exposure.yaml declares.
   # Read-only: DNS resolution + one HTTP probe per host. Changes nothing.
@@ -228,6 +234,7 @@ function main() {
     status)         cmd_status         "$@" ;;
     validate)        cmd_validate        "$@" ;;
     verify-exposure) cmd_verify_exposure "$@" ;;
+    verify-access)   cmd_verify_access   "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     propagate)      cmd_propagate      "$@" ;;
     help|"")        usage ;;
