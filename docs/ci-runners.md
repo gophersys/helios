@@ -95,10 +95,14 @@ is the specific way this chart fails, and Argo will report it only after it sync
 
 ## Roadmap
 
+The interface these steps build toward — pools for physical capability, images
+for software capability — is specified in [`ci-substrate.md`](ci-substrate.md).
+
 | Next | What it adds | Blocked on |
 |---|---|---|
-| Custom runner image | sudo, Go, Node, Python, k3d/kind baked in — removes the `docker run` indirection | nothing |
-| Split pools (`arc-light` / `arc-org` / `arc-hardware`) | right-sized capacity per job class; labels, not runner groups (Free plan has none) | nothing |
+| `kubeconform` into `base`, then `arc-org` → `arc-base` on `base-runner` | dev/CI parity; deletes the no-sudo tool-install block | nothing |
+| `imagePullSecret` in `arc-runners` from Vaultwarden | lets pools run **private** `.devcontainer` images | nothing |
+| Per-domain pools (`arc-zephyr`, `arc-kicad`, `arc-flutter`, `arc-usb`) | firmware, hardware, mobile | the two rows above |
 | **Mac mini runner** | macOS builds, **iOS and Android** via two phones on USB with full device control | phones not connected yet (2026-08-10) — the machine is `macbook-mini` in `contracts/access.yaml` |
 | Windows VM runner on `pve-03` | Windows builds | licence choice |
 | Argo on the cloud cluster | closes debt D18 | nothing |
