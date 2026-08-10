@@ -87,3 +87,33 @@ Apps are free to override `values.ingress.host` with any host they own
   cluster bring-up; adding a new project requires a DNS record update.
 
 ## Example (TBD)
+
+## Exposure classes (authoritative)
+
+Every hostname we serve is declared in **`contracts/exposure.yaml`** with exactly
+one class. `bash ctl.sh verify-exposure` resolves each host and fails when reality
+diverges — run in CI. Documentation describes; that check asserts.
+
+| Class | Path in | TLS | Gate |
+| --- | --- | --- | --- |
+| `public-access` | Cloudflare tunnel → nginx :80 | cert on :443, `ssl-redirect: "false"` | Cloudflare Access + Google SSO |
+| `public-open` | Cloudflare tunnel | same | none — needs a written justification |
+| `tailnet` | MetalLB VIP `10.168.0.240` | cert-manager, normal redirect | the tailnet itself |
+| `direct-auth` | prod cluster public IP | cert-manager | oauth2-proxy |
+
+**Why `ssl-redirect: "false"` on tunnel-backed hosts:** cloudflared connects to
+nginx on **:80**. A normal HTTP→HTTPS redirect there loops against cloudflared
+forever. Setting it false lets :80 and :443 serve simultaneously, so a host can
+carry a real certificate without breaking the tunnel.
+
+### Choosing a class
+
+1. Does it need to be reachable without the tailnet? **No** → `tailnet`. Stop.
+   Admin surfaces (Argo CD, Grafana, MinIO) are always `tailnet`.
+2. Yes, and everyone who needs it has a Google identity → `public-access`.
+3. Yes, and the intended reader has no account → `public-open`, with the reason
+   written into `exposure.yaml`.
+4. It must survive a Cloudflare outage → `direct-auth`. **Today this is reserved
+   for the vault cluster.** See the exception note in `exposure.yaml`.
+
+Adding a hostname without declaring it fails the exposure check.

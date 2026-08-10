@@ -214,13 +214,20 @@ Commands:
 EOF
 }
 
+function cmd_verify_exposure() {
+  # Assert every hostname is exposed the way contracts/exposure.yaml declares.
+  # Read-only: DNS resolution + one HTTP probe per host. Changes nothing.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-exposure.sh" "$@"
+}
+
 # -------- dispatcher --------
 function main() {
   local cmd="${1:-help}"
   shift || true
   case "$cmd" in
     status)         cmd_status         "$@" ;;
-    validate)       cmd_validate       "$@" ;;
+    validate)        cmd_validate        "$@" ;;
+    verify-exposure) cmd_verify_exposure "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     propagate)      cmd_propagate      "$@" ;;
     help|"")        usage ;;
