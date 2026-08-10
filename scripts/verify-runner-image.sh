@@ -98,6 +98,27 @@ done
 
 sudo -n true 2>/dev/null && ok "passwordless sudo" || bad "no passwordless sudo"
 
+# THE CHECK THAT MATTERS MOST, and the one this harness did not have.
+#
+# Every assertion above passed on an image whose runner died in under a second
+# with "Must not run interactively with sudo" — the Actions runner refuses to
+# start as root without RUNNER_ALLOW_RUNASROOT=1. The harness verified everything
+# about the runner except that the runner runs.
+#
+# run.sh cannot fully start here: it is not configured against a repository, so
+# it exits early whatever happens. That is fine. What is being asserted is that
+# it gets PAST the environment checks — a refusal to run names itself, and any
+# other early exit is the expected unconfigured one.
+out="$(timeout 20 /home/runner/run.sh 2>&1 || true)"
+case "$out" in
+  *"Must not run interactively with sudo"*)
+    bad "run.sh refuses to start: RUNNER_ALLOW_RUNASROOT is not set" ;;
+  *"Must not run with sudo"*)
+    bad "run.sh refuses to start under sudo" ;;
+  *)
+    ok "run.sh passes its environment checks" ;;
+esac
+
 [ "$fail" -eq 0 ] && echo "ALL CHECKS PASSED" || echo "CHECKS FAILED"
 exit "$fail"
 EOF
