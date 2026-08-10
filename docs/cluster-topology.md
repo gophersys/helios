@@ -84,8 +84,8 @@ The `obs` Helm release (kube-prometheus-stack + Grafana + Loki + Tempo + Alloy)
 had been in `failed` state at revision 8 since 2026-06-18 and was never managed
 by Argo, so nothing reconciled it and any hand-applied fix silently reverted.
 Uninstalled rather than left as a broken half-state. `grafana.mateosegura.com` no
-longer resolves to anything. The namespace and a `storage-tempo-0` PVC remain;
-reclaim them when you decide whether homelab observability comes back.
+longer resolves to anything. The namespace and its `storage-tempo-0` PVC were reclaimed on 2026-08-09;
+nothing remains.
 Cloud-cluster observability (`obsv.mateosegura.com`) is unaffected.
 
 ## Platform — edge
