@@ -81,11 +81,24 @@ function run_phase_gate_over_affected() {
   local ran=0 proj proj_dir
   for proj in "${projects[@]}"; do
     [[ -z "$proj" ]] && continue
-    proj_dir="$REPO_ROOT/$proj"
-    if [[ ! -f "$proj_dir/ctl.sh" ]]; then
-      log_warn "skipping '$proj': no ctl.sh (not a gateable project)"
+    # The repository ROOT is not a library. `cictl affected` reports any directory
+    # holding both ctl.sh and project.json, and the root holds both — so a change
+    # to .ci/ or to the contract selects ".". The root ctl.sh dispatches repo-wide
+    # verbs and has no phase-gate, so gating it fails with
+    # "unknown command: 'phase-gate'". Libraries live under go/<lib> and
+    # typescript/<lib>; the root never is one.
+    if [[ "$proj" == "." ]]; then
+      log_info "skipping the repository root: it is not a library"
       continue
     fi
+    proj_dir="$REPO_ROOT/$proj"
+    if [[ ! -f "$proj_dir/ctl.sh" ]]; then
+      log_error "'$proj' has no ctl.sh but was selected as a project"
+      exit 1
+    fi
+    # No check that the verb exists: a library that cannot run phase-gate fails
+    # loudly when it is called, which is the behaviour we want. A grep for the
+    # dispatcher arm would add a second, weaker source of truth.
     ran=$((ran + 1))
     case "$selector" in
       substrate)
