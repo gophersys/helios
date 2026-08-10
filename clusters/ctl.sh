@@ -93,7 +93,7 @@ function cmd_validate() {
   log_info "validating clusters/"
   local rc=0
 
-  require_cmd jq find
+  require_cmd jq find shellcheck
 
   # Cluster instances must have identity.yaml.
   if [[ -d "$PROJECT_ROOT/instances" ]]; then
@@ -143,14 +143,12 @@ function cmd_validate() {
     fi
   done
 
-  if command -v shellcheck >/dev/null 2>&1; then
     for sh in "${sh_files[@]}"; do
-      if ! shellcheck "$sh" >/dev/null 2>&1; then
-        log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
-        rc=1
-      fi
-    done
-  fi
+    if ! shellcheck "$sh" >/dev/null 2>&1; then
+      log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
+      rc=1
+    fi
+  done
 
   # project.json JSON parse.
   local pj

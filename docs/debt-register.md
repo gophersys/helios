@@ -486,6 +486,33 @@ Revisit also if development ever moves to a Linux host: there, root in a
 container really does write root-owned files to the bind mount, and the macOS
 evidence above does not apply.
 
+### D37 🟡 The Claude CLI pin has 2 homes — OPEN
+ADR-0021 says a harness pin lives once, in eden `harnesses/versions.env`. The
+runner image now repeats it:
+
+```
+eden/harnesses/versions.env          CLAUDE_CODE_VERSION=2.1.212
+.devcontainer/runner/Dockerfile      ARG CLAUDE_CODE_VERSION=2.1.212
+```
+
+The cause is structural, not carelessness. The runner image is built from the
+`.devcontainer` repository, which stands alone. It cannot read a file that lives
+in eden, so the pull request review agent could not get a pinned CLI any other
+way.
+
+**The 2 values must move together.** `harness-upgrade-check` bumps the eden file
+on a weekly schedule and opens a pull request; that pull request does not touch
+the Dockerfile, so the 2 will drift on the next bump.
+
+**Remedies, in order of preference:**
+1. Move the pin to `.devcontainer`, and have eden read it from the submodule. 1
+   home again, and the submodule is already vendored.
+2. Extend `harness-upgrade-check` to edit both files in the same pull request.
+3. Assert equality in CI, so a drift fails rather than passes.
+
+Option 1 removes the duplication. Options 2 and 3 only make the duplication
+visible.
+
 
 ## Resolved
 
