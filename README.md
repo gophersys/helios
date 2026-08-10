@@ -117,8 +117,9 @@ esac
 
 ## Multi-arch-on-push policy
 
-Every image is published **multi-arch** (linux/amd64 + linux/arm64). The
-rule is non-negotiable:
+Every **devcontainer** image is published **multi-arch** (linux/amd64 +
+linux/arm64), because both are real consumers: the images are opened on an arm64
+Mac and on amd64 Linux. For those, the rule is non-negotiable:
 
 | Verb | Behavior |
 |---|---|
@@ -128,6 +129,21 @@ rule is non-negotiable:
 
 CI (`.github/workflows/build-and-push.yml`) enforces the same policy on
 every push to `main` and on every semver tag (`v*`).
+
+### Runner images build only the arch they deploy to
+
+`base-runner` is **amd64 only**, and this is the one carve-out. It is not a
+devcontainer — it only ever runs as an ARC pod, and every node in that cluster is
+amd64:
+
+```sh
+kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.architecture
+```
+
+Its arm64 half was Go compiled under QEMU for an architecture nothing runs, and
+it measured **~13 minutes** on an otherwise thin layer — the dominant cost of
+every runner fix. The principle: **build the arch you deploy to.** Add arm64 back
+the day an arm64 pool exists, and not before.
 
 ## How to add a tool
 

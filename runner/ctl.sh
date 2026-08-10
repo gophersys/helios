@@ -29,7 +29,11 @@ PARENT_TAG="${PARENT_TAG:-latest}"
 BASE_IMAGE="ghcr.io/gophersys/${RUNNER_PARENT}:${PARENT_TAG}"
 IMAGE_NAME="${RUNNER_PARENT}-runner"
 IMAGE_REF="ghcr.io/gophersys/${IMAGE_NAME}:latest"
-MULTI_ARCH_PLATFORMS="linux/amd64,linux/arm64"
+# A runner image only ever runs as an ARC pod, and every node in that cluster is
+# amd64. Its arm64 half would be Go compiled under QEMU for an architecture
+# nothing runs — measured at ~13 minutes for an otherwise thin layer. The
+# devcontainer images stay multi-arch; this one builds the arch it deploys to.
+MULTI_ARCH_PLATFORMS="linux/amd64"
 
 # -------- logging --------
 function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
