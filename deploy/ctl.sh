@@ -287,8 +287,8 @@ EDEN_DEVCONTAINER_NAME="${EDEN_DEVCONTAINER_NAME:-base-devcontainer}"
 # adapter exposes NO container ports, so it cannot live in the agent container) that mounts the
 # devcontainer /workspace READ-ONLY (the EROFS read-only guarantee, OD-EDITOR-2) with a SEPARATE
 # writable home volume for the VS Code Server bootstrap. The host alias <EDEN_EDITOR_SSH_HOST> is
-# resolved by an ~/.ssh/config block (deploy/ssh-editor/ssh-config-snippet, emitted by `ssh-editor-config`)
-# to 127.0.0.1:SSH_EDITOR_PORT with the matching key — a CONFIG alias, never a credential on the wire.
+# resolved by an ~/.ssh/config block (emitted by the `ssh-editor-config` verb) to
+# 127.0.0.1:SSH_EDITOR_PORT with the matching key — a CONFIG alias, never a credential on the wire.
 #
 # GATING: EDEN_EDITOR_SSH_HOST is UNSET by default → start_ssh_editor SKIPS and the gateway returns an
 # empty sshHost → the UI stays on today's WEB code-server path. The demo is unchanged unless an operator

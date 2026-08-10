@@ -38,8 +38,8 @@ docker run --rm -v "$PWD:/workspace" \
 ## Providers
 
 `providers/` is the source of truth for every CI-system shim. The native paths
-(`.github/workflows/`) hold a copy of the matching subfolder. They are regular files, not symlinks: git records them with the mode `100644`. See
-`brain/.claude/rules/operations/ci-patterns.md`.
+(`.github/workflows/`) hold a copy of the matching subfolder. They are regular
+files, not symlinks: git records them with the mode `100644`.
 
 Every new project gets these providers by default:
 
