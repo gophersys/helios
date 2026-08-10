@@ -14,8 +14,11 @@ expected to enroll:
 | `agent-01`    | OCI Phoenix  | E4.Flex x86 1/16       | agent    |
 | `agent-02`    | AWS Oregon   | t4g.small ARM 2/2      | agent    |
 
-Bastions (`sentinel-00`, `sentinel-01`) are NOT cluster members — they
-live at `machines/services/sentinel-*/`.
+The `sentinel-00` / `sentinel-01` bastions were **terminated 2026-08-09**.
+They ran nothing but `tailscaled`, were made redundant by Tailscale SSH
+reaching every node directly, and their 94 GB of boot volumes were what
+blocked provisioning a data volume inside the Always Free allowance.
+See docs/cloud-cluster.md.
 
 ## Per-cluster overlays
 
