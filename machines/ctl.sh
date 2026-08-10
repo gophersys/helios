@@ -124,7 +124,7 @@ function cmd_validate() {
   log_info "validating machines/"
   local rc=0
 
-  require_cmd jq find
+  require_cmd jq find shellcheck
 
   # Every host dir (under development/ or services/) must have identity.yaml.
   local cat d name
@@ -178,14 +178,12 @@ function cmd_validate() {
     fi
   done
 
-  if command -v shellcheck >/dev/null 2>&1; then
     for sh in "${sh_files[@]}"; do
-      if ! shellcheck "$sh" >/dev/null 2>&1; then
-        log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
-        rc=1
-      fi
-    done
-  fi
+    if ! shellcheck "$sh" >/dev/null 2>&1; then
+      log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
+      rc=1
+    fi
+  done
 
   # project.json JSON parse.
   local pj

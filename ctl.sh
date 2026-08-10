@@ -119,7 +119,7 @@ function cmd_validate() {
   local rc=0
 
   # project.json files must parse as JSON
-  require_cmd jq
+  require_cmd jq shellcheck
   local pj_files=()
   while IFS= read -r f; do
     pj_files+=("$f")
@@ -149,23 +149,22 @@ function cmd_validate() {
   done
   log_info "checked ${#sh_files[@]} bash script(s) for syntax"
 
-  # If shellcheck is available, run it at full strictness (no -S error).
-  # Warning / info / style findings fail the build.
-  if command -v shellcheck >/dev/null 2>&1; then
-    local sc_fail=0
-    for sh in "${sh_files[@]}"; do
-      if ! shellcheck "$sh" >/dev/null 2>&1; then
-        log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
-        sc_fail=1
-      fi
-    done
-    if [[ $sc_fail -eq 0 ]]; then
-      log_info "shellcheck clean (strict mode)"
-    else
-      rc=1
+  # Run the linter at full strictness. Warning, info and style findings fail the
+  # build. A missing linter is a FAILURE, not a skip: this branch used to
+  # print "shellcheck not installed — skipping lint" and then "validate: OK",
+  # which is a green result that checked nothing. Proven by running validate with
+  # the linter removed from PATH.
+  local sc_fail=0
+  for sh in "${sh_files[@]}"; do
+    if ! shellcheck "$sh" >/dev/null 2>&1; then
+      log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
+      sc_fail=1
     fi
+  done
+  if [[ $sc_fail -eq 0 ]]; then
+    log_info "shellcheck clean (strict mode)"
   else
-    log_warn "shellcheck not installed — skipping lint"
+    rc=1
   fi
 
   if [[ $rc -eq 0 ]]; then
