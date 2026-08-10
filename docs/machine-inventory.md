@@ -82,14 +82,17 @@ declare them.
 
 | Machine | Declared purpose |
 | --- | --- |
-| `arm-builder` | On-demand ARM docker builder for pushes to ghcr.io |
 | `macos-ci-runner` | Self-hosted GitHub Actions runner, macOS |
 | `windows-ci-runner` | Self-hosted GitHub Actions runner, Windows |
 
-None of them appears on the tailnet. The stated consumers of `arm-builder` were
-**codectl and fintel**, and codectl was deleted on 2026-08-09. Either these
-machines are powered off until needed, or they no longer exist. **Do not assume
-that they work.** Resolve this before you depend on any of them for CI.
+Neither appears on the tailnet. Either they are powered off until needed, or they
+do not exist. **Do not assume that they work.** Resolve this before you depend on
+either of them for CI.
+
+`arm-builder` was the third machine in this list. It was terminated on 2026-08-10
+and its volume was deleted. It billed $4.00 a month to run 0 builds, and a
+t4g.small with 2 GiB of memory could not build these images. GitHub's
+`ubuntu-24.04-arm` runner replaces it: native arm64, and no machine to manage.
 
 ## Stale tailnet entries — remove them in the admin console
 
