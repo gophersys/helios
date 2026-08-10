@@ -146,6 +146,9 @@ command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
 # The runner refuses to start as root without this. The image runs as root, so a
 # missing value means every pod exits 1 in under a second and no job ever runs.
 [ "${RUNNER_ALLOW_RUNASROOT:-}" = "1" ] || { echo "FAIL: RUNNER_ALLOW_RUNASROOT is not 1; run.sh will refuse to start as root"; exit 1; }
+# The review agent needs the Claude CLI. Its absence was found only when a review
+# job failed with "missing required tool: claude".
+command -v claude >/dev/null || { echo "FAIL: claude is not on PATH"; exit 1; }
 echo "--- CI tooling ---"
 cictl help >/dev/null
 command -v cictl

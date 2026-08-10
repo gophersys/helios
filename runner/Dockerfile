@@ -25,6 +25,7 @@ ARG BASE_IMAGE=ghcr.io/gophersys/base:latest
 FROM ${BASE_IMAGE}
 
 ARG RUNNER_VERSION=2.336.0                                             # latest release as of 2026-08-10
+ARG CLAUDE_CODE_VERSION=2.1.212                                        # MUST match eden harnesses/versions.env
 ARG CICTL_VERSION=v0.1.0                                               # gophersys/cictl, first standalone release
 ARG USERNAME=dev
 ARG USER_UID=1000
@@ -77,6 +78,27 @@ RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
  && chmod 0755 /usr/local/bin/cictl \
  && cictl help >/dev/null \
  && rm -rf /root/go /root/.cache/go-build
+
+# The Claude CLI, for the pull request review agent.
+#
+# It is HERE and not in `base` for the same reason cictl is: the image that needs
+# a tool is the image that gets it, and this is a CI concern.
+#
+# THE PIN HAS A SECOND HOME, AND THAT IS A COST.
+# ADR-0021 says the harness pin lives once, in eden `harnesses/versions.env`. This
+# image cannot read that file: it is built from the .devcontainer repository,
+# which stands alone. So the version is repeated here and the 2 MUST move
+# together. Recorded in gophersys/infrastructure docs/debt-register.md.
+#
+# The install is verified in the same layer. A silent failure here would surface
+# much later, as "missing required tool: claude" in a review job.
+RUN curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_CODE_VERSION}" \
+ && ln -sfn /root/.local/bin/claude /usr/local/bin/claude \
+ && installed="$(claude --version 2>/dev/null || true)" \
+ && case "$installed" in \
+      *"${CLAUDE_CODE_VERSION}"*) : ;; \
+      *) echo "FATAL: claude reports '${installed}', expected ${CLAUDE_CODE_VERSION}"; exit 1 ;; \
+    esac
 
 # THIS IMAGE RUNS AS ROOT, DELIBERATELY.
 #
