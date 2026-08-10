@@ -8,17 +8,16 @@ This directory is the source of truth for every CI-system shim in this repositor
 |---|---|---|
 | GitHub Actions | `github/` | `.github/workflows/` |
 
-Every YAML file is a thin shim. It checks out the repository with the submodules, it provides the
-toolchain, and it runs `bash .ci/ctl.sh <verb>`. The logic is in `ctl.sh`. You can run `ctl.sh`
+Every YAML file is a thin shim. It checks out the repository with the submodules, it supplies the
+`ghcr.io/gophersys/base` toolchain, and it runs `bash .ci/ctl.sh <verb>`. The logic is in `ctl.sh`. You can run `ctl.sh`
 locally, check it with shellcheck and test it. You cannot do any of that with YAML.
 
 ## The 2 copies are NOT symlinks
 
-An earlier version of this file said that `.github/workflows/` symlinks into `github/`. It also
-said that "git tracks symlinks natively, so no generator is needed". **That statement is not
-true, and it appears that it was never true.** Git records each of these files as a regular file,
-with the mode `100644`. A symlink has the mode `120000`. Check the modes before you accept either
-statement:
+An earlier version of this file listed the native path as "`.github/workflows/` (symlinks)".
+**That is not true, and it appears that it was never true.** Git records each of these files as a
+regular file, with the mode `100644`. A symlink has the mode `120000`. Check the modes before you
+accept either statement:
 
 ```sh
 git ls-files -s .github/workflows/ | awk '{print $1, $4}'
