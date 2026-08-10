@@ -108,32 +108,21 @@ platform.gophersys/data-class: <public | internal | confidential | pii>
 platform.gophersys/slo-tier:   <critical | high | standard | best-effort>
 ```
 
-## 4. Policy model (authoritative)
+## 4. Policy model — REMOVED
 
-**Kyverno** at `platform/core/policy/` — non-negotiable, installed on
-every cluster. Policies:
+**Kyverno was removed on 2026-08-09.** It had run `audit-only` since installation
+with a single `pod-security-baseline` ClusterPolicy that excluded eight
+namespaces, so it enforced nothing while costing four controller pods and a
+permanent OutOfSync line in Argo.
 
-- Enforce canonical labels on every object.
-- Enforce restricted PodSecurityStandard.
-- Require resources.requests/limits on every container.
-- Block deletion of PVs/PVCs labeled `platform.gophersys/retain=true`
-  without explicit override annotation.
-- Block deletion of `<project>-<env>`/`platform-*` namespaces without override.
-- Restrict image pulls to an allowlisted set of registries.
-- Require every pod to use a dedicated ServiceAccount.
-- Require NetworkPolicy presence in every app namespace.
-- Reject hostNetwork/hostPath/privileged.
+Admission policy is not a solved problem here, it is a **deliberately unsolved**
+one: with a single operator and everything reconciled from git, code review is
+the guardrail. Re-introduce an admission controller when more than one person
+deploys to these clusters, and when you can name two policies you would actually
+enforce rather than audit. See debt-register D21.
 
-See `platform/core/policy/CATALOG.md` for the full list. The target rollout is
-`Audit` mode for 7 days, then promote to `Enforce`, with overrides via a
-`platform.gophersys/policy-override` annotation + TTL.
-
-> **Homelab today:** this is the *design*, not the running state. Kyverno runs
-> **audit-only** — one `pod-security-baseline` ClusterPolicy that *excludes* the
-> namespaces needing elevated pods (media, tailscale, embedded-lab,
-> longhorn-system, observability, metallb-system). No namespace enforces
-> baseline/restricted yet; the staged Audit→Enforce promotion is future work.
-> See `docs/cluster-topology.md`.
+Pod-level hardening (non-root, read-only rootfs, dropped caps, seccomp) is still
+applied **per workload in manifests** — it simply is not enforced at admission.
 
 ## 5. Observability contract (brief, cross-ref)
 
@@ -163,8 +152,8 @@ Break-glass override procedure (future): annotate with
 
 - **Pod-level:** non-root, read-only root FS, dropped caps, seccomp
   `RuntimeDefault`. This is the target enforced-at-admission (restricted PSS)
-  posture; **homelab today** applies it per-workload in manifests, with Kyverno
-  in audit-only mode (see §4) rather than admission enforcement.
+  posture; **today** it is applied per-workload in manifests, with no admission
+  enforcement at all (see §4).
 - **Network:** default-deny NetworkPolicy everywhere. Egress to DNS +
   same-namespace + metrics scrape by default. Additional allows per
   app.

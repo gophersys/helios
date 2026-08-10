@@ -44,7 +44,7 @@ node_role_assignments:
 
 # DIVERGENCE (plan): start in audit-only so Kyverno/PSS observe before they
 # enforce. Flip to baseline per-namespace only after exceptions land (Phase 4-5).
-policy_profile: audit-only
+policy_profile: none            # Kyverno removed 2026-08-09 — see docs/debt-register.md D21
 
 projects_hosted:
   - music                 # the media/music platform (decision 3)

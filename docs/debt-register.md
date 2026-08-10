@@ -253,6 +253,17 @@ returns empty, zone scope fails — so it lacks *Access: Apps and Policies*. Add
 Existing public-access hosts are unaffected.
 
 
+### D21 🟡 No admission policy engine — ACCEPTED (2026-08-09)
+Kyverno was removed. It ran `audit-only` from installation with one
+`pod-security-baseline` ClusterPolicy excluding eight namespaces, so it enforced
+nothing, cost four controller pods, and sat permanently OutOfSync in Argo on four
+CRDs. Accepted rather than fixed: with one operator and everything reconciled
+from git, code review is the guardrail, and an unfinished policy engine is worse
+than none because it implies enforcement that is not happening. Revisit when more
+than one person deploys here — and only with two policies you would genuinely
+enforce, not audit. Pod hardening is still applied per workload in manifests.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
