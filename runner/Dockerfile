@@ -26,6 +26,8 @@ FROM ${BASE_IMAGE}
 
 ARG RUNNER_VERSION=2.336.0                                             # latest release as of 2026-08-10
 ARG USERNAME=dev
+ARG USER_UID=1000
+ARG USER_GID=1000
 ARG TARGETPLATFORM
 
 USER root
@@ -57,7 +59,19 @@ RUN case "${TARGETPLATFORM}" in \
  && tar -xzf /tmp/runner.tar.gz -C /home/runner \
  && rm -f /tmp/runner.tar.gz \
  && mkdir -p /home/runner/_work \
- && chown -R "${USERNAME}:${USERNAME}" /home/runner
+ && chown -R "${USER_UID}:${USER_GID}" /home/runner \
+ && owner="$(stat -c %u /home/runner/run.sh)" \
+ && if [ "$owner" != "${USER_UID}" ]; then \
+      echo "FATAL: /home/runner is owned by uid ${owner}, expected ${USER_UID}"; \
+      echo "The runner writes .runner and .credentials into this directory at"; \
+      echo "registration. Root ownership makes every pod fail to start."; \
+      exit 1; \
+    fi
+# Numeric ids, and an assertion. The first build of this layer silently produced a
+# root-owned /home/runner despite the chown, which would have made every runner pod
+# fail at registration — the runner writes .runner and .credentials there as an
+# unprivileged user. A build that cannot prove ownership must not produce an image.
+#
 # NOTE: no --version smoke here — the runner binary is cross-arch and fails under
 # QEMU. `.ci/smoke.sh` verifies it on a native runner after the push.
 

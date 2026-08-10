@@ -127,6 +127,11 @@ EOF
 read -r -d '' SMOKE_RUNNER <<'EOF' || true
 echo "--- runner smoke ---"
 test -x /home/runner/run.sh
+# The runner writes .runner and .credentials into /home/runner at registration.
+# Root ownership here makes every pod fail to start, and it is invisible until a
+# job is queued. The first build of this layer shipped exactly that.
+test -O /home/runner || { echo "FAIL: /home/runner is not owned by $(id -un)"; exit 1; }
+test -O /home/runner/run.sh || { echo "FAIL: run.sh is not owned by $(id -un)"; exit 1; }
 test -d /home/runner/externals
 test -w /home/runner/_work
 /home/runner/bin/Runner.Listener --version
