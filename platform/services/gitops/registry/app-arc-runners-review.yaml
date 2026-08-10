@@ -1,0 +1,112 @@
+# The review pool. It runs the pull request review agent and NOTHING else.
+#
+# WHY A SEPARATE POOL, and not a job on arc-org
+# The reviewer holds a Claude credential in its environment. An environment
+# variable on a pool is readable by EVERY job on that pool, so putting it on the
+# general pool would hand the token to every build in the organization. This pool
+# runs 1 workflow, from repositories that are all private and all owned by 1
+# person.
+#
+# It also has NO dind sidecar. The reviewer reads a diff and writes comments; it
+# builds nothing. A privileged Docker daemon beside a credentialed agent is the
+# pairing to avoid, not to replicate.
+#
+# runs-on: arc-review
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-runners-review
+  namespace: argocd
+spec:
+  project: ci
+  source:
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    chart: gha-runner-scale-set
+    targetRevision: 0.14.2
+    helm:
+      releaseName: arc-review
+      values: |
+        githubConfigUrl: https://github.com/gophersys
+        githubConfigSecret: arc-github-app
+        runnerScaleSetName: arc-review
+        minRunners: 0
+        maxRunners: 2
+        controllerServiceAccount:
+          namespace: arc-systems
+          name: arc-gha-rs-controller
+
+        template:
+          spec:
+            # Same reasoning as arc-org: keep builds off the embedded lab node.
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: kubernetes.io/hostname
+                          operator: NotIn
+                          values: ["k3s-w-4"]
+
+            imagePullSecrets:
+              - name: ghcr-pull
+
+            initContainers:
+              # Seeds /home/runner/externals, which is the runner's own bundled
+              # Node. It must be the SAME image as the runner container.
+              - name: init-dind-externals
+                image: ghcr.io/gophersys/base-runner:625924c
+                command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
+                volumeMounts:
+                  - name: dind-externals
+                    mountPath: /home/runner/tmpDir
+
+            containers:
+              - name: runner
+                image: ghcr.io/gophersys/base-runner:625924c
+                command: ["/home/runner/run.sh"]
+                env:
+                  # The Claude credential. It reaches this pod from Vaultwarden
+                  # through External Secrets, and never touches GitHub: there is
+                  # no Actions secret to copy into 20 repositories and no token to
+                  # rotate in 20 places.
+                  #
+                  # It is an OAuth setup token, NOT an API key. The Eden adapter
+                  # scrubs ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN from a child
+                  # environment for exactly this reason: a stray API key silently
+                  # takes precedence.
+                  - name: CLAUDE_CODE_OAUTH_TOKEN
+                    valueFrom:
+                      secretKeyRef:
+                        name: claude-review-token
+                        key: token
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 1Gi
+                    ephemeral-storage: 2Gi
+                  limits:
+                    # No CPU limit, for the same reason as arc-org: CFS throttling
+                    # makes a job slow and intermittently flaky.
+                    memory: 4Gi
+                    ephemeral-storage: 8Gi
+                volumeMounts:
+                  - name: work
+                    mountPath: /home/runner/_work
+
+            volumes:
+              - name: work
+                emptyDir:
+                  sizeLimit: 4Gi
+              - name: dind-externals
+                emptyDir:
+                  sizeLimit: 2Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
