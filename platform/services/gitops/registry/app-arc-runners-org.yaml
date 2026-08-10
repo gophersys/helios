@@ -86,7 +86,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/actions/actions-runner:latest
+                image: ghcr.io/gophersys/base-runner:ef318d4
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -132,14 +132,17 @@ spec:
 
             containers:
               - name: runner
-                # REVERTED to the stock image on 2026-08-10. The base-runner tag
-                # was pinned before .devcontainer had published it, so every pod
-                # hit Init:ImagePullBackOff and the whole fleet stopped serving
-                # jobs. Restore the base-runner pin ONLY after verifying the tag
-                # exists:
-                #   docker manifest inspect ghcr.io/gophersys/base-runner:<sha>
                 # Pin by tag, never `latest`: a rebuild must not change CI silently.
-                image: ghcr.io/actions/actions-runner:latest
+                #
+                # Two preconditions before changing this tag, both learned the hard
+                # way on 2026-08-10. Pinning a tag that did not exist yet put every
+                # pod into Init:ImagePullBackOff and took org-wide CI down; the
+                # build before this one also shipped a root-owned /home/runner,
+                # which would have failed every runner at registration.
+                #   1. docker manifest inspect ghcr.io/gophersys/base-runner:<sha>
+                #   2. the base-runner smoke job passed for that sha — it asserts
+                #      ownership of /home/runner and run.sh
+                image: ghcr.io/gophersys/base-runner:ef318d4
                 command: ["/home/runner/run.sh"]
                 env:
                   - name: DOCKER_HOST
