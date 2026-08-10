@@ -25,6 +25,7 @@ ARG BASE_IMAGE=ghcr.io/gophersys/base:latest
 FROM ${BASE_IMAGE}
 
 ARG RUNNER_VERSION=2.336.0                                             # latest release as of 2026-08-10
+ARG CICTL_VERSION=v0.1.0                                               # gophersys/cictl, first standalone release
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
@@ -74,6 +75,21 @@ RUN case "${TARGETPLATFORM}" in \
 #
 # NOTE: no --version smoke here — the runner binary is cross-arch and fails under
 # QEMU. `.ci/smoke.sh` verifies it on a native runner after the push.
+
+# cictl — the CI contract tool. It lives HERE and not in `base` because the image
+# that needs a tool is the image that gets it: cictl generates and drift-checks
+# workflows, which is a CI concern, and `base` stays a dev environment. It also
+# keeps this layer's ~2 minute rebuild instead of base's hour.
+#
+# gophersys/cictl is public precisely so this needs no credential: a private
+# module would have forced GOPRIVATE plus a build-time token in every repo that
+# builds an image, and Free has no org secrets for private repos to share one.
+# Go is already in the parent image, so this is a build-time-only use of it.
+USER root
+RUN GOTOOLCHAIN=local GOBIN=/usr/local/bin \
+      go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}" \
+ && chmod 0755 /usr/local/bin/cictl \
+ && rm -rf /root/go /root/.cache/go-build
 
 # Identifies the image to anything that inspects it, the same way the dev images
 # do. `-runner` is appended so a job can tell CI from an interactive session.
