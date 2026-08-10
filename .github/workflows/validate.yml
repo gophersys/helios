@@ -41,8 +41,8 @@ jobs:
           done < <(grep -hE '^[[:space:]]*path:' platform/services/gitops/registry/*.yaml | sed -E "s/.*path:[[:space:]]*//; s/['\"]//g" | sort -u)
           # shellcheck disable=SC2086  # intentional word-splitting of the roots list
           # Skip roots that no longer exist. A deleted directory must not fail a
-# validation that otherwise passed — that reads as a real failure and
-# trains people to ignore red.
+          # validation that otherwise passed — that reads as a real failure and
+          # trains people to ignore red.
           roots=$(for r in $roots; do [ -d "$r" ] && printf '%s ' "$r"; done)
           find $roots \
             -name '*.yaml' -not -path '*/config-enforce/*' -not -path '*/zephyr-devbox/*' -not -path '*/envs/*' -not -name 'kustomization.yaml' \
