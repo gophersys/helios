@@ -55,10 +55,19 @@ a breaking event.
 
 ## CI expectations
 
-The `.ci/` layer should eventually validate that:
-- Every `platform/<tier>/<path>/` has a README.md with the required sections.
-- Every `contracts/*.md` parses its front-matter and has the 5 sections
-  (Abstract, Interface, Guarantees, Caveats, Example).
-- Every claim that "this service fulfills contract X" matches a real file.
+`scripts/verify-structure.sh` runs on every pull request, from
+`.github/workflows/validate.yml`. Run it locally with
+`bash ctl.sh verify-structure`. It asserts:
 
-These checks are specified but not yet built.
+- Every `contracts/*.md` opens with front-matter and carries the 5 sections
+  (Abstract, Interface, Guarantees, Caveats, Example).
+- Every `charts/<archetype>/` has a README.md.
+
+**Not built, and deliberately not built:** a README-presence rule over
+`platform/<tier>/<path>/`. The deleted `.ci/` layer had one. It demanded a README
+in every directory, including directories that hold only a script or only Argo
+AppProject YAML, so it reported 9 errors that were all the rule being wrong.
+A rule that fires on a correct tree trains people to ignore red.
+
+**Still not built:** the assertion that a "fulfills contract X" claim matches a
+real file. Nothing checks it today.
