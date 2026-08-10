@@ -86,7 +86,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/base-runner:f6a7105
+                image: ghcr.io/actions/actions-runner:latest
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -132,9 +132,14 @@ spec:
 
             containers:
               - name: runner
-                # Pinned by tag, not `latest`: a rebuild must not change CI
-                # silently. Bump deliberately when .devcontainer publishes.
-                image: ghcr.io/gophersys/base-runner:f6a7105
+                # REVERTED to the stock image on 2026-08-10. The base-runner tag
+                # was pinned before .devcontainer had published it, so every pod
+                # hit Init:ImagePullBackOff and the whole fleet stopped serving
+                # jobs. Restore the base-runner pin ONLY after verifying the tag
+                # exists:
+                #   docker manifest inspect ghcr.io/gophersys/base-runner:<sha>
+                # Pin by tag, never `latest`: a rebuild must not change CI silently.
+                image: ghcr.io/actions/actions-runner:latest
                 command: ["/home/runner/run.sh"]
                 env:
                   - name: DOCKER_HOST
