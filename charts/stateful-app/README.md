@@ -5,7 +5,8 @@ for each replica**. A `StatefulSet` and a headless `Service` back it.
 
 ## When to pick this
 
-- A self-hosted database or queue that has no dedicated platform service yet.
+- A self-hosted database or queue that does **not** yet have a dedicated platform
+  service.
   For PostgreSQL, use `contracts/databases.md`, which goes through
   `platform/services/databases/postgresql/`. Do not deploy your own PostgreSQL.
 - A single instance with a leader election, where pod-0 matters: a control-plane

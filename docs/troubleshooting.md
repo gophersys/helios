@@ -27,7 +27,7 @@ The CLI is trying to sync against the upstream vault. Usual causes:
 ## `ssh-add refused the key`
 
 The private key was fetched correctly, but `ssh-add` rejected it. Usual causes:
-- The key has a passphrase. Our keys must not have one.
+- The key has a passphrase. Our keys should not have one.
 - The key format is DSA or RSA-1, which modern OpenSSH does not support.
   Generate an ed25519 key instead.
 - `SSH_AUTH_SOCK` is unset. Run `eval "$(ssh-agent -s)"` first.

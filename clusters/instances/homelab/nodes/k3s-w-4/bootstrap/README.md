@@ -2,8 +2,8 @@
 
 k3s-w-4 is the embedded and USB node. QEMU passes the microcontrollers into this
 VM from pve-01, and the pods flash them. The host-level steps below make that
-work. No in-cluster reconciler manages them, so they live here as an idempotent
-script. See `docs/debt-register.md`, D3.
+work. **No** in-cluster reconciler manages them, so they live here as an
+idempotent script. See `docs/debt-register.md`, D3.
 
 ## Run
 ```sh

@@ -8,7 +8,7 @@
 >    `docs/cluster-topology.md`. The working agreement and the ledger of
 >    imperative state are in `docs/debt-register.md`. A change goes branch → PR →
 >    merge (CI: `.github/workflows/validate.yml`).
-> 2. **A planned IDP framework — the Nx scaffolding described below.**
+> 2. **An IDP framework that is still only a target — the Nx scaffolding below.**
 >    `machines/`, `clusters/templates/`, `providers/`, `charts/` and `contracts/`
 >    are the multi-cluster design. They are mostly skeletons and STUBs. They are
 >    not what runs.

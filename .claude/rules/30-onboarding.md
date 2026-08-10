@@ -49,7 +49,7 @@ kind.
 ## Onboard a new platform/core component
 
 A core component is non-negotiable: to add one means that EVERY cluster will
-install it. This must be rare.
+install it. This should be rare.
 
 1. Justify it. The new component must be strictly necessary for EVERY cluster. If
    it is not, it belongs in `platform/services/`.

@@ -1,7 +1,7 @@
 # Expose a service — never touch the Cloudflare dashboard
 
 When `rayne.mateosegura.com` was published, the hostname was added by hand in the
-Cloudflare Zero Trust dashboard. That must never be necessary again. This is the
+Cloudflare Zero Trust dashboard. That should never be necessary again. This is the
 whole workflow.
 
 ## Why it was manual

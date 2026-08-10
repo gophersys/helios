@@ -43,7 +43,7 @@ org. The consumer is the release workflow of
 6. Set `status: active` in this identity file, and regenerate the machines index.
 
 ## Notes
-- The runner user must NOT have the Bitwarden vault unlocked. CI needs no access
+- The runner user should NOT have the Bitwarden vault unlocked. CI needs no access
   to the vault. It needs `GITHUB_TOKEN` only.
 - A deep-test lane in the future: a scheduled workflow that runs
   `--capture-test` against real system audio. That test has a purpose only on

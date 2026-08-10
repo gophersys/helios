@@ -54,14 +54,14 @@ The pod stays at `2/3`, and gluetun enters CrashLoopBackOff with:
 ERROR [vpn] adding IPv6 rule: adding ip rule 101: from all to all table 51820: file exists
 ```
 
-**Why it does not recover on its own:** Kubernetes shares the ip rules across the
+**Why it never recovers on its own:** Kubernetes shares the ip rules across the
 whole pod, and the *network namespace of the pod survives a container restart*.
 One abrupt exit of gluetun leaves rule 101 in place, and every restart after that
 hits the same "file exists" error, with no end. We saw this on 2026-08-02 at 937
 restarts.
 
 The `lifecycle.postStart` hook on the gluetun container now clears the rule
-before it installs its own rule, so this must not happen again. If it does
+before it installs its own rule, so this should not happen again. If it does
 happen, **delete the pod**. Do not restart the container, because only a new pod
 gets a new network namespace:
 

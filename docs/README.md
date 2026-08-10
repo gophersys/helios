@@ -15,7 +15,6 @@ Documentation index for `infrastructure/`.
 | `cloud-cluster.md`        | The OCI cluster that hosts Vaultwarden — the root of trust |
 | `machine-inventory.md`    | Every machine, how to reach it, and whether it is declared |
 | `where-things-live.md`    | The one rule for the choice between cloud and homelab, and why |
-| `ci-substrate.md`         | The interface between runner pools and toolchain images |
 | `ci-runners.md`           | ARC self-hosted runners: how to onboard a repo, and the public-repo policy |
 | `migration-homelab-to-idp.md` | Historical: the move from homelab to IDP, and the 9 decisions |
 | `audit-2026-07.md`        | Point-in-time cluster audit and backlog (2026-07)       |

@@ -46,11 +46,12 @@ annotations:
 Use this pattern for a database migration paired with a `stateless-app` release,
 and for similar cases.
 
-## The requirement for idempotency
+## The expectation of idempotency
 
-An app must make the body of a job idempotent whenever that is possible. The
-default `backoffLimit` of the chart is 2, so a job that fails runs again. A body
-that is not idempotent therefore causes duplicate effects when it runs again.
+An app is expected to make the body of a job idempotent whenever that is
+possible. The default `backoffLimit` of the chart is 2, so a job that fails runs
+again. A body that is not idempotent therefore causes duplicate effects when it
+runs again.
 
 ## Run semantics
 

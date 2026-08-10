@@ -32,7 +32,7 @@ successfulJobsHistoryLimit: 3
 failedJobsHistoryLimit: 3
 ```
 
-`Forbid` is the default, because most scheduled work must not run 2 times at
+`Forbid` is the default, because most scheduled work should not run 2 times at
 once. Choose `Allow` explicitly only when 2 overlapping runs are safe and wanted,
 for example a fan-out that divides its work naturally.
 

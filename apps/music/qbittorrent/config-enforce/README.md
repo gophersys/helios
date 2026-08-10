@@ -10,7 +10,7 @@ with no message. That setting, and the in-cluster allowlist for the API
 authentication, were originally set through the Web UI, and they persisted only
 in `qbittorrent-config`. If somebody recreates that PVC, the downloads stop and
 the cause is not visible. This directory makes the settings declarative: an
-initContainer writes them into `qBittorrent.conf` before qBittorrent starts.
+initContainer enforces them in `qBittorrent.conf` before qBittorrent starts.
 
 ## Files
 - `enforce_qbt.py` — **the source of truth.** It is an idempotent INI reconciler

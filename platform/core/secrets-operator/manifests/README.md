@@ -19,7 +19,7 @@ native ESO provider does not work. Instead a small in-cluster `bw serve` bridge
 exposes the REST API of the Bitwarden CLI, and the **webhook** provider of ESO
 queries that bridge. Exactly 1 secret outside this chain anchors the whole chain.
 
-## The one seed secret — you create it, and the master password stays in your shell
+## The one seed secret — you create it; the master password never leaves your shell
 
 The bridge authenticates to Vaultwarden with your **personal API key** (the
 client_id and the client secret, from Vaultwarden → Account Settings → Security →

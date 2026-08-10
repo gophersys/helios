@@ -78,10 +78,10 @@ The name in the vault is `<scope>/<domain>/<item>`:
 - `project/` — scoped to one project
 - `personal/` — your own accounts
 
-Do not put facts in the vault. The vault has no diff, no review and no CI, so an
-incorrect fact stays incorrect and nobody sees it. This is why
-`grafana.mateosegura.com` was public for weeks while the documents said it was
-private. **If it is not secret, it goes in git.**
+A fact stored in the vault decays without notice. The vault has no diff, no
+review and no CI. That is exactly how `grafana.mateosegura.com` stayed publicly
+exposed for weeks while the documents said it was private. **If it is not secret,
+it goes in git.**
 
 ## The one workload that does not follow the rule
 

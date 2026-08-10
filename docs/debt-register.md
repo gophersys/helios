@@ -267,7 +267,7 @@ upgrade uses the updated `values-homelab.yaml`.
 ### D19 🟡 `shared/cloudflare/api-token` stores the wrong zone id — OPEN
 The `CLOUDFLARE_ZONE_ID` line in that vault item holds the zone for
 **code-kit.dev**, not `mateosegura.com`. Anything that trusts it edits DNS in the
-wrong zone. Tooling must resolve the zone by name until the item is corrected.
+wrong zone. Tooling should resolve the zone by name until the item is corrected.
 The token itself is valid (it expires 2027-06-17) and can see 3 zones:
 `claude-kit.dev`, `code-kit.dev` and `mateosegura.com`.
 

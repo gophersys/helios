@@ -27,7 +27,7 @@ at `clusters/instances/<c>/overlays/` supplies the values for that cluster.
 - `databases/postgresql/` + `databases/redis/`
 - `messaging/nats/`
 - `registry/` — internal OCI registry (optional)
-- `admin-dashboard/` — one view of every machine and cluster
+- `admin-dashboard/` — one view of everything
 - `identity-sso/` — Dex or Keycloak (future)
 - `backup/` — Velero
 - `cost/` — OpenCost

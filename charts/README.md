@@ -133,7 +133,8 @@ Every chart includes all of these:
 - **SLO.** Every archetype emits Prometheus recording rules from `values.slo`, so
   that the alerts and the dashboards share one definition.
 - **Observability.** A `ServiceMonitor` is emitted automatically when
-  `metrics.enabled` is true. The app must write structured JSON logs to stdout.
+  `metrics.enabled` is true. The app is expected to write structured JSON logs to
+  stdout.
   The chart injects the OTLP endpoint from the cluster-level env.
 - **Node placement.** `nodeSelector` and `tolerations` are populated from
   `values.nodeRole`, which prevents scheduling onto the wrong role by accident.

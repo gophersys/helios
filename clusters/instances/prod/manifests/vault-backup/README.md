@@ -69,8 +69,8 @@ There are 2 copies, deliberately in different failure domains:
 2. **Offline**, beside the encrypted recovery bundle (Desktop, Drive or USB).
    This is the copy that matters in a real disaster.
 
-Never commit the key to this repo. Copy 2 must never be the only copy, and it
-must never live only inside the vault that it exists to rescue.
+**Never** commit the key to this repo. Copy 2 must never be the only one inside
+the vault that it exists to rescue.
 
 ## Restore
 

@@ -19,9 +19,9 @@ One org-wide [actions-runner-controller][arc] scale set:
 | Container mode | `dind` — privileged Docker-in-Docker sidecar, pod spec written out (see below) |
 | Auth | GitHub App, secret `arc-github-app` (Bitwarden: `shared/github/arc-app`) |
 
-The pool scales to zero, so a cold job waits 30 to 60 seconds for a pod. Every
-repo in the org shares the same capacity. A workflow with many parallel jobs
-therefore leaves no capacity for the other repos.
+The pool scales to zero, so a cold job waits 30 to 60 seconds for a pod.
+**Every** repo in the org shares the same capacity. A workflow with many parallel
+jobs therefore leaves no capacity for the other repos.
 
 ## What a runner does and does not give you
 
@@ -144,11 +144,11 @@ gh api orgs/gophersys/actions/runner-groups/1 --jq '{allows_public_repositories}
 gh api repos/gophersys/<repo>/actions/runs/<id>/jobs --jq '.jobs[] | {labels,runner_group_name}'
 ```
 
-This default is deliberate. **Do not change it without care.** A self-hosted
-runner on a public repo lets a pull request from a fork run arbitrary code on our
-hardware. This scale set runs a *privileged* dind sidecar, so that code can reach
-the node, and therefore the cluster. Apply these standard controls before you
-enable it:
+This default is deliberate, and **you should not change it casually**. A
+self-hosted runner on a public repo lets a pull request from a fork run arbitrary
+code on our hardware. This scale set runs a *privileged* dind sidecar, so that
+code can reach the node, and therefore the cluster. Apply these standard controls
+before you enable it:
 
 1. Require approval for **all** workflow runs from outside collaborators, not
    only for first-time contributors.
@@ -181,8 +181,8 @@ bundle is in `~/code/.archive/`), and the policy stays disabled.
 KiCad is not on the runner image, and you cannot install it with apt without
 sudo. That repo therefore builds `ghcr.io/gophersys/hardware-ci` (Ubuntu 24.04
 plus the `ppa:kicad/kicad-10.0-releases` PPA) and runs its test suite inside that
-image with `docker run`. A future EDA repo must reuse that image instead of a new
-KiCad install.
+image with `docker run`. A future EDA repo should reuse that image instead of a
+new KiCad install.
 
 If a separate group without dind ever gets public-repo access (option 2 above),
 that image becomes the **runner** image, and the `docker run` step is no longer

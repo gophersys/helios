@@ -27,7 +27,7 @@ If the workload runs to completion, pick `job`. If it runs on a schedule, pick
 
 ## Autoscaling semantics
 
-A worker often must scale to **zero** when the queue is empty, and scale **up**
+A worker often should scale to **zero** when the queue is empty, and scale **up**
 with the depth of the backlog. An HPA cannot do that, because it scales on CPU
 and memory only. The chart supports both methods:
 
@@ -60,7 +60,7 @@ renders:
   command in the values. The worker then completes or re-queues the messages that
   are in progress, before the process exits.
 
-An app must:
+An app is expected to:
 
 1. Stop the acceptance of new work when it receives SIGTERM.
 2. Finish the work in progress within `gracePeriod - preStopTimeout`.

@@ -27,10 +27,10 @@ wrong place.
 
 `.devcontainer` states the intent: *"Each image serves two roles: local dev
 environment / CI runtime."* Its README also shows the GitHub Actions usage. This
-document keeps that intent. There are 2 gains. First, there are fewer images to
-maintain. Second, a workflow that passes in CI runs in the same environment that
-passed on your machine. That environment includes the ADR-0020 gate toolchain,
-`k3d`, `kind` and the Zephyr SDK.
+document keeps that intent. The gain is not only fewer images to maintain. It is
+also that **a workflow that passes in CI runs in the same environment that passed
+on your machine**. That environment includes the ADR-0020 gate toolchain, `k3d`,
+`kind` and the Zephyr SDK.
 
 Current inventory (`ghcr.io/gophersys/*`). Every image is private, except where
 the diagram says public.
@@ -68,11 +68,11 @@ when the job ends.
 > Measured: a cold pull of `zephyr-devbox` took **5 minutes 17 seconds** before
 > the first step ran.
 
-Every job pays that cost. The cost is too high for images of this size. You
+**Every job** pays that cost. The cost is too high for images of this size. You
 cannot remove it by a docker data-root shared across pods, because 2 dind daemons
 on 1 data-root corrupt that data-root.
 
-**Therefore make the toolchain image the runner container image, not a
+**Therefore the toolchain image should be the runner container image, not a
 `container:` image.** The kubelet then pulls the image, and the kubelet caches
 per node. The first job on a node pays the pull. Every later job starts
 immediately.
@@ -86,8 +86,8 @@ ghcr.io/gophersys/base:latest: 403 Forbidden
 ```
 
 The login succeeds. The *package* has not granted access to the consuming
-repository. That grant is per (package, repository) pair, and the UI is the only
-way to set it. `/orgs/gophersys/packages/container/base/repositories` returns
+repository. That grant is per (package, repository) pair, and it is **UI-only**:
+`/orgs/gophersys/packages/container/base/repositories` returns
 404, so you cannot script the grant. The other method is organization-level
 Actions secrets, and it needs GitHub Team. The organization stays on Free.
 

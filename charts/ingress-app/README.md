@@ -146,6 +146,6 @@ slo:
 
 ## Status
 
-Skeleton. The templates are stubs. There are 2 differences against
-`stateless-app`: the ingress block is mandatory, and the defaults are stricter.
-`_common` supplies all the same helpers and conventions.
+Skeleton. The templates are stubs. The primary difference against
+`stateless-app` is that the ingress block is mandatory and the defaults are
+stricter. `_common` supplies all the other helpers and conventions.

@@ -23,9 +23,10 @@ are on the Tailscale mesh.
 - **Hosted on the workstation (NOT in the cluster)** — the **studio dashboard**
   runs on Mateo's MacBook Air at `http://100.89.71.64:8737` (the launchd agent
   `com.mateosegura.studio-dashboard`, source in `MateoSegura/music-studio` →
-  `tools/studio`). `home.` links to it, but the tunnel never routes it. It runs
-  there because it needs Ableton Live 12, AbletonOSC (localhost UDP) and the
-  2.5 GB `~/Music` tree. None of these exist in k3s. Its Homepage cards read
+  `tools/studio`). `home.` links to it under **Studio**, but the tunnel never
+  routes it. It runs there because it needs Ableton Live 12, AbletonOSC
+  (localhost UDP) and the 2.5 GB `~/Music` tree. None of these exist in k3s. Its
+  Homepage cards read
   offline when the laptop sleeps. That is correct, not a fault. See
   `music-studio/docs/architecture.md` → "The studio dashboard".
 - **Grafana** — `grafana.` is **tailnet-private with a real certificate** as of
@@ -99,7 +100,7 @@ observability of the cloud cluster (`obsv.mateosegura.com`) is not affected.
 ## Platform — edge
 
 ### `cloudflare-tunnel` — public ingress
-`cloudflared` (2 replicas) runs a tunnel that the dashboard manages (`eden-home`,
+`cloudflared` (2 replicas) runs a **dashboard-managed** tunnel (`eden-home`,
 token-only in the cluster) with a single catch-all rule to `ingress-nginx:80`. It
 is the only path from the public internet into the cluster. The hostnames and the
 Cloudflare Access apps are configured in the Zero Trust dashboard, not in git.

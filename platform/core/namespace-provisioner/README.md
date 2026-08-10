@@ -150,8 +150,8 @@ Kyverno generator event, and the observability stack scrapes it. The Grafana
 "platform compliance" dashboard shows:
 
 - the count of namespaces per project and per env;
-- the namespaces that are missing a generated resource. This count must always be
-  0.
+- the namespaces that are missing a generated resource. This count should always
+  be 0.
 - the quota use per `<project>-<env>`, as a heatmap;
 - the rejected attempts to create a namespace, by reason.
 

@@ -44,7 +44,7 @@ load-bearing for every app in the ecosystem.
 ## Cross-cutting: where the switch happens
 
 To swap `platform/services/databases/postgresql/` from CNPG to Neon, or to
-anything else, you touch:
+anything else, you should touch:
 
 - `platform/services/databases/postgresql/` — the new implementation.
 - `contracts/databases.md` — only if the app-facing interface changes (the Secret
@@ -55,7 +55,7 @@ a breaking event.
 
 ## CI expectations
 
-The `.ci/` layer must eventually validate that:
+The `.ci/` layer should eventually validate that:
 - Every `platform/<tier>/<path>/` has a README.md with the required sections.
 - Every `contracts/*.md` parses its front-matter and has the 5 sections
   (Abstract, Interface, Guarantees, Caveats, Example).

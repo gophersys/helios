@@ -81,8 +81,9 @@ operational inspection.
 
 A1.Flex capacity (Ampere Altra ARM, always free) is very limited in OCI. To get
 the slot of a destroyed instance again can take weeks, and it can fail
-completely. The module therefore duplicates the `oci_core_instance` resource into
-a protected variant and a destroyable variant, and guards them with
+completely. The module therefore enforces the protection: it duplicates the
+`oci_core_instance` resource into a protected variant and a destroyable variant,
+and guards them with
 `count = var.prevent_destroy ? 1 : 0`. The protected variant carries
 `lifecycle { prevent_destroy = true }`.
 
@@ -108,7 +109,7 @@ terraform import \
   'ocid1.instance.oc1.phx.<instance-ocid>'
 ```
 
-After the import, `terraform plan` must show 0 changes. That result shows that
+After the import, `terraform plan` should show 0 changes. That result shows that
 the module inputs match the real instance.
 
 ## Verbs

@@ -11,7 +11,7 @@ live under `clusters/instances/<c>/overlays/services/<path>/values.yaml`.
 | `databases/`         | PostgreSQL (cnpg), Redis                   |
 | `messaging/`         | NATS JetStream                             |
 | `registry/`          | Internal OCI registry (optional)           |
-| `admin-dashboard/`   | One view of every machine and cluster      |
+| `admin-dashboard/`   | One view of the whole fleet                |
 | `identity-sso/`      | Dex/Keycloak SSO (future)                  |
 | `backup/`            | Velero                                     |
 | `cost/`              | OpenCost                                   |

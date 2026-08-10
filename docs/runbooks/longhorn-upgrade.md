@@ -1,9 +1,9 @@
 # Runbook — Longhorn v1.7.2 → v1.12.0 (staged)
 
 Longhorn is on **v1.7.2 (EOL)**, installed from **raw manifests**
-(`kubectl apply`, not Helm). The latest version is **v1.12.0**. Longhorn allows
-only **one minor version at a time**, and it does **not support a downgrade**.
-The safety procedure is therefore backup and fix-forward, never rollback.
+(`kubectl apply`, not Helm). The latest version is **v1.12.0**. Longhorn enforces
+**one minor version at a time**, and it does **not support a downgrade**. The
+safety procedure is therefore **backup and fix-forward**, never rollback.
 
 > ✅ **RESOLVED (2026-07-08): the backup target is configured** — the in-cluster
 > MinIO. See "Backup target" below. Full backups of all 4 volumes finished before
@@ -37,8 +37,8 @@ Longhorn UI at Settings → Backup Target.
   the engine images by hand**.
 - Kubernetes 1.35 is in range for every step, because each step needs 1.25 or
   higher. There are V1 filesystem volumes only, so every breaking change across
-  1.8 to 1.12 for the V2 engine, the block disk and the V2 backing image does not
-  apply here.
+  1.8 to 1.12 for the V2 engine, the block disk and the V2 backing image is
+  **not applicable** here.
 
 ## Path (target the latest patch of each minor version, to avoid `.0` regressions)
 `1.7.2 → 1.8.2 → 1.9.2 → 1.10.2 → 1.11.3 → 1.12.0`
@@ -90,11 +90,11 @@ that the volumes attach again and are healthy. Confirm that every image is
 ## Risk and window
 The top risks are: (1) no backup target — remove this risk first; (2) the CRD
 gate between 1.9 and 1.10; (3) a forgotten engine upgrade in a step. Each step
-takes about 20 to 40 minutes, and the total is about 3 to 4.5 hours. Spread the
-work over several sessions, one minor version per evening, so that each version
-runs for a while and any regression is easy to attribute. Data at risk: about
-45Gi of observability history (Prometheus, Loki, Tempo), which is replaceable
-because the backups exist.
+takes **about 20 to 40 minutes, and the total is about 3 to 4.5 hours**. Spread
+the work over several sessions, one minor version per evening, so that each
+version runs for a while and any regression is easy to attribute. Data at risk:
+about 45Gi of observability history (Prometheus, Loki, Tempo), which is
+replaceable because the backups exist.
 
 ---
 ## ✅ COMPLETED 2026-07-08 — 1.7.2 → 1.12.0 (all 5 minor versions)
@@ -109,7 +109,7 @@ each CRD at runtime. A `kubectl apply --server-side --force-conflicts` of the
 manifest produces an invalid CRD, because the CRDs in the manifest carry no
 `conversion` block (`spec.conversion.webhookClientConfig Forbidden ... strategy
 Required`). The CRD schema therefore stays on the old version with no message
-while the new manager rolls out, and the manager enters CrashLoopBackOff with
+while the new manager rolls out, and the **manager enters CrashLoopBackOff** with
 `strict decoding error: unknown field spec.backupBlockSize`. This caused a
 failure on the 1.10.2 step. The fix: split the manifest, apply the CRDs
 client-side with `kubectl apply -f <crds>`, and apply the rest server-side. The

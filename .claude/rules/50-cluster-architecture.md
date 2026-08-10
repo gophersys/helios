@@ -9,8 +9,8 @@ The detailed reference documents live with each layer. This rule is the **map**.
 
 ## 1. Node taxonomy (authoritative)
 
-Every cluster node declares `kubernetes.cluster_role` in its identity.yaml. These
-are the only valid values:
+Every cluster node declares `kubernetes.cluster_role` in its identity.yaml.
+Valid values — **these are the only ones**:
 
 | Role      | Label `role=` | Taint                               | Purpose                                           |
 |-----------|---------------|-------------------------------------|---------------------------------------------------|
@@ -20,9 +20,9 @@ are the only valid values:
 | `build`   | `build`       | `build=true:NoSchedule`             | CI runners / build farms                          |
 | `batch`   | `batch`       | `batch=true:PreferNoSchedule`       | Jobs on preemptible/spot compute                  |
 
-Do not propose a new node role. The 5 roles above are designed to cover a wide
-SaaS stack. Add specialization with **labels on an existing role**, for example
-`role=ml,gpu=a100`. Do not add a new top-level role.
+Before you propose a new node role, push back. The 5 roles above are designed to
+cover a wide SaaS stack. Add specialization with **labels on an existing role**,
+for example `role=ml,gpu=a100`. Do not add a new top-level role.
 
 See `clusters/CONVENTIONS.md` for the full taxonomy with examples.
 
@@ -156,7 +156,7 @@ fires.
 ## 7. Security posture (baseline)
 
 - **Pod level:** non-root, read-only root filesystem, dropped capabilities, and
-  seccomp `RuntimeDefault`. That is the target posture, enforced at admission
+  seccomp `RuntimeDefault`. That is the **target** posture: enforced at admission
   under restricted PSS. **Today** it is applied per workload in the manifests,
   with no enforcement at admission at all. See §4.
 - **Network:** default-deny NetworkPolicy everywhere. By default, egress is
