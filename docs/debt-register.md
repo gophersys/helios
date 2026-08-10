@@ -264,6 +264,26 @@ than one person deploys here — and only with two policies you would genuinely
 enforce, not audit. Pod hardening is still applied per workload in manifests.
 
 
+### D22 🟠 Machine inventory has four gaps — OPEN
+Full inventory in `docs/machine-inventory.md` (2026-08-09). Undeclared:
+(1) `mateos-macbook-air` — `machines/development/` is empty, so the workstation
+holding every kubeconfig, the vault CLI and the OCI CLI has no identity file;
+(2) hypervisors `pve-00` and `pve-03` — only `pve-01` is declared, yet all three
+host the 8 k3s VMs. Unverified: (3) `arm-builder`, `macos-ci-runner`,
+`windows-ci-runner` are declared but absent from the tailnet — arm-builder's
+stated consumers were codectl and fintel, and codectl no longer exists. Stale:
+(4) `sentinel-00`/`sentinel-01` (instances terminated) and two laptops offline
+153 days still hold tailnet identities; every tailnet device is a potential
+ingress.
+
+### D23 🟠 Backups have no alerting — OPEN (noted, deferred by decision)
+The nightly vault backup CronJob works and is restore-tested, but a job that
+silently stops looks identical to one that works. Nothing would tell you. Also
+still single-cloud: backups survive disk and instance loss, not loss of the
+Oracle account. Deferred deliberately 2026-08-09; recorded so it is not
+rediscovered as a surprise.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured
