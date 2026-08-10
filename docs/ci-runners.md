@@ -15,7 +15,7 @@ One org-wide [actions-runner-controller][arc] scale set:
 | Managed by | ArgoCD — `platform/services/gitops/registry/app-arc-runners-org.yaml` |
 | Chart | `gha-runner-scale-set` 0.14.2 |
 | Capacity | `minRunners: 0`, `maxRunners: 4` |
-| Runner image | stock `ghcr.io/actions/actions-runner:latest` |
+| Runner image | `ghcr.io/gophersys/base-runner` — the `base` **dev** image plus the runner binary. See [`ci-substrate.md`](ci-substrate.md). |
 | Container mode | `dind` — privileged Docker-in-Docker sidecar, pod spec written out (see below) |
 | Auth | GitHub App, secret `arc-github-app` (Bitwarden: `shared/github/arc-app`) |
 
@@ -24,8 +24,11 @@ Scale-to-zero means a cold job waits ~30–60s for a pod. Capacity is shared acr
 
 ## What a runner does and does not give you
 
-- **No sudo.** The runner image is stock and jobs run unprivileged inside it. A job
-  cannot `apt-get install` its toolchain.
+- **Sudo, and the full dev toolchain.** The runner image is the `base` dev image,
+  so a job gets Go, Node, Python, Rust, kubectl, helm, terraform, k3d, kind,
+  kubeconform, shellcheck, gitleaks and the ADR-0020 gate tools at the same
+  versions an interactive session gets, and `dev` has passwordless sudo.
+  Jobs no longer download their tooling into `$HOME/bin`.
 - **Docker works.** The dind sidecar is privileged, so jobs can `docker build`,
   `docker run`, and run k3d/kind. This is how repos get tooling the base image lacks:
   put it in a container image and run the job's real work inside it.
@@ -100,9 +103,7 @@ for software capability — is specified in [`ci-substrate.md`](ci-substrate.md)
 
 | Next | What it adds | Blocked on |
 |---|---|---|
-| `kubeconform` into `base`, then `arc-org` → `arc-base` on `base-runner` | dev/CI parity; deletes the no-sudo tool-install block | nothing |
-| `imagePullSecret` in `arc-runners` from Vaultwarden | lets pools run **private** `.devcontainer` images | nothing |
-| Per-domain pools (`arc-zephyr`, `arc-kicad`, `arc-flutter`, `arc-usb`) | firmware, hardware, mobile | the two rows above |
+| Per-domain pools (`arc-zephyr`, `arc-kicad`, `arc-flutter`, `arc-usb`) | firmware, hardware, mobile | nothing — the recipe is in `ci-substrate.md` |
 | **Mac mini runner** | macOS builds, **iOS and Android** via two phones on USB with full device control | phones not connected yet (2026-08-10) — the machine is `macbook-mini` in `contracts/access.yaml` |
 | Windows VM runner on `pve-03` | Windows builds | licence choice |
 | Argo on the cloud cluster | closes debt D18 | nothing |
@@ -157,7 +158,7 @@ the policy remains disabled.
 
 | Repo | Uses | Notes |
 |---|---|---|
-| `infrastructure` | `arc-org` | `validate.yml` — kubeconform + kustomize; installs tools to `$HOME/bin` because there is no sudo |
+| `infrastructure` | `arc-org` | `validate.yml` — kubeconform + `kubectl kustomize`, both from the runner image |
 | `eden` | `arc-org` | needs dind for k3d-based gates |
 | `workspaces` | `arc-org` | |
 | `hardware` | `arc-org` | Needs KiCad 10, supplied by `ghcr.io/gophersys/hardware-ci` (built from `ci/Dockerfile` in that repo) rather than a custom runner image. Made private specifically to use these runners — see the public-repo section |

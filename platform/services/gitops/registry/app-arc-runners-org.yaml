@@ -1,6 +1,19 @@
-# Org-wide runner scale set for gophersys — serves Eden, infrastructure, workspaces.
-# dind so runners can build images AND run k3d/kind (Eden's gates). runs-on: arc-org
-# Onboarding, consumers, sizing rationale and the public-repo policy: docs/ci-runners.md
+# The general-purpose runner pool for gophersys — Eden, infrastructure, workspaces,
+# hardware. linux/amd64, dind, so jobs can build images AND run k3d/kind (Eden's
+# gates). runs-on: arc-org
+#
+# The runner container image IS the `base` dev image plus the runner binary
+# (`base-runner`), so a job gets the same toolchain an interactive session gets.
+# The interface — pools carry physical capability, images carry software
+# capability — is docs/ci-substrate.md. Onboarding, consumers, sizing rationale
+# and the public-repo policy: docs/ci-runners.md
+#
+# THE LABEL STAYS `arc-org` EVEN THOUGH THE POOL IS "base"
+# `runnerScaleSetName` IS the runs-on label, and a scale set has exactly one, so
+# there is no aliasing. 17 workflow references across 5 repos point at arc-org,
+# and a label that no pool answers makes a job queue forever with no error. The
+# name is worse than `arc-base`; the rename is not worth that failure mode.
+# Future pools are named for capability from the start (arc-zephyr, arc-usb).
 #
 # NOTE: the Default runner group sets allows_public_repositories=false, so jobs from
 # a PUBLIC org repo queue forever with no error. That is deliberate — this scale set
@@ -61,9 +74,19 @@ spec:
                         matchLabels:
                           actions.github.com/scale-set-name: arc-org
 
+            # The kubelet pulls these, so it caches them per node — the reason the
+            # toolchain rides on the pod image instead of a workflow `container:`.
+            # Credential: 20-ghcr-pull-externalsecret.yaml in this repo.
+            imagePullSecrets:
+              - name: ghcr-pull
+
             initContainers:
+              # MUST be the same image as the runner container: it seeds
+              # /home/runner/externals, and those externals are the runner's own
+              # bundled Node. A mismatched pair silently ships the wrong Node to
+              # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/actions/actions-runner:latest
+                image: ghcr.io/gophersys/base-runner:f6a7105
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -109,7 +132,9 @@ spec:
 
             containers:
               - name: runner
-                image: ghcr.io/actions/actions-runner:latest
+                # Pinned by tag, not `latest`: a rebuild must not change CI
+                # silently. Bump deliberately when .devcontainer publishes.
+                image: ghcr.io/gophersys/base-runner:f6a7105
                 command: ["/home/runner/run.sh"]
                 env:
                   - name: DOCKER_HOST

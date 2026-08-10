@@ -283,6 +283,22 @@ still single-cloud: backups survive disk and instance loss, not loss of the
 Oracle account. Deferred deliberately 2026-08-09; recorded so it is not
 rediscovered as a surprise.
 
+### D24 🟡 The CI pull secret is a god-mode token — OPEN
+`arc-runners/ghcr-pull` materializes `shared/github/pat-godmode` into a
+`dockerconfigjson` so the kubelet can pull the private `.devcontainer` runner
+images. That token carries `admin:enterprise`, `admin:org`, `delete_repo` and
+`write:packages`; a pull credential needs `read:packages` alone.
+
+Chosen deliberately on 2026-08-10 because GitHub has no API to mint a PAT, so a
+narrower token cannot be created without a human at the browser. Two things
+lower the severity: `imagePullSecrets` are consumed by the kubelet and never
+mounted into the container, and the runner ServiceAccount
+(`*-gha-rs-no-permission`) has no RBAC, so a job cannot `get` the Secret.
+
+Remedy: create a classic PAT with **only** `read:packages`, store it as
+`shared/github/ghcr-pull`, and repoint the ExternalSecret's `remoteRef.key`.
+One line, no other change.
+
 
 ## Resolved
 
