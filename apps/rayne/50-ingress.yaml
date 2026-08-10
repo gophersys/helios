@@ -18,10 +18,19 @@ kind: Ingress
 metadata:
   name: rayne
   namespace: media
+  annotations:
+    # Real LE cert on :443 while the Cloudflare tunnel keeps using :80.
+    # ssl-redirect MUST stay false: the tunnel connects on :80, and an
+    # HTTP->HTTPS redirect there loops against cloudflared forever.
+    cert-manager.io/cluster-issuer: letsencrypt-homelab
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
   labels:
     app.kubernetes.io/name: rayne
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts: [rayne.mateosegura.com]
+      secretName: rayne-tls
   rules:
     - host: rayne.mateosegura.com
       http:

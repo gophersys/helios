@@ -1,0 +1,85 @@
+# Declared exposure for every hostname we serve. THIS FILE IS THE SOURCE OF TRUTH.
+#
+# `bash ctl.sh verify-exposure` resolves each host, follows redirects and asserts
+# reality matches what is declared here. A mismatch is a failure, not a note —
+# this file exists because grafana.mateosegura.com silently moved from tailnet to
+# public and no document noticed for weeks.
+#
+# CLASSES — see contracts/ingress.md for the full definitions and the decision
+# tree for choosing one.
+#
+#   public-access   internet-reachable via the Cloudflare tunnel, gated by
+#                   Cloudflare Access + Google SSO. Ingress carries NO tls: block
+#                   (the tunnel enters nginx on :80; TLS there 308-loops).
+#   public-open     internet-reachable, deliberately ungated. Every instance
+#                   needs a written justification below.
+#   tailnet         resolves ONLY to a private address. Unreachable off the
+#                   tailnet. Ingress carries a tls: block + cert-manager.
+#   direct-auth     bypasses Cloudflare entirely on a public IP, gated by
+#                   oauth2-proxy. Reserved for the vault cluster — see the
+#                   exception note below.
+#
+# THE ONE SANCTIONED EXCEPTION
+#   secrets.mateosegura.com does NOT go through Cloudflare. That is deliberate
+#   and load-bearing: Vaultwarden is the root of trust for every credential in
+#   the ecosystem, so it must stay reachable when Cloudflare is unavailable.
+#   Do not "fix" it onto the tunnel. Everything else on that cluster inherits
+#   direct-auth because it shares the same ingress.
+
+zone: mateosegura.com
+
+hosts:
+  # ---- homelab · public via Cloudflare tunnel ----
+  home:
+    class: public-access
+    cluster: homelab
+    why: "single-pane portal; Access-gated"
+  workspaces:
+    class: public-access
+    cluster: homelab
+    why: "workspace manager UI; Access-gated"
+  rayne:
+    class: public-open
+    cluster: homelab
+    why: "personal page for someone with no account in the IdP; carries its own
+          shared-word gate. Ungated at the edge ON PURPOSE."
+
+  # ---- homelab · tailnet only ----
+  argocd:   { class: tailnet, cluster: homelab, why: "GitOps controller — admin surface" }
+  eden:     { class: tailnet, cluster: homelab, why: "Eden platform" }
+  files:    { class: tailnet, cluster: homelab, why: "filebrowser over /mnt/media" }
+  prowlarr: { class: tailnet, cluster: homelab, why: "indexer manager" }
+  torrent:  { class: tailnet, cluster: homelab, why: "qBittorrent WebUI" }
+  s3:       { class: tailnet, cluster: homelab, why: "MinIO API — backup target" }
+  grafana:
+    class: tailnet
+    cluster: homelab
+    why: "metrics/logs — admin surface, same class as argocd"
+    # DRIFT as of 2026-08-09: currently public via the tunnel with only Grafana's
+    # own login in front, and its admin password is generated-not-vaulted. Being
+    # migrated to tailnet. Until the verifier passes for this host, treat homelab
+    # observability as internet-exposed.
+
+  # ---- cloud (prod) cluster · direct, Cloudflare-bypassing ----
+  secrets:
+    class: direct-auth
+    cluster: prod
+    why: "THE EXCEPTION. Vaultwarden must survive a Cloudflare outage. Web UI
+          behind oauth2-proxy; /api and /identity are master-password-only by
+          design so the bw CLI works during an outage."
+  notes:
+    class: direct-auth
+    cluster: prod
+    why: "CouchDB. Currently basic-auth only — should sit behind oauth2-proxy
+          like secrets does."
+  obsv:
+    class: direct-auth
+    cluster: prod
+    why: "cloud Grafana. Currently app-login only — should sit behind
+          oauth2-proxy."
+
+# Addresses the verifier resolves against.
+endpoints:
+  homelab_vip: 10.168.0.240      # MetalLB VIP — tailnet only
+  prod_public: 144.24.23.2       # OCI public IP (also the *.mateosegura.com wildcard)
+  cloudflare_proxied: [104.21., 172.67.]
