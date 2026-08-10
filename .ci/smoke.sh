@@ -135,9 +135,12 @@ test -O /home/runner/run.sh || { echo "FAIL: run.sh is not owned by $(id -un)"; 
 test -d /home/runner/externals
 test -w /home/runner/_work
 /home/runner/bin/Runner.Listener --version
-# The dind socket is group 123 (dockerd --group). A runner outside that group
-# fails only when a job touches docker, which is far from the image build.
-id -G dev | tr " " "\n" | grep -qx 123 || { echo "FAIL: dev is not in gid 123; the dind socket would be unreachable"; exit 1; }
+# The dind socket is owned by gid 123 (dockerd --group). Read /etc/group, NOT
+# `id -G`: this script runs the image with `docker run --user dev`, and --user
+# supplies no supplementary groups, so `id -G` would report a false failure even
+# when the image is correct. /etc/group is the image's own record.
+getent group 123 | cut -d: -f4 | tr "," "\n" | grep -qx dev || {
+  echo "FAIL: dev is not a member of gid 123 in /etc/group"; getent group 123; exit 1; }
 echo "--- CI tooling ---"
 cictl help >/dev/null
 command -v cictl
