@@ -14,6 +14,7 @@ Documentation index for `infrastructure/`.
 | `cluster-topology.md`     | What runs in each namespace and why (live reference) |
 | `cloud-cluster.md`        | The OCI cluster that hosts Vaultwarden — the root of trust |
 | `machine-inventory.md`    | Every machine, how to reach it, and whether it is declared |
+| `where-things-live.md`    | The one rule for choosing cloud vs homelab, and why |
 
 Machine facts are declared in `contracts/access.yaml` and asserted by
 `bash ctl.sh verify-access`. Secrets live only in Vaultwarden; the contract
