@@ -31,6 +31,11 @@ env:
   # measured ~13 minutes for what is otherwise a thin layer. Build the arch you
   # deploy to.
   PLATFORMS_RUNNER: linux/amd64
+  # zephyr-devbox is a remote dev box: it only ever runs as a Kubernetes pod, and
+  # every node in that cluster is amd64 (verified: its 3 live pods sit on k3s-w-1,
+  # k3s-w-3 and k3s-w-4). It is never opened locally, so its arm64 half had no
+  # consumer and it was the most expensive emulated build in this workflow.
+  PLATFORMS_DEVBOX: linux/amd64
 
 jobs:
   base:
@@ -286,7 +291,7 @@ jobs:
         with:
           context: zephyr-devbox
           file: zephyr-devbox/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.PLATFORMS_DEVBOX }}
           push: true
           build-args: |
             BASE_TAG=${{ needs.base.outputs.short }}
