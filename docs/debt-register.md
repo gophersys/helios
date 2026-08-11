@@ -646,12 +646,27 @@ affected**: `verify-image-arch` passes on `base-runner:e0c6bc5`.
 | `base` | amd64+arm64 | FAIL — arm64 entry is an amd64 userland |
 | `flutter` | amd64+arm64 | FAIL — same, inherited |
 | `zephyr` | amd64+arm64 | FAIL — same, inherited |
-| `zephyr-devbox` | amd64+arm64 | FAIL — **publishes no arm64 variant at all** |
+| `zephyr-devbox` | amd64 | PASS — amd64 only **by decision**, see below |
 | `base-runner` | amd64 | PASS |
 
-`zephyr-devbox` is a second and separate breach of the same policy: it does not
-mislabel an arm64 image, it ships none. `00-identity.md` lists it among the
-devcontainer images that MUST be multi-arch.
+**Correction.** An earlier version of this entry called `zephyr-devbox` a second
+breach of the policy. That was wrong. Commit `c7e8e94` narrowed it to amd64
+deliberately, and verified the reason against the live cluster: it runs only as a
+Kubernetes pod, its 3 pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and every
+node is amd64. It is the same rule as `base-runner` — build the arch you deploy
+to. It fails only when it is judged against the devcontainer default list, and so
+does `base-runner`.
+
+**But `00-identity.md` was never updated**, so it still calls multi-arch
+non-negotiable for all 4 devcontainer images while 1 of them is amd64 only by a
+merged decision. Corrected in gophersys/.devcontainer.
+
+**A third option for this entry, from that same commit.** It records that no arm64
+consumer can be verified for ANY image: this Mac has created 1 container in its
+history, `node:22-bookworm`, and never a gophersys devcontainer. So the choice is
+not only "drop the pin" or "cross-compile". It may be "drop arm64", which costs
+nothing to build and nothing to verify, and which the evidence currently
+supports. Decide that before spending on either fix.
 
 So the reach is every arm64 **devcontainer** user, and no CI job.
 
