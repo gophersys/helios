@@ -108,10 +108,30 @@ Publish every **devcontainer** image as a multi-arch image (linux/amd64 and
 linux/arm64). Both architectures have real users: an arm64 Mac and amd64 Linux.
 For those images the rule is non-negotiable. You must not change it.
 
-**Runner images build only the arch they deploy to.** `base-runner` is amd64
-only. It runs only as an ARC pod, and every node in that cluster is amd64. Its
-arm64 half compiled Go under QEMU for an architecture that no node runs, and it
-took ~13 minutes on a thin layer. Add arm64 again when an arm64 pool exists.
+**An image builds only the arch it deploys to.** 2 images are narrowed today, and
+both narrowings were measured, not assumed:
+
+- `base-runner` is amd64 only. It runs only as an ARC pod, and every node in that
+  cluster is amd64. Its arm64 half compiled Go under QEMU for an architecture
+  that no node runs, and it took ~13 minutes on a thin layer.
+- `zephyr-devbox` is amd64 only (commit `c7e8e94`). It runs only as a kubernetes
+  pod. Its 3 running pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3
+  are amd64. Nobody opens it locally; `zephyr` is the image for that.
+
+So the multi-arch rule above applies to `base`, `flutter` and `zephyr`. This
+paragraph exists because it did not say so for a while: `zephyr-devbox` was
+narrowed in a merged commit and this rule still called multi-arch non-negotiable
+for all 4, so a reader who trusted the rule would have called a decision a defect.
+That happened.
+
+Add arm64 back to either image when an arm64 consumer exists. **No arm64 consumer
+can be verified for any image today**, which is recorded in gophersys/
+infrastructure `docs/debt-register.md` D42 as an open question for `base`,
+`flutter` and `zephyr` too.
+
+Verify a published image with `bash ctl.sh verify-image-arch <ref> [platforms]`
+in gophersys/infrastructure. A manifest declares a platform; that verb reads the
+content.
 
 For devcontainer images:
 
