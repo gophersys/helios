@@ -45,7 +45,10 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
-└── .github/workflows/build-and-push.yml
+└── .github/workflows/
+    ├── build-and-push.yml    # publish the images
+    ├── validate.yml          # the pull request gate: ctl.sh validate + BUILD_ORDER + shellcheck -x
+    └── pr-review.yml         # the review agent, shared from gophersys/cictl
 ```
 
 ## Conventions
@@ -192,6 +195,11 @@ base-   flutter  zephyr
 runner              │
               zephyr-devbox
 ```
+
+`validate.yml` runs `bash ./ctl.sh validate` and asserts that BUILD_ORDER agrees
+between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh validate` delegates to the root
+`ctl.sh`: it used to be a second copy and the 2 diverged, so it reported OK on a
+Dockerfile that the root script rejected.
 
 The graph is declared in 4 places. All 4 MUST stay the same:
 

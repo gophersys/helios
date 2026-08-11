@@ -52,64 +52,12 @@ function repo_ctl() {
 
 # validate — shellcheck + hadolint + jq, recursive over the managed tree.
 function cmd_validate() {
-  require_cmd shellcheck jq
-  local rc=0
-  local name dir script
-
-  log_info "shellcheck: .ci/ctl.sh"
-  shellcheck -x "$PROJECT_ROOT/ctl.sh" || rc=1
-
-  if [[ -f "$PROJECT_ROOT/smoke.sh" ]]; then
-    log_info "shellcheck: .ci/smoke.sh"
-    shellcheck -x "$PROJECT_ROOT/smoke.sh" || rc=1
-  fi
-
-  log_info "shellcheck: ctl.sh"
-  shellcheck -x "$REPO_ROOT/ctl.sh" || rc=1
-
-  # The shared library holds the body of every per-image verb. A missing file
-  # makes shellcheck exit non-zero, which fails validate.
-  log_info "shellcheck: _ctl/lib.sh"
-  shellcheck -x "$REPO_ROOT/_ctl/lib.sh" || rc=1
-
-  for name in "${BUILD_ORDER[@]}"; do
-    dir="$(image_dir "$name")"
-    # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
-    for script in "$dir"/*.sh; do
-      log_info "shellcheck: ${name}/$(basename "$script")"
-      shellcheck -x "$script" || rc=1
-    done
-
-    log_info "jq parse: ${name}/project.json"
-    jq empty "$dir/project.json" || rc=1
-  done
-
-  log_info "jq parse: project.json"
-  jq empty "$REPO_ROOT/project.json" || rc=1
-
-  log_info "jq parse: .ci/project.json"
-  jq empty "$PROJECT_ROOT/project.json" || rc=1
-
-  if command -v hadolint >/dev/null 2>&1; then
-    for name in "${BUILD_ORDER[@]}"; do
-      dir="$(image_dir "$name")"
-      log_info "hadolint: ${name}/Dockerfile"
-      hadolint "$dir/Dockerfile" || rc=1
-    done
-  else
-    # A missing tool is a FAILURE, never a skip. This printed a warning and
-    # returned OK, so `validate` reported success while linting no Dockerfile at
-    # all — on a host without hadolint it checked nothing and said it passed.
-    log_error "hadolint is not installed, so no Dockerfile was linted. Install it (brew install hadolint) or run this inside the devcontainer, which has it."
-    rc=1
-  fi
-
-  if [[ $rc -eq 0 ]]; then
-    log_info "validate: OK"
-  else
-    log_error "validate: FAILED"
-  fi
-  return "$rc"
+  # ONE body, in the repository-root ctl.sh. This used to be a second copy, and
+  # the 2 diverged: this one never carried the ARG-discipline check, so
+  # `.ci/ctl.sh validate` reported OK on a Dockerfile with a hardcoded version in
+  # a RUN line that `./ctl.sh validate` rejected. A weaker twin of a gate is worse
+  # than no twin, because whoever runs it believes they ran the gate.
+  bash "$REPO_ROOT/ctl.sh" validate "$@"
 }
 
 # build-all — native single-arch build of every image, in dependency order.
