@@ -2,8 +2,13 @@
 # Assert that every variant of a multi-arch image really IS the architecture that
 # its manifest declares.
 #
-# Usage: bash scripts/verify-image-arch.sh <image-ref>
+# Usage: bash scripts/verify-image-arch.sh <image-ref> [required-platforms]
 #   e.g. bash scripts/verify-image-arch.sh ghcr.io/gophersys/base:e0c6bc5
+#        bash scripts/verify-image-arch.sh ghcr.io/gophersys/base-runner:x linux/amd64
+#
+# required-platforms is a comma-separated list, and it defaults to the
+# devcontainer policy of linux/amd64,linux/arm64. An image that narrows the list
+# states its own, as base-runner does: it is amd64 only, by a measured decision.
 #
 # WHY THIS EXISTS (D42)
 # The manifest declares a platform. Nothing verified the CONTENT. The published
@@ -24,6 +29,12 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 IMAGE="${1:-}"
+# The variants that MUST be published. The first version of this script checked
+# only the variants that existed, so an image with no arm64 entry at all passed:
+# zephyr-devbox publishes amd64 only, against a policy the identity rules call
+# non-negotiable, and this script called it PASS. A check that cannot see an
+# absence is the same defect it was written to catch.
+REQUIRED_PLATFORMS="${2:-linux/amd64,linux/arm64}"
 # A Go binary that every gophersys image carries. It is the ELF probe.
 PROBE_BINARY="${PROBE_BINARY:-gofumpt}"
 
@@ -35,7 +46,8 @@ for c in docker jq; do
   command -v "$c" >/dev/null 2>&1 || { echo "missing required tool: $c" >&2; exit 127; }
 done
 
-echo "verifying that every variant of ${IMAGE} is the architecture it claims"
+echo "verifying ${IMAGE}: every required variant is present, and each IS the architecture it claims"
+echo "  required: ${REQUIRED_PLATFORMS}"
 
 # Attestation entries carry platform unknown/unknown. They hold no userland, so
 # there is nothing to run and nothing to check. Skipping them is not a silent
@@ -51,6 +63,19 @@ if [ -z "$platforms" ]; then
 fi
 
 fail=0
+
+# An absent variant first. It is invisible to every per-variant check below.
+# IFS is newline+tab here, so a space-separated expansion does NOT split. The
+# first version relied on it and produced 1 word holding the whole list, which
+# then matched nothing: an image carrying BOTH variants was reported as carrying
+# neither. Split on the comma explicitly.
+for want in $(printf '%s' "$REQUIRED_PLATFORMS" | tr ',' '\n'); do
+  if ! printf '%s\n' "$platforms" | grep -qx "$want"; then
+    printf '  %s %s publishes no %s variant, and the policy requires it\n' "$(red FAIL)" "$IMAGE" "$want" >&2
+    fail=1
+  fi
+done
+
 for platform in $platforms; do
   arch="${platform#*/}"
   # What each fact must read for this declared platform.

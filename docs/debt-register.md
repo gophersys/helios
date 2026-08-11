@@ -639,8 +639,19 @@ so their arm64 variants inherit the same amd64 userland. `base-runner` is amd64
 only, by the measured decision in D-runner-arch, so **the CI pool is not
 affected**: `verify-image-arch` passes on `base-runner:e0c6bc5`.
 
-Measured on `base` and `base-runner`. The 3 child images are derived from their
-`FROM` lines and are not yet measured, because each pull is more than 10 GB.
+**All 5 are measured now**, each by running the variant:
+
+| image | required | result |
+| --- | --- | --- |
+| `base` | amd64+arm64 | FAIL — arm64 entry is an amd64 userland |
+| `flutter` | amd64+arm64 | FAIL — same, inherited |
+| `zephyr` | amd64+arm64 | FAIL — same, inherited |
+| `zephyr-devbox` | amd64+arm64 | FAIL — **publishes no arm64 variant at all** |
+| `base-runner` | amd64 | PASS |
+
+`zephyr-devbox` is a second and separate breach of the same policy: it does not
+mislabel an arm64 image, it ships none. `00-identity.md` lists it among the
+devcontainer images that MUST be multi-arch.
 
 So the reach is every arm64 **devcontainer** user, and no CI job.
 
