@@ -212,6 +212,21 @@ Steps 1 to 4 carry the load. They prove that dev and CI use the same environment
 end to end. No step after step 4 adds a new idea. Each one is 1 image and 1 pool,
 and follows the same 2 files.
 
+## The review pool
+
+`arc-review` is the 1 pool that is not a build pool. It runs the pull request
+review agent and nothing else. It has no dind sidecar, and it carries a Claude
+credential in its environment.
+
+It is separate from `arc-org` for 1 reason. The credential is an environment
+variable on the pool, and an environment variable on a pool is readable by every
+job that runs there. On the general pool that would give the token to every build
+in the organization.
+
+The reviewer is not a gate. It cannot block a merge, because branch protection is
+not available on this plan (see debt-register D29). Its verdict is advice to the
+author, and the loop is bounded at 2 rounds.
+
 ## How to add a pool
 
 1. Add a CI job in `.devcontainer/.github/workflows/build-and-push.yml`. The job
