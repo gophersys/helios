@@ -763,7 +763,15 @@ Either give the 2 consumers 1 pin, or add a check that fails when the version in
 `runner/Dockerfile` is behind the newest tag whose diff touches a `.go` file.
 
 
-### D44
+### D44 — RESOLVED
+
+**Resolved on 2026-08-11** by #166: `ServerSideApply` is now set only where a
+resource measurably needs it, and never on an Application that manages an
+`ExternalSecret`. The cause was proven by a control experiment, not inferred.
+The history below is kept because 3 hypotheses were refuted on the way, and each
+one is a path nobody should walk again.
+
+### D44 — the history
 
 **4 Argo applications are permanently OutOfSync, and the difference is not in the
 spec.**
