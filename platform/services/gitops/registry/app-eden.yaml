@@ -20,7 +20,11 @@ spec:
     targetRevision: main
     path: apps/eden
     directory:
-      recurse: false
+      # `recurse: false` is NOT declared here, and that is deliberate. It is the
+      # Argo default, so server-side apply drops it: Argo wrote it, the API server
+      # normalised it away, and Argo saw it missing again. This Application sat
+      # OutOfSync for 5 weeks that way, with selfHeal enabled and converging never.
+      # A field that cannot be stored must not be declared.
       exclude: "00-namespace.yaml"
   destination:
     server: https://kubernetes.default.svc
