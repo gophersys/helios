@@ -2,6 +2,12 @@
 
 > Neutral principle (10 §9 layer A). Enforced mechanically by `golangci-lint` (forbidigo,
 > for banned tokens) and `hnslint` (structural module/package/directory naming).
+>
+> `hnslint` is the public repository `gophersys/hnslint`. The base image
+> `ghcr.io/gophersys/base` installs it, pinned by `ARG HNSLINT_VERSION` in
+> `.devcontainer/base/Dockerfile`, so every gate that runs in the container has it. To change
+> the check, cut a release in `gophersys/hnslint` and raise the pin. Do not build it from a
+> working tree: a binary in `GOPATH/bin` takes precedence on `PATH` and hides the pinned one.
 
 Names are the cross-language join key. They are **fully spelled out, lowercase, and
 hyphen-separated** at the slug level, and render to each ecosystem by a pure function — no
