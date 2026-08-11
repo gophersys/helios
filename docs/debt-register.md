@@ -821,11 +821,34 @@ alarm that says the cluster stopped matching git. 3 Applications hold it
 permanently while matching git exactly, so a real drift arrives into a display
 that already reads OutOfSync.
 
-To resolve, work on the Argo side: the field ownership in `metadata.managedFields`
-after a server-side apply is the first place to look, and an Argo or
-external-secrets version interaction is the second. **Do not add a broad
-`ignoreDifferences`** — it hides a real drift as effectively as the noise does,
-and the 4 measurements above show there is nothing legitimate to ignore.
+**2 hypotheses tested and REFUTED.** Both are recorded so nobody spends the time
+again.
+
+1. *The stored API version differs.* It does not. Git and the live objects are
+   both `external-secrets.io/v1`, and the CRD serves only `v1`.
+2. *Argo counts the controller's finalizer as a difference.* `managedFields` shows
+   `argocd-controller` holding `f:spec` by Apply and `external-secrets` holding
+   `f:metadata.finalizers` by Update, and the finalizer
+   `externalsecrets.external-secrets.io/externalsecret-cleanup` is on the live
+   object and not in git. That looked decisive. It is not the cause: an
+   `ignoreDifferences` on `/metadata/finalizers` for `ExternalSecret` was merged,
+   confirmed present on the live Application, with `root` Synced at the same
+   commit — and `arc-netpol` stayed OutOfSync with an empty diff. The entry was
+   reverted rather than left in place, because configuration that changes nothing
+   and carries a false explanation is worse than none.
+
+An earlier version of this entry said there was nothing legitimate to ignore. That
+was stated before the ownership data existed, and hypothesis 2 above shows why it
+was not a safe thing to assert.
+
+**Still unresolved, and what to try next.** Both `ExternalSecret` resources report
+`serverside-applied` and stay OutOfSync while every diff is empty; the
+`NetworkPolicy` beside them is Synced. So it is specific to the CRD objects under
+server-side apply. Check the Argo CD version against its known server-side-apply
+diffing defects, and compare with an `ExternalSecret` in an Application that does
+NOT set `ServerSideApply=true`. **Do not reach for a broad `ignoreDifferences`**:
+the measurements show the objects match git, so a blanket ignore would hide a real
+drift without fixing anything.
 
 
 ## Resolved
