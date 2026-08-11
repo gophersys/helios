@@ -95,9 +95,13 @@ func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 
 
 // drainTerminal drains a session's stream to its terminal, bounded so a regression fails fast
 // rather than hanging.
+// drainDeadline bounds a live harness run. Exceeding it is a FAILURE that says
+// so, never a quiet return of a partial event list.
+const drainDeadline = 60 * time.Second
+
 func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Event {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), drainDeadline)
 	defer cancel()
 	stream := session.Events(ctx, agentsession.FromSeq(0))
 	var events []agentsession.Event
@@ -107,6 +111,14 @@ func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Ev
 			if err := stream.Err(); err != nil {
 				t.Fatalf("stream fault: %v", err)
 			}
+			// A deadline is NOT a clean end of stream. This used to return the
+			// events collected so far, so the caller reported whatever the last
+			// event happened to be and the reader looked at event kinds instead
+			// of the clock. Name the timeout here, where it is known.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				t.Fatalf("the session produced no terminal event within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
+					drainDeadline, len(events), lastKind(events))
+			}
 			return events
 		}
 		events = append(events, event)
@@ -114,6 +126,14 @@ func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Ev
 			return events
 		}
 	}
+}
+
+// lastKind names the final event for a diagnostic, or "none".
+func lastKind(events []agentsession.Event) string {
+	if len(events) == 0 {
+		return "none"
+	}
+	return string(events[len(events)-1].Kind)
 }
 
 // readyObserved reports whether the stream contains the Initializing->Ready handshake.
