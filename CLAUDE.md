@@ -72,10 +72,16 @@ build target.
   with `bash .devcontainer/base/ctl.sh up`. The command starts a long-lived container, mounts the
   repository at `/workspace`, mounts the docker socket, and installs the pinned harnesses and
   hnslint. Then run `ctl.sh exec -- <cmd>` or `ctl.sh shell`.
-- The image contains the full gate toolchain of ADR-0020: gofumpt, golangci-lint, govulncheck,
-  gosec, gremlins, benchstat, hnslint, k3d, kind, nats and bun. If a tool is absent, the gate
-  fails. Do not skip the tool. Do not run the Go gate or the Go tests on the host. Run them in the
-  container.
+- The image contains the gate toolchain of ADR-0020: gofumpt, golangci-lint, govulncheck,
+  gosec, gremlins, benchstat, k3d, kind, nats and bun. If a tool is absent, the gate
+  fails. Do not skip the tool.
+  Do not run the Go gate or the Go tests on the host. Run them in the container.
+- **hnslint is NOT in the image.** This document said it was, and that was not true: it is in
+  neither `.devcontainer/base/Dockerfile` nor `runner/Dockerfile`. The `post-create` verb builds it
+  from the bind-mounted `tools/hnslint`, so a developer in the container has it and CI never does.
+  `gophersys/libs` therefore fails `phase-gate implementation` with `missing required tool(s):
+  hnslint`, because `libs` is a separate repository and does not carry the source. Recorded in
+  infrastructure `docs/debt-register.md`.
 - **The harness versions are pinned (ADR-0021).** The versions of `claude`, `omp` and `codex` are
   only in `harnesses/versions.env`. Never install the `latest` version of a harness implicitly.
   The `harness-conformance` CI job gates a change to a pin, and the job uses the real harness and
