@@ -27,8 +27,8 @@ source "$PROJECT_ROOT/../_ctl/lib.sh"
 # override the name, so a host can run several containers at the same time. The
 # workspace at /workspace is the *consuming* repository (the superproject that
 # vendors this .devcontainer submodule), not the submodule itself. Thus
-# /workspace/tools and /workspace/libs resolve. It falls back to REPO_ROOT when
-# this repository is standalone.
+# /workspace/libs and /workspace/harnesses resolve. It falls back to REPO_ROOT
+# when this repository is standalone.
 CONTAINER_NAME="${DEVCONTAINER_NAME:-${IMAGE_NAME}-devcontainer}"
 WORKSPACE_HOST="$(git -C "$PROJECT_ROOT" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
 [[ -z "$WORKSPACE_HOST" ]] && WORKSPACE_HOST="$REPO_ROOT"
@@ -42,7 +42,7 @@ Devcontainer lifecycle (self-managed, run from the host):
   shell              Interactive zsh inside the devcontainer
   down               Stop and remove the devcontainer
 
-  post-create        (in container) install Claude Code + omp + codex + hnslint, 'c' alias"
+  post-create        (in container) install Claude Code + omp + codex, 'c' alias"
 
 # -------- devcontainer lifecycle (run inside the container) --------
 
@@ -106,29 +106,11 @@ function cmd_post_create() {
     post_create_die "npm is not on PATH, so omp and codex cannot be installed"
   fi
 
-  # hnslint — the repo-local structural HNS-1 linter (tools/hnslint). The repo is bind-mounted
-  # at /workspace; install into GOPATH/bin (already on PATH). GOWORK=off so it builds standalone.
-  # 2 silent skips lived here. A failed build only warned and continued, and an
-  # absent directory only warned, so post-create finished green while the gate
-  # tool it exists to provide was missing. The gate then fails much later, in a
-  # place that cannot say why. A missing tool is a failure, never a skip.
-  #
-  # The absent-repository case is the 1 legitimate exception, and it is narrow:
-  # an image used WITHOUT the eden bind mount has no tools/hnslint to build. That
-  # is stated, not guessed, and it names what the container cannot then do.
-  local hnsdir="/workspace/tools/hnslint"
-  if [[ ! -d "$hnsdir" ]]; then
-    log_warn "post-create: ${hnsdir} is absent, so hnslint is NOT installed."
-    log_warn "post-create: this container cannot run 'phase-gate implementation' or the maintainability verb."
-    log_warn "post-create: that is expected only when the eden repository is not mounted at /workspace."
-  else
-    command -v go >/dev/null 2>&1 || post_create_die "go is missing, so hnslint cannot be built"
-    log_info "post-create: installing hnslint from ${hnsdir}"
-    ( cd "$hnsdir" && GOWORK=off go install ./cmd/hnslint ) \
-      || post_create_die "hnslint failed to build from ${hnsdir}; the Go gate needs it"
-    command -v hnslint >/dev/null 2>&1 \
-      || post_create_die "hnslint built but is not on PATH; check GOPATH/bin"
-  fi
+  # hnslint is NOT built here. It comes from `gophersys/hnslint`, and the base Dockerfile
+  # installs it pinned by ARG HNSLINT_VERSION. post-create used to build it from the
+  # bind-mounted `eden/tools/hnslint`, which gave a developer the working tree while CI got
+  # nothing, and the 2 copies then drifted. To change the version, cut a release in
+  # `gophersys/hnslint` and raise the pin.
 
   # `c` drops straight into Claude Code, skipping the permission prompt.
   # Idempotent: only append if this container's zshrc lacks it.
@@ -153,7 +135,7 @@ function _require_running() {
 # up — start (or reuse) the long-lived devcontainer: the consuming repo bind-mounted at
 # /workspace, the host Docker socket mounted (so the k3d/kind/docker integration + load lanes
 # work from inside), running as the dev user. Idempotent (reuses a stopped/running container);
-# then runs post-create once inside to install the harness CLIs + hnslint.
+# then runs post-create once inside to install the harness CLIs.
 function cmd_up() {
   require_cmd docker
   if [[ ! -d "$WORKSPACE_HOST" ]]; then
