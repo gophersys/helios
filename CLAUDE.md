@@ -70,21 +70,22 @@ build target.
 - **Do the development work inside the devcontainer.** `.devcontainer/base` is the substrate for
   development and for CI. The agent pods that Eden starts use the same image. Start the container
   with `bash .devcontainer/base/ctl.sh up`. The command starts a long-lived container, mounts the
-  repository at `/workspace`, mounts the docker socket, and installs the pinned harnesses and
-  hnslint. Then run `ctl.sh exec -- <cmd>` or `ctl.sh shell`.
+  repository at `/workspace`, mounts the docker socket, and installs the pinned harnesses. Then
+  run `ctl.sh exec -- <cmd>` or `ctl.sh shell`.
 - The image contains the gate toolchain of ADR-0020: gofumpt, golangci-lint, govulncheck,
   gosec, gremlins, benchstat, hnslint, k3d, kind, nats and bun. If a tool is absent, the gate
   fails. Do not skip the tool. Do not run the Go gate or the Go tests on the host. Run them in
   the container.
-- **hnslint comes from its own repository now.** This sentence claimed the image held it while it
-  held nothing of the kind: it was in neither `.devcontainer/base/Dockerfile` nor
-  `runner/Dockerfile`. Only `post-create` built it, from the bind-mounted `tools/hnslint`, so a
-  developer had it and CI never did, and `gophersys/libs` failed `phase-gate implementation` with
-  `missing required tool(s): hnslint`.
-  It is now `gophersys/hnslint`, a public repository, pinned by `HNSLINT_VERSION` in the base
-  Dockerfile. It is public because an image build cannot authenticate to a private repository,
-  which is the same reason `gophersys/cictl` is public. Proven in the pod shape by
+- **hnslint comes from its own repository.** It is `gophersys/hnslint`, a public repository. The
+  base Dockerfile installs it, pinned by `HNSLINT_VERSION`, so every image below `base` carries
+  it. It is public because an image build cannot authenticate to a private repository, which is
+  the same reason `gophersys/cictl` is public. Proven in the pod shape by
   `bash ctl.sh verify-runner-image e0c6bc5`, which asserts `hnslint on PATH`.
+  This bullet once said the image held the tool while no image held it, and `gophersys/libs`
+  failed `phase-gate implementation` with `missing required tool(s): hnslint`. This repository
+  also held a second copy at `tools/hnslint`, and `post-create` built that copy into `GOPATH/bin`,
+  which takes precedence on `PATH`. So a developer ran a working tree while CI ran the release.
+  Both the copy and the build are deleted.
 - **The harness versions are pinned (ADR-0021).** The versions of `claude`, `omp` and `codex` are
   only in `harnesses/versions.env`. Never install the `latest` version of a harness implicitly.
   The `harness-conformance` CI job gates a change to a pin, and the job uses the real harness and
@@ -104,9 +105,12 @@ build target.
   at the start of a session. It lints every edit of a `*.go` file (PostToolUse). It gates
   `git commit` and `git push` (PreToolUse). Install it with
   `claude plugin marketplace add ./libs && claude plugin install project-go@eden-libs`.
-- **`hnslint`** is the structural check for HNS-1. It is at `tools/hnslint`. Install it with
-  `(cd tools/hnslint && GOWORK=off go install ./cmd/hnslint)`. The shared configuration of the
-  linter is `libs/.golangci.yml`.
+- **`hnslint`** is the structural check for HNS-1. Its source is the public repository
+  `gophersys/hnslint`. This repository holds no copy of it. The base image installs it, pinned by
+  `HNSLINT_VERSION` in `.devcontainer/base/Dockerfile`, so it is on `PATH` inside the container.
+  To change the check, cut a release in `gophersys/hnslint` and raise the pin. Never build it from
+  a working tree: that binary goes to `GOPATH/bin`, it takes precedence on `PATH`, and it hides
+  the pinned one. The shared configuration of the linter is `libs/.golangci.yml`.
 
 ## Library pipeline (ADR-0020)
 
