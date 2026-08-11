@@ -44,7 +44,14 @@ spec:
         githubConfigUrl: https://github.com/gophersys
         githubConfigSecret: arc-github-app
         runnerScaleSetName: arc-org
-        minRunners: 0
+                # A warm runner. With minRunners 0 the pool has no floor, so a
+                # single pod stuck in Terminating still counts toward
+                # currentRunnerCount and the listener creates nothing: on
+                # 2026-08-11 that starved every repository for 47 minutes behind
+                # a zombie from an unrelated one. A floor of 1 means a stuck pod
+                # cannot take the last slot, and it also removes pod creation
+                # from the critical path of the common case.
+        minRunners: 1
         maxRunners: 4
         # Argo renders helm without cluster access, so the chart can't auto-discover
         # the controller SA — set it explicitly.
