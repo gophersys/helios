@@ -62,7 +62,11 @@ jobs:
         with:
           name: review-stream-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/review-stream.jsonl
-          # A missing stream means the run died before the agent produced an
-          # event. That is a real failure and it must not be hidden here.
+          # `warn` is correct here, and it cannot hide a failure. review.sh
+          # refuses an empty or missing stream itself — `guard:empty-stream` and
+          # `guard:no-result-event`, both proven able to fail in its test suite —
+          # so the Review step above is already red in every case this step could
+          # be quiet about. Making this step fail as well would add a check that
+          # can only fire when another check has already fired.
           if-no-files-found: warn
           retention-days: 14
