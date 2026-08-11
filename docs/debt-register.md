@@ -644,10 +644,27 @@ cross-compiles the Go tools with `GOARCH=$TARGETARCH` and copies them into a
 normal per-target final stage. The second also removes most of the 41.7-minute
 base build.
 
-**Whichever is chosen, an assertion must come with it**: run each published
-variant, and fail when `uname -m`, `dpkg --print-architecture` and the ELF machine
-of a Go binary disagree with the manifest platform. Without it the defect returns
-in silence, exactly as it arrived.
+**The assertion exists now**: `scripts/verify-image-arch.sh`, and
+`bash ctl.sh verify-image-arch <ref>`. It runs each published variant and fails
+when `uname -m`, `dpkg --print-architecture` and the ELF machine of a Go binary
+disagree with the manifest platform. Two of those agreeing is what hid this
+defect, because `uname` and `dpkg` agreed with each other and the binaries did
+not.
+
+Proven against real images, not against a fixture:
+
+| image | result |
+| --- | --- |
+| `base:e0c6bc5` | exit 1 — `declares linux/arm64 but holds: uname=x86_64(want aarch64) dpkg=amd64(want arm64)` |
+| `base-runner:e0c6bc5` | exit 0 |
+
+**It is NOT a step in any workflow yet, and that is deliberate.** It would be red
+on `base` from the moment it landed, for the defect recorded here, and it would
+block unrelated work before the fix is chosen. It also needs binfmt registered on
+the runner to execute a foreign-architecture variant. Wire it into
+`build-and-push.yml` in the same change that fixes this entry. Until then it is a
+tool that a human runs, and this paragraph is the record that CI does not enforce
+it.
 
 
 ## Resolved
