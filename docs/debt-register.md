@@ -748,6 +748,40 @@ Either give the 2 consumers 1 pin, or add a check that fails when the version in
 `runner/Dockerfile` is behind the newest tag whose diff touches a `.go` file.
 
 
+### D44
+
+**4 Argo applications are permanently OutOfSync, and the difference is not in the
+spec.**
+
+`root`, `arc-netpol`, `repo-credentials` and `eden` all report OutOfSync while
+Healthy. They carry `syncPolicy.automated` with `prune` and `selfHeal`, and
+`arc-netpol` is at the current `main` revision. So Argo is trying to converge and
+cannot.
+
+The difference is not the manifest. The `spec` of
+`ExternalSecret/claude-review-token` was dumped from the cluster and compared
+against `platform/services/ci/arc-runners/30-claude-review-token-externalsecret.yaml`:
+**identical**, and the object is `Ready=True`. The same shape appears on the other
+`ExternalSecret` objects and on `StatefulSet/eden-postgres` and
+`StatefulSet/vault`. A StatefulSet that reports OutOfSync on a server-defaulted
+field is a known Argo behaviour.
+
+**Why this matters more than it looks.** These are not broken workloads: every one
+is Healthy. The cost is the signal. OutOfSync is the alarm that says the cluster
+stopped matching git, and 4 applications hold it permanently for a reason nobody
+has diagnosed. A real drift would arrive into a display that already reads
+OutOfSync, and nobody would see it. It is the same defect as a check that is
+always red.
+
+**Not caused by the CI work.** The applications changed on 2026-08-10 —
+`arc-org` and `arc-review` — are Synced. The 4 above were not touched.
+
+To resolve: get the actual diff (`argocd app diff <name>`, which needs the CLI
+that is not installed here), then either fix the manifest or add a narrow
+`ignoreDifferences` entry that names the field and says why. Do not add a broad
+ignore: that hides the next real drift as effectively as the noise does.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured them.
