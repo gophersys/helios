@@ -797,11 +797,35 @@ Argo wrote it and Argo then saw it missing again. `selfHeal` made it retry for 5
 weeks. Removing the line changed no behaviour, because `false` is what `recurse`
 already is, and `root` reports Synced with an empty diff now.
 
-**What remains** is the other 3: an Application whose status says OutOfSync while
-its own diff is empty. That is a stale status rather than a drift, and the same
-reasoning applies to it — a permanently wrong alarm hides the next real one. Do
-not add a broad `ignoreDifferences` for it: that hides a real drift as
-effectively as the noise does.
+**What remains is proven false, 4 ways.** `arc-netpol` is the worked example, and
+its 2 `ExternalSecret` resources are the ones it reports:
+
+| test | result |
+| --- | --- |
+| `argocd app diff arc-netpol --core` | exit 0, empty |
+| `kubectl diff -f 30-claude-review-token-externalsecret.yaml` | exit 0, empty |
+| live `.spec` against the file in git | identical |
+| `argocd.argoproj.io/refresh=hard` | status unchanged |
+
+Argo also compares against the right commit: `OutOfSync from main (348f5ba)`, and
+`348f5ba` is the current `main`. The `NetworkPolicy` in the same Application is
+`Synced`. Only the 2 CRD resources disagree, and both carry the message
+`serverside-applied`.
+
+So the cluster matches git and the alarm is wrong. It is not a stale cache, and it
+is not the revision. It is Argo's comparison of these CRD objects under
+server-side apply.
+
+**The cost is unchanged and it is the reason this stays open.** OutOfSync is the
+alarm that says the cluster stopped matching git. 3 Applications hold it
+permanently while matching git exactly, so a real drift arrives into a display
+that already reads OutOfSync.
+
+To resolve, work on the Argo side: the field ownership in `metadata.managedFields`
+after a server-side apply is the first place to look, and an Argo or
+external-secrets version interaction is the second. **Do not add a broad
+`ignoreDifferences`** — it hides a real drift as effectively as the noise does,
+and the 4 measurements above show there is nothing legitimate to ignore.
 
 
 ## Resolved
