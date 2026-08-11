@@ -43,13 +43,35 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           REVIEW_BUDGET_USD: "25"
+          # The pinned reviewer. Raise it deliberately; see the note below.
+          CICTL_VERSION: v0.2.0
           REVIEW_STREAM_FILE: ${{ runner.temp }}/review-stream.jsonl
         run: |
           set -euo pipefail
           # cictl is on PATH in the runner image, but the reviewer's instructions
           # ship with its source. Fetch the pinned copy rather than vendoring a
           # second one that would drift.
-          git clone --depth 1 https://github.com/gophersys/cictl /tmp/cictl
+          #
+          # PINNED, and it was not before. This cloned the default branch, so
+          # every repository silently ran whatever cictl main happened to be at
+          # that minute: cictl moved 23 commits in one evening and no review from
+          # that period can be reproduced. An unpinned shared tool is also a
+          # single point of failure — a broken main would have broken the review
+          # job of every repository at once.
+          #
+          # To take a new reviewer: raise CICTL_VERSION here, in each repository
+          # that runs this workflow. The bump is deliberate, as it is for the
+          # harness pins in eden harnesses/versions.env.
+          git clone --depth 1 --branch "$CICTL_VERSION" \
+            https://github.com/gophersys/cictl /tmp/cictl
+          # Prove the checkout is the tag that was asked for. A clone that
+          # silently fell back to the default branch would defeat the pin.
+          got="$(git -C /tmp/cictl describe --tags --exact-match 2>/dev/null || echo none)"
+          [ "$got" = "$CICTL_VERSION" ] || {
+            echo "::error::cictl checkout is '$got', expected '$CICTL_VERSION'"
+            exit 1
+          }
+          echo "reviewer: cictl $got"
           bash /tmp/cictl/review/review.sh "${{ github.event.pull_request.number }}"
 
       # The full event stream: every tool call, every file read, the cost and the
