@@ -10,7 +10,7 @@
 # verbs (ADR-0020). Each per-lib ctl.sh becomes a thin dispatcher that sets its metadata
 # (leaf-or-not, coverage floor, hot paths) and sources this file, so the verb bodies are
 # defined exactly once — "one concept, one home" (10 §9). It EXTENDS the ADR-0018 enforcement
-# layer (libs/.golangci.yml, tools/hnslint, the per-lib build/test/lint/vet/fmt/cover verbs);
+# layer (libs/.golangci.yml, hnslint, the per-lib build/test/lint/vet/fmt/cover verbs);
 # it does not replace it.
 #
 # Contract for the verbs:
