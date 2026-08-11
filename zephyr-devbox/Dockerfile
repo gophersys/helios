@@ -224,6 +224,7 @@ EXPOSE 8443
 
 # Root by design: the entrypoint prepares host keys / volume ownership and
 # execs sshd. Interactive logins land as `dev` (AllowUsers dev).
+# hadolint ignore=DL3002
 USER root
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/devbox-entrypoint.sh"]

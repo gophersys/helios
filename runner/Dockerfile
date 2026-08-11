@@ -32,6 +32,13 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 ARG TARGETPLATFORM
 
+# Root by design, and it is the whole reason this layer exists. The runner sits
+# beside a privileged dind sidecar, so an unprivileged runner was never a
+# boundary, and running as `dev` produced 3 classes of permission defect in 1
+# day. run.sh also refuses to start as root unless RUNNER_ALLOW_RUNASROOT is
+# set, which this image sets. The dev images keep the `dev` user, because a
+# developer bind-mounts a repository into those.
+# hadolint ignore=DL3002
 USER root
 
 # The runner is a .NET application: libicu is a hard runtime dependency and its
