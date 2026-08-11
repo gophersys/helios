@@ -633,6 +633,17 @@ The arm64 entry is an **amd64 Ubuntu userland that carries aarch64 Go binaries**
 architecture of the BUILDER for both targets, while the Go tool layer still
 builds for `TARGETARCH`.
 
+**What is affected.** Only `base/Dockerfile` carries the `BUILDPLATFORM` pin.
+`flutter`, `zephyr` and `zephyr-devbox` all build `FROM ghcr.io/gophersys/base`,
+so their arm64 variants inherit the same amd64 userland. `base-runner` is amd64
+only, by the measured decision in D-runner-arch, so **the CI pool is not
+affected**: `verify-image-arch` passes on `base-runner:e0c6bc5`.
+
+Measured on `base` and `base-runner`. The 3 child images are derived from their
+`FROM` lines and are not yet measured, because each pull is more than 10 GB.
+
+So the reach is every arm64 **devcontainer** user, and no CI job.
+
 **Why nobody saw it.** The manifest declares the platform and nothing verifies the
 content. `.claude/rules/00-identity.md` calls the multi-arch policy
 non-negotiable, because an arm64 Mac has real users. Those users pull an emulated
