@@ -5,6 +5,14 @@ name: harness-conformance
 # inside the base devcontainer image (which carries bun + the Go gate toolchain), installs the
 # EXACT pinned harnesses via post-create, then runs the per-adapter conformance + the live gated
 # tests (real harness + real provider) against them. A protocol drift fails HERE, in the PR.
+#
+# THE JOB NEVER RUNS IN A DEGRADED MODE. Its whole value is the claim "this pin is safe to merge",
+# so an input it cannot verify is a FAILURE, never a skip:
+#   - assert-harness-conformance-preconditions.sh stops the run when a live credential is absent
+#     or when an installed harness does not carry its pin from harnesses/versions.env;
+#   - assert-no-skipped-tests.sh stops the run when any test skipped, so a test that quietly
+#     opts out can no longer report success.
+# There are no outside contributors: every credential this job needs is available to every run.
 
 on:
   pull_request:
@@ -63,17 +71,26 @@ jobs:
           HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
         run: bash .devcontainer/base/ctl.sh post-create
 
+      # The gate on the gate. It prints every version under test, and it stops the job when a live
+      # credential is absent or an installed harness drifted off its pin. It runs BEFORE the tests
+      # so a missing input costs one step, not a whole suite that would have proven nothing.
+      - name: Assert the preconditions (live credentials + the 3 harness pins)
+        env:
+          # Bootstrap credentials for the live arm (ADR-0021). Absent -> the live tests would SKIP
+          # and only the fixtures would run, which is NOT a merge-eligible verification of a pin
+          # bump. The assert turns that silent degradation into a red job.
+          CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Read the in-repo manifest rather than the /workspace default (CI checks out elsewhere).
+          HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
+        run: bash scripts/assert-harness-conformance-preconditions.sh
+
       - name: Adapter conformance + live gated tests against the pinned versions
         env:
-          # Bootstrap credentials for the live arm (ADR-0021). Absent -> the live tests SKIP and
-          # only the fixtures run, which is NOT a merge-eligible verification of a pin bump.
           CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GOWORK: ${{ github.workspace }}/go.work
         run: |
-          echo "harness versions under test:"
-          claude --version || true
-          omp --version || true
-          codex --version || true
           cd libs/go/agentsession
-          go test -tags integration -race ./... -count=1
+          bash "${GITHUB_WORKSPACE}/scripts/assert-no-skipped-tests.sh" \
+            -tags integration -race ./... -count=1

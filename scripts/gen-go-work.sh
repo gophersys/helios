@@ -18,6 +18,11 @@
 #   - deploy/servicespec                     (the typed deploy renderer; stdlib-only, own module)
 #   - apps/platformgateway/deploy            (a GOWORK=off image-build module)
 #   - libs/templates/go/http-gateway/deploy  (the template's GOWORK=off image-build module)
+#
+# Curated does NOT mean optional. `libs/go/<library>` has ONE rule with no exception: a library that
+# holds a go.mod is a workspace member. The script asserts that rule and every listed path before it
+# writes anything, and a mismatch is a FAILURE. It used to be a warning, and the warning let
+# libs/go/envelope sit outside the workspace while apps/platformgateway imported it.
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -43,6 +48,7 @@ USE_DIRS=(
   libs/go/configuration
   libs/go/dependencies
   libs/go/edenhttp
+  libs/go/envelope
   libs/go/errors
   libs/go/forge
   libs/go/gitrepository
@@ -57,17 +63,59 @@ USE_DIRS=(
   tools/hnslint
 )
 
+# ── The curated list is checked against the tree BEFORE go.work is touched, so a failure never
+# leaves a half-written workspace behind.
+
+# 1. Every listed module must exist. An absent one used to print a WARNING and exit 0, which wrote
+#    a silently INCOMPLETE go.work; the build then failed far away from the cause. It is a failure
+#    here instead. An uninitialized libs/ submodule trips this, which is the correct report.
+missing=()
+for dir in "${USE_DIRS[@]}"; do
+  if [[ ! -f "$dir/go.mod" ]]; then
+    missing+=("$dir")
+  fi
+done
+
+# 2. Every libs/go/<library> that HAS a go.mod must be listed. The replace loop below walks
+#    libs/go/*/ by directory, so a new library silently got a replace and no `use`, and dropped out
+#    of the workspace. libs/go/envelope did exactly that: apps/platformgateway imports it in
+#    production code, yet `go list ./libs/go/envelope/...` answered "outside module roots". This
+#    check makes listing a new library mandatory instead of remembered.
+unlisted=()
+for libdir in libs/go/*/; do
+  if [[ ! -f "${libdir}go.mod" ]]; then
+    continue
+  fi
+  candidate="${libdir%/}"
+  listed=0
+  for dir in "${USE_DIRS[@]}"; do
+    if [[ "$dir" == "$candidate" ]]; then
+      listed=1
+      break
+    fi
+  done
+  if [[ $listed -eq 0 ]]; then
+    unlisted+=("$candidate")
+  fi
+done
+
+if [[ ${#missing[@]} -gt 0 || ${#unlisted[@]} -gt 0 ]]; then
+  printf 'gen-go-work: FAILED — the curated module list does not match the tree.\n' >&2
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf '  listed but absent (restore the module, or remove the entry): %s\n' "${missing[*]}" >&2
+  fi
+  if [[ ${#unlisted[@]} -gt 0 ]]; then
+    printf '  holds a go.mod but is not a workspace member (add it to USE_DIRS): %s\n' "${unlisted[*]}" >&2
+  fi
+  exit 1
+fi
+
 rm -f go.work go.work.sum
 go work init
 go work edit -go="$GO_DIRECTIVE"
 
-missing=()
 for dir in "${USE_DIRS[@]}"; do
-  if [[ -f "$dir/go.mod" ]]; then
-    go work use "./$dir"
-  else
-    missing+=("$dir")
-  fi
+  go work use "./$dir"
 done
 
 # Pin every unpublished v0.0.0 sibling library to its in-repo source. This is load-bearing only for a
@@ -81,7 +129,4 @@ for libdir in libs/go/*/; do
   go work edit -replace="github.com/gophersys/libs/go/${name}@v0.0.0=./libs/go/${name}"
 done
 
-if [[ ${#missing[@]} -gt 0 ]]; then
-  printf 'gen-go-work: WARNING — listed module(s) absent, skipped: %s\n' "${missing[*]}" >&2
-fi
-printf 'gen-go-work: wrote %s/go.work (%d curated modules)\n' "$ROOT" "$(( ${#USE_DIRS[@]} - ${#missing[@]} ))"
+printf 'gen-go-work: wrote %s/go.work (%d curated modules)\n' "$ROOT" "${#USE_DIRS[@]}"
