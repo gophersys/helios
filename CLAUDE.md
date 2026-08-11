@@ -73,15 +73,18 @@ build target.
   repository at `/workspace`, mounts the docker socket, and installs the pinned harnesses and
   hnslint. Then run `ctl.sh exec -- <cmd>` or `ctl.sh shell`.
 - The image contains the gate toolchain of ADR-0020: gofumpt, golangci-lint, govulncheck,
-  gosec, gremlins, benchstat, k3d, kind, nats and bun. If a tool is absent, the gate
-  fails. Do not skip the tool.
-  Do not run the Go gate or the Go tests on the host. Run them in the container.
-- **hnslint is NOT in the image.** This document said it was, and that was not true: it is in
-  neither `.devcontainer/base/Dockerfile` nor `runner/Dockerfile`. The `post-create` verb builds it
-  from the bind-mounted `tools/hnslint`, so a developer in the container has it and CI never does.
-  `gophersys/libs` therefore fails `phase-gate implementation` with `missing required tool(s):
-  hnslint`, because `libs` is a separate repository and does not carry the source. Recorded in
-  infrastructure `docs/debt-register.md`.
+  gosec, gremlins, benchstat, hnslint, k3d, kind, nats and bun. If a tool is absent, the gate
+  fails. Do not skip the tool. Do not run the Go gate or the Go tests on the host. Run them in
+  the container.
+- **hnslint comes from its own repository now.** This sentence claimed the image held it while it
+  held nothing of the kind: it was in neither `.devcontainer/base/Dockerfile` nor
+  `runner/Dockerfile`. Only `post-create` built it, from the bind-mounted `tools/hnslint`, so a
+  developer had it and CI never did, and `gophersys/libs` failed `phase-gate implementation` with
+  `missing required tool(s): hnslint`.
+  It is now `gophersys/hnslint`, a public repository, pinned by `HNSLINT_VERSION` in the base
+  Dockerfile. It is public because an image build cannot authenticate to a private repository,
+  which is the same reason `gophersys/cictl` is public. Proven in the pod shape by
+  `bash ctl.sh verify-runner-image e0c6bc5`, which asserts `hnslint on PATH`.
 - **The harness versions are pinned (ADR-0021).** The versions of `claude`, `omp` and `codex` are
   only in `harnesses/versions.env`. Never install the `latest` version of a harness implicitly.
   The `harness-conformance` CI job gates a change to a pin, and the job uses the real harness and
