@@ -91,7 +91,7 @@ ARG GOFUMPT_VERSION=0.10.0                                             # latest 
 ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
 ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
 ARG GOSEC_VERSION=2.22.5                                               # latest LTS as of 2026-06-13
-ARG HNSLINT_VERSION=0.1.0                                               # latest as of 2026-08-11 — gophersys/hnslint, extracted from eden tools/hnslint
+ARG HNSLINT_VERSION=0.1.0                                              # latest as of 2026-08-11 — gophersys/hnslint
 ARG GREMLINS_VERSION=0.6.0                                             # latest LTS as of 2026-06-13 — needs >=0.6.0 for unleash --exclude-files (the mutate gate uses it)
 # golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
 # so it does not trip the no-hardcoded-version-in-RUN grep) — refreshed when the toolchain bumps.
