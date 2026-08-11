@@ -9,6 +9,10 @@ permissions:
 
 jobs:
   manifests:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
     runs-on: arc-org          # self-hosted (ARC)
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +74,10 @@ jobs:
             || { echo "::error::15-config-enforce.configmap.yaml is stale"; exit 1; }
 
   shellcheck:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
     runs-on: arc-org
     steps:
       - uses: actions/checkout@v4
@@ -84,6 +92,10 @@ jobs:
             | xargs -0 -r shellcheck
 
   exposure:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
     runs-on: arc-org
     steps:
       - uses: actions/checkout@v4
