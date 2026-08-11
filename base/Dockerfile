@@ -91,6 +91,7 @@ ARG GOFUMPT_VERSION=0.10.0                                             # latest 
 ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
 ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
 ARG GOSEC_VERSION=2.22.5                                               # latest LTS as of 2026-06-13
+ARG HNSLINT_VERSION=0.1.0                                               # latest as of 2026-08-11 — gophersys/hnslint, extracted from eden tools/hnslint
 ARG GREMLINS_VERSION=0.6.0                                             # latest LTS as of 2026-06-13 — needs >=0.6.0 for unleash --exclude-files (the mutate gate uses it)
 # golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
 # so it does not trip the no-hardcoded-version-in-RUN grep) — refreshed when the toolchain bumps.
@@ -279,7 +280,8 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install m
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}"
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 USER root
 
