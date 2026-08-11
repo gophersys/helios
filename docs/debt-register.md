@@ -552,9 +552,69 @@ entry point is `.github/workflows/validate.yml` calling `scripts/verify-*.sh`.
 `.ci`, so nothing was lost, but nothing was gained there either.
 
 
+### D39
+
+**hnslint is required by the libs gate and is in no image.**
+
+`gophersys/libs` `go/_ctl/lib.sh` runs `cmd_maintainability` inside
+`phase_implementation`, and that verb needs `hnslint`. The tool is in neither
+`.devcontainer/base/Dockerfile` nor `runner/Dockerfile`. The `post-create` verb
+builds it from the bind-mounted `tools/hnslint`, so a developer in the container
+has it and CI never does. `libs` is a separate repository and does not carry the
+source, so its pull request tier fails with `missing required tool(s): hnslint`.
+
+Eden `CLAUDE.md` said the image contained it. 10 of the 11 tools in that sentence
+were real. The claim is corrected in gophersys/eden#6.
+
+**The gate is behaving correctly.** It names the tool and fails, which is the
+standing rule. `libs` cannot go green until the tool is reachable.
+
+Options, cheapest first:
+1. Move `tools/hnslint` into `gophersys/libs`. It exists to lint `libs/go/<lib>`
+   structure, so that is arguably its home. No new repository, no credential.
+2. Publish it as its own public repository, as `cictl` was, and bake a pinned
+   version into `base-runner`. This also serves eden.
+3. Build it in CI from a checked-out eden with a token. This puts a private
+   dependency inside a public repository's gate.
+
+Option 1 is the recommendation. The choice is Mateo's, because it moves code
+between repositories.
+
+### D40
+
+**omp 17.2.12 does not reach a terminal event.**
+
+eden#4 bumps the pinned harnesses. `TestIntegration_LiveOmp_Gated` failed twice
+independently, at 64.65s and 62.27s, with no terminal event inside the 60-second
+drain deadline. `claudeadapter` passed both times, at 11.6s and 10.8s, and both
+`affected-gate` jobs pass. The failure is specific to omp.
+
+The message named the last event rather than the deadline, which sent the first
+reader to look at event kinds instead of the clock. That is fixed in
+gophersys/libs#2, and the deadline branch there is proven in both directions.
+
+**The bump must not merge until this is understood.** A harness that stops
+terminating is not a version to pin. The decision is Mateo's: raise the deadline,
+take it upstream, or reject the bump.
+
+### D41
+
+**The shared reviewer was unpinned in every repository.**
+
+`pr-review.yml` cloned the default branch of `gophersys/cictl`. Every repository
+ran whatever `cictl` main was at that minute, and `cictl` moved 23 commits in 1
+evening, so no review from that period can be reproduced. A broken main would
+also have broken the review job of every repository at the same time.
+
+**Resolved** in #148 and gophersys/.devcontainer#24: the workflow clones the tag
+in `CICTL_VERSION` and then asserts the checkout is that tag, because a clone that
+fell back to a default branch would defeat the pin silently. `cictl v0.2.0` is the
+first pinned version.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured them.
-So far: **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 +
+So far: **D41** (#148); **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 +
 workspaces#1), **D7** (#34), **D8** (#34); **D2** (#40); **D5** (#32, #36-#38,
 login verified).
