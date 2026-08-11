@@ -92,6 +92,11 @@ RUN CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
 #
 # The install is verified in the same layer. A silent failure here would surface
 # much later, as "missing required tool: claude" in a review job.
+# pipefail, so a failed curl cannot be hidden by the bash that follows it. Without
+# it, a 404 or a dropped connection sends an EMPTY script into bash, which exits 0
+# and leaves the image with no claude at all. The verification below would still
+# catch it, but the pipe must not lie in the first place.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl -fsSL https://claude.ai/install.sh | bash -s "${CLAUDE_CODE_VERSION}" \
  && ln -sfn /root/.local/bin/claude /usr/local/bin/claude \
  && installed="$(claude --version 2>/dev/null || true)" \

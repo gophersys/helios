@@ -193,7 +193,11 @@ function cmd_validate() {
       hadolint "$dir/Dockerfile" || rc=1
     done
   else
-    log_warn "hadolint not installed — skipping Dockerfile lint"
+    # A missing tool is a FAILURE, never a skip. This printed a warning and
+    # returned OK, so `validate` reported success while linting no Dockerfile at
+    # all — on a host without hadolint it checked nothing and said it passed.
+    log_error "hadolint is not installed, so no Dockerfile was linted. Install it (brew install hadolint) or run this inside the devcontainer, which has it."
+    rc=1
   fi
 
   if [[ $rc -eq 0 ]]; then
