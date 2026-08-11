@@ -841,14 +841,30 @@ An earlier version of this entry said there was nothing legitimate to ignore. Th
 was stated before the ownership data existed, and hypothesis 2 above shows why it
 was not a safe thing to assert.
 
-**Still unresolved, and what to try next.** Both `ExternalSecret` resources report
-`serverside-applied` and stay OutOfSync while every diff is empty; the
-`NetworkPolicy` beside them is Synced. So it is specific to the CRD objects under
-server-side apply. Check the Argo CD version against its known server-side-apply
-diffing defects, and compare with an `ExternalSecret` in an Application that does
-NOT set `ServerSideApply=true`. **Do not reach for a broad `ignoreDifferences`**:
-the measurements show the objects match git, so a blanket ignore would hide a real
-drift without fixing anything.
+3. *The known upstream defect in server-side diff for CRDs.* Argo CD is `v3.4.4`,
+   and issue [argoproj/argo-cd#27625](https://github.com/argoproj/argo-cd/issues/27625)
+   describes exactly this shape: server-side diff mishandles a CRD whose schema
+   declares `x-kubernetes-preserve-unknown-fields`, because the code cannot tell
+   "not in the manager's recorded ownership" from "added by a webhook". The
+   precondition does not hold here. The `externalsecrets.external-secrets.io` CRD
+   has **0** occurrences of `x-kubernetes-preserve-unknown-fields` in its schema.
+
+**The correlation, measured.** Every Application that carries an `ExternalSecret`
+sets `ServerSideApply=true`, and all 3 are OutOfSync. The `NetworkPolicy` inside
+`arc-netpol`, under the same Application and the same sync option, is Synced. So
+it is not server-side apply alone; it is server-side apply together with this CRD.
+No Application without `ServerSideApply=true` carries an `ExternalSecret`, so the
+cluster holds no control case to compare against.
+
+**What is left is a decision, not a diagnosis.** The documented workaround is
+`controller.diff.server.side=false` in `argocd-cmd-params-cm`, which turns off
+server-side diff for the WHOLE cluster. That trades a false OutOfSync on 3
+Applications for a change in how every Application is compared, and it is Mateo's
+call, not a fix to apply quietly. A control case would settle it first: 1
+`ExternalSecret` in an Application without `ServerSideApply=true`.
+
+**Do not reach for a broad `ignoreDifferences`**: the measurements show the objects
+match git, so a blanket ignore would hide a real drift without fixing anything.
 
 
 ## Resolved
