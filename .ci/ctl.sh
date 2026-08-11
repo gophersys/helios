@@ -20,9 +20,14 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-CI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$CI_DIR/.." && pwd)"
-export REPO_ROOT
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
+
+# The logging and the tool gate live in _ctl/lib.sh, 1 time only. This script
+# owns the verbs that act on the whole set of images.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=../_ctl/lib.sh
+source "$REPO_ROOT/_ctl/lib.sh"
 
 # Dependency order — parents first.
 BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox)
@@ -38,39 +43,6 @@ function image_dir() {
   esac
 }
 
-# -------- logging --------
-function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
-function log_warn()  { printf '\033[0;33m[warn]\033[0m  %s\n' "$*" >&2; }
-function log_error() { printf '\033[0;31m[error]\033[0m %s\n' "$*" >&2; }
-
-# -------- tool gate --------
-function require_cmd() {
-  local missing=()
-  local cmd
-  for cmd in "$@"; do
-    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
-  done
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    log_error "missing required tool(s): ${missing[*]}"
-    exit 127
-  fi
-}
-
-# -------- cleanup --------
-BG_PIDS=()
-
-function on_exit() {
-  local rc=$?
-  local pid
-  if [[ ${#BG_PIDS[@]} -gt 0 ]]; then
-    for pid in "${BG_PIDS[@]}"; do
-      kill "$pid" 2>/dev/null || true  # already exited — expected
-    done
-  fi
-  return "$rc"
-}
-trap on_exit EXIT
-
 # -------- helpers --------
 function repo_ctl() {
   (cd "$REPO_ROOT" && bash ./ctl.sh "$@")
@@ -80,55 +52,12 @@ function repo_ctl() {
 
 # validate — shellcheck + hadolint + jq, recursive over the managed tree.
 function cmd_validate() {
-  require_cmd shellcheck jq
-  local rc=0
-  local name dir script
-
-  log_info "shellcheck: .ci/ctl.sh"
-  shellcheck "$CI_DIR/ctl.sh" || rc=1
-
-  if [[ -f "$CI_DIR/smoke.sh" ]]; then
-    log_info "shellcheck: .ci/smoke.sh"
-    shellcheck "$CI_DIR/smoke.sh" || rc=1
-  fi
-
-  log_info "shellcheck: ctl.sh"
-  shellcheck "$REPO_ROOT/ctl.sh" || rc=1
-
-  for name in "${BUILD_ORDER[@]}"; do
-    dir="$(image_dir "$name")"
-    # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
-    for script in "$dir"/*.sh; do
-      log_info "shellcheck: ${name}/$(basename "$script")"
-      shellcheck "$script" || rc=1
-    done
-
-    log_info "jq parse: ${name}/project.json"
-    jq empty "$dir/project.json" || rc=1
-  done
-
-  log_info "jq parse: project.json"
-  jq empty "$REPO_ROOT/project.json" || rc=1
-
-  log_info "jq parse: .ci/project.json"
-  jq empty "$CI_DIR/project.json" || rc=1
-
-  if command -v hadolint >/dev/null 2>&1; then
-    for name in "${BUILD_ORDER[@]}"; do
-      dir="$(image_dir "$name")"
-      log_info "hadolint: ${name}/Dockerfile"
-      hadolint "$dir/Dockerfile" || rc=1
-    done
-  else
-    log_warn "hadolint not installed — skipping Dockerfile lint"
-  fi
-
-  if [[ $rc -eq 0 ]]; then
-    log_info "validate: OK"
-  else
-    log_error "validate: FAILED"
-  fi
-  return "$rc"
+  # ONE body, in the repository-root ctl.sh. This used to be a second copy, and
+  # the 2 diverged: this one never carried the ARG-discipline check, so
+  # `.ci/ctl.sh validate` reported OK on a Dockerfile with a hardcoded version in
+  # a RUN line that `./ctl.sh validate` rejected. A weaker twin of a gate is worse
+  # than no twin, because whoever runs it believes they ran the gate.
+  bash "$REPO_ROOT/ctl.sh" validate "$@"
 }
 
 # build-all — native single-arch build of every image, in dependency order.
@@ -154,13 +83,11 @@ function cmd_build_all_multi_arch() {
 }
 
 # push-all — ENFORCED multi-arch push of every image to ghcr.
-# Refuses if buildx isn't set up for the required platforms.
+# This verb checks only that buildx exists, because the required platform list
+# is not the same for every image. The per-image ctl.sh calls the full guard
+# require_buildx_and_multi_arch with its own list.
 function cmd_push_all() {
-  require_cmd docker
-  if ! docker buildx version >/dev/null 2>&1; then
-    log_error "docker buildx is not installed — multi-arch push is mandatory"
-    exit 127
-  fi
+  require_buildx
   local name
   for name in "${BUILD_ORDER[@]}"; do
     log_info "=== pushing ${name} (multi-arch) ==="
@@ -173,14 +100,14 @@ function cmd_push_all() {
 # QEMU is not involved because we run the image for our own arch.
 function cmd_smoke_test_all() {
   require_cmd docker
-  if [[ ! -x "$CI_DIR/smoke.sh" ]]; then
+  if [[ ! -x "$PROJECT_ROOT/smoke.sh" ]]; then
     log_error "missing or non-executable: .ci/smoke.sh"
     return 1
   fi
   local name rc=0
   for name in "${BUILD_ORDER[@]}"; do
     log_info "=== smoke-testing ${name} ==="
-    if ! bash "$CI_DIR/smoke.sh" "$name"; then
+    if ! bash "$PROJECT_ROOT/smoke.sh" "$name"; then
       log_error "smoke-test failed for ${name}"
       rc=1
     fi

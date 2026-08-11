@@ -165,6 +165,10 @@ RUN mkdir -p /etc/ssh/sshd_config.d /etc/ssh/hostkeys /etc/devbox \
 # parent layers export via Docker ENV must also land in /etc/zsh/zshenv
 # (the base layer already does this for its own toolchains).
 # -------------------------------------------------------------------------
+# The single quotes are the point: ${PATH} must reach the profile file as literal
+# text, to be expanded at login and not at build time. Expanding it here would
+# freeze the build-time PATH into every SSH session.
+# hadolint ignore=SC2016
 RUN { \
       echo '# Set by gophersys/zephyr-devbox Dockerfile — SSH logins do not inherit container ENV.'; \
       echo 'export PATH=/opt/west-venv/bin:/opt/esptool-venv/bin:${PATH}'; \
@@ -220,6 +224,7 @@ EXPOSE 8443
 
 # Root by design: the entrypoint prepares host keys / volume ownership and
 # execs sshd. Interactive logins land as `dev` (AllowUsers dev).
+# hadolint ignore=DL3002
 USER root
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/devbox-entrypoint.sh"]

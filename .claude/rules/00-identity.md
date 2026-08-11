@@ -38,13 +38,17 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 ├── README.md
 ├── project.json                 # repo-level Nx wiring
 ├── ctl.sh                       # repo-wide control
+├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time
 ├── .claude/rules/00-identity.md # (this file)
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer — no devcontainer.json
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
-└── .github/workflows/build-and-push.yml
+└── .github/workflows/
+    ├── build-and-push.yml    # publish the images
+    ├── validate.yml          # the pull request gate: ctl.sh validate + BUILD_ORDER + shellcheck -x
+    └── pr-review.yml         # the review agent, shared from gophersys/cictl
 ```
 
 ## Conventions
@@ -56,8 +60,19 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`. It also
    contains each script that the image COPYs in, for example an entrypoint.
    `validate` runs shellcheck on all `*.sh` files in an image directory. Do not
-   write a README for an image. The function `ctl.sh usage()` is the
+   write a README for an image. The output of `bash ./ctl.sh help` is the
    specification.
+
+   **A per-image `ctl.sh` is a thin dispatcher.** The body of each verb is in
+   `_ctl/lib.sh`, 1 time only. The per-image script sets its data
+   (`IMAGE_NAME`, and any build argument), it sources the library, and it
+   sends the verb to `image_main`. Never copy a verb body into an image
+   directory. Add the verb to the library, and every image has it.
+   `_ctl/` is not an image directory. The leading underscore says so, and it
+   follows `gophersys/libs`, which uses `go/_ctl/lib.sh` for the same purpose.
+   An image that adds a verb of its own handles that verb first, then sends
+   every other verb to `image_main`. `base/ctl.sh` does this for the
+   devcontainer lifecycle verbs.
 
    **`runner/` is the 1 exception, and this is intentional.** It is a CI image
    and nobody opens it in an editor, so it contains no `devcontainer.json`. It
@@ -106,10 +121,19 @@ For devcontainer images:
 | `build-multi-arch` | local verification | buildx multi-arch, `--load=false` |
 | `push` | publish | **ENFORCED** buildx multi-arch, no flag to downgrade |
 
-The repository-root `ctl.sh` and each per-image `ctl.sh` contain the guard
-`require_buildx_and_multi_arch`. The guard runs at the start of every `push`
-verb. It fails closed in 3 conditions: buildx is absent, no buildx builder is
-active, or the active builder cannot emulate the 2 required platforms.
+The guard `require_buildx_and_multi_arch` is in `_ctl/lib.sh`, 1 time only. The
+guard runs at the start of every per-image `push` verb. It fails closed in 4
+conditions: the platform list is empty, buildx is absent, no buildx builder is
+active, or the active builder cannot emulate 1 of the required platforms.
+
+The list of platforms is a property of the image. `MULTI_ARCH_PLATFORMS` in the
+library gives the default `linux/amd64,linux/arm64`. An image narrows the list
+only with a measurement, as `runner/ctl.sh` does.
+
+The repository-root `ctl.sh` does **not** call the guard. It sends `push` to the
+per-image `ctl.sh`, which calls the guard with its own list. The root script
+cannot call the guard correctly, because the list is not the same for every
+image. Do not add a call to the guard there.
 
 The CI workflow enforces the same policy. It always sets up QEMU and buildx,
 and it builds with `--platform linux/amd64,linux/arm64 --push`.
@@ -171,6 +195,11 @@ base-   flutter  zephyr
 runner              │
               zephyr-devbox
 ```
+
+`validate.yml` runs `bash ./ctl.sh validate` and asserts that BUILD_ORDER agrees
+between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh validate` delegates to the root
+`ctl.sh`: it used to be a second copy and the 2 diverged, so it reported OK on a
+Dockerfile that the root script rejected.
 
 The graph is declared in 4 places. All 4 MUST stay the same:
 
