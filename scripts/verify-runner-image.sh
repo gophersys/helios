@@ -92,7 +92,10 @@ else
   bad "docker cannot run a container"
 fi
 
-for t in cictl kubeconform kubectl helm jq yq git go node python3; do
+# hnslint joins the list because gophersys/libs cannot gate without it. It was in
+# no image at all until gophersys/hnslint v0.1.0, and nothing here would have said
+# so: the harness asserted the tools it happened to know about.
+for t in cictl hnslint kubeconform kubectl helm jq yq git go node python3; do
   if command -v "$t" >/dev/null 2>&1; then ok "$t on PATH"; else bad "$t MISSING from PATH"; fi
 done
 
