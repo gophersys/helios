@@ -54,7 +54,7 @@ spec:
               # Seeds /home/runner/externals, which is the runner's own bundled
               # Node. It must be the SAME image as the runner container.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/base-runner:66b3b53
+                image: ghcr.io/gophersys/base-runner:e0c6bc5
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -62,7 +62,7 @@ spec:
 
             containers:
               - name: runner
-                image: ghcr.io/gophersys/base-runner:66b3b53
+                image: ghcr.io/gophersys/base-runner:e0c6bc5
                 command: ["/home/runner/run.sh"]
                 env:
                   # The Claude credential. It reaches this pod from Vaultwarden
