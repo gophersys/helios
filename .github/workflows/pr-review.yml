@@ -43,6 +43,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           REVIEW_BUDGET_USD: "25"
+          REVIEW_STREAM_FILE: ${{ runner.temp }}/review-stream.jsonl
         run: |
           set -euo pipefail
           # cictl is on PATH in the runner image, but the reviewer's instructions
@@ -50,3 +51,22 @@ jobs:
           # second one that would drift.
           git clone --depth 1 https://github.com/gophersys/cictl /tmp/cictl
           bash /tmp/cictl/review/review.sh "${{ github.event.pull_request.number }}"
+
+      # The full event stream: every tool call, every file read, the cost and the
+      # turn count. `if: always()` is the point of it — a review that failed is
+      # exactly the one whose stream you need, and without this the only way to
+      # diagnose it is to pay for another run.
+      - name: Keep the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-stream-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/review-stream.jsonl
+          # `warn` is correct here, and it cannot hide a failure. review.sh
+          # refuses an empty or missing stream itself — `guard:empty-stream` and
+          # `guard:no-result-event`, both proven able to fail in its test suite —
+          # so the Review step above is already red in every case this step could
+          # be quiet about. Making this step fail as well would add a check that
+          # can only fire when another check has already fired.
+          if-no-files-found: warn
+          retention-days: 14
