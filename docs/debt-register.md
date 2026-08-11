@@ -612,6 +612,44 @@ fell back to a default branch would defeat the pin silently. `cictl v0.2.0` is t
 first pinned version.
 
 
+### D42
+
+**The published `linux/arm64` base image is not arm64.**
+
+Measured on `ghcr.io/gophersys/base:e0c6bc5` by running each manifest variant and
+reading the ELF machine byte of a Go binary. It was not read off the Dockerfile.
+
+| variant | `uname -m` | `dpkg --print-architecture` | gofumpt ELF |
+| --- | --- | --- | --- |
+| amd64 | x86_64 | amd64 | x86-64 |
+| arm64 | x86_64 | amd64 | **aarch64** |
+
+The arm64 entry is an **amd64 Ubuntu userland that carries aarch64 Go binaries**.
+`:latest` is the same. The amd64 entry is correct.
+
+**Cause.** `base/Dockerfile` line 27 is
+`FROM --platform=${BUILDPLATFORM:-linux/amd64} ubuntu:24.04`. A `FROM` pinned to
+`BUILDPLATFORM` makes the operating system layer and every apt package the
+architecture of the BUILDER for both targets, while the Go tool layer still
+builds for `TARGETARCH`.
+
+**Why nobody saw it.** The manifest declares the platform and nothing verifies the
+content. `.claude/rules/00-identity.md` calls the multi-arch policy
+non-negotiable, because an arm64 Mac has real users. Those users pull an emulated
+amd64 userland whose gate tools are a different architecture.
+
+**The fix** is to drop the `BUILDPLATFORM` pin so each target builds its own
+operating system layer, or to add a `--platform=$BUILDPLATFORM` builder stage that
+cross-compiles the Go tools with `GOARCH=$TARGETARCH` and copies them into a
+normal per-target final stage. The second also removes most of the 41.7-minute
+base build.
+
+**Whichever is chosen, an assertion must come with it**: run each published
+variant, and fail when `uname -m`, `dpkg --print-architecture` and the ELF machine
+of a Go binary disagree with the manifest platform. Without it the defect returns
+in silence, exactly as it arrived.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured them.
