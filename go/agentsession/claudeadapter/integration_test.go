@@ -17,6 +17,7 @@ package claudeadapter_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,7 +66,10 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 		t.Fatalf("Prompt: %v", err)
 	}
 
-	events := drainTerminal(t, session)
+	events, drainErr := drainTerminal(session)
+	if drainErr != nil {
+		t.Fatal(drainErr)
+	}
 	if len(events) == 0 {
 		t.Fatal("the stub subprocess produced no events")
 	}
@@ -182,7 +186,10 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events := drainTerminal(t, session)
+	events, drainErr := drainTerminal(session)
+	if drainErr != nil {
+		t.Fatal(drainErr)
+	}
 	if len(events) == 0 || !events[len(events)-1].IsTerminal() {
 		t.Fatalf("live session did not reach a terminal")
 	}
@@ -346,7 +353,10 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events := drainTerminal(t, session)
+	events, drainErr := drainTerminal(session)
+	if drainErr != nil {
+		t.Fatal(drainErr)
+	}
 	for i := range events {
 		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
 	}
@@ -582,9 +592,17 @@ func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 
 // so, never a quiet return of a partial event list.
 const drainDeadline = 15 * time.Second
 
-func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Event {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), drainDeadline)
+// It returns an error rather than calling t.Fatalf, so that the deadline branch
+// below can be driven from a test. While it took a *testing.T that branch could
+// not be reached by any test, and it shipped unproven.
+func drainTerminal(session agentsession.Session) ([]agentsession.Event, error) {
+	return drainTerminalWithin(session, drainDeadline)
+}
+
+// drainTerminalWithin takes the deadline as a parameter so a test can drive the
+// timeout branch in seconds instead of waiting out the production deadline.
+func drainTerminalWithin(session agentsession.Session, deadline time.Duration) ([]agentsession.Event, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	stream := session.Events(ctx, agentsession.FromSeq(0))
 	var events []agentsession.Event
@@ -592,21 +610,21 @@ func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Ev
 		event, ok := stream.Next(ctx)
 		if !ok {
 			if err := stream.Err(); err != nil {
-				t.Fatalf("stream fault: %v", err)
+				return events, fmt.Errorf("stream fault: %w", err)
 			}
 			// A deadline is NOT a clean end of stream. This used to return the
 			// events collected so far, so the caller reported whatever the last
 			// event happened to be and the reader looked at event kinds instead
 			// of the clock. Name the timeout here, where it is known.
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				t.Fatalf("the session produced no terminal event within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
-					drainDeadline, len(events), lastKind(events))
+			if ctx.Err() != nil {
+				return events, fmt.Errorf("no terminal event within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
+					deadline, len(events), lastKind(events))
 			}
-			return events
+			return events, nil
 		}
 		events = append(events, event)
 		if event.IsTerminal() {
-			return events
+			return events, nil
 		}
 	}
 }
