@@ -1,0 +1,62 @@
+# The pull request gate for this repository.
+#
+# The repository has had a `validate` verb since it was created, and nothing ran
+# it. A refactor that removed 578 lines from the control scripts reached a pull
+# request with no gate at all. A verb that only a human remembers to run is not a
+# gate.
+#
+# It runs on `arc-org`, whose image is this repository's own `base` + runner
+# layer, so shellcheck, hadolint and jq are already present. There is no
+# tool-install step, and a missing tool is a FAILURE rather than a skip.
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: arc-org          # self-hosted (ARC)
+    steps:
+      - uses: actions/checkout@v4
+
+      # shellcheck over every script, hadolint over every Dockerfile, jq over
+      # every devcontainer.json, and the ARG-discipline check that forbids a
+      # hardcoded version in a RUN line.
+      - name: ctl.sh validate
+        run: bash ./ctl.sh validate
+
+      # The dependency graph is declared in 4 places and all 4 must agree. This
+      # asserts the 2 that are machine-checkable from here: BUILD_ORDER in the
+      # repository-root ctl.sh and in .ci/ctl.sh. They drifted once already —
+      # .ci/providers/github/build-and-push.yml became an old copy that listed 3
+      # images, and nobody saw the difference.
+      - name: BUILD_ORDER agrees between ctl.sh and .ci/ctl.sh
+        run: |
+          set -euo pipefail
+          root="$(grep -oE '^BUILD_ORDER=\(.*\)' ctl.sh | head -1)"
+          ci="$(grep -oE '^BUILD_ORDER=\(.*\)' .ci/ctl.sh | head -1)"
+          if [ -z "$root" ] || [ -z "$ci" ]; then
+            echo "::error::BUILD_ORDER not found in ctl.sh or .ci/ctl.sh"
+            exit 1
+          fi
+          if [ "$root" != "$ci" ]; then
+            echo "::error::BUILD_ORDER differs between ctl.sh and .ci/ctl.sh"
+            printf '  ctl.sh:     %s\n  .ci/ctl.sh: %s\n' "$root" "$ci"
+            exit 1
+          fi
+          echo "BUILD_ORDER agrees: $root"
+
+      # The shared library is the most important script here: every image's ctl.sh
+      # is a thin dispatcher into it. `shellcheck -x` follows the source line, so
+      # each dispatcher is linted together with the library rather than alone.
+      - name: the shared ctl library is linted with its callers
+        run: |
+          set -euo pipefail
+          test -f _ctl/lib.sh || { echo "::error::_ctl/lib.sh is missing"; exit 1; }
+          shellcheck -x -S style _ctl/lib.sh ./ctl.sh ./*/ctl.sh
+          echo "the library and every dispatcher are clean"
