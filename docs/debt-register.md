@@ -661,6 +661,25 @@ does `base-runner`.
 non-negotiable for all 4 devcontainer images while 1 of them is amd64 only by a
 merged decision. Corrected in gophersys/.devcontainer.
 
+**Measured: the arm64 variant works, and that is the argument against keeping it.**
+Running `ghcr.io/gophersys/base:e0c6bc5` as `linux/arm64` on an Apple Silicon
+host, the Go tools execute:
+
+```
+gofumpt        v0.10.0 (go1.26.4)
+golangci-lint  2.12.2
+```
+
+They run because the host executes the aarch64 binaries natively while Docker
+Desktop emulates the amd64 userland around them. That is why nobody saw this: on
+the only machine that would consume an arm64 image, it appears to work.
+
+**The point of a native arm64 image is to avoid emulation. This one emulates its
+userland regardless.** So it delivers none of the benefit that justifies the
+build, and it costs the larger half of a 41.7-minute build. On a bare arm64 Linux
+host with no Rosetta, the amd64 `bash` itself would need `qemu-user-static`
+registered, and the image would be slower still or would not start.
+
 **A third option for this entry, from that same commit.** It records that no arm64
 consumer can be verified for ANY image: this Mac has created 1 container in its
 history, `node:22-bookworm`, and never a gophersys devcontainer. So the choice is
