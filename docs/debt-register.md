@@ -689,6 +689,31 @@ tool that a human runs, and this paragraph is the record that CI does not enforc
 it.
 
 
+### D43
+
+**`cictl` is pinned twice, at 2 versions, and nothing keeps the 2 in step.**
+
+| consumer | pin | what it uses |
+| --- | --- | --- |
+| `.devcontainer/runner/Dockerfile` | `CICTL_VERSION=v0.1.0` | the `cictl` binary on PATH |
+| `pr-review.yml`, both repositories | `CICTL_VERSION=v0.2.0` | `review/review.sh` and its instructions |
+
+The 2 consumers are real and separate: the image needs the compiled contract
+tool, and the review job needs the reviewer scripts. Pinning both is correct.
+Pinning them at different versions with nothing to notice is not.
+
+**This is not urgent today, and the measurement says so.** The only Go change
+between `v0.1.0` and `v0.2.0` is a 9-line comment in `cmd/cictl/run.go`, so the
+binary is functionally identical. Everything else in that range is `review/`.
+
+**It becomes a defect on the next change to the Go sources.** Nothing then makes
+anyone raise `CICTL_VERSION` in the Dockerfile, the image keeps an older contract
+tool, and the gap is invisible because both numbers look deliberate.
+
+Either give the 2 consumers 1 pin, or add a check that fails when the version in
+`runner/Dockerfile` is behind the newest tag whose diff touches a `.go` file.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR that captured them.
