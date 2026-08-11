@@ -50,6 +50,11 @@ Devcontainer lifecycle (self-managed, run from the host):
 # base/devcontainer.json's postCreateCommand). Installs the current Claude
 # Code release fresh on every create — never pinned into the image — then
 # wires the `c` launch alias.
+# post_create_die ends post-create with a named cause. Every install here used to
+# warn and continue, so the container reported ready while a pinned harness or a
+# gate tool was absent, and the failure surfaced much later somewhere else.
+function post_create_die() { log_error "post-create: $*"; exit 1; }
+
 function cmd_post_create() {
   require_cmd curl
 
@@ -91,20 +96,38 @@ function cmd_post_create() {
   if command -v npm >/dev/null 2>&1; then
     local omp_pkg="@oh-my-pi/pi-coding-agent"; [[ -n "$omp_version" ]] && omp_pkg="${omp_pkg}@${omp_version}"
     local codex_pkg="@openai/codex";          [[ -n "$codex_version" ]] && codex_pkg="${codex_pkg}@${codex_version}"
-    npm install -g "$omp_pkg"   || log_warn "post-create: omp install failed (continuing)"
-    npm install -g "$codex_pkg" || log_warn "post-create: codex install failed (continuing)"
+    # These 2 also only warned and continued. A container that finishes
+    # post-create with no omp is a container whose harness-conformance job fails
+    # later, far from the cause. ADR-0021 pins these versions; a pin that did not
+    # install is not a pin.
+    npm install -g "$omp_pkg"   || post_create_die "omp ${omp_pkg} failed to install"
+    npm install -g "$codex_pkg" || post_create_die "codex ${codex_pkg} failed to install"
   else
-    log_warn "post-create: npm not found — skipping omp/codex install"
+    post_create_die "npm is not on PATH, so omp and codex cannot be installed"
   fi
 
   # hnslint — the repo-local structural HNS-1 linter (tools/hnslint). The repo is bind-mounted
   # at /workspace; install into GOPATH/bin (already on PATH). GOWORK=off so it builds standalone.
+  # 2 silent skips lived here. A failed build only warned and continued, and an
+  # absent directory only warned, so post-create finished green while the gate
+  # tool it exists to provide was missing. The gate then fails much later, in a
+  # place that cannot say why. A missing tool is a failure, never a skip.
+  #
+  # The absent-repository case is the 1 legitimate exception, and it is narrow:
+  # an image used WITHOUT the eden bind mount has no tools/hnslint to build. That
+  # is stated, not guessed, and it names what the container cannot then do.
   local hnsdir="/workspace/tools/hnslint"
-  if [[ -d "$hnsdir" ]] && command -v go >/dev/null 2>&1; then
-    log_info "post-create: installing hnslint from ${hnsdir}"
-    ( cd "$hnsdir" && GOWORK=off go install ./cmd/hnslint ) || log_warn "post-create: hnslint install failed (continuing)"
+  if [[ ! -d "$hnsdir" ]]; then
+    log_warn "post-create: ${hnsdir} is absent, so hnslint is NOT installed."
+    log_warn "post-create: this container cannot run 'phase-gate implementation' or the maintainability verb."
+    log_warn "post-create: that is expected only when the eden repository is not mounted at /workspace."
   else
-    log_warn "post-create: ${hnsdir} or go not found — skipping hnslint install"
+    command -v go >/dev/null 2>&1 || post_create_die "go is missing, so hnslint cannot be built"
+    log_info "post-create: installing hnslint from ${hnsdir}"
+    ( cd "$hnsdir" && GOWORK=off go install ./cmd/hnslint ) \
+      || post_create_die "hnslint failed to build from ${hnsdir}; the Go gate needs it"
+    command -v hnslint >/dev/null 2>&1 \
+      || post_create_die "hnslint built but is not on PATH; check GOPATH/bin"
   fi
 
   # `c` drops straight into Claude Code, skipping the permission prompt.
