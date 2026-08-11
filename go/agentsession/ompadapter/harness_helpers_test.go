@@ -11,6 +11,7 @@ package ompadapter_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
+	"github.com/gophersys/libs/go/secrets"
 	"github.com/gophersys/libs/go/secrets/secretstest"
 )
 
@@ -95,9 +97,21 @@ func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 
 
 // drainTerminal drains a session's stream to its terminal, bounded so a regression fails fast
 // rather than hanging.
-func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Event {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+// drainDeadline bounds a live harness run. Exceeding it is a FAILURE that says
+// so, never a quiet return of a partial event list.
+const drainDeadline = 60 * time.Second
+
+// It returns an error rather than calling t.Fatalf, so that the deadline branch
+// below can be driven from a test. While it took a *testing.T that branch could
+// not be reached by any test, and it shipped unproven.
+func drainTerminal(session agentsession.Session) ([]agentsession.Event, error) {
+	return drainTerminalWithin(session, drainDeadline)
+}
+
+// drainTerminalWithin takes the deadline as a parameter so a test can drive the
+// timeout branch in seconds instead of waiting out the production deadline.
+func drainTerminalWithin(session agentsession.Session, deadline time.Duration) ([]agentsession.Event, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	stream := session.Events(ctx, agentsession.FromSeq(0))
 	var events []agentsession.Event
@@ -105,15 +119,31 @@ func drainTerminal(t *testing.T, session agentsession.Session) []agentsession.Ev
 		event, ok := stream.Next(ctx)
 		if !ok {
 			if err := stream.Err(); err != nil {
-				t.Fatalf("stream fault: %v", err)
+				return events, fmt.Errorf("stream fault: %w", err)
 			}
-			return events
+			// A deadline is NOT a clean end of stream. This used to return the
+			// events collected so far, so the caller reported whatever the last
+			// event happened to be and the reader looked at event kinds instead
+			// of the clock. Name the timeout here, where it is known.
+			if ctx.Err() != nil {
+				return events, fmt.Errorf("no terminal event within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
+					deadline, len(events), lastKind(events))
+			}
+			return events, nil
 		}
 		events = append(events, event)
 		if event.IsTerminal() {
-			return events
+			return events, nil
 		}
 	}
+}
+
+// lastKind names the final event for a diagnostic, or "none".
+func lastKind(events []agentsession.Event) string {
+	if len(events) == 0 {
+		return "none"
+	}
+	return string(events[len(events)-1].Kind)
 }
 
 // readyObserved reports whether the stream contains the Initializing->Ready handshake.
@@ -190,4 +220,42 @@ func procCommPPID(pid int) (comm string, ppid int, ok bool) {
 		return "", 0, false
 	}
 	return comm, ppid, true
+}
+
+// TestDrainTerminal_ADeadlineNamesItself drives the branch that shipped
+// unproven. The scripted fake emits 1 non-terminal event and then holds the
+// stream open, so the drain can only end on its deadline.
+//
+// Before this, the deadline returned the events collected so far and the caller
+// blamed whatever the last event happened to be. That is how a 64-second omp run
+// was reported as "last = extension" in eden#4, with the clock nowhere in the
+// message.
+func TestDrainTerminal_ADeadlineNamesItself(t *testing.T) {
+	t.Parallel()
+
+	// No terminal event in the script, so the stream never ends by itself.
+	pool := newPool(t, agentsessiontest.New(agentsession.Event{Kind: agentsession.EventExtension}))
+	session, err := pool.Open(context.Background(), agentsession.Spec{
+		Workspace:  "/workspace",
+		Routing:    agentsession.RouteKey{Role: "assistant"},
+		Credential: secrets.Ref(vaultReference),
+	})
+	if err != nil {
+		t.Fatalf("open on the fake: %v", err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap.
+
+	// 2 seconds, not the production deadline: this test is about the branch,
+	// not about how long the real harness is given.
+	const testDeadline = 2 * time.Second
+	events, drainErr := drainTerminalWithin(session, testDeadline)
+	if drainErr == nil {
+		t.Fatalf("a session with no terminal event drained cleanly; got %d event(s)", len(events))
+	}
+	if !strings.Contains(drainErr.Error(), "no terminal event within") {
+		t.Fatalf("the error does not name the deadline: %v", drainErr)
+	}
+	if !strings.Contains(drainErr.Error(), testDeadline.String()) {
+		t.Fatalf("the error does not carry the deadline value %s: %v", testDeadline, drainErr)
+	}
 }

@@ -60,7 +60,10 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 		t.Fatalf("Prompt: %v", err)
 	}
 
-	events := drainTerminal(t, session)
+	events, drainErr := drainTerminal(session)
+	if drainErr != nil {
+		t.Fatal(drainErr)
+	}
 	if len(events) == 0 {
 		t.Fatal("the stub subprocess produced no events")
 	}
@@ -184,7 +187,10 @@ func TestIntegration_LiveOmp_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events := drainTerminal(t, session)
+	events, drainErr := drainTerminal(session)
+	if drainErr != nil {
+		t.Fatal(drainErr)
+	}
 	if len(events) == 0 {
 		t.Fatal("live omp session produced no events")
 	}
