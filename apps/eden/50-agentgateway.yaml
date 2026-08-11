@@ -9,7 +9,7 @@
 # /vault/secrets/token. STATELESS: POST /sessions writes desired state; the
 # orchestrator reconciles the pod. serviceAccountName eden-agent (declared in
 # 20-rbac.yaml). Picked up by the app-eden Application (recurse:false, flat dir);
-# Argo selfHeal + prune + ServerSideApply reconciles.
+# Argo selfHeal + prune reconciles.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

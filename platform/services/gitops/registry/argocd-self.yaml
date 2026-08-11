@@ -29,5 +29,9 @@ spec:
   # No automated block yet — manual sync during bootstrap. prune never enabled here.
   syncPolicy:
     syncOptions:
+      # ServerSideApply is REQUIRED here and nowhere else by default. Its
+      # largest resource is 1385882 bytes (CustomResourceDefinition applicationsets.argoproj.io),
+      # and client-side apply stores the manifest in an annotation capped at
+      # 262144 bytes. Measured 2026-08-11. See docs/debt-register.md D44.
       - ServerSideApply=true
       - ApplyOutOfSyncOnly=true
