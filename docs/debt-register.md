@@ -9,8 +9,8 @@ or recorded here as accepted-imperative with the steps to recreate it.
 Status legend: 🔴 open (reliability or security risk) · 🟠 open (reproducibility) ·
 🟡 minor or accepted · ✅ resolved (captured declaratively).
 
-Last updated: 2026-08-10 (`.ci/` deleted — see D38; testing standard written —
-see docs/testing-standard.md).
+Last updated: 2026-08-11 (hnslint has its own public repository and is pinned in
+the base image — see D39).
 
 ---
 
@@ -552,7 +552,7 @@ entry point is `.github/workflows/validate.yml` calling `scripts/verify-*.sh`.
 `.ci`, so nothing was lost, but nothing was gained there either.
 
 
-### D39
+### D39 ✅ hnslint was required by the libs gate and was in no image — RESOLVED (2026-08-11)
 
 **hnslint is required by the libs gate and is in no image.**
 
@@ -579,6 +579,21 @@ Options, cheapest first:
 
 Option 1 is the recommendation. The choice is Mateo's, because it moves code
 between repositories.
+
+**Resolved (2026-08-11) — Mateo chose option 2.** The tool is now the public
+repository `gophersys/hnslint`, tagged `v0.1.0`. `.devcontainer/base/Dockerfile`
+installs it in the Go-tools layer, pinned by `ARG HNSLINT_VERSION`, so every
+image that descends from `base` carries it, `base-runner` included. The
+repository is public for the same reason `gophersys/cictl` is: an image build
+cannot authenticate to a private repository.
+`scripts/verify-runner-image.sh` asserts `hnslint on PATH`, and the assertion
+passed on `e0c6bc5`.
+
+The duplicate source at `eden/tools/hnslint` is deleted, and the `post-create`
+verb no longer builds it. The 2 changes go together: while both existed, the
+`post-create` build put a working tree in `GOPATH/bin`, which takes precedence on
+`PATH`, so a developer ran their own copy and CI ran `v0.1.0`. To change the
+version now, cut a release in `gophersys/hnslint` and raise the pin.
 
 ### D40
 
