@@ -776,10 +776,32 @@ always red.
 **Not caused by the CI work.** The applications changed on 2026-08-10 —
 `arc-org` and `arc-review` — are Synced. The 4 above were not touched.
 
-To resolve: get the actual diff (`argocd app diff <name>`, which needs the CLI
-that is not installed here), then either fix the manifest or add a narrow
-`ignoreDifferences` entry that names the field and says why. Do not add a broad
-ignore: that hides the next real drift as effectively as the noise does.
+**Diagnosed.** The `argocd` binary is not absent, it is inside the
+application-controller pod, which is where it lives on this cluster:
+`kubectl exec -n argocd argocd-application-controller-0 -- argocd app diff <app> --core`.
+It needs the controller and not the server, whose service account cannot list
+services. The result splits the 4 apps in 2:
+
+| app | diff | meaning |
+| --- | --- | --- |
+| `root` | exit 1, 81 bytes | a real difference — **resolved**, see below |
+| `arc-netpol` | exit 0, empty | the status says OutOfSync and the diff says identical |
+| `repo-credentials` | exit 0, empty | the same |
+| `eden` | exit 0, empty | the same |
+
+**`root` is resolved.** The whole difference was `recurse: false` on
+`Application/eden`: git declared it and the live object had no such field.
+`recurse: false` is the Argo default, and `root` syncs with
+`ServerSideApply=true`, so the API server normalised the field away every time
+Argo wrote it and Argo then saw it missing again. `selfHeal` made it retry for 5
+weeks. Removing the line changed no behaviour, because `false` is what `recurse`
+already is, and `root` reports Synced with an empty diff now.
+
+**What remains** is the other 3: an Application whose status says OutOfSync while
+its own diff is empty. That is a stale status rather than a drift, and the same
+reasoning applies to it — a permanently wrong alarm hides the next real one. Do
+not add a broad `ignoreDifferences` for it: that hides a real drift as
+effectively as the noise does.
 
 
 ## Resolved
