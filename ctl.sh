@@ -194,6 +194,7 @@ Commands:
   verify-registry   Assert every in-repo Argo Application path resolves
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
+  verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
   help              Show this message
 EOF
 }
@@ -202,6 +203,13 @@ function cmd_verify_access() {
   # Assert every machine in contracts/access.yaml is reachable by its declared
   # method. Read-only: one SSH hostname echo per host.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-access.sh" "$@"
+}
+
+function cmd_verify_image_arch() {
+  # Assert that a multi-arch image is what its manifest says. A manifest declares
+  # a platform and nothing verified the content, which is how the published
+  # linux/arm64 base image came to be an amd64 userland. See D42.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-image-arch.sh" "$@"
 }
 
 function cmd_verify_runner_image() {
@@ -243,6 +251,7 @@ function main() {
     verify-access)   cmd_verify_access   "$@" ;;
     verify-registry) cmd_verify_registry "$@" ;;
     verify-structure) cmd_verify_structure "$@" ;;
+    verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     help|"")        usage ;;
