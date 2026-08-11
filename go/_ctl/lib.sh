@@ -107,7 +107,12 @@ go_in_lib() { ( cd "$PROJECT_ROOT" && go "$@" ); }
 
 cmd_build() {
   require_cmd go
-  log_info "build: go build ./... (GOWORK=$GOWORK)"
+  # GOWORK is exported above ONLY when the eden go.work exists. gophersys/libs is
+  # also checked out on its own in CI, where there is no eden workspace, so a bare
+  # $GOWORK here is unset and `set -u` aborts the build. The gate then failed for
+  # the environment rather than for the code, and the message named a variable
+  # instead of a compile error.
+  log_info "build: go build ./... (GOWORK=${GOWORK:-unset — no eden go.work, so this lib builds standalone})"
   go_in_lib build ./...
   log_success "build: OK"
 }
