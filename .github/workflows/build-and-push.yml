@@ -39,6 +39,10 @@ env:
 
 jobs:
   base:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 90
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -97,6 +101,10 @@ jobs:
   # One Dockerfile (runner/) serves every parent. Adding `zephyr-runner` means
   # copying this job with BASE_IMAGE pointed at zephyr — never a new Dockerfile.
   base-runner:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 90
     needs: [base]
     runs-on: ubuntu-latest
     permissions:
@@ -150,6 +158,10 @@ jobs:
         run: bash .ci/smoke.sh base-runner
 
   flutter:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 90
     needs: [base]
     runs-on: ubuntu-latest
     permissions:
@@ -200,6 +212,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=flutter
 
   zephyr:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 90
     needs: [base]
     runs-on: ubuntu-latest
     permissions:
@@ -250,6 +266,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=zephyr
 
   zephyr-devbox:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 90
     # Layers on zephyr the same way zephyr layers on base: BASE_TAG is the
     # commit short SHA (base's output), which is also the tag the zephyr job
     # just pushed — so the devbox FROMs the freshly pushed zephyr.
