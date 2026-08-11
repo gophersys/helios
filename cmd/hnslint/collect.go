@@ -4,7 +4,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/gophersys/eden/tools/hnslint/internal/checker"
+	"github.com/gophersys/hnslint/internal/checker"
 )
 
 // errUsage is returned when hnslint is invoked with no directory arguments.

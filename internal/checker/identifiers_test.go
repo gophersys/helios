@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gophersys/eden/tools/hnslint/internal/checker"
+	"github.com/gophersys/hnslint/internal/checker"
 )
 
 // TestCheckRejectsBareBannedIdentifier locks check (1): an exported identifier whose
