@@ -33,4 +33,8 @@ spec:
       selfHeal: true
       prune: false
     syncOptions:
+      # ServerSideApply is REQUIRED here and nowhere else by default. Its
+      # largest resource is 254802 bytes (ConfigMap rayne),
+      # and client-side apply stores the manifest in an annotation capped at
+      # 262144 bytes. Measured 2026-08-11. See docs/debt-register.md D44.
       - ServerSideApply=true

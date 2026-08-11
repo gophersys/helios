@@ -22,5 +22,4 @@ spec:
   syncPolicy:
     # intentionally no `automated` — see header
     syncOptions:
-      - ServerSideApply=true
       - CreateNamespace=true

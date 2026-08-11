@@ -35,4 +35,3 @@ spec:
       prune: false          # never auto-delete the operator (would orphan proxies)
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true

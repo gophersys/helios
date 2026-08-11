@@ -43,5 +43,3 @@ spec:
         automated:
           selfHeal: true
           prune: true       # dir deletion IS the tear-down (see header)
-        syncOptions:
-          - ServerSideApply=true
