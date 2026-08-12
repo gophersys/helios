@@ -1,6 +1,6 @@
 # golangci-parallel
 
-phase:    green (blocked on 1 decision)
+phase:    verify
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
@@ -137,7 +137,20 @@ reason:
 2. the string `golangci-lint found issues` must be ABSENT on exit 3 and PRESENT
    on exit 1
 
-## Blocked — 1 decision for Mateo
+## Decision, 2026-08-11
+
+Mateo chose (b). This pull request lands the fix with the suite RUNNABLE but NOT
+in the `pr` tier. The wiring follows in a separate pull request, after the 4
+drift failures below are fixed. Recorded as task #32, because option (b) only
+works if the follow-up actually happens — otherwise the suite gates nothing,
+which is the failure this work exists to kill.
+
+The implementer's change to `project.json` STAYS. The `validate` target is
+cached, and its `inputs` did not list `_ctl/*.sh` or `*_test.sh`, so Nx would
+have served a stale green after a change to the newly covered files. That is a
+correct fix and it is in scope.
+
+## The blocker that the decision defers
 
 Wiring `validate` into the `pr` tier turns the lane red at once, for 4 drift
 failures that pre-date this branch. The implementer proved they pre-date it by
@@ -159,5 +172,4 @@ committed. So regeneration is safe the moment the contract change is approved.
 
 ## Next
 
-Mateo decides: fix the 4 drift failures in this pull request, or wire `validate`
-into the `pr` tier in a follow-up after a separate drift fix.
+Phase 4: `dev-verifier` tries to REFUTE that this is done.
