@@ -1,6 +1,6 @@
 # wire-validate-into-pr
 
-phase:    plan
+phase:    red
 repo:     gophersys/libs
 branch:   ci/wire-validate-into-pr
 worktree: ~/code/.worktrees/libs-wire-validate
@@ -22,7 +22,8 @@ the `_ctl` shellcheck coverage gate real changes.
 
 ## Plan
 
-AWAITING MATEO'S APPROVAL.
+APPROVED by Mateo, 2026-08-12, before going to sleep. He asked for the feature
+to be finished and every repository cleaned up.
 
 **The earlier reading was wrong, and I repeated it.** It said the 3 template
 failures were false positives because those dispatchers have no local `usage()`
@@ -84,4 +85,4 @@ Nothing yet.
 
 ## Next
 
-STOP. Mateo approves or rejects.
+Phase 2: dev-test-author writes the 6 tests and proves each fails.
