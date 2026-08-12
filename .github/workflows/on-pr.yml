@@ -17,11 +17,7 @@ permissions:
 jobs:
   # The fast lane: the pr-tier verbs over the affected projects. No real substrate.
   pr:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
-    timeout-minutes: 25
-    name: pr tier (ci-drift, affected-gate-fast)
+    name: pr tier (ci-drift, validate, affected-gate-fast)
     runs-on: arc-org
     timeout-minutes: 15
     steps:
@@ -34,6 +30,10 @@ jobs:
         env:
           NX_BASE: "origin/${{ github.base_ref }}"
         run: bash .ci/ctl.sh ci-drift
+      - name: bash .ci/ctl.sh validate
+        env:
+          NX_BASE: "origin/${{ github.base_ref }}"
+        run: bash .ci/ctl.sh validate
       - name: bash .ci/ctl.sh affected-gate-fast
         env:
           NX_BASE: "origin/${{ github.base_ref }}"
@@ -41,10 +41,6 @@ jobs:
 
   # The careful-orchestration lane: the merge-tier verbs on the real substrate before merge.
   merge:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
-    timeout-minutes: 25
     name: merge tier (affected-gate-substrate)
     runs-on: arc-org
     needs: pr

@@ -52,8 +52,10 @@ Every library under a language subtree follows the
    - Start with `set -Eeuo pipefail`
    - Pass `shellcheck` cleanly
    - Be `chmod +x`
-   - Provide a `usage()` block whose listed commands match the
-     `project.json` targets (drift is enforced — see `validate` below)
+   - Answer `bash ./ctl.sh help` with one indented line per verb, and
+     those verbs must match the `project.json` targets (drift is
+     enforced by running `help`, not by reading the source — see
+     `validate` below)
 4. Verbs are consistent per subtree so consumers can invoke
    `nx run <lib>:<verb>` without reading source. Per-subtree verb
    catalogues live in each subtree's `README.md`.
@@ -68,8 +70,11 @@ library in the repo:
 
 ```
 bash ./ctl.sh status      # inventory: lib count per subtree
-bash ./ctl.sh validate    # shellcheck every ctl.sh, jq-validate every
-                          # project.json, enforce target/usage drift
+bash ./ctl.sh validate    # shellcheck every ctl.sh, every <lang>/_ctl/*.sh
+                          # and every *_test.sh, jq-validate every
+                          # project.json, enforce drift between targets and
+                          # the verbs each ctl.sh's own `help` prints, and
+                          # run every *_test.sh suite
 bash ./ctl.sh propagate   # fan out the current commit to every consuming
                           # project monorepo (only valid when this repo is
                           # checked out as brain/shared/libs/)

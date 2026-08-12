@@ -25,6 +25,10 @@ tiers:
       # First, because a contract that no longer matches its generated workflows
       # makes every later result untrustworthy.
       - ci-drift
+      # Second: shellcheck over every ctl.sh, _ctl/*.sh and *_test.sh, the
+      # project.json/usage drift check, and the shell suites. It proves the
+      # dispatchers are sound before affected-gate-fast invokes them.
+      - validate
       - affected-gate-fast
     substrate: []
     timeoutMinutes: 15

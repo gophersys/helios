@@ -36,6 +36,14 @@
       },
       "cache": false
     },
+    "ci-drift": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh ci-drift",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
     "validate": {
       "executor": "nx:run-commands",
       "options": {

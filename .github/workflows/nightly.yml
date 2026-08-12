@@ -18,10 +18,6 @@ permissions:
 jobs:
   # The exhaustive lane: every nightly-tier verb on the full substrate, on a schedule.
   nightly:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
-    timeout-minutes: 60
     name: nightly tier (gate-all, updatability)
     runs-on: arc-org
     timeout-minutes: 90
