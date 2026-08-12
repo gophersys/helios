@@ -140,7 +140,7 @@ cmd_fmt() {
 
 cmd_lint() {
   require_cmd go gofumpt golangci-lint
-  local gofumpt_bin golangci_bin unformatted
+  local gofumpt_bin golangci_bin unformatted golangci_rc
   gofumpt_bin="$(have_cmd gofumpt)"; golangci_bin="$(have_cmd golangci-lint)"
   log_info "lint: gofumpt -l ."
   unformatted="$( cd "$PROJECT_ROOT" && "$gofumpt_bin" -l . )"
@@ -155,7 +155,27 @@ cmd_lint() {
   # non-zero exit was observed not to abort — a blind gate). `|| { …; exit 1; }` is unambiguous.
   go_in_lib vet ./... || { log_error "go vet reported problems"; exit 1; }
   log_info "lint: golangci-lint run ./... (the shared libs/.golangci.yml strict set)"
-  ( cd "$PROJECT_ROOT" && "$golangci_bin" run --timeout=180s ./... ) || { log_error "golangci-lint found issues"; exit 1; }
+  # golangci-lint 2.x: 0 clean, 1 findings, anything else the RUN failed (a lost file
+  # lock, an invalid config, a panic, an OOM kill). Reporting every non-zero exit as
+  # findings sent readers hunting for lint output that was never produced, so the
+  # message branches on the code and always names it.
+  #
+  # The cd reports ITSELF rather than riding `cd … &&`: a failed cd exits the subshell
+  # with 1, which the arms below now DEFINE as "findings", so an unreadable PROJECT_ROOT
+  # would print the exact lie this branch exists to delete. 120 is outside golangci-lint's
+  # documented range (0-7) and outside the shell's exec failures (126/127), so no real run
+  # can land on that arm.
+  golangci_rc=0
+  (
+    cd "$PROJECT_ROOT" || { log_error "cannot enter $PROJECT_ROOT — golangci-lint never ran"; exit 120; }
+    "$golangci_bin" run --timeout=180s ./...
+  ) || golangci_rc=$?
+  case "$golangci_rc" in
+    0)   ;;
+    1)   log_error "golangci-lint found issues"; exit 1 ;;
+    120) exit 1 ;;  # the cd already named itself
+    *)   log_error "golangci-lint failed to run (exit $golangci_rc) — a run failure, not a lint finding"; exit 1 ;;
+  esac
   log_success "lint: OK"
 }
 

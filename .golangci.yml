@@ -20,6 +20,12 @@ run:
   # testpackage) and the HNS-1 banned-token gate (forbidigo) must cover *_test.go,
   # because the cfgtest naming break that ADR-0018 cites lived in test imports.
   tests: true
+  # eden's nx runs 10 tasks at once, so several libs lint concurrently. Without
+  # this, the second instance loses the file lock and exits 3 ("parallel
+  # golangci-lint is running") — a run failure that reads like a lint finding.
+  # The key is PLURAL: the singular spelling is valid YAML and is rejected by the
+  # schema with the same exit 3, which would look like the collision it replaced.
+  allow-parallel-runners: true
 
 linters:
   # Start from a curated set, not "all": every linter here is deliberate and
