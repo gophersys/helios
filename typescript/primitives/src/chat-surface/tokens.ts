@@ -77,11 +77,7 @@ export function accentSurface(theme: Theme): SurfacePair {
  */
 export function quietSurface(theme: Theme): SurfacePair {
   const r = theme.roles;
-  return pairFrom(
-    r.onPrimaryContainer.value,
-    r.primaryContainer.value,
-    r.onPrimaryContainer.value,
-  );
+  return pairFrom(r.onPrimaryContainer.value, r.primaryContainer.value, r.onPrimaryContainer.value);
 }
 
 /**

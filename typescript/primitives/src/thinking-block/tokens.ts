@@ -14,13 +14,7 @@
  */
 
 import type { Theme, OkLch } from '@eden/theme';
-import {
-  quietSurface,
-  proportion,
-  space,
-  hitTargetPx,
-  styleVars,
-} from '../chat-surface/index.js';
+import { quietSurface, proportion, space, hitTargetPx, styleVars } from '../chat-surface/index.js';
 
 /** The CSS-variable namespace every ThinkingBlock custom property carries (one prefix). */
 const VAR_PREFIX = '--eden-thinking-block';

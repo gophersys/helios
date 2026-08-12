@@ -8,10 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/svelte';
 import { generateTheme, C21_SEED } from '@eden/theme';
 import PermissionRequest from './permission-request.svelte';
-import {
-  derivePermissionRequestTokens,
-  permissionRequestStyleVars,
-} from './tokens.js';
+import { derivePermissionRequestTokens, permissionRequestStyleVars } from './tokens.js';
 
 describe('derivePermissionRequestTokens — the pure derivation contract', () => {
   const theme = generateTheme(C21_SEED);
