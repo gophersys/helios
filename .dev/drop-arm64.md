@@ -1,6 +1,6 @@
 # drop-arm64
 
-phase:    green
+phase:    verify
 repo:     gophersys/.devcontainer
 branch:   feat/drop-arm64
 worktree: ~/code/.worktrees/dc-drop-arm64
@@ -72,6 +72,35 @@ One declaration, one membership rule, every path through it.
   asserts the published manifest carries exactly the sanctioned set.
 - Every document that would become untrue is rewritten.
 
+## Proven — phase 3, green
+
+  platform-policy.test.sh    8 checks, 0 failed  (10 -> 8: 3 PLATFORMS keys became 1)
+  guard.test.sh             11 checks, 0 failed  (the 5 conservation guards still green)
+  verify-published.test.sh   6 checks, 0 failed
+  bash ./ctl.sh test        rc 0, 3 files
+  bash ./ctl.sh validate    validate: OK, rc 0
+
+Proved by execution rather than asserted:
+- the tripwire fires: `MULTI_ARCH_PLATFORMS=... bash base/ctl.sh help` -> rc 1,
+  naming `IMAGE_PLATFORMS`
+- captured argv is `docker build --platform linux/amd64 ...`, for `base` and for
+  `base-runner` through root delegation
+- `ctl.sh test` on a tree with no test file -> rc 1, "nothing ran, so nothing is
+  proven"
+- `verify-published base-runner e0c6bc5` accepts amd64; `flutter` against the
+  arm64 fixture -> rc 1, "published but not sanctioned: linux/arm64"
+
+**hadolint, read exactly.** It was ABSENT, which failed `validate` naming the
+tool — the rule working. The implementer installed 2.15.1, which reported 13
+findings. Those findings are IDENTICAL on unmodified HEAD Dockerfiles, so they
+are pre-existing and caused by a linter NEWER than the repository's pinned
+`HADOLINT_VERSION=2.14.0`. They were NOT silenced. Re-run through the pinned
+2.14.0 image: `validate: OK`, rc 0. CI runs arc-org, which carries the pinned
+version.
+
+The Dockerfile was edited by targeted replacement only. Instruction census
+71 -> 70, and a line-by-line diff shows exactly 3 changes, all intended.
+
 ## Proven — phase 2, red
 
 3 hermetic test files under `_ctl/tests/`, run directly with `bash <file>` because
@@ -137,7 +166,18 @@ The test author named 4 contracts. Breaking any makes a test undrivable:
 4. the old-name tripwire fires at SOURCE time on the variable being SET, not
    inside the guard on its value.
 
+## Two decisions the implementer made rather than guessed
+
+1. The tripwire matches the retired name by PREFIX, `("${!MULTI_ARCH@}")`, not as
+   a literal — because `platform-policy.test.sh` forbids the literal token in
+   `_ctl/lib.sh` and the tripwire must detect that same name. Any `MULTI_ARCH*`
+   variable trips it, and the offender's real name is printed from what was found.
+   Verified firing.
+2. The duplicate shellcheck step in `validate.yml` was REMOVED, not broadened,
+   because `ctl.sh validate` in the same job now covers a strict superset at the
+   same severity. A second file list is the drift this repository has been bitten
+   by twice.
+
 ## Next
 
-Phase 3: dev-implementer makes the 13 red checks green, then COMMIT before
-phase 4.
+Phase 4: dev-verifier tries to REFUTE that this is done.
