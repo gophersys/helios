@@ -1,6 +1,6 @@
 # golangci-parallel
 
-phase:    verify
+phase:    pr
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
@@ -63,6 +63,10 @@ cause. It is also the only half that is deterministically testable.
 - No shell test harness exists anywhere in libs: 0 `*_test.sh`, 0 `.bats`.
 
 ## Proven — phase 3, green
+
+Re-verified by the orchestrator after the fixes, exit code read directly with no
+pipe: `bash go/_ctl/lib_test.sh` -> rc 0. `shellcheck -S style` over all 4 shell
+files -> rc 0. Tree clean, 11 commits on the branch.
 
 `bash go/_ctl/lib_test.sh` -> rc 0, "5 test(s) hold; 4 of 5 proven able to fail;
 1 stated no counter".
@@ -149,6 +153,35 @@ reason:
 2. the string `golangci-lint found issues` must be ABSENT on exit 3 and PRESENT
    on exit 1
 
+## Phase 4 — refuted, then fixed
+
+`dev-verifier` returned 8 findings. It broke the fix in 2 places and confirmed the
+right tests went red: the config key set to false gave 5 of 5 runs red, and the
+reverted `case` block gave 2 tests red including the counter-arm.
+
+Fixed, each with the command that proves it:
+1. HIGH. `project.json` inputs did NOT include `.golangci.yml` or the fixture, so
+   Nx could serve a cached green after a change to the very file this work is
+   about. The implementer's own claim to the contrary was false. Now covered, and
+   proven by expanding the globs and checking every path the suite reads.
+2. `ctl.sh validate` passed silently when it found 0 test suites. Now a failure:
+   on a tree with no suite it reports 5 issues where it used to report 4.
+3. A failed `cd` exited 1 and so read as "golangci-lint found issues" — the same
+   lie, in the file that exists to delete it. It now names itself and exits 120,
+   outside golangci-lint's 0-7 range and outside the shell's 126/127.
+4. The suite's summary claimed "each is proven able to fail" when 1 test declares
+   no counter. It now COUNTS: "4 of 5 proven able to fail; 1 stated no counter".
+5. A provenance comment described a capture that no longer reproduces once the
+   fix landed. Reworded, with a recipe that does.
+
+ACCEPTED, not fixed: `templates/_ctl/template.sh` holds the same 8-line handler
+as `go/_ctl/lib.sh`. The implementer measured before deferring: the 2 libraries
+already share 22 function names and only 4 are byte-identical, so closing these 8
+lines properly means creating the repository's first shared shell library and
+moving all 22. That is a refactor of both gate libraries with its own proof
+obligation. Moving 1 function to a third home while 21 stay duplicated would be
+arbitrary. Recorded as debt.
+
 ## Decision, 2026-08-11
 
 Mateo chose (b). This pull request lands the fix with the suite RUNNABLE but NOT
@@ -184,4 +217,4 @@ committed. So regeneration is safe the moment the contract change is approved.
 
 ## Next
 
-Phase 4: `dev-verifier` tries to REFUTE that this is done.
+Phase 5: open the pull request.
