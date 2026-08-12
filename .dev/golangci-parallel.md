@@ -1,6 +1,6 @@
 # golangci-parallel
 
-phase:    green
+phase:    green (blocked on 1 decision)
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
@@ -62,6 +62,22 @@ cause. It is also the only half that is deterministically testable.
   exits 0. YAML accepts the typo silently, so test 5 is what catches it.
 - No shell test harness exists anywhere in libs: 0 `*_test.sh`, 0 `.bats`.
 
+## Proven — phase 3, green
+
+`bash go/_ctl/lib_test.sh` -> rc 0, "all 5 test(s) hold, and each is proven able
+to fail". The exit-3 arm now prints
+`golangci-lint failed to run (exit 3) — a run failure, not a lint finding`.
+
+`shellcheck -S style ctl.sh go/_ctl/lib.sh templates/_ctl/template.sh` -> rc 0.
+`cd go/errors && bash ./ctl.sh lint` -> `0 issues.` rc 0. A real library still
+lints clean under the new config and the new handler.
+
+`bash ./ctl.sh validate` CANNOT run on this host: /bin/bash is 3.2.57 and has no
+mapfile, so the pre-existing script dies rc 127. The implementer built an
+ubuntu 24.04 container with bash 5.2 and ran it there: 29 scripts shellchecked
+including the 4 `_ctl/*.sh` that were never checked before, 25 project.json
+parse, the new suite green.
+
 ## Proven — phase 2, red
 
 `bash go/_ctl/lib_test.sh` -> EXIT 1, "4 failure(s) across both phases".
@@ -121,6 +137,27 @@ reason:
 2. the string `golangci-lint found issues` must be ABSENT on exit 3 and PRESENT
    on exit 1
 
+## Blocked — 1 decision for Mateo
+
+Wiring `validate` into the `pr` tier turns the lane red at once, for 4 drift
+failures that pre-date this branch. The implementer proved they pre-date it by
+running the same container against a pristine `origin/main`: the same 4, byte for
+byte.
+
+1. `.ci/project.json` has no `ci-drift` target, although `.ci/ctl.sh` implements
+   the verb and the `pr` tier calls it. A genuine gap. Not the implementer's file.
+2-4. 3 template `project.json` files report targets "missing from ctl.sh usage".
+   FALSE POSITIVES. Those dispatchers hold no local `usage()`; they source
+   `templates/_ctl/template.sh` and call `template_usage`, which does list every
+   target. The drift parser only reads `^function usage() {` in the dispatcher
+   itself, so it sees an empty usage block.
+
+Also found: `cictl` is not on PATH on this host. It is buildable from
+~/code/cictl, and the implementer proved that build faithful — run over the
+UNCHANGED contract it regenerates every workflow byte for byte against what is
+committed. So regeneration is safe the moment the contract change is approved.
+
 ## Next
 
-Phase 3: `dev-implementer` makes the red tests green, then COMMIT before phase 4.
+Mateo decides: fix the 4 drift failures in this pull request, or wire `validate`
+into the `pr` tier in a follow-up after a separate drift fix.
