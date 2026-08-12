@@ -1,6 +1,6 @@
 # drop-arm64
 
-phase:    plan
+phase:    red
 repo:     gophersys/.devcontainer
 branch:   feat/drop-arm64
 worktree: ~/code/.worktrees/dc-drop-arm64
@@ -89,4 +89,6 @@ Nothing.
 
 ## Next
 
-Phase 2 once the plan lands.
+Phase 2: dev-test-author writes 3 hermetic test files and proves each red.
+Mateo auto-approved the plans on 2026-08-12, so phase 1 stops are waived for this
+feature and the next 2.
