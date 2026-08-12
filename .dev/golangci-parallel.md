@@ -1,6 +1,6 @@
 # golangci-parallel
 
-phase:    wait
+phase:    submit
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
@@ -215,7 +215,33 @@ Also found: `cictl` is not on PATH on this host. It is buildable from
 UNCHANGED contract it regenerates every workflow byte for byte against what is
 committed. So regeneration is safe the moment the contract change is approved.
 
+## Phase 6 — both checks pass, and the pass is worthless
+
+`pr tier` and `merge tier` both went green in 8 SECONDS on a pull request that
+changes 6 files. Read the log rather than the badge:
+
+```
+affected-gate-fast: phase-gate implementation over affected projects (base=origin/main)
+skipping .: not a library (libraries are go/<name> or typescript/<name>)
+affected projects had no gateable ctl.sh — clean no-op
+```
+
+Every file this pull request touches is at the repository root, in `_ctl/`, or in
+`templates/`. None is `go/<name>` or `typescript/<name>`, so the affected gate
+classified all of them as "not a library" and ran NOTHING.
+
+So the green means: no library changed. It does not mean the change is good. The
+5 tests, the widened shellcheck set and the new `_ctl` coverage were all skipped.
+
+This is the same defect class the pull request exists to fix, demonstrated live on
+the pull request that fixes it. It is also the mechanical answer to the question
+"why did this defect ship": nothing was ever going to catch it.
+
+`libs` has NO `pr-review` workflow — only `nightly.yml`, `on-pr.yml` and
+`on-push.yml`. So there is no review verdict for this pull request, and the skill
+says to say so rather than leave the field blank.
+
 ## Next
 
-Phase 6: poll the checks. A pending check with no runner for over 5 minutes is a
-suspected stuck runner, not a slow one.
+STOP. Mateo decides whether to merge on a green that ran nothing, knowing the
+evidence is the local and container runs recorded above.
