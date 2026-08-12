@@ -1,6 +1,6 @@
 # wire-validate-into-pr
 
-phase:    verify
+phase:    pr
 repo:     gophersys/libs
 branch:   ci/wire-validate-into-pr
 worktree: ~/code/.worktrees/libs-wire-validate
@@ -98,7 +98,26 @@ rc 0.
 documents `openapi`, `verify-openapi` and `gen-client` at :462-464 and dispatches
 all 3 at :491-493, with no matching target until this change.
 
-## Proven — phase 4, refuted then fixed
+## Proven — phase 4 round 2, all findings closed
+
+`bash ctl_test.sh` -> rc 0, "10 test(s) hold; 10 of 10 proven able to fail; 0
+stated no counter". Re-run by the orchestrator, exit code read directly.
+
+The verifier returned 9 findings. 6 were fixed, 1 was mine, 2 were accepted:
+- the empty-verb-list guard had NO test. Deleting it left the suite green. Now
+  tested, with a fixture whose `help` prints its verbs to STDERR — the shape a
+  real dispatcher could drift into unnoticed.
+- `timeout 10` had no test. Now tested with a shim that swaps the budget so the
+  suite stays fast; the mutant that removes the bound takes 30s and fails.
+- the 3 new list floors had no test. Closed with 2 tests, not 3: only the
+  1-list-full-1-list-empty shapes can tell a per-list floor from a merged one,
+  and there are exactly 2 of those.
+- a tree with no `project.json` passed having checked nothing. Floored.
+- a `help` exiting 128 never named git as the cause. It does now.
+- 4 documented claims in `.ci/README.md` and `README.md` had become false.
+- a swallowed `jq` error mislabelled its own cause. Unswallowed.
+
+## Proven — phase 4 round 1, refuted then fixed
 
 The verifier planted a real 2-way drift in the ACTUAL tree — renamed the
 `openapi` target to `zzz-bogus` — and both directions were named:
@@ -130,6 +149,13 @@ breaking the help-exit propagation reds exactly 1 test and no others.
 
 Nothing yet.
 
+## Accepted, not fixed
+
+2 pieces of surface added during round 2 are proven by hand and have no test: the
+`jq` cannot-take-keys branch, and the git hint on exit 128. The test author
+flagged them itself and stopped, because the 2-attempt budget was spent. That is
+the process working: it named the gap instead of quietly expanding.
+
 ## Next
 
-Phase 5: open the pull request, once the 2 agents finish the phase 4 findings.
+Phase 5: open the pull request.
